@@ -51,14 +51,20 @@ namespace Energietracker\Services;
  *   `demo_align.billing_anchor_days_ago` verlangt — die letzte Periode der Art
  *   endet dann so viele Tage vor heute, „Abrechnung erwartet“ (F1029) ist zu
  *   jedem Zeitpunkt zu sehen. `demo_align` selbst wird nicht eingespielt.
+ *   Seit v3.6.0 wandern die Jahresrechnungen dieser Art mit (`alignBills`):
+ *   Die jüngste endet am Tag vor dem Stichtag vor einem Jahr, die Kette davor
+ *   ist lückenlos — das Abrechnungsjahr (F1030) zeigt keine Zwischenperiode und
+ *   schlägt keinen anderen Stichtag vor. Die Beträge der gewanderten Rechnungen
+ *   rechnet DemoService nach dem Einspielen nach (`_demo_recalc`).
  *
  * Verträge bleiben unverändert: Ein abgelaufener Vertrag läuft ohne Kündigung
  * weiter (`ContractService::resolveForDate`, v2.9.0) — genau das zeigt die Demo
  * dann auch. Versorgerrechnungen bleiben ebenso, wie sie sind (v3.5.0): Eine
  * Rechnung ist ein Beleg mit Beträgen, die sich nicht aus dem Vorjahr kopieren
- * lassen. Bestehende Einträge werden nie verändert, nur ergänzt (Termine, ihr
- * Verlauf und ein verlangter Stichtag ausgenommen). Reine Funktion: kein
- * Speicher, kein Systemdatum.
+ * lassen — ausgenommen die Arten mit Stichtag relativ zu heute (s. o.).
+ * Bestehende Einträge werden nie verändert, nur ergänzt (Termine, ihr Verlauf,
+ * ein verlangter Stichtag und die Rechnungen seiner Art ausgenommen). Reine
+ * Funktion: kein Speicher, kein Systemdatum.
  */
 final class DemoDataAligner
 {
@@ -133,9 +139,227 @@ final class DemoDataAligner
         foreach ($want as $u => $days) {
             if (!is_string($u) || !\Energietracker\Config\Utilities::exists($u) || !is_int($days) || $days < 1 || $days > 300) continue;
             $anchor = substr(self::addDays($today, 1 - $days), 5, 5);
-            $payload['settings']['billing_cycle_anchor_' . $u] = $anchor === '02-29' ? '03-01' : $anchor;
+            $anchor = $anchor === '02-29' ? '03-01' : $anchor;
+            $payload['settings']['billing_cycle_anchor_' . $u] = $anchor;
+            // v3.6.0 — die zuletzt beendete Periode (die „erwartete“) beginnt am
+            // Stichtag vor einem Jahr; die jüngste Rechnung endet am Tag davor
+            [$expectedFrom] = BillingPeriodService::gridAround($anchor, self::addDays($today, -$days));
+            $payload = self::alignBills($payload, $u, self::addDays($expectedFrom, -1), $today);
         }
         return $payload;
+    }
+
+    /**
+     * v3.6.0 — Versorgerrechnungen im Rhythmus des Stichtags. Ohne das endete
+     * die letzte Rechnung am alten Datum, der Stichtag aber wanderte mit heute:
+     * Das Abrechnungsjahr (F1030) zeigte Zwischenperioden und schlug einen
+     * anderen Stichtag vor.
+     *
+     * Je Zähler der Art: Schlussrechnungen (`kind: final`) gehören zu einem
+     * Vertragsende und bleiben. Die Jahresrechnungen bilden danach eine
+     * lückenlose Kette, die am Tag nach der letzten Schlussrechnung beginnt
+     * (ohne Schlussrechnung: so viele Jahre wie vorhanden) und am `$lastEnd`
+     * endet — je ein Jahr, die erste Rechnung eines Vertrags darf kürzer oder
+     * länger sein (kürzer als BillExpectedService::MIN_PERIOD_DAYS: mit der
+     * nächsten zusammen, wie der Versorger es meist hält). Die jüngste
+     * Rechnung behält ihre Daten (ID, Sonderzahlung, Notiz), fehlen Rechnungen
+     * für die Kette, kommen Kopien der ältesten ohne Sonderzahlung dazu;
+     * überzählige fallen mit ihrer Sonderzahlung und ihren Verlaufseinträgen
+     * weg, ebenso Rechnungen vor der ersten Ablesung. Rechnungsdatum,
+     * Erfassung, die verknüpfte Sonderzahlung (Datum, ab wann der neue
+     * Abschlag gilt) und der Verlauf zur Rechnung wandern mit dem
+     * Rechnungsende. Was sich ändert, trägt `_demo_recalc` — die Beträge
+     * rechnet DemoService nach dem Einspielen nach (BillService::compare), so
+     * passt „Rechnung prüfen“ weiter.
+     */
+    private static function alignBills(array $payload, string $u, string $lastEnd, string $today): array
+    {
+        $bills = $payload['utilities'][$u]['bills'] ?? null;
+        if (!is_array($bills) || $bills === []) return $payload;
+        $byMeter = [];
+        foreach ($bills as $i => $b) {
+            if (is_array($b) && self::isDate($b['period_from'] ?? null) && self::isDate($b['period_to'] ?? null)) {
+                $byMeter[(string)($b['meter_id'] ?? '')][] = $i;
+            }
+        }
+        $drop = [];
+        foreach ($byMeter as $meterId => $idx) {
+            $finals = array_values(array_filter($idx, fn($i) => ($bills[$i]['kind'] ?? null) === 'final'));
+            $annual = array_values(array_filter($idx, fn($i) => ($bills[$i]['kind'] ?? null) !== 'final'));
+            usort($annual, fn($a, $b) => strcmp((string)$bills[$b]['period_to'], (string)$bills[$a]['period_to']));   // jüngste zuerst
+            $chainFrom = null;
+            $lastFinal = null;
+            foreach ($finals as $i) {
+                $next = self::addDays((string)$bills[$i]['period_to'], 1);
+                if ($chainFrom === null || $next > $chainFrom) [$chainFrom, $lastFinal] = [$next, $i];
+            }
+            if ($annual === [] && $chainFrom === null) continue;
+
+            // leer, wenn eine Schlussrechnung nach dem Ziel endet: dann bleibt alles
+            $periods = self::billChain($chainFrom, $lastEnd, count($annual));
+            $first = self::firstReading($payload['utilities'][$u]['readings'] ?? [], $meterId);
+            $periods = array_values(array_filter($periods, fn($p) => $first !== null && $p[0] >= $first));
+            if ($periods === []) continue;
+
+            $template = $annual !== [] ? $bills[end($annual)] : self::annualFrom($bills[$lastFinal]);
+            foreach ($periods as $k => [$from, $to]) {
+                if (isset($annual[$k])) {
+                    $i = $annual[$k];
+                    if ($bills[$i]['period_from'] === $from && $bills[$i]['period_to'] === $to) continue;
+                    [$bills[$i], $payload] = self::moveBill($bills[$i], $from, $to, $payload, $u, $today);
+                } else {
+                    $copy = $template;
+                    $copy['id'] = 'b_' . substr(sha1((string)($template['id'] ?? '') . '|' . $to), 0, 12);
+                    $copy['contract_id'] = self::contractAt($payload['utilities'][$u]['contracts'] ?? [], $meterId, $to) ?? ($template['contract_id'] ?? null);
+                    unset($copy['special_payment_id']);
+                    $copy['attachment_ids'] = [];
+                    [$copy] = self::moveBill($copy, $from, $to, $payload, $u, $today);
+                    $bills[] = $copy;
+                }
+            }
+            foreach (array_slice($annual, count($periods)) as $i) $drop[] = $i;
+        }
+        foreach ($drop as $i) $payload = self::forgetBill($payload, $u, $bills[$i]);
+        $payload['utilities'][$u]['bills'] = array_values(array_diff_key($bills, array_flip($drop)));
+        return $payload;
+    }
+
+    /**
+     * Perioden der Kette, jüngste zuerst: je ein Jahr rückwärts ab `$lastEnd`
+     * bis zum Beginn `$chainFrom` (die älteste gekürzt bzw. — kürzer als
+     * MIN_PERIOD_DAYS — mit der nächsten zusammen), ohne Beginn `$count` Jahre.
+     *
+     * @return list<array{0:string,1:string}>
+     */
+    public static function billChain(?string $chainFrom, string $lastEnd, int $count): array
+    {
+        $out = [];
+        for ($end = $lastEnd; count($out) < 60;) {
+            $from = self::addYears(self::addDays($end, 1), -1);
+            if ($chainFrom !== null && $from <= $chainFrom) {
+                if ($end >= $chainFrom) $out[] = [$chainFrom, $end];
+                break;
+            }
+            $out[] = [$from, $end];
+            if ($chainFrom === null && count($out) >= $count) break;
+            $end = self::addDays($from, -1);
+        }
+        $n = count($out);
+        if ($chainFrom !== null && $n >= 2 && self::days($out[$n - 1][0], $out[$n - 1][1]) + 1 < BillExpectedService::MIN_PERIOD_DAYS) {
+            $out[$n - 2][0] = $out[$n - 1][0];
+            array_pop($out);
+        }
+        return $out;
+    }
+
+    /**
+     * Rechnung auf [from, to] legen: Rechnungsdatum und Erfassung wandern mit
+     * dem Ende, ebenso die verknüpfte Sonderzahlung und der Verlauf.
+     *
+     * @return array{0: array<string,mixed>, 1: array<string,mixed>}
+     */
+    private static function moveBill(array $b, string $from, string $to, array $payload, string $u, string $today): array
+    {
+        $shift = self::days((string)$b['period_to'], $to);
+        $oldFrom = (string)$b['period_from'];
+        $oldTo = (string)$b['period_to'];
+        $b['period_from'] = $from;
+        $b['period_to'] = $to;
+        if (self::isDate($b['issued_on'] ?? null)) $b['issued_on'] = self::addDays((string)$b['issued_on'], $shift);
+        if (is_string($b['created_at'] ?? null) && self::isDate(substr($b['created_at'], 0, 10))) {
+            $b['created_at'] = self::addDays(substr($b['created_at'], 0, 10), $shift) . substr($b['created_at'], 10);
+        }
+        $b['_demo_recalc'] = true;
+        $sp = (string)($b['special_payment_id'] ?? '');
+        foreach (($payload['utilities'][$u]['contracts'] ?? []) as $ci => $c) {
+            if ($sp === '' || !is_array($c['special_payments'] ?? null)) continue;
+            foreach ($c['special_payments'] as $si => $s) {
+                if (($s['id'] ?? null) !== $sp) continue;
+                foreach (['date', 'advance_from'] as $f) {
+                    if (self::isDate($s[$f] ?? null)) $s[$f] = self::addDays((string)$s[$f], $shift);
+                }
+                $payload['utilities'][$u]['contracts'][$ci]['special_payments'][$si] = $s;
+            }
+        }
+        $dmy = fn(string $d) => substr($d, 8, 2) . '.' . substr($d, 5, 2) . '.' . substr($d, 0, 4);
+        foreach (($payload['activity'] ?? []) as $ai => $e) {
+            if (!is_array($e) || ($e['ref']['bill_id'] ?? null) !== ($b['id'] ?? null)) continue;
+            if (($e['subject']['kind'] ?? null) === 'bill_expected') {
+                $uid = AgendaService::uid('bill_expected', (string)($e['ref']['contract_id'] ?? ''), $to);
+                $e['subject']['uid'] = $uid;
+                $e['subject']['occurrence'] = $uid . '@' . $to;
+            }
+            if (is_array($e['params'] ?? null) && isset($e['params']['until'])) {
+                $e['params']['from'] = $from;
+                $e['params']['until'] = $to;
+            }
+            if (is_string($e['title'] ?? null)) {
+                $e['title'] = str_replace([$dmy($oldFrom), $dmy($oldTo)], [$dmy($from), $dmy($to)], $e['title']);
+            }
+            if (self::isDate($e['done_on'] ?? null)) $e['done_on'] = min(self::addDays((string)$e['done_on'], $shift), $today);
+            if (is_string($e['recorded_at'] ?? null) && self::isDate(substr($e['recorded_at'], 0, 10))) {
+                $e['recorded_at'] = self::addDays(substr($e['recorded_at'], 0, 10), $shift) . substr($e['recorded_at'], 10);
+            }
+            $payload['activity'][$ai] = $e;
+        }
+        return [$b, $payload];
+    }
+
+    /** Eine weggelassene Rechnung: ihre Sonderzahlung und ihr Verlauf gehen mit. */
+    private static function forgetBill(array $payload, string $u, array $b): array
+    {
+        $sp = (string)($b['special_payment_id'] ?? '');
+        foreach (($payload['utilities'][$u]['contracts'] ?? []) as $ci => $c) {
+            if ($sp === '' || !is_array($c['special_payments'] ?? null)) continue;
+            $payload['utilities'][$u]['contracts'][$ci]['special_payments'] = array_values(array_filter(
+                $c['special_payments'], fn($s) => ($s['id'] ?? null) !== $sp));
+        }
+        if (is_array($payload['activity'] ?? null)) {
+            $payload['activity'] = array_values(array_filter($payload['activity'],
+                fn($e) => !is_array($e) || ($e['ref']['bill_id'] ?? null) !== ($b['id'] ?? null)));
+        }
+        return $payload;
+    }
+
+    /** Vorlage einer Jahresrechnung aus einer Schlussrechnung (ohne Notiz, Posten und Sonderzahlung). */
+    private static function annualFrom(array $final): array
+    {
+        $b = $final;
+        $b['kind'] = 'annual';
+        $b['note'] = '';
+        $b['items'] = [];
+        unset($b['special_payment_id']);
+        return $b;
+    }
+
+    /** Der echte Vertrag des Zählers, der zuletzt vor oder an `$date` begann. */
+    private static function contractAt(array $contracts, string $meterId, string $date): ?string
+    {
+        $best = null;
+        foreach ($contracts as $c) {
+            if (!is_array($c) || !empty($c['is_shadow']) || (string)($c['meter_id'] ?? '') !== $meterId) continue;
+            $start = (string)($c['start'] ?? '');
+            if (!self::isDate($start) || $start > $date) continue;
+            if ($best === null || $start > (string)$best['start']) $best = $c;
+        }
+        return $best !== null ? (string)$best['id'] : null;
+    }
+
+    /** Erste gültige Ablesung eines Zählers (ohne geplante). */
+    private static function firstReading(mixed $readings, string $meterId): ?string
+    {
+        $first = null;
+        foreach ((array)$readings as $r) {
+            if (!is_array($r) || (string)($r['meter_id'] ?? '') !== $meterId || !empty($r['is_future'])) continue;
+            $d = (string)($r['date'] ?? '');
+            if (self::isDate($d) && ($first === null || $d < $first)) $first = $d;
+        }
+        return $first;
+    }
+
+    private static function isDate(mixed $d): bool
+    {
+        return is_string($d) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $d) === 1;
     }
 
     /** Zeitzone der Installation laut Backup (wie IntervalService), sonst Berlin. */

@@ -6491,7 +6491,8 @@
             "last_done": "2025-07-22",
             "notes": "Jahreswartung durch den Installateur",
             "active": true,
-            "assignee": "Paul"
+            "assignee": "Paul",
+            "assignee_id": "u_c7a2ecac"
         },
         {
             "id": "rem_demo0002",
@@ -6503,7 +6504,8 @@
             "last_done": null,
             "notes": "Tank unter 50 % — Angebote einholen",
             "active": true,
-            "assignee": "Anna"
+            "assignee": "Anna",
+            "assignee_id": "u_a1fbab95"
         },
         {
             "id": "rem_demo0003",
@@ -6515,7 +6517,8 @@
             "last_done": "2026-03-15",
             "notes": "Kehrung und Abgasmessung",
             "active": true,
-            "assignee": "Paul"
+            "assignee": "Paul",
+            "assignee_id": "u_c7a2ecac"
         },
         {
             "id": "rem_demo0004",
@@ -9685,7 +9688,27 @@
                     ],
                     "bonuses": [],
                     "is_shadow": false,
-                    "shadow_label": null
+                    "shadow_label": null,
+                    "special_payments": [
+                        {
+                            "id": "sp_7ca72413f9",
+                            "date": "2024-02-14",
+                            "kind": "rueckzahlung_ohne",
+                            "amount_eur": 564.74,
+                            "note": "Jahresabrechnung Fernwärme 2023 — Guthaben",
+                            "new_advance_eur": null,
+                            "advance_from": null
+                        },
+                        {
+                            "id": "sp_057a0c38fe",
+                            "date": "2025-02-12",
+                            "kind": "rueckzahlung_ohne",
+                            "amount_eur": 396.95,
+                            "note": "Jahresabrechnung Fernwärme 2024 — Guthaben",
+                            "new_advance_eur": null,
+                            "advance_from": null
+                        }
+                    ]
                 }
             ],
             "bills": [
@@ -10759,5 +10782,28 @@
         "billing_anchor_days_ago": {
             "strom": 21
         }
+    },
+    "people": {
+        "last_no": 2,
+        "people": [
+            {
+                "id": "u_c7a2ecac",
+                "no": 1,
+                "name": "Paul",
+                "role": "admin",
+                "created_at": "2023-06-01T09:00:00+02:00",
+                "deleted_at": null,
+                "deleted_by": null
+            },
+            {
+                "id": "u_a1fbab95",
+                "no": 2,
+                "name": "Anna",
+                "role": "member",
+                "created_at": "2023-06-01T09:00:00+02:00",
+                "deleted_at": null,
+                "deleted_by": null
+            }
+        ]
     }
 }

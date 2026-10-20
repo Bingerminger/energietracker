@@ -55,6 +55,14 @@ level stays reachable and shows a note whose one click raises the level. More:
 | `forecast_months` | 12 | Forecast horizon | How many months the forecast looks ahead (1–24). Default of the forecast view. |
 | `alert_days_since_reading` | 45 | Warn after | If the last reading is older, the meter appears under “To do” and the consumption view reminds you. |
 
+### New versions *(v3.6.0)*
+
+| Key | Default | In the app | Effect |
+|---|---|---|---|
+| `update_check` | off | Tell me about new versions | Once a day the server asks GitHub for the newest published version (`GET /api/update-check`); if it is newer, a note with a link to the release notes appears until you close it for that version. GitHub only sees the server’s address. When switched off, no request goes out. Setup suggests it; existing installations stay off until someone switches it on. |
+
+Independently of this, every device shows “Updated to …” once after an update, with a link to the release notes — without any request going out.
+
 ### Reminders
 
 | Key | Default | In the app | Effect |
@@ -81,7 +89,7 @@ where the history is
 
 | Key | Default | In the app | Effect |
 |---|---|---|---|
-| `wohnflaeche_m2` | 100 | Living area | Heated area — denominator of the efficiency metric. Since v3.1.0 also the area for the CO₂ stage ([CO₂ price](../verstehen/16-co2-preis.md)); when you rent, the floor area from the tenancy takes precedence. |
+| `wohnflaeche_m2` | 100 | Living area | Heated area — denominator of the efficiency metric. Since v3.1.0 also the area for the CO₂ stage ([CO₂ price](../verstehen/16-co2-preis.md)); when you rent, the floor area from the tenancy takes precedence. Since v3.6.0 the “Benchmark” card only rates heating once the area has been entered (see below). |
 | `gebaeudetyp` | `efh` | Building type | Multi-family means three or more flats. Values: `efh` detached/semi-detached, `rh` terraced house, `mfh` apartment building, `whg` flat. Determines the reference area of the certificate-style figure. |
 | `beheizter_keller` | off | Heated basement | Residential building with up to two dwellings (detached/semi-detached, also terraced house) with heated basement: usable floor area = 1.35 × living area (otherwise 1.2; § 82(2) GModG, formerly GEG) — for the certificate-style figure. Only takes effect with `gebaeudetyp` `efh` or `rh`. |
 | `warmwasser_dezentral` | off | Decentralised hot water | Hot water from an instantaneous heater or boiler, not from the heating: the certificate-style figure gets a surcharge of 20 kWh/m²·yr, from 2027 of 16 kWh/m²·yr (§ 82 GModG). |
@@ -106,7 +114,9 @@ For the card “Benchmark {year}” on the overview. The app ships no tables fro
 the German electricity or heating benchmarks (Strom-/Heizspiegel) — using them
 requires permission —; you enter the values that, for example, the electricity
 benchmark gives for your household. Empty = no benchmark
-([API](api.md#benchmark-get-apibenchmarkscomparison-v310)).
+([API](api.md#benchmark-get-apibenchmarkscomparison-v310)). Since v3.6.0 the
+invitation on the card (“Enter reference values”) leads straight here, with the
+field focused.
 
 | Key | Default | In the app | Effect |
 |---|---|---|---|
@@ -119,10 +129,26 @@ benchmark gives for your household. Empty = no benchmark
 
 | Key | Default | In the app | Effect |
 |---|---|---|---|
-| `wasser_personen_anzahl` | 2 | People in household | For the water saving index: litres per person and day compared with the reference. |
+| `wasser_personen_anzahl` | 2 | People in household | For the water saving index: litres per person and day compared with the reference. Since v3.6.0 the “Benchmark” card only rates water once the number has been entered (see below). |
 | `wasser_personen_referenz` | 122 | Reference | BDEW 2024: 122 L per person and day (Germany). Existing installations keep the former default 127 until they take over the new values. |
 | `wasser_sparindex_gut` | 100 | Saving index — good up to | Index ≤ this value is considered unremarkable. |
 | `wasser_sparindex_warnung` | 150 | Saving index — warning from | Index ≥ this value indicates saving potential. |
+
+### Living area and people: entered or assumed *(v3.6.0)*
+
+The default (100 m², 2 people) is only an assumption. As long as nobody has
+entered the value, the field stays **empty**, with the default as placeholder
+and the sentence “Not entered yet …”; the “Benchmark” card then invites you to
+the field instead of rating with the default. The value counts as entered once
+it is saved — even if it equals the default (enter 100 if your home has
+100 m²). Saving the field empty withdraws the value. Values from a backup or a
+sample household count as entered; anyone who has already saved the page with
+the value keeps it. Efficiency class, CO₂ stage, water saving index and annual
+report keep calculating with the default until then. Where an assumed area
+flows in — efficiency class, CO₂ cost split for tenants (where the tenancy’s
+area comes first) — it says **“Assumed living area 100 m² – please enter it”**
+with a link straight to the field, and the annual report adds a sentence. The API reports the open
+values under `assumed_keys` ([API](api.md#assumed-values-assumed_keys-v360)).
 
 ## Settings → Utilities & billing
 
@@ -136,7 +162,7 @@ benchmark gives for your household. Empty = no benchmark
 
 | Key | Default | In the app | Effect |
 |---|---|---|---|
-| `billing_cycle_anchor_gas` | `01-01` | Settlement date gas | Day of the annual bill as `MM-DD` (displayed `DD-MM`); the balance card projects the expected bill up to it. |
+| `billing_cycle_anchor_gas` | `01-01` | Settlement date gas | Day of the annual bill as `MM-DD` (displayed `DD-MM`); the balance card projects the expected bill up to it. Since v3.6.0 it also cuts the **billing years** (switch “Calendar year · Billing year” on the utility page, the overview and the analysis, appendix in the annual report, CSV per period). Recorded supplier bills take precedence: their period applies exactly as on the bill; the settlement date only fills the gaps before, between and after them. If the last bill does not end the day before the settlement date, the utility page suggests the matching day. 29 Feb acts as 28 Feb. |
 | `billing_cycle_anchor_strom` | `01-01` | Settlement date electricity | like gas |
 | `billing_cycle_anchor_wasser` | `01-01` | Settlement date water | like gas |
 | `billing_cycle_anchor_fernwaerme` | `01-01` | Settlement date district heating | like gas |
@@ -159,6 +185,11 @@ benchmark gives for your household. Empty = no benchmark
 | `tank_warn_pct` | 15 | Tank warning from | Below this level the tank turns yellow, below half of it red, and “To do” suggests a delivery. |
 
 ### CO₂ emission factors
+
+Since v3.6.0 the long list in the tile is collapsed (“Factors per utility and
+electricity per year” — the same disclosure as “Detailed forecast”; each
+device remembers whether it is open). An error in one of the fields and saving
+a change in it open it.
 
 | Key | Default | In the app | Effect |
 |---|---|---|---|

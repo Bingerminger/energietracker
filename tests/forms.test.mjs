@@ -158,6 +158,10 @@ for (const [lang, ans, fun] of [['de', 'docs/referenz/ansichten.md', 'docs/einst
   t(`${lang}: Unterstützen-Link wie in der App`, !!url && a.includes(url.replace(/^https:\/\//, '')));
 }
 
+// ── v3.6.0: Umschalter Kalender/Abrechnung mit Abstand ────────────────
+t('Umschalter Kalenderjahr · Abrechnungsjahr: eigene Zeile mit Abstand', /margin-bottom: var\(--sp-3\)/.test(rule(C, '.period-mode-bar'))
+  && /display: flex/.test(rule(C, '.period-mode-bar')));
+
 // ── v3.5.1: Safari am iPad ────────────────────────────────────────────
 console.log('v3.5.1 (iPad, Safari)');
 const raw = read('public/css/components.css').replace(/\/\*[\s\S]*?\*\//g, '');
@@ -179,6 +183,27 @@ const haAdd = 'https://my.home-assistant.io/redirect/supervisor_add_addon_reposi
 t('Home-Assistant-App: Knopf in README (DE/EN), Handbuch (DE/EN) und App',
   ['README.md', 'README.de.md', 'docs/anleitungen/home-assistant.md', 'docs/en/anleitungen/home-assistant.md'].every(f => read(f).includes(haAdd))
   && settingsSrc.includes(`const HA_APP_ADD_URL = '${haAdd}'`));
+
+// ── v3.6.0 (Paket B): ruhige Formulare am iPad, Aufklappbereich ────────
+console.log('v3.6.0 (Zugriff ruhig, Aufklappbereich)');
+const sel = rule(C, '.select:not([multiple]):not([size])');
+t('Auswahlfelder ohne Systemdarstellung (Höhe wie Eingaben), Pfeil aus dem Theme, Textschrift',
+  /-webkit-appearance: none; appearance: none;/.test(sel) && /font-family: var\(--font-sans\)/.test(sel) && /padding-right: 32px/.test(sel) && /var\(--text-2\)/.test(sel));
+t('Textfelder ohne Safaris Eigendarstellung (Kästchen, Datei, Regler ausgenommen)',
+  /appearance: none/.test(rule(C, '.input:not([type="checkbox"], [type="radio"], [type="file"], [type="range"], [type="color"])')));
+t('16 px auch bei iPad mit Trackpad (any-pointer: coarse)', /@media \(any-pointer: coarse\) \{ \.input, \.select, textarea\.input \{ font-size: 16px; \} \}/.test(C));
+t('kein Vergrößern beim Drehen (text-size-adjust)', /html \{ -webkit-text-size-adjust: 100%; text-size-adjust: 100%; \}/.test(css('public/css/app.css')));
+t('Einstellungen: Feldabstand wie im Raster (16 px), Hinweis ohne Extraabstand',
+  /gap: var\(--sp-4\)/.test(rule(C, '.settings-fields')) && /margin-top: 0/.test(rule(C, '.settings-field__hint')));
+for (const role of ['sec-form', 'me-form', 'user-form', 'pw-reset-form', 'sec-disable-form']) {
+  t(`Passwortformular ${role} (Safari erkennt es, Enter schickt nichts ab)`, new RegExp(`<form[^>]*data-role="${role}"`).test(settingsSrc)
+    && new RegExp(`form\\[data-role="${role}"\\][^\\n]*submit`).test(settingsSrc));
+}
+const fcSrc = read('public/js/views/forecast.js');
+t('ein Aufklappbereich für Prognose und CO₂-Faktoren (components/disclosure.js)',
+  /from '\.\.\/components\/disclosure\.js'/.test(fcSrc) && /from '\.\.\/components\/disclosure\.js'/.test(settingsSrc)
+  && /disclosureHtml\(\{ id: 'fc-classic'/.test(fcSrc) && /gkey: 'co2'[^\n]*collapse: 'et-settings-co2-open'/.test(settingsSrc)
+  && !/<details class="card fc-classic"/.test(fcSrc));
 
 console.log(`\n  forms: ${pass} bestanden, ${fail} fehlgeschlagen`);
 process.exit(fail ? 1 : 0);

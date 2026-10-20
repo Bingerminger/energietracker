@@ -253,8 +253,36 @@ Gruppenvertrag.
   (Einstellungen → Verbrauchsarten & Abrechnung → Stichtag Gas; Standard
   1. Januar) und schlägt einen Abschlag vor. Liegt der Vorschlag weit neben dem
   neuen Abschlag des Versorgers, lohnt ein Blick in die Prognose.
+- Hast du das Ergebnis gebucht („Als Sonderzahlung buchen“), rechnet der Saldo
+  eines weiterlaufenden Vertrags seit v3.6.0 ab dem Tag nach der Rechnung — die
+  abgerechnete Zeit und die Rück- oder Nachzahlung zählen nicht mehr mit. Ohne
+  Buchung bleibt das Ergebnis im Saldo stehen.
+- Beim nächsten Mal schlägt **Rechnung prüfen** die jüngste abgeschlossene
+  Periode im Rhythmus deiner erfassten Rechnungen vor.
 - Mit gepflegter Kündigungsfrist erinnert die App rechtzeitig vor dem
   Kündigungsstichtag; **Kosten & Verträge → Wechsel prüfen** vergleicht Angebote.
+- **Abrechnungsjahr (v3.6.0):** Schalte in der Verbrauchsart auf
+  *Abrechnungsjahr*, dann zeigen Kennzahlen, Diagramm und Monatstabelle genau
+  den Zeitraum der erfassten Rechnung, etwa 15.04. bis 30.03., mit Abschlägen
+  und Saldo; zwischen und nach den Rechnungen schneidet der Stichtag. Die
+  laufende Periode beginnt am Tag nach der Rechnung. Endet die Rechnung nicht
+  am Tag vor deinem Stichtag, schlägt die Ansicht den passenden Tag vor. Die
+  Wahl gilt auf diesem Gerät auch für Übersicht und Analyse; der Jahresbericht
+  hat dafür den Anhang „Abrechnungsjahre“, der CSV-Export eine Tabelle je
+  Periode (Einstellungen → Daten).
+- **Versorger gewechselt:** Beginnt mitten in einer Periode der Vertrag eines
+  anderen Versorgers und ist noch keine Schlussrechnung erfasst, endet die
+  Periode am letzten Tag beim alten Versorger („endet mit dem
+  Lieferantenwechsel“), die nächste beginnt mit dem neuen Vertrag — so, wie
+  der alte Versorger schlussabrechnet. Eine Verlängerung oder ein neuer Tarif
+  beim selben Versorger teilt nicht. Liegt zwischen gekündigtem altem und
+  neuem Vertrag eine Lücke, ist sie eine eigene Teilperiode; verlängert sich
+  der alte, läuft er bis zum Tag vor dem neuen. Eine erfasste Rechnung geht
+  immer vor.
+- **Laufendes Jahr in beiden Ansichten:** Das Kalenderjahr zählt Grundpreis
+  und Abschlag des Monats der letzten Ablesung ganz, das Abrechnungsjahr nur
+  die Tage bis zur Ablesung; das ⓘ an „Abschläge bis …“ sagt es. Ganze Jahre
+  sind in beiden Ansichten gleich.
 - Nächstes Jahr dieselben Schritte — meist nur 1, 2 und 7.
 
 ---

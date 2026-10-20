@@ -861,6 +861,11 @@ abgenommen ist.
   Chromium. Oberflächenänderungen brauchen Safari/WebKit in der Prüfung oder
   die Abnahme am Gerät; ein programmatischer Fokus nach einer Auswahl gehört
   auf das gewählte Feld, nicht auf das erste.
+- **Ein Hinweis in der App erreicht nur, wer ihn schon hat (v3.6.0).** Keine
+  Version vor 3.6.0 prüfte auf Updates; wer eine feste Version eingetragen
+  hat, erfährt von neuen nur über GitHub, Update-Werkzeuge oder ein Tag wie
+  `:3`. Deshalb kam der Hinweis so früh wie möglich und das Tag gleich mit —
+  alte Tags auf neue Versionen umzubiegen wäre keine Lösung.
 
 ---
 

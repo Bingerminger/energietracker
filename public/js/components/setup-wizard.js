@@ -80,6 +80,9 @@ export async function openSetupWizard({ session = null, firstRun = false } = {})
     level: firstRun ? null : currentLevel(),
     // Beispieldaten ersetzen den ganzen Haushalt — das dürfen nur Verwalter (F1023)
     start: sessionRole() === 'admin' ? 'demo' : 'own',
+    // v3.6.0 — Hinweis auf neue Versionen: bei der Einrichtung vorgeschlagen (sichtbar,
+    // abwählbar); beim erneuten Öffnen die aktuelle Einstellung
+    updateCheck: firstRun ? true : !!settings.update_check,
   };
   const canLoadDemo = sessionRole() === 'admin';
   const steps = setupSteps();
@@ -185,7 +188,10 @@ export async function openSetupWizard({ session = null, firstRun = false } = {})
           <span class="setup-choice__body"><strong>${esc(t('setup.finish.own'))}</strong>
             <span class="muted small">${esc(t('setup.finish.ownHint'))}</span></span>
         </label>
-      </div>`;
+      </div>
+      <label class="settings-field__check setup-update-check">
+        <input type="checkbox" name="setup-update-check" ${state.updateCheck ? 'checked' : ''}>
+        ${esc(t('setup.finish.updateCheck'))}</label>`;
   };
 
   const html = { region: regionStep, persona: personaStep, utilities: utilitiesStep, level: levelStep, finish: finishStep };
@@ -256,6 +262,7 @@ export async function openSetupWizard({ session = null, firstRun = false } = {})
         }
         if (el.name === 'setup-level') state.level = el.value;
         if (el.name === 'setup-start') state.start = el.value;
+        if (el.name === 'setup-update-check') state.updateCheck = el.checked;
         // v3.5.1 — der Fokus bleibt am gewählten Feld. Bisher setzte draw() ihn
         // aufs erste Feld; dessen Karte trug den Fokusrahmen und sah am iPad wie
         // eine zweite Auswahl aus. Werte stammen aus festen Listen (a–z, _ , -).
@@ -308,6 +315,9 @@ function syncOwnLanguage(lang, session) {
  * oder eigene Daten. Gespeichert wird nur, was sich geändert hat.
  * @returns {Promise<string|null>} Adresse, zu der es danach geht
  */
+/** v3.6.0 — Einstellungen der Installation ändert nur, wer verwaltet (wie „Beispieldaten laden“). */
+const canAdmin = () => sessionRole() === 'admin';
+
 async function finish(state, { start, settings, countries, session }) {
   const p = persona(state.persona);
   const langChanged = state.language !== start.language;
@@ -326,6 +336,7 @@ async function finish(state, { start, settings, countries, session }) {
     wohnverhaeltnis: p.id === 'mieterin' ? 'miete' : 'eigentum',
     setup_persona: p.id,
     setup_pending: false,
+    ...(canAdmin(session) ? { update_check: !!state.updateCheck } : {}),
     // Standardsprache der Installation (Jahresbericht, CSV, neue Geräte)
     ...(langChanged && state.language !== settings.language ? { language: state.language } : {}),
   });

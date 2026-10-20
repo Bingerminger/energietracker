@@ -244,6 +244,19 @@
         "title": "Wat moet er gebeuren?",
         "none": "Op dit moment niets — prima."
       }
+    },
+    "whatIf": {
+      "title": "Wat als?",
+      "text": "Probeer het: wat kost een koude winter, wat levert isolatie op, loont overstappen? De prognosewerkplaats rekent het door met je eigen gegevens.",
+      "button": "Uitproberen"
+    },
+    "lever": {
+      "title": "Jouw hefboom {year}",
+      "real": "per jaar met je tarief, incl. btw",
+      "dynamic": "per jaar met dynamisch tarief, incl. btw",
+      "upTo": "Met dynamisch tarief tot {eur}",
+      "link": "Flexibiliteit",
+      "linkLabel": "Jouw hefboom: naar de pagina ‘Flexibiliteit’"
     }
   },
   "readingsEntry": {
@@ -479,7 +492,8 @@
       "specialCount": {
         "one": "{count} bijzondere betaling",
         "other": "{count} bijzondere betalingen"
-      }
+      },
+      "sinceBill": "Gerekend vanaf {date}: de afrekening daarvoor is in het contract geboekt en telt hier niet meer mee."
     },
     "contractsTable": {
       "emptyTitle": "Geen contracten geregistreerd",
@@ -1337,7 +1351,7 @@
     },
     "group": {
       "physical": { "title": "Fysische constanten", "hint": "Conversie en graaddagenbasis — beïnvloeden alle analyses." },
-      "co2": { "title": "CO₂-emissiefactoren", "hint": "Gram CO₂ per verbruikseenheid, voor de emissieschatting." },
+      "co2": { "title": "CO₂-emissiefactoren", "hint": "Gram CO₂ per verbruikseenheid, voor de emissieschatting.", "list": "Factoren per verbruikssoort en stroom per jaar" },
       "billing": { "title": "Factureringscyclus", "hint": "Jaarlijkse afrekendatum per verbruikssoort (formaat DD-MM, bijv. 01-01 voor 1 januari, 15-04 voor 15 april). Bepaalt hoe ver het saldo van open contracten wordt geprojecteerd; contracten met een ingevulde einddatum gebruiken die einddatum." },
       "contractReminders": { "title": "Herinneringen", "hint": "Drie niveaus vóór het contracteinde of de opzegdatum; bij herinneringen de voorwaarschuwing en de coulance tot “te laat”." },
       "water": { "title": "Referentiewaarden water", "hint": "Huishoudgrootte, referentie per persoon en de banden van de besparingsindex." },
@@ -1382,6 +1396,10 @@
       "hosts": {
         "title": "Hostnamen",
         "hint": "Geef de namen op waaronder je de app opent. Ze antwoordt dan alleen nog op deze namen – zonder inloggen beschermt dat tegen vreemde websites die hun naam naar jouw adres laten wijzen (DNS-rebinding). IP-adressen werken altijd."
+      },
+      "updates": {
+        "title": "Nieuwe versies",
+        "hint": "Eén keer per dag kan de app op GitHub kijken of er een nieuwere versie is. GitHub ziet alleen het adres van je server, geen gegevens uit de app."
       }
     },
     "field": {
@@ -1533,6 +1551,10 @@
       "allowed_hosts": {
         "label": "Toegestane hostnamen",
         "hint": "Met komma’s gescheiden, zonder http:// en poort, bijv. energie.example.org, *.home.arpa. De naam waaronder je de app nu opent, moet erbij staan. Leeg = alle namen (zoals tot nu toe). Geldt samen met ET_ALLOWED_HOSTS."
+      },
+      "update_check": {
+        "label": "Nieuwe versies melden",
+        "hint": "Er verschijnt een melding tot je die voor deze versie sluit. Uitgeschakeld gaat er geen verzoek naar buiten."
       }
     },
     "boolActive": "aan",
@@ -1962,7 +1984,44 @@
       "addButton": "Toevoegen",
       "added": "{name} kan nu inloggen.",
       "saved": "Opgeslagen.",
-      "anonymizeActivity": "De naam in de geschiedenis vervangen door ‘voormalig lid’"
+      "anonymizeActivity": "De naam in de geschiedenis vervangen door ‘voormalig lid’",
+      "no": "nr. {no}",
+      "deleteHint": "Alleen wie beheert, kan personen verwijderen. Hun openstaande herinneringen gaan dan naar jou; wat klaar is, houdt hun naam met ‘(verwijderd)’. Het nummer van een persoon wordt nooit opnieuw gebruikt.",
+      "memberDeleteHint": "Alleen wie beheert, kan personen toevoegen, wijzigen en verwijderen.",
+      "handover": {
+        "one": "{count} openstaande herinnering gaat naar {to}.",
+        "other": "{count} openstaande herinneringen gaan naar {to}."
+      },
+      "handoverNone": "Deze persoon heeft geen openstaande herinneringen.",
+      "keepDone": {
+        "one": "{count} afgehandeld item in de geschiedenis houdt de naam met ‘(verwijderd)’.",
+        "other": "{count} afgehandelde items in de geschiedenis houden de naam met ‘(verwijderd)’."
+      },
+      "keepDoneFormer": {
+        "one": "{count} afgehandeld item in de geschiedenis toont dan ‘voormalig lid’.",
+        "other": "{count} afgehandelde items in de geschiedenis tonen dan ‘voormalig lid’."
+      },
+      "deletedToast": "{name} is verwijderd.",
+      "handedOver": {
+        "one": "{count} openstaande herinnering is nu van jou.",
+        "other": "{count} openstaande herinneringen zijn nu van jou."
+      },
+      "noAccess": "zonder toegang",
+      "hintOff": "Zonder inloggen zijn er geen accounts. Deze personen komen uit een back-up of een voorbeeldhuishouden en zijn te kiezen onder ‘Verantwoordelijk’; wie het adres bereikt, kan ze verwijderen.",
+      "deleteHintOff": "Zonder inloggen neemt bij het verwijderen niemand over: openstaande herinneringen van de persoon blijven met ‘(verwijderd)’ staan tot iemand ze opnieuw toewijst; wat klaar is, houdt de naam. Het nummer van een persoon wordt nooit opnieuw gebruikt.",
+      "noAccessHint": "‘zonder toegang’: een persoon uit een back-up of een voorbeeldhuishouden. ‘Toegang aanmaken’ zet de naam bij ‘Persoon toevoegen’; met een wachtwoord wordt het een toegang met hetzelfde nummer, en de herinneringen en items blijven van die persoon.",
+      "grant": "Toegang aanmaken",
+      "deleteConfirmNoAccess": "Deze persoon is daarna niet meer te kiezen. De gegevens van het huishouden blijven.",
+      "handoverNobody": {
+        "one": "{count} openstaande herinnering blijft bij de persoon, met ‘(verwijderd)’, tot iemand die overneemt.",
+        "other": "{count} openstaande herinneringen blijven bij de persoon, met ‘(verwijderd)’, tot iemand ze overneemt."
+      },
+      "rename": "Hernoemen",
+      "renameTitle": "{name} hernoemen",
+      "renameHint": "Openstaande herinneringen tonen daarna de nieuwe naam; wat klaar is, houdt de naam die de persoon op dat moment had.",
+      "renamed": "De persoon heet nu {name}.",
+      "renameHintLogin": "Inloggen gaat daarna met de nieuwe naam.",
+      "loginNeeded": "Personen met een eigen login voeg je toe zodra inloggen aan staat. Zonder inloggen kan iedereen die het adres bereikt alles zien en wijzigen."
     },
     "securityCheck": {
       "title": "Beveiligingscontrole",
@@ -1979,7 +2038,8 @@
       "title": "Energietracker steunen",
       "text": "Energietracker is onafhankelijk en open source, zonder reclame en zonder account. Heb je er iets aan, dan kun je de verdere ontwikkeling steunen – helemaal vrijwillig, de app blijft hetzelfde.",
       "link": "Steunen via Buy Me a Coffee"
-    }
+    },
+    "assumedValue": "Nog niet ingevuld. Tot dan rekent de app met {value}; de vergelijking op het overzicht wacht op je invoer."
   },
   "reminders": {
     "suggest": {
@@ -2455,7 +2515,6 @@
   "forecast": {
     "noUtilities": "Geen verbruikssoort actief. In de instellingen kies je welke worden getoond.",
     "loading": "Laden…",
-    "title": "Prognose",
     "selectUtility": "Verbruikssoort kiezen",
     "selectMeter": "Meter kiezen",
     "chartAlt": "Lijndiagram: verbruiksgeschiedenis met prognose",
@@ -2561,7 +2620,9 @@
       "tankNoRange": "Voorraad vandaag: {stock} {unit}.",
       "heatDemand": "Verwarmingsenergie: {value} kWh per m² woonoppervlak ({area} m²) per jaar.",
       "howToRead": "Het jaarrapport lezen",
-      "choose": "Voor het openen kies je jaar, verbruikssoorten, taal en bijlage; dit apparaat onthoudt de keuze."
+      "choose": "Voor het openen kies je jaar, verbruikssoorten, taal en bijlage; dit apparaat onthoudt de keuze.",
+      "costDeliveries": "Kosten: {amount} uit de leveringen; gemiddeld {price} ct/{unit}.",
+      "areaAssumed": "Het kengetal rekent met een aangenomen woonoppervlak van {area} m². Vul het echte oppervlak in onder Instellingen → Huishouden en gebouw."
     },
     "weatherSource": "Temperaturen: Open-Meteo.com (CC BY 4.0), tenzij zelf ingevoerd.",
     "print": {
@@ -2570,7 +2631,9 @@
       "back": "← Jaarverslag",
       "hint": "Het rapport in de taal en notatie van de interface. “Afdrukken” zet het op papier of slaat het op als pdf — op de iPhone via Deel → Druk af.",
       "detail": "Met bijlage ‘Cijfers in detail’",
-      "priority": "Prioriteit {n}"
+      "priority": "Prioriteit {n}",
+      "scenarioTitle": "Scenario: {name}",
+      "scenarioMissing": "Het scenario ‘{name}’ is niet op dit apparaat opgeslagen."
     },
     "fmt": {
       "approx": "ca. {amount}",
@@ -2612,7 +2675,9 @@
       "cop": "Prestatiefactor per maand",
       "solarShare": "waarvan zonnestroom",
       "cheapShare": "Aandeel in goedkope uren",
-      "errors": "Let op: enkele onderdelen ontbreken, omdat hun gegevens niet gelezen konden worden."
+      "errors": "Let op: enkele onderdelen ontbreken, omdat hun gegevens niet gelezen konden worden.",
+      "billing": "Afrekenjaren",
+      "flexPage": "Flexibiliteit"
     },
     "tile": {
       "cost": "Energiekosten",
@@ -2912,8 +2977,8 @@
         "sentence": "Hoeveel stroom in goedkope uren liep, gemeten aan de beursprijzen per kwartier.",
         "row": "{share} goedkoop · profielfactor {pf}",
         "module3": "Het tijdsafhankelijke nettarief (module 3) leverde {amount} op.",
-        "battery": "De accu laadde vooral in goedkope en ontlaadde in dure uren: waarde {amount} (alleen beursdeel).",
-        "note": "Profielfactor onder 1: de stroom liep in goedkopere uren dan gemiddeld. Bedragen tellen alleen het beursdeel van de prijs."
+        "battery": "De accu laadde vooral in goedkope en ontlaadde in dure uren: waarde {amount} (alleen beursdeel, netto, excl. btw).",
+        "note": "Profielfactor onder 1: de stroom liep in goedkopere uren dan gemiddeld. Bedragen tellen alleen het beursdeel van de prijs, netto, excl. btw."
       },
       "tenancy": {
         "budget": "Afrekenperiode {from} tot {to}: verwachte servicekosten {expected}, voorschotten {prepaid}.",
@@ -2921,7 +2986,8 @@
         "statementCredit": "Afrekening {year}: {amount} tegoed.",
         "co2Central": "CO₂-kosten {year}: de verhuurder draagt {amount}.",
         "co2Claim": "CO₂-kosten {year}: {amount} van de verhuurder, termijn {date}.",
-        "pathLegend": "Lijn boven nul: bijbetaling te verwachten, onder nul: tegoed. Gestippeld: schatting."
+        "pathLegend": "Lijn boven nul: bijbetaling te verwachten, onder nul: tegoed. Gestippeld: schatting.",
+        "co2AreaAssumed": "Trede en bedrag van de CO₂-verdeling rekenen met een aangenomen woonoppervlak van {area} m². Vul het oppervlak bij de huur in."
       }
     },
     "appendix": {
@@ -3024,7 +3090,28 @@
       "demoNote": "In de demo is er alleen het volledige rapport; een deelrapport en de bijlage in de pdf werken met een eigen installatie.",
       "remembered": "Dit apparaat onthoudt de keuze; het jaar staat elke keer weer op vorig jaar.",
       "options": "Opties…",
-      "partial": "Deelrapport: {list}"
+      "partial": "Deelrapport: {list}",
+      "billing": "Met bijlage ‘Afrekenjaren’",
+      "billingHint": "Per verbruikssoort de afrekenperiodes die in het rapportjaar eindigen. De andere pagina’s blijven bij het kalenderjaar, anders zouden de totalen over alle soorten niet kloppen.",
+      "flex": "Met pagina ‘Flexibiliteit’ (stoplicht, hefbomen, tijdvensters)",
+      "flexHint": "Wanneer stroom goedkoop was en wat verschuiven kan opleveren. Vraagt groothandelsprijzen per kwartier voor het rapportjaar, tijdvensters voor module 3 of opwekking per kwartier; anders vervalt de pagina.",
+      "scenario": "Scenario toevoegen",
+      "scenarioNone": "Geen",
+      "scenarioHint": "Een in de prognosewerkplaats opgeslagen scenario als eigen pagina — alleen in de afdrukweergave, want het staat op dit apparaat."
+    },
+    "billing": {
+      "period": "Periode",
+      "source": "Basis",
+      "sourceBill": "Afrekening",
+      "sourceAnchor": "Afrekendatum",
+      "advances": "Voorschotten {cur}",
+      "balance": "Saldo {cur}",
+      "note": "Per verbruikssoort de afrekenperiodes die dit jaar eindigen: zoals op de ingevoerde afrekeningen, anders volgens de afrekendatum. Saldo = kosten − voorschotten − extra voorschotbetalingen; positief = bijbetaling, negatief = tegoed. De andere pagina’s tonen kalenderjaren.",
+      "running": "* loopt nog; berekend tot de laatste meterstand (stand {date}).",
+      "partial": "† Deelperiode: de gegevens beginnen pas binnen deze periode, of het is een rest tot de afrekendatum."
+    },
+    "flexPage": {
+      "bandLead": "Gemiddelde groothandelsprijs per uur in {year} (groothandelsdeel netto, excl. btw): groen is het goedkoopste derde van de uren, geel het middelste, rood het duurste. Een punt boven het uur toont zon."
     }
   },
   "csv": {
@@ -3037,7 +3124,21 @@
     "balanceCumulative": "Saldo cumulatief ({code})",
     "avgTemp": "Gem temp (°C)",
     "hdd": "GD",
-    "co2": "CO2 (kg)"
+    "co2": "CO2 (kg)",
+    "billing": {
+      "from": "Van",
+      "until": "Tot en met",
+      "source": "Basis",
+      "sourceBill": "Afrekening",
+      "sourceAnchor": "Afrekendatum",
+      "days": "Dagen",
+      "consumption": "Verbruik ({unit})",
+      "cost": "Kosten ({code})",
+      "advances": "Voorschotten ({code})",
+      "extraAdvances": "Extra voorschotbetalingen ({code})",
+      "balance": "Saldo ({code})",
+      "complete": "Volledig"
+    }
   },
   "auth": {
     "tokenOnce": "Kopieer dit token nu — het wordt niet opnieuw getoond."
@@ -3306,7 +3407,8 @@
       "noTransport": "De server kan geen webadressen ophalen: PHP heeft cURL noch allow_url_fopen."
     },
     "export": {
-      "formatInvalid": "Onbekend CSV-formaat “{format}” — toegestaan zijn 1 en local."
+      "formatInvalid": "Onbekend CSV-formaat “{format}” — toegestaan zijn 1 en local.",
+      "periodInvalid": "Onbekende periode ‘{period}’ — toegestaan zijn calendar en billing."
     },
     "attachment": {
       "type": "Als bewijsstuk kun je alleen foto’s (JPEG, PNG, WebP) en pdf-bestanden opslaan.",
@@ -3377,7 +3479,9 @@
       "roleInvalid": "De rol moet ‘Beheer’ of ‘Lid’ zijn (API: admin, member).",
       "lastAdmin": "Minstens één persoon moet de installatie beheren.",
       "notFound": "Deze persoon bestaat niet meer.",
-      "notSelf": "Jezelf verwijderen kan niet — een andere persoon die de installatie beheert, kan dat doen."
+      "notSelf": "Jezelf verwijderen kan niet — een andere persoon die de installatie beheert, kan dat doen.",
+      "noAccountPassword": "Deze persoon heeft geen toegang. Maak er een aan met ‘Toegang aanmaken’; dan krijgt die een wachtwoord.",
+      "nameTakenPerson": "Een persoon zonder toegang heeft deze naam al (Instellingen → Toegang). Namen zijn uniek binnen het huishouden."
     },
     "evcc": {
       "off": "Geen adres van evcc ingesteld (Instellingen → Expert).",
@@ -3547,7 +3651,7 @@
     "updated": "Factuur gewijzigd",
     "editing": "Je bewerkt de factuur van {from} tot {to}.",
     "editBookedNote": "Ze is al geboekt als bijzondere betaling – de boeking in het contract verandert niet mee.",
-    "periodDefault": "Vooraf ingevuld met de laatste afgesloten afrekenperiode. De afrekendatum per verbruikssoort stel je in onder Instellingen → Verbruikssoorten en afrekening."
+    "periodDefault": "Vooraf ingevuld met de laatste afgesloten afrekenperiode — zoals in het afrekenjaar, uit de vastgelegde afrekeningen, anders volgens de afrekendatum. De afrekendatum per verbruikssoort stel je in onder Instellingen → Verbruikssoorten en afrekening."
   },
   "glossary": {
     "hdd": {
@@ -3729,6 +3833,18 @@
     "typicalDay": {
       "term": "Typische dag",
       "text": "De energiestroom van een gemiddelde dag in de maand: per kwartier (lokale tijd) het gemiddelde over alle dagen van de maand met meetwaarden. Het toont het patroon — bijvoorbeeld wanneer de middagzon de accu laadt —, geen echte dag."
+    },
+    "billingYear": {
+      "term": "Afrekenjaar",
+      "text": "De periode van een jaarafrekening van de leverancier, bijvoorbeeld september tot en met augustus. De app haalt hem uit de ingevoerde afrekeningen, anders uit de afrekendatum van de verbruikssoort; een leverancierswissel sluit hem af op de laatste dag bij de oude leverancier. Je kunt erop overschakelen bij de verbruikssoort, het overzicht en de analyse."
+    },
+    "scenario": {
+      "term": "Scenario (wat als)",
+      "text": "Een berekening met gewijzigde aannames — koudere winter, isolatie, ander tarief — tegenover de uitgangssituatie, de prognose uit je gegevens. Een scenario is een modelberekening, geen meting: het laat zien in welke richting en hoe sterk een verandering werkt."
+    },
+    "runningYear": {
+      "term": "Lopend jaar",
+      "text": "In het lopende jaar telt het kalenderjaar het vastrecht en het voorschot van de maand van de laatste meterstand volledig, het afrekenjaar alleen de dagen tot de meterstand — hele jaren zijn in beide weergaven gelijk."
     }
   },
   "help": {
@@ -3859,7 +3975,8 @@
     "language": "Taal",
     "close": "Melding sluiten",
     "readOnly": "In de demo wordt niets opgeslagen. Met een eigen installatie leg je je eigen gegevens vast.",
-    "unavailable": "Deze analyse is in de demo niet vooraf berekend – met een eigen installatie werkt ze wel."
+    "unavailable": "Deze analyse is in de demo niet vooraf berekend – met een eigen installatie werkt ze wel.",
+    "scenarioPresetsOnly": "In de demo zijn alleen de voorbeeldscenario’s vooraf berekend."
   },
   "manifest": {
     "description": "Verbruik, kosten en contracten voor stroom, gas, water, stadsverwarming, huisbrandolie, pellets en zonnepanelen — lokaal en zonder cloud.",
@@ -3915,7 +4032,8 @@
       "exampleReadings": "voorbeeld-meterstanden",
       "exampleTemperatures": "voorbeeld-temperaturen",
       "periods": "periodes",
-      "activity": "geschiedenis"
+      "activity": "geschiedenis",
+      "billing": "afrekenjaren"
     },
     "periods": {
       "from": "Van",
@@ -4283,10 +4401,27 @@
     "incomplete": "Het jaar heeft nog niet voor alle maanden waarden — alleen een volledig jaar wordt vergeleken.",
     "special": "Met pv, warmtepomp of laadpaal past de algemene stroomvergelijking niet; warmtepomp en laadpaal zijn hier al uitgezonderd.",
     "source": "Bron van de vergelijkingswaarden: {source}",
-    "empty": "Voer in de instellingen (huishouden) eigen vergelijkingswaarden in, bijv. uit een stroom- of verwarmingsindex — dan plaatst de app je verbruik.",
-    "link": {
-      "stromspiegel": "Stromspiegel: eigen klasse controleren (Duits)",
-      "heizspiegel": "Heizspiegel: stookkosten controleren (Duits)"
+    "line": {
+      "stromBelow": "Huishoudstroom: {kwh} kWh, {pct} onder je vergelijkingswaarde ({own} kWh).",
+      "stromAbove": "Huishoudstroom: {kwh} kWh, {pct} boven je vergelijkingswaarde ({own} kWh).",
+      "heatingBelow": "{label}: {value} kWh/m², {pct} onder je vergelijkingswaarde ({own} kWh/m²).",
+      "heatingAbove": "{label}: {value} kWh/m², {pct} boven je vergelijkingswaarde ({own} kWh/m²).",
+      "waterBelow": "Water: {liters} liter per persoon per dag, {pct} onder de richtwaarde ({ref} liter).",
+      "waterAbove": "Water: {liters} liter per persoon per dag, {pct} boven de richtwaarde ({ref} liter)."
+    },
+    "waterBasis": "{m3} m³ in het jaar · personen in het huishouden: {persons}",
+    "rating": {
+      "good": "Goed",
+      "near": "Erboven",
+      "high": "Ruim erboven"
+    },
+    "invite": {
+      "reference": "Hoe staat je verbruik ervoor? Vul een vergelijkingswaarde in, bijvoorbeeld uit een verbruiksvergelijking — deze tegel toont dan een stoplicht.",
+      "referenceLink": "Vergelijkingswaarden invullen",
+      "area": "Om de verwarming te vergelijken ontbreekt het woonoppervlak.",
+      "areaLink": "Woonoppervlak invullen",
+      "persons": "Om het water te vergelijken ontbreekt het aantal personen in het huishouden.",
+      "personsLink": "Aantal personen invullen"
     }
   },
   "import": {
@@ -4527,7 +4662,8 @@
       "demoHint": "Laadt het passende voorbeeldhuishouden — met de geschiedenis ‘Afgerond’, verantwoordelijken voor herinneringen en rekeningen van de leverancier. Eerst bewaart de app de huidige stand.",
       "demoPublic": "De demo toont nu het voorbeeldhuishouden ‘{persona}’. Een ander kies je onder Instellingen → Algemeen → ‘Instelassistent starten’.",
       "own": "Beginnen met eigen gegevens",
-      "ownHint": "Daarna: meters controleren en de eerste stand invoeren."
+      "ownHint": "Daarna: meters controleren en de eerste stand invoeren.",
+      "updateCheck": "Nieuwe versies melden (kijkt één keer per dag op GitHub)"
     },
     "skip": "Overslaan",
     "back": "Terug",
@@ -4611,7 +4747,7 @@
     "title": "Flexibiliteit beoordelen",
     "year": "Jaar",
     "loadPrices": "Groothandelsprijzen {year} laden van SMARD",
-    "intro": "Heeft verschuiven iets opgeleverd? Gerekend wordt met je verbruik en de groothandelsprijs per kwartier — alleen het groothandelsdeel, zonder belastingen, heffingen en nettarief. Aansturen gebeurt elders (evcc, Home Assistant, de batterij zelf).",
+    "intro": "Wanneer loont het om stroom te verbruiken, en wat levert verschuiven op? Het stoplicht toont goedkope en dure uren, ‘Jouw hefboom’ wat het per jaar kan opleveren. Gerekend wordt met verbruik, opwekking en de groothandelsprijs per kwartier; aansturen gebeurt elders (evcc, Home Assistant, de batterij zelf).",
     "noPrices": "De groothandelsprijzen per kwartier voor {year} ontbreken — laad ze hierboven van SMARD.",
     "noIntervals": "Er is nog geen verbruik per kwartier voor {year}. Het komt uit een portaalbestand (meters → tijdreeks importeren) of uit Home Assistant met tijdstempel.",
     "attribution": "Groothandelsprijzen: Bundesnetzagentur | SMARD.de (CC BY 4.0)",
@@ -4621,14 +4757,14 @@
       "kwh": "Verbruik met prijs",
       "cheap": "In goedkope kwartieren",
       "negative": "Bij negatieve prijs",
-      "own": "Eigen gem. / beursgem.",
+      "own": "Eigen gem. / beursgem. (netto)",
       "factor": "Profielfactor",
-      "advantage": "Voordeel (groothandelsdeel)"
+      "advantage": "Voordeel (groothandelsdeel, netto)"
     },
     "noOverlap": "Geen kwartier met zowel verbruik als groothandelsprijs.",
     "verdict": {
-      "good": "Goedkoper dan gemiddeld: {eur} bespaard op het groothandelsdeel (profielfactor {factor}).",
-      "bad": "Duurder dan gemiddeld: {eur} meer op het groothandelsdeel (profielfactor {factor}) — er wordt vooral op dure momenten verbruikt."
+      "good": "Goedkoper dan gemiddeld: {eur} bespaard op het groothandelsdeel excl. btw (profielfactor {factor}).",
+      "bad": "Duurder dan gemiddeld: {eur} meer op het groothandelsdeel excl. btw (profielfactor {factor}) — er wordt vooral op dure momenten verbruikt."
     },
     "months": "Per maand",
     "col": {
@@ -4644,7 +4780,7 @@
       "title": "Batterij volgens groothandelsprijs",
       "charged": "Geladen · gem. prijs",
       "discharged": "Ontladen · gem. prijs",
-      "value": "Waarde van het verschuiven",
+      "value": "Waarde van het verschuiven (netto)",
       "hint": "Ontladen kWh tegen de groothandelsprijs bij ontladen min geladen kWh tegen de groothandelsprijs bij laden — wat het verschuiven over de dag waard was, zonder verliezen en zonder nettarief."
     },
     "module3": {
@@ -4668,7 +4804,170 @@
         "smard": "SMARD"
       }
     },
-    "loadingPrices": "Groothandelsprijzen laden … {month} ({n} van {total})"
+    "loadingPrices": "Groothandelsprijzen laden … {month} ({n} van {total})",
+    "card": {
+      "brand": "Energietracker · Flexibiliteit",
+      "title": "Jouw hefboom {year}",
+      "real": "Zoveel kun je met je tarief per jaar besparen als je verbruik naar goedkope en zonnige uren verschuift.",
+      "dynamic": "Zoveel zou een dynamisch tarief per jaar besparen als je verbruik naar goedkope uren verschuift.",
+      "factBest": "Grootste hefboom: {name}",
+      "factDynamic": "Met dynamisch tarief",
+      "upTo": "tot {eur}",
+      "factSelf": "Zonnestroom zelf gebruikt",
+      "factModule3": "Al bespaard met module 3",
+      "footer": "Groothandelsprijzen {year} per kwartier: Bundesnetzagentur | SMARD.de (CC BY 4.0) · bedragen incl. btw · voorbeeldwaarden gemarkeerd · stand {date}",
+      "footerOwn": "Uit je kwartieren {year} · bedragen incl. btw · voorbeeldwaarden gemarkeerd · stand {date}",
+      "image": "Opslaan als afbeelding",
+      "filename": "flexibiliteit"
+    },
+    "missing": {
+      "title": "Wat deze pagina nog kan laten zien",
+      "prices": "<strong>Groothandelsprijzen per kwartier</strong> ontbreken voor {year}. Daarmee toont het stoplicht goedkope en dure uren en rekent ‘Jouw hefboom’ in euro — ook voor wasmachine en vaatwasser.",
+      "intervals": "<strong>Verbruik per kwartier</strong> ontbreekt. Daarmee ziet de app wanneer je verbruikt en rekent ze na wat verschuiven heeft opgeleverd. Het komt uit een portaalbestand (meter → tijdreeks importeren) of uit Home Assistant met tijdstempel.",
+      "devices": "<strong>Wallbox of warmtepomp met eigen meter</strong> en kwartieren: dan toont ‘Jouw hefboom’ gemeten waarden in plaats van alleen voorbeeldwaarden.",
+      "pv": "<strong>Opwekking en teruglevering per kwartier</strong>: daarmee toont de pagina hoeveel zonnestroom je meer zelf zou kunnen gebruiken.",
+      "tariff": "<strong>Dynamisch tarief of module 3</strong>: met een dynamisch aanbod onder Overstappen controleren of tijdvensters voor § 14a module 3 in het contract toont de pagina wanneer verschuiven echt geld oplevert.",
+      "guide": "Stap voor stap in de handleiding"
+    },
+    "real": {
+      "yes": "met je tarief",
+      "no": "met dynamisch tarief"
+    },
+    "basis": {
+      "assumed": "voorbeeldwaarde"
+    },
+    "actions": {
+      "title": "Wat je kunt doen",
+      "lead": "Per apparaat de grootste hefboom, met het tijdvenster voor het {season}. De bedragen zijn bovengrenzen voor een jaar.",
+      "other": "{season}: {window}",
+      "ev": {
+        "cheap": "Laad de auto {window}: tot {eur} per jaar.",
+        "sun": "Laad de auto met zonnestroom, {window}: tot {eur} per jaar.",
+        "low": "Laad de auto in het lage nettarief, {window}: tot {eur} per jaar."
+      },
+      "heat_pump": {
+        "cheap": "Laat de warmtepomp {window} voorverwarmen: tot {eur} per jaar.",
+        "low": "Laat de warmtepomp meer in het lage nettarief draaien, {window}: tot {eur} per jaar.",
+        "sun": "Laat de warmtepomp met zonnestroom voorverwarmen, {window}: tot {eur} per jaar."
+      },
+      "battery": {
+        "peak": "Ontlaad de batterij als stroom duur is, {window}: tot {eur} per jaar."
+      },
+      "washer": {
+        "cheap": "Start de wasmachine {window}: tot {eur} per jaar.",
+        "sun": "Was met zonnestroom, {window}: tot {eur} per jaar."
+      },
+      "dishwasher": {
+        "cheap": "Start de vaatwasser {window}: tot {eur} per jaar.",
+        "sun": "Laat de vaatwasser op zonnestroom draaien, {window}: tot {eur} per jaar."
+      }
+    },
+    "season": {
+      "summer": "zomerhalfjaar",
+      "winter": "winterhalfjaar"
+    },
+    "seasonBtn": {
+      "winter": "Winterhalfjaar",
+      "summer": "Zomerhalfjaar",
+      "all": "Heel jaar"
+    },
+    "ampel": {
+      "title": "Wanneer stroom goedkoop is",
+      "seasonLabel": "Seizoen",
+      "lead": "Gemiddelde groothandelsprijs per uur in {year} (groothandelsdeel netto, excl. btw): groen is het goedkoopste derde van de uren, rood het duurste. ☀ toont wanneer je installatie veel opwekt.",
+      "leadTou": "Nettarief volgens § 14a module 3 in je contract: groen is het lage tarief, geel het standaardtarief, rood het hoge tarief.",
+      "leadSun": "Alleen de zon: groothandelsprijzen of tijdvensters voor module 3 ontbreken.",
+      "day": "Een gemiddelde dag",
+      "week": "De week",
+      "weekCaption": "Prijsniveau per weekdag en uur, {season}",
+      "level": {
+        "cheap": "goedkoop",
+        "mid": "gemiddeld",
+        "expensive": "duur",
+        "none": "zonder prijs"
+      },
+      "sun": {
+        "strong": "veel zon",
+        "some": "wat zon",
+        "none": "geen zon"
+      },
+      "hourCell": "{hour} uur: {level}, {ct}",
+      "summary": "Goedkoopst: {cheap}. Duurst: {peak}.",
+      "range": "Van {min} tot {max}, gemiddeld {mean} (groothandelsdeel netto, zonder btw en nettarief).",
+      "rangeTou": "Van {min} tot {max}, gemiddeld {mean} (nettarief volgens je contract)."
+    },
+    "weekdays": {
+      "short": "ma,di,wo,do,vr,za,zo",
+      "long": "maandag,dinsdag,woensdag,donderdag,vrijdag,zaterdag,zondag",
+      "often": "op maandag,op dinsdag,op woensdag,op donderdag,op vrijdag,op zaterdag,op zondag"
+    },
+    "window": {
+      "week": "{day} {from}–{to} uur",
+      "day": "{from}–{to} uur"
+    },
+    "windows": {
+      "title": "Beste tijdvensters van de week",
+      "lead": "{season} · telkens {hours} uur aaneen, naar groothandelsprijs.",
+      "col": {
+        "window": "Tijdvenster",
+        "price": "Gem. groothandelsprijs (netto)",
+        "grid": "Nettarief",
+        "vsMean": "t.o.v. gemiddelde",
+        "sun": "Zon"
+      },
+      "below": "{ct} goedkoper"
+    },
+    "solar": {
+      "title": "Zonnestroom zelf gebruiken",
+      "now": "In {year} heb je {self} van {gen} zelf gebruikt ({share}); {feed} ging het net op.",
+      "more": "Met de hefbomen voor zonnestroom zou je zo’n {more} meer zelf kunnen gebruiken: eigen verbruik {after} in plaats van {share}, {eur} per jaar ({wp} eenheidsprijs in plaats van {feed} terugleververgoeding).",
+      "noMore": "Meer zonnestroom zelf gebruiken lukt alleen met grotere verbruikers overdag."
+    },
+    "lever": {
+      "title": "Jouw hefboom",
+      "lead": "Wat verschuiven per jaar kan opleveren: verbruik schuift naar de goedkoopste kwartieren van zijn dag (de auto: zolang hij aangesloten is), hoogstens met het grootste gemeten vermogen van het apparaat. Het huidige patroon is een van de mogelijkheden, dus geen hefboom is negatief.",
+      "col": {
+        "device": "Apparaat",
+        "signal": "Prijssignaal",
+        "shift": "verschoven",
+        "eur": "per jaar"
+      },
+      "total": "Samen tot {eur} per jaar incl. btw (grootste hefboom per apparaat), waarvan {real} met je tarief.",
+      "assumptions": "Voorbeeldwaarden: warmtepomp {hp} van het dagverbruik verschuifbaar; wasmachine {wkwh} kWh per beurt, {wn} beurten per week; vaatwasser {dkwh} kWh per beurt, {dn} beurten per week, telkens {h} uur tegenover een start op een willekeurig tijdstip.",
+      "upper": "Bovengrens: de goedkoopste kwartieren ken je de dag ervoor (day-ahead). Groothandelsprijs met {vat} btw, zoals een dynamisch tarief die afrekent, zonder diens opslag, heffingen en nettarief; zonnestroom tegen eenheidsprijs min terugleververgoeding; module 3 met de bedragen in het contract.",
+      "kind": {
+        "ev": "Elektrische auto ({name})",
+        "heat_pump": "Warmtepomp ({name})",
+        "battery": "Batterij",
+        "washer": "Wasmachine",
+        "dishwasher": "Vaatwasser"
+      },
+      "plain": {
+        "ev": "Elektrische auto",
+        "heat_pump": "Warmtepomp"
+      },
+      "evSessions": {
+        "one": "Auto: alleen verschoven zolang hij aangesloten is — insteektijden uit {count} laadsessie van evcc.",
+        "other": "Auto: alleen verschoven zolang hij aangesloten is — insteektijden uit {count} laadsessies van evcc."
+      },
+      "evPart": "Laadsessies dekken {share} van de geladen energie; op dagen zonder sessie staat de auto de hele dag klaar (voorbeeldwaarde).",
+      "evDay": "Auto: staat op laaddagen de hele dag klaar (voorbeeldwaarde). Met laadsessies uit evcc tellen de insteektijden."
+    },
+    "signal": {
+      "spot": "Groothandelsprijs",
+      "tou": "Nettarief (module 3)",
+      "solar": "Zonnestroom"
+    },
+    "check": {
+      "title": "Nagerekend: wat verschuiven heeft opgeleverd",
+      "lead": "Per elektriciteitsmeter met kwartieren: hoeveel in goedkope kwartieren liep en welke groothandelsprijs je gemiddeld had betaald; plus batterij en module 3. Bedragen en ct-waarden tegen groothandelsprijs: groothandelsdeel netto, excl. btw; module 3 met de bedragen in het contract."
+    },
+    "availability": {
+      "sessions": "insteektijden uit evcc",
+      "day": "hele laaddag (voorbeeldwaarde)"
+    },
+    "net": "netto, excl. btw",
+    "netNote": "ct-waarden in het verkeerslicht en de tijdvensters: groothandelsdeel netto, excl. btw — de eurobedragen van de hefbomen zijn incl. btw."
   },
   "pager": {
     "label": "Pagina’s van de lijst",
@@ -4813,6 +5112,306 @@
       "one": "{count} andere melding verborgen (filter ‘Verantwoordelijk’)",
       "other": "{count} andere meldingen verborgen (filter ‘Verantwoordelijk’)"
     },
-    "emptyFiltered": "Niets voor deze selectie."
+    "emptyFiltered": "Niets voor deze selectie.",
+    "wasDeleted": "De verantwoordelijke persoon is verwijderd. Vul iemand anders in of laat het veld leeg."
+  },
+  "notice": {
+    "updated": "Bijgewerkt naar versie {version}.",
+    "available": "Versie {version} is verschenen.",
+    "whatsNew": "Wat is er nieuw",
+    "support": "Bevalt Energietracker je? Hier kun je het steunen:",
+    "supportLink": "Steunen",
+    "dismiss": "Melding sluiten"
+  },
+  "billing": {
+    "mode": {
+      "label": "Periode van de cijfers",
+      "calendar": "Kalenderjaar",
+      "billing": "Afrekenjaar",
+      "calendarOnly": "{label}: geen afrekening van de leverancier, hier geldt het kalenderjaar."
+    },
+    "period": {
+      "pills": "Afrekenperiode kiezen",
+      "none": "Nog geen afrekenperiode met meterstanden. Die verschijnt zodra er twee standen zijn.",
+      "fromBill": "{from} tot en met {until}, zoals op de afrekening",
+      "fromAnchor": "{from} tot en met {until}, volgens de afrekendatum",
+      "asOf": "berekend tot {date} (laatste meterstand)",
+      "running": "loopt nog",
+      "partial": "deelperiode",
+      "switch": "eindigt bij de leverancierswissel"
+    },
+    "suggest": "De laatste afrekening eindigt op {date}, de afrekendatum staat op {anchor}. Vul in de instellingen {day} in als afrekendatum, dan volgen de lopende en de volgende periodes het ritme van de afrekening.",
+    "chart": {
+      "prev": "Vorige periode {name}"
+    },
+    "dashboard": {
+      "window": "Afrekenjaar {name}: {from} tot en met {until}",
+      "costSub": "Voorschotten tot nu toe {advances}"
+    },
+    "analysis": {
+      "title": "Afrekenjaren vergeleken"
+    },
+    "export": {
+      "label": "Afrekenjaren",
+      "hint": "Eén regel per afrekenperiode: periode, hoeveelheid, kosten, voorschotten, saldo. Periodes zoals op de ingevoerde afrekeningen, anders volgens de afrekendatum en tot een leverancierswissel."
+    }
+  },
+  "scenario": {
+    "title": "Prognosewerkplaats",
+    "lead": "<strong>Wat als?</strong> Probeer het: verschuif de schuifregelaars en zie meteen wat een koude winter, isolatie of een ander tarief het komende jaar kost of oplevert.",
+    "controls": "Knoppen",
+    "presets": {
+      "label": "Voorbeeldscenario’s",
+      "try": "Probeer een voorbeeld:",
+      "reset": "Terugzetten"
+    },
+    "preset": {
+      "cold_winter": {
+        "label": "Koude winter",
+        "note": "Voorbeeld ‘Koude winter’: {pct} meer graaddagen — met klimaatnormaal ongeveer zo koud als één op de tien winters, zonder een aanname.",
+        "sentence": "Een koude winter kost je {amount} meer per jaar."
+      },
+      "roof": {
+        "label": "Dak geïsoleerd",
+        "note": "Voorbeeld ‘Dak geïsoleerd’: 15% minder warmte is een aangenomen voorbeeldwaarde, geen richtwaarde — vul bij maatregelen de waarde uit je energieadvies en de kosten in.",
+        "sentence": "Een geïsoleerd dak bespaart je {amount} per jaar."
+      },
+      "cheapest": {
+        "label": "Goedkoopste aanbod",
+        "note": "Voorbeeld ‘Goedkoopste aanbod’: het goedkoopste van je ingevoerde aanbiedingen, berekend met je verwachte verbruik, zonder bonus.",
+        "sentence": "Overstappen naar het goedkoopste aanbod bespaart je {amount} per jaar."
+      },
+      "save10": {
+        "label": "10% besparen",
+        "note": "Voorbeeld ‘10% besparen’: tien procent minder verbruik door je gedrag, zoals korter douchen of standby vermijden.",
+        "sentence": "Tien procent minder verbruik bespaart je {amount} per jaar."
+      }
+    },
+    "winter": {
+      "label": "Winter",
+      "hint": "Graaddagen ten opzichte van een normale winter. Werkt alleen op het verwarmingsdeel.",
+      "normal": "normaal",
+      "colder": "{pct} kouder",
+      "milder": "{pct} zachter"
+    },
+    "saving": {
+      "label": "Besparen",
+      "hint": "Minder verbruik door gedrag, op alles.",
+      "value": "{pct} minder"
+    },
+    "none": "geen wijziging",
+    "tariff": {
+      "label": "Tarief",
+      "current": "Huidig contract",
+      "cheapest": "Goedkoopste aanbod",
+      "offer": "Aanbod: {label}",
+      "custom": "Eigen prijs",
+      "workingPrice": "Eenheidsprijs ({minor} per eenheid)",
+      "basePrice": "Vastrecht ({cur} per maand)"
+    },
+    "group": {
+      "advanced": "Meer knoppen",
+      "expert": "Voor experts"
+    },
+    "room": {
+      "label": "Kamertemperatuur",
+      "hint": "Verschuift de stookgrens met dezelfde waarde — berekend met je verwarmingsmodel en de graaddagen ter plaatse, geen vuistregel."
+    },
+    "baseload": {
+      "label": "Basislast",
+      "hint": "Warm water, koken, apparaten — het deel dat niet van het weer afhangt."
+    },
+    "model": {
+      "label": "Prognosemodel",
+      "standard": "Weergecorrigeerd (prognose)",
+      "last_year": "Zoals vorig jaar",
+      "trend": "Trend doorgetrokken",
+      "unavailable": "te weinig gegevens (twee volle jaren nodig)"
+    },
+    "measures": {
+      "title": "Maatregelen",
+      "hint": "Percentages en kosten vul je zelf in, het liefst uit je energieadvies. Verwarming werkt op het verwarmingsdeel, basislast op de rest.",
+      "add": "Maatregel toevoegen",
+      "active": "in scenario",
+      "remove": "Maatregel verwijderen",
+      "kind": "Soort",
+      "labelField": "Naam (optioneel)",
+      "heat": "Verwarming −%",
+      "base": "Basislast −%",
+      "cost": "Kosten ({cur})"
+    },
+    "measure": {
+      "kind": {
+        "roof": "Dak isoleren",
+        "facade": "Gevel isoleren",
+        "windows": "Ramen vervangen",
+        "basement": "Kelderplafond isoleren",
+        "hydraulic": "Waterzijdig inregelen",
+        "pump": "Cv-pomp vervangen",
+        "thermostat": "Slimme thermostaten",
+        "shower": "Waterbesparende douchekop",
+        "other": "Andere maatregel"
+      }
+    },
+    "regression": "Stookcurve (regressiemodel)",
+    "ev": {
+      "km": "Elektrische auto: km per jaar",
+      "kwh": "Verbruik (kWh/100 km)",
+      "placeholder": "volgens de auto"
+    },
+    "jaz": {
+      "from": "Warmtepomp: SPF nu",
+      "to": "SPF in scenario"
+    },
+    "budget": {
+      "label": "Budget voor maatregelen ({cur})",
+      "placeholder": "leeg = geen optimalisatie"
+    },
+    "save": {
+      "title": "Scenario opslaan",
+      "name": "Naam",
+      "button": "Opslaan",
+      "list": "Opgeslagen scenario’s",
+      "load": "Laden",
+      "delete": "Verwijderen",
+      "done": "Opgeslagen: ‘{name}’",
+      "failed": "Opslaan niet mogelijk: de browser staat geen opslag toe.",
+      "local": "Scenario’s blijven in deze browser — niets verlaat het apparaat."
+    },
+    "compare": {
+      "button": "Vergelijken",
+      "title": "Opgeslagen scenario’s vergeleken",
+      "name": "Scenario",
+      "utility": "Verbruikssoort",
+      "delta": "Verschil"
+    },
+    "demoNote": "In de demo zijn de uitgangssituatie en de voorbeeldscenario’s vooraf berekend. Je eigen installatie rekent elke waarde door — probeer hierboven een voorbeeld.",
+    "demoShort": "niet vooraf berekend in de demo",
+    "unsupported": "{label}: de werkplaats rekent voor verbruikssoorten met meterstanden en contracten. De gedetailleerde prognose staat verderop.",
+    "tooFew": "{label}: voor een scenario heeft de prognose minstens zes maanden verbruik nodig.",
+    "card": {
+      "brand": "Energietracker · Prognosewerkplaats",
+      "yours": "Je scenario",
+      "more": "Het scenario ‘{name}’ kost je {amount} meer per jaar.",
+      "less": "Het scenario ‘{name}’ bespaart je {amount} per jaar.",
+      "same": "Het scenario ‘{name}’ verandert je kosten nauwelijks.",
+      "footer": "Modelberekening {from} – {to} · gemaakt op {date} met Energietracker"
+    },
+    "kpi": {
+      "cost": "Kosten per jaar",
+      "vsBase": "{delta} t.o.v. {base}",
+      "qty": "Verbruik",
+      "qtyYear": "Verbruik per jaar",
+      "advance": "Aanbevolen voorschot",
+      "advanceNow": "nu {amount}",
+      "balance": "Saldo bij de afrekening op {date}",
+      "balanceBase": "Uitgangssituatie: {amount}",
+      "co2": "CO₂",
+      "co2Year": "CO₂ per jaar"
+    },
+    "chart": {
+      "cumTitle": "Cumulatieve kosten",
+      "monthTitle": "Maand voor maand",
+      "base": "Uitgangssituatie",
+      "scenario": "Scenario",
+      "eur": "{cur}",
+      "cumAlt": "Lijndiagram: cumulatieve kosten, per jaar uitgangssituatie {base}, scenario {scen}",
+      "monthAlt": "Lijndiagram: verbruik per maand in {unit}, uitgangssituatie en scenario",
+      "costBase": "Kosten uitgangssituatie",
+      "costScen": "Kosten scenario"
+    },
+    "ranking": {
+      "title": "Wat levert het meest op?",
+      "hint": "Elke knop afzonderlijk tegenover de uitgangssituatie (normale winter, huidig contract), effect in het eerste jaar.",
+      "lever": "Knop",
+      "saving": "Besparing per jaar",
+      "qty": "Hoeveelheid ({unit})",
+      "cost": "Kosten",
+      "payback": "Terugverdientijd",
+      "years": "{n} jaar",
+      "empty": "Nog geen knop verschoven — verander links iets."
+    },
+    "lever": {
+      "room_temp": "Kamertemperatuur",
+      "saving": "Besparen (gedrag)",
+      "baseload": "Basislast",
+      "ev": "Elektrische auto",
+      "jaz": "Warmtepomp (SPF)"
+    },
+    "models": {
+      "title": "Prognosemodellen vergeleken",
+      "baseQty": "Hoeveelheid uitgangssituatie",
+      "baseCost": "Kosten uitgangssituatie",
+      "scenQty": "Hoeveelheid scenario",
+      "scenCost": "Kosten scenario",
+      "band": "Onzekerheid: in {level}% van de jaren ligt het verbruik in het scenario tussen {low} en {high} {unit}, afhankelijk van de winter."
+    },
+    "opt": {
+      "title": "Beste combinatie binnen een budget",
+      "hint": "Vul een budget en de kosten van de maatregelen in — de werkplaats zoekt de combinatie met de grootste besparing.",
+      "noCandidates": "Geen maatregel met kosten ingevuld.",
+      "none": "Geen combinatie loont binnen {budget}.",
+      "result": "Binnen {budget}: {list} — kost {cost}, bespaart {saving} per jaar.",
+      "payback": "Terugverdiend na {n} jaar.",
+      "apply": "Selectie overnemen",
+      "lp": "Berekend met het model, wisselwerkingen inbegrepen; combinaties binnen het budget gecontroleerd: {n}. De lineaire relaxatie (simplex) geeft hoogstens {bound}; daar levert elke extra {cur} budget tot {value} {minor} per jaar op."
+    },
+    "honesty": {
+      "model": "Modelberekening, geen meting: gebaseerd op je meterstanden tot {month} en de prijzen van je contracten.",
+      "heat": "Aandeel verwarming over het jaar: {pct}."
+    },
+    "warn": {
+      "room_temp_unavailable": "Kamertemperatuur: niet berekend zonder verwarmingsmodel en graaddagen.",
+      "last_year_unavailable": "Vorig jaar: te weinig gemeten maanden — berekend met de prognose.",
+      "trend_unavailable": "Trend: heeft twee volle jaren nodig — berekend met de prognose.",
+      "model_filled": "Maanden van vorig jaar zonder meting, aangevuld uit de prognose: {n}.",
+      "ev_unsupported": "Elektrische auto: alleen bij stroom.",
+      "jaz_unsupported": "SPF: alleen voor een stroommeter met de rol warmtepomp.",
+      "no_heat_model": "Geen verwarmingsmodel voor deze meter: winter en verwarmingspercentages hebben geen effect.",
+      "tariff_unsupported": "Tarief: bij water rekent de werkplaats met het huidige contract.",
+      "tariff_no_price": "Tarief: het contract mist een eenheidsprijs — berekend met het huidige contract.",
+      "no_offers": "Geen aanbod met prijzen ingevoerd — berekend met het huidige contract."
+    },
+    "share": {
+      "image": "Resultaat als afbeelding opslaan",
+      "print": "Afdrukken of als pdf",
+      "csv": "Maandwaarden als CSV",
+      "filename": "scenario",
+      "imageFailed": "De afbeelding kon in deze browser niet worden gemaakt."
+    },
+    "classic": "Gedetailleerde prognose: maandtabel, stookcurve, bandbreedte",
+    "csv": {
+      "month": "Maand",
+      "base_qty": "Hoeveelheid uitgangssituatie ({unit})",
+      "scen_qty": "Hoeveelheid scenario ({unit})",
+      "base_cost": "Kosten uitgangssituatie ({cur})",
+      "scen_cost": "Kosten scenario ({cur})",
+      "base_cum_cost": "Cumulatieve kosten uitgangssituatie ({cur})",
+      "scen_cum_cost": "Cumulatieve kosten scenario ({cur})",
+      "advance": "Voorschot ({cur})"
+    },
+    "print": {
+      "back": "← Terug naar de werkplaats",
+      "title": "Scenario om af te drukken",
+      "none": "Geen scenario gekozen — open de prognosewerkplaats en klik daar op ‘Afdrukken of als pdf’.",
+      "assumptions": "Aannames",
+      "compare": "Uitgangssituatie en scenario",
+      "measure": "Maatregel {name}: verwarming −{heat}%, basislast −{base}%, kosten {cost}",
+      "inactive": "niet in scenario",
+      "customPrice": "Eigen prijs: {wp} {minor}/{unit}, vastrecht {bp} per maand",
+      "ev": "Elektrische auto: {km} km per jaar, {kwh} kWh/100 km",
+      "jaz": "Warmtepomp: SPF {from} → {to}",
+      "footer": "Zonder garantie: een scenario rekent met aannames; weer, prijzen en gedrag kunnen anders uitvallen.",
+      "hint": "‘Afdrukken’ zet het scenario op papier of bewaart het als pdf — op de iPhone via Delen → Afdrukken."
+    },
+    "guide": "Hoe er gerekend wordt"
+  },
+  "people": {
+    "deletedName": "{name} (verwijderd)"
+  },
+  "area": {
+    "assumed": "Aangenomen woonoppervlak {area} m² – vul het in. Tot dan rekent de app met deze waarde.",
+    "enterHousehold": "Woonoppervlak invullen",
+    "enterTenancy": "Oppervlak bij de huur invullen"
   }
 }

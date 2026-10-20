@@ -118,7 +118,7 @@ docker compose up -d        # … und damit neu starten
 ```bash
 docker run -d --name energietracker -p 8080:80 \
   -v "$PWD/data:/data" \
-  ghcr.io/bingerminger/energietracker:latest
+  ghcr.io/bingerminger/energietracker:3
 ```
 
 Zeile für Zeile:
@@ -129,7 +129,7 @@ Zeile für Zeile:
 | `--name energietracker` | **fester Container-Name** |
 | `-p 8080:80` | Host-Port 8080 → Container-Port 80 |
 | `-v "$PWD/data:/data"` | Daten-Volume (siehe oben) |
-| `…/energietracker:latest` | das Image samt Tag |
+| `…/energietracker:3` | das Image samt Tag: `:3` bleibt bei der neuesten 3.x und springt nicht ungefragt auf eine neue Hauptversion; `:latest` immer das Neueste, `:3.5.1` eine feste Version |
 
 > ⚠️ **Lässt du `--name energietracker` weg, vergibt Docker einen zufälligen
 > Namen** wie `thirsty_archimedes`. Mit `--name` heißt der Container immer
@@ -150,7 +150,7 @@ aus dem Paket-Zentrum; ARM- und Intel-Modelle, das Image ist Multi-Arch):
    ```yaml
    services:
      energietracker:
-       image: ghcr.io/bingerminger/energietracker:latest
+       image: ghcr.io/bingerminger/energietracker:3
        container_name: energietracker
        restart: unless-stopped
        ports:
@@ -282,6 +282,15 @@ aktuellen Basis-Image neu (gleicher Code, aktuelle Alpine- und PHP-Pakete) und
 schiebt ihn unter denselben Namen, seit v3.5.0 auch die Variante ohne root.
 Ein festgeschriebener Tag bekommt so Sicherheitsupdates des Unterbaus;
 `docker compose pull` holt sie.
+
+**Was du davon merkst:** Der Neubau läuft dienstags nach Zeitplan (GitHub
+startet ihn oft erst Stunden später) und zeigt sich unter „Actions“ als „Docker
+Rebuild“. Das ist kein neues Release und kein neuer Code. Unter demselben Tag
+liegt danach ein Image mit neuem Digest. Watchtower, Diun oder Portainer melden
+deshalb „Update verfügbar“, und GHCR zählt die Downloads je Version wieder ab
+null; die Gesamtzahl des Pakets bleibt erhalten. Wer ein Image per Digest
+(`@sha256:…`) festschreibt, bekommt die Sicherheitsupdates erst, wenn er den
+Digest nachzieht.
 
 Best Practice für einen Server: eine **konkrete Versionsnummer** pinnen und
 Updates bewusst durchführen.

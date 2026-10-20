@@ -36,7 +36,8 @@ use Energietracker\Support\Dates;
  *                        „überfällig“ (EnWG § 40c Abs. 2, Strom/Gas in DE)
  *
  * v3.5.0 (F1028) — Jedes Ereignis trägt `assignee`, `assignee_id` und
- * `assignee_former` (bei Terminen die Zuständigkeit, sonst null/false).
+ * `assignee_former` (bei Terminen die Zuständigkeit, sonst null/false);
+ * v3.6.0 dazu `assignee_deleted` (Person gelöscht, Name bleibt).
  *
  * Jedes Ereignis: {uid, kind, date, title, title_key, params, severity,
  * due_now, href, ref, occurrence, can_mark_done, done}.
@@ -417,6 +418,8 @@ final class AgendaService
             'assignee'        => is_string($assignee['assignee'] ?? null) ? $assignee['assignee'] : null,
             'assignee_id'     => is_string($assignee['assignee_id'] ?? null) ? $assignee['assignee_id'] : null,
             'assignee_former' => !empty($assignee['assignee_former']),
+            // v3.6.0 — Person gelöscht, Name bleibt („(gelöscht)“)
+            'assignee_deleted' => !empty($assignee['assignee_deleted']),
         ];
     }
 

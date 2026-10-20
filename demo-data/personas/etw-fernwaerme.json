@@ -6428,7 +6428,8 @@
             "last_done": "2021-09-01",
             "notes": "Eichfrist nach MessEV",
             "active": true,
-            "assignee": "Katrin"
+            "assignee": "Katrin",
+            "assignee_id": "u_8aa5b277"
         },
         {
             "id": "rem_f38cc4d7",
@@ -6440,7 +6441,8 @@
             "last_done": "2025-10-03",
             "notes": "Vor Beginn der Heizperiode",
             "active": true,
-            "assignee": "Mehmet"
+            "assignee": "Mehmet",
+            "assignee_id": "u_70dd190d"
         },
         {
             "id": "rem_6b863c94",
@@ -6452,7 +6454,8 @@
             "last_done": "2025-11-18",
             "notes": "Übergabestation im Keller, Termin mit dem Versorger",
             "active": true,
-            "assignee": "Hausmeister Petersen"
+            "assignee": "Katrin",
+            "assignee_id": "u_8aa5b277"
         }
     ],
     "recommendations_dismissed": [],
@@ -6885,9 +6888,32 @@
             }
         }
     ],
+    "people": {
+        "last_no": 2,
+        "people": [
+            {
+                "id": "u_8aa5b277",
+                "no": 1,
+                "name": "Katrin",
+                "role": "admin",
+                "created_at": "2023-06-01T09:00:00+02:00",
+                "deleted_at": null,
+                "deleted_by": null
+            },
+            {
+                "id": "u_70dd190d",
+                "no": 2,
+                "name": "Mehmet",
+                "role": "member",
+                "created_at": "2023-06-01T09:00:00+02:00",
+                "deleted_at": null,
+                "deleted_by": null
+            }
+        ]
+    },
     "demo_align": {
         "billing_anchor_days_ago": {
-            "strom": 30
+            "fernwaerme": 30
         }
     },
     "utilities": {

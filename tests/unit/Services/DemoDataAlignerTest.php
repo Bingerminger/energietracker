@@ -65,7 +65,13 @@ final class DemoDataAlignerTest extends TestCase
     {
         $demo = self::demo();
         $out = DemoDataAligner::align($demo, DemoDataAligner::referenceDate($demo));
-        self::assertSame($demo['utilities'], $out['utilities']);
+        // v3.6.0 — Rechnungen der Art mit Stichtag relativ zu heute folgen dem Stichtag (testBillsFollowARelativeAnchor)
+        $relative = $demo['demo_align']['billing_anchor_days_ago'] ?? [];
+        $strip = fn(array $us) => array_map(fn($d) => array_diff_key($d, ['bills' => 1]), $us);
+        self::assertSame($strip($demo['utilities']), $strip($out['utilities']));
+        foreach ($demo['utilities'] as $u => $d) {
+            if (!isset($relative[$u])) self::assertSame($d['bills'] ?? null, $out['utilities'][$u]['bills'] ?? null, $u);
+        }
         self::assertSame($demo['temperatures'], $out['temperatures']);
     }
 
@@ -399,5 +405,119 @@ final class DemoDataAlignerTest extends TestCase
                 }
             }
         }
+    }
+
+    // ── Rechnungen im Rhythmus des Stichtags (v3.6.0) ───────────────────
+
+    /** Gas mit Schlussrechnung 2023 (alter Vertrag) und einer Jahresrechnung 2024 (neuer Vertrag), Stichtag 56 Tage. */
+    private static function billPayload(): array
+    {
+        $bill = fn(string $id, string $kind, string $from, string $to, string $issued, string $c, ?string $sp) => array_filter([
+            'id' => $id, 'meter_id' => 'm_gas', 'period_from' => $from, 'period_to' => $to, 'issued_on' => $issued, 'kind' => $kind,
+            'contract_id' => $c, 'special_payment_id' => $sp, 'items' => [], 'co2' => null, 'note' => "Notiz $id", 'attachment_ids' => ['att_1'],
+            'created_at' => "{$issued}T19:12:00+01:00", 'invoice' => ['energy_kwh' => 1000.0, 'amount_eur' => 300.0, 'advances_paid_eur' => 280.0, 'result_eur' => 20.0],
+        ], fn($v) => $v !== null);
+        return [
+            'settings' => [],
+            'demo_align' => ['billing_anchor_days_ago' => ['gas' => 56]],
+            'utilities' => ['gas' => [
+                'readings' => [['id' => 'r1', 'meter_id' => 'm_gas', 'date' => '2023-01-01', 'counter' => 1.0], ['id' => 'r2', 'meter_id' => 'm_gas', 'date' => '2026-05-31', 'counter' => 9.0]],
+                'contracts' => [
+                    ['id' => 'c_old', 'meter_id' => 'm_gas', 'start' => '2022-01-01', 'end' => '2023-12-31',
+                     'special_payments' => [['id' => 'sp_old', 'date' => '2024-01-25', 'kind' => 'rueckzahlung_ohne', 'amount_eur' => 5.0]]],
+                    ['id' => 'c_new', 'meter_id' => 'm_gas', 'start' => '2024-01-01', 'end' => null,
+                     'special_payments' => [['id' => 'sp_new', 'date' => '2025-01-20', 'kind' => 'nachzahlung_mit', 'amount_eur' => 20.0, 'new_advance_eur' => 90, 'advance_from' => '2025-03-01']]],
+                ],
+                'bills' => [
+                    $bill('b_final', 'final', '2023-01-01', '2023-12-31', '2024-01-25', 'c_old', 'sp_old'),
+                    $bill('b_annual', 'annual', '2024-01-01', '2024-12-31', '2025-01-20', 'c_new', 'sp_new'),
+                ],
+            ]],
+            'activity' => [[
+                'id' => 'act_1', 'action' => 'auto_done',
+                'subject' => ['kind' => 'bill_expected', 'uid' => 'bill_expected-c_new-2024-12-31', 'occurrence' => 'bill_expected-c_new-2024-12-31@2024-12-31'],
+                'ref' => ['utility' => 'gas', 'meter_id' => 'm_gas', 'contract_id' => 'c_new', 'bill_id' => 'b_annual'],
+                'params' => ['label' => 'Gas', 'provider' => 'X', 'from' => '2024-01-01', 'until' => '2024-12-31'],
+                'title' => 'Abrechnung erwartet: Gas (X) für 01.01.2024 – 31.12.2024',
+                'done_on' => '2025-01-20', 'recorded_at' => '2025-01-20T19:05:00+01:00',
+            ]],
+        ];
+    }
+
+    public function testBillsFollowARelativeAnchor(): void
+    {
+        $p = self::billPayload();
+        // heute 2026-10-16, 56 Tage: offene Periode 2025-08-22 … 2026-08-21 → jüngste Rechnung bis 2025-08-21
+        $out = DemoDataAligner::align($p, '2026-10-16');
+        self::assertSame('08-22', $out['settings']['billing_cycle_anchor_gas']);
+        $bills = array_column($out['utilities']['gas']['bills'], null, 'id');
+        self::assertCount(3, $bills);
+        self::assertSame($p['utilities']['gas']['bills'][0], $bills['b_final'], 'Schlussrechnung bleibt');
+
+        $moved = $bills['b_annual'];
+        self::assertSame(['2024-08-22', '2025-08-21'], [$moved['period_from'], $moved['period_to']], 'jüngste Rechnung endet am Tag vor dem Stichtag vor einem Jahr');
+        $shift = 233;   // 2024-12-31 → 2025-08-21
+        self::assertSame(self::plusDays('2025-01-20', $shift), $moved['issued_on'], 'Rechnungsdatum wandert mit dem Ende');
+        self::assertSame(self::plusDays('2025-01-20', $shift) . 'T19:12:00+01:00', $moved['created_at']);
+        self::assertTrue($moved['_demo_recalc']);
+        self::assertSame(['sp_new', 'Notiz b_annual'], [$moved['special_payment_id'], $moved['note']], 'die Rechnung behält ihre Daten');
+        self::assertArrayNotHasKey('_demo_recalc', $bills['b_final']);
+
+        // die Kette davor: ab dem Tag nach der Schlussrechnung, eine Kopie ohne Sonderzahlung
+        $copy = array_values(array_diff_key($bills, ['b_final' => 1, 'b_annual' => 1]))[0];
+        self::assertSame(['2024-01-01', '2024-08-21', 'annual', 'c_new'], [$copy['period_from'], $copy['period_to'], $copy['kind'], $copy['contract_id']]);
+        self::assertArrayNotHasKey('special_payment_id', $copy);
+        self::assertSame([], $copy['attachment_ids']);
+        self::assertTrue($copy['_demo_recalc']);
+        self::assertMatchesRegularExpression('/^b_[0-9a-f]{12}$/', $copy['id']);
+
+        // Sonderzahlung und Verlauf wandern mit
+        $sp = array_column($out['utilities']['gas']['contracts'][1]['special_payments'], null, 'id')['sp_new'];
+        self::assertSame([self::plusDays('2025-01-20', $shift), self::plusDays('2025-03-01', $shift)], [$sp['date'], $sp['advance_from']]);
+        self::assertSame('2024-01-25', $out['utilities']['gas']['contracts'][0]['special_payments'][0]['date'], 'Sonderzahlung der Schlussrechnung bleibt');
+        $e = $out['activity'][0];
+        self::assertSame('bill_expected-c_new-2025-08-21', $e['subject']['uid']);
+        self::assertSame('bill_expected-c_new-2025-08-21@2025-08-21', $e['subject']['occurrence']);
+        self::assertSame(['2024-08-22', '2025-08-21'], [$e['params']['from'], $e['params']['until']]);
+        self::assertSame('Abrechnung erwartet: Gas (X) für 22.08.2024 – 21.08.2025', $e['title']);
+        self::assertSame(self::plusDays('2025-01-20', $shift), $e['done_on']);
+        self::assertSame(self::plusDays('2025-01-20', $shift), substr($e['recorded_at'], 0, 10));
+
+        // ohne Hinweis: Rechnungen unverändert
+        $fixed = DemoDataAligner::align(array_diff_key($p, ['demo_align' => 1]), '2026-10-16');
+        self::assertSame($p['utilities']['gas']['bills'], $fixed['utilities']['gas']['bills']);
+    }
+
+    public function testBillChainStartsAfterTheFinalBillAndMergesAShortStart(): void
+    {
+        // ab Vertragsbeginn: der kurze Anfang (20 Tage) gehört zur nächsten Rechnung
+        self::assertSame([['2024-01-01', '2025-01-20']], DemoDataAligner::billChain('2024-01-01', '2025-01-20', 0));
+        // 60 Tage und mehr: eine eigene erste Rechnung
+        self::assertSame([['2024-11-21', '2025-11-20'], ['2024-09-22', '2024-11-20']], DemoDataAligner::billChain('2024-09-22', '2025-11-20', 0));
+        // ohne Schlussrechnung so viele Jahre wie Rechnungen
+        self::assertSame([['2024-08-22', '2025-08-21'], ['2023-08-22', '2024-08-21']], DemoDataAligner::billChain(null, '2025-08-21', 2));
+        // Ziel vor dem Beginn: keine Kette
+        self::assertSame([], DemoDataAligner::billChain('2024-01-01', '2023-12-15', 0));
+    }
+
+    public function testBillsBeforeTheFirstReadingOrAfterAFinalBillStay(): void
+    {
+        // ohne Schlussrechnung, erste Ablesung 2024-03-01: die ältere Rechnung fiele davor — weg, mit Sonderzahlung und Verlauf
+        $p = self::billPayload();
+        $p['utilities']['gas']['bills'][0]['kind'] = 'annual';
+        $p['utilities']['gas']['bills'][0]['contract_id'] = 'c_new';
+        $p['utilities']['gas']['readings'][0]['date'] = '2024-03-01';
+        $p['activity'][0]['ref']['bill_id'] = 'b_final';
+        $out = DemoDataAligner::align($p, '2026-10-16');
+        self::assertSame(['b_annual'], array_column($out['utilities']['gas']['bills'], 'id'));
+        self::assertSame([], $out['utilities']['gas']['contracts'][0]['special_payments'], 'Sonderzahlung der weggelassenen Rechnung');
+        self::assertSame([], $out['activity'], 'Verlauf der weggelassenen Rechnung');
+
+        // Schlussrechnung nach dem Ziel: die Kette lässt sich nicht legen — alles bleibt
+        $q = self::billPayload();
+        $q['utilities']['gas']['bills'][0]['period_to'] = '2025-12-31';
+        $q['utilities']['gas']['bills'][1]['period_from'] = '2026-01-01';
+        $q['utilities']['gas']['bills'][1]['period_to'] = '2026-03-31';
+        self::assertSame($q['utilities']['gas']['bills'], DemoDataAligner::align($q, '2026-10-16')['utilities']['gas']['bills']);
     }
 }

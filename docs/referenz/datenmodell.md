@@ -28,7 +28,8 @@ Schreibvorgänge sind durch `LOCK_EX` serialisiert. Schema-Stand: **1.8.0**
 > **1.8.0** Index `intervals.json` für Werte je Viertelstunde leer angelegt;
 > die Reihen unter `intervals/` entstehen mit dem ersten Import (v3.3.0) ·
 > v3.4.0 **ohne** Schema-Schritt: `activity.json` (Verlauf erledigter
-> Hinweise) entsteht mit dem ersten Eintrag.
+> Hinweise) entsteht mit dem ersten Eintrag · v3.6.0 **ohne** Schema-Schritt:
+> `people.json` (Personenverzeichnis) entsteht beim ersten Lesen der Personen.
 
 ---
 
@@ -53,6 +54,7 @@ data/
 ├── intervals.json            # Index der Viertelstundenreihen { series, samples } (v3.3.0, Schema 1.8.0)
 ├── intervals/                # Viertelstundenreihen <id>.json, je Zähler bzw. Börsenpreis und Kalenderjahr (v3.3.0)
 ├── activity.json             # Verlauf erledigter Hinweise (v3.4.0) — entsteht mit dem ersten Eintrag
+├── people.json               # Personenverzeichnis: Nummer, Name, Rolle, Löschvermerk (v3.6.0) — im Backup, ohne Passwörter
 ├── instance.json             # Kennung der Installation (v3.1.0) — nicht im Backup
 ├── gas/        { meters.json, readings.json, contracts.json, meter_groups.json, periods.json, bills.json }
 ├── strom/      { meters.json, readings.json, contracts.json, meter_groups.json, periods.json, bills.json }
@@ -832,12 +834,17 @@ v3.5.0 optional dazu, ohne Schema-Schritt — fehlende Felder heißen
 
 | Feld | Bedeutung |
 |---|---|
-| `assignee` | Anzeigename der zuständigen Person, getrimmt, bis 60 Zeichen |
-| `assignee_id` | Personen-ID aus `auth.json`, nur wenn aus der Personenliste gewählt |
+| `assignee` | Anzeigename der zuständigen Person, getrimmt, bis 60 Zeichen; bei einem erledigten einmaligen Termin der Name beim Erledigen |
+| `assignee_id` | Personen-ID (`u_…`, [Personenverzeichnis](#personenverzeichnis-peoplejson-v360)), nur wenn aus der Personenliste gewählt |
 | `assignee_former` | `true`, nachdem die Person gelöscht und ihr Name ersetzt wurde („ehemalige Person“) |
+| `assignee_deleted` | *(v3.6.0)* `true`, nachdem die Person gelöscht wurde: Name und ID bleiben, angezeigt als „Name (gelöscht)“ |
 
-Das Backup (Topf `reminders`) trägt die Namen wie gespeichert; die
-Personenliste bleibt in `auth.json`. Einzelheiten:
+Beim Löschen einer Person gehen ihre **offenen** Termine (per ID oder mit
+gleichem freiem Namen) an die löschende Person; **erledigte** behalten Name
+und ID mit `assignee_deleted` bzw. werden „ehemalige Person“. Die Antworten
+der API tragen `assignee_deleted` immer (auch `false`); es gilt auch, wenn das
+Verzeichnis die Person als gelöscht führt. Das Backup (Topf `reminders`)
+trägt die Namen wie gespeichert. Einzelheiten:
 [API](api.md#zuständig-an-terminen-v350).
 
 ### Verlauf erledigter Hinweise (`activity.json`) *(v3.4.0)*
@@ -871,9 +878,9 @@ dem ersten Eintrag, fehlt sie, ist der Verlauf leer. Kein Schema-Schritt.
 | `title` | Titel als Momentaufnahme in der Sprache beim Erledigen |
 | `done_on` | Tag der Tat, rückdatierbar, nicht in der Zukunft |
 | `recorded_at` | Zeitpunkt des Eintrags (ISO 8601) |
-| `by` | `{type: "person", id, name}`, `{type: "key", name}` (API-Schlüssel), `{type: "integration", name}` (`home_assistant`, `evcc`), `{type: "auto", reason}` (von selbst) oder `null` (ohne Anmeldung). Nach „ehemalige Person“: `{type: "person", former: true}` |
+| `by` | `{type: "person", id, name}`, `{type: "key", name}` (API-Schlüssel), `{type: "integration", name}` (`home_assistant`, `evcc`), `{type: "auto", reason}` (von selbst) oder `null` (ohne Anmeldung). Nach „ehemalige Person“: `{type: "person", former: true}`; *(v3.6.0)* nach dem Löschen sonst `{type: "person", id, name, deleted: true}` („Name (gelöscht)“) |
 | `reason` | bei `auto_done` und `dismissed`: `{key, params}` — `activity.reason.successor`, `…reading`, `…delivery`, `…statement`, `…dismissed`; seit v3.5.0 `…period` (neuer Zeitraum), `…bill` (Versorgerrechnung erfasst), beim Abhaken von `bill_expected` `…billWithout` („kam ohne Erfassung“) |
-| `assignee` | *(v3.5.0)* nur beim Erledigen eines Termins mit Zuständigkeit: `{name, id?}` als Momentaufnahme, nach „ehemalige Person“ `{former: true}` |
+| `assignee` | *(v3.5.0)* nur beim Erledigen eines Termins mit Zuständigkeit: `{name, id?}` als Momentaufnahme, nach „ehemalige Person“ `{former: true}`, *(v3.6.0)* nach dem Löschen `{name, id, deleted: true}` |
 | `note`, `attachment_id` | Notiz (bis 500 Zeichen, auch leer) und optional ein Beleg ([Belege](#belege-v310), Verweisart `activity`) |
 | `undone` | `{at, by}` nach Rückgängig — der Eintrag bleibt, durchgestrichen |
 | `revert` | was Rückgängig zurückstellt: `reminder` (Fälligkeit, Status, `last_done`), `contract_auto_renews`, `recommendation_dismiss` — nur, solange niemand es inzwischen anders geändert hat |
@@ -882,11 +889,12 @@ dem ersten Eintrag, fehlt sie, ist der Verlauf leer. Kein Schema-Schritt.
 aufgeräumt wird beim Schreiben, nach `done_on`.
 
 **Backup:** Topf `activity`. Die Namen stehen darin als **Momentaufnahme** —
-wer ein Backup weitergibt, gibt sie mit; die Personenliste selbst bleibt in
-`auth.json`. Der Import prüft `id`, `action` (eine der vier), `subject`
+wer ein Backup weitergibt, gibt sie mit; die Zugänge selbst bleiben in
+`auth.json`, das Personenverzeichnis ist Topf `people`. Der Import prüft `id`, `action` (eine der vier), `subject`
 (`kind` und `occurrence`) und `done_on` (Kalenderdatum). Ein Backup ohne den
-Topf lässt den Verlauf unverändert. Beispielhaushalte und Demo bringen
-`"activity": []` mit.
+Topf lässt den Verlauf unverändert. Beispielhaushalte und Demo bringen seit
+v3.5.0 einen Verlauf mit erfundenen Personen mit; ein Beispielhaushalt ersetzt
+den vorhandenen.
 
 ### Personen in `auth.json` *(v3.2.0)*
 
@@ -925,6 +933,43 @@ tragen die Kennung der Person (`<ablauf>.<id>.<hmac>`); die Form aus v3.1 ohne
 Kennung steht für `u_admin`, bis dessen Passwort zum ersten Mal neu gesetzt
 wird. Eine gelöschte Person hat keine gültige Sitzung mehr.
 
+### Personenverzeichnis (`people.json`) *(v3.6.0)*
+
+Jede Person des Haushalts mit **fortlaufender Nummer**, die nie wieder
+vergeben wird — auch gelöschte bleiben als Eintrag stehen
+([Anleitung](../anleitungen/benutzer.md#personen-löschen)). Kein
+Schema-Schritt: Fehlt die Datei, bekommen die Zugänge aus `auth.json` beim
+ersten Lesen ihre Nummer, in der Reihenfolge `created_at`, dann `id`.
+
+```json
+{ "last_no": 2,
+  "people": [
+    { "id": "u_3f9a1c2e", "no": 1, "name": "Alex", "role": "admin",
+      "created_at": "2026-01-15T10:00:00+01:00", "deleted_at": null, "deleted_by": null },
+    { "id": "u_8b0d4f17", "no": 2, "name": "Kim", "role": "member",
+      "created_at": "2026-03-02T10:00:00+01:00",
+      "deleted_at": "2026-10-19T19:30:00+02:00", "deleted_by": "u_3f9a1c2e" } ] }
+```
+
+| Feld | Bedeutung |
+|---|---|
+| `last_no` | zuletzt vergebene Nummer; steigt nur — nicht zurück beim Löschen und nicht durch ein älteres Backup |
+| `id` | die ID des Zugangs (`u_…`), wie an Terminen (`assignee_id`) und im Verlauf (`by.id`). Sie bleibt zufällig, weil Backups zwischen Installationen wandern; eine hochgezählte ID träfe dort auf eine fremde Person |
+| `no` | fortlaufende Personennummer (1, 2, …), je Person einmal |
+| `name`, `role` | wie im Zugang (bis 60 Zeichen, `admin`/`member`); folgen ihm bei jeder Änderung |
+| `created_at` | angelegt (ISO 8601) |
+| `deleted_at`, `deleted_by` | gelöscht am (ISO 8601) und ID der löschenden Person; sonst `null` |
+
+Ein Eintrag ohne Zugang ist eine **Person ohne Anmeldung** — aus einem Backup
+oder einem Beispielhaushalt. Sie steht unter „Zuständig“ zur Wahl und unter
+Einstellungen → Zugriff mit „ohne Zugang“, wo sie sich löschen und seit v3.6.0
+umbenennen lässt, auch ihre Rolle (dann gelten für `name` die Regeln eines
+Zugangs: 1–40 Zeichen, eindeutig); ein neuer Zugang mit demselben Namen
+übernimmt ihre ID und Nummer. **Backup:** Topf
+`people`; der Import prüft je Eintrag `id` (`u_` und 1–32 Kleinbuchstaben
+oder Ziffern) und `name`, ersetzt das Verzeichnis und behält den höheren
+Zähler. Ein Backup ohne den Topf lässt das Verzeichnis unverändert.
+
 ---
 
 ## 3. Einstellungen (`settings.json`)
@@ -951,7 +996,7 @@ eine Auswahl mit Hintergrund:
 | `forecast_months` | 12 | Prognosehorizont |
 | `forecast_model` | linear | Standard-Regressionsmodell |
 | `segmented_split_mode` | auto | Knickpunkt der segmentierten Regression |
-| `wohnflaeche_m2` | 100 | für Effizienzklasse |
+| `wohnflaeche_m2` | 100 | für Effizienzklasse. *(v3.6.0)* Wie `wasser_personen_anzahl` (Standard 2) gilt der Wert für die Einordnung erst als eingetragen, wenn der Schlüssel in `settings.json` steht (auch gleich dem Standard); fehlt er, meldet `GET /api/settings` ihn unter `assumed_keys`. `PATCH` mit `null` entfernt den Schlüssel wieder |
 | `gebaeudetyp`, `beheizter_keller`, `warmwasser_dezentral` | efh, false, false | *(v2.10.0 wirksam)* Gebäudenutzfläche 1,2 bzw. 1,35 × Wohnfläche, Warmwasser-Zuschlag 20 kWh/m²·a (ab 01.01.2027: 16, § 82 GModG; v3.5.0) für die energieausweis-nahe Kennzahl |
 | `wasser_personen_referenz` | 122 | L je Person und Tag, BDEW 2024 (*v2.10.0, vorher 127*) |
 | `dashboard_months` | 12 | *(seit v2.9.0 wirksam)* Monate im Verbrauchsverlauf des Dashboards (3–36) |
@@ -1056,8 +1101,13 @@ dazu die Börsenpreise 2025 je Viertelstunde von SMARD
 SMARD.de, CC BY 4.0) und Modul-3-Zeitfenster mit erfundenen Preisen am
 Vertrag der Wärmepumpe. Seit v3.5.0 (N1026) führen alle Haushalte und das
 Schaufenster den Verlauf „Erledigt“ (`activity`, erfundene Namen), Termine mit
-Zuständigkeit (`assignee`, ohne `assignee_id`), erfasste Versorgerrechnungen
-(`bills`) und Folgeverträge. Erzeugt werden sie von
+Zuständigkeit (`assignee`, seit v3.6.0 mit `assignee_id` und dem
+Personenverzeichnis `people`, je Haushalt mindestens eine Person mit der Rolle
+Verwaltung, im Eigenheim klassisch eine gelöschte), erfasste Versorgerrechnungen
+(`bills`) und Folgeverträge. Alle vier tragen Wohnfläche und Personen ein;
+seit v3.6.0 hat `eigenheim-klassisch` dazu eigene, erfundene Vergleichswerte
+(`reference_strom_kwh`, `reference_heat_kwh_m2`) und zeigt die Einordnung mit
+voller Ampel. Erzeugt werden sie von
 `tools/build-personas.mjs` aus einem Tagesmodell mit festem Startwert: Jeder
 Lauf schreibt dieselben Dateien, `--check` vergleicht nur. Namen sind
 erfunden, Marktlokations-IDs synthetisch. Beim Laden schreibt sie
@@ -1065,8 +1115,12 @@ erfunden, Marktlokations-IDs synthetisch. Beim Laden schreibt sie
 letzten zwei bis drei Monate bis gestern, der Verlauf zu Terminen wandert mit
 den Terminen. Ein optionaler Schlüssel `demo_align` im Demo-Backup verlangt
 einen Abrechnungsstichtag relativ zu heute
-(`billing_anchor_days_ago: {Art: Tage}`); er wird nicht eingespielt. Das
-Docker-Image enthält sie ([API](api.md#beispielhaushalte-v320)).
+(`billing_anchor_days_ago: {Art: Tage}`); er wird nicht eingespielt. Seit
+v3.6.0 wandern die Jahresrechnungen dieser Art mit: Die jüngste endet am Tag
+vor dem Stichtag des Vorjahres, davor eine lückenlose Kette ab der letzten
+Schlussrechnung (die bleibt); Rechnungsdatum, verknüpfte Sonderzahlung und
+Verlauf wandern mit, die Beträge rechnet der Import aus der eigenen Rechnung
+neu. Das Docker-Image enthält sie ([API](api.md#beispielhaushalte-v320)).
 
 **Downgrade-Schutz (v2.6.0).** Ein Downgrade wird nicht unterstützt — aber
 jetzt erkannt: Ist `schema_version` der Daten **neuer** als die App, schreibt

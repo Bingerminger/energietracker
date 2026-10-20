@@ -10,12 +10,15 @@
 //   • alles andere → Fehler „In der Demo wird nichts gespeichert“
 //   • GET ohne gespeicherte Antwort (eigene Was-wäre-wenn-Werte, frei
 //     gewählter Prüfzeitraum) → Fehler „nicht vorberechnet“
+//   • v3.6.0 (F1031) — POST /api/forecast/scenario rechnet nur: Ausgangsfall
+//     und Beispielszenarien je Zähler liegen in `scenarios.json` (je
+//     Haushalt, sprachunabhängig); eigene Reglerwerte → „nur Beispiele“
 //
 // Eine normale Installation führt diesen Code nie aus: Er greift nur, wenn
 // die Seite `data-demo` trägt (das setzt index.php allein mit ET_DEMO_BUILD).
 // =====================================================================
 
-import { demoKey, demoFileName } from './demo-key.js';
+import { demoKey, demoFileName, demoBodyKey } from './demo-key.js';
 import { t } from './i18n.js';
 
 export const DEMO = typeof document !== 'undefined'
@@ -93,6 +96,15 @@ function loadIndex(lang) {
   return indexes.get(key);
 }
 
+/** v3.6.0 (F1031) — POST-Routen, die nur rechnen (Antworten aus scenarios.json). */
+const POST_READS = ['/api/forecast/scenario'];
+const scenarioIndexes = new Map();
+function loadScenarioIndex() {
+  const p = demoPersona();
+  if (!scenarioIndexes.has(p)) scenarioIndexes.set(p, loadJson(`${personaRoot()}/scenarios.json`).catch(() => ({})));
+  return scenarioIndexes.get(p);
+}
+
 /** Bautag und Version der Demo: `{ built_at, today, version, languages }`. */
 export function demoMeta() {
   metaPromise ??= loadJson(`${ROOT}/meta.json`).catch(() => ({}));
@@ -112,12 +124,23 @@ function demoError(code, status = 0) {
  * @param {string} path  `/api/…` samt Query
  * @param {string} lang  aktive Sprache
  */
-export async function demoRequest(method, path, lang) {
-  if (method !== 'GET') throw demoError('demo.readOnly', 403);
-  const key = demoKey(path);
-  const file = key.startsWith('/api/docs?')
-    ? (await loadDocsIndex())[key]
-    : (await loadIndex(lang))[key] ?? (await loadIndex('de'))[key];
+export async function demoRequest(method, path, lang, body = null) {
+  let key, file;
+  if (method === 'POST' && POST_READS.includes(path)) {
+    // v3.6.0 (F1031) — Rechnen ohne Schreiben: vorgerechnete Szenarien
+    key = demoBodyKey(path, body);
+    file = (await loadScenarioIndex())[key];
+    if (!file) {
+      demoMisses.add(key);
+      throw demoError('demo.scenarioPresetsOnly', 404);
+    }
+  } else {
+    if (method !== 'GET') throw demoError('demo.readOnly', 403);
+    key = demoKey(path);
+    file = key.startsWith('/api/docs?')
+      ? (await loadDocsIndex())[key]
+      : (await loadIndex(lang))[key] ?? (await loadIndex('de'))[key];
+  }
   if (!file) {
     demoMisses.add(key);
     throw demoError('demo.unavailable', 404);

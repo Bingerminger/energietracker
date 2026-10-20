@@ -120,8 +120,9 @@ maintenance every reminder shows “Last done on … by …”.
 | Home Assistant (ingest), evcc | “Home Assistant” or “evcc” |
 | detected from the data, without a person acting | “automatically” with a reason |
 
-People only exist with sign-in switched on
-([Users in the household](benutzer.md)). Rights:
+Only someone signed in acts as a person
+([Users in the household](benutzer.md)). If the person has been deleted since,
+their name shows with **“(deleted)”** *(v3.6.0)*. Rights:
 
 | | Admin | Member | Read key |
 |---|---|---|---|
@@ -143,16 +144,19 @@ you a way back.
 
 **Names in the backup.** The history is part of the backup (pot `activity`).
 The names are in it **as a snapshot** — whoever passes a backup on passes them
-on too. The list of people itself (names, roles, passwords) stays in
-`auth.json` and out of the backup. A backup without a history (from a version
-before 3.4) leaves the existing history unchanged.
+on too. Passwords, sessions and keys stay in `auth.json` and out of the
+backup; the register of people (number, name, role, deletion note) has been
+part of it since v3.6.0 (pot `people`). A backup without a history (from a
+version before 3.4) leaves the existing history unchanged.
 
 **Deleting a person:** under Settings → Access → “Users and roles”,
 “Delete person” asks whether to replace the name in the history with
-**“former member”**. The default is no — the history stays as it is.
+**“former member”**. The default is no — the history then keeps the name,
+since v3.6.0 with **“(deleted)”**
+([Users in the household](benutzer.md#deleting-people)).
 
-The sample households and the public demo come with an empty history; loading
-a sample household clears it.
+Since v3.5.0 the sample households and the public demo come with a history of
+made-up people; loading a sample household replaces the existing history.
 
 ---
 
@@ -178,6 +182,7 @@ PATCH  /api/activity/{id}          {note}
 DELETE /api/activity               ?before=YYYY-MM-DD — admins only
 GET    /api/activity.csv           (v3.5.0) the same filters, ?format=1|local&lang=
 GET    /api/people                 (v3.5.0) people for “Responsible”: id and name only
+GET    /api/users/{id}/handover    (v3.6.0) before deleting: open reminders to whom, completed entries
 ```
 
 `POST /api/reminders/{id}/done` and `POST /api/recommendations/{id}/dismiss`
@@ -195,10 +200,12 @@ responsible person — who books the boiler service, who checks the smoke
 alarm. **Reminders only**: meters and contracts on purpose not. **Nobody is
 notified**; the [calendar](kalender.md) and Home Assistant are there for that.
 
-**Entering it:** the **“Responsible”** field in the reminder dialog. With
-sign-in switched on it suggests the people of the household
-([Users in the household](benutzer.md)); picking one of them links the person
-— if an admin renames them, the reminder shows the new name. Any other name
+**Entering it:** the **“Responsible”** field in the reminder dialog. It
+suggests the people of the household ([Users in the household](benutzer.md))
+— since v3.6.0 from the register of people, so also without sign-in (for
+example in a sample household); deleted people are not offered. Picking one of
+them links the person — if an admin renames them, the reminder shows the new
+name; a completed one-off reminder keeps the name it had when done. Any other name
 works too (free text, up to 60 characters), for example “Grandma” or the
 caretaker. Empty means: nobody.
 
@@ -217,11 +224,18 @@ Under “To do” the filter also hides notices without anyone responsible
 **Ticking off:** a recurring reminder keeps its responsible person. The
 history entry names who was responsible — as a snapshot.
 
-**Deleting a person:** the link disappears from their reminders, the name
-stays as a free name. If the admin chooses “former member” when deleting
-([section 5](#5-retention-clearing-privacy)), the reminders and the history
-show **“former member”** instead of the name; the filter counts them as
-“Unassigned” until someone new is entered.
+**Deleting a person** *(v3.6.0; up to v3.5 the name stayed as a free name)*:
+their **open reminders pass to the person deleting** — including those with a
+free name matching theirs. The dialog says beforehand how many and to whom.
+**Completed items keep the name** they had when done, with **“(deleted)”**:
+in the history (who did it and who was responsible), on completed one-off
+reminders, in the history CSV file and in the calendar. If the admin chooses
+“former member” when deleting ([section 5](#5-retention-clearing-privacy)),
+those show **“former member”** instead of the name. The filter counts a
+deleted or former person as “Unassigned” until someone new is entered; a
+deleted person can no longer be assigned. Whoever deletes with an API key is
+not a person: open reminders then stay with the deleted person, marked
+“(deleted)”, until someone takes them over.
 
 ---
 

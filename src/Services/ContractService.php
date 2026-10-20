@@ -790,6 +790,54 @@ final class ContractService
     }
 
     /**
+     * v3.6.0 — Derselbe Versorger? Anbieter (sonst Tarifname), ohne
+     * Groß/klein und Leerzeichen am Rand; ohne Namen nie derselbe. Eine Regel
+     * für „Abrechnung erwartet“ (BillExpectedService) und die
+     * Abrechnungsperioden (BillingPeriodService).
+     */
+    public static function sameSupplier(array $a, array $b): bool
+    {
+        $name = fn(array $c) => mb_strtolower(trim((string)(($c['provider'] ?? '') ?: ($c['tariff_name'] ?? ''))));
+        return $name($a) !== '' && $name($a) === $name($b);
+    }
+
+    /**
+     * v3.6.0 — Endet mit diesem Vertrag das Lieferverhältnis, weil ein
+     * Folgevertrag ({@see successorOf()}) eines anderen Versorgers beginnt?
+     * Dann rechnet der alte Versorger mit einer Schlussrechnung ab.
+     *
+     * Ein Wechsel ist:
+     *   - ein Folgevertrag eines anderen Versorgers ({@see sameSupplier()}),
+     *   - ein Folgevertrag desselben Versorgers erst nach einer Lücke (der
+     *     Vertrag verlängert sich nicht, `auto_renews` = false, und der neue
+     *     beginnt später als am Tag nach dem Ende).
+     * Kein Wechsel: ein Folgevertrag desselben Versorgers, der lückenlos
+     * anschließt (Verlängerung, neuer Tarif), ein weiterlaufender Vertrag ohne
+     * Folgevertrag. So erwartet auch „Abrechnung erwartet“ eine Schlussrechnung.
+     *
+     * `until` = letzter Tag beim alten Versorger: das Vertragsende; ein
+     * Vertrag, der sich verlängert (oder ohne Ende), läuft bis zum Tag vor dem
+     * Folgevertrag; überlappen sie, gilt ab dessen Beginn der neue (wie
+     * {@see findActiveForDate()}). `next` = Beginn des Folgevertrags. Liegt
+     * dazwischen eine Lücke, gilt dort kein Vertrag ({@see resolveForDate()}).
+     *
+     * @param array<int,array<string,mixed>> $contracts echte Verträge desselben Ziels (bzw. was für den Zähler gilt)
+     * @return array{until:string,next:string,successor_id:string}|null
+     */
+    public static function supplierSwitchAfter(array $contract, array $contracts): ?array
+    {
+        if (!empty($contract['is_shadow'])) return null;
+        $succ = self::successorOf($contract, $contracts);
+        if ($succ === null) return null;
+        $end = (string)($contract['end'] ?? '');
+        $before = date('Y-m-d', (int)strtotime($succ['start'] . ' -1 day'));
+        $until = $end === '' || $end >= $before || self::renews($contract) ? $before : $end;
+        if ($succ['start'] === date('Y-m-d', (int)strtotime("$until +1 day"))
+            && self::sameSupplier($contract, ['provider' => $succ['provider']])) return null;
+        return ['until' => $until, 'next' => $succ['start'], 'successor_id' => $succ['contract_id']];
+    }
+
+    /**
      * v2.9.0 — Kündigungsfrist eines Vertrags: Tage haben Vorrang vor
      * Monaten; null, wenn keine gepflegt ist.
      *

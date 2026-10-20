@@ -162,6 +162,7 @@ final class BenchmarkService
      * @return array{
      *   year: int,
      *   wohnflaeche_m2: float,
+     *   area_assumed: bool,
      *   per_source: array<int, array{utility:string, label:string, kwh:float, kwh_per_m2:float, class:string|null, coverage_days:int, complete:bool}>,
      *   combined: array{kwh:float, kwh_per_m2:float|null, class:string|null},
      *   primary: array{utility:string, label:string, kwh:float, kwh_per_m2:float, class:string|null}|null,
@@ -252,6 +253,9 @@ final class BenchmarkService
         return [
             'year'           => $year,
             'wohnflaeche_m2' => $wohnflaeche,
+            // v3.6.0 — die Fläche ist nur der Default (niemand hat sie eingetragen):
+            // Kennzahl und Klasse rechnen weiter damit, die Oberfläche bittet ums Eintragen
+            'area_assumed'   => $wohnflaeche > 0 && !$this->settings->isEntered('wohnflaeche_m2'),
             'per_source'     => $perSource,
             'primary'        => $primary,
             'combined'       => [

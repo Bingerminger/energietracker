@@ -22,6 +22,7 @@ import { DEMO, demoLanguage, mountDemoUi } from './lib/demo-mode.js';
 import { setSession, resolveLevel, applyLevel } from './lib/levels.js';
 import { mountLevelSwitch, refreshLevelSwitch } from './lib/level-switch.js';
 import { maybeStartSetup } from './components/setup-wizard.js';
+import { showReleaseNotices } from './lib/release-notice.js';
 
 // v2.13.0 — ⓘ-Erklärungen: ein Handler für alle Knöpfe
 installInfoPopovers();
@@ -173,6 +174,8 @@ const boot = (session = null) => Promise.all([getSettings(), getCountries()])
     showPendingToast();
     // v3.2.0 (F1018) — Einrichtungsassistent: Neuinstallation oder Demo ohne Haushalt
     maybeStartSetup(session).catch((e) => console.error('Einrichtung', e));
+    // v3.6.0 — „Was ist neu“ nach einem Update, Hinweis auf neue Versionen
+    showReleaseNotices().catch(() => {});
     // Badges nachreichen — sie sind Beiwerk und dürfen den ersten Inhalt
     // nicht aufhalten.
     refreshSidebarBadges().catch(() => {});

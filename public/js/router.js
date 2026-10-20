@@ -43,6 +43,7 @@ const ROUTES = [
   [/^\/tenancy$/,                    'tenancy'],        // v3.1.0 (H3, F1008)
   [/^\/analysis$/,                   'analysis'],
   [/^\/forecast$/,                   'forecast'],
+  [/^\/forecast\/print$/,             'scenario-print'],   // v3.6.0 (F1031) — Szenario drucken
   [/^\/flexibility$/,                'flexibility'],   // v3.3.0 (F1021)
   [/^\/report$/,                     'report'],
   [/^\/report\/print$/,              'report-print'],   // v3.1.0 (I18N-12)
@@ -70,6 +71,7 @@ const VIEWS = {
   'tenancy':            { section: 'costs',       load: () => import('./views/tenancy.js') },
   'analysis':           { section: 'analysis',    load: () => import('./views/analysis.js') },
   'forecast':           { section: 'analysis',    load: () => import('./views/forecast.js') },
+  'scenario-print':     { section: 'analysis', tab: 'forecast', load: () => import('./views/scenario-print.js') },   // v3.6.0 (F1031)
   'flexibility':        { section: 'analysis',    load: () => import('./views/flexibility.js') },   // v3.3.0 (F1021)
   'report':             { section: 'analysis',    load: () => import('./views/report.js') },
   'report-print':       { section: 'analysis', tab: 'report', load: () => import('./views/report-print.js') },
@@ -231,6 +233,8 @@ export function startRouter(container, { routes = ROUTES, views = VIEWS } = {}) 
   window.addEventListener('hashchange', () => handle(false));
   // v3.2.0 — andere Stufe: Tabs und Ansicht neu
   window.addEventListener('et:levelchange', () => handle(false));
+  // v3.6.0 (F1030) — Kalenderjahr / Abrechnungsjahr umgeschaltet: Ansicht neu
+  window.addEventListener('et:periodmode', () => handle(false));
   handle(true);
   return { reload: () => handle(false) };
 }

@@ -65,12 +65,12 @@ it in the browser. An existing installation is on “Expert” after the update.
 
 | From level | Pages | Parts of pages |
 |---|---|---|
-| 🌱 Beginner | Overview (a view of its own, §1), Meter readings, Consumption per utility, Contracts & payments, Annual report, Reminders & maintenance, Recommendations, Help; Settings → General, Household & building, Utilities & billing, Data | — |
-| 🌿 Experienced | Tariff switch, Check a bill, Tenancy, Analysis, Forecast, meter management of a utility (`#/utility/…/meters`), Weather data, Reminders & tips → Done (v3.4.0), Settings → Integrations | the overview with every key figure; in the consumption view the CO₂ tile, “Measured”/“Weather-adjusted”, the monthly table, the PV energy flow, “Check a bill” and “Charging sessions from evcc” (§3); in the contract dialog notice period, price guarantee, how cancellation takes effect, minimum term, “Renews unless cancelled”, bonuses and special payments; in the settings Display, Reminders, Own reference values, Water reference values, Physical constants and Energy sources (delivery) |
-| 🌳 Expert | Flexibility (v3.3.0); Settings → Access, Expert, System | on the overview the “Explainers” section; in the consumption view hot-water heat, CO₂ price in the fuel, charging record, heat pump and the PV battery and payback; in the analysis the baseline date and “Effect of the measure”; in the forecast the model and the CO₂ price scenario; under Tariff switch the dynamic tariff and “Wholesale electricity prices”; in the contract list the counts per contract (v3.4.0); in the contract dialog capacity and metering charge and the key figures of district heating, the reduced grid fee (§ 14a), the time-variable grid fee (§ 14a module 3, v3.3.0), the energy price per meter of a group, credit notes from the direct marketer and “Import monthly prices”; in the meter dialog group, baseline dates, PV system, the heat pump’s electricity meter and “Import time series”; in the tenancy “Sharing CO₂ costs”; in the settings CO₂ emission factors and Photovoltaics |
+| 🌱 Beginner | Overview (a view of its own, §1), Meter readings, Consumption per utility, Contracts & payments, Forecast workshop (v3.6.0, three sliders), Flexibility (v3.6.0: result, action sentences, typical day), Annual report, Reminders & maintenance, Recommendations, Help; Settings → General, Household & building, Utilities & billing, Data | — |
+| 🌿 Experienced | Tariff switch, Check a bill, Tenancy, Analysis, meter management of a utility (`#/utility/…/meters`), Weather data, Reminders & tips → Done (v3.4.0), Settings → Integrations | the overview with every key figure; in Flexibility (v3.6.0) the week, the best time windows, “Using solar power at home” and “Your lever”; in the forecast workshop room temperature, base load, forecast model, measures, ranking, month-by-month curve, balance and CO₂; in the consumption view the CO₂ tile, “Measured”/“Weather-adjusted”, the monthly table, the PV energy flow, “Check a bill” and “Charging sessions from evcc” (§3); in the contract dialog notice period, price guarantee, how cancellation takes effect, minimum term, “Renews unless cancelled”, bonuses and special payments; in the settings Display, Reminders, Own reference values, Water reference values, Physical constants and Energy sources (delivery) |
+| 🌳 Expert | Settings → Access, Expert, System | on the overview the “Explainers” section; in Flexibility the check per meter, battery, module 3 and the quarter-hour series (up to v3.5.0 the whole page was reserved for experts); in the consumption view hot-water heat, CO₂ price in the fuel, charging record, heat pump and the PV battery and payback; in the analysis the baseline date and “Effect of the measure”; in the forecast the model and the CO₂ price scenario, in the workshop heating curve, electric car, SPF, budget with optimisation, model comparison, range and CSV; under Tariff switch the dynamic tariff and “Wholesale electricity prices”; in the contract list the counts per contract (v3.4.0); in the contract dialog capacity and metering charge and the key figures of district heating, the reduced grid fee (§ 14a), the time-variable grid fee (§ 14a module 3, v3.3.0), the energy price per meter of a group, credit notes from the direct marketer and “Import monthly prices”; in the meter dialog group, baseline dates, PV system, the heat pump’s electricity meter and “Import time series”; in the tenancy “Sharing CO₂ costs”; in the settings CO₂ emission factors and Photovoltaics |
 
 An area shows as tabs only the pages of its level, none if just one is left;
-“Insights” in the sidebar takes beginners to the annual report. A link, a
+“Insights” in the sidebar takes beginners to the forecast workshop since v3.6.0, next to the annual report. A link, a
 bookmark or an old address still opens a hidden page. A notice then sits on
 top: “This page belongs to the “Experienced” level. It is open anyway.” with
 **“Switch to “Experienced””** and ✕ — for example when a beginner taps
@@ -139,7 +139,12 @@ The **help** sits in the footer of the sidebar, on the iPhone under "More".
 
 ## 1. Overview (dashboard)
 
-The entry point. 12-month figures per utility, efficiency class **per heat
+The entry point. 12-month figures per utility (since v3.6.0 in **billing
+years**: for each utility with bill check the current billing period with its
+own settlement date, named and with the advance payments so far, without
+sub-meters — switch above the cards, see the consumption view; a card’s
+expandable **meter groups** then show the same period, or, if a group has bills
+of its own, its latest one with its name), efficiency class **per heat
 source**, tank levels (oil/pellets), **electricity balance & self-sufficiency** for
 PV, the combined consumption history (as many months as set under *Months on
 dashboard* in the settings, since v2.9.0) and due appointments. Since v2.10.0 the
@@ -210,19 +215,54 @@ more is good: the upward arrow is green. The combined chart now shows only
 what is drawn from the grid — up to v2.12 it also stacked the PV kilowatt-hours
 as if they were consumption.
 
-**Benchmark (v3.1.0):** the card 📏 **“Benchmark {year}”** (previous year) sets
-the annual consumption against your own reference values — “Household
-electricity: … kWh against … kWh (your reference value)” and per heating type
-“… kWh/m² against … kWh/m²”, with the deviation in % (green below, red above),
-only for full years. Below, where it applies: that the year does not yet have
-every month, that with PV, a heat pump or a wall box the general electricity
-benchmark does not fit (heat pump and wall box are already excluded), and the
-source of the reference values. Without your own values it says where to enter
-them (Settings → Household & building → Own reference values). In Germany the
-card links “Stromspiegel: check your class (German)” and “Heizspiegel: check
-heating costs (German)” ↗. Without values and without links it is left out.
+**Benchmark (v3.1.0, a traffic light since v3.6.0):** the card 📏
+**“Benchmark {year}”** (previous year, calendar year) sets the annual
+consumption against a comparison, each line with a traffic light, a word and
+one sentence:
+
+| Line | compared with | Traffic light |
+|---|---|---|
+| Household electricity | your reference value (Settings → Household & building → Own reference values) | **Good** at or below it · **Above** up to 10 % above · **Well above** more |
+| per heating type, kWh/m² | your heating reference value | as for electricity |
+| Water, litres per person per day | the benchmark under Water (default 122 L, BDEW) and the people in the household | by the bands of the water saving index (default: Good up to 100, yellow only from 5 points above, Well above from 150) |
+
+For example “**Above** Household electricity: 3,650 kWh, 7% above your
+reference value (3,400 kWh).” There is a traffic light only for full years;
+before that the value stands without a colour, with the note that the year
+does not yet have every month. Below, where it applies: that with PV, a heat
+pump or a wall box the general electricity benchmark does not fit (heat pump
+and wall box are already excluded), and the source of the reference values.
+
+If something is missing, the card invites you with **exactly one link** that
+leads straight to the field (the settings page opens with the field focused):
+“Enter reference values”, “Enter living area” (no kWh/m² without an area) or
+“Enter number of people”. **Default values do not count** (since v3.6.0):
+the living area (default 100 m²) and the people in the household (default 2)
+only benchmark once someone has entered them — even the same value as the
+default. Until then heating or water get no traffic light but the invitation.
+Anyone who has already saved the values (or loaded a sample household or a
+backup with them) keeps their traffic light. Efficiency class, CO₂ stage and
+water saving index keep calculating with the default until then; the efficiency
+card then says **“Assumed living area 100 m² – please enter it”** with the link
+“Enter living area”, and the efficiency page of the annual report (PDF and print
+view) adds a sentence. With neither a line nor a missing detail — for
+example without consumption in the previous year — the card is left out. The
+links to the start pages of Stromspiegel and Heizspiegel (up to v3.5) are
+gone: they led out of the app without leading back to where the value goes.
 
 ![Dashboard](../../ui/screenshots/en/dashboard.png)
+
+**Your lever (v3.6.0):** if there are measured quarter hours for the previous
+year (electricity, or generation and feed-in) and a lever of €1 or more, the
+tile ⏱️ **“Your lever {year}”** sits among the others: in large the same number
+as the result card of the [Flexibility](#valuing-flexibility-v330-under-insights)
+page — what you can save a year on your tariff, incl. VAT (if there is no lever
+there, what a dynamic tariff would bring, and it says so) —, small below it
+“With a dynamic tariff up to …”, plus one action sentence for the current
+season (on your tariff first) and the button **“Flexibility”**. The server
+calculates the number with a lean request (`GET /api/flexibility?summary=1`);
+the overview does not wait for it, the tile appears as soon as it arrives. No
+data, no tile. The beginners’ overview shows it as well.
 
 **Overview for beginners (v3.2.0):** at the “Beginner” level, as soon as there
 is consumption data, the overview shows three answers instead of every key
@@ -455,6 +495,34 @@ Identical structure per utility: year selection, meter selection, KPI bar
 CO₂), contract/balance card, a consumption chart with a temperature overlay, and a
 monthly table with moving averages (MA-3/MA-6) and weather adjustment.
 
+**Calendar year or billing year (v3.6.0, GitHub #33):** above the year
+selection sits the switch *Calendar year · Billing year*. The device remembers
+the choice; it also applies in the overview and the analysis. In billing years
+the selection lists the **billing periods** instead of years: first the
+periods of the recorded supplier bills, exactly as on the bill (also 15 Apr to
+30 Mar), before, between and after them the periods by the utility’s
+settlement date ([Settings](einstellungen.md)). A whole period is called
+“2025/26”, a broken one shows its dates. Below, the view says where the period
+comes from (bill or settlement date) and up to which reading it is
+calculated. Figures, monthly chart and monthly table follow the period; the
+first and last month are partial months when the settlement date falls within
+a month. The server calculates quantity and cost like *Check bill* (pro rata
+per day), the advance payments pro rata per day; the balance deducts extra
+advance payments. The chart compares with the **previous period**. The address
+carries the period (`?period=2025-09-01`). Only gas, electricity, water and
+district heating with meter readings have billing years; the other utilities
+stay with the calendar year and say so when the device shows billing years.
+If the settlement date does not match the last bill, the view suggests the day
+after its end as the settlement date. A **change of supplier** without a
+recorded final bill ends the period on the last day with the old supplier
+(“ends with the change of supplier”), and the next one starts with the new
+contract; a renewal or a follow-up contract of the same supplier without a gap
+does not split ([Annual bill](../anleitungen/jahresabrechnung.md#8-afterwards)).
+In the **current year** the calendar year counts the standing charge and
+advance payment of the month of the last reading in full, the billing year
+only the days up to the reading; the ⓘ next to “Advances up to …” explains
+it. Whole years are the same in both views.
+
 **Balance over time (v2.16.0):** below the figures of the balance card stand the
 cumulative costs and what was paid (advances, special payments) across the billing
 period — dashed where estimated, hollow points after today. The gap between the
@@ -482,6 +550,15 @@ customer's perspective; since v2.13.0 the items expand instead of sitting in
 the tooltip; gas/electricity/district heating, since v3.5.0 water too), balance today and
 expected balance. The standing charge is spelled out ("standing charge
 12.95 €/month" instead of "13 € base").
+
+**Balance after the last booked bill (v3.6.0):** if the contract runs on beyond
+a recorded supplier bill whose result is booked, the balance card, the balance
+history and the row in **Contracts & advances** count from the day after; the
+card says so (“Counted from ‹date›: the bill before is booked in the contract
+…”). The booked refund or additional payment then no longer counts. A recorded
+bill that is not booked yet keeps its result in the balance until it is booked.
+Up to v3.5 the balance always counted from the contract start — on a contract
+over several years every year without a booked settlement stayed in it.
 
 **Order and status of the contracts (v3.4.0):** the table runs backwards
 through time, grouped under header rows: **Upcoming**, **Current** (a renewed
@@ -572,7 +649,9 @@ period after the utility’s settlement date
 If the settlement date is not 1 January, the button reads “Check the bill
 {from} – {to}”. Up to v3.3 it took the year on display, mostly the current one
 — with a gap up to 31 Dec and “no reading”. Up to v3.0 the link existed for gas
-only.
+only. Since v3.6.0 the button takes the latest completed billing period like the
+page itself (from the recorded bills, otherwise by the settlement date), in
+**billing years** the selected one if it is completed.
 
 **CO₂ price in the fuel (v3.1.0):** for gas, heating oil, district heating and
 heat — in Germany — the card **“CO₂ price in the fuel {year}”** follows, with an
@@ -672,7 +751,9 @@ ct/kWh column shows the effective price. For heating oil, since v3.1.0 the card
 
 An HDD correlation scatter plot with the curves of **all five** models (linear,
 polynomial, robust, segmented, sigmoid) and their R² comparison, a year
-comparison and anomalies. Above this, the contract reminders appear in three
+comparison (since v3.6.0 in billing years by period: months from the first
+month of the billing year, the last two periods compared) and anomalies.
+Above this, the contract reminders appear in three
 levels; since v2.9.0, when a notice period is maintained, they name the **cancellation
 deadline** ("Cancel … by …, otherwise the contract runs on beyond …"),
 otherwise the contract end.
@@ -698,6 +779,39 @@ and that the weather is not adjusted.
 ---
 
 ## 6. Forecast
+
+### Forecast workshop (v3.6.0)
+
+Since v3.6.0 the page opens with the **forecast workshop** — “What if? Try
+it”. Sliders on the left (on top on a phone), on the right the **result
+card** with one big number (“A cold winter costs you €214 more a year.”),
+then key figures, the **Cumulative cost** curve (baseline dashed, scenario in
+the utility’s colour) and — from Experienced — **Month by month** and the
+ranking **“What makes the biggest difference?”**. Every change recalculates
+at once (debounced); the server calculates, the page recalculates nothing.
+Above the sliders sit **example scenarios** to click: Cold winter, Roof
+insulated, Cheapest offer, Save 10% (whichever fit the meter).
+
+| Level | Sliders | Result |
+|---|---|---|
+| 🌱 Beginner | Winter (heating degree days ± %), Save (%), Tariff (current contract, offer, cheapest offer) | result card; cost per year, consumption per year, recommended advance payment; cumulative cost |
+| 🌿 Experienced | plus room temperature (± °C), base load (± %), forecast model (weather-adjusted, same as last year, trend), measures with % heating, % base load and cost, own price | plus balance at the next bill, CO₂, month by month, ranking with payback |
+| 🌳 Expert | plus heating curve (regression model), electric car (km, kWh/100 km), heat pump (SPF today → scenario), budget | plus forecast models compared, range, best combination within the budget, CSV |
+
+Scenarios can be named, **saved per device** (in the browser) and compared.
+**Save result as image** stores the card as a PNG, **Print or save as PDF**
+opens the print view `#/forecast/print` with assumptions, baseline against
+scenario, curves, monthly table and ranking on A4. None of this leaves the
+device without a click. The overview invites into the workshop with the
+**“What if?”** card. How it calculates and its limits:
+[What if? The forecast workshop](../anleitungen/was-waere-wenn.md). In the
+public demo the baseline and the example scenarios are precomputed; your own
+installation calculates any slider value.
+
+### Detailed forecast
+
+Below the workshop, collapsible (“Detailed forecast”, the state is kept per
+device): the previous view.
 
 Model selection (all five), a 12-month forecast as an R²-weighted blend of
 regression and seasonal profile, a cost forecast with the balance of open contracts.
@@ -727,36 +841,79 @@ source ([CO₂ price in fuel](../verstehen/16-co2-preis.md#6-where-you-see-it)).
 
 ### Valuing flexibility (v3.3.0, under Insights)
 
-The page **“Valuing flexibility”** (`#/flexibility?year=…`, Expert level)
-answers: did shifting pay off? It calculates with consumption and wholesale
-price per quarter hour, only the wholesale share — control happens elsewhere
-(evcc, Home Assistant, the battery itself). The introduction says so and links
-the **Guide** ([Valuing flexibility](../anleitungen/flexibilitaet.md)); the
-data comes from `GET /api/flexibility` ([API](api.md#valuing-flexibility-v330)).
+The page **“Valuing flexibility”** (`#/flexibility?year=…`, since v3.6.0 for
+every level, up to v3.5.0 Expert only) answers: when is it worth using power,
+what can shifting bring — and what did it achieve? It calculates with
+consumption, generation and wholesale price per quarter hour, every number on
+the server — control happens elsewhere (evcc, Home Assistant, the battery
+itself). The introduction says so and links the **Guide**
+([Valuing flexibility](../anleitungen/flexibilitaet.md)); the data comes from
+`GET /api/flexibility` including `insights` ([API](api.md#valuing-flexibility-v330)).
 
 - **Header:** the choice **“Year”** (the current one and the three before it,
   pre-set to the previous year; a year in the address counts from 2018 to
   today) and the button **“Load wholesale prices {year} from SMARD”**. It
   fetches the prices per quarter hour — only on request —, reports “Wholesale
   prices {year} loaded: … quarter hours.” and rebuilds the page.
-- **Notes:** without prices “The wholesale prices per quarter hour for {year}
-  are missing — load them from SMARD above.”; without consumption per quarter
-  hour “There is no consumption per quarter hour for {year} yet. It comes from
-  a portal file (meters → import time series) or from Home Assistant with a
-  timestamp.”
+- **Invitation “What this page can show as well”** (v3.6.0) instead of notes:
+  one sentence per missing building block, saying what it brings — wholesale
+  prices per quarter hour (with the button to load them), consumption per
+  quarter hour, wall box or heat pump with its own meter, generation and
+  feed-in per quarter hour (only with PV meters), dynamic tariff or module 3;
+  below it the link “Step by step in the guide”.
+- **Result card “Your lever {year}”** (v3.6.0, all levels): big number, “This
+  much you can save a year on your tariff by shifting use into cheap and sunny
+  hours.” (without a lever on your own contract the sentence about the dynamic
+  tariff), up to three facts (biggest lever, “With a dynamic tariff: up to …”,
+  “Solar power used at home”, “Module 3 already saved”), source, “amounts incl.
+  VAT” and date; button **“Save as image”** (PNG, 1200 × 630, drawn in the
+  browser). Since v3.6.0 the “Your lever” tile of the
+  [overview](#1-overview-dashboard) shows the same number.
+- **“What you can do”** (all levels): one action sentence per appliance with
+  the time window of the current half-year and the amount, for example “Run
+  the heat pump more in the low grid tariff, 00:00–06:00: up to €40 a year.”,
+  with the tags “on your tariff” or “with a dynamic tariff” and “sample value”,
+  for the car “plug-in times from evcc” or “whole charging day (sample value)”,
+  below it, small, the window of the other half-year.
+- **“When power is cheap”** (traffic light): choice “Winter half-year · Summer
+  half-year · Whole year”; **“A typical day”** (all levels) as a band of 24
+  hours — green ✔ cheap, yellow ▲ medium, red ✖ expensive, ☀ for strong sun,
+  one sentence per hour for screen readers —, the sentence “Cheapest: …
+  Most expensive: …” and the range; **“The week”** (from Experienced) as a
+  7 × 24 table. The sentence above and the range call the ct values “wholesale
+  share, net, excl. VAT”. Without wholesale prices the module 3 time windows
+  colour the traffic light.
+- **“Best time windows of the week”** (from Experienced, tag **“net, excl.
+  VAT”**): time window, “Avg. wholesale price (net)”, “vs. average”, sun.
+- **“Using solar power at home”** (from Experienced, with generation and
+  feed-in per quarter hour): used at home, fed in, how much more would be
+  possible, with a bar.
+- **“Your lever”** (from Experienced): table appliance, price signal, shifted,
+  per year — biggest first, sample values marked, for the car the basis of its
+  charging windows; below it the sum (biggest lever per appliance, of it on
+  your tariff, incl. VAT), the sample values, a sentence about the car (“Car:
+  shifted only while it is plugged in — plug-in times from … charging sessions
+  in evcc.” or the assumption “whole charging day”) and “Upper limit: …” with
+  the VAT rate.
+- **“Checked: what shifting achieved”** (from Expert) with the following
+  cards; since v3.6.0 the sentence below says that amounts and ct values at
+  the wholesale price are the wholesale share, net, excl. VAT (module 3 with
+  the amounts on the contract).
 - **One card per electricity meter** (only with prices), heat pump and wall
-  box first with the tag **“controllable”**. Key figures: “Consumption with
+  box first with the tag **“controllable”**, each with the tag **“net, excl.
+  VAT”**. Key figures: “Consumption with
   price”, “In cheap quarter hours” (share), “At negative prices”, “Own avg. /
-  market avg.”, **“Profile factor”** with an ⓘ and “Advantage (wholesale
-  share)”. Below it a sentence such as “Cheaper than average: €18.78 saved on
-  the wholesale share (profile factor 0.95).” or “More expensive than average:
+  market avg. (net)”, **“Profile factor”** with an ⓘ and “Advantage (wholesale
+  share, net)”. Below it a sentence such as “Cheaper than average: €18.78 saved on
+  the wholesale share excl. VAT (profile factor 0.95).” or “More expensive than average:
   … — consumption tends to fall in expensive times.” Expandable **“Per
   month”**: month, kWh, cheap, negative, own avg., market avg., advantage,
   coverage. Without a common quarter hour it says “No quarter hour with both
   consumption and wholesale price.”
-- **“Battery by wholesale price”** — with series for charging and discharging
-  the battery (PV generation): “Charged · avg. price”, “Discharged · avg.
-  price” and “Value of shifting” with an explanation.
+- **“Battery by wholesale price”** (tag **“net, excl. VAT”**) — with series for
+  charging and discharging the battery (PV generation): “Charged · avg.
+  price”, “Discharged · avg. price” and “Value of shifting (net)” with an
+  explanation.
 - **“§ 14a module 3 — {meter}”** with an ⓘ — for every meter whose contract
   carries time windows (§12), also without wholesale prices: “In the low
   tariff”, “In the high tariff”, “In the standard tariff” (kWh) and “Saving
@@ -772,11 +929,18 @@ With prices the source “Wholesale prices: Bundesnetzagentur | SMARD.de (CC BY
 wholesale price per kWh (weighted by consumption) divided by the market
 average. Below 1: you use more when electricity is cheap; above 1: more when it
 is expensive.” The term is also in the glossary of the help. To try it out: the
-example household “Own house with heat pump and solar” with the year 2025.
+example household “Own house with heat pump and solar” with the year 2025. The
+annual report has the same figures as the page “Flexibility” (option in the
+dialog, `flex=1`).
 
 ### Annual report (under Insights since v2.11.0)
 
-One year at a glance. Up to v2.10 the report lived in the settings. Since
+One year at a glance. Since v3.6.0 the dialog offers the appendix **“Billing
+years”**: for each utility with bill check, the periods ending in the report
+year (period, basis, quantity, cost, advance payments, balance), in the PDF
+and the print view (`billing=1`). The other pages stay with the calendar year;
+otherwise the totals across utilities would not add up.
+Up to v2.10 the report lived in the settings. Since
 v3.4.0 (“Annual report for everyone”) it is built for readers without a
 technical background: at a glance with status lights and the three most
 important tasks, what paid off, what needs doing, deadlines, money, one page per
@@ -844,9 +1008,16 @@ and **“Meter”** (with several), below it “From”, **“To (inclusive)”*
 
 **Calculated at once, on both routes (v3.4.0):** the page calculates as soon
 as it opens — via **Costs → Check a bill** just as via the button on the
-utility’s page. It is pre-filled with the last completed billing period after
-the utility’s settlement date (Settings → Utilities & billing, default 1
-January = last year), with a note saying so below. Switching utility or meter
+utility’s page. Since v3.6.0 it is pre-filled with the latest completed billing
+period as in billing years — from the recorded bills, otherwise by the
+utility’s settlement date; if there is none, as before with the last completed
+billing period after the settlement date (Settings → Utilities & billing,
+default 1 January = last year). If the supplier bills in a different rhythm than
+the settlement date, the suggestion no longer cuts across the bills. A note
+below says so. With
+wastewater by a meter of its own or minus a garden meter the table now also
+recalculates the wastewater (before, it was missing — and with it in the costs
+of the billing years). Switching utility or meter
 keeps the period and recalculates; utility, meter and period are in the
 address (`?utility=…&meter=…&from=…&until=…`, `until` inclusive), without a
 new history entry. Older links with `to` (exclusive) still work. Up to v3.3 the
@@ -1084,7 +1255,12 @@ differences in the heating cost statement as a warning, the reductions and “An
 estimate under the CO2KostAufG, not legal advice.” **“Letter (PDF)”** opens the
 letter to the landlord or the check result in a new tab. Without an area or data
 the card says what is missing; in your own home or outside Germany it is left
-out ([Share CO₂ costs with the landlord](../anleitungen/co2-aufteilung.md)).
+out. If the tenancy’s area is empty and the living area was never entered, the
+card (since v3.6.0) keeps calculating with 100 m² but says **“Assumed living
+area 100 m² – please enter it”** with the link “Enter the area in the tenancy”
+(opens the tenancy with the field focused); the annual report names the
+assumption in the tenancy topic
+([Share CO₂ costs with the landlord](../anleitungen/co2-aufteilung.md)).
 
 **Master data** — titled with the name of the tenancy, next to it **“Edit”**.
 Start (and end), landlord or managing agent, start of the billing period

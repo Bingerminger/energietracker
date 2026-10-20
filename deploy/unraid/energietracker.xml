@@ -7,7 +7,7 @@
 -->
 <Container version="2">
   <Name>Energietracker</Name>
-  <Repository>ghcr.io/bingerminger/energietracker:latest</Repository>
+  <Repository>ghcr.io/bingerminger/energietracker:3</Repository>
   <Registry>https://github.com/Bingerminger/energietracker/pkgs/container/energietracker</Registry>
   <Network>bridge</Network>
   <MyIP/>

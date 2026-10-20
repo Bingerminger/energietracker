@@ -119,7 +119,7 @@ export function sidebarModel(utilities) {
       })),
     },
     { key: 'costs', section: 'costs', href: '#/contracts', icon: '💶', label: t('nav.group.costs') },
-    // v3.2.0 — Einsteiger sehen hier nur den Jahresbericht
+    // v3.2.0 — Einsteiger sahen hier nur den Jahresbericht; v3.6.0 (F1031) — zuerst die Prognose-Werkstatt
     { key: 'analysis', section: 'analysis', href: sectionPages('analysis')[0]?.href || '#/report', icon: '📊', label: t('nav.group.analysis') },
     { key: 'hints', section: 'hints', href: '#/reminders', icon: '📌', label: t('nav.group.hints'), badge: 'hints' },
     { key: 'settings', section: 'settings', href: '#/settings', icon: '⚙️', label: t('nav.settings') },

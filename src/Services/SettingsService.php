@@ -30,6 +30,15 @@ final class SettingsService
     public const UI_LEVELS = ['beginner', 'advanced', 'expert'];
     /** v3.2.0 (F1018) — Personas des Einrichtungsassistenten (= Beispielhaushalte, showcase = alle Arten). */
     public const PERSONAS = ['mieterin', 'etw-fernwaerme', 'eigenheim-klassisch', 'eigenheim-modern', 'showcase'];
+    /**
+     * v3.6.0 — Angaben, deren Default nur eine Annahme ist: Sie gelten als
+     * eingetragen, sobald `settings.json` den Schlüssel trägt (gespeichert,
+     * aus einem Backup oder einem Beispielhaushalt) — auch mit einem Wert
+     * gleich dem Default. Die Kachel „Einordnung“ ordnet erst dann ein
+     * (ReferenceService); bis dahin lädt sie zum Feld ein. Alle anderen Leser
+     * rechnen weiter mit dem Default. Leeren (null/"") nimmt die Angabe zurück.
+     */
+    public const ENTERED_ONLY = ['wohnflaeche_m2', 'wasser_personen_anzahl'];
 
     /** @var array<string,mixed> */
     private const DEFAULTS = [
@@ -169,6 +178,8 @@ final class SettingsService
         'reference_source'         => '',
         // Warmwasser wird mit Strom bereitet (Durchlauferhitzer, Boiler) — Kontext der Einordnung
         'warmwasser_elektrisch'    => false,
+        // v3.6.0 — Hinweis auf neue Versionen (GitHub, einmal am Tag); nur auf Wunsch
+        'update_check'             => false,
 
         // ── v3.2.0 — Einstieg (F1018, F1019) ──
         // Nutzungsstufe der Installation; mit Benutzern (F1023) hat jede Person
@@ -366,12 +377,47 @@ final class SettingsService
         $user = $this->store->read('settings.json', []);
         if (!is_array($user)) $user = [];
         $this->memoGen = $this->store->generation();
+        $this->memoUser = $user;
         return $this->memo = array_merge(self::DEFAULTS, $user);
     }
 
     /** @var array<string,mixed>|null */
     private ?array $memo = null;
+    /** @var array<string,mixed> v3.6.0 — der gespeicherte Teil (ohne Defaults) zum Memo */
+    private array $memoUser = [];
     private int $memoGen = -1;
+
+    /**
+     * v3.6.0 — Hat jemand die Angabe eingetragen? Wahr, wenn `settings.json`
+     * den Schlüssel mit einer Zahl über 0 trägt — auch 100 m² oder 2 Personen,
+     * die dem Default gleichen. Nie gespeichert (Neuinstallation, der Erststart
+     * schreibt nur Abweichungen) oder geleert: falsch.
+     */
+    public function isEntered(string $key): bool
+    {
+        $v = $this->stored($key);
+        return is_numeric($v) && (float)$v > 0;
+    }
+
+    /** v3.6.0 — der gespeicherte Wert eines Schlüssels ohne Default (null = nie gespeichert oder geleert). */
+    private function stored(string $key): mixed
+    {
+        $this->all();
+        $v = $this->memoUser[$key] ?? null;
+        return $v === '' ? null : $v;
+    }
+
+    /**
+     * v3.6.0 — Schlüssel aus ENTERED_ONLY, deren Wert nur der Default ist,
+     * weil niemand sie gespeichert hat (`assumed_keys` in GET /api/settings;
+     * die Einstellungen zeigen das Feld dann leer, mit dem Default als Platzhalter).
+     *
+     * @return list<string>
+     */
+    public function assumedKeys(): array
+    {
+        return array_values(array_filter(self::ENTERED_ONLY, fn(string $k) => $this->stored($k) === null));
+    }
 
     /** v2.6.0 — ändert sich mit jedem Schreibvorgang (für abgeleitete Memos). */
     public function version(): int
@@ -390,6 +436,12 @@ final class SettingsService
         if (!is_array($current)) $current = [];
         foreach ($patch as $k => $v) {
             if (!array_key_exists($k, self::DEFAULTS)) continue;
+            // v3.6.0 — ein geleertes Feld nimmt die Angabe zurück (nicht eingetragen,
+            // es gilt wieder der Default); bisher stand dann null in settings.json
+            if (in_array($k, self::ENTERED_ONLY, true) && ($v === null || $v === '')) {
+                unset($current[$k]);
+                continue;
+            }
             // v2.5.0 — F1012: Die Faktorliste wird beim Speichern normalisiert
             // und validiert (Ableitung z × Hs, Sortierung, Grenzen). Ein
             // Tippfehler wie 115 statt 11,5 würde sonst jeden Gasverbrauch
@@ -472,7 +524,7 @@ final class SettingsService
             if ($k === 'setup_pending') $v = (bool)$v;
             // v3.1.0 (H8) — Quelle der Vergleichswerte: kurzer Text
             if ($k === 'reference_source') $v = mb_substr(trim((string)$v), 0, 120);
-            if ($k === 'warmwasser_elektrisch') $v = (bool)$v;
+            if ($k === 'warmwasser_elektrisch' || $k === 'update_check') $v = (bool)$v;
             if (str_starts_with($k, 'billing_cycle_anchor_') && !self::isMonthDay($v)) {
                 throw new \InvalidArgumentException(($this->translator())('errors.settings.valueInvalid', [
                     'key' => $k, 'value' => is_scalar($v) ? (string)$v : gettype($v),

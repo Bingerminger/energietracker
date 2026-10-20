@@ -22,8 +22,11 @@ headings, tables, every chart with its message as text).
 **Insights → Annual report**, then one of the three buttons:
 
 - **Open print view** shows the report as a page in the app. “Print / save as
-  PDF” puts it on paper or into a file, on the iPhone via Share → Print. The
-  checkbox **“With appendix ‘Figures in detail’”** adds the monthly tables.
+  PDF” puts it on paper or into a file, on the iPhone via Share → Print. Next to
+  it, **“Download annual report”** *(v3.6.0)* fetches the PDF file with the same
+  selection, the shorter way to a file on the iPad; an attached scenario exists
+  only in the print view. The checkbox **“With appendix ‘Figures in detail’”**
+  adds the monthly tables.
 - **Open in browser** and **Download annual report** deliver the finished PDF
   file.
 
@@ -35,8 +38,10 @@ headings, tables, every chart with its message as text).
 | **Language of the PDF** | one of the interface languages, preselected the one of this device — for relatives, say. The print view always appears in the language of this device; the dialog says so instead of offering a choice |
 | **Utilities** | a checkbox per *active* utility. All ticked gives the full report, otherwise a **partial report** with only these — for the property manager, say. The print view names it at the top (“Partial report: Gas, Water”). With nothing ticked: “Choose at least one utility.” |
 | **With appendix “Figures in detail”** | the monthly tables per utility |
+| **With page “Flexibility” (traffic light, levers, time windows)** | *(v3.6.0)* a page of its own with the same figures as Insights → Flexibility: big number, action sentences, typical day per half-year, best time windows, “Your lever”, solar power ([Flexibility, § 10](flexibilitaet.md#10-in-the-annual-report)). Needs wholesale prices per quarter hour for the report year, module 3 time windows or generation per quarter hour; otherwise the page is left out |
+| **Attach scenario** | *(v3.6.0, print view only)* appears when scenarios are saved in the forecast workshop on this device: the chosen one is added as a page of its own — result card, assumptions, comparison, curves, ranking —, calculated as in the workshop ([What if?](was-waere-wenn.md)). It applies to this call only |
 
-This device remembers utilities, language and appendix (in the browser); the
+This device remembers utilities, language, appendix and the page “Flexibility” (in the browser); the
 year starts at last year each time. The buttons on the page are links with
 this remembered choice — a middle click opens them without the dialog. In the
 print view, **“Options…”** opens the same dialog, prefilled with what it
@@ -48,16 +53,18 @@ additions from [§ 6](#6-partial-report-and-language-via-link).
 
 | Page | Content | Appears when |
 |---|---|---|
-| **At a glance** | energy costs, energy use (heating weather-adjusted), CO₂ and, with a solar system, its benefit — each against the previous year, with a small line over three years; four status lights; the three most important tasks | always |
+| **At a glance** | energy costs, energy use (heating weather-adjusted), CO₂ and, with a solar system, its benefit — each against the previous year, with a small line over three years; four status lights; the three most important tasks. Energy costs count like the overview: from the contracts and *(since v3.6.0)* for heating oil and pellets from the deliveries | always |
 | **What paid off** | successes with an amount: less heating, a measure that works (baseline date), solar system, battery, solar power in the car, module 3, lower costs; below that “Good to know” | always; without a success, the comparison with the previous year |
 | **What needs doing** | tasks by priority, each with reason, amount, deadline and a hint | always; “Nothing to do” only when no appointments are due either |
 | **Deadlines and appointments** | the next twelve months and anything overdue; a timeline per current contract | appointments or contracts exist |
-| **Money** | costs per utility and per month against the previous year, price and quantity effect, advance payments against costs per contract, forecast for the next twelve months | there are costs |
-| **Per utility** | annual value against the previous year, monthly bars; heating: “Colder, or more used?” and efficiency scale; electricity: what for (household, heat pump, wallbox); water: litres per person and day; heating oil and pellets: stock and range | consumption in the year |
+| **Money** | costs per utility (heating oil and pellets included) and per month against the previous year, price and quantity effect, advance payments against costs per contract, forecast for the next twelve months | there are costs |
+| **Per utility** | annual value against the previous year, monthly bars; heating: “Colder, or more used?” and efficiency scale; electricity: what for (household, heat pump, wallbox); water: litres per person and day; heating oil and pellets: costs from the deliveries, stock and range | consumption in the year |
 | **Solar power** | energy flow, self-sufficiency, self-consumption, generation per month, payback, battery | solar system |
 | **Heat pump** | performance factor per month against the field test average | heat meter with a linked electricity meter |
 | **Charging the electric car** | charging power per month, of which solar, costs according to the charging record | wallbox meter |
 | **Cheap hours** | share in cheap quarter hours, profile factor, module 3, value of the battery | quarter-hour values and market prices |
+| **Flexibility** | *(v3.6.0)* big number “Your lever”, action sentences, typical day for the winter and summer half-year (colour and legend; in the PDF the sun as a dot), best time windows, “Your lever” as a table, solar power, sample values | only on request (dialog, `flex=1`), with wholesale prices, module 3 time windows or generation per quarter hour |
+| **Scenario: {name}** | *(v3.6.0)* a saved scenario of the forecast workshop | only in the print view, on request |
 | **Rented home: service charges** | prepayment against expected costs, statement of the year, CO₂ split with deadline | tenancy |
 | **Short glossary** | only the terms that appear in the report, one sentence each; sources | always |
 | **Figures in detail** | one monthly table per utility | on request only (appendix) |
@@ -131,15 +138,19 @@ increase, the special right to terminate under § 41(5) EnWG (Germany only).
 
 ## 6. Partial report and language via link
 
-The PDF address accepts three additions (also combined); the dialog from
+The PDF address accepts these additions (also combined); the dialog from
 [§ 1](#1-getting-the-report) sets them, and the print view understands
-`utilities` and `detail` as well (`#/report/print?year=2025&utilities=wasser`):
+`utilities`, `detail` and `flex` as well (`#/report/print?year=2025&utilities=wasser`):
 
 | Addition | Effect |
 |---|---|
 | `?lang=en` | language of the report (`de`, `en`, `fr`, `it`, `es`, `pt`, `nl`) — for relatives, say |
 | `?utilities=gas,wasser` | only these utilities, for the caretaker, say |
 | `?detail=1` | with appendix “Figures in detail” |
+| `?flex=1` | *(v3.6.0)* with page “Flexibility” |
+
+Only the print view also knows `scenario=<name>` — a scenario saved on this
+device.
 
 Example: `…/api.php/api/reports/yearly.pdf?year=2025&utilities=wasser&lang=en`.
 Details in the [API reference](../referenz/api.md#get-apireportsyearlypdfyearyyyy).

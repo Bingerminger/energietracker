@@ -114,7 +114,7 @@ heute.
 |---|---|---|---|
 | **Mietwohnung** („Ich wohne zur Miete“) | Strom, Heizwärme, Wasser | 62 m², eine Person, Zentralheizung mit Gas im Keller. Strom mit eigenem Liefervertrag (Abrechnungsjahr ab Oktober), Anbieterwechsel mit Schlussrechnung und Verlängerung, die seit Ende September 2026 weiterläuft; Heizwärme als Monatswerte aus der Verbrauchsinfo des Messdienstes (mit Vormonat, Vorjahresmonat und Durchschnittsnutzer); Kalt- und Warmwasserzähler; Mietverhältnis mit Vorauszahlung für Heizung und Betriebskosten und zwei Nebenkostenabrechnungen samt CO₂-Kostenanteil des Vermieters | die Übersicht für Einsteiger mit „Reicht die Vorauszahlung?“, Heizwärme ohne eigenen Vertrag, [Als Mieter](../anleitungen/mieter.md) |
 | **Eigentumswohnung mit Fernwärme** | Strom, Fernwärme | 85 m², zwei Personen; Fernwärme heizt und bereitet das Warmwasser. Wärmemengenzähler mit Monatsständen aus dem Kundenportal; eigener Fernwärmevertrag mit Arbeits-, Grund-, Leistungs- (6,5 kW) und Messpreis und mehreren Preisänderungen; die Jahresrechnungen 2024 und 2025 sind erfasst (2025 noch nicht gebucht); Strom mit zwei Anbieterwechseln samt Schlussrechnungen, jetzt unbefristet mit Mindestlaufzeit und Preisgarantie | Fernwärme als Liefervertrag mit Rechnung, [Jahresabrechnung prüfen](../anleitungen/jahresabrechnung.md), Eichfrist als Termin |
-| **Eigenheim klassisch** („Eigenheim mit Gas, Öl oder Pellets“) | Gas, Strom, Wasser | Einfamilienhaus, 140 m², vier Personen, Gas-Brennwertkessel. Gasvertrag nach Preisvergleich gewechselt, mit Preisgarantie bis Juni 2026, seitdem weiterlaufend; Schlussrechnung und Jahresabrechnung als Versorgerrechnungen erfasst und als Sonderzahlungen gebucht (ebenso Strom und Wasser); Zäsur „Hydraulischer Abgleich“ im September 2024; Wasser mit Hauptzähler und Gartenzähler als Subzähler, Trink-, Schmutz- und Niederschlagswasser; Termine für Wartung, Schornsteinfeger und Eichung | Wetterbereinigung und Zäsur, Wechsel prüfen, Subzähler |
+| **Eigenheim klassisch** („Eigenheim mit Gas, Öl oder Pellets“) | Gas, Strom, Wasser | Einfamilienhaus, 140 m², vier Personen, Gas-Brennwertkessel. Gasvertrag nach Preisvergleich gewechselt, mit Preisgarantie bis Juni 2026, seitdem weiterlaufend; Schlussrechnung und Jahresabrechnung als Versorgerrechnungen erfasst und als Sonderzahlungen gebucht (ebenso Strom und Wasser); Zäsur „Hydraulischer Abgleich“ im September 2024; Wasser mit Hauptzähler und Gartenzähler als Subzähler, Trink-, Schmutz- und Niederschlagswasser, die Wasserrechnung mit Zählermiete als Posten; seit v3.6.0 eine Einliegerwohnung mit Nachtspeicherheizung: Doppeltarifzähler (HT/NT) als Zählergruppe mit einem Gruppenvertrag und Jahresrechnungen, die erste kürzer (ab dem Einzug); ein stillgelegter Zähler (Gartenhaus) mit seiner Historie; ein Home-Assistant-Alias am Hauptzähler Strom; Termine für Wartung, Schornsteinfeger und Eichung | Wetterbereinigung und Zäsur, Wechsel prüfen, Subzähler, Zählergruppe mit Gruppenvertrag |
 | **Eigenheim modern** („Eigenheim mit Wärmepumpe und PV“) | Strom, PV-Einspeisung, PV-Erzeugung, Heizwärme | Einfamilienhaus, 150 m², vier Personen. Haushaltszähler; Wärmepumpe mit eigenem Zähler und Wärmepumpentarif mit reduziertem Netzentgelt nach § 14a EnWG (Modul 1), zum 30.09.2026 gekündigt, Folgevertrag mit Mindestlaufzeit und Preisgarantie; Wallbox als Subzähler des Haushaltszählers, mit Ladevorgängen aus evcc; ein dynamischer Tarif als Angebot zum Vergleich; PV mit 9,8 kWp auf Ost- und Westdach mit Einspeisevergütung; Speicher mit 10 kWh; Wärmemengenzähler der Wärmepumpe | Jahresarbeitszahl, Energiefluss und Autarkie, [Ladevorgänge aus evcc](../anleitungen/evcc.md), [Ladestrom-Nachweis](../anleitungen/ladestrom-nachweis.md), Dynamik-Check |
 | **Schaufenster** („Erst einmal alles ansehen“) | Gas, Strom, Wasser, Fernwärme, Heizöl, Holzpellets, PV-Einspeisung, PV-Erzeugung | der bisherige Demo-Haushalt: ein Einfamilienhaus mit acht Verbrauchsarten — alle außer Heizwärme. Zählertausch, Zäsur, Angebote zum Vergleich, Tankbuch; Einzelheiten in [demo-data/README.md](../../demo-data/README.md) | alles auf einmal, für die Stufe „Experte“ |
 
@@ -138,18 +138,28 @@ Alle Beispielhaushalte und das Schaufenster zeigen seit v3.5.0 auch:
 
 | Beispielhaushalt | Personen im Verlauf | Zuständig an Terminen | Abrechnung erwartet |
 |---|---|---|---|
-| Mietwohnung | Lena | Lena, Hausverwaltung Krüger | Strom: Jahresabrechnung der Verlängerung (Periode bis 30.09.2026) |
-| Eigentumswohnung mit Fernwärme | Katrin, Mehmet | Katrin, Mehmet, Hausmeister Petersen | Strom beim neuen Versorger, immer seit 30 Tagen |
-| Eigenheim klassisch | Thomas, Sabine, Jonas | Thomas, Sabine, Jonas | Gas, immer seit 56 Tagen — überfällig |
+| Mietwohnung | Lena | Lena | Strom: Jahresabrechnung der Verlängerung (Periode bis 30.09.2026) |
+| Eigentumswohnung mit Fernwärme | Katrin, Mehmet | Katrin, Mehmet | Fernwärme, immer seit 30 Tagen |
+| Eigenheim klassisch | Thomas, Sabine, Jonas, Lukas (gelöscht) | Thomas, Sabine, Jonas | Gas, immer seit 56 Tagen — überfällig |
 | Eigenheim modern | Julia, Ben | Julia, Ben | Strom: Schlussrechnung des Wärmepumpentarifs (gekündigt zum 30.09.2026) |
 | Schaufenster | Anna, Paul | Anna, Paul | Strom, immer seit 21 Tagen |
+
+Seit v3.6.0 sind diese Personen in jedem Haushalt **angelegt** — mit
+fortlaufender Nummer und Rolle, je Haushalt mindestens eine, die verwaltet;
+jeder Zuständige ist eine von ihnen. Im Eigenheim klassisch ist Lukas
+gelöscht: Die Kündigung des alten Gasvertrags hat er erledigt, im Verlauf
+steht sie unter „Lukas (gelöscht)“ ([Benutzer im Haushalt](../anleitungen/benutzer.md#personen-löschen)).
 
 Wo „immer seit … Tagen“ steht, legt die App beim Laden den
 Abrechnungsstichtag dieser Verbrauchsart relativ zu heute — wie die Termine,
 damit der Hinweis zu jedem Zeitpunkt zu sehen ist. Die beiden anderen Hinweise
 gehören zu festen Perioden und erscheinen, solange deren Ende höchstens 120
 Tage zurückliegt (bis Ende Januar 2027). Rechnungen schreibt die App beim Laden
-nicht fort.
+nicht fort — ausgenommen die Verbrauchsarten mit „immer seit … Tagen“: Dort
+wandern die Jahresrechnungen mit dem Stichtag (die jüngste endet am Tag vor dem
+Stichtag des Vorjahres, Schlussrechnungen bleiben), und die App rechnet ihre
+Beträge neu aus. So zeigt das Abrechnungsjahr keine Zwischenperiode, und
+„Rechnung prüfen“ passt weiter.
 
 **Tagesfilm:** Das Eigenheim modern hat Viertelstunden für ganz 2025 und
 bekommt beim Laden die letzten zwei bis drei Monate bis gestern dazu —

@@ -336,6 +336,9 @@ final class AuthService
     // Verwalter (`admin`) ändern den Zugriff und spielen Backups ein,
     // Mitglieder (`member`) erfassen und sehen alles. Benutzer stehen wie das
     // Passwort in auth.json — nicht im Backup, kein Schemaschritt.
+    // v3.6.0 — Nummer, Name und Rolle jeder Person stehen zusätzlich im
+    // Personenverzeichnis (people.json, PeopleService), das ins Backup gehört;
+    // gelöschte Personen bleiben dort vermerkt.
     //
     // Übergang: Bis v3.1 gab es genau ein Passwort. Es gehört dem Verwalter
     // `u_admin` (Name „admin“), der ohne eigenen Hash das bisherige Passwort
@@ -388,6 +391,37 @@ final class AuthService
     public function users(): array
     {
         return array_map([self::class, 'publicUser'], $this->allUsers());
+    }
+
+    /**
+     * v3.6.0 — eingetragene Zugänge (ohne den virtuellen Verwalter aus der Zeit
+     * vor v3.2) für das Personenverzeichnis (PeopleService).
+     *
+     * @return list<array<string,mixed>> ohne Passwort-Hash
+     */
+    public function accounts(): array
+    {
+        return array_map([self::class, 'publicUser'], $this->storedUsers());
+    }
+
+    /** @var (callable(string): ?string)|null v3.6.0 — ID, die ein neuer Zugang übernimmt (PeopleService::adoptableId) */
+    private $adoptId = null;
+
+    /**
+     * v3.6.0 — Ein neuer Zugang übernimmt die ID einer Person ohne Zugang
+     * mit demselben Namen (nach einem Umzug per Backup), auch im Proxy-Betrieb.
+     */
+    public function attachIdAdoption(callable $adopt): void
+    {
+        $this->adoptId = $adopt;
+    }
+
+    /** Neue Kennung: übernommen (frei und gültig) oder zufällig. */
+    private function newUserId(string $name): string
+    {
+        $id = $this->adoptId === null ? null : ($this->adoptId)($name);
+        if (is_string($id) && preg_match('/^u_[0-9a-z]{1,32}$/', $id) && $id !== self::LEGACY_ADMIN && $this->userById($id) === null) return $id;
+        return 'u_' . bin2hex(random_bytes(4));
     }
 
     /**
@@ -467,7 +501,11 @@ final class AuthService
         if (mb_strlen($password) < self::MIN_PASSWORD) throw new \InvalidArgumentException('password_too_short');
         if ($this->userByName($name) !== null) throw new \InvalidArgumentException('name_taken');
         $users = $this->materialize();
-        $user = ['id' => 'u_' . bin2hex(random_bytes(4)), 'name' => $name, 'role' => $role, 'source' => 'password',
+        // v3.6.0 — Namen sind über alle Personen eindeutig. Zugänge prüft userByName; eine
+        // Person ohne Zugang mit diesem Namen übernimmt der neue Zugang (ihre ID und Nummer,
+        // newUserId → PeopleService::adoptableId) — das ist die Prüfung gegen das Verzeichnis
+        $id = $this->newUserId($name);
+        $user = ['id' => $id, 'name' => $name, 'role' => $role, 'source' => 'password',
                  'password_hash' => password_hash($password, PASSWORD_DEFAULT), 'prefs' => [], 'created_at' => date('c')];
         $users[] = $user;
         $this->save(['users' => $users]);
@@ -489,6 +527,10 @@ final class AuthService
             $name = self::cleanName((string)$patch['name']);
             $other = $this->userByName($name);
             if ($other !== null && $other['id'] !== $id) throw new \InvalidArgumentException('name_taken');
+            // v3.6.0 — Namen sind über alle Personen eindeutig: auch nicht der Name einer
+            // Person ohne Zugang (gelöschte zählen nicht; PeopleService::adoptableId)
+            $holder = $this->adoptId === null ? null : ($this->adoptId)($name);
+            if (is_string($holder) && $holder !== $id) throw new \InvalidArgumentException('name_taken_person');
             $users[$i]['name'] = $name;
         }
         if (array_key_exists('role', $patch)) {
@@ -689,7 +731,7 @@ final class AuthService
         // zählt aber nicht als Verwalter des Proxy-Betriebs
         $users = $this->materialize();
         $proxyAdmins = array_filter($users, fn($u) => ($u['role'] ?? '') === 'admin' && ($u['source'] ?? '') === 'proxy');
-        $user = ['id' => 'u_' . bin2hex(random_bytes(4)), 'name' => $name,
+        $user = ['id' => $this->newUserId($name), 'name' => $name,
                  'role' => $proxyAdmins === [] ? 'admin' : 'member',
                  'source' => 'proxy', 'prefs' => [], 'created_at' => date('c')];
         if ($externalId !== null && $externalId !== '') $user['proxy_id'] = mb_substr($externalId, 0, 200);

@@ -151,6 +151,46 @@ final class Co2CostTest extends ServiceTestCase
         self::assertEqualsWithDelta(59.06, $this->split()->forYear(2025)['landlord_amount_eur'], 0.02);
     }
 
+    /**
+     * v3.6.0 (Entscheidung des Maintainers) — Fläche nicht eingetragen: Stufe und
+     * Betrag rechnen weiter mit dem Default (das Geld ändert sich nicht), die
+     * Antwort sagt `area_assumed`. Eine Fläche im Mietverhältnis oder eine
+     * eingetragene Wohnfläche ist keine Annahme.
+     */
+    public function testAnAssumedAreaIsReportedButStillUsed(): void
+    {
+        $this->settings->set(['wohnverhaeltnis' => 'miete', 'co2_price_eur_t_years' => ['2025' => 60]]);
+        $t = $this->ten->create(['start' => '2024-01-01']);   // ohne Fläche
+        $this->gasYear(2025, 12000);
+        $r = $this->split()->forYear(2025);
+        self::assertSame([true, 100.0, 21.8, 3], [$r['area_assumed'], $r['area_m2'], $r['kg_per_m2'], $r['stage']], 'gerechnet mit 100 m²');
+        $c = $this->costs()->forYear(2025)['per_m2'];
+        self::assertSame([true, 100.0], [$c['area_assumed'], $c['area_m2']]);
+        $eff = (new \Energietracker\Services\BenchmarkService($this->consumption, $this->meters, $this->settings, $this->i18n))->efficiency(2025);
+        self::assertSame([true, 100.0], [$eff['area_assumed'], $eff['wohnflaeche_m2']]);
+
+        // bewusst 100 m² eingetragen (gleich dem Default): keine Annahme, derselbe Betrag
+        $amount = $r['landlord_amount_eur'];
+        $this->settings->set(['wohnflaeche_m2' => 100]);
+        $r2 = $this->split()->forYear(2025);
+        self::assertSame([false, $amount], [$r2['area_assumed'], $r2['landlord_amount_eur']]);
+        self::assertFalse($this->costs()->forYear(2025)['per_m2']['area_assumed']);
+        self::assertFalse((new \Energietracker\Services\BenchmarkService($this->consumption, $this->meters, $this->settings, $this->i18n))->efficiency(2025)['area_assumed']);
+
+        // Fläche im Mietverhältnis geht vor, auch ohne Einstellung
+        $this->settings->set(['wohnflaeche_m2' => null]);
+        $this->ten->update($t['id'], ['wohnflaeche_m2' => 80]);
+        self::assertSame([false, 80.0], [$this->split()->forYear(2025)['area_assumed'], $this->split()->forYear(2025)['area_m2']]);
+        self::assertFalse($this->costs()->forYear(2025)['per_m2']['area_assumed']);
+
+        // Die Doku nennt das Feld und den Hinweis (API und Ansichten, DE/EN)
+        $root = dirname(__DIR__, 3);
+        foreach (['docs/referenz/api.md' => '| `area_assumed` |', 'docs/en/referenz/api.md' => '| `area_assumed` |',
+                  'docs/referenz/ansichten.md' => '**„Angenommene Wohnfläche 100 m²', 'docs/en/referenz/ansichten.md' => '**“Assumed living'] as $file => $needle) {
+            self::assertStringContainsString($needle, (string)file_get_contents("$root/$file"), $file);
+        }
+    }
+
     /** H5: Frist = Zugang der Gasrechnung + 12 Monate (§ 6 Abs. 2), in der Agenda ab 30 Tagen vorher „jetzt". */
     public function testClaimDeadlineFromTheGasBillReachesTheAgenda(): void
     {

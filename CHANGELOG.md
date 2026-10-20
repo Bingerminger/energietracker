@@ -6,6 +6,241 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [3.6.0] — 2026-10-20 — Was wäre wenn und wie auf der Rechnung
+
+MINOR-Release ohne Schemaschritt (bleibt 1.8.0): die Prognose-Werkstatt
+„Was wäre wenn?“, Auswertungen auch nach Abrechnungsjahr statt nur nach
+Kalenderjahr (GitHub [#33]) bis in Übersicht, Zählergruppen und „Rechnung
+prüfen“, eine Flexibilitätsseite mit Ampel und Euro je Gerät, Personen mit
+fester Nummer, ein Hinweis auf neue Versionen und „Was ist neu“ nach einem
+Update, das Image-Tag `:3`. API, CSV-Format 1, Backup-Format 3.0 und
+Docker-Umgebung wachsen nur additiv.
+
+### ⚠️ Für bestehende Installationen
+
+- **Geänderte Werte** (Fehler behoben, siehe „Fixed“): Der Saldo des
+  laufenden Vertrags beginnt nach der letzten gebuchten Rechnung statt beim
+  Vertragsbeginn; „Rechnung prüfen“ rechnet beim Wasser das Schmutzwasser mit;
+  Zählergruppen zählen einen Subzähler nicht mehr doppelt; der Endsaldo der
+  Prognose-Werkstatt enthält den Rest des laufenden Monats.
+- **Person löschen:** Offene Termine gehen jetzt an die Person, die löscht;
+  Erledigtes behält den Namen mit „(gelöscht)“. Bisherige Personen bekommen
+  beim ersten Öffnen ihre Nummer.
+- **Weitere geänderte Werte:** Die Euro-Hebel der Flexibilität zum Börsenpreis
+  enthalten jetzt die Umsatzsteuer; das Auto verschiebt nur, solange es
+  angesteckt ist (Steckzeiten aus evcc); Abrechnungsperioden enden am
+  Lieferantenwechsel; der Jahresbericht zählt Heizöl und Pellets in den
+  Kosten; die Einordnung nimmt Wohnfläche und Personen erst, wenn sie
+  eingetragen sind.
+- **Ohne Anmeldung** sagt die Karte „Benutzer und Rechte“ jetzt, dass Personen
+  mit eigenem Zugang erst mit eingeschalteter Anmeldung entstehen, und springt
+  zu „Anmeldung einschalten“.
+- **Ohne Anmeldung** (Login aus) liefert `GET /api/people` jetzt die
+  Personen aus dem Verzeichnis statt einer leeren Liste. Mit Anmeldung gilt
+  die Anmeldung wie bisher.
+- **„Was ist neu“:** Jedes Gerät zeigt nach dem Update einmal „Aktualisiert auf
+  3.6.0“ mit Link zu den Release-Notes — ohne Anfrage nach außen.
+- **Hinweis auf neue Versionen** (`update_check`) bleibt bei bestehenden
+  Installationen aus, bis ihn jemand unter Einstellungen → Allgemein
+  einschaltet; die Einrichtung neuer Installationen schlägt ihn vor.
+- **Beispiele und Vorlagen auf `:3`:** Compose-Beispiel, README, Doku und die
+  Unraid-Vorlage nennen jetzt das Tag `:3` (immer die neueste 3.x, kein Sprung
+  auf eine neue Hauptversion). Laufende Container ändern sich nicht; CasaOS
+  und Umbrel bleiben auf einer festen Version, wie ihre Stores es verlangen.
+
+### Added
+
+- **Prognose-Werkstatt — „Was wäre wenn?“ (F1031):** Was kostet ein kalter
+  Winter, was bringt die Dämmung, lohnt der Wechsel? Regler für Winter, Sparen
+  und Tarif, dazu Raumtemperatur, Grundlast, Maßnahmen mit Kosten,
+  Prognosemodell, E-Auto, Wärmepumpe und Budget. Das Ergebnis erscheint sofort
+  als Ergebniskarte mit großer Zahl, mit Kurven, empfohlenem Abschlag, Saldo
+  zur nächsten Abrechnung, CO₂ und der Rangliste „Was bringt am meisten?“;
+  dazu die beste Kombination unter einem Budget. Beispielszenarien, Speichern
+  und Vergleichen, Bild, Druck/PDF, CSV; die Demo hat die Beispiele
+  vorgerechnet.
+- **Übersicht-Karte „Was wäre wenn? Probier es aus“**, die Prognose gibt es
+  jetzt schon ab der Stufe Einsteiger.
+- **Flexibilität lenkt:** Ampel für günstige und teure Stunden mit Sonne,
+  „Dein Hebel“ in Euro je Gerät, Handlungssätze mit Zeitfenster, beste
+  Zeitfenster, „Sonnenstrom selbst nutzen“, Ergebniskarte als Bild;
+  Lastverschiebung gegen Viertelstundenpreise, gerechnet auf dem Server
+  (`insights`). Die Seite gibt es für alle Stufen, ohne Daten mit einer
+  Einladung. Im Jahresbericht die Seite „Flexibilität“ (`flex=1`), in der
+  Druckansicht „Szenario anhängen“.
+- **Kachel „Dein Hebel“ auf der Übersicht:** dieselbe Zahl wie die
+  Ergebniskarte der Flexibilität, klein „bis zu …“ mit dynamischem Tarif, ein
+  Handlungssatz; nur mit gemessenen Viertelstunden, auch für Einsteiger.
+- **Personen mit fester Nummer:** Jede Person im Haushalt bekommt eine
+  fortlaufende Nummer, die nie wieder vergeben wird (Personenverzeichnis
+  `people.json`, gehört zum Backup). Löschen nur durch Verwalter; offene
+  Termine gehen an die Person, die löscht, der Dialog sagt vorher, wie viele
+  an wen. Erledigtes behält den Namen mit „(gelöscht)“: im Verlauf, an
+  erledigten Terminen, in der Verlaufs-CSV und im Kalender. Personen aus
+  einem Backup oder Beispielhaushalt stehen unter Zugriff mit dem Vermerk
+  „ohne Zugang“, lassen sich löschen oder per „Zugang anlegen“ zu einem
+  Zugang mit derselben Nummer machen.
+- **Einordnung als Ampel:** Die Kachel zeigt Haushaltsstrom, Heizung und
+  Wasser je Person mit Ampel und einem klaren Satz (Wasser gelb erst ab 5 %
+  über dem Richtwert); fehlt eine Angabe, führt
+  genau ein Link direkt zum Feld. Die Links auf die Startseiten von Strom-
+  und Heizspiegel sind entfallen.
+- **Abrechnungsjahr statt Kalenderjahr** ([#33]): Umschalter „Kalenderjahr ·
+  Abrechnungsjahr“ in Verbrauchsart, Übersicht und Analyse; die Wahl merkt
+  sich das Gerät. Die Perioden kommen aus den erfassten Versorgerrechnungen —
+  genau wie auf der Rechnung, auch unregelmäßig wie 15.04.–30.03. —, davor,
+  dazwischen und danach aus dem Abrechnungsstichtag je Verbrauchsart.
+  Tagesgenau mit Menge, Kosten, Abschlägen (tagesanteilig) und Saldo;
+  Teilmonate am Anfang und Ende. Passt der Stichtag nicht zur letzten
+  Rechnung, schlägt die App einen vor. Arten ohne Rechnungsprüfung (Heizöl,
+  Pellets, Sonnenstrom) bleiben beim Kalenderjahr.
+- **Jahresbericht** mit Anhang „Abrechnungsjahre“ (Option im Dialog; die
+  übrigen Seiten bleiben Kalenderjahr, damit die Summen über alle Arten
+  zusammenpassen); **CSV-Export je Abrechnungsperiode**
+  (`monthly.csv?period=billing`, Kachel unter Einstellungen → Daten).
+- **Laufendes Jahr erklärt:** ⓘ an „Abschläge bis …“: Das Kalenderjahr zählt
+  Grundpreis und Abschlag des angebrochenen Monats ganz, das Abrechnungsjahr
+  tagesgenau; ganze Jahre sind gleich.
+- **Personen ohne Zugang bearbeiten:** Unter Einstellungen → Zugriff lassen
+  sich Name und Rolle von Personen aus einem Backup oder Beispielhaushalt
+  ändern (nur Verwalter). Offene Termine zeigen den neuen Namen, Erledigtes
+  behält den alten. „Umbenennen“ gibt es auch für Zugänge mit Passwort; Namen
+  sind über alle Personen eindeutig.
+- **Angenommene Fläche sichtbar:** Effizienzklasse und CO₂-Aufteilung für
+  Mieter rechnen ohne eingetragene Fläche weiter mit 100 m², sagen das aber
+  jetzt („Angenommene Wohnfläche 100 m² – bitte eintragen“) und führen direkt
+  zum Feld, auch im Jahresbericht (`area_assumed`).
+- **Abrechnungsjahr bis in den letzten Winkel:** Die Zählergruppen einer
+  Karte zeigen dieselbe Periode wie die Karte; „Rechnung prüfen“ schlägt die
+  jüngste abgeschlossene Abrechnungsperiode vor; die Saldo-Karte sagt
+  „Gerechnet ab …“. Ein Test hält Menge, Kosten, Abschläge und Saldo in allen
+  Ansichten deckungsgleich, im Kalender- wie im Abrechnungsjahr.
+- **API additiv:** `GET /api/utility/{u}/meters/{id}/billing-periods`, dazu für
+  Zählergruppen und die ganze Verbrauchsart; Jahresbericht `billing=1`;
+  `GET /api/update-check`; `POST /api/forecast/scenario` (rechnet nur,
+  speichert nichts, auch mit Lese-Schlüssel); `GET /api/users/{id}/handover`;
+  `insights` in `GET /api/flexibility`; Jahresbericht `flex=1`;
+  `balance_from` am Vertragssaldo; `rating`, `water`, `missing` an der
+  Einordnung; `no`, `has_account` an Personen; `ends_at_switch` an den
+  Abrechnungsperioden; `assumed_keys` in den Einstellungen;
+  `GET /api/flexibility?summary=1`, in `insights` dazu `summary`, `vat_pct`,
+  `ev_availability`; `PATCH /api/users/{id}` auch für Personen ohne Zugang.
+- **Hinweis auf neue Versionen:** Einmal am Tag sieht der Server bei GitHub
+  nach, ob es eine neuere Version gibt, und die App zeigt sie mit Link zu den
+  Release-Notes, bis man den Hinweis für diese Version schließt. Nur
+  eingeschaltet; GitHub sieht dabei nur die Adresse des Servers.
+- **„Was ist neu“** nach einem Update, mit einer Zeile zum Unterstützen.
+- **Image-Tag `:3`** (und `:3-rootless`) — bleibt aktuell, ohne ungefragt auf
+  eine neue Hauptversion zu springen.
+
+### Changed
+
+- ⚠️ **Abrechnungsjahr beim Lieferantenwechsel:** Beginnt mitten in einer
+  Periode der Vertrag eines anderen Versorgers und ist keine Schlussrechnung
+  erfasst, endet die Periode am letzten Tag beim alten Versorger, die nächste
+  beginnt mit dem neuen Vertrag. Verlängerung und neuer Tarif beim selben
+  Versorger teilen nicht.
+- ⚠️ **Hebel zum Börsenpreis mit Umsatzsteuer** (Satz des dynamischen
+  Angebots, sonst 19 %); Seite, Bericht und Kachel sagen „inkl. USt“. Was netto
+  bleibt, sagt es: ct-Werte in Ampel und Zeitfenstern und die Nachrechnung
+  (Profilfaktor, Vorteil, Speicherwert) als „netto, ohne USt“.
+- ⚠️ **Das Auto lädt, solange es angesteckt ist:** Ladefenster aus den
+  evcc-Steckzeiten statt „ganzer Ladetag“; Seite und Bericht nennen die
+  Grundlage.
+- **Einordnung: Standardwerte zählen nicht.** Wohnfläche und Personen ordnen
+  erst ein, wenn du sie eingetragen hast, auch derselbe Wert wie der Standard
+  (100 m², 2 Personen). Bis dahin lädt die Kachel zum Feld ein. Wer die Werte
+  schon gespeichert hat, behält seine Ampel.
+- **Doku: wöchentlicher Neubau erklärt.** Der „Docker Rebuild“ am Dienstag ist
+  kein Release: gleicher Code und Tag, neues Image mit aktuellem Unterbau und
+  neuem Digest. Update-Wächter melden ihn deshalb, GHCR zählt Downloads je
+  Version neu.
+- **Druckansicht mit PDF-Knopf:** Neben „Drucken / als PDF sichern“ lädt
+  „Jahresbericht herunterladen“ die PDF-Datei mit derselben Auswahl. Am iPad
+  führt „Drucken“ in den Druckdialog, nicht direkt zu einer Datei.
+- **CO₂-Faktoren zugeklappt:** Unter Einstellungen → Verbrauchsarten steht
+  die lange Liste zugeklappt, derselbe Aufklappbereich wie „Prognose im
+  Detail“; bei einem Fehler oder nach dem Speichern klappt sie auf.
+- **Ruhige Formulare am iPad:** Auswahlfelder so hoch wie Eingaben, 16 px
+  Schrift auch mit Tastatur oder Trackpad (kein Zoom beim Antippen),
+  einheitliche Abstände, Passwortfelder in Formularen, in allen
+  Einstellungen.
+- **Beispieldaten für alle Anwendungsfälle:** Jede Zuständigkeit gehört zu
+  einer angelegten Person, im Eigenheim klassisch zeigt „Lukas (gelöscht)“
+  die Historisierung; dazu eine Einliegerwohnung mit HT/NT-Zählern als
+  Zählergruppe mit Gruppenvertrag, ein stillgelegter Zähler, ein
+  Home-Assistant-Alias, eine geschätzte Ablesung und ein Posten auf der
+  Wasserrechnung. Ein Test verlangt jeden der 52 Anwendungsfälle in
+  mindestens einem Haushalt.
+- **Beispielhaushalte:** Eigenheim klassisch bringt eigene, erfundene
+  Vergleichswerte mit und zeigt die Einordnung mit voller Ampel; Eigenheim
+  modern hat Steckzeiten aus evcc, „Dein Hebel“ zeigt dort 91 €, mit
+  dynamischem Tarif bis zu 251 € (vorher 139 € und 224 €).
+- **Beispieldaten: Stichtag und Rechnungen im selben Rhythmus.** Wo die Demo
+  den Abrechnungsstichtag relativ zu heute legt, wandern die Jahresrechnungen
+  mit (Schlussrechnungen bleiben), der Import rechnet ihre Beträge neu: kein
+  Zwischenzeitraum und kein Stichtag-Vorschlag im Abrechnungsjahr, „Rechnung
+  prüfen“ passt weiter. Die Eigentumswohnung erwartet die Abrechnung jetzt bei
+  der Fernwärme.
+- **Lizenz in einfachen Worten** im README: zu Hause frei nutzen, ändern,
+  weitergeben; Pflichten erst, wer eine veränderte Fassung anderen als
+  Webdienst anbietet.
+- **Release-Notes** gehören jetzt zu den erlaubten GitHub-Links der App.
+- **Unterstützen-Link** auch im README der Home-Assistant-App.
+- **Beispieldaten:** Der Beispielhaushalt mit Gas, Strom und Wasser zeigt eine
+  Nachzahlung am Wasservertrag ([#34]).
+
+### Fixed
+
+- **Abschlag im Wechselmonat:** „Rechnung prüfen“ und die Abrechnungsjahre
+  zählen den Abschlag eines Monats mit zwei Verträgen je Vertrag nach seinen
+  Tagen; bisher bekam eine Schlussrechnung zum 14. einen Teil des neuen
+  Abschlags.
+- **Jahresbericht, Kosten mit Heizöl und Pellets:** Kachel „Kosten“, Verlauf
+  und „Geld“ zählen die Kosten der Lieferungen wie die Übersicht; die Seiten
+  nennen sie statt „keine Preise hinterlegt“.
+- **Rechnung prüfen, Wasser:** Das Schmutzwasser fehlte, wenn es über einen
+  eigenen Zähler oder als Hauptzähler minus Gartenzähler läuft, und damit
+  auch in jedem Abrechnungsjahr.
+- **Saldo des laufenden Vertrags** zählte alle Jahre seit Vertragsbeginn;
+  jetzt ab dem Tag nach der letzten gebuchten Rechnung (`balance_from`).
+- **Zählergruppen:** Ein Subzähler, dessen Elternzähler in derselben Gruppe
+  ist, zählte bei Verbrauch, Rechnungsprüfung und Abrechnungsjahr doppelt.
+- **Prognose-Werkstatt:** Dem Endsaldo fehlte der Rest des angebrochenen
+  Monats.
+
+### Migration
+
+Keine. Schema bleibt 1.8.0; die neue Einstellung `update_check` steht auf
+„aus“.
+
+### Tests
+
+- `BillingPeriodServiceTest` (12), `UpdateCheckServiceTest` (5),
+  `ScenarioServiceTest`, `SimplexTest`, `ScenarioEndpointTest`, neue
+  Node-Suiten `release-notice.test` und `scenario.test`; erweitert
+  `DemoDataAlignerTest`, `DemoServiceTest`, `PersonaUseCasesTest` (drei
+  Stichtage), `setup-wizard.test`,
+  `DeployTemplatesTest`, `ReleaseConsistencyTest`, Render-Tests.
+- Neu außerdem `PeopleServiceTest`, `PersonDeletionTest`,
+  `PersonaPeopleTest`, `ComparisonTrafficLightTest`, `FlexibilityPersonaTest`
+  (rechnet die Kennzahlen des Beispielhaushalts unabhängig nach),
+  `ViewSumsConsistencyTest` (gleiche Summen in allen Ansichten),
+  `DemoCoverageTest`, `BillingWindowTest`, `SupplierSwitchPeriodsTest`,
+  `PersonEditTest`, `ReportFlexPageTest`.
+- 1074 Testmethoden (+145, davon 8 Randfälle: Zählertausch, fremde und ungültige Rechnungen, Rechnung über 14 Monate, Vorabversion, kaputte Antwort). 345 Gegenproben, alle rot.
+
+### Lessons Learned
+
+- **Ein Hinweis in der App erreicht nur, wer ihn schon hat.** Installationen
+  auf alten Versionen erfahren von neuen nur über GitHub, Update-Werkzeuge oder
+  ein Tag wie `:3` — darum kommt der Hinweis früh und das Tag gleich mit.
+
+[#33]: https://github.com/Bingerminger/energietracker/issues/33
+[#34]: https://github.com/Bingerminger/energietracker/issues/34
+
+---
+
 ## [3.5.1] — 2026-10-14 — Am iPad
 
 PATCH-Release: Fehler, die bei der Nutzung am iPad (Safari) auffielen, dazu

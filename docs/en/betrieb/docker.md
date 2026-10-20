@@ -116,7 +116,7 @@ docker compose up -d        # … and restart with it
 ```bash
 docker run -d --name energietracker -p 8080:80 \
   -v "$PWD/data:/data" \
-  ghcr.io/bingerminger/energietracker:latest
+  ghcr.io/bingerminger/energietracker:3
 ```
 
 Line by line:
@@ -127,7 +127,7 @@ Line by line:
 | `--name energietracker` | **fixed container name** |
 | `-p 8080:80` | host port 8080 → container port 80 |
 | `-v "$PWD/data:/data"` | data volume (see above) |
-| `…/energietracker:latest` | the image including the tag |
+| `…/energietracker:3` | the image including the tag: `:3` stays on the newest 3.x and never jumps to a new major version unasked; `:latest` is always the newest, `:3.5.1` a fixed version |
 
 > ⚠️ **If you leave out `--name energietracker`, Docker assigns a random name** like
 > `thirsty_archimedes`. With `--name` the container is always called
@@ -148,7 +148,7 @@ from the Package Center; ARM and Intel models, the image is multi-arch):
    ```yaml
    services:
      energietracker:
-       image: ghcr.io/bingerminger/energietracker:latest
+       image: ghcr.io/bingerminger/energietracker:3
        container_name: energietracker
        restart: unless-stopped
        ports:
@@ -278,6 +278,14 @@ current base image (same code, current Alpine and PHP packages) and pushes it
 under the same names, since v3.5.0 the variant without root as well. A pinned
 tag thus receives security updates of the underlying system;
 `docker compose pull` fetches them.
+
+**What you notice:** the rebuild runs on Tuesdays on a schedule (GitHub often
+starts it hours later) and shows up under “Actions” as “Docker Rebuild”. It is
+not a new release and not new code. Afterwards the same tag points to an image
+with a new digest. Watchtower, Diun or Portainer therefore report “update
+available”, and GHCR counts downloads per version from zero again; the
+package’s total stays. Whoever pins an image by digest (`@sha256:…`) only gets
+the security updates after updating the digest.
 
 Best practice for a server: pin a **concrete version number** and perform updates
 consciously.

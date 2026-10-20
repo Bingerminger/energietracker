@@ -77,12 +77,13 @@ final class Co2CostService
                 'cost_eur_gross' => round(array_sum(array_column($rows, 'cost_eur_gross')), 2),
             ];
         }
-        $area = $this->area($year);
+        [$area, $assumed] = $this->area($year);
         $perM2 = null;
         if ($total !== null && $area > 0) {
             $kg = round($total['emissions_kg'] / $area, 1);
             [$stage, $share] = self::stage($kg);
-            $perM2 = ['kg' => $kg, 'area_m2' => $area, 'stage' => $stage, 'landlord_share_pct' => $share];
+            // v3.6.0 — area_assumed: weder im Mietverhältnis noch in den Einstellungen eingetragen
+            $perM2 = ['kg' => $kg, 'area_m2' => $area, 'area_assumed' => $assumed, 'stage' => $stage, 'landlord_share_pct' => $share];
         }
         return ['supported' => true, 'scheme' => $scheme, 'year' => $year, 'rows' => $rows, 'total' => $total,
                 'per_m2' => $perM2, 'price' => $price, 'vat' => $vat, 'note' => null];
@@ -263,15 +264,21 @@ final class Co2CostService
         return null;
     }
 
-    /** Wohnfläche: aus dem Mietverhältnis des Jahres, sonst die Einstellung. */
-    private function area(int $year): float
+    /**
+     * Wohnfläche: aus dem Mietverhältnis des Jahres, sonst die Einstellung.
+     * v3.6.0 — dazu, ob sie nur angenommen ist (Default, nirgends eingetragen).
+     *
+     * @return array{0:float, 1:bool}
+     */
+    private function area(int $year): array
     {
         if ($this->tenancies !== null && $this->settings->get('wohnverhaeltnis', 'eigentum') === 'miete') {
             foreach ($this->tenancies->list() as $t) {
                 if ((string)$t['start'] > "$year-12-31" || (!empty($t['end']) && (string)$t['end'] < "$year-01-01")) continue;
-                if (!empty($t['wohnflaeche_m2'])) return (float)$t['wohnflaeche_m2'];
+                if (!empty($t['wohnflaeche_m2'])) return [(float)$t['wohnflaeche_m2'], false];
             }
         }
-        return (float)$this->settings->get('wohnflaeche_m2', 0);
+        $area = (float)$this->settings->get('wohnflaeche_m2', 0);
+        return [$area, $area > 0 && !$this->settings->isEntered('wohnflaeche_m2')];
     }
 }

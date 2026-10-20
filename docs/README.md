@@ -2,7 +2,7 @@
 
 [English](en/README.md) · **Deutsch**
 
-> Dokumentation zu Energietracker **v3.5.1**, geordnet nach dem, was du
+> Dokumentation zu Energietracker **v3.6.0**, geordnet nach dem, was du
 > vorhast. Deutsch ist die maßgebliche Fassung, Englisch der vollständige
 > Spiegel; die übrigen Oberflächensprachen haben die Hilfe in der App.
 >
@@ -33,6 +33,7 @@ evcc im Heimnetz.
 
 | Dokument | Inhalt |
 |---|---|
+| [**Was wäre wenn? Die Prognose-Werkstatt**](anleitungen/was-waere-wenn.md) | *Neu in v3.6.0:* Was kostet ein kalter Winter, was bringt die Dämmung, lohnt der Wechsel? Regler bewegen, Ergebnis sofort sehen — Ergebniskarte, Kurven, Rangliste, beste Kombination unter einem Budget; speichern, drucken, als Bild teilen |
 | [Jahresabrechnung eintragen und prüfen](anleitungen/jahresabrechnung.md) | Stände, Preise, Gasfaktoren und Guthaben einer Rechnung übernehmen und nachrechnen — für Gas, Strom, Wasser und Fernwärme; die Rechnung erfassen, vergleichen und als Sonderzahlung buchen |
 | [Als Mieter: Heizung, Wasser und Nebenkosten](anleitungen/mieter.md) | Verbrauchsinfo Monat für Monat, Warm- und Kaltwasser, Vorauszahlung gegen erwartete Kosten, Nebenkostenabrechnung und ihre Fristen |
 | [CO₂-Kosten mit dem Vermieter teilen](anleitungen/co2-aufteilung.md) | Anteil des Vermieters nach CO2KostAufG: bei eigener Gastherme ausrechnen und einfordern, bei Zentralheizung die Abrechnung prüfen; Frist und Anschreiben |
@@ -46,7 +47,7 @@ evcc im Heimnetz.
 | [Ladevorgänge aus evcc](anleitungen/evcc.md) | CSV aus evcc hochladen oder im Heimnetz abrufen, Zählerstände der Wallbox, Sonnenanteil und Preis je Monat, mehrere Ladepunkte |
 | [Benutzer im Haushalt](anleitungen/benutzer.md) | Personen mit Name und Passwort oder über den Proxy, Verwaltung und Mitglied, eigene Stufe und Sprache, Passwort vergessen |
 | [Zeitreihen aus Portalen übernehmen](anleitungen/daten-aus-portalen.md) | Dateien von Netzbetreiber, Wechselrichter oder Wärmepumpe mit Spaltenzuordnung einlesen, Zeitstempel und Zeitumstellung, Viertelstunden für die Flexibilität, Data Act |
-| [Flexibilität bewerten](anleitungen/flexibilitaet.md) | Verbrauch und Börsenpreis je Viertelstunde: Profilfaktor und Vorteil je Stromzähler, Speicher, § 14a Modul 3 mit Zeitfenstern am Vertrag, Dynamik-Check mit eigenem Lastgang |
+| [Flexibilität bewerten](anleitungen/flexibilitaet.md) | Wann Strom günstig ist und was Verschieben bringt: Ampel, „Dein Hebel“ je Gerät, Handlungssätze, Ergebniskarte als Bild, Seite im Jahresbericht (v3.6.0); dazu Profilfaktor und Vorteil je Stromzähler, Speicher, § 14a Modul 3 mit Zeitfenstern am Vertrag, Dynamik-Check mit eigenem Lastgang |
 | [Anwendungsfälle](anleitungen/anwendungsfaelle.md) | WG mit geteilten Zählern, Smart Home, PV-Haushalt mit Wärmepumpe, Vermieter, Wallbox und Dienstwagen, Fernwärme oder Heizwärme, Steuern mit evcc oder Home Assistant |
 
 ## 📚 Verstehen — *wie gerechnet wird*

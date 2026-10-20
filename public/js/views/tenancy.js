@@ -17,11 +17,12 @@ import { t, tp, getCurrencyMinor } from '../lib/i18n.js';
 import { openModal, confirmModal, guardSubmit } from '../components/modal.js';
 import { toastOk, toastErr } from '../components/toast.js';
 import { info } from '../components/info.js';
+import { areaAssumedHtml } from '../lib/area-assumed.js';   // v3.6.0 (Paket einpers)
 
 const CATEGORIES = ['heating', 'warm_water', 'cold_water', 'sewage', 'operating', 'other'];
 let selectedId = null;
 
-export async function render(container) {
+export async function render(container, params, ctx) {
   container.innerHTML = `<div class="loading">${t('tenancy.loading')}</div>`;
   // nur aktive Arten: Heizwärme verlinken bzw. ihre Zähler anbieten, wenn sie eingeschaltet ist
   const [tenancies, utilities] = await Promise.all([api.tenancies(), activeUtilities().catch(() => [])]);
@@ -67,6 +68,14 @@ export async function render(container) {
     ${detailsCard(ten, utilities)}
     ${statementsCard(statements)}`;
   wire(container, ten, utilities, statements);
+  // v3.6.0 — Sprung zur Fläche (`?field=wohnflaeche_m2`, Hinweis „angenommene Fläche“):
+  // das Mietverhältnis öffnen, Feld im Fokus
+  if (ctx?.query?.get?.('field') === 'wohnflaeche_m2') {
+    openTenancyModal(ten, utilities, () => render(container));
+    // der Dialog lädt erst die Zähler — kurz warten, bis das Feld steht
+    const focus = (n) => { const el = document.getElementById('tf-area'); if (el) el.focus(); else if (n > 0) setTimeout(() => focus(n - 1), 50); };
+    focus(20);
+  }
 }
 
 // ── Karten ───────────────────────────────────────────────────────────
@@ -133,6 +142,7 @@ function co2Card(r, year) {
       <div class="kpi"><div class="kpi__label">${t('co2split.landlordShare')}</div><div class="kpi__value">${r.landlord_share_pct} %</div></div>
       <div class="kpi"><div class="kpi__label">${t('co2split.amount')}</div><div class="kpi__value">${fmt.eur(r.landlord_amount_eur)}</div></div>
     </div>
+    ${r.area_assumed ? areaAssumedHtml(r.area_m2, r.tenancy_id ? 'tenancy' : 'household') : ''}
     ${(r.checks || []).length ? `<div class="banner banner--warning">${r.checks.map(c => esc(t('co2split.check.' + c))).join('<br>')}</div>` : ''}
     ${(r.reductions || []).length ? `<p class="muted small">${r.reductions.map(x => esc(t('co2split.reduction.' + x))).join(' · ')}</p>` : ''}
     <p class="muted small">${esc(t('co2split.disclaimer'))}</p>

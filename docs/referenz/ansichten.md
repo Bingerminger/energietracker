@@ -67,12 +67,12 @@ Update auf „Experte“.
 
 | ab Stufe | Seiten | Teile von Seiten |
 |---|---|---|
-| 🌱 Einsteiger | Übersicht (eigene Ansicht, §1), Zählerstände, Verbrauch je Art, Verträge & Abschläge, Jahresbericht, Termine & Wartung, Empfehlungen, Hilfe; Einstellungen → Allgemein, Haushalt & Gebäude, Verbrauchsarten & Abrechnung, Daten | — |
-| 🌿 Erfahren | Wechsel prüfen, Rechnung prüfen, Mietverhältnis, Analyse, Prognose, Zählerverwaltung einer Art (`#/utility/…/meters`), Wetterdaten, Hinweise → Erledigt (v3.4.0), Einstellungen → Integrationen | die Übersicht mit allen Kennzahlen; in der Verbrauchsansicht die CO₂-Kachel, „Gemessen“/„Witterungsbereinigt“, die Monatstabelle, der Energiefluss der PV, „Rechnung prüfen“ und „Ladevorgänge aus evcc“ (§3); im Vertragsdialog Kündigungsfrist, Preisgarantie, Kündigungsweise, Mindestlaufzeit, „Verlängert sich ohne Kündigung“, Boni und Sonderzahlungen; in den Einstellungen Anzeige, Erinnerungen, Eigene Vergleichswerte, Wasser-Referenzwerte, Physikalische Konstanten und Energieträger (Lieferung) |
-| 🌳 Experte | Flexibilität (v3.3.0); Einstellungen → Zugriff, Experte, System | auf der Übersicht der Abschnitt „Schaubilder“; in der Verbrauchsansicht Warmwasser-Wärme, CO₂-Preis im Brennstoff, Ladestrom-Nachweis, Wärmepumpe sowie Speicher und Amortisation der PV; in der Analyse Zäsur und „Wirkung der Maßnahme“; in der Prognose Modell und CO₂-Preis-Szenario; unter Wechsel prüfen der dynamische Tarif und „Börsenstrompreise“; in der Vertragsliste die Zählungen je Vertrag (v3.4.0); im Vertragsdialog Leistungs- und Messpreis und Kennwerte der Fernwärme, reduziertes Netzentgelt (§ 14a), zeitvariables Netzentgelt (§ 14a Modul 3, v3.3.0), Arbeitspreis je Zähler einer Gruppe, Gutschriften des Direktvermarkters und „Monatspreise importieren“; im Zählerdialog Gruppe, Analyse-Zäsuren, PV-Anlage, Stromzähler der Wärmepumpe und „Zeitreihe importieren“; im Mietverhältnis „CO₂-Kosten teilen“; in den Einstellungen CO₂-Emissionsfaktoren und Photovoltaik |
+| 🌱 Einsteiger | Übersicht (eigene Ansicht, §1), Zählerstände, Verbrauch je Art, Verträge & Abschläge, Prognose-Werkstatt (v3.6.0, drei Regler), Flexibilität (v3.6.0: Ergebnis, Handlungssätze, typischer Tag), Jahresbericht, Termine & Wartung, Empfehlungen, Hilfe; Einstellungen → Allgemein, Haushalt & Gebäude, Verbrauchsarten & Abrechnung, Daten | — |
+| 🌿 Erfahren | Wechsel prüfen, Rechnung prüfen, Mietverhältnis, Analyse, Zählerverwaltung einer Art (`#/utility/…/meters`), Wetterdaten, Hinweise → Erledigt (v3.4.0), Einstellungen → Integrationen | die Übersicht mit allen Kennzahlen; in der Flexibilität (v3.6.0) die Woche, die besten Zeitfenster, „Sonnenstrom selbst nutzen“ und „Dein Hebel“; in der Prognose-Werkstatt Raumtemperatur, Grundlast, Prognosemodell, Maßnahmen, Rangliste, Monatskurve, Saldo und CO₂; in der Verbrauchsansicht die CO₂-Kachel, „Gemessen“/„Witterungsbereinigt“, die Monatstabelle, der Energiefluss der PV, „Rechnung prüfen“ und „Ladevorgänge aus evcc“ (§3); im Vertragsdialog Kündigungsfrist, Preisgarantie, Kündigungsweise, Mindestlaufzeit, „Verlängert sich ohne Kündigung“, Boni und Sonderzahlungen; in den Einstellungen Anzeige, Erinnerungen, Eigene Vergleichswerte, Wasser-Referenzwerte, Physikalische Konstanten und Energieträger (Lieferung) |
+| 🌳 Experte | Einstellungen → Zugriff, Experte, System | auf der Übersicht der Abschnitt „Schaubilder“; in der Flexibilität die Nachrechnung je Zähler, Speicher, Modul 3 und die Viertelstundenreihen (bis v3.5.0 war die ganze Seite Experten vorbehalten); in der Verbrauchsansicht Warmwasser-Wärme, CO₂-Preis im Brennstoff, Ladestrom-Nachweis, Wärmepumpe sowie Speicher und Amortisation der PV; in der Analyse Zäsur und „Wirkung der Maßnahme“; in der Prognose Modell und CO₂-Preis-Szenario, in der Werkstatt Heizkurve, E-Auto, JAZ, Budget mit Optimierung, Modellvergleich, Band und CSV; unter Wechsel prüfen der dynamische Tarif und „Börsenstrompreise“; in der Vertragsliste die Zählungen je Vertrag (v3.4.0); im Vertragsdialog Leistungs- und Messpreis und Kennwerte der Fernwärme, reduziertes Netzentgelt (§ 14a), zeitvariables Netzentgelt (§ 14a Modul 3, v3.3.0), Arbeitspreis je Zähler einer Gruppe, Gutschriften des Direktvermarkters und „Monatspreise importieren“; im Zählerdialog Gruppe, Analyse-Zäsuren, PV-Anlage, Stromzähler der Wärmepumpe und „Zeitreihe importieren“; im Mietverhältnis „CO₂-Kosten teilen“; in den Einstellungen CO₂-Emissionsfaktoren und Photovoltaik |
 
 Ein Bereich zeigt als Tabs nur die Seiten seiner Stufe, bei einer einzigen
-Seite gar keine; „Auswertungen“ in der Seitenleiste führt Einsteiger zum
+Seite gar keine; „Auswertungen“ in der Seitenleiste führt Einsteiger seit v3.6.0 zur Prognose-Werkstatt, daneben steht der
 Jahresbericht. Ein Link, ein Lesezeichen oder eine alte Adresse öffnet eine
 ausgeblendete Seite trotzdem. Darüber steht dann der Hinweis „Diese Seite
 gehört zur Stufe „Erfahren“. Sie ist trotzdem offen.“ mit **„Auf „Erfahren“
@@ -143,7 +143,12 @@ Die **Hilfe** steht in der Fußzeile der Seitenleiste, am iPhone unter „Mehr�
 
 ## 1. Übersicht (Dashboard)
 
-Einstieg. 12-Monats-Kennzahlen je Art, Effizienzklasse **pro
+Einstieg. 12-Monats-Kennzahlen je Art (seit v3.6.0 im **Abrechnungsjahr**:
+je Art mit Rechnungsprüfung die laufende Abrechnungsperiode mit eigenem
+Stichtag, benannt und mit den Abschlägen bisher, ohne Subzähler — Umschalter
+über den Karten, [Verbrauchsansicht](#3-verbrauchsansicht--kumulative-arten-gasstromwasserfernwärme);
+die aufklappbaren **Zählergruppen** einer Karte zeigen dann dieselbe Periode,
+hat eine Gruppe eigene Rechnungen, ihre jüngste mit Namen), Effizienzklasse **pro
 Heizquelle**, Tank-Bestände (Öl/Pellets), **Strom-Saldo & Autarkie** bei
 PV, kombinierter Verbrauchsverlauf (so viele Monate wie in den Einstellungen
 unter *Monate auf Dashboard*, seit v2.9.0) und fällige Termine. Seit v2.10.0
@@ -217,19 +222,54 @@ gut: Der Pfeil nach oben ist grün. Der gemeinsame Verlauf zeigt nur noch, was
 bezogen wird — bis v2.12 standen dort auch die PV-Kilowattstunden, als wären
 sie Verbrauch.
 
-**Einordnung (v3.1.0):** Die Karte 📏 **„Einordnung {Jahr}“** (Vorjahr) stellt
-den Jahresverbrauch eigenen Vergleichswerten gegenüber — „Haushaltsstrom: …
-kWh gegenüber … kWh (dein Vergleichswert)“ und je Heizart „… kWh/m² gegenüber
-… kWh/m²“, mit der Abweichung in % (grün darunter, rot darüber), nur für volle
-Jahre. Darunter, wo es zutrifft: dass das Jahr noch nicht alle Monate hat, dass
-mit PV, Wärmepumpe oder Wallbox der allgemeine Stromspiegel nicht passt
-(Wärmepumpe und Wallbox sind schon herausgerechnet), und die Quelle der
-Vergleichswerte. Ohne eigene Werte steht dort, wo man sie einträgt
-(Einstellungen → Haushalt & Gebäude → Eigene Vergleichswerte). In Deutschland
-verlinkt die Karte „Stromspiegel: eigene Klasse prüfen“ und „Heizspiegel:
-Heizkosten prüfen“ ↗. Ohne Werte und ohne Links entfällt sie.
+**Einordnung (v3.1.0, seit v3.6.0 als Ampel):** Die Karte 📏 **„Einordnung
+{Jahr}“** (Vorjahr, Kalenderjahr) stellt den Jahresverbrauch einem Vergleich
+gegenüber, je Zeile mit Ampel, Wort und einem Satz:
+
+| Zeile | verglichen mit | Ampel |
+|---|---|---|
+| Haushaltsstrom | deinem Vergleichswert (Einstellungen → Haushalt & Gebäude → Eigene Vergleichswerte) | **Gut** am oder unter dem Wert · **Darüber** bis 10 % darüber · **Deutlich darüber** mehr |
+| je Heizart, kWh/m² | deinem Vergleichswert Heizung | wie beim Strom |
+| Wasser, Liter je Person und Tag | dem Richtwert unter Wasser (Standard 122 L, BDEW) und den Personen im Haushalt | nach den Bändern des Wasser-Spar-Index (Standard: Gut bis 100, gelb erst ab 5 Punkten darüber, Deutlich darüber ab 150) |
+
+Zum Beispiel „**Darüber** Haushaltsstrom: 3.650 kWh, 7 % über deinem
+Vergleichswert (3.400 kWh).“ Eine Ampel gibt es nur für volle Jahre; vorher
+steht der Wert ohne Farbe da, mit dem Hinweis, dass das Jahr noch nicht alle
+Monate hat. Darunter, wo es zutrifft: dass mit PV, Wärmepumpe oder Wallbox der
+allgemeine Stromspiegel nicht passt (Wärmepumpe und Wallbox sind schon
+herausgerechnet), und die Quelle der Vergleichswerte.
+
+Fehlt eine Angabe, lädt die Karte mit **genau einem Link** dazu ein, der direkt
+zum Feld führt (die Einstellungsseite öffnet sich mit dem Feld im Fokus):
+„Vergleichswerte eintragen“, „Wohnfläche eintragen“ (ohne Fläche keine kWh/m²)
+oder „Personen eintragen“. **Standardwerte zählen nicht** (seit v3.6.0):
+Wohnfläche (Standard 100 m²) und Personen im Haushalt (Standard 2) ordnen erst
+ein, wenn jemand sie eingetragen hat — auch derselbe Wert wie der Standard.
+Bis dahin gibt es für Heizung bzw. Wasser keine Ampel, sondern die Einladung.
+Wer die Werte schon einmal gespeichert hat (oder einen Beispielhaushalt oder
+ein Backup mit ihnen geladen hat), behält seine Ampel. Effizienzklasse,
+CO₂-Stufe und Wasser-Spar-Index rechnen bis zum Eintrag weiter mit dem
+Standard; die Effizienzkarte sagt es dann mit **„Angenommene Wohnfläche 100 m²
+– bitte eintragen“** und dem Link „Wohnfläche eintragen“, die Effizienzseite
+des Jahresberichts (PDF und Druckansicht) mit einem Satz. Gibt es weder eine Zeile noch eine fehlende Angabe —
+etwa ohne Verbrauch im Vorjahr —, entfällt die Karte. Die Links auf die
+Startseiten von Strom- und Heizspiegel (bis v3.5) sind entfallen: Sie führten
+aus der App heraus, ohne zum Eintragen zurückzuführen.
 
 ![Dashboard](../ui/screenshots/dashboard.png)
+
+**Dein Hebel (v3.6.0):** Gibt es für das Vorjahr gemessene Viertelstunden
+(Strom oder Erzeugung und Einspeisung) und einen Hebel ab 1 €, steht die
+Kachel ⏱️ **„Dein Hebel {Jahr}“** zwischen den übrigen: groß dieselbe Zahl wie
+die Ergebniskarte der Seite [Flexibilität](#flexibilität-bewerten-v330-unter-auswertungen)
+— was du mit deinem Tarif im Jahr sparen kannst, inkl. USt (gibt es dort
+keinen Hebel, was ein dynamischer Tarif brächte, und sie sagt das) —, klein
+darunter „Mit dynamischem Tarif bis zu …“, dazu ein Handlungssatz der
+laufenden Jahreszeit (mit deinem Tarif zuerst) und der Knopf
+**„Flexibilität“**. Die Zahl rechnet der Server mit einer schlanken Abfrage
+(`GET /api/flexibility?summary=1`); die Übersicht wartet nicht darauf, die
+Kachel erscheint, sobald sie da ist. Ohne Daten keine Kachel. Die
+Einsteiger-Übersicht zeigt sie ebenso.
 
 **Übersicht für Einsteiger (v3.2.0):** In der Stufe „Einsteiger“ zeigt die
 Übersicht, sobald Verbrauchsdaten da sind, statt aller Kennzahlen drei
@@ -468,6 +508,34 @@ Pro Art identischer Aufbau: Jahr-Auswahl, Zähler-Auswahl, KPI-Leiste
 CO₂), Vertrags-/Saldo-Karte, Verbrauchschart mit Temperaturüberlagerung sowie
 Monatstabelle mit gleitenden Mitteln (MA-3/MA-6) und Wetterbereinigung.
 
+**Kalenderjahr oder Abrechnungsjahr (v3.6.0, GitHub #33):** Über der
+Jahreswahl steht der Umschalter *Kalenderjahr · Abrechnungsjahr*. Die Wahl
+merkt sich das Gerät; sie gilt auch in der Übersicht und der Analyse. Im
+Abrechnungsjahr listet die Wahl die **Abrechnungsperioden** statt der Jahre:
+zuerst die Zeiträume der erfassten Versorgerrechnungen, genau wie auf der
+Rechnung (auch 15.04. bis 30.03.), davor, dazwischen und danach die Perioden
+nach dem Stichtag der Art ([Einstellungen](einstellungen.md)). Eine ganze
+Periode heißt „2025/26“, eine angebrochene trägt ihre Daten. Darunter steht,
+woher die Periode kommt (Rechnung oder Stichtag) und bis zu welcher Ablesung
+gerechnet ist. Kennzahlen, Monatsdiagramm und Monatstabelle folgen der Periode;
+der erste und der letzte Monat sind Teilmonate, wenn der Stichtag mitten im
+Monat liegt. Menge und Kosten rechnet der Server wie *Rechnung prüfen*
+(tagesanteilig), die Abschläge tagesanteilig; der Saldo zieht zusätzliche
+Abschlagszahlungen ab. Das Diagramm vergleicht mit der **Vorperiode**. Die
+Adresse trägt die Periode (`?period=2025-09-01`). Nur Gas, Strom, Wasser und
+Fernwärme mit Zählerständen haben Abrechnungsjahre; die übrigen Arten bleiben
+beim Kalenderjahr und sagen das, wenn das Gerät Abrechnungsjahre zeigt.
+Passt der Stichtag nicht zur letzten Rechnung, schlägt die Ansicht den Tag
+nach ihrem Ende als Stichtag vor. Ein **Lieferantenwechsel** ohne erfasste
+Schlussrechnung beendet die Periode am letzten Tag beim alten Versorger
+(„endet mit dem Lieferantenwechsel“), die nächste beginnt mit dem neuen
+Vertrag; eine Verlängerung oder ein Folgevertrag desselben Versorgers ohne
+Lücke teilt nicht ([Jahresabrechnung](../anleitungen/jahresabrechnung.md#8-danach)).
+Im **laufenden Jahr** zählt das Kalenderjahr Grundpreis und Abschlag des
+Monats der letzten Ablesung ganz, das Abrechnungsjahr nur die Tage bis zur
+Ablesung; das ⓘ an „Abschläge bis …“ erklärt es. Ganze Jahre sind in beiden
+Ansichten gleich.
+
 **Saldo-Verlauf (v2.16.0):** Unter den Zahlen der Saldo-Karte stehen die
 aufsummierten Kosten und das Bezahlte (Abschläge, Sonderzahlungen) über den
 Abrechnungszeitraum — gestrichelt, wo geschätzt ist, hohle Punkte nach heute.
@@ -495,6 +563,16 @@ seit v2.13.0 die Einzelposten zum Aufklappen statt im Tooltip; bei
 Gas/Strom/Fernwärme, seit v3.5.0 auch Wasser) sowie Saldo heute und
 erwarteten Saldo. Der Grundpreis
 steht ausgeschrieben da („Grundpreis 12,95 €/Monat“ statt „13 € GP“).
+
+**Saldo nach der letzten gebuchten Rechnung (v3.6.0):** Läuft der Vertrag
+über eine erfasste Versorgerrechnung hinaus, deren Ergebnis gebucht ist,
+rechnen Saldo-Karte, Saldo-Verlauf und die Zeile in **Verträge & Abschläge**
+ab dem Tag danach; die Karte sagt es („Gerechnet ab ‹Datum›: Die Rechnung
+davor ist im Vertrag gebucht …“). Die gebuchte Rück- oder Nachzahlung zählt
+dann nicht mehr mit. Eine erfasste, noch nicht gebuchte Rechnung lässt ihr
+Ergebnis im Saldo, bis es gebucht ist. Bis v3.5 rechnete der Saldo immer ab
+Vertragsbeginn — bei einem Vertrag über mehrere Jahre blieb jedes Jahr ohne
+gebuchten Ausgleich darin stehen.
 
 **Reihenfolge und Status der Verträge (v3.4.0):** Die Tabelle läuft rückwärts
 durch die Zeit, gruppiert unter Kopfzeilen: **Zukünftig**, **Aktuell** (auch
@@ -593,7 +671,10 @@ abgeschlossenen Abrechnungsperiode nach dem Stichtag der Art
 Liegt der Stichtag nicht am 1. Januar, heißt der Knopf „Abrechnung {von} –
 {bis} prüfen“. Bis v3.3 nahm er das angezeigte, meist laufende Jahr — mit
 einer Lücke bis zum 31.12. und „keine Ablesung“. Bis v3.0 gab es den Verweis
-nur bei Gas.
+nur bei Gas. Seit v3.6.0 nimmt der Knopf die jüngste abgeschlossene
+Abrechnungsperiode wie die Seite selbst (aus den erfassten Rechnungen, sonst
+nach dem Stichtag), im **Abrechnungsjahr** die gewählte, wenn sie
+abgeschlossen ist.
 
 **CO₂-Preis im Brennstoff (v3.1.0):** Bei Gas, Heizöl, Fernwärme und
 Heizwärme folgt — in Deutschland — die Karte **„CO₂-Preis im Brennstoff
@@ -697,7 +778,9 @@ den effektiven Preis. Bei Heizöl steht seit v3.1.0 darunter die Karte
 
 HGT-Korrelations-Streudiagramm mit den Kurven **aller fünf** Modelle
 (linear, polynomial, robust, segmentiert, sigmoid) und ihrem R²-Vergleich,
-Jahresvergleich und Anomalien. Darüber stehen die Vertragserinnerungen in
+Jahresvergleich (seit v3.6.0 im Abrechnungsjahr nach Perioden: Monate ab dem
+ersten Monat des Abrechnungsjahrs, Vergleich der letzten zwei Perioden) und
+Anomalien. Darüber stehen die Vertragserinnerungen in
 drei Stufen; seit v2.9.0 nennen sie bei gepflegter Kündigungsfrist den
 **Kündigungsstichtag** („Kündigung für … bis …, sonst läuft der Vertrag über
 den … hinaus weiter"), sonst das Vertragsende.
@@ -722,6 +805,40 @@ Das Wetter ist nicht bereinigt.“
 ---
 
 ## 6. Prognose
+
+### Prognose-Werkstatt (v3.6.0)
+
+Oben auf der Seite steht seit v3.6.0 die **Prognose-Werkstatt** — „Was wäre
+wenn? Probier es aus“. Links die Regler (am Telefon oben), rechts die
+**Ergebniskarte** mit einer großen Zahl („Ein kalter Winter kostet dich 214 €
+mehr im Jahr.“), darunter Kennzahlen, die Kurve **Kosten kumuliert**
+(Ausgangsfall gestrichelt, Szenario in der Farbe der Verbrauchsart) und — ab
+Erfahren — **Monat für Monat** und die Rangliste **„Was bringt am meisten?“**.
+Jede Änderung rechnet sofort neu (entprellt); gerechnet wird auf dem Server,
+die Seite rechnet nichts nach. Über den Reglern stehen **Beispielszenarien**
+zum Anklicken: Kalter Winter, Dach gedämmt, Günstigstes Angebot, 10 % sparen
+(je nachdem, was zum Zähler passt).
+
+| Stufe | Regler | Ergebnis |
+|---|---|---|
+| 🌱 Einsteiger | Winter (Heizgradtage ± %), Sparen (%), Tarif (laufender Vertrag, Angebot, günstigstes Angebot) | Ergebniskarte; Kosten im Jahr, Verbrauch im Jahr, empfohlener Abschlag; Kosten kumuliert |
+| 🌿 Erfahren | dazu Raumtemperatur (± °C), Grundlast (± %), Prognosemodell (witterungsbereinigt, wie im Vorjahr, Trend), Maßnahmen mit % Heizung, % Grundlast und Kosten, eigener Preis | dazu Saldo zur nächsten Abrechnung, CO₂, Monat für Monat, Rangliste mit Amortisation |
+| 🌳 Experte | dazu Heizkurve (Regressionsmodell), E-Auto (km, kWh/100 km), Wärmepumpe (JAZ heute → Szenario), Budget | dazu Prognosemodelle im Vergleich, Band, beste Kombination unter dem Budget, CSV |
+
+Szenarien lassen sich benennen, **je Gerät speichern** (im Browser) und
+vergleichen. **Ergebnis als Bild speichern** legt die Karte als PNG ab,
+**Drucken oder als PDF** öffnet die Druckansicht `#/forecast/print` mit
+Annahmen, Ausgangsfall gegen Szenario, Kurven, Monatstabelle und Rangliste
+auf A4. Nichts davon verlässt das Gerät ohne Klick. Die Übersicht lädt mit
+der Karte **„Was wäre wenn?“** in die Werkstatt ein. Rechenweg und Grenzen:
+[Was wäre wenn? Die Prognose-Werkstatt](../anleitungen/was-waere-wenn.md).
+In der öffentlichen Demo sind Ausgangsfall und Beispielszenarien
+vorgerechnet; eigene Reglerwerte rechnet erst die eigene Installation.
+
+### Prognose im Detail
+
+Unter der Werkstatt, aufklappbar („Prognose im Detail“, der Zustand bleibt je
+Gerät): die bisherige Ansicht.
 
 Modellauswahl (alle fünf), 12-Monats-Prognose als R²-gewichteter Blend
 aus Regression und Saisonprofil, Kostenprognose mit Saldo offener
@@ -751,37 +868,78 @@ Energieträger ([CO₂-Preis im Brennstoff](../verstehen/16-co2-preis.md#6-wo-du
 
 ### Flexibilität bewerten (v3.3.0, unter Auswertungen)
 
-Die Seite **„Flexibilität bewerten“** (`#/flexibility?year=…`, Stufe
-Experte) beantwortet: Hat das Verschieben etwas gebracht? Sie rechnet mit
-Verbrauch und Börsenpreis je Viertelstunde, nur den Börsenanteil — gesteuert
-wird woanders (evcc, Home Assistant, der Speicher selbst). Der Einleitungstext
-sagt das und verlinkt die **Anleitung**
+Die Seite **„Flexibilität bewerten“** (`#/flexibility?year=…`, seit v3.6.0
+für alle Stufen, bis v3.5.0 nur Experte) beantwortet: Wann lohnt es sich, Strom
+zu verbrauchen, was kann Verschieben bringen — und was hat es gebracht? Sie
+rechnet mit Verbrauch, Erzeugung und Börsenpreis je Viertelstunde, alle Zahlen
+auf dem Server — gesteuert wird woanders (evcc, Home Assistant, der Speicher
+selbst). Der Einleitungstext sagt das und verlinkt die **Anleitung**
 ([Flexibilität bewerten](../anleitungen/flexibilitaet.md)); Daten liefert
-`GET /api/flexibility` ([API](api.md#flexibilität-bewerten-v330)).
+`GET /api/flexibility` samt `insights` ([API](api.md#flexibilität-bewerten-v330)).
 
 - **Kopf:** die Auswahl **„Jahr“** (das laufende und die drei Jahre davor,
   vorbelegt das Vorjahr; ein Jahr in der Adresse gilt von 2018 bis heute) und
   der Knopf **„Börsenpreise {Jahr} von SMARD laden“**. Er holt die Preise je
   Viertelstunde — nur auf Knopfdruck —, meldet „Börsenpreise {Jahr} geladen:
   … Viertelstunden.“ und baut die Seite neu auf.
-- **Hinweise:** ohne Preise „Für {Jahr} fehlen die Börsenpreise je
-  Viertelstunde — oben von SMARD laden.“; ohne Verbrauch je Viertelstunde
-  „Für {Jahr} gibt es noch keinen Verbrauch je Viertelstunde. Er kommt aus
-  einer Portaldatei (Zähler → Zeitreihe importieren) oder aus Home Assistant
-  mit Zeitstempel.“
+- **Einladung „Was die Seite noch zeigen kann“** (v3.6.0) statt Hinweisen: je
+  fehlendem Baustein ein Satz, was er bringt — Börsenpreise je Viertelstunde
+  (mit dem Knopf zum Laden), Verbrauch je Viertelstunde, Wallbox oder
+  Wärmepumpe mit eigenem Zähler, Erzeugung und Einspeisung je Viertelstunde
+  (nur mit PV-Zählern), dynamischer Tarif oder Modul 3; darunter der Link „Schritt
+  für Schritt in der Anleitung“.
+- **Ergebniskarte „Dein Hebel {Jahr}“** (v3.6.0, alle Stufen): große Zahl,
+  „So viel kannst du mit deinem Tarif im Jahr sparen, wenn du Verbrauch in
+  günstige und sonnige Stunden verschiebst.“ (ohne Hebel mit dem eigenen
+  Vertrag der Satz zum dynamischen Tarif), bis zu drei Angaben (größter Hebel,
+  „Mit dynamischem Tarif: bis zu …“, „Sonnenstrom selbst genutzt“, „Modul 3
+  schon gespart“), Quelle, „Beträge inkl. USt“ und Stand; Knopf **„Als Bild
+  speichern“** (PNG, 1200 × 630, im Browser gezeichnet). Dieselbe Zahl zeigt
+  seit v3.6.0 die Kachel „Dein Hebel“ der [Übersicht](#1-übersicht-dashboard).
+- **„Was du tun kannst“** (alle Stufen): je Gerät ein Handlungssatz mit
+  Zeitfenster des laufenden Halbjahrs und Betrag, etwa „Lass die Wärmepumpe
+  mehr im Niedrigtarif laufen, 00:00–06:00 Uhr: bis zu 40 € im Jahr.“, mit den
+  Schildern „mit deinem Tarif“ bzw. „mit dynamischem Tarif“ und „Beispielwert“,
+  beim Auto „Steckzeiten aus evcc“ oder „ganzer Ladetag (Beispielwert)“,
+  darunter klein das Fenster des anderen Halbjahrs.
+- **„Wann Strom günstig ist“** (Ampel): Wahl „Winterhalbjahr · Sommerhalbjahr
+  · Ganzes Jahr“; **„Ein typischer Tag“** (alle Stufen) als Band aus 24
+  Stunden — grün ✔ günstig, gelb ▲ mittel, rot ✖ teuer, ☀ bei kräftiger Sonne,
+  je Stunde ein Satz für Screenreader —, der Satz „Am günstigsten: … Am
+  teuersten: …“ und die Spanne; **„Die Woche“** (ab Erfahren) als Tabelle 7 × 24.
+  Satz darüber und Spanne nennen die ct-Werte „Börsenanteil netto, ohne USt“.
+  Ohne Börsenpreise färben die Zeitfenster für Modul 3 die Ampel.
+- **„Beste Zeitfenster der Woche“** (ab Erfahren, Schild **„netto, ohne
+  USt“**): Zeitfenster, „Ø Börsenpreis (netto)“, „gegen das Mittel“, Sonne.
+- **„Sonnenstrom selbst nutzen“** (ab Erfahren, mit Erzeugung und Einspeisung
+  je Viertelstunde): selbst genutzt, eingespeist, wie viel mehr ginge, mit
+  Balken.
+- **„Dein Hebel“** (ab Erfahren): Tabelle Gerät, Preissignal, verschoben, im
+  Jahr — größter zuerst, Beispielwerte gekennzeichnet, beim Auto die Grundlage
+  der Ladefenster; darunter die Summe (größter Hebel je Gerät, davon mit deinem
+  Tarif, inkl. USt), die Beispielwerte, ein Satz zum Auto („Auto: Verschoben
+  wird nur, solange es angesteckt ist — Steckzeiten aus … Ladevorgängen von
+  evcc.“ oder die Annahme „ganzer Ladetag“) und „Obergrenze: …“ mit dem Satz
+  der Umsatzsteuer.
+- **„Nachgerechnet: was das Verschieben gebracht hat“** (ab Experte) mit den
+  folgenden Karten; der Satz darunter sagt seit v3.6.0, dass Beträge und
+  ct-Werte zum Börsenpreis der Börsenanteil netto, ohne USt sind (Modul 3 mit
+  den Beträgen am Vertrag).
 - **Je Stromzähler eine Karte** (nur mit Preisen), Wärmepumpe und Wallbox
-  zuerst mit der Marke **„steuerbar“**. Kennzahlen: „Verbrauch mit Preis“,
+  zuerst mit der Marke **„steuerbar“**, jede mit dem Schild **„netto, ohne
+  USt“**. Kennzahlen: „Verbrauch mit Preis“,
   „In günstigen Viertelstunden“ (Anteil), „Bei negativem Preis“, „Eigener Ø /
-  Börse Ø“, **„Profilfaktor“** mit ⓘ und „Vorteil (Börsenanteil)“. Darunter
+  Börse Ø (netto)“, **„Profilfaktor“** mit ⓘ und „Vorteil (Börsenanteil,
+  netto)“. Darunter
   ein Satz, etwa „Günstiger als der Durchschnitt: 18,78 € gespart beim
-  Börsenanteil (Profilfaktor 0,95).“ oder „Teurer als der Durchschnitt: … — es
+  Börsenanteil ohne USt (Profilfaktor 0,95).“ oder „Teurer als der Durchschnitt: … — es
   wird eher zu teuren Zeiten verbraucht.“ Aufklappbar **„Je Monat“**: Monat,
   kWh, günstig, negativ, eigener Ø, Börse Ø, Vorteil, Abdeckung. Ohne
   gemeinsame Viertelstunde steht „Keine Viertelstunde mit Verbrauch und
   Börsenpreis.“
-- **„Speicher nach Börsenpreis“** — mit Reihen für Laden und Entladen des
-  Speichers (PV-Erzeugung): „Geladen · Ø Preis“, „Entladen · Ø Preis“ und
-  „Wert der Verschiebung“ samt Erklärung.
+- **„Speicher nach Börsenpreis“** (Schild **„netto, ohne USt“**) — mit Reihen
+  für Laden und Entladen des Speichers (PV-Erzeugung): „Geladen · Ø Preis“,
+  „Entladen · Ø Preis“ und „Wert der Verschiebung (netto)“ samt Erklärung.
 - **„§ 14a Modul 3 — {Zähler}“** mit ⓘ — für jeden Zähler, dessen Vertrag
   Zeitfenster trägt (§12), auch ohne Börsenpreise: „Im Niedrigtarif“, „Im
   Hochtarif“, „Im Standardtarif“ (kWh) und „Ersparnis gegen Standard“, darunter
@@ -797,11 +955,18 @@ SMARD.de (CC BY 4.0)“. Das ⓘ am Profilfaktor erklärt: „Dein Börsenpreis 
 (nach Verbrauch gewichtet) geteilt durch das Börsenmittel. Unter 1: Du
 verbrauchst eher, wenn Strom billig ist; über 1: eher, wenn er teuer ist.“ Der
 Begriff steht auch im Glossar der Hilfe. Zum Ausprobieren: der
-Beispielhaushalt „Eigenheim mit Wärmepumpe und PV“ mit dem Jahr 2025.
+Beispielhaushalt „Eigenheim mit Wärmepumpe und PV“ mit dem Jahr 2025. Im
+Jahresbericht gibt es dieselben Zahlen als Seite „Flexibilität“ (Option im
+Dialog, `flex=1`).
 
 ### Jahresbericht (seit v2.11.0 unter Auswertungen)
 
-Ein Jahr auf einen Blick. Bis v2.10 stand der Bericht in den Einstellungen.
+Ein Jahr auf einen Blick. Seit v3.6.0 bietet der Dialog den Anhang
+**„Abrechnungsjahre“**: je Art mit Rechnungsprüfung die Perioden, die im
+Berichtsjahr enden (Periode, Grundlage, Menge, Kosten, Abschläge, Saldo), im
+PDF und in der Druckansicht (`billing=1`). Die übrigen Seiten bleiben beim
+Kalenderjahr, sonst passten die Summen über alle Arten nicht zusammen.
+Bis v2.10 stand der Bericht in den Einstellungen.
 Seit v3.4.0 („Jahresbericht für alle“) ist er für Leser ohne
 Technikhintergrund aufgebaut: das Wichtigste mit Ampeln und den drei
 wichtigsten Aufgaben, was sich gelohnt hat, was zu tun ist, Fristen, Geld, je
@@ -871,9 +1036,16 @@ Fernwärme**. Oben die Auswahl **„Verbrauchsart“** (bei mehreren) und
 
 **Gleich gerechnet, auf beiden Wegen (v3.4.0):** Die Seite rechnet beim
 Öffnen sofort — über **Kosten → Rechnung prüfen** genauso wie über den Knopf
-auf der Seite der Verbrauchsart. Vorbelegt ist die letzte abgeschlossene
-Abrechnungsperiode nach dem Stichtag der Art (Einstellungen → Verbrauchsarten
-& Abrechnung, Standard 1. Januar = Vorjahr), darunter steht das als Hinweis.
+auf der Seite der Verbrauchsart. Vorbelegt ist seit v3.6.0 die jüngste
+abgeschlossene Abrechnungsperiode wie im Abrechnungsjahr — aus den erfassten
+Rechnungen, sonst nach dem Stichtag der Art; gibt es keine, wie bisher die
+letzte abgeschlossene nach dem Stichtag (Einstellungen → Verbrauchsarten &
+Abrechnung, Standard 1. Januar = Vorjahr). Rechnet der Versorger in einem
+anderen Rhythmus ab als der Stichtag, liegt der Vorschlag so nicht mehr quer
+zu den Rechnungen. Darunter steht das als Hinweis. Mit Schmutzwasser nach eigenem
+Zähler oder abzüglich Gartenzähler rechnet die Tabelle seit v3.6.0 auch das
+Schmutzwasser nach (vorher fehlte es, und damit auch in den Kosten der
+Abrechnungsjahre).
 Ein Wechsel von Verbrauchsart oder Zähler behält den Zeitraum und rechnet neu;
 Art, Zähler und Zeitraum stehen in der Adresse
 (`?utility=…&meter=…&from=…&until=…`, `until` einschließlich), ohne neuen
@@ -1118,7 +1290,11 @@ Abweichungen der Heizkostenabrechnung als Warnung, die Kürzungen und
 „Hilfsrechnung nach dem CO2KostAufG, keine Rechtsberatung.“ **„Anschreiben
 (PDF)“** öffnet das Schreiben an den Vermieter bzw. das Prüfergebnis in einem
 neuen Tab. Ohne Fläche oder Daten sagt die Karte, was fehlt; im Eigentum oder
-außerhalb Deutschlands fehlt sie
+außerhalb Deutschlands fehlt sie. Ist die Fläche im Mietverhältnis leer und die
+Wohnfläche nie eingetragen, rechnet die Karte (seit v3.6.0) weiter mit 100 m²,
+sagt aber **„Angenommene Wohnfläche 100 m² – bitte eintragen“** mit dem Link
+„Fläche im Mietverhältnis eintragen“ (öffnet das Mietverhältnis mit dem Feld im
+Fokus); der Jahresbericht nennt die Annahme im Thema Mietverhältnis
 ([CO₂-Kosten mit dem Vermieter teilen](../anleitungen/co2-aufteilung.md)).
 
 **Stammdaten** — Titel ist die Bezeichnung des Mietverhältnisses, daneben

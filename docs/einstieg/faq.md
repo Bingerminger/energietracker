@@ -191,10 +191,12 @@ nichts über die Wärme
 Mit eigenen **Vergleichswerten** (seit v3.1.0): unter Einstellungen → Haushalt
 & Gebäude → „Eigene Vergleichswerte“ etwa die kWh, die der Stromspiegel für
 deinen Haushalt nennt, und die kWh je m² aus dem Heizspiegel, dazu die Quelle.
-Die Übersicht zeigt dann die Karte „Einordnung“ mit der Abweichung in % für
-das letzte volle Jahr. Tabellen aus Strom- und Heizspiegel liefert die App
-nicht mit — ihre Nutzung verlangt eine Genehmigung —, in Deutschland verlinkt
-sie die Seiten zur Selbstprüfung. Mit PV, Wärmepumpe oder Wallbox passt der
+Die Übersicht zeigt dann die Karte „Einordnung“ für das letzte volle Jahr als
+Ampel mit einem Satz („Darüber — Haushaltsstrom: …, 7 % über deinem
+Vergleichswert“); seit v3.6.0 steht dort auch das Wasser je Person gegen den
+Richtwert aus den Einstellungen. Fehlt ein Wert, führt ein Link direkt zum Feld.
+Tabellen aus Strom- und Heizspiegel liefert die App nicht mit — ihre Nutzung
+verlangt eine Genehmigung. Mit PV, Wärmepumpe oder Wallbox passt der
 allgemeine Stromspiegel nicht; Wärmepumpe und Wallbox rechnet die App deshalb
 heraus.
 

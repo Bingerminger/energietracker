@@ -45,7 +45,7 @@ async function draw(container) {
   container.innerHTML = `<div class="loading">${t('reminders.loading')}</div>`;
   let list, people;
   try {
-    // Personen nur mit Anmeldung; ohne sie (oder in der Demo) bleibt die Liste leer
+    // v3.6.0 — Personen aus dem Personenverzeichnis (auch ohne Anmeldung, etwa im Beispielhaushalt)
     [list, people] = await Promise.all([api.reminders(), api.people().catch(() => [])]);
   } catch (e) {
     container.innerHTML = `<div class="banner banner--error">${t('reminders.loadError', { msg: esc(e.message || e) })}</div>`;
@@ -200,7 +200,7 @@ function openForm(container, existing) {
           <input class="input input--text" type="text" id="f-assignee" list="f-assignee-list" maxlength="60" autocomplete="off"
             value="${esc(assigneeOf(r)?.name || '')}" placeholder="${esc(t('assignee.placeholder'))}" aria-describedby="f-assignee-hint f-assignee-msg">
           <datalist id="f-assignee-list">${known.names.map(n => `<option value="${esc(n)}"></option>`).join('')}</datalist>
-          <small class="settings-field__hint" id="f-assignee-hint">${esc(t(known.people.length ? 'assignee.hintPeople' : 'assignee.hint'))}${assigneeOf(r)?.former ? ' ' + esc(t('assignee.wasFormer')) : ''}</small>
+          <small class="settings-field__hint" id="f-assignee-hint">${esc(t(known.people.length ? 'assignee.hintPeople' : 'assignee.hint'))}${assigneeOf(r)?.former ? ' ' + esc(t('assignee.wasFormer')) : ''}${assigneeOf(r)?.deleted ? ' ' + esc(t('assignee.wasDeleted')) : ''}</small>
           <div class="field-error" id="f-assignee-msg" role="alert" hidden></div></div>
       </div>`,
     footer: `
@@ -263,9 +263,11 @@ const ASSIGNEE_MAX = 60;
  */
 export function assigneePayload(value, existing = null, people = known.people) {
   const name = String(value ?? '').trim();
+  const prev = assigneeOf(existing);
+  // v3.6.0 — gelöschte Person, Name unverändert: bleibt stehen (sie lässt sich nicht neu zuweisen)
+  if (prev?.deleted && normName(prev.name) === normName(name)) return {};
   const person = name ? people.find(p => normName(p.name) === normName(name)) : null;
   if (person) return { assignee: person.name, assignee_id: person.id };
-  const prev = assigneeOf(existing);
   if (name && prev?.id && normName(prev.name) === normName(name)) return { assignee: prev.name, assignee_id: prev.id };
   // „ehemalige Person“ bleibt stehen, bis jemand einen neuen Namen einträgt
   if (!name && prev?.former) return {};

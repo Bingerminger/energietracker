@@ -188,6 +188,13 @@ The **price** is the one evcc calculated with its own tariff settings — not th
 contract price in the Energietracker. It is there for comparison; nothing is
 calculated with it.
 
+**Plug-in times for flexibility (v3.6.0).** In evcc a charging session runs
+from plugging in to unplugging. The **Flexibility** page takes these windows as
+the time in which charging can be shifted — plugged in in the evening, also
+across midnight — instead of assuming the car is available all day on charging
+days ([Flexibility, “Your lever”](flexibilitaet.md#your-lever)). This needs
+quarter hours of the wallbox meter.
+
 ---
 
 ## 9. Working with the charging record

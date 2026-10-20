@@ -12,7 +12,12 @@ erfasst.
 
 Personen gibt es nur **mit eingeschalteter Anmeldung**. Ohne Anmeldung bleibt
 alles wie bisher: Wer die Adresse erreicht, darf alles, und die Nutzungsstufe
-gilt für die ganze Installation. Wann sich die Anmeldung lohnt, steht in
+gilt für die ganze Installation. Die Karte „Benutzer und Rechte“ sagt das seit
+v3.6.0 auch in der App und springt mit „Anmeldung einschalten“ zur Karte
+„Anmeldung & Zugriff“. Seit **v3.6.0** führt die App alle Personen
+zusätzlich in einem **Personenverzeichnis** mit fortlaufender Nummer, das zum
+Backup gehört (§ 7) — die Personen eines Beispielhaushalts stehen so auch ohne
+Anmeldung unter „Zuständig“ zur Wahl. Wann sich die Anmeldung lohnt, steht in
 [Sicherheit & Netzbetrieb](../betrieb/sicherheit.md#1-das-betriebsmodell-in-einem-satz).
 
 ---
@@ -70,25 +75,85 @@ Nur im Modus Passwort und nur, wer die Installation verwaltet:
 1. **Einstellungen → Zugriff → „Benutzer und Rechte“**.
 2. Unter **„Person hinzufügen“**:
    - **Name** — bis 40 Zeichen. Beim Anmelden zählt Groß- und
-     Kleinschreibung nicht; zwei Personen mit demselben Namen gibt es nicht.
+     Kleinschreibung nicht; zwei Personen mit demselben Namen gibt es nicht —
+     seit v3.6.0 über alle Personen, auch die ohne Zugang (gelöschte zählen
+     nicht). Trägt eine Person ohne Zugang den Namen, übernimmt der neue Zugang
+     sie (s. u.).
    - **Neues Passwort** — mindestens 8 Zeichen.
    - **Rolle** — „Mitglied“ (vorgewählt) oder „Verwaltung“.
 3. **„Hinzufügen“.** Die App meldet „… kann sich jetzt anmelden.“
 
 Die Tabelle darüber zeigt alle Personen mit ihrer Rolle; „(du)“ markiert dich
-selbst. Die Rolle änderst du direkt in der Auswahl der Zeile.
+selbst, **„Nr. …“** ist ihre fortlaufende Nummer *(v3.6.0)*. Die Rolle änderst
+du direkt in der Auswahl der Zeile. **„Umbenennen“** *(v3.6.0)* ändert den Namen
+— bei Zugängen mit Passwort meldet sich die Person danach mit dem neuen Namen
+an. Offene Termine zeigen den neuen Namen, Erledigtes behält den alten. Ein
+Name, den schon jemand trägt (auch eine Person ohne Zugang), wird abgelehnt.
+Zugänge über einen Proxy haben keinen Knopf: Ihren Namen meldet der Proxy.
 
 **Anmelden:** Der Anmeldebildschirm fragt nach „Name“ und „Passwort“. Jeder
 Browser bleibt danach 30 Tage angemeldet; „Abmelden“ steht in der Kopfleiste.
 
-**Löschen:** „Person löschen“ in der Zeile. Die Person kann sich danach nicht
-mehr anmelden, ihre Sitzungen enden sofort; die Daten des Haushalts bleiben.
-Die eigene Person löscht eine andere Person, die verwaltet. Im Proxy-Betrieb
-sperrt Löschen niemanden aus: Kommt die Person wieder über den Proxy, legt die
-App sie neu an — aussperren muss dort der Proxy. Seit v3.4.0 fragt der Dialog
-zusätzlich, ob ihr Name im Verlauf erledigter Hinweise durch **„ehemalige
-Person“** ersetzt werden soll (vorgewählt: nein)
-([Hinweise erledigen](hinweise-erledigen.md#5-aufbewahrung-leeren-datenschutz)).
+### Personen löschen
+
+**Nur wer verwaltet**, sieht „Person löschen“ in der Zeile; Mitglieder sehen
+unter Einstellungen → Zugriff nur den Hinweis, dass das die Verwaltung
+erledigt. Über die API antwortet die App einem Mitglied mit **403**
+(`errors.auth.adminOnly`). Die eigene Person löscht eine andere Person, die
+verwaltet.
+
+Die Person kann sich danach nicht mehr anmelden, ihre Sitzungen enden sofort;
+die Daten des Haushalts bleiben. Seit **v3.6.0** gilt außerdem:
+
+- **Offene Termine gehen an dich**, die Person, die löscht — auch Termine mit
+  einem freien Namen, der ihrem gleicht. Der Dialog sagt vorher, wie viele es
+  sind und an wen sie gehen.
+- **Erledigtes behält ihren Namen** mit dem Zusatz **„(gelöscht)“** — im
+  Verlauf, an erledigten Terminen, in der CSV-Datei und im Kalender. Der Name
+  steht so da, wie er beim Erledigen hieß. Der Dialog nennt die Zahl der
+  Einträge.
+- Mit dem Haken **„ehemalige Person“** (vorgewählt: nein) ersetzt die App den
+  Namen bei Erledigtem stattdessen ganz
+  ([Hinweise erledigen](hinweise-erledigen.md#5-aufbewahrung-leeren-datenschutz)).
+- **Die Nummer bleibt vergeben.** Das Personenverzeichnis zählt weiter: Die
+  nächste Person bekommt die nächste Nummer, nie die einer gelöschten. Wer
+  später mit demselben Namen angelegt wird, ist eine neue Person.
+- Eine gelöschte Person lässt sich keinem Termin mehr zuweisen und steht nicht
+  mehr zur Wahl.
+
+Im Proxy-Betrieb sperrt Löschen niemanden aus: Kommt die Person wieder über
+den Proxy, legt die App sie neu an (mit neuer Nummer) — aussperren muss dort
+der Proxy. Löscht ein API-Schlüssel, übernimmt niemand: Offene Termine bleiben
+dann mit „(gelöscht)“ stehen, bis jemand sie neu zuweist.
+
+### Personen ohne Zugang
+
+Personen aus einem Backup oder einem Beispielhaushalt haben keinen Zugang —
+sie stehen im Personenverzeichnis, aber nicht in `auth.json`. Die Tabelle
+zeigt sie mit Nummer und dem Vermerk **„ohne Zugang“**. Löschen geht wie oben,
+mit derselben Übergabe und demselben Dialog („Die Person steht danach nicht
+mehr zur Wahl“).
+
+**Name und Rolle ändern** (seit v3.6.0, nur wer verwaltet): Die Rolle stellst
+du in der Auswahl der Zeile um, den Namen mit **„Umbenennen“**. Der Name folgt
+denselben Regeln wie bei einem Zugang (höchstens 40 Zeichen, nicht doppelt —
+auch nicht zum Namen eines Zugangs). Offene Termine der Person zeigen danach
+den neuen Namen; erledigte Termine und der Verlauf behalten den Namen, den die
+Person beim Erledigen hatte. Die Rolle wirkt erst, wenn die Person einen Zugang
+bekommt; „Zugang anlegen“ übernimmt sie. Ein Mitglied bekommt wie beim Löschen
+`403`.
+
+**„Zugang anlegen“** (nur im Modus Passwort) trägt Name und Rolle unter
+„Person hinzufügen“ ein; mit einem Passwort wird daraus ein Zugang, der ID und
+Nummer der Person übernimmt — ihre Termine und Einträge im Verlauf gehören
+dann ihr.
+
+**Ohne Anmeldung** (etwa nach dem Laden eines Beispielhaushalts) zeigt
+Einstellungen → Zugriff die Karte „Benutzer und Rechte“, sobald das
+Verzeichnis Personen kennt. Bedienen darf sie dann jede Person, die die
+Adresse erreicht — wie alle Einstellungen ohne Anmeldung. Weil niemand
+angemeldet ist, übernimmt beim Löschen niemand: Offene Termine bleiben mit
+„(gelöscht)“ stehen, bis jemand sie neu zuweist; der Dialog sagt es vorher.
 
 ---
 
@@ -176,17 +241,28 @@ Wer keine eigene Stufe oder Sprache gewählt hat, sieht die der Installation.
 
 ## 7. Was nicht im Backup ist
 
-Personen, Rollen, Passwort-Hashes und die eigenen Einstellungen jeder Person
-stehen in `data/auth.json` — wie Passwort, API-Schlüssel und
-Home-Assistant-Token. Diese Datei gehört **nicht** zum Backup und nicht zu den
-Snapshots:
+Zugänge, Passwort-Hashes und die eigenen Einstellungen jeder Person stehen in
+`data/auth.json` — wie Passwort, API-Schlüssel und Home-Assistant-Token.
+Diese Datei gehört **nicht** zum Backup und nicht zu den Snapshots:
 
-- Ein Backup einspielen ändert keine Personen.
-- Nach einem Umzug mit einem Backup richtest du Anmeldung und Personen neu
+- Ein Backup einspielen ändert keine Zugänge: Wer sich anmelden konnte, kann
+  es weiter.
+- Nach einem Umzug mit einem Backup richtest du Anmeldung und Zugänge neu
   ein. Wer das ganze Datenverzeichnis umzieht (etwa das Docker-Volume), nimmt
   sie mit.
 - Die Benutzer brauchen keinen Schemaschritt; die Nutzdaten bleiben, wie sie
   sind.
+
+*(v3.6.0)* Das **Personenverzeichnis** `data/people.json` gehört dagegen zum
+Backup (Topf `people`): je Person Nummer, Name, Rolle und — bei gelöschten —
+wann und von wem gelöscht, ohne Passwörter. Bestehende Personen bekommen ihre
+Nummer beim ersten Lesen nach dem Update, in der Reihenfolge, in der sie
+angelegt wurden. Ein Backup bringt sein Verzeichnis mit; der Zähler geht dabei
+nicht zurück. Nach einem Umzug stehen die Personen aus dem Backup unter
+„Zuständig“ zur Wahl und unter Zugriff mit „ohne Zugang“; legst du einen
+Zugang mit demselben Namen an (oder „Zugang anlegen“), übernimmt er die Person
+(ID und Nummer), und ihre Termine und Einträge im Verlauf gehören wieder zu
+ihr ([Personen ohne Zugang](#personen-ohne-zugang)).
 - *(v3.4.0)* Der **Verlauf** erledigter Hinweise gehört dagegen zum Backup —
   und mit ihm die Namen der Personen, die etwas erledigt haben, als
   Momentaufnahme. Wer ein Backup weitergibt, gibt sie mit.
@@ -220,10 +296,15 @@ GET    /api/session               mode, authenticated, … und named_login, user
 POST   /api/session               anmelden {name?, password}
 PATCH  /api/session/me            eigene Einstellungen {ui_level?, language?} — null = wie die Installation
 POST   /api/session/me/password   eigenes Passwort {current, password}
-GET    /api/users                 Personen (nur Verwaltung)
+GET    /api/users                 Personen (nur Verwaltung), seit v3.6.0 mit Nummer `no` und
+                                  `has_account` (Personen ohne Zugang: `false`, `source: "none"`)
 POST   /api/users                 {name, password, role: admin|member}
-PATCH  /api/users/{id}            {name?, role?, password?}
-DELETE /api/users/{id}            ?anonymize_activity=1 — Name im Verlauf ersetzen (v3.4.0)
+PATCH  /api/users/{id}            {name?, role?, password?}; v3.6.0 auch für Personen ohne Zugang
+                                  ({name?, role?}; ein Passwort: 400 errors.users.noAccountPassword)
+GET    /api/users/{id}/handover   (v3.6.0) vor dem Löschen: {person, to, open, done}
+DELETE /api/users/{id}            ?anonymize_activity=1 — Name im Verlauf ersetzen (v3.4.0);
+                                  v3.6.0: handed_over, handed_over_to, kept
+GET    /api/people                (v3.5.0) ID und Name für „Zuständig“; v3.6.0 aus dem Verzeichnis
 ```
 
 `named_login` ist `true`, sobald die Anmeldung nach dem Namen fragt. Statuscodes

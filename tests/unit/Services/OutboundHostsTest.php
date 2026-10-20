@@ -19,6 +19,7 @@ final class OutboundHostsTest extends TestCase
         'OcrService.php'     => 'eigener Texterkennungsdienst im Heimnetz',
         'MarketPriceService.php' => 'SMARD (Bundesnetzagentur), nur auf Knopfdruck',   // v3.1.0 (H6)
         'EvccService.php'    => 'eigenes evcc im Heimnetz, nur auf Knopfdruck',         // v3.2.0 (F1022)
+        'UpdateCheckService.php' => 'GitHub (neueste Version), nur eingeschaltet, einmal am Tag', // v3.6.0
     ];
 
     public function testOnlyTheListedServicesOpenConnections(): void
@@ -50,5 +51,7 @@ final class OutboundHostsTest extends TestCase
         self::assertStringContainsString('SMARD', $en, 'README.md names the market price download');
         self::assertStringContainsString('evcc im', $de, 'README.de.md nennt den Abruf aus evcc');
         self::assertStringContainsString('evcc in your home network', $en, 'README.md names the evcc download');
+        self::assertStringContainsString('neue Versionen', $de, 'README.de.md nennt den Hinweis auf neue Versionen');
+        self::assertStringContainsString('new versions', $en, 'README.md names the note about new versions');
     }
 }

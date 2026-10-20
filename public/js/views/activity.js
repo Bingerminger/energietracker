@@ -14,7 +14,7 @@ import { t, tp, getLocale } from '../lib/i18n.js';
 import { fmt, escapeHtml as esc, todayIso, intlLocale } from '../lib/format.js';
 import { toastOk, toastErr } from '../components/toast.js';
 import { openModal, confirmModal, guardSubmit } from '../components/modal.js';
-import { AREAS, AREA_KEYS, entryTitle, reasonText, whenWho, personsIn } from '../lib/activity.js';
+import { AREAS, AREA_KEYS, entryTitle, reasonText, whenWho, personsIn, personText } from '../lib/activity.js';
 import { sessionRole } from '../lib/levels.js';
 import { getSettings, saveSettings } from '../state.js';
 import { docUrl } from '../lib/docs.js';
@@ -172,7 +172,7 @@ function itemHtml(e) {
   const badge = e.action === 'auto_done' ? t('activity.action.auto') : e.action === 'dismissed' ? t('activity.action.dismissed')
     : e.action === 'updated' ? t('activity.action.updated') : '';
   // v3.5.0 (F1028) — wer zuständig war (Momentaufnahme beim Erledigen)
-  const assignee = e.assignee?.former ? t('activity.by.former') : (e.assignee?.name || '');
+  const assignee = personText(e.assignee);   // v3.6.0 — gelöscht: „Name (gelöscht)“
   return `<li class="activity-item activity-item--${esc(e.action)}${undone ? ' activity-item--undone' : ''}" data-id="${esc(e.id)}">
     <span class="activity-item__icon" aria-hidden="true">${ICONS[e.action] || '•'}</span>
     <div class="activity-item__body">

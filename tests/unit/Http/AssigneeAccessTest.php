@@ -9,8 +9,8 @@ use Energietracker\Tests\Support\HttpServerTestCase;
  * v3.5.0 (F1028) — Zuständig über HTTP: Die Personenliste für die Auswahl
  * (`GET /api/people`, nur ID und Name) darf jede angemeldete Rolle lesen, die
  * volle Liste (`/api/users`) bleibt Verwaltern; ohne Anmeldung ist sie leer.
- * Termine nehmen `assignee`/`assignee_id` an (REST additiv); eine gelöschte
- * Person verliert ihre Termine bzw. wird „ehemalige Person“.
+ * Termine nehmen `assignee`/`assignee_id` an (REST additiv); die offenen
+ * Termine einer gelöschten Person gehen seit v3.6.0 an die löschende Person.
  * Dazu der Verlauf als CSV (`GET /api/activity.csv`).
  */
 final class AssigneeAccessTest extends HttpServerTestCase
@@ -31,7 +31,7 @@ final class AssigneeAccessTest extends HttpServerTestCase
     public function testPeopleListRolesAndReminderAssignment(): void
     {
         $this->startServer();
-        self::assertSame([], $this->json('GET', '/api/people'), 'ohne Anmeldung: keine Personen');
+        self::assertSame([], $this->json('GET', '/api/people'), 'noch keine Personen');
         $free = $this->json('POST', '/api/reminders', ['title' => 'Rauchmelder', 'next_due' => date('Y-m-d'), 'assignee' => ' Lena ']);
         self::assertSame(['Lena', null, false], [$free['assignee'], $free['assignee_id'], $free['assignee_former']]);
 
@@ -60,15 +60,23 @@ final class AssigneeAccessTest extends HttpServerTestCase
         $ev = array_values(array_filter($this->json('GET', '/api/agenda?days=30', null, $member)['events'], fn($e) => $e['uid'] === 'reminder-' . $r['id']))[0];
         self::assertSame(['Anna', $anna['id']], [$ev['assignee'], $ev['assignee_id']], 'Agenda-Ereignis trägt die Zuständigkeit');
 
-        // Person löschen mit „ehemalige Person“
+        // Person löschen mit „ehemalige Person“ — v3.6.0: der offene Termin geht an
+        // die löschende Person (bis v3.5.0 wurde er „ehemalige Person“)
         $del = $this->send('DELETE', '/api/users/' . $anna['id'] . '?anonymize_activity=1', null, $admin);
         self::assertSame(200, $del['status']);
+        self::assertSame([1, 'admin'], [$del['json']['data']['handed_over'], $del['json']['data']['handed_over_to']['name']]);
         $after = array_values(array_filter($this->json('GET', '/api/reminders', null, $admin), fn($x) => $x['id'] === $r['id']))[0];
-        self::assertSame([null, null, true], [$after['assignee'], $after['assignee_id'], $after['assignee_former']]);
+        self::assertSame(['admin', 'u_admin', false, false], [$after['assignee'], $after['assignee_id'], $after['assignee_former'], $after['assignee_deleted']]);
         self::assertSame(['admin', 'Ben'], array_column($this->json('GET', '/api/people', null, $admin), 'name'));
     }
 
-    public function testDeletingAPersonWithoutAnonymizingKeepsTheName(): void
+    /**
+     * v3.6.0 — ersetzt testDeletingAPersonWithoutAnonymizingKeepsTheName: Der
+     * offene Termin bleibt nicht als freier Name stehen, er geht an die
+     * löschende Person. Und die Auswahl kommt aus dem Personenverzeichnis —
+     * auch ohne Anmeldung (bis v3.5.0 dann leer).
+     */
+    public function testDeletingAPersonHandsTheOpenReminderToTheDeleterAndThePeopleStayWithoutLogin(): void
     {
         $this->startServer();
         $admin = $this->cookieFrom($this->send('POST', '/api/session/password', ['password' => 'geheim-123']));
@@ -76,13 +84,13 @@ final class AssigneeAccessTest extends HttpServerTestCase
         $r = $this->json('POST', '/api/reminders', ['title' => 'Zähler', 'next_due' => date('Y-m-d'), 'assignee_id' => $ben['id']], $admin);
         self::assertSame(200, $this->send('DELETE', '/api/users/' . $ben['id'], null, $admin)['status']);
         $after = array_values(array_filter($this->json('GET', '/api/reminders', null, $admin), fn($x) => $x['id'] === $r['id']))[0];
-        self::assertSame(['Ben', null, false], [$after['assignee'], $after['assignee_id'], $after['assignee_former']]);
+        self::assertSame(['admin', 'u_admin', false], [$after['assignee'], $after['assignee_id'], $after['assignee_former']]);
 
-        // Anmeldung ausgeschaltet: Personen gibt es weiter in auth.json, zur Auswahl stehen sie nicht
+        // Anmeldung ausgeschaltet: die Personen des Verzeichnisses stehen weiter zur Wahl, gelöschte nicht
         $this->json('POST', '/api/users', ['name' => 'Carla', 'password' => 'carlas-passwort', 'role' => 'member'], $admin);
         self::assertContains('Carla', array_column($this->json('GET', '/api/people', null, $admin), 'name'));
         self::assertSame(200, $this->send('DELETE', '/api/session/password', ['current' => 'geheim-123'], $admin)['status']);
-        self::assertSame([], $this->json('GET', '/api/people'), 'ohne Anmeldung keine Auswahl aus Personen');
+        self::assertSame(['admin', 'Carla'], array_column($this->json('GET', '/api/people'), 'name'), 'ohne Anmeldung: das Verzeichnis');
     }
 
     public function testHistoryAsCsv(): void

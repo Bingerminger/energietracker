@@ -20,7 +20,21 @@ final class SettingsController
 
     public function index(Request $req): never
     {
-        Response::json($this->settings->all());
+        Response::json($this->withAssumed($this->settings->all()));
+    }
+
+    /**
+     * v3.6.0 — additiv `assumed_keys`: Angaben, die nur ihren Default tragen,
+     * weil niemand sie eingetragen hat (SettingsService::ENTERED_ONLY). Die
+     * Einstellungen zeigen das Feld leer mit dem Default als Platzhalter; kein
+     * Einstellungsschlüssel, ein PATCH damit meldet ihn unter `ignored_keys`.
+     *
+     * @param array<string,mixed> $all
+     * @return array<string,mixed>
+     */
+    private function withAssumed(array $all): array
+    {
+        return $all + ['assumed_keys' => $this->settings->assumedKeys()];
     }
 
     public function update(Request $req): never
@@ -37,7 +51,7 @@ final class SettingsController
                     'allowed_hosts would lock out the current host');
             }
         }
-        $result = $this->settings->set($patch);
+        $result = $this->withAssumed($this->settings->set($patch));
         // v2.6.0 — unbekannte Schlüssel wurden still verworfen; ein Skript mit
         // dem Altschlüssel `gas_conversion_factor` (bis v2.4) bekam „Erfolg"
         // ohne Wirkung. Jetzt stehen sie in der Antwort (nur wenn es welche
@@ -75,7 +89,7 @@ final class SettingsController
         $body = (array)$req->body;
         $code = is_string($body['country'] ?? null) ? $body['country'] : '';
         // ein unbekanntes Land meldet applyCountry() als 400 (errors.settings.valueInvalid)
-        Response::json($this->settings->applyCountry($code, ($body['profile'] ?? true) !== false));
+        Response::json($this->withAssumed($this->settings->applyCountry($code, ($body['profile'] ?? true) !== false)));
     }
 
     /**

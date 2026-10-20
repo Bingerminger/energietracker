@@ -43,6 +43,23 @@ export function lastClosedPeriod(anchor, today) {
   return { from: `${current - 1}-${a}`, until: addDays(`${current}-${a}`, -1) };
 }
 
+/**
+ * v3.6.0 (Paket abrechnung) — Welche Periode „Rechnung prüfen“ vorschlägt:
+ * die jüngste abgeschlossene Abrechnungsperiode, wie im Abrechnungsjahr aus
+ * den Perioden des Servers (Rechnungen, sonst Stichtag; GET …/billing-periods).
+ * Gibt es keine, wie bisher die letzte abgeschlossene nach dem Stichtag. Bis
+ * v3.5 nahm die Seite immer den Stichtag — rechnet der Versorger in einem
+ * anderen Rhythmus ab, schlug sie einen Zeitraum vor, der quer zu den
+ * Rechnungen lag.
+ * @returns {{from: string, until: string}}
+ */
+export function periodToCheck(periods, anchor, today) {
+  const done = (Array.isArray(periods) ? periods : []).filter(p => p && p.complete && !p.running
+    && ISO.test(p.from || '') && ISO.test(p.until || '') && p.until < today && Number(p.days) > 0);
+  const last = done[done.length - 1];
+  return last ? { from: last.from, until: last.until } : lastClosedPeriod(anchor, today);
+}
+
 /** `until` (einschließlich) → `to` der Schnittstelle (ausschließlich). */
 export function exclusiveEnd(until) {
   return ISO.test(until || '') ? addDays(until, 1) : until;
@@ -52,4 +69,93 @@ export function exclusiveEnd(until) {
 export function calendarYearOf({ from, until } = {}) {
   const y = String(from || '').slice(0, 4);
   return from === `${y}-01-01` && until === `${y}-12-31` ? Number(y) : null;
+}
+
+// =====================================================================
+// v3.6.0 (F1030, GitHub #33) — Kalenderjahr oder Abrechnungsjahr. Eine Wahl
+// je Gerät; sie wirkt in der Verbrauchsart, der Übersicht und der Analyse.
+// Die Perioden und ihre Summen rechnet der Server
+// (BillingPeriodService, GET …/billing-periods); hier wird nur angeordnet.
+// =====================================================================
+
+export const PERIOD_MODE_KEY = 'et-period-mode';
+
+/** Gemerkte Wahl dieses Geräts: 'billing' oder 'calendar' (Speicher gesperrt → Kalenderjahr). */
+export function periodMode() {
+  try { return globalThis.localStorage?.getItem(PERIOD_MODE_KEY) === 'billing' ? 'billing' : 'calendar'; } catch { return 'calendar'; }
+}
+
+export function setPeriodMode(mode) {
+  try { globalThis.localStorage?.setItem(PERIOD_MODE_KEY, mode === 'billing' ? 'billing' : 'calendar'); } catch { /* gilt nur jetzt */ }
+}
+
+/** Gibt es hier Abrechnungsjahre? Nur Arten mit Rechnungsprüfung und Zähler mit Ständen. */
+export function billingApplies(u, meter = null) {
+  return !!u?.supports_bill_check && meter?.capture !== 'period';
+}
+
+/** Name einer Periode: „2025/26“ bzw. „2025“ vom Server, sonst die Daten. */
+export function periodName(p, fmtDate = (d) => d) {
+  if (!p) return '';
+  return p.label || `${fmtDate(p.from)}–${fmtDate(p.until)}`;
+}
+
+/** Perioden mit Daten (die laufende ohne Ablesung fällt weg). */
+export function periodsWithData(periods) {
+  return (Array.isArray(periods) ? periods : []).filter(p => Number(p?.days) > 0);
+}
+
+/** Die gewählte Periode (Beginn = `from`), sonst die jüngste mit Daten. */
+export function pickPeriod(periods, from = null) {
+  const list = periodsWithData(periods);
+  return list.find(p => p.from === from) || list[list.length - 1] || null;
+}
+
+/** Erster Monat des Abrechnungsjahrs (1–12): Beginn der jüngsten Periode. */
+export function refMonth(periods) {
+  const list = periodsWithData(periods);
+  const last = list[list.length - 1];
+  return last ? Number(String(last.from).slice(5, 7)) : 1;
+}
+
+/**
+ * Stelle eines Monats im Abrechnungsjahr (1 …): Monate seit dem ersten Monat
+ * `ref`. Eine Teilperiode ab der ersten Ablesung steht so an ihrem Platz, und
+ * bei einem Stichtag mitten im Monat steht dessen zweites Stück am Ende (13).
+ */
+export function slotOf(month, index, ref = 1) {
+  const pos = (Number(month) - ref + 12) % 12;
+  return (pos === 0 && index > 0 ? 12 : pos) + 1;
+}
+
+/** Spaltennamen 1 … n ab dem ersten Monat `ref`. */
+export function slotLabels(n, ref, monthName) {
+  return Array.from({ length: n }, (_, i) => monthName(((ref - 1 + i) % 12) + 1));
+}
+
+/**
+ * Monatsreihe einer Periode als Zeilen wie die Monatszeilen der
+ * Verbrauchsansicht; `slot` (slotOf) stellt die Vorperiode an dieselbe
+ * Stelle. Temperatur und Vertrag aus dem Kalendermonat, Gradtage nach Tagen
+ * anteilig, Saldo fortlaufend.
+ */
+export function periodRows(period, monthly = [], consKey = 'kwh', ref = null) {
+  const byYm = new Map((monthly || []).map(m => [m.ym, m]));
+  const first = Number(String(period?.from || '').slice(5, 7)) || 1;
+  let cum = 0;
+  return (period?.months || []).map((r, i) => {
+    const cal = byYm.get(r.ym) || {};
+    const q = Number(r[consKey]) || 0;
+    cum += (Number(r.cost) || 0) - (Number(r.advance_eur) || 0);
+    return {
+      ...r,
+      slot: slotOf(r.month, i, ref ?? first),
+      contract_id: cal.contract_id ?? null,
+      avg_temp: cal.avg_temp ?? null,
+      hdd: cal.hdd != null && cal.days ? cal.hdd * r.days / cal.days : null,
+      kwh_per_day: r.days ? q / r.days : null,
+      working_price_ct: q > 0 && r.kwh_cost != null ? r.kwh_cost / q * 100 : null,
+      cumulative_balance: Math.round(cum * 100) / 100,
+    };
+  });
 }

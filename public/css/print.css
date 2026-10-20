@@ -133,3 +133,25 @@
   .table-wrap, .table-scroll { overflow: visible !important; }
   a { color: inherit; text-decoration: none; }
 }
+
+/* ── v3.6.0 (F1031) — Szenario der Prognose-Werkstatt (#/forecast/print) ── */
+.scenario-print__svg .sp-grid { stroke: var(--border-1); stroke-width: .6; }
+.scenario-print__svg text { font-size: 9px; fill: var(--text-2); }
+.scenario-print__svg .sp-base { fill: none; stroke: #7d8898; stroke-width: 1.6; stroke-dasharray: 5 4; }
+.scenario-print__svg .sp-scen { fill: none; stroke: var(--accent); stroke-width: 2.2; }
+.sp-key--base { background: #7d8898; }
+.sp-key--scen { background: var(--accent); }
+@media print {
+  .scenario-print .ws-card { break-inside: avoid; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .scenario-print__svg, .sp-key--base, .sp-key--scen { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+}
+
+/* ── v3.6.0 — Jahresbericht: Seite „Flexibilität“ ── */
+.report-print__actions-list { margin: 0 0 var(--sp-3); padding-left: 1.2em; display: grid; gap: var(--sp-2); }
+.report-print__flex-page .flex-band { margin-bottom: var(--sp-1); }
+@media print {
+  .report-print__flex-page .ws-card, .report-print__flex-page .flex-band { break-inside: avoid; }
+  .report-print__flex-page .ws-card, .flex-band__cell, .flex-band__sun, .flex-key {
+    print-color-adjust: exact; -webkit-print-color-adjust: exact;
+  }
+}

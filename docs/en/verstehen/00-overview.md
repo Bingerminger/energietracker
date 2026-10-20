@@ -614,6 +614,9 @@ payback              benefit = self-consumption × unit price + feed-in revenue 
                      years   = investment / benefit of the last 12 months
 credit notes         replace kWh × feed-in tariff in their period, spread day by day
 benchmark            Δ% = (annual value − own reference value) / reference value × 100   (full years only)
+                     traffic light (v3.6.0): good Δ ≤ 0 · above 0 < Δ ≤ 10 · well above Δ > 10
+                     water: l/person·day = m³ × 1000 / days / people;
+                            index = l / benchmark × 100, traffic light by the saving index bands
 time series          per day: last meter reading or sum of the intervals
 ```
 

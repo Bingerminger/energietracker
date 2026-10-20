@@ -563,6 +563,16 @@ final class TariffSwitchService
     }
 
     /**
+     * v3.6.0 (F1031) — Preis eines Angebots für einen Monat, nach derselben
+     * Regel wie in der Wechselentscheidung (die Prognose-Werkstatt rechnet
+     * „Wechsel zum Angebot“ damit, nicht mit einer zweiten Preislogik).
+     */
+    public function offerPrice(array $c, string $group, string $field, int $year, int $month): ?float
+    {
+        return $this->priceForWindow($c, $group, $field, $year, $month);
+    }
+
+    /**
      * Arbeits- bzw. Grundpreis eines Kandidaten für einen Fenstermonat.
      *
      * Gilt für den Monat ein gepflegter Preis, wird er genommen. Sonst greift

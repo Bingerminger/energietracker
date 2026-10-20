@@ -28,6 +28,12 @@ final class MarketPriceService
 {
     public const FILE = 'market_prices.json';
     private const SMARD = 'https://www.smard.de/app/chart_data/4169/DE/';
+    /**
+     * Umsatzsteuer auf den Börsenpreis, wenn das dynamische Angebot keinen
+     * Satz nennt (Regelsatz, § 12 Abs. 1 UStG). v3.6.0 — auch für die Hebel
+     * der Flexibilität (FlexibilityInsightService).
+     */
+    public const DEFAULT_VAT_PCT = 19.0;
 
     /** @param (\Closure(string):?string)|null $fetch Abruf einer URL (Tests) */
     public function __construct(
@@ -215,7 +221,7 @@ final class MarketPriceService
     {
         if (($c['price_model'] ?? 'fixed') !== 'dynamic' || !is_array($c['dynamic'] ?? null)) return $c;
         $d = $c['dynamic'];
-        $vat = (float)($d['vat_pct'] ?? 19) / 100;
+        $vat = (float)($d['vat_pct'] ?? self::DEFAULT_VAT_PCT) / 100;
         $markup = (float)($d['markup_ct_per_kwh'] ?? 0);
         // v3.2.0 — dynamisch gibt es nur als Schattenvertrag, und der ist ein
         // Preisblatt für den ganzen Zeitraum (CALC-21): Ein Angebot, das erst

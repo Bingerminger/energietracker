@@ -114,7 +114,7 @@ values of the same period one year earlier, reminders relative to today.
 |---|---|---|---|
 | **Rented flat** (“I rent my home”) | Electricity, Heat, Water | 62 m², one person, central gas heating in the basement. Electricity on its own supply contract (billing year from October), with a switch of supplier and its final bill and a renewal that has been running on since the end of September 2026; heat as monthly values from the metering service’s consumption information (with previous month, same month last year and average user); cold and hot water meters; a tenancy with prepayments for heating and operating costs and two service charge statements including the landlord’s share of the CO₂ costs | the overview for beginners with “Does the prepayment cover it?”, heat without a contract of its own, [As a tenant](../anleitungen/mieter.md) |
 | **Owner-occupied flat with district heating** | Electricity, District heating | 85 m², two people; district heating provides heating and hot water. Heat meter with monthly readings from the customer portal; its own district heating contract with unit, standing, capacity (6.5 kW) and metering charges and several price changes; the 2024 and 2025 annual bills are recorded (2025 not booked yet); electricity with two switches of supplier and their final bills, now open-ended with a minimum term and a price guarantee | district heating as a supply contract with a bill, [Check the annual bill](../anleitungen/jahresabrechnung.md), calibration deadline as a reminder |
-| **Classic house** (“Own house with gas, oil or pellets”) | Gas, Electricity, Water | Detached house, 140 m², four people, gas condensing boiler. Gas contract switched after a price comparison, with a price guarantee until June 2026, running on since; final bill and annual bill recorded as supplier bills and booked as special payments (electricity and water too); baseline date “Hydraulic balancing” in September 2024; water with a main meter and a garden meter as a sub-meter, drinking water, wastewater and rainwater; reminders for servicing, chimney sweep and calibration | weather adjustment and baseline date, tariff switch, sub-meters |
+| **Classic house** (“Own house with gas, oil or pellets”) | Gas, Electricity, Water | Detached house, 140 m², four people, gas condensing boiler. Gas contract switched after a price comparison, with a price guarantee until June 2026, running on since; final bill and annual bill recorded as supplier bills and booked as special payments (electricity and water too); baseline date “Hydraulic balancing” in September 2024; water with a main meter and a garden meter as a sub-meter, drinking water, wastewater and rainwater, the water bill with a meter rental item; since v3.6.0 a granny flat with storage heaters: a dual-rate meter (HT/NT) as a meter group with one group contract and annual bills, the first one shorter (from the move-in); a garden house meter out of service with its history; a Home Assistant alias on the main electricity meter; reminders for servicing, chimney sweep and calibration | weather adjustment and baseline date, tariff switch, sub-meters, meter group with group contract |
 | **Modern house** (“Own house with heat pump and solar”) | Electricity, PV feed-in, PV generation, Heat | Detached house, 150 m², four people. Household meter; heat pump with its own meter and a heat pump tariff with the reduced grid fee under § 14a EnWG (module 1), cancelled as of 30 Sep 2026, follow-up contract with a minimum term and a price guarantee; wallbox as a sub-meter of the household meter, with charging sessions from evcc; a dynamic tariff as an offer for comparison; 9.8 kWp PV on the east and west roof with feed-in remuneration; 10 kWh battery; heat meter of the heat pump | seasonal performance factor, energy flow and self-sufficiency, [Charging sessions from evcc](../anleitungen/evcc.md), [Charging record](../anleitungen/ladestrom-nachweis.md), dynamic tariff check |
 | **Showcase** (“Just look at everything first”) | Gas, Electricity, Water, District heating, Heating oil, Wood pellets, PV feed-in, PV generation | the previous demo household: a detached house with eight utilities — all except heat. Meter swap, baseline date, offers for comparison, tank book; details in [demo-data/README.md](../../../demo-data/README.md) | everything at once, for the “Expert” level |
 
@@ -137,17 +137,28 @@ Since v3.5.0 all sample households and the showcase also show:
 
 | Sample household | People in the history | In charge of reminders | Bill expected |
 |---|---|---|---|
-| Rented flat | Lena | Lena, Hausverwaltung Krüger | Electricity: annual bill of the renewal (period up to 30 Sep 2026) |
-| Owner-occupied flat with district heating | Katrin, Mehmet | Katrin, Mehmet, Hausmeister Petersen | Electricity with the new supplier, always for 30 days |
-| Classic house | Thomas, Sabine, Jonas | Thomas, Sabine, Jonas | Gas, always for 56 days — overdue |
+| Rented flat | Lena | Lena | Electricity: annual bill of the renewal (period up to 30 Sep 2026) |
+| Owner-occupied flat with district heating | Katrin, Mehmet | Katrin, Mehmet | District heating, always for 30 days |
+| Classic house | Thomas, Sabine, Jonas, Lukas (deleted) | Thomas, Sabine, Jonas | Gas, always for 56 days — overdue |
 | Modern house | Julia, Ben | Julia, Ben | Electricity: final bill of the heat pump tariff (cancelled as of 30 Sep 2026) |
 | Showcase | Anna, Paul | Anna, Paul | Electricity, always for 21 days |
+
+Since v3.6.0 these people are **created** in every household — with a
+running number and a role, at least one admin per household; everyone in
+charge of a reminder is one of them. In the classic house Lukas has been
+deleted: he took care of cancelling the old gas contract, and the history
+shows it under “Lukas (deleted)”
+([Household members](../anleitungen/benutzer.md#deleting-people)).
 
 Where it says “always for … days”, the app sets the billing anchor of this
 utility relative to today when loading — like the reminders, so that the note
 can be seen at any time. The two other notes belong to fixed periods and
 appear as long as their end is at most 120 days ago (until the end of January
-2027). The app does not carry bills forward when loading.
+2027). The app does not carry bills forward when loading — except for the
+utilities marked “always for … days”: there the annual bills move with the
+billing anchor (the latest ends the day before the previous year’s anchor,
+final bills stay), and the app recalculates their amounts. So the billing year
+shows no in-between period, and “Check bill” still matches.
 
 **Day film:** the modern house has quarter hours for all of 2025 and gets the
 last two to three months up to yesterday when loading — grid import,

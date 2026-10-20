@@ -76,13 +76,16 @@ function numFmt(d) {
 // v2.7.0 — Währung aus der Einstellung (EUR, CHF, GBP). Der Name `eur`
 // bleibt für die bestehenden Aufrufer; fmt.money ist derselbe Formatierer.
 const eurCache = new Map();
-function eurFmt() {
+function eurFmt(whole = false) {
   const loc = intlLocale();
   const cur = getCurrency();
-  const key = `${loc}|${cur}`;
+  const key = `${loc}|${cur}|${whole}`;
   let f = eurCache.get(key);
   if (!f) {
-    f = new Intl.NumberFormat(loc, { style: 'currency', currency: cur });
+    // v3.6.0 (F1031) — ganze Beträge für die große Zahl der Ergebniskarte („+214 €“)
+    f = new Intl.NumberFormat(loc, whole
+      ? { style: 'currency', currency: cur, minimumFractionDigits: 0, maximumFractionDigits: 0 }
+      : { style: 'currency', currency: cur });
     eurCache.set(key, f);
   }
   return f;
@@ -149,6 +152,7 @@ export const fmt = {
   int:   (v)      => v == null || isNaN(v) ? '–' : numFmt(0).format(noNegZero(v, 0)),
   eur:   (v)      => v == null || isNaN(v) ? '–' : eurFmt().format(Number(v)),
   money: (v)      => v == null || isNaN(v) ? '–' : eurFmt().format(Number(v)),
+  eur0:  (v)      => v == null || isNaN(v) ? '–' : eurFmt(true).format(Math.round(Number(v))),   // v3.6.0 — ganze Beträge
   pct:   (v, d=1) => v == null || isNaN(v) ? '–' : pctFmt(d).format(noNegZero(v, d + 2)),
   // v2.5.3 — Unlesbare Werte kommen ESCAPED zurück. Vorher gab `date()` jeden
   // String roh zurück, der kein Datum war, und die Aufrufer setzten das

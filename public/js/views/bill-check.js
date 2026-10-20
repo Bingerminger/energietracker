@@ -19,7 +19,7 @@ import { toastErr, toastOk } from '../components/toast.js';
 import { confirmModal } from '../components/modal.js';
 import { t, tp, getCurrencyMinor } from '../lib/i18n.js';
 import { info } from '../components/info.js';
-import { lastClosedPeriod, exclusiveEnd, addDays } from '../lib/billing-period.js';
+import { periodToCheck, exclusiveEnd, addDays } from '../lib/billing-period.js';
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -95,7 +95,10 @@ async function draw(container, sel) {
   }
 
   let current = meters.find(m => m.id === sel.meter) || meters[0];
-  const period = sel.period || lastClosedPeriod(sel.settings[`billing_cycle_anchor_${u.key}`], todayIso());
+  // v3.6.0 (Paket abrechnung) — ohne Zeitraum in der Adresse: die jüngste
+  // abgeschlossene Abrechnungsperiode wie im Abrechnungsjahr (Server), sonst Stichtag
+  const periods = sel.period ? null : await api.meterBillingPeriods(u.key, current.id).then(d => d?.periods).catch(() => null);
+  const period = sel.period || periodToCheck(periods, sel.settings[`billing_cycle_anchor_${u.key}`], todayIso());
 
   container.innerHTML = `${header}
     <div class="card" data-utility="${escapeHtml(u.key)}">

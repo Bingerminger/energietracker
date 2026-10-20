@@ -1048,12 +1048,145 @@ durch den Maintainer; WebKit fehlt in der Werkzeugkette noch (Eingang).
 
 ---
 
-## v3.6.0 — Sammlung (seit 2026-10-14, noch kein Schnitt)
+## v3.6.0 — Sammlung (seit 2026-10-14) — Release-Tag 20.10.2026
 
 **Kern:** F10xx Abrechnungsjahr statt Kalenderjahr (GitHub #33, Entscheidung
 2026-10-14: „richtig“ — Endpunkt tagesgenau, Umschalter in Verbrauchsart,
 Dashboard und Analyse, Option für Jahresbericht und CSV; Eingang). Dazu
 WebKit (Playwright) für Sichtprüfungen.
+
+**Konkretisierung aus #33 (Nutzer, 2026-10-14):** Der Stichtag (Tag und
+Monat, gibt es schon als Einstellung) soll **überall** wirken, und Perioden
+dürfen unregelmäßig sein („15.04. bis 30.03.“). Daher: Abrechnungsperioden
+**aus den erfassten Versorgerrechnungen** (`period_from`/`period_to`), wo es
+sie gibt — genau wie auf der Rechnung, auch kürzer oder länger als ein Jahr;
+sonst aus dem Stichtag. Die laufende Periode beginnt am Tag nach der letzten
+Rechnung. Eine Quelle für alle Ansichten (wie `billing-period.js` heute nur
+für „Rechnung prüfen“).
+
+**Dazu (Entscheidung 2026-10-14, Maintainer):**
+
+| # | Thema | Größe |
+|---|---|---|
+| 1 | Lizenz in einfachen Worten: drei Sätze in README (DE/EN) und FAQ — zu Hause frei nutzen und anpassen; Pflichten erst, wenn man eine veränderte Fassung anderen als Dienst anbietet | S |
+| 2 | Hinweis auf neue Versionen: einmal täglich die neueste Version bei GitHub abfragen (Server, Hostliste/Outbound wie üblich), Hinweis mit Version und Link zu den Release-Notes; Frage im Einrichtungsassistenten, Schalter in den Einstellungen; bestehende Installationen nicht ungefragt einschalten | M |
+| 3 | Ruhigerer Takt: feste Release-Tage, Fehlerbehebungen gesammelt (Prozess-Regel) | — |
+| 4 | Unterstützen ohne Druck: eine Zeile im „Was ist neu“ nach einem Update, Link im README der Home-Assistant-App; bei Buy Me a Coffee bleibt es (kein GitHub Sponsors, Entscheidung 2026-10-16) | S |
+| 5 | Image-Tag `:3` (immer die neueste 3.x) — Beispiele und Vorlagen (Compose, CasaOS, Umbrel) empfehlen `:3` statt einer festen Version | S |
+
+---
+
+## Konzept „Prognose-Werkstatt“ (Wunsch des Maintainers 2026-10-16)
+
+**Ziel:** Die Prognose wird zum Analyse-Dashboard zum Ausprobieren: Regler
+und Eingaben links, Kurven und Kennzahlen rechts, sofort neu gerechnet. Die
+Fragen der Nutzer: Was kostet ein kalter Winter? Was bringt die Dämmung?
+Lohnt der Wechsel? Welches Prognosemodell passt zu mir? Baut auf dem
+Vorhandenen auf — Heizmodell und Klimanormal (F1013), Prognose
+(`ForecastService`), Wechselentscheidung (Tarifvergleich), Flexibilität
+(F1021), Effizienz (Benchmark) —, nichts davon wird ersetzt.
+
+**Stellschrauben (je Verbrauchsart, was die Daten hergeben):** Winter
+(wie Klimanormal / kalt / mild, Gradtage in %); Dämmung bzw. Effizienz
+(Maßnahmen mit typischen Spannen, wirkt nur auf den heizabhängigen Teil des
+Heizmodells); Raumtemperatur/Heizgrenze; Tarif (Angebote, Schattenverträge
+oder eigener Preis); Verhalten (Personen, Warmwasser, E-Auto-km,
+Wärmepumpe JAZ); Prognosemodell (Vorjahr, Trend, witterungsbereinigt,
+Unsicherheitsband). Faustregeln nur mit Quelle.
+
+**Ergebnisse:** Jahreskosten und -verbrauch gegen den Ausgangsfall,
+empfohlener Abschlag, Saldo zur nächsten Abrechnung (im Abrechnungsjahr,
+F1030), CO₂; Kurven Monat für Monat und kumuliert; Rangliste „Was bringt am
+meisten“ (€/Jahr, Amortisation). **Stufen:** Einsteiger drei Regler (Winter,
+sparen %, Tarif) und drei Zahlen; Erfahren Maßnahmen und Modellwahl; Experte
+alle Parameter, Modellvergleich, Band, Export, **Optimierung** (kleiner
+Simplex-Löser im Browser ohne Abhängigkeit: beste Maßnahmenkombination unter
+Budget; Lastverschiebung gegen Viertelstundenpreise auf Basis F1021).
+Szenarien benennen, speichern, vergleichen (additiv). **Bewerben:**
+Szenarien in den Beispieldaten, Handbuchseite „Was wäre wenn“, Screenshots,
+README, Release-Notes-Aufmacher. Größe: XL.
+
+---
+
+## v3.7.0 — Konzept „Posteingang für Versorgerpost“ (Planung 2026-10-16)
+
+**Ziel:** Post vom Versorger (immer PDF) landet in einem Posteingang; eine
+**lokale KI** liest sie aus, der Nutzer prüft den Vorschlag in einer Vorschau
+und übernimmt ihn mit einem Klick in Verträge, Zähler, Rechnungen und
+Ablesungen. Die Handeingabe entfällt — bleibt aber vollständig erhalten,
+auch der Posteingang funktioniert ohne KI. Dokument für Dokument, keine
+Dunkelverarbeitung.
+
+**KI-Quelle (entschieden 2026-10-19):** lokal als Standard, **Cloud-KI als
+Opt-in schon in v3.7.0**, für Haushalte ohne eigene starke Hardware. Die
+Cloud-KI ist erst aktiv, wenn ein Verwalter sie ausdrücklich einschaltet. Vor
+dem ersten Auslesen sagt die App, welcher Dienst das Dokument sieht. Der
+Anbieter ist über eine Einstellung frei wählbar. Seine Adresse steht in der
+Liste ausgehender Verbindungen (README, `OutboundHostsTest`). Ohne Opt-in
+verlässt kein Dokument das Heimnetz.
+
+**Massenverarbeitung** (Erstbefüllung über viele Jahre) erst nach belegter
+Trefferquote. Ein Probelauf mit den Beispielen entscheidet, ob sie schon in
+v3.7.0 möglich ist oder ein eigenes Release bekommt.
+
+**Dokumentarten** (aus den Beispielen des Maintainers, `samples/`, nie im
+Repo): Vertrags-/Auftragsbestätigung, Lieferbeginn, Jahres- und
+Schlussrechnung, Preisänderung, Abschlagsänderung, Kündigung(sbestätigung),
+Zählerwechsel, Zählerstandsanforderung; Mahnung und Widerruf werden erkannt
+und nur abgelegt. Alle Beispiele haben eine Textebene; Fotos und Scans gehen
+über die vorhandene Texterkennung (Bildmodell).
+
+**Ablauf für den Nutzer:**
+1. **Ablegen:** PDF in den Posteingang ziehen, am iPad über „Teilen“ —
+   gespeichert wie ein Beleg (vorhandener Belegspeicher), Prüfsumme gegen
+   Doppelte („liegt schon seit … im Posteingang“).
+2. **Auslesen** (Knopf je Dokument, Fortschritt, Abbrechen): Der Browser
+   liest die Textebene (pdf.js, mitgeliefert wie Chart.js, keine
+   Server-Abhängigkeit — läuft auf NAS, Docker und Home Assistant gleich);
+   der Server fragt die lokale KI (dieselbe Einstellung wie die
+   Texterkennung, nur Heimnetz) mit festem Schema je Dokumentart: erst Art
+   erkennen, dann Felder.
+3. **Vorschau:** links das Dokument, rechts die vorgeschlagenen Änderungen
+   als Liste („Neuer Vertrag ab …“, „Preis ab … 30,1 → 32,4 ct“, „Ablesung
+   am …“, „Rechnung 2025 erfassen, Nachzahlung …“). Zuordnung zu
+   Verbrauchsart, Zähler und Vertrag ist vorbelegt (Zählernummer,
+   Marktlokation, Anbieter, Zeitraum), änderbar. Jedes Feld zeigt seine
+   **Belegstelle** — der zitierte Text muss im Dokument stehen, sonst gilt das
+   Feld als unsicher (Schutz gegen erfundene Werte). Abgleich mit dem
+   Bestand: „schon vorhanden“, Überschneidungen, Widersprüche.
+4. **Übernehmen** nur, was angehakt ist — über dieselben Dienste und
+   Prüfungen wie die Handeingabe; das Dokument hängt danach als Beleg am
+   Vertrag bzw. an der Rechnung, der Verlauf vermerkt „aus Dokument
+   übernommen“.
+5. **Ohne KI:** Posteingang zum Ablegen und Zuordnen; „Von Hand erfassen“
+   öffnet das passende Formular neben dem Dokument.
+
+**Idempotent:** Auslesen ist zwischengespeichert je Prüfsumme, Modell und
+Schema-Version; erneutes Übernehmen erkennt vorhandene Einträge (gleiche
+Ablesung, gleiche Preiszeile, gleiche Rechnungsperiode) und überspringt sie.
+
+**Daten:** neuer Topf `inbox.json` (Dokument, Prüfsumme, Status,
+Auslesung, Zuordnung) — Backup-Feldliste + Roundtrip-Test; optionale
+Kennungen am Zähler (Marktlokation/Messlokation) und am Vertrag
+(Vertrags-/Kundennummer) für die Zuordnung. Schnittstellen nur additiv.
+
+**Schritte:**
+- (0) Machbarkeitsprobe mit den Beispielen gegen Ollama und eine Cloud-KI
+  (Trefferquote je Feld und Modell, Laufzeit). Dazu ein Probelauf
+  Massenverarbeitung, der über den Zeitpunkt entscheidet.
+- (1) Posteingang ohne KI.
+- (2) Auslesen und Vorschau für Rechnung, Vertragsbestätigung, Preisänderung,
+  lokal und Cloud-Opt-in.
+- (3) Lieferbeginn, Kündigung, Zählerwechsel, Abschlag.
+- (4) Massenverarbeitung, falls die Probe sie trägt.
+
+Größe: XL, eigenes Release (v3.7.0), nicht in v3.6.0.
+
+---
+
+Hintergrund Lizenz: AGPL-3.0 bleibt (Downloads je Tag seit v3.0.0 höher als
+zuvor; kein Hinweis auf Abspaltungen). Ein In-App-Hinweis erreicht nur
+Installationen, die ihn schon haben — deshalb möglichst früh.
 
 ---
 
@@ -1069,6 +1202,8 @@ daraus ausgewählt.
 | N10xx | Übersetzter Doku-Kern (Erste Schritte, Einrichtung, Anwendungsfälle) für fr/it/es/pt/nl, jede Übersetzung mit Quell-Hash, veraltet → Englisch | M–L | N1019 | Release-Schnitt 2026-10-12 („Kern später“; 2026-10-13 erneut zurückgestellt) |
 | F10xx | **Abrechnungsjahr statt Kalenderjahr** (GitHub #33): Umschalter in Verbrauchsart, Dashboard und Analyse; neuer Endpunkt rechnet beliebige Abrechnungsjahre tagesgenau (auch Stichtag mitten im Monat) samt Abschlägen und CO₂; Jahresbericht und CSV mit eigener Option; Benchmark bleibt Kalenderjahr. Zäsur und Wetterbereinigung je Periode | L | `billing_cycle_anchor_<art>`, F1029 | Entscheidung 2026-10-14: **v3.6.0** |
 | — | Wasser im Jahresbericht mit Saldo und Abschlags-Rat (`has_advance`), Kalender-Saldo (`suggested_advance`, `balance_path`) für Wasser | S–M | GitHub #34 | Nachzug aus v3.5.0 |
+| — | Flexibilität: Beispielwerte einstellbar (verschiebbarer Anteil der Wärmepumpe, Läufe von Wasch- und Spülmaschine je Woche); heute auf Seite und im Bericht als Beispielwert gekennzeichnet | S–M | v3.6.0 Flexibilität | Entscheidung 2026-10-19: nach Rückmeldungen |
+| — | § 14a Modul 3: Schalter „mit/ohne USt“ am Vertrag; heute gelten die Beträge, wie sie eingetragen sind (Doku empfiehlt brutto), während die Börsen-Hebel seit v3.6.0 brutto rechnen | S | v3.6.0 Flex plus | Entscheidung 2026-10-20 |
 | — | Englische Screenshots mit englischem Datumsformat (Browser-Region beim Aufnehmen) | S | — | v3.4.0, 2026-10-13 zurückgestellt |
 | F10xx | Zuständigkeit auch an Zählern und Verträgen (Fristen landen bei der Person) | S–M | F1028 | Release-Schnitt 2026-10-13 (nur Termine gewählt) |
 | F10xx | HACS-Integration mit eigenen Sensoren | M–L | N1025 | Release-Schnitt 2026-10-13 (nicht gewählt) |
@@ -1118,6 +1253,11 @@ gebündelt oder vor dem nächsten MINOR mit hinein gezogen.
 
 ## Prozess-Regeln
 
+- **Feste Release-Tage (seit 2026-10-14).** Neue Versionen erscheinen an
+  vorher genannten Tagen (v3.6.0: 20.10.2026), Fehlerbehebungen werden
+  gesammelt; ein Sofort-Patch nur bei Datenverlust, Sicherheit oder einem
+  Fehler, der die Nutzung verhindert. Sieben Versionen in sieben Tagen wirken
+  für Haushalte unruhig und verteilen die Nutzer auf viele Stände.
 - **Release-Schnitt im Assist-Modus (seit 2026-10-09).** Am Ende einer
   Entwicklungsphase legt der Assistent alles Offene als Auswahl vor —
   Eingang, Patch-Pool, offene GitHub-Issues, offene Punkte des letzten

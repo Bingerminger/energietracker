@@ -21,7 +21,7 @@ import { isPartial, daysInMonth, yoyTrend, seriesSummary } from '../lib/chart-da
 import { openModal, confirmModal, guardSubmit } from '../components/modal.js';
 import { showFieldError } from '../lib/form.js';
 import { toastOk, toastErr } from '../components/toast.js';
-import { t, tp, getCurrencyMinor, getCurrencySymbol } from '../lib/i18n.js';
+import { t, tp, getCurrencyMinor, getCurrencySymbol, getLocale } from '../lib/i18n.js';
 import { info, infoNote } from '../components/info.js';
 import { isFeedIn as feedInKind, isGeneration as generationKind, isPv, usesGasFactors, balanceView, moreIsBetter } from '../lib/semantics.js';
 import { typicalPerDay, checkReading, confirmIssues, issueText, deviceChangedBetween } from '../lib/plausibility.js';
@@ -31,7 +31,8 @@ import { docUrl } from '../lib/docs.js';
 // v3.4.0 (N1021) — Vertragsreihenfolge, Blättern, Abrechnungsperiode
 import { groupContracts, phasePill } from '../lib/contract-order.js';
 import { paginate, pagerHtml, wirePager, pageSize, PAGER_THRESHOLD } from '../components/pager.js';
-import { lastClosedPeriod, calendarYearOf } from '../lib/billing-period.js';
+import { lastClosedPeriod, periodToCheck, calendarYearOf, periodMode, billingApplies, periodName, periodsWithData, pickPeriod, periodRows, refMonth } from '../lib/billing-period.js';
+import { periodModeHtml, wirePeriodMode, calendarOnlyNote } from '../components/period-mode.js';
 
 let _chart = null;
 let _stockChart = null;   // v2.10.0 — Bestandsverlauf (Tankbuch)
@@ -49,6 +50,8 @@ const state = {
   // galt eins für alle: Nach Fernwärme (Daten bis 2025) öffneten Heizöl und
   // PV im Jahr 2025, obwohl es 2026 gab.
   yearByUtility: {},
+  // v3.6.0 (F1030) — gewählte Abrechnungsperiode (Beginn) je Verbrauchsart
+  periodByUtility: {},
   // v2.16.0 (Review FE-19) — Monatschart gemessen oder witterungsbereinigt, je Verbrauchsart
   chartMode: {},
   // v3.4.0 (N1021) — Liste der Ablesungen bzw. Zeiträume: Seite und Filter
@@ -69,12 +72,14 @@ const PERIODS_PAGER = 'utility-periods';
  * replaceState statt eines neuen Eintrags: Zurück führt zur vorigen Seite,
  * nicht durch jede angeklickte Jahreszahl.
  */
-function syncAddress(u, latestYear = null) {
+function syncAddress(u, latestYear = null, period = null) {
   const q = new URLSearchParams();
   const year = state.yearByUtility[u.key];
   // Das jüngste Jahr ist der Normalfall — ein Lesezeichen soll dann auch im
   // nächsten Jahr das jüngste zeigen, nicht das von heute
-  if (year && year !== latestYear) q.set('year', String(year));
+  // v3.6.0 (F1030) — im Abrechnungsjahr die Periode (?period=Beginn)
+  if (period) { if (period.from !== period.latest) q.set('period', period.from); }
+  else if (year && year !== latestYear) q.set('year', String(year));
   if (state.selectedMeterId && state.meters.length > 1) q.set('meter', state.selectedMeterId);
   const hash = `#/utility/${u.key}${q.toString() ? '?' + q : ''}`;
   if (window.location.hash !== hash) {
@@ -109,6 +114,8 @@ export async function render(container, params, ctx = {}) {
     }
     const wantYear = Number(ctx.query?.get('year'));
     if (Number.isInteger(wantYear) && wantYear > 1900 && wantYear < 3000) state.yearByUtility[utility.key] = wantYear;
+    const wantPeriod = ctx.query?.get('period');   // v3.6.0 (F1030) — Beginn der Abrechnungsperiode
+    if (/^\d{4}-\d{2}-\d{2}$/.test(wantPeriod || '')) state.periodByUtility[utility.key] = wantPeriod;
     await rerender(container);
     // v2.11.0 — Sprungziele des Erfassen-Blatts: ?add=delivery | level | reading
     const add = ctx.query?.get('add');
@@ -296,11 +303,26 @@ async function rerender(container) {
   const dataYears = monthly.map(m => m.year).filter(Number.isInteger);
   const latestYear = dataYears.length ? Math.max(...dataYears) : (years[years.length - 1] || new Date().getFullYear());
   if (!years.includes(state.yearByUtility[u.key])) state.yearByUtility[u.key] = latestYear;
-  const yr = state.yearByUtility[u.key];
-  const monthlyYear = monthly.filter(m => m.year === yr);
+  // v3.6.0 (F1030, #33) — Abrechnungsjahr: die Perioden und ihre Summen vom
+  // Server (Rechnungen, sonst Stichtag); Kennzahlen, Tabelle, Diagramm und
+  // Vorperiode folgen der gewählten Periode. Nur Arten mit Rechnungsprüfung.
+  const billingOk = !isDelivery && !isPeriod && billingApplies(u, meter) && monthly.length > 0;
+  const wantBilling = billingOk && periodMode() === 'billing';
+  const bp = wantBilling ? await api.billingPeriods(u.key, meter.id).catch(() => null) : null;
+  if (my !== rerenderSeq) return;
+  const bList = periodsWithData(bp?.periods);
+  const sel = wantBilling ? pickPeriod(bList, state.periodByUtility[u.key]) : null;
+  const billing = !!sel;
+  if (billing) state.periodByUtility[u.key] = sel.from;
+  const prevSel = billing ? (bList[bList.indexOf(sel) - 1] || null) : null;
+  const ref = billing ? refMonth(bList) : 1;
+  const yr = billing ? Number(String(sel.as_of || sel.until).slice(0, 4)) : state.yearByUtility[u.key];
+  const yrLabel = billing ? periodName(sel, fmt.date) : String(yr);
+  const monthlyYear = billing ? periodRows(sel, monthly, consKey, ref) : monthly.filter(m => m.year === yr);
   // v2.16.0 (Review FE-19, FE-31) — das Vorjahr als Vergleich im Monatschart;
   // witterungsbereinigt nach dem Heizmodell (`heat_adjusted`), wo es Werte gibt
-  const prevYear = monthly.filter(m => m.year === yr - 1);
+  const prevYear = billing ? (prevSel ? periodRows(prevSel, monthly, consKey, ref) : []) : monthly.filter(m => m.year === yr - 1);
+  const chartNames = billing ? { current: yrLabel, prev: prevSel ? periodName(prevSel, fmt.date) : '' } : null;
   const canAdjust = !!u.hgt_relevant && monthlyYear.some(m => m.heat_adjusted != null);
   const chartMode = canAdjust && state.chartMode[u.key] === 'adjusted' ? 'adjusted' : 'measured';
   const pvFlowRows = (pvSummary?.monthly || []).filter(m => m.year === yr
@@ -322,13 +344,16 @@ async function rerender(container) {
   // ── Compute year totals for KPIs ────────────────────────────────
   // v1.6.1 — Fix #14: nutze utility-spezifischen Feldnamen (consKey)
   // statt hartkodiertem `m.kwh`, sonst zeigt das Wasser-Dashboard 0.
-  const totUnit = monthlyYear.reduce((s, m) => s + (m[consKey] || 0), 0);
-  const totCost = monthlyYear.reduce((s, m) => s + (m.cost || 0), 0);
-  const totDays = monthlyYear.reduce((s, m) => s + (m.days || 0), 0);
-  const totCO2  = monthlyYear.reduce((s, m) => s + (m.co2_kg || 0), 0);
-  const totM3   = monthlyYear.reduce((s, m) => s + (m.m3 || 0), 0);
-  const totAdv  = monthlyYear.reduce((s, m) => s + (m.advance_eur || 0), 0);
-  const yearBalance = totCost - totAdv;
+  // v3.6.0 — im Abrechnungsjahr die Summen der Periode vom Server (Saldo mit
+  // zusätzlichen Abschlagszahlungen), nicht die Summe gerundeter Teilmonate
+  const sum = (k) => (billing ? Number(sel[k]) || 0 : monthlyYear.reduce((s, m) => s + (m[k] || 0), 0));
+  const totUnit = sum(consKey);
+  const totCost = sum('cost');
+  const totDays = sum('days');
+  const totCO2  = sum('co2_kg');
+  const totM3   = sum('m3');
+  const totAdv  = billing ? Number(sel.advances) || 0 : sum('advance_eur');
+  const yearBalance = billing ? Number(sel.balance) || 0 : totCost - totAdv;
   const yearBalanceView = balanceView(yearBalance, u);
   const hasContract = monthlyYear.some(m => m.contract_id);
   // v3.4.0 (N1021) — der laufende Vertrag nach der Phase des Servers: Bei
@@ -340,8 +365,9 @@ async function rerender(container) {
   // Monate. Liegt die letzte Ablesung im laufenden Jahr zurück, nennt die
   // Abschlagskachel ihren Stand — sonst stünde „Abschläge 2026: 390 €" neben
   // den 1.170 €, die die Saldo-Karte nach Kalender bis heute zählt.
-  const measuredUntil = currentContract?.measured_until || null;
-  const partialYear = !!measuredUntil && String(yr) === todayIso().slice(0, 4)
+  const measuredUntil = billing ? sel.as_of : (currentContract?.measured_until || null);
+  const partialYear = billing ? !!sel.as_of && sel.as_of < sel.until
+    : !!measuredUntil && String(yr) === todayIso().slice(0, 4)
     && measuredUntil < todayIso() && measuredUntil.startsWith(String(yr));
 
   // ── Render whole page ───────────────────────────────────────────
@@ -360,23 +386,27 @@ async function rerender(container) {
       <a class="btn btn--primary" href="#/zaehlerstaende?meter=${encodeURIComponent(meter.id)}">${escapeHtml(t('dashboard.todo.readingAction'))}</a>
     </div>` : ''}
 
-    ${noValues ? '' : yearPills(years, yr, u.key)}
+    ${noValues ? '' : billingOk ? `<div class="period-mode-bar">${periodModeHtml(wantBilling ? 'billing' : 'calendar')}</div>` : calendarOnlyNote(u.label)}
+    ${noValues ? '' : billing ? periodPills(bList, sel, u.key) + periodMeta(sel, bp) : yearPills(years, yr, u.key)}
+    ${wantBilling && !billing ? `<p class="muted small" data-role="period-none">${escapeHtml(t('billing.period.none'))}</p>` : ''}
 
     ${noValues ? '' : `<div class="kpi-grid">
       <div class="kpi c-${u.key}">
-        <div class="kpi__label">${u.icon} ${isFeedIn ? t('utility.kpi.feedIn') : isGeneration ? t('utility.kpi.generation') : t('utility.kpi.consumption')} ${yr}</div>
+        <div class="kpi__label">${u.icon} ${isFeedIn ? t('utility.kpi.feedIn') : isGeneration ? t('utility.kpi.generation') : t('utility.kpi.consumption')} ${escapeHtml(yrLabel)}</div>
         <div class="kpi__value">${fmt.unit(totUnit, u.consumption_unit, 0)}</div>
         ${usesGasFactors(u) ? `<div class="kpi__sub">${fmt.unit(totM3, 'm³', 0)}</div>` : ''}
       </div>
       ${isGeneration ? '' : `
       <div class="kpi c-${u.key}">
-        <div class="kpi__label">${isFeedIn ? t('utility.kpi.revenue') : t('utility.kpi.cost')} ${yr}</div>
+        <div class="kpi__label">${isFeedIn ? t('utility.kpi.revenue') : t('utility.kpi.cost')} ${escapeHtml(yrLabel)}</div>
         <div class="kpi__value ${isFeedIn ? 'success-text' : ''}">${fmt.eur(totCost)}</div>
         <div class="kpi__sub">${t('utility.kpi.perMonth', { value: fmt.eur(monthlyYear.length ? totCost / monthlyYear.length : 0) })}</div>
       </div>`}
       ${hasContract && !isFeedIn ? `
         <div class="kpi c-yellow">
-          <div class="kpi__label">${partialYear ? t('utility.kpi.advancesUntil', { date: fmt.date(measuredUntil) }) : t('utility.kpi.advances', { year: yr })}</div>
+          <!-- v3.6.0 — im laufenden Jahr rechnen Kalender- und Abrechnungsjahr den
+               angebrochenen Monat verschieden (ganz bzw. tagesgenau): ein Satz dazu -->
+          <div class="kpi__label">${partialYear ? t('utility.kpi.advancesUntil', { date: fmt.date(measuredUntil) }) : t('utility.kpi.advances', { year: yrLabel })}${billingOk && partialYear ? info('runningYear') : ''}</div>
           <div class="kpi__value">${fmt.eur(totAdv)}</div>
           <!-- v2.13.0 (Review UI-18) — Kundensicht: „Guthaben 75,29 €" statt „−75,29 €" -->
           <div class="kpi__sub ${yearBalanceView?.credit ? 'positive' : (yearBalanceView?.credit === false ? 'negative' : '')}">
@@ -392,14 +422,14 @@ async function rerender(container) {
       </div>
       ${isFeedIn || isGeneration ? `
       <div class="kpi c-violet" data-min-level="advanced">
-        <div class="kpi__label">${t('utility.kpi.co2Avoided', { year: yr })}${info('co2Avoided')}</div>
+        <div class="kpi__label">${t('utility.kpi.co2Avoided', { year: yrLabel })}${info('co2Avoided')}</div>
         <!-- v2.13.0 — „vermieden“ ohne Minus: das Wort trägt die Richtung (wie im Jahresbericht) -->
         <div class="kpi__value">${fmt.int(totCO2)} <span style="font-size:14px;color:var(--text-2)">kg</span></div>
         <div class="kpi__sub">${t('utility.kpi.co2AvoidedSub', { tons: fmt.num(totCO2 / 1000, 2) })}</div>
       </div>
       ` : `
       <div class="kpi c-violet" data-min-level="advanced">
-        <div class="kpi__label">${t('utility.kpi.co2', { year: yr })}</div>
+        <div class="kpi__label">${t('utility.kpi.co2', { year: yrLabel })}</div>
         <div class="kpi__value">${fmt.int(totCO2)} <span style="font-size:14px;color:var(--text-2)">kg</span></div>
         <div class="kpi__sub">${t('utility.kpi.co2Sub', { tons: fmt.num(totCO2 / 1000, 2) })}</div>
       </div>`}
@@ -420,7 +450,7 @@ async function rerender(container) {
     ` : ''}
 
     ${noValues ? '' : `<div class="card">
-      <div class="card__title">${u.icon} ${t(isFeedIn ? 'utility.cards.monthlyChartFeedIn' : isGeneration ? 'utility.cards.monthlyChartGeneration' : 'utility.cards.monthlyChart', { year: yr })}
+      <div class="card__title">${u.icon} ${t(isFeedIn ? 'utility.cards.monthlyChartFeedIn' : isGeneration ? 'utility.cards.monthlyChartGeneration' : 'utility.cards.monthlyChart', { year: yrLabel })}
         ${canAdjust ? `<span class="card__title-action seg" data-min-level="advanced" role="group" aria-label="${escapeHtml(t('utility.chart.modeLabel'))}">
           <button type="button" class="seg__btn ${chartMode === 'measured' ? 'active' : ''}" data-chart-mode="measured" aria-pressed="${chartMode === 'measured'}">${escapeHtml(t('utility.chart.modeMeasured'))}</button>
           <button type="button" class="seg__btn ${chartMode === 'adjusted' ? 'active' : ''}" data-chart-mode="adjusted" aria-pressed="${chartMode === 'adjusted'}">${escapeHtml(t('utility.chart.modeAdjusted'))}</button>
@@ -434,7 +464,7 @@ async function rerender(container) {
     ${u.key === 'pv_erzeugung' ? `<div data-min-level="expert">${pvExtrasHtml(pvSummary, yr)}</div>` : ''}
 
     <div class="card" data-min-level="advanced">
-      <div class="card__title">${t('utility.cards.monthlyTable', { year: yr })}</div>
+      <div class="card__title">${t('utility.cards.monthlyTable', { year: yrLabel })}</div>
       ${monthlyTable(monthlyYear, u, hasContract)}
     </div>`}
 
@@ -483,7 +513,7 @@ async function rerender(container) {
       <div data-role="list-body"></div>
     </div>
     `}
-    ${u.supports_bill_check ? billCheckLink(u, meter, settings) : ''}
+    ${u.supports_bill_check ? billCheckLink(u, meter, settings, billing ? { sel, list: bList } : null) : ''}
     <div data-min-level="expert">${dhwNote(monthly, yr)}</div>
     <div data-role="co2-cost" data-min-level="expert"></div>
     ${u.key === 'strom' && meter.role === 'ev_charger' ? '<div data-role="evcc" data-min-level="advanced"></div><div data-role="ev-report" data-min-level="expert"></div>' : ''}
@@ -516,7 +546,7 @@ async function rerender(container) {
   fillExplainers(container, { u, contract: isDelivery ? null : currentContract, monthly, yr, pvSummary, feedIn: isFeedIn });
 
   // Chart
-  if (!noValues) drawMonthChart('month-chart', monthlyYear, u, yr, prevYear, chartMode);
+  if (!noValues) drawMonthChart('month-chart', monthlyYear, u, yr, prevYear, chartMode, chartNames);
   if (isDelivery) drawStockChart('stock-chart', stockHist, u, yr);
   if (!isDelivery && currentContract) drawBalanceChart('balance-chart', currentContract, u);
   if (pvFlowRows.length) drawPvFlowChart('pv-flow-chart', pvFlowRows, yr, await getUtilities().catch(() => []));
@@ -528,7 +558,40 @@ async function rerender(container) {
       yr, readings, periods, warnByReading });
   }
   if (isDelivery) wireTankLevels(container, u, meter);
-  syncAddress(u, latestYear);
+  // v3.6.0 (Paket abrechnung) — Kalenderjahr: „Rechnung prüfen“ wie die Seite selbst
+  if (u.supports_bill_check && !billing && !isPeriod) fillBillCheckLink(container, u, meter, settings, my);
+  // v3.6.0 (F1030) — Umschalter und Periodenwahl
+  wirePeriodMode(container);
+  container.querySelectorAll('.period-pills .pill').forEach(p => p.addEventListener('click', () => {
+    state.periodByUtility[u.key] = p.getAttribute('data-period');
+    rerender(container);
+  }));
+  syncAddress(u, latestYear, billing ? { from: sel.from, latest: bList[bList.length - 1].from } : null);
+}
+
+/** v3.6.0 (F1030) — Wahl der Abrechnungsperiode (Name vom Server, sonst die Daten). */
+function periodPills(list, sel, utilityKey) {
+  return `<div class="year-pills period-pills" role="group" aria-label="${escapeHtml(t('billing.period.pills'))}">
+    ${list.map(p => {
+      const on = p.from === sel.from;
+      return `<button type="button" class="pill ${on ? 'active ' + utilityKey : ''}" data-period="${escapeHtml(p.from)}" aria-pressed="${on}">${escapeHtml(periodName(p, fmt.date))}${p.running ? ' ·' : ''}</button>`;
+    }).join('')}
+  </div>`;
+}
+
+/** v3.6.0 (F1030) — Zeitraum, Grundlage und Stand der gewählten Periode; Vorschlag, wenn der Stichtag nicht zur Rechnung passt. */
+function periodMeta(sel, bp) {
+  const parts = [t(sel.source === 'bill' ? 'billing.period.fromBill' : 'billing.period.fromAnchor', { from: fmt.date(sel.from), until: fmt.date(sel.until) })];
+  if (sel.as_of && sel.as_of < sel.until) parts.push(t('billing.period.asOf', { date: fmt.date(sel.as_of) }));
+  // v3.6.0 — ohne Schlussrechnung endet die Periode am Lieferantenwechsel
+  if (sel.ends_at_switch) parts.push(t('billing.period.switch'));
+  if (sel.running) parts.push(t('billing.period.running'));
+  else if (!sel.complete) parts.push(t('billing.period.partial'));
+  const lastBill = [...(bp?.periods || [])].reverse().find(p => p.source === 'bill');
+  const md = (s) => { const [m, d] = String(s).split('-').map(Number); return new Date(Date.UTC(2000, m - 1, d)).toLocaleDateString(getLocale(), { day: 'numeric', month: 'long', timeZone: 'UTC' }); };
+  const hint = bp?.suggested_anchor && lastBill
+    ? `<p class="muted small" data-role="anchor-hint">${escapeHtml(t('billing.suggest', { date: fmt.date(lastBill.until), anchor: md(bp.anchor), day: md(bp.suggested_anchor) }))}</p>` : '';
+  return `<p class="muted small period-meta" data-role="period-meta">${escapeHtml(parts.join(' · '))}</p>${hint}`;
 }
 
 /**
@@ -561,18 +624,43 @@ function fillExplainers(container, { u, contract, monthly, yr, pvSummary, feedIn
 // Stichtag der Art (wie die Seite selbst, wenn sie ohne Zeitraum öffnet). Bis
 // v3.3 nahm der Verweis das angezeigte, meist laufende Jahr — eine Lücke bis
 // zum 31.12. mit „keine Ablesung“.
-function billCheckLink(u, meter, settings = {}) {
-  const period = lastClosedPeriod(settings[`billing_cycle_anchor_${u.key}`], todayIso());
-  const href = `#/bill-check?utility=${encodeURIComponent(u.key)}&meter=${encodeURIComponent(meter.id)}&from=${period.from}&until=${period.until}`;
-  const year = calendarYearOf(period);
-  const label = year != null ? t('utility.billCheck.open', { year })
-    : t('utility.billCheck.openPeriod', { from: fmt.date(period.from), to: fmt.date(period.until) });
+// v3.6.0 (Paket abrechnung) — im Abrechnungsjahr die gewählte Periode, wenn sie
+// abgeschlossen ist, sonst die jüngste abgeschlossene (wie die Seite selbst,
+// periodToCheck). Im Kalenderjahr zuerst nach dem Stichtag; die Perioden des
+// Servers kommen nach (fillBillCheckLink) — beide Wege bleiben gleich, auch
+// wenn der Versorger in einem anderen Rhythmus abrechnet.
+function billCheckLink(u, meter, settings = {}, billing = null) {
+  const anchor = settings[`billing_cycle_anchor_${u.key}`];
+  const period = billing?.sel?.complete && !billing.sel.running
+    ? { from: billing.sel.from, until: billing.sel.until }
+    : billing ? periodToCheck(billing.list, anchor, todayIso()) : lastClosedPeriod(anchor, todayIso());
   return `
-    <div class="card card--link" data-min-level="advanced">
+    <div class="card card--link" data-min-level="advanced" data-role="bill-check-link">
       <div class="card__title">${t('nav.billCheck')}</div>
       <p class="muted">${u.key === 'gas' ? t('utility.billCheck.hint') : t('utility.billCheck.hintGeneric')}</p>
-      <a class="btn btn--ghost btn--sm" href="${href}">${escapeHtml(label)}</a>
+      <a class="btn btn--ghost btn--sm" href="${billCheckHref(u, meter, period)}">${escapeHtml(billCheckLabel(period))}</a>
     </div>`;
+}
+
+function billCheckHref(u, meter, period) {
+  return `#/bill-check?utility=${encodeURIComponent(u.key)}&meter=${encodeURIComponent(meter.id)}&from=${period.from}&until=${period.until}`;
+}
+
+function billCheckLabel(period) {
+  const year = calendarYearOf(period);
+  return year != null ? t('utility.billCheck.open', { year })
+    : t('utility.billCheck.openPeriod', { from: fmt.date(period.from), to: fmt.date(period.until) });
+}
+
+/** v3.6.0 (Paket abrechnung) — Kalenderjahr: der Verweis mit den Perioden des Servers (wie bill-check.js). */
+function fillBillCheckLink(container, u, meter, settings, my) {
+  api.meterBillingPeriods(u.key, meter.id).then(bp => {
+    const a = container.querySelector('[data-role="bill-check-link"] a');
+    if (!a || my !== rerenderSeq) return;
+    const period = periodToCheck(bp?.periods, settings[`billing_cycle_anchor_${u.key}`], todayIso());
+    a.setAttribute('href', billCheckHref(u, meter, period));
+    a.textContent = billCheckLabel(period);
+  }).catch(() => { /* der Verweis nach dem Stichtag bleibt */ });
 }
 
 function header(u, meter = null) {
@@ -662,6 +750,8 @@ function balanceCard(c, u, country = 'DE') {
   // v2.9.0 (CALC-10, CALC-11) — weiterlaufender Vertrag, verpasste Frist,
   // angekündigte Preiserhöhung
   const notes = [];
+  // v3.6.0 (Paket abrechnung) — Saldo erst nach der letzten gebuchten Rechnung
+  if (c.balance_from && c.start && c.balance_from > c.start) notes.push(t('utility.balance.sinceBill', { date: fmt.date(c.balance_from) }));
   if (c.renewed) notes.push(t('utility.balance.renewed', { date: fmt.date(c.end) }));
   if (c.cancel_missed) notes.push(t('utility.balance.cancelMissed', { date: fmt.date(c.cancel_by), end: fmt.date(c.end) }));
   if (c.price_increase) {
@@ -1898,7 +1988,9 @@ function openTankLevelModal(container, u, meter) {
 // v2.16.0 (Review FE-19, FE-31) — daneben das Vorjahr als Umriss; wahlweise
 // witterungsbereinigt nach dem Heizmodell (`heat_adjusted`): Dann zeigt der
 // Vergleich, ob gespart wurde — nicht, ob der Winter mild war.
-function drawMonthChart(canvasId, monthly, u, year, prevRows = [], mode = 'measured') {
+// v3.6.0 (F1030) — `names` {current, prev}: im Abrechnungsjahr die Namen der
+// Perioden statt Jahr/Vorjahr; die Vorperiode steht an derselben Stelle (`slot`)
+function drawMonthChart(canvasId, monthly, u, year, prevRows = [], mode = 'measured', names = null) {
   const canvas = document.getElementById(canvasId);
   if (!canvas) return;
   if (_chart) { _chart.destroy(); _chart = null; }
@@ -1912,8 +2004,8 @@ function drawMonthChart(canvasId, monthly, u, year, prevRows = [], mode = 'measu
   const labels = monthly.map(m => fmt.month(m.ym));
   const values = monthly.map(m => m[valKey] ?? null);
   const partial = monthly.map(m => isPartial(m));
-  const prevByMonth = new Map(prevRows.map(m => [m.month, m]));
-  const prev = monthly.map(m => prevByMonth.get(m.month)?.[valKey] ?? null);
+  const prevByMonth = new Map(prevRows.map(m => [m.slot ?? m.month, m]));
+  const prev = monthly.map(m => prevByMonth.get(m.slot ?? m.month)?.[valKey] ?? null);
   const hasPrev = prev.some(v => v != null);
   const temp = monthly.map(m => m.avg_temp);
   // v2.13.0 (Review UI-19) — Sonnenstrom hängt nicht an der Temperatur; die
@@ -1929,7 +2021,7 @@ function drawMonthChart(canvasId, monthly, u, year, prevRows = [], mode = 'measu
       datasets: [
         ...(hasPrev ? [{
           type: 'bar',
-          label: t('utility.chart.prevYear', { year: year - 1 }),
+          label: names ? t('billing.chart.prev', { name: names.prev }) : t('utility.chart.prevYear', { year: year - 1 }),
           data: prev,
           backgroundColor: 'transparent',
           borderColor: utilColor(u, 0.6),
@@ -1981,23 +2073,23 @@ function drawMonthChart(canvasId, monthly, u, year, prevRows = [], mode = 'measu
         ...(withTemp ? { y1: { position: 'right', title: { display: true, text: '°C' }, grid: { drawOnChartArea: false } } } : {}),
       },
     }
-  }, { label: monthChartLabel(u, year, labels, values, prev, adjusted) });
+  }, { label: monthChartLabel(u, year, labels, values, prev, adjusted, names) });
 }
 
 /** Kurzbeschreibung des Monatscharts: Summe, stärkster und schwächster Monat, Vorjahr. */
-function monthChartLabel(u, year, labels, values, prev = [], adjusted = false) {
+function monthChartLabel(u, year, labels, values, prev = [], adjusted = false, names = null) {
   const s = seriesSummary(labels, values);
   if (!s) return t('utility.chart.alt');
   const unit = (v) => fmt.unit(v, u.consumption_unit, 0);
   let text = t(adjusted ? 'utility.chart.altSummaryAdjusted' : 'utility.chart.altSummary', {
-    label: u.label, year, total: unit(s.sum),
+    label: u.label, year: names ? names.current : year, total: unit(s.sum),
     maxMonth: s.max.label, max: unit(s.max.value),
     minMonth: s.min.label, min: unit(s.min.value),
   });
   // Vorjahr über dieselben Monate, soweit vorhanden
   const pairs = values.map((v, i) => [v, prev[i]]).filter(([v, p]) => v != null && p != null);
   if (pairs.length) {
-    text += ' ' + tp('utility.chart.altPrev', pairs.length, { year: year - 1, total: unit(pairs.reduce((a, [, p]) => a + Number(p), 0)), months: pairs.length });
+    text += ' ' + tp('utility.chart.altPrev', pairs.length, { year: names ? names.prev : year - 1, total: unit(pairs.reduce((a, [, p]) => a + Number(p), 0)), months: pairs.length });
   }
   return text;
 }

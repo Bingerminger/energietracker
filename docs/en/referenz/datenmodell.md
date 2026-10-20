@@ -27,7 +27,8 @@ backup).
 > **1.8.0** index `intervals.json` for values per quarter hour created empty;
 > the series under `intervals/` arise with the first import (v3.3.0) ·
 > v3.4.0 **without** a schema step: `activity.json` (history of done notices)
-> is created with the first entry.
+> is created with the first entry · v3.6.0 **without** a schema step:
+> `people.json` (register of people) is created when people are first read.
 
 ---
 
@@ -52,6 +53,7 @@ data/
 ├── intervals.json            # index of the quarter-hour series { series, samples } (v3.3.0, schema 1.8.0)
 ├── intervals/                # quarter-hour series <id>.json, per meter or wholesale price and calendar year (v3.3.0)
 ├── activity.json             # history of done notices (v3.4.0) — created with the first entry
+├── people.json               # register of people: number, name, role, deletion note (v3.6.0) — in the backup, without passwords
 ├── instance.json             # identifier of the installation (v3.1.0) — not in the backup
 ├── gas/        { meters.json, readings.json, contracts.json, meter_groups.json, periods.json, bills.json }
 ├── strom/      { meters.json, readings.json, contracts.json, meter_groups.json, periods.json, bills.json }
@@ -822,12 +824,17 @@ also, without a schema step — missing fields mean “nobody responsible”:
 
 | Field | Meaning |
 |---|---|
-| `assignee` | display name of the responsible person, trimmed, up to 60 characters |
-| `assignee_id` | person id from `auth.json`, only when picked from the list of people |
+| `assignee` | display name of the responsible person, trimmed, up to 60 characters; on a completed one-off reminder the name at the time it was done |
+| `assignee_id` | person id (`u_…`, [register of people](#register-of-people-peoplejson-v360)), only when picked from the list of people |
 | `assignee_former` | `true` after the person was deleted and their name replaced (“former member”) |
+| `assignee_deleted` | *(v3.6.0)* `true` after the person was deleted: name and id stay, shown as “Name (deleted)” |
 
-The backup (pot `reminders`) carries the names as stored; the list of people
-stays in `auth.json`. Details: [API](api.md#responsible-for-reminders-v350).
+When a person is deleted, their **open** reminders (by id or with the same
+free name) pass to the person deleting; **completed** ones keep name and id
+with `assignee_deleted` or become “former member”. API responses always carry
+`assignee_deleted` (also `false`); it also applies when the register lists the
+person as deleted. The backup (pot `reminders`) carries the names as stored.
+Details: [API](api.md#responsible-for-reminders-v350).
 
 ### History of done notices (`activity.json`) *(v3.4.0)*
 
@@ -860,9 +867,9 @@ first entry, if it is missing the history is empty. No schema step.
 | `title` | title as a snapshot in the language at the time it was done |
 | `done_on` | day of the deed, may be backdated, not in the future |
 | `recorded_at` | time of the entry (ISO 8601) |
-| `by` | `{type: "person", id, name}`, `{type: "key", name}` (API key), `{type: "integration", name}` (`home_assistant`, `evcc`), `{type: "auto", reason}` (by itself) or `null` (without sign-in). After “former member”: `{type: "person", former: true}` |
+| `by` | `{type: "person", id, name}`, `{type: "key", name}` (API key), `{type: "integration", name}` (`home_assistant`, `evcc`), `{type: "auto", reason}` (by itself) or `null` (without sign-in). After “former member”: `{type: "person", former: true}`; *(v3.6.0)* otherwise after deletion `{type: "person", id, name, deleted: true}` (“Name (deleted)”) |
 | `reason` | for `auto_done` and `dismissed`: `{key, params}` — `activity.reason.successor`, `…reading`, `…delivery`, `…statement`, `…dismissed`; since v3.5.0 `…period` (new period), `…bill` (supplier’s bill recorded), when ticking off `bill_expected` `…billWithout` (“arrived without being recorded”) |
-| `assignee` | *(v3.5.0)* only when a reminder with someone responsible is done: `{name, id?}` as a snapshot, after “former member” `{former: true}` |
+| `assignee` | *(v3.5.0)* only when a reminder with someone responsible is done: `{name, id?}` as a snapshot, after “former member” `{former: true}`, *(v3.6.0)* after deletion `{name, id, deleted: true}` |
 | `note`, `attachment_id` | note (up to 500 characters, may be empty) and optionally a receipt ([Receipts](#receipts-v310), reference type `activity`) |
 | `undone` | `{at, by}` after undo — the entry stays, struck through |
 | `revert` | what undo restores: `reminder` (due date, status, `last_done`), `contract_auto_renews`, `recommendation_dismiss` — only as long as nobody has changed it differently in the meantime |
@@ -871,11 +878,12 @@ first entry, if it is missing the history is empty. No schema step.
 when writing, by `done_on`.
 
 **Backup:** pot `activity`. The names are in it **as a snapshot** — whoever
-passes a backup on passes them on too; the list of people itself stays in
-`auth.json`. The import checks `id`, `action` (one of the four), `subject`
+passes a backup on passes them on too; the accounts themselves stay in
+`auth.json`, the register of people is pot `people`. The import checks `id`, `action` (one of the four), `subject`
 (`kind` and `occurrence`) and `done_on` (calendar date). A backup without the
-pot leaves the history unchanged. Sample households and the demo come with
-`"activity": []`.
+pot leaves the history unchanged. Since v3.5.0 sample households and the demo
+come with a history of made-up people; a sample household replaces the
+existing one.
 
 ### People in `auth.json` *(v3.2.0)*
 
@@ -913,6 +921,43 @@ carry the person’s identifier (`<expiry>.<id>.<hmac>`); the v3.1 form without
 an identifier stands for `u_admin` until that password is set anew for the
 first time. A deleted person no longer has a valid session.
 
+### Register of people (`people.json`) *(v3.6.0)*
+
+Every person of the household with a **running number** that is never given
+out again — deleted people stay in it as an entry too
+([guide](../anleitungen/benutzer.md#deleting-people)). No schema step: if the
+file is missing, the accounts from `auth.json` get their number on the first
+read, in the order `created_at`, then `id`.
+
+```json
+{ "last_no": 2,
+  "people": [
+    { "id": "u_3f9a1c2e", "no": 1, "name": "Alex", "role": "admin",
+      "created_at": "2026-01-15T10:00:00+01:00", "deleted_at": null, "deleted_by": null },
+    { "id": "u_8b0d4f17", "no": 2, "name": "Kim", "role": "member",
+      "created_at": "2026-03-02T10:00:00+01:00",
+      "deleted_at": "2026-10-19T19:30:00+02:00", "deleted_by": "u_3f9a1c2e" } ] }
+```
+
+| Field | Meaning |
+|---|---|
+| `last_no` | last number given out; only goes up — not back on deletion and not through an older backup |
+| `id` | the account’s id (`u_…`), as on reminders (`assignee_id`) and in the history (`by.id`). It stays random because backups move between installations; a counted-up id would meet a stranger there |
+| `no` | running number of the person (1, 2, …), once per person |
+| `name`, `role` | as in the account (up to 60 characters, `admin`/`member`); follow it on every change |
+| `created_at` | created (ISO 8601) |
+| `deleted_at`, `deleted_by` | deleted at (ISO 8601) and id of the person who deleted; otherwise `null` |
+
+An entry without an account is a **person without sign-in** — from a backup or
+a sample household. They can be chosen under “Responsible” and appear under
+Settings → Access with “no sign-in”, where they can be deleted and, since
+v3.6.0, renamed and given another role (then `name` follows the rules of an
+account: 1–40 characters, unique); a new account with the same name takes over
+their id and number. **Backup:** pot `people`; the
+import checks `id` (`u_` and 1–32 lower-case letters or digits) and `name` per
+entry, replaces the register and keeps the higher counter. A backup without
+the pot leaves the register unchanged.
+
 ---
 
 ## 3. Settings (`settings.json`)
@@ -939,7 +984,7 @@ here a selection with background:
 | `forecast_months` | 12 | forecast horizon |
 | `forecast_model` | linear | default regression model |
 | `segmented_split_mode` | auto | breakpoint of the segmented regression |
-| `wohnflaeche_m2` | 100 | for the efficiency class |
+| `wohnflaeche_m2` | 100 | for the efficiency class. *(v3.6.0)* Like `wasser_personen_anzahl` (default 2), the value only counts as entered for the benchmark once the key is in `settings.json` (even equal to the default); without it, `GET /api/settings` lists it under `assumed_keys`. `PATCH` with `null` removes the key again |
 | `gebaeudetyp`, `beheizter_keller`, `warmwasser_dezentral` | efh, false, false | *(effective since v2.10.0)* usable floor area 1.2 or 1.35 × living area, hot-water surcharge 20 kWh/m²·a (from 1 Jan 2027: 16, § 82 GModG; v3.5.0) for the certificate-style figure |
 | `wasser_personen_referenz` | 122 | L per person and day, BDEW 2024 (*v2.10.0, previously 127*) |
 | `dashboard_months` | 12 | *(effective since v2.9.0)* months in the dashboard's consumption history (3–36) |
@@ -1040,16 +1085,25 @@ from SMARD (`demo-data/sources/smard-day-ahead-de-lu-2025-qh.json`,
 Bundesnetzagentur | SMARD.de, CC BY 4.0) and module 3 time windows with made-up
 prices on the heat pump contract. Since v3.5.0 (N1026) every household and the
 showcase carry the “Done” history (`activity`, made-up names), reminders with
-someone in charge (`assignee`, without `assignee_id`), recorded supplier bills
-(`bills`) and follow-up contracts. `tools/build-personas.mjs`
+someone in charge (`assignee`, since v3.6.0 with `assignee_id` and the register
+of people `people`, at least one admin per household, one deleted person in the
+classic house), recorded supplier bills
+(`bills`) and follow-up contracts. All four enter living area and people;
+since v3.6.0 `eigenheim-klassisch` also has its own made-up reference values
+(`reference_strom_kwh`, `reference_heat_kwh_m2`) and shows the benchmark with a
+full traffic light. `tools/build-personas.mjs`
 generates them from a daily model with a fixed seed: every run writes the same
 files, `--check` only compares. Names are made up, market location IDs
 synthetic. When loaded, `DemoDataAligner` carries them forward to today like
 the showcase — quarter hours for the last two to three months up to yesterday,
 the history of reminders moves with the reminders. An optional key
 `demo_align` in a demo backup asks for a billing anchor relative to today
-(`billing_anchor_days_ago: {utility: days}`); it is not imported. The Docker
-image contains them ([API](api.md#example-households-v320)).
+(`billing_anchor_days_ago: {utility: days}`); it is not imported. Since
+v3.6.0 the annual bills of that utility move along: the latest ends the day
+before the previous year’s anchor, before it a gapless chain from the last
+final bill (which stays); bill date, linked special payment and history move
+too, and the import recalculates the amounts from the app’s own calculation.
+The Docker image contains them ([API](api.md#example-households-v320)).
 
 **Downgrade protection (v2.6.0).** A downgrade is not supported — but it is now
 detected: if the `schema_version` of the data is **newer** than the app, it

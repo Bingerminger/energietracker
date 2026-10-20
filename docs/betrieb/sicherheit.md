@@ -326,8 +326,9 @@ Einstellungen ändern darf — mit eingeschalteter Anmeldung nur Angemeldete und
 `admin`-Schlüssel. Einrichtung:
 [Texterkennung im Heimnetz](../anleitungen/texterkennung.md).
 
-**Verbindungen nach außen** *(v3.4.0)*: Wetter (Open-Meteo) und
-Börsenpreise (SMARD) nur über HTTPS, auch nach einer Weiterleitung, und
+**Verbindungen nach außen** *(v3.4.0)*: Wetter (Open-Meteo),
+Börsenpreise (SMARD) und — nur eingeschaltet, einmal am Tag — der Hinweis auf
+neue Versionen (GitHub, *v3.6.0*) nur über HTTPS, auch nach einer Weiterleitung, und
 höchstens zwei Weiterleitungen; Texterkennung und evcc im Heimnetz ohne
 Weiterleitung. Jede Antwort höchstens 20 MB — eine größere bricht die App ab,
 statt sie in den Speicher zu laden.

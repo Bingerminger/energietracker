@@ -250,8 +250,35 @@ both. “Book as special payment” books into the group contract.
   Utilities & billing → Settlement date gas; default 1 January) and suggests an
   advance. If the suggestion is far from the supplier's new advance, the
   forecast is worth a look.
+- Once you have booked the result (“Book as special payment”), the balance of a
+  contract that runs on counts from the day after the bill since v3.6.0 — the
+  billed time and the refund or additional payment no longer count. Without
+  booking the result stays in the balance.
+- Next time, **Check a bill** suggests the latest completed period in the
+  rhythm of your recorded bills.
 - With a notice period entered, the app reminds you in time before the last day
   to cancel; **Costs & contracts → Tariff switch** compares offers.
+- **Billing year (v3.6.0):** switch the utility page to *Billing year*, and
+  figures, chart and monthly table show exactly the period of the recorded
+  bill, for example 15 Apr to 30 Mar, with advance payments and balance;
+  between and after the bills the settlement date cuts. The current period
+  starts the day after the bill. If the bill does not end the day before your
+  settlement date, the view suggests the matching day. On this device the
+  choice also applies to the overview and the analysis; the annual report has
+  the appendix “Billing years” for it, the CSV export a table per period
+  (Settings → Data).
+- **Changed supplier:** if another supplier’s contract begins in the middle
+  of a period and no final bill is recorded yet, the period ends on the last
+  day with the old supplier (“ends with the change of supplier”) and the next
+  one starts with the new contract — just as the old supplier issues its final
+  bill. A renewal or a new tariff with the same supplier does not split. A gap
+  between a cancelled old contract and the new one is a partial period of its
+  own; if the old one renews, it runs until the day before the new one. A
+  recorded bill always comes first.
+- **Current year in both views:** the calendar year counts the standing
+  charge and advance payment of the month of the last reading in full, the
+  billing year only the days up to the reading; the ⓘ next to “Advances up to
+  …” says so. Whole years are the same in both views.
 - Next year the same steps — usually only 1, 2 and 7.
 
 ---

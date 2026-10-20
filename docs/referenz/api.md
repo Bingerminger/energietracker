@@ -13,8 +13,8 @@ Alle Endpunkte unter `/api/…`. Antwort-Hülle einheitlich:
 
 `{utility}` ist eine von: `gas`, `strom`, `wasser`, `fernwaerme`,
 `heizoel`, `pellets`, `pv_einspeisung`, `pv_erzeugung` und seit v3.1.0
-`waerme` (Heizwärme). Stand: **160 Routen**,
-v3.5.0 — `ReleaseConsistencyTest` prüft, dass jede registrierte Route in der
+`waerme` (Heizwärme). Stand: **166 Routen**,
+v3.6.0 — `ReleaseConsistencyTest` prüft, dass jede registrierte Route in der
 Tabelle unten steht (DE und EN).
 
 > Ausführliche Request-/Response-Beispiele für die meistgenutzten Endpunkte
@@ -147,6 +147,7 @@ nicht wieder passieren.
 | Methode | Pfad | Zweck |
 |---|---|---|
 | GET | `/api/health` | Health-Check: `status` ok/degraded/error, Prüfungen, letzter Ingest (HTTP 503 bei `error`); auch `HEAD` |
+| GET | `/api/update-check` | *(v3.6.0)* Gibt es eine neuere Version? `{enabled, current, latest, newer, url, checked_at}` — nur mit Einstellung `update_check`, sonst `{enabled: false, current}` ohne Anfrage nach außen; der Server fragt GitHub höchstens einmal am Tag |
 | GET | `/api/session` | Anmeldemodus, angemeldet?, per Umgebung festgelegt? *(v2.6.0)*; seit v3.2.0 `named_login`, `user`, `role` — [Personen](#personen-im-haushalt-v320) |
 | POST | `/api/session` | Anmelden `{name?, password}` → Sitzungs-Cookie *(v2.6.0; `name` seit v3.2.0)* |
 | DELETE | `/api/session` | Abmelden *(v2.6.0)* |
@@ -155,11 +156,12 @@ nicht wieder passieren.
 | DELETE | `/api/session/password` | Anmeldung ausschalten `{current}` *(v2.6.0)*; seit v3.2.0 nur Verwalter |
 | PATCH | `/api/session/me` | *(v3.2.0)* eigene Einstellungen der angemeldeten Person `{ui_level?, language?}` — [Personen](#personen-im-haushalt-v320) |
 | POST | `/api/session/me/password` | *(v3.2.0)* eigenes Passwort ändern `{current, password}` |
-| GET | `/api/users` | *(v3.2.0)* Personen im Haushalt, ohne Passwort-Hash — nur Verwalter |
-| GET | `/api/people` | *(v3.5.0)* Personen für die Auswahl „Zuständig“: nur `[{id, name}]`, nach Namen sortiert, für jede angemeldete Rolle (auch Lese-Schlüssel); ohne eingeschaltete Anmeldung `[]` — [Zuständig](#zuständig-an-terminen-v350). Klasse C |
-| POST | `/api/users` | *(v3.2.0)* Person anlegen `{name, password, role?}`; `201` — nur Verwalter |
-| PATCH | `/api/users/{id}` | *(v3.2.0)* Name, Rolle oder Passwort ändern `{name?, role?, password?}` — nur Verwalter |
-| DELETE | `/api/users/{id}` | *(v3.2.0)* Person löschen; der letzte Verwalter bleibt — nur Verwalter; seit v3.4.0 ersetzt `?anonymize_activity=1` ihren Namen im Verlauf durch „ehemalige Person“ (Antwort `activity_anonymized`) |
+| GET | `/api/users` | *(v3.2.0)* Personen im Haushalt, ohne Passwort-Hash — nur Verwalter; *(v3.6.0)* mit fortlaufender Nummer `no` und `has_account`, dahinter die Personen ohne Zugang aus dem Verzeichnis (`has_account: false`, `source: "none"`) |
+| GET | `/api/people` | *(v3.5.0)* Personen für die Auswahl „Zuständig“: nur `[{id, name}]`, nach Namen sortiert, für jede angemeldete Rolle (auch Lese-Schlüssel); *(v3.6.0)* aus dem [Personenverzeichnis](#personenverzeichnis-v360), ohne gelöschte, auch ohne eingeschaltete Anmeldung (bis v3.5 dann `[]`) — [Zuständig](#zuständig-an-terminen-v350). Klasse C |
+| POST | `/api/users` | *(v3.2.0)* Person anlegen `{name, password, role?}`; `201` — nur Verwalter; *(v3.6.0)* Antwort mit `no` |
+| PATCH | `/api/users/{id}` | *(v3.2.0)* Name, Rolle oder Passwort ändern `{name?, role?, password?}` — nur Verwalter; *(v3.6.0)* auch für Personen ohne Zugang (Name und Rolle; ein Passwort `400` `errors.users.noAccountPassword`) — [Personenverzeichnis](#personenverzeichnis-v360) |
+| GET | `/api/users/{id}/handover` | *(v3.6.0)* Vorschau „Person löschen“: `{person: {id, name, no}, to: {id, name}\|null, open, done}` — offene Termine und an wen, erledigte Einträge im Verlauf — nur Verwalter. Klasse C |
+| DELETE | `/api/users/{id}` | *(v3.2.0)* Person löschen; der letzte Verwalter bleibt — nur Verwalter; seit v3.4.0 ersetzt `?anonymize_activity=1` ihren Namen im Verlauf durch „ehemalige Person“ (Antwort `activity_anonymized`); *(v3.6.0)* offene Termine gehen an die löschende Person, Erledigtes behält den Namen mit „(gelöscht)“ (Antwort additiv `handed_over`, `handed_over_to`, `kept`) — [Personenverzeichnis](#personenverzeichnis-v360) |
 | GET | `/api/auth/keys` | API-Schlüssel (ohne Klartext) *(v2.6.0)*; seit v3.2.0 nur Verwalter |
 | POST | `/api/auth/keys` | Schlüssel erzeugen `{name, scope: read\|admin\|calendar}`; Klartext einmalig *(v2.6.0; `calendar` seit v3.1.0)*; seit v3.2.0 nur Verwalter |
 | DELETE | `/api/auth/keys/{id}` | Schlüssel widerrufen *(v2.6.0)*; seit v3.2.0 nur Verwalter |
@@ -168,7 +170,7 @@ nicht wieder passieren.
 | GET | `/api/manifest` | *(v3.1.0)* Web-App-Manifest in einer Sprache (`?lang=`, sonst Sprache des Geräts bzw. der Installation); ohne Anmeldung erreichbar, enthält keine Daten. Klasse C |
 | GET | `/api/docs` | *(v3.4.0)* Eine Seite der Dokumentation dieses Release: `?path=` (`README.md`, `en/anleitungen/kalender.md`, `root/CHANGELOG.md`) → `{path, lang, mirror, root_files, markdown}`; nur aus der Freigabeliste — [Doku in der App](#doku-in-der-app-get-apidocs-v340). Klasse C |
 | GET | `/api/docs/asset` | *(v3.4.0)* Ein Bild der Dokumentation (`?path=ui/screenshots/…png&v=<Version>`), `image/png`; mit der Version dieses Release unveränderlich zwischengespeichert. Klasse C |
-| GET | `/api/settings` | Einstellungen |
+| GET | `/api/settings` | Einstellungen; *(v3.6.0)* dazu `assumed_keys` — [Angenommene Angaben](#angenommene-angaben-assumed_keys-v360) |
 | PATCH | `/api/settings` | Einstellungen ändern; `frame_ancestors`, `ocr_endpoint` und `evcc_endpoint` seit v3.2.0 nur Verwalter, ebenso `allowed_hosts` und `activity_keep_months` (v3.4.0) |
 | GET | `/api/countries` | Länderprofile: Voreinstellungen je Land *(v2.7.0)*; seit v3.1.0 mit Rechnungsbegriffen (`bill_terms`) und amtlichem Tarifvergleich (`comparison_portal`) — s. u. |
 | POST | `/api/settings/country` | Land wechseln: `{"country": "AT", "profile": true}` übernimmt das Länderprofil, `"profile": false` nur das Land; festgeschrieben wird nur, was vom Default abweicht *(v3.5.0)* — s. u. |
@@ -195,6 +197,7 @@ nicht wieder passieren.
 | GET | `/api/utility/{u}/meter-groups/{id}/forecast` | *(v3.1.0)* Prognose der Gruppe; bei Arbeitspreisen je Mitglied mit Mischpreis |
 | GET | `/api/utility/{u}/meter-groups/{id}/tariff-switch` | *(v3.1.0)* Wechselentscheidung für die Gruppe |
 | GET | `/api/utility/{u}/meter-groups/{id}/bill-check` | *(v3.1.0)* Rechnungsprüfung der Gruppe: Abschnitte je Mitglied, feste Kosten einmal |
+| GET | `/api/utility/{u}/meter-groups/{id}/billing-periods` | *(v3.6.0)* Abrechnungsperioden der Gruppe (Mitglieder zusammen) — [Abrechnungsperioden](#abrechnungsperioden-v360) |
 | GET | `/api/utility/{u}/readings` | Ablesungen |
 | POST | `/api/utility/{u}/readings` | anlegen; seit v3.1.0 mit `client_ref` (gleiche Kennung am selben Zähler → `200` mit `duplicate: true` statt eines zweiten Stands) und `attachment_id` (Foto) — [s. u.](#ablesungen-client_ref-attachment_id-v310-additiv) |
 | PATCH | `/api/utility/{u}/readings/{id}` | ändern; seit v3.1.0 auch `attachment_id` (`null` löst das Foto); auf einen Zähler mit Verbrauch je Zeitraum umhängen → `400` `errors.reading.periodMeter` |
@@ -228,9 +231,12 @@ nicht wieder passieren.
 | GET | `/api/utility/{u}/meters/{id}/consumption` | Verbrauch + Anomalien + Regressionen |
 | GET | `/api/utility/{u}/meters/{id}/contract-status` | Saldo je Vertrag; seit v2.5.1 mit `special_payments[]` (Einzelposten, Gas/Strom/Fernwärme, seit v3.5.0 auch Wasser); seit v2.8.0 nach Kalender bis heute, seit v2.9.0 tagesgenau mit Kündigungsstichtag, seit v3.4.0 mit `phase` — s. u. — und `min_term_end`, `price_guarantee_until`, `auto_renews` ([Schaubilder](#schaubilder-energiefluss-und-zeitstrahl-v340-additiv)) sowie `successor` ([Folgevertrag](#erledigt-mit-verlauf-v340)) |
 | GET | `/api/utility/{u}/meters/{id}/forecast` | Prognose mit Unsicherheitsband, Klimanormal und Hinweisen (v2.8.0); seit v3.1.0 CO₂-Preis-Szenario `?co2_scenario_eur_t=&co2_scenario_from=` — s. u. |
+| POST | `/api/forecast/scenario` | *(v3.6.0)* Prognose-Werkstatt: Szenario gegen den Ausgangsfall rechnen (Winter, Raumtemperatur, Maßnahmen, Tarif, Modell, Budget); schreibt nichts — [s. u.](#post-apiforecastscenario--prognose-werkstatt-v360-f1031-additiv) |
 | GET | `/api/utility/{u}/meters/{id}/tariff-comparison` | Tarifvergleich echt vs. Schatten (Rückblick); seit v3.3.0 rechnet ein dynamischer Schattenvertrag mit dem eigenen Lastgang, wo Viertelstunden vorliegen (`dynamic_profile_months`) — [Dynamik-Check](#börsenstrompreise-und-dynamik-check-v310) |
 | GET | `/api/utility/{u}/meters/{id}/tariff-switch` | Wechselentscheidung ab Wechseltermin; optional `?switch_date=YYYY-MM-DD` |
 | GET | `/api/utility/{u}/meters/{id}/bill-check` | Rechnungsprüfung: Abschnitte je Ablesung und Brennwertwechsel bzw. Preisstichtag, mit Kosten, `?from=&to=` (F1012; bis v3.0 nur Gas, seit v3.1.0 Gas, Strom, Wasser, Fernwärme, sonst 400) — [s. u.](#get-apiutilityumetersidbill-checkfromto-f1012-v250-alle-arten-seit-v310) |
+| GET | `/api/utility/{u}/meters/{id}/billing-periods` | *(v3.6.0)* Abrechnungsperioden des Zählers aus Rechnungen und Stichtag mit Menge, Kosten, Abschlägen, Saldo; `?months=1` mit Monatsreihe — [Abrechnungsperioden](#abrechnungsperioden-v360) |
+| GET | `/api/utility/{u}/billing-periods` | *(v3.6.0)* dasselbe für die ganze Art (Zähler ohne Elternzähler, ohne Verbrauch je Zeitraum) |
 | GET | `/api/utility/{u}/bills` | *(v3.1.0)* Versorgerrechnungen, die neueste zuerst; `?meter_id=` nur dieser Zähler — [Versorgerrechnungen](#versorgerrechnungen-v310) |
 | POST | `/api/utility/{u}/bills` | *(v3.1.0)* Rechnung erfassen; `201` |
 | PATCH | `/api/utility/{u}/bills/{id}` | *(v3.1.0)* Rechnung ändern |
@@ -238,9 +244,9 @@ nicht wieder passieren.
 | GET | `/api/utility/{u}/bills/{id}/check` | *(v3.1.0)* eigene Rechnung gegen die des Versorgers: Abweichung, Urteil, Gründe |
 | POST | `/api/utility/{u}/bills/{id}/book` | *(v3.1.0)* Ergebnis als Sonderzahlung im Vertrag buchen (einmal je Rechnung) |
 | GET | `/api/benchmarks/efficiency` | Effizienzklasse pro Heizquelle; seit v2.10.0 mit Abdeckung und energieausweis-naher Kennzahl — s. u. |
-| GET | `/api/benchmarks/comparison` | *(v3.1.0)* Einordnung des Jahresverbrauchs an eigenen Vergleichswerten (Haushaltsstrom, Heizung je m²), `?year=` (Standard Vorjahr) — [Einordnung](#einordnung-get-apibenchmarkscomparison-v310) |
+| GET | `/api/benchmarks/comparison` | *(v3.1.0)* Einordnung des Jahresverbrauchs an eigenen Vergleichswerten (Haushaltsstrom, Heizung je m²; seit v3.6.0 mit Ampel `rating`, Wasser je Person und fehlenden Angaben `missing`), `?year=` (Standard Vorjahr) — [Einordnung](#einordnung-get-apibenchmarkscomparison-v310) |
 | GET | `/api/heat-pump` | *(v3.1.0)* Jahresarbeitszahl je Wärmepumpe: Wärme ÷ Strom je Monat und Jahr, `?year=` (Standard Vorjahr) — [Wärmepumpe](#jahresarbeitszahl-der-wärmepumpe-v310) |
-| GET | `/api/flexibility` | *(v3.3.0)* Flexibilität eines Jahres aus Verbrauch und Börsenpreis je Viertelstunde: je Stromzähler Profilfaktor und Vorteil, Speicher, § 14a Modul 3; `?year=` (Standard Vorjahr) — [Flexibilität](#flexibilität-bewerten-v330) |
+| GET | `/api/flexibility` | *(v3.3.0)* Flexibilität eines Jahres aus Verbrauch und Börsenpreis je Viertelstunde: je Stromzähler Profilfaktor und Vorteil, Speicher, § 14a Modul 3; *(v3.6.0)* dazu `insights` — Ampel, Hebel, Zeitfenster, Sonnenstrom; `?year=` (Standard Vorjahr), *(v3.6.0)* `?summary=1` nur die Zahl der Ergebniskarte — [Flexibilität](#flexibilität-bewerten-v330) |
 | GET | `/api/intervals` | *(v3.3.0)* Index der Viertelstundenreihen (Verbrauch je Zähler, Börsenpreise) |
 | DELETE | `/api/intervals/{id}` | *(v3.3.0)* eine Viertelstundenreihe löschen; Zählerstände und Tageswerte bleiben |
 | GET | `/api/energy-flow/days` | *(v3.5.0)* Tage und Monate mit Viertelstunden des Netzbezugs, Vorbelegung für den Tagesfilm — [Tagesfilm](#tagesfilm-energiefluss-je-viertelstunde-v350) |
@@ -286,7 +292,7 @@ nicht wieder passieren.
 | GET | `/api/attachments/{id}` | *(v3.1.0)* Datei eines Belegs (Foto, PDF) |
 | DELETE | `/api/attachments/{id}` | *(v3.1.0)* Beleg löschen; der Verweis am Datensatz verschwindet mit |
 | POST | `/api/ocr/reading` | *(v3.1.0)* Zählerstand aus einem Ablesefoto lesen `{attachment_id}` — über den eigenen Texterkennungsdienst im Heimnetz, `502` bei Fehlern des Dienstes |
-| GET | `/api/export/{u}/monthly.csv` | Monatsaggregate als CSV; `?format=1` (Standard) oder `?format=local&lang=` *(v3.1.0)* — [CSV-Formate](#csv-formate-v310) |
+| GET | `/api/export/{u}/monthly.csv` | Monatsaggregate als CSV; `?format=1` (Standard) oder `?format=local&lang=` *(v3.1.0)* — [CSV-Formate](#csv-formate-v310); *(v3.6.0)* `?period=billing`: eine Zeile je Abrechnungsperiode ([Abrechnungsperioden](#abrechnungsperioden-v360)) |
 | GET | `/api/export/{u}/readings.csv` | Ablesungen als CSV (kumulativ); `format`, `lang` wie oben |
 | GET | `/api/export/{u}/deliveries.csv` | **v1.4.2** Lieferungen als CSV (Heizöl/Pellets); `format`, `lang` wie oben |
 | GET | `/api/export/{u}/periods.csv` | *(v3.1.0)* Verbrauch je Zeitraum als CSV, alle Zähler der Art; `format`, `lang` wie oben |
@@ -569,7 +575,7 @@ Vertrag (additiv):
 | `advance_remaining` | noch fällige Abschläge bis Vertragsende |
 | `suggested_advance` | Abschlag, der den erwarteten Saldo bis Vertragsende ausgleicht (≥ 0), sonst `null` |
 | `projection_factor` | Kalibrierung der Schätzung am jüngsten Niveau (0,5–1,5) |
-| `balance_path` | *(v2.16.0)* nur beim laufenden Vertrag, sonst `null`: dieselbe Rechnung als Monatsreihe vom Vertragsbeginn bis zum Ende bzw. zur nächsten Abrechnung — je Monat `ym`, aufsummiert `cost` (gemessen + geschätzt + Grundpreis − Boni) und `paid` (Abschläge nach Plan − Sonderzahlungen netto), `balance = cost − paid`, `estimated` (enthält Tage nach der letzten Ablesung), `future` (Monat nach heute). Der letzte Punkt ist `projected_end_balance` |
+| `balance_path` | *(v2.16.0)* nur beim laufenden Vertrag, sonst `null`: dieselbe Rechnung als Monatsreihe vom Vertragsbeginn (seit v3.6.0 ab `balance_from`) bis zum Ende bzw. zur nächsten Abrechnung — je Monat `ym`, aufsummiert `cost` (gemessen + geschätzt + Grundpreis − Boni) und `paid` (Abschläge nach Plan − Sonderzahlungen netto), `balance = cost − paid`, `estimated` (enthält Tage nach der letzten Ablesung), `future` (Monat nach heute). Der letzte Punkt ist `projected_end_balance` |
 
 **Geänderte Werte:** `advance_paid` zählt seit v2.8.0 die Abschläge nach
 Kalender bis einschließlich des laufenden Monats (vorher nur Monate mit
@@ -578,6 +584,23 @@ special_payment_net`, `projected_end_balance = current_balance +
 estimated_cost_remaining − advance_remaining`. `actual_cost`,
 `actual_kwh_cost` und `actual_base_total` beschreiben weiterhin nur die
 gemessenen Monate.
+
+**Saldo nach der letzten gebuchten Rechnung *(v3.6.0)*:** Läuft ein
+laufender Vertrag über eine erfasste Versorgerrechnung hinaus, deren Ergebnis
+als Rück- oder Nachzahlung im Vertrag gebucht ist (Gas, Strom, Wasser,
+Fernwärme), beginnen Saldo, Kosten, Abschläge und `balance_path` am Tag nach
+dieser Rechnung. Die gebuchten Ergebnisse der Rechnungen zählen dann nicht
+mehr mit, sie gleichen den Zeitraum der Rechnung aus; Sonderzahlungen davor
+ebenso. `special_payments` und die Summen `special_*` nennen nur die
+Zahlungen, die zählen. Neues Feld (additiv):
+
+| Feld | Bedeutung |
+|---|---|
+| `balance_from` | ab wann Saldo, Kosten und Abschläge zählen: Vertragsbeginn oder der Tag nach der letzten gebuchten Rechnung des Zählers (bei einer Gruppe: ihrer Mitglieder) |
+
+Ohne gebuchte Rechnung nach Vertragsbeginn bleibt alles wie bisher. Bis v3.5
+begann der Saldo immer am Vertragsbeginn; bei einem Vertrag über mehrere
+Jahre blieb jedes Jahr ohne gebuchten Ausgleich im Saldo stehen.
 
 ### Verträge tagesgenau, Kündigungsstichtag *(v2.9.0)*
 
@@ -921,13 +944,14 @@ Hat das Verschieben etwas gebracht? Gesteuert wird außerhalb — von evcc, Home
 Assistant oder dem Speicher selbst; der Energietracker rechnet mit Verbrauch
 und Börsenpreis **je Viertelstunde** nach. Gerechnet wird nur über
 Viertelstunden, für die beides vorliegt, und nur der Börsenanteil — ohne
-Steuern, Umlagen und Netzentgelt. Schritt für Schritt:
+Steuern, Umlagen und Netzentgelt (die Hebel in `insights` rechnen seit v3.6.0
+mit Umsatzsteuer, s. u.). Schritt für Schritt:
 [Flexibilität bewerten](../anleitungen/flexibilitaet.md); Ablage der Reihen:
 [Datenmodell](datenmodell.md#viertelstundenreihen-intervalsjson-v330).
 
 | Route | Zweck | Klasse |
 |---|---|---|
-| `GET /api/flexibility?year=` | Auswertung eines Kalenderjahres | B |
+| `GET /api/flexibility?year=` | Auswertung eines Kalenderjahres; *(v3.6.0)* `&summary=1` nur die Zahl der Ergebniskarte | B |
 | `GET /api/intervals` | Index der Viertelstundenreihen | C |
 | `DELETE /api/intervals/{id}` | eine Reihe löschen | C |
 | `POST /api/market-prices/sync-smard-intervals?year=` | Börsenpreise je Viertelstunde von SMARD holen | C |
@@ -1003,6 +1027,55 @@ Beispiel Wärmepumpe 2025: (10,079 − 9,596) ct/kWh × 3.890,98 kWh ÷ 100 ≈ 
 `profile_factor` ist `null`, wenn das Börsenmittel bei 0 liegt (Betrag bis
 0,01 ct). Für Modul 3 zählen Quartal und Uhrzeit jeder Viertelstunde in
 Ortszeit; Monate ohne Vertrag mit `grid_tou` fehlen in `months`.
+
+**Was du tun kannst — `insights`** *(v3.6.0, additiv)*. Dieselbe Antwort trägt
+Ampel, Hebel und Zeitfenster (`FlexibilityInsightService`); die Oberfläche
+formatiert nur ([Flexibilität, § 4](../anleitungen/flexibilitaet.md#4-die-seite-karte-für-karte)):
+
+| Feld | Bedeutung |
+|---|---|
+| `signal` | Preissignal der Ampel: `spot` (Börsenpreis je Viertelstunde), `tou` (ohne Börsenpreise: Zeitfenster für Modul 3 am Vertrag) oder `null` |
+| `season_now` | `summer` (April–September) oder `winter` — die Jahreszeit der Handlungssätze, nach dem heutigen Datum |
+| `pattern` | je `all`, `summer`, `winter`: `week[7][24]` (Montag zuerst; je Feld `ct`, `level` `cheap`/`mid`/`expensive`), `hours[24]` (`ct`, `level`, `sun` 0–1 als Anteil der stärksten Stunde, `sun_level` `strong`/`some`/`none`), `windows[]` (die drei günstigsten Fenster der Woche: `weekday` 1–7, `from`, `to`, `ct`, `below_ct`, `below_pct`, `sun`), `day_cheap`, `day_peak` (günstigste bzw. teuerste drei Stunden des typischen Tages), `days`, `mean_ct`, `min_ct`, `max_ct`, `cheap_ct`, `expensive_ct` (Drittelgrenzen; `null` bei Modul 3, dort gelten die Stufen des Netzentgelts); `null` ohne Preise und ohne Erzeugung |
+| `levers[]` | je Gerät und Signal, größter zuerst: `kind` (`ev`, `heat_pump`, `battery`, `washer`, `dishwasher`), `meter_id`, `name`, `signal` (`spot`, `tou`, `solar`), `real` (`true` = mit dem Vertrag, wie er ist), `basis` (`measured` oder `assumed` = Beispielwert), `share`, `kwh`, `shift_kwh`, `eur` (€ im Jahr, ≥ 1; *v3.6.0* bei `spot` mit Umsatzsteuer `vat_pct`), `window` je `summer`/`winter` (`weekday` oder `null`, `from`, `to`, `ct`, `what` `cheap`/`peak`/`sun`/`low`; *v3.6.0* `plugged: true`, wenn das Fenster aus den Steckzeiten kommt — mit Steckzeiten und Sonnenstrom `null` in einer Jahreszeit, in der das Auto bei Sonne nie angesteckt ist), bei Beispielwerten `assumption`; *(v3.6.0)* `availability` (`ev`: `sessions` = Ladefenster aus den Ladevorgängen von evcc, `day` = Annahme „ganzer Ladetag“; sonst `null`), `sessions` (Zahl der Ladevorgänge im Jahr) und `session_share` (Anteil der Ladung in einem Ladefenster, 0–1), beide `null` ohne Ladevorgänge |
+| `total_eur`, `total_real_eur` | Summe des größten Hebels je Gerät; davon nur Hebel mit `real` |
+| `vat_pct` | *(v3.6.0)* Umsatzsteuer auf den Börsenpreis in Prozent: `dynamic.vat_pct` des dynamischen Angebots, ohne Angebot 19 |
+| `ev_availability` | *(v3.6.0)* Ladefenster des Autos über alle Wallboxen: `basis` (`sessions` oder `day`), `sessions`, `share` (wie oben); `null` ohne Wallbox mit Viertelstunden |
+| `summary` | *(v3.6.0)* die Zahl der Ergebniskarte, eine Regel für Seite, Bericht und Übersicht: `year`, `eur` (`total_real_eur`, wenn ≥ 1 — sonst `total_eur`), `real` (welches von beiden), `dynamic_eur` (`total_eur`, wenn `real` und um mehr als 1 € größer, sonst `null`), `vat_pct`, `measured` (gemessene Viertelstunden: Strom oder Erzeugung und Einspeisung — nur dann zeigt die Übersicht die Kachel), `action` (erster Satz mit Zeitfenster, bei `real` zuerst einer mit `real`; Felder wie `actions[]`); `null` ohne Hebel |
+| `actions[]` | je Gerät ein Satz: der größte Hebel mit `real`, sonst der größte; *(v3.6.0)* hat der mit `real` in der laufenden Jahreszeit kein Zeitfenster, der größte, wenn er eins hat; `kind`, `meter_id`, `name`, `signal`, `real`, `basis`, `eur`, `season`, `window` (laufende Jahreszeit), `other` (die andere) |
+| `solar` | mit Erzeugung und Einspeisung je Viertelstunde: `generation_kwh`, `feed_kwh`, `charged_kwh`, `self_kwh` (Erzeugung − Einspeisung), `direct_kwh`, `self_share`, `more_kwh`, `more_eur`, `self_share_after`, `more_share`, `working_ct`, `feed_ct`; sonst `null` |
+| `achieved` | aus der Nachrechnung: `profile_eur` (Vorteil der steuerbaren Zähler), `battery_eur`, `module3_eur` — je `null` ohne Daten |
+| `missing[]` | was fehlt: `prices`, `intervals`, `devices` (keine Wallbox oder Wärmepumpe mit Viertelstunden), `pv` (PV-Zähler ohne Viertelstunden), `tariff` (weder dynamisches Angebot noch Zeitfenster für Modul 3) |
+| `assumptions` | die Beispielwerte: `heat_pump_share` (0,3), `ev_share` (1), `appliances` (`washer`, `dishwasher` mit `kwh_per_cycle`, `cycles_per_week`, `hours`), `window_hours` (3) |
+
+```text
+Hebel (spot, tou)  = Σ Tage (Kosten heute − Kosten, wenn der freie Teil des Tages (share) die günstigsten
+                     Viertelstunden des Tages füllt, höchstens mit der größten gemessenen Leistung) ÷ 100
+                     — bei spot × (1 + vat_pct ÷ 100)
+Hebel (battery)    = Σ Tage (Entladen in den teuersten Viertelstunden ohne Laden, höchstens Netzbezug + Entladen
+                     des Hauses − Wert heute) ÷ 100 × (1 + vat_pct ÷ 100)
+Hebel (solar)      = verschobene kWh × (Arbeitspreis − Einspeisevergütung) ÷ 100; nur Hausanschluss und Subzähler
+Hebel (Geräte)     = Σ Tage kWh je Tag × (Mittel aller Startzeiten − bestes Fenster) ÷ 100 (spot mit USt)
+Auto (v3.6.0)      Tage → Ladefenster: je Ladevorgang aus evcc (`ev_sessions`) die Viertelstunden von `created`
+                     (Anstecken) bis `finished` (Abstecken), auch über Mitternacht; an Tagen mit Ladefenster
+                     bleibt Laden außerhalb davon, wo es ist; Tage ohne Ladevorgang wie oben
+```
+
+**Nur die Zahl der Karte — `GET /api/flexibility?summary=1`** *(v3.6.0,
+additiv)*. Antwort `{year, summary}` mit `summary` wie oben (oder `null`),
+ohne `prices`, `meters`, `battery`, `module3` und ohne die übrigen Felder von
+`insights` — die Übersicht holt so ihre Kachel „Dein Hebel“, ohne die
+Nachrechnung je Zähler. `year` wie oben, ohne Angabe das Vorjahr.
+
+```json
+{ "year": 2025,
+  "summary": { "year": 2025, "eur": 90.63, "real": true, "dynamic_eur": 250.75, "vat_pct": 19,
+               "measured": true,
+               "action": { "kind": "heat_pump", "meter_id": "m_strom_waermepumpe", "name": "Wärmepumpe",
+                           "signal": "tou", "real": true, "basis": "measured", "eur": 39.68, "season": "winter",
+                           "window": { "weekday": null, "from": 0, "to": 6, "ct": 2.4, "what": "low" },
+                           "other": { "weekday": null, "from": 0, "to": 6, "ct": 2.4, "what": "low" } } } }
+```
 
 **Reihen — `GET /api/intervals`.**
 
@@ -1111,6 +1184,93 @@ Prognose das Jahr `from` nicht erreicht. `delta_cost_12m_eur` summiert
 Heizöl, Heizwärme über ihren Energieträger); ohne Faktor (Strom, Wasser,
 Fernwärme) ist `co2_scenario` `null`, ebenso ohne Szenario. In einem Land
 ohne CO₂-Schema bleibt `delta_ct_per_kwh` `null`.
+
+### `POST /api/forecast/scenario` — Prognose-Werkstatt *(v3.6.0, F1031, additiv)*
+
+Rechnet ein Szenario zu einem Zähler oder einer Zählergruppe gegen den
+Ausgangsfall (die Prognose der nächsten zwölf Monate). **Schreibt nichts:**
+keine Schreibsperre, auch mit einem Lese-Schlüssel erlaubt. POST nur wegen
+der verschachtelten Eingaben. Anleitung und Rechenweg:
+[Was wäre wenn?](../anleitungen/was-waere-wenn.md)
+
+| Feld | Bedeutung (Standard) |
+|---|---|
+| `utility`, `meter_id` | Pflicht; Zähler oder Gruppe. Unbekannter Zähler → `404` |
+| `model` | `standard` (Prognose), `last_year`, `trend` (`standard`) |
+| `regression` | Regressionsmodell der Prognose: `linear`, `polynomial`, `robust`, `segmented`, `sigmoid` (Einstellung) |
+| `winter_pct` | Heizgradtage ± % (−50…50; 0) — nur der heizabhängige Teil |
+| `room_temp_delta` | Raumtemperatur ± K (−5…5; 0) — Heizgrenze verschoben, Heizgradtage aus Klimanormal bzw. Historie |
+| `saving_pct` | Verbrauch − % (0…80; 0) |
+| `baseload_pct` | Grundlast ± % (−80…100; 0) |
+| `ev_km`, `ev_kwh_per_100km` | E-Auto (nur Strom): km im Jahr (0…100 000) und Verbrauch (5…60, Pflicht bei km > 0) |
+| `jaz_from`, `jaz_to` | JAZ heute und im Szenario (1…8, nur beide; nur Strom mit Rolle Wärmepumpe) |
+| `measures[]` | höchstens 10: `id` (A–Z, a–z, 0–9, `_`, `-`), `kind`, `label`, `heat_pct` (0…90), `base_pct` (0…90), `cost_eur` (0…10 000 000 oder `null`), `active` (`true`) |
+| `tariff` | `{"kind":"current"}`, `{"kind":"contract","contract_id":…}` (Vertrag oder Angebot des Zählers), `{"kind":"custom","working_price_ct":…,"base_eur_month":…}`, `{"kind":"cheapest"}` |
+| `budget_eur` | mit Wert: beste Maßnahmenkombination unter diesem Budget (0…10 000 000) |
+
+Ungültig → `400` `errors.forecast.paramInvalid` mit Feld und erlaubtem
+Bereich. Arten ohne Werkstatt (Lieferungen, Einspeisung, Arten ohne Vertrag)
+antworten mit `supported: false`, zu kurze Historie mit `valid: false`,
+`reason_code: "too_few_months"`.
+
+Antwort (gekürzt):
+
+```json
+{
+  "supported": true, "valid": true, "utility": "gas", "meter_id": "m_gas_main", "unit": "kWh",
+  "model": "standard", "from": "2026-11", "to": "2027-10",
+  "months": [ { "ym": "2026-11", "base_qty": 1210.4, "scen_qty": 1302.1, "base_cost": 128.5, "scen_cost": 137.2,
+                "base_cum_cost": 128.5, "scen_cum_cost": 137.2, "advance": 130, "heat_share": 0.81,
+                "band_low": 1101.3, "band_high": 1319.5, "scen_band_low": 1184.8, "scen_band_high": 1419.4 } ],
+  "totals": { "base": { "qty": 9629.5, "cost": 915.62, "co2_kg": 1752.7 },
+              "scenario": { "qty": 10120.3, "cost": 962.1, "co2_kg": 1842.0 },
+              "delta": { "qty": 490.8, "cost": 46.48, "co2_kg": 89.3, "qty_pct": 5.1, "cost_pct": 5.1 } },
+  "band": { "level_pct": 80, "base_low": 9365, "base_high": 9893.9, "scen_low": 9842.6, "scen_high": 10398.0 },
+  "models": { "standard": { "base_qty": 9629.5, "base_cost": 915.62, "scen_qty": 10120.3, "scen_cost": 962.1 },
+              "last_year": { … }, "trend": null },
+  "advance": { "current": 130, "method": "billing_period", "months_left": 9, "base_recommended": 49, "scen_recommended": 54 },
+  "billing": { "from": "2026-01-01", "until": "2026-12-31", "as_of": "2026-10-14", "balance_so_far": -159.33,
+               "base_end_balance": -726.23, "scen_end_balance": -690.4, "months_left": 2, "beyond_horizon": false },
+  "tariff": { "kind": "current", "contract_id": null },
+  "offers": [ { "contract_id": "c_…", "computable": true, "base_cost": 867.38, "scen_cost": 905.1 } ],
+  "ranking": [ { "kind": "measure", "id": "roof", "saving_eur": 57.05, "saving_qty": 695.7, "cost_eur": 12000, "payback_years": 210.3 } ],
+  "optimization": { "budget_eur": 14000, "chosen": ["roof", "hyd"], "saving_eur": 73.21, "cost_eur": 12900,
+                    "payback_years": 176.2, "candidates": 3, "evaluated": 3, "method": "enumeration",
+                    "lp": { "bound_eur": 78.86, "budget_value_per_eur": 0.0025, "x": { "roof": 1, "win": 0.0733, "hyd": 1 } } },
+  "winter_presets": { "cold_pct": 9, "mild_pct": -9, "source": "climate_normal" },
+  "capabilities": { "heat_model": true, "room_temp": true, "tariff": true, "ev": false, "jaz": false,
+                    "billing": true, "co2": true, "band": true, "models": { "standard": true, "last_year": true, "trend": false } },
+  "basis": { "history_months": 39, "last_measured": "2026-10", "hdd_source": "climate_normal", "heat_share_year": 0.48, "co2_kg_per_unit": 0.182 },
+  "warnings": [ { "code": "trend_unavailable" } ],
+  "inputs": { … }
+}
+```
+
+- `ranking`: jede Stellschraube allein gegen den Ausgangsfall (normaler
+  Winter, laufender Vertrag), sortiert nach `saving_eur` (positiv = spart);
+  `kind` = `room_temp`, `saving`, `baseload`, `ev`, `jaz`, `tariff`, `measure`.
+- `optimization` (nur mit `budget_eur`): exakt durch Aufzählung aller
+  Kombinationen im Budget mit dem Modell; `lp` = lineare Relaxierung mit dem
+  Simplex-Löser (`bound_eur` obere Schranke, `budget_value_per_eur`
+  Schattenpreis des Budgets in € je € im Jahr).
+- `advance.method`: `billing_period` (Abschlag + Endsaldo ÷ verbleibende Monate
+  der laufenden Abrechnungsperiode) oder `year_twelfth`.
+- `billing`: Saldo am Ende der laufenden Abrechnungsperiode (positiv =
+  Nachzahlung); `null` ohne Periode. `balance_so_far` ist der Saldo der
+  Periode wie in `…/billing-periods` (Stand `as_of`). *(v3.6.0)* `rest_days`
+  (additiv): Tage nach `as_of` bis zum Monatsende, für die es weder Ablesung
+  noch Prognosemonat gibt — geschätzt mit der Tagesrate des gemessenen Teils
+  dieses Monats, Grundpreis und Abschlag tagesanteilig; vorher fehlten sie im
+  Endsaldo.
+- `warnings[].code`: `room_temp_unavailable`, `last_year_unavailable`,
+  `trend_unavailable`, `model_filled` (mit `months`), `ev_unsupported`,
+  `jaz_unsupported`, `no_heat_model`, `tariff_unsupported` (Wasser),
+  `tariff_no_price`, `no_offers`.
+
+Dazu trägt `GET …/forecast` seit v3.6.0 je Monat `heat_share` (Heizanteil aus
+dem Heizmodell oder `null`), `fixed_eur` und `unit_eur` (Kosten des Monats =
+`fixed_eur` + `unit_eur` × Menge) und auf oberster Ebene `heat_model`
+(`a`, `c`, `n`) und `hdd_base` — additiv.
 
 ### `POST /api/temperatures/sync-open-meteo` *(v2.8.0)*
 
@@ -1649,6 +1809,32 @@ Liste**; die Migration wandelt den Altwert in den undatierten Eintrag um:
   dem am jeweiligen Tag gültigen Faktor; ein Stichtag mitten im
   Ableseintervall teilt das Intervall.
 
+### Angenommene Angaben: `assumed_keys` *(v3.6.0)*
+
+`GET /api/settings`, `PATCH /api/settings` und `POST /api/settings/country`
+liefern neben den Einstellungen die Liste `assumed_keys` (additiv): Angaben,
+deren Wert nur der Standard ist, weil niemand sie eingetragen hat — heute
+`wohnflaeche_m2` und `wasser_personen_anzahl`.
+
+```json
+{ "wohnflaeche_m2": 100, "wasser_personen_anzahl": 3, …,
+  "assumed_keys": ["wohnflaeche_m2"] }
+```
+
+- Der Wert selbst bleibt der Standard; Effizienzklasse, CO₂-Stufe,
+  Wasser-Spar-Index und Jahresbericht rechnen damit wie bisher. Nur die
+  Einordnung (`GET /api/benchmarks/comparison`) wartet auf den Eintrag.
+  Wo die angenommene Fläche einfließt, sagt es die Antwort mit
+  `area_assumed: true`: `GET /api/benchmarks/efficiency`, `GET /api/co2-split`
+  und `per_m2` in `GET /api/co2-costs` (dort zählt zuerst die Fläche im
+  Mietverhältnis).
+- Eingetragen heißt: `settings.json` trägt den Schlüssel — gespeichert per
+  `PATCH`, aus einem Backup oder einem Beispielhaushalt, auch mit einem Wert
+  gleich dem Standard. `PATCH` mit `null` oder `""` nimmt die Angabe zurück
+  (der Schlüssel verschwindet aus `settings.json`).
+- `assumed_keys` ist keine Einstellung: In einem `PATCH` steht der Schlüssel
+  unter `ignored_keys`.
+
 ### Länderprofil: `country`, `currency`, `timezone`, `gas_cv_unit` *(v2.7.0, additiv)*
 
 Vier neue Einstellungen, Defaults = bisheriges Verhalten (`DE`, `EUR`,
@@ -1995,7 +2181,7 @@ Schattenverträge zählen nicht):
 | `fixed_cost` | feste Kosten: Grundpreis, bei Fernwärme dazu Leistungs- und Messpreis ([Verträge](#verträge-fernwärme-fixkosten-warnings-v310-additiv)) |
 | `fixed_days` | Tage, über die die festen Kosten laufen |
 | `contract_id` | der Vertrag des Abschnitts |
-| `tw_m3`, `tw_cost`, `sw_m3`, `sw_cost`, `nw_cost` | nur Wasser: Trinkwasser (Arbeits- und Grundpreis), Schmutzwasser (nur mit Basis Trinkwasser, sonst `null` — ein eigener Zähler wird nicht nachgebildet) und Niederschlagswasser. `energy_cost` = Trink- + Schmutzwasser je m³, `fixed_cost` = Grundpreis + Niederschlagswasser |
+| `tw_m3`, `tw_cost`, `sw_m3`, `sw_cost`, `nw_cost` | nur Wasser: Trinkwasser (Arbeits- und Grundpreis), Schmutzwasser und Niederschlagswasser. Die Schmutzwassermenge folgt der Basis des Vertrags: Trinkwasser, ein eigener Zähler (`separater_zaehler`) oder Trinkwasser abzüglich der Abzugszähler (`trinkwasser_minus_abzug`) — deren Menge im selben Abschnitt, tagesgenau *(seit v3.6.0; bis v3.5 nur mit Basis Trinkwasser, sonst `null`)*. `energy_cost` = Trink- + Schmutzwasser je m³, `fixed_cost` = Grundpreis + Niederschlagswasser |
 
 `totals` additiv: `energy_cost`, `fixed_cost`, `bonus` (Boni mit Gutschrift im
 Zeitraum), `total` (= `energy_cost + fixed_cost − bonus`) und `price_missing`
@@ -2022,6 +2208,64 @@ Zeitraum), `total` (= `energy_cost + fixed_cost − bonus`) und `price_missing`
 Die Werte der Versorgerrechnung selbst hält der Topf `<art>/bills.json`
 fest; den Vergleich liefert `GET …/bills/{id}/check`
 ([Versorgerrechnungen](#versorgerrechnungen-v310)).
+
+### Abrechnungsperioden *(v3.6.0)*
+
+`GET /api/utility/{u}/meters/{id}/billing-periods` (auch
+`…/meter-groups/{id}/…` und `/api/utility/{u}/billing-periods` für die ganze
+Art) — F1030, GitHub #33. Nur Arten mit Rechnungsprüfung, sonst `400`
+`errors.billCheck.unsupportedUtility`. Die eine Quelle für Verbrauchsart,
+Übersicht und Analyse im Abrechnungsjahr, den Anhang „Abrechnungsjahre“ und
+`monthly.csv?period=billing` (`BillingPeriodService`).
+
+Perioden, aufsteigend: zuerst die erfassten **Versorgerrechnungen**
+(`period_from` bis `period_to`, auch kürzer oder länger als ein Jahr;
+überlappt eine Rechnung eine frühere, gilt die frühere). Davor, dazwischen und
+danach der **Stichtag** der Art (`billing_cycle_anchor_<art>`, 29.02. wirkt
+als 28.02.): Eine Lücke wird an den Stichtagen geteilt, die laufende Periode
+beginnt am Tag nach der letzten Rechnung und endet am Tag vor dem nächsten
+Stichtag. Die erste Periode beginnt mit der ersten Ablesung bzw. einer
+wirksamen Analyse-Zäsur; davor gibt es keine. *(v3.6.0, Nachtrag)* Ein
+**Lieferantenwechsel** ohne erfasste Rechnung teilt eine Stichtag-Periode: Sie
+endet am letzten Tag beim alten Versorger, die nächste beginnt mit dem
+Folgevertrag. Wechsel heißt: Folgevertrag eines anderen Versorgers (Anbieter,
+sonst Tarifname, ohne Groß/klein) oder desselben erst nach einer Lücke, wenn
+sich der alte nicht verlängert (`auto_renews: false`) — dieselbe Regel, nach
+der „Abrechnung erwartet“ eine Schlussrechnung erwartet. Eine Lücke ohne
+Vertrag ist eine eigene Teilperiode; ein Vertrag, der sich verlängert, läuft
+bis zum Tag vor dem Folgevertrag. Bei mehreren Zählern (ganze Art, Gruppe)
+schneiden die Wechsel aller Zähler, wie ihre Rechnungen. Den Abschlag eines
+Monats mit zwei Verträgen zählt jede Periode (und `…/bills/{id}/check`) je
+Vertrag nach dessen Tagen.
+
+| Feld | Bedeutung |
+|---|---|
+| `anchor` | Stichtag der Art (MM-TT) |
+| `suggested_anchor` | Tag nach dem Ende der letzten Rechnung (MM-TT), wenn er vom Stichtag abweicht; sonst `null` |
+| `data_from`, `measured_until` | erste und letzte Ablesung |
+| `unit_key` | `kwh` oder `m3` (Wasser) |
+| `periods[].from`, `until` | Zeitraum, `until` einschließlich |
+| `periods[].source`, `bill_id` | `bill` (mit ID der Rechnung) oder `anchor` |
+| `periods[].complete`, `running` | ganze, abgeschlossene Periode mit Daten ab Beginn bzw. läuft noch; eine Periode bis zu einem Wechsel bzw. ab einem Folgevertrag gilt als ganz |
+| `periods[].ends_at_switch` | *(v3.6.0, additiv)* `true`, wenn die Periode am letzten Tag beim alten Versorger endet (Lieferantenwechsel) |
+| `periods[].label` | „2025“ (Kalenderjahr) oder „2025/26“ für ein ganzes Jahr, sonst `null` (die App nennt dann die Daten) |
+| `periods[].as_of`, `days` | gerechnet bis zur letzten Ablesung in der Periode; Tage bis dahin |
+| `periods[].kwh` bzw. `m3` (Gas beide), `energy_cost`, `fixed_cost`, `bonus`, `cost` | wie `bill-check` (`cost` = `total`) |
+| `periods[].advances` | Abschläge tagesanteilig aus der Monatsreihe (wie `…/bills/{id}/check`) |
+| `periods[].special` | Sonderzahlungen mit Datum in der Periode: `extra_advances`, `refunds`, `surcharges` |
+| `periods[].balance` | `cost − advances − extra_advances`; positiv = Nachzahlung. Rück- und Nachzahlungen gleichen eine frühere Abrechnung aus und zählen nicht mit |
+| `periods[].invoice` | nur bei `bill`: `amount_eur`, `advances_paid_eur`, `result_eur`, `energy_kwh` bzw. `volume_m3` der Rechnung |
+| `periods[].months[]` | nur mit `?months=1`: Kalendermonate, erster und letzter als Teilmonat (`ym`, `from`, `until`, `days`, Menge, `cost`, `kwh_cost`, `base_price_eur`, `bonus_eur`, `advance_eur`, `co2_kg`) |
+
+Subzähler zählen in der ganzen Art nicht mit (sie stecken im Elternzähler),
+eine Gruppe ist die Summe ihrer Mitglieder; feste Kosten und Abschläge eines
+Gruppenvertrags trägt das erste Mitglied.
+
+`monthly.csv?period=billing` (auch mit `format=local`): Spalten Von, Bis,
+Grundlage, Tage, Verbrauch, Kosten, Abschläge, zusätzliche
+Abschlagszahlungen, Saldo, vollständig; Dateiname `…-abrechnungsjahre-…`.
+Ein anderer Wert für `period` als `calendar` oder `billing` ist `400`
+`errors.export.periodInvalid`.
 
 ### Versorgerrechnungen *(v3.1.0)*
 
@@ -2153,7 +2397,7 @@ Heizöl und Fernwärme steckt (CALC-27). Ein **Ausweis, kein Aufschlag**:
 | `approx` | `true` bei Heizwärme mit gerechnetem Wert — gezählt wird die Wärme, nicht der Brennstoff |
 | `coverage_days` | Tage des Jahres mit Verbrauchsdaten |
 | `total` | Summen aller Zeilen, `null` ohne Zeile |
-| `per_m2` | Emissionen je m² Wohnfläche (auf eine Nachkommastelle) mit `stage` (1–10) und `landlord_share_pct` nach der Anlage zum CO2KostAufG; Fläche aus dem Mietverhältnis des Jahres (bei `wohnverhaeltnis: miete`), sonst `wohnflaeche_m2`. `null` ohne Zeilen oder Fläche |
+| `per_m2` | Emissionen je m² Wohnfläche (auf eine Nachkommastelle) mit `stage` (1–10) und `landlord_share_pct` nach der Anlage zum CO2KostAufG; Fläche aus dem Mietverhältnis des Jahres (bei `wohnverhaeltnis: miete`), sonst `wohnflaeche_m2`. `null` ohne Zeilen oder Fläche. *(v3.6.0)* `area_assumed`: die Fläche ist nur der Standard (nirgends eingetragen) |
 | `price` | `{eur_t, assumed}` |
 | `vat` | Regelsatz der Umsatzsteuer auf den CO₂-Preis (`0.19`); den je Zeile angewandten Satz nennt `rows[].vat` |
 
@@ -2190,6 +2434,7 @@ Fall bestimmt die App:
 |---|---|
 | `case` | `self_supplied`, `central` oder `null` (keine Gas- oder Heizöldaten und keine CO₂-Angaben; dann `note`) |
 | `tenancy_id`, `area_m2` | das Mietverhältnis des Jahres (das jüngste) und seine Wohnfläche (`wohnflaeche_m2`, sonst die Einstellung; `null` ohne) |
+| `area_assumed` | *(v3.6.0)* `true`, wenn die Fläche im Mietverhältnis leer und die Wohnfläche nie eingetragen ist — gerechnet wird weiter mit dem Standard (100 m²), die Oberfläche bittet ums Eintragen ([Angenommene Angaben](#angenommene-angaben-assumed_keys-v360)) |
 | `emissions_kg`, `kg_per_m2`, `stage`, `landlord_share_pct` | Emissionen, je m² (eine Nachkommastelle), Stufe und Anteil des Vermieters |
 | `co2_cost_eur`, `landlord_amount_eur` | CO₂-Kosten des Jahres und der Betrag des Vermieters |
 | `source` | `self_supplied`: die Quellen der Zeilen aus `/api/co2-costs`, mit Komma verbunden (etwa `bill` oder `bill,computed`); `central`: `statement` |
@@ -2311,6 +2556,10 @@ kombiniertem Heizbetrieb sinnvoll, `note` weist darauf hin). Die
 Top-Level-Felder sind rückwärtskompatible Aliase und spiegeln seit
 v1.4.0 die **primäre** Quelle.
 
+*(v3.6.0)* `area_assumed`: `true`, wenn `wohnflaeche_m2` nur der Standard ist
+(nie eingetragen). Kennzahl und Klasse rechnen weiter damit; die Übersicht und
+der Jahresbericht sagen „angenommene Wohnfläche“ und bitten ums Eintragen.
+
 *(v2.7.0)* `scale` nennt die Effizienzskala des eingestellten Landes —
 heute nur `geg` (Deutschland). Für andere Länder ist `scale` `null`, alle
 `class`-Felder sind `null`, und `scale_note` erklärt den Grund; die
@@ -2361,10 +2610,14 @@ App bewusst nicht mit — ihre Nutzung verlangt eine schriftliche Genehmigung
 ```json
 { "year": 2025, "supported": true, "source": "Stromspiegel 2025",
   "strom": { "kwh": 2950, "complete": true, "own_value": 2800, "delta_pct": 5.4,
+             "rating": "near",
              "persons": 2, "building": "house", "dhw_electric": false,
              "special_household": true },
   "heating": [ { "utility": "gas", "kwh_per_m2": 118.4, "weather_adjusted": true,
-                 "complete": true, "own_value": 130, "delta_pct": -8.9 } ],
+                 "complete": true, "own_value": 130, "delta_pct": -8.9, "rating": "good" } ],
+  "water": { "m3": 88.0, "complete": true, "persons": 2, "reference_l": 122,
+             "liters_per_person_day": 121, "index": 99, "delta_pct": -1.0, "rating": "good" },
+  "missing": [],
   "area_m2": 120,
   "links": { "stromspiegel": "https://www.stromspiegel.de/",
              "heizspiegel": "https://www.heizspiegel.de/" } }
@@ -2378,8 +2631,11 @@ App bewusst nicht mit — ihre Nutzung verlangt eine schriftliche Genehmigung
 | `heating[]` | je Heizart (Gas, Heizöl, Pellets, Fernwärme, Heizwärme) kWh je m² Wohnfläche, witterungsbereinigt, wo es das Heizmodell gibt (`weather_adjusted`) |
 | `complete` | alle zwölf Monate mit Werten; nur dann gibt es `delta_pct` |
 | `own_value`, `delta_pct` | der eigene Vergleichswert (`reference_strom_kwh` bzw. `reference_heat_kwh_m2`) und die Abweichung in % |
+| `rating` | *(v3.6.0)* Ampel: `good` am oder unter dem Vergleichswert, `near` bis 10 % darüber, `high` mehr; `null` ohne `delta_pct` |
+| `water` | *(v3.6.0)* Wasser der Hauptzähler im Jahr gegen den Richtwert: `liters_per_person_day` = m³ × 1000 / Tage / `persons` (`wasser_personen_anzahl`), `index` = Liter / `reference_l` (`wasser_personen_referenz`) × 100, `delta_pct` = `index` − 100; `rating` nach den Bändern des Wasser-Spar-Index (`good` bis `wasser_sparindex_gut`, `high` ab `wasser_sparindex_warnung`), nur im vollen Jahr; `null` ohne Werte im Jahr oder ohne aktive Verbrauchsart Wasser |
+| `missing` | *(v3.6.0)* Einstellungen, die eine Einordnung erst möglich machen, in der Reihenfolge der Einladung auf der Übersicht: `reference_strom_kwh`, `wohnflaeche_m2` (vor `reference_heat_kwh_m2`), `wasser_personen_anzahl` (vor `wasser_personen_referenz`). Wohnfläche und Personen fehlen, bis jemand sie eingetragen hat — der Standard (100 m², 2 Personen) zählt nicht; dann gibt es keine Zeile `heating[]`, `water.persons` ist `0` und `area_m2` `null` ([Angenommene Angaben](#angenommene-angaben-assumed_keys-v360)) |
 | `source` | `reference_source`, sonst `null` |
-| `links` | die Seiten zur Selbstprüfung — nur für das Land Deutschland, sonst leer |
+| `links` | die Seiten zur Selbstprüfung — nur für das Land Deutschland, sonst leer; die Übersicht zeigt sie seit v3.6.0 nicht mehr |
 
 ### Jahresarbeitszahl der Wärmepumpe *(v3.1.0)*
 
@@ -2617,6 +2873,8 @@ Parameter (für beide Routen):
 | `lang` | Sprache des Berichts (`de`, `en`, `fr`, `it`, `es`, `pt`, `nl`), wie bei `/api/manifest`; eine unbekannte fällt still auf die Sprache der Anfrage zurück. Die Oberfläche hängt die Sprache des Geräts an den PDF-Link |
 | `utilities` | Teilbericht: kommagetrennte Verbrauchsarten (`gas,wasser`); eine unbekannte → `400` mit `code` `errors.common.unknownUtility`. Der Dateiname bekommt die Arten angehängt (`energietracker-2025-gas-wasser.pdf`) |
 | `detail` | `1` = mit Anhang „Zahlen im Detail“ (eine Monatstabelle je Verbrauchsart; Temperatur und Gradtage nur bei Heizarten) |
+| `billing` | *(v3.6.0)* `1` = mit Anhang „Abrechnungsjahre“: je Art mit Rechnungsprüfung die Perioden, die im Berichtsjahr enden ([Abrechnungsperioden](#abrechnungsperioden-v360)); die übrigen Seiten bleiben Kalenderjahr |
+| `flex` | *(v3.6.0)* `1` = mit Seite „Flexibilität“: Ergebnis, Handlungssätze, typischer Tag je Halbjahr, beste Zeitfenster, „Dein Hebel“, Sonnenstrom ([Flexibilität](#flexibilität-bewerten-v330)); ohne Ampel und ohne Hebel entfällt sie |
 
 ### `GET /api/reports/yearly?year=YYYY` *(v3.1.0)*
 
@@ -2647,11 +2905,13 @@ bis v3.3. Felder:
 | `headline` | `tiles[]` (`key`, `label`, `value`, `value_text`, `pct`, `sub`, `spark` über drei Jahre), `lights[]` (`key` cost/consumption/billing/deadlines, `level` ok/warn/alert/none, `word`, `detail`, `as_of_today`), `top_tasks[]` |
 | `tasks[]`, `successes[]`, `infos[]` | je Eintrag `id`, `kind`, `rule`, `priority` (1–3, nur Aufgaben), `utility`, `title`, `reason`, `euro` (`value`, `per` year/once/per100, `basis` measured/projected/example, `effect`, `text`, `basis_text`) oder `null`, `deadline`, `deadline_text`, `steps[]`, `as_of_today` |
 | `agenda` | `events[]` (`date`, `date_text`, `title`, `kind`, `severity`, `days`, `state`), `timelines[]` je laufendem Vertrag (`points[]`, `sentence`, `explainer`) |
-| `money` | `total` (`cost`, `prev`, `pct`, `price_effect`, `volume_effect`, `sentence`), `by_utility[]`, `revenue[]`, `monthly[]` (mit Vorjahr), `bonus_notes[]`, `balances[]` je Vertrag (`projected_end_balance`, `current_advance`, `suggested_advance` — `null`, wenn der Vorschlag ≤ 0 wäre —, `text`, `advance_text`, `path[]`, `explainer`), `forecast`; `null` ohne Kosten |
-| `pages[]` | je Verbrauchsart: `value`, `prev_value`, `pct`, `months[]` (mit `prev`, `estimated`), `sentence`, `cost` (`basis` contract/tenancy/none, `value`, `text`), `weather`, `efficiency`, `roles`, `water`, `tank`, `sub_meters[]`, `notes[]`, `weather_rows[]` |
+| `money` | `total` (`cost`, `prev`, `pct`, `price_effect`, `volume_effect`, `sentence` — wie die Kachel „Kosten“: Arten mit Vertrag, seit v3.6.0 auch Heizöl und Pellets aus den Lieferungen), `by_utility[]`, `revenue[]`, `monthly[]` (mit Vorjahr), `bonus_notes[]`, `balances[]` je Vertrag (`projected_end_balance`, `current_advance`, `suggested_advance` — `null`, wenn der Vorschlag ≤ 0 wäre —, `text`, `advance_text`, `path[]`, `explainer`), `forecast`; `null` ohne Kosten |
+| `pages[]` | je Verbrauchsart: `value`, `prev_value`, `pct`, `months[]` (mit `prev`, `estimated`), `sentence`, `cost` (`basis` contract/deliveries *(v3.6.0: Heizöl, Pellets)*/tenancy/none, `value`, `text`), `weather`, `efficiency`, `roles`, `water`, `tank`, `sub_meters[]`, `notes[]`, `weather_rows[]` |
 | `topics` | `pv`, `heat_pump`, `ev`, `flexibility`, `tenancy` — je `null`, wenn es keine Daten gibt |
 | `glossary[]`, `sources[]` | Wörterbuch (nur Begriffe, die vorkommen) und Quellen |
 | `appendix[]` | nur mit `detail=1`: je Verbrauchsart `head[]`, `rows[]`, `total[]`, `notes[]` |
+| `billing[]` | *(v3.6.0)* mit `detail=1` oder `billing=1`: Anhang „Abrechnungsjahre“ je Art mit Rechnungsprüfung, dieselbe Form; Perioden, die im Berichtsjahr enden. Das PDF zeigt ihn nur mit `billing=1` (`options.billing`) |
+| `flex_page` | *(v3.6.0)* mit `detail=1` oder `flex=1`: Seite „Flexibilität“ als fertige Sätze — `big`, `sentence`, `facts[]` (`label`, `value`), `footer`, `actions[]` (`text`, `tag`, `other`, `signal`), `actions_lead`, `bands[]` je Halbjahr (`season`, `label`, `hours[]` mit `level`, `sun`, `ct`, `summary`), `band_lead`, `band_lead_pdf`, `windows` (`lead`, `head[]`, `rows[]`), `levers` (`head[]`, `rows[]` mit `label`, `signal`, `real`, `real_text`, `kwh`, `eur`, `total`, `dynamic_note`), `solar_text`, `notes[]`, `legend[]`; `null` ohne Ampel und ohne Hebel. Das PDF zeigt sie nur mit `flex=1` (`options.flex`), die Druckansicht mit `flex=1` in ihrer Adresse |
 | `errors[]` | Sektionen, die nicht gelesen werden konnten — der Rest des Berichts steht |
 
 ### Ladestrom-Nachweis *(v3.1.0)*
@@ -2902,7 +3162,7 @@ selbst; weiterlaufende und unbefristete Verträge haben kein `cancel_by` mehr
 **Zuständig *(v3.5.0, F1028)*.** Jedes Ereignis trägt additiv `assignee`,
 `assignee_id` und `assignee_former` — bei Terminen die Zuständigkeit
 ([Zuständig an Terminen](#zuständig-an-terminen-v350)), sonst `null`, `null`,
-`false`.
+`false`; *(v3.6.0)* dazu `assignee_deleted` (Person gelöscht, Name bleibt).
 
 #### Abrechnung erwartet *(v3.5.0)*
 
@@ -3237,26 +3497,84 @@ Verträge nicht. Benachrichtigt wird niemand.
 | Feld | Bedeutung |
 |---|---|
 | `assignee` | Anzeigename, getrimmt, bis 60 Zeichen, ohne Steuerzeichen; leer bzw. fehlend = niemand |
-| `assignee_id` | Personen-ID aus `auth.json` ([Personen](#personen-im-haushalt-v320)), nur wenn aus der Personenliste gewählt; dann gilt der heutige Name der Person |
+| `assignee_id` | Personen-ID ([Personen](#personen-im-haushalt-v320), [Verzeichnis](#personenverzeichnis-v360)), nur wenn aus der Personenliste gewählt; dann gilt der heutige Name der Person — bei einem erledigten einmaligen Termin der Name beim Erledigen |
 | `assignee_former` | `true`, nachdem die Person gelöscht und ihr Name ersetzt wurde („ehemalige Person“) |
+| `assignee_deleted` | *(v3.6.0)* `true`: Die Person ist gelöscht (Vermerk am Termin oder laut Verzeichnis); Name und ID bleiben, die Oberfläche zeigt „Name (gelöscht)“, der Kalender ebenso |
 
-`GET /api/reminders` liefert alle drei immer (`null`, `null`, `false` ohne
-Zuständigkeit). `POST`/`PATCH /api/reminders…` nehmen `assignee` und
+`GET /api/reminders` liefert alle vier immer (`null`, `null`, `false`,
+`false` ohne Zuständigkeit). `POST`/`PATCH /api/reminders…` nehmen `assignee` und
 `assignee_id`: Eine bekannte `assignee_id` setzt den Namen der Person,
 `assignee` ohne `assignee_id` ist ein freier Name, beides leer = niemand; ein
 `PATCH` ohne die Felder ändert die Zuständigkeit nicht. Fehler `400`
 `errors.reminder.assigneeInvalid` (zu lang, Steuerzeichen, kein Text) bzw.
-`errors.reminder.assigneeUnknown` (unbekannte Person). Erledigen
-(`…/done`) lässt die Zuständigkeit stehen; der Verlaufseintrag nennt sie.
+`errors.reminder.assigneeUnknown` (unbekannte oder seit v3.6.0 gelöschte
+Person). Erledigen (`…/done`) lässt die Zuständigkeit stehen; der
+Verlaufseintrag nennt sie.
 
-**Person gelöscht** (`DELETE /api/users/{id}`): Ihre `assignee_id`
-verschwindet von den Terminen, der Name bleibt als freier Name; mit
-`?anonymize_activity=1` wird er durch `assignee_former: true` ersetzt — an den
-Terminen und im Verlauf.
+**Person gelöscht** (`DELETE /api/users/{id}`), *v3.6.0* — bis v3.5.0
+verschwand nur die `assignee_id`, der Name blieb als freier Name: **Offene**
+Termine (aktiv; per ID oder mit gleichem freiem Namen ohne ID) gehen an die
+löschende Person. **Erledigte** behalten Name und ID mit
+`assignee_deleted: true`, mit `?anonymize_activity=1` stattdessen
+`assignee_former: true`. Löscht ein API-Schlüssel (keine Person), bleiben auch
+offene Termine mit `assignee_deleted: true` stehen. Im Verlauf bekommen `by`,
+`undone.by` und `assignee` der Person `deleted: true` (bzw. mit
+`anonymize_activity` wie bisher `former: true`).
 
 **Personenliste:** `GET /api/people` → `[{id, name}]` für jede angemeldete Rolle
-(die volle Liste `GET /api/users` bleibt Verwaltern), ohne Anmeldung `[]`. Der
-Verwalter aus der Zeit vor v3.2 zählt erst, wenn er eingetragen ist.
+(die volle Liste `GET /api/users` bleibt Verwaltern). Seit v3.6.0 aus dem
+Personenverzeichnis, ohne gelöschte, und auch ohne Anmeldung. Der Verwalter
+aus der Zeit vor v3.2 zählt erst, wenn er eingetragen ist.
+
+### Personenverzeichnis *(v3.6.0)*
+
+Jede Person bekommt eine **fortlaufende Nummer** `no`, die nie wieder
+vergeben wird; gelöschte Personen bleiben im Verzeichnis vermerkt
+(`data/people.json`, Topf `people` im Backup, ohne Passwörter —
+[Datenmodell](datenmodell.md#personenverzeichnis-peoplejson-v360)). Die ID
+bleibt die des Zugangs (`u_…`). Bestehende Zugänge bekommen ihre Nummer beim
+ersten Lesen. Ein neuer Zugang mit dem Namen einer Person ohne Zugang (etwa
+aus einem Backup) übernimmt deren ID und Nummer.
+
+**Personen ohne Zugang** (aus Backup oder Beispielhaushalt) liefert
+`GET /api/users` hinter den Zugängen mit `has_account: false` und
+`source: "none"`. `GET …/handover` und `DELETE /api/users/{id}` gelten auch
+für sie (nur das Verzeichnis, `auth.json` bleibt unberührt), ebenso
+`PATCH /api/users/{id}` mit `{name?, role?}` — dieselben
+Regeln wie bei einem Zugang (Name 1–40 Zeichen, `400` `errors.users.nameInvalid`;
+eindeutig unter allen Personen und Zugängen, Groß/klein egal, sonst `409`
+`errors.users.nameTaken` bzw. `errors.users.nameTakenPerson`, wenn eine Person
+ohne Zugang den Namen trägt; Rolle `admin` oder `member`, sonst `400`
+`errors.users.roleInvalid`), ein Passwort `400` `errors.users.noAccountPassword`
+(dafür einen Zugang anlegen). Antwort wie ein Eintrag in `GET /api/users`
+(`has_account: false`). Offene Termine zeigen danach den neuen Namen (sie lesen
+ihn über `assignee_id`); erledigte Termine und der Verlauf behalten den Namen
+vom Erledigen. Eine gelöschte Person lässt sich nicht mehr ändern (`404`).
+
+**Namen sind über alle Personen eindeutig** (Zugänge und Personen ohne Zugang;
+gelöschte zählen nicht). Benennt `PATCH /api/users/{id}` einen Zugang auf den
+Namen einer Person ohne Zugang um, antwortet die App `409`
+`errors.users.nameTakenPerson`. `POST /api/users` mit diesem Namen ist kein
+Konflikt: Der neue Zugang übernimmt ID und Nummer der Person (wie bisher).
+Ohne Anmeldung sind alle `/api/users`-Routen erreichbar wie jede
+Einstellung; `to` ist dann `null`, offene Termine bleiben mit
+`assignee_deleted: true`.
+
+`GET /api/users/{id}/handover` (nur Verwalter) für den Dialog:
+
+```json
+{ "person": { "id": "u_8b0d4f17", "name": "Kim", "no": 2, "has_account": true },
+  "to": { "id": "u_3f9a1c2e", "name": "Alex" },
+  "open": 1, "done": 3 }
+```
+
+`open` = offene Termine, die übergehen; `done` = Einträge im Verlauf, in
+denen die Person vorkommt; `to` = die anfragende Person (mit einem
+API-Schlüssel `null`). `DELETE /api/users/{id}` antwortet zusätzlich mit
+`handed_over` (übergebene Termine), `handed_over_to` (`{id, name}` oder
+`null`) und `kept` (Termine, die mit Vermerk stehen bleiben). Unbekannte
+Person `404` `errors.users.notFound`; ein Mitglied `403`
+`errors.auth.adminOnly`.
 
 ### Belege und Texterkennung *(v3.1.0)*
 
@@ -3624,7 +3942,9 @@ Klartext zurückgegeben. Seit v2.6.0 nennt `GET` zusätzlich `last_used_at`
 Mit eingeschalteter Anmeldung kann jede Person des Haushalts ein eigenes Konto
 haben: eigene Anmeldung, eigene Nutzungsstufe und Sprache. Die Daten des
 Haushalts teilen sich alle. Personen stehen in `data/auth.json`, nicht im
-Backup, ohne Schemaschritt ([Datenmodell](datenmodell.md#personen-in-authjson-v320)).
+Backup, ohne Schemaschritt ([Datenmodell](datenmodell.md#personen-in-authjson-v320));
+seit v3.6.0 dazu im [Personenverzeichnis](#personenverzeichnis-v360), das ins
+Backup gehört.
 Anleitung: [Benutzer im Haushalt](../anleitungen/benutzer.md).
 
 | Rolle | `role` | darf |
@@ -3683,6 +4003,7 @@ Passwort-Hash:
 | `source` | `password` (Anmeldung in der App) oder `proxy` (vom vorgeschalteten Dienst) |
 | `prefs` | eigene Einstellungen, nur die gesetzten: `ui_level` (`beginner`, `advanced`, `expert`) und `language`. Ohne eigene Stufe gilt die der Installation, ohne eigene Sprache die des Geräts bzw. der Installation |
 | `created_at` | angelegt (ISO 8601) |
+| `no` | *(v3.6.0, nur `GET`/`POST /api/users`)* fortlaufende Nummer aus dem [Personenverzeichnis](#personenverzeichnis-v360) |
 
 **`GET /api/session`** nennt seit v3.2.0 zusätzlich:
 
@@ -3716,7 +4037,8 @@ gilt für die ganze Installation, nicht je Person. Außerhalb des Modus
 | `GET /api/users` | — | Liste der Personen, samt `u_admin`, solange es ihn gibt | — |
 | `POST /api/users` | `{name, password, role?}`; `role` Standard `member` | `201` mit der Person (`source: "password"`) | `400` `errors.users.nameInvalid`, `errors.users.roleInvalid`, `errors.auth.passwordTooShort`; `409` `errors.users.nameTaken` |
 | `PATCH /api/users/{id}` | `{name?, role?, password?}`, jedes Feld für sich; das Passwort ohne das bisherige („Passwort neu setzen“) | die geänderte Person | `404` `errors.users.notFound`; `400` wie beim Anlegen; `409` `errors.users.nameTaken`, `errors.users.lastAdmin` (der letzte Verwalter würde Mitglied), `errors.auth.passwordFixed` |
-| `DELETE /api/users/{id}` | — ; *(v3.4.0)* `?anonymize_activity=1` ersetzt den Namen im Verlauf durch „ehemalige Person“ | `{deleted: true, activity_anonymized}` | `400` `errors.users.notSelf` (die eigene Person); `404` `errors.users.notFound`; `409` `errors.users.lastAdmin`, `errors.auth.passwordFixed` (`u_admin` bei `ET_ADMIN_PASSWORD_HASH`) |
+| `GET /api/users/{id}/handover` | — *(v3.6.0)* | `{person, to, open, done}` ([Personenverzeichnis](#personenverzeichnis-v360)) | `404` `errors.users.notFound` |
+| `DELETE /api/users/{id}` | — ; *(v3.4.0)* `?anonymize_activity=1` ersetzt den Namen im Verlauf durch „ehemalige Person“ | `{deleted: true, activity_anonymized}`; *(v3.6.0)* dazu `handed_over`, `handed_over_to`, `kept` | `400` `errors.users.notSelf` (die eigene Person); `404` `errors.users.notFound`; `409` `errors.users.lastAdmin`, `errors.auth.passwordFixed` (`u_admin` bei `ET_ADMIN_PASSWORD_HASH`) |
 
 Eine gelöschte Person ist sofort abgemeldet: Ihr Sitzungs-Cookie gilt nicht
 mehr. Ein neues Passwort — selbst geändert oder vom Verwalter neu gesetzt —

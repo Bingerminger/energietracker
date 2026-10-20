@@ -73,13 +73,74 @@ final class ReportModelService
         private ?ForecastService $forecasts = null,
     ) {}
 
+    /** v3.6.0 (F1030) — Abrechnungsperioden (nachträglich: entsteht nach BillService). */
+    private ?BillingPeriodService $billing = null;
+
+    public function attachBillingPeriods(BillingPeriodService $billing): void
+    {
+        $this->billing = $billing;
+    }
+
+    /** v3.6.0 — Seite „Flexibilität“ (Ampel, Hebel, Zeitfenster); nachträglich wie die Abrechnungsperioden. */
+    private ?FlexibilityInsightService $flexInsights = null;
+    /** Auswertung des Berichtsjahres aus flexFacts(), für die Seite wiederverwendet. */
+    private ?array $flexAnalysis = null;
+
+    public function attachFlexInsights(FlexibilityInsightService $insights): void
+    {
+        $this->flexInsights = $insights;
+    }
+
     /**
-     * @param array{utilities?:?list<string>,detail?:bool,today?:string} $opts
+     * v3.6.0 (F1030, #33) — je Art mit Rechnungsprüfung eine Tabelle der
+     * Abrechnungsperioden, die im Berichtsjahr enden (Rechnungsjahr = Jahr des
+     * Periodenendes, wie Co2SplitService): Periode, Grundlage, Menge, Kosten,
+     * Abschläge, Saldo. Die übrigen Seiten bleiben Kalenderjahr — artübergreifende
+     * Summen passten sonst nicht zusammen.
+     *
+     * @return list<array<string,mixed>>
+     */
+    private function billingSection(array $utilities): array
+    {
+        $out = [];
+        $nf = fn(float $v, int $d) => $this->i18n->number($v, $d);
+        foreach ($utilities as $u) {
+            if (!Utilities::supportsBillCheck($u)) continue;
+            $data = $this->billing->forUtility($u, false, $this->today);
+            $qk = (string)$data['unit_key']; $dec = $this->decimals($u);
+            $rows = []; $sum = ['q' => 0.0, 'cost' => 0.0, 'adv' => 0.0, 'bal' => 0.0];
+            $running = false; $partial = false;
+            foreach ($data['periods'] as $p) {
+                if ((int)substr((string)$p['until'], 0, 4) !== $this->year) continue;
+                $name = $p['label'] ?? ($this->i18n->date((string)$p['from']) . '–' . $this->i18n->date((string)$p['until']));
+                if (!empty($p['running'])) { $name .= ' *'; $running = true; }
+                elseif (empty($p['complete'])) { $name .= ' †'; $partial = true; }
+                $rows[] = [$name, $this->i18n->t($p['source'] === 'bill' ? 'report.billing.sourceBill' : 'report.billing.sourceAnchor'),
+                           $nf((float)($p[$qk] ?? 0), $dec), $nf((float)$p['cost'], 2), $nf((float)$p['advances'], 2), $nf((float)$p['balance'], 2)];
+                $sum['q'] += (float)($p[$qk] ?? 0); $sum['cost'] += (float)$p['cost'];
+                $sum['adv'] += (float)$p['advances']; $sum['bal'] += (float)$p['balance'];
+            }
+            if ($rows === []) continue;
+            $notes = [$this->i18n->t('report.billing.note')];
+            if ($running) $notes[] = $this->i18n->t('report.billing.running', ['date' => $this->i18n->date($this->today)]);
+            if ($partial) $notes[] = $this->i18n->t('report.billing.partial');
+            $out[] = ['utility' => $u, 'label' => $this->i18n->utilityLabel($u),
+                      'head' => [$this->i18n->t('report.billing.period'), $this->i18n->t('report.billing.source'), self::unit($u),
+                                 $this->i18n->t('report.tableCost'), $this->i18n->t('report.billing.advances'), $this->i18n->t('report.billing.balance')],
+                      'rows' => $rows,
+                      'total' => [$this->i18n->t('report.appendix.total'), '', $nf($sum['q'], $dec), $nf($sum['cost'], 2), $nf($sum['adv'], 2), $nf($sum['bal'], 2)],
+                      'notes' => $notes, 'numeric_from' => 2];
+        }
+        return $out;
+    }
+
+    /**
+     * @param array{utilities?:?list<string>,detail?:bool,billing?:bool,today?:string} $opts
      * @return array<string,mixed>
      */
     public function build(int $year, array $opts = []): array
     {
-        $this->rowCache = []; $this->errors = []; $this->terms = []; $this->sources = [];
+        $this->rowCache = []; $this->errors = []; $this->terms = []; $this->sources = []; $this->flexAnalysis = null;
         $this->today = (string)($opts['today'] ?? date('Y-m-d'));
         $this->year = $year;
         $utilities = $this->reportUtilities($opts['utilities'] ?? null);
@@ -162,6 +223,18 @@ final class ReportModelService
         if (!empty($opts['detail'])) {
             $model['appendix'] = $this->safe('appendix', fn() => $this->appendix($consumptionU, $utilities), []);
         }
+        // v3.6.0 (F1030) — Anhang „Abrechnungsjahre“ (PDF mit `billing`); die
+        // Druckansicht holt den Bericht immer mit Anhang und blendet ihn ein
+        $model['options']['billing'] = !empty($opts['billing']);
+        if ((!empty($opts['detail']) || !empty($opts['billing'])) && $this->billing !== null) {
+            $model['billing'] = $this->safe('billing', fn() => $this->billingSection($utilities), []);
+        }
+        // v3.6.0 — Seite „Flexibilität“ (PDF mit `flex`); die Druckansicht holt
+        // sie mit dem Anhang und zeigt sie auf Wunsch (`flex=1` in der Adresse)
+        $model['options']['flex'] = !empty($opts['flex']);
+        if ((!empty($opts['detail']) || !empty($opts['flex'])) && $this->flexInsights !== null) {
+            $model['flex_page'] = $this->safe('flexPage', fn() => $this->flexPage($utilities), null);
+        }
         $model['glossary'] = $this->glossary();
         $model['sources'] = $this->sourcesList();
         $model['errors'] = $this->errors;
@@ -222,7 +295,7 @@ final class ReportModelService
     {
         return ['value' => 0.0, 'cost' => 0.0, 'kwh_cost' => 0.0, 'co2' => 0.0, 'adj' => null, 'hdd' => 0.0,
                 'months' => array_fill(1, 12, null), 'cost_months' => array_fill(1, 12, null), 'estimated' => array_fill(1, 12, false),
-                'bonus' => 0.0, 'bonus_months' => [], 'coverage' => 0, 'has_contract' => false, 'adj_months' => 0, 'full_months' => 0];
+                'bonus' => 0.0, 'bonus_months' => [], 'coverage' => 0, 'has_contract' => false, 'priced' => false, 'adj_months' => 0, 'full_months' => 0];
     }
 
     /** Jahreswerte einer Art über die Zähler, die in Summen zählen. */
@@ -249,6 +322,9 @@ final class ReportModelService
                     $out['bonus_months'][$mo] = ($out['bonus_months'][$mo] ?? 0.0) + (float)$r['bonus_eur'];
                 }
                 if (!empty($r['contract_id'])) $out['has_contract'] = true;
+                // v3.6.0 — Kosten, die mitzählen: aus dem Vertrag oder (Heizöl,
+                // Pellets) aus den Lieferungen, wie in der Übersicht
+                if (!empty($r['contract_id']) || (Utilities::isDelivery($u) && (float)($r['cost'] ?? 0) != 0.0)) $out['priced'] = true;
                 if (($r['heat_adjusted'] ?? null) !== null) { $adj += (float)$r['heat_adjusted']; $adjN++; }
                 if ((int)($r['days'] ?? 0) >= (int)date('t', mktime(0, 0, 0, $mo, 1, $y))) $out['full_months']++;
             }
@@ -290,7 +366,10 @@ final class ReportModelService
 
     /**
      * Kosten, Verbrauch (Heizarten witterungsbereinigt, wo möglich) und CO₂ der
-     * Verbrauchsarten. Preis- und Mengeneffekt je Art:
+     * Verbrauchsarten. Kosten zählen aus dem Vertrag und — seit v3.6.0 —
+     * bei Heizöl und Pellets aus den Lieferungen (`priced`); bis v3.5 fehlten
+     * diese in der Kachel „Kosten“, obwohl die Übersicht sie zählte.
+     * Preis- und Mengeneffekt je Art:
      *   Mengeneffekt = (Menge jetzt − Menge Vorjahr) × Ø Preis Vorjahr
      *   Preiseffekt  = Kostenänderung − Mengeneffekt
      */
@@ -307,9 +386,9 @@ final class ReportModelService
         foreach ($consumptionU as $u) {
             $now = $yd[$u][$y]; $prev = $yd[$u][$p];
             $co2n += $now['co2']; $co2p += $prev['co2'];
-            if ($now['has_contract'] && $now['cost'] != 0.0) {
+            if ($now['priced'] && $now['cost'] != 0.0) {
                 $cn += $now['cost']; $hasCost = true;
-                if ($prev['has_contract'] && $prev['value'] > 0 && $prev['coverage'] >= 12 && $now['coverage'] >= 12) {
+                if ($prev['priced'] && $prev['value'] > 0 && $prev['coverage'] >= 12 && $now['coverage'] >= 12) {
                     $cp += $prev['cost'];
                     $pp = $prev['cost'] / $prev['value'];
                     $vol = ($now['value'] - $prev['value']) * $pp;
@@ -343,7 +422,7 @@ final class ReportModelService
             $c = 0.0; $e = 0.0; $k = 0.0;
             foreach ($consumptionU as $u) {
                 $d = $yd[$u][$hy];
-                if ($d['has_contract']) $c += $d['cost'];
+                if ($d['priced']) $c += $d['cost'];
                 if (self::unit($u) === 'kWh') $e += Utilities::isHgtRelevant($u) && $d['adj'] !== null ? $d['adj'] : $d['value'];
                 $k += $d['co2'];
             }
@@ -635,7 +714,7 @@ final class ReportModelService
     private function flexFacts(array $utilities): ?array
     {
         if ($this->flexibility === null || !in_array('strom', $utilities, true)) return null;
-        $r = $this->flexibility->analyze($this->year);
+        $r = $this->flexAnalysis = $this->flexibility->analyze($this->year);
         if (empty($r['prices']['available']) || ($r['meters'] ?? []) === []) return null;
         $meters = []; $rows = [];
         foreach ($r['meters'] as $m) {
@@ -669,6 +748,136 @@ final class ReportModelService
                 'module3_text' => $m3 > 0 ? $this->i18n->t('report.topic.flex.module3', ['amount' => $this->advice->approx($m3)]) : null,
                 'battery_text' => abs($bat) >= 1 ? $this->i18n->t('report.topic.flex.battery', ['amount' => $this->advice->approx($bat)]) : null,
             ],
+        ];
+    }
+
+    /**
+     * v3.6.0 — Seite „Flexibilität“: dieselben Zahlen wie die Seite in der App
+     * (FlexibilityInsightService), als fertige Sätze in der Sprache des
+     * Berichts. Große Zahl, Handlungssätze mit Zeitfenster der laufenden
+     * Jahreszeit (Stand heute), Tagesband für Winter- und Sommerhalbjahr,
+     * beste Zeitfenster, „Dein Hebel“ als Tabelle, Sonnenstrom.
+     *
+     * @return array<string,mixed>|null null ohne Ampel und ohne Hebel
+     */
+    private function flexPage(array $utilities): ?array
+    {
+        if ($this->flexibility === null || $this->flexInsights === null || !in_array('strom', $utilities, true)) return null;
+        $r = $this->flexAnalysis ?? $this->flexibility->analyze($this->year);
+        $x = $this->flexInsights->insights($this->year, $r, $this->today);
+        if ($x['levers'] === [] && $x['pattern'] === null) return null;
+        $t = fn(string $k, array $p = []): string => $this->i18n->t($k, $p);
+        $eur = fn(float $v): string => $this->i18n->money(round($v), 0);
+        $ct = fn(?float $v): string => $v === null ? '–' : $this->i18n->number($v, 1) . ' ct';
+        $hh = fn(int $h): string => sprintf('%02d:00', $h);
+        $often = array_map('trim', explode(',', $t('flex.weekdays.often')));
+        $win = function (?array $w) use ($t, $hh, $often): string {
+            if ($w === null) return '';
+            $span = ['from' => $hh((int)$w['from']), 'to' => $hh((int)$w['to'])];
+            return !empty($w['weekday']) ? $t('flex.window.week', ['day' => $often[(int)$w['weekday'] - 1] ?? ''] + $span) : $t('flex.window.day', $span);
+        };
+        // „Wärmepumpe (Wärmepumpe)“ vermeiden: Den Zählernamen nur, wenn er etwas sagt
+        $label = function (array $l) use ($t): string {
+            $name = trim((string)($l['name'] ?? ''));
+            if (!in_array($l['kind'], ['ev', 'heat_pump'], true)) return $t("flex.lever.kind.{$l['kind']}", ['name' => $name]);
+            $plain = $t("flex.lever.plain.{$l['kind']}");
+            return $name === '' || mb_strtolower($name) === mb_strtolower($plain) ? $plain : $t("flex.lever.kind.{$l['kind']}", ['name' => $name]);
+        };
+        $season = (string)$x['season_now'];
+        $other = $season === 'summer' ? 'winter' : 'summer';
+        // v3.6.0 (Paket flexplus) — große Zahl aus `summary`, eine Regel mit Seite und Übersicht
+        $sum = $x['summary'];
+        $useReal = (bool)($sum['real'] ?? false);
+        // Grundlage der Ladefenster des Autos: Steckzeiten aus evcc oder Beispielwert
+        $ev = $x['ev_availability'];
+        $evTag = $ev === null ? '' : ' · ' . $t($ev['basis'] === 'sessions' ? 'flex.availability.sessions' : 'flex.availability.day');
+        $evNote = null;
+        if ($ev !== null) {
+            $evNote = $ev['basis'] !== 'sessions' ? $t('flex.lever.evDay')
+                : $this->i18n->tp('flex.lever.evSessions', (int)$ev['sessions'], ['count' => $this->i18n->number((float)$ev['sessions'], 0)])
+                  . ((float)$ev['share'] < 0.995 ? ' ' . $t('flex.lever.evPart', ['share' => $this->advice->share((float)$ev['share'] * 100)]) : '');
+        }
+
+        $actions = [];
+        foreach ($x['actions'] as $a) {
+            if ($a['window'] === null) continue;
+            $actions[] = [
+                'text' => $t("flex.actions.{$a['kind']}.{$a['window']['what']}", ['window' => $win($a['window']), 'eur' => $eur((float)$a['eur'])]),
+                'tag' => $t($a['real'] ? 'flex.real.yes' : 'flex.real.no') . ($a['basis'] === 'assumed' ? ' · ' . $t('flex.basis.assumed') : '')
+                    . ($a['kind'] === 'ev' ? $evTag : ''),
+                'other' => $a['other'] !== null ? $t('flex.actions.other', ['season' => $t("flex.seasonBtn.$other"), 'window' => $win($a['other'])]) : null,
+                'signal' => $a['signal'],
+            ];
+        }
+        $facts = [];
+        $best = $sum['action'] ?? ($x['actions'][0] ?? null);
+        if ($best !== null) $facts[] = ['label' => $t('flex.card.factBest', ['name' => $label($best)]), 'value' => $eur((float)$best['eur'])];
+        if (($sum['dynamic_eur'] ?? null) !== null) $facts[] = ['label' => $t('flex.card.factDynamic'), 'value' => $t('flex.card.upTo', ['eur' => $eur((float)$sum['dynamic_eur'])])];
+        if ($x['solar'] !== null) $facts[] = ['label' => $t('flex.card.factSelf'), 'value' => $this->advice->share((float)$x['solar']['self_share'] * 100)];
+
+        $bands = [];
+        foreach (['winter', 'summer'] as $s) {
+            $p = $x['pattern'][$s] ?? null;
+            if ($p === null || array_filter(array_column($p['hours'], 'level')) === [] && array_filter(array_column($p['hours'], 'sun_level'), fn($v) => $v === 'strong') === []) continue;
+            $bands[] = ['season' => $s, 'label' => $t("flex.seasonBtn.$s"),
+                'hours' => array_map(fn($h) => ['level' => $h['level'], 'sun' => $h['sun_level'], 'ct' => $h['ct']], $p['hours']),
+                'summary' => isset($p['windows'][0]) && $x['signal'] !== null
+                    ? $t('flex.ampel.summary', ['cheap' => $win($p['windows'][0]), 'peak' => $win($p['day_peak'] ?? null)]) : null];
+        }
+        $windows = [];
+        foreach ($x['signal'] !== null ? ($x['pattern'][$season]['windows'] ?? []) : [] as $w) {
+            $windows[] = [$win($w), $ct($w['ct']), $w['below_ct'] !== null ? $t('flex.windows.below', ['ct' => $ct($w['below_ct'])]) : '–'];
+        }
+        $rows = [];
+        foreach ($x['levers'] as $l) {
+            // Grundlage der Ladefenster des Autos: in den Hinweisen unter der Tabelle (die Spalte bleibt schmal)
+            $rows[] = ['label' => $label($l) . ($l['basis'] === 'assumed' ? ' (' . $t('flex.basis.assumed') . ')' : ''),
+                'signal' => $t("flex.signal.{$l['signal']}"), 'real' => (bool)$l['real'], 'real_text' => $t($l['real'] ? 'flex.real.yes' : 'flex.real.no'),
+                'kwh' => $this->i18n->number((float)$l['shift_kwh'], 0) . ' kWh', 'eur' => $eur((float)$l['eur'])];
+        }
+        $s = $x['solar'];
+        $a = $x['assumptions'];
+        if ($x['signal'] === 'spot') $this->sources['market'] = true;
+        return [
+            'year' => $this->year,
+            'big' => $eur((float)($sum['eur'] ?? 0.0)),
+            'sentence' => $t($useReal ? 'flex.card.real' : 'flex.card.dynamic'),
+            'facts' => $facts,
+            'footer' => $t($x['signal'] === 'spot' ? 'flex.card.footer' : 'flex.card.footerOwn', ['year' => $this->year, 'date' => $this->i18n->date($this->today)]),
+            'actions' => $actions,
+            'actions_lead' => $t('flex.actions.lead', ['season' => $t("flex.season.$season")]),
+            'bands' => $bands,
+            'band_lead' => $x['signal'] === null ? $t('flex.ampel.leadSun') : ($x['signal'] === 'tou' ? $t('flex.ampel.leadTou') : $t('flex.ampel.lead', ['year' => $this->year])),
+            // PDF (CP1252): ohne ☀ — die Sonne ist dort ein Punkt über der Stunde
+            'band_lead_pdf' => $x['signal'] === 'spot' ? $t('report.flexPage.bandLead', ['year' => $this->year]) : null,
+            'windows' => $windows === [] ? null : [
+                'lead' => $t('flex.windows.lead', ['season' => $t("flex.seasonBtn.$season"), 'hours' => $a['window_hours']]),
+                'head' => [$t('flex.windows.col.window'), $t($x['signal'] === 'tou' ? 'flex.windows.col.grid' : 'flex.windows.col.price'), $t('flex.windows.col.vsMean')],
+                'rows' => $windows,
+            ],
+            'levers' => $rows === [] ? null : [
+                'head' => [$t('flex.lever.col.device'), $t('flex.lever.col.signal'), $t('flex.lever.col.shift'), $t('flex.lever.col.eur')],
+                'rows' => $rows,
+                'total' => $t('flex.lever.total', ['eur' => $eur((float)$x['total_eur']), 'real' => $eur((float)$x['total_real_eur'])]),
+                'dynamic_note' => '* ' . $t('flex.real.no'),
+            ],
+            'solar_text' => $s === null ? null : trim($t('flex.solar.now', ['year' => $this->year, 'self' => $this->i18n->number((float)$s['self_kwh'], 0) . ' kWh',
+                'gen' => $this->i18n->number((float)$s['generation_kwh'], 0) . ' kWh', 'share' => $this->advice->share((float)$s['self_share'] * 100),
+                'feed' => $this->i18n->number((float)$s['feed_kwh'], 0) . ' kWh'])
+                . ((float)$s['more_kwh'] > 0 ? ' ' . $t('flex.solar.more', ['more' => $this->i18n->number((float)$s['more_kwh'], 0) . ' kWh',
+                    'after' => $this->advice->share((float)$s['self_share_after'] * 100), 'share' => $this->advice->share((float)$s['self_share'] * 100),
+                    'eur' => $eur((float)$s['more_eur']), 'wp' => $ct($s['working_ct']), 'feed' => $ct($s['feed_ct'])]) : '')),
+            'notes' => [
+                $t('flex.lever.assumptions', ['hp' => $this->advice->share($a['heat_pump_share'] * 100),
+                    'wkwh' => $this->i18n->number($a['appliances']['washer']['kwh_per_cycle'], 1), 'wn' => $this->i18n->number($a['appliances']['washer']['cycles_per_week'], 0),
+                    'dkwh' => $this->i18n->number($a['appliances']['dishwasher']['kwh_per_cycle'], 1), 'dn' => $this->i18n->number($a['appliances']['dishwasher']['cycles_per_week'], 0),
+                    'h' => $this->i18n->number((float)$a['appliances']['washer']['hours'], 0)]),
+                ...($evNote !== null ? [$evNote] : []),
+                $t('flex.lever.upper', ['vat' => $this->advice->share((float)$x['vat_pct'])]),
+                // Nachtrag — ct-Werte von Ampel und Zeitfenstern: reiner Börsenanteil, netto
+                ...($x['signal'] === 'spot' ? [$t('flex.netNote')] : []),
+            ],
+            'legend' => [$t('flex.ampel.level.cheap'), $t('flex.ampel.level.mid'), $t('flex.ampel.level.expensive'), $t('flex.ampel.sun.strong')],
         ];
     }
 
@@ -748,7 +957,8 @@ final class ReportModelService
                 $c = $this->co2Split->forYear($this->year);
                 if (!empty($c['supported']) && ($c['landlord_amount_eur'] ?? null) !== null) {
                     $co2 = ['landlord_amount_eur' => (float)$c['landlord_amount_eur'], 'case' => (string)($c['case'] ?? ''),
-                            'stage' => $c['stage'] ?? null, 'deadline' => $c['deadline'] ?? null, 'co2_cost_eur' => $c['co2_cost_eur'] ?? null];
+                            'stage' => $c['stage'] ?? null, 'deadline' => $c['deadline'] ?? null, 'co2_cost_eur' => $c['co2_cost_eur'] ?? null,
+                            'area_assumed' => !empty($c['area_assumed']), 'area_m2' => $c['area_m2'] ?? null];   // v3.6.0
                     $this->term('co2Split');
                 }
             } catch (\Throwable) {
@@ -772,6 +982,10 @@ final class ReportModelService
                 'year' => $this->year, 'amount' => $this->advice->approx((float)$co2['landlord_amount_eur']),
                 'date' => $co2['deadline'] !== null ? $this->i18n->date((string)$co2['deadline']) : '–',
             ]);
+            // v3.6.0 — Stufe und Betrag hängen an einer nur angenommenen Fläche
+            if ($co2['area_assumed']) {
+                $sentences[] = $this->i18n->t('report.topic.tenancy.co2AreaAssumed', ['area' => $this->i18n->number((float)$co2['area_m2'], 0)]);
+            }
         }
         $months = [];
         $names = array_map('trim', explode(',', $this->i18n->t('format.monthsShort')));
@@ -897,10 +1111,10 @@ final class ReportModelService
         $by = [];
         foreach ($consumptionU as $u) {
             $now = $yd[$u][$y];
-            if (!$now['has_contract'] || $now['cost'] == 0.0) continue;
+            if (!$now['priced'] || $now['cost'] == 0.0) continue;
             $prev = $yd[$u][$p];
             $by[] = ['utility' => $u, 'label' => $this->i18n->utilityLabel($u), 'cost' => round($now['cost'], 2),
-                     'prev' => $prev['has_contract'] && $prev['coverage'] >= 12 ? round($prev['cost'], 2) : null,
+                     'prev' => $prev['priced'] && $prev['coverage'] >= 12 ? round($prev['cost'], 2) : null,
                      'color' => (string)Utilities::get($u)['color'], 'text' => $this->i18n->money(round($now['cost']), 0)];
         }
         usort($by, fn($a, $b) => $b['cost'] <=> $a['cost']);
@@ -912,14 +1126,14 @@ final class ReportModelService
             $revenue[] = ['utility' => $u, 'label' => $this->i18n->utilityLabel($u), 'value' => round($now['cost'], 2),
                           'text' => $this->i18n->t('report.money.revenue', ['label' => $this->i18n->utilityLabel($u), 'amount' => $this->advice->approx($now['cost'])])];
         }
-        // Kosten je Monat (Summe der Arten mit Vertrag) gegen Vorjahr
+        // Kosten je Monat (Summe der Arten mit Vertrag bzw. Lieferungen) gegen Vorjahr
         $names = array_map('trim', explode(',', $this->i18n->t('format.monthsShort')));
         $monthly = []; $bonusMonths = [];
         for ($mo = 1; $mo <= 12; $mo++) {
             $v = null; $pv = null;
             foreach ($consumptionU as $u) {
-                if ($yd[$u][$y]['has_contract'] && $yd[$u][$y]['cost_months'][$mo] !== null) $v = ($v ?? 0.0) + $yd[$u][$y]['cost_months'][$mo];
-                if ($yd[$u][$p]['has_contract'] && $yd[$u][$p]['cost_months'][$mo] !== null) $pv = ($pv ?? 0.0) + $yd[$u][$p]['cost_months'][$mo];
+                if ($yd[$u][$y]['priced'] && $yd[$u][$y]['cost_months'][$mo] !== null) $v = ($v ?? 0.0) + $yd[$u][$y]['cost_months'][$mo];
+                if ($yd[$u][$p]['priced'] && $yd[$u][$p]['cost_months'][$mo] !== null) $pv = ($pv ?? 0.0) + $yd[$u][$p]['cost_months'][$mo];
                 if (isset($yd[$u][$y]['bonus_months'][$mo])) $bonusMonths[$mo] = ($bonusMonths[$mo] ?? 0.0) + $yd[$u][$y]['bonus_months'][$mo];
             }
             $monthly[] = ['ym' => sprintf('%d-%02d', $y, $mo), 'label' => $names[$mo - 1] ?? (string)$mo,
@@ -1058,7 +1272,10 @@ final class ReportModelService
             $page['efficiency'] = ['class' => $scaled ? (string)$s['class'] : null, 'kwh_per_m2' => (float)$s['kwh_per_m2'],
                 'thresholds' => $scaled ? ($eff['thresholds'] ?? []) : [], 'value_text' => $this->i18n->number((float)$s['kwh_per_m2'], 0) . ' kWh/m²·a',
                 'text' => $scaled ? $this->i18n->t('report.page.efficiency', $params)
-                    : trim($this->i18n->t('report.page.heatDemand', $params) . ' ' . (string)($eff['scale_note'] ?? ''))];
+                    : trim($this->i18n->t('report.page.heatDemand', $params) . ' ' . (string)($eff['scale_note'] ?? '')),
+                // v3.6.0 — Fläche nur angenommen (Default): sagen, nicht still rechnen
+                'area_assumed' => !empty($eff['area_assumed']),
+                'area_note' => !empty($eff['area_assumed']) ? $this->i18n->t('report.page.areaAssumed', ['area' => $params['area']]) : null];
             if ($scaled) $this->term('efficiency');
         }
         if ($u === 'strom') $page['roles'] = $this->stromRoles($pvNow);
@@ -1119,6 +1336,14 @@ final class ReportModelService
             return ['basis' => 'contract', 'value' => round($now['cost'], 2),
                     'text' => $this->i18n->t('report.page.cost', ['amount' => $this->advice->approx($now['cost']),
                         'price' => self::priceCt($now) !== null ? $this->i18n->number((float)self::priceCt($now), $u === 'wasser' ? 0 : 1) : '–',
+                        'unit' => self::unit($u)])];
+        }
+        // v3.6.0 — Heizöl, Pellets: Kosten aus den Lieferungen (Tankbuch), wie in der Übersicht
+        if ($now['priced'] && Utilities::isDelivery($u)) {
+            $this->term('tankBook');
+            return ['basis' => 'deliveries', 'value' => round($now['cost'], 2),
+                    'text' => $this->i18n->t('report.page.costDeliveries', ['amount' => $this->advice->approx($now['cost']),
+                        'price' => self::priceCt($now) !== null ? $this->i18n->number((float)self::priceCt($now), 1) : '–',
                         'unit' => self::unit($u)])];
         }
         if ($this->tenancies !== null) {
@@ -1433,7 +1658,7 @@ final class ReportModelService
         $k = ['important', 'successes', 'successesNone', 'goodToKnow', 'tasks', 'tasksIntro', 'tasksNone', 'tasksNoneButAgenda',
               'agenda', 'agendaIntro', 'agendaNone', 'money', 'topicPv', 'topicHeatPump', 'topicEv', 'topicFlex', 'topicTenancy',
               'glossary', 'sources', 'appendix', 'topTasks', 'lights', 'asOfToday', 'contracts', 'balances', 'costsByUtility',
-              'costsByMonth', 'estimated', 'reference', 'cop', 'solarShare', 'cheapShare', 'errors'];
+              'costsByMonth', 'estimated', 'reference', 'cop', 'solarShare', 'cheapShare', 'errors', 'billing', 'flexPage'];
         $out = [];
         foreach ($k as $key) $out[$key] = $this->i18n->t("report.section.$key", ['year' => $year, 'prev' => $year - 1, 'date' => $this->i18n->date($this->today)]);
         $out['title'] = $this->i18n->t('report.title', ['year' => $year]);

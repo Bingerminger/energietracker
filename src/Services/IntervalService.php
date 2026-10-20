@@ -272,7 +272,11 @@ final class IntervalService
      * des Tages (0–1439). Rechnet mit den Übergängen der Zeitzone, nicht je
      * Platz mit DateTime.
      *
-     * @return array{month: list<int>, minute: list<int>}
+     * v3.6.0 — additiv `day` (Tag des Jahres ab 0, Ortszeit) und `weekday`
+     * (1 = Montag … 7 = Sonntag, ISO 8601) für Wochenraster und Tagesfenster
+     * der Flexibilität (FlexibilityInsightService).
+     *
+     * @return array{month: list<int>, minute: list<int>, day: list<int>, weekday: list<int>}
      */
     public function localClock(int $year): array
     {
@@ -286,9 +290,10 @@ final class IntervalService
             foreach ($transitions as $t) { if ($t['ts'] <= $ts) $off = (int)$t['offset']; else break; }
             return $off;
         };
-        $month = []; $minute = [];
+        $month = []; $minute = []; $day = []; $weekday = [];
         $nextChange = PHP_INT_MAX; $off = $offsetAt($start);
         foreach ($transitions as $t) { if ($t['ts'] > $start) { $nextChange = $t['ts']; break; } }
+        $firstDay = intdiv($start + $off, 86400);
         for ($i = 0; $i < $n; $i++) {
             $ts = $start + $i * self::STEP;
             if ($ts >= $nextChange) {
@@ -299,7 +304,11 @@ final class IntervalService
             $local = $ts + $off;
             $month[$i] = (int)gmdate('n', $local);
             $minute[$i] = intdiv($local % 86400, 60);
+            $d = intdiv($local, 86400);
+            $day[$i] = $d - $firstDay;
+            // 1. Januar 1970 war ein Donnerstag (ISO 4)
+            $weekday[$i] = ($d + 3) % 7 + 1;
         }
-        return ['month' => $month, 'minute' => $minute];
+        return ['month' => $month, 'minute' => $minute, 'day' => $day, 'weekday' => $weekday];
     }
 }

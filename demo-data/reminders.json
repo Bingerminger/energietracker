@@ -9,7 +9,8 @@
         "last_done": "2025-07-22",
         "notes": "Jahreswartung durch den Installateur",
         "active": true,
-        "assignee": "Paul"
+        "assignee": "Paul",
+        "assignee_id": "u_c7a2ecac"
     },
     {
         "id": "rem_demo0002",
@@ -21,7 +22,8 @@
         "last_done": null,
         "notes": "Tank unter 50 % — Angebote einholen",
         "active": true,
-        "assignee": "Anna"
+        "assignee": "Anna",
+        "assignee_id": "u_a1fbab95"
     },
     {
         "id": "rem_demo0003",
@@ -33,7 +35,8 @@
         "last_done": "2026-03-15",
         "notes": "Kehrung und Abgasmessung",
         "active": true,
-        "assignee": "Paul"
+        "assignee": "Paul",
+        "assignee_id": "u_c7a2ecac"
     },
     {
         "id": "rem_demo0004",

@@ -64,6 +64,12 @@ final class PersonaDemoTest extends ServiceTestCase
         return array_sum(array_map(fn($r) => (int)$r['year'] === $year ? (float)($r[$field] ?? 0) : 0.0, $rows));
     }
 
+    /** v3.6.0 — stillgelegter Zähler: außer Betrieb und kein offenes Gerät mehr (DemoDataAligner schreibt nichts fort). */
+    private static function retired(array $m): bool
+    {
+        return ($m['active'] ?? true) === false && array_filter($m['devices'] ?? [], fn($d) => empty($d['removed_on'])) === [];
+    }
+
     private function meterRows(string $u, string $id): array
     {
         return $this->consumption->forMeter($u, $this->meters->get($u, $id) ?? self::fail("Zähler $id fehlt"));
@@ -127,7 +133,8 @@ final class PersonaDemoTest extends ServiceTestCase
             $util = $this->consumption->forUtility($u);
             foreach ($util['meters'] as $pm) {
                 $m = $pm['meter'];
-                self::assertGreaterThanOrEqual(35, count($pm['monthly']), "$u/{$m['id']}: drei Jahre Monate");
+                // v3.6.0 — ein stillgelegter Zähler (kein offenes Gerät) hat nur seine Historie
+                self::assertGreaterThanOrEqual(self::retired($m) ? 12 : 35, count($pm['monthly']), "$u/{$m['id']}: drei Jahre Monate");
                 self::assertSame([], $this->consumption->readingWarnings($u, $m), "$u/{$m['id']}: Stände ohne Warnung");
                 foreach ($pm['monthly'] as $row) {
                     self::assertGreaterThanOrEqual(0.0, (float)($row['kwh'] ?? 0) + (float)($row['m3'] ?? 0), "$u/{$m['id']} {$row['ym']}");
@@ -183,7 +190,8 @@ final class PersonaDemoTest extends ServiceTestCase
         $unknown = [];
         foreach ($p['utilities'] as $u => $b) {
             foreach ($b['meters'] as $m) {
-                $unknown[] = self::unknownKeys($m, $this->meters->create($u, $m), "$u/{$m['id']}.");
+                // ein Alias (F1009) ist je Art eindeutig — die Kopie bekommt keinen
+                $unknown[] = self::unknownKeys($m, $this->meters->create($u, ['external_id' => null] + $m), "$u/{$m['id']}.");
             }
             foreach ($b['contracts'] as $c) {
                 $unknown[] = self::unknownKeys($c, $this->contracts->create($u, $c), "$u/{$c['id']}.");
@@ -216,7 +224,13 @@ final class PersonaDemoTest extends ServiceTestCase
         foreach ($out['utilities'] as $u => $b) {
             $byMeter = [];
             foreach ($b['readings'] as $r) $byMeter[$r['meter_id']][] = $r['date'];
+            $meters = array_column($b['meters'], null, 'id');
             foreach ($byMeter as $mid => $dates) {
+                // v3.6.0 — stillgelegt: nichts fortschreiben, Stände nur bis zum Ausbau
+                if (self::retired($meters[$mid] ?? [])) {
+                    self::assertLessThanOrEqual(end($meters[$mid]['devices'])['removed_on'], max($dates), "$u/$mid: nicht fortgeschrieben");
+                    continue;
+                }
                 self::assertGreaterThan(self::END, max($dates), "$u/$mid: fortgeschrieben");
                 self::assertLessThanOrEqual($today, max($dates));
             }

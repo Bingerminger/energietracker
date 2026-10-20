@@ -256,6 +256,14 @@ final class ForecastService
                 $utility, $contracts, $yr, $mn, $blended, $fallbackPrice, $priceFactor, $sewageShare[$mn] ?? 1.0
             );
             $runningBalance += $fin['cost'] - ($fin['advance'] ?? 0.0);
+            // v3.6.0 (F1031) — die Kosten eines Monats sind linear in der Menge
+            // (Arbeitspreis × Menge + Grundpreis − Boni, tagesgenau). Fester Teil
+            // und Preis je Einheit lassen die Prognose-Werkstatt andere Mengen
+            // mit genau dieser Rechnung bewerten, ohne zweite Formel.
+            $fixed = $this->projectMonthFinances($utility, $contracts, $yr, $mn, 0.0, $fallbackPrice, $priceFactor, $sewageShare[$mn] ?? 1.0)['cost'];
+            $unit  = $this->projectMonthFinances($utility, $contracts, $yr, $mn, 1.0, $fallbackPrice, $priceFactor, $sewageShare[$mn] ?? 1.0)['cost'] - $fixed;
+            // Heizanteil des Monats aus dem Heizmodell (a × HGT gegen Grundlast c × Tage)
+            $heatShare = ($heat !== null && $hdd !== null && $heatVal > 0) ? $heat['a'] * $hdd / $heatVal : null;
 
             $forecast[] = [
                 'ym'                => $ym,
@@ -273,6 +281,9 @@ final class ForecastService
                 'contract_id'       => $fin['contract_id'],
                 'contract_assumed'  => $fin['assumed'],
                 'method'            => $method,
+                'heat_share'        => $heatShare !== null ? round($heatShare, 4) : null,   // v3.6.0 (F1031)
+                'fixed_eur'         => round($fixed, 4),                                       // v3.6.0 (F1031)
+                'unit_eur'          => round($unit, 6),                                        // v3.6.0 (F1031)
             ];
             $start->modify('first day of next month');
         }
@@ -343,6 +354,9 @@ final class ForecastService
             'warnings'     => $warnings,
             'climate_normal' => $this->consumption->climate()->summary(),
             'co2_scenario' => $co2Scenario,
+            // v3.6.0 (F1031) — Heizmodell Verbrauch = a × HGT + c × Tage (oder null)
+            'heat_model'   => $heat !== null ? ['a' => round($heat['a'], 6), 'c' => round($heat['c'], 6), 'n' => $heat['n']] : null,
+            'hdd_base'     => $hgt ? $hddBase : null,
             'options'      => [
                 'temp_offset'   => $tempOffset,
                 'price_factor'  => $priceFactor,

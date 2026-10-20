@@ -165,7 +165,7 @@ HTTP**.
 | `EvChargingReportService` | **(v3.1.0)** charging record of the wall box per month: contract price of the paying contract with a standing charge share, or the flat electricity rate (country profile); PDF via `Pdf\PdfWriter` |
 | `HeatPumpService` | **(v3.1.0)** seasonal performance factor: heat of the meter with role `heat_pump_output` ÷ electricity of the linked meters, only months with both sides |
 | `SeriesImportService` | **(v3.1.0)** condense time series from portals into daily values with a column mapping — as readings (via `ReadingImportService`) or periods (via `PeriodService`) |
-| `ReferenceService` | **(v3.1.0)** benchmark against your own reference values: household electricity without heat pump and wall box, heating per m², links for checking yourself (Germany only) |
+| `ReferenceService` | **(v3.1.0)** benchmark against your own reference values: household electricity without heat pump and wall box, heating per m², links for checking yourself (Germany only); since v3.6.0 traffic light (`rating`), water per person against the benchmark and missing details (`missing`) |
 | `DocsService` | **(v3.4.0)** help on the server: allowlist of the docs built from the files (pages under `docs/` without redirects, PNG under `docs/ui/screenshots/`, a fixed list in the root directory as `root/…`), a pure lookup without joining paths, no symbolic links; language, mirror and the target of a redirect. Rendering happens in the browser (`public/js/lib/markdown.js`) |
 
 Since v3.1.0 `ConsumptionService` also knows the **group contract**

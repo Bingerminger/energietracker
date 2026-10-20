@@ -41,8 +41,10 @@ export const VIEW_LEVEL = {
   'bill-check': 'advanced',
   'tenancy': 'advanced',            // Einsteiger: Budget-Karte auf der Übersicht
   'analysis': 'advanced',
-  'forecast': 'advanced',
-  'flexibility': 'expert',          // v3.3.0 (F1021) — Viertelstunden und Börsenpreise
+  // v3.6.0 (F1031) — die Prognose-Werkstatt ist für alle da (Einsteiger: drei Regler, drei Zahlen)
+  // v3.6.0 — Flexibilität für alle: Einsteiger sehen Ergebnis, Handlungssätze
+  // und den typischen Tag; ab Erfahren Woche, Zeitfenster und Hebel; die
+  // Nachrechnung je Zähler und die Viertelstundenreihen ab Experte (bis v3.5: Experte)
   'meters': 'advanced',             // Zähler-Aufbau (Subzähler, Rollen, Geräte)
   'temperatures': 'advanced',
   'activity': 'advanced',           // v3.4.0 (F1024) — Hinweise › Erledigt

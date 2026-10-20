@@ -7,6 +7,7 @@ use Energietracker\Http\Request;
 use Energietracker\Http\Response;
 use Energietracker\Services\AuthService;
 use Energietracker\Services\I18nService;
+use Energietracker\Services\PeopleService;
 use Energietracker\Services\SettingsService;
 
 /**
@@ -36,6 +37,21 @@ use Energietracker\Services\SettingsService;
  *                                    den Namen im Verlauf durch „ehemalige Person"
  *                                    (v3.5.0: auch als Zuständige an Terminen)
  *   GET    /api/people               v3.5.0 (F1028) — nur ID und Name, für jede Rolle
+ *
+ * v3.6.0 — Personenverzeichnis (PeopleService): `GET /api/users` trägt die
+ * fortlaufende Nummer `no`; `GET /api/people` liest das Verzeichnis (auch ohne
+ * Anmeldung, etwa die Personen eines Beispielhaushalts).
+ *   GET    /api/users/{id}/handover  → was beim Löschen übergeht: {person, to,
+ *                                    open, done} (nur Verwalter, wie alle /api/users)
+ *   DELETE /api/users/{id}           offene Termine gehen an die löschende Person,
+ *                                    Erledigtes behält den Namen mit „(gelöscht)“;
+ *                                    Antwort additiv: handed_over, handed_over_to, kept
+ * Personen ohne Zugang (Backup, Beispielhaushalt) stehen hinter den Zugängen in
+ * `GET /api/users` (`has_account: false`, `source: "none"`); Vorschau und
+ * Löschen gelten auch für sie, `PATCH /api/users/{id}` ändert Name und Rolle
+ * (ein Passwort: 400 errors.users.noAccountPassword). Ohne Anmeldung gilt wie
+ * überall: jede Anfrage darf, was ein Verwalter darf — nur übernimmt beim
+ * Löschen niemand.
  */
 final class SessionController
 {
@@ -47,8 +63,11 @@ final class SessionController
     /**
      * @param (callable(string): void)|null $anonymizeActivity v3.4.0 (F1024) — Name einer
      *        gelöschten Person im Verlauf durch „ehemalige Person" ersetzen
-     * @param (callable(string, bool): void)|null $personDeleted v3.5.0 (F1028) — eine Person
-     *        ist gelöscht (ID, Name ersetzen?): Zuständigkeit an den Terminen lösen
+     * @param (callable(string, bool, ?array, string): array)|null $personDeleted v3.5.0 (F1028) — eine
+     *        Person ist gelöscht (ID, Name ersetzen?, v3.6.0: an wen, ihr Name): Termine übergeben
+     * @param (callable(string): int)|null $markActivity v3.6.0 — Verlauf: Name bleibt mit „(gelöscht)“
+     * @param (callable(string, string): array{open:int, done:int})|null $handoverPreview v3.6.0 —
+     *        was beim Löschen übergeht (ID, Name)
      */
     public function __construct(
         private AuthService $auth,
@@ -58,16 +77,66 @@ final class SessionController
         private $role = null,
         private $anonymizeActivity = null,
         private $personDeleted = null,
+        private ?PeopleService $people = null,
+        private $markActivity = null,
+        private $handoverPreview = null,
     ) {}
 
     /**
      * v3.5.0 (F1028) — GET /api/people: Personen für die Auswahl „Zuständig“,
      * nur ID und Name (für jede angemeldete Rolle; die volle Liste mit Rollen
-     * bleibt `GET /api/users` für Verwalter). Ohne Anmeldung leer.
+     * bleibt `GET /api/users` für Verwalter).
+     *
+     * v3.6.0 — aus dem Personenverzeichnis, ohne gelöschte Personen; auch ohne
+     * Anmeldung (bis v3.5 dann leer): Die Personen eines Beispielhaushalts oder
+     * aus einem Backup stehen so zur Wahl.
      */
     public function people(Request $req): never
     {
-        Response::json($this->auth->people());
+        if ($this->people === null) Response::json($this->auth->people());
+        Response::json(array_map(fn($p) => ['id' => $p['id'], 'name' => $p['name']], $this->people->active()));
+    }
+
+    /**
+     * v3.6.0 — GET /api/users/{id}/handover: Vorschau für den Dialog „Person
+     * löschen“ — wie viele offene Termine an wen übergehen und wie viele
+     * erledigte Einträge den Namen mit „(gelöscht)“ behalten.
+     */
+    public function handover(Request $req): never
+    {
+        $id = (string)$req->param('id');
+        [$name, $hasAccount] = $this->deletable($id);
+        $counts = $this->handoverPreview === null ? ['open' => 0, 'done' => 0] : ($this->handoverPreview)($id, $name);
+        Response::json([
+            'person' => ['id' => $id, 'name' => $name, 'no' => $this->people?->find($id)['no'] ?? null, 'has_account' => $hasAccount],
+            'to'     => $this->recipient($id),
+            'open'   => (int)$counts['open'],
+            'done'   => (int)$counts['done'],
+        ]);
+    }
+
+    /**
+     * v3.6.0 — Name einer Person, die sich löschen lässt, und ob sie einen
+     * Zugang hat: ein Zugang aus auth.json oder eine Person ohne Zugang aus dem
+     * Verzeichnis (Backup, Beispielhaushalt), die noch nicht gelöscht ist. Sonst 404.
+     *
+     * @return array{0:string, 1:bool}
+     */
+    private function deletable(string $id): array
+    {
+        $u = $this->auth->userById($id);
+        if ($u !== null) return [(string)($u['name'] ?? ''), true];
+        $p = $this->people?->find($id);
+        if ($p === null || $p['deleted']) Response::error($this->i18n->t('errors.users.notFound'), 404, null, 'errors.users.notFound');
+        return [$p['name'], false];
+    }
+
+    /** Wer offene Termine übernimmt: die löschende Person (mit einem API-Schlüssel niemand). */
+    private function recipient(string $deletedId): ?array
+    {
+        $me = $this->user();
+        if ($me === null || ($me['id'] ?? '') === '' || $me['id'] === $deletedId) return null;
+        return ['id' => (string)$me['id'], 'name' => (string)($me['name'] ?? '')];
     }
 
     private function user(): ?array
@@ -223,14 +292,27 @@ final class SessionController
 
     public function listUsers(Request $req): never
     {
-        Response::json($this->auth->users());
+        // v3.6.0 — mit der fortlaufenden Nummer aus dem Personenverzeichnis (additiv);
+        // dahinter die Personen ohne Zugang (Backup, Beispielhaushalt): `has_account: false`
+        $register = $this->people?->all()['people'] ?? [];
+        $no = array_column($register, 'no', 'id');
+        $users = array_map(fn($u) => $u + ['no' => $no[$u['id']] ?? null, 'has_account' => true], $this->auth->users());
+        $accounts = array_flip(array_column($users, 'id'));
+        foreach ($register as $p) {
+            if ($p['deleted_at'] !== null || $p['name'] === '' || isset($accounts[$p['id']])) continue;
+            $users[] = ['id' => $p['id'], 'name' => $p['name'], 'role' => $p['role'], 'source' => 'none', 'prefs' => (object)[],
+                        'created_at' => $p['created_at'], 'no' => $p['no'], 'has_account' => false];
+        }
+        Response::json($users);
     }
 
     public function createUser(Request $req): never
     {
         $user = $this->userCall(fn() => $this->auth->createUser((string)$req->input('name', ''),
             (string)$req->input('password', ''), (string)$req->input('role', 'member')));
-        Response::json($user, 201);
+        // v3.6.0 — gleich ins Personenverzeichnis (Nummer in der Antwort, additiv)
+        $no = $this->people?->find((string)$user['id'])['no'] ?? null;
+        Response::json($user + ['no' => $no], 201);
     }
 
     public function updateUser(Request $req): never
@@ -240,6 +322,16 @@ final class SessionController
             if (is_array($req->body) && array_key_exists($k, $req->body)) $patch[$k] = (string)$req->body[$k];
         }
         $id = (string)$req->param('id');
+        // v3.6.0 — Person ohne Zugang (Backup, Beispielhaushalt): Name und Rolle im
+        // Verzeichnis; ein Passwort bekommt sie nur über einen neuen Zugang
+        if ($this->people !== null && $this->auth->userById($id) === null) {
+            if (isset($patch['password'])) {
+                Response::error($this->i18n->t('errors.users.noAccountPassword'), 400, null, 'errors.users.noAccountPassword');
+            }
+            $p = $this->userCall(fn() => $this->people->update($id, $patch));
+            Response::json(['id' => $p['id'], 'name' => $p['name'], 'role' => $p['role'], 'source' => 'none', 'prefs' => (object)[],
+                            'created_at' => $p['created_at'], 'no' => $p['no'], 'has_account' => false]);
+        }
         $user = $this->userCall(fn() => $this->auth->updateUser($id, $patch));
         // Neues Passwort beendet die Sitzungen der Person — die eigene bleibt
         if (isset($patch['password']) && ($this->user()['id'] ?? null) === $id) {
@@ -248,19 +340,32 @@ final class SessionController
         Response::json($user);
     }
 
+    /**
+     * Person löschen — nur Verwalter (App::adminOnly, sonst 403). v3.6.0:
+     * Offene Termine gehen an die löschende Person, Erledigtes behält den
+     * Namen mit „(gelöscht)“, das Personenverzeichnis vermerkt die Löschung
+     * (die Nummer wird nie wieder vergeben).
+     */
     public function deleteUser(Request $req): never
     {
         $id = (string)$req->param('id');
         if (($this->user()['id'] ?? null) === $id) {
             Response::error($this->i18n->t('errors.users.notSelf'), 400, null, 'errors.users.notSelf');
         }
-        $this->userCall(fn() => $this->auth->deleteUser($id));
+        $this->people?->all();   // Bestand: erst ins Verzeichnis, dann löschen
+        [$name, $hasAccount] = $this->deletable($id);
+        // eine Person ohne Zugang steht nur im Verzeichnis
+        if ($hasAccount) $this->userCall(fn() => $this->auth->deleteUser($id));
+        $to = $this->recipient($id);
+        $this->people?->markDeleted($id, $to['id'] ?? null, $name);
         // v3.4.0 (F1024) — auf Wunsch des Verwalters: im Verlauf „ehemalige Person"
         $anon = $this->anonymizeActivity !== null && $req->queryParam('anonymize_activity') === '1';
         if ($anon) ($this->anonymizeActivity)($id);
-        // v3.5.0 (F1028) — Termine: ID lösen; mit `anonymize_activity` auch den Namen ersetzen
-        if ($this->personDeleted !== null) ($this->personDeleted)($id, $anon);
-        Response::json(['deleted' => true, 'activity_anonymized' => $anon]);
+        elseif ($this->markActivity !== null) ($this->markActivity)($id);
+        // v3.5.0 (F1028) — Termine; v3.6.0: offene an die löschende Person
+        $moved = $this->personDeleted !== null ? ($this->personDeleted)($id, $anon, $to, $name) : null;
+        Response::json(['deleted' => true, 'activity_anonymized' => $anon,
+            'handed_over' => (int)($moved['handed_over'] ?? 0), 'handed_over_to' => $to, 'kept' => (int)($moved['kept'] ?? 0)]);
     }
 
     /** Fehler der Benutzerverwaltung als Meldung mit stabilem Code. */
@@ -272,6 +377,7 @@ final class SessionController
             [$key, $status, $params] = match ($e->getMessage()) {
                 'name_invalid'       => ['errors.users.nameInvalid', 400, ['max' => 40]],
                 'name_taken'         => ['errors.users.nameTaken', 409, []],
+                'name_taken_person'  => ['errors.users.nameTakenPerson', 409, []],   // v3.6.0
                 'password_too_short' => ['errors.auth.passwordTooShort', 400, ['min' => 8]],
                 'role_invalid'       => ['errors.users.roleInvalid', 400, []],
                 'last_admin'         => ['errors.users.lastAdmin', 409, []],

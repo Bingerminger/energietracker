@@ -23,8 +23,10 @@ dieselben Sätze und Zahlen. Die Druckansicht ist die barrierefreie Fassung
 
 - **Druckansicht öffnen** zeigt den Bericht als Seite in der App. „Drucken /
   als PDF sichern“ bringt ihn auf Papier oder in eine Datei, am iPhone über
-  Teilen → Drucken. Das Häkchen **„Mit Anhang ‚Zahlen im Detail‘“** blendet die
-  Monatstabellen ein.
+  Teilen → Drucken. Daneben lädt **„Jahresbericht herunterladen“** *(v3.6.0)*
+  die PDF-Datei mit derselben Auswahl, am iPad der kürzere Weg zur Datei; ein
+  angehängtes Szenario gibt es nur in der Druckansicht. Das Häkchen **„Mit
+  Anhang ‚Zahlen im Detail‘“** blendet die Monatstabellen ein.
 - **Im Browser öffnen** und **Jahresbericht herunterladen** liefern die
   fertige PDF-Datei.
 
@@ -36,8 +38,10 @@ dieselben Sätze und Zahlen. Die Druckansicht ist die barrierefreie Fassung
 | **Sprache des PDF** | eine der Oberflächensprachen, vorgewählt die dieses Geräts — etwa für Angehörige. Die Druckansicht erscheint immer in der Sprache dieses Geräts; der Dialog sagt das statt einer Auswahl |
 | **Verbrauchsarten** | Häkchen je *aktive* Verbrauchsart. Alle angehakt ergibt den ganzen Bericht, sonst einen **Teilbericht** nur mit diesen — etwa für die Hausverwaltung. Die Druckansicht nennt ihn oben („Teilbericht: Gas, Wasser“). Ohne Häkchen erscheint „Mindestens eine Verbrauchsart wählen.“ |
 | **Mit Anhang „Zahlen im Detail“** | die Monatstabellen je Verbrauchsart |
+| **Mit Seite „Flexibilität“ (Ampel, Hebel, Zeitfenster)** | *(v3.6.0)* eine eigene Seite mit denselben Zahlen wie Auswertungen → Flexibilität: große Zahl, Handlungssätze, typischer Tag je Halbjahr, beste Zeitfenster, „Dein Hebel“, Sonnenstrom ([Flexibilität, § 10](flexibilitaet.md#10-im-jahresbericht)). Braucht Börsenpreise je Viertelstunde für das Berichtsjahr, Zeitfenster für Modul 3 oder Erzeugung je Viertelstunde; sonst entfällt die Seite |
+| **Szenario anhängen** | *(v3.6.0, nur Druckansicht)* erscheint, wenn in der Prognose-Werkstatt Szenarien auf diesem Gerät gespeichert sind: Das gewählte kommt als eigene Seite dazu — Ergebniskarte, Annahmen, Vergleich, Kurven, Rangliste —, gerechnet wie in der Werkstatt ([Was wäre wenn?](was-waere-wenn.md)). Es gilt nur für diesen Aufruf |
 
-Dieses Gerät merkt sich Verbrauchsarten, Sprache und Anhang (im Browser);
+Dieses Gerät merkt sich Verbrauchsarten, Sprache, Anhang und die Seite „Flexibilität“ (im Browser);
 das Jahr steht jedes Mal wieder auf dem Vorjahr. Die Knöpfe der Seite sind
 Links mit dieser gemerkten Auswahl — ein Mittelklick öffnet sie ohne Dialog.
 In der Druckansicht öffnet **„Optionen …“** denselben Dialog, vorbelegt mit
@@ -49,16 +53,18 @@ erzeugt genau die Zusätze aus [§ 6](#6-teilbericht-und-sprache-per-link).
 
 | Seite | Inhalt | Erscheint, wenn |
 |---|---|---|
-| **Das Wichtigste** | Energiekosten, Energieverbrauch (Heizung witterungsbereinigt), CO₂ und bei einer Solaranlage ihr Nutzen — jeweils gegen das Vorjahr, mit einer kleinen Linie über drei Jahre; vier Ampeln; die drei wichtigsten Aufgaben | immer |
+| **Das Wichtigste** | Energiekosten, Energieverbrauch (Heizung witterungsbereinigt), CO₂ und bei einer Solaranlage ihr Nutzen — jeweils gegen das Vorjahr, mit einer kleinen Linie über drei Jahre; vier Ampeln; die drei wichtigsten Aufgaben. Die Energiekosten zählen wie die Übersicht: aus den Verträgen und *(seit v3.6.0)* bei Heizöl und Pellets aus den Lieferungen | immer |
 | **Was hat sich gelohnt** | Erfolge mit Betrag: weniger geheizt, eine Maßnahme, die wirkt (Zäsur), Solaranlage, Speicher, Sonnenstrom im Auto, Modul 3, gesunkene Kosten; darunter „Gut zu wissen“ | immer; ohne Erfolg steht der Vergleich mit dem Vorjahr |
 | **Was ist zu tun** | Aufgaben nach Priorität, je mit Grund, Betrag, Frist und Hinweis | immer; „Nichts zu tun“ nur, wenn auch keine Termine anstehen |
 | **Fristen und Termine** | die nächsten zwölf Monate und alles Überfällige; je laufendem Vertrag ein Zeitstrahl | Termine oder Verträge vorhanden |
-| **Geld** | Kosten je Verbrauchsart und je Monat gegen das Vorjahr, Preis- und Mengeneffekt, Abschläge gegen Kosten je Vertrag, Prognose der nächsten zwölf Monate | es gibt Kosten |
-| **Je Verbrauchsart** | Jahreswert gegen Vorjahr, Monatsbalken; Heizung: „Kälter oder mehr verbraucht?“ und Effizienzskala; Strom: wofür (Haushalt, Wärmepumpe, Wallbox); Wasser: Liter je Person und Tag; Heizöl und Pellets: Bestand und Reichweite | Verbrauch im Jahr |
+| **Geld** | Kosten je Verbrauchsart (auch Heizöl und Pellets) und je Monat gegen das Vorjahr, Preis- und Mengeneffekt, Abschläge gegen Kosten je Vertrag, Prognose der nächsten zwölf Monate | es gibt Kosten |
+| **Je Verbrauchsart** | Jahreswert gegen Vorjahr, Monatsbalken; Heizung: „Kälter oder mehr verbraucht?“ und Effizienzskala; Strom: wofür (Haushalt, Wärmepumpe, Wallbox); Wasser: Liter je Person und Tag; Heizöl und Pellets: Kosten aus den Lieferungen, Bestand und Reichweite | Verbrauch im Jahr |
 | **Sonnenstrom** | Energiefluss, Autarkiequote, Eigenverbrauch, Erzeugung je Monat, Amortisation, Speicher | Solaranlage |
 | **Wärmepumpe** | Arbeitszahl je Monat gegen das Feldtest-Mittel | Wärmemengenzähler mit verknüpftem Stromzähler |
 | **E-Auto laden** | Ladestrom je Monat, davon Sonnenstrom, Kosten laut Ladestrom-Nachweis | Wallbox-Zähler |
 | **Günstige Stunden** | Anteil in günstigen Viertelstunden, Profilfaktor, Modul 3, Wert des Speichers | Viertelstundenwerte und Börsenpreise |
+| **Flexibilität** | *(v3.6.0)* große Zahl „Dein Hebel“, Handlungssätze, typischer Tag für Winter- und Sommerhalbjahr (Farbe und Legende; im PDF die Sonne als Punkt), beste Zeitfenster, „Dein Hebel“ als Tabelle, Sonnenstrom, Beispielwerte | nur auf Wunsch (Dialog, `flex=1`), mit Börsenpreisen, Zeitfenstern für Modul 3 oder Erzeugung je Viertelstunde |
+| **Szenario: {Name}** | *(v3.6.0)* ein gespeichertes Szenario der Prognose-Werkstatt | nur in der Druckansicht, auf Wunsch |
 | **Mietwohnung: Nebenkosten** | Vorauszahlung gegen erwartete Kosten, Abrechnung des Jahres, CO₂-Aufteilung mit Frist | Mietverhältnis |
 | **Kleines Wörterbuch** | nur die Begriffe, die im Bericht vorkommen, je ein Satz; Quellen | immer |
 | **Zahlen im Detail** | je Verbrauchsart eine Monatstabelle | nur auf Wunsch (Anhang) |
@@ -133,15 +139,19 @@ Deutschland).
 
 ## 6. Teilbericht und Sprache per Link
 
-Die Adresse des PDFs nimmt drei Zusätze an (auch kombiniert); der Dialog aus
+Die Adresse des PDFs nimmt diese Zusätze an (auch kombiniert); der Dialog aus
 [§ 1](#1-bericht-holen) setzt sie, und die Druckansicht versteht
-`utilities` und `detail` ebenso (`#/report/print?year=2025&utilities=wasser`):
+`utilities`, `detail` und `flex` ebenso (`#/report/print?year=2025&utilities=wasser`):
 
 | Zusatz | Wirkung |
 |---|---|
 | `?lang=en` | Sprache des Berichts (`de`, `en`, `fr`, `it`, `es`, `pt`, `nl`) — etwa für Angehörige |
 | `?utilities=gas,wasser` | nur diese Verbrauchsarten, etwa für den Hausmeister |
 | `?detail=1` | mit Anhang „Zahlen im Detail“ |
+| `?flex=1` | *(v3.6.0)* mit Seite „Flexibilität“ |
+
+Nur die Druckansicht kennt dazu `scenario=<Name>` — ein Szenario, das auf
+diesem Gerät gespeichert ist.
 
 Beispiel: `…/api.php/api/reports/yearly.pdf?year=2025&utilities=wasser&lang=de`.
 Details in der [API-Referenz](../referenz/api.md#get-apireportsyearlypdfyearyyyy).

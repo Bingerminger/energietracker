@@ -44,6 +44,7 @@ final class CsvExportService
         'deliveries' => 'lieferungen', 'temperatures' => 'temperaturen',
         'periods' => 'zeitraeume',   // v3.1.0
         'activity' => 'verlauf',     // v3.5.0
+        'billing' => 'abrechnungsjahre',   // v3.6.0 (F1030)
     ];
 
     /** @var array{local:bool,sep:string,dec:string,yes:string,no:string} */
@@ -57,6 +58,44 @@ final class CsvExportService
         private DeliveryService $deliveries,
         private I18nService $i18n,
     ) {}
+
+    /** v3.6.0 (F1030) — Abrechnungsperioden (nachträglich: der Dienst kennt BillService). */
+    private ?BillingPeriodService $billing = null;
+
+    public function attachBillingPeriods(BillingPeriodService $billing): void
+    {
+        $this->billing = $billing;
+    }
+
+    /**
+     * v3.6.0 (F1030, #33) — eine Zeile je Abrechnungsperiode der Art (ohne
+     * Subzähler): Von, Bis (einschließlich), Quelle (Rechnung/Stichtag), Tage,
+     * Menge, Kosten, Abschläge, zusätzliche Abschlagszahlungen, Saldo,
+     * vollständig. Nur Arten mit Rechnungsprüfung.
+     */
+    public function billingPeriods(string $utility, string $format = '1', ?string $lang = null): string
+    {
+        if ($this->billing === null || !Utilities::supportsBillCheck($utility)) {
+            throw new LocalizedException('errors.billCheck.unsupportedUtility', ['utility' => $utility], "billing csv $utility");
+        }
+        $data = $this->billing->forUtility($utility);
+        return $this->in($format, $lang, function () use ($utility, $data): string {
+            $unit = Utilities::get($utility)['consumption_unit'];
+            $qk = $data['unit_key'];
+            $h = fn(string $k, array $p = []) => $this->i18n->t('csv.billing.' . $k, $p);
+            $rows = [[$h('from'), $h('until'), $h('source'), $h('days'), $h('consumption', ['unit' => $unit]),
+                      $h('cost'), $h('advances'), $h('extraAdvances'), $h('balance'), $h('complete')]];
+            foreach ($data['periods'] as $p) {
+                $rows[] = [
+                    $p['from'], $p['until'], $h($p['source'] === 'bill' ? 'sourceBill' : 'sourceAnchor'), $p['days'],
+                    $this->num($p[$qk] ?? null), $this->num($p['cost'] ?? null), $this->num($p['advances'] ?? null),
+                    $this->num($p['special']['extra_advances'] ?? null), $this->num($p['balance'] ?? null),
+                    $p['complete'] ? $this->d['yes'] : $this->d['no'],
+                ];
+            }
+            return $this->build($rows);
+        });
+    }
 
     /** Per-utility monthly aggregates across all meters. */
     public function monthly(string $utility, string $format = '1', ?string $lang = null): string

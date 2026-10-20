@@ -37,6 +37,7 @@ const PAGES = {
   flexibility:   ['docs/anleitungen/flexibilitaet.md',   'docs/en/anleitungen/flexibilitaet.md'],     // v3.3.0 (F1021)
   report:        ['docs/anleitungen/jahresbericht-lesen.md', 'docs/en/anleitungen/jahresbericht-lesen.md'], // v3.4.0 (F1025)
   done:          ['docs/anleitungen/hinweise-erledigen.md', 'docs/en/anleitungen/hinweise-erledigen.md'], // v3.4.0 (F1024)
+  whatIf:        ['docs/anleitungen/was-waere-wenn.md',  'docs/en/anleitungen/was-waere-wenn.md'],    // v3.6.0 (F1031)
 };
 
 /** Die Repo-Pfade aller verlinkten Seiten — ein Test prüft, dass es sie gibt. */

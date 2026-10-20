@@ -87,7 +87,7 @@ entstehen in einer eigenen Instanz mit eingeschalteter Anmeldung.
 | `navigation-iphone.png` | Übersicht am iPhone | `#/dashboard` | 375 × 812 | ✓ |
 | `erfassen-iphone.png` | Erfassen-Blatt am iPhone | ＋ Erfassen | 375 × 812 | ✓ |
 | `analyse.png` | Analyse | `#/analysis` | 1440 × 1500 | ✓ |
-| `prognose.png` | Prognose | `#/forecast` | 1440 × 1500 | ✓ |
+| `prognose.png` | Prognose-Werkstatt (v3.6.0) | `#/forecast`, Beispiel „Kalter Winter“ angeklickt | 1440 × 1500 | ✓ |
 | `jahresbericht.png` | Druckansicht des Jahresberichts (v3.4.0) | `#/report/print?year=2025` | 1440 × 1500 | ✓ |
 | `tarifvergleich.png` | Wechsel prüfen | `#/tariffs` | 1440 × 1522 | ✓ |
 | `empfehlungen.png` | Empfehlungen | `#/recommendations` | 1440 × 1500 | ✓ |

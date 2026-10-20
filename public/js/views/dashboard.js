@@ -14,6 +14,8 @@ import { tankLevel } from '../lib/tank.js';
 import { info, infoNote } from '../components/info.js';
 import { isFeedIn, isGeneration, isPv, moreIsBetter } from '../lib/semantics.js';
 import { setupSteps, setupListHtml } from '../lib/onboarding.js';
+import { periodMode, periodName, pickPeriod, periodsWithData } from '../lib/billing-period.js';   // v3.6.0 (F1030)
+import { periodModeHtml, wirePeriodMode } from '../components/period-mode.js';
 // v3.2.0 (F1019, F1020) — Einsteiger-Übersicht, Schaubilder, Vorschlag zum Hochstufen
 import { currentLevel, atLeast, nextLevel, saveLevel, isDismissed, dismiss } from '../lib/levels.js';
 import { moneyHtml, energyHtml, weatherHtml, timelineHtml, playExplainers } from '../components/explainer.js';
@@ -21,6 +23,9 @@ import { moneyHtml, energyHtml, weatherHtml, timelineHtml, playExplainers } from
 import { markEventDone } from '../components/done-dialog.js';
 // v3.5.0 (F1028) — Zuständig: Chip und Filter in „Zu tun“
 import { assigneeOf, assigneeNames, chipHtml, filterHtml, bindFilter, filterNoteHtml, matchesAssignee, storedFilter } from '../lib/assignee.js';
+// v3.6.0 — Kachel „Dein Hebel“: die Zahl der Ergebniskarte der Flexibilität
+import { actionText } from '../lib/flex-text.js';
+import { areaAssumedHtml } from '../lib/area-assumed.js';   // v3.6.0 (Paket einpers)
 
 export async function render(container) {
   container.innerHTML = `<div class="loading">${t('dashboard.loading')}</div>`;
@@ -50,8 +55,13 @@ export async function render(container) {
   const [datasets, eff, recs, events, stromSaldo, pvSummary, tankLists] = await Promise.all([
     Promise.all(utilities.map(async u => {
       try {
-        const c = await api.consumption(u.key);
-        return { utility: u, consumption: c };
+        // v3.6.0 (F1030) — im Abrechnungsjahr dazu die Perioden der Art
+        const billingMode = periodMode() === 'billing' && u.supports_bill_check;
+        const [c, bp] = await Promise.all([api.consumption(u.key),
+          billingMode ? api.utilityBillingPeriods(u.key).catch(() => null) : null]);
+        // v3.6.0 (Paket abrechnung) — Zählergruppen dann ebenfalls je Periode (vom Server)
+        const groups = billingMode ? await groupPeriods(u.key, c).catch(() => null) : null;
+        return { utility: u, consumption: c, billing: pickPeriod(bp?.periods), groups };
       } catch (e) {
         toastErr(`${u.label}: ${e.message}`);
         return { utility: u, consumption: null };
@@ -127,6 +137,7 @@ export async function render(container) {
           </div>
           <div class="kpi__sub">${t('dashboard.efficiency.perSource', { area: eff.wohnflaeche_m2 })}</div>
         `}
+        ${eff.area_assumed ? areaAssumedHtml(eff.wohnflaeche_m2) : ''}
         ${eff.certificate ? certificateHtml(eff, utilities) : ''}
         ${eff.per_source.some(s => s.complete === false) && eff.note ? `<p class="muted dash-eff__note">${escapeHtml(eff.note)}</p>` : ''}
         ${eff.scale_note ? `<p class="muted dash-eff__note">${escapeHtml(eff.scale_note)}</p>` : ''}
@@ -193,6 +204,8 @@ export async function render(container) {
         </div>
       </div>` : ''}
 
+      ${leverSlotHtml()}
+
       ${topRecs.length ? `
       <div class="card dash-insight">
         <div class="card__head">
@@ -239,12 +252,14 @@ export async function render(container) {
     <div data-role="level-hint"></div>
     <div data-role="todo" data-variant="full">${todoHtml(todo)}</div>
     ${insightsHtml}
+    ${whatIfHtml()}
     ${atLeast('expert') ? `<section class="card dash-explainers" aria-labelledby="dash-ex-title" style="margin-top: var(--sp-5)">
       <h2 class="card__title" id="dash-ex-title"><span aria-hidden="true">🎞️</span> ${escapeHtml(t('dashboard.explainers.title'))}</h2>
       <div class="explainer-grid" data-role="explainers"><div class="loading">${escapeHtml(t('common.loading'))}</div></div>
     </section>` : ''}
 
-    <div class="grid grid-2" style="margin-top: var(--sp-5)">
+    ${utilities.some(u => u.supports_bill_check) ? `<div class="period-mode-bar dash-period-mode" style="margin-top: var(--sp-5)">${periodModeHtml()}</div>` : ''}
+    <div class="grid grid-2" style="margin-top: var(--sp-${utilities.some(u => u.supports_bill_check) ? 3 : 5})">
       ${datasets.map(d => renderUtilityCard(d)).join('')}
     </div>
 
@@ -270,6 +285,7 @@ export async function render(container) {
 
   // v3.4.0 (F1024) — Haken in „Zu tun"
   if (hasAnyData) renderTodoBox(container.querySelector('[data-role="todo"]'), todo);
+  wirePeriodMode(container);   // v3.6.0 (F1030)
 
   // v3.2.0 — Schaubilder (Experte) und Vorschlag zum Hochstufen nachladen;
   // beides darf den ersten Inhalt nicht aufhalten
@@ -278,6 +294,7 @@ export async function render(container) {
     if (exBox) loadExplainers(utilities, exBox).catch(() => { exBox.closest('section')?.remove(); });
     const hintBox = container.querySelector('[data-role="level-hint"]');
     if (hintBox) levelSuggestion(utilities).then(html => { if (hintBox.isConnected) { hintBox.innerHTML = html; bindLevelHint(hintBox); } }).catch(() => {});
+    loadLeverTile(container, utilities);   // v3.6.0 — „Dein Hebel“, nachgeladen
   }
 
   // v2.16.0 (Review FE-17) — kleine Vielfache: je Karte ein eigener Verlauf mit
@@ -301,6 +318,59 @@ export async function render(container) {
  * Ereignisse. Vertrags- und Bestandseinträge tragen den Text ihrer Empfehlung
  * wie bis v3.0.
  */
+/**
+ * v3.6.0 — Kachel „Dein Hebel“: dieselbe Zahl wie die Ergebniskarte der Seite
+ * „Flexibilität“ (Vorjahr wie dort vorgewählt), vom Server mit einer schlanken
+ * Abfrage (`GET /api/flexibility?summary=1`, ohne Nachrechnung je Zähler).
+ * Groß der Betrag mit deinem Tarif, klein daneben „bis zu …“ mit dynamischem
+ * Tarif, ein Handlungssatz, ein Link zur Seite. Nur mit gemessenen
+ * Viertelstunden und einem Hebel; sonst keine Kachel. Die Übersicht wartet
+ * nicht darauf: Ein Platzhalter (template, belegt keine Zelle des Rasters)
+ * wird ersetzt, sobald die Antwort da ist.
+ */
+function leverSlotHtml(variant = 'full') {
+  return `<template data-role="flex-lever-slot" data-variant="${variant}"></template>`;
+}
+
+function loadLeverTile(container, utilities) {
+  const slot = container.querySelector('[data-role="flex-lever-slot"]');
+  if (!slot || !utilities.some(u => u.key === 'strom')) { slot?.remove(); return; }
+  const year = new Date().getFullYear() - 1;
+  api.flexibilitySummary(year).then(r => {
+    if (!slot.isConnected) return;
+    const html = leverTileHtml(r?.summary, { beginner: slot.dataset.variant === 'beginner' });
+    if (html) slot.outerHTML = html; else slot.remove();
+  }).catch(() => { slot.remove(); });
+}
+
+/** @param {object|null} s `summary` aus GET /api/flexibility?summary=1 */
+export function leverTileHtml(s, { beginner = false } = {}) {
+  if (!s?.measured || !(s.eur >= 1)) return '';
+  const vat = fmt.pct((s.vat_pct ?? 19) / 100, 0);
+  const cls = beginner ? 'card dash-answer dash-lever' : 'card dash-insight dash-lever';
+  return `<section class="${cls}" data-role="flex-lever" aria-labelledby="dash-lever-title">
+        <div class="card__head">
+          <h2 class="card__title" id="dash-lever-title"><span aria-hidden="true">⏱️</span> ${escapeHtml(t('dashboard.lever.title', { year: s.year }))}</h2>
+          <a class="btn btn--ghost btn--sm" href="#/flexibility" aria-label="${escapeHtml(t('dashboard.lever.linkLabel'))}">${escapeHtml(t('dashboard.lever.link'))}</a>
+        </div>
+        <p class="dash-lever__figure"><span class="dash-lever__big">${escapeHtml(fmt.eur0(s.eur))}</span>
+          <span class="dash-lever__per">${escapeHtml(t(s.real ? 'dashboard.lever.real' : 'dashboard.lever.dynamic', { vat }))}</span></p>
+        ${s.dynamic_eur != null ? `<p class="kpi__sub dash-lever__upto">${escapeHtml(t('dashboard.lever.upTo', { eur: fmt.eur0(s.dynamic_eur) }))}</p>` : ''}
+        ${s.action?.window ? `<p class="dash-lever__action">${escapeHtml(actionText(s.action))}</p>` : ''}
+      </section>`;
+}
+
+/** v3.6.0 (F1031) — Einstieg in die Prognose-Werkstatt: „Was wäre wenn? Probier es aus“. */
+function whatIfHtml() {
+  return `<section class="card dash-whatif" aria-labelledby="dash-whatif-title" style="margin-top: var(--sp-5)">
+      <div>
+        <h2 class="card__title" id="dash-whatif-title"><span aria-hidden="true">🧪</span> ${escapeHtml(t('dashboard.whatIf.title'))}</h2>
+        <p class="dash-whatif__text">${escapeHtml(t('dashboard.whatIf.text'))}</p>
+      </div>
+      <a class="btn btn--primary" href="#/forecast" data-role="whatif-link">${escapeHtml(t('dashboard.whatIf.button'))}</a>
+    </section>`;
+}
+
 function buildTodo(events, recs) {
   const items = [];
   const due = (events || []).filter(e => e.due_now);
@@ -435,7 +505,16 @@ async function refreshTodo(box) {
   window.dispatchEvent(new CustomEvent('et:badges-refresh'));
 }
 
-function renderUtilityCard({ utility, consumption }) {
+/** v3.6.0 (Paket abrechnung) — Perioden je Zählergruppe mit Mitgliedern (Map Gruppe → Perioden). */
+async function groupPeriods(utilityKey, consumption) {
+  const memberOf = new Set((consumption?.meters || []).map(e => e.meter?.meter_group_id).filter(Boolean));
+  const groups = (consumption?.meter_groups || []).filter(g => memberOf.has(g.id));
+  if (!groups.length) return null;
+  const lists = await Promise.all(groups.map(g => api.groupBillingPeriods(utilityKey, g.id).then(d => d?.periods || []).catch(() => [])));
+  return new Map(groups.map((g, i) => [g.id, lists[i]]));
+}
+
+function renderUtilityCard({ utility, consumption, billing = null, groups = null }) {
   const monthly = consumption?.monthly_total || [];
   const sumKey = utility.consumption_unit === 'kWh' ? 'kwh' : 'm3';
   // v2.15.0 (Review FE-08) — Jede Karte nennt ihr Fenster: Bei Gas endete es
@@ -444,12 +523,17 @@ function renderUtilityCard({ utility, consumption }) {
   // Vorjahres; bis v2.14 stand ein halber März gegen einen ganzen.
   const win = lastMonths(monthly, 12);
   const last12 = win?.rows || [];
-  const totalCons = last12.reduce((s, m) => s + (m[sumKey] || 0), 0);
-  const totalCost = last12.reduce((s, m) => s + (m.cost  || 0), 0);
+  // v3.6.0 (F1030) — im Abrechnungsjahr die laufende Periode der Art mit
+  // ihrem Stichtag (Summen vom Server, ohne Subzähler), benannt; ohne Trend
+  const totalCons = billing ? Number(billing[sumKey]) || 0 : last12.reduce((s, m) => s + (m[sumKey] || 0), 0);
+  const totalCost = billing ? Number(billing.cost) || 0 : last12.reduce((s, m) => s + (m.cost  || 0), 0);
   const within = last12.map(m => m.ym);
-  const trendCons = yoyTrend(monthly, sumKey, { months: 12, minMonths: 6, within });
-  const trendCost = yoyTrend(monthly, 'cost', { months: 12, minMonths: 6, within });
-  const windowText = win ? t('dashboard.card.window', { from: fmt.month(win.from), to: fmt.month(win.to) })
+  const trendCons = billing ? null : yoyTrend(monthly, sumKey, { months: 12, minMonths: 6, within });
+  const trendCost = billing ? null : yoyTrend(monthly, 'cost', { months: 12, minMonths: 6, within });
+  const windowText = billing
+    ? t('billing.dashboard.window', { name: periodName(billing, fmt.date), from: fmt.date(billing.from), until: fmt.date(billing.until) })
+      + (billing.as_of && billing.as_of < billing.until ? ' · ' + t('billing.period.asOf', { date: fmt.date(billing.as_of) }) : '')
+    : win ? t('dashboard.card.window', { from: fmt.month(win.from), to: fmt.month(win.to) })
     + (win.partialLast ? ' · ' + t('dashboard.card.partial', { month: fmt.month(win.to), days: win.lastDays, total: win.lastTotal }) : '') : '';
   // v2.12.0 (Review UI-21) — die Kachel „Aktive Zähler 1 · 1 insgesamt" stand
   // achtmal auf der Übersicht; die Zähler sind einen Klick entfernt
@@ -480,11 +564,11 @@ function renderUtilityCard({ utility, consumption }) {
         ${generation ? '' : `<div class="kpi">
           <div class="kpi__label">${t(feedIn ? 'dashboard.kpi.revenue' : 'dashboard.kpi.cost')}</div>
           <div class="kpi__value">${noContract ? '<span class="kpi__empty" aria-hidden="true">—</span>' : `${fmt.eur(totalCost)} ${trendBadge(trendCost, better)}`}</div>
-          <div class="kpi__sub">${noContract ? t('dashboard.kpi.noContract') : t(feedIn ? 'dashboard.kpi.revenueSub' : 'dashboard.kpi.costSub')}</div>
+          <div class="kpi__sub">${noContract ? t('dashboard.kpi.noContract') : billing ? escapeHtml(t('billing.dashboard.costSub', { advances: fmt.eur(billing.advances) })) : t(feedIn ? 'dashboard.kpi.revenueSub' : 'dashboard.kpi.costSub')}</div>
         </div>`}
       </div>
       ${last12.length >= 2 ? `<div class="dash-spark"><canvas data-spark="${escapeHtml(utility.key)}"></canvas></div>` : ''}
-      ${groupBreakdown(consumption, sumKey, utility)}
+      ${groupBreakdown(consumption, sumKey, utility, billing ? { period: billing, groups } : null)}
     </div>
   `;
 }
@@ -494,7 +578,10 @@ function renderUtilityCard({ utility, consumption }) {
 // Zähler aufsummiert und als aufklappbare Übersicht in der Utility-Karte
 // gezeigt. Liefert leeren String, wenn es keine Gruppe mit Mitgliedern gibt
 // (dann bleibt die Karte unverändert wie zuvor).
-function groupBreakdown(consumption, sumKey, utility) {
+// v3.6.0 (Paket abrechnung) — im Abrechnungsjahr dieselbe Periode wie die
+// Kachel darüber (Summen der Gruppe vom Server, GET …/meter-groups/{id}/billing-periods);
+// hat die Gruppe sie nicht (eigene Rechnungen), ihre jüngste — mit Namen.
+function groupBreakdown(consumption, sumKey, utility, billing = null) {
   const groups = consumption?.meter_groups || [];
   const meters = consumption?.meters || [];
   if (!groups.length) return '';
@@ -502,6 +589,13 @@ function groupBreakdown(consumption, sumKey, utility) {
   const rows = groups.map(g => {
     const members = meters.filter(e => (e.meter?.meter_group_id ?? null) === g.id);
     if (!members.length) return null;
+    if (billing) {
+      const list = periodsWithData(billing.groups?.get(g.id));
+      const p = list.find(x => x.from === billing.period.from) || pickPeriod(list);
+      if (!p) return null;
+      return { name: g.name, cons: Number(p[sumKey]) || 0, cost: Number(p.cost) || 0,
+        period: p.from === billing.period.from ? '' : periodName(p, fmt.date) };
+    }
     // v2.1.3 — F1006: Enthält die Gruppe einen Eltern- UND seinen Subzähler,
     // darf der Subzähler nicht zusätzlich gezählt werden — der Eltern-Brutto
     // enthält ihn bereits (analog der Utility-Gesamtsumme in ConsumptionService).
@@ -525,7 +619,7 @@ function groupBreakdown(consumption, sumKey, utility) {
       <ul class="dash-groups__list">
         ${rows.map(g => `
           <li class="dash-groups__item">
-            <span class="dash-groups__name">${escapeHtml(g.name)}</span>
+            <span class="dash-groups__name">${escapeHtml(g.name)}${g.period ? ` <span class="muted">(${escapeHtml(g.period)})</span>` : ''}</span>
             <span class="dash-groups__val">${fmt.num(g.cons, 0)} ${escapeHtml(utility.consumption_unit)}${g.cost > 0 ? ` · ${fmt.eur(g.cost)}` : ''}</span>
           </li>`).join('')}
       </ul>
@@ -711,25 +805,58 @@ function certificateHtml(eff, utilities = []) {
 
 // v3.1.0 (H8, MKT-11) — Einordnung des eigenen Verbrauchs an selbst eingetragenen
 // Vergleichswerten (Strom- und Heizspiegel liegen nicht bei: Ihre Tabellen
-// brauchen eine Genehmigung); dazu die Links zur Selbstprüfung (nur DE)
-function comparisonCardHtml(c, utilities = []) {
+// brauchen eine Genehmigung).
+// v3.6.0 — als Ampel mit einem Satz je Zeile (Strom, Heizung, Wasser gegen den
+// Richtwert je Person); fehlt eine Angabe, lädt genau ein Link zum Feld ein
+// (Einstellungen → Haushalt, `?field=`). Die Links auf die Startseiten von
+// Strom- und Heizspiegel sind entfallen: Sie führten aus der App heraus, ohne
+// zum Eintragen zurückzuführen. Ohne Zeile und ohne Einladung keine Kachel.
+// Bleibt beim Kalenderjahr (F1030).
+export const COMPARISON_INVITE = {
+  reference_strom_kwh:    'reference',
+  reference_heat_kwh_m2:  'reference',
+  wohnflaeche_m2:         'area',
+  wasser_personen_anzahl: 'persons',
+};
+
+export function comparisonCardHtml(c, utilities = []) {
   if (!c?.supported) return '';
+  const pct = (d) => fmt.pct(Math.abs(d) / 100, 0);
+  // Ampelzeile: Punkt (Farbe) + Wort (dasselbe in Text) + Satz
+  const row = (rating, text, sub = '') => `<li class="cmp-row${rating ? ` cmp-row--${rating}` : ''}" data-rating="${rating || 'none'}">
+          <span class="cmp-row__dot" aria-hidden="true"></span>
+          <span class="cmp-row__body">${rating ? `<strong class="cmp-row__label">${escapeHtml(t('comparison.rating.' + rating))}</strong> ` : ''}${escapeHtml(text)}${sub ? `<span class="cmp-row__sub">${sub}</span>` : ''}</span>
+        </li>`;
+  const sentence = (kind, d, vars) => t(`comparison.line.${kind}${d > 0 ? 'Above' : 'Below'}`, { ...vars, pct: pct(d) });
+  const rows = [];
   const s = c.strom;
-  const heat = (c.heating || []).filter(h => h.own_value != null);
-  const hasOwn = (s && s.own_value != null) || heat.length;
-  const links = Object.entries(c.links || {});
-  if (!hasOwn && !links.length) return '';
-  const delta = (d) => d == null ? '' : ` <span class="${d > 0 ? 'danger-text' : 'success-text'}">(${d > 0 ? '+' : ''}${fmt.num(d, 0)} %)</span>`;
+  if (s && s.own_value != null) {
+    const notes = [!s.complete ? t('comparison.incomplete') : '', s.special_household ? t('comparison.special') : ''].filter(Boolean);
+    rows.push(row(s.rating, s.rating
+      ? sentence('strom', s.delta_pct, { kwh: fmt.int(s.kwh), own: fmt.int(s.own_value) })
+      : t('comparison.strom', { kwh: fmt.int(s.kwh), own: fmt.int(s.own_value) }), notes.map(escapeHtml).join(' ')));
+  }
+  for (const h of (c.heating || []).filter(x => x.own_value != null)) {
+    const vars = { label: utilities.find(x => x.key === h.utility)?.label || h.utility, value: fmt.num(h.kwh_per_m2, 0), own: fmt.num(h.own_value, 0) };
+    rows.push(row(h.rating, h.rating ? sentence('heating', h.delta_pct, vars) : t('comparison.heating', vars),
+      h.complete ? '' : escapeHtml(t('comparison.incomplete'))));
+  }
+  const w = c.water;
+  if (w?.rating) {
+    rows.push(row(w.rating, sentence('water', w.delta_pct, { liters: fmt.int(w.liters_per_person_day), ref: fmt.int(w.reference_l) }),
+      escapeHtml(t('comparison.waterBasis', { m3: fmt.num(w.m3, 0), persons: fmt.int(w.persons) }))));
+  }
+  const field = (c.missing || []).find(k => COMPARISON_INVITE[k]);
+  const invite = field ? `<p class="cmp-invite" data-role="cmp-invite">${escapeHtml(t('comparison.invite.' + COMPARISON_INVITE[field]))}
+          <a href="#/settings/household?field=${encodeURIComponent(field)}">${escapeHtml(t('comparison.invite.' + COMPARISON_INVITE[field] + 'Link'))}</a></p>` : '';
+  if (!rows.length && !invite) return '';
+  const own = (s && s.own_value != null) || (c.heating || []).some(x => x.own_value != null);
   return `
-      <div class="card dash-insight">
+      <div class="card dash-insight" data-role="comparison">
         <h2 class="card__title"><span aria-hidden="true">📏</span> ${escapeHtml(t('comparison.title', { year: c.year }))}</h2>
-        ${s && s.own_value != null ? `<p>${escapeHtml(t('comparison.strom', { kwh: fmt.int(s.kwh), own: fmt.int(s.own_value) }))}${s.complete ? delta(s.delta_pct) : ''}</p>
-          ${s.complete ? '' : `<p class="muted small">${escapeHtml(t('comparison.incomplete'))}</p>`}
-          ${s.special_household ? `<p class="muted small">${escapeHtml(t('comparison.special'))}</p>` : ''}` : ''}
-        ${heat.map(h => `<p>${escapeHtml(t('comparison.heating', { label: utilities.find(x => x.key === h.utility)?.label || h.utility, value: fmt.num(h.kwh_per_m2, 0), own: fmt.num(h.own_value, 0) }))}${h.complete ? delta(h.delta_pct) : ''}</p>`).join('')}
-        ${c.source && hasOwn ? `<p class="muted small">${escapeHtml(t('comparison.source', { source: c.source }))}</p>` : ''}
-        ${!hasOwn ? `<p class="muted small">${escapeHtml(t('comparison.empty'))}</p>` : ''}
-        ${links.length ? `<p class="small">${links.map(([k, url]) => `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(t('comparison.link.' + k))}</a>`).join(' · ')}</p>` : ''}
+        ${rows.length ? `<ul class="cmp-list">${rows.join('')}</ul>` : ''}
+        ${c.source && own ? `<p class="muted small">${escapeHtml(t('comparison.source', { source: c.source }))}</p>` : ''}
+        ${invite}
       </div>`;
 }
 
@@ -811,9 +938,12 @@ async function renderBeginner(container, { utilities, datasets, todo, settings }
         <h2 class="card__title" id="dash-a-todo"><span aria-hidden="true">✅</span> ${escapeHtml(t('dashboard.beginner.todo.title'))}</h2>
         <div data-role="todo" data-variant="beginner">${beginnerTodoHtml(todo)}</div>
       </section>
+      ${leverSlotHtml('beginner')}
     </div>
+    ${whatIfHtml()}
     ${explainer ? `<section class="card" style="margin-top: var(--sp-5)">${explainer}</section>` : ''}`;
   renderTodoBox(container.querySelector('[data-role="todo"]'), todo);   // v3.4.0 (F1024)
+  loadLeverTile(container, utilities);   // v3.6.0 — „Dein Hebel“ auch für Einsteiger
   playExplainers(container);
   const hintBox = container.querySelector('[data-role="level-hint"]');
   levelSuggestion(utilities, summary).then(html => { if (hintBox?.isConnected) { hintBox.innerHTML = html; bindLevelHint(hintBox); } }).catch(() => {});

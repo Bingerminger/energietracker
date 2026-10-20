@@ -36,7 +36,7 @@ export async function render(container) {
   const choice = (mode) => {
     const c = resolveChoice(loadReportChoice(), { active, languages: Object.keys(getLanguages()), locale: getLocale(), years: reportYears() });
     const limits = demoLimits(mode);
-    return { ...c, utilities: limits.subset ? c.utilities : null, detail: limits.detail && c.detail };
+    return { ...c, utilities: limits.subset ? c.utilities : null, detail: limits.detail && c.detail, billing: limits.billing && c.billing, flex: limits.flex && c.flex };
   };
   const href = (mode) => escapeHtml(reportHref(mode, choice(mode)));
 

@@ -21,6 +21,21 @@ export function demoKey(path) {
 }
 
 /**
+ * v3.6.0 (F1031) — Schlüssel einer POST-Anfrage, die nur rechnet (Prognose-
+ * Werkstatt): Pfad plus Körper mit sortierten Schlüsseln, damit dieselben
+ * Eingaben dieselbe vorgerechnete Antwort finden.
+ * @param {string} path
+ * @param {unknown} body
+ */
+export function demoBodyKey(path, body) {
+  const stable = (v) => Array.isArray(v) ? `[${v.map(stable).join(',')}]`
+    : v && typeof v === 'object'
+      ? `{${Object.keys(v).sort().map(k => `${JSON.stringify(k)}:${stable(v[k])}`).join(',')}}`
+      : JSON.stringify(v ?? null);
+  return `POST ${demoKey(path)} ${stable(body)}`;
+}
+
+/**
  * Datei-Downloads (CSV, PDF) liegen in der Demo als fertige Dateien. Die
  * Query wandert vor die Endung, damit GitHub Pages den Typ richtig meldet;
  * `inline=1` (anzeigen statt herunterladen) spielt dafür keine Rolle, `lang`

@@ -1051,6 +1051,20 @@ final class MeterService
     }
 
     /**
+     * v3.6.0 (Paket abrechnung) — Die Mitglieder, die in Summen über die
+     * Gruppe zählen: ohne Subzähler, deren Elternzähler selbst Mitglied ist —
+     * der Elternzähler misst sie mit (F1006, Lektion 19). Die Übersicht rechnete
+     * die Gruppensumme schon so (v2.1.3), Verbrauch, Rechnungsprüfung und
+     * Abrechnungsjahr einer Gruppe zählten sie doppelt.
+     */
+    public function groupSumMembers(string $utility, string $groupId): array
+    {
+        $members = $this->groupMembers($utility, $groupId);
+        $ids = array_flip(array_map(fn($m) => (string)($m['id'] ?? ''), $members));
+        return array_values(array_filter($members, fn($m) => !isset($ids[(string)($m['parent_meter_id'] ?? '')])));
+    }
+
+    /**
      * v3.1.0 (H6, #17) — Eine Gruppe als Ziel von Auswertungen (Verbrauch,
      * Vertragsstatus, Prognose, Wechsel, Rechnungsprüfung): ein Datensatz wie
      * ein Zähler mit `is_group` und den Mitgliedern. Null, wenn es sie nicht gibt.

@@ -244,6 +244,19 @@
         "title": "What needs doing?",
         "none": "Nothing right now — good."
       }
+    },
+    "whatIf": {
+      "title": "What if?",
+      "text": "Try it: what does a cold winter cost, what does insulation bring, is switching worth it? The forecast workshop works it out with your data.",
+      "button": "Try it"
+    },
+    "lever": {
+      "title": "Your lever {year}",
+      "real": "a year on your tariff, incl. VAT",
+      "dynamic": "a year with a dynamic tariff, incl. VAT",
+      "upTo": "With a dynamic tariff up to {eur}",
+      "link": "Flexibility",
+      "linkLabel": "Your lever: go to the “Flexibility” page"
     }
   },
   "readingsEntry": {
@@ -479,7 +492,8 @@
       "specialCount": {
         "one": "{count} special payment",
         "other": "{count} special payments"
-      }
+      },
+      "sinceBill": "Counted from {date}: the bill before is booked in the contract and no longer counts here."
     },
     "contractsTable": {
       "emptyTitle": "No contracts recorded",
@@ -1337,7 +1351,7 @@
     },
     "group": {
       "physical": { "title": "Physical constants", "hint": "Conversion and heating-degree-day base — affect all analyses." },
-      "co2": { "title": "CO₂ emission factors", "hint": "Grams of CO₂ per consumption unit, for the emission estimate." },
+      "co2": { "title": "CO₂ emission factors", "hint": "Grams of CO₂ per consumption unit, for the emission estimate.", "list": "Factors per utility and electricity per year" },
       "billing": { "title": "Billing cycle", "hint": "Annual settlement date per utility (format DD-MM, e.g. 01-01 for 1 January, 15-04 for 15 April). Determines how far the balance of open contracts is projected; contracts with a maintained end date still use that end." },
       "contractReminders": { "title": "Reminders", "hint": "Three levels before a contract ends or its notice deadline; for reminders the advance warning and the grace period until “overdue”." },
       "water": { "title": "Water reference values", "hint": "Household size, per-capita reference and the bands of the saving index." },
@@ -1382,6 +1396,10 @@
       "hosts": {
         "title": "Host names",
         "hint": "List the names you use to open the app. It then only answers to these names – without sign-in this protects against other websites that point their name at your address (DNS rebinding). IP addresses always work."
+      },
+      "updates": {
+        "title": "New versions",
+        "hint": "Once a day the app can check on GitHub whether a newer version exists. GitHub only sees your server’s address, no data from the app."
       }
     },
     "field": {
@@ -1533,6 +1551,10 @@
       "allowed_hosts": {
         "label": "Allowed host names",
         "hint": "Comma-separated, without http:// and port, e.g. energie.example.org, *.home.arpa. The name you are using right now must be included. Empty = all names (as before). Applies together with ET_ALLOWED_HOSTS."
+      },
+      "update_check": {
+        "label": "Tell me about new versions",
+        "hint": "A note appears until you close it for that version. When switched off, no request goes out."
       }
     },
     "boolActive": "on",
@@ -1962,7 +1984,44 @@
       "addButton": "Add",
       "added": "{name} can now sign in.",
       "saved": "Saved.",
-      "anonymizeActivity": "Replace the name in the history with “former member”"
+      "anonymizeActivity": "Replace the name in the history with “former member”",
+      "no": "No. {no}",
+      "deleteHint": "Only admins can delete people. Their open reminders then pass to you; completed items keep their name with “(deleted)”. A person’s number is never reused.",
+      "memberDeleteHint": "Only admins can add, change and delete people.",
+      "handover": {
+        "one": "{count} open reminder passes to {to}.",
+        "other": "{count} open reminders pass to {to}."
+      },
+      "handoverNone": "This person has no open reminders.",
+      "keepDone": {
+        "one": "{count} completed entry in the history keeps the name with “(deleted)”.",
+        "other": "{count} completed entries in the history keep the name with “(deleted)”."
+      },
+      "keepDoneFormer": {
+        "one": "{count} completed entry in the history then shows “former member”.",
+        "other": "{count} completed entries in the history then show “former member”."
+      },
+      "deletedToast": "{name} has been deleted.",
+      "handedOver": {
+        "one": "{count} open reminder is now yours.",
+        "other": "{count} open reminders are now yours."
+      },
+      "noAccess": "no sign-in",
+      "hintOff": "Without sign-in there are no accounts. These people come from a backup or a sample household and can be chosen under “Responsible”; anyone who reaches the address may delete them.",
+      "deleteHintOff": "Without sign-in nobody takes over when deleting: the person’s open reminders stay with “(deleted)” until someone reassigns them; completed items keep their name. A person’s number is never reused.",
+      "noAccessHint": "“no sign-in”: a person from a backup or a sample household. “Create account” enters their name under “Add a person”; with a password it becomes an account with the same number, and their reminders and entries stay with them.",
+      "grant": "Create account",
+      "deleteConfirmNoAccess": "This person will no longer be offered for selection. The household’s data stays.",
+      "handoverNobody": {
+        "one": "{count} open reminder stays with the person, marked “(deleted)”, until someone takes it over.",
+        "other": "{count} open reminders stay with the person, marked “(deleted)”, until someone takes them over."
+      },
+      "rename": "Rename",
+      "renameTitle": "Rename {name}",
+      "renameHint": "Open reminders then show the new name; completed items keep the name the person had when they were done.",
+      "renamed": "The person is now called {name}.",
+      "renameHintLogin": "Signing in then uses the new name.",
+      "loginNeeded": "You can add people with their own login once sign-in is switched on. Without sign-in, anyone who reaches the address can see and change everything."
     },
     "securityCheck": {
       "title": "Security check",
@@ -1979,7 +2038,8 @@
       "title": "Support Energietracker",
       "text": "Energietracker is independent and open source, with no ads and no account. If it is useful to you, you can support its development – entirely voluntary, the app stays the same.",
       "link": "Support via Buy Me a Coffee"
-    }
+    },
+    "assumedValue": "Not entered yet. Until then the app calculates with {value}; the benchmark on the overview waits for your entry."
   },
   "reminders": {
     "suggest": {
@@ -2455,7 +2515,6 @@
   "forecast": {
     "noUtilities": "No utility is active. You can choose which ones appear in the settings.",
     "loading": "Loading…",
-    "title": "Forecast",
     "selectUtility": "Select utility",
     "selectMeter": "Select meter",
     "chartAlt": "Line chart: consumption history with forecast",
@@ -2561,7 +2620,9 @@
       "tankNoRange": "Stock today: {stock} {unit}.",
       "heatDemand": "Heating energy: {value} kWh per m² of living space ({area} m²) and year.",
       "howToRead": "Reading the annual report",
-      "choose": "Before opening you choose year, utilities, language and appendix; this device remembers the choice."
+      "choose": "Before opening you choose year, utilities, language and appendix; this device remembers the choice.",
+      "costDeliveries": "Costs: {amount} from the deliveries; on average {price} ct/{unit}.",
+      "areaAssumed": "The metric uses an assumed living area of {area} m². Please enter the real area under Settings → Household & building."
     },
     "weatherSource": "Temperatures: Open-Meteo.com (CC BY 4.0), unless entered yourself.",
     "print": {
@@ -2570,7 +2631,9 @@
       "back": "← Annual report",
       "hint": "The report in the language and notation of the interface. “Print” puts it on paper or saves it as PDF — on the iPhone via Share → Print.",
       "detail": "With appendix “Figures in detail”",
-      "priority": "Priority {n}"
+      "priority": "Priority {n}",
+      "scenarioTitle": "Scenario: {name}",
+      "scenarioMissing": "The scenario “{name}” is not saved on this device."
     },
     "fmt": {
       "approx": "about {amount}",
@@ -2612,7 +2675,9 @@
       "cop": "Performance factor per month",
       "solarShare": "of which solar",
       "cheapShare": "Share in cheap hours",
-      "errors": "Note: some sections are missing because their data could not be read."
+      "errors": "Note: some sections are missing because their data could not be read.",
+      "billing": "Billing years",
+      "flexPage": "Flexibility"
     },
     "tile": {
       "cost": "Energy costs",
@@ -2912,8 +2977,8 @@
         "sentence": "How much electricity ran in cheap hours, measured against the market prices per quarter hour.",
         "row": "{share} cheap · profile factor {pf}",
         "module3": "The time-variable grid fee (module 3) brought {amount}.",
-        "battery": "The battery tended to charge in cheap and discharge in expensive hours: value {amount} (market share only).",
-        "note": "Profile factor below 1: the electricity ran in cheaper hours than on average. Amounts count only the market share of the price."
+        "battery": "The battery tended to charge in cheap and discharge in expensive hours: value {amount} (market share only, net, excl. VAT).",
+        "note": "Profile factor below 1: the electricity ran in cheaper hours than on average. Amounts count only the market share of the price, net, excl. VAT."
       },
       "tenancy": {
         "budget": "Billing period {from} to {to}: expected service charges {expected}, prepayments {prepaid}.",
@@ -2921,7 +2986,8 @@
         "statementCredit": "Statement {year}: credit of {amount}.",
         "co2Central": "CO₂ costs {year}: the landlord bears {amount}.",
         "co2Claim": "CO₂ costs {year}: {amount} from the landlord, deadline {date}.",
-        "pathLegend": "Line above zero: additional payment expected; below zero: credit. Dashed: estimate."
+        "pathLegend": "Line above zero: additional payment expected; below zero: credit. Dashed: estimate.",
+        "co2AreaAssumed": "Stage and amount of the CO₂ split use an assumed living area of {area} m². Please enter the area in the tenancy."
       }
     },
     "appendix": {
@@ -3024,7 +3090,28 @@
       "demoNote": "The demo only has the full report; partial reports and the appendix in the PDF work with your own installation.",
       "remembered": "This device remembers the choice; the year starts at last year each time.",
       "options": "Options…",
-      "partial": "Partial report: {list}"
+      "partial": "Partial report: {list}",
+      "billing": "With appendix “Billing years”",
+      "billingHint": "For each utility, the billing periods that end in the report year. The other pages stay with the calendar year; otherwise the totals across utilities would not add up.",
+      "flex": "With page “Flexibility” (traffic light, levers, time windows)",
+      "flexHint": "When power was cheap and what shifting can bring. Needs wholesale prices per quarter hour for the report year, module 3 time windows or generation per quarter hour; otherwise the page is left out.",
+      "scenario": "Attach scenario",
+      "scenarioNone": "None",
+      "scenarioHint": "A scenario saved in the forecast workshop as a page of its own — print view only, because it is stored on this device."
+    },
+    "billing": {
+      "period": "Period",
+      "source": "Basis",
+      "sourceBill": "Bill",
+      "sourceAnchor": "Settlement date",
+      "advances": "Advance payments {cur}",
+      "balance": "Balance {cur}",
+      "note": "For each utility, the billing periods ending in this year: as on the recorded bills, otherwise by the settlement date. Balance = cost − advance payments − extra advance payments; positive = additional payment, negative = credit. The other pages show calendar years.",
+      "running": "* still running; calculated up to the last reading (as of {date}).",
+      "partial": "† Partial period: the data only begin within it, or it is a remainder up to the settlement date."
+    },
+    "flexPage": {
+      "bandLead": "Average wholesale price per hour in {year} (wholesale share, net, excl. VAT): green is the cheapest third of the hours, yellow the middle, red the most expensive. A dot above the hour shows sun."
     }
   },
   "csv": {
@@ -3037,7 +3124,21 @@
     "balanceCumulative": "Cumulative balance ({code})",
     "avgTemp": "Avg temp (°C)",
     "hdd": "HDD",
-    "co2": "CO2 (kg)"
+    "co2": "CO2 (kg)",
+    "billing": {
+      "from": "From",
+      "until": "To",
+      "source": "Basis",
+      "sourceBill": "Bill",
+      "sourceAnchor": "Settlement date",
+      "days": "Days",
+      "consumption": "Consumption ({unit})",
+      "cost": "Cost ({code})",
+      "advances": "Advance payments ({code})",
+      "extraAdvances": "Extra advance payments ({code})",
+      "balance": "Balance ({code})",
+      "complete": "Complete"
+    }
   },
   "auth": {
     "tokenOnce": "Copy this token now — it will not be shown again."
@@ -3306,7 +3407,8 @@
       "noTransport": "The server cannot fetch web addresses: PHP has neither cURL nor allow_url_fopen."
     },
     "export": {
-      "formatInvalid": "Unknown CSV format “{format}” — allowed are 1 and local."
+      "formatInvalid": "Unknown CSV format “{format}” — allowed are 1 and local.",
+      "periodInvalid": "Unknown period “{period}” — allowed are calendar and billing."
     },
     "attachment": {
       "type": "Only photos (JPEG, PNG, WebP) and PDF files can be stored as a receipt.",
@@ -3377,7 +3479,9 @@
       "roleInvalid": "The role must be “Admin” or “Member” (API: admin, member).",
       "lastAdmin": "At least one person must manage the installation.",
       "notFound": "This person no longer exists.",
-      "notSelf": "You cannot delete yourself — another person who manages the installation can do that."
+      "notSelf": "You cannot delete yourself — another person who manages the installation can do that.",
+      "noAccountPassword": "This person has no account. Use “Create account” to create one; then they get a password.",
+      "nameTakenPerson": "A person without sign-in already has this name (Settings → Access). Names are unique within the household."
     },
     "evcc": {
       "off": "No evcc address set up (Settings → Expert).",
@@ -3547,7 +3651,7 @@
     "updated": "Bill updated",
     "editing": "You are editing the bill from {from} to {to}.",
     "editBookedNote": "It is already booked as a special payment – the booking in the contract does not change with it.",
-    "periodDefault": "Pre-filled with the last completed billing period. The settlement date per utility is set under Settings → Utilities & billing."
+    "periodDefault": "Pre-filled with the latest completed billing period — as in billing years from the recorded bills, otherwise by the settlement date. The settlement date per utility is set under Settings → Utilities & billing."
   },
   "glossary": {
     "hdd": {
@@ -3729,6 +3833,18 @@
     "typicalDay": {
       "term": "Typical day",
       "text": "The energy flow of an average day in the month: for each quarter hour (local time), the average over all days of the month with readings. It shows the pattern — say, when the midday sun charges the battery — not a real day."
+    },
+    "billingYear": {
+      "term": "Billing year",
+      "text": "The period of a supplier’s annual bill, for example September to August. The app takes it from the recorded bills, otherwise from the settlement date of the utility; a change of supplier ends it on the last day with the old supplier. You can switch to it on the utility page, the overview and the analysis."
+    },
+    "scenario": {
+      "term": "Scenario (what if)",
+      "text": "A calculation with changed assumptions — colder winter, insulation, different tariff — against the baseline, the forecast from your data. A scenario is a model calculation, not a measurement: it shows in which direction and how strongly a change works."
+    },
+    "runningYear": {
+      "term": "Current year",
+      "text": "In the current year, the calendar year counts the standing charge and advance payment of the month of the last reading in full, the billing year only the days up to the reading — whole years are the same in both views."
     }
   },
   "help": {
@@ -3859,7 +3975,8 @@
     "language": "Language",
     "close": "Close notice",
     "readOnly": "Nothing is saved in the demo. With your own installation you record your own data.",
-    "unavailable": "This evaluation is not precomputed in the demo – it works with your own installation."
+    "unavailable": "This evaluation is not precomputed in the demo – it works with your own installation.",
+    "scenarioPresetsOnly": "Only the example scenarios are precomputed in the demo."
   },
   "manifest": {
     "description": "Consumption, costs and contracts for electricity, gas, water, district heating, heating oil, pellets and PV — local and without a cloud.",
@@ -3915,7 +4032,8 @@
       "exampleReadings": "example-readings",
       "exampleTemperatures": "example-temperatures",
       "periods": "periods",
-      "activity": "history"
+      "activity": "history",
+      "billing": "billing-years"
     },
     "periods": {
       "from": "From",
@@ -4283,10 +4401,27 @@
     "incomplete": "The year does not yet have values for every month — only a full year is compared.",
     "special": "With PV, a heat pump or a wall box the general electricity benchmark does not fit; heat pump and wall box are already excluded here.",
     "source": "Source of the reference values: {source}",
-    "empty": "Enter your own reference values in the settings (household), e.g. from an electricity or heating benchmark — the app then places your consumption.",
-    "link": {
-      "stromspiegel": "Stromspiegel: check your class (German)",
-      "heizspiegel": "Heizspiegel: check heating costs (German)"
+    "line": {
+      "stromBelow": "Household electricity: {kwh} kWh, {pct} below your reference value ({own} kWh).",
+      "stromAbove": "Household electricity: {kwh} kWh, {pct} above your reference value ({own} kWh).",
+      "heatingBelow": "{label}: {value} kWh/m², {pct} below your reference value ({own} kWh/m²).",
+      "heatingAbove": "{label}: {value} kWh/m², {pct} above your reference value ({own} kWh/m²).",
+      "waterBelow": "Water: {liters} litres per person per day, {pct} below the benchmark ({ref} litres).",
+      "waterAbove": "Water: {liters} litres per person per day, {pct} above the benchmark ({ref} litres)."
+    },
+    "waterBasis": "{m3} m³ in the year · people in household: {persons}",
+    "rating": {
+      "good": "Good",
+      "near": "Above",
+      "high": "Well above"
+    },
+    "invite": {
+      "reference": "How does your consumption compare? Enter a reference value, for example from a consumption benchmark — this tile then shows a traffic light.",
+      "referenceLink": "Enter reference values",
+      "area": "To compare your heating, the living area is missing.",
+      "areaLink": "Enter living area",
+      "persons": "To compare your water use, the number of people in the household is missing.",
+      "personsLink": "Enter number of people"
     }
   },
   "import": {
@@ -4527,7 +4662,8 @@
       "demoHint": "Loads the matching sample household — with the “Done” history, people in charge of reminders and supplier bills. The app saves the current state first.",
       "demoPublic": "The demo now shows the sample household “{persona}”. Pick another under Settings → General → “Start the setup assistant”.",
       "own": "Start with my own data",
-      "ownHint": "Next: check the meters and add the first reading."
+      "ownHint": "Next: check the meters and add the first reading.",
+      "updateCheck": "Tell me about new versions (checks GitHub once a day)"
     },
     "skip": "Skip",
     "back": "Back",
@@ -4611,7 +4747,7 @@
     "title": "Valuing flexibility",
     "year": "Year",
     "loadPrices": "Load wholesale prices {year} from SMARD",
-    "intro": "Did shifting pay off? The calculation uses your consumption and the wholesale price per quarter hour — only the wholesale share, without taxes, levies and grid fee. Control happens elsewhere (evcc, Home Assistant, the battery itself).",
+    "intro": "When is it worth using power, and how much does shifting bring? The traffic light shows cheap and expensive hours, “Your lever” what it can bring in a year. The calculation uses consumption, generation and the wholesale price per quarter hour; control happens elsewhere (evcc, Home Assistant, the battery itself).",
     "noPrices": "The wholesale prices per quarter hour for {year} are missing — load them from SMARD above.",
     "noIntervals": "There is no consumption per quarter hour for {year} yet. It comes from a portal file (meters → import time series) or from Home Assistant with a timestamp.",
     "attribution": "Wholesale prices: Bundesnetzagentur | SMARD.de (CC BY 4.0)",
@@ -4621,14 +4757,14 @@
       "kwh": "Consumption with price",
       "cheap": "In cheap quarter hours",
       "negative": "At negative prices",
-      "own": "Own avg. / market avg.",
+      "own": "Own avg. / market avg. (net)",
       "factor": "Profile factor",
-      "advantage": "Advantage (wholesale share)"
+      "advantage": "Advantage (wholesale share, net)"
     },
     "noOverlap": "No quarter hour with both consumption and wholesale price.",
     "verdict": {
-      "good": "Cheaper than average: {eur} saved on the wholesale share (profile factor {factor}).",
-      "bad": "More expensive than average: {eur} more on the wholesale share (profile factor {factor}) — consumption tends to fall in expensive times."
+      "good": "Cheaper than average: {eur} saved on the wholesale share excl. VAT (profile factor {factor}).",
+      "bad": "More expensive than average: {eur} more on the wholesale share excl. VAT (profile factor {factor}) — consumption tends to fall in expensive times."
     },
     "months": "Per month",
     "col": {
@@ -4644,7 +4780,7 @@
       "title": "Battery by wholesale price",
       "charged": "Charged · avg. price",
       "discharged": "Discharged · avg. price",
-      "value": "Value of shifting",
+      "value": "Value of shifting (net)",
       "hint": "Discharged kWh at the wholesale price of discharging minus charged kWh at the wholesale price of charging — what shifting across the day was worth, without self-consumption losses and without grid fee."
     },
     "module3": {
@@ -4668,7 +4804,170 @@
         "smard": "SMARD"
       }
     },
-    "loadingPrices": "Loading wholesale prices … {month} ({n} of {total})"
+    "loadingPrices": "Loading wholesale prices … {month} ({n} of {total})",
+    "card": {
+      "brand": "Energietracker · Flexibility",
+      "title": "Your lever {year}",
+      "real": "This much you can save a year on your tariff by shifting use into cheap and sunny hours.",
+      "dynamic": "This much a dynamic tariff could save a year if you shift use into cheap hours.",
+      "factBest": "Biggest lever: {name}",
+      "factDynamic": "With a dynamic tariff",
+      "upTo": "up to {eur}",
+      "factSelf": "Solar power used at home",
+      "factModule3": "Module 3 already saved",
+      "footer": "Wholesale prices {year} per quarter hour: Bundesnetzagentur | SMARD.de (CC BY 4.0) · amounts incl. VAT · sample values marked · as of {date}",
+      "footerOwn": "From your quarter hours {year} · amounts incl. VAT · sample values marked · as of {date}",
+      "image": "Save as image",
+      "filename": "flexibility"
+    },
+    "missing": {
+      "title": "What this page can show as well",
+      "prices": "<strong>Wholesale prices per quarter hour</strong> are missing for {year}. With them the traffic light shows cheap and expensive hours, and “Your lever” calculates in euros — for the washing machine and dishwasher too.",
+      "intervals": "<strong>Consumption per quarter hour</strong> is missing. With it the app sees when you use power and checks what your shifting achieved. It comes from a portal file (meter → import time series) or from Home Assistant with a timestamp.",
+      "devices": "<strong>Wallbox or heat pump with its own meter</strong> and quarter hours: then “Your lever” shows measured values instead of sample values only.",
+      "pv": "<strong>Generation and feed-in per quarter hour</strong>: with them the page shows how much more solar power you could use at home.",
+      "tariff": "<strong>Dynamic tariff or module 3</strong>: with a dynamic offer under Check switching or § 14a module 3 time windows on the contract, the page shows when shifting brings real money.",
+      "guide": "Step by step in the guide"
+    },
+    "real": {
+      "yes": "on your tariff",
+      "no": "with a dynamic tariff"
+    },
+    "basis": {
+      "assumed": "sample value"
+    },
+    "actions": {
+      "title": "What you can do",
+      "lead": "The biggest lever per appliance, with the time window for the {season}. The amounts are upper limits for one year.",
+      "other": "{season}: {window}",
+      "ev": {
+        "cheap": "Charge the car {window}: up to {eur} a year.",
+        "sun": "Charge the car on solar power, {window}: up to {eur} a year.",
+        "low": "Charge the car in the low grid tariff, {window}: up to {eur} a year."
+      },
+      "heat_pump": {
+        "cheap": "Let the heat pump preheat {window}: up to {eur} a year.",
+        "low": "Run the heat pump more in the low grid tariff, {window}: up to {eur} a year.",
+        "sun": "Let the heat pump preheat on solar power, {window}: up to {eur} a year."
+      },
+      "battery": {
+        "peak": "Discharge the battery when power is expensive, {window}: up to {eur} a year."
+      },
+      "washer": {
+        "cheap": "Start the washing machine {window}: up to {eur} a year.",
+        "sun": "Do the washing on solar power, {window}: up to {eur} a year."
+      },
+      "dishwasher": {
+        "cheap": "Start the dishwasher {window}: up to {eur} a year.",
+        "sun": "Run the dishwasher on solar power, {window}: up to {eur} a year."
+      }
+    },
+    "season": {
+      "summer": "summer half-year",
+      "winter": "winter half-year"
+    },
+    "seasonBtn": {
+      "winter": "Winter half-year",
+      "summer": "Summer half-year",
+      "all": "Whole year"
+    },
+    "ampel": {
+      "title": "When power is cheap",
+      "seasonLabel": "Season",
+      "lead": "Average wholesale price per hour in {year} (wholesale share, net, excl. VAT): green is the cheapest third of the hours, red the most expensive. ☀ shows when your system generates strongly.",
+      "leadTou": "Grid fee under § 14a module 3 according to your contract: green is the low tariff, yellow the standard tariff, red the high tariff.",
+      "leadSun": "Only the sun: wholesale prices or module 3 time windows are missing for the prices.",
+      "day": "A typical day",
+      "week": "The week",
+      "weekCaption": "Price level per weekday and hour, {season}",
+      "level": {
+        "cheap": "cheap",
+        "mid": "medium",
+        "expensive": "expensive",
+        "none": "no price"
+      },
+      "sun": {
+        "strong": "plenty of sun",
+        "some": "some sun",
+        "none": "no sun"
+      },
+      "hourCell": "{hour}: {level}, {ct}",
+      "summary": "Cheapest: {cheap}. Most expensive: {peak}.",
+      "range": "Range {min} to {max}, on average {mean} (wholesale share, net, excl. VAT and grid fee).",
+      "rangeTou": "Range {min} to {max}, on average {mean} (grid fee as on your contract)."
+    },
+    "weekdays": {
+      "short": "Mon,Tue,Wed,Thu,Fri,Sat,Sun",
+      "long": "Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday",
+      "often": "on Mondays,on Tuesdays,on Wednesdays,on Thursdays,on Fridays,on Saturdays,on Sundays"
+    },
+    "window": {
+      "week": "{day} {from}–{to}",
+      "day": "{from}–{to}"
+    },
+    "windows": {
+      "title": "Best time windows of the week",
+      "lead": "{season} · {hours} hours at a time, by wholesale price.",
+      "col": {
+        "window": "Time window",
+        "price": "Avg. wholesale price (net)",
+        "grid": "Grid fee",
+        "vsMean": "vs. average",
+        "sun": "Sun"
+      },
+      "below": "{ct} cheaper"
+    },
+    "solar": {
+      "title": "Using solar power at home",
+      "now": "In {year} you used {self} of {gen} at home ({share}); {feed} went to the grid.",
+      "more": "With the solar-power levers, about {more} more could be used at home: self-consumption {after} instead of {share}, {eur} a year ({wp} unit price instead of {feed} feed-in tariff).",
+      "noMore": "More solar power could only be used at home with larger daytime loads."
+    },
+    "lever": {
+      "title": "Your lever",
+      "lead": "What shifting can bring in a year: consumption moves into the cheapest quarter hours of its day (the car: while it is plugged in), at most at the appliance’s highest measured power. Today’s pattern is one of the options, so no lever is negative.",
+      "col": {
+        "device": "Appliance",
+        "signal": "Price signal",
+        "shift": "shifted",
+        "eur": "per year"
+      },
+      "total": "Together up to {eur} a year incl. VAT (biggest lever per appliance), of which {real} on your tariff.",
+      "assumptions": "Sample values: heat pump {hp} of daily use shiftable; washing machine {wkwh} kWh per cycle, {wn} cycles a week; dishwasher {dkwh} kWh per cycle, {dn} cycles a week, each {h} hours against a start at any time.",
+      "upper": "Upper limit: the cheapest quarter hours are known the day before (day-ahead). Wholesale price with {vat} VAT, as a dynamic tariff bills it, without its mark-up, levies and grid fee; solar power at unit price minus feed-in tariff; module 3 with the amounts on the contract.",
+      "kind": {
+        "ev": "Electric car ({name})",
+        "heat_pump": "Heat pump ({name})",
+        "battery": "Battery",
+        "washer": "Washing machine",
+        "dishwasher": "Dishwasher"
+      },
+      "plain": {
+        "ev": "Electric car",
+        "heat_pump": "Heat pump"
+      },
+      "evSessions": {
+        "one": "Car: shifted only while it is plugged in — plug-in times from {count} charging session in evcc.",
+        "other": "Car: shifted only while it is plugged in — plug-in times from {count} charging sessions in evcc."
+      },
+      "evPart": "Charging sessions cover {share} of the charged energy; on days without one the car is available all day (sample value).",
+      "evDay": "Car: available all day on charging days (sample value). With charging sessions from evcc, the plug-in times count."
+    },
+    "signal": {
+      "spot": "Wholesale price",
+      "tou": "Grid fee (module 3)",
+      "solar": "Solar power"
+    },
+    "check": {
+      "title": "Checked: what shifting achieved",
+      "lead": "For each electricity meter with quarter hours: how much ran in cheap quarter hours and which wholesale price you would have paid on average; plus battery and module 3. Amounts and ct values at the wholesale price: wholesale share, net, excl. VAT; module 3 with the amounts on the contract."
+    },
+    "availability": {
+      "sessions": "plug-in times from evcc",
+      "day": "whole charging day (sample value)"
+    },
+    "net": "net, excl. VAT",
+    "netNote": "ct values in the traffic light and time windows: wholesale share, net, excl. VAT — the euro amounts of the levers include VAT."
   },
   "pager": {
     "label": "List pages",
@@ -4813,6 +5112,306 @@
       "one": "{count} more entry hidden (filter “Responsible”)",
       "other": "{count} more entries hidden (filter “Responsible”)"
     },
-    "emptyFiltered": "Nothing for this selection."
+    "emptyFiltered": "Nothing for this selection.",
+    "wasDeleted": "The person in charge has been deleted. Enter someone else or leave the field empty."
+  },
+  "notice": {
+    "updated": "Updated to version {version}.",
+    "available": "Version {version} is out.",
+    "whatsNew": "What’s new",
+    "support": "Enjoying Energietracker? You can support it here:",
+    "supportLink": "Support",
+    "dismiss": "Close note"
+  },
+  "billing": {
+    "mode": {
+      "label": "Period of the figures",
+      "calendar": "Calendar year",
+      "billing": "Billing year",
+      "calendarOnly": "{label} has no supplier bill, so the calendar year applies here."
+    },
+    "period": {
+      "pills": "Choose billing period",
+      "none": "No billing period with readings yet. It appears once two readings are recorded.",
+      "fromBill": "{from} to {until}, as on the bill",
+      "fromAnchor": "{from} to {until}, by the settlement date",
+      "asOf": "calculated up to {date} (last reading)",
+      "running": "still running",
+      "partial": "partial period",
+      "switch": "ends with the change of supplier"
+    },
+    "suggest": "The last bill ends on {date}, the settlement date is set to {anchor}. Enter {day} as the settlement date in the settings, and the current and next periods follow the rhythm of the bill.",
+    "chart": {
+      "prev": "Previous period {name}"
+    },
+    "dashboard": {
+      "window": "Billing year {name}: {from} to {until}",
+      "costSub": "Advance payments so far {advances}"
+    },
+    "analysis": {
+      "title": "Billing years compared"
+    },
+    "export": {
+      "label": "Billing years",
+      "hint": "One row per billing period: period, quantity, cost, advance payments, balance. Periods as on the recorded bills, otherwise by the settlement date and up to a change of supplier."
+    }
+  },
+  "scenario": {
+    "title": "Forecast workshop",
+    "lead": "<strong>What if?</strong> Try it: move the sliders and see right away what a cold winter, insulation or a different tariff would cost or save over the next year.",
+    "controls": "Levers",
+    "presets": {
+      "label": "Example scenarios",
+      "try": "Try an example:",
+      "reset": "Reset"
+    },
+    "preset": {
+      "cold_winter": {
+        "label": "Cold winter",
+        "note": "Example “Cold winter”: {pct} more heating degree days — with a climate normal about as cold as one winter in ten, without one an assumption.",
+        "sentence": "A cold winter costs you {amount} more a year."
+      },
+      "roof": {
+        "label": "Roof insulated",
+        "note": "Example “Roof insulated”: 15% less heating energy is an assumed example, not a guide value — enter the figure from your energy assessment and the cost under measures.",
+        "sentence": "An insulated roof saves you {amount} a year."
+      },
+      "cheapest": {
+        "label": "Cheapest offer",
+        "note": "Example “Cheapest offer”: the cheapest of the offers you entered, calculated with your expected consumption, without bonus.",
+        "sentence": "Switching to the cheapest offer saves you {amount} a year."
+      },
+      "save10": {
+        "label": "Save 10%",
+        "note": "Example “Save 10%”: ten percent less consumption through behaviour, such as shorter showers or avoiding standby.",
+        "sentence": "Ten percent less consumption saves you {amount} a year."
+      }
+    },
+    "winter": {
+      "label": "Winter",
+      "hint": "Heating degree days compared with a normal winter. Affects only the heating-dependent part.",
+      "normal": "normal",
+      "colder": "{pct} colder",
+      "milder": "{pct} milder"
+    },
+    "saving": {
+      "label": "Save",
+      "hint": "Less consumption through behaviour, on everything.",
+      "value": "{pct} less"
+    },
+    "none": "no change",
+    "tariff": {
+      "label": "Tariff",
+      "current": "Current contract",
+      "cheapest": "Cheapest offer",
+      "offer": "Offer: {label}",
+      "custom": "Own price",
+      "workingPrice": "Unit price ({minor} per unit)",
+      "basePrice": "Standing charge ({cur} per month)"
+    },
+    "group": {
+      "advanced": "More levers",
+      "expert": "For experts"
+    },
+    "room": {
+      "label": "Room temperature",
+      "hint": "Shifts the heating threshold by the same amount — calculated with your heating model and the local heating degree days, not a rule of thumb."
+    },
+    "baseload": {
+      "label": "Base load",
+      "hint": "Hot water, cooking, appliances — the part that does not depend on the weather."
+    },
+    "model": {
+      "label": "Forecast model",
+      "standard": "Weather-adjusted (forecast)",
+      "last_year": "Same as last year",
+      "trend": "Trend continued",
+      "unavailable": "not enough data (two full years needed)"
+    },
+    "measures": {
+      "title": "Measures",
+      "hint": "You enter the percentages and costs, ideally from your energy assessment. Heating acts on the heating-dependent part, base load on the rest.",
+      "add": "Add measure",
+      "active": "in scenario",
+      "remove": "Remove measure",
+      "kind": "Type",
+      "labelField": "Name (optional)",
+      "heat": "Heating −%",
+      "base": "Base load −%",
+      "cost": "Cost ({cur})"
+    },
+    "measure": {
+      "kind": {
+        "roof": "Insulate roof",
+        "facade": "Insulate walls",
+        "windows": "Replace windows",
+        "basement": "Insulate basement ceiling",
+        "hydraulic": "Hydraulic balancing",
+        "pump": "Replace heating pump",
+        "thermostat": "Smart thermostats",
+        "shower": "Low-flow shower head",
+        "other": "Other measure"
+      }
+    },
+    "regression": "Heating curve (regression model)",
+    "ev": {
+      "km": "Electric car: km per year",
+      "kwh": "Consumption (kWh/100 km)",
+      "placeholder": "as per vehicle"
+    },
+    "jaz": {
+      "from": "Heat pump: SPF today",
+      "to": "SPF in scenario"
+    },
+    "budget": {
+      "label": "Budget for measures ({cur})",
+      "placeholder": "empty = no optimisation"
+    },
+    "save": {
+      "title": "Save scenario",
+      "name": "Name",
+      "button": "Save",
+      "list": "Saved scenarios",
+      "load": "Load",
+      "delete": "Delete",
+      "done": "Saved: “{name}”",
+      "failed": "Could not save: the browser does not allow storage.",
+      "local": "Scenarios stay in this browser — nothing leaves the device."
+    },
+    "compare": {
+      "button": "Compare",
+      "title": "Saved scenarios compared",
+      "name": "Scenario",
+      "utility": "Utility",
+      "delta": "Difference"
+    },
+    "demoNote": "In the demo the baseline and the example scenarios are precomputed. Your own installation calculates any values — try an example above.",
+    "demoShort": "not precomputed in the demo",
+    "unsupported": "{label}: the workshop calculates for utilities with meter readings and contracts. The detailed forecast is further down.",
+    "tooFew": "{label}: a scenario needs at least six months of consumption for the forecast.",
+    "card": {
+      "brand": "Energietracker · Forecast workshop",
+      "yours": "Your scenario",
+      "more": "The scenario “{name}” costs you {amount} more a year.",
+      "less": "The scenario “{name}” saves you {amount} a year.",
+      "same": "The scenario “{name}” hardly changes your costs.",
+      "footer": "Model calculation {from} – {to} · created on {date} with Energietracker"
+    },
+    "kpi": {
+      "cost": "Cost per year",
+      "vsBase": "{delta} vs. {base}",
+      "qty": "Consumption",
+      "qtyYear": "Consumption per year",
+      "advance": "Recommended advance payment",
+      "advanceNow": "currently {amount}",
+      "balance": "Balance at the bill on {date}",
+      "balanceBase": "Baseline: {amount}",
+      "co2": "CO₂",
+      "co2Year": "CO₂ per year"
+    },
+    "chart": {
+      "cumTitle": "Cumulative cost",
+      "monthTitle": "Month by month",
+      "base": "Baseline",
+      "scenario": "Scenario",
+      "eur": "{cur}",
+      "cumAlt": "Line chart: cumulative cost, per year baseline {base}, scenario {scen}",
+      "monthAlt": "Line chart: consumption per month in {unit}, baseline and scenario",
+      "costBase": "Cost baseline",
+      "costScen": "Cost scenario"
+    },
+    "ranking": {
+      "title": "What makes the biggest difference?",
+      "hint": "Each lever on its own against the baseline (normal winter, current contract), effect in the first year.",
+      "lever": "Lever",
+      "saving": "Saving per year",
+      "qty": "Quantity ({unit})",
+      "cost": "Cost",
+      "payback": "Payback",
+      "years": "{n} years",
+      "empty": "No lever moved yet — change something on the left."
+    },
+    "lever": {
+      "room_temp": "Room temperature",
+      "saving": "Saving (behaviour)",
+      "baseload": "Base load",
+      "ev": "Electric car",
+      "jaz": "Heat pump (SPF)"
+    },
+    "models": {
+      "title": "Forecast models compared",
+      "baseQty": "Quantity baseline",
+      "baseCost": "Cost baseline",
+      "scenQty": "Quantity scenario",
+      "scenCost": "Cost scenario",
+      "band": "Uncertainty: in {level}% of years the scenario consumption lies between {low} and {high} {unit}, depending on the winter."
+    },
+    "opt": {
+      "title": "Best combination within a budget",
+      "hint": "Enter a budget and the cost of each measure — the workshop finds the combination with the largest saving.",
+      "noCandidates": "No measure with a cost entered.",
+      "none": "No combination pays off within {budget}.",
+      "result": "Within {budget}: {list} — costs {cost}, saves {saving} a year.",
+      "payback": "Pays back after {n} years.",
+      "apply": "Apply selection",
+      "lp": "Calculated with the model, interactions included; combinations within budget checked: {n}. The linear relaxation (simplex) gives at most {bound}; there each additional {cur} of budget yields up to {value} {minor} a year."
+    },
+    "honesty": {
+      "model": "Model calculation, not a measurement: based on your readings up to {month} and the prices of your contracts.",
+      "heat": "Heating-dependent share over the year: {pct}."
+    },
+    "warn": {
+      "room_temp_unavailable": "Room temperature: not calculated without a heating model and heating degree days.",
+      "last_year_unavailable": "Last year: too few measured months — calculated with the forecast.",
+      "trend_unavailable": "Trend: needs two full years — calculated with the forecast.",
+      "model_filled": "Months of last year without readings, filled from the forecast: {n}.",
+      "ev_unsupported": "Electric car: electricity only.",
+      "jaz_unsupported": "SPF: only for an electricity meter with the heat pump role.",
+      "no_heat_model": "No heating model for this meter: winter and heating percentages have no effect.",
+      "tariff_unsupported": "Tariff: for water the workshop uses the current contract.",
+      "tariff_no_price": "Tariff: the contract lacks a unit price — calculated with the current contract.",
+      "no_offers": "No offer with prices entered — calculated with the current contract."
+    },
+    "share": {
+      "image": "Save result as image",
+      "print": "Print or save as PDF",
+      "csv": "Monthly values as CSV",
+      "filename": "scenario",
+      "imageFailed": "The image could not be created in this browser."
+    },
+    "classic": "Detailed forecast: monthly table, heating curve, range",
+    "csv": {
+      "month": "Month",
+      "base_qty": "Quantity baseline ({unit})",
+      "scen_qty": "Quantity scenario ({unit})",
+      "base_cost": "Cost baseline ({cur})",
+      "scen_cost": "Cost scenario ({cur})",
+      "base_cum_cost": "Cumulative cost baseline ({cur})",
+      "scen_cum_cost": "Cumulative cost scenario ({cur})",
+      "advance": "Advance payment ({cur})"
+    },
+    "print": {
+      "back": "← Back to the workshop",
+      "title": "Scenario for printing",
+      "none": "No scenario selected — open the forecast workshop and click “Print or save as PDF”.",
+      "assumptions": "Assumptions",
+      "compare": "Baseline and scenario",
+      "measure": "Measure {name}: heating −{heat}%, base load −{base}%, cost {cost}",
+      "inactive": "not in scenario",
+      "customPrice": "Own price: {wp} {minor}/{unit}, standing charge {bp} per month",
+      "ev": "Electric car: {km} km per year, {kwh} kWh/100 km",
+      "jaz": "Heat pump: SPF {from} → {to}",
+      "footer": "No guarantee: a scenario relies on assumptions; weather, prices and behaviour may turn out differently.",
+      "hint": "“Print” puts the scenario on paper or saves it as a PDF — on the iPhone via Share → Print."
+    },
+    "guide": "How it calculates"
+  },
+  "people": {
+    "deletedName": "{name} (deleted)"
+  },
+  "area": {
+    "assumed": "Assumed living area {area} m² – please enter it. Until then the app calculates with this value.",
+    "enterHousehold": "Enter living area",
+    "enterTenancy": "Enter the area in the tenancy"
   }
 }

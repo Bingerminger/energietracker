@@ -14,11 +14,11 @@ sample household carried forward to today, in seven languages, nothing to instal
 
 [![CI](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml)
 [![Docker Publish](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml)
-[![Version](https://img.shields.io/badge/version-3.5.1-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-3.6.0-blue.svg)](CHANGELOG.md)
 [![License: AGPL-3.0-or-later](https://img.shields.io/badge/License-AGPL--3.0--or--later-success.svg)](LICENSE)
 [![PHP](https://img.shields.io/badge/PHP-%E2%89%A5%208.2-777BB4.svg)](composer.json)
 [![Dependencies: 0](https://img.shields.io/badge/dependencies-0-success.svg)](composer.json)
-[![Tests](https://img.shields.io/badge/Tests-929-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-1074-success.svg)](tests/)
 [![Languages](https://img.shields.io/badge/languages-7-7c5cff.svg)](public/locales/)
 [![Utilities](https://img.shields.io/badge/utilities-9-f59e0b.svg)](docs/en/einstieg/funktionen.md)
 [![Docker](https://img.shields.io/badge/Docker-amd64%20%7C%20arm64-2496ed.svg)](docker-compose.yml)
@@ -31,6 +31,7 @@ sample household carried forward to today, in seven languages, nothing to instal
 
 | Question | Answer in the app |
 |---|---|
+| What if …? | **Forecast workshop** *(new in v3.6.0)*: sliders for winter, insulation, room temperature and tariff — see at once what a cold winter costs or insulation brings; ranking, best combination within a budget, result as an image or PDF |
 | Will I get money back? | **Balance** per contract by calendar, the expected bill and a suggested advance — "credit" or "additional payment", as on the bill |
 | Is my annual bill right? | **Bill check** for gas, electricity, water and district heating: recalculated per section, held against the bill, the result booked as a special payment |
 | Should I switch? | **Switch decision** with notice period, cost from year two and break-even |
@@ -73,7 +74,7 @@ and help inside the app with a glossary and an ⓘ next to every key figure.
 ```bash
 docker run -d --name energietracker -p 8080:80 \
   -v energietracker-data:/data \
-  ghcr.io/bingerminger/energietracker:3.5.1
+  ghcr.io/bingerminger/energietracker:3
 ```
 
 Then open <http://localhost:8080>. **"Try with sample data"** shows right away
@@ -105,9 +106,11 @@ database — just JSON files. The app talks only to Open-Meteo: for the daily
 weather sync (it sends your location rounded to about 1 km, and can be switched
 off) and the place search, if you use it. Three more paths are yours to switch
 on: your own text recognition service in your home network, if you set one up,
-your evcc in your home network, when you fetch its charging sessions, and
+your evcc in your home network, when you fetch its charging sessions,
 wholesale electricity prices for the dynamic tariff check, when you tap
-“Load from SMARD” (Federal Network Agency; nothing of yours is sent). Fonts and
+“Load from SMARD” (Federal Network Agency; nothing of yours is sent), and the
+note about new versions (once a day GitHub is asked for the newest version
+number; only your server’s address is visible). Fonts and
 Chart.js ship with the repository.
 
 ## Help and documentation
@@ -139,10 +142,11 @@ classes and says why; it does not convert currencies —
 
 ## Status and outlook
 
-**v3.5.1** is the current version — [CHANGELOG](CHANGELOG.en.md) (German
+**v3.6.0** is the current version — [CHANGELOG](CHANGELOG.en.md) (German
 version: [CHANGELOG.md](CHANGELOG.md)). APIs, CSV formats and the backup format
 change only additively; anything is removed only with a new major version and
-after notice. 3.5.1 fixes what showed up on the iPad (Safari). 3.5.0 is about who, when and where to: reminders get someone
+after notice. 3.6.0 evaluates by billing year as well as calendar year — periods
+as on your recorded bills — and can tell you about new versions. 3.5.0 was about who, when and where to: reminders get someone
 responsible, missing supplier bills stand out, and the energy flow plays a day
 in quarter hours. Home Assistant OS users can install it as an app, there is
 an image without root, and the setup asks for language and country first.
@@ -175,10 +179,18 @@ Stars, bug reports and telling others about it help just as much.
 ## Licence
 
 Since version 3.0.0 the Energietracker is under the
-[GNU AGPL v3.0 or later](LICENSE) — use, change, share; whoever offers a
-modified version as a network service shares its source code too. For your own
-installation nothing changes. Versions up to 2.16.0 remain available under the
-MIT licence they were published with.
+[GNU AGPL v3.0 or later](LICENSE). In plain words:
+
+- **At home it is yours:** use it for free, change it, pass it on — no
+  conditions, no account, no fee.
+- **Only one rule:** whoever offers a *modified* version to others as a web
+  service also gives them its source code. That keeps the app free and open
+  for everyone.
+- **Nothing hidden:** under Settings → System a link leads to the source code
+  of exactly the running version.
+
+Versions up to 2.16.0 remain available under the MIT licence they were
+published with.
 
 It ships [Chart.js](https://www.chartjs.org/) (MIT) and the fonts DM Sans and
 DM Mono (SIL Open Font License 1.1); weather data comes from

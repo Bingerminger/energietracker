@@ -244,6 +244,19 @@
         "title": "Was ist zu tun?",
         "none": "Gerade nichts — gut so."
       }
+    },
+    "whatIf": {
+      "title": "Was wäre wenn?",
+      "text": "Probier es aus: Was kostet ein kalter Winter, was bringt die Dämmung, lohnt der Wechsel? Die Prognose-Werkstatt rechnet es mit deinen Daten durch.",
+      "button": "Ausprobieren"
+    },
+    "lever": {
+      "title": "Dein Hebel {year}",
+      "real": "im Jahr mit deinem Tarif, inkl. USt",
+      "dynamic": "im Jahr mit dynamischem Tarif, inkl. USt",
+      "upTo": "Mit dynamischem Tarif bis zu {eur}",
+      "link": "Flexibilität",
+      "linkLabel": "Dein Hebel: zur Seite „Flexibilität“"
     }
   },
   "readingsEntry": {
@@ -479,7 +492,8 @@
       "specialCount": {
         "one": "{count} Sonderzahlung",
         "other": "{count} Sonderzahlungen"
-      }
+      },
+      "sinceBill": "Gerechnet ab {date}: Die Rechnung davor ist im Vertrag gebucht und zählt hier nicht mehr mit."
     },
     "contractsTable": {
       "emptyTitle": "Keine Verträge erfasst",
@@ -1337,7 +1351,7 @@
     },
     "group": {
       "physical": { "title": "Physikalische Konstanten", "hint": "Umrechnung und Heizgradtag-Basis — wirken auf alle Auswertungen." },
-      "co2": { "title": "CO₂-Emissionsfaktoren", "hint": "Gramm CO₂ je Verbrauchseinheit, für die Emissionsabschätzung." },
+      "co2": { "title": "CO₂-Emissionsfaktoren", "hint": "Gramm CO₂ je Verbrauchseinheit, für die Emissionsabschätzung.", "list": "Faktoren je Verbrauchsart und Strom je Jahr" },
       "billing": { "title": "Abrechnungszyklus", "hint": "Stichtag der Jahresabrechnung je Verbrauchsart (Format TT-MM, z. B. 01-01 für 1. Januar, 15-04 für 15. April). Bestimmt, bis wann der Saldo offener Verträge projiziert wird; Verträge mit gepflegtem Ende nutzen weiterhin dieses Ende." },
       "contractReminders": { "title": "Erinnerungen", "hint": "Drei Stufen vor Vertragsende bzw. Kündigungsstichtag; bei Terminen die Vorwarnung und die Kulanz bis „überfällig“." },
       "water": { "title": "Wasser-Referenzwerte", "hint": "Haushaltsgröße, Pro-Kopf-Referenz und die Bänder des Spar-Index." },
@@ -1382,6 +1396,10 @@
       "hosts": {
         "title": "Hostnamen",
         "hint": "Nenne die Namen, unter denen du die App aufrufst. Dann antwortet sie nur noch unter diesen Namen – das schützt ohne Anmeldung vor fremden Webseiten, die ihren Namen auf deine Adresse umbiegen (DNS-Rebinding). IP-Adressen gelten immer."
+      },
+      "updates": {
+        "title": "Neue Versionen",
+        "hint": "Die App kann einmal am Tag bei GitHub nachsehen, ob es eine neuere Version gibt. GitHub sieht dabei nur die Adresse deines Servers, keine Daten aus der App."
       }
     },
     "field": {
@@ -1533,6 +1551,10 @@
       "allowed_hosts": {
         "label": "Erlaubte Hostnamen",
         "hint": "Kommagetrennt, ohne http:// und Port, z. B. energie.example.org, *.home.arpa. Der Name, unter dem du die App gerade aufrufst, muss dabei sein. Leer = alle Namen (wie bisher). Gilt zusammen mit ET_ALLOWED_HOSTS."
+      },
+      "update_check": {
+        "label": "Auf neue Versionen hinweisen",
+        "hint": "Ein Hinweis erscheint, bis du ihn für diese Version schließt. Ausgeschaltet geht keine Anfrage hinaus."
       }
     },
     "boolActive": "aktiv",
@@ -1962,7 +1984,44 @@
       "addButton": "Hinzufügen",
       "added": "{name} kann sich jetzt anmelden.",
       "saved": "Gespeichert.",
-      "anonymizeActivity": "Im Verlauf den Namen durch „ehemalige Person“ ersetzen"
+      "anonymizeActivity": "Im Verlauf den Namen durch „ehemalige Person“ ersetzen",
+      "no": "Nr. {no}",
+      "deleteHint": "Personen löscht nur, wer verwaltet. Offene Termine der Person gehen dabei an dich; Erledigtes behält ihren Namen mit dem Zusatz „(gelöscht)“. Die Nummer einer Person wird nie wieder vergeben.",
+      "memberDeleteHint": "Personen anlegen, ändern und löschen darf nur, wer verwaltet.",
+      "handover": {
+        "one": "{count} offener Termin geht an {to}.",
+        "other": "{count} offene Termine gehen an {to}."
+      },
+      "handoverNone": "Die Person hat keine offenen Termine.",
+      "keepDone": {
+        "one": "{count} erledigter Eintrag im Verlauf behält den Namen mit dem Zusatz „(gelöscht)“.",
+        "other": "{count} erledigte Einträge im Verlauf behalten den Namen mit dem Zusatz „(gelöscht)“."
+      },
+      "keepDoneFormer": {
+        "one": "{count} erledigter Eintrag im Verlauf zeigt dann „ehemalige Person“.",
+        "other": "{count} erledigte Einträge im Verlauf zeigen dann „ehemalige Person“."
+      },
+      "deletedToast": "{name} ist gelöscht.",
+      "handedOver": {
+        "one": "{count} offener Termin gehört jetzt dir.",
+        "other": "{count} offene Termine gehören jetzt dir."
+      },
+      "noAccess": "ohne Zugang",
+      "hintOff": "Ohne Anmeldung gibt es keine Zugänge. Diese Personen stammen aus einem Backup oder einem Beispielhaushalt und stehen unter „Zuständig“ zur Wahl; löschen darf sie, wer die Adresse erreicht.",
+      "deleteHintOff": "Ohne Anmeldung übernimmt beim Löschen niemand: Offene Termine der Person bleiben mit dem Zusatz „(gelöscht)“ stehen, bis jemand sie neu zuweist; Erledigtes behält ihren Namen. Die Nummer einer Person wird nie wieder vergeben.",
+      "noAccessHint": "„ohne Zugang“: eine Person aus einem Backup oder einem Beispielhaushalt. „Zugang anlegen“ trägt ihren Namen unter „Person hinzufügen“ ein; mit Passwort wird daraus ein Zugang mit derselben Nummer, ihre Termine und Einträge bleiben bei ihr.",
+      "grant": "Zugang anlegen",
+      "deleteConfirmNoAccess": "Die Person steht danach nicht mehr zur Wahl. Die Daten des Haushalts bleiben.",
+      "handoverNobody": {
+        "one": "{count} offener Termin bleibt bei der Person, mit dem Zusatz „(gelöscht)“, bis jemand ihn übernimmt.",
+        "other": "{count} offene Termine bleiben bei der Person, mit dem Zusatz „(gelöscht)“, bis jemand sie übernimmt."
+      },
+      "rename": "Umbenennen",
+      "renameTitle": "{name} umbenennen",
+      "renameHint": "Offene Termine zeigen danach den neuen Namen; Erledigtes behält den Namen, den die Person beim Erledigen hatte.",
+      "renamed": "Die Person heißt jetzt {name}.",
+      "renameHintLogin": "Angemeldet wird danach mit dem neuen Namen.",
+      "loginNeeded": "Personen mit eigenem Zugang legst du an, sobald die Anmeldung eingeschaltet ist. Ohne Anmeldung kann jede Person, die die Adresse erreicht, alles sehen und ändern."
     },
     "securityCheck": {
       "title": "Sicherheits-Check",
@@ -1979,7 +2038,8 @@
       "title": "Energietracker unterstützen",
       "text": "Der Energietracker ist unabhängig und Open Source, ohne Werbung und ohne Konto. Wenn er dir nützt, kannst du die Weiterentwicklung unterstützen – ganz freiwillig, die App bleibt dieselbe.",
       "link": "Über Buy Me a Coffee unterstützen"
-    }
+    },
+    "assumedValue": "Noch nicht eingetragen. Bis dahin rechnet die App mit {value}; die Einordnung auf der Übersicht wartet auf deine Angabe."
   },
   "reminders": {
     "suggest": {
@@ -2455,7 +2515,6 @@
   "forecast": {
     "noUtilities": "Keine Verbrauchsart aktiv. In den Einstellungen lässt sich auswählen, welche angezeigt werden.",
     "loading": "Lädt …",
-    "title": "Prognose",
     "selectUtility": "Verbrauchsart auswählen",
     "selectMeter": "Zähler auswählen",
     "chartAlt": "Liniendiagramm: Verbrauchsverlauf mit Prognose",
@@ -2561,7 +2620,9 @@
       "tankNoRange": "Bestand heute: {stock} {unit}.",
       "heatDemand": "Heizenergie: {value} kWh je m² Wohnfläche ({area} m²) und Jahr.",
       "howToRead": "Jahresbericht lesen",
-      "choose": "Vor dem Öffnen wählst du Jahr, Verbrauchsarten, Sprache und Anhang; dieses Gerät merkt sich die Auswahl."
+      "choose": "Vor dem Öffnen wählst du Jahr, Verbrauchsarten, Sprache und Anhang; dieses Gerät merkt sich die Auswahl.",
+      "costDeliveries": "Kosten: {amount} aus den Lieferungen; im Mittel {price} ct/{unit}.",
+      "areaAssumed": "Die Kennzahl rechnet mit einer angenommenen Wohnfläche von {area} m². Bitte trag die echte Fläche unter Einstellungen → Haushalt & Gebäude ein."
     },
     "weatherSource": "Temperaturen: Open-Meteo.com (CC BY 4.0), soweit nicht selbst erfasst.",
     "print": {
@@ -2570,7 +2631,9 @@
       "back": "← Jahresbericht",
       "hint": "Der Bericht in der Sprache und Schreibweise der Oberfläche. „Drucken“ bringt ihn auf Papier oder sichert ihn als PDF — auf dem iPhone über Teilen → Drucken.",
       "detail": "Mit Anhang „Zahlen im Detail“",
-      "priority": "Priorität {n}"
+      "priority": "Priorität {n}",
+      "scenarioTitle": "Szenario: {name}",
+      "scenarioMissing": "Das Szenario „{name}“ ist auf diesem Gerät nicht gespeichert."
     },
     "fmt": {
       "approx": "ca. {amount}",
@@ -2612,7 +2675,9 @@
       "cop": "Arbeitszahl je Monat",
       "solarShare": "davon Sonnenstrom",
       "cheapShare": "Anteil in günstigen Stunden",
-      "errors": "Hinweis: Einzelne Abschnitte fehlen, weil ihre Daten nicht gelesen werden konnten."
+      "errors": "Hinweis: Einzelne Abschnitte fehlen, weil ihre Daten nicht gelesen werden konnten.",
+      "billing": "Abrechnungsjahre",
+      "flexPage": "Flexibilität"
     },
     "tile": {
       "cost": "Energiekosten",
@@ -2912,8 +2977,8 @@
         "sentence": "Wie viel Strom in günstigen Stunden lief, gemessen an den Börsenpreisen je Viertelstunde.",
         "row": "{share} günstig · Profilfaktor {pf}",
         "module3": "Zeitvariables Netzentgelt (Modul 3) brachte {amount}.",
-        "battery": "Der Speicher lud eher in billigen und entlud in teuren Stunden: Wert {amount} (nur Börsenanteil).",
-        "note": "Profilfaktor unter 1: Der Strom lief in günstigeren Stunden als im Mittel. Beträge zählen nur den Börsenanteil des Preises."
+        "battery": "Der Speicher lud eher in billigen und entlud in teuren Stunden: Wert {amount} (Börsenanteil netto, ohne USt).",
+        "note": "Profilfaktor unter 1: Der Strom lief in günstigeren Stunden als im Mittel. Beträge zählen nur den Börsenanteil des Preises, netto ohne USt."
       },
       "tenancy": {
         "budget": "Abrechnungszeitraum {from} bis {to}: erwartete Nebenkosten {expected}, Vorauszahlungen {prepaid}.",
@@ -2921,7 +2986,8 @@
         "statementCredit": "Abrechnung {year}: {amount} Guthaben.",
         "co2Central": "CO₂-Kosten {year}: Der Vermieter trägt {amount}.",
         "co2Claim": "CO₂-Kosten {year}: {amount} vom Vermieter, Frist {date}.",
-        "pathLegend": "Linie über null: Nachzahlung zu erwarten, unter null: Guthaben. Gestrichelt: Schätzung."
+        "pathLegend": "Linie über null: Nachzahlung zu erwarten, unter null: Guthaben. Gestrichelt: Schätzung.",
+        "co2AreaAssumed": "Stufe und Betrag der CO₂-Aufteilung rechnen mit einer angenommenen Wohnfläche von {area} m². Bitte trag die Fläche im Mietverhältnis ein."
       }
     },
     "appendix": {
@@ -3024,7 +3090,28 @@
       "demoNote": "In der Demo gibt es den Bericht nur vollständig; Teilbericht und Anhang im PDF gehen mit einer eigenen Installation.",
       "remembered": "Dieses Gerät merkt sich die Auswahl; das Jahr steht jedes Mal wieder auf dem Vorjahr.",
       "options": "Optionen …",
-      "partial": "Teilbericht: {list}"
+      "partial": "Teilbericht: {list}",
+      "billing": "Mit Anhang „Abrechnungsjahre“",
+      "billingHint": "Je Verbrauchsart die Abrechnungsperioden, die im Berichtsjahr enden. Die übrigen Seiten bleiben beim Kalenderjahr, sonst passten die Summen über alle Arten nicht zusammen.",
+      "flex": "Mit Seite „Flexibilität“ (Ampel, Hebel, Zeitfenster)",
+      "flexHint": "Wann Strom günstig war und was Verschieben bringen kann. Braucht Börsenpreise je Viertelstunde für das Berichtsjahr, Zeitfenster für Modul 3 oder Erzeugung je Viertelstunde; sonst entfällt die Seite.",
+      "scenario": "Szenario anhängen",
+      "scenarioNone": "Keines",
+      "scenarioHint": "Ein in der Prognose-Werkstatt gespeichertes Szenario als eigene Seite — nur in der Druckansicht, denn es liegt auf diesem Gerät."
+    },
+    "billing": {
+      "period": "Periode",
+      "source": "Grundlage",
+      "sourceBill": "Rechnung",
+      "sourceAnchor": "Stichtag",
+      "advances": "Abschläge {cur}",
+      "balance": "Saldo {cur}",
+      "note": "Je Verbrauchsart die Abrechnungsperioden, die in diesem Jahr enden: wie auf den erfassten Rechnungen, sonst nach dem Stichtag. Saldo = Kosten − Abschläge − zusätzliche Abschlagszahlungen; positiv = Nachzahlung, negativ = Guthaben. Die übrigen Seiten zeigen Kalenderjahre.",
+      "running": "* läuft noch; gerechnet bis zur letzten Ablesung (Stand {date}).",
+      "partial": "† Teilperiode: Die Daten beginnen erst in dieser Periode, oder sie ist ein Rest bis zum Stichtag."
+    },
+    "flexPage": {
+      "bandLead": "Mittlerer Börsenpreis je Stunde {year} (Börsenanteil netto, ohne USt): Grün ist das günstigste Drittel der Stunden, Gelb das mittlere, Rot das teuerste. Ein Punkt über der Stunde zeigt Sonne."
     }
   },
   "csv": {
@@ -3037,7 +3124,21 @@
     "balanceCumulative": "Saldo kumuliert ({code})",
     "avgTemp": "Ø Temp (°C)",
     "hdd": "HGT",
-    "co2": "CO2 (kg)"
+    "co2": "CO2 (kg)",
+    "billing": {
+      "from": "Von",
+      "until": "Bis",
+      "source": "Grundlage",
+      "sourceBill": "Rechnung",
+      "sourceAnchor": "Stichtag",
+      "days": "Tage",
+      "consumption": "Verbrauch ({unit})",
+      "cost": "Kosten ({code})",
+      "advances": "Abschläge ({code})",
+      "extraAdvances": "Zusätzliche Abschlagszahlungen ({code})",
+      "balance": "Saldo ({code})",
+      "complete": "Vollständig"
+    }
   },
   "auth": {
     "tokenOnce": "Diesen Token jetzt kopieren — er wird nicht erneut angezeigt."
@@ -3306,7 +3407,8 @@
       "noTransport": "Der Server kann keine Webadressen abrufen: PHP hat weder cURL noch allow_url_fopen."
     },
     "export": {
-      "formatInvalid": "Unbekanntes CSV-Format „{format}“ — erlaubt sind 1 und local."
+      "formatInvalid": "Unbekanntes CSV-Format „{format}“ — erlaubt sind 1 und local.",
+      "periodInvalid": "Unbekannter Zeitraum „{period}“ — erlaubt sind calendar und billing."
     },
     "attachment": {
       "type": "Als Beleg lassen sich nur Fotos (JPEG, PNG, WebP) und PDF-Dateien ablegen.",
@@ -3377,7 +3479,9 @@
       "roleInvalid": "Die Rolle muss „Verwaltung“ oder „Mitglied“ sein (API: admin, member).",
       "lastAdmin": "Mindestens eine Person muss die Installation verwalten.",
       "notFound": "Diese Person gibt es nicht mehr.",
-      "notSelf": "Die eigene Person lässt sich nicht löschen — das erledigt eine andere Person, die die Installation verwaltet."
+      "notSelf": "Die eigene Person lässt sich nicht löschen — das erledigt eine andere Person, die die Installation verwaltet.",
+      "noAccountPassword": "Diese Person hat keinen Zugang. Leg mit „Zugang anlegen“ einen an, dann bekommt sie ein Passwort.",
+      "nameTakenPerson": "Diesen Namen trägt schon eine Person ohne Zugang (Einstellungen → Zugriff). Namen sind im Haushalt eindeutig."
     },
     "evcc": {
       "off": "Keine Adresse von evcc eingetragen (Einstellungen → Experte).",
@@ -3547,7 +3651,7 @@
     "updated": "Rechnung geändert",
     "editing": "Du bearbeitest die Rechnung vom {from} bis {to}.",
     "editBookedNote": "Sie ist schon als Sonderzahlung gebucht – die Buchung im Vertrag ändert sich nicht mit.",
-    "periodDefault": "Vorbelegt ist die letzte abgeschlossene Abrechnungsperiode. Den Stichtag je Verbrauchsart stellst du unter Einstellungen → Verbrauchsarten & Abrechnung ein."
+    "periodDefault": "Vorbelegt ist die jüngste abgeschlossene Abrechnungsperiode – wie im Abrechnungsjahr aus den erfassten Rechnungen, sonst nach dem Stichtag. Den Stichtag je Verbrauchsart stellst du unter Einstellungen → Verbrauchsarten & Abrechnung ein."
   },
   "glossary": {
     "hdd": {
@@ -3729,6 +3833,18 @@
     "typicalDay": {
       "term": "Typischer Tag",
       "text": "Der Energiefluss eines Durchschnittstags im Monat: für jede Viertelstunde (Ortszeit) das Mittel über alle Tage des Monats mit Messwerten. Er zeigt das Muster — etwa, wann die Mittagssonne den Speicher lädt —, keinen echten Tag."
+    },
+    "billingYear": {
+      "term": "Abrechnungsjahr",
+      "text": "Der Zeitraum einer Jahresabrechnung des Versorgers, etwa September bis August. Die App nimmt ihn aus den erfassten Rechnungen, sonst aus dem Stichtag der Verbrauchsart; ein Lieferantenwechsel beendet ihn am letzten Tag beim alten Versorger. Umschalten lässt er sich in Verbrauchsart, Übersicht und Analyse."
+    },
+    "scenario": {
+      "term": "Szenario (Was wäre wenn)",
+      "text": "Eine Rechnung mit geänderten Annahmen — kälterer Winter, Dämmung, anderer Tarif — gegen den Ausgangsfall, die Prognose mit deinen Daten. Ein Szenario ist eine Modellrechnung, keine Messung: Es zeigt, in welche Richtung und wie stark eine Änderung wirkt."
+    },
+    "runningYear": {
+      "term": "Laufendes Jahr",
+      "text": "Im laufenden Jahr zählt das Kalenderjahr Grundpreis und Abschlag des Monats der letzten Ablesung ganz, das Abrechnungsjahr nur die Tage bis zur Ablesung — ganze Jahre sind in beiden Ansichten gleich."
     }
   },
   "help": {
@@ -3859,7 +3975,8 @@
     "language": "Sprache",
     "close": "Hinweis schließen",
     "readOnly": "In der Demo wird nichts gespeichert. Mit einer eigenen Installation erfasst du deine Daten.",
-    "unavailable": "Diese Auswertung ist in der Demo nicht vorberechnet – mit einer eigenen Installation geht sie."
+    "unavailable": "Diese Auswertung ist in der Demo nicht vorberechnet – mit einer eigenen Installation geht sie.",
+    "scenarioPresetsOnly": "In der Demo sind nur die Beispielszenarien vorgerechnet."
   },
   "manifest": {
     "description": "Verbrauch, Kosten und Verträge für Strom, Gas, Wasser, Fernwärme, Heizöl, Pellets und PV — lokal und ohne Cloud.",
@@ -3915,7 +4032,8 @@
       "exampleReadings": "beispiel-ablesungen",
       "exampleTemperatures": "beispiel-temperaturen",
       "periods": "zeitraeume",
-      "activity": "verlauf"
+      "activity": "verlauf",
+      "billing": "abrechnungsjahre"
     },
     "periods": {
       "from": "Von",
@@ -4283,10 +4401,27 @@
     "incomplete": "Das Jahr hat noch nicht für alle Monate Werte — eingeordnet wird erst das volle Jahr.",
     "special": "Mit PV, Wärmepumpe oder Wallbox passt der allgemeine Stromspiegel nicht; Wärmepumpe und Wallbox sind hier schon herausgerechnet.",
     "source": "Quelle der Vergleichswerte: {source}",
-    "empty": "Trag in den Einstellungen (Haushalt) eigene Vergleichswerte ein, etwa aus dem Strom- oder Heizspiegel — die App ordnet deinen Verbrauch dann ein.",
-    "link": {
-      "stromspiegel": "Stromspiegel: eigene Klasse prüfen",
-      "heizspiegel": "Heizspiegel: Heizkosten prüfen"
+    "line": {
+      "stromBelow": "Haushaltsstrom: {kwh} kWh, {pct} unter deinem Vergleichswert ({own} kWh).",
+      "stromAbove": "Haushaltsstrom: {kwh} kWh, {pct} über deinem Vergleichswert ({own} kWh).",
+      "heatingBelow": "{label}: {value} kWh/m², {pct} unter deinem Vergleichswert ({own} kWh/m²).",
+      "heatingAbove": "{label}: {value} kWh/m², {pct} über deinem Vergleichswert ({own} kWh/m²).",
+      "waterBelow": "Wasser: {liters} Liter je Person und Tag, {pct} unter dem Richtwert ({ref} Liter).",
+      "waterAbove": "Wasser: {liters} Liter je Person und Tag, {pct} über dem Richtwert ({ref} Liter)."
+    },
+    "waterBasis": "{m3} m³ im Jahr · Personen im Haushalt: {persons}",
+    "rating": {
+      "good": "Gut",
+      "near": "Darüber",
+      "high": "Deutlich darüber"
+    },
+    "invite": {
+      "reference": "Wie steht dein Verbrauch da? Trag einen Vergleichswert ein, etwa aus dem Strom- oder Heizspiegel — dann zeigt diese Kachel eine Ampel.",
+      "referenceLink": "Vergleichswerte eintragen",
+      "area": "Für die Einordnung der Heizung fehlt die Wohnfläche.",
+      "areaLink": "Wohnfläche eintragen",
+      "persons": "Für die Einordnung des Wassers fehlt die Zahl der Personen im Haushalt.",
+      "personsLink": "Personen eintragen"
     }
   },
   "import": {
@@ -4527,7 +4662,8 @@
       "demoHint": "Lädt den passenden Beispielhaushalt — mit Verlauf „Erledigt“, Zuständigen an Terminen und Versorgerrechnungen. Vorher sichert die App den jetzigen Stand.",
       "demoPublic": "Die Demo zeigt jetzt den Beispielhaushalt „{persona}“. Einen anderen wählst du über Einstellungen → Allgemein → „Einrichtungsassistent starten“.",
       "own": "Mit eigenen Daten starten",
-      "ownHint": "Als Nächstes: Zähler prüfen und den ersten Stand erfassen."
+      "ownHint": "Als Nächstes: Zähler prüfen und den ersten Stand erfassen.",
+      "updateCheck": "Auf neue Versionen hinweisen (sieht einmal am Tag bei GitHub nach)"
     },
     "skip": "Überspringen",
     "back": "Zurück",
@@ -4611,7 +4747,7 @@
     "title": "Flexibilität bewerten",
     "year": "Jahr",
     "loadPrices": "Börsenpreise {year} von SMARD laden",
-    "intro": "Hat das Verschieben etwas gebracht? Gerechnet wird mit deinem Verbrauch und dem Börsenpreis je Viertelstunde — nur der Börsenanteil, ohne Steuern, Umlagen und Netzentgelt. Gesteuert wird woanders (evcc, Home Assistant, der Speicher selbst).",
+    "intro": "Wann lohnt es sich, Strom zu verbrauchen, und wie viel bringt Verschieben? Die Ampel zeigt günstige und teure Stunden, „Dein Hebel“ was es im Jahr bringen kann. Gerechnet wird mit Verbrauch, Erzeugung und Börsenpreis je Viertelstunde; gesteuert wird woanders (evcc, Home Assistant, der Speicher selbst).",
     "noPrices": "Für {year} fehlen die Börsenpreise je Viertelstunde — oben von SMARD laden.",
     "noIntervals": "Für {year} gibt es noch keinen Verbrauch je Viertelstunde. Er kommt aus einer Portaldatei (Zähler → Zeitreihe importieren) oder aus Home Assistant mit Zeitstempel.",
     "attribution": "Börsenpreise: Bundesnetzagentur | SMARD.de (CC BY 4.0)",
@@ -4621,14 +4757,14 @@
       "kwh": "Verbrauch mit Preis",
       "cheap": "In günstigen Viertelstunden",
       "negative": "Bei negativem Preis",
-      "own": "Eigener Ø / Börse Ø",
+      "own": "Eigener Ø / Börse Ø (netto)",
       "factor": "Profilfaktor",
-      "advantage": "Vorteil (Börsenanteil)"
+      "advantage": "Vorteil (Börsenanteil, netto)"
     },
     "noOverlap": "Keine Viertelstunde mit Verbrauch und Börsenpreis.",
     "verdict": {
-      "good": "Günstiger als der Durchschnitt: {eur} gespart beim Börsenanteil (Profilfaktor {factor}).",
-      "bad": "Teurer als der Durchschnitt: {eur} mehr beim Börsenanteil (Profilfaktor {factor}) — es wird eher zu teuren Zeiten verbraucht."
+      "good": "Günstiger als der Durchschnitt: {eur} gespart beim Börsenanteil ohne USt (Profilfaktor {factor}).",
+      "bad": "Teurer als der Durchschnitt: {eur} mehr beim Börsenanteil ohne USt (Profilfaktor {factor}) — es wird eher zu teuren Zeiten verbraucht."
     },
     "months": "Je Monat",
     "col": {
@@ -4644,7 +4780,7 @@
       "title": "Speicher nach Börsenpreis",
       "charged": "Geladen · Ø Preis",
       "discharged": "Entladen · Ø Preis",
-      "value": "Wert der Verschiebung",
+      "value": "Wert der Verschiebung (netto)",
       "hint": "Entladene kWh zum Börsenpreis der Entladung minus geladene kWh zum Börsenpreis der Ladung — was das Verschieben über den Tag wert war, ohne Verluste beim Eigenverbrauch und ohne Netzentgelt."
     },
     "module3": {
@@ -4668,7 +4804,170 @@
         "smard": "SMARD"
       }
     },
-    "loadingPrices": "Börsenpreise werden geladen … {month} ({n} von {total})"
+    "loadingPrices": "Börsenpreise werden geladen … {month} ({n} von {total})",
+    "card": {
+      "brand": "Energietracker · Flexibilität",
+      "title": "Dein Hebel {year}",
+      "real": "So viel kannst du mit deinem Tarif im Jahr sparen, wenn du Verbrauch in günstige und sonnige Stunden verschiebst.",
+      "dynamic": "So viel ließe sich mit einem dynamischen Tarif im Jahr sparen, wenn du Verbrauch in günstige Stunden verschiebst.",
+      "factBest": "Größter Hebel: {name}",
+      "factDynamic": "Mit dynamischem Tarif",
+      "upTo": "bis zu {eur}",
+      "factSelf": "Sonnenstrom selbst genutzt",
+      "factModule3": "Modul 3 schon gespart",
+      "footer": "Börsenpreise {year} je Viertelstunde: Bundesnetzagentur | SMARD.de (CC BY 4.0) · Beträge inkl. USt · Beispielwerte gekennzeichnet · Stand {date}",
+      "footerOwn": "Aus deinen Viertelstunden {year} · Beträge inkl. USt · Beispielwerte gekennzeichnet · Stand {date}",
+      "image": "Als Bild speichern",
+      "filename": "flexibilitaet"
+    },
+    "missing": {
+      "title": "Was die Seite noch zeigen kann",
+      "prices": "<strong>Börsenpreise je Viertelstunde</strong> fehlen für {year}. Mit ihnen zeigt die Ampel günstige und teure Stunden, und „Dein Hebel“ rechnet in Euro — auch für Wasch- und Spülmaschine.",
+      "intervals": "<strong>Verbrauch je Viertelstunde</strong> fehlt. Damit sieht die App, wann du verbrauchst, und rechnet nach, was dein Verschieben gebracht hat. Er kommt aus einer Portaldatei (Zähler → Zeitreihe importieren) oder aus Home Assistant mit Zeitstempel.",
+      "devices": "<strong>Wallbox oder Wärmepumpe mit eigenem Zähler</strong> und Viertelstunden: Dann zeigt „Dein Hebel“ gemessene Werte statt nur Beispielwerte.",
+      "pv": "<strong>Erzeugung und Einspeisung je Viertelstunde</strong>: Damit zeigt die Seite, wie viel Sonnenstrom du mehr selbst nutzen könntest.",
+      "tariff": "<strong>Dynamischer Tarif oder Modul 3</strong>: Mit einem dynamischen Angebot unter Wechsel prüfen oder Zeitfenster für § 14a Modul 3 am Vertrag zeigt die Seite, wann Verschieben bares Geld bringt.",
+      "guide": "Schritt für Schritt in der Anleitung"
+    },
+    "real": {
+      "yes": "mit deinem Tarif",
+      "no": "mit dynamischem Tarif"
+    },
+    "basis": {
+      "assumed": "Beispielwert"
+    },
+    "actions": {
+      "title": "Was du tun kannst",
+      "lead": "Je Gerät der größte Hebel, mit dem Zeitfenster für das {season}. Die Beträge sind Obergrenzen für ein Jahr.",
+      "other": "{season}: {window}",
+      "ev": {
+        "cheap": "Lade das Auto {window}: bis zu {eur} im Jahr.",
+        "sun": "Lade das Auto mit Sonnenstrom, {window}: bis zu {eur} im Jahr.",
+        "low": "Lade das Auto im Niedrigtarif, {window}: bis zu {eur} im Jahr."
+      },
+      "heat_pump": {
+        "cheap": "Lass die Wärmepumpe {window} vorheizen: bis zu {eur} im Jahr.",
+        "low": "Lass die Wärmepumpe mehr im Niedrigtarif laufen, {window}: bis zu {eur} im Jahr.",
+        "sun": "Lass die Wärmepumpe mit Sonnenstrom vorheizen, {window}: bis zu {eur} im Jahr."
+      },
+      "battery": {
+        "peak": "Entlade den Speicher, wenn Strom teuer ist, {window}: bis zu {eur} im Jahr."
+      },
+      "washer": {
+        "cheap": "Starte die Waschmaschine {window}: bis zu {eur} im Jahr.",
+        "sun": "Wasche mit Sonnenstrom, {window}: bis zu {eur} im Jahr."
+      },
+      "dishwasher": {
+        "cheap": "Starte die Spülmaschine {window}: bis zu {eur} im Jahr.",
+        "sun": "Lass die Spülmaschine mit Sonnenstrom laufen, {window}: bis zu {eur} im Jahr."
+      }
+    },
+    "season": {
+      "summer": "Sommerhalbjahr",
+      "winter": "Winterhalbjahr"
+    },
+    "seasonBtn": {
+      "winter": "Winterhalbjahr",
+      "summer": "Sommerhalbjahr",
+      "all": "Ganzes Jahr"
+    },
+    "ampel": {
+      "title": "Wann Strom günstig ist",
+      "seasonLabel": "Jahreszeit",
+      "lead": "Mittlerer Börsenpreis je Stunde {year} (Börsenanteil netto, ohne USt): Grün ist das günstigste Drittel der Stunden, Rot das teuerste. ☀ zeigt, wann deine Anlage kräftig erzeugt.",
+      "leadTou": "Netzentgelt nach § 14a Modul 3 laut deinem Vertrag: Grün ist der Niedrigtarif, Gelb der Standardtarif, Rot der Hochtarif.",
+      "leadSun": "Nur die Sonne: Für die Preise fehlen Börsenpreise oder Zeitfenster für Modul 3.",
+      "day": "Ein typischer Tag",
+      "week": "Die Woche",
+      "weekCaption": "Preisstufe je Wochentag und Stunde, {season}",
+      "level": {
+        "cheap": "günstig",
+        "mid": "mittel",
+        "expensive": "teuer",
+        "none": "ohne Preis"
+      },
+      "sun": {
+        "strong": "viel Sonne",
+        "some": "etwas Sonne",
+        "none": "keine Sonne"
+      },
+      "hourCell": "{hour} Uhr: {level}, {ct}",
+      "summary": "Am günstigsten: {cheap}. Am teuersten: {peak}.",
+      "range": "Spanne {min} bis {max}, im Mittel {mean} (Börsenanteil netto, ohne USt und Netzentgelt).",
+      "rangeTou": "Spanne {min} bis {max}, im Mittel {mean} (Netzentgelt laut Vertrag)."
+    },
+    "weekdays": {
+      "short": "Mo,Di,Mi,Do,Fr,Sa,So",
+      "long": "Montag,Dienstag,Mittwoch,Donnerstag,Freitag,Samstag,Sonntag",
+      "often": "montags,dienstags,mittwochs,donnerstags,freitags,samstags,sonntags"
+    },
+    "window": {
+      "week": "{day} {from}–{to} Uhr",
+      "day": "{from}–{to} Uhr"
+    },
+    "windows": {
+      "title": "Beste Zeitfenster der Woche",
+      "lead": "{season} · je {hours} Stunden am Stück, nach Börsenpreis.",
+      "col": {
+        "window": "Zeitfenster",
+        "price": "Ø Börsenpreis (netto)",
+        "grid": "Netzentgelt",
+        "vsMean": "gegen das Mittel",
+        "sun": "Sonne"
+      },
+      "below": "{ct} günstiger"
+    },
+    "solar": {
+      "title": "Sonnenstrom selbst nutzen",
+      "now": "{year} hast du {self} von {gen} selbst genutzt ({share}); {feed} gingen ins Netz.",
+      "more": "Mit den Hebeln für Sonnenstrom ließen sich rund {more} mehr selbst nutzen: Eigenverbrauch {after} statt {share}, {eur} im Jahr ({wp} Arbeitspreis statt {feed} Einspeisevergütung).",
+      "noMore": "Mehr Sonnenstrom ließe sich nur mit größeren Verbrauchern am Tag selbst nutzen."
+    },
+    "lever": {
+      "title": "Dein Hebel",
+      "lead": "Was Verschieben im Jahr bringen kann: Verbrauch wandert in die günstigsten Viertelstunden seines Tages (das Auto: solange es angesteckt ist), höchstens mit der größten gemessenen Leistung des Geräts. Der heutige Ablauf ist eine der Möglichkeiten, deshalb ist kein Hebel negativ.",
+      "col": {
+        "device": "Gerät",
+        "signal": "Preissignal",
+        "shift": "verschoben",
+        "eur": "im Jahr"
+      },
+      "total": "Zusammen bis zu {eur} im Jahr inkl. USt (größter Hebel je Gerät), davon {real} mit deinem Tarif.",
+      "assumptions": "Beispielwerte: Wärmepumpe {hp} des Tagesverbrauchs verschiebbar; Waschmaschine {wkwh} kWh je Gang, {wn} Gänge je Woche; Spülmaschine {dkwh} kWh je Gang, {dn} Gänge je Woche, jeweils {h} Stunden gegen einen Start zu beliebiger Zeit.",
+      "upper": "Obergrenze: Die günstigsten Viertelstunden kennt man am Vortag (Day-Ahead). Börsenpreis mit {vat} Umsatzsteuer, wie ein dynamischer Tarif ihn abrechnet, ohne dessen Aufschlag, Umlagen und Netzentgelt; Sonnenstrom mit Arbeitspreis minus Einspeisevergütung; Modul 3 mit den Beträgen am Vertrag.",
+      "kind": {
+        "ev": "E-Auto ({name})",
+        "heat_pump": "Wärmepumpe ({name})",
+        "battery": "Speicher",
+        "washer": "Waschmaschine",
+        "dishwasher": "Spülmaschine"
+      },
+      "plain": {
+        "ev": "E-Auto",
+        "heat_pump": "Wärmepumpe"
+      },
+      "evSessions": {
+        "one": "Auto: Verschoben wird nur, solange es angesteckt ist — Steckzeiten aus {count} Ladevorgang von evcc.",
+        "other": "Auto: Verschoben wird nur, solange es angesteckt ist — Steckzeiten aus {count} Ladevorgängen von evcc."
+      },
+      "evPart": "Für {share} des Ladestroms gibt es Ladevorgänge; an Tagen ohne steht das Auto den ganzen Tag bereit (Beispielwert).",
+      "evDay": "Auto: steht am Ladetag den ganzen Tag bereit (Beispielwert). Mit Ladevorgängen aus evcc zählen die Steckzeiten."
+    },
+    "signal": {
+      "spot": "Börsenpreis",
+      "tou": "Netzentgelt (Modul 3)",
+      "solar": "Sonnenstrom"
+    },
+    "check": {
+      "title": "Nachgerechnet: was das Verschieben gebracht hat",
+      "lead": "Je Stromzähler mit Viertelstunden: wie viel in günstigen Viertelstunden lief und welchen Börsenpreis du im Schnitt gezahlt hättest; dazu Speicher und Modul 3. Beträge und ct-Werte zum Börsenpreis: Börsenanteil netto, ohne USt; Modul 3 mit den Beträgen am Vertrag."
+    },
+    "availability": {
+      "sessions": "Steckzeiten aus evcc",
+      "day": "ganzer Ladetag (Beispielwert)"
+    },
+    "net": "netto, ohne USt",
+    "netNote": "ct-Werte in Ampel und Zeitfenstern: Börsenanteil netto, ohne USt — die Euro-Beträge der Hebel rechnen inkl. USt."
   },
   "pager": {
     "label": "Seiten der Liste",
@@ -4813,6 +5112,306 @@
       "one": "{count} weiterer Eintrag ausgeblendet (Filter „Zuständig“)",
       "other": "{count} weitere Einträge ausgeblendet (Filter „Zuständig“)"
     },
-    "emptyFiltered": "Für diese Auswahl gibt es nichts."
+    "emptyFiltered": "Für diese Auswahl gibt es nichts.",
+    "wasDeleted": "Die zuständige Person ist gelöscht. Trag eine andere ein oder lass das Feld leer."
+  },
+  "notice": {
+    "updated": "Aktualisiert auf Version {version}.",
+    "available": "Version {version} ist erschienen.",
+    "whatsNew": "Was ist neu",
+    "support": "Gefällt dir der Energietracker? Hier kannst du ihn unterstützen:",
+    "supportLink": "Unterstützen",
+    "dismiss": "Hinweis schließen"
+  },
+  "billing": {
+    "mode": {
+      "label": "Zeitraum der Auswertung",
+      "calendar": "Kalenderjahr",
+      "billing": "Abrechnungsjahr",
+      "calendarOnly": "Für {label} gibt es keine Abrechnung des Versorgers, hier gilt das Kalenderjahr."
+    },
+    "period": {
+      "pills": "Abrechnungsperiode wählen",
+      "none": "Noch keine Abrechnungsperiode mit Ablesungen. Sie erscheint, sobald zwei Stände erfasst sind.",
+      "fromBill": "{from} bis {until}, wie auf der Rechnung",
+      "fromAnchor": "{from} bis {until}, nach dem Stichtag",
+      "asOf": "gerechnet bis {date} (letzte Ablesung)",
+      "running": "läuft noch",
+      "partial": "Teilperiode",
+      "switch": "endet mit dem Lieferantenwechsel"
+    },
+    "suggest": "Die letzte Rechnung endet am {date}, der Stichtag steht auf dem {anchor}. Trag in den Einstellungen den {day} als Stichtag ein, dann folgen die laufende und die nächsten Perioden dem Rhythmus der Rechnung.",
+    "chart": {
+      "prev": "Vorperiode {name}"
+    },
+    "dashboard": {
+      "window": "Abrechnungsjahr {name}: {from} bis {until}",
+      "costSub": "Abschläge bisher {advances}"
+    },
+    "analysis": {
+      "title": "Abrechnungsjahre im Vergleich"
+    },
+    "export": {
+      "label": "Abrechnungsjahre",
+      "hint": "Eine Zeile je Abrechnungsperiode: Zeitraum, Menge, Kosten, Abschläge, Saldo. Perioden wie auf den erfassten Rechnungen, sonst nach dem Stichtag und bis zu einem Lieferantenwechsel."
+    }
+  },
+  "scenario": {
+    "title": "Prognose-Werkstatt",
+    "lead": "<strong>Was wäre wenn?</strong> Probier es aus: Bewege die Regler und sieh sofort, was ein kalter Winter, die Dämmung oder ein anderer Tarif im nächsten Jahr kostet oder spart.",
+    "controls": "Stellschrauben",
+    "presets": {
+      "label": "Beispielszenarien",
+      "try": "Probier ein Beispiel:",
+      "reset": "Zurücksetzen"
+    },
+    "preset": {
+      "cold_winter": {
+        "label": "Kalter Winter",
+        "note": "Beispiel „Kalter Winter“: {pct} mehr Heizgradtage — mit Klimanormal so kalt wie etwa jeder zehnte Winter, ohne Klimanormal eine Annahme.",
+        "sentence": "Ein kalter Winter kostet dich {amount} mehr im Jahr."
+      },
+      "roof": {
+        "label": "Dach gedämmt",
+        "note": "Beispiel „Dach gedämmt“: 15 % weniger Heizwärme ist ein angenommener Beispielwert, kein Richtwert — trag unter Maßnahmen den Wert aus deiner Energieberatung und die Kosten ein.",
+        "sentence": "Ein gedämmtes Dach spart dir {amount} im Jahr."
+      },
+      "cheapest": {
+        "label": "Günstigstes Angebot",
+        "note": "Beispiel „Günstigstes Angebot“: das günstigste deiner eingetragenen Angebote, gerechnet mit deinem erwarteten Verbrauch, ohne Bonus.",
+        "sentence": "Der Wechsel zum günstigsten Angebot spart dir {amount} im Jahr."
+      },
+      "save10": {
+        "label": "10 % sparen",
+        "note": "Beispiel „10 % sparen“: zehn Prozent weniger Verbrauch durch dein Verhalten, etwa kürzer duschen oder Stand-by vermeiden.",
+        "sentence": "Zehn Prozent weniger Verbrauch sparen dir {amount} im Jahr."
+      }
+    },
+    "winter": {
+      "label": "Winter",
+      "hint": "Heizgradtage gegenüber einem normalen Winter. Wirkt nur auf den heizabhängigen Teil.",
+      "normal": "normal",
+      "colder": "{pct} kälter",
+      "milder": "{pct} milder"
+    },
+    "saving": {
+      "label": "Sparen",
+      "hint": "Weniger Verbrauch durch Verhalten, auf alles.",
+      "value": "{pct} weniger"
+    },
+    "none": "keine Änderung",
+    "tariff": {
+      "label": "Tarif",
+      "current": "Laufender Vertrag",
+      "cheapest": "Günstigstes Angebot",
+      "offer": "Angebot: {label}",
+      "custom": "Eigener Preis",
+      "workingPrice": "Arbeitspreis ({minor} je Einheit)",
+      "basePrice": "Grundpreis ({cur} im Monat)"
+    },
+    "group": {
+      "advanced": "Mehr Stellschrauben",
+      "expert": "Für Fachleute"
+    },
+    "room": {
+      "label": "Raumtemperatur",
+      "hint": "Verschiebt die Heizgrenze um denselben Wert — gerechnet mit deinem Heizmodell und den Heizgradtagen am Standort, keine Faustregel."
+    },
+    "baseload": {
+      "label": "Grundlast",
+      "hint": "Warmwasser, Kochen, Geräte — der Teil, der nicht vom Wetter abhängt."
+    },
+    "model": {
+      "label": "Prognosemodell",
+      "standard": "Witterungsbereinigt (Prognose)",
+      "last_year": "Wie im Vorjahr",
+      "trend": "Trend fortgeschrieben",
+      "unavailable": "zu wenig Daten (zwei volle Jahre nötig)"
+    },
+    "measures": {
+      "title": "Maßnahmen",
+      "hint": "Prozent und Kosten trägst du ein, am besten aus deiner Energieberatung. Heizung wirkt auf den heizabhängigen Teil, Grundlast auf den Rest.",
+      "add": "Maßnahme hinzufügen",
+      "active": "im Szenario",
+      "remove": "Maßnahme entfernen",
+      "kind": "Art",
+      "labelField": "Bezeichnung (optional)",
+      "heat": "Heizung − %",
+      "base": "Grundlast − %",
+      "cost": "Kosten ({cur})"
+    },
+    "measure": {
+      "kind": {
+        "roof": "Dach dämmen",
+        "facade": "Fassade dämmen",
+        "windows": "Fenster tauschen",
+        "basement": "Kellerdecke dämmen",
+        "hydraulic": "Hydraulischer Abgleich",
+        "pump": "Heizungspumpe tauschen",
+        "thermostat": "Smarte Thermostate",
+        "shower": "Sparduschkopf",
+        "other": "Andere Maßnahme"
+      }
+    },
+    "regression": "Heizkurve (Regressionsmodell)",
+    "ev": {
+      "km": "E-Auto: km im Jahr",
+      "kwh": "Verbrauch (kWh/100 km)",
+      "placeholder": "laut Fahrzeug"
+    },
+    "jaz": {
+      "from": "Wärmepumpe: JAZ heute",
+      "to": "JAZ im Szenario"
+    },
+    "budget": {
+      "label": "Budget für Maßnahmen ({cur})",
+      "placeholder": "leer = keine Optimierung"
+    },
+    "save": {
+      "title": "Szenario speichern",
+      "name": "Name",
+      "button": "Speichern",
+      "list": "Gespeicherte Szenarien",
+      "load": "Laden",
+      "delete": "Löschen",
+      "done": "Gespeichert: „{name}“",
+      "failed": "Speichern nicht möglich: Der Browser lässt keinen Speicher zu.",
+      "local": "Szenarien bleiben in diesem Browser — nichts verlässt das Gerät."
+    },
+    "compare": {
+      "button": "Vergleichen",
+      "title": "Gespeicherte Szenarien im Vergleich",
+      "name": "Szenario",
+      "utility": "Verbrauchsart",
+      "delta": "Differenz"
+    },
+    "demoNote": "In der Demo sind der Ausgangsfall und die Beispielszenarien vorgerechnet. Eigene Werte rechnet deine Installation — probier oben ein Beispiel.",
+    "demoShort": "in der Demo nicht vorgerechnet",
+    "unsupported": "{label}: Die Werkstatt rechnet für Verbrauchsarten mit Zählerständen und Verträgen. Die Prognose im Detail steht weiter unten.",
+    "tooFew": "{label}: Für ein Szenario braucht die Prognose mindestens sechs Monate Verbrauch.",
+    "card": {
+      "brand": "Energietracker · Prognose-Werkstatt",
+      "yours": "Dein Szenario",
+      "more": "Das Szenario „{name}“ kostet dich {amount} mehr im Jahr.",
+      "less": "Das Szenario „{name}“ spart dir {amount} im Jahr.",
+      "same": "Das Szenario „{name}“ ändert deine Kosten kaum.",
+      "footer": "Modellrechnung {from} – {to} · erstellt am {date} mit dem Energietracker"
+    },
+    "kpi": {
+      "cost": "Kosten im Jahr",
+      "vsBase": "{delta} gegenüber {base}",
+      "qty": "Verbrauch",
+      "qtyYear": "Verbrauch im Jahr",
+      "advance": "Empfohlener Abschlag",
+      "advanceNow": "heute {amount}",
+      "balance": "Saldo zur Abrechnung am {date}",
+      "balanceBase": "Ausgangsfall: {amount}",
+      "co2": "CO₂",
+      "co2Year": "CO₂ im Jahr"
+    },
+    "chart": {
+      "cumTitle": "Kosten kumuliert",
+      "monthTitle": "Monat für Monat",
+      "base": "Ausgangsfall",
+      "scenario": "Szenario",
+      "eur": "{cur}",
+      "cumAlt": "Liniendiagramm: Kosten kumuliert, im Jahr Ausgangsfall {base}, Szenario {scen}",
+      "monthAlt": "Liniendiagramm: Verbrauch je Monat in {unit}, Ausgangsfall und Szenario",
+      "costBase": "Kosten Ausgangsfall",
+      "costScen": "Kosten Szenario"
+    },
+    "ranking": {
+      "title": "Was bringt am meisten?",
+      "hint": "Jede Stellschraube allein gegen den Ausgangsfall (normaler Winter, laufender Vertrag), Wirkung im ersten Jahr.",
+      "lever": "Stellschraube",
+      "saving": "Ersparnis im Jahr",
+      "qty": "Menge ({unit})",
+      "cost": "Kosten",
+      "payback": "Amortisation",
+      "years": "{n} Jahre",
+      "empty": "Noch keine Stellschraube bewegt — ändere links etwas."
+    },
+    "lever": {
+      "room_temp": "Raumtemperatur",
+      "saving": "Sparen (Verhalten)",
+      "baseload": "Grundlast",
+      "ev": "E-Auto",
+      "jaz": "Wärmepumpe (JAZ)"
+    },
+    "models": {
+      "title": "Prognosemodelle im Vergleich",
+      "baseQty": "Menge Ausgangsfall",
+      "baseCost": "Kosten Ausgangsfall",
+      "scenQty": "Menge Szenario",
+      "scenCost": "Kosten Szenario",
+      "band": "Unsicherheit: In {level} % der Jahre liegt der Verbrauch im Szenario zwischen {low} und {high} {unit} — je nach Winter."
+    },
+    "opt": {
+      "title": "Beste Kombination unter einem Budget",
+      "hint": "Trag ein Budget und bei den Maßnahmen die Kosten ein — die Werkstatt sucht die Kombination mit der größten Ersparnis.",
+      "noCandidates": "Keine Maßnahme mit Kosten eingetragen.",
+      "none": "Mit {budget} lohnt keine Kombination.",
+      "result": "Mit {budget}: {list} — kostet {cost}, spart {saving} im Jahr.",
+      "payback": "Amortisation nach {n} Jahren.",
+      "apply": "Auswahl übernehmen",
+      "lp": "Gerechnet mit dem Modell, Wechselwirkungen eingeschlossen; Kombinationen im Budget geprüft: {n}. Die lineare Relaxierung (Simplex) ergibt höchstens {bound}; dort bringt jeder weitere {cur} Budget bis zu {value} {minor} im Jahr."
+    },
+    "honesty": {
+      "model": "Modellrechnung, keine Messung: Grundlage sind deine Messwerte bis {month} und die Preise deiner Verträge.",
+      "heat": "Heizabhängiger Anteil im Jahr: {pct}."
+    },
+    "warn": {
+      "room_temp_unavailable": "Raumtemperatur: ohne Heizmodell und Heizgradtage nicht gerechnet.",
+      "last_year_unavailable": "Vorjahr: zu wenig gemessene Monate — gerechnet mit der Prognose.",
+      "trend_unavailable": "Trend: braucht zwei volle Jahre — gerechnet mit der Prognose.",
+      "model_filled": "Vorjahresmonate ohne Messung, aus der Prognose ergänzt: {n}.",
+      "ev_unsupported": "E-Auto: nur beim Strom.",
+      "jaz_unsupported": "JAZ: nur bei einem Stromzähler mit der Rolle Wärmepumpe.",
+      "no_heat_model": "Kein Heizmodell für diesen Zähler: Winter und Heizungs-Prozente wirken nicht.",
+      "tariff_unsupported": "Tarif: Beim Wasser rechnet die Werkstatt mit dem laufenden Vertrag.",
+      "tariff_no_price": "Tarif: Dem Vertrag fehlt ein Arbeitspreis — gerechnet mit dem laufenden Vertrag.",
+      "no_offers": "Kein Angebot mit Preisen eingetragen — gerechnet mit dem laufenden Vertrag."
+    },
+    "share": {
+      "image": "Ergebnis als Bild speichern",
+      "print": "Drucken oder als PDF",
+      "csv": "Monatswerte als CSV",
+      "filename": "szenario",
+      "imageFailed": "Das Bild ließ sich in diesem Browser nicht erzeugen."
+    },
+    "classic": "Prognose im Detail: Monatstabelle, Heizkurve, Band",
+    "csv": {
+      "month": "Monat",
+      "base_qty": "Menge Ausgangsfall ({unit})",
+      "scen_qty": "Menge Szenario ({unit})",
+      "base_cost": "Kosten Ausgangsfall ({cur})",
+      "scen_cost": "Kosten Szenario ({cur})",
+      "base_cum_cost": "Kosten kumuliert Ausgangsfall ({cur})",
+      "scen_cum_cost": "Kosten kumuliert Szenario ({cur})",
+      "advance": "Abschlag ({cur})"
+    },
+    "print": {
+      "back": "← Zur Werkstatt",
+      "title": "Szenario zum Drucken",
+      "none": "Kein Szenario gewählt — öffne die Prognose-Werkstatt und klicke dort auf „Drucken oder als PDF“.",
+      "assumptions": "Annahmen",
+      "compare": "Ausgangsfall und Szenario",
+      "measure": "Maßnahme {name}: Heizung −{heat} %, Grundlast −{base} %, Kosten {cost}",
+      "inactive": "nicht im Szenario",
+      "customPrice": "Eigener Preis: {wp} {minor}/{unit}, Grundpreis {bp} im Monat",
+      "ev": "E-Auto: {km} km im Jahr, {kwh} kWh/100 km",
+      "jaz": "Wärmepumpe: JAZ {from} → {to}",
+      "footer": "Ohne Gewähr: Ein Szenario rechnet mit Annahmen; Wetter, Preise und Verhalten können anders kommen.",
+      "hint": "„Drucken“ bringt das Szenario auf Papier oder sichert es als PDF — auf dem iPhone über Teilen → Drucken."
+    },
+    "guide": "Wie gerechnet wird"
+  },
+  "people": {
+    "deletedName": "{name} (gelöscht)"
+  },
+  "area": {
+    "assumed": "Angenommene Wohnfläche {area} m² – bitte eintragen. Bis dahin rechnet die App mit diesem Wert.",
+    "enterHousehold": "Wohnfläche eintragen",
+    "enterTenancy": "Fläche im Mietverhältnis eintragen"
   }
 }

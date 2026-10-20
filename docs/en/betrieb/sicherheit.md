@@ -313,8 +313,9 @@ connection. The target is set by whoever may change the settings — with sign-i
 switched on, only signed-in users and `admin` keys. Setup:
 [Text recognition in the home network](../anleitungen/texterkennung.md).
 
-**Outgoing connections** *(v3.4.0)*: weather (Open-Meteo) and exchange prices
-(SMARD) only via HTTPS, also after a redirect, and at most two redirects; text
+**Outgoing connections** *(v3.4.0)*: weather (Open-Meteo), exchange prices
+(SMARD) and — only when switched on, once a day — the note about new versions
+(GitHub, *v3.6.0*) only via HTTPS, also after a redirect, and at most two redirects; text
 recognition and evcc in the home network without redirects. Every response at
 most 20 MB — the app aborts a larger one instead of loading it into memory.
 

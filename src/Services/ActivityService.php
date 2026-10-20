@@ -34,6 +34,8 @@ use Energietracker\Support\Dates;
  *   note, attachment_id   optional
  *   assignee     v3.5.0 (F1028) — beim Termin: wer zuständig war, als
  *                Momentaufnahme {name, id?} bzw. {former: true}
+ *   v3.6.0 — `deleted: true` an `by`, `undone.by` oder `assignee`: Die Person
+ *                ist gelöscht, ihr Name bleibt („Name (gelöscht)“, markDeleted())
  *   undone       {at, by} — Rückgängig streicht durch, statt zu löschen
  *   revert       was Rückgängig zurückstellt (Termin, Kündigung, Ausblenden)
  *
@@ -42,8 +44,10 @@ use Energietracker\Support\Dates;
  * sich mit der erfassten Versorgerrechnung (billRecorded) oder von Hand.
  *
  * Namen stehen als Momentaufnahme im Eintrag und damit im Backup; die
- * Personenliste selbst bleibt in auth.json. Beim Löschen einer Person kann der
- * Verwalter sie durch „ehemalige Person" ersetzen lassen (anonymize()).
+ * Zugänge selbst bleiben in auth.json (das Personenverzeichnis people.json mit
+ * Nummer und Löschvermerk gehört seit v3.6.0 ins Backup). Beim Löschen einer
+ * Person behält der Verlauf ihren Namen mit „(gelöscht)“ (markDeleted()); auf
+ * Wunsch ersetzt der Verwalter ihn durch „ehemalige Person" (anonymize()).
  *
  * Geschrieben wird wie überall über den JsonStore — also unter der
  * Schreibsperre der Anfrage (App::lockOrFail()).
@@ -268,8 +272,9 @@ final class ActivityService
         if (is_array($e['assignee'] ?? null)) {
             $a = $e['assignee'];
             $entry['assignee'] = !empty($a['former']) ? ['former' => true] : array_filter([
-                'name' => mb_substr((string)($a['name'] ?? ''), 0, self::NAME_MAX),
-                'id'   => isset($a['id']) && is_scalar($a['id']) ? (string)$a['id'] : null,
+                'name'    => mb_substr((string)($a['name'] ?? ''), 0, self::NAME_MAX),
+                'id'      => isset($a['id']) && is_scalar($a['id']) ? (string)$a['id'] : null,
+                'deleted' => !empty($a['deleted']) ? true : null,   // v3.6.0 — Person gelöscht
             ], fn($v) => $v !== null && $v !== '');
             if ($entry['assignee'] === []) unset($entry['assignee']);
         }
@@ -351,6 +356,46 @@ final class ActivityService
         }
         if ($n > 0) $this->store->write('activity.json', $all);
         return $n;
+    }
+
+    /**
+     * v3.6.0 — Historisierung beim Löschen einer Person (ohne „ehemalige
+     * Person“): Ihr Name bleibt in jedem Eintrag stehen, wo sie gehandelt hat
+     * (`by`, `undone.by`) oder zuständig war (`assignee`), mit dem Vermerk
+     * `deleted: true` — angezeigt als „Name (gelöscht)“.
+     */
+    public function markDeleted(string $personId): int
+    {
+        $all = $this->all();
+        $mark = fn(mixed $p): mixed => self::isPerson($p, $personId) ? $p + ['deleted' => true] : $p;
+        $n = 0;
+        foreach ($all as $i => $e) {
+            $all[$i]['by'] = is_array($e['by'] ?? null) && ($e['by']['type'] ?? null) === 'person' ? $mark($e['by']) : ($e['by'] ?? null);
+            if (is_array($e['undone'] ?? null) && is_array($e['undone']['by'] ?? null) && ($e['undone']['by']['type'] ?? null) === 'person') {
+                $all[$i]['undone']['by'] = $mark($e['undone']['by']);
+            }
+            if (is_array($e['assignee'] ?? null)) $all[$i]['assignee'] = $mark($e['assignee']);
+            if ($all[$i] != $e) $n++;
+        }
+        if ($n > 0) $this->store->write(self::FILE, $all);
+        return $n;
+    }
+
+    /** v3.6.0 — Einträge, in denen eine Person vorkommt (handelnd, zurücknehmend oder zuständig). */
+    public function mentions(string $personId): int
+    {
+        $n = 0;
+        foreach ($this->all() as $e) {
+            if (self::isPerson($e['by'] ?? null, $personId) || self::isPerson($e['undone']['by'] ?? null, $personId)
+                || self::isPerson($e['assignee'] ?? null, $personId)) $n++;
+        }
+        return $n;
+    }
+
+    /** Diese Person (per ID), nicht schon „ehemalige Person“ und noch ohne Vermerk. */
+    private static function isPerson(mixed $p, string $personId): bool
+    {
+        return is_array($p) && $personId !== '' && ($p['id'] ?? null) === $personId && empty($p['former']) && empty($p['deleted']);
     }
 
     // ── Automatische Einträge (aus den Daten) ─────────────────────────────
@@ -693,7 +738,9 @@ final class ActivityService
         };
         $by = is_array($e['by'] ?? null) ? $e['by'] : null;
         $who = match ($by['type'] ?? null) {
-            'person'      => !empty($by['former']) ? $this->i18n->t('activity.by.former') : (string)($by['name'] ?? ''),
+            'person'      => !empty($by['former']) ? $this->i18n->t('activity.by.former')
+                // v3.6.0 — gelöschte Person: der Name vom Erledigen mit „(gelöscht)“
+                : (!empty($by['deleted']) ? $this->i18n->t('people.deletedName', ['name' => (string)($by['name'] ?? '')]) : (string)($by['name'] ?? '')),
             'key'         => $this->i18n->t('activity.by.key', ['name' => (string)($by['name'] ?? '')]),
             'integration' => self::INTEGRATIONS[(string)($by['name'] ?? '')] ?? (string)($by['name'] ?? ''),
             'auto'        => $this->i18n->t('activity.by.auto'),

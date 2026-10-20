@@ -29,7 +29,8 @@ use Energietracker\Services\{
     AttachmentService, OcrService, PeriodService, TenancyService, TenancyBudgetService,
     Co2CostService, Co2SplitService, BillService, MarketPriceService, EvChargingReportService, HeatPumpService,
     SeriesImportService, ReferenceService, EvccService, IntervalService, FlexibilityService,
-    DocsService, ReportModelService, ReportAdviceService, ActivityService, BillExpectedService
+    DocsService, ReportModelService, ReportAdviceService, ActivityService, BillExpectedService,
+    BillingPeriodService
 };
 use Energietracker\Controllers\{
     MeterController, ReadingController, ContractController,
@@ -46,6 +47,10 @@ use Energietracker\Controllers\{
 };
 use Energietracker\Services\EnergyFlowDayService;        // v3.5.0 (F1027)
 use Energietracker\Controllers\EnergyFlowController;     // v3.5.0 (F1027)
+use Energietracker\Controllers\UpdateCheckController;    // v3.6.0
+use Energietracker\Services\ScenarioService;             // v3.6.0 (F1031)
+use Energietracker\Controllers\ScenarioController;       // v3.6.0 (F1031)
+use Energietracker\Services\FlexibilityInsightService;   // v3.6.0 — Flexibilität: Ampel, Hebel, Zeitfenster
 
 /**
  * Minimal hand-rolled autoloader for the Energietracker namespace.
@@ -93,6 +98,7 @@ final class App
     public HealthCheckService $health;
     public DemoService $demo;
     public AuthService $auth;
+    public \Energietracker\Services\PeopleService $people;   // v3.6.0 — Personenverzeichnis
     public IngestService $ingest;
     public I18nService $i18n;
     public InstanceService $instance;   // v3.1.0
@@ -115,10 +121,13 @@ final class App
     public EvccService $evcc;               // v3.2.0 (F1022)
     public IntervalService $intervals;      // v3.3.0 (F1021)
     public FlexibilityService $flexibility; // v3.3.0 (F1021)
+    public FlexibilityInsightService $flexInsights; // v3.6.0 — Ampel, Hebel, Zeitfenster
     public EnergyFlowDayService $energyFlowDay; // v3.5.0 (F1027)
     public ReportModelService $reportModel; // v3.4.0 (F1025)
     public ActivityService $activity;       // v3.4.0 (F1024)
     public BillExpectedService $billsExpected; // v3.5.0 (F1029)
+    public BillingPeriodService $billingPeriods; // v3.6.0 (F1030)
+    public ScenarioService $scenarios;           // v3.6.0 (F1031) — Prognose-Werkstatt
 
     public function __construct(string $dataDir)
     {
@@ -179,6 +188,7 @@ final class App
         // v3.3.0 (F1021) — Werte je Viertelstunde und was das Verschieben gebracht hat
         $this->intervals    = new IntervalService($this->store, $this->settings);
         $this->flexibility  = new FlexibilityService($this->intervals, $this->meters, $this->contracts);
+        $this->flexInsights = new FlexibilityInsightService($this->intervals, $this->meters, $this->contracts, $this->flexibility);
         $this->energyFlowDay = new EnergyFlowDayService($this->intervals, $this->meters);   // v3.5.0 (F1027) — Tagesfilm
         $this->marketPrices = new MarketPriceService($this->store, $this->i18n, null, $this->intervals);   // v3.1.0 (H6)
         $this->tariffs      = new TariffComparisonService($this->consumption, $this->contracts, $this->meters, $this->i18n, $this->marketPrices, $this->flexibility);
@@ -193,6 +203,11 @@ final class App
         $this->demo         = new DemoService($this->store, $this->backups, $this->i18n);
         // F1009 — HA-Anbindung: Token-Auth + idempotenter Push-Ingest.
         $this->auth         = new AuthService($this->store);
+        // v3.6.0 — Personenverzeichnis: fortlaufende Nummer, Löschvermerk, im Backup
+        $this->people       = new \Energietracker\Services\PeopleService($this->store);
+        $this->people->attachAccounts(fn(): array => $this->auth->accounts());
+        $this->auth->attachIdAdoption(fn(string $name): ?string => $this->people->adoptableId($name));
+        $this->backups->beforeExport(fn() => $this->people->all());
         $this->ingest       = new IngestService($this->meters, $this->readings, $this->i18n, $this->store, $this->intervals);
         // v3.1.0 (Paket H1) — Agenda, Kalender, Kennzahlen für Home Assistant
         $this->instance     = new InstanceService($this->store);
@@ -221,6 +236,7 @@ final class App
         $this->ocr          = new OcrService($this->settings, $this->attachments);
         // v3.2.0 (F1022) — Ladevorgänge aus evcc (CSV oder Abruf im Heimnetz)
         $this->evcc         = new EvccService($this->store, $this->meters, $this->readings, $this->readingImport, $this->settings);
+        $this->flexInsights->attachSessions($this->evcc);   // v3.6.0 — Ladefenster des Autos aus den Steckzeiten
         // v3.4.0 (F1025) — Jahresbericht für alle: ein Datenmodell für PDF und
         // Druckansicht, Empfehlungen mit Priorität, € und Frist
         $this->reportModel  = new ReportModelService($this->meters, $this->consumption, $this->contracts, $this->settings, $this->i18n,
@@ -239,7 +255,11 @@ final class App
         $this->activity->setTankProbe(fn(string $u, string $m): bool => $this->recommendations->tankLow($u, $m));
         // v3.5.0 — Zuständig an Terminen (F1028), Abrechnung erwartet (F1029),
         // Verlauf auch für Zeiträume und geänderte Abrechnungen (Nachtrag F1024)
+        // v3.6.0 — aus dem Personenverzeichnis (auch gelöschte, `deleted: true`);
+        // der Verwalter aus der Zeit vor v3.2 steht nur in auth.json
         $this->reminders->attachPeople(function (string $id): ?array {
+            $p = $this->people->find($id);
+            if ($p !== null) return $p;
             $u = $this->auth->userById($id);
             return $u === null ? null : ['id' => (string)$u['id'], 'name' => (string)($u['name'] ?? '')];
         });
@@ -249,6 +269,16 @@ final class App
         $this->bills->attachActivity($this->activity);
         $this->bills->attachExpectations($this->billsExpected);
         $this->agenda->attachBillExpectations($this->billsExpected);
+        // v3.6.0 — Beispieldaten: gewanderte Versorgerrechnungen nachrechnen
+        $this->demo->attachBills($this->bills);
+        // v3.6.0 (F1030, #33) — Abrechnungsperioden: eine Quelle für Ansichten, Bericht und CSV
+        $this->billingPeriods = new BillingPeriodService($this->settings, $this->meters, $this->readings, $this->consumption, $this->bills);
+        $this->csvExport->attachBillingPeriods($this->billingPeriods);
+        $this->reportModel->attachBillingPeriods($this->billingPeriods);
+        $this->reportModel->attachFlexInsights($this->flexInsights);   // v3.6.0 — Seite „Flexibilität“
+        // v3.6.0 (F1031) — Prognose-Werkstatt: Szenarien auf der Prognose, liest nur
+        $this->scenarios = new ScenarioService($this->forecasts, $this->consumption, $this->contracts, $this->meters,
+            $this->settings, $this->tariffSwitch, $this->billingPeriods);
 
         // Auto-migrate or initialize on first run.
         // Reihenfolge wichtig: ein komplett leeres Verzeichnis (echter
@@ -322,12 +352,26 @@ final class App
         '#^/api/temperatures/sync-open-meteo$#',
         '#^/api/market-prices/sync-smard(-intervals)?$#',
         '#^/api/utility/strom/meters/[^/]+/sync-evcc$#',
+        '#^/api/forecast/scenario$#',   // v3.6.0 (F1031) — schreibt nichts
     ];
+
+    /**
+     * v3.6.0 (F1031) — POST-Routen, die nur rechnen und nichts schreiben: auch
+     * mit einem API-Schlüssel erlaubt, der nur lesen darf.
+     */
+    private const READ_ONLY_POST = ['#^/api/forecast/scenario$#'];
 
     public static function locksLate(Request $req): bool
     {
         if ($req->method !== 'POST') return false;
         foreach (self::LOCK_LATE as $re) if (preg_match($re, $req->path)) return true;
+        return false;
+    }
+
+    public static function readOnlyPost(Request $req): bool
+    {
+        if ($req->method !== 'POST') return false;
+        foreach (self::READ_ONLY_POST as $re) if (preg_match($re, $req->path)) return true;
         return false;
     }
 
@@ -498,7 +542,7 @@ final class App
         // v3.4.0 (N1020) — der Körper wird erst jetzt gelesen, nach der
         // Anmeldung und nach der Prüfung seiner angegebenen Größe (413)
         $req->limitBody(self::bodyLimit($req));
-        if ($this->readOnlyKey && !in_array($req->method, ['GET', 'HEAD', 'OPTIONS'], true)) {
+        if ($this->readOnlyKey && !in_array($req->method, ['GET', 'HEAD', 'OPTIONS'], true) && !self::readOnlyPost($req)) {
             Response::error($this->i18n->t('errors.auth.readOnlyKey'), 403, null, 'errors.auth.readOnlyKey');
         }
         // v3.2.0 (F1023) — Mitglieder erfassen und sehen alles; Zugriff,
@@ -783,7 +827,7 @@ final class App
         $r->get('/api/ev-sessions',                            fn($req) => $evccCtrl->sessions($req));
 
         // v3.3.0 (F1021) — Flexibilität bewerten: Viertelstunden, Börsenpreise, Auswertung
-        $flexCtrl = new FlexibilityController($this->flexibility, $this->intervals, $this->marketPrices, $this->i18n);
+        $flexCtrl = new FlexibilityController($this->flexibility, $this->intervals, $this->marketPrices, $this->i18n, $this->flexInsights);
         $r->get('/api/flexibility',                         fn($req) => $flexCtrl->analyze($req));
         $r->get('/api/intervals',                           fn($req) => $flexCtrl->list($req));
         $r->delete('/api/intervals/{id}',                   fn($req) => $flexCtrl->delete($req));
@@ -829,16 +873,22 @@ final class App
         $r->delete('/api/utility/{utility}/contracts/{id}', fn($req) => $contractCtrl->destroy($req));
 
         // ── Consumption (monthly aggregates) ──
-        $cCtrl = new ConsumptionController($this->consumption, $this->anomalies, $this->meters, $this->regression, $this->settings, $this->i18n, $this->contracts);
+        $cCtrl = new ConsumptionController($this->consumption, $this->anomalies, $this->meters, $this->regression, $this->settings, $this->i18n, $this->contracts, $this->billingPeriods);
         $r->get('/api/utility/{utility}/consumption',              fn($req) => $cCtrl->utility($req));
         $r->get('/api/utility/{utility}/meters/{id}/consumption',  fn($req) => $cCtrl->meter($req));
         $r->get('/api/utility/{utility}/meters/{id}/contract-status', fn($req) => $cCtrl->contractStatus($req));
         // v2.5.0 — F1012: Rechnungsprüfung (nur Gas)
         $r->get('/api/utility/{utility}/meters/{id}/bill-check',      fn($req) => $cCtrl->billCheck($req));
+        // v3.6.0 (F1030, #33) — Abrechnungsperioden mit Summen (Zähler, Gruppe, ganze Art)
+        $r->get('/api/utility/{utility}/meters/{id}/billing-periods', fn($req) => $cCtrl->billingPeriods($req));
+        $r->get('/api/utility/{utility}/billing-periods',             fn($req) => $cCtrl->utilityBillingPeriods($req));
 
         // ── Forecast ──
         $fCtrl = new ForecastController($this->forecasts, $this->meters, $this->i18n);
         $r->get('/api/utility/{utility}/meters/{id}/forecast', fn($req) => $fCtrl->forMeter($req));
+        // v3.6.0 (F1031) — Prognose-Werkstatt: Szenario rechnen (liest nur)
+        $scCtrl = new ScenarioController($this->scenarios, $this->meters, $this->i18n);
+        $r->post('/api/forecast/scenario', fn($req) => $scCtrl->compute($req));
 
         // ── Temperatures ──
         $tCtrl = new TemperatureController($this->temperatures, $this->i18n, $this->settings);
@@ -900,6 +950,7 @@ final class App
         $r->get('/api/utility/{utility}/meter-groups/{id}/consumption',     fn($req) => $cCtrl->meter($req));
         $r->get('/api/utility/{utility}/meter-groups/{id}/contract-status', fn($req) => $cCtrl->contractStatus($req));
         $r->get('/api/utility/{utility}/meter-groups/{id}/bill-check',      fn($req) => $cCtrl->billCheck($req));
+        $r->get('/api/utility/{utility}/meter-groups/{id}/billing-periods', fn($req) => $cCtrl->billingPeriods($req));   // v3.6.0 (F1030)
         $r->get('/api/utility/{utility}/meter-groups/{id}/forecast',        fn($req) => $fCtrl->forMeter($req));
         $r->get('/api/utility/{utility}/meter-groups/{id}/tariff-switch',   fn($req) => $tsCtrl->analyze($req));
 
@@ -957,11 +1008,22 @@ final class App
         $hCtrl = new HealthController($this->health, fn(): bool => $this->authenticated);
         $r->get('/api/health', fn($req) => $hCtrl->index($req));
 
+        // ── v3.6.0 — Hinweis auf neue Versionen (nur eingeschaltet; einmal am Tag) ──
+        $ucCtrl = new UpdateCheckController(new \Energietracker\Services\UpdateCheckService(
+            $this->store, $this->settings, trim((string)@file_get_contents(__DIR__ . '/../VERSION'))));
+        $r->get('/api/update-check', fn($req) => $ucCtrl->check($req));
+
         // ── v2.6.0 — Anmeldung (opt-in) und API-Schlüssel ──
         $sessCtrl = new SessionController($this->auth, $this->i18n, fn(): bool => $this->authenticated,
             fn(): ?array => $this->currentUser(), fn(): string => $this->role,
             fn(string $id) => $this->activity->anonymize($id),   // v3.4.0 (F1024)
-            fn(string $id, bool $anon) => $this->reminders->personDeleted($id, $anon));   // v3.5.0 (F1028)
+            // v3.5.0 (F1028); v3.6.0 — offene Termine an die löschende Person
+            fn(string $id, bool $anon, ?array $to, string $name): array => $this->reminders->personDeleted($id, $anon, $to, $name),
+            // v3.6.0 — Personenverzeichnis, „(gelöscht)“ im Verlauf, Vorschau für den Dialog
+            $this->people,
+            fn(string $id): int => $this->activity->markDeleted($id),
+            fn(string $id, string $name): array => ['open' => $this->reminders->openCountFor($id, $name),
+                                                    'done' => $this->activity->mentions($id)]);
         $r->get('/api/session',              fn($req) => $sessCtrl->status($req));
         $r->post('/api/session',             fn($req) => $sessCtrl->login($req));
         $r->delete('/api/session',           fn($req) => $sessCtrl->logout($req));
@@ -981,6 +1043,8 @@ final class App
         $r->post('/api/users',                fn($req) => $sessCtrl->createUser($req));
         $r->patch('/api/users/{id}',          fn($req) => $sessCtrl->updateUser($req));
         $r->delete('/api/users/{id}',         fn($req) => $sessCtrl->deleteUser($req));
+        // v3.6.0 — Vorschau „Person löschen“: was an wen übergeht (nur Verwalter, adminOnly)
+        $r->get('/api/users/{id}/handover',   fn($req) => $sessCtrl->handover($req));
 
         // ── F1007 (v1.7.4) — Demo-Daten-Komfort-Import ──
         $demoCtrl = new DemoController($this->demo);

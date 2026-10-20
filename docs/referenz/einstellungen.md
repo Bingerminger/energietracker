@@ -56,6 +56,14 @@ hebt. Mehr dazu: [Einrichtung](../einstieg/einrichtung.md).
 | `forecast_months` | 12 | Prognose-Horizont | Wie viele Monate die Prognose vorausrechnet (1–24). Vorbelegung der Prognose-Ansicht. |
 | `alert_days_since_reading` | 45 | Warnung nach | Liegt die letzte Ablesung länger zurück, steht der Zähler unter „Zu tun“ und die Verbrauchsansicht erinnert daran. |
 
+### Neue Versionen *(v3.6.0)*
+
+| Schlüssel | Standard | In der App | Wirkung |
+|---|---|---|---|
+| `update_check` | aus | Auf neue Versionen hinweisen | Einmal am Tag fragt der Server bei GitHub die neueste veröffentlichte Version ab (`GET /api/update-check`); ist sie neuer, erscheint ein Hinweis mit Link zu den Release-Notes, bis du ihn für diese Version schließt. GitHub sieht nur die Adresse des Servers. Ausgeschaltet geht keine Anfrage hinaus. Die Einrichtung schlägt den Hinweis vor; bestehende Installationen bleiben aus, bis jemand ihn einschaltet. |
+
+Unabhängig davon zeigt jedes Gerät nach einem Update einmal „Aktualisiert auf …“ mit Link zu den Release-Notes — ohne Anfrage nach außen.
+
 ### Erinnerungen
 
 | Schlüssel | Standard | In der App | Wirkung |
@@ -82,7 +90,7 @@ verwalten“** — dort, wo der Verlauf steht
 
 | Schlüssel | Standard | In der App | Wirkung |
 |---|---|---|---|
-| `wohnflaeche_m2` | 100 | Wohnfläche | Beheizte Fläche — Nenner der Effizienzkennzahl. Seit v3.1.0 auch Fläche für die CO₂-Stufe ([CO₂-Preis](../verstehen/16-co2-preis.md)); zur Miete geht die Wohnfläche aus dem Mietverhältnis vor. |
+| `wohnflaeche_m2` | 100 | Wohnfläche | Beheizte Fläche — Nenner der Effizienzkennzahl. Seit v3.1.0 auch Fläche für die CO₂-Stufe ([CO₂-Preis](../verstehen/16-co2-preis.md)); zur Miete geht die Wohnfläche aus dem Mietverhältnis vor. Seit v3.6.0 ordnet die Karte „Einordnung“ die Heizung erst ein, wenn die Fläche eingetragen ist (s. u.). |
 | `gebaeudetyp` | `efh` | Gebäudetyp | Mehrfamilienhaus heißt: ab drei Wohnungen. Werte: `efh` Ein-/Zweifamilienhaus, `rh` Reihenhaus, `mfh` Mehrfamilienhaus, `whg` Wohnung. Bestimmt die Bezugsfläche der energieausweis-nahen Kennzahl. |
 | `beheizter_keller` | aus | Beheizter Keller | Wohngebäude mit bis zu zwei Wohnungen (Ein-/Zweifamilienhaus, auch Reihenhaus) mit beheiztem Keller: Gebäudenutzfläche = 1,35 × Wohnfläche (sonst 1,2; § 82 Abs. 2 GModG, bis Juli 2026 GEG) — für die Kennzahl nach Energieausweis. Wirkt nur bei `gebaeudetyp` `efh` oder `rh`. |
 | `warmwasser_dezentral` | aus | Warmwasser dezentral | Warmwasser über Durchlauferhitzer oder Boiler, nicht über die Heizung: Die Kennzahl nach Energieausweis erhält einen Zuschlag von 20 kWh/m²·a, ab 2027 von 16 kWh/m²·a (§ 82 GModG). |
@@ -107,7 +115,9 @@ Für die Karte „Einordnung {Jahr}“ auf der Übersicht. Die App liefert keine
 Tabellen aus Strom- oder Heizspiegel mit — deren Nutzung verlangt eine
 Genehmigung —; du trägst die Werte ein, die dir etwa der Stromspiegel für
 deinen Haushalt nennt. Leer = keine Einordnung
-([API](api.md#einordnung-get-apibenchmarkscomparison-v310)).
+([API](api.md#einordnung-get-apibenchmarkscomparison-v310)). Seit v3.6.0
+führt die Einladung auf der Karte („Vergleichswerte eintragen“) direkt hierher,
+mit dem Feld im Fokus.
 
 | Schlüssel | Standard | In der App | Wirkung |
 |---|---|---|---|
@@ -120,10 +130,28 @@ deinen Haushalt nennt. Leer = keine Einordnung
 
 | Schlüssel | Standard | In der App | Wirkung |
 |---|---|---|---|
-| `wasser_personen_anzahl` | 2 | Personen im Haushalt | Für den Wasser-Spar-Index: Liter je Person und Tag im Vergleich zur Referenz. |
+| `wasser_personen_anzahl` | 2 | Personen im Haushalt | Für den Wasser-Spar-Index: Liter je Person und Tag im Vergleich zur Referenz. Seit v3.6.0 ordnet die Karte „Einordnung“ das Wasser erst ein, wenn die Zahl eingetragen ist (s. u.). |
 | `wasser_personen_referenz` | 122 | Referenz | BDEW 2024: 122 L je Person und Tag. Bestandsinstallationen behalten den früheren Standard 127, bis sie die neuen Werte übernehmen. |
 | `wasser_sparindex_gut` | 100 | Spar-Index — gut bis | Index ≤ diesem Wert gilt als unauffällig. |
 | `wasser_sparindex_warnung` | 150 | Spar-Index — Warnung ab | Index ≥ diesem Wert zeigt Sparpotenzial an. |
+
+### Wohnfläche und Personen: eingetragen oder angenommen *(v3.6.0)*
+
+Der Standard (100 m², 2 Personen) ist nur eine Annahme. Solange niemand die
+Angabe eingetragen hat, steht das Feld **leer**, mit dem Standard als
+Platzhalter und dem Satz „Noch nicht eingetragen …“; die Karte „Einordnung“
+lädt dann zum Feld ein, statt mit dem Standard einzuordnen. Eingetragen ist
+die Angabe, sobald sie gespeichert ist — auch wenn sie dem Standard gleicht
+(trag 100 ein, wenn deine Wohnung 100 m² hat). Ein leer gespeichertes Feld
+nimmt die Angabe zurück. Werte aus einem Backup oder einem Beispielhaushalt
+gelten als eingetragen; wer die Seite schon einmal mit dem Wert gespeichert
+hat, behält ihn. Effizienzklasse, CO₂-Stufe, Wasser-Spar-Index und
+Jahresbericht rechnen bis zum Eintrag weiter mit dem Standard. Wo eine
+angenommene Fläche einfließt — Effizienzklasse, CO₂-Kostenaufteilung für Mieter
+(dort zählt zuerst die Fläche im Mietverhältnis) —, steht **„Angenommene
+Wohnfläche 100 m² – bitte eintragen“** mit einem Link direkt zum Feld, im
+Jahresbericht ein Satz dazu. Die API meldet
+die offenen Angaben unter `assumed_keys` ([API](api.md#angenommene-angaben-assumed_keys-v360)).
 
 ## Einstellungen → Verbrauchsarten & Abrechnung
 
@@ -137,7 +165,7 @@ deinen Haushalt nennt. Leer = keine Einordnung
 
 | Schlüssel | Standard | In der App | Wirkung |
 |---|---|---|---|
-| `billing_cycle_anchor_gas` | `01-01` | Stichtag Gas | Tag der Jahresabrechnung als `MM-TT` (angezeigt `TT-MM`); bis dorthin rechnet die Saldo-Karte die erwartete Abrechnung. |
+| `billing_cycle_anchor_gas` | `01-01` | Stichtag Gas | Tag der Jahresabrechnung als `MM-TT` (angezeigt `TT-MM`); bis dorthin rechnet die Saldo-Karte die erwartete Abrechnung. Seit v3.6.0 schneidet er auch die **Abrechnungsjahre** (Umschalter „Kalenderjahr · Abrechnungsjahr“ in Verbrauchsart, Übersicht und Analyse, Anhang im Jahresbericht, CSV je Periode). Erfasste Versorgerrechnungen gehen vor: Ihr Zeitraum gilt genau wie auf der Rechnung, der Stichtag füllt nur die Lücken davor, dazwischen und danach. Endet die letzte Rechnung nicht am Tag vor dem Stichtag, schlägt die Verbrauchsart den passenden Tag vor. Ein 29.02. wirkt als 28.02. |
 | `billing_cycle_anchor_strom` | `01-01` | Stichtag Strom | wie Gas |
 | `billing_cycle_anchor_wasser` | `01-01` | Stichtag Wasser | wie Gas |
 | `billing_cycle_anchor_fernwaerme` | `01-01` | Stichtag Fernwärme | wie Gas |
@@ -160,6 +188,11 @@ deinen Haushalt nennt. Leer = keine Einordnung
 | `tank_warn_pct` | 15 | Tank-Warnung ab | Unter diesem Füllstand wird der Tank gelb, unter der Hälfte davon rot, und „Zu tun“ schlägt eine Lieferung vor. |
 
 ### CO₂-Emissionsfaktoren
+
+Seit v3.6.0 steht die lange Liste in der Kachel zugeklappt („Faktoren je
+Verbrauchsart und Strom je Jahr“ — derselbe Aufklappbereich wie „Prognose im
+Detail“; ob offen, merkt sich jedes Gerät). Bei einem Fehler in einem der
+Felder und nach dem Speichern einer Änderung darin klappt sie auf.
 
 | Schlüssel | Standard | In der App | Wirkung |
 |---|---|---|---|

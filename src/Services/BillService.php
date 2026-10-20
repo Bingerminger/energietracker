@@ -309,14 +309,15 @@ final class BillService
     private function advancesBetween(string $utility, array $meter, string $from, string $to): ?float
     {
         $sum = 0.0; $any = false;
+        // v3.6.0 — ein Monat mit zwei Verträgen je Vertrag nach seinen Tagen (wie die Abrechnungsperioden)
+        $starts = ConsumptionService::contractStarts($this->contracts->list($utility));
+        $toExcl = date('Y-m-d', (int)strtotime("$to +1 day"));
         foreach ($this->consumption->forMeter($utility, $meter) as $m) {
             if (!isset($m['advance_eur']) || $m['advance_eur'] === null) continue;
             $ms = (string)$m['ym'] . '-01';
             $me = date('Y-m-t', (int)strtotime($ms));
-            $a = max($ms, $from); $b = min($me, $to);
-            if ($a > $b) continue;
-            $dim = (int)date('t', (int)strtotime($ms));
-            $sum += (float)$m['advance_eur'] * (((int)((strtotime($b) - strtotime($a)) / 86400)) + 1) / $dim;
+            if (max($ms, $from) > min($me, $to)) continue;
+            $sum += ConsumptionService::advanceBetween($m, $from, $toExcl, $starts);
             $any = true;
         }
         return $any ? round($sum, 2) : null;

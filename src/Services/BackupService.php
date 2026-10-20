@@ -63,6 +63,8 @@ final class BackupService
         'intervals'                 => 'intervals.json',
         // v3.4.0 (F1024) — Verlauf erledigter Hinweise (Namen als Momentaufnahme)
         'activity'                  => 'activity.json',
+        // v3.6.0 — Personenverzeichnis: Nummer, Name, Rolle, Löschvermerk (ohne Passwörter, s. PeopleService)
+        'people'                    => PeopleService::FILE,
     ];
 
     /**
@@ -86,8 +88,24 @@ final class BackupService
 
     public function __construct(private JsonStore $store, private I18nService $i18n) {}
 
+    /** @var (callable(): mixed)|null v3.6.0 — vor jeder Sicherung: Personenverzeichnis mit den Zugängen abgleichen */
+    private $beforeExport = null;
+
+    /** v3.6.0 — App: PeopleService::all() (Zugänge ohne Nummer bekommen sie, bevor gesichert wird). */
+    public function beforeExport(callable $fn): void
+    {
+        $this->beforeExport = $fn;
+    }
+
+    private function prepareExport(): void
+    {
+        if ($this->beforeExport === null) return;
+        try { ($this->beforeExport)(); } catch (\Throwable) { /* Sicherung geht vor */ }
+    }
+
     public function export(bool $withFiles = true): array
     {
+        $this->prepareExport();
         $payload = [
             'backup_version' => self::BACKUP_VERSION,
             'app_version'    => $this->appVersion(),
@@ -324,6 +342,20 @@ final class BackupService
             if ($key === 'tenancy_statements') {
                 $this->checkList($payload[$key], $key, ['id', 'tenancy_id', 'period_from', 'period_to'], ['period_from', 'period_to'], $problem);
             }
+            // v3.6.0 — Personenverzeichnis: {last_no, people: [{id, name, …}]} oder leer ([] aus completePayload)
+            if ($key === 'people') {
+                $list = $payload[$key] === [] ? [] : ($payload[$key]['people'] ?? null);
+                if (!is_array($list) || !array_is_list($list)) { $problem($key, null, 'not_a_list'); continue; }
+                foreach ($list as $i => $p) {
+                    if (!is_array($p) || !is_string($p['id'] ?? null) || !preg_match(PeopleService::ID, $p['id'])) $problem($key, $i, 'id');
+                    elseif (!is_string($p['name'] ?? null)) $problem($key, $i, 'missing:name');
+                }
+                // der Zähler geht durch ein älteres Backup nicht zurück
+                try { $current = $this->store->read($file, []); } catch (\Throwable) { $current = []; }
+                $writes[$file] = PeopleService::mergeForImport($payload[$key], $current);
+                $report[$key] = count($list);
+                continue;
+            }
             if ($key === 'attachments' && $this->checkList($payload[$key], $key, ['id', 'kind', 'mime', 'size', 'sha256'], [], $problem)) {
                 foreach ($payload[$key] as $i => $a) {
                     if (!preg_match(AttachmentService::ID, (string)$a['id'])) $problem($key, $i, 'id');
@@ -511,7 +543,8 @@ final class BackupService
      */
     private function writeBackup(callable $w, bool $withFiles): void
     {
-        $enc = fn(mixed $v): string => (string)json_encode($v, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE);
+        $this->prepareExport();
+        $enc =fn(mixed $v): string => (string)json_encode($v, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE);
         $w('{"backup_version":' . $enc(self::BACKUP_VERSION)
             . ',"app_version":' . $enc($this->appVersion())
             . ',"exported_at":' . $enc(date('c'))

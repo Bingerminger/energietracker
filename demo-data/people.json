@@ -1,0 +1,23 @@
+{
+    "last_no": 2,
+    "people": [
+        {
+            "id": "u_c7a2ecac",
+            "no": 1,
+            "name": "Paul",
+            "role": "admin",
+            "created_at": "2023-06-01T09:00:00+02:00",
+            "deleted_at": null,
+            "deleted_by": null
+        },
+        {
+            "id": "u_a1fbab95",
+            "no": 2,
+            "name": "Anna",
+            "role": "member",
+            "created_at": "2023-06-01T09:00:00+02:00",
+            "deleted_at": null,
+            "deleted_by": null
+        }
+    ]
+}

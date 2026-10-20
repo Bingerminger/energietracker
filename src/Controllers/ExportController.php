@@ -17,6 +17,7 @@ use Energietracker\Services\PeriodService;
  *   GET /api/export/{utility}/deliveries.csv  — Lieferungen (Heizöl, Pellets)
  *   GET /api/export/temperatures.csv          — Temperaturreihe
  *   GET /api/export/{utility}/periods.csv     — Verbrauch je Zeitraum (v3.1.0)
+ *   GET /api/export/{utility}/monthly.csv?period=billing — je Abrechnungsperiode (v3.6.0)
  *
  * v3.1.0 (Review I18N-10) — `?format=1` (Standard, eingefroren) oder
  * `?format=local` (Sprache der Installation, optional `&lang=xx`).
@@ -51,6 +52,18 @@ final class ExportController
     {
         $utility = $req->param('utility');
         [$format, $lang] = $this->options($req);
+        // v3.6.0 (F1030) — `?period=billing`: eine Zeile je Abrechnungsperiode
+        // statt je Monat (additiv; ohne Parameter bleibt Format 1 unverändert)
+        $period = (string)($req->queryParam('period') ?? 'calendar');
+        if (!in_array($period, ['calendar', 'billing'], true)) {
+            throw new \Energietracker\Support\LocalizedException('errors.export.periodInvalid', ['period' => $period], "Unknown CSV period: $period");
+        }
+        if ($period === 'billing') {
+            Response::csv(
+                $this->export->billingPeriods((string)$utility, $format, $lang),
+                $this->export->filename('billing', (string)$utility, $format, $lang)
+            );
+        }
         Response::csv(
             $this->export->monthly($utility, $format, $lang),
             $this->export->filename('monthly', $utility, $format, $lang)

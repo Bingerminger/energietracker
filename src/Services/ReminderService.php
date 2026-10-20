@@ -41,6 +41,13 @@ use Energietracker\Support\Dates;
  * Die Antworten tragen alle drei immer (null bzw. false). Wiederkehrende
  * Termine behalten die Zuständigkeit beim Erledigen; der Verlaufseintrag nennt
  * sie als Momentaufnahme. Benachrichtigt wird niemand.
+ *
+ * v3.6.0 — Personen löschen (personDeleted): Offene Termine gehen an die
+ * löschende Person; erledigte behalten den Namen, eingefroren beim Erledigen,
+ * mit dem Vermerk
+ *   assignee_deleted true — die Person ist gelöscht, der Name bleibt („(gelöscht)“)
+ * Die Antworten tragen das Feld immer (additiv). Eine gelöschte Person lässt
+ * sich nicht mehr zuweisen.
  */
 final class ReminderService
 {
@@ -73,10 +80,13 @@ final class ReminderService
     /** v3.5.0 (F1028) — längster Name einer zuständigen Person (wie die Namen im Verlauf). */
     public const ASSIGNEE_MAX = 60;
 
-    /** @var (callable(string): ?array)|null Person zu einer ID ({id, name}) oder null */
+    /** @var (callable(string): ?array)|null Person zu einer ID ({id, name, deleted?}) oder null */
     private $people = null;
 
-    /** v3.5.0 (F1028) — Personen aus auth.json nachschlagen (App: AuthService). */
+    /**
+     * v3.5.0 (F1028) — Personen nachschlagen (App: seit v3.6.0 das
+     * Personenverzeichnis, PeopleService::find — auch gelöschte, `deleted: true`).
+     */
     public function attachPeople(callable $lookup): void
     {
         $this->people = $lookup;
@@ -138,6 +148,10 @@ final class ReminderService
      * `assignee_id` und `assignee_former`. Ist eine Person gewählt, gilt ihr
      * heutiger Name (umbenannt → neuer Name).
      *
+     * v3.6.0 — dazu `assignee_deleted`: Die Person ist gelöscht (Vermerk am
+     * Termin oder laut Personenverzeichnis); dann bleibt der gespeicherte Name.
+     * Ein erledigter Termin (nicht mehr aktiv) behält den Namen vom Erledigen.
+     *
      * @param array<string,mixed> $r
      * @return array<string,mixed>
      */
@@ -145,12 +159,19 @@ final class ReminderService
     {
         $name = is_string($r['assignee'] ?? null) && trim($r['assignee']) !== '' ? trim($r['assignee']) : null;
         $id = is_string($r['assignee_id'] ?? null) && $r['assignee_id'] !== '' ? $r['assignee_id'] : null;
-        if ($id !== null && $this->people !== null && ($p = ($this->people)($id)) !== null && ($p['name'] ?? '') !== '') {
-            $name = (string)$p['name'];
+        $deleted = !empty($r['assignee_deleted']);
+        if ($id !== null && $this->people !== null && ($p = ($this->people)($id)) !== null) {
+            if (!empty($p['deleted'])) {
+                $deleted = true;
+                $name ??= ($p['name'] ?? '') !== '' ? (string)$p['name'] : null;
+            } elseif (($p['name'] ?? '') !== '' && !$deleted && ($r['active'] ?? true) !== false) {
+                $name = (string)$p['name'];
+            }
         }
         $r['assignee'] = $name;
         $r['assignee_id'] = $name !== null ? $id : null;
         $r['assignee_former'] = $name === null && !empty($r['assignee_former']);
+        $r['assignee_deleted'] = $name !== null && $deleted;
         return $r;
     }
 
@@ -181,7 +202,8 @@ final class ReminderService
         $id = trim((string)$rawId);
         if ($id !== '') {
             $person = $this->people !== null ? ($this->people)($id) : null;
-            if ($person === null) throw new \InvalidArgumentException($this->i18n->t('errors.reminder.assigneeUnknown'));
+            // v3.6.0 — eine gelöschte Person übernimmt nichts mehr
+            if ($person === null || !empty($person['deleted'])) throw new \InvalidArgumentException($this->i18n->t('errors.reminder.assigneeUnknown'));
             // aus der Personenliste gewählt: es gilt ihr Name
             return ['assignee' => mb_substr((string)$person['name'], 0, self::ASSIGNEE_MAX), 'assignee_id' => $id];
         }
@@ -198,33 +220,75 @@ final class ReminderService
      */
     private static function applyAssignee(array $r, array $a): array
     {
-        unset($r['assignee'], $r['assignee_id'], $r['assignee_former']);
+        unset($r['assignee'], $r['assignee_id'], $r['assignee_former'], $r['assignee_deleted']);
         return $r + $a;
     }
 
     /**
-     * v3.5.0 (F1028) — Eine Person wurde gelöscht: Ihre ID verschwindet von
-     * den Terminen (der Name bleibt als freier Name). Mit `$anonymize` (wie
-     * „ehemalige Person“ im Verlauf) auch der Name: `assignee_former: true`.
-     *
-     * @return int Zahl der geänderten Termine
+     * v3.6.0 — Termine einer Person: per ID oder — ohne ID — mit demselben
+     * Namen (Groß/klein egal; ein freier Name aus der Zeit vor der Person).
      */
-    public function personDeleted(string $personId, bool $anonymize): int
+    private static function belongsTo(array $r, string $personId, string $name): bool
+    {
+        if (($r['assignee_id'] ?? null) === $personId) return true;
+        if (!empty($r['assignee_id']) || $name === '' || !is_string($r['assignee'] ?? null) || !empty($r['assignee_deleted'])) return false;
+        return mb_strtolower(trim($r['assignee'])) === mb_strtolower(trim($name));
+    }
+
+    /** Ein Termin gilt als offen, solange er aktiv ist (erledigte einmalige Termine sind es nicht mehr). */
+    private static function isOpen(array $r): bool
+    {
+        return ($r['active'] ?? true) !== false;
+    }
+
+    /**
+     * v3.6.0 — Wie viele offene Termine beim Löschen übergehen würden (für den
+     * Bestätigungsdialog). Dieselbe Regel wie personDeleted.
+     */
+    public function openCountFor(string $personId, string $name = ''): int
+    {
+        $n = 0;
+        foreach ((array)$this->store->read('reminders.json', []) as $r) {
+            if (is_array($r) && self::isOpen($r) && self::belongsTo($r, $personId, $name)) $n++;
+        }
+        return $n;
+    }
+
+    /**
+     * v3.6.0 — Eine Person wurde gelöscht (v3.5.0 löste nur die ID).
+     *
+     * - Offene Termine gehen an die löschende Person `$to` ({id, name}).
+     *   Ohne sie (API-Schlüssel) bleiben sie mit dem Vermerk „gelöscht“
+     *   stehen, bis jemand sie übernimmt.
+     * - Erledigte Termine behalten Namen und ID mit dem Vermerk
+     *   `assignee_deleted` — die Historisierung. Mit `$anonymize` (wie
+     *   „ehemalige Person“ im Verlauf) ersetzt `assignee_former` den Namen.
+     *
+     * @param array{id:string, name:string}|null $to
+     * @return array{handed_over:int, kept:int}
+     */
+    public function personDeleted(string $personId, bool $anonymize, ?array $to = null, string $name = ''): array
     {
         $all = $this->store->read('reminders.json', []);
-        if (!is_array($all) || $personId === '') return 0;
-        $n = 0;
+        $out = ['handed_over' => 0, 'kept' => 0];
+        if (!is_array($all) || $personId === '') return $out;
         foreach ($all as $i => $r) {
-            if (!is_array($r) || ($r['assignee_id'] ?? null) !== $personId) continue;
-            unset($all[$i]['assignee_id']);
-            if ($anonymize) {
-                unset($all[$i]['assignee']);
-                $all[$i]['assignee_former'] = true;
+            if (!is_array($r) || !self::belongsTo($r, $personId, $name)) continue;
+            if (self::isOpen($r) && $to !== null && ($to['id'] ?? '') !== '' && $to['id'] !== $personId) {
+                $all[$i] = self::applyAssignee($r, ['assignee' => mb_substr((string)$to['name'], 0, self::ASSIGNEE_MAX), 'assignee_id' => (string)$to['id']]);
+                $out['handed_over']++;
+                continue;
             }
-            $n++;
+            if ($anonymize) {
+                unset($all[$i]['assignee'], $all[$i]['assignee_id'], $all[$i]['assignee_deleted']);
+                $all[$i]['assignee_former'] = true;
+            } else {
+                $all[$i]['assignee_deleted'] = true;
+            }
+            $out['kept']++;
         }
-        if ($n > 0) $this->store->write('reminders.json', array_values($all));
-        return $n;
+        if ($out['handed_over'] + $out['kept'] > 0) $this->store->write('reminders.json', array_values($all));
+        return $out;
     }
 
     /**
@@ -236,7 +300,9 @@ final class ReminderService
     private function assigneeSnapshot(array $r): ?array
     {
         $r = $this->withAssignee($r);
-        if ($r['assignee'] !== null) return array_filter(['name' => $r['assignee'], 'id' => $r['assignee_id']], fn($v) => $v !== null);
+        if ($r['assignee'] !== null) {
+            return array_filter(['name' => $r['assignee'], 'id' => $r['assignee_id'], 'deleted' => $r['assignee_deleted'] ?: null], fn($v) => $v !== null);
+        }
         return $r['assignee_former'] ? ['former' => true] : null;
     }
 
@@ -352,6 +418,9 @@ final class ReminderService
                 default         => null,
             };
             if ($months === null) {
+                // v3.6.0 — der Name der zuständigen Person wird beim Erledigen eingefroren
+                $current = $this->withAssignee($r);
+                if ($current['assignee'] !== null && !empty($r['assignee_id'])) $r['assignee'] = $current['assignee'];
                 $r['active'] = false;            // einmaliger Termin erledigt
             } else {
                 // v2.1.5 — Tag auf die Ziel-Monatslänge clampen, sonst überläuft

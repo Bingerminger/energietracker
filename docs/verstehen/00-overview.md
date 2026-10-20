@@ -622,6 +622,9 @@ Amortisation        Nutzen = Eigenverbrauch × Arbeitspreis + Einspeiseerlös se
                     Jahre  = Investition / Nutzen der letzten 12 Monate
 Gutschriften        ersetzen kWh × Vergütung im Zeitraum, tagesgenau verteilt
 Einordnung          Δ% = (Jahreswert − eigener Vergleichswert) / Vergleichswert × 100   (nur volle Jahre)
+                    Ampel (v3.6.0): gut Δ ≤ 0 · darüber 0 < Δ ≤ 10 · deutlich darüber Δ > 10
+                    Wasser: L/Person·Tag = m³ × 1000 / Tage / Personen;
+                            Index = L / Richtwert × 100, Ampel nach den Spar-Index-Bändern
 Zeitreihen          je Tag: letzter Zählerstand bzw. Summe der Intervalle
 ```
 

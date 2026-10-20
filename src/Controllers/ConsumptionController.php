@@ -8,6 +8,7 @@ use Energietracker\Http\Response;
 use Energietracker\Services\ConsumptionService;
 use Energietracker\Services\ContractService;
 use Energietracker\Services\AnomalyService;
+use Energietracker\Services\BillingPeriodService;
 use Energietracker\Services\MeterService;
 use Energietracker\Services\RegressionService;
 use Energietracker\Services\SettingsService;
@@ -30,7 +31,38 @@ final class ConsumptionController
         private SettingsService $settings,
         private I18nService $i18n,
         private ?ContractService $contracts = null,   // v3.4.0 (N1021) — Phase je Vertrag
+        private ?BillingPeriodService $billing = null, // v3.6.0 (F1030) — Abrechnungsperioden
     ) {}
+
+    /**
+     * v3.6.0 (F1030, #33): GET /api/utility/{u}/meters/{id}/billing-periods[?months=1]
+     * (auch meter-groups/{id}) — Abrechnungsperioden aus Rechnungen und Stichtag
+     * mit Menge, Kosten, Abschlägen, Sonderzahlungen, Saldo; auf Wunsch je
+     * Periode die Monatsreihe (erster und letzter Monat als Teilmonat).
+     */
+    public function billingPeriods(Request $req): never
+    {
+        $utility = (string)$req->param('utility');
+        $this->assertBilling($utility);
+        $target = $this->meters->target($utility, (string)$req->param('id'));
+        if (!$target) Response::error($this->i18n->t('errors.meter.notFound'), 404);
+        Response::json($this->billing->forTarget($utility, $target, $req->queryParam('months') === '1'));
+    }
+
+    /** v3.6.0 (F1030): GET /api/utility/{u}/billing-periods[?months=1] — die ganze Art (ohne Subzähler). */
+    public function utilityBillingPeriods(Request $req): never
+    {
+        $utility = (string)$req->param('utility');
+        $this->assertBilling($utility);
+        Response::json($this->billing->forUtility($utility, $req->queryParam('months') === '1'));
+    }
+
+    private function assertBilling(string $utility): void
+    {
+        if ($this->billing === null || !Utilities::supportsBillCheck($utility)) {
+            Response::error($this->i18n->t('errors.billCheck.unsupportedUtility', ['utility' => $utility]), 400, null, 'errors.billCheck.unsupportedUtility');
+        }
+    }
 
     /** GET /api/utility/{utility}/consumption — all meters + totals */
     public function utility(Request $req): never

@@ -347,4 +347,33 @@ final class DemoServiceTest extends TestCase
             $this->assertArrayNotHasKey($k, $after, "$k war nicht festgeschrieben und bleibt es nicht");
         }
     }
+
+    // ── v3.6.0 — gewanderte Rechnungen nachrechnen ──────────────────────
+
+    public function testMovedBillTakesTheOwnCalculation(): void
+    {
+        $b = ['id' => 'b_1', 'invoice' => ['energy_kwh' => 1000.0, 'amount_eur' => 300.0, 'advances_paid_eur' => 280.0, 'result_eur' => 20.0],
+              'co2' => ['emissions_kg' => 200.0]];
+        $out = DemoService::recalculatedBill($b, ['kwh' => 1200.04, 'total' => 333.333, 'advances' => 350.0], 'gas');
+        $this->assertSame(['energy_kwh' => 1200.0, 'amount_eur' => 333.33, 'advances_paid_eur' => 350.0, 'result_eur' => -16.67], $out['invoice']);
+        $this->assertSame(240.0, $out['co2']['emissions_kg'], 'CO₂ im Verhältnis der Menge');
+        $w = DemoService::recalculatedBill(['invoice' => ['volume_m3' => 100.0]], ['m3' => 90.0, 'total' => 400.0, 'advances' => null], 'wasser');
+        $this->assertSame(['volume_m3' => 90.0, 'amount_eur' => 400.0, 'advances_paid_eur' => 0.0, 'result_eur' => 400.0], $w['invoice']);
+    }
+
+    public function testSpecialPaymentFollowsTheResult(): void
+    {
+        $sp = ['id' => 'sp_1', 'date' => '2025-01-20', 'kind' => 'nachzahlung_mit', 'amount_eur' => 20.0, 'new_advance_eur' => 90];
+        $this->assertSame(['id' => 'sp_1', 'date' => '2025-09-10', 'kind' => 'rueckzahlung_mit', 'amount_eur' => 16.67, 'new_advance_eur' => 90],
+            DemoService::settledPayment($sp, -16.67, '2025-09-10'), 'Richtung kippt, „mit Abschlagsänderung“ bleibt');
+        $ohne = DemoService::settledPayment(['kind' => 'rueckzahlung_ohne', 'amount_eur' => 3.0, 'date' => '2025-01-01'], 42.5, null);
+        $this->assertSame(['kind' => 'nachzahlung_ohne', 'amount_eur' => 42.5, 'date' => '2025-01-01'], $ohne);
+    }
+
+    /** Ohne die Verdrahtung blieben gewanderte Rechnungen bei den alten Beträgen („prüfen“ statt „passt“). */
+    public function testTheAppRecalculatesMovedBills(): void
+    {
+        $src = (string)file_get_contents(dirname(__DIR__, 3) . '/src/bootstrap.php');
+        $this->assertStringContainsString('$this->demo->attachBills($this->bills);', $src);
+    }
 }

@@ -82,8 +82,16 @@ const open = R.reportHref('open', c);
 t('Im Browser öffnen: yearly.pdf mit inline, detail, utilities, lang', /\/api\/reports\/yearly\.pdf\?year=2025&inline=1&detail=1&utilities=gas,wasser&lang=en$/.test(open), open);
 const down = R.reportHref('download', { ...c, utilities: null, detail: false });
 t('Herunterladen: ohne inline; ganzer Bericht ohne utilities', /yearly\.pdf\?year=2025&lang=en$/.test(down), down);
-t('Demo: PDF nur ganz und ohne Anhang, Druckansicht mit Anhang', JSON.stringify(R.demoLimits('download', true)) === '{"subset":false,"detail":false}'
-  && JSON.stringify(R.demoLimits('print', true)) === '{"subset":false,"detail":true}' && JSON.stringify(R.demoLimits('open', false)) === '{"subset":true,"detail":true}');
+t('Demo: PDF nur ganz und ohne Anhang, Druckansicht mit Anhang', JSON.stringify(R.demoLimits('download', true)) === '{"subset":false,"detail":false,"billing":false,"flex":false}'
+  && JSON.stringify(R.demoLimits('print', true)) === '{"subset":false,"detail":true,"billing":true,"flex":true}' && JSON.stringify(R.demoLimits('open', false)) === '{"subset":true,"detail":true,"billing":true,"flex":true}');
+// v3.6.0 — Seite „Flexibilität“ und ein gespeichertes Szenario (nur Druckansicht)
+t('Flexibilität: flex=1 in Druckansicht und PDF', R.reportHref('print', { year: 2025, flex: true }) === '#/report/print?year=2025&flex=1'
+  && /yearly\.pdf\?year=2025&flex=1$/.test(R.reportHref('download', { year: 2025, flex: true })) && R.resolveChoice({ flex: true }, ctx).flex === true);
+t('Szenario anhängen: nur in der Druckansicht, Name kodiert', R.reportHref('print', { year: 2025, scenario: 'Dach & Fenster' }) === '#/report/print?year=2025&scenario=Dach%20%26%20Fenster'
+  && !/scenario/.test(R.reportHref('download', { year: 2025, scenario: 'Dach' })));
+// v3.6.0 (F1030) — Anhang „Abrechnungsjahre“ als eigene Option
+t('Abrechnungsjahre: billing=1 in Druckansicht und PDF', R.reportHref('print', { year: 2025, billing: true }) === '#/report/print?year=2025&billing=1'
+  && /yearly\.pdf\?year=2025&billing=1$/.test(R.reportHref('download', { year: 2025, billing: true })) && R.resolveChoice({ billing: true }, ctx).billing === true);
 
 // ── Dialog ──────────────────────────────────────────────────────────────
 console.log('Dialog');
@@ -95,6 +103,8 @@ await tick();
 t('Titel, Jahr, Sprache, Verbrauchsarten, Anhang', q('.modal__title')?.textContent === 'Jahresbericht erstellen' && q('#rd-year')?.options.length === 7
   && !!q('#rd-lang') && q('#rd-detail') && q('legend')?.textContent === 'Verbrauchsarten');
 t('Formularraster .fgrid, Verbrauchsarten als Feldgruppe', !!q('.fgrid') && !!q('fieldset.fgroup'));
+t('Option „Abrechnungsjahre“ sagt, dass die übrigen Seiten Kalenderjahr bleiben', !!q('#rd-billing') && q('#rd-billing').checked === false
+  && /übrigen Seiten bleiben beim Kalenderjahr/.test(q('#rd-billing-hint')?.textContent || ''));
 t('nur aktive Verbrauchsarten, alle angehakt', [...document.querySelectorAll('input[name="rd-util"]')].map(i => `${i.value}:${i.checked}`).join() === 'gas:true,strom:true,wasser:true');
 t('Vorjahr vorgewählt, Sprache der Oberfläche', q('#rd-year')?.value === String(now - 1) && q('#rd-lang')?.value === 'de');
 t('Fokus im Dialog (modal.js: Fokusfalle, Escape)', document.querySelector('#modal-root .modal')?.contains(document.activeElement));
@@ -115,7 +125,7 @@ q('input[name="rd-util"][value="wasser"]').checked = true; change(q('input[name=
 go.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true, cancelable: true }));
 await tick();
 const saved = JSON.parse(localStorage.getItem(R.REPORT_OPTIONS_KEY) || '{}');
-t('gemerkt je Gerät: Verbrauchsarten, Sprache, Anhang — ohne Jahr', JSON.stringify(saved) === '{"utilities":["gas","wasser"],"lang":"fr","detail":true}', JSON.stringify(saved));
+t('gemerkt je Gerät: Verbrauchsarten, Sprache, Anhang — ohne Jahr', JSON.stringify(saved) === '{"utilities":["gas","wasser"],"lang":"fr","detail":true,"billing":false,"flex":false}', JSON.stringify(saved));
 t('Dialog nach dem Download zu', !document.querySelector('#modal-root .modal') && typeof (await result) === 'string');
 
 result = R.openReportDialog({ mode: 'open' });
@@ -177,6 +187,8 @@ for (const [lang, file] of [['de', 'docs/anleitungen/jahresbericht-lesen.md'], [
   t(`${lang}: Dialog, „Optionen“ und Hinweis ohne Haken wie im Katalog`, d.includes(c.dialog.title) && d.includes(c.dialog.options)
     && d.includes(c.dialog.utilitiesNone) && d.includes(c.dialog.language));
   t(`${lang}: alle drei Parameter genannt, die der Dialog setzt`, ['?lang=', '?utilities=', '?detail=1'].every(p => d.includes(p)));
+  // v3.6.0 — Seite „Flexibilität“ und „Szenario anhängen“ stehen in der Anleitung wie im Katalog
+  t(`${lang}: Seite „Flexibilität“ (flex=1) und „Szenario anhängen“ beschrieben`, d.includes(c.dialog.flex) && d.includes('`?flex=1`') && d.includes(c.dialog.scenario));
 }
 
 console.log(`\nreport-dialog: ${pass} bestanden, ${fail} fehlgeschlagen`);

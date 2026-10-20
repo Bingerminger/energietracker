@@ -23,7 +23,7 @@ Variante ist Docker:
 ```bash
 docker run -d --name energietracker -p 8080:80 \
   -v "$PWD/data:/data" \
-  ghcr.io/bingerminger/energietracker:latest
+  ghcr.io/bingerminger/energietracker:3
 ```
 
 Dann im Browser **http://localhost:8080** öffnen. (Andere Wege — PHP-Server,

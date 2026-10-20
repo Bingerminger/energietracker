@@ -23,6 +23,9 @@ import { copyText as copyToClipboard } from '../lib/clipboard.js';
 // v3.2.0 (F1018, F1019, F1023) — Nutzungsstufe, Einrichtungsassistent, Personen
 import { LEVELS, LEVEL_ICONS, currentLevel, saveLevel } from '../lib/levels.js';
 import { openSetupWizard } from '../components/setup-wizard.js';
+import { confirmPersonDelete } from '../components/person-delete.js';   // v3.6.0
+// v3.6.0 — Aufklappbereich für lange Listen (CO₂-Faktoren), wie in der Prognose
+import { disclosureHtml, wireDisclosures, openDisclosureOf } from '../components/disclosure.js';
 
 // Each group renders as a settings card. `hint` is an optional explanatory
 // line under the card title; each field may carry its own `hint` too.
@@ -37,6 +40,10 @@ const GROUPS = [
     { key: 'dashboard_months',         step: '1' },
     { key: 'forecast_months',          unitKey: 'settings.unit.months', step: '1' },
     { key: 'alert_days_since_reading', unitKey: 'settings.unit.daysNoReading', step: '1' },
+  ]},
+  // v3.6.0 — Hinweis auf neue Versionen (GitHub, einmal am Tag; nur auf Wunsch)
+  { gkey: 'updates', page: 'general', icon: '🆕', fields: [
+    { key: 'update_check', type: 'bool' },
   ]},
   { gkey: 'contractReminders', page: 'general', icon: '🔔', level: 'advanced', fields: [
     { key: 'contract_remind_days_1', unitKey: 'settings.unit.days', step: '1' },
@@ -98,7 +105,9 @@ const GROUPS = [
     { key: 'pellets_kwh_per_kg', unit: 'kWh/kg', step: '0.1' },
     { key: 'tank_warn_pct', unitKey: 'settings.unit.pctRemaining', step: '1' },
   ]},
-  { gkey: 'co2', page: 'utilities', icon: '🌍', level: 'expert', fields: [
+  // v3.6.0 — die lange Liste standardmäßig zu (Kacheln stehen ruhig); derselbe
+  // Aufklappbereich wie „Prognose im Detail“ (components/disclosure.js)
+  { gkey: 'co2', page: 'utilities', icon: '🌍', level: 'expert', collapse: 'et-settings-co2-open', fields: [
     { key: 'co2_gas',    unit: 'g/kWh', step: '1' },
     { key: 'co2_strom',  unit: 'g/kWh', step: '1' },
     // v2.10.0 (CALC-19) — Strom je Jahr (Umweltbundesamt), eigener Feldtyp
@@ -219,7 +228,8 @@ export async function render(container, params = [], ctx = {}) {
   // Mit Anmeldung ist die Sprachwahl die der Person (auf allen ihren Geräten)
   const signedIn = !!(session?.user && session.mode !== 'off');
   const personLang = { signedIn, value: signedIn ? (session.user?.prefs?.language || null) : deviceLanguage() };
-  const users = page === 'access' && isAdmin && session?.mode && session.mode !== 'off'
+  // v3.6.0 — auch ohne Anmeldung: dann die Personen ohne Zugang aus dem Personenverzeichnis
+  const users = page === 'access' && isAdmin
     ? await api.users().catch(() => []) : [];
 
   // F1009 — Zähler je (nicht-Delivery-)Utility für die Alias-Verwaltung laden.
@@ -310,7 +320,8 @@ export async function render(container, params = [], ctx = {}) {
     access: isAdmin
       ? grid(renderSecurityCheck(diag, isAdmin), renderSecurityCard(session), narrowGroups,
           renderKeysCard(apiKeys), renderUsersCard(users, session), wideGroups)
-      : grid(`<div class="card settings-card"><p class="muted">${escapeHtml(t('settings.users.memberHint'))}</p></div>`),
+      : grid(`<div class="card settings-card"><p class="muted">${escapeHtml(t('settings.users.memberHint'))}</p>
+          <p class="muted" data-role="member-delete-hint">${escapeHtml(t('settings.users.memberDeleteHint'))}</p></div>`),
     expert: `
       ${grid(groupCards(groups.filter(g => g.visible)))}
       <details class="settings-expert">
@@ -387,9 +398,20 @@ export async function render(container, params = [], ctx = {}) {
   };
   listen(document, 'click', leaveGuard);
 
+  // v3.6.0 — Felder in einem zugeklappten Bereich (CO₂-Faktoren): Was sich
+  // geändert hat, klappt nach dem Speichern und bei einem Fehler auf — sonst
+  // sähe man weder den gespeicherten Wert noch die Ursache der Meldung.
+  const openChanged = () => {
+    let before = {};
+    try { before = JSON.parse(baseline || '{}'); } catch { /* alles gilt als geändert */ }
+    for (const [k, v] of Object.entries(collectSettings(container))) {
+      if (JSON.stringify(v) !== JSON.stringify(before[k])) openDisclosureOf(container.querySelector(`[data-key="${k}"]`));
+    }
+  };
   const save = async () => {
     const invalid = firstInvalidSetting(container);
     if (invalid) {
+      container.querySelectorAll('.invalid').forEach(el => openDisclosureOf(el));
       invalid.scrollIntoView?.({ block: 'center' });
       invalid.focus();
       toastErr(t('settings.invalidFields'));
@@ -400,10 +422,15 @@ export async function render(container, params = [], ctx = {}) {
       // v2.11.0 (FE-12) — saveSettings meldet die Änderung; die Seitenleiste
       // folgt einer geänderten Auswahl der Verbrauchsarten sofort.
       await saveSettings(payload);
+      openChanged();
+      // v3.6.0 — eine eben eingetragene Angabe ist keine Annahme mehr
+      container.querySelectorAll('[data-role="assumed"]').forEach(h => {
+        if (h.closest('.settings-field')?.querySelector('[data-type="number"]')?.value.trim()) h.remove();
+      });
       baseline = JSON.stringify(payload);   // Stand ist gesichert
       markDirty();
       toastOk(t('settings.saved'));
-    } catch (e) { toastErr(e.message); }
+    } catch (e) { openChanged(); toastErr(e.message); }
   };
   container.querySelector('#btn-save')?.addEventListener('click', save);
   container.querySelector('#btn-discard')?.addEventListener('click', () => {
@@ -463,6 +490,24 @@ export async function render(container, params = [], ctx = {}) {
   if (page === 'access' || page === 'system') wireSecurityCheck(container, () => render(container, params, ctx));
   if (page === 'general') wireLevelCard(container, session);
   if (page === 'integrations') wireIntegrationsPage(container, () => render(container, params, ctx));
+  wireDisclosures(container);   // v3.6.0
+
+  // v3.6.0 — Sprung zu einem Feld (`?field=wohnflaeche_m2`, Einladung der
+  // Kachel „Einordnung“): aufklappen, in die Mitte holen, Fokus. Nach dem
+  // Rendern, denn der Router scrollt danach an den Anfang der Ansicht.
+  const wanted = ctx?.query?.get?.('field');
+  if (wanted && /^[a-z0-9_]+$/.test(wanted)) {
+    const el = container.querySelector(`[data-key="${wanted}"]`);
+    if (el) {
+      openDisclosureOf(el);
+      el.closest('.settings-field')?.setAttribute('data-target', '');
+      setTimeout(() => {
+        if (!el.isConnected) return;
+        el.scrollIntoView?.({ block: 'center' });
+        el.focus?.({ preventScroll: true });
+      }, 0);
+    }
+  }
 
   // Der Router ruft diese Funktion beim Verlassen der Ansicht auf.
   return unlistenAll;
@@ -477,6 +522,7 @@ function csvFormat() {
 }
 function csvUrl(kind, utility, format) {
   if (kind === 'monthly') return api.exportMonthlyCsvUrl(utility, format);
+  if (kind === 'billing') return api.exportBillingCsvUrl(utility, format);   // v3.6.0 (F1030)
   if (kind === 'deliveries') return api.exportDeliveriesCsvUrl(utility, format);
   if (kind === 'temperatures') return api.exportTemperaturesCsvUrl(format);
   return api.exportReadingsCsvUrl(utility, format);
@@ -507,6 +553,16 @@ function renderExportCard(settings, utilities) {
             ${(utilities || [])
               .filter(u => exportActive(settings, u.key))
               .map(u => `<a class="btn btn--sm btn-${u.key}" href="${csvUrl('monthly', u.key, fmt)}" data-csv="monthly" data-utility="${u.key}" download>${escapeHtml(u.label)}</a>`)
+              .join('') || `<span class="muted" style="font-size:12px">${t('settings.export.noActive')}</span>`}
+          </div>
+        </div>
+        <div class="export-tile">
+          <div class="export-tile__label">${t('billing.export.label')}</div>
+          <div class="export-tile__hint">${t('billing.export.hint')}</div>
+          <div class="export-tile__actions">
+            ${(utilities || [])
+              .filter(u => exportActive(settings, u.key) && u.supports_bill_check)
+              .map(u => `<a class="btn btn--sm btn-${u.key}" href="${csvUrl('billing', u.key, fmt)}" data-csv="billing" data-utility="${u.key}" download>${escapeHtml(u.label)}</a>`)
               .join('') || `<span class="muted" style="font-size:12px">${t('settings.export.noActive')}</span>`}
           </div>
         </div>
@@ -715,18 +771,23 @@ function wireAccessPage(container, rerender) {
   container.querySelector('#btn-sec-disable')?.addEventListener('click', () => {
     openModal({
       title: t('settings.security.disableTitle'),
+      // v3.6.0 — Passwortfeld im Formular (Safari am iPad); Enter bestätigt
       body: `<p>${escapeHtml(t('settings.security.disableMsg'))}</p>
-        <div class="field">
-          <label for="sec-disable-pw">${t('settings.security.currentPassword')}</label>
-          <input class="input input--text" id="sec-disable-pw" type="password" autocomplete="current-password">
-          <div class="field-error" id="sec-disable-msg" role="alert" hidden></div>
-        </div>`,
+        <form data-role="sec-disable-form" autocomplete="on">
+          <input type="text" name="username" autocomplete="username" value="energietracker" hidden>
+          <div class="field">
+            <label for="sec-disable-pw">${t('settings.security.currentPassword')}</label>
+            <input class="input input--text" id="sec-disable-pw" type="password" autocomplete="current-password">
+            <div class="field-error" id="sec-disable-msg" role="alert" hidden></div>
+          </div>
+        </form>`,
       footer: `
         <button type="button" class="btn btn--ghost" data-act="cancel">${t('common.cancel')}</button>
         <button type="button" class="btn btn--danger" data-act="ok">${t('settings.security.disable').replace(/…$/, '')}</button>`,
       onMount({ modalEl, close }) {
         modalEl.querySelector('[data-act="cancel"]')?.addEventListener('click', () => close(null));
         const okBtn = modalEl.querySelector('[data-act="ok"]');
+        modalEl.querySelector('form[data-role="sec-disable-form"]')?.addEventListener('submit', (e) => { e.preventDefault(); okBtn?.click(); });
         okBtn?.addEventListener('click', async () => {
           okBtn.disabled = true;
           try {
@@ -1144,11 +1205,13 @@ function renderMyAccountCard(session) {
       <h2 class="card__title"><span aria-hidden="true">👤</span> ${escapeHtml(t('settings.me.title', { name: u.name }))}</h2>
       <p class="settings-card__hint">${escapeHtml(t('settings.users.role.' + (session.role || u.role)))}</p>
       ${u.source === 'password' ? `
-      <div class="fgrid">
+      <!-- v3.6.0 — Passwortfelder im Formular wie unter „Zugriff“ (Safari am iPad) -->
+      <form class="fgrid" data-role="me-form" autocomplete="on">
+        <input type="text" name="username" autocomplete="username" value="${escapeHtml(u.name)}" hidden>
         ${pw('me-current', 'settings.security.currentPassword', 'current-password')}
         ${pw('me-new', 'settings.security.newPassword', 'new-password')}
         <div class="field"><button type="button" class="btn" id="btn-me-password">${escapeHtml(t('settings.security.change'))}</button></div>
-      </div>
+      </form>
       <div class="section-actions">
         <button type="button" class="btn btn--ghost" data-logout-everywhere>${escapeHtml(t('settings.security.logoutEverywhere'))}</button>
       </div>` : `<p class="muted small">${escapeHtml(t('settings.me.proxyHint'))}</p>`}
@@ -1169,6 +1232,11 @@ function wireLogoutEverywhere(container) {
 
 function wireMyAccount(container) {
   wireLogoutEverywhere(container);
+  // Abgeschickt wird nie (Enter löst denselben Knopf aus)
+  container.querySelector('form[data-role="me-form"]')?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    container.querySelector('#btn-me-password')?.click();
+  });
   container.querySelector('#btn-me-password')?.addEventListener('click', async () => {
     const cur = container.querySelector('#me-current')?.value || '';
     const next = container.querySelector('#me-new')?.value || '';
@@ -1183,33 +1251,58 @@ function wireMyAccount(container) {
 }
 
 function renderUsersCard(users, session) {
-  if (!session?.mode || session.mode === 'off') return '';
+  // v3.6.0 — ohne Anmeldung bedient die Personen aus dem Verzeichnis (Backup,
+  // Beispielhaushalt) jede:r, wie die übrigen Einstellungen. Die Karte sagt dann
+  // immer, auch ganz ohne Personen, dass Zugänge erst mit der Anmeldung entstehen,
+  // und springt zu „Anmeldung einschalten“ (Karte „Anmeldung & Zugriff“)
+  const off = !session?.mode || session.mode === 'off';
+  const loginNeeded = off ? `
+      <p class="settings-field__hint" data-role="users-login-needed">${escapeHtml(t('settings.users.loginNeeded'))}</p>
+      <button type="button" class="btn btn--ghost btn--sm" data-role="users-enable-login">${escapeHtml(t('settings.security.enable'))}</button>` : '';
+  if (off && !(users || []).length) {
+    return `
+    <div class="card settings-card settings-card--wide">
+      <h2 class="card__title"><span aria-hidden="true">👥</span> ${escapeHtml(t('settings.users.title'))}</h2>
+      ${loginNeeded}
+    </div>`;
+  }
   const meId = session.user?.id;
+  // v3.6.0 — Personen ohne Zugang (`has_account: false`): Rolle umstellen und
+  // umbenennen wie bei einem Zugang (PATCH /api/users/{id}, nur Verwalter); die
+  // Rolle wirkt, sobald jemand für sie einen Zugang anlegt
+  const noAccess = (u) => u.has_account === false;
   const roleSelect = (u) => `<select class="select select--sm" data-user-role="${escapeHtml(u.id)}" aria-label="${escapeHtml(t('settings.users.roleLabel', { name: u.name }))}">
       ${['admin', 'member'].map(r => `<option value="${r}" ${u.role === r ? 'selected' : ''}>${escapeHtml(t('settings.users.role.' + r))}</option>`).join('')}
     </select>`;
+  const anyNoAccess = (users || []).some(noAccess);
   return `
     <div class="card settings-card settings-card--wide">
       <h2 class="card__title"><span aria-hidden="true">👥</span> ${escapeHtml(t('settings.users.title'))}</h2>
-      <p class="settings-card__hint">${escapeHtml(t(session.mode === 'proxy' ? 'settings.users.hintProxy' : 'settings.users.hint'))}
+      <p class="settings-card__hint">${escapeHtml(t(off ? 'settings.users.hintOff' : session.mode === 'proxy' ? 'settings.users.hintProxy' : 'settings.users.hint'))}
         <a href="${escapeHtml(docUrl('users'))}">${escapeHtml(t('common.guide'))}</a></p>
       <table class="table">
         <thead><tr><th>${escapeHtml(t('settings.users.name'))}</th><th>${escapeHtml(t('settings.users.roleHead'))}</th><th></th></tr></thead>
         <tbody>
           ${(users || []).map(u => `<tr>
-            <td>${escapeHtml(u.name)}${u.id === meId ? ` <span class="muted small">(${escapeHtml(t('settings.users.you'))})</span>` : ''}</td>
+            <td>${escapeHtml(u.name)}${u.id === meId ? ` <span class="muted small">(${escapeHtml(t('settings.users.you'))})</span>` : ''}${u.no ? ` <span class="muted small" data-role="person-no">${escapeHtml(t('settings.users.no', { no: u.no }))}</span>` : ''}${noAccess(u) ? ` <span class="badge" data-role="no-access">${escapeHtml(t('settings.users.noAccess'))}</span>` : ''}</td>
             <td>${roleSelect(u)}</td>
             <td class="row-actions">
               ${u.source === 'password' ? `<button type="button" class="btn btn--sm btn--ghost" data-user-password="${escapeHtml(u.id)}">${escapeHtml(t('settings.users.resetPassword'))}</button>` : ''}
+              ${u.source !== 'proxy' ? `<button type="button" class="btn btn--sm btn--ghost" data-user-rename="${escapeHtml(u.id)}" data-user-name="${escapeHtml(u.name)}"${u.source === 'password' ? ' data-user-login="1"' : ''}>${escapeHtml(t('settings.users.rename'))}</button>` : ''}
+              ${noAccess(u) && session.mode === 'password' ? `<button type="button" class="btn btn--sm btn--ghost" data-user-grant="${escapeHtml(u.name)}" data-user-grant-role="${u.role === 'admin' ? 'admin' : 'member'}">${escapeHtml(t('settings.users.grant'))}</button>` : ''}
               ${u.id === meId ? '' : `<button type="button" class="btn btn--sm btn--danger btn--quiet" data-user-delete="${escapeHtml(u.id)}">${escapeHtml(t('settings.users.delete'))}</button>`}
             </td>
           </tr>`).join('')}
         </tbody>
       </table>
+      ${anyNoAccess && session.mode === 'password' ? `<p class="settings-field__hint" data-role="no-access-hint">${escapeHtml(t('settings.users.noAccessHint'))}</p>` : ''}
+      <p class="settings-field__hint" data-role="users-delete-hint">${escapeHtml(t(off ? 'settings.users.deleteHintOff' : 'settings.users.deleteHint'))}</p>
+      ${loginNeeded}
       ${session.mode === 'password' ? `
       <h3 class="settings-subtitle">${escapeHtml(t('settings.users.add'))}</h3>
-      <!-- v3.4.0 (N1021) — Person anlegen im Formularraster -->
-      <div class="fgrid">
+      <!-- v3.4.0 (N1021) — Person anlegen im Formularraster; v3.6.0 als Formular
+           (Passwortfeld, Safari am iPad) -->
+      <form class="fgrid" data-role="user-form" autocomplete="off">
         <div class="field field--m"><label for="user-new-name">${escapeHtml(t('settings.users.name'))}</label>
           <input class="input input--text" id="user-new-name" autocomplete="off" maxlength="40"></div>
         <div class="field field--m"><label for="user-new-password">${escapeHtml(t('settings.security.newPassword'))}</label>
@@ -1217,11 +1310,23 @@ function renderUsersCard(users, session) {
         <div class="field field--xs"><label for="user-new-role">${escapeHtml(t('settings.users.roleHead'))}</label>
           <select class="select" id="user-new-role">${['member', 'admin'].map(r => `<option value="${r}">${escapeHtml(t('settings.users.role.' + r))}</option>`).join('')}</select></div>
         <div class="field field--xs"><button type="button" class="btn btn--primary" id="btn-user-add">${escapeHtml(t('settings.users.addButton'))}</button></div>
-      </div>` : ''}
+      </form>` : ''}
     </div>`;
 }
 
 function wireUsersCard(container, session, rerender) {
+  // v3.6.0 — ohne Anmeldung: zum Knopf „Anmeldung einschalten“ springen
+  container.querySelector('[data-role="users-enable-login"]')?.addEventListener('click', () => {
+    const btn = container.querySelector('#btn-sec-enable');
+    if (!btn) return;
+    btn.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    btn.focus({ preventScroll: true });
+  });
+  // v3.6.0 — Formular nie abschicken; Enter legt an
+  container.querySelector('form[data-role="user-form"]')?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    container.querySelector('#btn-user-add')?.click();
+  });
   container.querySelector('#btn-user-add')?.addEventListener('click', async () => {
     const name = container.querySelector('#user-new-name').value.trim();
     const password = container.querySelector('#user-new-password').value;
@@ -1237,11 +1342,13 @@ function wireUsersCard(container, session, rerender) {
   container.querySelectorAll('[data-user-password]').forEach(btn => btn.addEventListener('click', () => {
     openModal({
       title: t('settings.users.resetPassword'),
-      body: `<div class="field"><label for="user-reset-pw">${escapeHtml(t('settings.security.newPassword'))}</label>
-        <input class="input input--text" id="user-reset-pw" type="password" autocomplete="new-password"></div>`,
+      // v3.6.0 — Passwortfeld im Formular (Safari am iPad); Enter speichert
+      body: `<form data-role="pw-reset-form" autocomplete="off"><div class="field"><label for="user-reset-pw">${escapeHtml(t('settings.security.newPassword'))}</label>
+        <input class="input input--text" id="user-reset-pw" type="password" autocomplete="new-password"></div></form>`,
       footer: `<button type="button" class="btn btn--ghost" data-act="cancel">${escapeHtml(t('common.cancel'))}</button>
         <button type="button" class="btn btn--primary" data-act="ok">${escapeHtml(t('common.save'))}</button>`,
       onMount({ modalEl, close }) {
+        modalEl.querySelector('form[data-role="pw-reset-form"]')?.addEventListener('submit', (e) => { e.preventDefault(); modalEl.querySelector('[data-act="ok"]')?.click(); });
         modalEl.querySelector('[data-act="cancel"]').addEventListener('click', () => close(null));
         modalEl.querySelector('[data-act="ok"]').addEventListener('click', async () => {
           const pw = modalEl.querySelector('#user-reset-pw').value;
@@ -1252,23 +1359,50 @@ function wireUsersCard(container, session, rerender) {
       },
     });
   }));
-  // v3.4.0 (F1024) — dazu die Wahl, den Namen im Verlauf durch „ehemalige Person" zu ersetzen
+  // v3.4.0 (F1024) — dazu die Wahl, den Namen im Verlauf durch „ehemalige Person" zu ersetzen;
+  // v3.6.0 — der Dialog sagt vorher, was an wen übergeht (components/person-delete.js)
   container.querySelectorAll('[data-user-delete]').forEach(btn => btn.addEventListener('click', () => {
+    confirmPersonDelete(btn.getAttribute('data-user-delete'), rerender);
+  }));
+  // v3.6.0 — Person umbenennen (mit und ohne Zugang, nicht per Proxy — dort kommt
+  // der Name vom Proxy): offene Termine zeigen danach den neuen Namen, Erledigtes
+  // und der Verlauf behalten den vom Erledigen; mit Passwort meldet sie sich danach
+  // mit dem neuen Namen an
+  container.querySelectorAll('[data-user-rename]').forEach(btn => btn.addEventListener('click', () => {
+    const old = btn.getAttribute('data-user-name') || '';
+    const login = btn.hasAttribute('data-user-login');
     openModal({
-      title: t('settings.users.delete'),
-      body: `<p>${escapeHtml(t('settings.users.deleteConfirm'))}</p>
-        <label class="check"><input type="checkbox" id="user-del-anon"> ${escapeHtml(t('settings.users.anonymizeActivity'))}</label>`,
+      title: t('settings.users.renameTitle', { name: old }),
+      body: `<form data-role="rename-form" autocomplete="off"><div class="field"><label for="user-rename">${escapeHtml(t('settings.users.name'))}</label>
+        <input class="input input--text" id="user-rename" maxlength="40" autocomplete="off" value="${escapeHtml(old)}"></div>
+        <p class="settings-field__hint">${escapeHtml(t('settings.users.renameHint'))}${login ? ' ' + escapeHtml(t('settings.users.renameHintLogin')) : ''}</p></form>`,
       footer: `<button type="button" class="btn btn--ghost" data-act="cancel">${escapeHtml(t('common.cancel'))}</button>
-        <button type="button" class="btn btn--danger" data-act="ok">${escapeHtml(t('settings.users.delete'))}</button>`,
-      onMount: ({ bodyEl, modalEl, close }) => {
+        <button type="button" class="btn btn--primary" data-act="ok">${escapeHtml(t('common.save'))}</button>`,
+      onMount({ modalEl, close }) {
         modalEl.querySelector('[data-act="cancel"]')?.addEventListener('click', () => close(null));
+        modalEl.querySelector('form[data-role="rename-form"]')?.addEventListener('submit', (e) => { e.preventDefault(); modalEl.querySelector('[data-act="ok"]')?.click(); });
         modalEl.querySelector('[data-act="ok"]')?.addEventListener('click', async () => {
-          const anonymizeActivity = !!bodyEl.querySelector('#user-del-anon')?.checked;
-          try { await api.deleteUser(btn.getAttribute('data-user-delete'), { anonymizeActivity }); close(true); rerender(); }
-          catch (e) { toastErr(e.message); }
+          const name = modalEl.querySelector('#user-rename')?.value.trim() || '';
+          if (name === old) { close(null); return; }
+          try {
+            await api.updateUser(btn.getAttribute('data-user-rename'), { name });
+            close(true);
+            toastOk(t('settings.users.renamed', { name }));
+            rerender();
+          } catch (e) { toastErr(e.message); }
         });
       },
     });
+  }));
+  // v3.6.0 — Zugang für eine Person ohne Zugang: Name und Rolle in „Person hinzufügen“;
+  // der neue Zugang übernimmt ihre ID und Nummer (PeopleService::adoptableId)
+  container.querySelectorAll('[data-user-grant]').forEach(btn => btn.addEventListener('click', () => {
+    const name = container.querySelector('#user-new-name');
+    if (!name) return;
+    name.value = btn.getAttribute('data-user-grant');
+    const role = container.querySelector('#user-new-role');
+    if (role) role.value = btn.getAttribute('data-user-grant-role') || 'member';
+    container.querySelector('#user-new-password')?.focus();
   }));
 }
 
@@ -1333,7 +1467,7 @@ function renderSecurityCard(session) {
       <p class="settings-card__hint">${t('settings.security.hint')}</p>
       <div class="section-actions" style="align-items:center;margin-bottom:var(--sp-3)">
         <span class="tag ${mode === 'off' ? 'tag--warning' : 'tag--success'}" id="sec-mode">${t('settings.security.' + label)}</span>
-        ${modeFixed ? `<span class="muted" style="font-size:12px">${t('settings.security.modeFixed')}</span>` : ''}
+        ${modeFixed ? `<span class="settings-field__hint">${t('settings.security.modeFixed')}</span>` : ''}
       </div>
       ${body}
     </div>`;
@@ -1367,7 +1501,8 @@ function renderKeysCard(keys) {
 }
 
 function renderKeyTable(keys) {
-  if (!Array.isArray(keys) || !keys.length) return `<p class="muted">${t('settings.security.keysNone')}</p>`;
+  // v3.6.0 — in der Größe der übrigen Hinweise der Seite (bis v3.5 Grundschrift)
+  if (!Array.isArray(keys) || !keys.length) return `<p class="settings-field__hint">${t('settings.security.keysNone')}</p>`;
   return `<div class="table-wrap"><table class="table table--compact">
     <thead><tr>
       <th scope="col">${t('settings.security.keyName')}</th>
@@ -1532,13 +1667,16 @@ function haAutomationEntries(haUtilities, metersByUtility) {
 }
 
 function renderGroup(g, settings) {
+  const fields = `<div class="settings-fields">
+        ${g.fields.map(f => renderField(f, settings[f.key], settings)).join('')}
+      </div>`;
+  // v3.6.0 — `collapse`: Felder in einem Aufklappbereich (zu, bis man ihn öffnet;
+  // der Zustand gilt je Gerät)
   return `
-    <div class="card settings-card${g.wide ? ' settings-card--wide' : ''}"${g.level ? ` data-min-level="${g.level}"` : ''}>
+    <div class="card settings-card${g.wide ? ' settings-card--wide' : ''}"${g.level ? ` data-min-level="${g.level}"` : ''}${g.collapse ? ` data-collapse="${g.gkey}"` : ''}>
       <h2 class="card__title">${g.icon ? `<span aria-hidden="true">${g.icon}</span> ` : ''}${t('settings.group.' + g.gkey + '.title')}</h2>
       <p class="settings-card__hint">${t('settings.group.' + g.gkey + '.hint')}</p>
-      <div class="settings-fields">
-        ${g.fields.map(f => renderField(f, settings[f.key], settings)).join('')}
-      </div>
+      ${g.collapse ? disclosureHtml({ storageKey: g.collapse, summary: t('settings.group.' + g.gkey + '.list'), body: fields }) : fields}
     </div>
   `;
 }
@@ -1607,11 +1745,20 @@ function renderField(f, value, settings = {}) {
   // („0,5" kam je nach Browser leer an) und escapter Wert (ein als Text
   // gespeicherter Wert brach bisher aus dem Attribut aus). Vorzeichen-Felder
   // ohne inputmode: Die iOS-Zahlentastatur hat kein Minus.
+  // v3.6.0 — Wohnfläche und Personen, die niemand eingetragen hat
+  // (`assumed_keys`): Feld leer, der Default als Platzhalter und ein Satz dazu.
+  // Erst eine Eingabe (auch derselbe Wert) zählt für die Einordnung; leer
+  // gespeichert bleibt die Angabe offen (der Server nimmt sie zurück).
+  const assumed = (settings.assumed_keys || []).includes(f.key);
+  const assumedId = fieldId + '-assumed';
+  const assumedHint = assumed ? `<span class="settings-field__hint" id="${assumedId}" data-role="assumed">${escapeHtml(t('settings.assumedValue', { value: formatForInput(value) + (unit ? ' ' + unit : '') }))}</span>` : '';
+  const describedNum = assumed ? ` aria-describedby="${assumedId}${hasHint ? ' ' + hintId : ''}"` : describedBy;
   return `<div class="field settings-field">
     ${labelHtml}
     <input class="input" type="text" ${f.signed ? '' : 'inputmode="decimal" '}autocomplete="off" id="${fieldId}" data-key="${f.key}" data-type="number"
-           value="${escapeHtml(formatForInput(value))}"${describedBy}>
+           value="${assumed ? '' : escapeHtml(formatForInput(value))}"${assumed ? ` placeholder="${escapeHtml(formatForInput(value))}"` : ''}${describedNum}>
     <div class="field-error" id="${fieldId}-err" role="alert" hidden></div>
+    ${assumedHint}
     ${hint}
   </div>`;
 }

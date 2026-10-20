@@ -15,6 +15,8 @@ html, body {
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
+/* v3.6.0 — Safari vergrößert Text beim Drehen ins Querformat nicht von sich aus */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 
 a { color: var(--accent); text-decoration: none; }
 a:hover { color: var(--accent-hover); text-decoration: underline; }

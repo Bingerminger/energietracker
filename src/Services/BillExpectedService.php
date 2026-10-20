@@ -233,11 +233,10 @@ final class BillExpectedService
 
     // ── intern ───────────────────────────────────────────────────────────
 
+    /** v3.6.0 — eine Regel mit den Abrechnungsperioden (ContractService::sameSupplier) */
     private static function sameProvider(array $c, array $succ): bool
     {
-        $a = mb_strtolower(trim((string)(($c['provider'] ?? '') ?: ($c['tariff_name'] ?? ''))));
-        $b = mb_strtolower(trim((string)$succ['provider']));
-        return $a !== '' && $a === $b;
+        return ContractService::sameSupplier($c, ['provider' => (string)$succ['provider']]);
     }
 
     /**

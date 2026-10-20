@@ -121,8 +121,9 @@ steht an jedem Termin „Zuletzt erledigt am … von …“.
 | Home Assistant (Ingest), evcc | „Home Assistant“ bzw. „evcc“ |
 | aus den Daten erkannt, ohne handelnde Person | „automatisch“ mit Grund |
 
-Personen gibt es nur mit eingeschalteter Anmeldung
-([Benutzer im Haushalt](benutzer.md)). Rechte:
+Als Person handelt nur, wer angemeldet ist
+([Benutzer im Haushalt](benutzer.md)). Ist die Person inzwischen gelöscht,
+steht ihr Name mit dem Zusatz **„(gelöscht)“** da *(v3.6.0)*. Rechte:
 
 | | Verwaltung | Mitglied | Lese-Schlüssel |
 |---|---|---|---|
@@ -145,16 +146,20 @@ Snapshot unter Einstellungen → Daten.
 
 **Namen im Backup.** Der Verlauf gehört zum Backup (Topf `activity`). Die Namen
 stehen darin **als Momentaufnahme** — wer ein Backup weitergibt, gibt sie mit.
-Die Personenliste selbst (Namen, Rollen, Passwörter) bleibt in `auth.json` und
-nicht im Backup. Ein Backup ohne Verlauf (aus einer Version vor 3.4) lässt den
-vorhandenen Verlauf unverändert.
+Passwörter, Sitzungen und Schlüssel bleiben in `auth.json` und nicht im
+Backup; das Personenverzeichnis (Nummer, Name, Rolle, Löschvermerk) gehört seit
+v3.6.0 dazu (Topf `people`). Ein Backup ohne Verlauf (aus einer Version vor
+3.4) lässt den vorhandenen Verlauf unverändert.
 
 **Person löschen:** Unter Einstellungen → Zugriff → „Benutzer und Rechte“ fragt
 „Person löschen“, ob der Name im Verlauf durch **„ehemalige Person“** ersetzt
-werden soll. Vorgewählt ist nein — der Verlauf bleibt, wie er ist.
+werden soll. Vorgewählt ist nein — der Verlauf behält den Namen dann, seit
+v3.6.0 mit dem Zusatz **„(gelöscht)“**
+([Benutzer im Haushalt](benutzer.md#personen-löschen)).
 
-Die Beispielhaushalte und die öffentliche Demo bringen einen leeren Verlauf
-mit; ein Beispielhaushalt laden leert ihn.
+Die Beispielhaushalte und die öffentliche Demo bringen seit v3.5.0 einen
+Verlauf mit erfundenen Personen mit; ein Beispielhaushalt laden ersetzt den
+vorhandenen Verlauf.
 
 ---
 
@@ -181,6 +186,7 @@ PATCH  /api/activity/{id}          {note}
 DELETE /api/activity               ?before=JJJJ-MM-TT — nur Verwaltung
 GET    /api/activity.csv           (v3.5.0) dieselben Filter, ?format=1|local&lang=
 GET    /api/people                 (v3.5.0) Personen für „Zuständig“: nur ID und Name
+GET    /api/users/{id}/handover    (v3.6.0) vor dem Löschen: offene Termine an wen, erledigte Einträge
 ```
 
 `POST /api/reminders/{id}/done` und `POST /api/recommendations/{id}/dismiss`
@@ -199,10 +205,12 @@ haben — wer die Heizung warten lässt, wer den Rauchmelder prüft. **Nur
 Termine**: Zähler und Verträge bewusst nicht. **Benachrichtigt wird niemand**;
 dafür gibt es den [Kalender](kalender.md) und Home Assistant.
 
-**Eintragen:** Im Termin-Dialog das Feld **„Zuständig“**. Mit eingeschalteter
-Anmeldung schlägt es die Personen des Haushalts vor
-([Benutzer im Haushalt](benutzer.md)); wer einen davon wählt, ist als Person
-verknüpft — benennt der Verwalter sie um, zeigt der Termin den neuen Namen.
+**Eintragen:** Im Termin-Dialog das Feld **„Zuständig“**. Es schlägt die
+Personen des Haushalts vor ([Benutzer im Haushalt](benutzer.md)) — seit
+v3.6.0 aus dem Personenverzeichnis, also auch ohne Anmeldung (etwa im
+Beispielhaushalt); gelöschte Personen nicht. Wer einen davon wählt, ist als
+Person verknüpft — benennt der Verwalter sie um, zeigt der Termin den neuen
+Namen; ein erledigter einmaliger Termin behält den Namen vom Erledigen.
 Jeder andere Name geht auch (frei, bis 60 Zeichen), etwa „Oma Gerda“ oder der
 Hausmeister. Leer heißt: niemand.
 
@@ -222,11 +230,19 @@ Verträge); eine Zeile darunter sagt, wie viele.
 **Erledigen:** Ein wiederkehrender Termin behält seine Zuständigkeit. Der
 Eintrag im Verlauf nennt, wer zuständig war — als Momentaufnahme.
 
-**Person löschen:** Die Verknüpfung verschwindet von ihren Terminen, der Name
-bleibt als freier Name. Wählt der Verwalter beim Löschen „ehemalige Person“
-([Abschnitt 5](#5-aufbewahrung-leeren-datenschutz)), steht an den Terminen und
-im Verlauf **„ehemalige Person“** statt des Namens; der Filter zählt sie zu
-„Ohne Zuständigkeit“, bis jemand neu eingetragen ist.
+**Person löschen** *(v3.6.0, bis v3.5 blieb der Name als freier Name stehen)*:
+Ihre **offenen Termine gehen an die Person, die löscht** — auch solche mit
+einem freien Namen, der ihrem gleicht. Der Dialog sagt vorher, wie viele und
+an wen. **Erledigtes behält den Namen** vom Erledigen mit dem Zusatz
+**„(gelöscht)“**: im Verlauf (wer erledigt hat und wer zuständig war), an
+erledigten einmaligen Terminen, in der CSV-Datei des Verlaufs und im
+Kalender. Wählt der Verwalter beim Löschen „ehemalige Person“
+([Abschnitt 5](#5-aufbewahrung-leeren-datenschutz)), steht dort
+**„ehemalige Person“** statt des Namens. Der Filter zählt eine gelöschte oder
+ehemalige Person zu „Ohne Zuständigkeit“, bis jemand neu eingetragen ist; eine
+gelöschte Person lässt sich nicht mehr zuweisen. Wer mit einem API-Schlüssel
+löscht, ist keine Person: Dann bleiben offene Termine bei der gelöschten
+Person stehen, mit „(gelöscht)“, bis jemand sie übernimmt.
 
 ---
 

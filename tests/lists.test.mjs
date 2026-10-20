@@ -107,6 +107,49 @@ const bp = await import(JS('lib/billing-period.js'));
   t('Kalenderjahr erkannt', bp.calendarYearOf({ from: '2025-01-01', until: '2025-12-31' }) === 2025 && bp.calendarYearOf({ from: '2025-04-01', until: '2026-03-31' }) === null);
 }
 
+// v3.6.0 (F1030, #33) — Abrechnungsjahr: gemerkte Wahl, Anordnung der Perioden
+{
+  t('Abrechnungsjahr: ohne Speicher gilt das Kalenderjahr', bp.periodMode() === 'calendar');
+  const store = {};
+  globalThis.localStorage = { getItem: (k) => store[k] ?? null, setItem: (k, v) => { store[k] = String(v); } };
+  bp.setPeriodMode('billing');
+  t('Abrechnungsjahr: die Wahl merkt sich das Gerät', bp.periodMode() === 'billing' && store['et-period-mode'] === 'billing');
+  globalThis.localStorage = { getItem: () => { throw new Error('gesperrt'); }, setItem: () => { throw new Error('gesperrt'); } };
+  bp.setPeriodMode('billing');
+  t('Abrechnungsjahr: gesperrter Speicher bricht nichts', bp.periodMode() === 'calendar');
+  delete globalThis.localStorage;
+  t('nur Arten mit Rechnungsprüfung und Ständen', bp.billingApplies({ supports_bill_check: true }) && !bp.billingApplies({ supports_bill_check: false })
+    && !bp.billingApplies({ supports_bill_check: true }, { capture: 'period' }));
+  const periods = [
+    { from: '2024-04-15', until: '2025-04-14', label: '2024/25', days: 365, months: [] },
+    { from: '2025-04-15', until: '2026-03-30', label: null, days: 200, months: [
+      { ym: '2025-04', month: 4, days: 16, kwh: 100, cost: 30, advance_eur: 48, kwh_cost: 25 },
+      { ym: '2025-05', month: 5, days: 31, kwh: 200, cost: 60, advance_eur: 90, kwh_cost: 50 },
+    ] },
+    { from: '2026-03-31', until: '2027-04-14', label: null, days: 0, months: [] },
+  ];
+  t('Periode: Name vom Server, sonst die Daten', bp.periodName(periods[0]) === '2024/25' && bp.periodName(periods[1], (d) => d.split('-').reverse().join('.')) === '15.04.2025–30.03.2026');
+  t('ohne Wahl die jüngste mit Daten, die laufende ohne Ablesung fällt weg', bp.pickPeriod(periods)?.from === '2025-04-15' && bp.pickPeriod(periods, '2024-04-15')?.from === '2024-04-15'
+    && bp.periodsWithData(periods).length === 2);
+  t('Stelle im Abrechnungsjahr: Stichtagsmonat am Ende ein zweites Mal (13)', bp.slotOf(4, 0, 4) === 1 && bp.slotOf(3, 11, 4) === 12 && bp.slotOf(4, 12, 4) === 13 && bp.slotOf(1, 0, 9) === 5);
+  const rows = bp.periodRows(periods[1], [{ ym: '2025-05', avg_temp: 12.5, hdd: 62, days: 31, contract_id: 'c1' }], 'kwh', 4);
+  t('Monatszeilen: Stelle, Temperatur und Vertrag aus dem Kalendermonat, Saldo fortlaufend', rows[1].slot === 2 && rows[1].avg_temp === 12.5 && rows[1].contract_id === 'c1'
+    && rows[1].cumulative_balance === -48 && rows[0].kwh_per_day === 100 / 16 && rows[0].working_price_ct === 25);
+  t('Spaltennamen ab dem ersten Monat', bp.slotLabels(13, 4, (m) => m).join() === '4,5,6,7,8,9,10,11,12,1,2,3,4');
+  // v3.6.0 (Paket abrechnung) — Vorschlag für „Rechnung prüfen“
+  const ptc = (list, a, d) => { const r = bp.periodToCheck(list, a, d); return `${r.from}..${r.until}`; };
+  const billed = [
+    { from: '2024-04-15', until: '2025-04-14', source: 'bill', complete: true, running: false, days: 365 },
+    { from: '2025-04-15', until: '2026-04-14', source: 'anchor', complete: true, running: false, days: 365 },
+    { from: '2026-04-15', until: '2027-04-14', source: 'anchor', complete: false, running: true, days: 180 },
+  ];
+  // Stichtag 01-01, Rechnungen vom 15.04.: nicht das Kalenderjahr quer zu den Rechnungen
+  t('Rechnung prüfen: die jüngste abgeschlossene Abrechnungsperiode', ptc(billed, '01-01', '2026-10-13') === '2025-04-15..2026-04-14');
+  t('… auch die einer Rechnung, nie die laufende oder eine Teilperiode', ptc([billed[0], billed[2]], '01-01', '2026-10-13') === '2024-04-15..2025-04-14'
+    && ptc([{ ...billed[1], complete: false }], '01-01', '2026-10-13') === '2025-01-01..2025-12-31');
+  t('… ohne Perioden wie bisher nach dem Stichtag', ptc(null, '06-01', '2026-10-13') === '2025-06-01..2026-05-31');
+}
+
 // ── Teil B: echte App mit Beispielhaushalt ───────────────────────────
 const freePort = () => new Promise((res, rej) => {
   const s = createServer();
@@ -301,9 +344,17 @@ try {
   t('Ablesungen: kurze Liste ohne Blätterleiste', !view().querySelector('[data-role="list-card"] nav.pager'));
   t('Ablesungen: Jahreswahl in der Karte mit „Alle Jahre“',
     [...(view().querySelector('[data-role="list-year"]')?.options || [])].some(o => o.value === 'all' && o.textContent === 'Alle Jahre'));
+  // v3.6.0 (Paket abrechnung) — beide Wege nehmen die jüngste abgeschlossene
+  // Abrechnungsperiode wie im Abrechnungsjahr: Der Haushalt hat Rechnungen je
+  // Kalenderjahr, der Stichtag 01.04. passt nicht dazu — der Vorschlag folgt den
+  // Rechnungen (bis v3.5: Periode nach dem Stichtag, quer zu den Rechnungen)
+  const bpStrom = (await call('GET', '/api/utility/strom/meters/m_strom_haushalt/billing-periods')).periods;
+  const doneStrom = bpStrom.filter(p => p.complete && !p.running && p.days > 0 && p.until < ymd);
+  const checkPeriod = doneStrom.length ? { from: doneStrom.at(-1).from, until: doneStrom.at(-1).until } : stromPeriod;
+  await settle();
   const bcHref = view().querySelector('a[href^="#/bill-check"]')?.getAttribute('href') || '';
-  t('Verbrauchsart → Rechnung prüfen: letzte abgeschlossene Periode nach Stichtag',
-    bcHref.includes(`from=${stromPeriod.from}&until=${stromPeriod.until}`), bcHref);
+  t('Verbrauchsart → Rechnung prüfen: jüngste abgeschlossene Abrechnungsperiode (Rechnungen vor Stichtag)',
+    checkPeriod !== stromPeriod && bcHref.includes(`from=${checkPeriod.from}&until=${checkPeriod.until}`), `${bcHref} · Stichtag: ${stromPeriod.from}`);
 
   // ── Ablesungen mit Tageswerten: Blättern ──
   const W = `#/utility/wasser?meter=${encodeURIComponent(water.id)}`;
@@ -357,18 +408,18 @@ try {
   await go('#/bill-check');
   const selUtil = view().querySelector('#bc-utility')?.value;
   t('Rechnung prüfen ohne Zeitraum: Tabelle ohne Klick', tableShown() && selUtil === 'strom', `Art ${selUtil}`);
-  t('… mit der letzten abgeschlossenen Periode nach dem Stichtag (01.04.)', view().querySelector('#bc-from')?.value === stromPeriod.from
-    && view().querySelector('#bc-until')?.value === stromPeriod.until, `${view().querySelector('#bc-from')?.value} – ${view().querySelector('#bc-until')?.value}`);
+  t('… mit der jüngsten abgeschlossenen Abrechnungsperiode wie die Verbrauchsart', view().querySelector('#bc-from')?.value === checkPeriod.from
+    && view().querySelector('#bc-until')?.value === checkPeriod.until, `${view().querySelector('#bc-from')?.value} – ${view().querySelector('#bc-until')?.value}`);
   const lastRow = text(view().querySelector('#bc-result tbody tr:last-child td'));
   t('… bis einschließlich auch an der Schnittstelle (letzter Abschnitt endet am gewählten Tag)',
-    lastRow.endsWith(new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' }).format(new Date(stromPeriod.until))), lastRow);
+    lastRow.endsWith(new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' }).format(new Date(checkPeriod.until))), lastRow);
   t('… ein Zeitraum, „bis einschließlich“', /einschließlich/.test(text(view().querySelector('label[for="bc-until"]'))) && !view().querySelector('#bi-from, #bi-to'));
-  t('… Zustand in der Adresse', w.location.hash.includes(`from=${stromPeriod.from}`) && w.location.hash.includes(`until=${stromPeriod.until}`), w.location.hash);
+  t('… Zustand in der Adresse', w.location.hash.includes(`from=${checkPeriod.from}`) && w.location.hash.includes(`until=${checkPeriod.until}`), w.location.hash);
   const capture = view().querySelector('details[data-role="bills"]');
   t('„Rechnung des Versorgers erfassen (optional)“ eingeklappt unter dem Ergebnis, mit Formular',
     !!capture && !capture.open && /erfassen \(optional\)/.test(text(capture.querySelector('summary'))) && !!capture.querySelector('#bi-form')
       && (capture.compareDocumentPosition(view().querySelector('#bc-result')) & w.Node.DOCUMENT_POSITION_PRECEDING) !== 0
-      && text(capture.querySelector('[data-role="bill-period"]')).includes(new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' }).format(new Date(stromPeriod.until))));
+      && text(capture.querySelector('[data-role="bill-period"]')).includes(new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' }).format(new Date(checkPeriod.until))));
   // anderer Zeitraum (von beiden Zählern abgedeckt), dann Zähler wechseln: Zeitraum bleibt, neu gerechnet
   const dayIso = (n) => iso(new Date(Date.UTC(Y, today.getMonth(), today.getDate() - n)));
   const pick = { from: dayIso(100), until: dayIso(10) };

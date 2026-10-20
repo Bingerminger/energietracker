@@ -45,3 +45,6 @@ graphify-out/
 
 ## Öffentliche Demo — Bauergebnis von tools/build-demo.mjs (v3.0.0)
 /dist/
+
+# Echte Versorgerdokumente für die Entwicklung (Posteingang) — niemals ins öffentliche Repo
+/samples/

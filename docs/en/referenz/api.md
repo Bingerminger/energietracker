@@ -13,7 +13,7 @@ All endpoints under `/api/…`. A uniform response envelope:
 
 `{utility}` is one of: `gas`, `strom`, `wasser`, `fernwaerme`, `heizoel`,
 `pellets`, `pv_einspeisung`, `pv_erzeugung` and, since v3.1.0, `waerme`
-(heat). As of: **160 routes**, v3.5.0 —
+(heat). As of: **166 routes**, v3.6.0 —
 `ReleaseConsistencyTest` checks that every registered route appears in the
 table below (German and English).
 
@@ -142,6 +142,7 @@ Reason: v2.0.0 silently switched `verdict` from "Nachzahlung/Erstattung" to keys
 | Method | Path | Purpose |
 |---|---|---|
 | GET | `/api/health` | health check: `status` ok/degraded/error, checks, last ingest (HTTP 503 on `error`); also `HEAD` |
+| GET | `/api/update-check` | *(v3.6.0)* is there a newer version? `{enabled, current, latest, newer, url, checked_at}` — only with the setting `update_check`, otherwise `{enabled: false, current}` without any outgoing request; the server asks GitHub at most once a day |
 | GET | `/api/session` | sign-in mode, signed in?, fixed by the environment? *(v2.6.0)*; since v3.2.0 `named_login`, `user`, `role` — [People](#people-in-the-household-v320) |
 | POST | `/api/session` | sign in `{name?, password}` → session cookie *(v2.6.0; `name` since v3.2.0)* |
 | DELETE | `/api/session` | sign out *(v2.6.0)* |
@@ -150,11 +151,12 @@ Reason: v2.0.0 silently switched `verdict` from "Nachzahlung/Erstattung" to keys
 | DELETE | `/api/session/password` | switch sign-in off `{current}` *(v2.6.0)*; since v3.2.0 admins only |
 | PATCH | `/api/session/me` | *(v3.2.0)* own settings of the signed-in person `{ui_level?, language?}` — [People](#people-in-the-household-v320) |
 | POST | `/api/session/me/password` | *(v3.2.0)* change your own password `{current, password}` |
-| GET | `/api/users` | *(v3.2.0)* people in the household, without password hash — admins only |
-| GET | `/api/people` | *(v3.5.0)* people for the “Responsible” choice: only `[{id, name}]`, sorted by name, for every signed-in role (read keys too); without sign-in switched on `[]` — [Responsible](#responsible-for-reminders-v350). Class C |
-| POST | `/api/users` | *(v3.2.0)* add a person `{name, password, role?}`; `201` — admins only |
-| PATCH | `/api/users/{id}` | *(v3.2.0)* change name, role or password `{name?, role?, password?}` — admins only |
-| DELETE | `/api/users/{id}` | *(v3.2.0)* delete a person; the last admin stays — admins only; since v3.4.0 `?anonymize_activity=1` replaces their name in the history with “former member” (response `activity_anonymized`) |
+| GET | `/api/users` | *(v3.2.0)* people in the household, without password hash — admins only; *(v3.6.0)* with running number `no` and `has_account`, followed by the people without sign-in from the register (`has_account: false`, `source: "none"`) |
+| GET | `/api/people` | *(v3.5.0)* people for the “Responsible” choice: only `[{id, name}]`, sorted by name, for every signed-in role (read keys too); *(v3.6.0)* from the [register of people](#register-of-people-v360), without deleted ones, also without sign-in switched on (up to v3.5 `[]` then) — [Responsible](#responsible-for-reminders-v350). Class C |
+| POST | `/api/users` | *(v3.2.0)* add a person `{name, password, role?}`; `201` — admins only; *(v3.6.0)* response with `no` |
+| PATCH | `/api/users/{id}` | *(v3.2.0)* change name, role or password `{name?, role?, password?}` — admins only; *(v3.6.0)* also for people without sign-in (name and role; a password gives `400` `errors.users.noAccountPassword`) — [Register of people](#register-of-people-v360) |
+| GET | `/api/users/{id}/handover` | *(v3.6.0)* preview for “Delete person”: `{person: {id, name, no}, to: {id, name}\|null, open, done}` — open reminders and to whom, completed history entries — admins only. Class C |
+| DELETE | `/api/users/{id}` | *(v3.2.0)* delete a person; the last admin stays — admins only; since v3.4.0 `?anonymize_activity=1` replaces their name in the history with “former member” (response `activity_anonymized`); *(v3.6.0)* open reminders pass to the person deleting, completed items keep the name with “(deleted)” (response additionally `handed_over`, `handed_over_to`, `kept`) — [Register of people](#register-of-people-v360) |
 | GET | `/api/auth/keys` | API keys (without plaintext) *(v2.6.0)*; since v3.2.0 admins only |
 | POST | `/api/auth/keys` | create a key `{name, scope: read\|admin\|calendar}`; plaintext once *(v2.6.0; `calendar` since v3.1.0)*; since v3.2.0 admins only |
 | DELETE | `/api/auth/keys/{id}` | revoke a key *(v2.6.0)*; since v3.2.0 admins only |
@@ -163,7 +165,7 @@ Reason: v2.0.0 silently switched `verdict` from "Nachzahlung/Erstattung" to keys
 | GET | `/api/manifest` | *(v3.1.0)* web app manifest in one language (`?lang=`, otherwise the device or installation language); reachable without sign-in, contains no data. Class C |
 | GET | `/api/docs` | *(v3.4.0)* one page of the documentation of this release: `?path=` (`README.md`, `en/anleitungen/kalender.md`, `root/CHANGELOG.md`) → `{path, lang, mirror, root_files, markdown}`; only from the allowlist — [Docs in the app](#docs-in-the-app-get-apidocs-v340). Class C |
 | GET | `/api/docs/asset` | *(v3.4.0)* one image of the documentation (`?path=ui/screenshots/…png&v=<version>`), `image/png`; cached as immutable with the version of this release. Class C |
-| GET | `/api/settings` | settings |
+| GET | `/api/settings` | settings; *(v3.6.0)* plus `assumed_keys` — [Assumed values](#assumed-values-assumed_keys-v360) |
 | PATCH | `/api/settings` | change settings; `frame_ancestors`, `ocr_endpoint` and `evcc_endpoint` since v3.2.0 admins only, as are `allowed_hosts` and `activity_keep_months` (v3.4.0) |
 | GET | `/api/countries` | country profiles: defaults per country *(v2.7.0)*; since v3.1.0 with bill terms (`bill_terms`) and the official tariff comparison (`comparison_portal`) — see below |
 | POST | `/api/settings/country` | change the country: `{"country": "AT", "profile": true}` applies the country profile, `"profile": false` only the country; only values that differ from the defaults are stored *(v3.5.0)* — see below |
@@ -190,6 +192,7 @@ Reason: v2.0.0 silently switched `verdict` from "Nachzahlung/Erstattung" to keys
 | GET | `/api/utility/{u}/meter-groups/{id}/forecast` | *(v3.1.0)* forecast of the group; with unit prices per member using a blended price |
 | GET | `/api/utility/{u}/meter-groups/{id}/tariff-switch` | *(v3.1.0)* switch decision for the group |
 | GET | `/api/utility/{u}/meter-groups/{id}/bill-check` | *(v3.1.0)* bill check of the group: sections per member, fixed costs once |
+| GET | `/api/utility/{u}/meter-groups/{id}/billing-periods` | *(v3.6.0)* billing periods of the group (members together) — [Billing periods](#billing-periods-v360) |
 | GET | `/api/utility/{u}/readings` | readings |
 | POST | `/api/utility/{u}/readings` | create; since v3.1.0 with `client_ref` (same identifier on the same meter → `200` with `duplicate: true` instead of a second reading) and `attachment_id` (photo) — [see below](#readings-client_ref-attachment_id-v310-additive) |
 | PATCH | `/api/utility/{u}/readings/{id}` | change; since v3.1.0 also `attachment_id` (`null` detaches the photo); moving it to a meter with consumption per period → `400` `errors.reading.periodMeter` |
@@ -223,9 +226,12 @@ Reason: v2.0.0 silently switched `verdict` from "Nachzahlung/Erstattung" to keys
 | GET | `/api/utility/{u}/meters/{id}/consumption` | consumption + anomalies + regressions |
 | GET | `/api/utility/{u}/meters/{id}/contract-status` | balance per contract; since v2.5.1 with `special_payments[]` (items, gas/electricity/district heating, since v3.5.0 water too); since v2.8.0 by calendar up to today, since v2.9.0 day-exact with the cancellation deadline, since v3.4.0 with `phase` — see below — and `min_term_end`, `price_guarantee_until`, `auto_renews` ([Explainers](#explainers-energy-flow-and-timeline-v340-additive)) and `successor` ([follow-on contract](#done-with-history-v340)) |
 | GET | `/api/utility/{u}/meters/{id}/forecast` | forecast with uncertainty band, climate normal and warnings (v2.8.0); since v3.1.0 CO₂ price scenario `?co2_scenario_eur_t=&co2_scenario_from=` — see below |
+| POST | `/api/forecast/scenario` | *(v3.6.0)* forecast workshop: calculate a scenario against the baseline (winter, room temperature, measures, tariff, model, budget); writes nothing — [see below](#post-apiforecastscenario--forecast-workshop-v360-f1031-additive) |
 | GET | `/api/utility/{u}/meters/{id}/tariff-comparison` | tariff comparison real vs. shadow (retrospective); since v3.3.0 a dynamic shadow contract uses your own load profile where quarter hours exist (`dynamic_profile_months`) — [dynamic tariff check](#wholesale-electricity-prices-and-dynamic-tariff-check-v310) |
 | GET | `/api/utility/{u}/meters/{id}/tariff-switch` | switching decision from the switch date; optional `?switch_date=YYYY-MM-DD` |
 | GET | `/api/utility/{u}/meters/{id}/bill-check` | bill verification: sections per reading and calorific-value change or price date, with costs, `?from=&to=` (F1012; up to v3.0 gas only, since v3.1.0 gas, electricity, water, district heating, otherwise 400) — [see below](#get-apiutilityumetersidbill-checkfromto-f1012-v250-all-utilities-since-v310) |
+| GET | `/api/utility/{u}/meters/{id}/billing-periods` | *(v3.6.0)* billing periods of the meter from bills and settlement date, with quantity, cost, advance payments, balance; `?months=1` with a monthly series — [Billing periods](#billing-periods-v360) |
+| GET | `/api/utility/{u}/billing-periods` | *(v3.6.0)* the same for the whole utility (meters without a parent meter, without consumption per period) |
 | GET | `/api/utility/{u}/bills` | *(v3.1.0)* supplier bills, the newest first; `?meter_id=` only this meter — [Supplier bills](#supplier-bills-v310) |
 | POST | `/api/utility/{u}/bills` | *(v3.1.0)* record a bill; `201` |
 | PATCH | `/api/utility/{u}/bills/{id}` | *(v3.1.0)* change a bill |
@@ -233,9 +239,9 @@ Reason: v2.0.0 silently switched `verdict` from "Nachzahlung/Erstattung" to keys
 | GET | `/api/utility/{u}/bills/{id}/check` | *(v3.1.0)* own calculation against the supplier’s: difference, verdict, reasons |
 | POST | `/api/utility/{u}/bills/{id}/book` | *(v3.1.0)* book the result as a special payment in the contract (once per bill) |
 | GET | `/api/benchmarks/efficiency` | efficiency class per heat source; since v2.10.0 with coverage and the certificate-style figure — see below |
-| GET | `/api/benchmarks/comparison` | *(v3.1.0)* benchmark of the annual consumption against your own reference values (household electricity, heating per m²), `?year=` (default previous year) — [Benchmark](#benchmark-get-apibenchmarkscomparison-v310) |
+| GET | `/api/benchmarks/comparison` | *(v3.1.0)* benchmark of the annual consumption against your own reference values (household electricity, heating per m²; since v3.6.0 with traffic light `rating`, water per person and missing details `missing`), `?year=` (default previous year) — [Benchmark](#benchmark-get-apibenchmarkscomparison-v310) |
 | GET | `/api/heat-pump` | *(v3.1.0)* seasonal performance factor per heat pump: heat ÷ electricity per month and year, `?year=` (default previous year) — [Heat pump](#seasonal-performance-factor-of-the-heat-pump-v310) |
-| GET | `/api/flexibility` | *(v3.3.0)* flexibility of a year from consumption and wholesale price per quarter hour: profile factor and advantage per electricity meter, battery, § 14a module 3; `?year=` (default previous year) — [Flexibility](#valuing-flexibility-v330) |
+| GET | `/api/flexibility` | *(v3.3.0)* flexibility of a year from consumption and wholesale price per quarter hour: profile factor and advantage per electricity meter, battery, § 14a module 3; *(v3.6.0)* plus `insights` — traffic light, levers, time windows, solar power; `?year=` (default previous year), *(v3.6.0)* `?summary=1` only the result card’s number — [Flexibility](#valuing-flexibility-v330) |
 | GET | `/api/intervals` | *(v3.3.0)* index of the quarter-hour series (consumption per meter, wholesale prices) |
 | DELETE | `/api/intervals/{id}` | *(v3.3.0)* delete one quarter-hour series; meter readings and daily values stay |
 | GET | `/api/energy-flow/days` | *(v3.5.0)* days and months with quarter-hour values of grid import, defaults for the day film — [Day film](#day-film-energy-flow-per-quarter-hour-v350) |
@@ -281,7 +287,7 @@ Reason: v2.0.0 silently switched `verdict` from "Nachzahlung/Erstattung" to keys
 | GET | `/api/attachments/{id}` | *(v3.1.0)* the file of a receipt (photo, PDF) |
 | DELETE | `/api/attachments/{id}` | *(v3.1.0)* delete a receipt; the reference on the record goes with it |
 | POST | `/api/ocr/reading` | *(v3.1.0)* read the meter value from a reading photo `{attachment_id}` — through your own text recognition service in the home network, `502` on errors of the service |
-| GET | `/api/export/{u}/monthly.csv` | monthly aggregates as CSV; `?format=1` (default) or `?format=local&lang=` *(v3.1.0)* — [CSV formats](#csv-formats-v310) |
+| GET | `/api/export/{u}/monthly.csv` | monthly aggregates as CSV; `?format=1` (default) or `?format=local&lang=` *(v3.1.0)* — [CSV formats](#csv-formats-v310); *(v3.6.0)* `?period=billing`: one row per billing period ([Billing periods](#billing-periods-v360)) |
 | GET | `/api/export/{u}/readings.csv` | readings as CSV (cumulative); `format`, `lang` as above |
 | GET | `/api/export/{u}/deliveries.csv` | **v1.4.2** deliveries as CSV (heating oil/pellets); `format`, `lang` as above |
 | GET | `/api/export/{u}/periods.csv` | *(v3.1.0)* consumption per period as CSV, all meters of the utility; `format`, `lang` as above |
@@ -561,7 +567,7 @@ estimated. New fields per contract (additive):
 | `advance_remaining` | advances still due until the end of the contract |
 | `suggested_advance` | advance that evens out the expected balance by the end of the contract (≥ 0), otherwise `null` |
 | `projection_factor` | calibration of the estimate to the most recent level (0.5–1.5) |
-| `balance_path` | *(v2.16.0)* only on the current contract, otherwise `null`: the same calculation as a monthly series from the contract start to its end or the next bill — per month `ym`, cumulative `cost` (measured + estimated + standing charge − bonuses) and `paid` (advances by plan − special payments net), `balance = cost − paid`, `estimated` (contains days after the last reading), `future` (month after today). The last point is `projected_end_balance` |
+| `balance_path` | *(v2.16.0)* only on the current contract, otherwise `null`: the same calculation as a monthly series from the contract start (since v3.6.0 from `balance_from`) to its end or the next bill — per month `ym`, cumulative `cost` (measured + estimated + standing charge − bonuses) and `paid` (advances by plan − special payments net), `balance = cost − paid`, `estimated` (contains days after the last reading), `future` (month after today). The last point is `projected_end_balance` |
 
 **Changed values:** since v2.8.0 `advance_paid` counts the advances by calendar up
 to and including the current month (previously only months with a reading);
@@ -569,6 +575,22 @@ to and including the current month (previously only months with a reading);
 `projected_end_balance = current_balance + estimated_cost_remaining −
 advance_remaining`. `actual_cost`, `actual_kwh_cost` and `actual_base_total` still
 describe only the measured months.
+
+**Balance after the last booked bill *(v3.6.0)*:** if a current contract runs on
+beyond a recorded supplier bill whose result is booked in the contract as a
+refund or additional payment (gas, electricity, water, district heating),
+balance, costs, advances and `balance_path` start on the day after that bill.
+The booked results of the bills no longer count, they settle the bill’s period;
+special payments before that day neither. `special_payments` and the `special_*`
+totals list only the payments that count. New field (additive):
+
+| Field | Meaning |
+|---|---|
+| `balance_from` | from when balance, costs and advances count: contract start or the day after the meter’s last booked bill (for a group: its members’) |
+
+Without a booked bill after the contract start nothing changes. Up to v3.5 the
+balance always started at the contract start; on a contract over several years
+every year without a booked settlement stayed in the balance.
 
 ### Contracts day-exact, cancellation deadline *(v2.9.0)*
 
@@ -910,13 +932,14 @@ and stays with the monthly average.
 Did shifting pay off? Control happens elsewhere — in evcc, Home Assistant or
 the battery itself; Energietracker recalculates with consumption and wholesale
 price **per quarter hour**. Only quarter hours that have both count, and only
-the wholesale share — without taxes, levies and grid fee. Step by step:
+the wholesale share — without taxes, levies and grid fee (the levers in
+`insights` include VAT since v3.6.0, see below). Step by step:
 [Valuing flexibility](../anleitungen/flexibilitaet.md); how the series are
 stored: [Data model](datenmodell.md#quarter-hour-series-intervalsjson-v330).
 
 | Route | Purpose | Class |
 |---|---|---|
-| `GET /api/flexibility?year=` | evaluation of a calendar year | B |
+| `GET /api/flexibility?year=` | evaluation of a calendar year; *(v3.6.0)* `&summary=1` only the result card’s number | B |
 | `GET /api/intervals` | index of the quarter-hour series | C |
 | `DELETE /api/intervals/{id}` | delete one series | C |
 | `POST /api/market-prices/sync-smard-intervals?year=` | fetch wholesale prices per quarter hour from SMARD | C |
@@ -993,6 +1016,55 @@ Example heat pump 2025: (10.079 − 9.596) ct/kWh × 3,890.98 kWh ÷ 100 ≈ €
 to 0.01 ct). For module 3, quarter and time of day of every quarter hour count
 in local time; months without a contract with `grid_tou` are missing from
 `months`.
+
+**What you can do — `insights`** *(v3.6.0, additive)*. The same response
+carries traffic light, levers and time windows (`FlexibilityInsightService`);
+the interface only formats ([Flexibility, § 4](../anleitungen/flexibilitaet.md#4-the-page-card-by-card)):
+
+| Field | Meaning |
+|---|---|
+| `signal` | price signal of the traffic light: `spot` (wholesale price per quarter hour), `tou` (without wholesale prices: module 3 time windows on the contract) or `null` |
+| `season_now` | `summer` (April–September) or `winter` — the season of the action sentences, by today’s date |
+| `pattern` | per `all`, `summer`, `winter`: `week[7][24]` (Monday first; per field `ct`, `level` `cheap`/`mid`/`expensive`), `hours[24]` (`ct`, `level`, `sun` 0–1 as a share of the strongest hour, `sun_level` `strong`/`some`/`none`), `windows[]` (the three cheapest windows of the week: `weekday` 1–7, `from`, `to`, `ct`, `below_ct`, `below_pct`, `sun`), `day_cheap`, `day_peak` (cheapest or most expensive three hours of the typical day), `days`, `mean_ct`, `min_ct`, `max_ct`, `cheap_ct`, `expensive_ct` (third limits; `null` for module 3, where the grid fee stages apply); `null` without prices and without generation |
+| `levers[]` | per appliance and signal, biggest first: `kind` (`ev`, `heat_pump`, `battery`, `washer`, `dishwasher`), `meter_id`, `name`, `signal` (`spot`, `tou`, `solar`), `real` (`true` = on the contract as it is), `basis` (`measured` or `assumed` = sample value), `share`, `kwh`, `shift_kwh`, `eur` (€ a year, ≥ 1; *v3.6.0* for `spot` including VAT `vat_pct`), `window` per `summer`/`winter` (`weekday` or `null`, `from`, `to`, `ct`, `what` `cheap`/`peak`/`sun`/`low`; *v3.6.0* `plugged: true` when the window comes from the plug-in times — with plug-in times and solar power `null` in a season in which the car is never plugged in while the sun shines), for sample values `assumption`; *(v3.6.0)* `availability` (`ev`: `sessions` = charging windows from the evcc charging sessions, `day` = assumption “whole charging day”; otherwise `null`), `sessions` (number of charging sessions in the year) and `session_share` (share of the charging inside a charging window, 0–1), both `null` without charging sessions |
+| `total_eur`, `total_real_eur` | sum of the biggest lever per appliance; of it only levers with `real` |
+| `vat_pct` | *(v3.6.0)* VAT on the wholesale price in percent: `dynamic.vat_pct` of the dynamic offer, without an offer 19 |
+| `ev_availability` | *(v3.6.0)* the car’s charging windows across all wall boxes: `basis` (`sessions` or `day`), `sessions`, `share` (as above); `null` without a wall box with quarter hours |
+| `summary` | *(v3.6.0)* the result card’s number, one rule for page, report and overview: `year`, `eur` (`total_real_eur` if ≥ 1 — otherwise `total_eur`), `real` (which of the two), `dynamic_eur` (`total_eur` if `real` and more than €1 larger, otherwise `null`), `vat_pct`, `measured` (measured quarter hours: electricity, or generation and feed-in — only then does the overview show the tile), `action` (first sentence with a time window, with `real` first one with `real`; fields as in `actions[]`); `null` without a lever |
+| `actions[]` | one sentence per appliance: the biggest lever with `real`, otherwise the biggest; *(v3.6.0)* if the one with `real` has no time window in the current season, the biggest if it has one; `kind`, `meter_id`, `name`, `signal`, `real`, `basis`, `eur`, `season`, `window` (current season), `other` (the other) |
+| `solar` | with generation and feed-in per quarter hour: `generation_kwh`, `feed_kwh`, `charged_kwh`, `self_kwh` (generation − feed-in), `direct_kwh`, `self_share`, `more_kwh`, `more_eur`, `self_share_after`, `more_share`, `working_ct`, `feed_ct`; otherwise `null` |
+| `achieved` | from the check: `profile_eur` (advantage of the controllable meters), `battery_eur`, `module3_eur` — each `null` without data |
+| `missing[]` | what is missing: `prices`, `intervals`, `devices` (no wall box or heat pump with quarter hours), `pv` (PV meters without quarter hours), `tariff` (neither a dynamic offer nor module 3 time windows) |
+| `assumptions` | the sample values: `heat_pump_share` (0.3), `ev_share` (1), `appliances` (`washer`, `dishwasher` with `kwh_per_cycle`, `cycles_per_week`, `hours`), `window_hours` (3) |
+
+```text
+lever (spot, tou)  = Σ days (cost today − cost if the day’s free part (share) fills the day’s cheapest
+                     quarter hours, at most at the highest measured power) ÷ 100
+                     — for spot × (1 + vat_pct ÷ 100)
+lever (battery)    = Σ days (discharging in the most expensive quarter hours without charging, at most the
+                     house’s grid import + discharge − value today) ÷ 100 × (1 + vat_pct ÷ 100)
+lever (solar)      = shifted kWh × (unit price − feed-in tariff) ÷ 100; only house connection and sub-meters
+lever (appliances) = Σ days kWh per day × (average of all start times − best window) ÷ 100 (spot with VAT)
+car (v3.6.0)       days → charging windows: per evcc charging session (`ev_sessions`) the quarter hours from
+                     `created` (plugging in) to `finished` (unplugging), also across midnight; on days with a
+                     charging window charging outside it stays where it is; days without a session as above
+```
+
+**Only the card’s number — `GET /api/flexibility?summary=1`** *(v3.6.0,
+additive)*. Response `{year, summary}` with `summary` as above (or `null`),
+without `prices`, `meters`, `battery`, `module3` and without the other fields
+of `insights` — this is how the overview fetches its “Your lever” tile, without
+the check per meter. `year` as above, without it the previous year.
+
+```json
+{ "year": 2025,
+  "summary": { "year": 2025, "eur": 90.63, "real": true, "dynamic_eur": 250.75, "vat_pct": 19,
+               "measured": true,
+               "action": { "kind": "heat_pump", "meter_id": "m_strom_waermepumpe", "name": "Wärmepumpe",
+                           "signal": "tou", "real": true, "basis": "measured", "eur": 39.68, "season": "winter",
+                           "window": { "weekday": null, "from": 0, "to": 6, "ct": 2.4, "what": "low" },
+                           "other": { "weekday": null, "from": 0, "to": 6, "ct": 2.4, "what": "low" } } } }
+```
 
 **Series — `GET /api/intervals`.**
 
@@ -1099,6 +1171,67 @@ forecast does not reach the year `from`. `delta_cost_12m_eur` sums
 oil, heat via its energy source); without a factor (electricity, water, district
 heating) `co2_scenario` is `null`, as it is without a scenario. In a country
 without a CO₂ scheme `delta_ct_per_kwh` stays `null`.
+
+### `POST /api/forecast/scenario` — forecast workshop *(v3.6.0, F1031, additive)*
+
+Calculates a scenario for a meter or meter group against the baseline (the
+forecast for the next twelve months). **Writes nothing:** no write lock, also
+allowed with a read-only key. POST only because of the nested inputs. Guide
+and method: [What if?](../anleitungen/was-waere-wenn.md)
+
+| Field | Meaning (default) |
+|---|---|
+| `utility`, `meter_id` | required; meter or group. Unknown meter → `404` |
+| `model` | `standard` (forecast), `last_year`, `trend` (`standard`) |
+| `regression` | regression model of the forecast: `linear`, `polynomial`, `robust`, `segmented`, `sigmoid` (setting) |
+| `winter_pct` | heating degree days ± % (−50…50; 0) — only the heating-dependent part |
+| `room_temp_delta` | room temperature ± K (−5…5; 0) — heating threshold shifted, heating degree days from the climate normal or history |
+| `saving_pct` | consumption − % (0…80; 0) |
+| `baseload_pct` | base load ± % (−80…100; 0) |
+| `ev_km`, `ev_kwh_per_100km` | electric car (electricity only): km per year (0…100,000) and consumption (5…60, required when km > 0) |
+| `jaz_from`, `jaz_to` | SPF today and in the scenario (1…8, both or none; electricity with the heat pump role only) |
+| `measures[]` | at most 10: `id` (A–Z, a–z, 0–9, `_`, `-`), `kind`, `label`, `heat_pct` (0…90), `base_pct` (0…90), `cost_eur` (0…10,000,000 or `null`), `active` (`true`) |
+| `tariff` | `{"kind":"current"}`, `{"kind":"contract","contract_id":…}` (contract or offer of the meter), `{"kind":"custom","working_price_ct":…,"base_eur_month":…}`, `{"kind":"cheapest"}` |
+| `budget_eur` | with a value: best combination of measures within this budget (0…10,000,000) |
+
+Invalid → `400` `errors.forecast.paramInvalid` with the field and the allowed
+range. Utilities without the workshop (deliveries, feed-in, utilities without
+contracts) answer with `supported: false`, a short history with
+`valid: false`, `reason_code: "too_few_months"`.
+
+The response has the same shape as in the German reference (shortened example
+there): `months[]` (`ym`, `base_qty`, `scen_qty`, `base_cost`, `scen_cost`,
+`base_cum_cost`, `scen_cum_cost`, `advance`, `heat_share`, band fields),
+`totals` (`base`, `scenario`, `delta` with `qty_pct`, `cost_pct`), `band`,
+`models` (`standard`, `last_year`, `trend` with `growth_pct`), `advance`,
+`billing`, `tariff`, `offers[]`, `ranking[]`, `optimization`,
+`winter_presets`, `capabilities`, `basis`, `warnings[]`, `inputs`.
+
+- `ranking`: each lever on its own against the baseline (normal winter,
+  current contract), sorted by `saving_eur` (positive = saves); `kind` =
+  `room_temp`, `saving`, `baseload`, `ev`, `jaz`, `tariff`, `measure`.
+- `optimization` (only with `budget_eur`): exact by enumerating every
+  combination within the budget with the model; `lp` = linear relaxation with
+  the simplex solver (`bound_eur` upper bound, `budget_value_per_eur` shadow
+  price of the budget in € per € per year).
+- `advance.method`: `billing_period` (advance payment + final balance ÷
+  remaining months of the running billing period) or `year_twelfth`.
+- `billing`: balance at the end of the running billing period (positive =
+  additional payment); `null` without a period. `balance_so_far` is the period’s
+  balance as in `…/billing-periods` (as of `as_of`). *(v3.6.0)* `rest_days`
+  (additive): days after `as_of` up to the end of the month that have neither a
+  reading nor a forecast month — estimated with the daily rate of the measured
+  part of that month, standing charge and advance pro rata; before, they were
+  missing from the end balance.
+- `warnings[].code`: `room_temp_unavailable`, `last_year_unavailable`,
+  `trend_unavailable`, `model_filled` (with `months`), `ev_unsupported`,
+  `jaz_unsupported`, `no_heat_model`, `tariff_unsupported` (water),
+  `tariff_no_price`, `no_offers`.
+
+In addition, since v3.6.0 `GET …/forecast` carries per month `heat_share`
+(heating share from the heating model or `null`), `fixed_eur` and `unit_eur`
+(cost of the month = `fixed_eur` + `unit_eur` × quantity) and at the top level
+`heat_model` (`a`, `c`, `n`) and `hdd_base` — additive.
 
 ### `POST /api/temperatures/sync-open-meteo` *(v2.8.0)*
 
@@ -1630,6 +1763,31 @@ the migration turns the legacy value into the undated entry:
   with the factor valid on that day; an effective date inside a reading
   interval splits the interval.
 
+### Assumed values: `assumed_keys` *(v3.6.0)*
+
+`GET /api/settings`, `PATCH /api/settings` and `POST /api/settings/country`
+return the list `assumed_keys` next to the settings (additive): values that are
+only the default because nobody has entered them — currently `wohnflaeche_m2`
+and `wasser_personen_anzahl`.
+
+```json
+{ "wohnflaeche_m2": 100, "wasser_personen_anzahl": 3, …,
+  "assumed_keys": ["wohnflaeche_m2"] }
+```
+
+- The value itself stays the default; efficiency class, CO₂ stage, water
+  saving index and annual report keep calculating with it. Only the benchmark
+  (`GET /api/benchmarks/comparison`) waits for the entry. Where the assumed
+  area flows in, the response says so with `area_assumed: true`:
+  `GET /api/benchmarks/efficiency`, `GET /api/co2-split` and `per_m2` in
+  `GET /api/co2-costs` (where the tenancy’s area comes first).
+- Entered means: `settings.json` holds the key — saved via `PATCH`, from a
+  backup or a sample household, even with a value equal to the default.
+  `PATCH` with `null` or `""` withdraws it (the key disappears from
+  `settings.json`).
+- `assumed_keys` is not a setting: sent in a `PATCH`, it is listed under
+  `ignored_keys`.
+
 ### Country profile: `country`, `currency`, `timezone`, `gas_cv_unit` *(v2.7.0, additive)*
 
 Four new settings; the defaults keep the previous behaviour (`DE`, `EUR`,
@@ -1974,7 +2132,7 @@ shadow contracts do not count):
 | `fixed_cost` | fixed costs: base price, for district heating plus capacity and metering charges ([Contracts](#contracts-district-heating-fixed-costs-warnings-v310-additive)) |
 | `fixed_days` | days over which the fixed costs run |
 | `contract_id` | the section’s contract |
-| `tw_m3`, `tw_cost`, `sw_m3`, `sw_cost`, `nw_cost` | water only: drinking water (working and base price), wastewater (only with the drinking-water basis, otherwise `null` — a meter of its own is not modelled) and rainwater. `energy_cost` = drinking water + wastewater per m³, `fixed_cost` = base price + rainwater |
+| `tw_m3`, `tw_cost`, `sw_m3`, `sw_cost`, `nw_cost` | water only: drinking water (working and base price), wastewater and rainwater. The wastewater volume follows the contract’s basis: drinking water, a meter of its own (`separater_zaehler`) or drinking water minus the deduction meters (`trinkwasser_minus_abzug`) — their volume in the same section, day-exact *(since v3.6.0; up to v3.5 only with the drinking-water basis, otherwise `null`)*. `energy_cost` = drinking water + wastewater per m³, `fixed_cost` = base price + rainwater |
 
 `totals` additively: `energy_cost`, `fixed_cost`, `bonus` (bonuses credited in
 the period), `total` (= `energy_cost + fixed_cost − bonus`) and `price_missing`
@@ -2000,6 +2158,64 @@ the period), `total` (= `energy_cost + fixed_cost − bonus`) and `price_missing
 The supplier bill’s own figures are kept in the pot `<utility>/bills.json`;
 `GET …/bills/{id}/check` provides the comparison
 ([Supplier bills](#supplier-bills-v310)).
+
+### Billing periods *(v3.6.0)*
+
+`GET /api/utility/{u}/meters/{id}/billing-periods` (also
+`…/meter-groups/{id}/…` and `/api/utility/{u}/billing-periods` for the whole
+utility) — F1030, GitHub #33. Only utilities with bill check, otherwise `400`
+`errors.billCheck.unsupportedUtility`. The single source for the utility page,
+the overview and the analysis in billing years, the appendix “Billing years”
+and `monthly.csv?period=billing` (`BillingPeriodService`).
+
+Periods, ascending: first the recorded **supplier bills** (`period_from` to
+`period_to`, also shorter or longer than a year; if a bill overlaps an earlier
+one, the earlier one wins). Before, between and after them the **settlement
+date** of the utility (`billing_cycle_anchor_<utility>`, 29 Feb acts as
+28 Feb): a gap is split at the settlement dates, the current period starts the
+day after the last bill and ends the day before the next settlement date. The
+first period starts with the first reading or an effective analysis break;
+there is none before that. *(v3.6.0, addendum)* A **change of supplier**
+without a recorded bill splits a settlement-date period: it ends on the last
+day with the old supplier, and the next one starts with the follow-up
+contract. A change means: a follow-up contract of another supplier (provider,
+otherwise tariff name, ignoring case) or of the same one only after a gap,
+when the old one does not renew (`auto_renews: false`) — the same rule by
+which “Bill expected” expects a final bill. A gap without a contract is a
+partial period of its own; a contract that renews runs until the day before
+the follow-up contract. With several meters (whole utility, group) the changes
+of all meters cut, like their bills. Each period (and `…/bills/{id}/check`)
+counts the advance payment of a month with two contracts per contract by its
+days.
+
+| Field | Meaning |
+|---|---|
+| `anchor` | settlement date of the utility (MM-DD) |
+| `suggested_anchor` | the day after the end of the last bill (MM-DD) if it differs from the settlement date; otherwise `null` |
+| `data_from`, `measured_until` | first and last reading |
+| `unit_key` | `kwh` or `m3` (water) |
+| `periods[].from`, `until` | period, `until` inclusive |
+| `periods[].source`, `bill_id` | `bill` (with the bill’s ID) or `anchor` |
+| `periods[].complete`, `running` | whole, closed period with data from its start, or still running; a period up to a change of supplier or from a follow-up contract counts as whole |
+| `periods[].ends_at_switch` | *(v3.6.0, additive)* `true` if the period ends on the last day with the old supplier (change of supplier) |
+| `periods[].label` | “2025” (calendar year) or “2025/26” for a whole year, otherwise `null` (the app then shows the dates) |
+| `periods[].as_of`, `days` | calculated up to the last reading in the period; days up to then |
+| `periods[].kwh` or `m3` (gas both), `energy_cost`, `fixed_cost`, `bonus`, `cost` | as `bill-check` (`cost` = `total`) |
+| `periods[].advances` | advance payments pro rata per day from the monthly series (as `…/bills/{id}/check`) |
+| `periods[].special` | special payments dated within the period: `extra_advances`, `refunds`, `surcharges` |
+| `periods[].balance` | `cost − advances − extra_advances`; positive = additional payment. Refunds and additional payments settle an earlier bill and do not count |
+| `periods[].invoice` | only for `bill`: `amount_eur`, `advances_paid_eur`, `result_eur`, `energy_kwh` or `volume_m3` of the bill |
+| `periods[].months[]` | only with `?months=1`: calendar months, the first and last as partial months (`ym`, `from`, `until`, `days`, quantity, `cost`, `kwh_cost`, `base_price_eur`, `bonus_eur`, `advance_eur`, `co2_kg`) |
+
+Sub-meters do not count for the whole utility (they are inside the parent
+meter); a group is the sum of its members; fixed costs and advance payments of
+a group contract are carried by the first member.
+
+`monthly.csv?period=billing` (also with `format=local`): columns from, to,
+basis, days, consumption, cost, advance payments, extra advance payments,
+balance, complete; file name `…-abrechnungsjahre-…` (format 1) or
+`…-billing-years-…` (local, English). A value of `period` other than
+`calendar` or `billing` is `400` `errors.export.periodInvalid`.
 
 ### Supplier bills *(v3.1.0)*
 
@@ -2130,7 +2346,7 @@ of gas, heating oil and district heating (CALC-27). **Shown, not added**:
 | `approx` | `true` for heat with a calculated value — the heat is counted, not the fuel |
 | `coverage_days` | days of the year with consumption data |
 | `total` | totals of all rows, `null` without rows |
-| `per_m2` | emissions per m² of floor area (one decimal place) with `stage` (1–10) and `landlord_share_pct` per the annex to the CO2KostAufG; area from the year’s tenancy (with `wohnverhaeltnis: miete`), otherwise `wohnflaeche_m2`. `null` without rows or area |
+| `per_m2` | emissions per m² of floor area (one decimal place) with `stage` (1–10) and `landlord_share_pct` per the annex to the CO2KostAufG; area from the year’s tenancy (with `wohnverhaeltnis: miete`), otherwise `wohnflaeche_m2`. `null` without rows or area. *(v3.6.0)* `area_assumed`: the area is only the default (entered nowhere) |
 | `price` | `{eur_t, assumed}` |
 | `vat` | standard VAT rate on the CO₂ price (`0.19`); the rate applied per row is in `rows[].vat` |
 
@@ -2166,6 +2382,7 @@ determines the case:
 |---|---|
 | `case` | `self_supplied`, `central` or `null` (no gas or heating-oil data and no CO₂ details; then `note`) |
 | `tenancy_id`, `area_m2` | the year’s tenancy (the most recent) and its floor area (`wohnflaeche_m2`, otherwise the setting; `null` without) |
+| `area_assumed` | *(v3.6.0)* `true` when the tenancy’s area is empty and the living area was never entered — the calculation still uses the default (100 m²), the interface asks you to enter it ([Assumed values](#assumed-values-assumed_keys-v360)) |
 | `emissions_kg`, `kg_per_m2`, `stage`, `landlord_share_pct` | emissions, per m² (one decimal place), stage and landlord’s share |
 | `co2_cost_eur`, `landlord_amount_eur` | the year’s CO₂ costs and the landlord’s amount |
 | `source` | `self_supplied`: the sources of the rows from `/api/co2-costs`, joined with a comma (for instance `bill` or `bill,computed`); `central`: `statement` |
@@ -2286,6 +2503,10 @@ several would yield a nonsensical class. `primary` = the highest-consuming sourc
 `note` points to it). The top-level fields are backward-compatible aliases and have
 reflected the **primary** source since v1.4.0.
 
+*(v3.6.0)* `area_assumed`: `true` when `wohnflaeche_m2` is only the default
+(never entered). Metric and class keep calculating with it; the overview and
+the annual report say “assumed living area” and ask you to enter it.
+
 *(v2.7.0)* `scale` names the efficiency scale of the configured country —
 today only `geg` (Germany). For other countries `scale` is `null`, every
 `class` field is `null`, and `scale_note` explains why; the figure
@@ -2336,10 +2557,14 @@ itself ([Settings](einstellungen.md#own-reference-values-v310)).
 ```json
 { "year": 2025, "supported": true, "source": "Stromspiegel 2025",
   "strom": { "kwh": 2950, "complete": true, "own_value": 2800, "delta_pct": 5.4,
+             "rating": "near",
              "persons": 2, "building": "house", "dhw_electric": false,
              "special_household": true },
   "heating": [ { "utility": "gas", "kwh_per_m2": 118.4, "weather_adjusted": true,
-                 "complete": true, "own_value": 130, "delta_pct": -8.9 } ],
+                 "complete": true, "own_value": 130, "delta_pct": -8.9, "rating": "good" } ],
+  "water": { "m3": 88.0, "complete": true, "persons": 2, "reference_l": 122,
+             "liters_per_person_day": 121, "index": 99, "delta_pct": -1.0, "rating": "good" },
+  "missing": [],
   "area_m2": 120,
   "links": { "stromspiegel": "https://www.stromspiegel.de/",
              "heizspiegel": "https://www.heizspiegel.de/" } }
@@ -2353,8 +2578,11 @@ itself ([Settings](einstellungen.md#own-reference-values-v310)).
 | `heating[]` | per heating type (gas, heating oil, pellets, district heating, heat) kWh per m² living area, weather-adjusted where the heating model exists (`weather_adjusted`) |
 | `complete` | all twelve months with values; only then is there a `delta_pct` |
 | `own_value`, `delta_pct` | your reference value (`reference_strom_kwh` or `reference_heat_kwh_m2`) and the deviation in % |
+| `rating` | *(v3.6.0)* traffic light: `good` at or below the reference value, `near` up to 10 % above, `high` more; `null` without `delta_pct` |
+| `water` | *(v3.6.0)* water of the main meters in the year against the benchmark: `liters_per_person_day` = m³ × 1000 / days / `persons` (`wasser_personen_anzahl`), `index` = litres / `reference_l` (`wasser_personen_referenz`) × 100, `delta_pct` = `index` − 100; `rating` by the bands of the water saving index (`good` up to `wasser_sparindex_gut`, `high` from `wasser_sparindex_warnung`), only in a full year; `null` without values in the year or without the utility water active |
+| `missing` | *(v3.6.0)* settings that make a benchmark possible in the first place, in the order the overview invites you: `reference_strom_kwh`, `wohnflaeche_m2` (before `reference_heat_kwh_m2`), `wasser_personen_anzahl` (before `wasser_personen_referenz`). Living area and people are missing until someone has entered them — the default (100 m², 2 people) does not count; then there is no `heating[]` line, `water.persons` is `0` and `area_m2` is `null` ([Assumed values](#assumed-values-assumed_keys-v360)) |
 | `source` | `reference_source`, otherwise `null` |
-| `links` | the pages for checking yourself — only for the country Germany, otherwise empty |
+| `links` | the pages for checking yourself — only for the country Germany, otherwise empty; the overview no longer shows them since v3.6.0 |
 
 ### Seasonal performance factor of the heat pump *(v3.1.0)*
 
@@ -2584,6 +2812,8 @@ parameters (for both routes):
 | `lang` | language of the report (`de`, `en`, `fr`, `it`, `es`, `pt`, `nl`), as for `/api/manifest`; an unknown one silently falls back to the language of the request. The interface appends the device language to the PDF link |
 | `utilities` | partial report: comma-separated utilities (`gas,wasser`); an unknown one → `400` with `code` `errors.common.unknownUtility`. The file name gets the utilities appended (`energietracker-2025-gas-wasser.pdf`) |
 | `detail` | `1` = with appendix “Figures in detail” (one monthly table per utility; temperature and degree days only for heating utilities) |
+| `billing` | *(v3.6.0)* `1` = with appendix “Billing years”: for each utility with bill check, the periods ending in the report year ([Billing periods](#billing-periods-v360)); the other pages stay with the calendar year |
+| `flex` | *(v3.6.0)* `1` = with page “Flexibility”: result, action sentences, typical day per half-year, best time windows, “Your lever”, solar power ([Flexibility](#valuing-flexibility-v330)); left out without traffic light and levers |
 
 ### `GET /api/reports/yearly?year=YYYY` *(v3.1.0)*
 
@@ -2614,11 +2844,13 @@ up to v3.3. Fields:
 | `headline` | `tiles[]` (`key`, `label`, `value`, `value_text`, `pct`, `sub`, `spark` over three years), `lights[]` (`key` cost/consumption/billing/deadlines, `level` ok/warn/alert/none, `word`, `detail`, `as_of_today`), `top_tasks[]` |
 | `tasks[]`, `successes[]`, `infos[]` | per entry `id`, `kind`, `rule`, `priority` (1–3, tasks only), `utility`, `title`, `reason`, `euro` (`value`, `per` year/once/per100, `basis` measured/projected/example, `effect`, `text`, `basis_text`) or `null`, `deadline`, `deadline_text`, `steps[]`, `as_of_today` |
 | `agenda` | `events[]` (`date`, `date_text`, `title`, `kind`, `severity`, `days`, `state`), `timelines[]` per current contract (`points[]`, `sentence`, `explainer`) |
-| `money` | `total` (`cost`, `prev`, `pct`, `price_effect`, `volume_effect`, `sentence`), `by_utility[]`, `revenue[]`, `monthly[]` (with previous year), `bonus_notes[]`, `balances[]` per contract (`projected_end_balance`, `current_advance`, `suggested_advance` — `null` if the suggestion would be ≤ 0 —, `text`, `advance_text`, `path[]`, `explainer`), `forecast`; `null` without costs |
-| `pages[]` | per utility: `value`, `prev_value`, `pct`, `months[]` (with `prev`, `estimated`), `sentence`, `cost` (`basis` contract/tenancy/none, `value`, `text`), `weather`, `efficiency`, `roles`, `water`, `tank`, `sub_meters[]`, `notes[]`, `weather_rows[]` |
+| `money` | `total` (`cost`, `prev`, `pct`, `price_effect`, `volume_effect`, `sentence` — like the “Costs” tile: utilities with a contract, since v3.6.0 also heating oil and pellets from the deliveries), `by_utility[]`, `revenue[]`, `monthly[]` (with previous year), `bonus_notes[]`, `balances[]` per contract (`projected_end_balance`, `current_advance`, `suggested_advance` — `null` if the suggestion would be ≤ 0 —, `text`, `advance_text`, `path[]`, `explainer`), `forecast`; `null` without costs |
+| `pages[]` | per utility: `value`, `prev_value`, `pct`, `months[]` (with `prev`, `estimated`), `sentence`, `cost` (`basis` contract/deliveries *(v3.6.0: heating oil, pellets)*/tenancy/none, `value`, `text`), `weather`, `efficiency`, `roles`, `water`, `tank`, `sub_meters[]`, `notes[]`, `weather_rows[]` |
 | `topics` | `pv`, `heat_pump`, `ev`, `flexibility`, `tenancy` — each `null` when there is no data |
 | `glossary[]`, `sources[]` | glossary (only terms that appear) and sources |
 | `appendix[]` | only with `detail=1`: per utility `head[]`, `rows[]`, `total[]`, `notes[]` |
+| `billing[]` | *(v3.6.0)* with `detail=1` or `billing=1`: appendix “Billing years” per utility with bill check, same shape; periods ending in the report year. The PDF shows it only with `billing=1` (`options.billing`) |
+| `flex_page` | *(v3.6.0)* with `detail=1` or `flex=1`: page “Flexibility” as finished sentences — `big`, `sentence`, `facts[]` (`label`, `value`), `footer`, `actions[]` (`text`, `tag`, `other`, `signal`), `actions_lead`, `bands[]` per half-year (`season`, `label`, `hours[]` with `level`, `sun`, `ct`, `summary`), `band_lead`, `band_lead_pdf`, `windows` (`lead`, `head[]`, `rows[]`), `levers` (`head[]`, `rows[]` with `label`, `signal`, `real`, `real_text`, `kwh`, `eur`, `total`, `dynamic_note`), `solar_text`, `notes[]`, `legend[]`; `null` without traffic light and levers. The PDF shows it only with `flex=1` (`options.flex`), the print view with `flex=1` in its address |
 | `errors[]` | sections that could not be read — the rest of the report stands |
 
 ### Charging record *(v3.1.0)*
@@ -2870,7 +3102,8 @@ was today every day). Details: [Done with history](#done-with-history-v340).
 **Responsible *(v3.5.0, F1028)*.** Every event additionally carries
 `assignee`, `assignee_id` and `assignee_former` — for reminders the
 responsibility ([Responsible for reminders](#responsible-for-reminders-v350)),
-otherwise `null`, `null`, `false`.
+otherwise `null`, `null`, `false`; *(v3.6.0)* plus `assignee_deleted` (person
+deleted, the name stays).
 
 #### Bill expected *(v3.5.0)*
 
@@ -3204,26 +3437,82 @@ contracts. Nobody is notified.
 | Field | Meaning |
 |---|---|
 | `assignee` | display name, trimmed, up to 60 characters, no control characters; empty or missing = nobody |
-| `assignee_id` | person id from `auth.json` ([People](#people-in-the-household-v320)), only when picked from the list of people; then the person’s current name applies |
+| `assignee_id` | person id ([People](#people-in-the-household-v320), [register](#register-of-people-v360)), only when picked from the list of people; then the person’s current name applies — on a completed one-off reminder the name at the time it was done |
 | `assignee_former` | `true` after the person was deleted and their name replaced (“former member”) |
+| `assignee_deleted` | *(v3.6.0)* `true`: the person has been deleted (note on the reminder or according to the register); name and id stay, the interface shows “Name (deleted)”, so does the calendar |
 
-`GET /api/reminders` always returns all three (`null`, `null`, `false` without
-anyone responsible). `POST`/`PATCH /api/reminders…` take `assignee` and
+`GET /api/reminders` always returns all four (`null`, `null`, `false`, `false`
+without anyone responsible). `POST`/`PATCH /api/reminders…` take `assignee` and
 `assignee_id`: a known `assignee_id` sets the person’s name, `assignee` without
 `assignee_id` is a free name, both empty = nobody; a `PATCH` without these
 fields leaves the responsibility unchanged. Errors `400`
 `errors.reminder.assigneeInvalid` (too long, control characters, not text) or
-`errors.reminder.assigneeUnknown` (unknown person). Ticking off (`…/done`)
-keeps the responsibility; the history entry names it.
+`errors.reminder.assigneeUnknown` (unknown or, since v3.6.0, deleted person).
+Ticking off (`…/done`) keeps the responsibility; the history entry names it.
 
-**Person deleted** (`DELETE /api/users/{id}`): their `assignee_id` disappears
-from the reminders, the name stays as a free name; with
-`?anonymize_activity=1` it is replaced by `assignee_former: true` — on the
-reminders and in the history.
+**Person deleted** (`DELETE /api/users/{id}`), *v3.6.0* — up to v3.5.0 only
+the `assignee_id` disappeared and the name stayed as a free name: **open**
+reminders (active; by id or with the same free name without an id) pass to
+the person deleting. **Completed** ones keep name and id with
+`assignee_deleted: true`, with `?anonymize_activity=1` `assignee_former: true`
+instead. If an API key deletes (no person), open reminders also stay with
+`assignee_deleted: true`. In the history `by`, `undone.by` and `assignee` of
+the person get `deleted: true` (or, with `anonymize_activity`, `former: true`
+as before).
 
 **List of people:** `GET /api/people` → `[{id, name}]` for every signed-in role
-(the full list `GET /api/users` stays with admins), without sign-in `[]`. The
-admin from before v3.2 only counts once they are stored.
+(the full list `GET /api/users` stays with admins). Since v3.6.0 from the
+register of people, without deleted ones, and also without sign-in. The admin
+from before v3.2 only counts once they are stored.
+
+### Register of people *(v3.6.0)*
+
+Every person gets a **running number** `no` that is never given out again;
+deleted people stay noted in the register (`data/people.json`, pot `people` in
+the backup, without passwords —
+[data model](datenmodell.md#register-of-people-peoplejson-v360)). The id stays
+the account’s (`u_…`). Existing accounts get their number on the first read. A
+new account with the name of a person without an account (e.g. from a backup)
+takes over their id and number.
+
+**People without sign-in** (from a backup or a sample household) are listed by
+`GET /api/users` after the accounts, with `has_account: false` and
+`source: "none"`. `GET …/handover` and `DELETE /api/users/{id}` work for them
+too (register only, `auth.json` stays untouched), and so does
+`PATCH /api/users/{id}` with `{name?, role?}` — the same rules as for an
+account (name 1–40 characters, `400` `errors.users.nameInvalid`; unique among
+all people and accounts, case-insensitive, otherwise `409`
+`errors.users.nameTaken`, or `errors.users.nameTakenPerson` when a person
+without sign-in has the name; role `admin` or `member`, otherwise `400`
+`errors.users.roleInvalid`); a password gives `400`
+`errors.users.noAccountPassword` (create an account for that). The response
+looks like an entry of `GET /api/users` (`has_account: false`). Open reminders
+then show the new name (they read it via `assignee_id`); completed reminders
+and the history keep the name from when the item was done. A deleted person
+can no longer be changed (`404`).
+
+**Names are unique across all people** (accounts and people without sign-in;
+deleted ones do not count). If `PATCH /api/users/{id}` renames an account to
+the name of a person without sign-in, the app answers `409`
+`errors.users.nameTakenPerson`. `POST /api/users` with that name is no
+conflict: the new account takes over the person’s id and number (as before).
+Without sign-in every `/api/users` route is reachable like any setting; `to`
+is then `null`, and open reminders stay with `assignee_deleted: true`.
+
+`GET /api/users/{id}/handover` (admins only) for the dialog:
+
+```json
+{ "person": { "id": "u_8b0d4f17", "name": "Kim", "no": 2, "has_account": true },
+  "to": { "id": "u_3f9a1c2e", "name": "Alex" },
+  "open": 1, "done": 3 }
+```
+
+`open` = open reminders that pass over; `done` = history entries the person
+appears in; `to` = the requesting person (`null` with an API key).
+`DELETE /api/users/{id}` additionally answers with `handed_over` (reminders
+passed over), `handed_over_to` (`{id, name}` or `null`) and `kept` (reminders
+that stay with the note). Unknown person `404` `errors.users.notFound`; a
+member `403` `errors.auth.adminOnly`.
 
 ### Receipts and text recognition *(v3.1.0)*
 
@@ -3585,7 +3874,9 @@ With sign-in switched on, every person in the household can have an account of
 their own: their own sign-in, their own experience level and language. Everyone
 shares the household’s data. People are stored in `data/auth.json`, not in the
 backup, without a schema step
-([Data model](datenmodell.md#people-in-authjson-v320)). Guide:
+([Data model](datenmodell.md#people-in-authjson-v320)); since v3.6.0 also in
+the [register of people](#register-of-people-v360), which is part of the
+backup. Guide:
 [Users in the household](../anleitungen/benutzer.md).
 
 | Role | `role` | may |
@@ -3643,6 +3934,7 @@ hash:
 | `source` | `password` (sign-in in the app) or `proxy` (from the upstream service) |
 | `prefs` | own settings, only those set: `ui_level` (`beginner`, `advanced`, `expert`) and `language`. Without an own level the installation’s applies, without an own language that of the device or the installation |
 | `created_at` | created (ISO 8601) |
+| `no` | *(v3.6.0, only `GET`/`POST /api/users`)* running number from the [register of people](#register-of-people-v360) |
 
 **`GET /api/session`** additionally reports since v3.2.0:
 
@@ -3677,7 +3969,8 @@ to the whole installation, not per person. Outside mode `password` → `400`
 | `GET /api/users` | — | list of people, including `u_admin` while it exists | — |
 | `POST /api/users` | `{name, password, role?}`; `role` default `member` | `201` with the person (`source: "password"`) | `400` `errors.users.nameInvalid`, `errors.users.roleInvalid`, `errors.auth.passwordTooShort`; `409` `errors.users.nameTaken` |
 | `PATCH /api/users/{id}` | `{name?, role?, password?}`, each field on its own; the password without the previous one (“Reset password”) | the changed person | `404` `errors.users.notFound`; `400` as when adding; `409` `errors.users.nameTaken`, `errors.users.lastAdmin` (the last admin would become a member), `errors.auth.passwordFixed` |
-| `DELETE /api/users/{id}` | — ; *(v3.4.0)* `?anonymize_activity=1` replaces the name in the history with “former member” | `{deleted: true, activity_anonymized}` | `400` `errors.users.notSelf` (your own person); `404` `errors.users.notFound`; `409` `errors.users.lastAdmin`, `errors.auth.passwordFixed` (`u_admin` with `ET_ADMIN_PASSWORD_HASH`) |
+| `GET /api/users/{id}/handover` | — *(v3.6.0)* | `{person, to, open, done}` ([Register of people](#register-of-people-v360)) | `404` `errors.users.notFound` |
+| `DELETE /api/users/{id}` | — ; *(v3.4.0)* `?anonymize_activity=1` replaces the name in the history with “former member” | `{deleted: true, activity_anonymized}`; *(v3.6.0)* plus `handed_over`, `handed_over_to`, `kept` | `400` `errors.users.notSelf` (your own person); `404` `errors.users.notFound`; `409` `errors.users.lastAdmin`, `errors.auth.passwordFixed` (`u_admin` with `ET_ADMIN_PASSWORD_HASH`) |
 
 A deleted person is signed out at once: their session cookie no longer counts.
 A new password — changed by the person or reset by an admin — signs that person

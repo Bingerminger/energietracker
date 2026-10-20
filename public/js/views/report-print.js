@@ -19,11 +19,16 @@
 
 import { api } from '../api.js';
 import { fmt, escapeHtml } from '../lib/format.js';
-import { t } from '../lib/i18n.js';
+import { t, getLanguages, getLocale } from '../lib/i18n.js';
 import { renderError } from '../components/error.js';
 import { moneyHtml, energyHtml, weatherHtml, timelineHtml, playExplainers } from '../components/explainer.js';
 // v3.5.0 — Optionen im Dialog (Jahr, Verbrauchsarten, Anhang)
-import { openReportDialog, reportHref } from '../components/report-dialog.js';
+import { openReportDialog, reportHref, loadReportChoice, demoLimits } from '../components/report-dialog.js';
+// v3.6.0 — Seite „Flexibilität“ und „Szenario anhängen“
+import { resultCardHtml } from '../components/result-card.js';
+import { getUtility } from '../state.js';
+import * as S from '../lib/scenario.js';
+import { scenarioHtml } from './scenario-print.js';
 
 const esc = escapeHtml;
 
@@ -35,8 +40,24 @@ export async function render(container, params, ctx) {
   const asked = Number(ctx?.query?.get('year'));
   const year = asked >= 2000 && asked <= 2100 ? asked : now - 1;
   const detail = ctx?.query?.get('detail') === '1';
+  const billing = ctx?.query?.get('billing') === '1';   // v3.6.0 (F1030) — Anhang „Abrechnungsjahre“
+  const flex = ctx?.query?.get('flex') === '1';         // v3.6.0 — Seite „Flexibilität“
+  const scenario = ctx?.query?.get('scenario') || null; // v3.6.0 — gespeichertes Szenario (dieses Gerät)
   // v3.5.0 — Teilbericht aus dem Dialog (`utilities=gas,strom`); leer = ganzer Bericht
   const utilities = (ctx?.query?.get('utilities') || '').split(',').map(s => s.trim()).filter(s => /^[a-z_]+$/.test(s));
+  // v3.6.0 — dieselbe Auswahl auch als PDF-Datei: „Drucken“ führt am iPad in den
+  // Druckdialog, nicht zu einer Datei. Ohne Szenario (gibt es nur hier) und mit
+  // den Grenzen der Demo; nur, wenn die Sprache in den PDF-Schriften steht.
+  const pdfLimits = demoLimits('download');
+  const savedLang = loadReportChoice().lang;
+  const pdfHref = t('format.pdfCharset') !== 'none' ? reportHref('download', {
+    year,
+    lang: Object.keys(getLanguages()).includes(savedLang) ? savedLang : getLocale(),
+    detail: pdfLimits.detail && detail,
+    billing: pdfLimits.billing && billing,
+    flex: pdfLimits.flex && flex,
+    utilities: pdfLimits.subset && utilities.length ? utilities : null,
+  }) : null;
 
   const toolbar = `
     <div class="view-header no-print">
@@ -51,6 +72,7 @@ export async function render(container, params, ctx) {
         </select>
         <label class="report-print__detail"><input type="checkbox" id="print-detail"${detail ? ' checked' : ''}> ${esc(t('report.print.detail'))}</label>
         <button type="button" class="btn btn--ghost" id="print-options">${esc(t('report.dialog.options'))}</button>
+        ${pdfHref ? `<a class="btn btn--ghost" id="print-pdf" href="${esc(pdfHref)}" download>${esc(t('settings.pdf.download'))}</a>` : ''}
         <button type="button" class="btn btn--primary" id="print-now">${esc(t('report.print.button'))}</button>
       </div>
     </div>`;
@@ -83,10 +105,14 @@ export async function render(container, params, ctx) {
       ${topicEv(m)}
       ${topicFlex(m)}
       ${topicTenancy(m)}
+      ${flex ? flexPage(m) : ''}
+      ${scenario ? `<div data-role="rp-scenario"><div class="loading" role="status">${esc(t('common.loading'))}</div></div>` : ''}
       ${glossary(m)}
       ${detail ? appendix(m) : ''}
+      ${billing ? appendix(m, 'billing') : ''}
     </article>`;
   playExplainers(container);
+  if (scenario) appendScenario(container.querySelector('[data-role="rp-scenario"]'), scenario);
 
   container.querySelector('#print-now')?.addEventListener('click', () => window.print());
   // Jahr und Anhang direkt; der Teilbericht bleibt dabei erhalten
@@ -94,6 +120,7 @@ export async function render(container, params, ctx) {
     location.hash = reportHref('print', {
       year: container.querySelector('#print-year')?.value || year,
       detail: !!container.querySelector('#print-detail')?.checked,
+      billing, flex, scenario,
       utilities: utilities.length ? utilities : null,
     });
   };
@@ -101,7 +128,7 @@ export async function render(container, params, ctx) {
   container.querySelector('#print-detail')?.addEventListener('change', go);
   // v3.5.0 — alle Optionen im Dialog, vorbelegt mit dieser Ansicht
   container.querySelector('#print-options')?.addEventListener('click', () => {
-    openReportDialog({ mode: 'print', initial: { year, detail, utilities: utilities.length ? utilities : null } });
+    openReportDialog({ mode: 'print', initial: { year, detail, billing, flex, scenario, utilities: utilities.length ? utilities : null } });
   });
 }
 
@@ -281,7 +308,7 @@ function utilityPage(p, m) {
   const scale = eff?.thresholds ? Object.keys(eff.thresholds) : [];
   const effHtml = eff ? `<h3>${esc(t('report.page.efficiencyTitle'))}</h3>
     ${scale.length ? `<ol class="report-print__scale" aria-hidden="true">${[...scale, 'H'].filter((c, i, a) => a.indexOf(c) === i).map(c => `<li class="${c === eff.class ? 'is-current' : ''}">${esc(c)}</li>`).join('')}</ol>` : ''}
-    ${para(eff.text)}` : '';
+    ${para(eff.text)}${eff.area_note ? `<p data-role="area-assumed"><strong>${esc(eff.area_note)}</strong></p>` : ''}` : '';
   const roles = p.roles ? `<h3>${esc(t('report.page.rolesTitle'))}</h3>${hbars(p.roles.rows.map(r => ({ label: r.label, value: r.kwh, text: r.text })), { style })}${para(p.roles.text, 'muted small')}` : '';
   return `
     <section class="print-section report-print__utility" data-utility="${esc(p.utility)}" style="${style}">
@@ -349,6 +376,62 @@ function topicFlex(m) {
     ${para(t('report.topic.flex.note'), 'muted small')}`);
 }
 
+/** v3.6.0 — Seite „Flexibilität“: dieselben Sätze wie im PDF (ReportModelService::flexPage). */
+function flexPage(m) {
+  const f = m.flex_page;
+  if (!f) return '';
+  const tx = m.texts || {};
+  const hh = (h) => `${String(h).padStart(2, '0')}:00`;
+  const card = resultCardHtml({ brand: t('flex.card.brand'), title: t('flex.card.title', { year: m.year }), tone: 'less',
+    big: f.big, sentence: f.sentence, facts: f.facts || [], footer: f.footer || '' }, 'rp-flex-sentence');
+  const band = (b) => `<h4>${esc(b.label)}</h4>
+    <ol class="flex-band" aria-label="${esc(t('flex.ampel.day'))} · ${esc(b.label)}">${b.hours.map((h, i) => `
+      <li class="flex-band__h flex-lv--${esc(h.level || 'none')}">
+        <span class="flex-band__sun flex-sun--${esc(h.sun || 'none')}" aria-hidden="true">${h.sun === 'strong' || h.sun === 'some' ? '☀' : ''}</span>
+        <span class="flex-band__cell" aria-hidden="true">${h.level ? LIGHT_SYMBOL[{ cheap: 'ok', mid: 'warn', expensive: 'alert' }[h.level]] : ''}</span>
+        <span class="flex-band__label" aria-hidden="true">${i % 3 === 0 ? i : ''}</span>
+        <span class="sr-only">${esc(t('flex.ampel.hourCell', { hour: hh(i), level: t(`flex.ampel.level.${h.level || 'none'}`), ct: h.ct != null ? `${fmt.num(h.ct, 1)} ct` : '–' }))}${h.sun === 'strong' || h.sun === 'some' ? `, ${esc(t(`flex.ampel.sun.${h.sun}`))}` : ''}</span>
+      </li>`).join('')}</ol>
+    ${para(b.summary, 'small')}`;
+  const table = (head, rows) => `<table class="table report-print__table">
+      <thead><tr>${head.map((h, i) => `<th${i ? ' class="num"' : ''} scope="col">${esc(h)}</th>`).join('')}</tr></thead>
+      <tbody>${rows.map(r => `<tr>${r.map((c, i) => (i ? `<td class="num">${esc(c)}</td>` : `<th scope="row">${esc(c)}</th>`)).join('')}</tr>`).join('')}</tbody>
+    </table>`;
+  return section('report-print__flex-page', tx.flexPage || t('report.section.flexPage'), `
+    ${card}
+    ${(f.actions || []).length ? `<h3>${esc(t('flex.actions.title'))}</h3>${para(f.actions_lead, 'muted small')}
+      <ul class="report-print__actions-list">${f.actions.map(a => `<li><strong>${esc(a.text)}</strong> <span class="muted small">${esc(a.tag)}${a.other ? ` · ${esc(a.other)}` : ''}</span></li>`).join('')}</ul>` : ''}
+    ${(f.bands || []).length ? `<h3>${esc(t('flex.ampel.title'))}</h3>${para(f.band_lead, 'muted small')}${f.bands.map(band).join('')}
+      <p class="flex-legend small">${['cheap', 'mid', 'expensive'].map((k, i) => `<span class="flex-key flex-lv--${k}" aria-hidden="true">${LIGHT_SYMBOL[['ok', 'warn', 'alert'][i]]}</span> ${esc(f.legend?.[i] || '')}`).join(' ')}
+        <span class="flex-key flex-sun--strong" aria-hidden="true">☀</span> ${esc(f.legend?.[3] || '')}</p>` : ''}
+    ${f.windows ? `<h3>${esc(t('flex.windows.title'))}</h3>${para(f.windows.lead, 'muted small')}${table(f.windows.head, f.windows.rows)}` : ''}
+    ${f.levers ? `<h3>${esc(t('flex.lever.title'))}</h3>${table(f.levers.head, f.levers.rows.map(r => [r.label, `${r.signal} · ${r.real_text}`, r.kwh, r.eur]))}${para(f.levers.total)}` : ''}
+    ${f.solar_text ? `<h3>${esc(t('flex.solar.title'))}</h3>${para(f.solar_text)}` : ''}
+    ${(f.notes || []).map(n => para(n, 'muted small')).join('')}`);
+}
+
+/** v3.6.0 — ein gespeichertes Szenario der Prognose-Werkstatt als eigene Seite (gerechnet wie dort auf dem Server). */
+async function appendScenario(box, name) {
+  if (!box) return;
+  const saved = S.savedScenarios().find(x => x.name === name);
+  const title = t('report.print.scenarioTitle', { name });
+  if (!saved?.state?.utility || !saved.state.meter_id) {
+    box.innerHTML = section('report-print__scenario', title, para(t('report.print.scenarioMissing', { name }), 'muted'));
+    return;
+  }
+  try {
+    const [r, u, meters, contracts] = await Promise.all([
+      api.scenario(S.scenarioBody(saved.state)), getUtility(saved.state.utility),
+      api.meters(saved.state.utility).catch(() => []), api.contracts(saved.state.utility, saved.state.meter_id).catch(() => []),
+    ]);
+    box.innerHTML = r.valid
+      ? `<div class="scenario-print">${scenarioHtml({ cur: { name: saved.name, state: saved.state }, r, u, meters, contracts, cardId: 'rp-scenario-sentence' })}</div>`
+      : section('report-print__scenario', title, para(t(r.supported ? 'scenario.tooFew' : 'scenario.unsupported', { label: u?.label || '' }), 'muted'));
+  } catch (e) {
+    box.innerHTML = section('report-print__scenario', title, para(e.message, 'muted'));
+  }
+}
+
 function topicTenancy(m) {
   const tn = m.topics?.tenancy;
   if (!tn) return '';
@@ -366,11 +449,12 @@ function glossary(m) {
     ${(m.errors || []).length ? para(tx.errors, 'muted small') : ''}`);
 }
 
-function appendix(m) {
-  const tables = m.appendix || [];
+/** Anhang aus Tabellen: „Zahlen im Detail“ (`appendix`) oder v3.6.0 „Abrechnungsjahre“ (`billing`). */
+function appendix(m, key = 'appendix') {
+  const tables = m[key] || [];
   if (!tables.length) return '';
   const tx = m.texts || {};
-  return section('report-print__appendix', tx.appendix || '', tables.map(tb => `
+  return section(`report-print__appendix report-print__${key}`, tx[key] || '', tables.map(tb => `
     <h3>${esc(tb.label)}</h3>
     <table class="table report-print__table">
       <thead><tr>${tb.head.map((h, i) => `<th${i ? ' class="num"' : ''} scope="col">${esc(h)}</th>`).join('')}</tr></thead>

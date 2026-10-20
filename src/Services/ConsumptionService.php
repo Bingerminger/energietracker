@@ -194,6 +194,10 @@ final class ConsumptionService
         ));
         $monthly   = $this->forMeter($utility, $meter);
         $today     = date('Y-m-d');
+        // v3.6.0 (F1030) — Tag nach der letzten erfassten Versorgerrechnung
+        // dieses Zählers (bzw. der Mitglieder einer Gruppe) und die
+        // Sonderzahlungen, die Rechnungen ausgleichen
+        [$settledFrom, $billPayments] = $this->billWindow($utility, $meter, $today, $contracts);
         // F1005 / P-PV-01 — PV-Einspeisung: der „Saldo" ist ein Vergütungs-
         // Erlös (Gutschrift), keine Kosten. Verdict-Achse und Projektions-
         // Horizont werden weiter unten entsprechend gedreht/begrenzt.
@@ -257,6 +261,28 @@ final class ConsumptionService
                     ? $c['end']
                     : $this->nextBillingAnchor($utility, $today));
 
+            // v3.6.0 (F1030) — Saldo bis zur nächsten Abrechnung: Was eine
+            // erfasste und gebuchte Rechnung schon abgerechnet hat, zählt im
+            // laufenden Vertrag nicht mehr mit. Läuft er über diese Rechnung
+            // hinaus (mehrjährig, weiterlaufend, unbefristet), beginnt sein
+            // Saldo am Tag nach ihr. Bis v3.5 begann er immer am
+            // Vertragsbeginn; jedes Jahr ohne gebuchten Ausgleich blieb im Saldo
+            // stehen — im Beispielhaushalt meldete ein Vertrag seit 2021 so
+            // „Rückzahlung 2.200 €“, wo die Abrechnungsperiode bei 60 € stand.
+            // Die Buchungen der Rechnungen gleichen deren Zeitraum aus und
+            // zählen dann nicht mehr (wie im Abrechnungsjahr,
+            // BillingPeriodService). Ohne gebuchte Rechnung nach Vertragsbeginn
+            // bleibt alles wie bisher.
+            $balanceFrom = (string)($c['start'] ?? '');
+            $windowed = $isCur && $settledFrom !== null && $settledFrom > $balanceFrom && $settledFrom <= $today;
+            if ($windowed) {
+                $balanceFrom = $settledFrom;
+                $mList = self::rowsFrom($mList, $balanceFrom);
+            }
+            $cBalance = $windowed
+                ? ['special_payments' => self::paymentsFrom($c['special_payments'] ?? [], $balanceFrom, $billPayments)] + $c
+                : $c;
+
             // Aggregate over the months we actually have for this contract
             $actualKwh   = 0.0; $actualCost = 0.0; $actualKwhCost = 0.0;
             $actualBase  = 0.0; $actualBonus = 0.0; $advancePaid = 0.0;
@@ -294,7 +320,7 @@ final class ConsumptionService
             // (Utilities::hasSpecialPayments) — bei Heizöl, Pellets und
             // Einspeisung zählt ein Feld, das dort nie sein sollte, nicht mit.
             $spSummary = $this->contracts->specialPaymentSummary(
-                Utilities::hasSpecialPayments($utility) ? $c : []
+                Utilities::hasSpecialPayments($utility) ? $cBalance : []
             );
             $currentBalance = round($actualCost - $advancePaid + $spSummary['net'], 2);
 
@@ -329,7 +355,8 @@ final class ConsumptionService
             if (Utilities::hasAdvancePaymentContracts($utility)) {
                 // v2.8.0 (Review CALC-02) — Saldo nach Kalender statt nach
                 // Ablesemonaten, Hochrechnung mit Wetter statt Durchschnitt.
-                $projection = $this->balanceProjection($utility, $meter, $c, $monthly, $today, $effEnd, $spSummary['net'], $renewed, $isCur);
+                $projection = $this->balanceProjection($utility, $meter, $c, $monthly, $today, $effEnd, $spSummary['net'], $renewed, $isCur,
+                    $windowed ? $balanceFrom : null, $windowed ? $cBalance['special_payments'] : null);
                 $currentBalance = $projection['current_balance'];
                 $projected      = $projection['projected_end_balance'];
                 $advancePaid    = $projection['advance_paid'];
@@ -460,6 +487,9 @@ final class ConsumptionService
                 'auto_renews'                 => ContractService::renews($c),
                 // v3.4.0 (F1024) — {contract_id, provider, start, gap_days} oder null (additiv)
                 'successor'                   => $successor,
+                // v3.6.0 (F1030) — ab wann Saldo, Kosten und Abschläge zählen:
+                // Vertragsbeginn oder Tag nach der letzten erfassten Rechnung (additiv)
+                'balance_from'                => $balanceFrom !== '' ? $balanceFrom : null,
                 // v2.8.0 — wie gerechnet wurde (additiv)
                 'balance_as_of'               => $projection['as_of'] ?? $today,
                 'projection_method'           => $projection !== null ? $projection['method'] : 'flat_average',
@@ -492,7 +522,8 @@ final class ConsumptionService
                     'kind'       => (string)($sp['kind'] ?? ''),
                     'amount_eur' => round((float)($sp['amount_eur'] ?? 0), 2),  // Vorzeichen steckt in kind; positiv seit dem Speichern
                     'note'       => (string)($sp['note'] ?? ''),
-                ], $c['special_payments'] ?? []));
+                // v3.6.0 (F1030) — die, die im Saldo zählen (ab balance_from)
+                ], $cBalance['special_payments'] ?? []));
             }
             if ($utility === 'wasser') {
                 $row['actual_m3']    = round($actualM3, 1);
@@ -595,9 +626,13 @@ final class ConsumptionService
         return null;
     }
 
-    private function balanceProjection(string $utility, array $meter, array $c, array $monthly, string $today, string $effEnd, float $specialNet, bool $renewed = false, bool $withPath = false): array
+    private function balanceProjection(string $utility, array $meter, array $c, array $monthly, string $today, string $effEnd, float $specialNet, bool $renewed = false, bool $withPath = false,
+        ?string $from = null, ?array $payments = null): array
     {
-        $start = (string)($c['start'] ?? $today);
+        // v3.6.0 (F1030) — `$from`: Saldo ab dem Tag nach der letzten Rechnung
+        // (sonst Vertragsbeginn); `$payments`: die Sonderzahlungen, die dann zählen
+        $start = $from ?? (string)($c['start'] ?? $today);
+        $payments ??= $c['special_payments'] ?? [];
         // Ende exklusiv: ein gepflegtes Vertragsende gehört noch dazu, der
         // Abrechnungstag eines offenen oder weiterlaufenden Vertrags nicht mehr.
         $endExcl = !empty($c['end']) && !$renewed ? date('Y-m-d', strtotime($c['end'] . ' +1 day')) : $effEnd;
@@ -608,12 +643,14 @@ final class ConsumptionService
         // Verträgen in einem Monat nur sein Teil (v2.9.0)
         $measuredEnergy = 0.0;
         foreach ($monthly as $m) {
+            $share = $from === null ? 1.0 : self::shareFrom((string)($m['ym'] ?? ''), $from);
+            if ($share <= 0.0) continue;
             if (!empty($m['contract_parts'])) {
                 foreach ($m['contract_parts'] as $p) {
-                    if ($p['contract_id'] === $c['id']) $measuredEnergy += (float)$p['kwh_cost'];
+                    if ($p['contract_id'] === $c['id']) $measuredEnergy += (float)$p['kwh_cost'] * $share;
                 }
             } elseif (($m['contract_id'] ?? null) === $c['id']) {
-                $measuredEnergy += (float)($m['kwh_cost'] ?? 0);
+                $measuredEnergy += (float)($m['kwh_cost'] ?? 0) * $share;
             }
         }
         $measuredUntil = $this->lastReadingDate($utility, $meter);
@@ -678,7 +715,7 @@ final class ConsumptionService
             // Sonderzahlungen in ihrem Monat — wie im Stand heute zählt jede
             // spätestens ab heute, eine vor dem Beginn ab dem ersten Monat
             $spByMonth = [];
-            foreach ($c['special_payments'] ?? [] as $sp) {
+            foreach ($payments as $sp) {
                 $amt  = abs((float)($sp['amount_eur'] ?? 0));
                 $kind = (string)($sp['kind'] ?? '');
                 $net  = in_array($kind, ['rueckzahlung_mit', 'rueckzahlung_ohne'], true) ? $amt
@@ -692,12 +729,14 @@ final class ConsumptionService
             $measuredByMonth = [];
             foreach ($monthly as $m) {
                 $ym = (string)($m['ym'] ?? '');
+                $share = $from === null ? 1.0 : self::shareFrom($ym, $from);   // v3.6.0 — wie oben
+                if ($share <= 0.0) continue;
                 if (!empty($m['contract_parts'])) {
                     foreach ($m['contract_parts'] as $p) {
-                        if ($p['contract_id'] === $c['id']) $measuredByMonth[$ym] = ($measuredByMonth[$ym] ?? 0.0) + (float)$p['kwh_cost'];
+                        if ($p['contract_id'] === $c['id']) $measuredByMonth[$ym] = ($measuredByMonth[$ym] ?? 0.0) + (float)$p['kwh_cost'] * $share;
                     }
                 } elseif (($m['contract_id'] ?? null) === $c['id']) {
-                    $measuredByMonth[$ym] = ($measuredByMonth[$ym] ?? 0.0) + (float)($m['kwh_cost'] ?? 0);
+                    $measuredByMonth[$ym] = ($measuredByMonth[$ym] ?? 0.0) + (float)($m['kwh_cost'] ?? 0) * $share;
                 }
             }
             $cumCost = 0.0; $cumPaid = 0.0; $path = [];
@@ -901,6 +940,97 @@ final class ConsumptionService
         } catch (\Exception) {
             return 0;
         }
+    }
+
+    /**
+     * v3.6.0 (F1030) — Bis wohin ist abgerechnet? Der Tag nach dem spätesten
+     * Ende einer erfassten Versorgerrechnung vor heute, deren Ergebnis im
+     * Vertrag gebucht ist (Rück- oder Nachzahlung, BillService::book) — für
+     * den Zähler bzw. die Mitglieder einer Gruppe, nur Arten mit
+     * Rechnungsprüfung. Eine Rechnung ohne Buchung lässt ihr Ergebnis offen;
+     * es bleibt im Saldo, bis es gebucht ist. Dazu die IDs dieser Buchungen.
+     *
+     * @param list<array<string,mixed>> $contracts  die Verträge des Zählers (Sonderzahlungen)
+     * @return array{0:?string,1:array<string,true>}
+     */
+    private function billWindow(string $utility, array $meter, string $today, array $contracts = []): array
+    {
+        if (!Utilities::supportsBillCheck($utility)) return [null, []];
+        $ids = !empty($meter['is_group'])
+            ? array_map(fn($m) => (string)($m['id'] ?? ''), $this->meters->groupMembers($utility, (string)$meter['id']))
+            : [(string)($meter['id'] ?? '')];
+        $known = [];
+        foreach ($contracts as $c) foreach ((array)($c['special_payments'] ?? []) as $sp) {
+            if (!empty($sp['id'])) $known[(string)$sp['id']] = true;
+        }
+        $bills = $this->store->read("$utility/bills.json", []);
+        $last = null; $payments = [];
+        foreach (is_array($bills) ? $bills : [] as $b) {
+            if (!is_array($b) || !in_array((string)($b['meter_id'] ?? ''), $ids, true)) continue;
+            $sp = (string)($b['special_payment_id'] ?? '');
+            if ($sp === '' || !isset($known[$sp])) continue;   // nicht (mehr) gebucht
+            $f = (string)($b['period_from'] ?? ''); $u = (string)($b['period_to'] ?? '');
+            if (!Dates::isIsoDate($f) || !Dates::isIsoDate($u) || $f > $u || $u >= $today) continue;
+            $payments[$sp] = true;
+            if ($last === null || $u > $last) $last = $u;
+        }
+        return [$last !== null ? date('Y-m-d', (int)strtotime("$last +1 day")) : null, $payments];
+    }
+
+    /**
+     * v3.6.0 (F1030) — Anteil eines Monats ab einem Tag (nach Kalendertagen):
+     * 1 nach dem Monat des Tags, 0 davor, im Monat selbst die Tage ab ihm.
+     */
+    private static function shareFrom(string $ym, string $from): float
+    {
+        $fym = substr($from, 0, 7);
+        if ($ym > $fym) return 1.0;
+        if ($ym < $fym) return 0.0;
+        $dim = (int)date('t', (int)strtotime($fym . '-01'));
+        return ($dim - (int)substr($from, 8, 2) + 1) / $dim;
+    }
+
+    /**
+     * v3.6.0 (F1030) — Monatszeilen eines Vertrags ab einem Tag: davor weg,
+     * der Monat des Tags anteilig nach Kalendertagen (Menge, Kosten,
+     * Abschlag, Wasser je Baustein).
+     *
+     * @param list<array<string,mixed>> $rows
+     * @return list<array<string,mixed>>
+     */
+    private static function rowsFrom(array $rows, string $from): array
+    {
+        $out = [];
+        foreach ($rows as $r) {
+            $s = self::shareFrom((string)($r['ym'] ?? ''), $from);
+            if ($s <= 0.0) continue;
+            if ($s < 1.0) {
+                foreach (['kwh', 'm3', 'cost', 'kwh_cost', 'base_price_eur', 'bonus_eur', 'advance_eur'] as $k) {
+                    if (isset($r[$k]) && is_numeric($r[$k])) $r[$k] = (float)$r[$k] * $s;
+                }
+                foreach (['trinkwasser' => ['working_cost', 'base_cost', 'total'], 'schmutzwasser' => ['total'], 'niederschlagswasser' => ['total']] as $part => $keys) {
+                    if (!is_array($r[$part] ?? null)) continue;
+                    foreach ($keys as $k) if (isset($r[$part][$k]) && is_numeric($r[$part][$k])) $r[$part][$k] = (float)$r[$part][$k] * $s;
+                }
+            }
+            $out[] = $r;
+        }
+        return $out;
+    }
+
+    /**
+     * v3.6.0 (F1030) — Sonderzahlungen, die im Saldo ab einem Tag zählen: ab
+     * dem Tag datiert und kein Ausgleich einer erfassten Rechnung (der gehört
+     * zu deren Zeitraum).
+     *
+     * @param list<array<string,mixed>> $payments
+     * @param array<string,true> $billPayments
+     * @return list<array<string,mixed>>
+     */
+    private static function paymentsFrom(array $payments, string $from, array $billPayments): array
+    {
+        return array_values(array_filter($payments, fn($sp) => is_array($sp)
+            && (string)($sp['date'] ?? '') >= $from && !isset($billPayments[(string)($sp['id'] ?? '')])));
     }
 
     /**
@@ -1209,7 +1339,8 @@ final class ConsumptionService
         $nullable = ['base_price_eur', 'advance_eur', 'bonus_eur'];
         $rows = [];
         $parts = [];   // ym → Vertrag → Teil
-        foreach ($this->meters->groupMembers($utility, (string)$group['id']) as $member) {
+        // v3.6.0 — ohne Subzähler, deren Elternzähler Mitglied ist (sonst doppelt)
+        foreach ($this->meters->groupSumMembers($utility, (string)$group['id']) as $member) {
             foreach ($this->forMeter($utility, $member, $hddBaseOverride) as $r) {
                 $ym = (string)$r['ym'];
                 if (!isset($rows[$ym])) {
@@ -1610,7 +1741,8 @@ final class ConsumptionService
         $rows = []; $warnings = [];
         $tot = ['days' => 0, 'kwh' => 0.0, 'm3' => 0.0, 'gaps' => 0, 'energy_cost' => 0.0, 'fixed_cost' => 0.0,
                 'bonus' => 0.0, 'total' => 0.0, 'price_missing' => false];
-        foreach ($this->meters->groupMembers($utility, (string)$group['id']) as $m) {
+        // v3.6.0 — ohne Subzähler, deren Elternzähler Mitglied ist (wie computeForGroup)
+        foreach ($this->meters->groupSumMembers($utility, (string)$group['id']) as $m) {
             $b = $this->billBreakdown($utility, $m, $from, $to);
             foreach ($b['rows'] as $r) $rows[] = $r + ['meter_id' => (string)$m['id'], 'meter_name' => (string)($m['name'] ?? $m['id'])];
             $t = $b['totals'];
@@ -1740,9 +1872,15 @@ final class ConsumptionService
     }
 
     /**
-     * Wasser: Trinkwasser (Arbeits- und Grundpreis), Schmutzwasser (Basis
-     * Trinkwasser; andere Basen werden nicht nachgebildet → null) und
+     * Wasser: Trinkwasser (Arbeits- und Grundpreis), Schmutzwasser und
      * Niederschlagswasser je Monat nach Tagen — wie applyWaterContracts.
+     *
+     * v3.6.0 (F1030) — Schmutzwasser auch mit eigenem Zähler
+     * (`separater_zaehler`) und mit Abzugszählern (`trinkwasser_minus_abzug`,
+     * Garten): die Menge des anderen Zählers im selben Abschnitt, tagesgenau
+     * wie die Rechnung. Bis v3.5 fehlte das Schmutzwasser dann ganz (`null`) —
+     * und mit den Abrechnungsjahren (F1030) auch in deren Kosten, während das
+     * Kalenderjahr es aus den Monatszeilen mitzählte.
      *
      * @return array<string,mixed>
      */
@@ -1750,6 +1888,11 @@ final class ConsumptionService
     {
         $days = max(1, self::daysBetweenDates($a, $b));
         $tw = 0.0; $sw = 0.0; $nw = 0.0; $base = 0.0; $swKnown = true; $priced = $m3 !== null; $cid = null;
+        $swM3 = 0.0;
+        $other = [];   // Menge anderer Zähler in [a, b), einmal je Zähler
+        $otherM3 = function (string $id) use (&$other, $a, $b): float {
+            return $other[$id] ??= $this->waterVolumeBetween($id, $a, $b);
+        };
         for ($p = $a; $p < $b;) {
             $next = min($b, date('Y-m-01', (int)strtotime(substr($p, 0, 7) . '-01 +1 month')));
             $d = self::daysBetweenDates($p, $next);
@@ -1764,11 +1907,23 @@ final class ConsumptionService
                 if ($twWp === null) $priced = false; else $tw += $part * $twWp / 100;
                 if ($twBp !== null) $base += $twBp * $d / $dim;
                 $sws = $c['schmutzwasser'] ?? [];
-                if (($sws['basis'] ?? 'trinkwasser') === 'trinkwasser') {
-                    $swWp = $this->contracts->valueValidOn($sws['working_prices'] ?? [], 'ct_per_m3', $y, $mn);
-                    if ($swWp !== null) $sw += $part * $swWp / 100;
-                } else {
+                $basis = (string)($sws['basis'] ?? 'trinkwasser');
+                // Schmutzwassermenge dieses Monatsstücks — dieselben Regeln wie applyWaterContracts
+                $swPart = match ($basis) {
+                    'trinkwasser' => $part,
+                    // ohne Verweis bewusst 0 (v2.1.4), nicht die Trinkwassermenge
+                    'separater_zaehler' => !empty($sws['separater_zaehler_meter_id'])
+                        ? $otherM3((string)$sws['separater_zaehler_meter_id']) * $d / $days : 0.0,
+                    'trinkwasser_minus_abzug' => max(0.0, $part - array_sum(array_map(
+                        fn($id) => (string)$id === '' ? 0.0 : $otherM3((string)$id) * $d / $days, (array)($sws['abzug_meter_ids'] ?? [])))),
+                    default => null,
+                };
+                if ($swPart === null) {
                     $swKnown = false;
+                } else {
+                    $swM3 += $swPart;
+                    $swWp = $this->contracts->valueValidOn($sws['working_prices'] ?? [], 'ct_per_m3', $y, $mn);
+                    if ($swWp !== null) $sw += $swPart * $swWp / 100;
                 }
                 $nws = $c['niederschlagswasser'] ?? [];
                 $nwP = $this->valueValidOnGeneric($nws['rates'] ?? [], 'eur_per_m2_year', $y, $mn);
@@ -1782,7 +1937,7 @@ final class ConsumptionService
         return [
             'tw_m3'       => $m3 !== null ? round($m3, 2) : null,
             'tw_cost'     => $priced ? round($tw + $base, 2) : null,
-            'sw_m3'       => $swKnown && $m3 !== null ? round($m3, 2) : null,
+            'sw_m3'       => $swKnown && $m3 !== null ? round($swM3, 2) : null,
             'sw_cost'     => $swKnown && $priced ? round($sw, 2) : null,
             'nw_cost'     => round($nw, 2),
             'energy_cost' => $priced ? round($tw + ($swKnown ? $sw : 0.0), 2) : null,
@@ -1790,6 +1945,19 @@ final class ConsumptionService
             'fixed_cost'  => round($base + $nw, 2),
             'contract_id' => $cid,
         ];
+    }
+
+    /**
+     * v3.6.0 (F1030) — Menge eines anderen Wasserzählers in [a, b): getrennter
+     * Schmutzwasserzähler oder Abzugszähler, mit denselben Abschnitten wie die
+     * Rechnung (Tagesrate zwischen zwei Ständen). Unbekannter Zähler oder
+     * Lücke: 0 — wie die Monatszeilen.
+     */
+    private function waterVolumeBetween(string $meterId, string $a, string $b): float
+    {
+        $m = $this->meters->get('wasser', $meterId);
+        if ($m === null || !empty($m['is_group'])) return 0.0;
+        return (float)($this->genericBillRows('wasser', $m, $a, $b, [])['totals']['m3'] ?? 0.0);
     }
 
     private static function daysBetweenDates(string $a, string $b): int
@@ -2639,6 +2807,57 @@ final class ConsumptionService
         if ($group === []) return [$own, null];
         $members = $this->meters->groupMembers($utility, $gid);
         return [array_merge($own, $group), ['member' => (string)$meter['id'], 'primary' => (string)($members[0]['id'] ?? '') === (string)$meter['id']]];
+    }
+
+    /**
+     * v3.6.0 — Abschlag einer Monatszeile für [from, toExcl), tagesanteilig.
+     * Teilen sich zwei Verträge den Monat (`contract_parts`, etwa ein
+     * Lieferantenwechsel zum 15.), zählt jeder Teil nur mit seinen eigenen
+     * Tagen: Er beginnt am Vertragsbeginn, frühestens am Monatsersten, und läuft
+     * so viele Tage, wie er im Monat hat. Bis v3.5 verteilte „Rechnung prüfen“
+     * den Abschlag beider Verträge gleichmäßig über den Monat — eine
+     * Schlussrechnung zum 14. bekam einen Teil des neuen Abschlags. Liegen die
+     * Teile nicht hintereinander (ein Vertrag mitten in einem anderen), bleibt
+     * es beim Monatsmittel.
+     *
+     * @param array<string,string> $starts Vertragsbeginn je Vertrags-ID ({@see contractStarts()})
+     */
+    public static function advanceBetween(array $row, string $from, string $toExcl, array $starts): float
+    {
+        $ms = (string)($row['ym'] ?? '') . '-01';
+        if (!Dates::isIsoDate($ms) || !isset($row['advance_eur']) || $row['advance_eur'] === null) return 0.0;
+        $me = date('Y-m-d', (int)strtotime("$ms +1 month"));
+        $days = fn(string $a, string $b): int => (int)round(((new \DateTimeImmutable("$b 12:00"))->getTimestamp() - (new \DateTimeImmutable("$a 12:00"))->getTimestamp()) / 86400);
+        $overlap = fn(string $a, string $b): int => max(0, $days(max($a, $from), min($b, $toExcl)));
+        $dim = $days($ms, $me);
+        $part = $overlap($ms, $me);
+        if ($part === 0) return 0.0;
+        $parts = (array)($row['contract_parts'] ?? []);
+        if ($part < $dim && count($parts) > 1) {
+            $spans = [];
+            foreach ($parts as $p) {
+                $start = $starts[(string)($p['contract_id'] ?? '')] ?? null;
+                $n = (int)($p['days'] ?? 0);
+                if ($start === null || $n <= 0) { $spans = null; break; }
+                $a = max($ms, $start);
+                $spans[] = [$a, date('Y-m-d', (int)strtotime("$a +$n days")), $n, ($p['advance_eur'] ?? null) === null ? 0.0 : (float)$p['advance_eur']];
+            }
+            if ($spans !== null) {
+                usort($spans, fn($x, $y) => $x[0] <=> $y[0]);
+                $ok = true;
+                foreach ($spans as $i => $s) if ($s[1] > $me || ($i > 0 && $s[0] < $spans[$i - 1][1])) $ok = false;
+                if ($ok) return array_sum(array_map(fn($s) => $s[3] * $overlap($s[0], $s[1]) / $s[2], $spans));
+            }
+        }
+        return (float)$row['advance_eur'] * $part / $dim;
+    }
+
+    /** v3.6.0 — Vertragsbeginn je ID (für {@see advanceBetween()}). @return array<string,string> */
+    public static function contractStarts(array $contracts): array
+    {
+        $out = [];
+        foreach ($contracts as $c) if (is_array($c) && isset($c['id'])) $out[(string)$c['id']] = (string)($c['start'] ?? '');
+        return $out;
     }
 
     /** v3.1.0 (H6) — Trägt ein Vertragsanteil Grundpreis, Abschlag und Boni? Im Gruppenvertrag nur das erste Mitglied. */

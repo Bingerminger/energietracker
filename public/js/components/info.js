@@ -32,6 +32,10 @@ export const GLOSSARY = [
   'profileFactor',
   // v3.5.0 (F1027) — Tagesfilm
   'typicalDay',
+  // v3.6.0 (F1030) — Abrechnungsjahr statt Kalenderjahr; das laufende Jahr in beiden Ansichten
+  'billingYear', 'runningYear',
+  // v3.6.0 (F1031) — Prognose-Werkstatt
+  'scenario',
 ];
 
 export const glossaryTerm = (id) => t(`glossary.${id}.term`);

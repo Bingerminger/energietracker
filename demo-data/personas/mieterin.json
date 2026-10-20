@@ -6431,7 +6431,8 @@
             "last_done": "2025-07-01",
             "notes": "Vertrag läuft weiter und ist monatlich kündbar",
             "active": true,
-            "assignee": "Lena"
+            "assignee": "Lena",
+            "assignee_id": "u_1ba213c7"
         },
         {
             "id": "rem_f1209e2d",
@@ -6454,7 +6455,8 @@
             "last_done": "2026-04-12",
             "notes": "Eisschicht über 5 mm kostet Strom",
             "active": true,
-            "assignee": "Lena"
+            "assignee": "Lena",
+            "assignee_id": "u_1ba213c7"
         },
         {
             "id": "rem_82729612",
@@ -6466,7 +6468,8 @@
             "last_done": "2025-11-03",
             "notes": "Termin hängt die Hausverwaltung im Treppenhaus aus",
             "active": true,
-            "assignee": "Hausverwaltung Krüger"
+            "assignee": "Lena",
+            "assignee_id": "u_1ba213c7"
         }
     ],
     "recommendations_dismissed": [],
@@ -7338,6 +7341,20 @@
             }
         }
     ],
+    "people": {
+        "last_no": 1,
+        "people": [
+            {
+                "id": "u_1ba213c7",
+                "no": 1,
+                "name": "Lena",
+                "role": "admin",
+                "created_at": "2023-06-01T09:00:00+02:00",
+                "deleted_at": null,
+                "deleted_by": null
+            }
+        ]
+    },
     "utilities": {
         "gas": {
             "meters": [],

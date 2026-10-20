@@ -3,12 +3,18 @@ declare(strict_types=1);
 
 namespace Energietracker\Tests\Services;
 
+use Energietracker\Config\Utilities;
 use Energietracker\Services\ActivityService;
 use Energietracker\Services\BackupService;
+use Energietracker\Services\BillExpectedService;
+use Energietracker\Services\BillingPeriodService;
 use Energietracker\Services\BillService;
 use Energietracker\Services\ContractService;
 use Energietracker\Services\DemoDataAligner;
+use Energietracker\Services\DemoService;
+use Energietracker\Services\PeriodService;
 use Energietracker\Services\ReminderService;
+use Energietracker\Services\SettingsService;
 use Energietracker\Tests\Support\ServiceTestCase;
 use PHPUnit\Framework\Attributes\DataProvider;
 
@@ -36,11 +42,13 @@ final class PersonaUseCasesTest extends ServiceTestCase
      * ein festes Periodenende (zur Veröffentlichung kürzlich beendet) oder
      * `days` — der Stichtag liegt relativ zu heute (`demo_align`), die Periode
      * endet immer so viele Tage vor heute. Strom oder Gas, weil nur dort die
-     * Frist (sechs Wochen) „überfällig“ kennt.
+     * Frist (sechs Wochen) „überfällig“ kennt; v3.6.0 — in der Eigentumswohnung
+     * die Fernwärme (ein Vertrag, nur Jahresrechnungen, die mit dem Stichtag
+     * wandern; „erwartet“ ohne Frist — 30 Tage wären ohnehin nicht überfällig).
      */
     private const OPEN_PERIOD = [
         'mieterin'            => ['strom', 'c_strom_online_2025', 'until' => '2026-09-30'],
-        'etw-fernwaerme'      => ['strom', 'c_strom_flex', 'days' => 30],
+        'etw-fernwaerme'      => ['fernwaerme', 'c_fernwaerme', 'days' => 30],
         'eigenheim-klassisch' => ['gas', 'c_gas_fix', 'days' => 56],
         'eigenheim-modern'    => ['strom', 'c_strom_waermepumpe', 'until' => '2026-09-30'],
         'showcase'            => ['strom', 'c_strom_004', 'days' => 21],
@@ -182,7 +190,8 @@ final class PersonaUseCasesTest extends ServiceTestCase
         self::assertGreaterThanOrEqual(1, count($with));
         self::assertLessThanOrEqual(3, count($with));
         foreach ($p['reminders'] as $r) {
-            self::assertArrayNotHasKey('assignee_id', $r, 'die Demo hat keine Personen');
+            // v3.6.0 — Zuständige sind angelegte Personen (PersonaPeopleTest); bis v3.5.0 freie Namen
+            self::assertSame(isset($r['assignee']), isset($r['assignee_id']), 'Zuständig nur mit Person');
             if (isset($r['assignee'])) {
                 self::assertIsString($r['assignee']);
                 self::assertNotSame('', trim($r['assignee']));
@@ -225,7 +234,8 @@ final class PersonaUseCasesTest extends ServiceTestCase
     {
         $open = self::OPEN_PERIOD[$id];
         [$u, $cid] = $open;
-        self::assertContains($u, ['strom', 'gas'], 'Frist und „überfällig“ gibt es für Strom und Gas');
+        // Frist und „überfällig“ gibt es für Strom und Gas; Fernwärme nur mit relativem Stichtag unter sechs Wochen
+        self::assertTrue(in_array($u, ['strom', 'gas'], true) || ($u === 'fernwaerme' && ($open['days'] ?? 99) < 42), $u);
         $p = self::load($id);
         $todays = isset($open['days']) ? [self::TODAY, '2027-02-10', '2027-08-01', '2028-05-20'] : [self::TODAY];
         foreach ($todays as $today) {
@@ -246,9 +256,89 @@ final class PersonaUseCasesTest extends ServiceTestCase
             $bills = $a['utilities'][$u]['bills'];
             foreach ($bills as $b) self::assertGreaterThan(31, abs(self::days($b['period_to'], $until)), "$today: keine Rechnung für die offene Periode");
             self::assertNotEmpty(array_filter($bills, fn($b) => $b['period_to'] < $until), 'eine Periode davor ist abgerechnet');
-            // Rechnungen schreibt die Ausrichtung nicht fort
-            self::assertSame($p['utilities'][$u]['bills'], $bills);
+            if (!isset($open['days'])) {
+                // fester Stichtag: Rechnungen schreibt die Ausrichtung nicht fort
+                self::assertSame($p['utilities'][$u]['bills'], $bills);
+                continue;
+            }
+            // v3.6.0 — relativer Stichtag: die jüngste Rechnung endet am Tag vor dem Stichtag vor einem Jahr
+            $latest = max(array_column($bills, 'period_to'));
+            self::assertSame($anchor, substr(date('Y-m-d', strtotime("$latest +1 day")), 5), "$today: Rechnung im Rhythmus des Stichtags");
+            self::assertSame(date('Y-m-d', strtotime(date('Y-m-d', strtotime("$until +1 day")) . ' -1 year')), date('Y-m-d', strtotime("$latest +1 day")), "$today: ein Jahr vor der offenen Periode");
+            // Schlussrechnungen bleiben, wie sie sind
+            $finals = fn(array $list) => array_values(array_filter($list, fn($b) => ($b['kind'] ?? '') === 'final'));
+            self::assertSame($finals($p['utilities'][$u]['bills']), $finals($bills), "$today: Schlussrechnungen unverändert");
         }
+    }
+
+    /** @return array<string,array{0:string,1:string}> Haushalte mit Stichtag relativ zu heute × „heute“ */
+    public static function alignedBillDays(): array
+    {
+        $out = [];
+        foreach (self::OPEN_PERIOD as $id => $open) {
+            if (!isset($open['days'])) continue;
+            foreach (['2026-10-16', '2027-03-01', '2027-11-20'] as $today) $out["$id $today"] = [$id, $today];
+        }
+        return $out;
+    }
+
+    /**
+     * v3.6.0 — Bedingung: Wandern die Rechnungen mit dem Stichtag (DemoDataAligner),
+     * bleibt „Rechnung prüfen“ bei „passt“ (DemoService rechnet die Beträge nach),
+     * die Sonderzahlung ist das Ergebnis der Rechnung, das Abrechnungsjahr (F1030)
+     * schlägt keinen anderen Stichtag vor und hat nach der ersten Rechnung keine
+     * Teilperiode — und „Abrechnung erwartet“ (F1029) ist zu sehen.
+     */
+    #[DataProvider('alignedBillDays')]
+    public function testAlignedBillsStillMatchAndFollowTheAnchor(string $id, string $today): void
+    {
+        $open = self::OPEN_PERIOD[$id];
+        [$u] = $open;
+        $bills = new BillService($this->store, $this->meters, $this->contracts, $this->consumption, $this->i18n);
+        $demo = new DemoService($this->store, new BackupService($this->store, $this->i18n), $this->i18n);
+        $demo->attachBills($bills);
+        $demo->import(true, $today, $id === 'showcase' ? null : $id);
+
+        // (a) jede Rechnung passt, (d) die Sonderzahlung ist ihr Ergebnis
+        $n = 0;
+        foreach (array_filter(Utilities::keys(), [Utilities::class, 'supportsBillCheck']) as $k) {
+            foreach ($bills->list($k) as $x) {
+                $n++;
+                self::assertArrayNotHasKey('_demo_recalc', $x, 'Markierung wird nicht eingespielt');
+                $cmp = $bills->compare($k, $x['id']);
+                self::assertSame('ok', $cmp['verdict'], "$k {$x['period_from']}…{$x['period_to']}: " . json_encode($cmp['delta']));
+                $r = (float)$x['invoice']['result_eur'];
+                self::assertEqualsWithDelta($x['invoice']['amount_eur'] - $x['invoice']['advances_paid_eur'], $r, 0.005, 'Ergebnis = Betrag − Abschläge');
+                if (empty($x['special_payment_id'])) continue;
+                $c = $this->contracts->get($k, (string)$x['contract_id']);
+                $sp = array_column($c['special_payments'] ?? [], null, 'id')[$x['special_payment_id']] ?? self::fail('Sonderzahlung fehlt');
+                self::assertEqualsWithDelta(abs($r), (float)$sp['amount_eur'], 0.005, "$k {$x['period_to']}: Betrag der Sonderzahlung");
+                self::assertStringStartsWith($r > 0 ? 'nachzahlung' : 'rueckzahlung', (string)$sp['kind'], 'Richtung');
+                self::assertSame($x['issued_on'], $sp['date'], 'am Rechnungsdatum');
+            }
+        }
+        self::assertGreaterThanOrEqual(1, $n);
+
+        // (b) Abrechnungsjahr: kein Vorschlag; nach der ersten Rechnung nur Rechnungen, ganze Perioden, die laufende
+        $settings = new SettingsService($this->store);
+        $until = date('Y-m-d', strtotime("$today -{$open['days']} days"));
+        $years = (new BillingPeriodService($settings, $this->meters, $this->readings, $this->consumption, $bills))->forUtility($u, false, $today);
+        self::assertNull($years['suggested_anchor'], "$today: Stichtag passt zur letzten Rechnung");
+        $billed = false;
+        $expected = null;
+        foreach ($years['periods'] as $p) {
+            if ($p['source'] === 'bill') { $billed = true; continue; }
+            if (!$billed) continue;   // vor der ersten Rechnung (Beginn der Daten) darf eine Teilperiode stehen
+            self::assertTrue($p['complete'] || $p['running'], "$today: Teilperiode {$p['from']}…{$p['until']}");
+            if ($p['until'] === $until) $expected = $p;
+        }
+        self::assertTrue($billed, 'abgerechnete Perioden');
+        self::assertNotNull($expected, "$today: die Periode bis $until ist eine ganze Periode ohne Rechnung");
+
+        // (c) „Abrechnung erwartet“ für genau diese Periode
+        $exp = new BillExpectedService($settings, $this->meters, $this->contracts, $this->readings,
+            new PeriodService($this->store, $this->meters, $this->i18n), $bills);
+        self::assertNotEmpty(array_filter($exp->open($today), fn($x) => $x['utility'] === $u && $x['until'] === $until), "$today: Abrechnung erwartet");
     }
 
     #[DataProvider('personas')]
@@ -403,9 +493,11 @@ final class PersonaUseCasesTest extends ServiceTestCase
                 [, , $people, $assignees, $expected] = array_map('trim', $m[$k]);
                 $p = self::load($id);
                 $names = [];
+                // v3.6.0 — eine gelöschte Person steht mit „(gelöscht)“ bzw. „(deleted)“ in der Tabelle
+                $who = fn(array $by): string => !empty($by['deleted']) ? $by['name'] . ($lang === 'de' ? ' (gelöscht)' : ' (deleted)') : $by['name'];
                 foreach ($p['activity'] as $e) {
-                    if (($e['by']['type'] ?? null) === 'person') $names[] = $e['by']['name'];
-                    if (($e['undone']['by']['type'] ?? null) === 'person') $names[] = $e['undone']['by']['name'];
+                    if (($e['by']['type'] ?? null) === 'person') $names[] = $who($e['by']);
+                    if (($e['undone']['by']['type'] ?? null) === 'person') $names[] = $who($e['undone']['by']);
                 }
                 $list = fn(string $s) => array_map('trim', explode(',', $s));
                 self::assertEqualsCanonicalizing(array_values(array_unique($names)), $list($people), "$lang $id: Personen");
@@ -483,5 +575,15 @@ final class PersonaUseCasesTest extends ServiceTestCase
         foreach ($export['interval_files'] as $fid => $f) {
             self::assertTrue($f['values'] === $again['interval_files'][$fid]['values'], "Viertelstunden $fid zweimal");
         }
+    }
+
+    /** v3.6.0 — Sonderzahlungen bei Wasser (GitHub #34) zeigt mindestens ein Beispielhaushalt. */
+    public function testASampleHouseholdShowsAWaterSpecialPayment(): void
+    {
+        $found = 0;
+        foreach (array_keys(self::personas()) as $id) {
+            foreach (self::load($id)['utilities']['wasser']['contracts'] ?? [] as $c) $found += count($c['special_payments'] ?? []);
+        }
+        self::assertGreaterThan(0, $found, 'keine Sonderzahlung an einem Wasservertrag in den Beispielhaushalten');
     }
 }

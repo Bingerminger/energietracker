@@ -43,8 +43,11 @@ final class Co2SplitService
         }
         $t = $this->tenancyIn($year);
         $area = (float)(($t['wohnflaeche_m2'] ?? null) ?: $this->settings->get('wohnflaeche_m2', 0));
+        // v3.6.0 — leer im Mietverhältnis und in den Einstellungen nie eingetragen: nur der
+        // Default (100 m²). Gerechnet wird weiter damit; die Oberfläche bittet ums Eintragen.
+        $assumed = $area > 0 && empty($t['wohnflaeche_m2']) && !$this->settings->isEntered('wohnflaeche_m2');
         $base = ['supported' => true, 'year' => $year, 'tenancy_id' => $t['id'] ?? null, 'area_m2' => $area > 0 ? $area : null,
-                 'checks' => [], 'reductions' => [], 'deadline' => null];
+                 'area_assumed' => $assumed, 'checks' => [], 'reductions' => [], 'deadline' => null];
 
         // Zentralheizung: Angaben aus der Abrechnung des Vermieters prüfen
         foreach ($t !== null ? $this->tenancies->statements((string)$t['id']) : [] as $s) {

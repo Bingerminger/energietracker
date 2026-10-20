@@ -116,6 +116,47 @@ final class ReportModelServiceTest extends ServiceTestCase
         self::assertNotNull($gas['efficiency']['class']);
     }
 
+    /**
+     * v3.6.0 (Entscheidung des Maintainers, Paket einpers) — ohne eingetragene
+     * Wohnfläche rechnet die Effizienzseite weiter mit 100 m², sagt es aber im
+     * Modell, im PDF (und damit in der Druckansicht, dieselben Felder).
+     */
+    public function testAnAssumedAreaIsNamedOnTheEfficiencyPage(): void
+    {
+        $this->importPersona('eigenheim-klassisch');
+        $gas = fn(array $m) => array_values(array_filter($m['pages'], fn($p) => $p['utility'] === 'gas'))[0]['efficiency'];
+        $entered = $gas($this->reportServices()['model']->build(self::YEAR));
+        self::assertSame([false, null], [$entered['area_assumed'], $entered['area_note']], 'Beispielhaushalt: 140 m² eingetragen');
+
+        $this->settings->set(['wohnflaeche_m2' => null]);
+        $svc = $this->reportServices();
+        $e = $gas($svc['model']->build(self::YEAR));
+        self::assertTrue($e['area_assumed']);
+        self::assertStringContainsString('angenommenen Wohnfläche von 100 m²', (string)$e['area_note']);
+        self::assertStringContainsString('(100 m²)', $e['text'], 'gerechnet wird weiter mit 100 m²');
+        $pdf = implode(' ', PdfInspector::texts($svc['pdf']->build(self::YEAR, ['today' => '2026-03-01'])));
+        self::assertStringContainsString('angenommenen Wohnfläche', $pdf);
+    }
+
+    /** v3.6.0 (Paket einpers) — Mieterin: CO₂-Aufteilung mit angenommener Fläche, ein Satz im Thema Mietverhältnis. */
+    public function testTheTenancyTopicNamesAnAssumedAreaOfTheCo2Split(): void
+    {
+        $this->importPersona('mieterin');
+        $topic = fn() => $this->reportServices()['model']->build(self::YEAR)['topics']['tenancy'] ?? null;
+        $before = $topic();
+        self::assertNotNull($before['co2'] ?? null, 'Beispielhaushalt mit CO₂-Aufteilung');
+        self::assertFalse($before['co2']['area_assumed'], 'Fläche im Mietverhältnis eingetragen');
+        $amount = $before['co2']['landlord_amount_eur'];
+
+        $ten = new \Energietracker\Services\TenancyService($this->store, $this->meters, $this->i18n);
+        foreach ($ten->list() as $t) $ten->update((string)$t['id'], ['wohnflaeche_m2' => null]);
+        $this->settings->set(['wohnflaeche_m2' => null]);
+        $after = $topic();
+        self::assertTrue($after['co2']['area_assumed']);
+        self::assertNotEmpty(array_filter($after['sentences'], fn($s) => str_contains($s, 'angenommenen Wohnfläche von 100 m²')));
+        self::assertNotSame($amount, $after['co2']['landlord_amount_eur'], 'gerechnet wird mit der angenommenen Fläche (wie bisher)');
+    }
+
     public function testEtwShowsWeatherComparisonAndTheBill(): void
     {
         $m = $this->model('etw-fernwaerme');
@@ -141,6 +182,43 @@ final class ReportModelServiceTest extends ServiceTestCase
             self::assertGreaterThan(substr($m['today'], 0, 7), $tank['until']);
             self::assertTrue($tank['as_of_today']);
         }
+    }
+
+    /**
+     * v3.6.0 — Kachel „Kosten“, Abschnitt „Geld“ und die Seiten zählen Heizöl
+     * und Pellets mit den Kosten ihrer Lieferungen, wie die Übersicht
+     * (Monatszeilen der Art). Bis v3.5 fehlten sie, weil sie keinen Vertrag
+     * haben, und die Seite meldete „keine Preise hinterlegt“. PDF und
+     * Druckansicht lesen dasselbe Modell.
+     */
+    public function testCostTileCountsOilAndPelletsLikeTheOverview(): void
+    {
+        $m = $this->model('demo', ['today' => '2026-03-01']);
+        $overview = 0.0; $n = 0;
+        foreach (Utilities::keys() as $u) {
+            if (Utilities::accountingKind($u) !== 'consumption') continue;
+            foreach ($this->consumption->forUtility($u)['monthly_total'] as $r) {
+                if ((int)$r['year'] !== self::YEAR) continue;
+                $overview += (float)($r['cost'] ?? 0); $n++;
+            }
+        }
+        $tile = array_column($m['headline']['tiles'], null, 'key')['cost'] ?? self::fail('Kachel Kosten fehlt');
+        self::assertEqualsWithDelta($overview, (float)$tile['value'], 0.01 * $n, 'Kachel „Kosten“ = Übersicht');
+        self::assertEqualsWithDelta((float)$tile['value'], (float)$m['money']['total']['cost'], 0.001);
+        $by = array_column($m['money']['by_utility'], 'cost', 'utility');
+        $pages = array_column($m['pages'], null, 'utility');
+        foreach (['heizoel', 'pellets'] as $u) {
+            self::assertGreaterThan(0.0, $this->rootSum($u, 'cost'), "$u: Lieferungen mit Preis");
+            self::assertEqualsWithDelta($this->rootSum($u, 'cost'), $by[$u] ?? 0.0, 0.05, "$u: im Abschnitt „Geld“");
+            self::assertSame('deliveries', $pages[$u]['cost']['basis'], $u);
+            self::assertStringContainsString('aus den Lieferungen', $pages[$u]['cost']['text'], $u);
+        }
+        self::assertEqualsWithDelta((float)$tile['value'], array_sum(array_map(fn($x) => (float)$x['value'], $m['money']['monthly'])), 0.05, 'Kosten je Monat mit den Lieferarten');
+        self::assertEqualsWithDelta((float)$tile['value'], (float)end($tile['spark']), 0.01, 'Verlauf über drei Jahre ebenso');
+        // das PDF zeigt dieselben Zahlen
+        $pdf = implode(' ', PdfInspector::texts($this->reportServices()['pdf']->build(self::YEAR, ['today' => '2026-03-01'])));
+        self::assertStringContainsString($tile['value_text'], $pdf, 'PDF: Kachel');
+        self::assertStringContainsString('aus den Lieferungen', $pdf, 'PDF: Seite Heizöl/Pellets');
     }
 
     /** Mangel 6 — auch die Empfehlungen der App raten bei Wasser nicht zum Wechsel. */
@@ -208,11 +286,26 @@ final class ReportModelServiceTest extends ServiceTestCase
     }
 
     /** Mangel 11 — Abschlagsvorschlag 0: kein „Abschlag 0 €“, sondern „kann sinken“. */
+    /**
+     * v3.6.0 (Paket abrechnung) — Bis v3.5 lieferte der Beispielhaushalt das
+     * große Guthaben von selbst: Der Fernwärmevertrag seit 2021 zählte alle
+     * Jahre ohne gebuchten Ausgleich mit. Seit der Saldo nach der letzten
+     * gebuchten Rechnung beginnt, entsteht es hier ausdrücklich — eine
+     * zusätzliche Abschlagszahlung im laufenden Zeitraum.
+     */
     public function testZeroAdvanceSuggestionIsNotShownAsAmount(): void
     {
-        $m = $this->model('etw-fernwaerme');
+        $this->importPersona('etw-fernwaerme');
+        $contracts = $this->store->read('fernwaerme/contracts.json', []);
+        foreach ($contracts as &$c) {
+            if (empty($c['end'])) $c['special_payments'][] = ['id' => 'sp_test_extra', 'date' => date('Y-m-d'), 'kind' => 'abschlagszahlung', 'amount_eur' => 5000.0, 'note' => ''];
+        }
+        unset($c);
+        $this->store->write('fernwaerme/contracts.json', $contracts);
+        $m = $this->reportServices()['model']->build(self::YEAR);
         $fw = array_values(array_filter($m['money']['balances'] ?? [], fn($b) => $b['utility'] === 'fernwaerme'));
-        if ($fw === [] || $fw[0]['projected_end_balance'] >= 0) self::markTestSkipped('Fernwärme ohne Guthaben am heutigen Tag');
+        self::assertNotSame([], $fw, 'Fernwärme im Geldteil');
+        self::assertLessThan(-3000, $fw[0]['projected_end_balance'], 'Vorbedingung: großes Guthaben');
         self::assertNull($fw[0]['suggested_advance']);
         self::assertSame($this->i18n->t('report.money.advanceLower'), $fw[0]['advance_text']);
     }

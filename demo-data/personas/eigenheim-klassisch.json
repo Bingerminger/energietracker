@@ -6443,7 +6443,9 @@
         "wasser_personen_anzahl": 4,
         "warmwasser_energietraeger": "gas",
         "billing_cycle_anchor_gas": "07-01",
-        "setup_persona": "eigenheim-klassisch"
+        "setup_persona": "eigenheim-klassisch",
+        "reference_strom_kwh": 6200,
+        "reference_heat_kwh_m2": 132
     },
     "reminders": [
         {
@@ -6456,7 +6458,8 @@
             "last_done": "2025-09-18",
             "notes": "Jahreswartung durch den Installateur",
             "active": true,
-            "assignee": "Thomas"
+            "assignee": "Thomas",
+            "assignee_id": "u_31afa4b1"
         },
         {
             "id": "rem_07b786aa",
@@ -6468,7 +6471,8 @@
             "last_done": "2025-11-05",
             "notes": "Kehrung und Abgasmessung",
             "active": true,
-            "assignee": "Sabine"
+            "assignee": "Sabine",
+            "assignee_id": "u_b0fee241"
         },
         {
             "id": "rem_fe18c799",
@@ -6502,7 +6506,8 @@
             "last_done": "2025-10-30",
             "notes": "Außenhahn entleeren, bevor Frost kommt",
             "active": true,
-            "assignee": "Jonas"
+            "assignee": "Jonas",
+            "assignee_id": "u_95ced969"
         }
     ],
     "recommendations_dismissed": [],
@@ -6541,8 +6546,9 @@
             "recorded_at": "2024-03-20T19:05:00+01:00",
             "by": {
                 "type": "person",
-                "id": "u_31afa4b1",
-                "name": "Thomas"
+                "id": "u_373f7977",
+                "name": "Lukas",
+                "deleted": true
             },
             "note": "Kündigung per Einschreiben",
             "revert": {
@@ -6577,8 +6583,9 @@
             "recorded_at": "2024-03-20T19:05:00+01:00",
             "by": {
                 "type": "person",
-                "id": "u_31afa4b1",
-                "name": "Thomas"
+                "id": "u_373f7977",
+                "name": "Lukas",
+                "deleted": true
             },
             "note": "",
             "reason": {
@@ -7183,6 +7190,47 @@
             }
         }
     ],
+    "people": {
+        "last_no": 4,
+        "people": [
+            {
+                "id": "u_31afa4b1",
+                "no": 1,
+                "name": "Thomas",
+                "role": "admin",
+                "created_at": "2023-06-01T09:00:00+02:00",
+                "deleted_at": null,
+                "deleted_by": null
+            },
+            {
+                "id": "u_b0fee241",
+                "no": 2,
+                "name": "Sabine",
+                "role": "admin",
+                "created_at": "2023-06-01T09:00:00+02:00",
+                "deleted_at": null,
+                "deleted_by": null
+            },
+            {
+                "id": "u_95ced969",
+                "no": 3,
+                "name": "Jonas",
+                "role": "member",
+                "created_at": "2023-06-01T09:00:00+02:00",
+                "deleted_at": null,
+                "deleted_by": null
+            },
+            {
+                "id": "u_373f7977",
+                "no": 4,
+                "name": "Lukas",
+                "role": "member",
+                "created_at": "2023-06-01T09:00:00+02:00",
+                "deleted_at": "2025-01-15T19:30:00+01:00",
+                "deleted_by": "u_31afa4b1"
+            }
+        ]
+    },
     "demo_align": {
         "billing_anchor_days_ago": {
             "gas": 56
@@ -7526,8 +7574,8 @@
                     "date": "2025-09-30",
                     "counter": 22166.2,
                     "price_cents": null,
-                    "note": "",
-                    "is_estimated": false,
+                    "note": "Geschätzt, Ablesekarte lag noch im Urlaubsgepäck",
+                    "is_estimated": true,
                     "is_future": false
                 },
                 {
@@ -7799,7 +7847,7 @@
                     "notes": "Keller",
                     "parent_meter_id": null,
                     "meter_group_id": null,
-                    "external_id": null,
+                    "external_id": "sensor.hauptzaehler_strom",
                     "baseline_events": [],
                     "malo_id": "54445556665",
                     "devices": [
@@ -7811,6 +7859,75 @@
                             "removed_on": null,
                             "final_counter": null,
                             "reason": null
+                        }
+                    ]
+                },
+                {
+                    "id": "m_strom_einlieger_ht",
+                    "name": "Einliegerwohnung HT",
+                    "icon": "⚡",
+                    "created_at": "2023-06-01",
+                    "active": true,
+                    "notes": "Doppeltarifzähler im Flur, Zählwerk Hochtarif",
+                    "parent_meter_id": null,
+                    "meter_group_id": "g_strom_einlieger",
+                    "external_id": null,
+                    "baseline_events": [],
+                    "devices": [
+                        {
+                            "id": "d_strom_einlieger_ht",
+                            "serial": "S-2016-044",
+                            "installed_on": "2016-03-01",
+                            "initial_counter": 0,
+                            "removed_on": null,
+                            "final_counter": null,
+                            "reason": null
+                        }
+                    ]
+                },
+                {
+                    "id": "m_strom_einlieger_nt",
+                    "name": "Einliegerwohnung NT",
+                    "icon": "🌙",
+                    "created_at": "2023-06-01",
+                    "active": true,
+                    "notes": "Doppeltarifzähler im Flur, Zählwerk Niedertarif (Nachtspeicher)",
+                    "parent_meter_id": null,
+                    "meter_group_id": "g_strom_einlieger",
+                    "external_id": null,
+                    "baseline_events": [],
+                    "devices": [
+                        {
+                            "id": "d_strom_einlieger_nt",
+                            "serial": "S-2016-045",
+                            "installed_on": "2016-03-01",
+                            "initial_counter": 0,
+                            "removed_on": null,
+                            "final_counter": null,
+                            "reason": null
+                        }
+                    ]
+                },
+                {
+                    "id": "m_strom_gartenhaus",
+                    "name": "Gartenhaus (stillgelegt)",
+                    "icon": "🏚️",
+                    "created_at": "2023-06-01",
+                    "active": false,
+                    "notes": "Eigener Zähler bis zur Abmeldung im Herbst 2024",
+                    "parent_meter_id": null,
+                    "meter_group_id": null,
+                    "external_id": null,
+                    "baseline_events": [],
+                    "devices": [
+                        {
+                            "id": "d_strom_gartenhaus",
+                            "serial": "S-2011-310",
+                            "installed_on": "2011-05-02",
+                            "initial_counter": 0,
+                            "removed_on": "2024-09-30",
+                            "final_counter": 3698.7,
+                            "reason": "Abgemeldet"
                         }
                     ]
                 }
@@ -8211,6 +8328,985 @@
                     "note": "",
                     "is_estimated": false,
                     "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_ht_20230601",
+                    "meter_id": "m_strom_einlieger_ht",
+                    "device_id": "d_strom_einlieger_ht",
+                    "date": "2023-06-01",
+                    "counter": 21480.3,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_ht_20230702",
+                    "meter_id": "m_strom_einlieger_ht",
+                    "device_id": "d_strom_einlieger_ht",
+                    "date": "2023-07-02",
+                    "counter": 21486.5,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_ht_20230803",
+                    "meter_id": "m_strom_einlieger_ht",
+                    "device_id": "d_strom_einlieger_ht",
+                    "date": "2023-08-03",
+                    "counter": 21492.9,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_ht_20230901",
+                    "meter_id": "m_strom_einlieger_ht",
+                    "device_id": "d_strom_einlieger_ht",
+                    "date": "2023-09-01",
+                    "counter": 21498.8,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_ht_20230930",
+                    "meter_id": "m_strom_einlieger_ht",
+                    "device_id": "d_strom_einlieger_ht",
+                    "date": "2023-09-30",
+                    "counter": 21510.2,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_ht_20231103",
+                    "meter_id": "m_strom_einlieger_ht",
+                    "device_id": "d_strom_einlieger_ht",
+                    "date": "2023-11-03",
+                    "counter": 21572.9,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_ht_20231203",
+                    "meter_id": "m_strom_einlieger_ht",
+                    "device_id": "d_strom_einlieger_ht",
+                    "date": "2023-12-03",
+                    "counter": 21694.8,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_ht_20240103",
+                    "meter_id": "m_strom_einlieger_ht",
+                    "device_id": "d_strom_einlieger_ht",
+                    "date": "2024-01-03",
+                    "counter": 21862.7,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_ht_20240202",
+                    "meter_id": "m_strom_einlieger_ht",
+                    "device_id": "d_strom_einlieger_ht",
+                    "date": "2024-02-02",
+                    "counter": 22041.7,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_ht_20240227",
+                    "meter_id": "m_strom_einlieger_ht",
+                    "device_id": "d_strom_einlieger_ht",
+                    "date": "2024-02-27",
+                    "counter": 22182.9,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_ht_20240403",
+                    "meter_id": "m_strom_einlieger_ht",
+                    "device_id": "d_strom_einlieger_ht",
+                    "date": "2024-04-03",
+                    "counter": 22309.5,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_ht_20240430",
+                    "meter_id": "m_strom_einlieger_ht",
+                    "device_id": "d_strom_einlieger_ht",
+                    "date": "2024-04-30",
+                    "counter": 22364.9,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_ht_20240531",
+                    "meter_id": "m_strom_einlieger_ht",
+                    "device_id": "d_strom_einlieger_ht",
+                    "date": "2024-05-31",
+                    "counter": 22377.6,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_ht_20240630",
+                    "meter_id": "m_strom_einlieger_ht",
+                    "device_id": "d_strom_einlieger_ht",
+                    "date": "2024-06-30",
+                    "counter": 22383.6,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_ht_20240731",
+                    "meter_id": "m_strom_einlieger_ht",
+                    "device_id": "d_strom_einlieger_ht",
+                    "date": "2024-07-31",
+                    "counter": 22389.9,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_ht_20240831",
+                    "meter_id": "m_strom_einlieger_ht",
+                    "device_id": "d_strom_einlieger_ht",
+                    "date": "2024-08-31",
+                    "counter": 22396.1,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_ht_20240930",
+                    "meter_id": "m_strom_einlieger_ht",
+                    "device_id": "d_strom_einlieger_ht",
+                    "date": "2024-09-30",
+                    "counter": 22407.1,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_ht_20241030",
+                    "meter_id": "m_strom_einlieger_ht",
+                    "device_id": "d_strom_einlieger_ht",
+                    "date": "2024-10-30",
+                    "counter": 22463.9,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_ht_20241203",
+                    "meter_id": "m_strom_einlieger_ht",
+                    "device_id": "d_strom_einlieger_ht",
+                    "date": "2024-12-03",
+                    "counter": 22590.6,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_ht_20250101",
+                    "meter_id": "m_strom_einlieger_ht",
+                    "device_id": "d_strom_einlieger_ht",
+                    "date": "2025-01-01",
+                    "counter": 22755.7,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_ht_20250203",
+                    "meter_id": "m_strom_einlieger_ht",
+                    "device_id": "d_strom_einlieger_ht",
+                    "date": "2025-02-03",
+                    "counter": 22953.8,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_ht_20250303",
+                    "meter_id": "m_strom_einlieger_ht",
+                    "device_id": "d_strom_einlieger_ht",
+                    "date": "2025-03-03",
+                    "counter": 23102.4,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_ht_20250401",
+                    "meter_id": "m_strom_einlieger_ht",
+                    "device_id": "d_strom_einlieger_ht",
+                    "date": "2025-04-01",
+                    "counter": 23217.6,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_ht_20250502",
+                    "meter_id": "m_strom_einlieger_ht",
+                    "device_id": "d_strom_einlieger_ht",
+                    "date": "2025-05-02",
+                    "counter": 23279.3,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_ht_20250529",
+                    "meter_id": "m_strom_einlieger_ht",
+                    "device_id": "d_strom_einlieger_ht",
+                    "date": "2025-05-29",
+                    "counter": 23288.4,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_ht_20250701",
+                    "meter_id": "m_strom_einlieger_ht",
+                    "device_id": "d_strom_einlieger_ht",
+                    "date": "2025-07-01",
+                    "counter": 23295,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_ht_20250731",
+                    "meter_id": "m_strom_einlieger_ht",
+                    "device_id": "d_strom_einlieger_ht",
+                    "date": "2025-07-31",
+                    "counter": 23301.1,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_ht_20250930",
+                    "meter_id": "m_strom_einlieger_ht",
+                    "device_id": "d_strom_einlieger_ht",
+                    "date": "2025-09-30",
+                    "counter": 23316.8,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_ht_20251030",
+                    "meter_id": "m_strom_einlieger_ht",
+                    "device_id": "d_strom_einlieger_ht",
+                    "date": "2025-10-30",
+                    "counter": 23378.7,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_ht_20251129",
+                    "meter_id": "m_strom_einlieger_ht",
+                    "device_id": "d_strom_einlieger_ht",
+                    "date": "2025-11-29",
+                    "counter": 23485.3,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_ht_20260102",
+                    "meter_id": "m_strom_einlieger_ht",
+                    "device_id": "d_strom_einlieger_ht",
+                    "date": "2026-01-02",
+                    "counter": 23656.1,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_ht_20260203",
+                    "meter_id": "m_strom_einlieger_ht",
+                    "device_id": "d_strom_einlieger_ht",
+                    "date": "2026-02-03",
+                    "counter": 23844.5,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_ht_20260228",
+                    "meter_id": "m_strom_einlieger_ht",
+                    "device_id": "d_strom_einlieger_ht",
+                    "date": "2026-02-28",
+                    "counter": 23970.1,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_ht_20260330",
+                    "meter_id": "m_strom_einlieger_ht",
+                    "device_id": "d_strom_einlieger_ht",
+                    "date": "2026-03-30",
+                    "counter": 24088.4,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_ht_20260430",
+                    "meter_id": "m_strom_einlieger_ht",
+                    "device_id": "d_strom_einlieger_ht",
+                    "date": "2026-04-30",
+                    "counter": 24153.7,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_ht_20260531",
+                    "meter_id": "m_strom_einlieger_ht",
+                    "device_id": "d_strom_einlieger_ht",
+                    "date": "2026-05-31",
+                    "counter": 24168.7,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_nt_20230601",
+                    "meter_id": "m_strom_einlieger_nt",
+                    "device_id": "d_strom_einlieger_nt",
+                    "date": "2023-06-01",
+                    "counter": 48211.7,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_nt_20230702",
+                    "meter_id": "m_strom_einlieger_nt",
+                    "device_id": "d_strom_einlieger_nt",
+                    "date": "2023-07-02",
+                    "counter": 48227.7,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_nt_20230803",
+                    "meter_id": "m_strom_einlieger_nt",
+                    "device_id": "d_strom_einlieger_nt",
+                    "date": "2023-08-03",
+                    "counter": 48244.2,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_nt_20230901",
+                    "meter_id": "m_strom_einlieger_nt",
+                    "device_id": "d_strom_einlieger_nt",
+                    "date": "2023-09-01",
+                    "counter": 48259.1,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_nt_20230930",
+                    "meter_id": "m_strom_einlieger_nt",
+                    "device_id": "d_strom_einlieger_nt",
+                    "date": "2023-09-30",
+                    "counter": 48288.5,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_nt_20231103",
+                    "meter_id": "m_strom_einlieger_nt",
+                    "device_id": "d_strom_einlieger_nt",
+                    "date": "2023-11-03",
+                    "counter": 48449.8,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_nt_20231203",
+                    "meter_id": "m_strom_einlieger_nt",
+                    "device_id": "d_strom_einlieger_nt",
+                    "date": "2023-12-03",
+                    "counter": 48763.2,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_nt_20240103",
+                    "meter_id": "m_strom_einlieger_nt",
+                    "device_id": "d_strom_einlieger_nt",
+                    "date": "2024-01-03",
+                    "counter": 49195,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_nt_20240202",
+                    "meter_id": "m_strom_einlieger_nt",
+                    "device_id": "d_strom_einlieger_nt",
+                    "date": "2024-02-02",
+                    "counter": 49655.2,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_nt_20240227",
+                    "meter_id": "m_strom_einlieger_nt",
+                    "device_id": "d_strom_einlieger_nt",
+                    "date": "2024-02-27",
+                    "counter": 50018.5,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_nt_20240403",
+                    "meter_id": "m_strom_einlieger_nt",
+                    "device_id": "d_strom_einlieger_nt",
+                    "date": "2024-04-03",
+                    "counter": 50344,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_nt_20240430",
+                    "meter_id": "m_strom_einlieger_nt",
+                    "device_id": "d_strom_einlieger_nt",
+                    "date": "2024-04-30",
+                    "counter": 50486.4,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_nt_20240531",
+                    "meter_id": "m_strom_einlieger_nt",
+                    "device_id": "d_strom_einlieger_nt",
+                    "date": "2024-05-31",
+                    "counter": 50519.1,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_nt_20240630",
+                    "meter_id": "m_strom_einlieger_nt",
+                    "device_id": "d_strom_einlieger_nt",
+                    "date": "2024-06-30",
+                    "counter": 50534.6,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_nt_20240731",
+                    "meter_id": "m_strom_einlieger_nt",
+                    "device_id": "d_strom_einlieger_nt",
+                    "date": "2024-07-31",
+                    "counter": 50550.5,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_nt_20240831",
+                    "meter_id": "m_strom_einlieger_nt",
+                    "device_id": "d_strom_einlieger_nt",
+                    "date": "2024-08-31",
+                    "counter": 50566.5,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_nt_20240930",
+                    "meter_id": "m_strom_einlieger_nt",
+                    "device_id": "d_strom_einlieger_nt",
+                    "date": "2024-09-30",
+                    "counter": 50595,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_nt_20241030",
+                    "meter_id": "m_strom_einlieger_nt",
+                    "device_id": "d_strom_einlieger_nt",
+                    "date": "2024-10-30",
+                    "counter": 50741,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_nt_20241203",
+                    "meter_id": "m_strom_einlieger_nt",
+                    "device_id": "d_strom_einlieger_nt",
+                    "date": "2024-12-03",
+                    "counter": 51066.7,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_nt_20250101",
+                    "meter_id": "m_strom_einlieger_nt",
+                    "device_id": "d_strom_einlieger_nt",
+                    "date": "2025-01-01",
+                    "counter": 51491.2,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_nt_20250203",
+                    "meter_id": "m_strom_einlieger_nt",
+                    "device_id": "d_strom_einlieger_nt",
+                    "date": "2025-02-03",
+                    "counter": 52000.6,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_nt_20250303",
+                    "meter_id": "m_strom_einlieger_nt",
+                    "device_id": "d_strom_einlieger_nt",
+                    "date": "2025-03-03",
+                    "counter": 52382.9,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_nt_20250401",
+                    "meter_id": "m_strom_einlieger_nt",
+                    "device_id": "d_strom_einlieger_nt",
+                    "date": "2025-04-01",
+                    "counter": 52679,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_nt_20250502",
+                    "meter_id": "m_strom_einlieger_nt",
+                    "device_id": "d_strom_einlieger_nt",
+                    "date": "2025-05-02",
+                    "counter": 52837.6,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_nt_20250529",
+                    "meter_id": "m_strom_einlieger_nt",
+                    "device_id": "d_strom_einlieger_nt",
+                    "date": "2025-05-29",
+                    "counter": 52861.1,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_nt_20250701",
+                    "meter_id": "m_strom_einlieger_nt",
+                    "device_id": "d_strom_einlieger_nt",
+                    "date": "2025-07-01",
+                    "counter": 52878.2,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_nt_20250731",
+                    "meter_id": "m_strom_einlieger_nt",
+                    "device_id": "d_strom_einlieger_nt",
+                    "date": "2025-07-31",
+                    "counter": 52893.6,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_nt_20250930",
+                    "meter_id": "m_strom_einlieger_nt",
+                    "device_id": "d_strom_einlieger_nt",
+                    "date": "2025-09-30",
+                    "counter": 52934.1,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_nt_20251030",
+                    "meter_id": "m_strom_einlieger_nt",
+                    "device_id": "d_strom_einlieger_nt",
+                    "date": "2025-10-30",
+                    "counter": 53093.2,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_nt_20251129",
+                    "meter_id": "m_strom_einlieger_nt",
+                    "device_id": "d_strom_einlieger_nt",
+                    "date": "2025-11-29",
+                    "counter": 53367.3,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_nt_20260102",
+                    "meter_id": "m_strom_einlieger_nt",
+                    "device_id": "d_strom_einlieger_nt",
+                    "date": "2026-01-02",
+                    "counter": 53806.7,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_nt_20260203",
+                    "meter_id": "m_strom_einlieger_nt",
+                    "device_id": "d_strom_einlieger_nt",
+                    "date": "2026-02-03",
+                    "counter": 54291.2,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_nt_20260228",
+                    "meter_id": "m_strom_einlieger_nt",
+                    "device_id": "d_strom_einlieger_nt",
+                    "date": "2026-02-28",
+                    "counter": 54614.2,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_nt_20260330",
+                    "meter_id": "m_strom_einlieger_nt",
+                    "device_id": "d_strom_einlieger_nt",
+                    "date": "2026-03-30",
+                    "counter": 54918.1,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_nt_20260430",
+                    "meter_id": "m_strom_einlieger_nt",
+                    "device_id": "d_strom_einlieger_nt",
+                    "date": "2026-04-30",
+                    "counter": 55086.1,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_einlieger_nt_20260531",
+                    "meter_id": "m_strom_einlieger_nt",
+                    "device_id": "d_strom_einlieger_nt",
+                    "date": "2026-05-31",
+                    "counter": 55124.8,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_gartenhaus_20230601",
+                    "meter_id": "m_strom_gartenhaus",
+                    "device_id": "d_strom_gartenhaus",
+                    "date": "2023-06-01",
+                    "counter": 3104.2,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_gartenhaus_20230702",
+                    "meter_id": "m_strom_gartenhaus",
+                    "device_id": "d_strom_gartenhaus",
+                    "date": "2023-07-02",
+                    "counter": 3148.1,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_gartenhaus_20230803",
+                    "meter_id": "m_strom_gartenhaus",
+                    "device_id": "d_strom_gartenhaus",
+                    "date": "2023-08-03",
+                    "counter": 3197.5,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_gartenhaus_20230901",
+                    "meter_id": "m_strom_gartenhaus",
+                    "device_id": "d_strom_gartenhaus",
+                    "date": "2023-09-01",
+                    "counter": 3238,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_gartenhaus_20230930",
+                    "meter_id": "m_strom_gartenhaus",
+                    "device_id": "d_strom_gartenhaus",
+                    "date": "2023-09-30",
+                    "counter": 3275.2,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_gartenhaus_20231103",
+                    "meter_id": "m_strom_gartenhaus",
+                    "device_id": "d_strom_gartenhaus",
+                    "date": "2023-11-03",
+                    "counter": 3315.4,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_gartenhaus_20231203",
+                    "meter_id": "m_strom_gartenhaus",
+                    "device_id": "d_strom_gartenhaus",
+                    "date": "2023-12-03",
+                    "counter": 3343.9,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_gartenhaus_20240103",
+                    "meter_id": "m_strom_gartenhaus",
+                    "device_id": "d_strom_gartenhaus",
+                    "date": "2024-01-03",
+                    "counter": 3371.8,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_gartenhaus_20240202",
+                    "meter_id": "m_strom_gartenhaus",
+                    "device_id": "d_strom_gartenhaus",
+                    "date": "2024-02-02",
+                    "counter": 3398.2,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_gartenhaus_20240227",
+                    "meter_id": "m_strom_gartenhaus",
+                    "device_id": "d_strom_gartenhaus",
+                    "date": "2024-02-27",
+                    "counter": 3419.4,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_gartenhaus_20240403",
+                    "meter_id": "m_strom_gartenhaus",
+                    "device_id": "d_strom_gartenhaus",
+                    "date": "2024-04-03",
+                    "counter": 3455.1,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_gartenhaus_20240430",
+                    "meter_id": "m_strom_gartenhaus",
+                    "device_id": "d_strom_gartenhaus",
+                    "date": "2024-04-30",
+                    "counter": 3485.1,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_gartenhaus_20240531",
+                    "meter_id": "m_strom_gartenhaus",
+                    "device_id": "d_strom_gartenhaus",
+                    "date": "2024-05-31",
+                    "counter": 3527.4,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_gartenhaus_20240630",
+                    "meter_id": "m_strom_gartenhaus",
+                    "device_id": "d_strom_gartenhaus",
+                    "date": "2024-06-30",
+                    "counter": 3570.3,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_gartenhaus_20240731",
+                    "meter_id": "m_strom_gartenhaus",
+                    "device_id": "d_strom_gartenhaus",
+                    "date": "2024-07-31",
+                    "counter": 3615.8,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_gartenhaus_20240831",
+                    "meter_id": "m_strom_gartenhaus",
+                    "device_id": "d_strom_gartenhaus",
+                    "date": "2024-08-31",
+                    "counter": 3660.4,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_gartenhaus_20240930",
+                    "meter_id": "m_strom_gartenhaus",
+                    "device_id": "d_strom_gartenhaus",
+                    "date": "2024-09-30",
+                    "counter": 3698.7,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
                 }
             ],
             "contracts": [
@@ -8324,10 +9420,103 @@
                     "min_term_end": null,
                     "price_guarantee_until": "2026-12-31",
                     "signup_bonus_eur": null
+                },
+                {
+                    "id": "c_strom_heizstrom",
+                    "meter_id": null,
+                    "provider": "Stadtwerke Musterstadt",
+                    "tariff_name": "Heizstrom HT/NT",
+                    "start": "2023-06-01",
+                    "end": null,
+                    "notes": "",
+                    "working_prices": [
+                        {
+                            "from": "2023-06-01",
+                            "ct_per_kwh": 34.6
+                        },
+                        {
+                            "from": "2025-01-01",
+                            "ct_per_kwh": 31.2
+                        }
+                    ],
+                    "base_prices": [
+                        {
+                            "from": "2023-06-01",
+                            "eur_per_month": 11.9
+                        }
+                    ],
+                    "advance_payments": [
+                        {
+                            "from": "2023-06-01",
+                            "amount_eur": 95
+                        },
+                        {
+                            "from": "2024-03-01",
+                            "amount_eur": 105
+                        }
+                    ],
+                    "bonuses": [],
+                    "special_payments": [
+                        {
+                            "id": "sp_1e57768943",
+                            "date": "2024-01-26",
+                            "kind": "rueckzahlung_ohne",
+                            "amount_eur": 192.3,
+                            "note": "Jahresabrechnung Heizstrom 2023 — Guthaben",
+                            "new_advance_eur": null,
+                            "advance_from": null
+                        },
+                        {
+                            "id": "sp_dfc023ad5c",
+                            "date": "2025-01-24",
+                            "kind": "rueckzahlung_ohne",
+                            "amount_eur": 150.01,
+                            "note": "Jahresabrechnung Heizstrom 2024 — Guthaben",
+                            "new_advance_eur": null,
+                            "advance_from": null
+                        },
+                        {
+                            "id": "sp_ad56385809",
+                            "date": "2026-01-23",
+                            "kind": "rueckzahlung_ohne",
+                            "amount_eur": 287.53,
+                            "note": "Jahresabrechnung Heizstrom 2025 — Guthaben",
+                            "new_advance_eur": null,
+                            "advance_from": null
+                        }
+                    ],
+                    "meter_group_id": "g_strom_einlieger",
+                    "working_prices_by_meter": {
+                        "m_strom_einlieger_nt": [
+                            {
+                                "from": "2023-06-01",
+                                "ct_per_kwh": 27.3
+                            },
+                            {
+                                "from": "2025-01-01",
+                                "ct_per_kwh": 23.9
+                            }
+                        ]
+                    },
+                    "is_shadow": false,
+                    "shadow_label": null,
+                    "notice_period_months": 1,
+                    "notice_period_days": null,
+                    "notice_mode": null,
+                    "auto_renews": null,
+                    "min_term_end": null,
+                    "price_guarantee_until": null,
+                    "signup_bonus_eur": null
                 }
             ],
             "deliveries": [],
-            "meter_groups": [],
+            "meter_groups": [
+                {
+                    "id": "g_strom_einlieger",
+                    "name": "Einliegerwohnung (HT/NT)",
+                    "created_at": "2023-06-01"
+                }
+            ],
             "periods": [],
             "bills": [
                 {
@@ -8371,6 +9560,69 @@
                     "note": "",
                     "attachment_ids": [],
                     "created_at": "2026-01-24T19:12:00+01:00"
+                },
+                {
+                    "id": "b_a5b6802f866f",
+                    "meter_id": "m_strom_einlieger_ht",
+                    "period_from": "2023-06-01",
+                    "period_to": "2023-12-31",
+                    "issued_on": "2024-01-26",
+                    "kind": "annual",
+                    "contract_id": "c_strom_heizstrom",
+                    "special_payment_id": "sp_1e57768943",
+                    "invoice": {
+                        "energy_kwh": 1327,
+                        "amount_eur": 472.7,
+                        "advances_paid_eur": 665,
+                        "result_eur": -192.3
+                    },
+                    "items": [],
+                    "co2": null,
+                    "note": "",
+                    "attachment_ids": [],
+                    "created_at": "2024-01-28T19:12:00+01:00"
+                },
+                {
+                    "id": "b_0207a03294b5",
+                    "meter_id": "m_strom_einlieger_ht",
+                    "period_from": "2024-01-01",
+                    "period_to": "2024-12-31",
+                    "issued_on": "2025-01-24",
+                    "kind": "annual",
+                    "contract_id": "c_strom_heizstrom",
+                    "special_payment_id": "sp_dfc023ad5c",
+                    "invoice": {
+                        "energy_kwh": 3227.9,
+                        "amount_eur": 1089.99,
+                        "advances_paid_eur": 1240,
+                        "result_eur": -150.01
+                    },
+                    "items": [],
+                    "co2": null,
+                    "note": "",
+                    "attachment_ids": [],
+                    "created_at": "2025-01-26T19:12:00+01:00"
+                },
+                {
+                    "id": "b_fab0fa5f9d24",
+                    "meter_id": "m_strom_einlieger_ht",
+                    "period_from": "2025-01-01",
+                    "period_to": "2025-12-31",
+                    "issued_on": "2026-01-23",
+                    "kind": "annual",
+                    "contract_id": "c_strom_heizstrom",
+                    "special_payment_id": "sp_ad56385809",
+                    "invoice": {
+                        "energy_kwh": 3198,
+                        "amount_eur": 972.47,
+                        "advances_paid_eur": 1260,
+                        "result_eur": -287.53
+                    },
+                    "items": [],
+                    "co2": null,
+                    "note": "",
+                    "attachment_ids": [],
+                    "created_at": "2026-01-25T19:12:00+01:00"
                 }
             ]
         },
@@ -9339,7 +10591,18 @@
                     "auto_renews": null,
                     "min_term_end": null,
                     "price_guarantee_until": null,
-                    "signup_bonus_eur": null
+                    "signup_bonus_eur": null,
+                    "special_payments": [
+                        {
+                            "id": "sp_68df1c458e",
+                            "date": "2025-02-20",
+                            "kind": "nachzahlung_ohne",
+                            "amount_eur": 38.4,
+                            "note": "Wasserabrechnung 2024 — Nachzahlung",
+                            "new_advance_eur": null,
+                            "advance_from": null
+                        }
+                    ]
                 },
                 {
                     "id": "c_wasser_2025",
@@ -9408,7 +10671,18 @@
                     "auto_renews": null,
                     "min_term_end": null,
                     "price_guarantee_until": null,
-                    "signup_bonus_eur": null
+                    "signup_bonus_eur": null,
+                    "special_payments": [
+                        {
+                            "id": "sp_e2b90b6e90",
+                            "date": "2026-02-18",
+                            "kind": "nachzahlung_ohne",
+                            "amount_eur": 221.59,
+                            "note": "Wasserabrechnung 2025 — Nachzahlung",
+                            "new_advance_eur": null,
+                            "advance_from": null
+                        }
+                    ]
                 }
             ],
             "deliveries": [],
@@ -9425,21 +10699,22 @@
                     "contract_id": "c_wasser_2025",
                     "invoice": {
                         "volume_m3": 179.36,
-                        "amount_eur": 1241.59,
+                        "amount_eur": 1253.59,
                         "advances_paid_eur": 1032,
-                        "result_eur": 209.59
+                        "result_eur": 221.59
                     },
                     "items": [
                         {
-                            "label": "Schmutzwasser (abzüglich Gartenwasser)",
-                            "amount_eur": 468.2,
+                            "label": "Zählermiete Gartenzähler",
+                            "amount_eur": 12,
                             "kind": "fee"
                         }
                     ],
                     "co2": null,
                     "note": "",
                     "attachment_ids": [],
-                    "created_at": "2026-02-20T19:12:00+01:00"
+                    "created_at": "2026-02-20T19:12:00+01:00",
+                    "special_payment_id": "sp_e2b90b6e90"
                 }
             ]
         },

@@ -244,6 +244,19 @@
         "title": "¿Qué hay que hacer?",
         "none": "Nada por ahora, bien."
       }
+    },
+    "whatIf": {
+      "title": "¿Y si…?",
+      "text": "Pruébalo: ¿cuánto cuesta un invierno frío, qué aporta el aislamiento, compensa cambiar? El taller de previsión lo calcula con tus datos.",
+      "button": "Pruébalo"
+    },
+    "lever": {
+      "title": "Tu palanca {year}",
+      "real": "al año con tu tarifa, IVA incluido",
+      "dynamic": "al año con tarifa dinámica, IVA incluido",
+      "upTo": "Con tarifa dinámica hasta {eur}",
+      "link": "Flexibilidad",
+      "linkLabel": "Tu palanca: ir a la página «Flexibilidad»"
     }
   },
   "readingsEntry": {
@@ -479,7 +492,8 @@
       "specialCount": {
         "one": "{count} pago extraordinario",
         "other": "{count} pagos extraordinarios"
-      }
+      },
+      "sinceBill": "Calculado desde el {date}: la factura anterior está registrada en el contrato y aquí ya no cuenta."
     },
     "contractsTable": {
       "emptyTitle": "Sin contratos registrados",
@@ -1337,7 +1351,7 @@
     },
     "group": {
       "physical": { "title": "Constantes físicas", "hint": "Conversión y base de grados-día — afectan a todos los análisis." },
-      "co2": { "title": "Factores de emisión de CO₂", "hint": "Gramos de CO₂ por unidad de consumo, para la estimación de emisiones." },
+      "co2": { "title": "Factores de emisión de CO₂", "hint": "Gramos de CO₂ por unidad de consumo, para la estimación de emisiones.", "list": "Factores por tipo de consumo y electricidad por año" },
       "billing": { "title": "Ciclo de facturación", "hint": "Fecha de liquidación anual por suministro (formato DD-MM, p. ej. 01-01 para el 1 de enero, 15-04 para el 15 de abril). Determina hasta dónde se proyecta el saldo de los contratos abiertos; los contratos con fecha de fin definida usan esa fecha." },
       "contractReminders": { "title": "Recordatorios", "hint": "Tres niveles antes del fin del contrato o del plazo de baja; para los recordatorios, el aviso previo y el margen hasta «vencido»." },
       "water": { "title": "Valores de referencia de agua", "hint": "Tamaño del hogar, referencia por persona y bandas del índice de ahorro." },
@@ -1382,6 +1396,10 @@
       "hosts": {
         "title": "Nombres de host",
         "hint": "Indica los nombres con los que abres la aplicación. Entonces solo responde a esos nombres – sin inicio de sesión, esto protege frente a sitios ajenos que hacen apuntar su nombre a tu dirección (DNS rebinding). Las direcciones IP funcionan siempre."
+      },
+      "updates": {
+        "title": "Nuevas versiones",
+        "hint": "Una vez al día la app puede comprobar en GitHub si hay una versión más reciente. GitHub solo ve la dirección de tu servidor, ningún dato de la app."
       }
     },
     "field": {
@@ -1533,6 +1551,10 @@
       "allowed_hosts": {
         "label": "Nombres de host permitidos",
         "hint": "Separados por comas, sin http:// ni puerto, p. ej. energie.example.org, *.home.arpa. Debe incluir el nombre con el que abres la aplicación ahora. Vacío = todos los nombres (como hasta ahora). Se aplica junto con ET_ALLOWED_HOSTS."
+      },
+      "update_check": {
+        "label": "Avisar de nuevas versiones",
+        "hint": "Aparece un aviso hasta que lo cierres para esa versión. Desactivado, no sale ninguna petición."
       }
     },
     "boolActive": "activado",
@@ -1962,7 +1984,44 @@
       "addButton": "Añadir",
       "added": "{name} ya puede iniciar sesión.",
       "saved": "Guardado.",
-      "anonymizeActivity": "Sustituir el nombre en el historial por «antiguo miembro»"
+      "anonymizeActivity": "Sustituir el nombre en el historial por «antiguo miembro»",
+      "no": "n.º {no}",
+      "deleteHint": "Solo quien administra puede eliminar personas. Sus recordatorios abiertos pasan a ti; lo hecho conserva su nombre con «(perfil eliminado)». El número de una persona nunca se vuelve a asignar.",
+      "memberDeleteHint": "Solo quien administra puede añadir, cambiar y eliminar personas.",
+      "handover": {
+        "one": "{count} recordatorio abierto pasa a {to}.",
+        "other": "{count} recordatorios abiertos pasan a {to}."
+      },
+      "handoverNone": "Esta persona no tiene recordatorios abiertos.",
+      "keepDone": {
+        "one": "{count} entrada completada del historial conserva el nombre con «(perfil eliminado)».",
+        "other": "{count} entradas completadas del historial conservan el nombre con «(perfil eliminado)»."
+      },
+      "keepDoneFormer": {
+        "one": "{count} entrada completada del historial muestra entonces «antiguo miembro».",
+        "other": "{count} entradas completadas del historial muestran entonces «antiguo miembro»."
+      },
+      "deletedToast": "El perfil de {name} se ha eliminado.",
+      "handedOver": {
+        "one": "{count} recordatorio abierto ahora es tuyo.",
+        "other": "{count} recordatorios abiertos ahora son tuyos."
+      },
+      "noAccess": "sin acceso",
+      "hintOff": "Sin inicio de sesión no hay cuentas. Estas personas proceden de una copia de seguridad o de un hogar de ejemplo y se pueden elegir en «Responsable»; quien llega a la dirección puede eliminarlas.",
+      "deleteHintOff": "Sin inicio de sesión nadie se hace cargo al eliminar: los recordatorios abiertos de la persona quedan con «(perfil eliminado)» hasta que alguien los reasigne; lo hecho conserva su nombre. El número de una persona nunca se vuelve a asignar.",
+      "noAccessHint": "«sin acceso»: una persona de una copia de seguridad o de un hogar de ejemplo. «Crear acceso» pone su nombre en «Añadir una persona»; con una contraseña se convierte en un acceso con el mismo número, y sus recordatorios y entradas siguen siendo suyos.",
+      "grant": "Crear acceso",
+      "deleteConfirmNoAccess": "Esta persona ya no se ofrecerá para elegir. Los datos del hogar se conservan.",
+      "handoverNobody": {
+        "one": "{count} recordatorio abierto se queda con la persona, con «(perfil eliminado)», hasta que alguien se haga cargo.",
+        "other": "{count} recordatorios abiertos se quedan con la persona, con «(perfil eliminado)», hasta que alguien se haga cargo."
+      },
+      "rename": "Renombrar",
+      "renameTitle": "Renombrar a {name}",
+      "renameHint": "Los recordatorios abiertos muestran después el nuevo nombre; lo hecho conserva el nombre que la persona tenía en ese momento.",
+      "renamed": "La persona ahora se llama {name}.",
+      "renameHintLogin": "Después se inicia sesión con el nuevo nombre.",
+      "loginNeeded": "Las personas con acceso propio se añaden cuando el inicio de sesión está activado. Sin inicio de sesión, cualquiera que llegue a la dirección puede verlo y cambiarlo todo."
     },
     "securityCheck": {
       "title": "Comprobación de seguridad",
@@ -1979,7 +2038,8 @@
       "title": "Apoyar Energietracker",
       "text": "Energietracker es independiente y de código abierto, sin publicidad ni cuenta. Si te resulta útil, puedes apoyar su desarrollo – de forma totalmente voluntaria, la aplicación sigue siendo la misma.",
       "link": "Apoyar con Buy Me a Coffee"
-    }
+    },
+    "assumedValue": "Aún sin introducir. Hasta entonces la aplicación calcula con {value}; la comparación del resumen espera tu dato."
   },
   "reminders": {
     "suggest": {
@@ -2455,7 +2515,6 @@
   "forecast": {
     "noUtilities": "Ningún suministro activo. En los ajustes puedes elegir cuáles se muestran.",
     "loading": "Cargando…",
-    "title": "Previsión",
     "selectUtility": "Elegir suministro",
     "selectMeter": "Elegir contador",
     "chartAlt": "Gráfico de líneas: histórico de consumo con previsión",
@@ -2561,7 +2620,9 @@
       "tankNoRange": "Existencias hoy: {stock} {unit}.",
       "heatDemand": "Energía de calefacción: {value} kWh por m² de superficie útil ({area} m²) y año.",
       "howToRead": "Leer el informe anual",
-      "choose": "Antes de abrir eliges año, suministros, idioma y anexo; este dispositivo recuerda la selección."
+      "choose": "Antes de abrir eliges año, suministros, idioma y anexo; este dispositivo recuerda la selección.",
+      "costDeliveries": "Costes: {amount} según las entregas; de media {price} ct/{unit}.",
+      "areaAssumed": "El indicador usa una superficie habitable supuesta de {area} m². Introduce la superficie real en Ajustes → Hogar y edificio."
     },
     "weatherSource": "Temperaturas: Open-Meteo.com (CC BY 4.0), salvo las introducidas por ti.",
     "print": {
@@ -2570,7 +2631,9 @@
       "back": "← Informe anual",
       "hint": "El informe en el idioma y la notación de la interfaz. «Imprimir» lo pasa a papel o lo guarda como PDF — en el iPhone mediante Compartir → Imprimir.",
       "detail": "Con el anexo «Cifras en detalle»",
-      "priority": "Prioridad {n}"
+      "priority": "Prioridad {n}",
+      "scenarioTitle": "Escenario: {name}",
+      "scenarioMissing": "El escenario «{name}» no está guardado en este dispositivo."
     },
     "fmt": {
       "approx": "aprox. {amount}",
@@ -2612,7 +2675,9 @@
       "cop": "Rendimiento por mes",
       "solarShare": "de ello solar",
       "cheapShare": "Proporción en horas baratas",
-      "errors": "Nota: faltan algunos apartados porque no se pudieron leer sus datos."
+      "errors": "Nota: faltan algunos apartados porque no se pudieron leer sus datos.",
+      "billing": "Años de facturación",
+      "flexPage": "Flexibilidad"
     },
     "tile": {
       "cost": "Costes de energía",
@@ -2912,8 +2977,8 @@
         "sentence": "Cuánta electricidad se consumió en horas baratas, según los precios de mercado por cuarto de hora.",
         "row": "{share} barata · factor de perfil {pf}",
         "module3": "El peaje de red variable (módulo 3) aportó {amount}.",
-        "battery": "La batería cargó sobre todo en horas baratas y descargó en horas caras: valor {amount} (solo la parte de mercado).",
-        "note": "Factor de perfil inferior a 1: la electricidad se consumió en horas más baratas que la media. Los importes solo cuentan la parte de mercado del precio."
+        "battery": "La batería cargó sobre todo en horas baratas y descargó en horas caras: valor {amount} (solo la parte de mercado, neta, sin IVA).",
+        "note": "Factor de perfil inferior a 1: la electricidad se consumió en horas más baratas que la media. Los importes solo cuentan la parte de mercado del precio, neta, sin IVA."
       },
       "tenancy": {
         "budget": "Periodo de liquidación del {from} al {to}: gastos previstos {expected}, anticipos {prepaid}.",
@@ -2921,7 +2986,8 @@
         "statementCredit": "Liquidación {year}: {amount} a favor.",
         "co2Central": "Costes de CO₂ {year}: el arrendador asume {amount}.",
         "co2Claim": "Costes de CO₂ {year}: {amount} del arrendador, plazo {date}.",
-        "pathLegend": "Línea por encima de cero: pago adicional previsto; por debajo: saldo a favor. Discontinua: estimación."
+        "pathLegend": "Línea por encima de cero: pago adicional previsto; por debajo: saldo a favor. Discontinua: estimación.",
+        "co2AreaAssumed": "El tramo y el importe del reparto del CO₂ usan una superficie habitable supuesta de {area} m². Introduce la superficie en el alquiler."
       }
     },
     "appendix": {
@@ -3024,7 +3090,28 @@
       "demoNote": "En la demo solo está el informe completo; el informe parcial y el anexo en el PDF funcionan con tu propia instalación.",
       "remembered": "Este dispositivo recuerda la selección; el año vuelve cada vez al año anterior.",
       "options": "Opciones…",
-      "partial": "Informe parcial: {list}"
+      "partial": "Informe parcial: {list}",
+      "billing": "Con el anexo «Años de facturación»",
+      "billingHint": "Para cada suministro, los periodos de facturación que terminan en el año del informe. Las demás páginas siguen en año natural; si no, los totales de todos los suministros no cuadrarían.",
+      "flex": "Con la página «Flexibilidad» (semáforo, palancas, franjas horarias)",
+      "flexHint": "Cuándo la electricidad fue barata y lo que puede aportar desplazar el consumo. Necesita los precios mayoristas por cuarto de hora del año del informe, franjas del módulo 3 o la producción por cuarto de hora; si no, la página se omite.",
+      "scenario": "Adjuntar escenario",
+      "scenarioNone": "Ninguno",
+      "scenarioHint": "Un escenario guardado en el taller de previsión como página propia — solo en la vista de impresión, porque está guardado en este dispositivo."
+    },
+    "billing": {
+      "period": "Periodo",
+      "source": "Base",
+      "sourceBill": "Factura",
+      "sourceAnchor": "Fecha de liquidación",
+      "advances": "Anticipos {cur}",
+      "balance": "Saldo {cur}",
+      "note": "Para cada suministro, los periodos de facturación que terminan este año: como en las facturas registradas; si no, según la fecha de liquidación. Saldo = coste − anticipos − anticipos adicionales; positivo = pago adicional, negativo = saldo a favor. Las demás páginas muestran años naturales.",
+      "running": "* en curso; calculado hasta la última lectura (a fecha de {date}).",
+      "partial": "† Periodo parcial: los datos empiezan dentro de él, o es un resto hasta la fecha de liquidación."
+    },
+    "flexPage": {
+      "bandLead": "Precio mayorista medio por hora en {year} (parte mayorista neta, sin IVA): el verde es el tercio de horas más barato, el amarillo el intermedio y el rojo el más caro. Un punto sobre la hora indica sol."
     }
   },
   "csv": {
@@ -3037,7 +3124,21 @@
     "balanceCumulative": "Saldo acumulado ({code})",
     "avgTemp": "Temp media (°C)",
     "hdd": "GD",
-    "co2": "CO2 (kg)"
+    "co2": "CO2 (kg)",
+    "billing": {
+      "from": "Desde",
+      "until": "Hasta",
+      "source": "Base",
+      "sourceBill": "Factura",
+      "sourceAnchor": "Fecha de liquidación",
+      "days": "Días",
+      "consumption": "Consumo ({unit})",
+      "cost": "Coste ({code})",
+      "advances": "Anticipos ({code})",
+      "extraAdvances": "Anticipos adicionales ({code})",
+      "balance": "Saldo ({code})",
+      "complete": "Completo"
+    }
   },
   "auth": {
     "tokenOnce": "Copia este token ahora — no se volverá a mostrar."
@@ -3306,7 +3407,8 @@
       "noTransport": "El servidor no puede obtener direcciones web: PHP no tiene ni cURL ni allow_url_fopen."
     },
     "export": {
-      "formatInvalid": "Formato CSV desconocido «{format}» — se admiten 1 y local."
+      "formatInvalid": "Formato CSV desconocido «{format}» — se admiten 1 y local.",
+      "periodInvalid": "Periodo desconocido «{period}» — se admiten calendar y billing."
     },
     "attachment": {
       "type": "Como justificante solo se pueden guardar fotos (JPEG, PNG, WebP) y archivos PDF.",
@@ -3377,7 +3479,9 @@
       "roleInvalid": "El rol debe ser «Administración» o «Miembro» (API: admin, member).",
       "lastAdmin": "Al menos una persona debe administrar la instalación.",
       "notFound": "Esta persona ya no existe.",
-      "notSelf": "No puedes eliminarte a ti mismo: puede hacerlo otra persona que administre la instalación."
+      "notSelf": "No puedes eliminarte a ti mismo: puede hacerlo otra persona que administre la instalación.",
+      "noAccountPassword": "Esta persona no tiene acceso. Crea uno con «Crear acceso»; así recibe una contraseña.",
+      "nameTakenPerson": "Una persona sin acceso ya tiene este nombre (Ajustes → Acceso). Los nombres son únicos en el hogar."
     },
     "evcc": {
       "off": "No hay dirección de evcc configurada (Ajustes → Experto).",
@@ -3547,7 +3651,7 @@
     "updated": "Factura modificada",
     "editing": "Estás editando la factura del {from} al {to}.",
     "editBookedNote": "Ya está registrada como pago extraordinario – el asiento en el contrato no cambia.",
-    "periodDefault": "Se rellena con el último periodo de facturación cerrado. La fecha de liquidación de cada suministro se ajusta en Ajustes → Suministros y facturación."
+    "periodDefault": "Se rellena con el último periodo de facturación cerrado — como en el año de facturación, según las facturas registradas o, si no, según la fecha de liquidación. La fecha de liquidación de cada suministro se ajusta en Ajustes → Suministros y facturación."
   },
   "glossary": {
     "hdd": {
@@ -3729,6 +3833,18 @@
     "typicalDay": {
       "term": "Día típico",
       "text": "El flujo de energía de un día medio del mes: para cada cuarto de hora (hora local), la media de todos los días del mes con valores medidos. Muestra el patrón —por ejemplo, cuándo el sol del mediodía carga la batería—, no un día real."
+    },
+    "billingYear": {
+      "term": "Año de facturación",
+      "text": "El periodo de una factura anual del proveedor, por ejemplo de septiembre a agosto. La aplicación lo toma de las facturas registradas o, si no las hay, de la fecha de liquidación del suministro; un cambio de proveedor lo cierra el último día con el proveedor anterior. Se activa en la página del suministro, el resumen y el análisis."
+    },
+    "scenario": {
+      "term": "Escenario (y si)",
+      "text": "Un cálculo con supuestos cambiados — invierno más frío, aislamiento, otra tarifa — frente al caso base, la previsión con tus datos. Un escenario es un cálculo de modelo, no una medición: muestra en qué dirección y con qué fuerza actúa un cambio."
+    },
+    "runningYear": {
+      "term": "Año en curso",
+      "text": "En el año en curso, el año natural cuenta entero el término fijo y el anticipo del mes de la última lectura, y el año de facturación solo los días hasta la lectura — los años completos son iguales en ambas vistas."
     }
   },
   "help": {
@@ -3859,7 +3975,8 @@
     "language": "Idioma",
     "close": "Cerrar aviso",
     "readOnly": "En la demo no se guarda nada. Con tu propia instalación registras tus datos.",
-    "unavailable": "Este análisis no está precalculado en la demo; funciona con tu propia instalación."
+    "unavailable": "Este análisis no está precalculado en la demo; funciona con tu propia instalación.",
+    "scenarioPresetsOnly": "En la demo solo están precalculados los escenarios de ejemplo."
   },
   "manifest": {
     "description": "Consumo, costes y contratos de electricidad, gas, agua, calefacción urbana, gasóleo, pellets y fotovoltaica, en local y sin nube.",
@@ -3915,7 +4032,8 @@
       "exampleReadings": "ejemplo-lecturas",
       "exampleTemperatures": "ejemplo-temperaturas",
       "periods": "periodos",
-      "activity": "historial"
+      "activity": "historial",
+      "billing": "anos-de-facturacion"
     },
     "periods": {
       "from": "Desde",
@@ -4283,10 +4401,27 @@
     "incomplete": "El año aún no tiene valores para todos los meses: solo se compara un año completo.",
     "special": "Con FV, bomba de calor o cargador, la referencia general no encaja; la bomba de calor y el cargador ya están descontados aquí.",
     "source": "Fuente de los valores de referencia: {source}",
-    "empty": "Introduce tus propios valores de referencia en los ajustes (hogar), p. ej. de un índice de electricidad o calefacción: la aplicación situará tu consumo.",
-    "link": {
-      "stromspiegel": "Stromspiegel: comprobar tu clase (en alemán)",
-      "heizspiegel": "Heizspiegel: comprobar los costes de calefacción (en alemán)"
+    "line": {
+      "stromBelow": "Electricidad del hogar: {kwh} kWh, {pct} por debajo de tu valor de referencia ({own} kWh).",
+      "stromAbove": "Electricidad del hogar: {kwh} kWh, {pct} por encima de tu valor de referencia ({own} kWh).",
+      "heatingBelow": "{label}: {value} kWh/m², {pct} por debajo de tu valor de referencia ({own} kWh/m²).",
+      "heatingAbove": "{label}: {value} kWh/m², {pct} por encima de tu valor de referencia ({own} kWh/m²).",
+      "waterBelow": "Agua: {liters} litros por persona y día, {pct} por debajo del valor orientativo ({ref} litros).",
+      "waterAbove": "Agua: {liters} litros por persona y día, {pct} por encima del valor orientativo ({ref} litros)."
+    },
+    "waterBasis": "{m3} m³ en el año · personas en el hogar: {persons}",
+    "rating": {
+      "good": "Bien",
+      "near": "Por encima",
+      "high": "Muy por encima"
+    },
+    "invite": {
+      "reference": "¿Cómo está tu consumo? Introduce un valor de referencia, por ejemplo de una comparativa de consumo: este recuadro mostrará un semáforo.",
+      "referenceLink": "Introducir valores de referencia",
+      "area": "Para comparar la calefacción falta la superficie habitable.",
+      "areaLink": "Introducir la superficie habitable",
+      "persons": "Para comparar el agua falta el número de personas en el hogar.",
+      "personsLink": "Introducir el número de personas"
     }
   },
   "import": {
@@ -4527,7 +4662,8 @@
       "demoHint": "Carga el hogar de ejemplo adecuado — con el historial «Hecho», los responsables de los recordatorios y las facturas del proveedor. Antes, la app guarda el estado actual.",
       "demoPublic": "La demo muestra ahora el hogar de ejemplo «{persona}». Para elegir otro: Ajustes → General → «Iniciar el asistente de configuración».",
       "own": "Empezar con mis datos",
-      "ownHint": "Después: revisa los contadores y añade la primera lectura."
+      "ownHint": "Después: revisa los contadores y añade la primera lectura.",
+      "updateCheck": "Avisar de nuevas versiones (consulta GitHub una vez al día)"
     },
     "skip": "Omitir",
     "back": "Atrás",
@@ -4611,7 +4747,7 @@
     "title": "Valorar la flexibilidad",
     "year": "Año",
     "loadPrices": "Cargar precios mayoristas {year} desde SMARD",
-    "intro": "¿Ha merecido la pena desplazar el consumo? Se calcula con tu consumo y el precio mayorista por cuarto de hora — solo la parte mayorista, sin impuestos, cargos ni peaje de red. El control se hace en otro sitio (evcc, Home Assistant, la propia batería).",
+    "intro": "¿Cuándo compensa consumir electricidad y cuánto aporta desplazar el consumo? El semáforo muestra las horas baratas y caras, «Tu palanca» lo que puede aportar en un año. Se calcula con el consumo, la producción y el precio mayorista por cuarto de hora; el control se hace en otro sitio (evcc, Home Assistant, la propia batería).",
     "noPrices": "Faltan los precios mayoristas por cuarto de hora de {year} — cárgalos desde SMARD arriba.",
     "noIntervals": "Todavía no hay consumo por cuarto de hora de {year}. Llega desde un archivo del portal (contadores → importar serie temporal) o desde Home Assistant con marca de tiempo.",
     "attribution": "Precios mayoristas: Bundesnetzagentur | SMARD.de (CC BY 4.0)",
@@ -4621,14 +4757,14 @@
       "kwh": "Consumo con precio",
       "cheap": "En cuartos de hora baratos",
       "negative": "Con precio negativo",
-      "own": "Media propia / media mercado",
+      "own": "Media propia / media mercado (neto)",
       "factor": "Factor de perfil",
-      "advantage": "Ventaja (parte mayorista)"
+      "advantage": "Ventaja (parte mayorista, neto)"
     },
     "noOverlap": "Ningún cuarto de hora con consumo y precio mayorista.",
     "verdict": {
-      "good": "Más barato que la media: {eur} ahorrados en la parte mayorista (factor de perfil {factor}).",
-      "bad": "Más caro que la media: {eur} más en la parte mayorista (factor de perfil {factor}) — se consume más bien en horas caras."
+      "good": "Más barato que la media: {eur} ahorrados en la parte mayorista sin IVA (factor de perfil {factor}).",
+      "bad": "Más caro que la media: {eur} más en la parte mayorista sin IVA (factor de perfil {factor}) — se consume más bien en horas caras."
     },
     "months": "Por mes",
     "col": {
@@ -4644,7 +4780,7 @@
       "title": "Batería según el precio mayorista",
       "charged": "Cargado · precio medio",
       "discharged": "Descargado · precio medio",
-      "value": "Valor del desplazamiento",
+      "value": "Valor del desplazamiento (neto)",
       "hint": "kWh descargados al precio mayorista de la descarga menos kWh cargados al precio mayorista de la carga — lo que valió desplazar a lo largo del día, sin pérdidas ni peaje de red."
     },
     "module3": {
@@ -4668,7 +4804,170 @@
         "smard": "SMARD"
       }
     },
-    "loadingPrices": "Cargando precios mayoristas … {month} ({n} de {total})"
+    "loadingPrices": "Cargando precios mayoristas … {month} ({n} de {total})",
+    "card": {
+      "brand": "Energietracker · Flexibilidad",
+      "title": "Tu palanca {year}",
+      "real": "Esto puedes ahorrar al año con tu tarifa si desplazas el consumo a las horas baratas y de sol.",
+      "dynamic": "Esto se ahorraría al año con una tarifa dinámica si desplazas el consumo a las horas baratas.",
+      "factBest": "Mayor palanca: {name}",
+      "factDynamic": "Con tarifa dinámica",
+      "upTo": "hasta {eur}",
+      "factSelf": "Electricidad solar autoconsumida",
+      "factModule3": "Ya ahorrado con el módulo 3",
+      "footer": "Precios mayoristas {year} por cuarto de hora: Bundesnetzagentur | SMARD.de (CC BY 4.0) · importes con IVA · valores de ejemplo señalados · a {date}",
+      "footerOwn": "A partir de tus cuartos de hora {year} · importes con IVA · valores de ejemplo señalados · a {date}",
+      "image": "Guardar como imagen",
+      "filename": "flexibilidad"
+    },
+    "missing": {
+      "title": "Lo que esta página puede mostrar además",
+      "prices": "<strong>Faltan los precios mayoristas por cuarto de hora</strong> de {year}. Con ellos, el semáforo muestra las horas baratas y caras, y «Tu palanca» calcula en euros — también para la lavadora y el lavavajillas.",
+      "intervals": "<strong>Falta el consumo por cuarto de hora</strong>. Con él, la aplicación ve cuándo consumes y comprueba lo que ha aportado desplazar el consumo. Llega de un archivo del portal (contador → importar serie temporal) o de Home Assistant con marca de tiempo.",
+      "devices": "<strong>Wallbox o bomba de calor con contador propio</strong> y cuartos de hora: entonces «Tu palanca» muestra valores medidos y no solo valores de ejemplo.",
+      "pv": "<strong>Producción y vertido por cuarto de hora</strong>: con ellos la página muestra cuánta electricidad solar más podrías autoconsumir.",
+      "tariff": "<strong>Tarifa dinámica o módulo 3</strong>: con una oferta dinámica en Comprobar cambio o con franjas del módulo 3 (§ 14a) en el contrato, la página muestra cuándo desplazar el consumo ahorra dinero de verdad.",
+      "guide": "Paso a paso en la guía"
+    },
+    "real": {
+      "yes": "con tu tarifa",
+      "no": "con tarifa dinámica"
+    },
+    "basis": {
+      "assumed": "valor de ejemplo"
+    },
+    "actions": {
+      "title": "Lo que puedes hacer",
+      "lead": "La mayor palanca por aparato, con la franja horaria para el {season}. Los importes son límites máximos para un año.",
+      "other": "{season}: {window}",
+      "ev": {
+        "cheap": "Carga el coche {window}: hasta {eur} al año.",
+        "sun": "Carga el coche con electricidad solar, {window}: hasta {eur} al año.",
+        "low": "Carga el coche en la franja de peaje bajo, {window}: hasta {eur} al año."
+      },
+      "heat_pump": {
+        "cheap": "Deja que la bomba de calor precaliente {window}: hasta {eur} al año.",
+        "low": "Haz funcionar más la bomba de calor en la franja de peaje bajo, {window}: hasta {eur} al año.",
+        "sun": "Deja que la bomba de calor precaliente con electricidad solar, {window}: hasta {eur} al año."
+      },
+      "battery": {
+        "peak": "Descarga la batería cuando la electricidad es cara, {window}: hasta {eur} al año."
+      },
+      "washer": {
+        "cheap": "Pon la lavadora {window}: hasta {eur} al año.",
+        "sun": "Pon la lavadora con electricidad solar, {window}: hasta {eur} al año."
+      },
+      "dishwasher": {
+        "cheap": "Pon el lavavajillas {window}: hasta {eur} al año.",
+        "sun": "Pon el lavavajillas con electricidad solar, {window}: hasta {eur} al año."
+      }
+    },
+    "season": {
+      "summer": "semestre de verano",
+      "winter": "semestre de invierno"
+    },
+    "seasonBtn": {
+      "winter": "Semestre de invierno",
+      "summer": "Semestre de verano",
+      "all": "Año completo"
+    },
+    "ampel": {
+      "title": "Cuándo la electricidad es barata",
+      "seasonLabel": "Estación",
+      "lead": "Precio mayorista medio por hora en {year} (parte mayorista neta, sin IVA): el verde es el tercio de horas más barato y el rojo el más caro. ☀ indica cuándo tu instalación produce mucho.",
+      "leadTou": "Peaje de red según el módulo 3 (§ 14a) de tu contrato: el verde es la tarifa baja, el amarillo la estándar y el rojo la alta.",
+      "leadSun": "Solo el sol: faltan los precios mayoristas o las franjas del módulo 3.",
+      "day": "Un día típico",
+      "week": "La semana",
+      "weekCaption": "Nivel de precio por día y hora, {season}",
+      "level": {
+        "cheap": "barato",
+        "mid": "medio",
+        "expensive": "caro",
+        "none": "sin precio"
+      },
+      "sun": {
+        "strong": "mucho sol",
+        "some": "algo de sol",
+        "none": "sin sol"
+      },
+      "hourCell": "{hour}: {level}, {ct}",
+      "summary": "Más barato: {cheap}. Más caro: {peak}.",
+      "range": "De {min} a {max}, de media {mean} (parte mayorista neta, sin IVA ni peaje de red).",
+      "rangeTou": "De {min} a {max}, de media {mean} (peaje de red según el contrato)."
+    },
+    "weekdays": {
+      "short": "lun,mar,mié,jue,vie,sáb,dom",
+      "long": "lunes,martes,miércoles,jueves,viernes,sábado,domingo",
+      "often": "los lunes,los martes,los miércoles,los jueves,los viernes,los sábados,los domingos"
+    },
+    "window": {
+      "week": "{day} de {from} a {to}",
+      "day": "de {from} a {to}"
+    },
+    "windows": {
+      "title": "Mejores franjas de la semana",
+      "lead": "{season} · {hours} horas seguidas, según el precio mayorista.",
+      "col": {
+        "window": "Franja horaria",
+        "price": "Precio mayorista medio (neto)",
+        "grid": "Peaje de red",
+        "vsMean": "frente a la media",
+        "sun": "Sol"
+      },
+      "below": "{ct} menos"
+    },
+    "solar": {
+      "title": "Autoconsumir la electricidad solar",
+      "now": "En {year} autoconsumiste {self} de {gen} ({share}); {feed} se vertieron a la red.",
+      "more": "Con las palancas de electricidad solar se podrían autoconsumir unos {more} más: autoconsumo {after} en lugar de {share}, {eur} al año ({wp} de precio unitario en lugar de {feed} de compensación por vertido).",
+      "noMore": "Solo con mayores consumos de día se podría autoconsumir más electricidad solar."
+    },
+    "lever": {
+      "title": "Tu palanca",
+      "lead": "Lo que puede aportar desplazar el consumo en un año: el consumo se mueve a los cuartos de hora más baratos de su día (el coche: mientras está enchufado), como máximo con la mayor potencia medida del aparato. El patrón actual es una de las opciones, por eso ninguna palanca es negativa.",
+      "col": {
+        "device": "Aparato",
+        "signal": "Señal de precio",
+        "shift": "desplazado",
+        "eur": "al año"
+      },
+      "total": "En total hasta {eur} al año con IVA (mayor palanca por aparato), de ellos {real} con tu tarifa.",
+      "assumptions": "Valores de ejemplo: bomba de calor {hp} del consumo diario desplazable; lavadora {wkwh} kWh por ciclo, {wn} ciclos a la semana; lavavajillas {dkwh} kWh por ciclo, {dn} ciclos a la semana, cada uno de {h} horas frente a un inicio a cualquier hora.",
+      "upper": "Límite máximo: los cuartos de hora más baratos se conocen el día anterior (day-ahead). Precio mayorista con un {vat} de IVA, como lo factura una tarifa dinámica, sin su recargo, cargos ni peaje de red; electricidad solar al precio unitario menos la compensación por vertido; módulo 3 con los importes del contrato.",
+      "kind": {
+        "ev": "Coche eléctrico ({name})",
+        "heat_pump": "Bomba de calor ({name})",
+        "battery": "Batería",
+        "washer": "Lavadora",
+        "dishwasher": "Lavavajillas"
+      },
+      "plain": {
+        "ev": "Coche eléctrico",
+        "heat_pump": "Bomba de calor"
+      },
+      "evSessions": {
+        "one": "Coche: solo se desplaza mientras está enchufado — horas de conexión de {count} sesión de carga de evcc.",
+        "other": "Coche: solo se desplaza mientras está enchufado — horas de conexión de {count} sesiones de carga de evcc."
+      },
+      "evPart": "Las sesiones de carga cubren el {share} de la energía cargada; los días sin sesión el coche está disponible todo el día (valor de ejemplo).",
+      "evDay": "Coche: disponible todo el día los días de carga (valor de ejemplo). Con las sesiones de carga de evcc cuentan las horas de conexión."
+    },
+    "signal": {
+      "spot": "Precio mayorista",
+      "tou": "Peaje de red (módulo 3)",
+      "solar": "Electricidad solar"
+    },
+    "check": {
+      "title": "Comprobado: lo que aportó desplazar el consumo",
+      "lead": "Para cada contador eléctrico con cuartos de hora: cuánto se consumió en cuartos de hora baratos y qué precio mayorista habrías pagado de media; además, batería y módulo 3. Importes y valores en ct al precio mayorista: parte mayorista neta, sin IVA; módulo 3 con los importes del contrato."
+    },
+    "availability": {
+      "sessions": "horas de conexión de evcc",
+      "day": "día de carga completo (valor de ejemplo)"
+    },
+    "net": "neto, sin IVA",
+    "netNote": "Valores en ct del semáforo y de las franjas: parte mayorista neta, sin IVA — los importes en euros de las palancas incluyen IVA."
   },
   "pager": {
     "label": "Páginas de la lista",
@@ -4813,6 +5112,306 @@
       "one": "{count} entrada más oculta (filtro «Responsable»)",
       "other": "{count} entradas más ocultas (filtro «Responsable»)"
     },
-    "emptyFiltered": "Nada para esta selección."
+    "emptyFiltered": "Nada para esta selección.",
+    "wasDeleted": "La persona responsable se ha eliminado. Escribe a otra persona o deja el campo vacío."
+  },
+  "notice": {
+    "updated": "Actualizado a la versión {version}.",
+    "available": "Ya está disponible la versión {version}.",
+    "whatsNew": "Novedades",
+    "support": "¿Te gusta Energietracker? Puedes apoyarlo aquí:",
+    "supportLink": "Apoyar",
+    "dismiss": "Cerrar aviso"
+  },
+  "billing": {
+    "mode": {
+      "label": "Periodo de las cifras",
+      "calendar": "Año natural",
+      "billing": "Año de facturación",
+      "calendarOnly": "{label} no tiene factura del proveedor; aquí se aplica el año natural."
+    },
+    "period": {
+      "pills": "Elegir el periodo de facturación",
+      "none": "Todavía no hay ningún periodo de facturación con lecturas. Aparece cuando haya dos lecturas.",
+      "fromBill": "Del {from} al {until}, como en la factura",
+      "fromAnchor": "Del {from} al {until}, según la fecha de liquidación",
+      "asOf": "calculado hasta el {date} (última lectura)",
+      "running": "en curso",
+      "partial": "periodo parcial",
+      "switch": "termina con el cambio de proveedor"
+    },
+    "suggest": "La última factura termina el {date} y la fecha de liquidación es el {anchor}. Introduce el {day} como fecha de liquidación en la configuración: el periodo en curso y los siguientes seguirán el ritmo de la factura.",
+    "chart": {
+      "prev": "Periodo anterior {name}"
+    },
+    "dashboard": {
+      "window": "Año de facturación {name}: del {from} al {until}",
+      "costSub": "Anticipos hasta ahora {advances}"
+    },
+    "analysis": {
+      "title": "Años de facturación comparados"
+    },
+    "export": {
+      "label": "Años de facturación",
+      "hint": "Una fila por periodo de facturación: periodo, cantidad, coste, anticipos, saldo. Periodos como en las facturas registradas; si no, según la fecha de liquidación y hasta un cambio de proveedor."
+    }
+  },
+  "scenario": {
+    "title": "Taller de previsión",
+    "lead": "<strong>¿Y si…?</strong> Pruébalo: mueve los controles y ve al instante lo que costaría o ahorraría el próximo año un invierno frío, el aislamiento u otra tarifa.",
+    "controls": "Palancas",
+    "presets": {
+      "label": "Escenarios de ejemplo",
+      "try": "Prueba un ejemplo:",
+      "reset": "Restablecer"
+    },
+    "preset": {
+      "cold_winter": {
+        "label": "Invierno frío",
+        "note": "Ejemplo «Invierno frío»: {pct} más de grados-día — con normal climática, tan frío como uno de cada diez inviernos; sin ella, una suposición.",
+        "sentence": "Un invierno frío te cuesta {amount} más al año."
+      },
+      "roof": {
+        "label": "Tejado aislado",
+        "note": "Ejemplo «Tejado aislado»: un 15 % menos de calor es un valor de ejemplo supuesto, no una referencia — introduce en Medidas el valor de tu auditoría energética y el coste.",
+        "sentence": "Un tejado aislado te ahorra {amount} al año."
+      },
+      "cheapest": {
+        "label": "Oferta más barata",
+        "note": "Ejemplo «Oferta más barata»: la más barata de las ofertas introducidas, calculada con tu consumo previsto, sin bonificación.",
+        "sentence": "Cambiar a la oferta más barata te ahorra {amount} al año."
+      },
+      "save10": {
+        "label": "Ahorrar un 10 %",
+        "note": "Ejemplo «Ahorrar un 10 %»: un diez por ciento menos de consumo con tus hábitos, por ejemplo duchas más cortas o evitar el modo de espera.",
+        "sentence": "Un diez por ciento menos de consumo te ahorra {amount} al año."
+      }
+    },
+    "winter": {
+      "label": "Invierno",
+      "hint": "Grados-día frente a un invierno normal. Solo afecta a la parte que depende de la calefacción.",
+      "normal": "normal",
+      "colder": "{pct} más frío",
+      "milder": "{pct} más suave"
+    },
+    "saving": {
+      "label": "Ahorrar",
+      "hint": "Menos consumo gracias a tus hábitos, sobre todo el consumo.",
+      "value": "{pct} menos"
+    },
+    "none": "sin cambios",
+    "tariff": {
+      "label": "Tarifa",
+      "current": "Contrato actual",
+      "cheapest": "Oferta más barata",
+      "offer": "Oferta: {label}",
+      "custom": "Precio propio",
+      "workingPrice": "Precio unitario ({minor} por unidad)",
+      "basePrice": "Término fijo ({cur} al mes)"
+    },
+    "group": {
+      "advanced": "Más palancas",
+      "expert": "Para expertos"
+    },
+    "room": {
+      "label": "Temperatura interior",
+      "hint": "Desplaza el umbral de calefacción lo mismo — calculado con tu modelo de calefacción y los grados-día del lugar, no una regla empírica."
+    },
+    "baseload": {
+      "label": "Carga base",
+      "hint": "Agua caliente, cocina, aparatos — la parte que no depende del tiempo."
+    },
+    "model": {
+      "label": "Modelo de previsión",
+      "standard": "Corregido por clima (previsión)",
+      "last_year": "Como el año pasado",
+      "trend": "Tendencia prolongada",
+      "unavailable": "datos insuficientes (se necesitan dos años completos)"
+    },
+    "measures": {
+      "title": "Medidas",
+      "hint": "Tú introduces los porcentajes y los costes, mejor de tu auditoría energética. La calefacción actúa sobre la parte que depende de ella, la carga base sobre el resto.",
+      "add": "Añadir medida",
+      "active": "en el escenario",
+      "remove": "Quitar medida",
+      "kind": "Tipo",
+      "labelField": "Nombre (opcional)",
+      "heat": "Calefacción − %",
+      "base": "Carga base − %",
+      "cost": "Coste ({cur})"
+    },
+    "measure": {
+      "kind": {
+        "roof": "Aislar el tejado",
+        "facade": "Aislar la fachada",
+        "windows": "Cambiar las ventanas",
+        "basement": "Aislar el techo del sótano",
+        "hydraulic": "Equilibrado hidráulico",
+        "pump": "Cambiar la bomba de calefacción",
+        "thermostat": "Termostatos inteligentes",
+        "shower": "Alcachofa de bajo caudal",
+        "other": "Otra medida"
+      }
+    },
+    "regression": "Curva de calefacción (modelo de regresión)",
+    "ev": {
+      "km": "Coche eléctrico: km al año",
+      "kwh": "Consumo (kWh/100 km)",
+      "placeholder": "según el vehículo"
+    },
+    "jaz": {
+      "from": "Bomba de calor: SPF actual",
+      "to": "SPF en el escenario"
+    },
+    "budget": {
+      "label": "Presupuesto para medidas ({cur})",
+      "placeholder": "vacío = sin optimización"
+    },
+    "save": {
+      "title": "Guardar escenario",
+      "name": "Nombre",
+      "button": "Guardar",
+      "list": "Escenarios guardados",
+      "load": "Cargar",
+      "delete": "Eliminar",
+      "done": "Guardado: «{name}»",
+      "failed": "No se puede guardar: el navegador no permite almacenamiento.",
+      "local": "Los escenarios se quedan en este navegador — nada sale del dispositivo."
+    },
+    "compare": {
+      "button": "Comparar",
+      "title": "Escenarios guardados comparados",
+      "name": "Escenario",
+      "utility": "Suministro",
+      "delta": "Diferencia"
+    },
+    "demoNote": "En la demo, el caso base y los escenarios de ejemplo están precalculados. Tu instalación calcula cualquier valor — prueba un ejemplo arriba.",
+    "demoShort": "no precalculado en la demo",
+    "unsupported": "{label}: el taller calcula para suministros con lecturas y contratos. La previsión detallada está más abajo.",
+    "tooFew": "{label}: para un escenario la previsión necesita al menos seis meses de consumo.",
+    "card": {
+      "brand": "Energietracker · Taller de previsión",
+      "yours": "Tu escenario",
+      "more": "El escenario «{name}» te cuesta {amount} más al año.",
+      "less": "El escenario «{name}» te ahorra {amount} al año.",
+      "same": "El escenario «{name}» apenas cambia tus costes.",
+      "footer": "Cálculo de modelo {from} – {to} · creado el {date} con Energietracker"
+    },
+    "kpi": {
+      "cost": "Coste anual",
+      "vsBase": "{delta} frente a {base}",
+      "qty": "Consumo",
+      "qtyYear": "Consumo anual",
+      "advance": "Anticipo recomendado",
+      "advanceNow": "actual {amount}",
+      "balance": "Saldo en la factura del {date}",
+      "balanceBase": "Caso base: {amount}",
+      "co2": "CO₂",
+      "co2Year": "CO₂ al año"
+    },
+    "chart": {
+      "cumTitle": "Coste acumulado",
+      "monthTitle": "Mes a mes",
+      "base": "Caso base",
+      "scenario": "Escenario",
+      "eur": "{cur}",
+      "cumAlt": "Gráfico de líneas: coste acumulado, al año caso base {base}, escenario {scen}",
+      "monthAlt": "Gráfico de líneas: consumo mensual en {unit}, caso base y escenario",
+      "costBase": "Coste caso base",
+      "costScen": "Coste escenario"
+    },
+    "ranking": {
+      "title": "¿Qué aporta más?",
+      "hint": "Cada palanca por separado frente al caso base (invierno normal, contrato actual), efecto en el primer año.",
+      "lever": "Palanca",
+      "saving": "Ahorro anual",
+      "qty": "Cantidad ({unit})",
+      "cost": "Coste",
+      "payback": "Amortización",
+      "years": "{n} años",
+      "empty": "Aún no has movido ninguna palanca — cambia algo a la izquierda."
+    },
+    "lever": {
+      "room_temp": "Temperatura interior",
+      "saving": "Ahorro (hábitos)",
+      "baseload": "Carga base",
+      "ev": "Coche eléctrico",
+      "jaz": "Bomba de calor (SPF)"
+    },
+    "models": {
+      "title": "Modelos de previsión comparados",
+      "baseQty": "Cantidad caso base",
+      "baseCost": "Coste caso base",
+      "scenQty": "Cantidad escenario",
+      "scenCost": "Coste escenario",
+      "band": "Incertidumbre: en el {level} % de los años, el consumo del escenario está entre {low} y {high} {unit}, según el invierno."
+    },
+    "opt": {
+      "title": "Mejor combinación dentro de un presupuesto",
+      "hint": "Introduce un presupuesto y el coste de las medidas — el taller busca la combinación con el mayor ahorro.",
+      "noCandidates": "Ninguna medida con coste introducido.",
+      "none": "Ninguna combinación compensa con {budget}.",
+      "result": "Con {budget}: {list} — cuesta {cost}, ahorra {saving} al año.",
+      "payback": "Amortizado en {n} años.",
+      "apply": "Aplicar la selección",
+      "lp": "Calculado con el modelo, interacciones incluidas; combinaciones dentro del presupuesto comprobadas: {n}. La relajación lineal (símplex) da como máximo {bound}; ahí cada {cur} más de presupuesto aporta hasta {value} {minor} al año."
+    },
+    "honesty": {
+      "model": "Cálculo de modelo, no una medición: basado en tus lecturas hasta {month} y los precios de tus contratos.",
+      "heat": "Parte dependiente de la calefacción en el año: {pct}."
+    },
+    "warn": {
+      "room_temp_unavailable": "Temperatura interior: no calculada sin modelo de calefacción ni grados-día.",
+      "last_year_unavailable": "Año anterior: muy pocos meses medidos — calculado con la previsión.",
+      "trend_unavailable": "Tendencia: necesita dos años completos — calculado con la previsión.",
+      "model_filled": "Meses del año anterior sin lecturas, completados con la previsión: {n}.",
+      "ev_unsupported": "Coche eléctrico: solo en electricidad.",
+      "jaz_unsupported": "SPF: solo para un contador eléctrico con el rol bomba de calor.",
+      "no_heat_model": "Sin modelo de calefacción para este contador: el invierno y los porcentajes de calefacción no tienen efecto.",
+      "tariff_unsupported": "Tarifa: para el agua el taller usa el contrato actual.",
+      "tariff_no_price": "Tarifa: al contrato le falta un precio unitario — calculado con el contrato actual.",
+      "no_offers": "Ninguna oferta con precios introducida — calculado con el contrato actual."
+    },
+    "share": {
+      "image": "Guardar el resultado como imagen",
+      "print": "Imprimir o en PDF",
+      "csv": "Valores mensuales en CSV",
+      "filename": "escenario",
+      "imageFailed": "No se pudo crear la imagen en este navegador."
+    },
+    "classic": "Previsión detallada: tabla mensual, curva de calefacción, rango",
+    "csv": {
+      "month": "Mes",
+      "base_qty": "Cantidad caso base ({unit})",
+      "scen_qty": "Cantidad escenario ({unit})",
+      "base_cost": "Coste caso base ({cur})",
+      "scen_cost": "Coste escenario ({cur})",
+      "base_cum_cost": "Coste acumulado caso base ({cur})",
+      "scen_cum_cost": "Coste acumulado escenario ({cur})",
+      "advance": "Anticipo ({cur})"
+    },
+    "print": {
+      "back": "← Volver al taller",
+      "title": "Escenario para imprimir",
+      "none": "Ningún escenario elegido — abre el taller de previsión y pulsa «Imprimir o en PDF».",
+      "assumptions": "Supuestos",
+      "compare": "Caso base y escenario",
+      "measure": "Medida {name}: calefacción −{heat} %, carga base −{base} %, coste {cost}",
+      "inactive": "fuera del escenario",
+      "customPrice": "Precio propio: {wp} {minor}/{unit}, término fijo {bp} al mes",
+      "ev": "Coche eléctrico: {km} km al año, {kwh} kWh/100 km",
+      "jaz": "Bomba de calor: SPF {from} → {to}",
+      "footer": "Sin garantía: un escenario se basa en supuestos; el tiempo, los precios y los hábitos pueden ser distintos.",
+      "hint": "«Imprimir» lleva el escenario al papel o lo guarda como PDF — en el iPhone con Compartir → Imprimir."
+    },
+    "guide": "Cómo se calcula"
+  },
+  "people": {
+    "deletedName": "{name} (perfil eliminado)"
+  },
+  "area": {
+    "assumed": "Superficie habitable supuesta {area} m²: introdúcela. Hasta entonces la aplicación calcula con este valor.",
+    "enterHousehold": "Introducir la superficie habitable",
+    "enterTenancy": "Introducir la superficie en el alquiler"
   }
 }

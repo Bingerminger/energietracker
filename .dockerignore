@@ -32,3 +32,6 @@ dist
 deploy
 # v3.1.0 — lokaler Wissensgraph (gitignoriert) gehört nie ins Image
 graphify-out
+
+# Echte Versorgerdokumente (Posteingang-Entwicklung)
+samples/

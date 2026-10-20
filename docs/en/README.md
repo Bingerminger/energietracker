@@ -32,6 +32,7 @@ text recognition service and to evcc in the home network.
 
 | Document | Contents |
 |---|---|
+| [**What if? The forecast workshop**](anleitungen/was-waere-wenn.md) | *New in v3.6.0:* what does a cold winter cost, what does insulation bring, is switching worth it? Move a slider, see the result at once — result card, curves, ranking, best combination within a budget; save, print, share as an image |
 | [Enter and check the annual bill](anleitungen/jahresabrechnung.md) | Take readings, prices, gas factors and the credit from a bill and recalculate it — for gas, electricity, water and district heating; record the bill, compare it and book it as a special payment |
 | [As a tenant: heating, water and service charges](anleitungen/mieter.md) | Consumption information month by month, hot and cold water, prepayment against expected costs, the service charge statement and its deadlines |
 | [Share CO₂ costs with the landlord](anleitungen/co2-aufteilung.md) | The landlord’s share under the CO2KostAufG: work it out and claim it with your own gas boiler, check the statement with central heating; deadline and letter |
@@ -45,7 +46,7 @@ text recognition service and to evcc in the home network.
 | [Charging sessions from evcc](anleitungen/evcc.md) | Upload the CSV from evcc or fetch it in the home network, wallbox meter readings, solar share and price per month, several charging points |
 | [Users in the household](anleitungen/benutzer.md) | People with name and password or via the proxy, admin and member, own level and language, forgotten password |
 | [Import time series from portals](anleitungen/daten-aus-portalen.md) | Read files from the grid operator, inverter or heat pump with a column mapping, time stamps and daylight saving time, quarter hours for flexibility, Data Act |
-| [Valuing flexibility](anleitungen/flexibilitaet.md) | Consumption and wholesale price per quarter hour: profile factor and advantage per electricity meter, battery, § 14a module 3 with time windows on the contract, dynamic tariff check with your own load profile |
+| [Valuing flexibility](anleitungen/flexibilitaet.md) | When power is cheap and what shifting brings: traffic light, “Your lever” per appliance, action sentences, result card as an image, page in the annual report (v3.6.0); plus profile factor and advantage per electricity meter, battery, § 14a module 3 with time windows on the contract, dynamic tariff check with your own load profile |
 | [Use cases](anleitungen/anwendungsfaelle.md) | Shared flat with shared meters, smart home, PV household with a heat pump, landlord, wall box and company car, district heating or heat, control with evcc or Home Assistant |
 
 ## 📚 Concepts — *how things are calculated*

@@ -104,6 +104,25 @@
   -webkit-appearance: none; appearance: none; min-width: 0; max-width: 100%;
 }
 .input::-webkit-date-and-time-value { min-width: 0; margin: 0; text-align: start; }
+/* v3.6.0 — Safari (iPad): Auswahlfelder behielten ihre Systemdarstellung —
+   26 px hoch neben 44 px hohen Eingaben, Höhe und Innenabstand ignoriert;
+   Textfelder trugen Safaris Innenschatten. Ohne Eigendarstellung folgen beide
+   dem Raster (--control-h). Der Pfeil kommt aus zwei Verläufen in der
+   Textfarbe des Themes (kein Bild, kein Platzhalter für Canvas). Auswahl in
+   der Textschrift: Mono nur für Zahlen. */
+.input:not([type="checkbox"], [type="radio"], [type="file"], [type="range"], [type="color"]) {
+  -webkit-appearance: none; appearance: none;
+}
+.select:not([multiple]):not([size]) {   /* (0,3,0): gewinnt gegen `background:` in .fgroup */
+  -webkit-appearance: none; appearance: none;
+  font-family: var(--font-sans);
+  padding-right: 32px;
+  background-image: linear-gradient(45deg, transparent 50%, var(--text-2) 50%),
+                    linear-gradient(135deg, var(--text-2) 50%, transparent 50%);
+  background-position: calc(100% - 17px) 50%, calc(100% - 12px) 50%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
 .input:focus, .select:focus, textarea.input:focus {
   outline: none; border-color: var(--accent);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
@@ -567,6 +586,12 @@ body:has(.modal-backdrop) .toast-stack { bottom: auto; top: 20px; }
   display: flex; gap: 8px; flex-wrap: wrap;
   margin-bottom: var(--sp-4);
 }
+/* v3.6.0 — Umschalter Kalenderjahr · Abrechnungsjahr: eigene Zeile im selben
+   Abstand wie Jahres- und Periodenwahl darunter (klebte sonst an ihr) */
+.period-mode-bar {
+  display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap;
+  margin-bottom: var(--sp-3);
+}
 .year-pills .pill { padding: 5px 14px; }
 /* Die aktive Jahres-Pille je Verbrauchsart kommt seit v2.2.0 aus der SSOT
    (utility-theme.js) — vorher blieb sie bei Fernwärme, Heizöl, Pellets und PV
@@ -813,13 +838,18 @@ a.icon-btn { display: inline-flex; align-items: center; justify-content: center;
   font-size: var(--fs-xs); color: var(--text-2);
   margin: -6px 0 var(--sp-4); line-height: 1.5;
 }
+/* v3.6.0 — Abstände wie im Formularraster (.fgrid): 16 px von Feld zu Feld,
+   4 px zwischen Beschriftung, Feld und Hinweis. Bis v3.5 standen Karten mit
+   Raster (Passwort, Schlüssel) und ohne (Hostnamen) mit 16 bzw. 12 px nebeneinander. */
 .settings-fields {
-  display: flex; flex-direction: column; gap: var(--sp-3);
+  display: flex; flex-direction: column; gap: var(--sp-4);
 }
 .settings-field { margin-bottom: 0; }
 .settings-field > label {
   display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap;
 }
+/* Ziel eines Sprungs aus der Übersicht (`?field=`) */
+.settings-field[data-target] > label { color: var(--accent); }
 .settings-field__unit {
   font-size: 11px; color: var(--text-3);
   text-transform: none; letter-spacing: 0;
@@ -827,7 +857,7 @@ a.icon-btn { display: inline-flex; align-items: center; justify-content: center;
 }
 .settings-field__hint {
   font-size: var(--fs-xs); color: var(--text-3);
-  line-height: 1.45; margin-top: 2px;
+  line-height: 1.45; margin-top: 0;
 }
 /* v2.9.0 — Zahl mit Einheit nebeneinander (Kündigungsfrist); minmax(0,1fr),
    damit das Paar auf dem iPhone nicht über den Rand wächst */
@@ -1106,6 +1136,24 @@ a.icon-btn { display: inline-flex; align-items: center; justify-content: center;
 .dash-rec--urgent strong { color: var(--danger); }
 .dash-rec--warning strong { color: var(--warning); }
 
+/* v3.6.0 — Einordnung als Ampel: Punkt in der Farbe, dasselbe als Wort (nicht
+   nur Farbe), darunter die Grundlage. Einladung mit einem Link als Knopfziel
+   (44 px bei Touch, über --control-h). */
+.cmp-list { list-style: none; margin: var(--sp-2) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-3); }
+.cmp-row { display: grid; grid-template-columns: 12px minmax(0, 1fr); gap: var(--sp-2); align-items: start; font-size: var(--fs-sm); line-height: 1.45; }
+.cmp-row__dot { width: 12px; height: 12px; margin-top: 0.3em; border-radius: 50%; background: var(--text-3); }
+.cmp-row--good .cmp-row__dot { background: var(--success); }
+.cmp-row--near .cmp-row__dot { background: var(--warning); }
+.cmp-row--high .cmp-row__dot { background: var(--danger); }
+.cmp-row--good .cmp-row__label { color: var(--success); }
+.cmp-row--near .cmp-row__label { color: var(--warning); }
+.cmp-row--high .cmp-row__label { color: var(--danger); }
+.cmp-row__sub { display: block; margin-top: 2px; font-size: var(--fs-xs); color: var(--text-2); }
+.cmp-invite { margin: var(--sp-3) 0 0; font-size: var(--fs-sm); color: var(--text-2); line-height: 1.45; }
+/* eigene Zeile: ein 44-px-Ziel mitten im Satz zog die Zeile auseinander */
+.cmp-invite a { display: flex; width: fit-content; align-items: center; min-height: var(--control-h); font-weight: 600; }
+.cmp-list + .cmp-invite { padding-top: var(--sp-3); border-top: 1px solid var(--border-1); }
+
 /* v1.4.0 — Effizienz pro Heizquelle (Dashboard-Karte) */
 .dash-eff-list { display: flex; flex-direction: column; gap: var(--sp-2); margin: var(--sp-2) 0; }
 .dash-eff-row {
@@ -1331,6 +1379,12 @@ a.icon-btn { display: inline-flex; align-items: center; justify-content: center;
   td > .btn + .btn, td > .btn + a.btn, td > a.btn + .btn { margin-left: var(--sp-2); }
   .table td, .data-table td { padding-top: 10px; padding-bottom: 10px; }
 }
+/* v3.6.0 — iPad mit Tastatur und Trackpad meldet einen feinen Zeiger (breit,
+   kein `pointer: coarse`), getippt wird trotzdem auf dem Glas: Ohne 16 px
+   zoomte Safari beim Fokus ins Feld und die Seite sprang. */
+@media (any-pointer: coarse) {
+  .input, .select, textarea.input { font-size: 16px; }
+}
 
 /* ── Dialoge auf dem iPhone als Blatt von unten (Review UI-16) ─────── */
 @keyframes sheetUp { from { transform: translateY(40px); opacity: 0; } to { transform: none; opacity: 1; } }
@@ -1389,6 +1443,15 @@ a.icon-btn { display: inline-flex; align-items: center; justify-content: center;
   list-style: revert;
 }
 .settings-expert[open] > summary { margin-bottom: var(--sp-3); }
+
+/* v3.6.0 — Aufklappbereich (components/disclosure.js): lange Listen in einer
+   Kachel standardmäßig zu (CO₂-Faktoren, Prognose im Detail). Die Zeile ist
+   bei Touch so hoch wie ein Knopf. */
+.disclosure > summary { cursor: pointer; font-weight: 600; padding: var(--sp-2) 0; list-style: revert; }
+.disclosure[open] > summary { margin-bottom: var(--sp-3); }
+@media (pointer: coarse), (max-width: 899.98px) { .disclosure > summary { min-height: var(--control-h); padding: var(--sp-3) 0; } }
+.settings-card .disclosure > summary { font-size: var(--fs-sm); color: var(--text-2); }
+.settings-card .disclosure__body > .settings-fields { padding-top: var(--sp-1); }
 
 /* v2.12.0 — Ortssuche auf der Wetterdaten-Seite (Review UI-30) */
 .geo-search { display: flex; gap: var(--sp-2); }
@@ -1528,6 +1591,55 @@ a.icon-btn { display: inline-flex; align-items: center; justify-content: center;
 .help-actions { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin: var(--sp-2) 0 0; }
 /* v3.3.0 (F1021) — Flexibilität und Modul-3-Zeitfenster */
 .flex-months summary { cursor: pointer; margin: var(--sp-2) 0; color: var(--text-2); }
+/* v3.6.0 — Flexibilität lenkt: Ergebnis, Handlungssätze, Ampel, Hebel.
+   Stufenfarben aus den Tokens (--success/--warning/--danger), Sonne in der
+   Farbe der PV-Erzeugung (--util-pv_erzeugung, nur CSS — kein Canvas). */
+.flex-result { display: grid; gap: var(--sp-3); margin: 0 0 var(--sp-4); min-width: 0; }
+.flex-missing__list { margin: 0 0 var(--sp-2); padding-left: 1.2em; display: grid; gap: var(--sp-2); }
+.flex-actions__list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-3); }
+.flex-action { display: flex; gap: var(--sp-3); align-items: flex-start; }
+.flex-action__icon { font-size: 1.35rem; line-height: 1.2; flex: 0 0 1.6em; text-align: center; }
+.flex-action__body { min-width: 0; }
+.flex-action__other { display: block; margin-top: 2px; }
+.flex-tag { font-weight: 600; white-space: nowrap; }
+.flex-tag--real { background: var(--success-soft); color: var(--success); }
+.flex-tag--dynamic { background: var(--bg-2); color: var(--text-2); }
+.flex-tag--assumed { background: var(--warning-soft); color: var(--warning); }
+/* v3.6.0 (Paket flexplus) — Auto mit Steckzeiten aus evcc */
+.flex-tag--sessions { background: var(--success-soft); color: var(--success); }
+/* Nachtrag — reiner Börsenanteil: „netto, ohne USt“ (neben den Hebeln inkl. USt) */
+.flex-tag--net { background: var(--bg-2); color: var(--text-2); font-weight: 500; font-size: var(--fs-xs); }
+.flex-ampel__head { display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: center; justify-content: space-between; }
+.flex-ampel__head .card__title { margin: 0; }
+.flex-ampel__sub { font-size: var(--fs-sm); text-transform: uppercase; letter-spacing: .06em; color: var(--text-2); margin: var(--sp-4) 0 var(--sp-2); }
+.flex-lv--cheap { --flex-lv: var(--success); }
+.flex-lv--mid { --flex-lv: var(--warning); }
+.flex-lv--expensive { --flex-lv: var(--danger); }
+.flex-lv--none { --flex-lv: var(--bg-3); }
+.flex-band { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(24, minmax(0, 1fr)); gap: 2px; }
+.flex-band__h { display: grid; grid-template-rows: 1.15em 1.9em 1.15em; text-align: center; min-width: 0; }
+.flex-band__sun { font-size: var(--fs-xs); line-height: 1.15em; overflow: hidden; }
+.flex-sun--strong { color: var(--util-pv_erzeugung, #fbbf24); }
+.flex-sun--some { color: var(--util-pv_erzeugung, #fbbf24); opacity: .55; }
+.flex-band__cell { background: color-mix(in srgb, var(--flex-lv) 58%, var(--bg-1)); border-radius: 3px; font-size: .62rem; line-height: 1.9em; color: var(--text-1); overflow: hidden; }
+.flex-band__label { font-size: .62rem; color: var(--text-2); line-height: 1.15em; font-variant-numeric: tabular-nums; }
+.flex-legend { display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-3); align-items: center; margin: var(--sp-2) 0; }
+.flex-key { display: inline-block; min-width: 1.5em; text-align: center; border-radius: 3px; font-size: .7rem; background: color-mix(in srgb, var(--flex-lv, transparent) 58%, var(--bg-1)); }
+.flex-key.flex-sun--strong { background: none; font-size: var(--fs-sm); }
+.flex-ampel__summary { font-weight: 600; margin: var(--sp-2) 0; }
+.flex-week-wrap { min-width: 0; }
+.flex-week { width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 1px; }
+.flex-week th { font-size: .62rem; font-weight: 500; color: var(--text-2); padding: 0; text-align: center; overflow: hidden; }
+.flex-week thead td, .flex-week tbody th { width: 2.4em; text-align: left; }
+.flex-week td { height: 16px; padding: 0; background: color-mix(in srgb, var(--flex-lv) 58%, var(--bg-1)); border-radius: 2px; }
+.flex-week thead td { background: none; }
+.flex-solar__bars { display: flex; height: 12px; border-radius: 6px; overflow: hidden; background: var(--bg-2); margin: var(--sp-2) 0 var(--sp-3); }
+.flex-solar__bar--self { background: var(--util-pv_erzeugung, #fbbf24); }
+.flex-solar__bar--more { background: color-mix(in srgb, var(--util-pv_erzeugung, #fbbf24) 40%, var(--bg-2)); }
+/* Telefon: Betrag und Signal bleiben sichtbar, die Nebenspalte entfällt (die Tabelle passt ohne Querscrollen) */
+@media (max-width: 600px) { .flex-col-opt { display: none; } }
+.flex-check { margin-top: var(--sp-6); }
+.flex-check__title { font-size: var(--fs-xl); margin: 0 0 var(--sp-1); }
 
 /* v3.2.0 — Anwendungsfälle */
 .help-cases__list { margin: var(--sp-2) 0 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: var(--sp-3) var(--sp-5); }
@@ -1885,6 +1997,18 @@ a.icon-btn { display: inline-flex; align-items: center; justify-content: center;
 @media (prefers-reduced-motion: reduce) { .btn[aria-busy="true"]::after { animation: none; } }
 .load-progress { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; margin: var(--sp-2) 0; }
 .load-progress progress { width: min(16rem, 100%); accent-color: var(--accent); }
+/* v3.6.0 — „Was ist neu“ / neue Version: unten mittig über der Tab-Leiste, schließbar */
+.release-notice {
+  position: fixed; left: 50%; transform: translateX(-50%); z-index: 60;
+  bottom: calc(var(--tabbar-h, 0px) + env(safe-area-inset-bottom, 0px) + var(--sp-3));
+  width: min(36rem, calc(100% - 2 * var(--sp-3)));
+  display: flex; gap: var(--sp-2); align-items: flex-start;
+  padding: var(--sp-3); border: 1px solid var(--border-2); border-radius: var(--r-md);
+  background: var(--bg-1); box-shadow: 0 6px 24px rgb(0 0 0 / 0.18); font-size: var(--fs-sm);
+}
+.release-notice__text { flex: 1; min-width: 0; }
+.release-notice__text p { margin: 0 0 var(--sp-1); }
+.release-notice__text p:last-child { margin-bottom: 0; }
 /* v3.5.1 — gleiche Schriftgröße wie die übrigen Hinweise unter Zugriff */
 .security-check__item { position: relative; padding-left: 1.6em; font-size: var(--fs-sm); }
 .security-check__item::before { content: '…'; position: absolute; left: 0; font-weight: 700; }
@@ -1892,3 +2016,80 @@ a.icon-btn { display: inline-flex; align-items: center; justify-content: center;
 .security-check__item--warn::before { content: '!'; color: var(--warning); }
 .security-check__item--bad { color: var(--danger); font-weight: 600; }
 .security-check__item--bad::before { content: '✗'; }
+
+/* ── v3.6.0 (F1031) — Prognose-Werkstatt ────────────────────────────────
+   Regler links (am Telefon oben), Kurven und Kennzahlen rechts. Die Stufen
+   blenden über data-min-level aus (levels.js); Hover nur mit Zeiger. */
+.ws-lead { font-size: var(--fs-md); margin: 0 0 var(--sp-3); max-width: 60rem; }
+.ws-presets { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin: 0 0 var(--sp-4); align-items: center; }
+.ws-chip {
+  border: 1px solid var(--border-2); background: var(--bg-1); color: var(--text-1);
+  border-radius: 999px; padding: 6px 14px; min-height: 40px; font: inherit; cursor: pointer;
+}
+.ws-chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+.ws-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (hover: hover) { .ws-chip:hover { border-color: var(--border-strong); } }
+.ws { display: grid; grid-template-columns: minmax(280px, 360px) minmax(0, 1fr); gap: var(--sp-5); align-items: start; }
+.ws__controls { position: sticky; top: calc(var(--topbar-total, 0px) + var(--sp-3)); max-height: calc(100vh - var(--topbar-total, 0px) - var(--sp-6)); overflow: auto; }
+.ws__results { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-5); min-width: 0; }
+/* iPad hochkant: schmalere Reglerspalte, Ergebnis bleibt daneben sichtbar */
+@media (max-width: 1100px) { .ws { grid-template-columns: minmax(250px, 300px) minmax(0, 1fr); gap: var(--sp-4); } }
+.ws-mini { display: none; }
+@media (max-width: 720px) {
+  .ws { grid-template-columns: minmax(0, 1fr); }
+  .ws__controls { position: static; max-height: none; overflow: visible; }
+  /* Telefon: Regler oben, das Ergebnis klebt darüber — Wirkung sofort sichtbar */
+  .ws-mini:not(:empty) {
+    display: flex; gap: var(--sp-3); align-items: baseline; position: sticky; z-index: 3;
+    top: calc(var(--topbar-total, 0px) + var(--sp-1)); margin: 0 calc(-1 * var(--sp-2)) var(--sp-3);
+    padding: var(--sp-2) var(--sp-3); background: var(--bg-2); border: 1px solid var(--border-1);
+    border-radius: var(--r-md); box-shadow: var(--shadow-1);
+  }
+  .ws-mini__big { font-size: var(--fs-xl); font-variant-numeric: tabular-nums; }
+  .ws-mini--more { color: var(--danger); }
+  .ws-mini--less { color: var(--success); }
+}
+.ws-range { display: grid; gap: var(--sp-1); margin: 0 0 var(--sp-4); }
+.ws-range__head { display: flex; justify-content: space-between; gap: var(--sp-2); align-items: baseline; }
+.ws-range__head label { font-weight: 600; }
+.ws-range output { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+.ws-range input[type="range"] { width: 100%; min-height: 36px; accent-color: var(--accent); margin: 0; }
+.ws-range__hint { font-size: var(--fs-xs); color: var(--text-2); margin: 0; }
+.ws-group { border-top: 1px solid var(--border-1); padding-top: var(--sp-3); margin-top: var(--sp-2); }
+.ws-group > h3 { font-size: var(--fs-sm); text-transform: uppercase; letter-spacing: .06em; color: var(--text-2); margin: 0 0 var(--sp-3); }
+.ws-measures { display: grid; gap: var(--sp-3); margin: 0 0 var(--sp-3); }
+.ws-measure { border: 1px solid var(--border-1); border-radius: var(--r-md); padding: var(--sp-3) var(--sp-3) 0; }
+.ws-measure__head { display: flex; gap: var(--sp-2); align-items: center; justify-content: space-between; margin: 0 0 var(--sp-2); }
+.ws-measure__head label { display: inline-flex; gap: var(--sp-1); align-items: center; }
+.ws-kpis { margin-bottom: 0; }
+.ws-actions { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+.ws-note { font-size: var(--fs-xs); color: var(--text-2); margin: 0; }
+.ws-card {
+  margin: 0; border-radius: var(--r-lg); padding: var(--sp-5) var(--sp-6); background: var(--bg-1);
+  border: 1px solid var(--border-1); border-left: 8px solid var(--text-2);
+}
+.ws-card--more { border-left-color: var(--danger); background: var(--danger-soft); }
+.ws-card--less { border-left-color: var(--success); background: var(--success-soft); }
+.ws-card__brand { font-size: var(--fs-xs); letter-spacing: .12em; text-transform: uppercase; font-weight: 700; color: var(--text-2); margin: 0; }
+.ws-card__title { font-weight: 600; margin: var(--sp-1) 0 0; }
+.ws-card__big { font-size: clamp(2.6rem, 8vw, 4.2rem); line-height: 1.05; font-weight: 800; margin: var(--sp-2) 0; font-variant-numeric: tabular-nums; }
+.ws-card--more .ws-card__big { color: var(--danger); }
+.ws-card--less .ws-card__big { color: var(--success); }
+.ws-card__sentence { font-size: var(--fs-lg); font-weight: 600; margin: 0 0 var(--sp-3); }
+.ws-card__facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--sp-3); margin: 0 0 var(--sp-3); }
+.ws-card__facts dt { font-size: var(--fs-xs); color: var(--text-2); }
+.ws-card__facts dd { margin: 0; font-weight: 700; }
+.ws-card__footer { font-size: var(--fs-xs); color: var(--text-2); margin: 0; }
+/* v3.6.0 — „Prognose im Detail“ über den Aufklappbereich (components/disclosure.js) */
+.fc-classic { margin-top: var(--sp-6); }
+.fc-classic > summary { font-weight: 700; font-size: var(--fs-lg); }
+.fc-classic[open] > summary { margin-bottom: var(--sp-4); }
+.dash-whatif { display: flex; flex-wrap: wrap; gap: var(--sp-3); align-items: center; justify-content: space-between; }
+.dash-whatif__text { margin: 0; }
+/* v3.6.0 (Paket flexplus) — Kachel „Dein Hebel“: große Zahl wie die Effizienzklasse, daneben wofür */
+.dash-lever__figure { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-2) var(--sp-3); margin: var(--sp-2) 0 0; }
+.dash-lever__big { font-size: 2.2rem; font-weight: 700; line-height: 1; color: var(--success); font-variant-numeric: tabular-nums; }
+.dash-lever__per { color: var(--text-2); font-size: var(--fs-sm); min-width: 0; }
+.dash-lever__upto { margin-top: var(--sp-1); }
+.dash-lever__action { margin: var(--sp-3) 0 0; }
+@media (prefers-reduced-motion: reduce) { .ws-chip, .ws-card { transition: none; } }

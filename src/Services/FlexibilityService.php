@@ -233,13 +233,7 @@ final class FlexibilityService
      */
     private function module3(string $meterId, array $e, array $clock, int $year): ?array
     {
-        $list = array_values(array_filter($this->contracts->list('strom', $meterId), fn($c) => empty($c['is_shadow'])));
-        if ($list === []) return null;
-        $byMonth = [];
-        for ($mo = 1; $mo <= 12; $mo++) {
-            $c = $this->contracts->resolveForDate($list, sprintf('%04d-%02d-01', $year, $mo))['contract'] ?? null;
-            if (is_array($c['grid_tou'] ?? null)) $byMonth[$mo] = $c['grid_tou'];
-        }
+        $byMonth = $this->gridTouByMonth($meterId, $year);
         if ($byMonth === []) return null;
         $acc = [];
         foreach ($clock['month'] as $i => $mo) {
@@ -262,6 +256,25 @@ final class FlexibilityService
             'low_kwh' => round($t['low'], 2), 'high_kwh' => round($t['high'], 2), 'standard_kwh' => round($t['standard'], 2),
             'saving_eur' => round($t['saving'] / 100, 2),
         ]];
+    }
+
+    /**
+     * Zeitfenster für Modul 3 je Monat: `grid_tou` des echten Vertrags, der am
+     * Monatsersten gilt (Schattenverträge zählen nicht). v3.6.0 — öffentlich,
+     * damit Ampel und Hebel (FlexibilityInsightService) dieselben Fenster lesen.
+     *
+     * @return array<int,array<string,mixed>> Monat (1–12) → grid_tou
+     */
+    public function gridTouByMonth(string $meterId, int $year): array
+    {
+        $list = array_values(array_filter($this->contracts->list('strom', $meterId), fn($c) => empty($c['is_shadow'])));
+        if ($list === []) return [];
+        $byMonth = [];
+        for ($mo = 1; $mo <= 12; $mo++) {
+            $c = $this->contracts->resolveForDate($list, sprintf('%04d-%02d-01', $year, $mo))['contract'] ?? null;
+            if (is_array($c['grid_tou'] ?? null)) $byMonth[$mo] = $c['grid_tou'];
+        }
+        return $byMonth;
     }
 
     /** Netzentgelt (ct/kWh) zu einer Minute des Tages in einem Monat laut Zeitfenstern. */

@@ -14,11 +14,11 @@ Beispielhaushalt, bis heute fortgeschrieben, in sieben Sprachen, ohne Installati
 
 [![CI](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml)
 [![Docker Publish](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml)
-[![Version](https://img.shields.io/badge/version-3.5.1-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-3.6.0-blue.svg)](CHANGELOG.md)
 [![Lizenz: AGPL-3.0-or-later](https://img.shields.io/badge/Lizenz-AGPL--3.0--or--later-success.svg)](LICENSE)
 [![PHP](https://img.shields.io/badge/PHP-%E2%89%A5%208.2-777BB4.svg)](composer.json)
 [![Abhängigkeiten: 0](https://img.shields.io/badge/Abh%C3%A4ngigkeiten-0-success.svg)](composer.json)
-[![Tests](https://img.shields.io/badge/Tests-929-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-1074-success.svg)](tests/)
 [![Sprachen](https://img.shields.io/badge/Sprachen-7-7c5cff.svg)](public/locales/)
 [![Verbrauchsarten](https://img.shields.io/badge/Verbrauchsarten-9-f59e0b.svg)](docs/einstieg/funktionen.md)
 [![Docker](https://img.shields.io/badge/Docker-amd64%20%7C%20arm64-2496ed.svg)](docker-compose.yml)
@@ -31,6 +31,7 @@ Beispielhaushalt, bis heute fortgeschrieben, in sieben Sprachen, ohne Installati
 
 | Frage | Antwort in der App |
 |---|---|
+| Was wäre, wenn …? | **Prognose-Werkstatt** *(neu in v3.6.0)*: Regler für Winter, Dämmung, Raumtemperatur und Tarif — sofort sehen, was ein kalter Winter kostet oder die Dämmung bringt; Rangliste, beste Kombination unter einem Budget, Ergebnis als Bild oder PDF |
 | Bekomme ich Geld zurück? | **Saldo** je Vertrag nach Kalender, erwartete Abrechnung und Abschlagsvorschlag — „Guthaben“ oder „Nachzahlung“ wie auf der Rechnung |
 | Stimmt meine Jahresabrechnung? | **Rechnungsprüfung** für Gas, Strom, Wasser und Fernwärme: je Abschnitt nachgerechnet, gegen die Rechnung gehalten, das Ergebnis als Sonderzahlung gebucht |
 | Soll ich wechseln? | **Wechselentscheidung** mit Kündigungsfrist, Kosten ab dem zweiten Jahr und Gewinnschwelle |
@@ -73,7 +74,7 @@ Hilfe in der App mit Glossar und ⓘ an jeder Kennzahl.
 ```bash
 docker run -d --name energietracker -p 8080:80 \
   -v energietracker-data:/data \
-  ghcr.io/bingerminger/energietracker:3.5.1
+  ghcr.io/bingerminger/energietracker:3
 ```
 
 Dann <http://localhost:8080> öffnen. **„Mit Beispieldaten ausprobieren“** zeigt
@@ -107,9 +108,11 @@ Open-Meteo: beim täglichen Wetterabgleich (übermittelt wird der auf rund 1 km
 gerundete Standort, abschaltbar) und bei der Ortssuche, wenn du sie benutzt.
 Dazu kommen drei Wege, die du selbst einschaltest: dein eigener
 Texterkennungsdienst im Heimnetz, wenn du ihn einträgst, dein evcc im
-Heimnetz, wenn du die Ladevorgänge abrufst, und die
+Heimnetz, wenn du die Ladevorgänge abrufst, die
 Börsenstrompreise für den Dynamik-Check, wenn du auf „Von SMARD laden“ tippst
-(Bundesnetzagentur; dabei geht nichts von dir hinaus). Schriften und Chart.js
+(Bundesnetzagentur; dabei geht nichts von dir hinaus), und der Hinweis auf neue
+Versionen (einmal am Tag wird GitHub nach der neuesten Versionsnummer gefragt;
+sichtbar ist nur die Adresse deines Servers). Schriften und Chart.js
 liegen im Repository.
 
 ## Hilfe und Dokumentation
@@ -140,9 +143,11 @@ er ohne Klassen und sagt warum; Währungen rechnet er nicht um —
 
 ## Stand und Ausblick
 
-**v3.5.1** ist die aktuelle Version — [CHANGELOG](CHANGELOG.md). Schnittstellen,
+**v3.6.0** ist die aktuelle Version — [CHANGELOG](CHANGELOG.md). Schnittstellen,
 CSV-Formate und das Backup-Format ändern sich nur additiv; entfernt wird erst
-mit einer neuen Hauptversion und nach Ankündigung. 3.5.1 behebt, was am iPad (Safari) auffiel. In 3.5.0 geht es um wer,
+mit einer neuen Hauptversion und nach Ankündigung. 3.6.0 wertet neben dem
+Kalenderjahr auch nach Abrechnungsjahr aus — Perioden wie auf deinen erfassten
+Rechnungen — und kann auf neue Versionen hinweisen. In 3.5.0 ging es um wer,
 wann und wohin: Termine bekommen eine zuständige Person, fehlende
 Versorgerrechnungen fallen auf, und der Energiefluss spielt einen Tag in
 Viertelstunden ab. Mit Home Assistant OS läuft die App als App, es gibt ein
@@ -178,10 +183,18 @@ freiwillig. Sterne, Fehlermeldungen und Weitersagen helfen genauso.
 ## Lizenz
 
 Seit Version 3.0.0 steht der Energietracker unter der
-[GNU AGPL v3.0 oder neuer](LICENSE) — nutzen, ändern, weitergeben; wer eine
-veränderte Fassung als Netzdienst anbietet, legt auch deren Quellcode offen.
-Für die eigene Installation ändert sich nichts. Versionen bis 2.16.0 bleiben
-unter der MIT-Lizenz verfügbar, unter der sie erschienen sind.
+[GNU AGPL v3.0 oder neuer](LICENSE). In einfachen Worten:
+
+- **Zu Hause gehört er dir:** kostenlos nutzen, verändern, weitergeben — ohne
+  Bedingungen, ohne Konto, ohne Gebühr.
+- **Nur eine Regel:** Wer eine *veränderte* Fassung anderen als Webdienst
+  anbietet, gibt ihnen auch deren Quellcode. So bleibt die App für alle frei
+  und offen.
+- **Nichts versteckt:** Unter Einstellungen → System führt ein Link zum
+  Quellcode genau der laufenden Version.
+
+Versionen bis 2.16.0 bleiben unter der MIT-Lizenz verfügbar, unter der sie
+erschienen sind.
 
 Mitgeliefert werden [Chart.js](https://www.chartjs.org/) (MIT) und die
 Schriften DM Sans und DM Mono (SIL Open Font License 1.1); die Wetterdaten

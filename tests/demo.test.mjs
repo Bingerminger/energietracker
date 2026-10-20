@@ -29,6 +29,54 @@ const t = (name, ok, info = '') => {
 };
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
+/**
+ * v3.6.0 — Personen in der gebauten Demo (jeder Haushalt, deutsch): Jede
+ * Zuständigkeit zeigt auf eine Person aus `/api/people` oder ist als gelöscht
+ * markiert; ebenso jede Person im Verlauf. Mindestens ein Haushalt zeigt eine
+ * gelöschte Person mit erledigten Einträgen.
+ */
+function checkPeople(out, meta) {
+  const deleted = [];
+  for (const persona of meta.personas || ['showcase']) {
+    const dir = persona === 'showcase' ? join(out, 'demo-api') : join(out, 'demo-api', 'p', persona);
+    const idx = JSON.parse(readFileSync(join(dir, 'index-de.json'), 'utf8'));
+    const get = (key) => JSON.parse(readFileSync(join(out, 'demo-api/r', idx[key]), 'utf8')).data;
+    const ids = new Set(get('/api/people').map(p => p.id));
+    const bad = [];
+    for (const r of get('/api/reminders')) {
+      if (r.assignee && !ids.has(r.assignee_id) && !r.assignee_deleted) bad.push(`Termin ${r.title}: ${r.assignee}`);
+    }
+    for (const e of get('/api/activity')) {
+      for (const p of [e.by, e.undone?.by, e.assignee]) {
+        if (!p || p.former || (p.type && p.type !== 'person')) continue;
+        if (p.deleted) { deleted.push(`${persona}: ${p.name}`); continue; }
+        if (!ids.has(p.id)) bad.push(`Verlauf: ${p.name}`);
+      }
+    }
+    t(`Personen ${persona}: Zuständige und Verlauf angelegt`, ids.size > 0 && bad.length === 0, bad.slice(0, 3).join(' · ') || `${ids.size} Personen`);
+  }
+  t('Eine gelöschte Person mit erledigten Einträgen', deleted.length > 0, [...new Set(deleted)].join(' · '));
+}
+
+/**
+ * v3.6.0 (Paket einpers) — Einordnung in der gebauten Demo: Eigenheim klassisch
+ * trägt eigene Vergleichswerte und zeigt die volle Ampel (jede Zeile bewertet,
+ * keine Einladung); Wohnfläche und Personen gelten in jedem Haushalt als
+ * eingetragen (sonst zählten die Standardwerte nicht).
+ */
+function checkComparison(out, meta) {
+  for (const persona of (meta.personas || []).filter(p => p !== 'showcase')) {
+    const idx = JSON.parse(readFileSync(join(out, 'demo-api', 'p', persona, 'index-de.json'), 'utf8'));
+    const get = (key) => JSON.parse(readFileSync(join(out, 'demo-api/r', idx[key]), 'utf8')).data;
+    const s = get('/api/settings');
+    t(`Einordnung ${persona}: Wohnfläche und Personen eingetragen`, Array.isArray(s.assumed_keys) && s.assumed_keys.length === 0, JSON.stringify(s.assumed_keys));
+    if (persona !== 'eigenheim-klassisch') continue;
+    const c = get('/api/benchmarks/comparison');
+    const ratings = [c.strom?.rating, c.heating?.[0]?.rating, c.water?.rating];
+    t('Einordnung eigenheim-klassisch: volle Ampel ohne Einladung', ratings.every(Boolean) && c.missing.length === 0, `${c.year}: ${ratings.join(',')} · ${c.missing.join(',')}`);
+  }
+}
+
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json', '.css': 'text/css',
   '.csv': 'text/csv', '.pdf': 'application/pdf', '.png': 'image/png', '.woff2': 'font/woff2' };
 
@@ -62,6 +110,8 @@ function serve(dir, port) {
       return Object.keys(idx).length === meta.keys;   // v3.2.0 — built.keys zählt alle Haushalte
     });
     t('Index je Sprache vollständig', sameKeys, langs.join(' '));
+    checkPeople(out, meta);
+    checkComparison(out, meta);   // v3.6.0 (Paket einpers)
     // v3.1.0 — Server-Texte in der Sprache der Demo (X-ET-Language), nicht in der Standardsprache
     const labelOf = (lang) => {
       const idx = JSON.parse(readFileSync(join(out, `demo-api/index-${lang}.json`), 'utf8'));
@@ -158,10 +208,31 @@ function serve(dir, port) {
       const view = w.document.getElementById('view');
       const broken = view.querySelector('.banner--error')?.textContent?.trim();
       if (broken) errors.push(`${r}: ${broken.slice(0, 160)}`);
+      if (r === '#/dashboard') {
+        t('Schaufenster: keine Kachel „Dein Hebel“ (ohne Viertelstunden)', !view.querySelector('[data-role="flex-lever"]'));
+      }
       if (r === '#/bill-check') {
         view.querySelector('#bc-run')?.click();
         await settle();
         t('Rechnungsprüfung mit Vorbelegung rechnet', !!view.querySelector('#bc-result table'));
+      }
+      // v3.6.0 (F1031) — Prognose-Werkstatt: Ausgangsfall und Beispielszenarien
+      // vorgerechnet; ein eigener Reglerwert sagt freundlich „nur Beispiele“
+      if (r === '#/forecast') {
+        t('Werkstatt in der Demo: Ergebniskarte zum Ausgangsfall', !!view.querySelector('#ws-card .ws-card__big'));
+        const chips = [...view.querySelectorAll('#ws-presets [data-preset]')].filter(b => b.dataset.preset);
+        t('Werkstatt in der Demo: Beispielszenarien angeboten', chips.length >= 2, chips.map(b => b.dataset.preset).join(','));
+        const before = view.querySelector('#ws-card')?.textContent;
+        chips[0]?.click();
+        await settle(); await sleep(150);
+        t('Werkstatt in der Demo: Beispielszenario rechnet (vorgerechnet)', !view.querySelector('#ws-banner .banner')
+          && view.querySelector('#ws-card')?.textContent !== before, view.querySelector('#ws-banner')?.textContent || '');
+        const slider = view.querySelector('#ws-saving');
+        slider.value = '7';
+        slider.dispatchEvent(new w.Event('input', { bubbles: true }));
+        await sleep(400); await settle();
+        t('Werkstatt in der Demo: eigener Wert → Hinweis statt Fehler', /Beispielszenarien/.test(view.querySelector('#ws-banner')?.textContent || ''));
+        for (const k of [...(w.__etDemoMisses || [])]) if (k.startsWith('POST /api/forecast/scenario') && k.includes('"saving_pct":7')) w.__etDemoMisses.delete(k);
       }
       if (r === '#/settings/system') {
         const link = view.querySelector('[data-source-link]')?.getAttribute('href') || '';
@@ -225,6 +296,7 @@ function serve(dir, port) {
       const pUtils = (await api.listUtilities()).filter(u => (pSettings.active_utilities || []).includes(u.key));
       const pRoutes = ['#/dashboard', '#/zaehlerstaende', ...pUtils.map(u => `#/utility/${u.key}`), '#/contracts',
         '#/tariffs', '#/bill-check', '#/report', `#/flexibility?year=${new Date().getFullYear() - 1}`, ...(pSettings.wohnverhaeltnis === 'miete' ? ['#/tenancy'] : [])];
+      const leverTiles = [];
       for (const level of ['beginner', 'expert']) {
         w.localStorage.setItem('et-demo-level', level);
         levels.applyLevel(level);
@@ -233,7 +305,16 @@ function serve(dir, port) {
           await settle();
           const broken = w.document.getElementById('view').querySelector('.banner--error')?.textContent?.trim();
           if (broken) errors.push(`${persona} ${r}: ${broken.slice(0, 160)}`);
+          // v3.6.0 (Paket flexplus) — Kachel „Dein Hebel“ (nachgeladen, vorgerechnet)
+          if (r === '#/dashboard') leverTiles.push(w.document.querySelector('#view [data-role="flex-lever"] .dash-lever__big')?.textContent || '');
         }
+      }
+      // nur der Haushalt mit Viertelstunden zeigt die Kachel, in beiden Stufen
+      if (persona === 'eigenheim-modern') {
+        t('Beispielhaushalt eigenheim-modern: Kachel „Dein Hebel“ auf der Übersicht (Einsteiger und Experte)',
+          leverTiles.length === 2 && leverTiles.every(x => /\d\s?€/.test(x)), leverTiles.join(' · '));
+      } else if (leverTiles.some(Boolean)) {
+        errors.push(`${persona}: Kachel „Dein Hebel“ ohne Viertelstunden`);
       }
       const pMisses = [...(w.__etDemoMisses || [])];
       t(`Beispielhaushalt ${persona}: ${pRoutes.length} Seiten × 2 Stufen ohne Lücke`,

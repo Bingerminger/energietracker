@@ -7,11 +7,13 @@ use Energietracker\Services\AgendaService;
 use Energietracker\Services\BackupService;
 use Energietracker\Services\BenchmarkService;
 use Energietracker\Services\BillService;
+use Energietracker\Services\BillingPeriodService;
 use Energietracker\Services\Co2CostService;
 use Energietracker\Services\Co2SplitService;
 use Energietracker\Services\DeliveryService;
 use Energietracker\Services\EvChargingReportService;
 use Energietracker\Services\EvccService;
+use Energietracker\Services\FlexibilityInsightService;
 use Energietracker\Services\FlexibilityService;
 use Energietracker\Services\ForecastService;
 use Energietracker\Services\HeatPumpService;
@@ -52,12 +54,19 @@ trait ReportFixture
         $evcc = new EvccService($this->store, $this->meters, $this->readings, new ReadingImportService($this->readings, $this->meters, $this->i18n), $this->settings);
         $forecasts = new ForecastService($this->consumption, $this->regression, $this->settings, $this->contracts, $this->i18n);
         $switch = new TariffSwitchService($forecasts, $this->contracts, $this->meters, $this->i18n, new MarketPriceService($this->store, $this->i18n, null, $intervals));
+        $bills = new BillService($this->store, $this->meters, $this->contracts, $this->consumption, $this->i18n);
         $model = new ReportModelService($this->meters, $this->consumption, $this->contracts, $this->settings, $this->i18n, $benchmark, $recs,
             new ReportAdviceService($this->i18n), $agenda, new PvSummaryService($this->consumption, $this->settings),
             new HeatPumpService($this->meters, $this->consumption), $flex, $evcc,
             new EvChargingReportService($this->meters, $this->readings, $this->consumption, $this->settings, $this->i18n),
-            $tenancies, $budget, $split, new BillService($this->store, $this->meters, $this->contracts, $this->consumption, $this->i18n),
+            $tenancies, $budget, $split, $bills,
             $switch, $deliveries, $forecasts);
+        // v3.6.0 (F1030) — Anhang „Abrechnungsjahre“
+        $model->attachBillingPeriods(new BillingPeriodService($this->settings, $this->meters, $this->readings, $this->consumption, $bills));
+        // v3.6.0 — Seite „Flexibilität“, das Auto mit seinen Steckzeiten (wie bootstrap.php)
+        $insights = new FlexibilityInsightService($intervals, $this->meters, $this->contracts, $flex);
+        $insights->attachSessions($evcc);
+        $model->attachFlexInsights($insights);
         $pdf = new PdfReportService($this->meters, $this->consumption, $this->settings, $benchmark, $recs, $this->i18n, $model);
         return ['model' => $model, 'pdf' => $pdf, 'recommendations' => $recs];
     }

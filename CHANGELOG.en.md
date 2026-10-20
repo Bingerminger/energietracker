@@ -7,6 +7,235 @@ and [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [3.6.0] — 2026-10-20 — What if, and as on the bill
+
+MINOR release without a schema step (stays 1.8.0): the forecast workshop
+“What if?”, evaluations by billing year as well as calendar year (GitHub
+[#33]) right into the overview, meter groups and “Check bill”, a flexibility
+page with a traffic light and euros per appliance, people with a fixed
+number, a note about new versions and “What’s new” after an update, and the
+image tag `:3`. API, CSV format 1, backup format 3.0 and the Docker
+environment only grow additively.
+
+### ⚠️ For existing installations
+
+- **Changed figures** (bugs fixed, see “Fixed”): the balance of the running
+  contract starts after the last booked bill instead of at the contract
+  start; “Check bill” includes waste water for water; meter groups no longer
+  count a submeter twice; the forecast workshop’s final balance includes the
+  rest of the current month.
+- **Deleting a person:** open reminders now go to the person deleting;
+  completed items keep the name with “(deleted)”. Existing people get their
+  number on first use.
+- **Further changed figures:** the flexibility levers in euros at the
+  wholesale price now include VAT; the car only shifts while it is plugged in
+  (plug-in times from evcc); billing periods end at a change of supplier; the
+  annual report counts heating oil and pellets in its costs; the benchmark
+  only uses living area and people once they have been entered.
+- **Without sign-in**, the “Users and roles” card now says that people with
+  their own login only come with sign-in switched on, and jumps to “Switch
+  sign-in on”.
+- **Without sign-in** (login off), `GET /api/people` now returns the people
+  from the register instead of an empty list. With sign-in, sign-in applies
+  as before.
+- **“What’s new”:** after the update every device shows “Updated to 3.6.0”
+  once, with a link to the release notes — without any request going out.
+- **Note about new versions** (`update_check`) stays off on existing
+  installations until someone switches it on under Settings → General; setup
+  of new installations suggests it.
+- **Examples and templates on `:3`:** the Compose example, README, docs and the
+  Unraid template now name the tag `:3` (always the newest 3.x, no jump to a
+  new major version). Running containers do not change; CasaOS and Umbrel stay
+  on a fixed version, as their stores require.
+
+### Added
+
+- **Forecast workshop — “What if?” (F1031):** What does a cold winter cost,
+  what does insulation bring, is switching worth it? Sliders for winter,
+  saving and tariff, plus room temperature, base load, measures with costs,
+  forecast model, electric car, heat pump and budget. The result appears at
+  once as a result card with one big number, curves, recommended advance
+  payment, balance at the next bill, CO₂ and the ranking “What makes the
+  biggest difference?”, plus the best combination within a budget. Example
+  scenarios, save and compare, image, print/PDF, CSV; the demo has the
+  examples precomputed.
+- **Overview card “What if? Try it”**; the forecast is now available from the
+  Beginner level.
+- **Flexibility guides:** a traffic light for cheap and expensive hours with
+  the sun, “Your lever” in euros per appliance, action sentences with time
+  windows, best time windows, solar self-use, a result card as an image;
+  load shifting against quarter-hour prices, calculated on the server
+  (`insights`). The page is there for every level, with an invitation when
+  data is missing. In the annual report the page “Flexibility” (`flex=1`),
+  in the print view “Attach scenario”.
+- **“Your lever” tile on the overview:** the same number as the flexibility
+  result card, “up to …” with a dynamic tariff, one action sentence; only
+  with measured quarter hours, also for beginners.
+- **People with a fixed number:** every person in the household gets a
+  running number that is never given out again (register of people
+  `people.json`, part of the backup). Only admins delete people; open
+  reminders go to the person deleting, and the dialog says beforehand how
+  many and to whom. Completed items keep the name with “(deleted)”: in the
+  history, on completed reminders, in the history CSV and in the calendar.
+  People from a backup or sample household appear under Access marked
+  “without sign-in” and can be deleted or turned into a login with the same
+  number via “Create login”.
+- **Benchmark as a traffic light:** the tile shows household electricity,
+  heating and water per person with a traffic light and one clear sentence
+  (water turns yellow only from 5 % above the benchmark);
+  if a detail is missing, exactly one link leads straight to the field. The
+  links to the Stromspiegel and Heizspiegel start pages are gone.
+- **Billing year instead of calendar year** ([#33]): a switch “Calendar year ·
+  Billing year” on the utility page, overview and analysis; the device
+  remembers the choice. Periods come from the recorded supplier bills —
+  exactly as on the bill, also irregular like 15 Apr–30 Mar — and before,
+  between and after them from the billing anchor date per utility.
+  Day-accurate with quantity, cost, advance payments (pro rata per day) and
+  balance; part months at the start and end. If the anchor date does not match
+  the last bill, the app suggests one. Utilities without a bill check (heating
+  oil, pellets, solar) stay on the calendar year.
+- **Annual report** with an appendix “Billing years” (option in the dialog; the
+  other pages stay calendar year so that totals across utilities add up);
+  **CSV export per billing period** (`monthly.csv?period=billing`, tile under
+  Settings → Data).
+- **Current year explained:** ⓘ next to “Advances up to …”: the calendar
+  year counts the standing charge and advance payment of the broken month in
+  full, the billing year by the day; whole years are the same.
+- **Edit people without sign-in:** under Settings → Access, admins can
+  change the name and role of people from a backup or sample household. Open
+  reminders show the new name, completed items keep the old one. “Rename”
+  also exists for password logins; names are unique across all people.
+- **Assumed area made visible:** without an entered area, the efficiency
+  class and the tenants’ CO₂ split keep calculating with 100 m² but now say
+  so (“Assumed living area 100 m² – please enter it”) and lead straight to the
+  field, also in the annual report (`area_assumed`).
+- **Billing years all the way through:** the meter groups of a card show the
+  same period as the card; “Check bill” suggests the latest completed
+  billing period; the balance card says “Calculated from …”. A test keeps
+  quantity, cost, advances and balance identical across every view, by
+  calendar and by billing year.
+- **API additive:** `GET /api/utility/{u}/meters/{id}/billing-periods`, plus
+  for meter groups and the whole utility; annual report `billing=1`;
+  `GET /api/update-check`; `POST /api/forecast/scenario` (only calculates,
+  stores nothing, also with a read-only key); `GET /api/users/{id}/handover`;
+  `insights` in `GET /api/flexibility`; annual report `flex=1`;
+  `balance_from` on the contract balance; `rating`, `water`, `missing` on
+  the benchmark; `no`, `has_account` on people; `ends_at_switch` on the
+  billing periods; `assumed_keys` in the settings;
+  `GET /api/flexibility?summary=1`, plus `summary`, `vat_pct`,
+  `ev_availability` in `insights`; `PATCH /api/users/{id}` also for people
+  without sign-in.
+- **Note about new versions:** once a day the server checks on GitHub whether
+  a newer version exists, and the app shows it with a link to the release
+  notes until you close the note for that version. Only when switched on;
+  GitHub only sees the server’s address.
+- **“What’s new”** after an update, with a line about supporting the project.
+- **Image tag `:3`** (and `:3-rootless`) — stays current without jumping to a
+  new major version unasked.
+
+### Changed
+
+- ⚠️ **Billing year on a change of supplier:** if another supplier’s
+  contract begins in the middle of a period and no final bill is recorded,
+  the period ends on the last day with the old supplier and the next one
+  starts with the new contract. A renewal or a new tariff with the same
+  supplier does not split.
+- ⚠️ **Wholesale-price levers include VAT** (rate of the dynamic offer,
+  otherwise 19 %); page, report and tile say “incl. VAT”. What stays net says
+  so: ct values in the traffic light and time windows and the check (profile
+  factor, advantage, battery value) are marked “net, excl. VAT”.
+- ⚠️ **The car charges while it is plugged in:** charging windows from the
+  evcc plug-in times instead of “whole charging day”; page and report name
+  the basis.
+- **Benchmark: default values don’t count.** Living area and people only
+  benchmark once you have entered them, even the same value as the default
+  (100 m², 2 people). Until then the tile invites you to the field. Anyone
+  who has already saved the values keeps their traffic light.
+- **Docs: the weekly rebuild explained.** Tuesday’s “Docker Rebuild” is not a
+  release: same code and tag, a new image with a current base and a new digest.
+  Update watchers report it for that reason, and GHCR counts downloads per
+  version anew.
+- **Print view with a PDF button:** next to “Print / save as PDF”, “Download
+  annual report” fetches the PDF file with the same selection. On the iPad,
+  “Print” leads to the print dialog, not straight to a file.
+- **CO₂ factors collapsed:** under Settings → Utilities the long list starts
+  collapsed, the same disclosure as “Detailed forecast”; it opens on an error
+  or after saving.
+- **Calm forms on the iPad:** selects as tall as inputs, 16 px text also
+  with keyboard or trackpad (no zoom on tap), consistent spacing, password
+  fields inside forms, across all settings.
+- **Sample data for every use case:** every responsibility belongs to a
+  person that exists, and in the classic house “Lukas (deleted)” shows the
+  history; plus a granny flat with peak/off-peak meters as a meter group
+  with a group contract, a retired meter, a Home Assistant alias, an
+  estimated reading and an extra item on the water bill. A test requires
+  each of the 52 use cases in at least one household.
+- **Sample households:** the classic house brings its own made-up reference
+  values and shows the benchmark with a full traffic light; the modern house
+  has plug-in times from evcc, and “Your lever” shows €91 there, up to €251
+  with a dynamic tariff (before €139 and €224).
+- **Sample data: billing anchor and bills in step.** Where the demo places the
+  billing anchor relative to today, the annual bills move along (final bills
+  stay) and the import recalculates their amounts: no in-between period and no
+  anchor suggestion in the billing year, “Check bill” still matches. The
+  owner-occupied flat now expects its bill for district heating.
+- **The licence in plain words** in the README: free to use, change and pass
+  on at home; obligations only for whoever offers a modified version to others
+  as a web service.
+- **Release notes** are now among the app’s allowed GitHub links.
+- **Support link** also in the README of the Home Assistant app.
+- **Sample data:** the sample household with gas, electricity and water shows a
+  back-payment on the water contract ([#34]).
+
+### Fixed
+
+- **Advance payment in the month of a change:** “Check bill” and the billing
+  years count the advance payment of a month with two contracts per contract
+  by its days; before, a final bill to the 14th got part of the new advance
+  payment.
+- **Annual report, costs with heating oil and pellets:** the “Costs” tile, its
+  trend and “Money” count the cost of the deliveries like the overview; their
+  pages state it instead of “no prices are stored”.
+- **Check bill, water:** waste water was missing when it runs through its
+  own meter or as main meter minus garden meter, and so in every billing
+  year too.
+- **Balance of the running contract** counted every year since the contract
+  started; now from the day after the last booked bill (`balance_from`).
+- **Meter groups:** a submeter whose parent meter is in the same group was
+  counted twice for consumption, bill check and billing year.
+- **Forecast workshop:** the final balance was missing the rest of the
+  current month.
+
+### Migration
+
+None. Schema stays 1.8.0; the new setting `update_check` is off.
+
+### Tests
+
+- `BillingPeriodServiceTest` (12), `UpdateCheckServiceTest` (5),
+  `ScenarioServiceTest`, `SimplexTest`, `ScenarioEndpointTest`, new Node
+  suites `release-notice.test` and `scenario.test`; extended
+  `DemoDataAlignerTest`, `DemoServiceTest`, `PersonaUseCasesTest` (three
+  reference dates), `setup-wizard.test`,
+  `DeployTemplatesTest`, `ReleaseConsistencyTest`, render tests.
+- Also new: `PeopleServiceTest`, `PersonDeletionTest`, `PersonaPeopleTest`,
+  `ComparisonTrafficLightTest`, `FlexibilityPersonaTest` (recalculates the
+  sample household’s figures independently), `ViewSumsConsistencyTest`
+  (same totals in every view), `DemoCoverageTest`, `BillingWindowTest`,
+  `SupplierSwitchPeriodsTest`, `PersonEditTest`, `ReportFlexPageTest`.
+- 1074 test methods (+145, 8 of them edge cases: meter replacement, foreign and invalid bills, a 14-month bill, pre-release tag, broken answer). 345 mutation checks, all red.
+
+### Lessons learned
+
+- **A note inside the app only reaches those who already have it.**
+  Installations on old versions learn about new ones only via GitHub, update
+  tools or a tag like `:3` — so the note comes early and the tag with it.
+
+[#33]: https://github.com/Bingerminger/energietracker/issues/33
+[#34]: https://github.com/Bingerminger/energietracker/issues/34
+
+---
+
 ## [3.5.1] — 2026-10-14 — On the iPad
 
 PATCH release: bugs that showed up on the iPad (Safari), plus the first real

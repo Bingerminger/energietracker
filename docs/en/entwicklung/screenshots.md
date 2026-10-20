@@ -86,7 +86,7 @@ instance with sign-in switched on.
 | `navigation-iphone.png` | Overview on the iPhone | `#/dashboard` | 375 × 812 | ✓ |
 | `erfassen-iphone.png` | Add sheet on the iPhone | ＋ Add | 375 × 812 | ✓ |
 | `analyse.png` | Analysis | `#/analysis` | 1440 × 1500 | ✓ |
-| `prognose.png` | Forecast | `#/forecast` | 1440 × 1500 | ✓ |
+| `prognose.png` | Forecast workshop (v3.6.0) | `#/forecast`, example “Cold winter” clicked | 1440 × 1500 | ✓ |
 | `jahresbericht.png` | Print view of the annual report (v3.4.0) | `#/report/print?year=2025` | 1440 × 1500 | ✓ |
 | `tarifvergleich.png` | Tariff switch | `#/tariffs` | 1440 × 1522 | ✓ |
 | `empfehlungen.png` | Recommendations | `#/recommendations` | 1440 × 1500 | ✓ |

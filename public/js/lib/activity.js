@@ -49,11 +49,22 @@ export function reasonText(reason) {
   return reason?.key ? t(reason.key, displayParams(reason.params)) : '';
 }
 
+/**
+ * v3.6.0 — Name einer Person, wie er beim Erledigen stand; gelöscht mit dem
+ * Zusatz „(gelöscht)“, ersetzt durch „ehemalige Person“. Gilt für `by` und die
+ * Momentaufnahme `assignee` ({name, id?, deleted?} bzw. {former: true}).
+ */
+export function personText(p) {
+  if (!p) return '';
+  if (p.former) return t('activity.by.former');
+  return p.deleted ? t('people.deletedName', { name: p.name || '' }) : (p.name || '');
+}
+
 /** Wer: Person, ehemalige Person, API-Schlüssel, Integration, von selbst — ohne Anmeldung leer. */
 export function byText(by) {
   if (!by) return '';
   switch (by.type) {
-    case 'person': return by.former ? t('activity.by.former') : (by.name || '');
+    case 'person': return personText(by);
     case 'key': return t('activity.by.key', { name: by.name || '' });
     case 'integration': return INTEGRATIONS[by.name] || by.name || '';
     case 'auto': return t('activity.by.auto');
@@ -68,12 +79,12 @@ export function whenWho(date, by) {
   return who ? t('activity.onBy', { date: fmt.date(date), by: who }) : t('activity.on', { date: fmt.date(date) });
 }
 
-/** Personen, die im Verlauf vorkommen (für den Filter): [{id, name}] */
+/** Personen, die im Verlauf vorkommen (für den Filter): [{id, name}]; v3.6.0 — gelöschte mit „(gelöscht)“ */
 export function personsIn(entries) {
   const seen = new Map();
   for (const e of entries || []) {
     const by = e.by;
-    if (by?.type === 'person' && by.id && !seen.has(by.id)) seen.set(by.id, by.name || by.id);
+    if (by?.type === 'person' && by.id && !seen.has(by.id)) seen.set(by.id, by.name ? personText(by) : by.id);
   }
   return [...seen].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
 }

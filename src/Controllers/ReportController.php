@@ -19,6 +19,9 @@ use Energietracker\Services\PdfReportService;
  *                       aus der Oberfläche schickt keinen Sprach-Header
  *   utilities=gas,wasser  Teilbericht, z. B. für den Hausmeister
  *   detail=1            Anhang „Zahlen im Detail“ (Monatstabellen)
+ *   billing=1           Anhang „Abrechnungsjahre“ (v3.6.0, F1030); die übrigen
+ *                       Seiten bleiben Kalenderjahr
+ *   flex=1              Seite „Flexibilität“: Ampel, Hebel, Zeitfenster (v3.6.0)
  */
 final class ReportController
 {
@@ -64,7 +67,8 @@ final class ReportController
             }
             $utilities = array_values(array_unique($utilities));
         }
-        return ['utilities' => $utilities, 'detail' => $req->queryParam('detail') === '1'];
+        return ['utilities' => $utilities, 'detail' => $req->queryParam('detail') === '1', 'billing' => $req->queryParam('billing') === '1',
+                'flex' => $req->queryParam('flex') === '1'];
     }
 
     public function yearlyData(Request $req): never

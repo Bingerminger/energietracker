@@ -189,6 +189,14 @@ Der **Preis** ist der, den evcc mit seinen eigenen Tarifeinstellungen
 ausgerechnet hat — nicht der Vertragspreis im Energietracker. Er steht da zum
 Vergleich; gerechnet wird mit ihm nichts.
 
+**Steckzeiten für die Flexibilität (v3.6.0).** Ein Ladevorgang reicht in evcc
+vom Anstecken bis zum Abstecken. Die Seite **Flexibilität** nimmt diese
+Fenster als die Zeit, in der sich das Laden verschieben lässt — abends
+angesteckt auch über Mitternacht —, statt anzunehmen, das Auto stünde am
+Ladetag den ganzen Tag bereit
+([Flexibilität, „Dein Hebel“](flexibilitaet.md#dein-hebel)). Dafür braucht es
+Viertelstunden des Wallbox-Zählers.
+
 ---
 
 ## 9. Zusammenspiel mit dem Ladestrom-Nachweis

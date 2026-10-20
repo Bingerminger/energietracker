@@ -476,9 +476,10 @@ function settle(c, kwhOf, from, toExcl) {
 }
 /**
  * v3.5.0 (N1026) — Wasser über ganze Monate wie ConsumptionService::waterRowCosts:
- * Trinkwasser (Arbeits- und Grundpreis) und Niederschlagswasser. Schmutzwasser
- * nach Abzug eines Zählers bildet die App nicht nach — es steht auf der
- * Rechnung als Posten (`sewage`). `kwh` ist hier die Menge in m³.
+ * Trinkwasser (Arbeits- und Grundpreis), Schmutzwasser nach Abzug des
+ * Gartenzählers und Niederschlagswasser. v3.6.0 — seit die App das
+ * Schmutzwasser mit Abzugszähler nachrechnet, gehört es zum Betrag (bis v3.5
+ * ein Posten auf der Rechnung). `kwh` ist hier die Menge in m³.
  */
 function waterSettle(c, haupt, abzug, from, toExcl) {
   let m3 = 0, energy = 0, fixed = 0, sewage = 0, advances = 0;
@@ -489,11 +490,11 @@ function waterSettle(c, haupt, abzug, from, toExcl) {
     energy += q * valueOn(c.trinkwasser.working_prices, 'ct_per_m3', a) / 100;
     const rate = validAt(c.niederschlagswasser.rates, a);
     fixed += (valueOn(c.trinkwasser.base_prices, 'eur_per_month', a) ?? 0) + (rate ? rate.eur_per_m2_year * rate.versiegelte_flaeche_m2 / 12 : 0);
-    sewage += (q - abzug(a, b)) * valueOn(c.schmutzwasser.working_prices, 'ct_per_m3', a) / 100;
+    sewage += Math.max(0, q - abzug(a, b)) * valueOn(c.schmutzwasser.working_prices, 'ct_per_m3', a) / 100;
     advances += valueOn(c.advance_payments, 'amount_eur', a) ?? 0;
   }
-  const cost = energy + fixed;
-  return { kwh: m3, energy, fixed, bonus: 0, cost, advances, result: cost - advances, sewage };
+  const cost = energy + sewage + fixed;
+  return { kwh: m3, energy: energy + sewage, fixed, bonus: 0, cost, advances, result: cost - advances, sewage };
 }
 
 /** Jahresabrechnung als Sonderzahlung: Rückzahlung oder Nachzahlung, mit oder ohne neuen Abschlag. */
@@ -1004,9 +1005,11 @@ function etwFernwaerme() {
 
   // Strom: v3.5.0 (N1026) — 2025 bei Beispiel-Energie, zum 01.01.2026 gekündigt und
   // gewechselt (lückenloser Folgevertrag, unbefristet mit Mindestlaufzeit und
-  // Preisgarantie), Schlussrechnung erfasst. Der neue Versorger rechnet nach
-  // eigenem Stichtag ab: Die Demo legt ihn relativ zu heute (demo_align), so
-  // ist seine erste Jahresabrechnung immer seit 30 Tagen „erwartet“.
+  // Preisgarantie), Schlussrechnung erfasst. v3.6.0 — der Stichtag Strom bleibt
+  // der 01.01. (dort enden die Schlussrechnungen; ein Stichtag relativ zu heute
+  // passte zu keinem festen Wechseltag): Die erste Jahresabrechnung des neuen
+  // Versorgers ist im Januar „erwartet“. Relativ zu heute liegt der Stichtag
+  // der Fernwärme (s. demoAlign).
   const stromReadings = readings('strom_wohnung', mStrom, dates, strom, 30562.8, 1);
   const kwhStrom = linearKwh(stromReadings);
   const s1 = contract('c_strom_natur', mStrom.id, 'Grünquell Energie', 'Naturstrom 24', '2023-01-01', '2024-12-31', {
@@ -1047,8 +1050,10 @@ function etwFernwaerme() {
       setup_persona: P,
     },
     reminders: [remCal, remAir, remStation],
-    // v3.5.0 (N1026) — Stichtag Strom relativ zu heute: Abrechnung seit 30 Tagen erwartet
-    demoAlign: { billing_anchor_days_ago: { strom: 30 } },
+    // v3.5.0 (N1026) — Stichtag relativ zu heute: Abrechnung seit 30 Tagen erwartet.
+    // v3.6.0 — bei der Fernwärme (ein Vertrag seit 2021, nur Jahresrechnungen), deren
+    // Rechnungen der DemoDataAligner im Rhythmus des Stichtags mitführt
+    demoAlign: { billing_anchor_days_ago: { fernwaerme: 30 } },
     activity: (() => {
       const log = activityLog(P);
       log.cancelled('strom', s1, '2024-11-12', KATRIN, { note: 'Per Mail gekündigt, Bestätigung liegt vor' });
@@ -1172,10 +1177,14 @@ function eigenheimKlassisch() {
     water('c_wasser_2024', 2024, 'Trink-, Schmutz- und Niederschlagswasser 2024', '2024-12-31', 'Tarifanpassung 2024', [['2024-01-01', 241]], 8.4, [['2024-01-01', 282]], 1.42, 82),
     water('c_wasser_2025', 2025, 'Trink-, Schmutz- und Niederschlagswasser 2025–2026', '2026-12-31', '', [['2025-01-01', 252], ['2026-01-01', 263]], 8.9, [['2025-01-01', 297], ['2026-01-01', 309]], 1.48, 86),
   ];
-  // v3.5.0 (N1026) — Jahresrechnung Wasser 2025: Schmutzwasser (abzüglich Gartenwasser) als Posten
+  // v3.6.0 — Sonderzahlung am Wasservertrag (GitHub #34): Nachzahlung aus der Abrechnung 2024
+  waterContracts[1].special_payments = [specialPayment(`${P}|sp|wasser-2024`, '2025-02-20', 'nachzahlung_ohne', 38.4,
+    'Wasserabrechnung 2024 — Nachzahlung')];
+  // v3.5.0 (N1026) — Jahresrechnung Wasser 2025; v3.6.0 — Schmutzwasser (abzüglich
+  // Gartenwasser) rechnet die App jetzt selbst nach, kein Posten mehr
   const ws = waterSettle(waterContracts[2], linearKwh(hauptReadings), linearKwh(gartenReadings), '2025-01-01', '2026-01-01');
   const waterBill = supplierBill(`${P}|bill|wasser-2025`, mHaupt.id, waterContracts[2], 'annual', '2025-01-01', '2026-01-01', '2026-02-18', ws,
-    { water: true, items: [{ label: 'Schmutzwasser (abzüglich Gartenwasser)', amount_eur: round(ws.sewage, 2), kind: 'fee' }] });
+    { water: true });
   const bills = {
     gas: [supplierBill(`${P}|bill|gas-2024`, mGas.id, g1, 'final', '2023-07-01', '2024-07-01', '2024-08-06', gs1, { sp: spG1 }),
           supplierBill(`${P}|bill|gas-2025`, mGas.id, g2, 'annual', '2024-07-01', '2025-07-01', '2025-07-24', gy, { sp: spG2 })],
@@ -1249,6 +1258,31 @@ function eigenheimKlassisch() {
 // ═════════════════════════════════════════════════════════════════════════
 // Einfamilienhaus modern — 150 m², Wärmepumpe, PV 9,8 kWp, Speicher, Wallbox
 // ═════════════════════════════════════════════════════════════════════════
+
+/**
+ * v3.6.0 — Steckzeiten der Ladevorgänge. evcc führt einen Ladevorgang vom
+ * Anstecken („created“) bis zum Abstecken („finished“); geladen wird darin,
+ * hier gleich nach dem Anstecken — die Viertelstunden der Wallbox entstehen
+ * vorher aus Beginn und Dauer der Ladung (`sessions` tragen bis hierher das
+ * Ende der Ladung). Abends angesteckt bleibt der Dienstwagen bis zum nächsten
+ * Morgen (Abstecken 06:30–07:45 Uhr), mittags angesteckt bis zum späten
+ * Nachmittag (16:30–18:30 Uhr, frühestens 30 Minuten nach der Ladung). `date`
+ * ist wie beim Import aus evcc der Tag des Absteckens (EvccService::apply).
+ * Die Flexibilität verschiebt das Laden nur innerhalb dieser Fenster.
+ */
+function evPlugTimes(sessions, rand) {
+  const minutes = (iso) => +iso.slice(11, 13) * 60 + +iso.slice(14, 16);
+  const hm = (m) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}:00`;
+  return sessions.map(s => {
+    const day = s.created.slice(0, 10);
+    const evening = minutes(s.created) >= 15 * 60;
+    const out = evening ? addDays(day, 1) : day;
+    const outMin = evening
+      ? 6 * 60 + 30 + Math.floor(between(rand, 0, 75))
+      : Math.max(minutes(s.finished) + 30, 16 * 60 + 30 + Math.floor(between(rand, 0, 120)));
+    return { ...s, finished: `${out}T${hm(outMin)}${berlinOffset(out)}`, date: out };
+  });
+}
 
 function eigenheimModern() {
   const P = 'eigenheim-modern';
@@ -1484,7 +1518,8 @@ function eigenheimModern() {
 
   return {
     id: P,
-    ev_sessions: evSessions,
+    // v3.6.0 — mit Steckzeiten (Anstecken bis Abstecken), nachdem die Viertelstunden stehen
+    ev_sessions: evPlugTimes(evSessions, r('evcc-plug')),
     intervals,
     // Börsenpreise wie nach „Von SMARD laden“ — der dynamische Schattenvertrag rechnet damit
     market_prices: {
@@ -1613,9 +1648,223 @@ function showcase() {
   return d;
 }
 
+// ═════════════════════════════════════════════════════════════════════════
+// v3.6.0 — Personenverzeichnis je Haushalt (Topf `people`, PeopleService)
+// ═════════════════════════════════════════════════════════════════════════
+//
+// Bis v3.5.0 standen an den Terminen nur Namen; angelegt war niemand. Jetzt
+// hat jeder Haushalt sein Verzeichnis: alle Personen aus Verlauf und
+// Zuständigkeit mit fortlaufender Nummer und Rolle (je Haushalt mindestens
+// eine, die verwaltet), Termine mit `assignee_id`. Im Einfamilienhaus
+// klassisch ist Lukas gelöscht: Die Kündigung des alten Gasvertrags hat er
+// erledigt; sein Eintrag im Verlauf zeigt „Lukas (gelöscht)“. Nur Personen
+// und Zuständigkeiten — alles andere bleibt, wie die Haushalte es bauen.
+
+/**
+ * Personen je Haushalt, in der Reihenfolge ihrer Nummer. `takes`: Einträge,
+ * die die gelöschte Person erledigt hat. `REASSIGN`: Zuständige, die keine
+ * Person des Haushalts sind (v3.5.0 ein freier Name), übernimmt jemand.
+ */
+const REASSIGN = { mieterin: { 'Hausverwaltung Krüger': 'Lena' }, 'etw-fernwaerme': { 'Hausmeister Petersen': 'Katrin' } };
+const PEOPLE = {
+  mieterin: [{ name: 'Lena', role: 'admin' }],
+  'etw-fernwaerme': [{ name: 'Katrin', role: 'admin' }, { name: 'Mehmet', role: 'member' }],
+  'eigenheim-klassisch': [
+    { name: 'Thomas', role: 'admin' }, { name: 'Sabine', role: 'admin' }, { name: 'Jonas', role: 'member' },
+    { name: 'Lukas', role: 'member', deleted: { on: '2025-01-15', at: '19:30', by: 'Thomas' },
+      takes: (e) => e.ref?.utility === 'gas' && e.done_on === '2024-03-20', count: 2 },
+  ],
+  'eigenheim-modern': [{ name: 'Julia', role: 'admin' }, { name: 'Ben', role: 'member' }],
+  showcase: [{ name: 'Paul', role: 'admin' }, { name: 'Anna', role: 'member' }],
+};
+
+/** ID einer erfundenen Person — dieselbe Formel wie activityLog(). */
+const personId = (P, name) => 'u_' + hex(`${P}|person|${name}`, 8);
+
+/**
+ * Verzeichnis, Zuständigkeit und Löschvermerk eines Haushalts. `h` hat
+ * `reminders` und `activity` (Persona oder Schaufenster); gesetzt werden
+ * `h.people`, `assignee_id` an den Terminen und `deleted` im Verlauf.
+ */
+function withPeople(P, h) {
+  const spec = PEOPLE[P];
+  if (!spec) throw new Error(`Personen fehlen für ${P}`);
+  const byName = new Map(spec.map(s => [s.name, s]));
+  const people = spec.map((s, i) => ({
+    id: personId(P, s.name), no: i + 1, name: s.name, role: s.role, created_at: stamp(START, '09:00'),
+    deleted_at: s.deleted ? stamp(s.deleted.on, s.deleted.at) : null,
+    deleted_by: s.deleted ? personId(P, s.deleted.by) : null,
+  }));
+  // die gelöschte Person hat diese Einträge erledigt
+  for (const s of spec.filter(x => x.takes)) {
+    const taken = h.activity.filter(s.takes);
+    if (taken.length !== s.count) throw new Error(`${P}: ${s.name} sollte ${s.count} Einträge haben, gefunden ${taken.length}`);
+    for (const e of taken) e.by = { type: 'person', id: personId(P, s.name), name: s.name };
+  }
+  const gone = new Set(spec.filter(s => s.deleted).map(s => personId(P, s.name)));
+  const mark = (p) => (p && gone.has(p.id) ? { ...p, deleted: true } : p);
+  for (const e of h.activity) {
+    if (e.by?.type === 'person') {
+      if (!byName.has(e.by.name) || e.by.id !== personId(P, e.by.name)) throw new Error(`${P}: Person ${e.by.name} nicht im Verzeichnis`);
+      e.by = mark(e.by);
+    }
+    if (e.undone?.by?.type === 'person') e.undone.by = mark(e.undone.by);
+    if (e.assignee) e.assignee = mark(e.assignee);
+  }
+  for (const r of h.reminders) {
+    if (!r.assignee) continue;
+    r.assignee = REASSIGN[P]?.[r.assignee] ?? r.assignee;
+    const s = byName.get(r.assignee);
+    if (!s) throw new Error(`${P}: Zuständige ${r.assignee} ist nicht angelegt`);
+    if (s.deleted && r.active !== false) throw new Error(`${P}: offener Termin bei gelöschter Person ${s.name}`);
+    r.assignee_id = personId(P, s.name);
+  }
+  h.people = { last_no: people.length, people };
+  return h;
+}
+
+// ═════════════════════════════════════════════════════════════════════════
+// v3.6.0 (Paket abrechnung) — Anwendungsfälle, die noch kein Haushalt zeigte.
+// Matrix Anwendungsfall × Haushalt: DemoCoverageTest::matrix(), der Test sichert sie ab.
+// Eigene Funktionen, damit sich Änderungen an den Haushalten oben nicht mit
+// diesen hier überschneiden.
+// ═════════════════════════════════════════════════════════════════════════
+
+/**
+ * Abrechnung eines Gruppenvertrags über ganze Monate [from, toExcl) wie die
+ * App (ConsumptionService, Gruppenvertrag v3.1.0): jedes Mitglied zu seinem
+ * Arbeitspreis (`working_prices_by_meter`, sonst der des Vertrags), feste
+ * Kosten und Abschläge einmal.
+ */
+function groupSettle(c, members, from, toExcl) {
+  let kwh = 0, energy = 0, fixed = 0, advances = 0;
+  for (const ym of months(from, toExcl)) {
+    const a = ym + '-01', b = addMonths(a, 1);
+    for (const { id, kwhOf } of members) {
+      const list = c.working_prices_by_meter?.[id] ?? c.working_prices;
+      const cuts = [...new Set([a, ...list.map(e => e.from).filter(d => d > a && d < b), b])].sort();
+      for (let i = 0; i + 1 < cuts.length; i++) {
+        const q = kwhOf(cuts[i], cuts[i + 1]);
+        kwh += q;
+        energy += q * valueOn(list, 'ct_per_kwh', cuts[i]) / 100;
+      }
+    }
+    fixed += fixedPerMonth(c, a);
+    advances += advanceOn(c, a) ?? 0;
+  }
+  const cost = energy + fixed;
+  return { kwh, energy, fixed, bonus: 0, cost, advances, result: cost - advances };
+}
+
+/**
+ * Eigenheim klassisch: Einliegerwohnung mit Nachtspeicherheizung —
+ * Doppeltarifzähler (HT/NT) als Zählergruppe mit einem Gruppenvertrag
+ * (F1006, F1017), jede Jahresrechnung erfasst und gebucht (die erste nur ab
+ * dem Einzug: eine kürzere Periode, F1030); ein stillgelegter Zähler
+ * (Gartenhaus, F1014), ein Home-Assistant-Alias (F1009), eine geschätzte
+ * Ablesung und ein Posten auf der Wasserrechnung, den die App nicht nachbildet.
+ */
+function abrechnungKlassisch(p) {
+  const P = p.id;
+  const r = seeded(`${P}|abrechnung`);
+  const strom = p.utilities.strom;
+  const dates = strom.readings.filter(x => x.meter_id === 'm_strom_haus').map(x => x.date);
+  const gid = 'g_strom_einlieger';
+  const total = scaleTo(series(d => hdd(d) * Math.max(0, 1 + 0.15 * gauss(r)) + 0.6), 3200);
+  const nt = series(d => total.get(d) * 0.72), ht = series(d => total.get(d) * 0.28);
+  const mHt = meter('m_strom_einlieger_ht', 'Einliegerwohnung HT', '⚡', 'Doppeltarifzähler im Flur, Zählwerk Hochtarif',
+    device('d_strom_einlieger_ht', 'S-2016-044', '2016-03-01'), { meter_group_id: gid });
+  const mNt = meter('m_strom_einlieger_nt', 'Einliegerwohnung NT', '🌙', 'Doppeltarifzähler im Flur, Zählwerk Niedertarif (Nachtspeicher)',
+    device('d_strom_einlieger_nt', 'S-2016-045', '2016-03-01'), { meter_group_id: gid });
+  const rHt = readings('strom_einlieger_ht', mHt, dates, ht, 21480.3, 1);
+  const rNt = readings('strom_einlieger_nt', mNt, dates, nt, 48211.7, 1);
+  const c = contract('c_strom_heizstrom', null, 'Stadtwerke Musterstadt', 'Heizstrom HT/NT', START, null, {
+    wp: wp([START, 34.6], ['2025-01-01', 31.2]), bp: bp([START, 11.9]), ap: ap([START, 95], ['2024-03-01', 105]), notice: 1,
+    extra: { meter_group_id: gid, working_prices_by_meter: { [mNt.id]: wp([START, 27.3], ['2025-01-01', 23.9]) } },
+  });
+  const members = [{ id: mHt.id, kwhOf: linearKwh(rHt) }, { id: mNt.id, kwhOf: linearKwh(rNt) }];
+  const bills = [];
+  for (const [from, toExcl, issued] of [[START, '2024-01-01', '2024-01-26'], ['2024-01-01', '2025-01-01', '2025-01-24'], ['2025-01-01', '2026-01-01', '2026-01-23']]) {
+    const s = groupSettle(c, members, from, toExcl);
+    const sp = settlementPayment(`${P}|sp|heizstrom-${from}`, issued, s, `Jahresabrechnung Heizstrom ${from.slice(0, 4)}`);
+    c.special_payments.push(sp);
+    bills.push(supplierBill(`${P}|bill|heizstrom-${from}`, mHt.id, c, 'annual', from, toExcl, issued, s, { sp }));
+  }
+  // Gartenhaus: eigener Zähler bis Oktober 2024, dann abgemeldet (außer Betrieb, ohne Vertrag)
+  const shed = scaleTo(series(d => season(d, -0.3) * Math.max(0, 1 + 0.2 * gauss(r))), 420);
+  const until = dates.filter(d => d <= '2024-10-05').at(-1);
+  const mShed = meter('m_strom_gartenhaus', 'Gartenhaus (stillgelegt)', '🏚️', 'Eigener Zähler bis zur Abmeldung im Herbst 2024',
+    device('d_strom_gartenhaus', 'S-2011-310', '2011-05-02'), { active: false });
+  const rShed = readings('strom_gartenhaus', mShed, dates.filter(d => d <= until), shed, 3104.2, 1);
+  mShed.devices[0] = { ...mShed.devices[0], removed_on: until, final_counter: rShed.at(-1).counter, reason: 'Abgemeldet' };
+
+  strom.meters.push(mHt, mNt, mShed);
+  strom.readings.push(...rHt, ...rNt, ...rShed);
+  strom.contracts.push(c);
+  strom.bills.push(...bills);
+  strom.meter_groups = [{ id: gid, name: 'Einliegerwohnung (HT/NT)', created_at: CREATED }];
+  // Home Assistant schickt den Hauptzähler unter seinem Sensornamen (F1009, POST /api/ingest)
+  strom.meters.find(m => m.id === 'm_strom_haus').external_id = 'sensor.hauptzaehler_strom';
+  // die erste Ablesung nach dem Sommerurlaub 2025 ist geschätzt (Karte nicht zur Hand)
+  const est = p.utilities.gas.readings.find(x => x.date > '2025-09-01');
+  if (est) { est.is_estimated = true; est.note = 'Geschätzt, Ablesekarte lag noch im Urlaubsgepäck'; }
+  // Wasserrechnung 2025: Zählermiete für den Gartenzähler — ein Posten, den die App nicht nachbildet
+  const wb = p.utilities.wasser.bills[0];
+  const fee = { label: 'Zählermiete Gartenzähler', amount_eur: 12.0, kind: 'fee' };
+  wb.items = [fee];
+  wb.invoice.amount_eur = round(wb.invoice.amount_eur + fee.amount_eur, 2);
+  wb.invoice.result_eur = round(wb.invoice.amount_eur - wb.invoice.advances_paid_eur, 2);
+  // … und gebucht wie Gas und Strom: der Saldo des Wasservertrags beginnt danach (v3.6.0)
+  const wc = p.utilities.wasser.contracts.find(x => x.id === wb.contract_id);
+  const due = wb.invoice.result_eur > 0;
+  const wsp = specialPayment(`${P}|sp|wasser-2025`, wb.issued_on, due ? 'nachzahlung_ohne' : 'rueckzahlung_ohne', Math.abs(wb.invoice.result_eur),
+    `Wasserabrechnung 2025 — ${due ? 'Nachzahlung' : 'Guthaben'}`);
+  wc.special_payments = [...(wc.special_payments ?? []), wsp];
+  wb.special_payment_id = wsp.id;
+}
+
+/**
+ * Schaufenster: Fernwärme seit 2023 mit einer erfassten Rechnung 2025 —
+ * die Jahresabrechnungen 2023 und 2024 sind als Sonderzahlung gebucht. Ohne
+ * sie zählte der Saldo des Vertrags drei Jahre zusammen (seit v3.6.0 beginnt
+ * er erst nach einer gebuchten Rechnung; die von 2025 ist bewusst noch offen).
+ */
+function abrechnungShowcase(d) {
+  const c = d.utilities.fernwaerme.contracts.find(x => x.id === 'c_fw_001');
+  const rs = d.utilities.fernwaerme.readings.filter(r => r.meter_id === 'm_fernwaerme_main').sort((a, b) => (a.date < b.date ? -1 : 1));
+  c.special_payments = (c.special_payments ?? []).filter(s => !String(s.note ?? '').startsWith('Jahresabrechnung Fernwärme 202'));
+  for (const [y, issued] of [['2023', '2024-02-14'], ['2024', '2025-02-12']]) {
+    const s = settle(c, linearKwh(rs), `${y}-01-01`, `${+y + 1}-01-01`);
+    c.special_payments.push(settlementPayment(`showcase|sp|fw-${y}`, issued, s, `Jahresabrechnung Fernwärme ${y}`));
+  }
+}
+
 /** Wie BackupService schreibt (4 Leerzeichen); Beträge mit „.0“ bleiben so stehen wie im Original. */
 function showcaseJson(d) {
   return JSON.stringify(d, null, 4).replace(/("signup_bonus_eur": )(\d+)(\n)/g, '$1$2.0$3') + '\n';
+}
+
+// ═════════════════════════════════════════════════════════════════════════
+// v3.6.0 (Paket einpers) — eigene Vergleichswerte für die Kachel „Einordnung“
+// ═════════════════════════════════════════════════════════════════════════
+
+/**
+ * Erfundene Vergleichswerte in der Größenordnung von Strom- und Heizspiegel
+ * (keine Tabellenwerte). Wohnfläche und Personen stehen in den Einstellungen
+ * des Haushalts — eingetragen, sonst lädt die Kachel nur ein. So zeigt
+ * Eigenheim klassisch in Demo und Pages die volle Ampel: Haushaltsstrom rot
+ * (der Heizstrom der Einliegerwohnung zählt mit), Heizung gelb, Wasser grün.
+ */
+const REFERENCE_VALUES = { 'eigenheim-klassisch': { reference_strom_kwh: 6200, reference_heat_kwh_m2: 132 } };
+
+function withReferenceValues(p) {
+  const ref = REFERENCE_VALUES[p.id];
+  if (!ref) return p;
+  if (!(p.settings.wohnflaeche_m2 > 0) || !(p.settings.wasser_personen_anzahl > 0)) {
+    throw new Error(`${p.id}: Vergleichswerte ohne eingetragene Wohnfläche und Personen ordnen nichts ein`);
+  }
+  Object.assign(p.settings, ref);
+  return p;
 }
 
 // ── Zusammenbau ──────────────────────────────────────────────────────────
@@ -1645,6 +1894,8 @@ function backup(p) {
     interval_files: p.intervals?.files ?? {},
     // v3.4.0 (F1024) — Verlauf erledigter Hinweise; v3.5.0 (N1026) mit erfundenen Namen
     activity: p.activity ?? [],
+    // v3.6.0 — Personenverzeichnis (withPeople)
+    people: p.people,
     // v3.5.0 (N1026) — nur für DemoDataAligner (Stichtag relativ zu heute), wird nicht eingespielt
     ...(p.demoAlign ? { demo_align: p.demoAlign } : {}),
     utilities,
@@ -1690,6 +1941,9 @@ let changed = 0;
 if (!CHECK) mkdirSync(OUT_DIR, { recursive: true });
 for (const build of [mieterin, etwFernwaerme, eigenheimKlassisch, eigenheimModern]) {
   const p = build();
+  if (p.id === 'eigenheim-klassisch') abrechnungKlassisch(p);   // v3.6.0 (Paket abrechnung)
+  withPeople(p.id, p);   // v3.6.0 — Personen und Zuständigkeiten
+  withReferenceValues(p);   // v3.6.0 (Paket einpers) — Vergleichswerte der Einordnung
   const payload = backup(p);
   // Werte je Viertelstunde in einer Zeile (35.040 Zahlen je Reihe), der Rest eingerückt
   const compact = {};
@@ -1713,11 +1967,14 @@ for (const build of [mieterin, etwFernwaerme, eigenheimKlassisch, eigenheimModer
 {
   // v3.5.0 (N1026) — Schaufenster: nur die Ergänzungen, Rest byte-gleich
   const d = showcase();
+  abrechnungShowcase(d);   // v3.6.0 (Paket abrechnung)
+  withPeople('showcase', d);   // v3.6.0 — Personen und Zuständigkeiten
   // Backup und Verzeichnisform (cp -R demo-data …) führen dieselben Töpfe (DemoServiceTest)
   const files = [
     [DEMO_FILE, showcaseJson(d)],
     [join(ROOT, 'demo-data', 'reminders.json'), JSON.stringify(d.reminders, null, 4) + '\n'],
     [join(ROOT, 'demo-data', 'activity.json'), JSON.stringify(d.activity, null, 4) + '\n'],
+    [join(ROOT, 'demo-data', 'people.json'), JSON.stringify(d.people, null, 4) + '\n'],   // v3.6.0
     ...Object.entries(d.utilities).filter(([, b]) => b.bills?.length)
       .map(([k, b]) => [join(ROOT, 'demo-data', k, 'bills.json'), JSON.stringify(b.bills, null, 4) + '\n']),
   ];

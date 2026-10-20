@@ -47,6 +47,7 @@ jobs:
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
             type=raw,value=latest
 
       - name: Bauen & pushen
@@ -75,6 +76,7 @@ jobs:
           tags: |
             type=semver,pattern={{version}},suffix=-rootless
             type=semver,pattern={{major}}.{{minor}},suffix=-rootless
+            type=semver,pattern={{major}},suffix=-rootless
             type=raw,value=latest-rootless
 
       # Die Stufe `base` kommt aus dem Builder-Cache des Schritts davor.

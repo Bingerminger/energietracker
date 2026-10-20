@@ -167,7 +167,7 @@ und kennt **kein HTTP**.
 | `EvChargingReportService` | **(v3.1.0)** Ladestrom-Nachweis der Wallbox je Monat: Vertragspreis des zahlenden Vertrags samt Grundpreis-Anteil oder Strompreispauschale (Länderprofil), PDF über `Pdf\PdfWriter` |
 | `HeatPumpService` | **(v3.1.0)** Jahresarbeitszahl: Wärme des Zählers mit Rolle `heat_pump_output` ÷ Strom der verknüpften Zähler, nur Monate mit beiden Seiten |
 | `SeriesImportService` | **(v3.1.0)** Zeitreihen aus Portalen mit Spaltenzuordnung zu Tageswerten verdichten — als Ablesungen (über `ReadingImportService`) oder Zeiträume (über `PeriodService`) |
-| `ReferenceService` | **(v3.1.0)** Einordnung an eigenen Vergleichswerten: Haushaltsstrom ohne Wärmepumpe und Wallbox, Heizung je m², Links zur Selbstprüfung (nur DE) |
+| `ReferenceService` | **(v3.1.0)** Einordnung an eigenen Vergleichswerten: Haushaltsstrom ohne Wärmepumpe und Wallbox, Heizung je m², Links zur Selbstprüfung (nur DE); seit v3.6.0 Ampel (`rating`), Wasser je Person gegen den Richtwert und fehlende Angaben (`missing`) |
 | `DocsService` | **(v3.4.0)** Hilfe auf dem Server: Freigabeliste der Doku aus dem Dateibestand (Seiten unter `docs/` ohne Weiterleitungen, PNG unter `docs/ui/screenshots/`, feste Liste im Wurzelverzeichnis als `root/…`), reiner Nachschlag ohne Pfadverkettung, keine symbolischen Links; Sprache, Spiegel und Ziel einer Weiterleitung. Gerendert wird im Browser (`public/js/lib/markdown.js`) |
 
 Seit v3.1.0 kennt `ConsumptionService` außerdem den **Gruppenvertrag**

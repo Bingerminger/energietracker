@@ -87,7 +87,7 @@ async function request(method, path, body = null, { raw = false, timeoutMs } = {
 
 async function send(method, path, body, raw, signal) {
   // v3.0.0 — öffentliche Demo ohne PHP: Antworten aus dem Abzug (lib/demo-mode.js)
-  if (DEMO) return demoRequest(method, path, getLocale());
+  if (DEMO) return demoRequest(method, path, getLocale(), body);
   // N1007 — aktive Sprache mitschicken, damit das Backend (Full-Stack-i18n)
   // Fehlermeldungen/Labels in derselben Sprache liefern kann. v3.1.0 — das
   // Backend richtet sich nach `X-ET-Language` (Sprache dieses Geräts, I18N-29);
@@ -216,6 +216,12 @@ export const api = {
   summary:            ()                => request('GET', '/api/summary'),
   // v2.5.0 — F1012: Rechnungsprüfung (nur Gas)
   billCheck:          (u, id, from, to) => request('GET', `/api/utility/${u}/meters/${id}/bill-check?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`),
+  // v3.6.0 (F1030, #33) — Abrechnungsperioden: Zähler mit Monatsreihe, ganze Art ohne
+  billingPeriods:        (u, id) => request('GET', `/api/utility/${u}/meters/${id}/billing-periods?months=1`),
+  utilityBillingPeriods: (u)     => request('GET', `/api/utility/${u}/billing-periods`),
+  // v3.6.0 (Paket abrechnung) — nur die Perioden (Rechnung prüfen), Zählergruppen der Übersicht
+  meterBillingPeriods:   (u, id) => request('GET', `/api/utility/${u}/meters/${id}/billing-periods`),
+  groupBillingPeriods:   (u, id) => request('GET', `/api/utility/${u}/meter-groups/${id}/billing-periods`),
 
   // Forecast
   forecast:      (u, meterId, opts={})=> {
@@ -223,6 +229,8 @@ export const api = {
     const q = params ? '?' + params : '';
     return request('GET', `/api/utility/${u}/meters/${meterId}/forecast${q}`);
   },
+  // v3.6.0 (F1031) — Prognose-Werkstatt: Szenario rechnen (liest nur, s. lib/scenario.js)
+  scenario:      (body)                => request('POST', '/api/forecast/scenario', body, { timeoutMs: TIMEOUT_READ_MS }),
 
   // Temperatures
   temperatures:  ()                    => request('GET',  '/api/temperatures'),
@@ -278,6 +286,8 @@ export const api = {
   // v3.4.0 (F1024) — auf Wunsch den Namen im Verlauf durch „ehemalige Person" ersetzen
   deleteUser:      (id, { anonymizeActivity = false } = {}) =>
     request('DELETE', `/api/users/${encodeURIComponent(id)}${anonymizeActivity ? '?anonymize_activity=1' : ''}`),
+  // v3.6.0 — Vorschau „Person löschen“: offene Termine an wen, erledigte Einträge
+  userHandover:    (id)                => request('GET',    `/api/users/${encodeURIComponent(id)}/handover`),
   logout:          ()                  => request('DELETE', '/api/session'),
   // v3.4.0 (N1020) — alle Sitzungen der Person beenden, auf jedem Gerät
   logoutEverywhere: ()                 => request('POST',   '/api/session/logout-everywhere'),
@@ -304,6 +314,8 @@ export const api = {
   exportReadingsCsvUrl:     (u, f = '1') => fileUrl(`/api/export/${u}/readings.csv${csvQuery(f)}`),
   exportDeliveriesCsvUrl:   (u, f = '1') => fileUrl(`/api/export/${u}/deliveries.csv${csvQuery(f)}`),
   exportTemperaturesCsvUrl: (f = '1')    => fileUrl(`/api/export/temperatures.csv${csvQuery(f)}`),
+  // v3.6.0 (F1030) — eine Zeile je Abrechnungsperiode
+  exportBillingCsvUrl:      (u, f = '1') => fileUrl(`/api/export/${u}/monthly.csv?period=billing${f === 'local' ? '&format=local' : ''}`),
 
   diagnostics:   ()                    => request('GET',  '/api/diagnostics'),
 
@@ -372,8 +384,9 @@ export const api = {
   // PDFs (ein Download schickt keinen Sprach-Header, sonst Standardsprache)
   // v3.5.0 — `utilities`: Teilbericht (Liste der Schlüssel; leer = alle), aus dem Dialog
   yearlyReport: (year, { detail = false, utilities = null } = {}) => request('GET', `/api/reports/yearly?year=${year}${detail ? '&detail=1' : ''}${utilities?.length ? `&utilities=${utilities.map(encodeURIComponent).join(',')}` : ''}`),
-  yearlyReportUrl: (year, { inline = false, lang = '', detail = false, utilities = null } = {}) => {
-    const q = [year ? `year=${year}` : '', inline ? 'inline=1' : '', detail ? 'detail=1' : '',
+  // v3.6.0 — `flex`: Seite „Flexibilität“ (Ampel, Hebel, Zeitfenster)
+  yearlyReportUrl: (year, { inline = false, lang = '', detail = false, utilities = null, billing = false, flex = false } = {}) => {
+    const q = [year ? `year=${year}` : '', inline ? 'inline=1' : '', detail ? 'detail=1' : '', billing ? 'billing=1' : '', flex ? 'flex=1' : '',
       utilities?.length ? `utilities=${utilities.map(encodeURIComponent).join(',')}` : '',
       lang ? `lang=${encodeURIComponent(lang)}` : ''].filter(Boolean).join('&');
     // in der Demo liegt das PDF je Sprache in einem eigenen Ordner
@@ -392,6 +405,7 @@ export const api = {
   importMarketPrices: (csvText, { dryRun = false } = {}) =>
     request('POST', `/api/market-prices/import-csv${dryRun ? '?dry_run=1' : ''}`, csvText, { raw: true }),
   syncSmard:          ()                => request('POST', '/api/market-prices/sync-smard', {}),
+  updateCheck:        ()                => request('GET',  '/api/update-check'),   // v3.6.0
   importContractPrices: (u, id, csvText, { dryRun = false } = {}) =>
     request('POST', `/api/utility/${u}/contracts/${encodeURIComponent(id)}/prices/import-csv${dryRun ? '?dry_run=1' : ''}`, csvText, { raw: true }),
   // ── v3.1.0 (H5) — Versorgerrechnungen ──
@@ -416,6 +430,8 @@ export const api = {
   evReportUrl: (meterId, year, method, flat, ext) => fileUrl(`/api/reports/ev-charging.${ext}?${evQuery(meterId, year, method, flat)}`),
   // ── v3.3.0 (F1021) — Flexibilität: Viertelstunden, Börsenpreise je Viertelstunde ──
   flexibility:       (year) => request('GET', `/api/flexibility?year=${encodeURIComponent(year)}`),
+  // v3.6.0 — nur die Zahl der Ergebniskarte (Kachel „Dein Hebel“ der Übersicht)
+  flexibilitySummary: (year) => request('GET', `/api/flexibility?year=${encodeURIComponent(year)}&summary=1`),
   intervals:         ()     => request('GET', '/api/intervals'),
   deleteInterval:    (id)   => request('DELETE', `/api/intervals/${encodeURIComponent(id)}`),
   syncSmardIntervals: (year, month = null) => request('POST', `/api/market-prices/sync-smard-intervals?year=${encodeURIComponent(year)}${month ? `&month=${encodeURIComponent(month)}` : ''}`, {}, { timeoutMs: TIMEOUT_LONG_MS }),

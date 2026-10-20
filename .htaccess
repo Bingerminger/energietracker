@@ -23,7 +23,7 @@
   RewriteEngine On
   # v3.1.0 — tools/ (Demo-Bau) und dist/ (Bauergebnis) dazu; WebrootRulesTest
   # verlangt, dass jedes Verzeichnis außer public/ hier steht.
-  RewriteRule ^(data|src|tests|scripts|docker|docs|vendor|demo-data|graphify-out|node_modules|tools|dist|deploy)(/|$) - [R=404,L]
+  RewriteRule ^(data|src|tests|scripts|docker|docs|vendor|demo-data|graphify-out|node_modules|tools|dist|deploy|samples)(/|$) - [R=404,L]
   # Punktdateien und -verzeichnisse: .git, .github, .env, .htaccess …
   RewriteRule (^|/)\. - [R=404,L]
   RewriteRule ^(composer\.(json|lock)|phpunit\.xml\.dist|router\.php|Dockerfile|docker-compose\.yml|VERSION|requirements\.txt|[^/]+\.md)$ - [R=404,L]
@@ -38,7 +38,7 @@
 # wirkt, prüft die App selbst: Einstellungen → Zugriff → Sicherheits-Check.
 <IfModule !mod_rewrite.c>
   <IfModule mod_alias.c>
-    RedirectMatch 404 "^(?:(?!/public/).)*/(data|src|tests|scripts|docker|docs|vendor|demo-data|graphify-out|node_modules|tools|dist|deploy)(/|$)"
+    RedirectMatch 404 "^(?:(?!/public/).)*/(data|src|tests|scripts|docker|docs|vendor|demo-data|graphify-out|node_modules|tools|dist|deploy|samples)(/|$)"
     RedirectMatch 404 "/\."
     RedirectMatch 404 "^(?:(?!/public/).)*/(composer\.(json|lock)|phpunit\.xml\.dist|router\.php|Dockerfile|docker-compose\.yml|VERSION|requirements\.txt|[^/]+\.md)$"
   </IfModule>

@@ -115,8 +115,13 @@ globalThis.fetch = async (url, init) => {
     be.every(e => /^\d{4}-\d{2}-\d{2}$/.test(e.ref.period_until) && 'deadline' in e.ref && typeof e.ref.final === 'boolean'
       && e.href.startsWith('#/bill-check?') && e.href.includes('capture=1') && (e.done || e.can_mark_done)),
     `${be.length} erwartet`);
+  // v3.6.0 — Personenverzeichnis: auch ohne Anmeldung (frische Daten: leer, Demo-Daten: deren Personen)
   const people = await j('/api/people');
-  check('GET /api/people → Array (ohne Anmeldung leer)', Array.isArray(people) && people.length === 0);
+  check('GET /api/people → [{id, name}] aus dem Personenverzeichnis', Array.isArray(people)
+    && people.every(p => Object.keys(p).join() === 'id,name' && /^u_[0-9a-z]{1,32}$/.test(p.id)), `${people.length} Personen`);
+  check('GET /api/agenda und /api/reminders → assignee_deleted (v3.6.0)',
+    (ag.events || []).every(e => typeof e.assignee_deleted === 'boolean') && rem.every(r => typeof r.assignee_deleted === 'boolean')
+      && rem.filter(r => r.assignee_id).every(r => r.assignee_deleted || people.some(p => p.id === r.assignee_id)));
   const act = await j('/api/activity');
   check('GET /api/activity → Array', Array.isArray(act), `${act.length} Einträge`);
   const actCsv = await fetch(`${BASE}/api/activity.csv?format=local`);
@@ -362,6 +367,10 @@ globalThis.fetch = async (url, init) => {
     // v3.1.0 (H8) — Einordnung, Zeitreihe (Trockenlauf)
     const cmp = await j(`/api/benchmarks/comparison?year=${y}`);
     check('GET /api/benchmarks/comparison → year, strom{kwh,own_value,…}|null, heating[], links{}', cmp.year === y && Array.isArray(cmp.heating) && typeof cmp.links === 'object');
+    // v3.6.0 — Ampel und Einladung (additiv): rating je Zeile, water{…}|null, missing[]
+    check('GET /api/benchmarks/comparison → rating, water|null, missing[] (v3.6.0)', Array.isArray(cmp.missing) && 'water' in cmp
+      && (cmp.strom === null || 'rating' in cmp.strom) && cmp.heating.every(h => 'rating' in h)
+      && (cmp.water === null || ['m3', 'persons', 'reference_l', 'liters_per_person_day', 'rating'].every(k => k in cmp.water)));
     const ser = await send(`/api/utility/strom/meters/${ht.id}/import-series?dry_run=1`, {
       csv: `Zeit;Wh\n01.02.${y + 1} 00:00;500\n01.02.${y + 1} 00:15;500\n02.02.${y + 1} 00:00;250\n`,
       mapping: { skip_rows: 1, date_col: 0, value_col: 1, value_kind: 'consumption', unit_factor: 0.001, start_counter: 10 } });
@@ -419,6 +428,8 @@ globalThis.fetch = async (url, init) => {
   check('Effizienz liefert class+kwh_per_m2',
     eff.class !== undefined && eff.kwh_per_m2 !== undefined,
     `${eff.class} / ${eff.kwh_per_m2} kWh/m²`);
+  // v3.6.0 (Paket einpers) — angenommene Fläche (Schaufenster: keine Wohnfläche eingetragen)
+  check('Effizienz (v3.6.0): area_assumed als Wahrheitswert', typeof eff.area_assumed === 'boolean', String(eff.area_assumed));
   // v2.7.0 — Klasse nur mit Skala des Landes; dashboard.js liest `scale`
   check('Effizienz nennt die Skala (Demo: DE → geg)', eff.scale === 'geg' && eff.scale_note === null,
     `scale=${eff.scale}`);
@@ -585,6 +596,10 @@ globalThis.fetch = async (url, init) => {
     JSON.stringify(settings.co2_strom_years)?.slice(0, 60));
   check('settings: alter Skalar gas_conversion_factor ist weg',
     !('gas_conversion_factor' in settings));
+  // v3.6.0 (Paket einpers) — Angaben, die nur ihren Default tragen (Einordnung lädt dann ein)
+  check('settings: assumed_keys (v3.6.0) als Liste aus Wohnfläche/Personen',
+    Array.isArray(settings.assumed_keys) && settings.assumed_keys.every(k => ['wohnflaeche_m2', 'wasser_personen_anzahl'].includes(k)),
+    JSON.stringify(settings.assumed_keys));
   check('settings: Länderprofil-Schlüssel vorhanden (v2.7.0)',
     ['country', 'currency', 'timezone', 'gas_cv_unit'].every(k => typeof settings[k] === 'string'),
     `${settings.country}/${settings.currency}/${settings.timezone}/${settings.gas_cv_unit}`);

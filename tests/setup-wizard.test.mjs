@@ -246,6 +246,8 @@ const patch = writes().find(c => c.path === '/api/settings' && 'setup_pending' i
 t('unverändert übernommen: kein Landwechsel, keine Sprache im PATCH', !writes().some(c => c.path === '/api/settings/country') && patch && !('language' in patch.body),
   JSON.stringify(writes().map(c => c.path)));
 t('Einstellungen des Haushalts wie bisher', patch?.body?.setup_pending === false && patch?.body?.setup_persona === 'eigenheim-klassisch');
+// v3.6.0 — die Einrichtung schlägt den Hinweis auf neue Versionen vor (sichtbar, abwählbar)
+t('Hinweis auf neue Versionen: bei der Einrichtung vorgeschlagen und gespeichert', patch?.body?.update_check === true, JSON.stringify(patch?.body));
 t('nach „Los geht’s“ bleibt der Sprung zu „Zählerstände“ stehen (kein history.back)', location.hash === '#/zaehlerstaende', location.hash);
 
 settings = { ...DEFAULTS };

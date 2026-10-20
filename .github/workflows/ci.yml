@@ -75,8 +75,12 @@ jobs:
           node tests/setup-wizard.test.mjs
           node tests/nav-threshold.test.mjs
           node tests/report-dialog.test.mjs
+          # v3.6.0 — „Was ist neu“ und Hinweis auf neue Versionen
+          node tests/release-notice.test.mjs
           # v3.5.0 (F1028) — Zuständig: Filter, „Ich bin …“, Chip, Dialog; Verlauf als CSV
           node tests/assignee.test.mjs
+          # v3.6.0 (F1031) — Prognose-Werkstatt: Anfrage, Beispiele, Speichern, CSV, Stufen
+          node tests/scenario.test.mjs
 
       - name: Demo-Daten vorbereiten
         run: cp -r demo-data /tmp/etdata

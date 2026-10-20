@@ -10,6 +10,9 @@
 //   • Sprache (nur fürs PDF — die Druckansicht spricht die Sprache der
 //     Oberfläche, ihre Überschriften kommen aus dem Katalog dieses Geräts),
 //   • Anhang „Zahlen im Detail“.
+// v3.6.0 — dazu „Abrechnungsjahre“ (`billing`), die Seite „Flexibilität“
+// (`flex`) und in der Druckansicht „Szenario anhängen“ (`scenario=<Name>`, ein
+// in der Prognose-Werkstatt gespeichertes Szenario dieses Geräts).
 // Der Dialog erzeugt genau die vorhandenen Parameter (ReportController), der
 // Server braucht nichts Neues. Die Wahl merkt sich das Gerät (localStorage),
 // außer dem Jahr — das steht jedes Mal wieder auf dem Vorjahr.
@@ -26,6 +29,7 @@ import { escapeHtml as esc } from '../lib/format.js';
 import { openModal } from './modal.js';
 import { activeUtilities } from '../state.js';
 import { DEMO } from '../lib/demo-mode.js';
+import { savedScenarios } from '../lib/scenario.js';   // v3.6.0 — Szenario anhängen
 
 export const REPORT_OPTIONS_KEY = 'et-report-options';
 
@@ -42,10 +46,13 @@ export function loadReportChoice() {
   } catch { return {}; }
 }
 
-/** Auswahl merken (ohne Jahr). */
-export function saveReportChoice({ utilities = null, lang = '', detail = false } = {}) {
+/**
+ * Auswahl merken (ohne Jahr). v3.6.0 (F1030) — dazu der Anhang „Abrechnungsjahre“ (`billing`);
+ * v3.6.0 — die Seite „Flexibilität“ (`flex`). Ein angehängtes Szenario gilt nur jetzt.
+ */
+export function saveReportChoice({ utilities = null, lang = '', detail = false, billing = false, flex = false } = {}) {
   try {
-    localStorage.setItem(REPORT_OPTIONS_KEY, JSON.stringify({ utilities: utilities?.length ? utilities : null, lang, detail: !!detail }));
+    localStorage.setItem(REPORT_OPTIONS_KEY, JSON.stringify({ utilities: utilities?.length ? utilities : null, lang, detail: !!detail, billing: !!billing, flex: !!flex }));
   } catch { /* Speicher gesperrt: gilt nur jetzt */ }
 }
 
@@ -67,6 +74,9 @@ export function resolveChoice(raw = {}, { active, languages, locale, years }) {
     utilities: subset.length && subset.length < keys.length ? subset : null,
     lang: languages.includes(raw.lang) ? raw.lang : locale,
     detail: !!raw.detail,
+    billing: !!raw.billing,
+    flex: !!raw.flex,
+    scenario: typeof raw.scenario === 'string' && raw.scenario ? raw.scenario : null,
   };
 }
 
@@ -76,16 +86,18 @@ export function resolveChoice(raw = {}, { active, languages, locale, years }) {
  *   open     → yearly.pdf?…&inline=1 (neuer Tab)
  *   download → yearly.pdf?… (Datei)
  */
-export function reportHref(mode, { year, utilities = null, lang = '', detail = false }) {
+export function reportHref(mode, { year, utilities = null, lang = '', detail = false, billing = false, flex = false, scenario = null }) {
   if (mode === 'print') {
-    return `#/report/print?year=${year}${detail ? '&detail=1' : ''}${utilities?.length ? `&utilities=${utilities.join(',')}` : ''}`;
+    // v3.6.0 — `flex=1` Seite „Flexibilität“; `scenario=<Name>` ein gespeichertes Szenario (nur Druckansicht, liegt auf dem Gerät)
+    return `#/report/print?year=${year}${detail ? '&detail=1' : ''}${billing ? '&billing=1' : ''}${flex ? '&flex=1' : ''}${utilities?.length ? `&utilities=${utilities.join(',')}` : ''}${scenario ? `&scenario=${encodeURIComponent(scenario)}` : ''}`;
   }
-  return api.yearlyReportUrl(year, { inline: mode === 'open', lang, detail, utilities });
+  return api.yearlyReportUrl(year, { inline: mode === 'open', lang, detail, utilities, billing, flex });
 }
 
 /** Was die Demo kann: dort gibt es nur fertige Dateien des ganzen Berichts. */
 export function demoLimits(mode, demo = DEMO) {
-  return { subset: !demo, detail: !(demo && mode !== 'print') };
+  const full = !(demo && mode !== 'print');
+  return { subset: !demo, detail: full, billing: full, flex: full };
 }
 
 /**
@@ -104,6 +116,11 @@ export async function openReportDialog({ mode = 'print', initial = null } = {}) 
   const c = resolveChoice(initial || loadReportChoice(), { active, languages, locale: getLocale(), years });
   if (!limits.subset) c.utilities = null;
   if (!limits.detail) c.detail = false;
+  if (!limits.billing) c.billing = false;
+  if (!limits.flex) c.flex = false;
+  // v3.6.0 — Szenario anhängen (gespeichert in der Prognose-Werkstatt, auf diesem Gerät): nur Druckansicht
+  const scenarios = pdf ? [] : savedScenarios();
+  if (!scenarios.some(s => s.name === c.scenario)) c.scenario = null;
   const checked = (k) => !c.utilities || c.utilities.includes(k);
   const action = { print: 'report.print.open', open: 'report.page.open', download: 'settings.pdf.download' }[mode] || 'report.print.open';
 
@@ -134,6 +151,22 @@ export async function openReportDialog({ mode = 'print', initial = null } = {}) 
         <div class="field field--full">
           <label class="check"><input type="checkbox" id="rd-detail"${c.detail ? ' checked' : ''}${limits.detail ? '' : ' disabled'}> ${esc(t('report.print.detail'))}</label>
         </div>
+        <div class="field field--full">
+          <label class="check"><input type="checkbox" id="rd-billing" aria-describedby="rd-billing-hint"${c.billing ? ' checked' : ''}${limits.billing ? '' : ' disabled'}> ${esc(t('report.dialog.billing'))}</label>
+          <p class="fgroup__hint" id="rd-billing-hint">${esc(t('report.dialog.billingHint'))}</p>
+        </div>
+        <div class="field field--full">
+          <label class="check"><input type="checkbox" id="rd-flex" aria-describedby="rd-flex-hint"${c.flex ? ' checked' : ''}${limits.flex ? '' : ' disabled'}> ${esc(t('report.dialog.flex'))}</label>
+          <p class="fgroup__hint" id="rd-flex-hint">${esc(t('report.dialog.flexHint'))}</p>
+        </div>
+        ${scenarios.length ? `<div class="field field--full">
+          <label for="rd-scenario">${esc(t('report.dialog.scenario'))}</label>
+          <select class="select" id="rd-scenario" aria-describedby="rd-scenario-hint">
+            <option value="">${esc(t('report.dialog.scenarioNone'))}</option>
+            ${scenarios.map(s => `<option value="${esc(s.name)}"${s.name === c.scenario ? ' selected' : ''}>${esc(s.name)}</option>`).join('')}
+          </select>
+          <p class="fgroup__hint" id="rd-scenario-hint">${esc(t('report.dialog.scenarioHint'))}</p>
+        </div>` : ''}
       </div>
       <p class="muted small">${esc(t('report.dialog.remembered'))}</p>`,
     footer: `
@@ -153,6 +186,9 @@ export async function openReportDialog({ mode = 'print', initial = null } = {}) 
           none: boxes.length > 0 && on.length === 0,
           lang: modalEl.querySelector('#rd-lang')?.value || c.lang,
           detail: !!modalEl.querySelector('#rd-detail')?.checked,
+          billing: !!modalEl.querySelector('#rd-billing')?.checked,
+          flex: !!modalEl.querySelector('#rd-flex')?.checked,
+          scenario: modalEl.querySelector('#rd-scenario')?.value || null,
         };
       };
       const sync = () => {

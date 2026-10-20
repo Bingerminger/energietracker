@@ -53,7 +53,11 @@ final class ReleaseConsistencyTest extends TestCase
         );
     }
 
-    /** Das gepinnte Image im Compose-File zeigt auf das aktuelle Release. */
+    /**
+     * Das Compose-Beispiel zeigt auf die Hauptversion des aktuellen Release
+     * (v3.6.0: `:3` statt einer festen Version — bleibt aktuell ohne Sprung
+     * auf eine neue Hauptversion).
+     */
     public function testDockerComposePinsCurrentRelease(): void
     {
         $yml = (string)file_get_contents(self::root() . '/docker-compose.yml');
@@ -62,8 +66,8 @@ final class ReleaseConsistencyTest extends TestCase
             'docker-compose.yml muss ein gepinntes Image tragen'
         );
         self::assertSame(
-            self::version(), $m[1],
-            'docker-compose.yml pinnt eine andere Version als VERSION'
+            explode('.', self::version())[0], $m[1],
+            'docker-compose.yml zeigt nicht auf die Hauptversion von VERSION'
         );
     }
 
@@ -256,8 +260,9 @@ final class ReleaseConsistencyTest extends TestCase
         foreach ($it as $f) {
             if ($f->isFile() && $f->getExtension() === 'js') $files[] = substr($f->getPathname(), strlen(self::root()) + 1);
         }
-        // erlaubte Fortsetzungen hinter der Repo-Adresse
-        $allowed = '#^(?:$|/issues(?:$|/)|/tree/v|\#[a-z-]+$|/blob/main/README\.de\.md\#[a-z-]+$)#';
+        // erlaubte Fortsetzungen hinter der Repo-Adresse — v3.6.0: dazu die
+        // Release-Notes einer Version („Was ist neu“, Hinweis auf neue Versionen)
+        $allowed = '#^(?:$|/issues(?:$|/)|/tree/v|/releases/tag/v|\#[a-z-]+$|/blob/main/README\.de\.md\#[a-z-]+$)#';
         $offenders = [];
         foreach ($files as $rel) {
             foreach (file(self::root() . '/' . $rel) ?: [] as $n => $line) {

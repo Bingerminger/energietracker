@@ -31,6 +31,8 @@ final class AssigneeTest extends ServiceTestCase
     private ActivityService $activity;
     /** @var array<string,string> Personen (ID → Name), wie auth.json */
     private array $people = ['u_anna' => 'Anna', 'u_ben' => 'Ben'];
+    /** @var array<string,string> v3.6.0 — gelöschte Personen im Verzeichnis (ID → Name) */
+    private array $gone = [];
     private string $today;
 
     protected function setUp(): void
@@ -38,7 +40,8 @@ final class AssigneeTest extends ServiceTestCase
         parent::setUp();
         $this->today = date('Y-m-d');
         $this->reminderService = new ReminderService($this->store, $this->settings, $this->i18n);
-        $this->reminderService->attachPeople(fn(string $id): ?array => isset($this->people[$id]) ? ['id' => $id, 'name' => $this->people[$id]] : null);
+        $this->reminderService->attachPeople(fn(string $id): ?array => isset($this->people[$id]) ? ['id' => $id, 'name' => $this->people[$id]]
+            : (isset($this->gone[$id]) ? ['id' => $id, 'name' => $this->gone[$id], 'deleted' => true] : null));
         $deliveries = new DeliveryService($this->store, $this->meters, $this->i18n);
         $recs = new RecommendationService($this->store, $this->meters, $this->consumption, $this->settings,
             new BenchmarkService($this->consumption, $this->meters, $this->settings, $this->i18n), $deliveries, $this->i18n);
@@ -154,35 +157,86 @@ final class AssigneeTest extends ServiceTestCase
         self::assertArrayNotHasKey('assignee', $this->activity->get((string)$plain['activity_id']));
     }
 
-    public function testDeletingAPersonDropsTheIdAndOnRequestTheName(): void
+    /**
+     * v3.6.0 — ersetzt testDeletingAPersonDropsTheIdAndOnRequestTheName (bis
+     * v3.5.0 blieb nur der Name als freier Name stehen): Offene Termine gehen
+     * an die löschende Person, auch ein freier Name derselben Person; erledigte
+     * behalten Name und ID mit `assignee_deleted`.
+     */
+    public function testDeletingAPersonHandsOpenRemindersToTheDeleterAndKeepsTheDoneOnes(): void
     {
-        $a = $this->rem(['assignee_id' => 'u_anna']);
-        $b = $this->rem(['assignee_id' => 'u_anna', 'title' => 'Schornsteinfeger']);
-        $free = $this->rem(['assignee' => 'Anna', 'title' => 'Garten']);   // freier Name, keine Person
+        $open = $this->rem(['assignee_id' => 'u_anna']);
+        $free = $this->rem(['assignee' => 'anna', 'title' => 'Garten']);   // freier Name derselben Person
+        $once = $this->rem(['assignee_id' => 'u_anna', 'title' => 'Ablesung', 'recurrence' => 'none']);
         $other = $this->rem(['assignee_id' => 'u_ben', 'title' => 'Zähler']);
-        $entry = $this->activity->get((string)$this->reminderService->markDone($a['id'], $this->today)['activity_id']);
+        $stranger = $this->rem(['assignee' => 'Annabell', 'title' => 'Fenster']);
+        $entry = $this->activity->get((string)$this->reminderService->markDone($once['id'], $this->today)['activity_id']);
+        self::assertSame(2, $this->reminderService->openCountFor('u_anna', 'Anna'), 'Vorschau: zwei offene');
 
-        // ohne „Name ersetzen“: ID weg, Name bleibt
+        $this->gone['u_anna'] = 'Anna';
         unset($this->people['u_anna']);
-        self::assertSame(2, $this->reminderService->personDeleted('u_anna', false));
-        self::assertArrayNotHasKey('assignee_id', $this->stored($a['id']));
-        self::assertSame('Anna', $this->listed($a['id'])['assignee']);
-
-        // mit „ehemalige Person“ (wie im Verlauf)
-        $this->reminderService->update($b['id'], ['assignee_id' => 'u_ben']);
-        $this->people['u_anna'] = 'Anna';
-        $this->reminderService->update($a['id'], ['assignee_id' => 'u_anna']);
-        unset($this->people['u_anna']);
-        self::assertSame(1, $this->reminderService->personDeleted('u_anna', true));
-        self::assertSame([null, null, true], self::trio($this->listed($a['id'])));
-        self::assertArrayNotHasKey('assignee', $this->stored($a['id']));
-        self::assertSame('Anna', $this->listed($free['id'])['assignee'], 'ein freier Name gehört zu keiner Person');
+        self::assertSame(['handed_over' => 2, 'kept' => 1],
+            $this->reminderService->personDeleted('u_anna', false, ['id' => 'u_ben', 'name' => 'Ben'], 'Anna'));
+        self::assertSame(['Ben', 'u_ben', false], self::trio($this->listed($open['id'])));
+        self::assertFalse($this->listed($open['id'])['assignee_deleted']);
+        self::assertSame('u_ben', $this->stored($free['id'])['assignee_id'], 'freier Name derselben Person geht mit');
+        $done = $this->stored($once['id']);
+        self::assertSame(['Anna', 'u_anna', true], [$done['assignee'], $done['assignee_id'], $done['assignee_deleted']], 'erledigt: Name bleibt');
+        self::assertTrue($this->reminderService->withAssignee($done)['assignee_deleted']);
+        self::assertSame('Annabell', $this->listed($stranger['id'])['assignee'], 'ein anderer Name bleibt');
         self::assertSame('u_ben', $this->stored($other['id'])['assignee_id']);
-        self::assertSame(1, $this->activity->anonymize('u_anna'));
-        self::assertSame(['former' => true], $this->activity->get($entry['id'])['assignee'], 'Verlauf: ehemalige Person');
-        // neu zuweisen löscht „ehemalige Person“
-        $this->reminderService->update($a['id'], ['assignee' => 'Chris']);
-        self::assertArrayNotHasKey('assignee_former', $this->stored($a['id']));
+        // der Verlauf behält den Namen vom Erledigen mit dem Vermerk
+        self::assertSame(1, $this->activity->markDeleted('u_anna'));
+        self::assertSame(['name' => 'Anna', 'id' => 'u_anna', 'deleted' => true], $this->activity->get($entry['id'])['assignee']);
+        // eine gelöschte Person lässt sich nicht mehr zuweisen
+        self::assertSame($this->i18n->t('errors.reminder.assigneeUnknown'), $this->error(fn() => $this->rem(['assignee_id' => 'u_anna'])));
+    }
+
+    /**
+     * v3.6.0 — Ohne löschende Person (API-Schlüssel) bleiben offene Termine
+     * mit dem Vermerk stehen; „ehemalige Person“ ersetzt den Namen erledigter,
+     * offene gehen trotzdem über. Ein Termin, dessen Person das Verzeichnis
+     * als gelöscht führt, trägt den Vermerk auch ohne Feld am Termin.
+     */
+    public function testWithoutRecipientOrWithAnonymizingAndFromTheRegister(): void
+    {
+        $open = $this->rem(['assignee_id' => 'u_anna']);
+        $this->gone['u_anna'] = 'Anna';
+        unset($this->people['u_anna']);
+        self::assertSame(['handed_over' => 0, 'kept' => 1], $this->reminderService->personDeleted('u_anna', false, null, 'Anna'));
+        $l = $this->listed($open['id']);
+        self::assertSame(['Anna', 'u_anna', false, true], [$l['assignee'], $l['assignee_id'], $l['assignee_former'], $l['assignee_deleted']]);
+        // neu zuweisen hebt den Vermerk auf
+        $this->reminderService->update($open['id'], ['assignee_id' => 'u_ben']);
+        self::assertArrayNotHasKey('assignee_deleted', $this->stored($open['id']));
+
+        // „ehemalige Person“: offene gehen über, erledigte verlieren den Namen
+        $this->people['u_carl'] = 'Carl';
+        $a = $this->rem(['assignee_id' => 'u_carl']);
+        $done = $this->rem(['assignee_id' => 'u_carl', 'title' => 'Einmal', 'recurrence' => 'none']);
+        $this->reminderService->markDone($done['id'], $this->today);
+        unset($this->people['u_carl']);
+        self::assertSame(['handed_over' => 1, 'kept' => 1], $this->reminderService->personDeleted('u_carl', true, ['id' => 'u_ben', 'name' => 'Ben'], 'Carl'));
+        self::assertSame(['Ben', 'u_ben', false], self::trio($this->listed($a['id'])));
+        self::assertSame([null, null, true], self::trio($this->reminderService->withAssignee($this->stored($done['id']))));
+
+        // Verzeichnis: gelöscht, ohne Feld am Termin (etwa aus einem Backup)
+        $this->gone['u_dora'] = 'Dora';
+        $this->store->write('reminders.json', [...$this->store->read('reminders.json', []),
+            ['id' => 'rem_dora0001', 'title' => 'Dach', 'category' => 'custom', 'next_due' => $this->day(5), 'recurrence' => 'yearly',
+             'recurrence_months' => null, 'last_done' => null, 'notes' => '', 'active' => true, 'assignee_id' => 'u_dora']]);
+        $d = $this->listed('rem_dora0001');
+        self::assertSame(['Dora', 'u_dora', true], [$d['assignee'], $d['assignee_id'], $d['assignee_deleted']], 'Name aus dem Verzeichnis');
+    }
+
+    /** v3.6.0 — Der Name eines einmaligen Termins wird beim Erledigen eingefroren (umbenannt danach: bleibt). */
+    public function testTheNameIsFrozenWhenTheReminderIsDone(): void
+    {
+        $once = $this->rem(['assignee_id' => 'u_anna', 'recurrence' => 'none']);
+        $this->people['u_anna'] = 'Anna Maria';
+        $this->reminderService->markDone($once['id'], $this->today);
+        $this->people['u_anna'] = 'Anna Berg';
+        self::assertSame('Anna Maria', $this->reminderService->withAssignee($this->stored($once['id']))['assignee']);
     }
 
     public function testAgendaEventsAndCalendarCarryTheAssignee(): void
@@ -193,6 +247,10 @@ final class AssigneeTest extends ServiceTestCase
         $this->store->write('reminders.json', array_map(fn($r) => $r['id'] === $f['id'] ? $r + ['assignee_former' => true] : $r,
             $this->store->read('reminders.json', [])));
         $plain = $this->rem(['title' => 'Eichfrist']);
+        // v3.6.0 — Person gelöscht (offener Termin ohne Übernahme): Name mit „(gelöscht)“
+        $g = $this->rem(['assignee_id' => 'u_ben', 'title' => 'Dachrinne']);
+        $this->gone['u_ben'] = 'Ben';
+        unset($this->people['u_ben']);
         $events = [];
         foreach ($this->agenda->events(30, $this->today) as $e) $events[$e['uid']] = $e;
         $ea = $events['reminder-' . $a['id']];
@@ -209,6 +267,9 @@ final class AssigneeTest extends ServiceTestCase
         self::assertStringContainsString("\r\nDESCRIPTION:Zuständig: Anna\r\n", $block('reminder-' . $a['id']));
         self::assertStringContainsString("\r\nDESCRIPTION:Zuständig: ehemalige Person\r\n", $block('reminder-' . $f['id']));
         self::assertStringNotContainsString('Zuständig', $block('reminder-' . $plain['id']), 'ohne Zuständigkeit keine Zeile');
+        self::assertTrue($events['reminder-' . $g['id']]['assignee_deleted']);
+        self::assertFalse($ea['assignee_deleted']);
+        self::assertStringContainsString("\r\nDESCRIPTION:Zuständig: Ben (gelöscht)\r\n", $block('reminder-' . $g['id']));
         // DESCRIPTION der Vorab-Erinnerung bleibt der Titel
         self::assertMatchesRegularExpression('/BEGIN:VALARM\r\nACTION:DISPLAY\r\nDESCRIPTION:Heizung warten/', $block('reminder-' . $a['id']));
     }

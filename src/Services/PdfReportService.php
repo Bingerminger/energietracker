@@ -125,8 +125,12 @@ final class PdfReportService
         if (!empty($t['ev'])) $this->topicEv($t['ev'], $m);
         if (!empty($t['flexibility'])) $this->topicFlex($t['flexibility'], $m);
         if (!empty($t['tenancy'])) $this->topicTenancy($t['tenancy'], $m);
+        // v3.6.0 — Seite „Flexibilität“ nur auf Wunsch (`flex=1`)
+        if (!empty($m['options']['flex']) && !empty($m['flex_page'])) $this->pageFlex($m['flex_page'], $m);
         $this->pageGlossary($m);
         if (!empty($m['appendix'])) $this->pageAppendix($m);
+        // v3.6.0 (F1030) — Anhang „Abrechnungsjahre“ nur auf Wunsch
+        if (!empty($m['options']['billing']) && !empty($m['billing'])) $this->pageAppendix($m, 'billing');
         return $pdf->output();
     }
 
@@ -566,6 +570,7 @@ final class PdfReportService
                 $this->y = Chart::efficiencyScale($pdf, self::M, $this->y, $cw, $e['thresholds'], (float)$e['kwh_per_m2'], (string)$e['value_text']) + 6;
             }
             $this->para((string)$e['text'], self::SMALL);
+            if (!empty($e['area_note'])) $this->para((string)$e['area_note'], self::SMALL, null, true);   // v3.6.0 — angenommene Fläche
         }
         if (!empty($p['roles'])) {
             $this->h2($this->i18n->t('report.page.rolesTitle'));
@@ -718,6 +723,93 @@ final class PdfReportService
         $this->para($this->i18n->t('report.topic.flex.note'), self::SMALL, self::MUTE);
     }
 
+    /**
+     * v3.6.0 — Seite „Flexibilität“: große Zahl, Handlungssätze, Tagesband je
+     * Halbjahr (Stufen als Farbe UND Wort in der Legende, Sonne als Punkt — das
+     * PDF setzt nur CP1252, ☀ gäbe es dort nicht), Zeitfenster, Hebel, Sonnenstrom.
+     */
+    private function pageFlex(array $f, array $m): void
+    {
+        $this->newPage($m['texts']['flexPage']);
+        $pdf = $this->pdf;
+        $cw = $this->cw();
+        $green = [4, 120, 87];
+        $this->ensure(60);
+        $pdf->text(self::M, $this->y + 30, (string)$f['big'], 32, true, $green);
+        $this->y += 42;
+        $this->para((string)$f['sentence'], self::BODY, self::INK, true);
+        $facts = $f['facts'] ?? [];
+        if ($facts !== []) {
+            $n = count($facts); $gap = 10.0; $tw = ($cw - ($n - 1) * $gap) / $n;
+            $this->ensure(52);
+            foreach ($facts as $i => $x) {
+                $xx = self::M + $i * ($tw + $gap);
+                $pdf->roundRect($xx, $this->y, $tw, 44, 6, self::SOFT);
+                $pdf->text($xx + 8, $this->y + 15, $pdf->wrap((string)$x['label'], 8.5, $tw - 16)[0] ?? '', 8.5, false, self::MUTE);
+                $pdf->text($xx + 8, $this->y + 34, (string)$x['value'], 13, true, self::INK);
+            }
+            $this->y += 54;
+        }
+        if (($f['actions'] ?? []) !== []) {
+            $this->h2($this->i18n->t('flex.actions.title'));
+            $this->para((string)$f['actions_lead'], self::SMALL, self::MUTE);
+            foreach ($f['actions'] as $a) {
+                $this->para('• ' . $a['text'], self::BODY, self::INK, false, 0, 1);
+                $this->para($a['tag'] . ($a['other'] !== null ? ' · ' . $a['other'] : ''), self::SMALL, self::MUTE, false, 9, 5);
+            }
+        }
+        if (($f['bands'] ?? []) !== []) {
+            $this->h2($this->i18n->t('flex.ampel.title'));
+            $this->para((string)($f['band_lead_pdf'] ?? $f['band_lead']), self::SMALL, self::MUTE);
+            $col = ['cheap' => [21, 128, 61], 'mid' => [202, 138, 4], 'expensive' => [185, 28, 28]];
+            $sun = Chart::printColor((string)Utilities::get('pv_erzeugung')['color']);
+            $labelW = 92.0; $cell = ($cw - $labelW) / 24;
+            foreach ($f['bands'] as $b) {
+                $this->ensure(44);
+                $top = $this->y;
+                $pdf->text(self::M, $top + 18, (string)$b['label'], 9, true, self::INK);
+                foreach ($b['hours'] as $h => $x) {
+                    $cx = self::M + $labelW + $h * $cell;
+                    if (in_array($x['sun'], ['strong', 'some'], true)) $pdf->circle($cx + $cell / 2, $top + 4, $x['sun'] === 'strong' ? 2.6 : 1.6, $sun);
+                    $pdf->rect($cx + 0.5, $top + 9, $cell - 1, 13, $col[$x['level'] ?? ''] ?? [226, 232, 240]);
+                    if ($h % 3 === 0) $pdf->textCenter($cx + $cell / 2, $top + 31, (string)$h, 7, false, self::MUTE);
+                }
+                $this->y = $top + 36;
+                if (!empty($b['summary'])) $this->para((string)$b['summary'], self::SMALL, self::INK, false, $labelW, 4);
+            }
+            // Legende: Farbe und Wort
+            $this->ensure(18);
+            $x0 = self::M;
+            foreach ([['cheap', 0], ['mid', 1], ['expensive', 2]] as [$k, $i]) {
+                $pdf->rect($x0, $this->y + 2, 10, 8, $col[$k]);
+                $pdf->text($x0 + 14, $this->y + 9.5, (string)$f['legend'][$i], 8.5, false, self::MUTE);
+                $x0 += 22 + $pdf->textWidth((string)$f['legend'][$i], 8.5);
+            }
+            $pdf->circle($x0 + 4, $this->y + 6, 2.6, $sun);
+            $pdf->text($x0 + 10, $this->y + 9.5, (string)$f['legend'][3], 8.5, false, self::MUTE);
+            $this->y += 18;
+        }
+        if (!empty($f['windows'])) {
+            $this->h2($this->i18n->t('flex.windows.title'));
+            $this->para((string)$f['windows']['lead'], self::SMALL, self::MUTE);
+            $this->table($f['windows']['head'], $f['windows']['rows'], null, 190.0);
+        }
+        if (!empty($f['levers'])) {
+            $this->h2($this->i18n->t('flex.lever.title'));
+            // Spalten schmal halten: „mit dynamischem Tarif“ als Sternchen mit Fußnote
+            $rows = array_map(fn($r) => [$r['label'], $r['signal'] . ($r['real'] ? '' : ' *'), $r['kwh'], $r['eur']], $f['levers']['rows']);
+            $this->table($f['levers']['head'], $rows, null, 160.0);
+            $this->para((string)$f['levers']['total']);
+            if (array_filter($f['levers']['rows'], fn($r) => !$r['real']) !== []) $this->para((string)$f['levers']['dynamic_note'], self::SMALL, self::MUTE);
+        }
+        if (!empty($f['solar_text'])) {
+            $this->h2($this->i18n->t('flex.solar.title'));
+            $this->para((string)$f['solar_text']);
+        }
+        foreach ($f['notes'] ?? [] as $n) $this->para((string)$n, self::SMALL, self::MUTE);
+        if (!empty($f['footer'])) $this->para((string)$f['footer'], self::SMALL, self::MUTE);
+    }
+
     private function topicTenancy(array $t, array $m): void
     {
         $this->newSection($m['texts']['topicTenancy']);
@@ -759,26 +851,26 @@ final class PdfReportService
         }
     }
 
-    private function pageAppendix(array $m): void
+    /** Anhang aus Tabellen: „Zahlen im Detail“ (`appendix`) oder v3.6.0 „Abrechnungsjahre“ (`billing`, breitere erste Spalte). */
+    private function pageAppendix(array $m, string $key = 'appendix'): void
     {
         $first = true;
-        foreach ($m['appendix'] as $tbl) {
-            if ($first) { $this->newPage($m['texts']['appendix']); $first = false; }
+        foreach ($m[$key] as $tbl) {
+            if ($first) { $this->newPage($m['texts'][$key]); $first = false; }
             $this->pdf->bookmark((string)$tbl['label'], 1, $this->y);
             $this->h2((string)$tbl['label']);
-            $this->table($tbl['head'], $tbl['rows'], $tbl['total']);
+            $this->table($tbl['head'], $tbl['rows'], $tbl['total'], $key === 'billing' ? 128.0 : 74.0);
             foreach ($tbl['notes'] as $n) $this->para((string)$n, self::SMALL, self::MUTE);
             $this->gap(8);
         }
     }
 
-    /** Tabelle: erste Spalte links, Zahlen rechtsbündig; Kopf wiederholt sich auf Folgeseiten. */
-    private function table(array $head, array $rows, array $total): void
+    /** Tabelle: erste Spalte links, Zahlen rechtsbündig; Kopf wiederholt sich auf Folgeseiten. v3.6.0 — `total` optional. */
+    private function table(array $head, array $rows, ?array $total, float $first = 74.0): void
     {
         $pdf = $this->pdf;
         $cw = $this->cw();
         $n = count($head);
-        $first = 74.0;
         $colW = ($cw - $first) / max(1, $n - 1);
         $size = 9.5;
         $right = fn(int $i): float => self::M + $first + $colW * $i;   // rechte Kante der Spalte i (ab 1)
@@ -802,6 +894,7 @@ final class PdfReportService
         }
         $pdf->line(self::M, $this->y + 1, self::M + $cw, $this->y + 1, 0.6, self::RULE);
         $this->y += 4;
+        if ($total === null) { $this->y += 6; return; }
         $pdf->text(self::M, $this->y + 10, (string)$total[0], $size, true, self::INK);
         for ($i = 1; $i < count($total); $i++) $pdf->textRight($right($i), $this->y + 10, (string)$total[$i], $size, true, self::INK);
         $this->y += 20;

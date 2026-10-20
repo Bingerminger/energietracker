@@ -187,11 +187,13 @@ With your own **reference values** (since v3.1.0): under Settings → Household
 & building → “Own reference values” enter, for example, the kWh the German
 electricity benchmark (Stromspiegel) gives for your household and the kWh per
 m² from the heating benchmark (Heizspiegel), plus the source. The overview then
-shows the card “Benchmark” with the deviation in % for the last full year. The
-app ships no tables from these benchmarks — using them requires permission —;
-in Germany it links the pages for checking yourself. With PV, a heat pump or a
-wall box the general electricity benchmark does not fit; the app therefore
-excludes heat pump and wall box.
+shows the card “Benchmark” for the last full year as a traffic light with one
+sentence (“Above — Household electricity: …, 7% above your reference value”);
+since v3.6.0 it also shows water per person against the benchmark from the
+settings. If a value is missing, one link leads straight to the field. The app
+ships no tables from these benchmarks — using them requires permission. With
+PV, a heat pump or a wall box the general electricity benchmark does not fit;
+the app therefore excludes heat pump and wall box.
 
 ### Can I take over values from my grid operator’s portal?
 

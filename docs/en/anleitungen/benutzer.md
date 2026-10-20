@@ -11,9 +11,14 @@ only once. Two roles decide who manages access and who “just” records.
 
 People only exist **with sign-in switched on**. Without sign-in everything
 stays as before: whoever reaches the address may do everything, and the
-experience level applies to the whole installation. When sign-in is worth it
+experience level applies to the whole installation. Since v3.6.0 the “Users
+and roles” card says so in the app too and jumps to the “Sign-in & access”
+card with “Switch sign-in on”. When sign-in is worth it
 is explained in
 [Security & network operation](../betrieb/sicherheit.md#1-the-operating-model-in-one-sentence).
+Since **v3.6.0** the app also keeps every person in a **register of people**
+with a running number, which is part of the backup (§ 7) — so the people of a
+sample household can be chosen under “Responsible” even without sign-in.
 
 ---
 
@@ -69,25 +74,82 @@ Only in password mode and only for someone who manages the installation:
 1. **Settings → Access → “Users and roles”**.
 2. Under **“Add a person”**:
    - **Name** — up to 40 characters. Upper and lower case do not matter when
-     signing in; two people with the same name are not possible.
+     signing in; two people with the same name are not possible — since v3.6.0
+     across all people, including those without sign-in (deleted ones do not
+     count). If a person without sign-in has the name, the new account takes
+     them over (see below).
    - **New password** — at least 8 characters.
    - **Role** — “Member” (preselected) or “Admin”.
 3. **“Add”.** The app reports “… can now sign in.”
 
-The table above lists everyone with their role; “(you)” marks yourself. You
-change a role directly in the row’s selector.
+The table above lists everyone with their role; “(you)” marks yourself,
+**“No. …”** is their running number *(v3.6.0)*. You change a role directly in
+the row’s selector. **“Rename”** *(v3.6.0)* changes the name — for accounts with
+a password the person then signs in with the new name. Open reminders show the
+new name, completed items keep the old one. A name someone already has (even a
+person without sign-in) is rejected. Accounts via a proxy have no button: the
+proxy supplies their name.
 
 **Signing in:** the sign-in screen asks for “Name” and “Password”. Each
 browser then stays signed in for 30 days; “Sign out” is in the top bar.
 
-**Deleting:** “Delete person” in the row. The person can no longer sign in,
-their sessions end at once; the household’s data stays. Your own person is
-deleted by another person who manages. In proxy operation deleting does not
-lock anyone out: if the person comes back through the proxy, the app creates
-them again — locking out is the proxy’s job. Since v3.4.0 the dialog also asks
-whether to replace their name in the history of done notices with **“former
-member”** (default: no)
-([Ticking off notices](hinweise-erledigen.md#5-retention-clearing-privacy)).
+### Deleting people
+
+**Only admins** see “Delete person” in the row; under Settings → Access,
+members only see the note that admins take care of it. Via the API the app
+answers a member with **403** (`errors.auth.adminOnly`). Your own person is
+deleted by another person who manages.
+
+The person can no longer sign in, their sessions end at once; the household’s
+data stays. Since **v3.6.0** also:
+
+- **Open reminders pass to you**, the person deleting — including reminders
+  with a free name that matches theirs. The dialog says beforehand how many
+  and to whom.
+- **Completed items keep their name** with **“(deleted)”** — in the history,
+  on completed reminders, in the CSV file and in the calendar. The name stays
+  as it was when the item was done. The dialog states the number of entries.
+- With the tick **“former member”** (default: no) the app replaces the name on
+  completed items entirely instead
+  ([Ticking off notices](hinweise-erledigen.md#5-retention-clearing-privacy)).
+- **The number stays taken.** The register keeps counting: the next person
+  gets the next number, never that of a deleted one. Someone added later with
+  the same name is a new person.
+- A deleted person can no longer be assigned to a reminder and is no longer
+  offered for selection.
+
+In proxy operation deleting does not lock anyone out: if the person comes back
+through the proxy, the app creates them again (with a new number) — locking
+out is the proxy’s job. If an API key deletes, nobody takes over: open
+reminders then stay with “(deleted)” until someone reassigns them.
+
+### People without sign-in
+
+People from a backup or a sample household have no account — they are in the
+register of people but not in `auth.json`. The table shows them with their
+number and the note **“no sign-in”**. Deleting works as above, with the same
+handover and the same dialog (“This person will no longer be offered for
+selection”).
+
+**Changing name and role** (since v3.6.0, admins only): switch the role in the
+row’s selection and the name with **“Rename”**. The name follows the same rules
+as for an account (at most 40 characters, not twice — not even the name of an
+account). The person’s open reminders then show the new name; completed
+reminders and the history keep the name the person had when the item was done.
+The role takes effect once the person gets an account; “Create account” takes
+it over. A member gets `403`, as with deleting.
+
+**“Create account”** (password mode only) enters their name and role under
+“Add a person”; with a password this becomes an account that takes over the
+person’s id and number — their reminders and history entries then belong to
+it.
+
+**Without sign-in** (for example after loading a sample household), Settings →
+Access shows the card “Users and roles” as soon as the register knows people.
+Anyone who reaches the address may use it then — like every setting without
+sign-in. Because nobody is signed in, nobody takes over when deleting: open
+reminders stay with “(deleted)” until someone reassigns them; the dialog says
+so beforehand.
 
 ---
 
@@ -173,14 +235,26 @@ Anyone without a level or language of their own sees the installation’s.
 
 ## 7. What is not in the backup
 
-People, roles, password hashes and each person’s own settings are stored in
+Accounts, password hashes and each person’s own settings are stored in
 `data/auth.json` — like the password, API keys and the Home Assistant token.
 This file is **not** part of the backup or the snapshots:
 
-- Restoring a backup does not change any people.
-- After moving with a backup, set up sign-in and people again. Moving the
+- Restoring a backup does not change any accounts: whoever could sign in still
+  can.
+- After moving with a backup, set up sign-in and accounts again. Moving the
   whole data directory (e.g. the Docker volume) takes them along.
 - Users need no schema step; the household data stays as it is.
+
+*(v3.6.0)* The **register of people** `data/people.json`, on the other hand,
+is part of the backup (pot `people`): for each person their number, name, role
+and — for deleted ones — when and by whom, without passwords. Existing people
+get their number on the first read after the update, in the order they were
+added. A backup brings its register along; the counter does not go back. After
+a move, the people from the backup can be chosen under “Responsible” and appear
+under Access with “no sign-in”; if you add an account with the same name (or
+use “Create account”), it takes over the person (ID and number), and their
+reminders and history entries belong to them again
+([People without sign-in](#people-without-sign-in)).
 - *(v3.4.0)* The **history** of done notices, on the other hand, is part of the
   backup — and with it the names of the people who did something, as a
   snapshot. Whoever passes a backup on passes them on too.
@@ -214,10 +288,15 @@ GET    /api/session               mode, authenticated, … plus named_login, use
 POST   /api/session               sign in {name?, password}
 PATCH  /api/session/me            own settings {ui_level?, language?} — null = like the installation
 POST   /api/session/me/password   own password {current, password}
-GET    /api/users                 people (admins only)
+GET    /api/users                 people (admins only), since v3.6.0 with number `no` and
+                                  `has_account` (people without sign-in: `false`, `source: "none"`)
 POST   /api/users                 {name, password, role: admin|member}
-PATCH  /api/users/{id}            {name?, role?, password?}
-DELETE /api/users/{id}            ?anonymize_activity=1 — replace the name in the history (v3.4.0)
+PATCH  /api/users/{id}            {name?, role?, password?}; v3.6.0 also for people without sign-in
+                                  ({name?, role?}; a password: 400 errors.users.noAccountPassword)
+GET    /api/users/{id}/handover   (v3.6.0) before deleting: {person, to, open, done}
+DELETE /api/users/{id}            ?anonymize_activity=1 — replace the name in the history (v3.4.0);
+                                  v3.6.0: handed_over, handed_over_to, kept
+GET    /api/people                (v3.5.0) ID and name for “Responsible”; v3.6.0 from the register
 ```
 
 `named_login` is `true` as soon as sign-in asks for the name. Status codes and

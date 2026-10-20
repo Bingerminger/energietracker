@@ -16,6 +16,8 @@ import { toastErr } from '../components/toast.js';
 import { t, tp } from '../lib/i18n.js';
 import { info } from '../components/info.js';
 import { isFeedIn, isGeneration, moreIsBetter, changeTone } from '../lib/semantics.js';
+import { periodMode, billingApplies, periodName, periodsWithData, periodRows, refMonth, slotLabels } from '../lib/billing-period.js';   // v3.6.0 (F1030)
+import { periodModeHtml, wirePeriodMode, calendarOnlyNote } from '../components/period-mode.js';
 
 // Locale-bewusste Kurz-Monatsnamen für die Chart-Achsen. v2.2.0: aus der
 // gemeinsamen Intl-Quelle in lib/format.js statt einer zweiten, nur auf de/en
@@ -94,8 +96,18 @@ async function renderForMeter(u, meterId, body) {
   const baseline    = meterData.baseline || null;              // F1011
   const comparison  = meterData.baseline_comparison || null;   // F1011
   const consKey     = u.consumption_unit === 'kWh' ? 'kwh' : 'm3';
+  // v3.6.0 (F1030, #33) — Jahresvergleich nach Abrechnungsperioden (vom
+  // Server); ohne Perioden mit Daten (etwa Verbrauch je Zeitraum) Kalenderjahr
+  const wantBilling = billingApplies(u) && periodMode() === 'billing';
+  const bp = wantBilling ? await api.billingPeriods(u.key, meterId).catch(() => null) : null;
+  const bList = periodsWithData(bp?.periods);
+  const series = bList.length ? periodSeries(bList, monthly, consKey) : yearSeries(monthly, consKey);
+  const modeBar = billingApplies(u)
+    ? `<div class="period-mode-bar">${periodModeHtml(wantBilling ? 'billing' : 'calendar')}</div>`
+    : calendarOnlyNote(u.label);
 
   body.innerHTML = `
+    ${modeBar}
     ${renderContractReminders(contractStatus)}
     <div data-min-level="expert">${renderBaselineBlock(baseline, comparison, u)}</div>
     ${u.key === 'wasser' ? await renderWaterSparindex(monthly) : ''}
@@ -122,13 +134,13 @@ async function renderForMeter(u, meterId, body) {
       `}
 
       <div class="card">
-        <h3 class="card__title">${t('analysis.yearComparison')}</h3>
+        <h3 class="card__title">${t(series.billing ? 'billing.analysis.title' : 'analysis.yearComparison')}</h3>
         <div class="chart-wrap"><canvas id="ch-years"></canvas></div>
         <div data-role="years-data"></div>
       </div>
     </div>
 
-    ${renderYoyWidget(monthly, u, consKey)}
+    ${renderYoyWidget(series, u)}
 
     <div class="card" style="margin-top: var(--sp-5)">
       <h3 class="card__title">${t('analysis.anomalies', { count: anomalies.length })}${info('anomaly')}</h3>
@@ -175,7 +187,8 @@ async function renderForMeter(u, meterId, body) {
   // Render charts
   if (u.hgt_relevant && meterData.regressions_note !== 'delivery_modelled') renderHgtScatter(monthly, u, consKey, regressions);
   else if (!u.hgt_relevant) renderSeasonalProfile(monthly, u, consKey, body);
-  renderYearComparison(monthly, u, consKey, body);
+  renderYearComparison(series, u, body);
+  wirePeriodMode(body);
 }
 
 // ── F1011: Zäsur — Hinweisband, Grenzen, Vorher/Nachher ─────────────
@@ -514,18 +527,46 @@ const YEAR_STYLES = [
   { color: '#3b82f6', dash: [8, 3, 2, 3], point: 'crossRot' },
 ];
 
-function renderYearComparison(monthly, u, consKey, root = document) {
+/**
+ * Reihen für den Jahresvergleich: Kalenderjahre (Schlüssel = Jahr, 12 Monate)
+ * oder v3.6.0 (F1030) Abrechnungsperioden (Schlüssel = Beginn, Stelle = Monat
+ * seit dem ersten Monat des Abrechnungsjahrs, bis zu 13 bei einem Stichtag
+ * mitten im Monat). Beide Vergleiche lesen nur diese Form.
+ */
+function yearSeries(monthly, consKey) {
+  const s = { keys: [], names: {}, values: {}, partial: {}, rows: {}, labels: monthNames() };
+  monthly.forEach(m => {
+    if (!s.values[m.year]) { s.values[m.year] = Array(12).fill(null); s.partial[m.year] = Array(12).fill(false); s.rows[m.year] = Array(12).fill(null); }
+    s.values[m.year][m.month - 1] = m[consKey];
+    s.partial[m.year][m.month - 1] = isPartial(m);
+    s.rows[m.year][m.month - 1] = m;
+  });
+  s.keys = Object.keys(s.values).sort();
+  s.keys.forEach(k => { s.names[k] = k; });
+  return s;
+}
+
+function periodSeries(list, monthly, consKey) {
+  const ref = refMonth(list);
+  const per = list.map(p => ({ p, rows: periodRows(p, monthly, consKey, ref) }));
+  const n = Math.max(12, ...per.flatMap(x => x.rows.map(r => r.slot)));
+  const s = { keys: list.map(p => p.from), names: {}, values: {}, partial: {}, rows: {},
+    labels: slotLabels(n, ref, (m) => monthNames()[m - 1]), billing: true };
+  per.forEach(({ p, rows }) => {
+    s.values[p.from] = Array(n).fill(null); s.partial[p.from] = Array(n).fill(false); s.rows[p.from] = Array(n).fill(null);
+    s.names[p.from] = periodName(p, fmt.date);
+    rows.forEach(r => { s.values[p.from][r.slot - 1] = r[consKey]; s.partial[p.from][r.slot - 1] = isPartial(r); s.rows[p.from][r.slot - 1] = r; });
+  });
+  return s;
+}
+
+function renderYearComparison(series, u, root = document) {
   const canvas = root.querySelector('#ch-years');
   if (!canvas) return;
-  const byYear = {};
-  const partialByYear = {};
-  monthly.forEach(m => {
-    if (!byYear[m.year]) { byYear[m.year] = Array(12).fill(null); partialByYear[m.year] = Array(12).fill(false); }
-    byYear[m.year][m.month - 1] = m[consKey];
-    partialByYear[m.year][m.month - 1] = isPartial(m);
-  });
-  const years = Object.keys(byYear).sort();
-  const labels = monthNames();
+  const byYear = series.values;
+  const partialByYear = series.partial;
+  const years = series.keys;
+  const labels = series.labels;
   // Die jüngsten Jahre bekommen die ersten Stile — sie wechseln dann nicht,
   // sobald ein weiteres Jahr hinzukommt
   const styleOf = (i) => YEAR_STYLES[(years.length - 1 - i) % YEAR_STYLES.length];
@@ -538,7 +579,7 @@ function renderYearComparison(monthly, u, consKey, root = document) {
         const latest = i === years.length - 1;
         const partial = partialByYear[y];
         return {
-          label: y, data: byYear[y],
+          label: series.names[y], data: byYear[y],
           borderColor: utilColor({ color: st.color }),
           backgroundColor: utilColor({ color: st.color }, 0.13),
           borderWidth: latest ? 2.5 : 1.5,
@@ -555,18 +596,17 @@ function renderYearComparison(monthly, u, consKey, root = document) {
       responsive: true, maintainAspectRatio: false,
       plugins: { tooltip: { callbacks: { afterLabel: (item) => {
         const y = years[item.datasetIndex];
-        const i = item.dataIndex;
-        const row = monthly.find(m => String(m.year) === y && m.month === i + 1);
+        const row = series.rows[y]?.[item.dataIndex];
         return row && isPartial(row) ? t('chart.partialMonth', { days: row.days, total: daysInMonth(row.ym) }) : '';
       } } } },
       scales: { y: { title: { display: true, text: u.consumption_unit } } },
     }
-  }, { label: t('analysis.chartAlt.years', { label: u.label, from: years[0] ?? '–', to: years[years.length - 1] ?? '–' }) }));
+  }, { label: t('analysis.chartAlt.years', { label: u.label, from: series.names[years[0]] ?? '–', to: series.names[years[years.length - 1]] ?? '–' }) }));
   const box = root.querySelector('[data-role="years-data"]');
   if (box && years.length) {
     box.innerHTML = chartTableHtml({
-      caption: t('analysis.yearComparison'),
-      columns: [t('utility.monthlyTable.colMonth'), ...years.map(y => `${y} (${u.consumption_unit})`)],
+      caption: t(series.billing ? 'billing.analysis.title' : 'analysis.yearComparison'),
+      columns: [t('utility.monthlyTable.colMonth'), ...years.map(y => `${series.names[y]} (${u.consumption_unit})`)],
       rows: labels.map((l, i) => [l, ...years.map(y => {
         const v = byYear[y][i];
         return v == null ? null : fmt.int(v) + (partialByYear[y][i] ? ' *' : '');
@@ -615,13 +655,9 @@ function renderContractReminders(contractStatus) {
 // Month-by-month comparison of the two most recent years that have data,
 // with absolute and percentage deltas. Complements the existing
 // "Jahresvergleich" line chart with concrete numbers.
-function renderYoyWidget(monthly, u, consKey) {
-  const byYear = {};
-  monthly.forEach(m => {
-    if (!byYear[m.year]) byYear[m.year] = Array(12).fill(null);
-    byYear[m.year][m.month - 1] = m[consKey];
-  });
-  const years = Object.keys(byYear).map(Number).sort((a, b) => a - b);
+function renderYoyWidget(series, u) {
+  const byYear = series.values;
+  const years = series.keys;
   if (years.length < 2) {
     return `
       <div class="card" style="margin-top: var(--sp-5)">
@@ -630,15 +666,18 @@ function renderYoyWidget(monthly, u, consKey) {
       </div>
     `;
   }
-  const prev = years[years.length - 2];
-  const curr = years[years.length - 1];
-  const names = monthNames();
+  const prevKey = years[years.length - 2];
+  const currKey = years[years.length - 1];
+  // v3.6.0 (F1030) — Namen der Perioden bzw. die Jahreszahlen
+  const prev = series.names[prevKey];
+  const curr = series.names[currKey];
+  const names = series.labels;
   const unit = u.consumption_unit;
 
   let sumPrev = 0, sumCurr = 0, nBoth = 0;
   const rows = names.map((name, i) => {
-    const a = byYear[prev][i];
-    const b = byYear[curr][i];
+    const a = byYear[prevKey][i];
+    const b = byYear[currKey][i];
     let delta = null, pct = null;
     if (a != null && b != null) {
       delta = b - a;

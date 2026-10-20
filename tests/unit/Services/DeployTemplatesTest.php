@@ -28,12 +28,17 @@ final class DeployTemplatesTest extends TestCase
         $version = trim(self::file('VERSION'));
         self::assertStringContainsString('EXPOSE 80', self::file('Dockerfile'));
         $compose = self::file('docker-compose.yml');
-        self::assertMatchesRegularExpression('#image: ' . preg_quote(self::IMAGE, '#') . ':\d+\.\d+\.\d+#', $compose);
+        self::assertStringContainsString('image: ' . self::IMAGE . ':' . explode('.', $version)[0] . "\n", $compose, 'Compose-Beispiel auf der Hauptversion');
         self::assertStringContainsString(':/data', $compose);
+
+        // v3.6.0 — die Hauptversion gibt es als Tag (auch ohne root), sonst zeigten die Beispiele ins Leere
+        $publish = self::file('.github/workflows/docker-publish.yml');
+        self::assertStringContainsString("type=semver,pattern={{major}}\n", $publish, 'Tag :3');
+        self::assertStringContainsString('type=semver,pattern={{major}},suffix=-rootless', $publish, 'Tag :3-rootless');
 
         $unraid = self::file('deploy/unraid/energietracker.xml');
         self::assertNotFalse(simplexml_load_string($unraid), 'Unraid-Vorlage ist gültiges XML');
-        self::assertStringContainsString('<Repository>' . self::IMAGE . ':latest</Repository>', $unraid);
+        self::assertStringContainsString('<Repository>' . self::IMAGE . ':' . explode('.', $version)[0] . '</Repository>', $unraid, 'Unraid auf der Hauptversion');
         self::assertStringContainsString('Target="80"', $unraid);
         self::assertStringContainsString('Target="/data"', $unraid);
 

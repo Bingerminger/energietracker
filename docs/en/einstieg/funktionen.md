@@ -206,11 +206,17 @@ The detailed feature overview. What the views look like is shown in the
   Home Assistant and from SMARD — give per meter the share in cheap and
   negative quarter hours, your own wholesale price against the average
   (profile factor) and the advantage on the wholesale share; plus the value of
-  shifting with the battery and the saving from § 14a module 3. Control happens
-  elsewhere — see [Valuing flexibility](../anleitungen/flexibilitaet.md).
-- **Benchmark** (v3.1.0): household electricity and heating per m² against your
-  own reference values, e.g. from the German electricity or heating
-  benchmarks, with links for checking yourself in Germany.
+  shifting with the battery and the saving from § 14a module 3. Since v3.6.0
+  the page also guides: a traffic light for cheap and expensive hours with the
+  sun, “Your lever” in euros per appliance (car, heat pump, battery, washing
+  machine and dishwasher), action sentences with time windows, a result card as
+  an image and a page in the annual report. Control happens elsewhere — see
+  [Valuing flexibility](../anleitungen/flexibilitaet.md).
+- **Benchmark** (v3.1.0, a traffic light since v3.6.0): household electricity
+  and heating per m² against your own reference values, e.g. from the German
+  electricity or heating benchmarks, water per person against the benchmark —
+  each line with a traffic light and one sentence; if a detail is missing, one
+  link leads straight to the field.
 - **Recommendations** from your own data (seven rule families, each hideable)
   and **reminders** for servicing, chimney sweep and calibration deadlines.
 - **Calendar subscription** (since v3.1.0): reminders, cancellation deadlines,

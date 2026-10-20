@@ -5,6 +5,7 @@ namespace Energietracker\Controllers;
 
 use Energietracker\Http\Request;
 use Energietracker\Http\Response;
+use Energietracker\Services\FlexibilityInsightService;
 use Energietracker\Services\FlexibilityService;
 use Energietracker\Services\I18nService;
 use Energietracker\Services\IntervalService;
@@ -14,7 +15,7 @@ use Energietracker\Support\LocalizedException;
 /**
  * v3.3.0 (F1021) — Flexibilität bewerten.
  *
- *   GET    /api/flexibility?year=                       Auswertung eines Jahres
+ *   GET    /api/flexibility?year=                       Auswertung eines Jahres (v3.6.0: &summary=1 nur die Zahl der Karte)
  *   GET    /api/intervals                               Index der Viertelstundenreihen
  *   DELETE /api/intervals/{id}                          eine Reihe löschen
  *   POST   /api/market-prices/sync-smard-intervals?year= Börsenpreise je Viertelstunde (SMARD)
@@ -26,11 +27,23 @@ final class FlexibilityController
         private IntervalService $intervals,
         private MarketPriceService $prices,
         private I18nService $i18n,
+        private ?FlexibilityInsightService $insights = null,   // v3.6.0
     ) {}
 
+    /**
+     * v3.6.0 — additiv `insights`: Ampel, Hebel, Zeitfenster, Sonnenstrom (FlexibilityInsightService).
+     * Mit `summary=1` nur die Zahl der Ergebniskarte (`{year, summary}`) — für
+     * die Kachel „Dein Hebel“ der Übersicht, ohne Nachrechnung je Zähler.
+     */
     public function analyze(Request $req): never
     {
-        Response::json($this->flex->analyze($this->year($req)));
+        $year = $this->year($req);
+        if ((string)($req->queryParam('summary') ?? '') === '1') {
+            Response::json(['year' => $year, 'summary' => $this->insights?->summary($year)]);
+        }
+        $r = $this->flex->analyze($year);
+        if ($this->insights !== null) $r['insights'] = $this->insights->insights($year, $r);
+        Response::json($r);
     }
 
     public function list(Request $req): never

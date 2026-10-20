@@ -802,6 +802,11 @@ accepted.
   fields outside a form confused Safari — Chromium showed none of it. UI
   changes need Safari/WebKit in the check or acceptance on the device; a
   programmatic focus after a choice belongs on the chosen field, not the first.
+- **A note inside the app only reaches those who already have it (v3.6.0).** No
+  version before 3.6.0 checked for updates; whoever pinned a fixed version
+  learns about new ones only via GitHub, update tools or a tag like `:3`. So
+  the note came as early as possible, and the tag with it — moving old tags to
+  new versions would be no solution.
 
 ---
 

@@ -211,11 +211,16 @@ unter [Grundlagen & Methodik](../verstehen/00-overview.md).
   aus Home Assistant und von SMARD — ergeben je Zähler den Anteil in günstigen
   und negativen Viertelstunden, den eigenen Börsenpreis gegen das Mittel
   (Profilfaktor) und den Vorteil beim Börsenanteil; dazu den Wert der
-  Speicherverschiebung und die Ersparnis durch § 14a Modul 3. Gesteuert wird
-  woanders — siehe [Flexibilität bewerten](../anleitungen/flexibilitaet.md).
-- **Einordnung** (v3.1.0): Haushaltsstrom und Heizung je m² gegen eigene
-  Vergleichswerte, etwa aus Strom- oder Heizspiegel, mit Links zur
-  Selbstprüfung in Deutschland.
+  Speicherverschiebung und die Ersparnis durch § 14a Modul 3. Seit v3.6.0
+  lenkt die Seite auch: eine Ampel für günstige und teure Stunden mit der
+  Sonne, „Dein Hebel“ in Euro je Gerät (Auto, Wärmepumpe, Speicher, Wasch- und
+  Spülmaschine), Handlungssätze mit Zeitfenster, eine Ergebniskarte als Bild
+  und eine Seite im Jahresbericht. Gesteuert wird woanders — siehe
+  [Flexibilität bewerten](../anleitungen/flexibilitaet.md).
+- **Einordnung** (v3.1.0, als Ampel seit v3.6.0): Haushaltsstrom und Heizung
+  je m² gegen eigene Vergleichswerte, etwa aus Strom- oder Heizspiegel, Wasser
+  je Person gegen den Richtwert — je Zeile Ampel und ein Satz; fehlt eine
+  Angabe, führt ein Link direkt zum Feld.
 - **Empfehlungen** aus den eigenen Daten (sieben Regelfamilien, einzeln
   ausblendbar) und **Termine** für Wartung, Schornsteinfeger und Eichfristen.
 - **Kalender-Abo** (seit v3.1.0): Termine, Kündigungsstichtage, Vertragsenden,
