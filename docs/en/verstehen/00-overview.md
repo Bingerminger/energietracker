@@ -305,6 +305,14 @@ With two years of monthly values the robust spread varies by about a fifth of it
 value; a third less is clearly above that, and the percentage points prevent
 suggestions between two well-fitting models.
 
+*Since v3.7.1 (GitHub #38)* the suggested limit must also match the measured
+summer: its model may overestimate the summer months of the quality gate (the same
+ones for every limit, section 9) by at most 10 % (`summer_ok` in the grid). A single
+summer month varies by 10 to 20 % in everyday life, the mean over the summers of
+several years much less. For the reporter, the model of the low limit suggested until
+then was about a quarter above the measurements in July and August; such a limit is
+no longer offered.
+
 The limit applies **per meter** (`hdd_base_temp` on the meter, 6 to 22 °C like
 the climate normal grid); the setting stays the default for all meters without
 their own — the best limit differs from house to house. Degree days, heating
@@ -640,10 +648,21 @@ both over measured months only:
 ```text
 ratio            = σ_robust / average measured month   (mean of the checked months)
 base load        = expectation / consumption of measured summer months
-                   (HDD ≤ min_hdd_regression, at least 2 months)
+                   (no degree days at 18 °C, otherwise June to August; at least 2 months;
+                   measured as the median of the daily rates)
 model_quality    = poor if ratio > 15 % or base load outside 0.5 … 1.5
 detect_floor     = anomaly_threshold × max(σ_robust, 10 % of the typical month)
 ```
+
+**The same summer for every heating limit (since v3.7.1, GitHub #38).** Up to v3.7.0
+the summer months were those with HDD ≤ `min_hdd_regression` — calculated with the
+heating limit of the model under test. With a low limit, shoulder months with real
+heating demand thus counted as summer; the reference rose, and a model with too high
+a base load passed. Now they are measured months without a single degree day at the
+top of the grid (18 °C, `hdd_top` of the monthly row); if there are fewer than two —
+the rule in central Europe, almost every July has cool days —, the measured months
+June to August, the three warmest in all country profiles. Every heating limit is
+checked against the same months (`base_load.reference`, `reference_months`).
 
 With `poor`, the anomaly table says so, names the limit `detect_floor` below
 which it detects nothing, for the base load also model and measurement per day,

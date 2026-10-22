@@ -190,6 +190,30 @@ export function setDemoLanguage(lang) {
 }
 
 /**
+ * v3.7.1 — Umgebungsname als Abzeichen neben dem Logo, im Design des Abzeichens
+ * „DEMO“ (dieselbe Klasse, nur ohne Knopf). In der öffentlichen Demo bleibt
+ * „DEMO“, der Name wird übergangen; leer = kein Abzeichen.
+ * @param {string|null|undefined} name  Einstellung `env_name` (serverseitig bereinigt)
+ * @param {boolean} [demo]
+ */
+export function mountEnvBadge(name, demo = DEMO) {
+  const brand = document.querySelector('.topbar__brand');
+  if (!brand || demo) return;
+  const v = String(name ?? '').trim();
+  let el = document.getElementById('env-badge');
+  if (!v) { el?.remove(); return; }
+  if (!el) {
+    el = document.createElement('span');
+    el.id = 'env-badge';
+    el.className = 'demo-chip demo-chip--env';
+    el.dataset.role = 'env-badge';
+    brand.append(el);
+  }
+  el.textContent = v;
+  el.title = t('app.envBadge', { name: v });
+}
+
+/**
  * Kennzeichen in der Kopfleiste und Hinweisleiste mit Sprachwahl und dem Weg
  * zur eigenen Installation. Die Leiste lässt sich schließen; das Kennzeichen
  * öffnet sie wieder.

@@ -66,6 +66,12 @@ level stays reachable and shows a note whose one click raises the level. More:
 
 Independently of this, every device shows “Updated to …” once after an update, with a link to the release notes — without any request going out.
 
+### Environment *(v3.7.1)*
+
+| Key | Default | In the app | Effect |
+|---|---|---|---|
+| `env_name` | empty | Environment name | Text of up to 12 characters; the server removes tags and control characters, collapses white space and shortens it. Shown at the top next to the logo as a badge in the style of “DEMO” — for example to tell a test installation from the real one. Empty: no badge. The public demo keeps “DEMO”. |
+
 ### Reminders
 
 | Key | Default | In the app | Effect |

@@ -36,7 +36,8 @@
         "light": "Hell",
         "dark": "Dunkel"
       }
-    }
+    },
+    "envBadge": "Umgebung: {name}"
   },
   "meterNames": {
     "gas": "Hauptzähler",
@@ -1348,7 +1349,8 @@
       "referenceSource": "z. B. Stromspiegel 2025",
       "evccEndpoint": "http://192.168.178.30:7070",
       "allowedHosts": "energie.example.org, *.home.arpa",
-      "inboxModel": "qwen3.8"
+      "inboxModel": "qwen3.8",
+      "envName": "z. B. TEST"
     },
     "loading": "Lädt …",
     "saved": "Einstellungen gespeichert",
@@ -1432,6 +1434,10 @@
       "flex": {
         "title": "Flexibilität",
         "hint": "Womit die Seite Flexibilität „Dein Hebel“ rechnet, solange nichts gemessen ist. Leer = Beispielwert; was du einträgst, nennen Seite und Jahresbericht „eigener Wert“."
+      },
+      "environment": {
+        "title": "Umgebung",
+        "hint": "Wer mehrere Installationen betreibt (Test, Haus, Ferienwohnung), sieht neben dem Logo, in welcher er gerade ist."
       }
     },
     "field": {
@@ -1621,6 +1627,10 @@
       "flex_ev_plugged_until": {
         "label": "Auto ohne evcc: angesteckt bis",
         "hint": "Liegt „bis“ vor „ab“, geht die Zeit über Mitternacht: 18 bis 7 heißt abends bis morgens."
+      },
+      "env_name": {
+        "label": "Umgebungsname",
+        "hint": "Bis 12 Zeichen, erscheint als Abzeichen neben dem Logo. Leer: kein Abzeichen."
       }
     },
     "boolActive": "aktiv",

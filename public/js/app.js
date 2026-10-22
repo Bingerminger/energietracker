@@ -17,7 +17,7 @@ import { showLogin, logout } from './components/login.js';
 import { intlLocale, setCountry, fmt } from './lib/format.js';
 import { installInfoPopovers, setBillContext } from './components/info.js';
 // v3.0.0 — öffentliche Demo: Sprache vom Browser, Kennzeichen und Hinweisleiste
-import { DEMO, demoLanguage, mountDemoUi } from './lib/demo-mode.js';
+import { DEMO, demoLanguage, mountDemoUi, mountEnvBadge } from './lib/demo-mode.js';
 // v3.2.0 (F1019, F1023) — Nutzungsstufe und Person dieser Sitzung
 import { setSession, resolveLevel, applyLevel } from './lib/levels.js';
 import { mountLevelSwitch, refreshLevelSwitch } from './lib/level-switch.js';
@@ -127,6 +127,11 @@ window.addEventListener('et:session-changed', (ev) => {
   else document.getElementById('logout-btn')?.remove();
 });
 
+// v3.7.1 — Umgebungsname als Abzeichen (lib/demo-mode.js), folgt der Einstellung
+window.addEventListener('et:settingschange', (ev) => {
+  if ((ev.detail?.keys || []).includes('env_name')) mountEnvBadge(ev.detail.settings?.env_name);
+});
+
 const boot = (session = null) => Promise.all([getSettings(), getCountries()])
   .then(([s, countries]) => {
     // v2.7.0 — Länderprofil: Währung und Region vor dem ersten Rendern
@@ -148,6 +153,7 @@ const boot = (session = null) => Promise.all([getSettings(), getCountries()])
   .finally(async () => {
     applyShellStrings();
     mountLevelSwitch(document.querySelector('.topbar__actions'));
+    getSettings().then(s => mountEnvBadge(s?.env_name)).catch(() => {});   // v3.7.1
     // v3.1.0 (I18N-30) — Manifest in der Sprache dieses Geräts (beim Installieren gelesen)
     document.querySelector('link[rel="manifest"]')?.setAttribute('href',
       DEMO ? `manifest-${getLocale()}.webmanifest` : `api.php/api/manifest?lang=${getLocale()}`);

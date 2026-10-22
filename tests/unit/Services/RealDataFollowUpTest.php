@@ -115,6 +115,10 @@ final class RealDataFollowUpTest extends ServiceTestCase
         self::assertCount(25, $h['grid'], '6 bis 18 °C in halben Grad');
         self::assertSame([6.0, 18.0], [$h['grid'][0]['base'], end($h['grid'])['base']]);
         self::assertSame(15.0, (float)$this->settings->get('hdd_base_temp', 15.0), 'nur ein Vorschlag');
+        // v3.7.1 (#38) — der Vorschlag überschätzt den gemessenen Sommer nicht
+        foreach ($h['grid'] as $g) {
+            if (abs($g['base'] - $h['best']) < 1e-9) self::assertLessThanOrEqual(ConsumptionService::HEAT_LIMIT_SUMMER_MAX, $g['summer_ratio']);
+        }
     }
 
     /**
@@ -225,6 +229,52 @@ final class RealDataFollowUpTest extends ServiceTestCase
         self::assertSame([14.0, false], [$p['best'], $p['suggest']], 'zwei Prozentpunkte: beide passen gut');
         $p = $pick([$g(15.0, 0.05), $g(16.0, 0.30)], 0.05);
         self::assertSame([15.0, false], [$p['best'], $p['suggest']], 'die heutige ist die beste');
+    }
+
+    /**
+     * v3.7.1 (#38, öffentliche Zusage) — Die Sommer-Referenz der Grundlast-Prüfung hängt nicht
+     * von der geprüften Heizgrenze ab: dieselben Monate für jede Grenze. Haushalt in der Form
+     * des Melders (Grundlast 6,5 kWh am Tag, Heizung unter 12 °C). Bis 3.7.0 zählten bei
+     * niedriger Grenze Übergangsmonate mit echtem Heizbedarf als „Sommer“; ein Modell mit zu
+     * hoher Grundlast bestand. Jetzt überschätzt es den gemessenen Sommer sichtbar.
+     */
+    public function testTheSummerReferenceIsTheSameForEveryCandidate(): void
+    {
+        $noise = fn(string $d) => 1.0 + 0.01 * ((((int)substr($d, 0, 4) * 12 + (int)substr($d, 5, 2)) * 7) % 5 - 2);
+        $meter = $this->formulaHousehold(fn($d, $h, $temp) => (6.5 + 7.5 * max(0.0, 12.0 - $temp)) * $noise($d), '2023-01-01', '2025-12-31', [], 3.0);
+        $q = fn(float $b) => $this->anomalies->quality('gas', $this->consumption->forMeter('gas', $meter, $b))['base_load'];
+        [$low, $mid, $high] = [$q(9.5), $q(12.0), $q(15.0)];
+        self::assertNotSame([], $mid['reference_months']);
+        self::assertSame([$mid['reference_months'], $mid['reference_months']], [$low['reference_months'], $high['reference_months']], 'dieselben Monate für 9,5, 12 und 15 °C');
+        foreach ($mid['reference_months'] as $ym) {
+            self::assertContains((int)substr($ym, 5), AnomalyService::SUMMER_REF_MONTHS, "$ym: ohne Heizgradtage zu 18 °C gibt es hier zu wenige Monate, also Juni bis August");
+        }
+        self::assertSame('window', $mid['reference']);
+        self::assertGreaterThan(ConsumptionService::HEAT_LIMIT_SUMMER_MAX, $low['ratio'], '9,5 °C überschätzt den gemessenen Sommer');
+        self::assertEqualsWithDelta(1.0, $mid['ratio'], 0.05, '12 °C trifft ihn');
+        self::assertSame(ConsumptionService::HEAT_LIMIT_GRID[1], AnomalyService::SUMMER_REF_BASE, 'Referenz = oberste Rastergrenze');
+        // der Vorschlag: nie eine Grenze, die den Sommer überschätzt; aus 15 °C etwa 12 °C
+        $h = $this->consumption->heatLimitSuggestion('gas', $meter);
+        $byBase = [];
+        foreach ($h['grid'] as $row) $byBase[sprintf('%.1f', $row['base'])] = $row;
+        self::assertTrue($byBase[sprintf('%.1f', $h['best'])]['summer_ok']);
+        self::assertSame([false, false], [$byBase['9.5']['summer_ok'], $byBase['10.0']['summer_ok']]);
+        self::assertTrue($h['suggest']);
+        self::assertEqualsWithDelta(12.0, $h['best'], 0.5);
+    }
+
+    /** v3.7.1 (#38) — erfundenes Raster in der Form des Befunds: Die kleinste Streuung hat eine Grenze, die den Sommer überschätzt. */
+    public function testASuggestionMustNotOverestimateTheMeasuredSummer(): void
+    {
+        $g = fn(float $b, float $r, bool $ok = true, ?float $summer = 1.0) => ['base' => $b, 'ratio' => $r, 'base_load_ok' => $ok,
+            'summer_ratio' => $summer, 'summer_ok' => $summer !== null && $summer <= ConsumptionService::HEAT_LIMIT_SUMMER_MAX];
+        $grid = [$g(9.0, 0.05, true, 1.3), $g(12.0, 0.09, true, 0.95), $g(15.0, 0.18, false, 0.2)];
+        $p = ConsumptionService::pickHeatLimit($grid, 15.0, 0.18);
+        self::assertSame([12.0, true], [$p['best'], $p['suggest']], 'aus 15 °C: 12 °C, nicht die Grenze mit der kleinsten Streuung, die den Sommer um 30 % überschätzt');
+        $p = ConsumptionService::pickHeatLimit($grid, 12.0, 0.09);
+        self::assertSame([12.0, false], [$p['best'], $p['suggest']], 'bei 12 °C still');
+        $p = ConsumptionService::pickHeatLimit([$g(11.0, 0.04, true, null), $g(15.0, 0.18, false, 0.2)], 15.0, 0.18);
+        self::assertFalse($p['suggest'], 'ohne Sommer-Referenz kein Vorschlag');
     }
 
     // ── 2  Klimanormal ab 6 °C ──────────────────────────────────────────
@@ -1000,6 +1050,11 @@ final class RealDataFollowUpTest extends ServiceTestCase
             self::assertStringContainsString((int)round(ConsumptionService::CALIBRATION_HEAT_SHARE * 100) . ' %', $flat, "$file: Heizanteil der Kalibrierung");
             self::assertMatchesRegularExpression('/(Unter|Below) ' . ForecastService::BAND_MIN_DOF . ' /', $flat, "$file: Freiheitsgrade");
             self::assertStringContainsString((int)round(AnomalyService::RELATIVE_NOISE_FLOOR * 100) . ' %', $flat, "$file: Untergrenze je Monat");
+            // v3.7.1 (#38) — Sommer-Referenz und Grenze des Vorschlags
+            self::assertStringContainsString(($dec === ',' ? 'ohne Heizgradtage zu ' : 'no degree days at ') . (int)AnomalyService::SUMMER_REF_BASE . ' °C', $flat, "$file: Sommer-Referenz");
+            self::assertStringContainsString($dec === ',' ? 'Juni bis August' : 'June to August', $flat, "$file: festes warmes Fenster");
+            self::assertSame([6, 7, 8], AnomalyService::SUMMER_REF_MONTHS);
+            self::assertStringContainsString('höchstens ' . (int)round((ConsumptionService::HEAT_LIMIT_SUMMER_MAX - 1) * 100) . ' %', str_replace('at most', 'höchstens', $flat), "$file: Sommer höchstens 10 % überschätzt");
         }
     }
 }

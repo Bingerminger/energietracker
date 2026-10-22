@@ -217,6 +217,8 @@ final class SettingsService
         'warmwasser_elektrisch'    => false,
         // v3.6.0 — Hinweis auf neue Versionen (GitHub, einmal am Tag); nur auf Wunsch
         'update_check'             => false,
+        // v3.7.1 — Umgebungsname als Abzeichen neben dem Logo (etwa „TEST“); leer = keins
+        'env_name'                 => '',
 
         // ── v3.2.0 — Einstieg (F1018, F1019) ──
         // Nutzungsstufe der Installation; mit Benutzern (F1023) hat jede Person
@@ -614,6 +616,14 @@ final class SettingsService
             if ($k === 'setup_pending') $v = (bool)$v;
             // v3.1.0 (H8) — Quelle der Vergleichswerte: kurzer Text
             if ($k === 'reference_source') $v = mb_substr(trim((string)$v), 0, 120);
+            // v3.7.1 — Umgebungsname: bereinigt (ohne Steuerzeichen und Tags, Leerraum
+            // zusammengefasst) und auf ENV_NAME_MAX Zeichen begrenzt
+            if ($k === 'env_name') {
+                if (!is_scalar($v) && $v !== null) {
+                    throw new \InvalidArgumentException(($this->translator())('errors.settings.valueInvalid', ['key' => $k, 'value' => gettype($v)]));
+                }
+                $v = self::cleanEnvName((string)$v);
+            }
             if ($k === 'warmwasser_elektrisch' || $k === 'update_check') $v = (bool)$v;
             if (str_starts_with($k, 'billing_cycle_anchor_') && !self::isMonthDay($v)) {
                 throw new \InvalidArgumentException(($this->translator())('errors.settings.valueInvalid', [
@@ -625,6 +635,18 @@ final class SettingsService
         $this->guardInboxProvider($current, $patch);
         $this->store->write('settings.json', $current);
         return $this->all();
+    }
+
+    /** v3.7.1 — höchstens so viele Zeichen hat der Umgebungsname (das Abzeichen bleibt auch am Handy einzeilig). */
+    public const ENV_NAME_MAX = 12;
+
+    /** v3.7.1 — Umgebungsname bereinigt: keine Tags, keine Steuerzeichen, einfacher Leerraum, gekürzt. */
+    public static function cleanEnvName(string $v): string
+    {
+        $v = strip_tags($v);
+        $v = (string)preg_replace('/[\p{Cc}\p{Cf}]+/u', ' ', $v);
+        $v = trim((string)preg_replace('/\s+/u', ' ', $v));
+        return trim(mb_substr($v, 0, self::ENV_NAME_MAX));
     }
 
     /**

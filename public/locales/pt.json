@@ -36,7 +36,8 @@
         "light": "Claro",
         "dark": "Escuro"
       }
-    }
+    },
+    "envBadge": "Ambiente: {name}"
   },
   "meterNames": {
     "gas": "Contador principal",
@@ -1348,7 +1349,8 @@
       "referenceSource": "p. ex. índice 2025",
       "evccEndpoint": "http://192.168.178.30:7070",
       "allowedHosts": "energie.example.org, *.home.arpa",
-      "inboxModel": "qwen3.8"
+      "inboxModel": "qwen3.8",
+      "envName": "p. ex. TESTE"
     },
     "loading": "A carregar…",
     "saved": "Definições guardadas",
@@ -1432,6 +1434,10 @@
       "flex": {
         "title": "Flexibilidade",
         "hint": "Com o que a página Flexibilidade calcula «A sua alavanca» enquanto nada é medido. Vazio = valor de exemplo; o que for indicado, a página e o relatório anual chamam «valor próprio»."
+      },
+      "environment": {
+        "title": "Ambiente",
+        "hint": "Se usa várias instalações (teste, casa, casa de férias), vê ao lado do logótipo em qual está."
       }
     },
     "field": {
@@ -1621,6 +1627,10 @@
       "flex_ev_plugged_until": {
         "label": "Carro sem evcc: ligado até às",
         "hint": "Se «até» vier antes de «a partir das», o horário passa a meia-noite: 18 a 7 significa da noite à manhã."
+      },
+      "env_name": {
+        "label": "Nome do ambiente",
+        "hint": "Até 12 caracteres, aparece como distintivo ao lado do logótipo. Vazio: sem distintivo."
       }
     },
     "boolActive": "ativado",

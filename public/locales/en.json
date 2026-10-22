@@ -36,7 +36,8 @@
         "light": "Light",
         "dark": "Dark"
       }
-    }
+    },
+    "envBadge": "Environment: {name}"
   },
   "meterNames": {
     "gas": "Main meter",
@@ -1348,7 +1349,8 @@
       "referenceSource": "e.g. benchmark 2025",
       "evccEndpoint": "http://192.168.178.30:7070",
       "allowedHosts": "energie.example.org, *.home.arpa",
-      "inboxModel": "qwen3.8"
+      "inboxModel": "qwen3.8",
+      "envName": "e.g. TEST"
     },
     "loading": "Loading…",
     "saved": "Settings saved",
@@ -1432,6 +1434,10 @@
       "flex": {
         "title": "Flexibility",
         "hint": "What the Flexibility page uses for “Your lever” where nothing is measured. Empty = sample value; what you enter, the page and the annual report call “your value”."
+      },
+      "environment": {
+        "title": "Environment",
+        "hint": "If you run several installations (test, home, holiday flat), you see next to the logo which one you are in."
       }
     },
     "field": {
@@ -1621,6 +1627,10 @@
       "flex_ev_plugged_until": {
         "label": "Car without evcc: plugged in until",
         "hint": "If “until” comes before “from”, the time runs past midnight: 18 to 7 means evening to morning."
+      },
+      "env_name": {
+        "label": "Environment name",
+        "hint": "Up to 12 characters, shown as a badge next to the logo. Empty: no badge."
       }
     },
     "boolActive": "on",

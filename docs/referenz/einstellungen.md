@@ -67,6 +67,12 @@ hebt. Mehr dazu: [Einrichtung](../einstieg/einrichtung.md).
 
 Unabhängig davon zeigt jedes Gerät nach einem Update einmal „Aktualisiert auf …“ mit Link zu den Release-Notes — ohne Anfrage nach außen.
 
+### Umgebung *(v3.7.1)*
+
+| Schlüssel | Standard | In der App | Wirkung |
+|---|---|---|---|
+| `env_name` | leer | Umgebungsname | Text bis 12 Zeichen; der Server entfernt Tags und Steuerzeichen, fasst Leerraum zusammen und kürzt. Erscheint oben neben dem Logo als Abzeichen im Design von „DEMO“ — etwa um eine Test-Installation von der eigentlichen zu unterscheiden. Leer: kein Abzeichen. In der öffentlichen Demo bleibt „DEMO“. |
+
 ### Erinnerungen
 
 | Schlüssel | Standard | In der App | Wirkung |

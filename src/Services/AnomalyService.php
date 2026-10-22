@@ -43,6 +43,36 @@ final class AnomalyService
     public const MIN_MONTHS = 5;
 
     /**
+     * v3.7.1 (GitHub #38) — Sommer-Referenz der Grundlast-Prüfung, für jede geprüfte
+     * Heizgrenze dieselbe: gemessene Monate ohne Heizgradtage zur obersten Grenze des
+     * Heizgrenze-Rasters (`hdd_top` der Monatszeile, ConsumptionService::HEAT_LIMIT_GRID),
+     * also ohne einen einzigen Tag unter 18 °C im Mittel. Gibt es davon weniger als
+     * SUMMER_REF_MIN (in Mitteleuropa die Regel: fast jeder Juli hat kühle Tage), die
+     * gemessenen Monate des festen warmen Fensters Juni bis August — in allen
+     * Länderprofilen (Nordhalbkugel) die drei wärmsten Monate, in denen keine Heizgrenze
+     * des Rasters nennenswert Heizbedarf ergibt.
+     */
+    public const SUMMER_REF_BASE = 18.0;
+    public const SUMMER_REF_MONTHS = [6, 7, 8];
+    public const SUMMER_REF_MIN = 2;
+
+    /**
+     * Die Sommermonate der Grundlast-Prüfung (Indizes in `$valid`) und ihre Herkunft.
+     *
+     * @param list<array<string,mixed>> $valid
+     * @param list<int> $checked  Indizes mit Abweichung (geprüfte Monate)
+     * @return array{0:list<int>,1:string}
+     */
+    public static function summerReference(array $valid, array $checked): array
+    {
+        // nur mit Temperaturen für (fast) jeden Tag: ohne sie wären es null Heizgradtage aus Mangel an Daten
+        $noHdd = array_values(array_filter($checked, fn($i) => isset($valid[$i]['hdd_top']) && (float)$valid[$i]['hdd_top'] < 0.05
+            && (int)($valid[$i]['days'] ?? 0) > 0 && (int)($valid[$i]['temp_days'] ?? 0) >= (int)floor((int)$valid[$i]['days'] * 0.9)));
+        if (count($noHdd) >= self::SUMMER_REF_MIN) return [$noHdd, 'no_hdd_top'];
+        return [array_values(array_filter($checked, fn($i) => in_array((int)($valid[$i]['month'] ?? 0), self::SUMMER_REF_MONTHS, true))), 'window'];
+    }
+
+    /**
      * v2.8.0 — Untergrenze der Streuung: 10 % der Erwartung, mindestens aber
      * 10 % eines typischen Monats des Zählers. Bei sehr gleichmäßigen Daten
      * wird die robuste Streuung winzig, und schon +2 % wären „2σ"; bei einem
@@ -186,19 +216,35 @@ final class AnomalyService
         $threshold = (float)$this->settings->get('anomaly_threshold', 2.0);
         $ratio = $r['scale'] / $mean;
 
-        // Sommer: gemessene Monate praktisch ohne Heizgradtage
-        $minHdd = (float)$this->settings->get('min_hdd_regression', 5.0);
-        $exp = $act = 0.0; $days = 0; $n = 0;
-        foreach ($r['valid'] as $i => $m) {
-            if (!isset($r['residuals'][$i]) || (float)($m['hdd'] ?? 0) > $minHdd) continue;
-            $exp += (float)$r['expected'][$i]; $act += (float)($m[$vf] ?? 0); $days += (int)($m['days'] ?? 0); $n++;
+        // Sommer: gemessene Monate ohne Heizbedarf — v3.7.1 (#38) unabhängig von der
+        // geprüften Heizgrenze (summerReference): Bis 3.7.0 hieß Sommer „HGT ≤
+        // min_hdd_regression zur Grenze des Modells“; bei niedriger Grenze rutschten
+        // Übergangsmonate mit echtem Heizbedarf hinein, die Referenz stieg, und ein Modell
+        // mit zu hoher Grundlast bestand die Prüfung
+        [$summer, $source] = self::summerReference($r['valid'], array_keys($r['residuals']));
+        $exp = 0.0; $days = 0; $n = 0; $rates = [];
+        foreach ($summer as $i) {
+            $m = $r['valid'][$i];
+            $d = (int)($m['days'] ?? 0);
+            if ($d <= 0) continue;
+            $exp += (float)$r['expected'][$i]; $days += $d; $n++;
+            $rates[] = (float)($m[$vf] ?? 0) / $d;
         }
+        // v3.7.1 — gemessen: der Median der Tagesraten. Mit festen Sommermonaten sind es
+        // weniger als früher; ein einzelner Ausreißer (Urlaub, defekte Therme — genau der
+        // Monat, den R1 finden soll) darf die Prüfung nicht allein entscheiden
+        $actPerDay = $rates ? self::median($rates) : 0.0;
+        $act = $actPerDay * $days;
         $base = $n >= 2 && $act > 0 && $days > 0 ? [
             'model_per_day'    => round($exp / $days, 2),
-            'measured_per_day' => round($act / $days, 2),
+            'measured_per_day' => round($actPerDay, 2),
             'ratio'            => round($exp / $act, 3),
             'allowed'          => [self::BASE_LOAD_MIN, self::BASE_LOAD_MAX],
             'months'           => $n,
+            // v3.7.1 — woher die Sommermonate kommen: `no_hdd_top` (ohne Heizgradtage zu
+            // SUMMER_REF_BASE) oder `window` (SUMMER_REF_MONTHS); die Monate selbst
+            'reference'        => $source,
+            'reference_months' => array_map(fn($i) => (string)$r['valid'][$i]['ym'], $summer),
         ] : null;
         $reasons = [];
         if ($ratio > self::POOR_FIT_RATIO) $reasons[] = 'scatter';

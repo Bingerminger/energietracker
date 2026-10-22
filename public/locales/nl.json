@@ -36,7 +36,8 @@
         "light": "Licht",
         "dark": "Donker"
       }
-    }
+    },
+    "envBadge": "Omgeving: {name}"
   },
   "meterNames": {
     "gas": "Hoofdmeter",
@@ -1348,7 +1349,8 @@
       "referenceSource": "bijv. index 2025",
       "evccEndpoint": "http://192.168.178.30:7070",
       "allowedHosts": "energie.example.org, *.home.arpa",
-      "inboxModel": "qwen3.8"
+      "inboxModel": "qwen3.8",
+      "envName": "bijv. TEST"
     },
     "loading": "Laden…",
     "saved": "Instellingen opgeslagen",
@@ -1432,6 +1434,10 @@
       "flex": {
         "title": "Flexibiliteit",
         "hint": "Waarmee de pagina Flexibiliteit ‘Je hefboom’ berekent zolang er niets gemeten is. Leeg = voorbeeldwaarde; wat je invult, noemen pagina en jaarverslag ‘eigen waarde’."
+      },
+      "environment": {
+        "title": "Omgeving",
+        "hint": "Wie meerdere installaties gebruikt (test, huis, vakantiewoning), ziet naast het logo in welke hij zit."
       }
     },
     "field": {
@@ -1621,6 +1627,10 @@
       "flex_ev_plugged_until": {
         "label": "Auto zonder evcc: ingeplugd tot",
         "hint": "Ligt ‘tot’ vóór ‘vanaf’, dan loopt de tijd over middernacht: 18 tot 7 betekent ’s avonds tot ’s ochtends."
+      },
+      "env_name": {
+        "label": "Naam van de omgeving",
+        "hint": "Tot 12 tekens, verschijnt als badge naast het logo. Leeg: geen badge."
       }
     },
     "boolActive": "aan",

@@ -36,7 +36,8 @@
         "light": "Clair",
         "dark": "Sombre"
       }
-    }
+    },
+    "envBadge": "Environnement : {name}"
   },
   "meterNames": {
     "gas": "Compteur principal",
@@ -1348,7 +1349,8 @@
       "referenceSource": "p. ex. barème 2025",
       "evccEndpoint": "http://192.168.178.30:7070",
       "allowedHosts": "energie.example.org, *.home.arpa",
-      "inboxModel": "qwen3.8"
+      "inboxModel": "qwen3.8",
+      "envName": "p. ex. TEST"
     },
     "loading": "Chargement…",
     "saved": "Paramètres enregistrés",
@@ -1432,6 +1434,10 @@
       "flex": {
         "title": "Flexibilité",
         "hint": "Ce que la page Flexibilité utilise pour « Votre levier » tant que rien n’est mesuré. Vide = valeur d’exemple ; ce que vous saisissez, la page et le rapport annuel l’appellent « votre valeur »."
+      },
+      "environment": {
+        "title": "Environnement",
+        "hint": "Si vous utilisez plusieurs installations (test, maison, location de vacances), vous voyez à côté du logo dans laquelle vous êtes."
       }
     },
     "field": {
@@ -1621,6 +1627,10 @@
       "flex_ev_plugged_until": {
         "label": "Voiture sans evcc : branchée jusqu’à",
         "hint": "Si « jusqu’à » précède « à partir de », la plage passe minuit : 18 à 7 signifie du soir au matin."
+      },
+      "env_name": {
+        "label": "Nom de l’environnement",
+        "hint": "Jusqu’à 12 caractères, affiché comme badge à côté du logo. Vide : pas de badge."
       }
     },
     "boolActive": "activé",

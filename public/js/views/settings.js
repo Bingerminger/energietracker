@@ -47,6 +47,10 @@ const GROUPS = [
   { gkey: 'updates', page: 'general', icon: '🆕', fields: [
     { key: 'update_check', type: 'bool' },
   ]},
+  // v3.7.1 — Umgebungsname als Abzeichen neben dem Logo (Test, Haus …); leer = keins
+  { gkey: 'environment', page: 'general', icon: '🏷️', fields: [
+    { key: 'env_name', type: 'text', maxlength: 12, placeholderKey: 'settings.placeholder.envName' },
+  ]},
   { gkey: 'contractReminders', page: 'general', icon: '🔔', level: 'advanced', fields: [
     { key: 'contract_remind_days_1', unitKey: 'settings.unit.days', step: '1' },
     { key: 'contract_remind_days_2', unitKey: 'settings.unit.days', step: '1' },
@@ -1779,7 +1783,7 @@ function renderField(f, value, settings = {}) {
     return `<div class="field settings-field">
       ${labelHtml}
       <input class="input input--text" type="text" id="${fieldId}" data-key="${f.key}"
-             value="${escapeHtml(value ?? '')}" ${placeholder ? `placeholder="${escapeHtml(placeholder)}"` : ''}${describedBy}>
+             value="${escapeHtml(value ?? '')}" ${placeholder ? `placeholder="${escapeHtml(placeholder)}"` : ''}${f.maxlength ? ` maxlength="${f.maxlength}"` : ''}${describedBy}>
       ${hint}
     </div>`;
   }

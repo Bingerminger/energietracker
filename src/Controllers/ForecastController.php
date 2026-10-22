@@ -5,6 +5,7 @@ namespace Energietracker\Controllers;
 
 use Energietracker\Http\Request;
 use Energietracker\Http\Response;
+use Energietracker\Services\ClimateNormalService;
 use Energietracker\Services\ForecastService;
 use Energietracker\Services\MeterService;
 use Energietracker\Services\I18nService;
@@ -60,6 +61,15 @@ final class ForecastController
         if (isset($opts['model'])
             && !in_array($opts['model'], ['linear', 'polynomial', 'robust', 'segmented', 'sigmoid'], true)) {
             $bad('model', 'linear, polynomial, robust, segmented, sigmoid');
+        }
+        // v3.7.1 (GitHub #38) — `hdd_base` wie bei …/consumption: dieselbe Heizgrenze für
+        // Gradtage, Heizmodell, Normal und Prognose, ohne sie am Zähler zu speichern
+        if (($hb = $req->queryParam('hdd_base')) !== null) {
+            if (!is_numeric($hb) || (float)$hb < ClimateNormalService::BASE_MIN || (float)$hb > ClimateNormalService::BASE_MAX) {
+                Response::error($this->i18n->t('errors.forecast.paramInvalid', ['param' => 'hdd_base', 'value' => (string)$hb,
+                    'range' => ClimateNormalService::BASE_MIN . '–' . ClimateNormalService::BASE_MAX]));
+            }
+            $meter['hdd_base_temp'] = (float)$hb;
         }
         Response::json($this->forecasts->forMeter($utility, $meter, $opts));
     }

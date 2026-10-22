@@ -318,6 +318,14 @@ Die robuste Streuung schwankt bei zwei Jahren Monatswerten um rund ein Fünftel
 ihres Werts; ein Drittel weniger liegt deutlich darüber, und die Prozentpunkte
 verhindern Vorschläge zwischen zwei gut passenden Modellen.
 
+*Seit v3.7.1 (GitHub #38)* muss die vorgeschlagene Grenze außerdem den gemessenen
+Sommer treffen: Ihr Modell darf die Sommermonate der Gütesperre (für jede Grenze
+dieselben, Abschnitt 9) um höchstens 10 % überschätzen (`summer_ok` im Raster).
+Ein einzelner Sommermonat schwankt im Alltag um 10 bis 20 %, das Mittel über die
+Sommer mehrerer Jahre deutlich weniger. Beim Melder lag das Modell der bis dahin
+vorgeschlagenen niedrigen Grenze im Juli und August rund ein Viertel über dem
+Gemessenen; so eine Grenze wird nicht mehr angeboten.
+
 Die Grenze gilt **je Zähler** (`hdd_base_temp` am Zähler, 6 bis 22 °C wie das
 Raster des Klimanormals); die Einstellung bleibt der Standard aller Zähler ohne
 eigene — die beste Grenze ist je Haus verschieden. Mit ihr rechnen Gradtage,
@@ -653,10 +661,22 @@ prüft deshalb zweierlei, beides nur über gemessene Monate:
 ```text
 Verhältnis       = σ_robust / mittlerer gemessener Monat   (Mittel der geprüften Monate)
 Grundlast        = Erwartung / Verbrauch gemessener Sommermonate
-                   (HGT ≤ min_hdd_regression, mindestens 2 Monate)
+                   (ohne Heizgradtage zu 18 °C, sonst Juni bis August; mindestens 2 Monate;
+                   gemessen als Median der Tagesraten)
 model_quality    = poor, wenn Verhältnis > 15 % oder Grundlast außerhalb 0,5 … 1,5
 detect_floor     = anomaly_threshold × max(σ_robust, 10 % des typischen Monats)
 ```
+
+**Sommer für jede Heizgrenze derselbe (seit v3.7.1, GitHub #38).** Bis v3.7.0
+waren die Sommermonate die mit HGT ≤ `min_hdd_regression` — gerechnet mit der
+Heizgrenze des geprüften Modells. Bei einer niedrigen Grenze zählten so
+Übergangsmonate mit echtem Heizbedarf als Sommer; die Referenz stieg, und ein
+Modell mit zu hoher Grundlast bestand die Prüfung. Jetzt sind es gemessene Monate
+ohne einen einzigen Heizgradtag zur obersten Grenze des Rasters (18 °C, `hdd_top`
+der Monatszeile); gibt es davon keine zwei — in Mitteleuropa die Regel, fast jeder
+Juli hat kühle Tage —, die gemessenen Monate Juni bis August, in allen
+Länderprofilen die drei wärmsten. Jede Heizgrenze wird gegen dieselben Monate
+geprüft (`base_load.reference`, `reference_months`).
 
 Bei `poor` sagt die Abweichungstabelle das, nennt die Grenze `detect_floor`,
 unter der sie nichts erkennt, bei der Grundlast auch Modell und Messung je Tag,

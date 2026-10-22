@@ -513,7 +513,10 @@ Abweichung, die ein typischer Monat mindestens braucht, um gemeldet zu werden
 
 | Wo | Feld | Bedeutung |
 |---|---|---|
-| `…/meters/{id}/consumption?heat_limit=1` | `heat_limit` | Heizgrenze-Vorschlag des Zählers: `{current, current_ratio, current_ok, best, best_ratio, suggest, default, own, months, grid: [{base, ratio, base_load_ok}]}`, `null` ohne Heizmodell, unter 12 gemessenen Monaten oder ohne den Parameter ([Grundlagen §5](../verstehen/00-overview.md#heizgrenze-vorschlag-seit-v370)) |
+| `…/meters/{id}/consumption?heat_limit=1` | `heat_limit` | Heizgrenze-Vorschlag des Zählers: `{current, current_ratio, current_ok, best, best_ratio, suggest, default, own, months, grid: [{base, ratio, base_load_ok, summer_ratio, summer_ok}]}`, `null` ohne Heizmodell, unter 12 gemessenen Monaten oder ohne den Parameter ([Grundlagen §5](../verstehen/00-overview.md#heizgrenze-vorschlag-seit-v370)). *(v3.7.1)* `summer_ratio`: Erwartung ÷ gemessener Sommer (dieselben Monate für jede Grenze), `summer_ok`: höchstens 1,10 — Bedingung für einen Vorschlag |
+| `anomaly_quality.base_load` | `reference`, `reference_months` | *(v3.7.1)* woher die Sommermonate der Grundlast-Prüfung kommen: `no_hdd_top` (ohne Heizgradtage zu 18 °C) oder `window` (Juni bis August), und welche es sind |
+| `monthly[]` | `hdd_top` | *(v3.7.1)* Heizgradtage des Monats zu 18 °C, unabhängig von der Heizgrenze (Sommer-Referenz) |
+| `GET …/meters/{id}/forecast` | `?hdd_base=` | *(v3.7.1)* Heizgrenze für diese Prognose (6 bis 22 °C) wie bei `…/consumption`, ohne sie am Zähler zu speichern; außerhalb: 400 |
 | `PATCH …/meters/{id}`, Zähler | `hdd_base_temp` | eigene Heizgrenze dieses Zählers in °C (6 bis 22, nur Heizarten mit Zählerständen); `null` oder leer entfernt sie, dann gilt die Einstellung |
 | `monthly[]` | `heat_adjusted_basis` | warum `heat_adjusted` so ist: `model`, `summer`, `base_load`, `normal_is_actual` (oder `null`) |
 | `regressions.*`, `forecast.regression` | `reason` | bei `valid: false`: `too_few_points`, `poor_fit`, `degenerate` |

@@ -36,7 +36,8 @@
         "light": "Chiaro",
         "dark": "Scuro"
       }
-    }
+    },
+    "envBadge": "Ambiente: {name}"
   },
   "meterNames": {
     "gas": "Contatore principale",
@@ -1348,7 +1349,8 @@
       "referenceSource": "ad es. indice 2025",
       "evccEndpoint": "http://192.168.178.30:7070",
       "allowedHosts": "energie.example.org, *.home.arpa",
-      "inboxModel": "qwen3.8"
+      "inboxModel": "qwen3.8",
+      "envName": "ad es. TEST"
     },
     "loading": "Caricamento…",
     "saved": "Impostazioni salvate",
@@ -1432,6 +1434,10 @@
       "flex": {
         "title": "Flessibilità",
         "hint": "Con che cosa la pagina Flessibilità calcola «La tua leva» finché nulla è misurato. Vuoto = valore di esempio; ciò che inserisci, pagina e rapporto annuale lo chiamano «tuo valore»."
+      },
+      "environment": {
+        "title": "Ambiente",
+        "hint": "Se gestisci più installazioni (prova, casa, casa vacanze), accanto al logo vedi in quale ti trovi."
       }
     },
     "field": {
@@ -1621,6 +1627,10 @@
       "flex_ev_plugged_until": {
         "label": "Auto senza evcc: collegata fino alle",
         "hint": "Se «fino alle» viene prima di «dalle», l’intervallo supera la mezzanotte: 18–7 significa dalla sera al mattino."
+      },
+      "env_name": {
+        "label": "Nome dell’ambiente",
+        "hint": "Fino a 12 caratteri, appare come badge accanto al logo. Vuoto: nessun badge."
       }
     },
     "boolActive": "attivo",

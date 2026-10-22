@@ -504,7 +504,10 @@ intervals between real readings ([Basics §5](../verstehen/00-overview.md#heatin
 
 | Where | Field | Meaning |
 |---|---|---|
-| `…/meters/{id}/consumption?heat_limit=1` | `heat_limit` | heating limit suggestion of the meter: `{current, current_ratio, current_ok, best, best_ratio, suggest, default, own, months, grid: [{base, ratio, base_load_ok}]}`, `null` without a heating model, below 12 measured months or without the parameter ([Basics §5](../verstehen/00-overview.md#heating-limit-suggestion-since-v370)) |
+| `…/meters/{id}/consumption?heat_limit=1` | `heat_limit` | heating limit suggestion of the meter: `{current, current_ratio, current_ok, best, best_ratio, suggest, default, own, months, grid: [{base, ratio, base_load_ok, summer_ratio, summer_ok}]}`, `null` without a heating model, below 12 measured months or without the parameter ([Basics §5](../verstehen/00-overview.md#heating-limit-suggestion-since-v370)). *(v3.7.1)* `summer_ratio`: expectation ÷ measured summer (the same months for every limit), `summer_ok`: at most 1.10 — a condition for a suggestion |
+| `anomaly_quality.base_load` | `reference`, `reference_months` | *(v3.7.1)* where the summer months of the base-load check come from: `no_hdd_top` (no degree days at 18 °C) or `window` (June to August), and which they are |
+| `monthly[]` | `hdd_top` | *(v3.7.1)* degree days of the month at 18 °C, independent of the heating limit (summer reference) |
+| `GET …/meters/{id}/forecast` | `?hdd_base=` | *(v3.7.1)* heating limit for this forecast (6 to 22 °C) as with `…/consumption`, without storing it on the meter; outside: 400 |
 | `PATCH …/meters/{id}`, meter | `hdd_base_temp` | this meter's own heating limit in °C (6 to 22, only heating types with meter readings); `null` or empty removes it, then the setting applies |
 | `monthly[]` | `heat_adjusted_basis` | why `heat_adjusted` is what it is: `model`, `summer`, `base_load`, `normal_is_actual` (or `null`) |
 | `regressions.*`, `forecast.regression` | `reason` | with `valid: false`: `too_few_points`, `poor_fit`, `degenerate` |

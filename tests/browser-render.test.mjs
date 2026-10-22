@@ -2941,6 +2941,47 @@ async function renderView(modPath, params = [], ctx = {}) {
       && /≈/.test(pvv.view.querySelector('.chart-data')?.textContent || ''));
   } catch (e) { t('interpolation: gemessen oder verteilt', false, e.stack || e.message); }
 
+  // ── 24. v3.7.1 — Umgebungsname als Abzeichen neben dem Logo (Design wie „DEMO“) ──
+  try {
+    const patch = async (body) => (await fetch(`${HOST}/api/settings`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })).json();
+    const saved = await patch({ env_name: '  <i>Test</i>   Haus  ' });
+    t('umgebung: Server bereinigt und begrenzt (12 Zeichen, ohne Tags)', saved?.data?.env_name === 'Test Haus', JSON.stringify(saved?.data?.env_name));
+    const dm = await import(`${ROOT}/lib/demo-mode.js`);
+    let brand = global.document.querySelector('.topbar__brand');
+    if (!brand) { brand = global.document.createElement('div'); brand.className = 'topbar__brand'; global.document.body.prepend(brand); }
+    dm.mountEnvBadge(saved?.data?.env_name);
+    const badge = brand.querySelector('[data-role="env-badge"]');
+    t('umgebung: Abzeichen mit Wert, Klasse des Demo-Abzeichens, kein Knopf', badge?.textContent === 'Test Haus'
+      && badge.classList.contains('demo-chip') && badge.tagName === 'SPAN' && /Umgebung: Test Haus/.test(badge.title || ''), badge?.outerHTML);
+    dm.mountEnvBadge('');
+    t('umgebung: ohne Wert kein Abzeichen', !brand.querySelector('[data-role="env-badge"]'));
+    dm.mountEnvBadge('TEST', true);
+    t('umgebung: in der öffentlichen Demo bleibt „DEMO“ (Name übergangen)', !brand.querySelector('[data-role="env-badge"]'));
+    const css = readFileSync(resolve(__dir, '..', 'public', 'css', 'components.css'), 'utf8');
+    t('umgebung: einzeilig auch am Handy (nowrap, schrumpft nicht)', /\.demo-chip--env\s*\{[^}]*white-space:\s*nowrap[^}]*flex-shrink:\s*0/.test(css));
+    // Einstellungen → Allgemein: das Feld mit Grenze
+    (await import(`${ROOT}/state.js`)).invalidateSettings();
+    const sv = await renderView(`${ROOT}/views/settings.js`, ['general']);
+    await new Promise(r => setTimeout(r, 500));
+    const field = sv.view.querySelector('input[data-key="env_name"]');
+    t('umgebung: Feld unter Einstellungen › Allgemein mit 12 Zeichen', field?.getAttribute('maxlength') === '12' && field.value === 'Test Haus', field?.outerHTML?.slice(0, 200));
+    await patch({ env_name: '' });
+  } catch (e) { t('umgebung: Abzeichen', false, e.stack || e.message); }
+
+  // ── 25. v3.7.1 (GitHub #38) — /forecast beachtet hdd_base wie /consumption ──
+  try {
+    const get = async (p) => { const r = await fetch(`${HOST}/api${p}`); return { status: r.status, data: (await r.json())?.data }; };
+    // das Schaufenster (davor lag der Haushalt der Mieterin, ohne Gas)
+    await fetch(`${HOST}/api/demo/import`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ force: true }) });
+    const m = 'm_gas_main';
+    const [plain, at12, cons12, bad] = await Promise.all([get(`/utility/gas/meters/${m}/forecast`), get(`/utility/gas/meters/${m}/forecast?hdd_base=12`),
+      get(`/utility/gas/meters/${m}/consumption?hdd_base=12`), get(`/utility/gas/meters/${m}/forecast?hdd_base=40`)]);
+    const last = (r) => (r.data?.historical || []).slice(-1)[0]?.hdd;
+    t('#38: /forecast?hdd_base=12 rechnet mit 12 °C (Gradtage wie /consumption?hdd_base=12)', at12.data?.hdd_base === 12 && plain.data?.hdd_base !== 12
+      && last(at12) === (cons12.data?.monthly || []).slice(-1)[0]?.hdd && last(at12) !== last(plain), `${plain.data?.hdd_base} → ${at12.data?.hdd_base} · ${last(plain)} → ${last(at12)}`);
+    t('#38: /forecast mit Heizgrenze außerhalb 6–22 °C: 400', bad.status === 400, String(bad.status));
+  } catch (e) { t('#38: /forecast hdd_base', false, e.stack || e.message); }
+
   console.log(`\n  ERGEBNIS: ${pass} bestanden, ${fail} fehlgeschlagen`);
   process.exit(fail ? 1 : 0);
 })().catch(e => { console.error('  HARNESS-FEHLER:', e.stack || e.message); process.exit(2); });

@@ -1746,6 +1746,11 @@ a.icon-btn { display: inline-flex; align-items: center; justify-content: center;
   font: inherit; font-size: var(--fs-xs); font-weight: 600; letter-spacing: .04em;
   text-transform: uppercase; cursor: pointer;
 }
+/* v3.7.1 — Umgebungsname im Design des Demo-Abzeichens: kein Knopf, nie umbrochen */
+.demo-chip--env { cursor: default; white-space: nowrap; flex-shrink: 0; }
+@media (max-width: 420px) {
+  .topbar__brand:has(.demo-chip--env) .topbar__title { display: none; }
+}
 .demo-bar {
   position: fixed; z-index: 55; left: 50%; transform: translateX(-50%);
   bottom: calc(var(--sp-4) + env(safe-area-inset-bottom, 0px));

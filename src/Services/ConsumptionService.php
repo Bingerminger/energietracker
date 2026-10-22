@@ -1223,6 +1223,15 @@ final class ConsumptionService
 
     /** v3.7.0 (wirklichkeit-2) — Raster des Heizgrenze-Vorschlags in °C: von, bis, Schritt. */
     public const HEAT_LIMIT_GRID = [6.0, 18.0, 0.5];
+    /**
+     * v3.7.1 (#38) — Obergrenze Erwartung ÷ gemessener Sommer für einen Vorschlag: Eine
+     * Grenze, deren Modell die gemessenen Sommermonate um mehr als 10 % überschätzt, wird
+     * nicht angeboten. Ein einzelner Sommermonat schwankt im Alltag um 10 bis 20 %, das Mittel
+     * über die Sommer mehrerer Jahre deutlich weniger; beim Melder lag das Modell der
+     * vorgeschlagenen 9,5 °C im Juli und August 24 bis 25 % darüber, das zu 12 °C 1 %.
+     * Nach unten gilt die Grenze der Gütesperre (AnomalyService::BASE_LOAD_MIN).
+     */
+    public const HEAT_LIMIT_SUMMER_MAX = 1.10;
     /** Mindestens so viele gemessene, geprüfte Monate (ein ganzer Jahreslauf mit Übergangszeiten). */
     public const HEAT_LIMIT_MIN_MONTHS = 12;
     /**
@@ -1259,7 +1268,11 @@ final class ConsumptionService
             $b = round($b, 1);
             $q = abs($b - $current) < 1e-9 ? $now : $this->anomalyQuality($utility, $this->forMeter($utility, $meter, $b));
             if ($q === null) continue;
-            $grid[] = ['base' => $b, 'ratio' => (float)$q['ratio'], 'base_load_ok' => !in_array('base_load', (array)$q['reasons'], true)];
+            // v3.7.1 (#38) — dazu: überschätzt das Modell die gemessenen Sommer (dieselben
+            // Monate für jede Grenze, AnomalyService::summerReference)?
+            $summer = isset($q['base_load']['ratio']) ? (float)$q['base_load']['ratio'] : null;
+            $grid[] = ['base' => $b, 'ratio' => (float)$q['ratio'], 'base_load_ok' => !in_array('base_load', (array)$q['reasons'], true),
+                'summer_ratio' => $summer, 'summer_ok' => $summer !== null && $summer <= self::HEAT_LIMIT_SUMMER_MAX];
         }
         return self::pickHeatLimit($grid, $current, (float)$now['ratio']) + [
             // die Grenze gilt je Zähler; `default` ist die Einstellung, `own` ob er eine eigene hat
@@ -1274,17 +1287,18 @@ final class ConsumptionService
     /**
      * Die Wahl des Heizgrenze-Vorschlags aus dem Raster (rein, testbar): die
      * Grenze mit der kleinsten Streuung unter denen, deren Modell die
-     * Grundlast-Prüfung besteht; vorgeschlagen nur, wenn sie deutlich besser ist
+     * Grundlast-Prüfung besteht und (v3.7.1, #38) die gemessenen Sommer nicht
+     * überschätzt (`summer_ok`); vorgeschlagen nur, wenn sie deutlich besser ist
      * als heute (HEAT_LIMIT_GAIN, HEAT_LIMIT_MIN_DROP).
      *
-     * @param list<array{base:float,ratio:float,base_load_ok:bool}> $grid
+     * @param list<array{base:float,ratio:float,base_load_ok:bool,summer_ok?:bool}> $grid
      * @return array{current:float,current_ratio:float,best:?float,best_ratio:?float,suggest:bool}
      */
     public static function pickHeatLimit(array $grid, float $current, float $ratioNow): array
     {
         $best = null;
         foreach ($grid as $g) {
-            if (!$g['base_load_ok']) continue;
+            if (!$g['base_load_ok'] || !($g['summer_ok'] ?? true)) continue;
             if ($best === null || $g['ratio'] < $best['ratio'] - 1e-9) $best = $g;
         }
         // (die heutige Grenze kann so nie vorgeschlagen werden: Sie ist nicht deutlich besser als sie selbst)
@@ -3578,7 +3592,7 @@ final class ConsumptionService
         foreach ($monthly as $ym => &$data) {
             [$yr, $mn] = array_map('intval', explode('-', $ym));
             $dim = (int)date('t', mktime(0, 0, 0, $mn, 1, $yr));
-            $sum = 0.0; $min = PHP_FLOAT_MAX; $max = -PHP_FLOAT_MAX; $cnt = 0; $hdd = 0.0;
+            $sum = 0.0; $min = PHP_FLOAT_MAX; $max = -PHP_FLOAT_MAX; $cnt = 0; $hdd = 0.0; $hddTop = 0.0;
             $covered = null;
             if (isset($coverage[$ym])) {
                 $covered = [];
@@ -3598,6 +3612,7 @@ final class ConsumptionService
                 $min = min($min, (float)$temps[$k]['min']);
                 $max = max($max, (float)$temps[$k]['max']);
                 $hdd += max(0.0, $hddBase - $avg);
+                $hddTop += max(0.0, AnomalyService::SUMMER_REF_BASE - $avg);
             }
             $data['ym']        = $ym;
             $data['year']      = $yr;
@@ -3609,6 +3624,9 @@ final class ConsumptionService
             $data['min_temp']  = $cnt > 0 ? round($min, 1) : null;
             $data['max_temp']  = $cnt > 0 ? round($max, 1) : null;
             $data['hdd']       = round($hdd, 1);
+            // v3.7.1 (#38) — Heizgradtage zur obersten Rastergrenze, unabhängig von der Heizgrenze:
+            // die Sommer-Referenz der Grundlast-Prüfung (AnomalyService::summerReference)
+            $data['hdd_top']   = round($hddTop, 1);
             $data['temp_days'] = $cnt;
             $data['kwh_per_hdd'] = $data['hdd'] > 5 ? round($data['kwh'] / $data['hdd'], 2) : null;
         }
