@@ -305,7 +305,10 @@ console.log('Warten nach 504 oder Netzabbruch');
   t('Fehler mit Antwort: sofort, ohne Abfrage', err?.status === 400 && polls === 0);
   t('Abbruch vor der Antwort: 504, Netz, Zeitlimit — sonst nicht', Q.cutOff({ status: 504 }) && Q.cutOff({ status: 0, code: 'network' })
     && Q.cutOff({ status: 0, code: 'timeout' }) && !Q.cutOff({ status: 502 }) && !Q.cutOff({ status: 400 }));
-  t('fertig erst mit geänderter Zeit und neuem Stand', Q.stepState(entry, { ...entry }, 'type') === null
+  // noch einmal auslesen: der alte Stand (Art bekannt, ausgelesen) ist nicht das Ergebnis
+  const old = { ...entry, type: 'invoice', status: 'read' };
+  t('fertig erst mit geänderter Zeit und neuem Stand', Q.stepState(old, { ...old }, 'type') === null && Q.stepState(old, { ...old }, 'fields') === null
+    && Q.stepState(entry, { ...entry }, 'type') === null
     && Q.stepState(entry, { ...entry, updated_at: 'x', type: null }, 'type') === null
     && Q.stepState(entry, { ...entry, updated_at: 'x', type: 'invoice' }, 'fields') === null
     && Q.stepState(entry, { ...entry, updated_at: 'x', type: 'invoice', status: 'read' }, 'fields') === 'done');
