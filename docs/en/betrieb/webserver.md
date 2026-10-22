@@ -196,6 +196,26 @@ same values:
   seconds when text recognition may take long — for reading in the inbox via a
   cloud service up to 660 seconds *(v3.7.0)*.
 
+## Short time limit in front of PHP *(3.7.1)*
+
+Recognising and reading in the inbox take up to 300 seconds per step (your own
+AI), with a cloud service up to 600. If a web server or reverse proxy in front
+gives up earlier, it answers with `504` — PHP still finishes and saves (the
+app sets `ignore_user_abort` for this). On a Synology this happened after 60
+seconds.
+
+- **The interface then waits:** after a `504` or a network interruption it
+  asks for the document every 5 seconds (`GET /api/inbox/{id}`) until the step
+  is saved — at most 660 seconds from sending — and only shows an error after
+  that. This applies to a single document as well as to reading many
+  documents.
+- **Better raise the limit**, then nobody waits: nginx `fastcgi_read_timeout`
+  (as a reverse proxy `proxy_read_timeout`), Apache `Timeout` (default 60
+  seconds) or `ProxyTimeout` — to 660 seconds; for `/api/inbox/{id}/classify`
+  and `/extract` that is enough. On a Synology this concerns the web service of
+  Web Station and a reverse proxy of the login portal in front, as far as DSM
+  offers the setting.
+
 ## PHP's own server — only for trying out
 
 ```bash

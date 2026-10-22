@@ -5839,7 +5839,8 @@
       "text": "Lettura del testo …",
       "type": "Riconoscimento del tipo …",
       "fields": "Lettura dei campi …",
-      "elapsed": "{s} s"
+      "elapsed": "{s} s",
+      "wait": "Il server sta ancora elaborando – controllo del risultato …"
     },
     "empty": "Ancora nessuna posta. Archivia in PDF la prima bolletta o conferma del contratto.",
     "col": {
@@ -6267,6 +6268,9 @@
     },
     "priceBasis": {
       "net": "netto secondo la bolletta, con IVA al {vat}% = {gross} lordo"
+    },
+    "wait": {
+      "gaveUp": "Nessuna risposta, anche dopo aver ricontrollato. Il documento potrebbe ancora essere completato – riaprilo tra poco. Un limite di tempo più lungo sul server web risolve in modo duraturo."
     }
   },
   "inboxCloud": {
@@ -6397,7 +6401,8 @@
       "invoice_wp": "{name}: prezzo unitario dal {date} {invoice} invece di {chain} da conferma o variazione di prezzo. Viene ripresa la catena; «Verifica bolletta» mostra la differenza.",
       "invoice_bp": "{name}: quota fissa dal {date} {invoice} invece di {chain} al mese da conferma o variazione di prezzo. Viene ripresa la catena; «Verifica bolletta» mostra la differenza.",
       "start_from_invoice": "Contratto {provider}: inizio anticipato al {from} – la prima bolletta dello stesso contratto inizia prima del {to} indicato nella conferma.",
-      "bill_corrected": "Bolletta rettificata: {name} sostituisce {of}. Viene ripresa la versione corretta, quella precedente resta come giustificativo."
+      "bill_corrected": "Bolletta rettificata: {name} sostituisce {of}. Viene ripresa la versione corretta, quella precedente resta come giustificativo.",
+      "start_near": "{provider}: inizio il {from} secondo il documento, il {date} registrato – lo stesso contratto (fino a 7 giorni di scarto); resta l’inizio registrato."
     },
     "missing": {
       "title": "Manca ancora",
@@ -6414,7 +6419,8 @@
       "prices_unconfirmed": "{utility}: i prezzi di {provider} sono solo nelle bollette. Confermali sopra o inseriscili nel contratto.",
       "working_price_gap": "{utility}: nessun documento indica un prezzo unitario per {provider} dal {from} al {to}.",
       "base_price_gap": "{utility}: nessun documento indica una quota fissa per {provider} dal {from} al {to}.",
-      "two_registers": "{utility}: {name} indica due quadranti (F1/F23) per il contatore {meter}. Inserisci a mano le letture per quadrante."
+      "two_registers": "{utility}: {name} indica due quadranti (F1/F23) per il contatore {meter}. Inserisci a mano le letture per quadrante.",
+      "meter_choice": "{utility}: a quale contatore appartiene {meter}? Possibili: {meters}. Assegna un documento al contatore giusto in Posta in arrivo e la bozza lo riprende – se è un contatore nuovo, crealo con questo numero."
     },
     "documents": {
       "title": {
@@ -6429,7 +6435,8 @@
       "no_utility": "utenza non riconosciuta – assegnala nel documento",
       "no_meter": "contatore incerto – assegnalo nel documento",
       "no_start": "senza inizio del contratto",
-      "nothing": "non contribuisce (per esempio una scadenza passata)"
+      "nothing": "non contribuisce (per esempio una scadenza passata)",
+      "meter_choice": "contatore da scegliere – nel documento"
     },
     "item": {
       "meter": {
@@ -6495,7 +6502,9 @@
       "assumed_date": "La data di inizio non è nel documento (ipotesi: il mese dopo la bolletta)",
       "number_change": "Nuovo numero di contatore nella bolletta successiva",
       "swap_open": "Dopo una sostituzione del contatore senza lettura finale del vecchio contatore – inserisci prima la sostituzione",
-      "swap_readings": "Le letture non corrispondono del tutto alla sostituzione (altro apparecchio, in calo o sotto una lettura nota) – da controllare"
+      "swap_readings": "Le letture non corrispondono del tutto alla sostituzione (altro apparecchio, in calo o sotto una lettura nota) – da controllare",
+      "existing_update": "Completa ciò che è già registrato – da controllare",
+      "existing_overlap": "Si sovrappone a ciò che è già registrato – da controllare"
     },
     "result": {
       "title": "Ripreso",

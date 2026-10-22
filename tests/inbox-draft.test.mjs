@@ -168,6 +168,14 @@ try {
     L.basisText({ name: 'wp:2025-01-01', kind: 'price_ct', value: 31.2018, net: { vat_pct: 19 } }));
   t('Fehlt noch: Zweitarifzähler', /zwei Zählwerke \(HT\/NT\)/.test(L.missingText({ kind: 'two_registers', params: { name: 'a.pdf', meter: 'X' } }, 'Strom')));
   t('Grund: Tausch passt nicht ganz', /passen nicht ganz zum Tausch/.test(L.reasonText(['swap_readings'])));
+  // 3.7.1 — Entwurf auf einen bestehenden Haushalt
+  t('Gründe: ergänzen und Überschneidung am Bestand', L.reasonText(['existing_update', 'existing_overlap'])
+    === 'Ergänzt, was schon da ist – bitte prüfen · Überschneidet sich mit dem Bestand – bitte prüfen', L.reasonText(['existing_update', 'existing_overlap']));
+  const choice = L.missingText({ kind: 'meter_choice', params: { meter: 'GAS-88', count: 1, meters: 'Gaszähler, Gaszähler Garage' } }, 'Gas');
+  t('Fehlt noch: zu welchem Zähler gehört die Nummer', /^Gas: Zu welchem Zähler gehört GAS-88\? In Frage: Gaszähler, Gaszähler Garage\./.test(choice), choice);
+  const near = L.findingText({ kind: 'start_near', params: { provider: 'Nordlicht', from: '2025-01-03', date: '2025-01-01' } });
+  t('Befund: Beginn wenige Tage neben dem Bestand', /Beginn laut Dokument 03\.01\.2025, im Bestand 01\.01\.2025 – derselbe Vertrag/.test(near), near);
+  t('Dokument: Zähler offen', L.docStateText('meter_choice') === 'Zähler offen – im Dokument wählen');
   t('Befunde: vorgezogener Beginn und Rechnungskorrektur', /Beginn auf den 01\.04\.2024 vorgezogen/.test(L.findingText({ kind: 'start_from_invoice', params: { provider: 'N', from: '2024-04-01', to: '2025-04-01' } }))
     && /b\.pdf ersetzt a\.pdf/.test(L.findingText({ kind: 'bill_corrected', params: { name: 'b.pdf', of: 'a.pdf' } })));
 

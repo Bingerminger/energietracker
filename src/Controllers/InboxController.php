@@ -113,6 +113,9 @@ final class InboxController
         // Server). Obergrenze: längste Wartezeit eines Anbieters (Cloud bis
         // 600 s) plus Puffer.
         if (function_exists('set_time_limit')) @set_time_limit(self::READ_TIME_LIMIT_S);
+        // 3.7.1 — gibt ein Webserver davor früher auf (504 nach 60 s, etwa auf der Synology),
+        // rechnet PHP zu Ende und speichert; die Oberfläche fragt den Eintrag ab (lib/inbox-queue.js)
+        if (function_exists('ignore_user_abort')) @ignore_user_abort(true);
         try {
             $fields ? $this->inbox->extract($id, $pages, $consent, $fresh) : $this->inbox->classify($id, $pages, $consent, $fresh);
         } catch (LocalizedException $e) {

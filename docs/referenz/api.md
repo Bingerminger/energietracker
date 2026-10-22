@@ -4198,7 +4198,10 @@ Antwort: `summary` (`documents`, `used`, `duplicates`, `without`, `meters`,
 `documents` (je Dokument `state`: `used`, `duplicate` mit `duplicate_of` —
 dasselbe ältere Dokument wie `entries[].duplicate_of` in `GET /api/inbox`,
 auch wenn es schon übernommen ist —, `no_utility`, `no_meter`, `no_start`,
-`nothing`; dazu `items`), `findings` (`gap`, `overlap`, `falling`,
+`meter_choice` *(3.7.1)* — Zähler offen, siehe `missing` —, `nothing`; dazu
+`items`), `findings` (`start_near` *(3.7.1)* — Vertrag im Bestand mit Beginn
+bis 7 Tage daneben, `{provider, from, date}`: Beginn laut Dokument und im
+Bestand —, `gap`, `overlap`, `falling`,
 `chain_mismatch`, `duplicate`, `no_meter`, `same_supplier` — Rechnungen in
 anderer Schreibweise am Zähler und zur Zeit eines Vertrags mit gemeinsamem
 Namen —, `invoice_wp`/`invoice_bp` — Rechnungspreis weicht von Bestätigung
@@ -4209,7 +4212,11 @@ und `docs`), `missing` (`advance`, `prices`, `working_price`, `base_price`,
 `prices_unconfirmed` — Preise nur auf Rechnungen, noch zu bestätigen; je mit
 `which`: `wp`, `bp`, was nach dem Übernehmen des Vorbelegten fehlt —,
 `working_price_gap`/`base_price_gap` — ein Abschnitt ohne Preis, `params`
-`{provider, from, to}` —, `water_prices`, `contract_start`, `old_final`
+`{provider, from, to}` —, `meter_choice` *(3.7.1)* — Nummer oder
+Marktlokation ohne Zähler im Bestand, und mehrere Zähler mit Daten kommen in
+Frage, der eine hat schon eine andere Messstelle oder passt nur halb; `params`
+`{meter, count, meters}`, `docs`, `href` zum ersten Dokument (dort den Zähler
+wählen; eine gespeicherte Zuordnung gilt im nächsten Entwurf) —, `water_prices`, `contract_start`, `old_final`
 (Zählertausch ohne Endstand des alten Zählers: erschlossen wird er nur aus einem
 Stand höchstens 7 Tage davor), `open` — die offenen Punkte der
 Vorschläge, `open: [{field, reason: missing|unsure}]`, eine Zeile je Vertrag
@@ -4235,12 +4242,20 @@ Ein Eintrag ist eine Feldgruppe mit einem Haken:
 ```
 
 `kind` in der Reihenfolge der Übernahme: `meter` (`action`: `create`, `adopt` —
-der leere Standardzähler —, `existing`), `meter_change`, `contract`,
+der leere Standardzähler —, `existing`; *(3.7.1)* auch der eine aktive Zähler
+mit Daten ohne Nummer und Marktlokation, wenn nichts widerspricht; das Feld
+`serial` trägt dann `device_id`, das Gerät, das in der Zeit der Nummer lief), `meter_change`, `contract`,
 `contract_end` (bisheriger Vertrag, nur als Angebot), `prices` (Felder
 `wp:<Datum>`, `bp:<Datum>` je Monat), `advances` (`ap:<Datum>`), `readings`
 (`r:<Datum>`), `bill` (mit Buchung des Ergebnisses), `gas_factor`
 (`gf:<Datum>`), `reminder`. `status` des Eintrags: `new`, `update` (vorhanden,
-wird ergänzt), `exists`, `conflict`, `overlap`; je Feld `new`, `exists`,
+wird ergänzt), `exists`, `conflict`, `overlap`; `update` und `overlap` sind
+*(3.7.1)* immer `check` mit Grund `existing_update` bzw. `existing_overlap` und
+nie `checked` (vorbelegt ist nur, was den Bestand nicht berührt); ein Vertrag
+am vorhandenen Zähler gilt als vorhanden bei gleichem Beginn oder — gleicher
+Versorger oder gleiche Vertragsnummer — bei einem Beginn bis 7 Tage daneben
+(`start_near`, der Beginn des Bestands bleibt); Verträge der Gruppe des
+Zählers zählen mit. Je Feld `new`, `exists`,
 `conflict` (mit `existing`; ein Rechnungspreis mit `price_matches` ist
 `exists`). `check` am Feld: zweifelhaft (Belegstelle markiert — die Marken
 nach dem heutigen Bestand wie in Liste und Vorschau, `Proposals::marks` — und

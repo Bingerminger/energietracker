@@ -5839,7 +5839,8 @@
       "text": "Text lesen …",
       "type": "Art erkennen …",
       "fields": "Felder lesen …",
-      "elapsed": "{s} s"
+      "elapsed": "{s} s",
+      "wait": "Server rechnet noch – frage nach dem Ergebnis …"
     },
     "empty": "Noch keine Post im Posteingang. Leg die erste Rechnung oder Vertragsbestätigung als PDF ab.",
     "col": {
@@ -6267,6 +6268,9 @@
     },
     "priceBasis": {
       "net": "netto laut Rechnung, mit {vat} % USt = {gross} brutto"
+    },
+    "wait": {
+      "gaveUp": "Keine Antwort, auch nach dem Nachfragen. Vielleicht wird das Dokument noch fertig – öffne es gleich noch einmal. Dauerhaft hilft eine längere Zeitgrenze am Webserver."
     }
   },
   "inboxCloud": {
@@ -6397,7 +6401,8 @@
       "invoice_wp": "{name}: Arbeitspreis ab {date} {invoice} statt {chain} aus Bestätigung oder Preisänderung. Übernommen wird die Kette; „Rechnung prüfen“ zeigt den Unterschied.",
       "invoice_bp": "{name}: Grundpreis ab {date} {invoice} statt {chain} im Monat aus Bestätigung oder Preisänderung. Übernommen wird die Kette; „Rechnung prüfen“ zeigt den Unterschied.",
       "start_from_invoice": "Vertrag {provider}: Beginn auf den {from} vorgezogen – die erste Rechnung desselben Vertrags beginnt vor dem {to} aus der Bestätigung.",
-      "bill_corrected": "Rechnungskorrektur: {name} ersetzt {of}. Übernommen wird die korrigierte Fassung, die frühere bleibt als Beleg."
+      "bill_corrected": "Rechnungskorrektur: {name} ersetzt {of}. Übernommen wird die korrigierte Fassung, die frühere bleibt als Beleg.",
+      "start_near": "{provider}: Beginn laut Dokument {from}, im Bestand {date} – derselbe Vertrag (bis 7 Tage Abstand), der Beginn des Bestands bleibt."
     },
     "missing": {
       "title": "Fehlt noch",
@@ -6414,7 +6419,8 @@
       "prices_unconfirmed": "{utility}: Preise für {provider} stehen nur auf Rechnungen. Bestätige sie oben oder trag sie im Vertrag ein.",
       "working_price_gap": "{utility}: Für {provider} nennt vom {from} bis {to} kein Dokument einen Arbeitspreis.",
       "base_price_gap": "{utility}: Für {provider} nennt vom {from} bis {to} kein Dokument einen Grundpreis.",
-      "two_registers": "{utility}: {name} nennt für Zähler {meter} zwei Zählwerke (HT/NT). Trag die Stände je Zählwerk von Hand ein."
+      "two_registers": "{utility}: {name} nennt für Zähler {meter} zwei Zählwerke (HT/NT). Trag die Stände je Zählwerk von Hand ein.",
+      "meter_choice": "{utility}: Zu welchem Zähler gehört {meter}? In Frage: {meters}. Ordne ein Dokument im Posteingang dem richtigen Zähler zu, dann übernimmt der Entwurf ihn – ist es ein neuer Zähler, leg ihn mit dieser Nummer an."
     },
     "documents": {
       "title": {
@@ -6429,7 +6435,8 @@
       "no_utility": "ohne erkannte Verbrauchsart – im Dokument zuordnen",
       "no_meter": "Zähler unklar – im Dokument zuordnen",
       "no_start": "ohne Vertragsbeginn",
-      "nothing": "ohne Beitrag (etwa ein verstrichener Termin)"
+      "nothing": "ohne Beitrag (etwa ein verstrichener Termin)",
+      "meter_choice": "Zähler offen – im Dokument wählen"
     },
     "item": {
       "meter": {
@@ -6495,7 +6502,9 @@
       "assumed_date": "Ab wann, steht nicht im Dokument (angenommen: Monat nach der Rechnung)",
       "number_change": "Neue Zählernummer in der Folgerechnung",
       "swap_open": "Nach einem Zählertausch ohne Endstand des alten Zählers – erst den Tausch eintragen",
-      "swap_readings": "Die Stände passen nicht ganz zum Tausch (anderes Gerät, fallend oder unter einem bekannten Stand) – bitte prüfen"
+      "swap_readings": "Die Stände passen nicht ganz zum Tausch (anderes Gerät, fallend oder unter einem bekannten Stand) – bitte prüfen",
+      "existing_update": "Ergänzt, was schon da ist – bitte prüfen",
+      "existing_overlap": "Überschneidet sich mit dem Bestand – bitte prüfen"
     },
     "result": {
       "title": "Übernommen",

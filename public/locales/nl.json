@@ -5839,7 +5839,8 @@
       "text": "Tekst lezen …",
       "type": "Soort herkennen …",
       "fields": "Velden uitlezen …",
-      "elapsed": "{s} s"
+      "elapsed": "{s} s",
+      "wait": "Server is nog bezig – resultaat opvragen …"
     },
     "empty": "Nog geen post in de postbak. Berg je eerste rekening of contractbevestiging op als pdf.",
     "col": {
@@ -6267,6 +6268,9 @@
     },
     "priceBasis": {
       "net": "netto volgens de rekening, met {vat}% btw = {gross} bruto"
+    },
+    "wait": {
+      "gaveUp": "Geen antwoord, ook niet na navragen. Het document wordt misschien nog klaar – open het zo opnieuw. Een langere tijdslimiet op de webserver helpt blijvend."
     }
   },
   "inboxCloud": {
@@ -6397,7 +6401,8 @@
       "invoice_wp": "{name}: eenheidsprijs vanaf {date} {invoice} in plaats van {chain} uit bevestiging of prijswijziging. De reeks wordt overgenomen; ‘Rekening controleren’ toont het verschil.",
       "invoice_bp": "{name}: vastrecht vanaf {date} {invoice} in plaats van {chain} per maand uit bevestiging of prijswijziging. De reeks wordt overgenomen; ‘Rekening controleren’ toont het verschil.",
       "start_from_invoice": "Contract {provider}: begin vervroegd naar {from} – de eerste rekening van hetzelfde contract begint vóór {to} uit de bevestiging.",
-      "bill_corrected": "Gecorrigeerde rekening: {name} vervangt {of}. De gecorrigeerde versie wordt overgenomen, de eerdere blijft als bewijsstuk."
+      "bill_corrected": "Gecorrigeerde rekening: {name} vervangt {of}. De gecorrigeerde versie wordt overgenomen, de eerdere blijft als bewijsstuk.",
+      "start_near": "{provider}: begin {from} volgens het document, {date} vastgelegd – hetzelfde contract (tot 7 dagen verschil); het vastgelegde begin blijft."
     },
     "missing": {
       "title": "Ontbreekt nog",
@@ -6414,7 +6419,8 @@
       "prices_unconfirmed": "{utility}: prijzen voor {provider} staan alleen op rekeningen. Bevestig ze hierboven of vul ze in het contract in.",
       "working_price_gap": "{utility}: geen document noemt een eenheidsprijs voor {provider} van {from} tot {to}.",
       "base_price_gap": "{utility}: geen document noemt een vastrecht voor {provider} van {from} tot {to}.",
-      "two_registers": "{utility}: {name} noemt voor meter {meter} twee telwerken (hoog/laag). Vul de standen per telwerk met de hand in."
+      "two_registers": "{utility}: {name} noemt voor meter {meter} twee telwerken (hoog/laag). Vul de standen per telwerk met de hand in.",
+      "meter_choice": "{utility}: bij welke meter hoort {meter}? Mogelijk: {meters}. Wijs in de postbak een document aan de juiste meter toe, dan neemt het concept die over – is het een nieuwe meter, leg die dan aan met dit nummer."
     },
     "documents": {
       "title": {
@@ -6429,7 +6435,8 @@
       "no_utility": "geen verbruikssoort herkend – wijs die in het document toe",
       "no_meter": "meter onduidelijk – wijs die in het document toe",
       "no_start": "zonder begin van het contract",
-      "nothing": "draagt niets bij (bijvoorbeeld een verstreken datum)"
+      "nothing": "draagt niets bij (bijvoorbeeld een verstreken datum)",
+      "meter_choice": "meter open – kies die in het document"
     },
     "item": {
       "meter": {
@@ -6495,7 +6502,9 @@
       "assumed_date": "De ingangsdatum staat niet in het document (aangenomen: de maand na de rekening)",
       "number_change": "Nieuw meternummer op de volgende rekening",
       "swap_open": "Na een meterwissel zonder eindstand van de oude meter – voer eerst de wissel in",
-      "swap_readings": "De standen passen niet helemaal bij de wissel (ander apparaat, dalend of onder een bekende stand) – controleer"
+      "swap_readings": "De standen passen niet helemaal bij de wissel (ander apparaat, dalend of onder een bekende stand) – controleer",
+      "existing_update": "Vult aan wat er al is – controleer",
+      "existing_overlap": "Overlapt met wat er al is – controleer"
     },
     "result": {
       "title": "Overgenomen",

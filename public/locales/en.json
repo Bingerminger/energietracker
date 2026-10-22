@@ -5839,7 +5839,8 @@
       "text": "Reading the text …",
       "type": "Recognising the type …",
       "fields": "Reading the fields …",
-      "elapsed": "{s} s"
+      "elapsed": "{s} s",
+      "wait": "Server still working – checking for the result …"
     },
     "empty": "No mail in the inbox yet. File your first bill or contract confirmation as a PDF.",
     "col": {
@@ -6267,6 +6268,9 @@
     },
     "priceBasis": {
       "net": "net according to the bill, with {vat}% VAT = {gross} gross"
+    },
+    "wait": {
+      "gaveUp": "No answer, even after checking back. The document may still finish – open it again shortly. A longer time limit on the web server helps for good."
     }
   },
   "inboxCloud": {
@@ -6397,7 +6401,8 @@
       "invoice_wp": "{name}: energy price from {date} {invoice} instead of {chain} from the confirmation or price change. The chain is taken over; “Check a bill” shows the difference.",
       "invoice_bp": "{name}: standing charge from {date} {invoice} instead of {chain} a month from the confirmation or price change. The chain is taken over; “Check a bill” shows the difference.",
       "start_from_invoice": "Contract {provider}: start moved forward to {from} – the first bill of the same contract begins before the {to} in the confirmation.",
-      "bill_corrected": "Corrected bill: {name} replaces {of}. The corrected version is taken over, the earlier one stays as a receipt."
+      "bill_corrected": "Corrected bill: {name} replaces {of}. The corrected version is taken over, the earlier one stays as a receipt.",
+      "start_near": "{provider}: start {from} according to the document, {date} on record – the same contract (up to 7 days apart); the recorded start stays."
     },
     "missing": {
       "title": "Still missing",
@@ -6414,7 +6419,8 @@
       "prices_unconfirmed": "{utility}: prices for {provider} are only on bills. Confirm them above or enter them in the contract.",
       "working_price_gap": "{utility}: no document names an energy price for {provider} from {from} to {to}.",
       "base_price_gap": "{utility}: no document names a standing charge for {provider} from {from} to {to}.",
-      "two_registers": "{utility}: {name} lists two registers (peak/off-peak) for meter {meter}. Enter the readings per register by hand."
+      "two_registers": "{utility}: {name} lists two registers (peak/off-peak) for meter {meter}. Enter the readings per register by hand.",
+      "meter_choice": "{utility}: which meter does {meter} belong to? Possible: {meters}. Assign a document to the right meter in the inbox and the draft takes it over – if it is a new meter, add it with this number."
     },
     "documents": {
       "title": {
@@ -6429,7 +6435,8 @@
       "no_utility": "no utility recognised – assign it in the document",
       "no_meter": "meter unclear – assign it in the document",
       "no_start": "no contract start",
-      "nothing": "adds nothing (for example a past date)"
+      "nothing": "adds nothing (for example a past date)",
+      "meter_choice": "meter open – choose it in the document"
     },
     "item": {
       "meter": {
@@ -6495,7 +6502,9 @@
       "assumed_date": "The start date is not in the document (assumed: the month after the bill)",
       "number_change": "New meter number on the following bill",
       "swap_open": "After a meter swap without the closing reading of the old meter – enter the swap first",
-      "swap_readings": "The readings do not quite fit the swap (another device, falling or below a known reading) – please check"
+      "swap_readings": "The readings do not quite fit the swap (another device, falling or below a known reading) – please check",
+      "existing_update": "Adds to what is already recorded – please check",
+      "existing_overlap": "Overlaps with what is already recorded – please check"
     },
     "result": {
       "title": "Taken over",

@@ -4126,7 +4126,10 @@ Answer: `summary` (`documents`, `used`, `duplicates`, `without`, `meters`,
 `documents` (per document `state`: `used`, `duplicate` with `duplicate_of` —
 the same older document as `entries[].duplicate_of` in `GET /api/inbox`, even
 if it has already been taken over —, `no_utility`, `no_meter`, `no_start`,
-`nothing`; plus `items`), `findings` (`gap`, `overlap`, `falling`,
+`meter_choice` *(3.7.1)* — meter open, see `missing` —, `nothing`; plus
+`items`), `findings` (`start_near` *(3.7.1)* — recorded contract with a start
+up to 7 days off, `{provider, from, date}`: start according to the document
+and on record —, `gap`, `overlap`, `falling`,
 `chain_mismatch`, `duplicate`, `no_meter`, `same_supplier` — bills in another
 spelling at the meter and in the time of a contract with a shared name —,
 `invoice_wp`/`invoice_bp` — a bill price differs from the confirmation or price
@@ -4137,7 +4140,11 @@ bill, the later version applies — with `params` and `docs`), `missing`
 prices only on bills, still to be confirmed; each with `which`: `wp`, `bp`,
 what is missing after taking over what is pre-selected —,
 `working_price_gap`/`base_price_gap` — a period without a price, `params`
-`{provider, from, to}` —, `water_prices`, `contract_start`, `old_final` (meter
+`{provider, from, to}` —, `meter_choice` *(3.7.1)* — a number or market
+location without a recorded meter, and several meters with data are possible,
+the one already has another measuring point or fits only half; `params`
+`{meter, count, meters}`, `docs`, `href` to the first document (choose the
+meter there; a saved assignment applies in the next draft) —, `water_prices`, `contract_start`, `old_final` (meter
 swap without the closing reading of the old meter: it is only inferred from a
 reading at most 7 days before), `open` — the open points of the proposals,
 `open: [{field, reason: missing|unsure}]`, one line per contract or supply
@@ -4163,12 +4170,21 @@ An entry is a group of fields with one tick:
 ```
 
 `kind` in the order of the take-over: `meter` (`action`: `create`, `adopt` —
-the empty default meter —, `existing`), `meter_change`, `contract`,
+the empty default meter —, `existing`; *(3.7.1)* also the one active meter
+with data without number and market location if nothing contradicts; the
+field `serial` then carries `device_id`, the device that ran at the time of the
+number), `meter_change`, `contract`,
 `contract_end` (previous contract, only as an offer), `prices` (fields
 `wp:<date>`, `bp:<date>` per month), `advances` (`ap:<date>`), `readings`
 (`r:<date>`), `bill` (with booking of the result), `gas_factor` (`gf:<date>`),
 `reminder`. `status` of the entry: `new`, `update` (existing, gets added to),
-`exists`, `conflict`, `overlap`; per field `new`, `exists`, `conflict` (with
+`exists`, `conflict`, `overlap`; `update` and `overlap` are *(3.7.1)* always
+`check` with the reason `existing_update` or `existing_overlap` and never
+`checked` (pre-selected is only what does not touch the recorded data); a
+contract at an existing meter counts as recorded with the same start or — same
+supplier or same contract number — with a start up to 7 days off
+(`start_near`, the recorded start stays); contracts of the meter's group count
+too. Per field `new`, `exists`, `conflict` (with
 `existing`; a bill price with `price_matches` is `exists`). `check` on a field:
 doubtful (flagged quote — the marks by today’s data as in the list and the
 preview, `Proposals::marks` — and no second document that confirms it; bill

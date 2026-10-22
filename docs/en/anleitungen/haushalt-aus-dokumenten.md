@@ -78,6 +78,19 @@ advertising are recognised by the inbox and only filed.
   installation date instead of a second meter being created. A meter is only
   created if something hangs on it (meter reading, contract, bill) — a past
   request to report the reading alone holds no meter.
+- **Existing household, meters without a number** *(3.7.1)*. If you keep your
+  meters without a meter number and market location, the recorded data does
+  not know the numbers in the documents. The draft then takes over the **one
+  active meter of the utility with data** (readings, contracts, bills) if
+  nothing speaks against it — no other number on the running device, no other
+  market location — and adds the number and market location as an addition.
+  No second meter is created. If several meters are possible, another part of
+  the documents already has this meter or it fits only half, “Still missing”
+  asks which meter the number belongs to; the documents stay open until you
+  assign one of them to the right meter in the inbox (in the preview: choose
+  the meter). If the documents name a number of their own and a different
+  market location than every meter with data, it is another meter — it is
+  created.
 - **Documents without a meter number** find their meter through the contract
   or customer number, otherwise through the supply relationship; if the
   utility has only one meter — or only one with data —, through that one.
@@ -103,6 +116,15 @@ advertising are recognised by the inbox and only filed.
     before the start, at the meter of the bill.
   - **End:** if the end in the document is doubtful and there is a following
     contract, the day before its start applies — pre-selected.
+  - **Recorded contracts without a number** *(3.7.1)*: same meter (or its
+    group), the same supplier and a start on the same day or at most seven
+    days off — that is the recorded contract, not a second one. The recorded
+    start stays (“Noticed” names both days; confirmation, supply start letter
+    and first bill often name different days, a switch at the same meter never
+    lies within a week of the previous start). If a value is missing there —
+    contract number, tariff, price, advance payment —, the entry says “add to
+    it”; a value that differs from the recorded one is a conflict. Bills over
+    several years each belong to the contract that ran at the time.
 - **Price chain.** Confirmation and price changes (valid from) form the chain
   and are pre-selected. A price on a bill is evidence — compared gross: if it
   is printed net with a VAT rate that was read, the draft converts it as the
@@ -121,7 +143,9 @@ advertising are recognised by the inbox and only filed.
   change, new advance payment from the bill).
 - **Cross-checks across documents.**
   - Closing reading of one bill = opening reading of the next: both readings
-    confirmed, one meter reading. If they do not match, both need checking.
+    confirmed, one meter reading. If they do not match, both need checking. If
+    the same reading is recorded one day off (31 Dec against 1 Jan), it is
+    already there *(3.7.1)*.
   - Gaps and overlaps between successive contracts of the same utility are
     listed under “Noticed” — nothing is corrected. Without an end in the
     documents, a contract ends on the day before the next contract. If an end
@@ -167,13 +191,16 @@ advertising are recognised by the inbox and only filed.
 - **Existing data.** What is already there is “already there” and skipped; a
   “conflict” only overwrites when you confirm the field; “overlap” means new,
   but within the period of another contract; “add to it”: existing, one value
-  is added.
+  is added. **“Add to it” and “overlap” are never pre-selected** *(3.7.1)* —
+  they touch what is already there and are always a question; pre-selected is
+  only what is new and changes nothing that exists.
 
 ## 4. Check and take over
 
 - **One tick per group of fields:** meter, meter swap, contract, prices,
   advance payments, the readings of one meter, bill, gas conversion, reminder.
-  Pre-selected is what is new and without doubt.
+  Pre-selected is what is new, without doubt and without touching the
+  recorded data.
 - **Doubtful** is a field the [Inbox](posteingang.md) flags — with the same
   marks by today’s data that the list counts — and that no second document
   confirms. A price on the bill that matches the contract is “already there”.

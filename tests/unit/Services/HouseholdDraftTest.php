@@ -1067,15 +1067,27 @@ final class HouseholdDraftTest extends ServiceTestCase
 
     public function testSeveralPeriodsOfOneMeterGiveOneSwapAndNoDoubleReading(): void
     {
-        // gespeicherte Auslesung mit Schema 3: der neue Zähler in drei Ablesezeiträumen (drei Einträge derselben Nummer)
-        $this->doc('a', 'invoice', ['utility' => 'strom', 'supplier' => 'Nordlicht Energie GmbH', 'kind' => 'annual', 'period_from' => '01.01.2025',
+        // gespeicherte Auslesung mit Schema 3: der neue Zähler in drei Ablesezeiträumen (drei Einträge derselben Nummer);
+        // heute fasst die Belegprüfung sie zusammen (Evidence::mergeReadings) — gespeichert sind sie noch einzeln
+        $rows = [
+            ['meter_number' => 'STR-ALT', 'reading_old' => '5000', 'reading_old_date' => '31.12.2024', 'reading_new' => '5800', 'reading_new_date' => '15.05.2025'],
+            ['meter_number' => 'STR-NEU', 'reading_old' => '0', 'reading_old_date' => '15.05.2025', 'reading_new' => '400', 'reading_new_date' => '31.08.2025'],
+            ['meter_number' => 'STR-NEU', 'reading_old' => '400', 'reading_old_date' => '31.08.2025', 'reading_new' => '900', 'reading_new_date' => '31.10.2025'],
+            ['meter_number' => 'STR-NEU', 'reading_old' => '900', 'reading_old_date' => '31.10.2025', 'reading_new' => '1300', 'reading_new_date' => '31.12.2025'],
+        ];
+        $id = $this->doc('a', 'invoice', ['utility' => 'strom', 'supplier' => 'Nordlicht Energie GmbH', 'kind' => 'annual', 'period_from' => '01.01.2025',
             'period_to' => '31.12.2025', 'total_amount' => '700,00', 'result_kind' => 'due', 'result_amount' => '10,00', 'meter_number' => 'STR-NEU',
-            'meter_readings' => [
-                ['meter_number' => 'STR-ALT', 'reading_old' => '5000', 'reading_old_date' => '31.12.2024', 'reading_new' => '5800', 'reading_new_date' => '15.05.2025'],
-                ['meter_number' => 'STR-NEU', 'reading_old' => '0', 'reading_old_date' => '15.05.2025', 'reading_new' => '400', 'reading_new_date' => '31.08.2025'],
-                ['meter_number' => 'STR-NEU', 'reading_old' => '400', 'reading_old_date' => '31.08.2025', 'reading_new' => '900', 'reading_new_date' => '31.10.2025'],
-                ['meter_number' => 'STR-NEU', 'reading_old' => '900', 'reading_old_date' => '31.10.2025', 'reading_new' => '1300', 'reading_new_date' => '31.12.2025'],
-            ]]);
+            'meter_readings' => $rows]);
+        $all = $this->store->read('inbox.json', []);
+        $iso = fn(string $d) => implode('-', array_reverse(explode('.', $d)));
+        foreach ($all as $n => $e) if ($e['id'] === $id) {
+            $all[$n]['extraction']['fields']['meter_readings']['items'] = array_map(fn($i, $r) => [
+                'value' => ['meter_number' => $r['meter_number'], 'reading_old' => (float)$r['reading_old'], 'reading_old_date' => $iso($r['reading_old_date']),
+                    'reading_new' => (float)$r['reading_new'], 'reading_new_date' => $iso($r['reading_new_date'])],
+                'quote' => 'meter_readings ' . ($i + 1) . ': ' . implode(' ', array_values($r)), 'page' => 1, 'status' => 'ok', 'reasons' => []], array_keys($rows), $rows);
+        }
+        $this->store->write('inbox.json', $all);
+        self::assertCount(4, $this->store->read('inbox.json', [])[0]['extraction']['fields']['meter_readings']['items'], 'vier Einträge wie mit Schema 3');
         $d = $this->build();
         $ch = self::items($d, 'meter_change', 'strom');
         self::assertCount(1, $ch, 'ein Tausch');

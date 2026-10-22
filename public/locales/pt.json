@@ -5839,7 +5839,8 @@
       "text": "A ler o texto …",
       "type": "A reconhecer o tipo …",
       "fields": "A ler os campos …",
-      "elapsed": "{s} s"
+      "elapsed": "{s} s",
+      "wait": "O servidor ainda está a processar – a verificar o resultado …"
     },
     "empty": "Ainda não há correio. Guarde em PDF a primeira fatura ou confirmação de contrato.",
     "col": {
@@ -6267,6 +6268,9 @@
     },
     "priceBasis": {
       "net": "líquido segundo a fatura, com {vat}% de IVA = {gross} bruto"
+    },
+    "wait": {
+      "gaveUp": "Sem resposta, mesmo depois de voltar a verificar. O documento pode ainda ficar concluído – abra-o novamente daqui a pouco. Um limite de tempo maior no servidor web resolve de forma duradoura."
     }
   },
   "inboxCloud": {
@@ -6397,7 +6401,8 @@
       "invoice_wp": "{name}: preço unitário a partir de {date} {invoice} em vez de {chain} da confirmação ou da alteração de preço. É retomada a cadeia; «Verificar fatura» mostra a diferença.",
       "invoice_bp": "{name}: preço fixo a partir de {date} {invoice} em vez de {chain} por mês da confirmação ou da alteração de preço. É retomada a cadeia; «Verificar fatura» mostra a diferença.",
       "start_from_invoice": "Contrato {provider}: início antecipado para {from} – a primeira fatura do mesmo contrato começa antes de {to} indicado na confirmação.",
-      "bill_corrected": "Fatura retificativa: {name} substitui {of}. É retomada a versão corrigida, a anterior fica como comprovativo."
+      "bill_corrected": "Fatura retificativa: {name} substitui {of}. É retomada a versão corrigida, a anterior fica como comprovativo.",
+      "start_near": "{provider}: início a {from} segundo o documento, a {date} registado – o mesmo contrato (até 7 dias de diferença); mantém-se o início registado."
     },
     "missing": {
       "title": "Ainda falta",
@@ -6414,7 +6419,8 @@
       "prices_unconfirmed": "{utility}: os preços de {provider} só constam de faturas. Confirme-os acima ou introduza-os no contrato.",
       "working_price_gap": "{utility}: nenhum documento indica um preço unitário para {provider} de {from} a {to}.",
       "base_price_gap": "{utility}: nenhum documento indica um preço fixo para {provider} de {from} a {to}.",
-      "two_registers": "{utility}: {name} indica dois registos (vazio/fora de vazio) para o contador {meter}. Introduza à mão as leituras por registo."
+      "two_registers": "{utility}: {name} indica dois registos (vazio/fora de vazio) para o contador {meter}. Introduza à mão as leituras por registo.",
+      "meter_choice": "{utility}: a que contador pertence {meter}? Possíveis: {meters}. Atribua um documento ao contador certo na caixa de entrada e o rascunho assume-o – se for um contador novo, crie-o com este número."
     },
     "documents": {
       "title": {
@@ -6429,7 +6435,8 @@
       "no_utility": "serviço não reconhecido – atribua-o no documento",
       "no_meter": "contador incerto – atribua-o no documento",
       "no_start": "sem início de contrato",
-      "nothing": "não contribui (por exemplo, um prazo já passado)"
+      "nothing": "não contribui (por exemplo, um prazo já passado)",
+      "meter_choice": "contador por escolher – no documento"
     },
     "item": {
       "meter": {
@@ -6495,7 +6502,9 @@
       "assumed_date": "A data de início não consta do documento (suposto: o mês após a fatura)",
       "number_change": "Número de contador novo na fatura seguinte",
       "swap_open": "Após uma troca de contador sem leitura final do contador antigo – introduza primeiro a troca",
-      "swap_readings": "As leituras não correspondem bem à troca (outro aparelho, a descer ou abaixo de uma leitura conhecida) – verifique"
+      "swap_readings": "As leituras não correspondem bem à troca (outro aparelho, a descer ou abaixo de uma leitura conhecida) – verifique",
+      "existing_update": "Completa o que já está registado – verifique",
+      "existing_overlap": "Sobrepõe-se ao que já está registado – verifique"
     },
     "result": {
       "title": "Adotado",
