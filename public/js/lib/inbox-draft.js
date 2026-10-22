@@ -14,7 +14,8 @@ import { proposalNotes } from './inbox-marks.js';
 import { priceBasisText } from './price-basis.js';
 
 /** Gründe, die der Entwurf selbst vergibt (die übrigen kommen aus der Belegprüfung, `inbox.reason.*`). */
-export const DRAFT_REASONS = ['differs', 'conflict_existing', 'invoice_differs', 'chain_mismatch', 'inferred', 'falling_reading', 'assumed_date', 'number_change', 'swap_open', 'swap_readings'];
+export const DRAFT_REASONS = ['differs', 'conflict_existing', 'invoice_differs', 'chain_mismatch', 'inferred', 'falling_reading', 'assumed_date', 'number_change', 'swap_open', 'swap_readings',
+  'existing_update', 'existing_overlap'];
 
 /** Status eines Eintrags: neu, schon vorhanden, Widerspruch, Überschneidung, ergänzen. */
 export const statusText = (status) => (status === 'update' ? t('inboxDraft.status.update') : t(`inbox.pstatus.${status || 'new'}`));

@@ -235,6 +235,81 @@ console.log('Zustimmung für einen Lauf (Cloud)');
   t('Dialog nennt die Zahl und das Ziel', two === 'Diese 2 Dokumente gehen zum Auslesen an Claude (Anthropic) – api.anthropic.com. Einverstanden?', two);
 }
 
+// 3.7.1 — hinter einem Webserver mit kurzer Zeitgrenze (Synology: 504 nach 60 s) rechnet PHP weiter
+// und speichert; die Oberfläche fragt den Eintrag ab, bis der Schritt gespeichert ist
+console.log('Warten nach 504 oder Netzabbruch');
+{
+  const json = (data, status = 200) => new Response(JSON.stringify({ success: true, data }), { status, headers: { 'Content-Type': 'application/json' } });
+  const html504 = () => new Response('<html><body>504 Gateway Time-out</body></html>', { status: 504, headers: { 'Content-Type': 'text/html' } });
+  const entry = { id: 'w1', status: 'queued', type: null, updated_at: '2026-10-22T10:00:00+02:00', attachment_id: 'x1' };
+  let server = { ...entry };
+  let polls = 0;
+  const calls = [];
+  const prevFetch = global.fetch;
+  // Erkennen: 504, Auslesen: Netzabbruch; der Server speichert trotzdem (nach der zweiten Abfrage)
+  global.fetch = async (url, init) => {
+    const u = String(url);
+    const m = init?.method || 'GET';
+    if (/\/api\/inbox\/w1\/classify$/.test(u)) { calls.push('classify'); return html504(); }
+    if (/\/api\/inbox\/w1\/extract$/.test(u)) { calls.push('extract'); throw new TypeError('Failed to fetch'); }
+    if (/\/api\/inbox\/w1$/.test(u) && m === 'GET') {
+      calls.push('poll');
+      if (++polls === 2) server = { ...server, type: 'invoice', updated_at: '2026-10-22T10:01:30+02:00' };
+      if (polls === 4) server = { ...server, status: 'read', updated_at: '2026-10-22T10:03:10+02:00', extraction: { fields: {} } };
+      return json({ entry: server, recognize_only: false });
+    }
+    return prevFetch(url, init);
+  };
+  const steps = [];
+  const fast = { wait: { intervalMs: 1, limitMs: 60000 }, sleep: () => Promise.resolve() };
+  const pv = await Q.readDocument(entry, { pages: ['Rechnung'], onStep: (s) => steps.push(s), ...fast });
+  t('504 beim Erkennen, Netzabbruch beim Auslesen: abgefragt, bis gespeichert', pv?.entry?.status === 'read' && pv.entry.type === 'invoice', JSON.stringify(pv?.entry));
+  t('je Schritt einmal gesendet, nicht noch einmal ausgelesen', calls.filter(c => c !== 'poll').join() === 'classify,extract' && polls === 4, calls.join());
+  t('Schritt „wartet“ angezeigt', steps.join() === 'text,type,wait,fields,wait', steps.join());
+
+  // fehlgeschlagen: der Fehler, den der Server vermerkt hat
+  server = { ...entry }; polls = 0;
+  global.fetch = async (url, init) => {
+    const u = String(url);
+    if (/\/classify$/.test(u)) return html504();
+    if (/\/api\/inbox\/w1$/.test(u)) {
+      if (++polls === 1) server = { ...server, status: 'failed', updated_at: '2026-10-22T10:01:00+02:00', error: { key: 'errors.inbox.badAnswer', params: {} } };
+      return json({ entry: server });
+    }
+    return prevFetch(url, init);
+  };
+  let err = null;
+  try { await Q.readDocument(entry, { pages: ['Rechnung'], ...fast }); } catch (e) { err = e; }
+  const { t: tr } = await import(`${JS}/lib/i18n.js`);
+  t('fehlgeschlagen: die Meldung des Servers', err?.message === tr('errors.inbox.badAnswer') && err.code === 'errors.inbox.badAnswer', err?.message);
+
+  // ohne Änderung bis zur Obergrenze: erst dann ein Fehler (der Lauf nimmt das Dokument nicht noch einmal)
+  server = { ...entry }; polls = 0;
+  global.fetch = async (url, init) => {
+    if (/\/api\/inbox\/w1$/.test(String(url))) { polls++; return json({ entry: server }); }
+    return prevFetch(url, init);
+  };
+  let clock = 0;
+  err = null;
+  try {
+    await Q.settle(async () => { throw Object.assign(new Error('504'), { status: 504 }); }, entry, 'type',
+      { wait: { intervalMs: 5000, limitMs: 660000 }, sleep: async (ms) => { clock += ms; }, now: () => clock });
+  } catch (e) { err = e; }
+  t('Obergrenze: 660 s, alle 5 s gefragt, dann „keine Antwort“', err?.code === 'waited' && err.status === 504 && polls === 132
+    && err.message === tr('inbox.wait.gaveUp'), `${polls} · ${err?.code} · ${err?.message}`);
+  // ein Fehler mit Antwort (etwa 400) ist ein Fehler: kein Warten
+  polls = 0; err = null;
+  try { await Q.settle(async () => { throw Object.assign(new Error('bad'), { status: 400 }); }, entry, 'type', fast); } catch (e) { err = e; }
+  t('Fehler mit Antwort: sofort, ohne Abfrage', err?.status === 400 && polls === 0);
+  t('Abbruch vor der Antwort: 504, Netz, Zeitlimit — sonst nicht', Q.cutOff({ status: 504 }) && Q.cutOff({ status: 0, code: 'network' })
+    && Q.cutOff({ status: 0, code: 'timeout' }) && !Q.cutOff({ status: 502 }) && !Q.cutOff({ status: 400 }));
+  t('fertig erst mit geänderter Zeit und neuem Stand', Q.stepState(entry, { ...entry }, 'type') === null
+    && Q.stepState(entry, { ...entry, updated_at: 'x', type: null }, 'type') === null
+    && Q.stepState(entry, { ...entry, updated_at: 'x', type: 'invoice' }, 'fields') === null
+    && Q.stepState(entry, { ...entry, updated_at: 'x', type: 'invoice', status: 'read' }, 'fields') === 'done');
+  global.fetch = prevFetch;
+}
+
 console.log('Textebene (pdf.js)');
 t('Textstücke: Zeilenende = Umbruch, Stücke einer Zeile mit Leerzeichen', P.joinTextItems([{ str: 'Abschlag', hasEOL: false }, { str: '80,00 €', hasEOL: true },
   { str: '', hasEOL: true }, { str: 'Guthaben:', hasEOL: false }, { str: ' 548,54 €', hasEOL: false }]) === 'Abschlag 80,00 €\n\nGuthaben: 548,54 €');

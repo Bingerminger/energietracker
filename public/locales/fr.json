@@ -5829,7 +5829,8 @@
       "text": "Lecture du texte …",
       "type": "Reconnaissance du type …",
       "fields": "Lecture des champs …",
-      "elapsed": "{s} s"
+      "elapsed": "{s} s",
+      "wait": "Le serveur calcule encore – vérification du résultat …"
     },
     "empty": "Pas encore de courrier. Déposez votre première facture ou confirmation de contrat en PDF.",
     "col": {
@@ -6257,6 +6258,9 @@
     },
     "priceBasis": {
       "net": "hors taxes selon la facture, avec {vat} % de TVA = {gross} TTC"
+    },
+    "wait": {
+      "gaveUp": "Pas de réponse, même après vérification. Le document sera peut-être encore terminé – rouvrez-le dans un instant. Un délai plus long sur le serveur web règle le problème durablement."
     }
   },
   "inboxCloud": {
@@ -6387,7 +6391,8 @@
       "invoice_wp": "{name} : prix du kWh à partir du {date} {invoice} au lieu de {chain} selon la confirmation ou le changement de prix. La chaîne est reprise ; « Vérifier une facture » montre l’écart.",
       "invoice_bp": "{name} : abonnement à partir du {date} {invoice} au lieu de {chain} par mois selon la confirmation ou le changement de prix. La chaîne est reprise ; « Vérifier une facture » montre l’écart.",
       "start_from_invoice": "Contrat {provider} : début avancé au {from} – la première facture du même contrat commence avant le {to} indiqué dans la confirmation.",
-      "bill_corrected": "Facture rectificative : {name} remplace {of}. La version corrigée est reprise, l’ancienne reste comme justificatif."
+      "bill_corrected": "Facture rectificative : {name} remplace {of}. La version corrigée est reprise, l’ancienne reste comme justificatif.",
+      "start_near": "{provider} : début le {from} selon le document, le {date} enregistré – le même contrat (jusqu’à 7 jours d’écart) ; le début enregistré reste."
     },
     "missing": {
       "title": "Il manque encore",
@@ -6404,7 +6409,8 @@
       "prices_unconfirmed": "{utility} : les prix de {provider} ne figurent que sur des factures. Confirmez-les ci-dessus ou saisissez-les dans le contrat.",
       "working_price_gap": "{utility} : aucun document n’indique de prix du kWh pour {provider} du {from} au {to}.",
       "base_price_gap": "{utility} : aucun document n’indique d’abonnement pour {provider} du {from} au {to}.",
-      "two_registers": "{utility} : {name} indique deux cadrans (HP/HC) pour le compteur {meter}. Saisissez les relevés par cadran à la main."
+      "two_registers": "{utility} : {name} indique deux cadrans (HP/HC) pour le compteur {meter}. Saisissez les relevés par cadran à la main.",
+      "meter_choice": "{utility} : à quel compteur appartient {meter} ? Possibles : {meters}. Attribuez un document au bon compteur dans la boîte de réception, le brouillon le reprendra – s’il s’agit d’un nouveau compteur, créez-le avec ce numéro."
     },
     "documents": {
       "title": {
@@ -6419,7 +6425,8 @@
       "no_utility": "type de consommation non reconnu – à attribuer dans le document",
       "no_meter": "compteur incertain – à attribuer dans le document",
       "no_start": "sans début de contrat",
-      "nothing": "n’apporte rien (par exemple une date passée)"
+      "nothing": "n’apporte rien (par exemple une date passée)",
+      "meter_choice": "compteur à choisir – dans le document"
     },
     "item": {
       "meter": {
@@ -6485,7 +6492,9 @@
       "assumed_date": "La date de départ ne figure pas dans le document (supposé : le mois après la facture)",
       "number_change": "Nouveau numéro de compteur sur la facture suivante",
       "swap_open": "Après un changement de compteur sans relevé final de l’ancien compteur – saisissez d’abord le changement",
-      "swap_readings": "Les relevés ne correspondent pas tout à fait au changement (autre appareil, en baisse ou sous un relevé connu) – à vérifier"
+      "swap_readings": "Les relevés ne correspondent pas tout à fait au changement (autre appareil, en baisse ou sous un relevé connu) – à vérifier",
+      "existing_update": "Complète ce qui est déjà enregistré – à vérifier",
+      "existing_overlap": "Chevauche ce qui est déjà enregistré – à vérifier"
     },
     "result": {
       "title": "Repris",

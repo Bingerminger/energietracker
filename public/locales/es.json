@@ -5829,7 +5829,8 @@
       "text": "Leyendo el texto …",
       "type": "Reconociendo el tipo …",
       "fields": "Leyendo los campos …",
-      "elapsed": "{s} s"
+      "elapsed": "{s} s",
+      "wait": "El servidor sigue trabajando – comprobando el resultado …"
     },
     "empty": "Aún no hay correo. Guarda en PDF tu primera factura o confirmación de contrato.",
     "col": {
@@ -6257,6 +6258,9 @@
     },
     "priceBasis": {
       "net": "neto según la factura, con {vat} % de IVA = {gross} bruto"
+    },
+    "wait": {
+      "gaveUp": "Sin respuesta, ni siquiera tras volver a consultar. Puede que el documento aún se complete – vuelve a abrirlo enseguida. Un límite de tiempo mayor en el servidor web lo soluciona de forma duradera."
     }
   },
   "inboxCloud": {
@@ -6387,7 +6391,8 @@
       "invoice_wp": "{name}: precio unitario desde el {date} {invoice} en lugar de {chain} según la confirmación o el cambio de precio. Se toma la cadena; «Revisar factura» muestra la diferencia.",
       "invoice_bp": "{name}: término fijo desde el {date} {invoice} en lugar de {chain} al mes según la confirmación o el cambio de precio. Se toma la cadena; «Revisar factura» muestra la diferencia.",
       "start_from_invoice": "Contrato {provider}: inicio adelantado al {from} – la primera factura del mismo contrato empieza antes del {to} de la confirmación.",
-      "bill_corrected": "Factura rectificativa: {name} sustituye a {of}. Se toma la versión corregida, la anterior queda como justificante."
+      "bill_corrected": "Factura rectificativa: {name} sustituye a {of}. Se toma la versión corregida, la anterior queda como justificante.",
+      "start_near": "{provider}: inicio el {from} según el documento, el {date} registrado – el mismo contrato (hasta 7 días de diferencia); se mantiene el inicio registrado."
     },
     "missing": {
       "title": "Falta todavía",
@@ -6404,7 +6409,8 @@
       "prices_unconfirmed": "{utility}: los precios de {provider} solo aparecen en facturas. Confírmalos arriba o introdúcelos en el contrato.",
       "working_price_gap": "{utility}: ningún documento indica un precio unitario para {provider} del {from} al {to}.",
       "base_price_gap": "{utility}: ningún documento indica un término fijo para {provider} del {from} al {to}.",
-      "two_registers": "{utility}: {name} indica dos registros (punta/valle) para el contador {meter}. Introduce a mano las lecturas por registro."
+      "two_registers": "{utility}: {name} indica dos registros (punta/valle) para el contador {meter}. Introduce a mano las lecturas por registro.",
+      "meter_choice": "{utility}: ¿a qué contador pertenece {meter}? Posibles: {meters}. Asigna un documento al contador correcto en la bandeja de entrada y el borrador lo adopta – si es un contador nuevo, créalo con este número."
     },
     "documents": {
       "title": {
@@ -6419,7 +6425,8 @@
       "no_utility": "suministro no reconocido – asígnalo en el documento",
       "no_meter": "contador dudoso – asígnalo en el documento",
       "no_start": "sin inicio de contrato",
-      "nothing": "no aporta nada (por ejemplo, una fecha pasada)"
+      "nothing": "no aporta nada (por ejemplo, una fecha pasada)",
+      "meter_choice": "contador por elegir – en el documento"
     },
     "item": {
       "meter": {
@@ -6485,7 +6492,9 @@
       "assumed_date": "La fecha de inicio no aparece en el documento (supuesto: el mes después de la factura)",
       "number_change": "Número de contador nuevo en la factura siguiente",
       "swap_open": "Tras un cambio de contador sin lectura final del contador antiguo – introduce primero el cambio",
-      "swap_readings": "Las lecturas no encajan del todo con el cambio (otro aparato, en descenso o por debajo de una lectura conocida) – revísalo"
+      "swap_readings": "Las lecturas no encajan del todo con el cambio (otro aparato, en descenso o por debajo de una lectura conocida) – revísalo",
+      "existing_update": "Completa lo que ya está registrado – revísalo",
+      "existing_overlap": "Se solapa con lo que ya está registrado – revísalo"
     },
     "result": {
       "title": "Adoptado",

@@ -518,6 +518,15 @@ thinking mode off there if the model has one.
 that. Behind your own reverse proxy set its limit just as high
 ([Web server](../betrieb/webserver.md)).
 
+**Web server with a short time limit** *(3.7.1)*. If the web server in front
+of PHP gives up earlier — on a Synology, for example, after 60 seconds with
+`504` —, PHP still finishes and saves. The interface then asks for the
+document every 5 seconds until the step is saved (at most 660 seconds from
+sending) and only shows an error after that — likewise after a network
+interruption, for a single document as well as when reading many documents.
+A higher time limit on the web server avoids the wait
+([Web server](../betrieb/webserver.md#short-time-limit-in-front-of-php-371)).
+
 ### Reading in the cloud
 
 If you have no computer that runs a language model smoothly, you can hand the

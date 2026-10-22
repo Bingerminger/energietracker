@@ -199,6 +199,26 @@ setzt du dieselben Werte:
   Sekunden, wenn die Texterkennung lange rechnen darf — für das Auslesen im
   Posteingang über einen Cloud-Dienst bis zu 660 Sekunden *(v3.7.0)*.
 
+## Kurze Zeitgrenze vor PHP *(3.7.1)*
+
+Erkennen und Auslesen im Posteingang rechnen je Schritt bis zu 300 Sekunden
+(eigene KI), mit einem Cloud-Dienst bis zu 600. Gibt ein Webserver oder
+Reverse-Proxy davor früher auf, antwortet er mit `504` — PHP rechnet trotzdem
+zu Ende und speichert (die App setzt dafür `ignore_user_abort`). Auf einer
+Synology geschah das nach 60 Sekunden.
+
+- **Die Oberfläche wartet dann:** Nach einem `504` oder einem Netzabbruch
+  fragt sie alle 5 Sekunden nach dem Dokument (`GET /api/inbox/{id}`), bis der
+  Schritt gespeichert ist — höchstens 660 Sekunden ab dem Absenden — und zeigt
+  erst danach einen Fehler. Das gilt im einzelnen Dokument wie beim Auslesen
+  vieler Dokumente.
+- **Besser die Grenze anheben**, dann wartet niemand: nginx
+  `fastcgi_read_timeout` (als Reverse-Proxy `proxy_read_timeout`), Apache
+  `Timeout` (Vorgabe 60 Sekunden) bzw. `ProxyTimeout` — auf 660 Sekunden, für
+  `/api/inbox/{id}/classify` und `/extract` genügt das. Auf einer Synology
+  betrifft das den Webdienst der Web Station und einen Reverse Proxy des
+  Anmeldeportals davor, soweit DSM die Einstellung anbietet.
+
 ## Der PHP-eigene Server — nur zum Ausprobieren
 
 ```bash

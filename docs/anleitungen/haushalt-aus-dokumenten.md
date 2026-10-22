@@ -79,6 +79,19 @@ Widerrufe und Werbung erkennt der Posteingang und legt sie nur ab.
   Einbau, statt dass ein zweiter entsteht. Angelegt wird ein Zähler nur, wenn
   etwas an ihm hängt (Ablesung, Vertrag, Rechnung) — eine verstrichene
   Aufforderung, den Zählerstand zu melden, hält allein keinen Zähler.
+- **Bestehender Haushalt, Zähler ohne Nummer** *(3.7.1)*. Führst du deine
+  Zähler ohne Zählernummer und Marktlokation, kennt der Bestand die Nummern der
+  Dokumente nicht. Dann übernimmt der Entwurf den **einen aktiven Zähler der
+  Art mit Daten** (Ablesungen, Verträge, Rechnungen), wenn nichts dagegen
+  spricht — keine andere Nummer am laufenden Gerät, keine andere
+  Marktlokation —, und trägt Nummer und Marktlokation als Ergänzung nach.
+  Ein zweiter Zähler entsteht nicht. Kommen mehrere Zähler in Frage, hat schon
+  ein anderer Teil der Dokumente diesen Zähler oder passt er nur halb, fragt
+  „Fehlt noch“, zu welchem Zähler die Nummer gehört; die Dokumente bleiben
+  offen, bis du eines davon im Posteingang dem richtigen Zähler zuordnest (in
+  der Vorschau: Zähler wählen). Nennen die Dokumente eine eigene Nummer und
+  eine andere Marktlokation als jeder Zähler mit Daten, ist es ein anderer
+  Zähler — er entsteht neu.
 - **Dokumente ohne Zählernummer** finden ihren Zähler über die Vertrags- oder
   Kundennummer, sonst über das Lieferverhältnis; gibt es nur einen Zähler der
   Art — oder nur einen mit Daten —, über diesen.
@@ -103,6 +116,16 @@ Widerrufe und Werbung erkennt der Posteingang und legt sie nur ab.
     dem Beginn, am Zähler der Rechnung.
   - **Ende:** Ist das Ende im Dokument zweifelhaft und gibt es einen
     Folgevertrag, gilt der Tag vor dessen Beginn — vorbelegt.
+  - **Verträge im Bestand ohne Nummer** *(3.7.1)*: Gleicher Zähler (oder
+    seine Gruppe), derselbe Versorger und ein Beginn am selben Tag oder
+    höchstens sieben Tage daneben — das ist der Vertrag aus dem Bestand, kein
+    zweiter. Der Beginn des Bestands bleibt („Aufgefallen“ nennt beide Tage;
+    Bestätigung, Lieferbeginn-Brief und erste Rechnung nennen oft verschiedene
+    Tage, ein Wechsel am selben Zähler liegt nie eine Woche neben dem vorigen
+    Beginn). Fehlt dort eine Angabe — Vertragsnummer, Tarif, Preis, Abschlag —,
+    heißt der Eintrag „ergänzen“; eine Angabe, die vom Bestand abweicht, ist
+    ein Widerspruch. Rechnungen über mehrere Jahre gehören je an den Vertrag,
+    der damals lief.
 - **Preiskette.** Bestätigung und Preisänderungen (gültig ab) bilden die Kette
   und sind vorbelegt. Ein Preis auf der Rechnung ist ein Beleg — verglichen
   wird brutto: Steht er netto mit gelesenem Steuersatz da, rechnet der Entwurf
@@ -121,7 +144,9 @@ Widerrufe und Werbung erkennt der Posteingang und legt sie nur ab.
   Abschlagsänderung, neuer Abschlag aus der Rechnung).
 - **Abgleich über die Dokumente.**
   - Endstand der einen Rechnung = Anfangsstand der nächsten: beide Stände
-    bestätigt, eine Ablesung. Passen sie nicht, sind beide zu prüfen.
+    bestätigt, eine Ablesung. Passen sie nicht, sind beide zu prüfen. Steht
+    derselbe Stand im Bestand einen Tag daneben (31.12. gegen 01.01.), ist er
+    schon vorhanden *(3.7.1)*.
   - Lücken und Überschneidungen zwischen aufeinanderfolgenden Verträgen
     derselben Verbrauchsart stehen unter „Aufgefallen“ — korrigiert wird
     nichts. Ohne Ende in den Dokumenten endet ein Vertrag am Tag vor dem
@@ -168,13 +193,16 @@ Widerrufe und Werbung erkennt der Posteingang und legt sie nur ab.
 - **Bestand.** Was schon da ist, heißt „schon vorhanden“ und wird
   übersprungen; „Widerspruch“ überschreibt nur, wenn du das Feld bestätigst;
   „Überschneidung“ heißt: neu, aber im Zeitraum eines anderen Vertrags;
-  „ergänzen“: vorhanden, eine Angabe kommt dazu.
+  „ergänzen“: vorhanden, eine Angabe kommt dazu. **„Ergänzen“ und
+  „Überschneidung“ sind nie vorbelegt** *(3.7.1)* — sie berühren, was schon da
+  ist, und sind immer eine Frage; vorbelegt ist nur, was neu ist und nichts
+  Vorhandenes ändert.
 
 ## 4. Prüfen und übernehmen
 
 - **Ein Haken je Feldgruppe:** Zähler, Zählertausch, Vertrag, Preise,
   Abschläge, Ablesungen eines Zählers, Rechnung, Gas-Umrechnung, Termin.
-  Vorbelegt ist, was neu ist und ohne Zweifel.
+  Vorbelegt ist, was neu ist, ohne Zweifel und ohne den Bestand zu berühren.
 - **Zweifelhaft** ist ein Feld, das der [Posteingang](posteingang.md) markiert
   — mit denselben Marken nach dem heutigen Stand, die auch die Liste zählt —
   und das kein zweites Dokument bestätigt. Ein Preis auf der Rechnung, der zum

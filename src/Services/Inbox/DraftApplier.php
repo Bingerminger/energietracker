@@ -171,9 +171,10 @@ final class DraftApplier
         if (isset($vals['installed_on'])) $this->meters->backdateFirstDevice($u, $id, (string)$vals['installed_on']);
         if (isset($vals['serial'])) {
             $m = $this->meters->get($u, $id) ?? throw new LocalizedException('errors.inboxDraft.needs.meter', [], 'meter gone');
-            $first = $m['devices'][0] ?? null;
-            if ($first === null) throw new LocalizedException('errors.meter.noOpenDevice', [], 'meter without device');
-            $this->meters->setDeviceSerial($u, $id, (string)$first['id'], (string)$vals['serial']);
+            // 3.7.1 — am Gerät, das der Entwurf nennt (das in der Zeit der Nummer lief), sonst am ersten
+            $dev = (string)(self::fieldOf($it, 'serial')['device_id'] ?? ($m['devices'][0]['id'] ?? ''));
+            if ($dev === '') throw new LocalizedException('errors.meter.noOpenDevice', [], 'meter without device');
+            $this->meters->setDeviceSerial($u, $id, $dev, (string)$vals['serial']);
         }
         if (isset($vals['malo'])) $this->meters->update($u, $id, ['malo_id' => (string)$vals['malo']]);
         $meterIds[$key] = $id;
@@ -324,6 +325,12 @@ final class DraftApplier
         $b = $this->bills->get($u, (string)$billId);
         return ['type' => 'bill', 'utility' => $u, 'id' => (string)$billId, 'meter_id' => (string)$b['meter_id'],
             'period_from' => (string)$b['period_from'], 'period_to' => (string)$b['period_to'], 'booked' => $booked];
+    }
+
+    private static function fieldOf(array $it, string $name): array
+    {
+        foreach ($it['fields'] as $f) if ($f['name'] === $name) return $f;
+        return [];
     }
 
     private static function fieldValue(array $it, string $name): mixed

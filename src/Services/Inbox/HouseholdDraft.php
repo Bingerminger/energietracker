@@ -356,6 +356,7 @@ final class HouseholdDraft
         if ($u === 'gas') $this->gasFactorItems($ids);
         $this->reminderItems($u, $ids);
         $this->pruneEmptyMeters($u);
+        $this->holdPending($u);
     }
 
     /**
@@ -523,8 +524,138 @@ final class HouseholdDraft
             foreach ($docIds as $id) $this->assignMp($id, $mp['key'], $mp);
             $this->mps[$mp['key']] = $mp;
         }
+        $this->adoptExistingMeters($u);
         $this->assignWithoutNumber($u, $ids);
         $this->decideTargets($u);
+    }
+
+    /**
+     * 3.7.1 — Messstellen, deren Nummern und Marktlokation im Bestand nicht
+     * stehen, an einem Haushalt, der seine Zähler ohne Nummer führt: Statt
+     * eines zweiten Zählers (samt Verträgen, Rechnungen und Ablesungen doppelt)
+     *   1. gilt eine Zuordnung aus dem Posteingang (Vorschau: Zähler gewählt) —
+     *      hat diesen Zähler schon eine Messstelle, wird es eine (Tauschregeln);
+     *   2. übernimmt der Entwurf den einen aktiven Hauptzähler mit Daten, der
+     *      passt (keine andere Nummer am laufenden Gerät, keine andere
+     *      Marktlokation) und den keine andere Messstelle hat — Nummer und
+     *      Marktlokation trägt er nach (Ergänzung, zu bestätigen);
+     *   3. kommen mehrere in Frage, hat ihn schon eine andere Messstelle oder
+     *      passt er nur halb: kein neuer Zähler, eine Frage (`meter_choice`,
+     *      holdPending) — beantwortet, sobald ein Dokument im Posteingang einem
+     *      Zähler zugeordnet ist.
+     * Passt kein Zähler mit Daten (eigene Nummer und andere Marktlokation),
+     * entsteht er neu wie bisher.
+     */
+    private function adoptExistingMeters(string $u): void
+    {
+        $open = array_values(array_filter(array_keys($this->mps), fn($k) => $this->mps[$k]['utility'] === $u && $this->mps[$k]['meter_id'] === null));
+        if ($open === []) return;
+        foreach ($open as $i => $key) {
+            $chosen = array_values(array_unique(array_filter(array_map(fn($id) => $this->docs[$id]['meter_id'], $this->mps[$key]['docs']))));
+            if (count($chosen) !== 1) continue;
+            $target = null;
+            foreach ($this->mps as $k => $m) if ($k !== $key && $m['utility'] === $u && $m['meter_id'] === $chosen[0]) $target = $k;
+            if ($target !== null) $this->mergeMp($key, $target);
+            else $this->mps[$key] = ['meter_id' => $chosen[0], 'action' => 'existing'] + $this->mps[$key];
+            unset($open[$i]);
+        }
+        if ($open === []) return;
+        $data = array_values(array_filter($this->meters->list($u), fn($m) => MeterService::inService($m) && empty($m['parent_meter_id']) && $this->hasData($u, $m)));
+        if ($data === []) return;
+        $claimed = array_values(array_filter(array_map(fn($m) => $m['utility'] === $u ? $m['meter_id'] : null, $this->mps)));
+        $fits = [];
+        foreach ($open as $key) foreach ($data as $m) {
+            $fit = $this->meterFit($this->mps[$key], $m);
+            if ($fit !== null) $fits[$key][(string)$m['id']] = $fit;
+        }
+        foreach ($open as $key) {
+            $c = $fits[$key] ?? [];
+            if ($c === []) continue;   // jeder Zähler mit Daten ist ein anderer: neu wie bisher
+            $mid = (string)array_key_first($c);
+            $rivals = array_filter($open, fn($k) => $k !== $key && isset($fits[$k][$mid]));
+            if (count($c) === 1 && $c[$mid] === 'fits' && !in_array($mid, $claimed, true) && $rivals === []) {
+                $this->mps[$key]['meter_id'] = $mid;
+                $this->mps[$key]['action'] = 'existing';
+                $claimed[] = $mid;
+                continue;
+            }
+            $this->mps[$key]['action'] = 'pending';
+            $this->mps[$key]['candidates'] = array_map('strval', array_keys($c));
+        }
+    }
+
+    /**
+     * Passt ein Zähler aus dem Bestand zu einer Messstelle, deren Kennungen er
+     * nicht trägt? `fits`: nichts widerspricht (keine Nummer am laufenden
+     * Gerät, Marktlokation leer oder nicht genannt); `maybe`: eine andere Nummer
+     * am laufenden Gerät (vielleicht ein Tausch) oder nur eine andere
+     * Marktlokation; null: eigene Nummer und andere Marktlokation — ein anderer
+     * Zähler.
+     */
+    private function meterFit(array $mp, array $m): ?string
+    {
+        $malo = (string)($m['malo_id'] ?? '');
+        $docMalo = array_values(array_filter($mp['nodes'], fn($n) => str_starts_with($n, 'm:')));
+        $docSerial = array_values(array_filter($mp['nodes'], fn($n) => str_starts_with($n, 's:')));
+        $otherMalo = $malo !== '' && $docMalo !== [] && !in_array("m:$malo", $docMalo, true);
+        $open = null;
+        foreach ($m['devices'] ?? [] as $dv) if (empty($dv['removed_on'])) $open = $dv;
+        $otherSerial = trim((string)($open['serial'] ?? '')) !== '';
+        if ($otherMalo && $docSerial !== []) return null;
+        return $otherMalo || $otherSerial ? 'maybe' : 'fits';
+    }
+
+    /** Hat der Zähler Daten (Ablesungen, Verträge auch seiner Gruppe, Rechnungen)? */
+    private function hasData(string $u, array $m): bool
+    {
+        $id = (string)$m['id'];
+        return (Utilities::isCumulative($u) && $this->readings->list($u, $id) !== [])
+            || (Utilities::hasContracts($u) && $this->existingContracts($u, $m) !== [])
+            || (Utilities::supportsBillCheck($u) && $this->bills->list($u, $id) !== []);
+    }
+
+    /** Verträge eines Zählers im Bestand, auch die seiner Gruppe (ohne Schattenverträge). */
+    private function existingContracts(string $u, array $meter): array
+    {
+        $list = $this->contracts->list($u, (string)$meter['id']);
+        $gid = (string)($meter['meter_group_id'] ?? '');
+        if ($gid !== '') $list = [...$list, ...$this->contracts->list($u, $gid)];
+        return array_values(array_filter($list, fn($c) => empty($c['is_shadow'])));
+    }
+
+    /** Zwei Messstellen sind eine (Dokumente, Nummern, Beschriftungen). */
+    private function mergeMp(string $from, string $into): void
+    {
+        foreach ($this->mps[$from]['docs'] as $id) $this->assignMp($id, $into);
+        $this->mps[$into]['nodes'] = array_values(array_unique([...$this->mps[$into]['nodes'], ...$this->mps[$from]['nodes']]));
+        $this->mps[$into]['labels'] += $this->mps[$from]['labels'];
+        unset($this->mps[$from]);
+    }
+
+    /**
+     * Messstellen mit offener Zuordnung (adoptExistingMeters): Ihre Einträge
+     * entstehen nicht — kein Zähler, keine Verträge, Ablesungen, Rechnungen
+     * daran —, ihre Dokumente bleiben offen; „Fehlt noch“ nennt die Zähler, die
+     * in Frage kommen, und führt zum Dokument, wo man den Zähler wählt.
+     */
+    private function holdPending(string $u): void
+    {
+        $pending = array_values(array_filter(array_keys($this->mps), fn($k) => $this->mps[$k]['utility'] === $u && $this->mps[$k]['action'] === 'pending'));
+        if ($pending === []) return;
+        $cands = array_values(array_filter(array_keys($this->cands), fn($k) => in_array($this->cands[$k]['mp'], $pending, true)));
+        $this->items = array_values(array_filter($this->items, fn($it) => !in_array($it['meter_key'] ?? null, $pending, true)));
+        $this->missing = array_values(array_filter($this->missing, fn($m) => !in_array($m['key'] ?? null, $cands, true)));
+        foreach ($cands as $k) unset($this->cands[$k]);
+        foreach ($pending as $key) {
+            $mp = $this->mps[$key];
+            $docs = array_values(array_filter(array_keys($this->docs), fn($id) => $this->docs[$id]['mp'] === $key || in_array($this->docs[$id]['cand'], $cands, true)));
+            foreach ($docs as $id) $this->docs[$id]['note'] = 'meter_choice';
+            $label = array_values($mp['labels'])[0] ?? (string)substr((string)(array_values(array_filter($mp['nodes'], fn($n) => str_starts_with($n, 'm:')))[0] ?? ''), 2);
+            $names = array_map(fn($id) => (string)($this->meters->get($u, $id)['name'] ?? $id), $mp['candidates'] ?? []);
+            $this->missing[] = ['kind' => 'meter_choice', 'utility' => $u, 'key' => "choice:$key", 'docs' => $docs,
+                'params' => ['meter' => $label, 'count' => count($docs), 'meters' => implode(', ', $names)],
+                'href' => '#/inbox/' . rawurlencode($mp['docs'][0] ?? '')];
+        }
     }
 
     /**
@@ -739,7 +870,7 @@ final class HouseholdDraft
         $taken = array_filter(array_map(fn($m) => $m['meter_id'], $this->mps));
         $empty = count($all) === 1 && !in_array((string)$all[0]['id'], $taken, true) && $this->isEmptyDefault($u, $all[0]) ? (string)$all[0]['id'] : null;
         if ($empty === null) return;
-        $new = array_values(array_filter($this->mps, fn($m) => $m['utility'] === $u && $m['meter_id'] === null));
+        $new = array_values(array_filter($this->mps, fn($m) => $m['utility'] === $u && $m['meter_id'] === null && $m['action'] !== 'pending'));
         if ($new === []) return;
         usort($new, fn($a, $b) => strcmp($a['first'], $b['first']));
         $this->mps[$new[0]['key']]['meter_id'] = $empty;
@@ -767,7 +898,7 @@ final class HouseholdDraft
     private function timelines(string $u): void
     {
         foreach ($this->mps as $key => $mp) {
-            if ($mp['utility'] !== $u) continue;
+            if ($mp['utility'] !== $u || $mp['action'] === 'pending') continue;
             $obs = []; $changes = [];
             foreach ($mp['docs'] as $id) {
                 $d = $this->docs[$id];
@@ -1037,8 +1168,9 @@ final class HouseholdDraft
             $open = null;
             foreach ($meter['devices'] ?? [] as $dv) if (empty($dv['removed_on'])) $open = $dv;
             if ($serial !== null) {
+                $dev = $this->deviceWithoutSerial($meter, $first);
                 if (in_array($first['serial'], $onMeter, true)) $serial['status'] = 'exists';
-                elseif ($open !== null && trim((string)($open['serial'] ?? '')) === '' && count($meter['devices'] ?? []) === 1) $serial['status'] = 'new';
+                elseif ($dev !== null) { $serial['status'] = 'new'; $serial['device_id'] = (string)$dev['id']; }
                 else $serial = null;   // eine andere Nummer am Zähler: das ist ein Gerätewechsel, kein Nachtrag
             }
             if ($malo !== null) {
@@ -1058,11 +1190,29 @@ final class HouseholdDraft
         }
         $this->items[] = [
             'kind' => 'meter', 'utility' => $u, 'key' => $mp['key'], 'meter_key' => $mp['key'], 'action' => $mp['action'],
-            'meter_id' => $mp['meter_id'],
+            // ein vorhandener Zähler: „ergänzen“ (Nummer, Marktlokation nachtragen), nie vorbelegt
+            'meter_id' => $mp['meter_id'], 'status' => $mp['action'] === 'existing' ? 'exists' : 'new',
             'label_key' => 'inboxDraft.item.meter.' . $mp['action'],
             'params' => ['serial' => $first['label'] ?? '', 'name' => $meter['name'] ?? ($fields[0]['value'] ?? ''), 'malo' => $malo['value'] ?? ''],
             'fields' => $fields, 'devices' => array_map(fn($dv) => ['label' => $dv['label'], 'first' => $dv['first'], 'last' => $dv['last']], $mp['devices']),
         ];
+    }
+
+    /**
+     * Das Gerät eines vorhandenen Zählers, dem die erste Nummer der Dokumente
+     * fehlt: das einzige Gerät ohne Nummer — bei mehreren das ohne Nummer, das
+     * in der Zeit dieser Nummer lief (eingebaut vor ihrem ersten, nicht
+     * ausgebaut vor ihrem letzten Stand). Sonst null (kein Nachtrag).
+     */
+    private function deviceWithoutSerial(array $meter, ?array $first): ?array
+    {
+        $devs = (array)($meter['devices'] ?? []);
+        $bare = array_values(array_filter($devs, fn($dv) => trim((string)($dv['serial'] ?? '')) === ''));
+        if ($first === null || $bare === []) return null;
+        if (count($devs) === 1) return empty($bare[0]['removed_on']) ? $bare[0] : null;
+        $hit = array_values(array_filter($bare, fn($dv) => (string)($dv['installed_on'] ?? '') <= $first['first']
+            && (empty($dv['removed_on']) || (string)$dv['removed_on'] >= $first['last'])));
+        return count($hit) === 1 ? $hit[0] : null;
     }
 
     /**
@@ -1185,6 +1335,13 @@ final class HouseholdDraft
             if (isset($existing[$date])) {
                 if (self::same('number', (float)$existing[$date]['counter'], $f['value']) && !isset($f['options'])) $f['status'] = 'exists';
                 else { self::conflict($f, (float)$existing[$date]['counter']); $f['reading_id'] = (string)$existing[$date]['id']; }
+            } elseif (!isset($f['options'])) {
+                // 3.7.1 — derselbe Stand einen Tag daneben im Bestand (Endstand am 31.12., Anfangsstand am 01.01.):
+                // schon vorhanden, keine zweite Ablesung
+                foreach (['-1 day', '+1 day'] as $shift) {
+                    $near = $existing[date('Y-m-d', (int)strtotime("$date $shift"))] ?? null;
+                    if ($near !== null && self::same('number', (float)$near['counter'], $f['value'])) $f['status'] = 'exists';
+                }
             }
             $fields[] = $f;
         }
@@ -1273,10 +1430,11 @@ final class HouseholdDraft
             $groups = array_values(array_filter($groups, fn($g) => $g['start'] !== null));
             $mp = $this->mpOfDocs($rel);
             if ($groups === []) {
-                // ohne Bestätigung und Brief: vorhandener Vertrag desselben Versorgers, sonst Beginn mit der ersten Rechnung
-                $existing = $mp !== null ? $this->existingContractFor($u, $mp, $rel) : null;
-                if ($existing !== null) {
-                    $groups[] = ['docs' => [], 'start' => (string)$existing['start'], 'tariff' => '', 'basis' => 'existing', 'existing' => $existing];
+                // ohne Bestätigung und Brief: die vorhandenen Verträge desselben Versorgers (je Rechnung der,
+                // der damals lief), sonst Beginn mit der ersten Rechnung
+                $existing = $mp !== null ? $this->existingContractsFor($u, $mp, $rel) : [];
+                if ($existing !== []) {
+                    foreach ($existing as $ex) $groups[] = ['docs' => [], 'start' => (string)$ex['start'], 'tariff' => '', 'basis' => 'existing', 'existing' => $ex];
                 } else {
                     $firsts = array_filter(array_map(fn($id) => $this->docs[$id]['type'] === 'invoice' ? $this->date($id, 'period_from') : null, $rel));
                     if ($firsts !== []) {
@@ -1305,6 +1463,10 @@ final class HouseholdDraft
         }
         $this->matchExistingContracts($u);
         $this->assignToContracts($u);
+        // vorhandene Verträge, zu denen kein Dokument gehört (Kandidaten für Rechnungen über mehrere Jahre): nicht im Entwurf
+        foreach ($this->cands as $k => $c) {
+            if ($c['utility'] === $u && $c['basis'] === 'existing' && array_filter($this->docs, fn($d) => $d['cand'] === $k) === []) unset($this->cands[$k]);
+        }
         $this->invoicesBeforeStart($u);
         $this->contractEnds($u);
     }
@@ -1619,14 +1781,21 @@ final class HouseholdDraft
         return count($of) === 1 ? $of[0]['key'] : null;
     }
 
-    /** Vorhandener Vertrag des Zählers mit derselben Vertragsnummer oder demselben Versorger (der späteste). */
-    private function existingContractFor(string $u, string $mpKey, array $rel): ?array
+    /**
+     * Vorhandene Verträge des Zählers (auch seiner Gruppe) mit derselben
+     * Vertrags- oder Kundennummer oder demselben Versorger — alle, nach Beginn:
+     * Rechnungen über mehrere Jahre gehören je an den Vertrag, der damals lief.
+     *
+     * @return list<array<string,mixed>>
+     */
+    private function existingContractsFor(string $u, string $mpKey, array $rel): array
     {
         $mid = $this->mps[$mpKey]['meter_id'];
-        if ($mid === null || $this->mps[$mpKey]['action'] === 'adopt') return null;
-        $best = null;
-        foreach ($this->contracts->list($u, $mid) as $c) {
-            if (!empty($c['is_shadow'])) continue;
+        if ($mid === null || $this->mps[$mpKey]['action'] === 'adopt') return [];
+        $meter = $this->meters->get($u, $mid);
+        if ($meter === null) return [];
+        $out = [];
+        foreach ($this->existingContracts($u, $meter) as $c) {
             $hit = false;
             foreach ($rel as $id) {
                 $d = $this->docs[$id];
@@ -1635,28 +1804,82 @@ final class HouseholdDraft
                 if ($d['customer_no'] !== '' && Proposals::sameId((string)($c['customer_number'] ?? ''), $d['customer_no'])) $hit = true;
                 if (self::sameSupplier(self::providerOf($c), $d['supplier'])) $hit = true;
             }
-            if ($hit && ($best === null || (string)$c['start'] > (string)$best['start'])) $best = $c;
+            if ($hit) $out[] = $c;
         }
-        return $best;
+        usort($out, fn($a, $b) => strcmp((string)$a['start'], (string)$b['start']));
+        return $out;
     }
 
-    /** Abgleich mit den Verträgen am vorhandenen Zähler: gleicher Beginn = vorhanden (oder Widerspruch), sonst Überschneidung. */
+    /**
+     * 3.7.1 — Beginn bis so viele Tage neben dem Bestand ist derselbe Vertrag
+     * (gleicher Zähler, gleicher Versorger): Bestätigung, Lieferbeginn-Brief und
+     * erste Rechnung nennen oft verschiedene Tage (Vertragsbeginn, erster
+     * Liefertag, Ablesung am Tag davor oder danach, Umzug zum Monatsanfang),
+     * ein Wechsel desselben Versorgers am selben Zähler liegt nie eine Woche
+     * neben dem vorigen Beginn. Die Woche entspricht dem Fenster des Tauschs
+     * (SWAP_WINDOW_DAYS).
+     */
+    private const START_NEAR_DAYS = 7;
+
+    /**
+     * Abgleich mit den Verträgen am vorhandenen Zähler (auch seiner Gruppe):
+     * gleicher Beginn = vorhanden (anderer Versorger: Widerspruch); derselbe
+     * Versorger (oder dieselbe Vertragsnummer) mit Beginn bis START_NEAR_DAYS
+     * daneben = vorhanden, der Beginn bleibt der des Bestands (Befund
+     * `start_near`); sonst eine Überschneidung, wenn ein vorhandener zu der Zeit
+     * läuft. Zwei Kandidaten für denselben vorhandenen Vertrag sind einer.
+     * Verträge im Bestand ohne Nummer erkennt so der Versorger; eine Angabe, die
+     * vom Bestand abweicht, bleibt ein Widerspruch (contractItems).
+     */
     private function matchExistingContracts(string $u): void
     {
-        foreach ($this->cands as $k => $c) {
-            if ($c['utility'] !== $u || $c['existing'] !== null) continue;
+        $held = [];
+        foreach ($this->cands as $k => $c) if ($c['utility'] === $u && $c['existing'] !== null) $held[(string)$c['existing']['id']] = $k;
+        foreach (array_keys($this->cands) as $k) {
+            $c = $this->cands[$k] ?? null;
+            if ($c === null || $c['utility'] !== $u || $c['existing'] !== null) continue;
             $mp = $this->mps[$c['mp']];
             if ($mp['meter_id'] === null || $mp['action'] === 'adopt') continue;
+            $meter = $this->meters->get($u, $mp['meter_id']);
+            if ($meter === null) continue;
             $provider = $this->supplierOf($c['docs']);
-            foreach ($this->contracts->list($u, $mp['meter_id']) as $ex) {
-                if (!empty($ex['is_shadow'])) continue;
-                if ((string)($ex['start'] ?? '') === $c['start']) {
-                    $same = $provider === '' || self::sameSupplier(self::providerOf($ex), $provider)
-                        || Proposals::sameId((string)($ex['contract_number'] ?? ''), (string)($this->docs[$c['docs'][0] ?? '']['contract_no'] ?? ''));
-                    if ($same) { $this->cands[$k]['existing'] = $ex; $this->cands[$k]['status'] = 'exists'; }
-                    else { $this->cands[$k]['status'] = 'conflict'; $this->cands[$k]['detail'] = ['provider' => (string)($ex['provider'] ?? ''), 'start' => $ex['start'], 'end' => $ex['end'] ?? null]; }
-                    break;
+            $nos = array_values(array_filter(array_map(fn($id) => $this->docs[$id]['contract_no'], $c['docs']), fn($x) => $x !== ''));
+            $list = $this->existingContracts($u, $meter);
+            $best = null; $bestDays = null;
+            foreach ($list as $ex) {
+                $days = abs(self::daysBetween((string)($ex['start'] ?? ''), $c['start']));
+                if ($days > self::START_NEAR_DAYS) continue;
+                $sameNo = array_filter($nos, fn($n) => Proposals::sameId((string)($ex['contract_number'] ?? ''), $n)) !== [];
+                $sameSupplier = $provider !== '' && self::sameSupplier(self::providerOf($ex), $provider);
+                if (!($sameNo || $sameSupplier || ($days === 0 && $provider === ''))) {
+                    // gleicher Beginn, anderer Versorger: ein Widerspruch zum Bestand
+                    if ($days === 0) { $this->cands[$k]['status'] = 'conflict'; $this->cands[$k]['detail'] = ['provider' => (string)($ex['provider'] ?? ''), 'start' => $ex['start'], 'end' => $ex['end'] ?? null]; }
+                    continue;
                 }
+                if ($bestDays === null || $days < $bestDays) { $best = $ex; $bestDays = $days; }
+            }
+            if ($best !== null) {
+                $id = (string)$best['id'];
+                if (isset($held[$id]) && isset($this->cands[$held[$id]])) {
+                    // derselbe vorhandene Vertrag aus zwei Lieferverhältnissen (andere Schreibweise): einer
+                    $this->cands[$held[$id]]['docs'] = array_values(array_unique([...$this->cands[$held[$id]]['docs'], ...$c['docs']]));
+                    unset($this->cands[$k]);
+                    continue;
+                }
+                $held[$id] = $k;
+                $this->cands[$k]['existing'] = $best;
+                $this->cands[$k]['status'] = 'exists';
+                $this->cands[$k]['detail'] = null;
+                if ($bestDays > 0) {
+                    $this->findings[] = ['kind' => 'start_near', 'utility' => $u, 'docs' => $c['docs'],
+                        'params' => ['provider' => self::providerOf($best) ?: $provider, 'from' => $c['start'], 'date' => (string)$best['start']]];
+                    $this->cands[$k]['near_start'] = $c['start'];
+                    $this->cands[$k]['start'] = (string)$best['start'];
+                }
+                continue;
+            }
+            if ($this->cands[$k]['status'] === 'conflict') continue;
+            foreach ($list as $ex) {
                 if ((string)$ex['start'] <= $c['start'] && (empty($ex['end']) || (string)$ex['end'] >= $c['start'])) {
                     $this->cands[$k]['status'] = 'overlap';
                     $this->cands[$k]['detail'] = ['provider' => (string)($ex['provider'] ?? ''), 'start' => $ex['start'], 'end' => $ex['end'] ?? null];
@@ -1866,8 +2089,9 @@ final class HouseholdDraft
             $c = $this->cands[$k];
             if ($mp['meter_id'] === null || $mp['action'] === 'adopt' || $c['existing'] !== null) continue;
             $dayBefore = date('Y-m-d', (int)strtotime($c['start'] . ' -1 day'));
-            foreach ($this->contracts->list($u, $mp['meter_id']) as $prev) {
-                if (!empty($prev['is_shadow']) || (string)($prev['start'] ?? '') >= $c['start']) continue;
+            $meter = $this->meters->get($u, $mp['meter_id']);
+            foreach ($meter !== null ? $this->existingContracts($u, $meter) : [] as $prev) {
+                if ((string)($prev['start'] ?? '') >= $c['start']) continue;
                 if (!empty($prev['end']) && (string)$prev['end'] <= $dayBefore) continue;
                 $this->items[] = ['kind' => 'contract_end', 'utility' => $u, 'key' => 'end:' . $prev['id'], 'contract_id' => (string)$prev['id'], 'optional' => true,
                     'label_key' => 'inboxDraft.item.contractEnd', 'params' => ['provider' => (string)($prev['provider'] ?? ''), 'date' => $dayBefore],
@@ -2003,7 +2227,8 @@ final class HouseholdDraft
                 if ($t === 'contract_confirmation') {
                     // die Preise der Bestätigung gelten ab ihrem Beginn (der Vertrag kann früher beginnen: Rechnungen davor)
                     $cs = $this->date($id, 'supply_start');
-                    $at = $cs !== null && $inRange($cs) ? $cs : $c['start'];
+                    // (Beginn wenige Tage neben dem Bestand, matchExistingContracts: ab dem Beginn des Bestands)
+                    $at = $cs !== null && $cs === ($c['near_start'] ?? null) ? $c['start'] : ($cs !== null && $inRange($cs) ? $cs : $c['start']);
                     if (($v = $this->priceOf($id, 'working_price')) !== null) $rows['wp'][$at][] = self::obs($v, [$this->src($id, 'working_price')], 0);
                     if (($v = $monthly($id, 'base_price')) !== null) $rows['bp'][$at][] = self::obs($v, [$this->src($id, 'base_price'), $this->src($id, 'base_price_period')], 0);
                     if (($v = $this->num($id, 'advance')) !== null) $rows['ap'][$at][] = self::obs($v, [$this->src($id, 'advance')], 0);
@@ -2123,8 +2348,9 @@ final class HouseholdDraft
             $advances = Utilities::isFeedIn($u) ? [] : $mk('ap', 'advance_payments', 'amount_eur', 'money');
             $current = ($c['end'] === null || $c['end'] >= $this->today);
             if ($prices !== []) {
+                // an einem vorhandenen Vertrag: neue Zeilen sind eine Ergänzung (nie vorbelegt)
                 $this->items[] = ['kind' => 'prices', 'utility' => $u, 'key' => "$k#p", 'contract_key' => $k, 'meter_key' => $c['mp'],
-                    'label_key' => 'inboxDraft.item.prices', 'params' => ['provider' => $c['provider'] ?? '', 'count' => count($prices)], 'fields' => $prices];
+                    'status' => $ex !== null ? 'exists' : 'new', 'label_key' => 'inboxDraft.item.prices', 'params' => ['provider' => $c['provider'] ?? '', 'count' => count($prices)], 'fields' => $prices];
             }
             if (Proposals::standardContract($u)) {
                 // Ohne Arbeits- oder Grundpreis nach dem Übernehmen (nur Vorbelegtes): „Fehlt noch“ —
@@ -2158,7 +2384,7 @@ final class HouseholdDraft
             }
             if ($advances !== []) {
                 $this->items[] = ['kind' => 'advances', 'utility' => $u, 'key' => "$k#a", 'contract_key' => $k, 'meter_key' => $c['mp'],
-                    'label_key' => 'inboxDraft.item.advances', 'params' => ['provider' => $c['provider'] ?? '', 'count' => count($advances)], 'fields' => $advances];
+                    'status' => $ex !== null ? 'exists' : 'new', 'label_key' => 'inboxDraft.item.advances', 'params' => ['provider' => $c['provider'] ?? '', 'count' => count($advances)], 'fields' => $advances];
             } elseif (Utilities::hasAdvancePaymentContracts($u) && $current && empty($ex['advance_payments'])) {
                 $this->missing[] = ['kind' => 'advance', 'utility' => $u, 'key' => $k, 'params' => ['provider' => $c['provider'] ?? ''], 'href' => "#/utility/$u/contracts"];
             }
@@ -2548,6 +2774,13 @@ final class HouseholdDraft
             if ($it['status'] === 'exists' && $todo && !in_array($it['kind'], ['meter_change', 'reminder'], true)) $it['status'] = 'update';
             if (in_array($it['kind'], ['readings', 'prices', 'advances', 'gas_factor', 'meter'], true) && !$todo) $it['status'] = 'exists';
             if ($it['kind'] === 'bill' && ($it['status'] === 'exists') && !empty($it['book']) && empty($it['booked'])) $it['status'] = 'update';
+            // 3.7.1 — was den Bestand berührt (ergänzen, Überschneidung), ist immer eine Frage: vorbelegt
+            // ist nur, was neu ist und nichts Vorhandenes ändert
+            if (in_array($it['status'], ['update', 'overlap'], true)) {
+                $it['check'] = true;
+                $r = $it['status'] === 'update' ? 'existing_update' : 'existing_overlap';
+                if (!in_array($r, $it['reasons'], true)) $it['reasons'][] = $r;
+            }
             $it['actionable'] = $it['status'] !== 'exists';
             $it['checked'] = $it['actionable'] && in_array($it['status'], ['new', 'overlap', 'update'], true) && !$it['check'] && !$it['optional'];
             $docs = $it['docs'];
@@ -2567,6 +2800,7 @@ final class HouseholdDraft
                 $d['dup'] !== null => 'duplicate',
                 $d['note'] === 'no_utility' => 'no_utility',
                 $d['note'] === 'no_meter' => 'no_meter',
+                $d['note'] === 'meter_choice' => 'meter_choice',
                 isset($byDoc[$id]) => 'used',
                 $d['note'] === 'no_start' => 'no_start',
                 default => 'nothing',
