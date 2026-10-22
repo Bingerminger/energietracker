@@ -182,12 +182,16 @@ PATCH  /api/activity/{id}          {note}
 DELETE /api/activity               ?before=YYYY-MM-DD — admins only
 GET    /api/activity.csv           (v3.5.0) the same filters, ?format=1|local&lang=
 GET    /api/people                 (v3.5.0) people for “Responsible”: id and name only
-GET    /api/users/{id}/handover    (v3.6.0) before deleting: open reminders to whom, completed entries
+GET    /api/users/{id}/handover    (v3.6.0) before deleting: open reminders to whom, completed entries;
+                                   (v3.7.0) plus meters, contracts
+GET    /api/calendar.ics           (v3.7.0) ?person=<id>: only what is assigned to this person
 ```
 
 `POST /api/reminders/{id}/done` and `POST /api/recommendations/{id}/dismiss`
 also return `activity_id`. Since v3.5.0 `POST`/`PATCH /api/reminders…` accept
-`assignee` and `assignee_id`. Fields, status codes and stability:
+`assignee` and `assignee_id`, since v3.7.0 also `utility` and `meter_id`
+(reminder on a meter); meters and contracts accept `assignee_id`, agenda
+events carry `assignee_source`. Fields, status codes and stability:
 [API reference](../referenz/api.md#done-with-history-v340); the pot
 `activity`: [Data model](../referenz/datenmodell.md).
 
@@ -197,8 +201,9 @@ also return `activity_id`. Since v3.5.0 `POST`/`PATCH /api/reminders…` accept
 
 A reminder under **Reminders & tips → Reminders & maintenance** can have a
 responsible person — who books the boiler service, who checks the smoke
-alarm. **Reminders only**: meters and contracts on purpose not. **Nobody is
-notified**; the [calendar](kalender.md) and Home Assistant are there for that.
+alarm. Since v3.7.0 meters and contracts too; their deadlines then go to that
+person ([below](#meters-and-contracts-v370)). **Nobody is notified**; the
+[calendar](kalender.md) and Home Assistant are there for that.
 
 **Entering it:** the **“Responsible”** field in the reminder dialog. It
 suggests the people of the household ([Users in the household](benutzer.md))
@@ -218,8 +223,9 @@ responsible, the choice **All · My tasks · Unassigned · names** appears. The
 device remembers the choice. With sign-in “My tasks” is the signed-in person —
 by link or by the same name, ignoring upper/lower case. **Without sign-in**
 the app asks **“I am …”** next to it and remembers the answer on this device.
-Under “To do” the filter also hides notices without anyone responsible
-(readings, contracts); a line below says how many.
+Under “To do” the filter also hides notices without anyone responsible (for
+example readings and contracts nobody is responsible for); a line below says
+how many.
 
 **Ticking off:** a recurring reminder keeps its responsible person. The
 history entry names who was responsible — as a snapshot.
@@ -236,6 +242,51 @@ deleted or former person as “Unassigned” until someone new is entered; a
 deleted person can no longer be assigned. Whoever deletes with an API key is
 not a person: open reminders then stay with the deleted person, marked
 “(deleted)”, until someone takes them over.
+
+### Meters and contracts *(v3.7.0)*
+
+A meter and a contract can have a responsible person too — their deadlines
+then go to that person. It is chosen in the meter or contract form under
+**“Responsible”**, from the register of people only (no free names);
+**“– nobody –”** means nobody. The meter and contract cards show the person.
+
+**Who is responsible for a deadline** — the first entry that exists applies:
+
+| Deadline | first | then | otherwise |
+|---|---|---|---|
+| Reminder (calibration, meter swap, service …) | the reminder’s own responsible person | the meter the reminder belongs to | nobody |
+| Notice deadline, end of contract, price guarantee, price increase | contract | the contract’s meter | nobody |
+| Bill expected | contract | the contract’s meter | nobody |
+| Reading due, low stock (tank) | meter | – | nobody |
+| Service-charge and CO₂ deadlines (rented home) | – | – | nobody |
+
+A reminder’s own responsible person always comes first — even a deleted person
+or “former member”, until someone new is entered. A group contract has no
+single meter; there only the contract’s person applies.
+
+**Reminder on a meter:** in the reminder dialog the **“Meter”** field says
+which meter a reminder belongs to. For a new calibration or delivery the only
+matching meter is preselected. If “Responsible” stays empty, a line below says
+who is responsible then (“If empty, responsible: Jonas (via the meter).”).
+
+**Display:** inherited responsibility carries **“via the contract”** or **“via
+the meter”** in the chip — in the reminders, under “To do”, on **Costs &
+contracts → Contracts & payments** and in the calendar (“Responsible: Anna (via
+the contract)”).
+
+**Filter:** “My tasks” and the names count inherited responsibility — in the
+reminders, under “To do” (including the combined line for readings) and on
+**Contracts & payments**, which now has the filter too. Signed-in
+people can subscribe to the [calendar](kalender.md) **with only what is
+assigned to them** (tick box in the dialog “Subscribe in your calendar”).
+
+**Ticking off:** for a deadline with inherited responsibility too, the
+history names who was responsible — as a snapshot.
+
+**Deleting a person:** meters and contracts pass to the person deleting, like
+open reminders. Without sign-in the person stays with “(deleted)”; with the
+tick box “former member” that is shown instead. The dialog gives the number
+beforehand ([Deleting people](benutzer.md#deleting-people)).
 
 ---
 

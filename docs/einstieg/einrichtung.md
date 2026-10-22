@@ -51,13 +51,21 @@ Der Dialog „Einrichten“ hat fünf Schritte („Schritt 1 von 5“):
    ([§ 2](#fernwärme-oder-heizwärme)).
 4. **„Wie viel Erfahrung hast du?“** — Einsteiger, Erfahren oder Experte
    ([§ 3](#3-nutzungsstufen)).
-5. **„So geht es weiter“** — die Zusammenfassung und eine Wahl:
-   - **„Mit Beispieldaten ansehen“** lädt den Beispielhaushalt zur Antwort aus
-     Schritt 2 ([§ 2](#2-die-beispielhaushalte)). Vorher sichert die App den
-     jetzigen Stand als Snapshot.
-   - **„Mit eigenen Daten starten“** führt zu „Zählerstände“: Zähler prüfen,
-     den ersten Stand erfassen — weiter mit den
-     [Ersten Schritten](erste-schritte.md).
+5. **„So geht es weiter“** — die Zusammenfassung und eine von drei Wegen
+   *(seit v3.7.0)*:
+   - **„Aus Dokumenten“** *(empfohlen)* führt in den Posteingang: Versorgerpost
+     als PDF ablegen, auslesen lassen, und ein Entwurf deines Haushalts
+     entsteht — [Haushalt aus Dokumenten](../anleitungen/haushalt-aus-dokumenten.md).
+     Darunter steht, welche Dokumente für die Antwort aus Schritt 2 helfen. Ist
+     noch kein Dienst zum Auslesen eingerichtet, öffnet **„Auslesen
+     einrichten“** die Karte „Auslesen“ als Dialog über dem Assistenten (nur
+     Verwalter; Mitglieder lesen, dass ein Verwalter das einrichtet).
+   - **„Von Hand anlegen“** führt zu „Zählerstände“: Zähler prüfen, den ersten
+     Stand erfassen — weiter mit den [Ersten Schritten](erste-schritte.md).
+   - **„Mit Beispieldaten ansehen“** *(nur Verwalter)* lädt den
+     Beispielhaushalt zur Antwort aus Schritt 2
+     ([§ 2](#2-die-beispielhaushalte)). Vorher sichert die App den jetzigen
+     Stand als Snapshot.
 
 Gespeichert wird erst mit **„Los geht’s“**: die aktiven Verbrauchsarten, das
 Wohnverhältnis (Einstellungen → Haushalt & Gebäude → „Ich wohne“: „zur Miete“
@@ -210,18 +218,24 @@ endet mit „Einen Beispielhaushalt „…“ gibt es nicht.“
 ## 3. Nutzungsstufen
 
 Drei Stufen: **🌱 Einsteiger**, **🌿 Erfahren** und **🌳 Experte**. Sie
-bestimmen, was du siehst — nicht, was die App rechnet.
+bestimmen, was du siehst — nicht, was die App rechnet. Seit v3.7.0 entscheiden
+drei Sätze: Einsteiger wollen wissen, was sie verbrauchen, was es kostet und ob
+der Abschlag reicht, und lassen die Post vom Versorger auslesen. Erfahrene
+vergleichen und prüfen. Experten sehen alles und binden an. Wer PV, Speicher,
+Wärmepumpe oder Wallbox hat, sieht deren Seiten in jeder Stufe. Jede Funktion
+einzeln, mit drei Haushalten zum Wählen:
+**[Was kann ich auf welcher Stufe?](../referenz/stufen.md)**
 
 | Bereich | 🌱 Einsteiger | 🌿 Erfahren | 🌳 Experte |
 |---|---|---|---|
-| Übersicht | drei Antworten: Bekomme ich Geld zurück? Mehr oder weniger als im Vorjahr? Was ist zu tun? — mit einem Schaubild | alle Kennzahlen | dazu der Abschnitt „Schaubilder“ |
-| Zählerstände | erfassen, Foto als Beleg | dazu CSV-Import | dazu Zeitreihen aus Portalen und Texterkennung |
-| Verbrauch je Art | Monatsverlauf, Saldo, Schaubilder | dazu Vorjahr, witterungsbereinigt, Tabelle | alles, etwa Anomalien, CO₂-Preis, Jahresarbeitszahl, Ladestrom-Nachweis |
-| Verträge | Arbeitspreis, Grundpreis, Abschlag | dazu Preiswechsel, Boni, Kündigung, Sonderzahlungen | dazu Gruppen und HT/NT, § 14a, Schattenverträge, Monatspreise, Leistungspreis der Fernwärme |
+| Übersicht | drei Antworten: Bekomme ich Geld zurück? Mehr oder weniger als im Vorjahr? Was ist zu tun? — mit einem Schaubild | alle Kennzahlen, seit v3.7.0 mit dem Abschnitt „Schaubilder“ | wie Erfahren |
+| Zählerstände | erfassen, Foto als Beleg | dazu CSV-Import | dazu Zeitreihen aus Portalen |
+| Verbrauch je Art | Monatsverlauf, Saldo, Schaubilder — auch für PV, Wallbox und Wärmepumpe | dazu Vorjahr, witterungsbereinigt, Tabelle; seit v3.7.0 Jahresarbeitszahl, Speicher und Amortisation, Ladestrom-Nachweis | dazu Warmwasser-Wärme und CO₂-Preis im Brennstoff |
+| Verträge | Arbeitspreis, Grundpreis, Abschlag; seit v3.7.0 die Kündigungsfrist und bei Fernwärme Leistungs- und Messpreis | dazu Preiswechsel, Boni, Kündigungsweise, Mindestlaufzeit, Sonderzahlungen | dazu Gruppen und HT/NT, § 14a, Monatspreise, Kennwerte der Fernwärme |
 | Wechsel prüfen, Rechnung prüfen | ausgeblendet — die Empfehlungen verweisen darauf | ja | dazu Dynamik-Check und Börsenpreise |
-| Mietverhältnis (zur Miete) | „Reicht die Vorauszahlung?“ auf der Übersicht | die ganze Seite | dazu CO₂-Aufteilung und Prüfung |
-| Auswertungen | Jahresbericht | dazu Analyse, Prognose, Wetterdaten | dazu Zäsur, Modelle, Szenarien |
-| Zähler-Aufbau | ausgeblendet | Subzähler, Rollen | dazu Gruppen, Alias, Geräte |
+| Mietverhältnis (zur Miete) | „Reicht die Vorauszahlung?“ auf der Übersicht | die ganze Seite, seit v3.7.0 mit „CO₂-Kosten teilen“ | wie Erfahren |
+| Auswertungen | Prognose-Werkstatt mit drei Reglern, Flexibilität mit Ergebnis, Jahresbericht | dazu Analyse, Wetterdaten, mehr Stellschrauben (seit v3.7.0 auch E-Auto und Jahresarbeitszahl) | dazu Zäsur, Modelle, Budget |
+| Zähler-Aufbau | ausgeblendet | Subzähler, Rollen, seit v3.7.0 PV-Anlage und Stromzähler der Wärmepumpe | dazu Gruppen, Zäsuren, Zeitreihen |
 | Einstellungen | Allgemein, Haushalt & Gebäude, Verbrauchsarten & Abrechnung, Daten | dazu Wetterdaten, Integrationen | alles, auch Zugriff, Experte und System |
 
 ### Ausblenden ist nicht abschalten
@@ -276,17 +290,19 @@ sind dieselben wie in den anderen Stufen.
 
 ### Vorschläge zum Hochstufen
 
-Haben deine Daten mehr zu bieten, als die Stufe zeigt, schlägt die Übersicht
-die nächste Stufe vor: „Deine Daten können mehr, als diese Stufe zeigt —
-„…“ blendet es ein.“
+Braucht dein Haushalt mehr, als die Stufe zeigt, schlägt die Übersicht die
+nächste Stufe vor: „Dein Haushalt hat mehr, als diese Stufe zeigt — „…“
+blendet es ein.“
 
-| Stufe | Anlass in den Daten | Vorschlag |
+| Stufe | Anlass im Haushalt | Vorschlag |
 |---|---|---|
-| Einsteiger | Subzähler, Werte von Home Assistant (ein Zähler mit Alias), mehrere Zähler einer Verbrauchsart | Erfahren |
-| Erfahren | ein Zähler mit der Rolle Wärmepumpe, Speicher oder Wallbox | Experte |
+| Einsteiger | seit v3.7.0 eine PV-Anlage oder ein Zähler mit der Rolle Speicher, Wärmepumpe oder Wallbox; Subzähler, Werte von Home Assistant (ein Zähler mit Alias), mehrere Zähler einer Verbrauchsart | Erfahren |
+| Erfahren | seit v3.7.0 Viertelstundenwerte (bis v3.6 Wärmepumpe, Speicher oder Wallbox) | Experte |
 
-„Auf „…“ umstellen“ stuft mit einem Klick hoch. **„Nicht mehr fragen“**
-merkt sich dieses Gerät, je Stufe und Anlass. Der Vorschlag blockiert nichts.
+„Auf „…“ umstellen“ stuft mit einem Klick hoch. Seit v3.7.0 erscheint jeder
+Anlass **höchstens einmal** je Gerät und Stufe: Wer ihn gesehen hat, bekommt
+ihn nicht wieder, auch ohne **„Nicht mehr fragen“**. Kommt ein neuer Anlass
+dazu, erscheint nur er. Der Vorschlag blockiert nichts.
 
 ---
 
@@ -305,7 +321,7 @@ Vier Bilder, die je eine Frage beantworten — mit deinen Zahlen:
 
 - **Verbrauchsansicht einer Art**, in jeder Stufe: die Karte „Schaubilder“
   mit allen, die zu dieser Art passen.
-- **Übersicht, Stufe Experte:** der Abschnitt „Schaubilder“ — Geld und
+- **Übersicht, ab Stufe Erfahren** (seit v3.7.0, bis v3.6 Experte): der Abschnitt „Schaubilder“ — Geld und
   Zeitstrahl für den Vertrag mit dem höchsten Abschlag, der Energiefluss des
   Vorjahres und „Kälter oder mehr verbraucht?“ für die Heizung.
 - **Übersicht, Stufe Einsteiger:** ein Schaubild, „Wohin geht mein Geld?“.

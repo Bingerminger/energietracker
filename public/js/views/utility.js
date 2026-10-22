@@ -16,14 +16,15 @@ import { api } from '../api.js';
 import { getUtilities, getSettings } from '../state.js';
 import { tankLevel } from '../lib/tank.js';
 import { fmt, escapeHtml, todayIso, parseDecimal, formatForInput, monthShortNames } from '../lib/format.js';
-import { makeChart, utilColor, tokenColor, chartColor, withAlpha, chartTableHtml } from '../components/chart.js';
+import { makeChart, utilColor, tokenColor, chartColor, withAlpha, chartTableHtml, hatchFill } from '../components/chart.js';
 import { isPartial, daysInMonth, yoyTrend, seriesSummary } from '../lib/chart-data.js';
+import { isInterpolated, interpolationNote, markTitle, MARK } from '../lib/interpolation.js';   // v3.7.0 (#37, #39)
 import { openModal, confirmModal, guardSubmit } from '../components/modal.js';
 import { showFieldError } from '../lib/form.js';
 import { toastOk, toastErr } from '../components/toast.js';
 import { t, tp, getCurrencyMinor, getCurrencySymbol, getLocale } from '../lib/i18n.js';
 import { info, infoNote } from '../components/info.js';
-import { isFeedIn as feedInKind, isGeneration as generationKind, isPv, usesGasFactors, balanceView, moreIsBetter } from '../lib/semantics.js';
+import { isFeedIn as feedInKind, isGeneration as generationKind, isPv, usesGasFactors, balanceView, moreIsBetter, uncertainRangeText } from '../lib/semantics.js';
 import { typicalPerDay, checkReading, confirmIssues, issueText, deviceChangedBetween } from '../lib/plausibility.js';
 // v3.2.0 (F1020) — Schaubilder zu dieser Verbrauchsart
 import { moneyHtml, energyHtml, weatherHtml, timelineHtml, playExplainers } from '../components/explainer.js';
@@ -33,6 +34,7 @@ import { groupContracts, phasePill } from '../lib/contract-order.js';
 import { paginate, pagerHtml, wirePager, pageSize, PAGER_THRESHOLD } from '../components/pager.js';
 import { lastClosedPeriod, periodToCheck, calendarYearOf, periodMode, billingApplies, periodName, periodsWithData, pickPeriod, periodRows, refMonth } from '../lib/billing-period.js';
 import { periodModeHtml, wirePeriodMode, calendarOnlyNote } from '../components/period-mode.js';
+import { bonusOf, bonusItemsOf, bonusLineText } from '../lib/bonus.js';   // v3.7.0 (#33)
 
 let _chart = null;
 let _stockChart = null;   // v2.10.0 — Bestandsverlauf (Tankbuch)
@@ -329,6 +331,18 @@ async function rerender(container) {
     && ((m.erzeugung_kwh ?? 0) > 0 || (m.einspeisung_kwh ?? 0) > 0));
   // Zähler mit weniger als zwei Ständen: noch keine Monatswerte
   const noValues = !isDelivery && monthly.length === 0;
+  // v3.7.0 (GitHub #37, #39) — ein Hinweis, wenn Monatswerte des Zeitraums verteilt
+  // statt gemessen sind (mit der Zahl der Ablesungen). Bei PV zusätzlich, wenn die
+  // PV-Übersicht des Jahres auf verteilten Monaten einer anderen Reihe beruht.
+  let interpText = noValues ? '' : interpolationNote({
+    rows: monthlyYear, info: consumptionData.interpolation || null, year: billing ? null : yr,
+    heat: !!u.hgt_relevant && !isDelivery, pv: isPv(u),
+  });
+  if (!interpText && isPv(u) && pvSummary?.interpolation) {
+    const series = (await getUtilities().catch(() => [])).find(x => x.key === pvSummary.interpolation.utility)?.label || null;
+    interpText = interpolationNote({ rows: (pvSummary.monthly || []).filter(m => m.year === yr), info: pvSummary.interpolation, pv: true, series });
+    if (my !== rerenderSeq) return;
+  }
 
   // v3.4.0 (N1021) — Ablesungen bzw. Zeiträume: Anzahl im Jahr und gesamt
   // („10 in 2026 · 43 gesamt“; bis v3.3 stand nur die Gesamtzahl über einer
@@ -355,6 +369,13 @@ async function rerender(container) {
   const totAdv  = billing ? Number(sel.advances) || 0 : sum('advance_eur');
   const yearBalance = billing ? Number(sel.balance) || 0 : totCost - totAdv;
   const yearBalanceView = balanceView(yearBalance, u);
+  // v3.7.0 (GitHub #33) — die Kachel „Kosten“ ohne Bonus, der Bonus als eigene
+  // Zeile darunter; der Saldo rechnet ihn ein (wie die Rechnung), der Ø je
+  // Monat nicht (lib/bonus.js). Nicht bei Einspeisung und Erzeugung.
+  const withBonus = !isFeedIn && !isGeneration;
+  const totBonus = withBonus ? (billing ? Number(sel.bonus) || 0 : bonusOf(monthlyYear)) : 0;
+  const costShown = totCost + totBonus;
+  const bonusText = withBonus ? bonusLineText(billing ? sel.bonus_items : bonusItemsOf(monthlyYear), totBonus) : '';
   const hasContract = monthlyYear.some(m => m.contract_id);
   // v3.4.0 (N1021) — der laufende Vertrag nach der Phase des Servers: Bei
   // überlappenden Verträgen ist der abgelöste ältere zwar noch „im Zeitraum“
@@ -398,9 +419,10 @@ async function rerender(container) {
       </div>
       ${isGeneration ? '' : `
       <div class="kpi c-${u.key}">
-        <div class="kpi__label">${isFeedIn ? t('utility.kpi.revenue') : t('utility.kpi.cost')} ${escapeHtml(yrLabel)}</div>
-        <div class="kpi__value ${isFeedIn ? 'success-text' : ''}">${fmt.eur(totCost)}</div>
-        <div class="kpi__sub">${t('utility.kpi.perMonth', { value: fmt.eur(monthlyYear.length ? totCost / monthlyYear.length : 0) })}</div>
+        <div class="kpi__label">${isFeedIn ? t('utility.kpi.revenue') : t('utility.kpi.cost')} ${escapeHtml(yrLabel)}${bonusText ? infoNote(t('utility.kpi.cost'), t('bonus.costNote')) : ''}</div>
+        <div class="kpi__value ${isFeedIn ? 'success-text' : ''}" data-role="kpi-cost">${fmt.eur(costShown)}</div>
+        <div class="kpi__sub">${t('utility.kpi.perMonth', { value: fmt.eur(monthlyYear.length ? costShown / monthlyYear.length : 0) })}</div>
+        ${bonusText ? `<div class="kpi__sub kpi__bonus" data-role="kpi-bonus">${escapeHtml(bonusText)}</div>` : ''}
       </div>`}
       ${hasContract && !isFeedIn ? `
         <div class="kpi c-yellow">
@@ -456,12 +478,15 @@ async function rerender(container) {
           <button type="button" class="seg__btn ${chartMode === 'adjusted' ? 'active' : ''}" data-chart-mode="adjusted" aria-pressed="${chartMode === 'adjusted'}">${escapeHtml(t('utility.chart.modeAdjusted'))}</button>
         </span>${info('weatherAdjusted')}` : ''}
       </div>
+      ${interpText ? `<p class="banner banner--info small" data-role="interpolation-note"><span aria-hidden="true">${MARK}</span> ${escapeHtml(interpText)}</p>` : ''}
+      ${billing && sel.price_missing ? `<p class="banner banner--warning small" data-role="period-price-missing">${escapeHtml(t('priceMissing.period'))}</p>` : ''}
       <div class="chart-wrap h300"><canvas id="month-chart"></canvas></div>
       <p class="chart-note" data-role="month-chart-note">${monthChartNote(monthlyYear, chartMode)}</p>
     </div>
 
     ${pvFlowRows.length ? `<div data-min-level="advanced">${pvFlowHtml(pvFlowRows, yr)}</div>` : ''}
-    ${u.key === 'pv_erzeugung' ? `<div data-min-level="expert">${pvExtrasHtml(pvSummary, yr)}</div>` : ''}
+    <!-- v3.7.0 — Speicher und Amortisation ab Erfahren (bis v3.6 Experte): Hat sich die Anlage gelohnt? ist eine Prüffrage -->
+    ${u.key === 'pv_erzeugung' ? `<div data-role="pv-extras" data-min-level="advanced">${pvExtrasHtml(pvSummary, yr)}</div>` : ''}
 
     <div class="card" data-min-level="advanced">
       <div class="card__title">${t('utility.cards.monthlyTable', { year: yrLabel })}</div>
@@ -516,8 +541,9 @@ async function rerender(container) {
     ${u.supports_bill_check ? billCheckLink(u, meter, settings, billing ? { sel, list: bList } : null) : ''}
     <div data-min-level="expert">${dhwNote(monthly, yr)}</div>
     <div data-role="co2-cost" data-min-level="expert"></div>
-    ${u.key === 'strom' && meter.role === 'ev_charger' ? '<div data-role="evcc" data-min-level="advanced"></div><div data-role="ev-report" data-min-level="expert"></div>' : ''}
-    ${(u.key === 'strom' && meter.role === 'heat_pump') || (u.key === 'waerme' && meter.role === 'heat_pump_output') ? '<div data-role="heat-pump" data-min-level="expert"></div>' : ''}
+    <!-- v3.7.0 — Ladestrom-Nachweis und Jahresarbeitszahl ab Erfahren (bis v3.6 Experte): nachweisen und prüfen -->
+    ${u.key === 'strom' && meter.role === 'ev_charger' ? '<div data-role="evcc" data-min-level="advanced"></div><div data-role="ev-report" data-min-level="advanced"></div>' : ''}
+    ${(u.key === 'strom' && meter.role === 'heat_pump') || (u.key === 'waerme' && meter.role === 'heat_pump_output') ? '<div data-role="heat-pump" data-min-level="advanced"></div>' : ''}
   `;
   // v3.1.0 (H7, MKT-18) — Jahresarbeitszahl am Strom- und am Wärmezähler der Wärmepumpe
   if ((u.key === 'strom' && meter.role === 'heat_pump') || (u.key === 'waerme' && meter.role === 'heat_pump_output')) {
@@ -543,7 +569,7 @@ async function rerender(container) {
   }
 
   // v3.2.0 (F1020) — Schaubilder: Geld und Vertrag, Wetter, Energiefluss
-  fillExplainers(container, { u, contract: isDelivery ? null : currentContract, monthly, yr, pvSummary, feedIn: isFeedIn });
+  fillExplainers(container, { u, contract: isDelivery ? null : currentContract, monthly, yr, pvSummary, feedIn: isFeedIn, quality: consumptionData.anomaly_quality });
 
   // Chart
   if (!noValues) drawMonthChart('month-chart', monthlyYear, u, yr, prevYear, chartMode, chartNames);
@@ -589,8 +615,11 @@ function periodMeta(sel, bp) {
   else if (!sel.complete) parts.push(t('billing.period.partial'));
   const lastBill = [...(bp?.periods || [])].reverse().find(p => p.source === 'bill');
   const md = (s) => { const [m, d] = String(s).split('-').map(Number); return new Date(Date.UTC(2000, m - 1, d)).toLocaleDateString(getLocale(), { day: 'numeric', month: 'long', timeZone: 'UTC' }); };
-  const hint = bp?.suggested_anchor && lastBill
-    ? `<p class="muted small" data-role="anchor-hint">${escapeHtml(t('billing.suggest', { date: fmt.date(lastBill.until), anchor: md(bp.anchor), day: md(bp.suggested_anchor) }))}</p>` : '';
+  // v3.7.0 (#33) — ohne Rechnung kommt der Vorschlag aus den Vertragsbeginnen
+  const text = !bp?.suggested_anchor ? null
+    : bp.suggested_anchor_source === 'contracts' ? t('billing.suggestContracts', { anchor: md(bp.anchor), day: md(bp.suggested_anchor) })
+    : lastBill ? t('billing.suggest', { date: fmt.date(lastBill.until), anchor: md(bp.anchor), day: md(bp.suggested_anchor) }) : null;
+  const hint = text ? `<p class="muted small" data-role="anchor-hint" data-source="${escapeHtml(bp.suggested_anchor_source || 'bill')}">${escapeHtml(text)}</p>` : '';
   return `<p class="muted small period-meta" data-role="period-meta">${escapeHtml(parts.join(' · '))}</p>${hint}`;
 }
 
@@ -598,7 +627,7 @@ function periodMeta(sel, bp) {
  * v3.2.0 (F1020) — Schaubilder einer Verbrauchsart in jeder Stufe: Sie
  * erklären, was die Karten darüber in Zahlen sagen.
  */
-function fillExplainers(container, { u, contract, monthly, yr, pvSummary, feedIn }) {
+function fillExplainers(container, { u, contract, monthly, yr, pvSummary, feedIn, quality = null }) {
   const box = container.querySelector('[data-role="explainers"]');
   if (!box) return;
   const parts = [];
@@ -606,7 +635,7 @@ function fillExplainers(container, { u, contract, monthly, yr, pvSummary, feedIn
     parts.push(moneyHtml(contract, { color: u.color }));
     parts.push(timelineHtml(contract, todayIso()));
   }
-  if (u.hgt_relevant) parts.push(weatherHtml(monthly));
+  if (u.hgt_relevant) parts.push(weatherHtml(monthly, { quality }));   // v3.7.0 (Nachlauf) — Gütesperre
   // v3.4.0 (F1026) — die ganze Antwort: Jahr und Monat umschaltbar, Start im
   // gewählten Jahr (sonst das jüngste)
   if (isPv(u) && pvSummary) parts.push(energyHtml(pvSummary, { year: yr }));
@@ -699,6 +728,24 @@ function yearPills(years, current, utilityKey) {
   </div>`;
 }
 
+// v3.7.0 (wirklichkeit-2) — dieselben Sätze wie im Jahresbericht
+// (ReportAdviceService::uncertainBalance): Spanne des Saldos zur Abrechnung,
+// Grund, Spanne des Abschlags. Positiver Saldo = Nachzahlung.
+function uncertainBalanceText(unc, date) {
+  const word = (v) => Math.abs(v) < 1 ? t('balanceUncertain.even')
+    : t(v > 0 ? 'balanceUncertain.due' : 'balanceUncertain.credit', { amount: t('report.fmt.approx', { amount: fmt.eur0(Math.abs(v)) }) });
+  const parts = (unc.reasons || []).map(r => r === 'factor_clamped'
+    ? t('balanceUncertain.why.factor_clamped', { raw: fmt.num(unc.factor_raw ?? 0, 2), used: fmt.num(unc.factor ?? 0, 2) })
+    : r === 'few_measured' ? t('balanceUncertain.why.few_measured')   // v3.7.0 (Schritt 3, N3)
+      : t('balanceUncertain.why.poor_fit', { pct: fmt.pct(unc.fit_ratio ?? 0, 0) }));
+  const why = parts.length > 2 ? t('balanceUncertain.why.three', { a: parts[0], b: parts[1], c: parts[2] })
+    : parts.length > 1 ? t('balanceUncertain.why.both', { a: parts[0], b: parts[1] }) : (parts[0] ?? '');
+  const [lo, hi] = unc.projected_range || [0, 0];
+  const text = t('balanceUncertain.range', { date, low: word(lo), high: word(hi), why });
+  const s = unc.suggested_range;
+  return Array.isArray(s) ? `${text} ${t('balanceUncertain.advance', { low: fmt.eur0(s[0]), high: fmt.eur0(s[1]) })}` : text;
+}
+
 // ── Saldo-Karte aktueller Vertrag ───────────────────────────────────
 function balanceCard(c, u, country = 'DE') {
   // P-PV-01 — feed_in (PV-Einspeisung): „Saldo" ist ein Vergütungs-Erlös.
@@ -747,12 +794,21 @@ function balanceCard(c, u, country = 'DE') {
       && Math.abs(c.suggested_advance - c.current_advance_amount) >= 5
     ? `<p class="balance-suggest">${t('utility.balance.suggestAdvance', { suggested: fmt.eur(c.suggested_advance), current: fmt.eur(c.current_advance_amount) })}</p>`
     : '';
+  // v3.7.0 (wirklichkeit-2) — unsichere Schätzung (Kalibrierfaktor klemmt,
+  // Heizmodell schlecht): Spanne und Grund statt eines Vorschlags; der Server
+  // liefert dann keinen `suggested_advance`
+  const unc = !isFeedIn ? c.projection_uncertain : null;
+  const uncertainHtml = unc
+    ? `<p class="balance-suggest" data-role="balance-uncertain">${escapeHtml(uncertainBalanceText(unc, fmt.date(c.effective_end)))}</p>`
+    : '';
   // v2.9.0 (CALC-10, CALC-11) — weiterlaufender Vertrag, verpasste Frist,
   // angekündigte Preiserhöhung
   const notes = [];
   // v3.6.0 (Paket abrechnung) — Saldo erst nach der letzten gebuchten Rechnung
   if (c.balance_from && c.start && c.balance_from > c.start) notes.push(t('utility.balance.sinceBill', { date: fmt.date(c.balance_from) }));
   if (c.renewed) notes.push(t('utility.balance.renewed', { date: fmt.date(c.end) }));
+  // v3.7.0 (wirklichkeit-2) — ohne Arbeitspreis: dieselbe Aussage wie im Abrechnungsjahr
+  if (c.price_missing) notes.push(t('priceMissing.contract'));
   if (c.cancel_missed) notes.push(t('utility.balance.cancelMissed', { date: fmt.date(c.cancel_by), end: fmt.date(c.end) }));
   if (c.price_increase) {
     const pi = c.price_increase;
@@ -815,14 +871,16 @@ function balanceCard(c, u, country = 'DE') {
           <div class="balance-col__value ${curView?.credit ? 'balance-col__value--credit' : curView?.credit === false ? 'balance-col__value--due' : ''}">${fmt.eur(curView ? curView.amount : cur)}</div>
           <div class="balance-col__sub">${isFeedIn ? (cur > 0 ? t('utility.balance.subCredit') : cur < 0 ? t('utility.balance.subReclaim') : t('utility.balance.subBalanced')) : (cur > 0 ? t('utility.balance.subUnderpaid') : cur < 0 ? t('utility.balance.subOverpaid') : t('utility.balance.subBalanced'))}</div>
         </div>
-        <div class="balance-verdict ${verdictCls}">
-          <div class="balance-verdict__label">${arrow} ${t('utility.balance.verdictLabel')}</div>
-          <div class="balance-verdict__value">${fmt.eur(Math.abs(proj || 0))}</div>
-          <div class="balance-verdict__verdict">${t('utility.verdict.' + verdict)}</div>
+        <div class="balance-verdict ${unc ? 'balanced' : verdictCls}">
+          <div class="balance-verdict__label">${unc ? '↕' : arrow} ${t('utility.balance.verdictLabel')}</div>
+          <!-- v3.7.0 (Nachlauf) — unsicher: nur die Spanne, kein Punktwert „≈ X €“ -->
+          <div class="balance-verdict__value"${unc ? ' data-role="verdict-range"' : ''}>${unc ? escapeHtml(uncertainRangeText(unc)) : fmt.eur(Math.abs(proj || 0))}</div>
+          <div class="balance-verdict__verdict">${unc ? t('balanceUncertain.verdict') : t('utility.verdict.' + verdict)}</div>
           <div class="balance-verdict__date">${escapeHtml(dateLabel)}</div>
         </div>
       </div>
       ${suggestHtml}
+      ${uncertainHtml}
       ${notesHtml}
       ${isWater && c.components ? renderWaterComponentRow(c.components) : ''}
       ${balancePathHtml(c, u, isFeedIn)}
@@ -836,16 +894,19 @@ function balanceCard(c, u, country = 'DE') {
 // Säule, der Netzbezug als Linie. Daten aus GET /api/pv-summary.
 function pvFlowHtml(rows, year) {
   const k = (v) => (v == null ? null : fmt.int(v));
+  // v3.7.0 (#39) — verteilte Monate: geschätzt (≈ in der Tabelle, schraffiert im Diagramm)
+  const anyInterp = rows.some(isInterpolated);
   return `
     <div class="card">
       <div class="card__title">☀️ ${escapeHtml(t('utility.pvFlow.title', { year }))}${info('selfConsumption')}</div>
       <div class="chart-wrap h300"><canvas id="pv-flow-chart"></canvas></div>
-      <p class="chart-note">${escapeHtml(t('utility.pvFlow.note'))}</p>
+      <p class="chart-note">${escapeHtml(t('utility.pvFlow.note') + (anyInterp ? ' ' + t('interpolation.chartNote') : ''))}</p>
       ${chartTableHtml({
         caption: t('utility.pvFlow.title', { year }),
         columns: [t('utility.monthlyTable.colMonth'), t('utility.pvFlow.generation'), t('utility.pvFlow.self'), t('utility.pvFlow.feedIn'), t('utility.pvFlow.grid')],
-        rows: rows.map(m => [fmt.month(m.ym), k(m.erzeugung_kwh), k(m.eigenverbrauch_kwh), k(m.einspeisung_kwh), k(m.bezug_kwh)]),
+        rows: rows.map(m => [fmt.month(m.ym) + (isInterpolated(m) ? ` ${MARK}` : ''), k(m.erzeugung_kwh), k(m.eigenverbrauch_kwh), k(m.einspeisung_kwh), k(m.bezug_kwh)]),
       })}
+      ${anyInterp ? `<p class="muted small" data-role="pv-interpolated-legend">${escapeHtml(t('interpolation.legendPv'))}</p>` : ''}
     </div>`;
 }
 
@@ -862,15 +923,17 @@ function drawPvFlowChart(canvasId, rows, year, utilities) {
   // Zähler — sonst ergäben selbst genutzt und eingespeist nicht die Erzeugung
   const covered = rows.filter(m => m.covered && m.eigenverbrauch_kwh != null);
   const sum = (k) => covered.reduce((a, m) => a + (Number(m[k]) || 0), 0);
+  // v3.7.0 (#39) — verteilte Monate schraffiert: Ihre Aufteilung ist eine Schätzung
+  const fill = (u) => (ctx) => (isInterpolated(rows[ctx.dataIndex]) ? hatchFill(chartColor(u)) : withAlpha(chartColor(u), 0.55));
   _pvChart = makeChart(canvas, {
     type: 'bar',
     data: {
       labels,
       datasets: [
         { type: 'bar', label: t('utility.pvFlow.self'), data: rows.map(m => m.eigenverbrauch_kwh ?? null),
-          backgroundColor: utilColor(gen, 0.55), borderColor: utilColor(gen), borderWidth: 1, stack: 'pv', order: 2 },
+          backgroundColor: fill(gen), borderColor: utilColor(gen), borderWidth: 1, stack: 'pv', order: 2 },
         { type: 'bar', label: t('utility.pvFlow.feedIn'), data: rows.map(m => m.einspeisung_kwh ?? null),
-          backgroundColor: utilColor(feed, 0.55), borderColor: utilColor(feed), borderWidth: 1, stack: 'pv', order: 2 },
+          backgroundColor: fill(feed), borderColor: utilColor(feed), borderWidth: 1, stack: 'pv', order: 2 },
         { type: 'line', label: t('utility.pvFlow.grid'), data: rows.map(m => m.bezug_kwh ?? null),
           borderColor: utilColor(grid), backgroundColor: 'transparent', tension: 0.25, pointRadius: 3, stack: 'grid', order: 1 },
       ],
@@ -882,7 +945,10 @@ function drawPvFlowChart(canvasId, rows, year, utilities) {
         label: (item) => `${item.dataset.label}: ${fmt.unit(item.parsed.y, 'kWh', 0)}`,
         footer: (items) => {
           const m = rows[items[0]?.dataIndex];
-          return m?.erzeugung_kwh != null ? t('utility.pvFlow.generationTip', { value: fmt.unit(m.erzeugung_kwh, 'kWh', 0) }) : '';
+          const lines = [];
+          if (m?.erzeugung_kwh != null) lines.push(t('utility.pvFlow.generationTip', { value: fmt.unit(m.erzeugung_kwh, 'kWh', 0) }));
+          if (isInterpolated(m)) lines.push(`${MARK} ${t('interpolation.markTitleOpen')}`);
+          return lines.join('\n');
         },
       } } },
       scales: { x: { stacked: true }, y: { stacked: true, title: { display: true, text: 'kWh' } } },
@@ -1063,7 +1129,7 @@ function contractsTable(contracts, u) {
         <td class="num success-text">${bonusStr}</td>
         ${showSpecial ? specialCell(c) : ''}
         ${balCell(cur)}
-        ${balCell(proj, true)}
+        ${c.projection_uncertain ? `<td class="num muted" data-role="expected-range">${escapeHtml(uncertainRangeText(c.projection_uncertain))}</td>` : balCell(proj, true)}
       </tr>`;
   };
   return `<div class="table-wrap"><table class="table contracts-table">
@@ -1169,7 +1235,9 @@ function monthlyTable(monthly, u, hasContracts) {
       const cumView = balanceView(m.cumulative_balance, u, (n) => fmt.num(n, 2));
       // v2.10.0 — Tankbuch: Monate mit geschätzten Tagen (nach dem letzten bekannten Bestand)
       const est = m.estimated_days > 0
-        ? ` <span class="muted" title="${escapeHtml(tp('utility.monthlyTable.estimatedTitle', m.estimated_days, { days: m.estimated_days }))}">≈</span>` : '';
+        ? ` <span class="muted" title="${escapeHtml(tp('utility.monthlyTable.estimatedTitle', m.estimated_days, { days: m.estimated_days }))}">≈</span>`
+        // v3.7.0 (#37) — verteilt statt gemessen; Text auch für Screenreader
+        : isInterpolated(m) ? ` <span class="muted" data-role="interpolated" title="${escapeHtml(markTitle(m))}"><span aria-hidden="true">${MARK}</span><span class="sr-only">${escapeHtml(markTitle(m))}</span></span>` : '';
       // v2.15.0 (Review FE-08) — Teilmonat mit erfassten Tagen, sichtbar statt im Tooltip
       const part = isPartial(m);
       return `<tr${part ? ' class="is-partial"' : ''}>
@@ -1207,6 +1275,7 @@ function monthlyTable(monthly, u, hasContracts) {
   </table></div>
   ${showBalance ? `<p class="muted" style="font-size:12px;margin-top:8px">${t('saldo.tableLegend')}</p>` : ''}
   ${monthly.some(m => m.estimated_days > 0) ? `<p class="muted" style="font-size:12px;margin-top:8px">${t('utility.monthlyTable.estimatedLegend')}</p>` : ''}
+  ${monthly.some(isInterpolated) ? `<p class="muted" style="font-size:12px;margin-top:8px" data-role="interpolated-legend">${escapeHtml(t('interpolation.legend'))}</p>` : ''}
   ${monthly.some(isPartial) ? `<p class="muted" style="font-size:12px;margin-top:8px">${escapeHtml(t('utility.monthlyTable.partialLegend'))}</p>` : ''}`;
 }
 
@@ -2004,6 +2073,8 @@ function drawMonthChart(canvasId, monthly, u, year, prevRows = [], mode = 'measu
   const labels = monthly.map(m => fmt.month(m.ym));
   const values = monthly.map(m => m[valKey] ?? null);
   const partial = monthly.map(m => isPartial(m));
+  // v3.7.0 (#37) — verteilte Monate schraffiert (Farbe aus u.color, nie --util-*)
+  const interp = monthly.map(m => isInterpolated(m));
   const prevByMonth = new Map(prevRows.map(m => [m.slot ?? m.month, m]));
   const prev = monthly.map(m => prevByMonth.get(m.slot ?? m.month)?.[valKey] ?? null);
   const hasPrev = prev.some(v => v != null);
@@ -2012,6 +2083,7 @@ function drawMonthChart(canvasId, monthly, u, year, prevRows = [], mode = 'measu
   // bereinigten Werte gelten für ein Normaljahr, die Temperatur gehört dann nicht dazu
   const withTemp = !isPv(u) && !adjusted;
   const barColor = (full, part) => (ctx) => withAlpha(chartColor(u), partial[ctx.dataIndex] ? part : full);
+  const barFill = (ctx) => (interp[ctx.dataIndex] ? hatchFill(chartColor(u)) : barColor(0.35, 0.12)(ctx));
   const unit = u.consumption_unit;
 
   _chart = makeChart(canvas, {
@@ -2034,7 +2106,7 @@ function drawMonthChart(canvasId, monthly, u, year, prevRows = [], mode = 'measu
           type: 'bar',
           label: adjusted ? t('utility.chart.adjustedLabel', { label: u.label, unit }) : u.label + ' (' + unit + ')',
           data: values,
-          backgroundColor: barColor(0.35, 0.12),
+          backgroundColor: barFill,
           borderColor: barColor(1, 0.5),
           borderWidth: 1,
           yAxisID: 'y',
@@ -2063,6 +2135,7 @@ function drawMonthChart(canvasId, monthly, u, year, prevRows = [], mode = 'measu
           const m = monthly[i];
           const lines = [];
           if (partial[i]) lines.push(t('chart.partialMonth', { days: m.days, total: daysInMonth(m.ym) }));
+          if (interp[i]) lines.push(`${MARK} ${markTitle(m)}`);
           if (adjusted && m[consKey] != null) lines.push(t('utility.chart.measuredValue', { value: fmt.unit(m[consKey], unit, 0) }));
           if (m.device_swap) lines.push(t('utility.chart.deviceSwap'));
           return lines.join('\n');
@@ -2099,6 +2172,7 @@ function monthChartNote(rows, mode) {
   const parts = [];
   if (mode === 'adjusted') parts.push(t('utility.chart.adjustedNote'));
   if (rows.some(isPartial)) parts.push(t('chart.partialLegend'));
+  if (rows.some(isInterpolated)) parts.push(t('interpolation.chartNote'));   // v3.7.0 (#37)
   return escapeHtml(parts.join(' '));
 }
 

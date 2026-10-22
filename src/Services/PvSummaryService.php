@@ -48,13 +48,15 @@ final class PvSummaryService
         // v2.10.0 (Review CALC-18) — welche Zähler haben in welchem Monat Daten
         $seen = [];
         $byYm = [];
-        $collect = function (array $util, string $field) use (&$byYm, &$seen): void {
+        $interp = [];   // v3.7.0 (#39) — ym → Reihen, deren Monatswert verteilt ist
+        $collect = function (array $util, string $field) use (&$byYm, &$seen, &$interp): void {
             foreach ($util['monthly_total'] ?? [] as $m) {
                 $ym = (string)($m['ym'] ?? '');
                 if ($ym === '') continue;
                 if (!isset($byYm[$ym])) $byYm[$ym] = $this->emptyRow($ym);
                 $byYm[$ym][$field] = (float)($m['kwh'] ?? 0);
                 if ((int)($m['days'] ?? 0) > 0) $seen[$ym][$field] = true;
+                if (!empty($m['interpolated'])) $interp[$ym][$field] = true;
                 if ($field === 'einspeisung_kwh') $byYm[$ym]['_revenue'] = (float)($m['cost'] ?? 0);
             }
         };
@@ -112,6 +114,11 @@ final class PvSummaryService
                 $row['autarkiequote'] = null;
             }
             $this->addValue($row, $prices[$ym] ?? null);
+            // v3.7.0 (#39) — geschätzt, wenn eine der Reihen dieses Monats aus einem
+            // längeren Ablesungsabstand verteilt ist: Dann ist die Aufteilung auf
+            // die Monate (Eigenverbrauch, Autarkie, Ersparnis) eine Schätzung
+            $row['interpolated'] = !empty($interp[$ym]);
+            $row['interpolated_series'] = array_keys($interp[$ym] ?? []);
         }
         unset($row);
         ksort($byYm);
@@ -132,9 +139,11 @@ final class PvSummaryService
                     '_ev' => 0.0, '_erz' => 0.0, '_bez' => 0.0, '_flow' => null,
                     'savings_eur' => null, 'feed_in_revenue_eur' => 0.0,
                     'heat_pump_kwh' => null, 'ev_charger_kwh' => null,
+                    'months_interpolated' => 0,   // v3.7.0 (#39)
                 ];
             }
             $y = &$yearly[$yr];
+            if ($row['interpolated']) $y['months_interpolated']++;
             $y['bezug_kwh']        += $row['bezug_kwh'];
             $y['einspeisung_kwh']  += $row['einspeisung_kwh'];
             $y['erzeugung_kwh']    += $row['erzeugung_kwh'];
@@ -179,6 +188,10 @@ final class PvSummaryService
         $payback = $this->payback($genMeters, $monthly);
         $since = $payback['commissioned_on'] ?? null;
         foreach ($genMeters as $m) if (!empty($m['commissioned_on']) && ($since === null || $m['commissioned_on'] < $since)) $since = $m['commissioned_on'];
+        $hints = $since !== null && $since >= '2025-02-25'
+            && (string)($this->settings?->get('country', 'DE') ?? 'DE') === 'DE' ? ['negative_prices'] : [];
+        $interpolation = $this->interpolation(['bezug_kwh' => $strom, 'einspeisung_kwh' => $einspeisung, 'erzeugung_kwh' => $erzeugung], $monthly);
+        if ($interpolation !== null) $hints[] = 'interpolated';   // v3.7.0 (#39)
         return [
             'monthly'              => $monthly,
             'yearly'               => array_values($yearly),
@@ -186,8 +199,53 @@ final class PvSummaryService
             // v3.1.0 (H7, CALC-29) — additiv
             'payback'              => $payback,
             'self_consumption_assumed_pct' => $plugInPct,
-            'hints'                => $since !== null && $since >= '2025-02-25'
-                && (string)($this->settings?->get('country', 'DE') ?? 'DE') === 'DE' ? ['negative_prices'] : [],
+            'hints'                => $hints,
+            // v3.7.0 (#39) — null, wenn kein Monat verteilt ist
+            'interpolation'        => $interpolation,
+        ];
+    }
+
+    /**
+     * v3.7.0 (GitHub #39) — Hinweis „nur N Ablesungen, Monatswerte verteilt“:
+     * die Reihe mit den meisten verteilten Monaten (bei Gleichstand die
+     * Erzeugung), ihre echten Ablesungen über alle Zähler, die in die Summe
+     * zählen, und der Zeitraum ihrer Monatswerte. Eigenverbrauch, Ersparnis und
+     * Amortisation hängen an der Aufteilung auf die Monate und sind dann
+     * Schätzungen; bekannt ist nur die Summe zwischen den Ablesungen.
+     *
+     * @param array<string,array<string,mixed>> $series  Feld → Ergebnis von forUtility()
+     * @return array<string,mixed>|null
+     */
+    private function interpolation(array $series, array $monthly): ?array
+    {
+        $months = array_values(array_filter($monthly, fn($r) => !empty($r['interpolated'])));
+        if ($months === []) return null;
+        // Welche Reihe zählt: nur über die Monate, für die es Eigenverbrauch und
+        // Autarkie gibt (alle drei Reihen, `covered`) — ein Strombezug, der vor der
+        // Anlage jahresweise abgelesen wurde, ist nicht der Grund des Hinweises
+        $pool = array_values(array_filter($months, fn($r) => !empty($r['covered']))) ?: $months;
+        $count = [];
+        foreach ($pool as $r) foreach ($r['interpolated_series'] as $f) $count[$f] = ($count[$f] ?? 0) + 1;
+        $order = ['erzeugung_kwh' => 0, 'einspeisung_kwh' => 1, 'bezug_kwh' => 2];
+        uksort($count, fn($a, $b) => [$count[$b], $order[$a] ?? 9] <=> [$count[$a], $order[$b] ?? 9]);
+        $field = (string)array_key_first($count);
+        $util = $series[$field] ?? [];
+        $readings = 0; $from = null; $to = null;
+        foreach ($util['meters'] ?? [] as $pm) {
+            if (!MeterService::countsInTotals($pm['meter'] ?? [])) continue;
+            $info = $this->consumption->interpolationInfo((string)($util['utility']['key'] ?? ''), $pm['meter'], $pm['monthly'] ?? []);
+            if ($info === null) continue;
+            $readings += (int)$info['readings'];
+            $from = $from === null || $info['from'] < $from ? $info['from'] : $from;
+            $to = $to === null || $info['to'] > $to ? $info['to'] : $to;
+        }
+        return [
+            'utility'             => (string)($util['utility']['key'] ?? ''),
+            'readings'            => $readings,
+            'from'                => $from,
+            'to'                  => $to,
+            'months'              => count($monthly),
+            'interpolated_months' => count($months),
         ];
     }
 

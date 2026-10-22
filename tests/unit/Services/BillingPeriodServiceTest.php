@@ -329,7 +329,8 @@ final class BillingPeriodServiceTest extends ServiceTestCase
         self::assertStringStartsWith('Von;Bis;Grundlage;Tage;', $lines[0]);
         self::assertStringStartsWith('2024-01-01;2024-08-31;Stichtag;244;', $lines[1]);
         self::assertStringStartsWith('2024-09-01;2025-08-31;Stichtag;365;3000;', $lines[2]);
-        self::assertStringEndsWith(';ja', $lines[2]);
+        // v3.7.0 (#33) — additiv am Ende: Bonus und Kosten ohne Bonus
+        self::assertStringEndsWith(';ja;0;1020', $lines[2]);
         self::assertSame('energietracker-strom-abrechnungsjahre-' . date('Y-m-d') . '.csv', $csv->filename('billing', 'strom'));
     }
 

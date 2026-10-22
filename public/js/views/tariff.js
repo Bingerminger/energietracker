@@ -31,6 +31,7 @@ import { fmt as f, escapeHtml as esc, monthShortNames, parseDecimal, formatForIn
 import { t, tp, getCurrencySymbol } from '../lib/i18n.js';
 import { copyText } from '../lib/clipboard.js';
 import { info, billPortal } from '../components/info.js';
+import { bonusDetailLines } from '../lib/bonus.js';   // v3.7.0 (#35)
 
 let sel = { utility: null, meterId: null, year: null, switchDate: null };
 let charts = { switch: null, retro: null };
@@ -667,12 +668,16 @@ function retroRowHtml(r, unit, higherIsBetter = false) {
     ? `<div class="muted small">${esc(t('tariff.projectedFull', {
         months: lastRetro.period.months, value: f.eur(r.projected_full_eur) }))}</div>`
     : '';
+  // v3.7.0 (GitHub #35) — welche Boni im Betrag stecken, mit Art und Notiz
+  const bonusLinesText = (r.bonus_eur || 0) > 0 ? bonusDetailLines(r.bonus_items).join(' · ') : '';
+  const bonusNote = bonusLinesText
+    ? `<div class="muted small" data-role="tariff-bonus">${esc(t('tariff.bonusIncludedIn', { lines: bonusLinesText }))}</div>` : '';
 
   return `<tr class="${r.is_shadow ? 'row-shadow' : ''}">
     <td>${r.is_shadow ? `<span class="badge badge--shadow">${esc(t('tariff.shadowBadge'))}</span> ` : ''}${esc(r.label)}${dynamicNote(r)}</td>
     <td>${periodCell}</td>
     <td class="num">${f.int(r.consumption)} ${esc(unit)}</td>
-    <td class="num"><strong>${r.total_eur != null ? f.eur(r.total_eur) : '<span class="dim">–</span>'}</strong>${projected}</td>
+    <td class="num"><strong>${r.total_eur != null ? f.eur(r.total_eur) : '<span class="dim">–</span>'}</strong>${projected}${bonusNote}</td>
     <td class="num">${r.unit_cost_ct != null ? f.num(r.unit_cost_ct, 2) : '<span class="dim">–</span>'}</td>
     <td class="num ${vsCls}">${vsStr}</td>
   </tr>`;

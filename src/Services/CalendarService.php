@@ -12,9 +12,22 @@ namespace Energietracker\Services;
  * Wird ein Termin erledigt, steht beim nächsten Abruf dasselbe Ereignis am
  * neuen Datum. Texte in der Standardsprache der Installation — Kalender
  * schicken keine Sprache mit.
+ *
+ * v3.7.0 — `?person=<id>`: nur, was bei dieser Person liegt (eigene oder
+ * geerbte Zuständigkeit, ResponsibilityService::belongsTo); der Kalendername
+ * nennt die Person. Geerbte Zuständigkeit steht mit „(über den Vertrag)“
+ * bzw. „(über den Zähler)“ in DESCRIPTION.
  */
 final class CalendarService
 {
+    /** v3.7.0 — Personen nachschlagen (Filter `person`). */
+    private ?ResponsibilityService $responsibility = null;
+
+    public function attachResponsibility(ResponsibilityService $responsibility): void
+    {
+        $this->responsibility = $responsibility;
+    }
+
     /** Arten mit Vorab-Erinnerung (VALARM) im Kalender. */
     private const ALARM_KINDS = ['reminder', 'cancel_by', 'term_end', 'price_guarantee_end', 'price_increase'];
     /** v3.4.0 (F1024) — Vorsatz für erledigte Ereignisse. */
@@ -27,12 +40,20 @@ final class CalendarService
         private I18nService $i18n,
     ) {}
 
-    public function ics(?string $today = null): string
+    /** @param ?string $person v3.7.0 — nur Ereignisse dieser Person (ID aus dem Personenverzeichnis) */
+    public function ics(?string $today = null, ?string $person = null): string
     {
         $events = $this->agenda->events(365, $today);
         $instance = $this->instance->id();
         $warn = max(0, (int)$this->settings->get('reminder_warn_days_before', 14));
         $stamp = gmdate('Ymd\THis\Z');
+        $calName = $this->i18n->t('calendar.name');
+        if ($person !== null && $person !== '') {
+            $p = $this->responsibility?->person($person);
+            $name = is_string($p['name'] ?? null) ? $p['name'] : '';
+            $events = array_values(array_filter($events, fn($e) => ResponsibilityService::belongsTo($e, $person, $name)));
+            if ($name !== '') $calName = $this->i18n->t('calendar.nameFor', ['name' => $name]);
+        }
 
         $lines = [
             'BEGIN:VCALENDAR',
@@ -40,7 +61,7 @@ final class CalendarService
             'PRODID:-//Energietracker//Kalender//' . strtoupper($this->i18n->locale()),
             'CALSCALE:GREGORIAN',
             'METHOD:PUBLISH',
-            'X-WR-CALNAME:' . self::text($this->i18n->t('calendar.name')),
+            'X-WR-CALNAME:' . self::text($calName),
             'REFRESH-INTERVAL;VALUE=DURATION:PT12H',
             'X-PUBLISHED-TTL:PT12H',
         ];
@@ -61,7 +82,13 @@ final class CalendarService
             $who = is_string($e['assignee'] ?? null) && $e['assignee'] !== ''
                 ? (!empty($e['assignee_deleted']) ? $this->i18n->t('people.deletedName', ['name' => $e['assignee']]) : $e['assignee'])
                 : (!empty($e['assignee_former']) ? $this->i18n->t('activity.by.former') : null);
-            if ($who !== null) $lines[] = 'DESCRIPTION:' . self::text($this->i18n->t('calendar.assignee', ['name' => $who]));
+            // v3.7.0 — geerbt: „(über den Vertrag)“ bzw. „(über den Zähler)“
+            $key = match ($e['assignee_source'] ?? null) {
+                'contract' => 'calendar.assigneeContract',
+                'meter'    => 'calendar.assigneeMeter',
+                default    => 'calendar.assignee',
+            };
+            if ($who !== null) $lines[] = 'DESCRIPTION:' . self::text($this->i18n->t($key, ['name' => $who]));
             $lines[] = 'CATEGORIES:' . strtoupper((string)$e['kind']);
             $lines[] = 'TRANSP:TRANSPARENT';
             if ($warn > 0 && !$done && in_array($e['kind'], self::ALARM_KINDS, true)) {

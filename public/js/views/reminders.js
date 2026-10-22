@@ -14,13 +14,16 @@ import { ingressHost, haUrl } from '../lib/ha-snippet.js';
 import { openDoneDialog } from '../components/done-dialog.js';
 import { whenWho } from '../lib/activity.js';
 // v3.5.0 (F1028) — Zuständig: Chip, Filter, Auswahl im Dialog
-import { assigneeOf, assigneeNames, anyAssigned, chipHtml, filterHtml, bindFilter, filterNoteHtml,
-  matchesAssignee, storedFilter, normName } from '../lib/assignee.js';
+import { ownAssigneeOf, assigneeNames, anyAssigned, chipHtml, filterHtml, bindFilter, filterNoteHtml,
+  matchesAssignee, storedFilter, normName, displayName } from '../lib/assignee.js';
+// v3.7.0 — Termin am Zähler (Eichfrist, Zählerwechsel, Lieferung): Zähler zur Wahl
+import { activeUtilities } from '../state.js';
 
 // Labels werden zur Render-Zeit über t() aufgelöst.
 const STATUS_CLS  = { ok: 'ok', due_soon: 'warning', due: 'warning', overdue: 'danger' };
 const STATUS_RANK = { overdue: 0, due: 1, due_soon: 2, ok: 3 }; // B — Sortierreihenfolge
-const CATEGORY_KEYS = ['heizung_wartung', 'schornsteinfeger', 'gaszaehler_eichung', 'stromzaehler_eichung', 'wasserzaehler_eichung', 'waermezaehler_eichung', 'dichtheitspruefung', 'lieferung_planen', 'custom'];
+// v3.7.0 (Paket betrieb) — `zaehlerstand_melden`: Zählerstandsanforderung des Versorgers (mit Zähler: Direktlink in die Erfassung)
+const CATEGORY_KEYS = ['heizung_wartung', 'schornsteinfeger', 'gaszaehler_eichung', 'stromzaehler_eichung', 'wasserzaehler_eichung', 'waermezaehler_eichung', 'dichtheitspruefung', 'lieferung_planen', 'zaehlerstand_melden', 'custom'];
 const RECURRENCE_KEYS = ['none', 'yearly', 'semi-yearly', 'custom-months'];
 
 const catLabel = (k) => { const v = t('reminders.category.' + k); return v === 'reminders.category.' + k ? k : v; };
@@ -38,20 +41,22 @@ export async function render(container, _params, ctx = {}) {
   }
 }
 
-// v3.5.0 (F1028) — Personen (Anmeldung) und vergebene Namen für den Dialog
-const known = { people: [], names: [] };
+// v3.5.0 (F1028) — Personen (Anmeldung) und vergebene Namen für den Dialog;
+// v3.7.0 — Zähler je Verbrauchsart für das Feld „Zähler“
+const known = { people: [], names: [], meters: [] };
 
 async function draw(container) {
   container.innerHTML = `<div class="loading">${t('reminders.loading')}</div>`;
-  let list, people;
+  let list, people, meters;
   try {
     // v3.6.0 — Personen aus dem Personenverzeichnis (auch ohne Anmeldung, etwa im Beispielhaushalt)
-    [list, people] = await Promise.all([api.reminders(), api.people().catch(() => [])]);
+    [list, people, meters] = await Promise.all([api.reminders(), api.people().catch(() => []), loadMeters()]);
   } catch (e) {
     container.innerHTML = `<div class="banner banner--error">${t('reminders.loadError', { msg: esc(e.message || e) })}</div>`;
     return;
   }
   known.people = Array.isArray(people) ? people : [];
+  known.meters = Array.isArray(meters) ? meters : [];
   known.names = assigneeNames(list, known.people.map(p => p.name));
 
   // B — Sortierung: überfällige/fällige zuerst, dann nach Datum aufsteigend.
@@ -141,6 +146,12 @@ async function draw(container) {
     }));
 }
 
+/** v3.7.0 (Paket betrieb) — „Zählerstand melden“ am Zähler: direkt in dessen Erfassung. */
+export function readingLinkHtml(r) {
+  if (r?.category !== 'zaehlerstand_melden' || !r.meter_id) return '';
+  return `<a class="btn btn--xs btn--primary" data-reading-link href="#/zaehlerstaende?meter=${esc(encodeURIComponent(r.meter_id))}">${esc(t('reminders.action.enterReading'))}</a>`;
+}
+
 function rowHtml(r) {
   const statusKey = STATUS_CLS[r.status] ? r.status : 'ok';
   const days = r.days_until;
@@ -161,6 +172,7 @@ function rowHtml(r) {
       ? tp('reminders.everyMonths', r.recurrence_months) : recLabel(r.recurrence))}</td>
     <td><span class="badge badge--${STATUS_CLS[statusKey]}">${t('reminders.status.' + statusKey)}</span></td>
     <td class="cell-actions">
+      ${readingLinkHtml(r)}
       <!-- v2.12.0 (Review UI-22) — Vorlesetext mit dem Namen des Termins -->
       <button class="btn btn--xs btn--ghost" data-done="${esc(r.id)}" title="${t('reminders.action.done')}" aria-label="${esc(t('reminders.action.doneNamed', { title: r.title }))}"><span aria-hidden="true">✓</span></button>
       <button class="btn btn--xs btn--ghost" data-edit="${esc(r.id)}" title="${t('reminders.action.edit')}" aria-label="${esc(t('reminders.action.editNamed', { title: r.title }))}"><span aria-hidden="true">✎</span></button>
@@ -169,12 +181,34 @@ function rowHtml(r) {
   </tr>`;
 }
 
+/** v3.7.0 — Zähler der aktiven Verbrauchsarten, je Art (mit Zuständigkeit aus GET …/meters). */
+async function loadMeters() {
+  try {
+    const us = await activeUtilities();
+    return await Promise.all((us || []).map(async u => ({ u, meters: await api.meters(u.key).catch(() => []) })));
+  } catch { return []; }
+}
+
+/** v3.7.0 — Kategorie → Verbrauchsarten, deren einziger Zähler beim Anlegen vorgewählt wird. */
+const CATEGORY_UTILITIES = {
+  gaszaehler_eichung: ['gas'], stromzaehler_eichung: ['strom'], wasserzaehler_eichung: ['wasser'],
+  waermezaehler_eichung: ['fernwaerme', 'waerme'], lieferung_planen: ['heizoel', 'pellets'],
+};
+
 function openForm(container, existing) {
   const r = existing || { title: '', category: 'heizung_wartung', next_due: todayIso(), recurrence: 'yearly', recurrence_months: 12, notes: '' };
   const catOpts = CATEGORY_KEYS.map(k =>
     `<option value="${k}" ${r.category === k ? 'selected' : ''}>${esc(catLabel(k))}</option>`).join('');
   const recOpts = RECURRENCE_KEYS.map(k =>
     `<option value="${k}" ${r.recurrence === k ? 'selected' : ''}>${esc(recLabel(k))}</option>`).join('');
+  // v3.7.0 — Zähler zur Wahl (mit der Liste geladen): Ohne eigene Zuständigkeit gilt die Person des Zählers
+  const meterGroups = known.meters;
+  const meterByLink = new Map(meterGroups.flatMap(g => g.meters.map(m => [`${g.u.key}|${m.id}`, m])));
+  const curLink = r.utility && r.meter_id ? `${r.utility}|${r.meter_id}` : '';
+  const meterOpts = meterGroups.filter(g => g.meters.length).map(g => `<optgroup label="${esc(g.u.label || g.u.key)}">${g.meters.map(m => {
+    const v = `${g.u.key}|${m.id}`;
+    return `<option value="${esc(v)}"${v === curLink ? ' selected' : ''}>${esc(m.name)}</option>`;
+  }).join('')}</optgroup>`).join('');
 
   const ctrl = openModal({
     title: existing ? t('reminders.form.titleEdit') : t('reminders.form.titleNew'),
@@ -195,22 +229,50 @@ function openForm(container, existing) {
           <input class="input" type="text" inputmode="numeric" autocomplete="off" id="f-rm" value="${esc(String(r.recurrence_months || 12))}" aria-describedby="f-rm-msg">
           <div class="field-error" id="f-rm-msg" role="alert" hidden></div></div>
         <div class="field field--full"><label for="f-notes">${t('reminders.form.fNotes')}</label><input class="input input--text" type="text" id="f-notes" value="${esc(r.notes || '')}"></div>
+        <!-- v3.7.0 — Termin am Zähler: ohne eigene Zuständigkeit gilt die Person des Zählers -->
+        <div class="field field--m"><label for="f-meter">${esc(t('reminders.form.fMeter'))}</label>
+          <select class="select" id="f-meter" aria-describedby="f-meter-hint"><option value="">${esc(t('reminders.form.meterNone'))}</option>${meterOpts}</select>
+          <small class="settings-field__hint" id="f-meter-hint">${esc(t('reminders.form.meterHint'))}</small></div>
         <!-- v3.5.0 (F1028) — Zuständig: Person aus der Anmeldung oder freier Name -->
         <div class="field field--l"><label for="f-assignee">${esc(t('assignee.label'))}</label>
           <input class="input input--text" type="text" id="f-assignee" list="f-assignee-list" maxlength="60" autocomplete="off"
-            value="${esc(assigneeOf(r)?.name || '')}" placeholder="${esc(t('assignee.placeholder'))}" aria-describedby="f-assignee-hint f-assignee-msg">
+            value="${esc(ownAssigneeOf(r)?.name || '')}" placeholder="${esc(t('assignee.placeholder'))}" aria-describedby="f-assignee-hint f-assignee-inherit f-assignee-msg">
           <datalist id="f-assignee-list">${known.names.map(n => `<option value="${esc(n)}"></option>`).join('')}</datalist>
-          <small class="settings-field__hint" id="f-assignee-hint">${esc(t(known.people.length ? 'assignee.hintPeople' : 'assignee.hint'))}${assigneeOf(r)?.former ? ' ' + esc(t('assignee.wasFormer')) : ''}${assigneeOf(r)?.deleted ? ' ' + esc(t('assignee.wasDeleted')) : ''}</small>
+          <small class="settings-field__hint" id="f-assignee-hint">${esc(t(known.people.length ? 'assignee.hintPeople' : 'assignee.hint'))}${ownAssigneeOf(r)?.former ? ' ' + esc(t('assignee.wasFormer')) : ''}${ownAssigneeOf(r)?.deleted ? ' ' + esc(t('assignee.wasDeleted')) : ''}</small>
+          <small class="settings-field__hint" id="f-assignee-inherit" data-role="assignee-inherit" aria-live="polite"></small>
           <div class="field-error" id="f-assignee-msg" role="alert" hidden></div></div>
       </div>`,
     footer: `
       <button class="btn btn--ghost" data-act="cancel">${t('common.cancel')}</button>
       <button class="btn btn--primary" data-act="save">${t('reminders.form.save')}</button>`,
     onMount: ({ bodyEl, modalEl, close }) => {
+      modalEl.querySelector('[data-act="cancel"]').addEventListener('click', () => close(null));
       bodyEl.querySelector('#f-rec').addEventListener('change', e => {
         bodyEl.querySelector('#f-rm-wrap').hidden = e.target.value !== 'custom-months';
       });
-      modalEl.querySelector('[data-act="cancel"]').addEventListener('click', () => close(null));
+      // v3.7.0 — wer ohne eigenen Eintrag zuständig ist (Person des Zählers)
+      const meterSel = bodyEl.querySelector('#f-meter');
+      const asIn = bodyEl.querySelector('#f-assignee');
+      const inheritEl = bodyEl.querySelector('[data-role="assignee-inherit"]');
+      const showInherit = () => {
+        if (!inheritEl) return;
+        const a = asIn?.value.trim() ? null : ownAssigneeOf(meterByLink.get(meterSel?.value || ''));
+        inheritEl.textContent = a ? t('assignee.inheritsMeter', { name: displayName(a) }) : '';
+        inheritEl.hidden = !a;
+      };
+      // neue Eichfrist oder Lieferung: der einzige passende Zähler ist vorgewählt, solange niemand wählt
+      const preselect = () => {
+        if (existing || !meterSel || meterSel.dataset.touched) return;
+        const keys = CATEGORY_UTILITIES[bodyEl.querySelector('#f-cat')?.value] || [];
+        const cands = meterGroups.filter(g => keys.includes(g.u.key)).flatMap(g => g.meters.map(m => `${g.u.key}|${m.id}`));
+        meterSel.value = cands.length === 1 ? cands[0] : '';
+        showInherit();
+      };
+      meterSel?.addEventListener('change', () => { meterSel.dataset.touched = '1'; showInherit(); });
+      asIn?.addEventListener('input', showInherit);
+      bodyEl.querySelector('#f-cat')?.addEventListener('change', preselect);
+      preselect();
+      showInherit();
       const saveBtn = modalEl.querySelector('[data-act="save"]');
       saveBtn.addEventListener('click', guardSubmit(saveBtn, async () => {
         const custom = bodyEl.querySelector('#f-rec').value === 'custom-months';
@@ -227,6 +289,7 @@ function openForm(container, existing) {
           recurrence_months: custom ? rm : null,
           notes: bodyEl.querySelector('#f-notes').value.trim(),
           ...assigneePayload(bodyEl.querySelector('#f-assignee').value, existing),
+          ...meterPayload(meterSel?.value || ''),   // v3.7.0
         };
         const titleEl = bodyEl.querySelector('#f-title'), dueEl = bodyEl.querySelector('#f-due');
         const asEl = bodyEl.querySelector('#f-assignee');
@@ -263,7 +326,7 @@ const ASSIGNEE_MAX = 60;
  */
 export function assigneePayload(value, existing = null, people = known.people) {
   const name = String(value ?? '').trim();
-  const prev = assigneeOf(existing);
+  const prev = ownAssigneeOf(existing);   // v3.7.0 — nur die eigene, nie die geerbte
   // v3.6.0 — gelöschte Person, Name unverändert: bleibt stehen (sie lässt sich nicht neu zuweisen)
   if (prev?.deleted && normName(prev.name) === normName(name)) return {};
   const person = name ? people.find(p => normName(p.name) === normName(name)) : null;
@@ -272,6 +335,18 @@ export function assigneePayload(value, existing = null, people = known.people) {
   // „ehemalige Person“ bleibt stehen, bis jemand einen neuen Namen einträgt
   if (!name && prev?.former) return {};
   return { assignee: name, assignee_id: null };
+}
+
+/** v3.7.0 — Zähler eines Termins für den Server: „utility|meter_id“ oder leer (ohne Zähler). */
+export function meterPayload(value) {
+  const v = String(value || '');
+  const i = v.indexOf('|');
+  return i > 0 ? { utility: v.slice(0, i), meter_id: v.slice(i + 1) } : { meter_id: null };
+}
+
+/** v3.7.0 — Kalender-Link nur für eine Person (`person=<id>`, an vorhandene Parameter angehängt). */
+export function calendarLinkFor(url, personId) {
+  return url + (url.includes('?') ? '&' : '?') + 'person=' + encodeURIComponent(personId);
 }
 
 // v3.1.0 (Paket H1, MKT-09) — Fristen und Termine als Kalender-Abo. Mit
@@ -285,8 +360,10 @@ async function openCalendarSubscription() {
   const underIngress = ingressHost() !== null;
   let url = underIngress ? haUrl(api.calendarUrl()) : new URL(api.calendarUrl(), location.href).href;
   let tokenNote = '';
+  let me = null;   // v3.7.0 — angemeldet: Kalender nur mit dem, was bei mir liegt
   try {
     const session = await api.session();
+    me = session?.authenticated && session?.user?.id ? String(session.user.id) : null;
     if (session?.mode && session.mode !== 'off') {
       // Ein Link braucht einen eigenen Schlüssel — erst nach Rückfrage, nicht
       // bei jedem Öffnen (der Schlüssel lässt sich später nicht mehr anzeigen)
@@ -306,8 +383,10 @@ async function openCalendarSubscription() {
     return;
   }
   const webcal = url.replace(/^https?:/, 'webcal:');
-  const field = (id, value) => `
+  // v3.7.0 (Qualität) — beide Adressen beschriftet (Bildschirmleser lasen nur „Eingabefeld“)
+  const field = (id, value, label) => `
     <div class="field cal-field">
+      <label for="${id}">${esc(label)}</label>
       <input class="input" id="${id}" readonly value="${esc(value)}">
       <button type="button" class="btn btn--sm" data-copy="#${id}">${esc(t('calendar.copy'))}</button>
     </div>`;
@@ -315,13 +394,21 @@ async function openCalendarSubscription() {
     title: t('calendar.subscribe'),
     body: `
       <p>${esc(t('calendar.intro'))}</p>
-      ${field('cal-webcal', webcal)}
-      ${field('cal-https', url)}
+      ${me ? `<label class="check"><input type="checkbox" id="cal-mine" aria-describedby="cal-mine-hint"> ${esc(t('calendar.onlyMine'))}</label>
+        <p class="muted small" id="cal-mine-hint">${esc(t('calendar.onlyMineHint'))}</p>` : ''}
+      ${field('cal-webcal', webcal, t('calendar.webcalLabel'))}
+      ${field('cal-https', url, t('calendar.httpsLabel'))}
       ${tokenNote}
       ${underIngress ? `<p class="muted small" id="cal-ingress-hint">${esc(t('calendar.ingressHint'))}</p>` : ''}
       <p class="muted small">${esc(t('calendar.appleHint'))}</p>
       <p class="muted small">${esc(t('calendar.googleHint'))}</p>`,
     onMount: ({ modalEl }) => {
+      // v3.7.0 — `person=<id>`: nur Fristen und Termine, für die ich zuständig bin (auch geerbt)
+      modalEl.querySelector('#cal-mine')?.addEventListener('change', (e) => {
+        const u = e.target.checked ? calendarLinkFor(url, me) : url;
+        modalEl.querySelector('#cal-https').value = u;
+        modalEl.querySelector('#cal-webcal').value = u.replace(/^https?:/, 'webcal:');
+      });
       modalEl.querySelectorAll('[data-copy]').forEach(b => b.addEventListener('click', async () => {
         await copyText(modalEl.querySelector(b.dataset.copy)?.value || '');
         toastOk(t('settings.ha.yamlCopied'));

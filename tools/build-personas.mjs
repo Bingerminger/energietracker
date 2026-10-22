@@ -45,6 +45,7 @@
    ========================================================================= */
 
 import { createHash } from 'node:crypto';
+import { execFileSync } from 'node:child_process';   // v3.7.0 — Belegprüfung des Beispieldokuments (tools/inbox-sample.php)
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -1839,6 +1840,64 @@ function abrechnungShowcase(d) {
   }
 }
 
+// ═════════════════════════════════════════════════════════════════════════
+// v3.7.0 (Paket interpolation, GitHub #37) — ein Zähler mit dünnen Ablesungen
+// ═════════════════════════════════════════════════════════════════════════
+//
+// Der Zwischenzähler der Werkstatt hinter dem Gas-Hauptzähler wird nur bei der
+// Wartung abgelesen, etwa alle drei Monate. Seine Monatswerte sind verteilt,
+// nicht gemessen: Verbrauchsart und Analyse sagen es, die Anomalie-Tabelle lässt
+// sie aus, das Heizmodell rechnet über die Ablesungsabstände. Als Subzähler
+// zählt er in keiner Summe — Übersicht, Kosten und Bericht bleiben, wie sie
+// waren. Backup und Verzeichnisform (demo-data/gas/) führen ihn beide; in der
+// Verzeichnisform hängt er am Ende an, der Rest der Dateien bleibt byte-gleich.
+
+const SPARSE_METER = 'm_gas_werkstatt';
+
+/** @param {(file: string) => string} textOf  Inhalt einer Datei der Verzeichnisform (auch schon geänderte) */
+function sparseShowcase(d, textOf) {
+  const gas = d.utilities.gas;
+  gas.meters = gas.meters.filter(m => m.id !== SPARSE_METER);
+  gas.readings = gas.readings.filter(r => r.meter_id !== SPARSE_METER);
+  const last = gas.readings.filter(r => r.meter_id === 'm_gas_main').map(r => r.date).sort().at(-1);
+  const r = seeded('showcase|sparse');
+  // Gasheizer der Werkstatt: nach Heizgradtagen, wenig Grundlast, in m³
+  const s = scaleTo(series(day => hdd(day) * Math.max(0, 1 + 0.12 * gauss(r)) + 0.6), 380);
+  const dates = [START];
+  for (let k = 1; k <= 12; k++) {
+    const dt = addDays(addMonths(START, 3 * k), Math.round(between(r, -6, 6)));
+    if (dt > last) break;
+    dates.push(dt);
+  }
+  const m = meter(SPARSE_METER, 'Werkstatt (Zwischenzähler)', '🔧',
+    'Zwischenzähler hinter dem Hauptzähler für den Gasheizer der Werkstatt; abgelesen wird nur bei der Wartung, etwa alle drei Monate.',
+    device('d_gas_werkstatt', 'G-2021-316', START), { parent_meter_id: 'm_gas_main' });
+  const rs = readings('gas_werkstatt', m, dates, s, 412.6, 1);
+  gas.meters.push(m);
+  gas.readings.push(...rs);
+  const metersFile = join(ROOT, 'demo-data', 'gas', 'meters.json');
+  const readingsFile = join(ROOT, 'demo-data', 'gas', 'readings.json');
+  return [
+    [metersFile, appendToDirectoryArray(textOf(metersFile), `"id": "${SPARSE_METER}"`, [m])],
+    [readingsFile, appendToDirectoryArray(textOf(readingsFile), '"id": "r_gas_werkstatt_', rs)],
+  ];
+}
+
+/**
+ * Verzeichnisform: Einträge ans Ende eines Arrays (2 Leerzeichen eingerückt wie
+ * die Datei), ohne den Rest neu zu schreiben — die Datei hält PHP-Zahlen wie
+ * „0.0“, die JSON.stringify anders schriebe. Ein früherer Lauf hängt an
+ * derselben Stelle; `marker` findet seinen ersten Eintrag.
+ */
+function appendToDirectoryArray(source, marker, items) {
+  const end = source.endsWith('\n') ? '\n' : '';   // Dateiende wie im Original
+  let text = source;
+  const at = text.indexOf(marker);
+  if (at >= 0) text = text.slice(0, text.lastIndexOf(',\n  {', at)) + '\n]';
+  const body = items.map(x => JSON.stringify(x, null, 2).split('\n').map(l => '  ' + l).join('\n')).join(',\n');
+  return text.replace(/\n\]\s*$/, `,\n${body}\n]`) + end;
+}
+
 /** Wie BackupService schreibt (4 Leerzeichen); Beträge mit „.0“ bleiben so stehen wie im Original. */
 function showcaseJson(d) {
   return JSON.stringify(d, null, 4).replace(/("signup_bonus_eur": )(\d+)(\n)/g, '$1$2.0$3') + '\n';
@@ -1865,6 +1924,286 @@ function withReferenceValues(p) {
   }
   Object.assign(p.settings, ref);
   return p;
+}
+
+// ═════════════════════════════════════════════════════════════════════════
+// v3.7.0 (Paket zustaendig) — Zuständigkeit an Zählern und Verträgen
+// ═════════════════════════════════════════════════════════════════════════
+
+/**
+ * Je Haushalt mit Personen ein Vertrag und ein Zähler mit Zuständiger
+ * (`assignee_id`, Person aus dem Verzeichnis) und Termine am Zähler
+ * (`utility`, `meter_id`). Termine ohne eigene Zuständigkeit (die Eichfristen)
+ * erben so die des Zählers; Kündigungsfrist und „Abrechnung erwartet“ die des
+ * Vertrags — die Regel eigene → Vertrag → Zähler steht in Agenda und Kalender.
+ * Zähler und Vertrag: [Verbrauchsart, ID, Person]; links: [Titel des Termins,
+ * Verbrauchsart, Zähler].
+ */
+const RESPONSIBLE = {
+  mieterin: { contract: ['strom', 'c_strom_online_2025', 'Lena'], meter: ['strom', 'm_strom_wohnung', 'Lena'], links: [] },
+  'etw-fernwaerme': { contract: ['strom', 'c_strom_flex', 'Katrin'], meter: ['fernwaerme', 'm_fernwaerme_wohnung', 'Mehmet'],
+    links: [['Eichung Wärmemengenzähler', 'fernwaerme', 'm_fernwaerme_wohnung']] },
+  'eigenheim-klassisch': { contract: ['gas', 'c_gas_fix', 'Sabine'], meter: ['gas', 'm_gas_haus', 'Jonas'],
+    links: [['Eichung Gaszähler', 'gas', 'm_gas_haus'], ['Eichung Wasserzähler', 'wasser', 'm_wasser_haupt']] },
+  'eigenheim-modern': { contract: ['strom', 'c_strom_online', 'Julia'], meter: ['strom', 'm_strom_haushalt', 'Ben'],
+    links: [['Eichung Stromzähler', 'strom', 'm_strom_haushalt']] },
+  // Schaufenster: die erwartete Jahresabrechnung Strom (demo_align) liegt bei Anna, die Ablesung Gas bei Paul
+  showcase: { contract: ['strom', 'c_strom_004', 'Anna'], meter: ['gas', 'm_gas_main', 'Paul'],
+    links: [['Eichung Gaszähler', 'gas', 'm_gas_main']] },
+};
+
+/**
+ * Zuständigkeit an Zähler und Vertrag, Termine an ihren Zähler. Bricht ab,
+ * wenn eine Person nicht angelegt oder gelöscht ist oder es Zähler, Vertrag
+ * oder Termin nicht (mehr) gibt — wer Haushalte umbaut, merkt es sofort.
+ */
+function withResponsibilities(P, h) {
+  const spec = RESPONSIBLE[P];
+  if (!spec) return h;
+  const person = (name) => {
+    const s = (PEOPLE[P] ?? []).find(x => x.name === name);
+    if (!s || s.deleted) throw new Error(`${P}: Zuständige ${name} ist nicht angelegt oder gelöscht`);
+    return personId(P, name);
+  };
+  const find = (u, pot, id) => {
+    const x = (h.utilities[u]?.[pot] ?? []).find(y => y.id === id);
+    if (!x) throw new Error(`${P}: ${u}/${pot} ${id} fehlt`);
+    return x;
+  };
+  find(spec.contract[0], 'contracts', spec.contract[1]).assignee_id = person(spec.contract[2]);
+  find(spec.meter[0], 'meters', spec.meter[1]).assignee_id = person(spec.meter[2]);
+  for (const [title, u, mid] of spec.links) {
+    find(u, 'meters', mid);
+    const r = h.reminders.find(x => x.title === title);
+    if (!r) throw new Error(`${P}: Termin ${title} fehlt`);
+    r.utility = u;
+    r.meter_id = mid;
+  }
+  return h;
+}
+
+/**
+ * Verzeichnisform des Schaufensters (cp -R demo-data …): die Zeile
+ * `"assignee_id": …` direkt nach der ID des Eintrags — Formatierung und
+ * Zahlen der Datei bleiben, wie sie sind.
+ */
+function withAssigneeLine(text, id, assigneeId) {
+  const lines = text.split('\n');
+  const i = lines.findIndex(l => l.trim() === `"id": ${JSON.stringify(id)},`);
+  if (i < 0) throw new Error(`Verzeichnisform: ${id} fehlt`);
+  const indent = lines[i].match(/^\s*/)[0];
+  const line = `${indent}"assignee_id": ${JSON.stringify(assigneeId)},`;
+  if (lines[i + 1]?.trim().startsWith('"assignee_id":')) lines[i + 1] = line; else lines.splice(i + 1, 0, line);
+  return lines.join('\n');
+}
+
+/** Die Dateien der Verzeichnisform, die withResponsibilities am Schaufenster ändert: [Datei, Inhalt]. */
+function showcaseResponsibilityFiles() {
+  const spec = RESPONSIBLE.showcase;
+  return [[spec.contract, 'contracts'], [spec.meter, 'meters']].map(([[u, id, name], pot]) => {
+    const file = join(ROOT, 'demo-data', u, `${pot}.json`);
+    return [file, withAssigneeLine(readFileSync(file, 'utf8'), id, personId('showcase', name))];
+  });
+}
+
+// ═════════════════════════════════════════════════════════════════════════
+// v3.7.0 (Paket posteingang) — ein Beispieldokument im Posteingang des Schaufensters
+// ═════════════════════════════════════════════════════════════════════════
+//
+// Die öffentliche Demo kann nicht auslesen (kein Server, keine KI). Damit die
+// Vorschau trotzdem vorführbar ist, liegt im Schaufenster eine erfundene
+// Jahresabrechnung Erdgas 2025 des Anbieters, den das Schaufenster 2025 hat,
+// samt einer Antwort, wie ein Modell sie gäbe — mit einem eingebauten
+// Zahlendreher beim Verbrauch, den die Belegprüfung markiert. Die Prüfung
+// selbst rechnet der Server (tools/inbox-sample.php, dieselbe Belegprüfung wie
+// im Betrieb). Das PDF entsteht hier, mit Textebene (Helvetica, WinAnsi), Zeile
+// für Zeile ein Textobjekt — so liest pdf.js es zeilenweise.
+
+/** Zeichen außerhalb von Latin-1 in der WinAnsi-Kodierung (Windows-1252). */
+const WIN_ANSI = { '€': 0x80, '‚': 0x82, '„': 0x84, '…': 0x85, '‘': 0x91, '’': 0x92, '“': 0x93, '”': 0x94, '–': 0x96, '—': 0x97 };
+
+function winAnsi(s) {
+  const out = [];
+  for (const ch of s) {
+    const c = WIN_ANSI[ch] ?? ch.codePointAt(0);
+    if (c > 0xff) throw new Error(`Beispiel-PDF: Zeichen ${ch} nicht in WinAnsi`);
+    if (c === 0x28 || c === 0x29 || c === 0x5c) out.push(0x5c);   // ( ) \ maskieren
+    out.push(c);
+  }
+  return Buffer.from(out);
+}
+
+/**
+ * Ein schlichtes PDF 1.4: A4, Helvetica und Helvetica-Bold, je Zeile ein
+ * Textobjekt. `pages`: Listen von Zeilen {text, size?, bold?, gap?}.
+ */
+function simplePdf(pages, title) {
+  const objs = [];
+  const add = (body) => { objs.push(body); return objs.length; };
+  const catalog = add(null), pagesObj = add(null);
+  const f1 = add(Buffer.from('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>'));
+  const f2 = add(Buffer.from('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>'));
+  const kids = [];
+  for (const lines of pages) {
+    const parts = [];
+    let y = 790;
+    for (const l of lines) {
+      const size = l.size ?? 10;
+      y -= (l.gap ?? 0) + size + 5;
+      parts.push(Buffer.from(`BT /${l.bold ? 'F2' : 'F1'} ${size} Tf 1 0 0 1 56 ${y} Tm (`), winAnsi(l.text), Buffer.from(') Tj ET\n'));
+    }
+    const content = Buffer.concat(parts);
+    const stream = add(Buffer.concat([Buffer.from(`<< /Length ${content.length} >>\nstream\n`), content, Buffer.from('endstream')]));
+    kids.push(add(Buffer.from(`<< /Type /Page /Parent ${pagesObj} 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 ${f1} 0 R /F2 ${f2} 0 R >> >> /Contents ${stream} 0 R >>`)));
+  }
+  objs[catalog - 1] = Buffer.from(`<< /Type /Catalog /Pages ${pagesObj} 0 R /Lang (de-DE) >>`);
+  objs[pagesObj - 1] = Buffer.from(`<< /Type /Pages /Kids [${kids.map(k => `${k} 0 R`).join(' ')}] /Count ${kids.length} >>`);
+  const info = add(Buffer.concat([Buffer.from('<< /Title ('), winAnsi(title), Buffer.from(') /Producer (Energietracker Beispieldaten) >>')]));
+  const chunks = [Buffer.from('%PDF-1.4\n%\xe2\xe3\xcf\xd3\n', 'latin1')];
+  const offsets = [];
+  let pos = chunks[0].length;
+  objs.forEach((body, i) => {
+    offsets.push(pos);
+    const c = Buffer.concat([Buffer.from(`${i + 1} 0 obj\n`), body, Buffer.from('\nendobj\n')]);
+    chunks.push(c);
+    pos += c.length;
+  });
+  const xref = ['xref', `0 ${objs.length + 1}`, '0000000000 65535 f ', ...offsets.map(o => `${String(o).padStart(10, '0')} 00000 n `)].join('\n');
+  chunks.push(Buffer.from(`${xref}\ntrailer\n<< /Size ${objs.length + 1} /Root ${catalog} 0 R /Info ${info} 0 R >>\nstartxref\n${pos}\n%%EOF\n`));
+  return Buffer.concat(chunks);
+}
+
+/** Das Beispieldokument: Seiten (Zeilen) und die Antwort des Modells mit Zitat und Seite. */
+function inboxSample() {
+  const p1 = [
+    { text: 'Nordwind Energie GmbH · Kundenservice · Postfach 12 34 · 20001 Musterhafen', size: 8 },
+    { text: 'Jahresabrechnung Erdgas 2025', size: 15, bold: true, gap: 26 },
+    { text: 'Rechnungsdatum: 03.02.2026', gap: 8 },
+    { text: 'Kundennummer: KD-2025-0815' },
+    { text: 'Vertragskonto: NW-GAS-4417' },
+    { text: 'Tarif: Easy Gas 12' },
+    { text: 'Abrechnungszeitraum: 01.01.2025 bis 31.12.2025', gap: 8 },
+    { text: 'Zählernummer: G-2024-998' },
+    { text: 'Marktlokation: 50123456789' },
+    { text: 'Zählerstand alt am 31.12.2024: 290,0 m³', gap: 8 },
+    { text: 'Zählerstand neu am 31.12.2025: 1.235,6 m³' },
+    { text: 'Verbrauch: 945,6 m³ = 10.540 kWh' },
+    { text: 'Rechnungsbetrag brutto: 951,46 €', bold: true, gap: 8 },
+    { text: 'Geleistete Abschläge: 1.500,00 €' },
+    { text: 'Ihr Guthaben: 548,54 €', bold: true },
+    { text: 'Das Guthaben überweisen wir in den nächsten Tagen auf Ihr Konto.', gap: 8 },
+    { text: 'Ihr neuer Abschlag ab 01.02.2026: 80,00 € monatlich', bold: true },
+  ];
+  const p2 = [
+    { text: 'Abrechnungsdetails', size: 13, bold: true, gap: 10 },
+    { text: 'Zeitraum 01.01.2025 bis 30.09.2025: 663,0 m³ × Zustandszahl 0,9600 × Brennwert 11,650 kWh/m³ = 7.415 kWh', size: 9, gap: 8 },
+    { text: 'Zeitraum 01.10.2025 bis 31.12.2025: 282,6 m³ × Zustandszahl 0,9600 × Brennwert 11,520 kWh/m³ = 3.125 kWh', size: 9 },
+    { text: 'Arbeitspreis ab 01.01.2025: 7,90 ct/kWh × 10.540 kWh = 832,66 €', size: 9, gap: 8 },
+    { text: 'Grundpreis: 9,90 € pro Monat × 12 Monate = 118,80 €', size: 9 },
+    { text: 'Gesamtbetrag brutto (inkl. 19 % USt.): 951,46 €', size: 9, bold: true },
+    { text: 'Abschläge Januar bis Juni 2025: 6 × 125,00 € = 750,00 €', size: 9, gap: 8 },
+    { text: 'Abschläge Juli bis Dezember 2025: 6 × 125,00 € = 750,00 €', size: 9 },
+    { text: 'Summe der Abschläge: 1.500,00 €', size: 9 },
+    { text: 'Guthaben: 548,54 €', size: 9, bold: true },
+  ];
+  const p3 = [
+    { text: 'Ergänzende Bedingungen der Nordwind Energie GmbH', size: 12, bold: true, gap: 10 },
+    ...['§ 1 Geltungsbereich', '§ 2 Vertragsschluss und Lieferbeginn', '§ 3 Preise und Preisänderungen', '§ 4 Abrechnung und Abschläge',
+        '§ 5 Zahlung und Verzug', '§ 6 Laufzeit und Kündigung', '§ 7 Haftung'].map(text => ({ text, size: 9, gap: 4 })),
+  ];
+  const pages = [p1, p2, p3];
+  const q = (v, quote, page = 1) => ({ value: v, quote, page });
+  const fields = {
+    utility: q('gas', 'Jahresabrechnung Erdgas 2025'),
+    supplier: q('Nordwind Energie GmbH', 'Nordwind Energie GmbH'),
+    kind: q('annual', 'Jahresabrechnung Erdgas 2025'),
+    period_from: q('01.01.2025', 'Abrechnungszeitraum: 01.01.2025 bis 31.12.2025'),
+    period_to: q('31.12.2025', 'Abrechnungszeitraum: 01.01.2025 bis 31.12.2025'),
+    // der eingebaute Fehler: Zahlendreher — der Wert steht nicht im eigenen Zitat
+    consumption: q('10.450', 'Verbrauch: 945,6 m³ = 10.540 kWh'),
+    reading_new: q('1.235,6', 'Zählerstand neu am 31.12.2025: 1.235,6 m³'),
+    reading_new_date: q('31.12.2025', 'Zählerstand neu am 31.12.2025'),
+    reading_old: q('290,0', 'Zählerstand alt am 31.12.2024: 290,0 m³'),
+    reading_old_date: q('31.12.2024', 'Zählerstand alt am 31.12.2024'),
+    total_amount: q('951,46', 'Rechnungsbetrag brutto: 951,46 €'),
+    advances_paid: { value: [
+      { amount: '750,00', date: null, quote: 'Abschläge Januar bis Juni 2025: 6 × 125,00 € = 750,00 €', page: 2 },
+      { amount: '750,00', date: null, quote: 'Abschläge Juli bis Dezember 2025: 6 × 125,00 € = 750,00 €', page: 2 },
+    ], quote: null, page: null },
+    advances_total: q('1.500,00', 'Summe der Abschläge: 1.500,00 €', 2),
+    result_kind: q('credit', 'Ihr Guthaben: 548,54 €'),
+    result_amount: q('548,54', 'Ihr Guthaben: 548,54 €'),
+    advance_new: q('80,00', 'Ihr neuer Abschlag ab 01.02.2026: 80,00 € monatlich'),
+    advance_new_from: q('01.02.2026', 'Ihr neuer Abschlag ab 01.02.2026'),
+    meter_number: q('G-2024-998', 'Zählernummer: G-2024-998'),
+    market_location: q('50123456789', 'Marktlokation: 50123456789'),
+    contract_number: q('NW-GAS-4417', 'Vertragskonto: NW-GAS-4417'),
+    customer_number: q('KD-2025-0815', 'Kundennummer: KD-2025-0815'),
+    gas_factors: { value: [
+      { from: '01.01.2025', to: '30.09.2025', z: '0,9600', hs: '11,650', page: 2,
+        quote: 'Zeitraum 01.01.2025 bis 30.09.2025: 663,0 m³ × Zustandszahl 0,9600 × Brennwert 11,650 kWh/m³' },
+      { from: '01.10.2025', to: '31.12.2025', z: '0,9600', hs: '11,520', page: 2,
+        quote: 'Zeitraum 01.10.2025 bis 31.12.2025: 282,6 m³ × Zustandszahl 0,9600 × Brennwert 11,520 kWh/m³' },
+    ], quote: null, page: null },
+    working_prices: { value: [{ from: '01.01.2025', ct: '7,90', quote: 'Arbeitspreis ab 01.01.2025: 7,90 ct/kWh', page: 2 }], quote: null, page: null },
+    base_price: q('9,90', 'Grundpreis: 9,90 € pro Monat', 2),
+    base_price_period: q('month', 'Grundpreis: 9,90 € pro Monat', 2),
+  };
+  return { pages, fields, name: 'Jahresabrechnung-Erdgas-2025.pdf', title: 'Jahresabrechnung Erdgas 2025' };
+}
+
+/**
+ * Schaufenster: das Beispieldokument im Posteingang (Beleg samt PDF und
+ * geprüfter Auslesung). Liefert die Dateien der Verzeichnisform.
+ */
+function inboxShowcase(d) {
+  const s = inboxSample();
+  const pdf = simplePdf(s.pages, s.title);
+  const text = s.pages.map(lines => lines.map(l => l.text).join('\n'));
+  const checked = JSON.parse(execFileSync('php', [join(ROOT, 'tools', 'inbox-sample.php')],
+    { input: JSON.stringify({ type: 'invoice', pages: text, fields: s.fields }), encoding: 'utf8' }));
+  const id = 'inb_' + hex('showcase|inbox|gas-2025', 12);
+  const att = 'att_' + hex('showcase|inbox|gas-2025|pdf', 16);
+  const at = stamp('2026-02-05', '18:42');
+  const sha = createHash('sha256').update(pdf).digest('hex');
+  d.attachments = [{ id: att, kind: 'inbox_pdf', mime: 'application/pdf', size: pdf.length, sha256: sha, created_at: at,
+    ref: { type: 'inbox', id }, original_name: s.name }];
+  d.attachment_files = { [att]: pdf.toString('base64') };
+  d.inbox = [{
+    id, attachment_id: att, sha256: sha, size: pdf.length, name: s.name, pages: s.pages.length,
+    created_at: at, updated_at: stamp('2026-02-05', '18:44'),
+    status: 'read', type: 'invoice', type_confidence: 0.98,
+    extraction: {
+      provider: 'local', model: 'qwen3.8', schema_version: checked.schema_version, type: 'invoice', fields: checked.fields, flags: checked.flags,
+      seconds: { classify: 9.4, extract: 68.7 }, cached: false, extracted_at: stamp('2026-02-05', '18:44'),
+      text: { chars: text[0].length + text[1].length, kept: [1, 2], dropped: [3], truncated: false },
+    },
+    cache: {}, assignment: null, edits: {}, applied: [], error: null,
+  }];
+  return [
+    [join(ROOT, 'demo-data', 'inbox.json'), JSON.stringify(d.inbox, null, 4) + '\n'],
+    [join(ROOT, 'demo-data', 'attachments.json'), JSON.stringify(d.attachments, null, 4) + '\n'],
+    [join(ROOT, 'demo-data', 'attachments', `${att}.pdf`), pdf],
+  ];
+}
+
+// ═════════════════════════════════════════════════════════════════════════
+// v3.7.0 (Paket nachzuege, GitHub #35) — Sonstige Gutschrift mit Notiz
+// ═════════════════════════════════════════════════════════════════════════
+
+/**
+ * Eigenheim klassisch bekommt im laufenden Stromvertrag eine Kulanzgutschrift
+ * (Bonusart `sonstige` mit Notiz) — nach der letzten Jahresrechnung, damit die
+ * erfassten Rechnungen und ihre Prüfung bleiben, wie sie sind. Die Kachel
+ * „Kosten“ zeigt sie als eigene Zeile, der Saldo rechnet sie ein.
+ */
+function sonstigeGutschrift(p) {
+  const c = p.utilities.strom.contracts.find(x => x.id === 'c_strom_online');
+  if (!c) throw new Error(`${p.id}: Stromvertrag für die Gutschrift fehlt`);
+  const last = Math.max(...p.utilities.strom.bills.filter(b => b.contract_id === c.id || b.meter_id === c.meter_id).map(b => +toDate(b.period_to)));
+  const date = '2026-02-16';
+  if (+toDate(date) <= last || date > END) throw new Error(`${p.id}: Gutschrift muss nach der letzten Rechnung und vor dem Datenende liegen`);
+  c.bonuses = [...(c.bonuses ?? []), { credit_date: date, amount_eur: 25.0, type: 'sonstige', label: 'Kulanz für die verspätete Jahresabrechnung' }];
 }
 
 // ── Zusammenbau ──────────────────────────────────────────────────────────
@@ -1896,6 +2235,8 @@ function backup(p) {
     activity: p.activity ?? [],
     // v3.6.0 — Personenverzeichnis (withPeople)
     people: p.people,
+    // v3.7.0 — Posteingang (die Beispielhaushalte bringen keine Post mit, das Schaufenster schon)
+    inbox: p.inbox ?? [],
     // v3.5.0 (N1026) — nur für DemoDataAligner (Stichtag relativ zu heute), wird nicht eingespielt
     ...(p.demoAlign ? { demo_align: p.demoAlign } : {}),
     utilities,
@@ -1942,8 +2283,10 @@ if (!CHECK) mkdirSync(OUT_DIR, { recursive: true });
 for (const build of [mieterin, etwFernwaerme, eigenheimKlassisch, eigenheimModern]) {
   const p = build();
   if (p.id === 'eigenheim-klassisch') abrechnungKlassisch(p);   // v3.6.0 (Paket abrechnung)
+  if (p.id === 'eigenheim-klassisch') sonstigeGutschrift(p);   // v3.7.0 (Paket nachzuege)
   withPeople(p.id, p);   // v3.6.0 — Personen und Zuständigkeiten
   withReferenceValues(p);   // v3.6.0 (Paket einpers) — Vergleichswerte der Einordnung
+  withResponsibilities(p.id, p);   // v3.7.0 (Paket zustaendig) — Zuständig an Zähler und Vertrag
   const payload = backup(p);
   // Werte je Viertelstunde in einer Zeile (35.040 Zahlen je Reihe), der Rest eingerückt
   const compact = {};
@@ -1969,8 +2312,18 @@ for (const build of [mieterin, etwFernwaerme, eigenheimKlassisch, eigenheimModer
   const d = showcase();
   abrechnungShowcase(d);   // v3.6.0 (Paket abrechnung)
   withPeople('showcase', d);   // v3.6.0 — Personen und Zuständigkeiten
+  withResponsibilities('showcase', d);   // v3.7.0 (Paket zustaendig)
+  const inboxFiles = inboxShowcase(d);   // v3.7.0 (Paket posteingang) — Beispieldokument im Posteingang
+  const respFiles = showcaseResponsibilityFiles();
+  // v3.7.0 (Paket interpolation) — Zähler mit dünnen Ablesungen; auf gas/meters.json
+  // liegt schon die Zuständigkeit, angehängt wird an deren Ergebnis
+  const textOf = (file) => respFiles.find(([f]) => f === file)?.[1] ?? readFileSync(file, 'utf8');
+  const sparseFiles = sparseShowcase(d, textOf);
   // Backup und Verzeichnisform (cp -R demo-data …) führen dieselben Töpfe (DemoServiceTest)
   const files = [
+    ...respFiles.filter(([f]) => !sparseFiles.some(([s]) => s === f)),   // v3.7.0 — Zuständig in der Verzeichnisform
+    ...inboxFiles,
+    ...sparseFiles,
     [DEMO_FILE, showcaseJson(d)],
     [join(ROOT, 'demo-data', 'reminders.json'), JSON.stringify(d.reminders, null, 4) + '\n'],
     [join(ROOT, 'demo-data', 'activity.json'), JSON.stringify(d.activity, null, 4) + '\n'],
@@ -1979,10 +2332,12 @@ for (const build of [mieterin, etwFernwaerme, eigenheimKlassisch, eigenheimModer
       .map(([k, b]) => [join(ROOT, 'demo-data', k, 'bills.json'), JSON.stringify(b.bills, null, 4) + '\n']),
   ];
   for (const [file, json] of files) {
-    const same = existsSync(file) && readFileSync(file, 'utf8') === json;
+    // v3.7.0 — das Beispiel-PDF ist binär: Bytes vergleichen
+    const same = existsSync(file) && (Buffer.isBuffer(json) ? readFileSync(file).equals(json) : readFileSync(file, 'utf8') === json);
     if (CHECK) {
       if (!same) { console.error(`✗ ${file.slice(ROOT.length + 1)}: weicht vom Generator ab`); changed++; }
     } else if (!same) {
+      mkdirSync(dirname(file), { recursive: true });
       writeFileSync(file, json);
       changed++;
     }

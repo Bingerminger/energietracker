@@ -92,7 +92,9 @@
       "readingsHint": "Alle meters in één keer",
       "delivery": "Levering — {utility}",
       "tankLevel": "Peilstand — {utility}",
-      "reminder": "Nieuwe herinnering"
+      "reminder": "Nieuwe herinnering",
+      "inbox": "Post van de leverancier opbergen",
+      "inboxHint": "Pdf uit Bestanden of de mail"
     },
     "sectionNav": "Pagina’s in dit onderdeel",
     "menu": "Menu",
@@ -103,11 +105,16 @@
       "outbox": {
         "one": "{count} meterstand nog niet opgeslagen",
         "other": "{count} meterstanden nog niet opgeslagen"
+      },
+      "inbox": {
+        "one": "{count} document open in de postbak",
+        "other": "{count} documenten open in de postbak"
       }
     },
     "tenancy": "Huur",
     "flexibility": "Flexibiliteit",
-    "activity": "Afgerond"
+    "activity": "Afgerond",
+    "inbox": "Postbak"
   },
   "dashboard": {
     "loading": "Overzicht laden…",
@@ -880,7 +887,7 @@
       "nachzahlung_ohne": "Bijbetaling (zonder effect op voorschotten)",
       "abschlagszahlung": "Voorschot"
     },
-    "bonusTypes": { "sofort": "Direct", "wechsel": "Overstap", "neukunde": "Nieuwe klant" },
+    "bonusTypes": { "sofort": "Direct", "wechsel": "Overstap", "neukunde": "Nieuwe klant", "sonstige": "Overige creditering" },
     "modal": {
       "titleEdit": "Contract bewerken",
       "titleNew": "Nieuw contract",
@@ -936,7 +943,10 @@
       "creditDate": "Creditdatum",
       "amount": "Bedrag {cur}",
       "type": "Type",
-      "remove": "Verwijderen"
+      "remove": "Verwijderen",
+      "note": "Notitie",
+      "notePlaceholder": "optioneel",
+      "notePlaceholderOther": "waarvoor, bijv. coulance"
     },
     "special": {
       "title": "Bijzondere betalingen",
@@ -1044,7 +1054,9 @@
       "to": "Tot (HH:MM, ook 24:00)",
       "ct": "ct/kWh in het venster",
       "addWindow": "+ Tijdvenster",
-      "removeWindow": "Tijdvenster verwijderen"
+      "removeWindow": "Tijdvenster verwijderen",
+      "net": "Bedragen zonder btw (netto)",
+      "netHint": "Zonder vinkje gelden de bedragen zoals ingevuld (bruto, zoals op de afrekening). Met vinkje telt de app er btw bij op — het tarief dat ze ook voor de groothandelsprijs gebruikt."
     },
     "phase": {
       "future": "TOEKOMST",
@@ -1063,6 +1075,16 @@
       "shadow": "Aanbiedingen ter vergelijking – tellen niet mee",
       "shadowHint": "Aanbiedingen (schaduwcontracten) zijn wat-als-berekeningen en tellen niet mee in kosten, saldo of prognose.",
       "toTariffs": "Naar overstappen"
+    },
+    "gasFactor": {
+      "term": "Gasomrekening",
+      "now": "Omrekening vandaag: {value}, {since}.",
+      "zhs": "volumeherleidingsfactor {z} × calorische waarde {hs} {hsUnit} = {factor} kWh/m³",
+      "direct": "{factor} kWh/m³",
+      "since": "geldig vanaf {date}",
+      "undated": "invoer zonder datum",
+      "link": "Naar de instelling",
+      "why": "De volumeherleidingsfactor en de calorische waarde hangen af van het afnamepunt (hoogte, druk) en van het gas in het net, niet van de leverancier: bij een overstap blijven ze gelijk, en elke gasafrekening noemt ze. Daarom staan ze één keer in de instellingen en gelden ze voor elk contract."
     }
   },
   "meters": {
@@ -1177,7 +1199,8 @@
       "done": "Meter gewisseld",
       "lastKnown": "Laatste stand: {value} {unit} op {date}",
       "confirmLower": "De eindstand {oldFinal} {unit} ligt onder de laatste stand ({last} {unit} op {lastDate}). Een meterstand daalt niet – controleer dit. Toch doorgaan?",
-      "confirmSummary": "Op {date} wordt het oude apparaat afgesloten met {oldFinal} {unit} en begint het nieuwe met {newInitial} {unit}. Dit kan in de app niet ongedaan worden gemaakt."
+      "confirmSummary": "Op {date} wordt het oude apparaat afgesloten met {oldFinal} {unit} en begint het nieuwe met {newInitial} {unit}. Dit kan in de app niet ongedaan worden gemaakt.",
+      "fromInbox": "Vooraf ingevuld vanuit het postvak – vergelijk de waarden nog eens met de brief."
     },
     "import": {
       "title": "Meterstanden importeren: {name}",
@@ -1324,7 +1347,8 @@
       "ocrModel": "qwen2.5vl",
       "referenceSource": "bijv. index 2025",
       "evccEndpoint": "http://192.168.178.30:7070",
-      "allowedHosts": "energie.example.org, *.home.arpa"
+      "allowedHosts": "energie.example.org, *.home.arpa",
+      "inboxModel": "qwen3.8"
     },
     "loading": "Laden…",
     "saved": "Instellingen opgeslagen",
@@ -1347,12 +1371,15 @@
       "pctYear": "%/jaar",
       "lPerPersonDay": "L/persoon/dag",
       "seconds": "seconden",
-      "eurPerTonne": "{cur}/t"
+      "eurPerTonne": "{cur}/t",
+      "perWeek": "per week",
+      "kwhPerCycle": "kWh per beurt",
+      "oClock": "uur"
     },
     "group": {
       "physical": { "title": "Fysische constanten", "hint": "Conversie en graaddagenbasis — beïnvloeden alle analyses." },
       "co2": { "title": "CO₂-emissiefactoren", "hint": "Gram CO₂ per verbruikseenheid, voor de emissieschatting.", "list": "Factoren per verbruikssoort en stroom per jaar" },
-      "billing": { "title": "Factureringscyclus", "hint": "Jaarlijkse afrekendatum per verbruikssoort (formaat DD-MM, bijv. 01-01 voor 1 januari, 15-04 voor 15 april). Bepaalt hoe ver het saldo van open contracten wordt geprojecteerd; contracten met een ingevulde einddatum gebruiken die einddatum." },
+      "billing": { "title": "Factureringscyclus", "hint": "De afrekendatum is de eerste dag van de afrekenperiode, per verbruikssoort in het formaat DD-MM: 01-09 betekent 1 september tot 31 augustus, 01-01 het kalenderjaar. Het saldo van open contracten loopt tot de dag ervoor, de laatste dag van de periode; contracten met een ingevulde einddatum gebruiken die einddatum. Geregistreerde afrekeningen gaan voor." },
       "contractReminders": { "title": "Herinneringen", "hint": "Drie niveaus vóór het contracteinde of de opzegdatum; bij herinneringen de voorwaarschuwing en de coulance tot “te laat”." },
       "water": { "title": "Referentiewaarden water", "hint": "Huishoudgrootte, referentie per persoon en de banden van de besparingsindex." },
       "regression": { "title": "Regressie en prognose", "hint": "Filters voor de regressiebasis en parameters van het prognosemodel." },
@@ -1371,7 +1398,7 @@
       },
       "ocr": {
         "title": "Tekstherkenning in het thuisnetwerk",
-        "hint": "Stelt de meterstand voor op basis van een foto – via je eigen dienst zoals Ollama of LM Studio. Alleen adressen in je eigen netwerk; niets gaat naar een clouddienst. Leeg = uit."
+        "hint": "Stelt de meterstand voor op basis van een foto – via je eigen dienst, waarvan je adres en interface instelt in de kaart ‘Documenten uitlezen’ onder ‘Lokaal’. Hier alleen het beeldmodel en de tijdslimiet. Niets gaat naar een clouddienst."
       },
       "tenancy": {
         "title": "Wonen en warm water",
@@ -1400,6 +1427,11 @@
       "updates": {
         "title": "Nieuwe versies",
         "hint": "Eén keer per dag kan de app op GitHub kijken of er een nieuwere versie is. GitHub ziet alleen het adres van je server, geen gegevens uit de app."
+      },
+      "inbox": {},
+      "flex": {
+        "title": "Flexibiliteit",
+        "hint": "Waarmee de pagina Flexibiliteit ‘Je hefboom’ berekent zolang er niets gemeten is. Leeg = voorbeeldwaarde; wat je invult, noemen pagina en jaarverslag ‘eigen waarde’."
       }
     },
     "field": {
@@ -1410,9 +1442,9 @@
       "co2_fernwaerme": { "label": "CO₂ stadsverwarming", "hint": "Forfaitaire BAFA-waarde. De waarde van je warmtenet is nauwkeuriger — die heeft de leverancier." },
       "co2_heizoel": { "label": "CO₂ huisbrandolie", "hint": "BAFA, op basis van de onderste verbrandingswaarde — zoals de app huisbrandolie rekent." },
       "co2_pellets": { "label": "CO₂ pellets", "hint": "BAFA, CO₂-equivalenten inclusief de voorketen." },
-      "billing_cycle_anchor_gas": { "label": "Afrekendatum gas" },
-      "billing_cycle_anchor_strom": { "label": "Afrekendatum elektriciteit" },
-      "billing_cycle_anchor_wasser": { "label": "Afrekendatum water" },
+      "billing_cycle_anchor_gas": { "label": "Afrekendatum gas: eerste dag van de periode" },
+      "billing_cycle_anchor_strom": { "label": "Afrekendatum elektriciteit: eerste dag van de periode" },
+      "billing_cycle_anchor_wasser": { "label": "Afrekendatum water: eerste dag van de periode" },
       "contract_remind_days_1": { "label": "Niveau 1 — vroege waarschuwing" },
       "contract_remind_days_2": { "label": "Niveau 2 — herinnering" },
       "contract_remind_days_3": { "label": "Niveau 3 — urgent" },
@@ -1440,7 +1472,7 @@
       "reminder_overdue_days": { "label": "Marge tot “vervallen”", "hint": "Zoveel dagen na de datum geldt een herinnering nog als verschuldigd, daarna als te laat. 0 = vanaf de dag erna." },
       "recommendation_anomaly_sigma": { "label": "Aanbevelings-afwijkingsdrempel", "hint": "Hetzelfde soort drempel voor de aanbevelingen: pas vanaf deze afwijking verschijnt een tip." },
       "recommendation_trend_pct_year": { "label": "Aanbevelings-trenddrempel", "hint": "Vanaf welke stijging per jaar de aanbevelingen een stijgend verbruik melden." },
-      "billing_cycle_anchor_fernwaerme": { "label": "Afrekendatum stadsverwarming" },
+      "billing_cycle_anchor_fernwaerme": { "label": "Afrekendatum stadsverwarming: eerste dag van de periode" },
       "location_name": { "label": "Plaatsnaam" },
       "latitude": { "label": "Breedtegraad" },
       "longitude": { "label": "Lengtegraad" },
@@ -1466,7 +1498,7 @@
         "hint": "Warm water via doorstromer of boiler, niet via de verwarming: het kengetal naar energielabel krijgt 20 kWh/m²·j toeslag, vanaf 2027 16 kWh/m²·j (§ 82 GModG)."
       },
       "billing_cycle_anchor_pv_einspeisung": {
-        "label": "Afrekendatum PV-teruglevering"
+        "label": "Afrekendatum PV-teruglevering: eerste dag van de periode"
       },
       "confidence_band_sigma": {
         "label": "Breedte van de prognoseband",
@@ -1555,6 +1587,40 @@
       "update_check": {
         "label": "Nieuwe versies melden",
         "hint": "Er verschijnt een melding tot je die voor deze versie sluit. Uitgeschakeld gaat er geen verzoek naar buiten."
+      },
+      "inbox_provider": {},
+      "inbox_model": {
+        "label": "Tekstmodel",
+        "hint": "Zoals de dienst het noemt, bijvoorbeeld qwen3.8 (leeg = qwen3.8). Een ander model werkt ook, maar leest mogelijk slechter."
+      },
+      "inbox_timeout_s": {
+        "label": "Tijdslimiet per stap",
+        "hint": "Seconden per stap (soort herkennen, velden uitlezen), 30–300. Op een krachtige Mac doet qwen3.8 er ongeveer een minuut per document over."
+      },
+      "flex_heat_pump_share_pct": {
+        "label": "Warmtepomp: verschuifbaar deel",
+        "hint": "Deel van het dagverbruik dat gebouw en buffervat naar andere uren laten verschuiven."
+      },
+      "flex_washer_cycles_per_week": {
+        "label": "Wasmachine: beurten per week"
+      },
+      "flex_washer_kwh_per_cycle": {
+        "label": "Wasmachine: kWh per beurt"
+      },
+      "flex_dishwasher_cycles_per_week": {
+        "label": "Vaatwasser: beurten per week",
+        "hint": "0 beurten betekent: geen zo’n apparaat, de hefboom vervalt."
+      },
+      "flex_dishwasher_kwh_per_cycle": {
+        "label": "Vaatwasser: kWh per beurt"
+      },
+      "flex_ev_plugged_from": {
+        "label": "Auto zonder evcc: ingeplugd vanaf",
+        "hint": "Heel uur 0–23. Leeg = op laaddagen de hele dag klaar (voorbeeldwaarde). Met laadsessies uit evcc tellen hun insteektijden."
+      },
+      "flex_ev_plugged_until": {
+        "label": "Auto zonder evcc: ingeplugd tot",
+        "hint": "Ligt ‘tot’ vóór ‘vanaf’, dan loopt de tijd over middernacht: 18 tot 7 betekent ’s avonds tot ’s ochtends."
       }
     },
     "boolActive": "aan",
@@ -1617,7 +1683,8 @@
         "restore": "vóór import",
         "migration": "vóór migratie",
         "demo": "vóór demogegevens",
-        "v09": "vóór v0.9-import"
+        "v09": "vóór v0.9-import",
+        "inbox": "vóór huishouden uit documenten"
       },
       "snapDownload": "Downloaden",
       "snapRestore": "Herstellen…",
@@ -1828,7 +1895,8 @@
       "scopeCalendar": "alleen agenda-abonnement",
       "logoutEverywhere": "Overal uitloggen",
       "logoutEverywhereTitle": "Op alle apparaten uitloggen?",
-      "logoutEverywhereMsg": "Alle sessies van je inlog eindigen – op elk apparaat, ook op dit. API-sleutels en het Home Assistant-token blijven geldig."
+      "logoutEverywhereMsg": "Alle sessies van je inlog eindigen – op elk apparaat, ook op dit. API-sleutels en het Home Assistant-token blijven geldig.",
+      "scopeInbox": "alleen postvak (pdf’s opbergen)"
     },
     "region": {
       "country": "Land",
@@ -1922,7 +1990,7 @@
     },
     "system": {
       "aboutTitle": "Over Energietracker",
-      "about": "Energietracker {version} – verbruik, kosten en contracten, lokaal en zonder cloud.",
+      "about": "Energietracker {version} – verbruik, kosten en contracten op je eigen server. Post van de leverancier wordt lokaal uitgelezen, in de cloud alleen als je dat inschakelt.",
       "license": "Vrije software onder de GNU AGPL v3.0 of later",
       "source": "Broncode van deze versie"
     },
@@ -1952,9 +2020,9 @@
       "hint": "Bepaalt wat de interface toont — elk niveau rekent alles. Geldt voor alle apparaten van deze installatie.",
       "hintPerson": "Bepaalt wat de interface toont — elk niveau rekent alles. Geldt voor jou ({name}) op alle apparaten.",
       "describe": {
-        "beginner": "Overzicht met drie antwoorden, meterstanden, eenvoudige contracten, jaarverslag.",
-        "advanced": "Plus analyses, prognose, overstappen, afrekening controleren en meteropbouw.",
-        "expert": "Alles, met uitleg in beeld, groepen, rekenparameters en toegang."
+        "beginner": "Zien wat je verbruikt, wat het kost en of het voorschot genoeg is. Meterstanden invoeren, post van de leverancier laten uitlezen, herinneringen afhandelen.",
+        "advanced": "Daarnaast vergelijken en controleren: tarieven en overstappen, rekeningen, analyses met het weer, meteropbouw, huur, Home Assistant.",
+        "expert": "Alles zien en koppelen: kwartierwaarden en herberekening per meter, rekenparameters, toegang, API-sleutels, systeem."
       },
       "saved": "Niveau opgeslagen."
     },
@@ -1986,7 +2054,7 @@
       "saved": "Opgeslagen.",
       "anonymizeActivity": "De naam in de geschiedenis vervangen door ‘voormalig lid’",
       "no": "nr. {no}",
-      "deleteHint": "Alleen wie beheert, kan personen verwijderen. Hun openstaande herinneringen gaan dan naar jou; wat klaar is, houdt hun naam met ‘(verwijderd)’. Het nummer van een persoon wordt nooit opnieuw gebruikt.",
+      "deleteHint": "Alleen wie beheert, kan personen verwijderen. Hun openstaande herinneringen, meters en contracten gaan dan naar jou; wat klaar is, houdt hun naam met ‘(verwijderd)’. Het nummer van een persoon wordt nooit opnieuw gebruikt.",
       "memberDeleteHint": "Alleen wie beheert, kan personen toevoegen, wijzigen en verwijderen.",
       "handover": {
         "one": "{count} openstaande herinnering gaat naar {to}.",
@@ -2008,7 +2076,7 @@
       },
       "noAccess": "zonder toegang",
       "hintOff": "Zonder inloggen zijn er geen accounts. Deze personen komen uit een back-up of een voorbeeldhuishouden en zijn te kiezen onder ‘Verantwoordelijk’; wie het adres bereikt, kan ze verwijderen.",
-      "deleteHintOff": "Zonder inloggen neemt bij het verwijderen niemand over: openstaande herinneringen van de persoon blijven met ‘(verwijderd)’ staan tot iemand ze opnieuw toewijst; wat klaar is, houdt de naam. Het nummer van een persoon wordt nooit opnieuw gebruikt.",
+      "deleteHintOff": "Zonder inloggen neemt bij het verwijderen niemand over: openstaande herinneringen, meters en contracten van de persoon blijven met ‘(verwijderd)’ staan tot iemand ze opnieuw toewijst; wat klaar is, houdt de naam. Het nummer van een persoon wordt nooit opnieuw gebruikt.",
       "noAccessHint": "‘zonder toegang’: een persoon uit een back-up of een voorbeeldhuishouden. ‘Toegang aanmaken’ zet de naam bij ‘Persoon toevoegen’; met een wachtwoord wordt het een toegang met hetzelfde nummer, en de herinneringen en items blijven van die persoon.",
       "grant": "Toegang aanmaken",
       "deleteConfirmNoAccess": "Deze persoon is daarna niet meer te kiezen. De gegevens van het huishouden blijven.",
@@ -2021,7 +2089,23 @@
       "renameHint": "Openstaande herinneringen tonen daarna de nieuwe naam; wat klaar is, houdt de naam die de persoon op dat moment had.",
       "renamed": "De persoon heet nu {name}.",
       "renameHintLogin": "Inloggen gaat daarna met de nieuwe naam.",
-      "loginNeeded": "Personen met een eigen login voeg je toe zodra inloggen aan staat. Zonder inloggen kan iedereen die het adres bereikt alles zien en wijzigen."
+      "loginNeeded": "Personen met een eigen login voeg je toe zodra inloggen aan staat. Zonder inloggen kan iedereen die het adres bereikt alles zien en wijzigen.",
+      "handoverRecords": {
+        "one": "{count} meter of contract gaat naar {to}.",
+        "other": "{count} meters en contracten gaan naar {to}."
+      },
+      "handoverRecordsNobody": {
+        "one": "{count} meter of contract blijft bij de persoon, met ‘(verwijderd)’, tot iemand overneemt.",
+        "other": "{count} meters en contracten blijven bij de persoon, met ‘(verwijderd)’, tot iemand overneemt."
+      },
+      "handoverRecordsFormer": {
+        "one": "{count} meter of contract toont dan ‘voormalig lid’.",
+        "other": "{count} meters en contracten tonen dan ‘voormalig lid’."
+      },
+      "handedOverRecords": {
+        "one": "{count} meter of contract is nu van jou.",
+        "other": "{count} meters en contracten zijn nu van jou."
+      }
     },
     "securityCheck": {
       "title": "Beveiligingscontrole",
@@ -2039,7 +2123,67 @@
       "text": "Energietracker is onafhankelijk en open source, zonder reclame en zonder account. Heb je er iets aan, dan kun je de verdere ontwikkeling steunen – helemaal vrijwillig, de app blijft hetzelfde.",
       "link": "Steunen via Buy Me a Coffee"
     },
-    "assumedValue": "Nog niet ingevuld. Tot dan rekent de app met {value}; de vergelijking op het overzicht wacht op je invoer."
+    "assumedValue": "Nog niet ingevuld. Tot dan rekent de app met {value}; de vergelijking op het overzicht wacht op je invoer.",
+    "inboxProviders": {},
+    "inboxCloud": {
+      "enabled": "Ingeschakeld",
+      "enabledHint": "Documenten gaan naar de gekozen dienst om uitgelezen te worden.",
+      "provider": "Dienst",
+      "endpoint": "Adres",
+      "endpointHint": "Alleen https://, nooit een adres in het thuisnetwerk. Tot en met de versie, bijv. https://api.example.com/v1 – de app voegt het pad /chat/completions toe.",
+      "model": "Model",
+      "modelDefault": "Leeg = {model}.",
+      "modelRequired": "Naam van het model zoals de dienst die kent (verplicht).",
+      "key": "API-sleutel",
+      "keyStored": "Opgeslagen. Laat leeg om hem te houden – hij wordt nooit getoond.",
+      "keyMissing": "Nog geen sleutel opgeslagen. Hij blijft op de server en komt niet in de back-up.",
+      "keyClear": "Sleutel verwijderen",
+      "keyClearConfirm": "De API-sleutel voor {name} verwijderen? Zonder sleutel gaat er niets meer naar deze dienst.",
+      "timeout": "Tijdslimiet",
+      "adminOnly": "Alleen wie deze installatie beheert, mag dit wijzigen.",
+      "stateOn": "Cloud ingeschakeld – ‘{name}’: elk document dat je laat uitlezen gaat naar {host}. Andere gegevens van je huishouden gaan niet naar buiten.",
+      "stateOff": "Lokaal: geen enkel document verlaat het thuisnetwerk.",
+      "stateNoKey": "Ingeschakeld, maar zonder sleutel: er gaat niets naar buiten tot je er een invult.",
+      "sends": {
+        "pdf": "Gaat naar buiten: de pdf; de dienst levert de bronpassage met pagina.",
+        "text": "Gaat naar buiten: de tekst van het document; de pdf zelf blijft hier."
+      },
+      "confirmTitle": "Uitlezen in de cloud inschakelen?",
+      "confirmOn": "Inschakelen",
+      "stateReady": "De cloud is ingeschakeld voor ‘{name}’, maar ‘Lokaal’ leest uit: geen enkel document verlaat het thuisnetwerk.",
+      "privacy": "Belangrijk voor je gegevens: in de cloud verlaat elk document dat je laat uitlezen je thuisnetwerk. Het gaat naar de gekozen dienst en wordt daar volgens diens voorwaarden verwerkt – de dienst ziet de hele inhoud, ook naam, adres, meter- en klantnummer. Verder gaat er niets naar buiten: geen meterstanden, contracten, instellingen of andere gegevens van je huishouden, alleen het document, de leesopdracht van de app en je sleutel om bij de dienst in te loggen. Wil je dat niet, blijf dan bij ‘Lokaal’."
+    },
+    "exampleValue": "Voorbeeldwaarde {value}. Vul je eigen waarde in, dan rekent de pagina Flexibiliteit daarmee.",
+    "reading": {
+      "title": "Documenten uitlezen",
+      "hint": "Wie de post in de postbak uitleest: je eigen dienst in het thuisnetwerk of een clouddienst. De keuze geldt voor de hele postbak; vóór elke uitlezing in de cloud vraagt de app het.",
+      "mode": "Leest uit",
+      "modeLocal": "Lokaal",
+      "modeCloud": "Cloud (experimenteel)",
+      "localShared": "Adres en interface gelden ook voor de tekstherkenning van meterfoto’s.",
+      "check": "Verbinding controleren",
+      "checkOk": {
+        "one": "Verbonden met {host}, {count} model gevonden.",
+        "other": "Verbonden met {host}, {count} modellen gevonden."
+      },
+      "checkModelFound": "‘{model}’ zit erbij.",
+      "checkModelMissing": "‘{model}’ ontbreekt daar nog.",
+      "preset": {
+        "custom": "Eigen adres (OpenAI-compatibel)"
+      },
+      "modelList": "Model uit de lijst van de dienst",
+      "modelOther": "Ander model invullen…",
+      "modelListLoaded": {
+        "one": "{count} model van {name}.",
+        "other": "{count} modellen van {name}."
+      },
+      "modelListFailed": "Lijst niet geladen: {reason}",
+      "modelListEmpty": "De dienst heeft geen modellen genoemd.",
+      "modelListAfterSave": "Zodra de sleutel is opgeslagen, laadt de kaart de lijst van de dienst.",
+      "pickModel": "Opgeslagen. Kies nu een model uit de lijst en schakel daarna in.",
+      "saved": "Documenten uitlezen opgeslagen.",
+      "modelLoad": "Modellen van de dienst laden"
+    }
   },
   "reminders": {
     "suggest": {
@@ -2064,7 +2208,8 @@
       "dichtheitspruefung": "Lekdichtheidstest",
       "lieferung_planen": "Levering plannen",
       "custom": "Overig",
-      "waermezaehler_eichung": "IJking warmtemeter"
+      "waermezaehler_eichung": "IJking warmtemeter",
+      "zaehlerstand_melden": "Meterstand doorgeven"
     },
     "recurrence": { "none": "Eenmalig", "yearly": "Jaarlijks", "semi-yearly": "Halfjaarlijks", "custom-months": "Elke N maanden" },
     "due": {
@@ -2078,7 +2223,7 @@
         "other": "{days} dagen geleden"
       }
     },
-    "action": { "done": "Klaar", "edit": "Bewerken", "delete": "Verwijderen", "doneNamed": "Afgerond: {title}", "editNamed": "Bewerken: {title}", "deleteNamed": "Verwijderen: {title}" },
+    "action": { "done": "Klaar", "edit": "Bewerken", "delete": "Verwijderen", "doneNamed": "Afgerond: {title}", "editNamed": "Bewerken: {title}", "deleteNamed": "Verwijderen: {title}", "enterReading": "Meterstand invoeren" },
     "toast": { "deleted": "Verwijderd", "saved": "Opgeslagen", "error": "Fout: {msg}", "doneNext": "‘{title}’ afgerond · volgende keer {date}", "doneOnce": "‘{title}’ afgerond", "undone": "‘{title}’ staat weer open" },
     "deleteConfirm": { "title": "Herinnering verwijderen", "confirm": "Verwijderen", "messageNamed": "‘{title}’ echt verwijderen? Dit kan niet ongedaan worden gemaakt." },
     "form": {
@@ -2094,7 +2239,10 @@
       "save": "Opslaan",
       "intervalInvalid": "Het interval moet een geheel getal van 1 tot 120 maanden zijn.",
       "titleRequired": "Voer een titel in.",
-      "dueRequired": "Kies een vervaldatum."
+      "dueRequired": "Kies een vervaldatum.",
+      "fMeter": "Meter",
+      "meterNone": "– geen meter –",
+      "meterHint": "IJking, meterwissel of levering: zonder eigen verantwoordelijke geldt de persoon van de meter."
     },
     "everyMonths": {
       "one": "Elke maand",
@@ -2391,7 +2539,8 @@
       "import": "Bestand importeren",
       "loaded": "Groothandelsprijzen {from} tot {to} geladen",
       "attribution": "Groothandelsprijzen Duitsland/Luxemburg: Bundesnetzagentur | SMARD.de (CC BY 4.0)"
-    }
+    },
+    "bonusIncludedIn": "waarvan: {lines}"
   },
   "analysis": {
     "noUtilities": "Geen verbruikssoort actief. In de instellingen kies je welke worden getoond.",
@@ -2448,7 +2597,8 @@
       "colDeltaPct": "Δ %",
       "sumRow": "Totaal (gemeenschappelijke maanden)",
       "note": "Vergelijking alleen over de maanden die in beide jaren gegevens hebben. Positieve waarden = meer verbruik dan het voorgaande jaar.",
-      "notePv": "Positieve waarden = meer opbrengst dan in dezelfde maand vorig jaar (groen). Alleen maanden met gegevens in beide jaren worden vergeleken."
+      "notePv": "Positieve waarden = meer opbrengst dan in dezelfde maand vorig jaar (groen). Alleen maanden met gegevens in beide jaren worden vergeleken.",
+      "partialNote": "* Gedeeltelijke maand: niet vergelijkbaar met een volle maand, daarom zonder Δ en niet in de som."
     },
     "spar": {
       "title": "💧 Waterbesparingsindex",
@@ -2510,7 +2660,25 @@
     "yearsCount": "Jaren",
     "partialStar": "* Deelmaand: slechts een deel van de dagen vastgelegd.",
     "pointRole": "Model",
-    "pointInFit": "in het model"
+    "pointInFit": "in het model",
+    "pointInterpolated": "verdeeld, niet in het model",
+    "quality": {
+      "poor": "Het verwarmingsmodel past slecht bij deze meter: een maand wijkt er doorgaans ± {scale} {unit} van af, {pct} van een gemiddelde gemeten maand ({mean} {unit}).",
+      "baseLoad": "Voor de zomer voorspelt het {model} {unit} per dag, terwijl er {measured} {unit} per dag gemeten is.",
+      "floor": "De tabel ziet daarom pas afwijkingen vanaf {floor} {unit} — een lege tabel betekent hier niet ‘alles in orde’.",
+      "hint": "Met een lagere graaddagen-basistemperatuur past de stooklijn vaak beter:",
+      "levelNote": "(vanaf het niveau ‘{level}’)",
+      "floorRows": "De tabel ziet daarom pas afwijkingen vanaf {floor} {unit}; wat hij toont, kan net zo goed de fout van het model zijn als een echte verandering in het verbruik."
+    },
+    "heatLimit": {
+      "suggest": "Met {best} °C als graaddagen-basistemperatuur past het verwarmingsmodel duidelijk beter: een maand wijkt doorgaans {bestPct} van een gemiddelde gemeten maand af in plaats van {currentPct} bij {current} °C.",
+      "scope": "De temperatuur geldt dan voor deze meter en verandert zijn verwachting, correctie en prognose; de instelling blijft de standaard voor de andere.",
+      "apply": "Graaddagen-basistemperatuur van deze meter op {value} °C zetten",
+      "applied": "Graaddagen-basistemperatuur van deze meter op {value} °C gezet",
+      "own": "Deze meter rekent met een eigen graaddagen-basistemperatuur van {value} °C (standaard {default} °C).",
+      "reset": "Terug naar {value} °C",
+      "resetDone": "Graaddagen-basistemperatuur van deze meter teruggezet"
+    }
   },
   "forecast": {
     "noUtilities": "Geen verbruikssoort actief. In de instellingen kies je welke worden getoond.",
@@ -2547,7 +2715,16 @@
     "hddSourceHistory": "Graaddagen: gemiddelde van de eigen temperatuurhistorie.",
     "warn": {
       "historyShort": "Korte historie: verbruik voor {months} van de 12 kalendermaanden. De ontbrekende ({missing}) komen uit het model — de prognose is daardoor onzekerder.",
-      "noClimateNormal": "Zonder klimaatnormaal: de graaddagen komen uit de eigen historie. Een temperatuursynchronisatie haalt eenmalig 30 jaar klimaatgegevens op."
+      "noClimateNormal": "Zonder klimaatnormaal: de graaddagen komen uit de eigen historie. Een temperatuursynchronisatie haalt eenmalig 30 jaar klimaatgegevens op.",
+      "interpolated": {
+        "one": "{count} maandwaarde is verdeeld, niet gemeten ({readings} meterstanden in totaal): die telt niet mee in het seizoensprofiel en de stooklijn.",
+        "other": "{count} maandwaarden zijn verdeeld, niet gemeten ({readings} meterstanden in totaal): die tellen niet mee in het seizoensprofiel en de stooklijn."
+      },
+      "interpolatedIntervals": "Het verwarmingsmodel rekent met de perioden tussen de meterstanden.",
+      "poorFit": "Het verwarmingsmodel past slecht bij deze meter (± {pct} per maand): de prognose rekent met de gemeten maanden en toont geen bandbreedte.",
+      "regressionInvalid": "De gekozen stooklijn ({model}) geldt niet — {why}. De prognose rekent zonder.",
+      "climateNormalGrid": "Voor de graaddagen-basistemperatuur {base} °C is er nog geen klimaatnormaal (vooraf berekend voor {min} tot {max} °C; een ouder normaal haalt de app bij de volgende weerafstemming opnieuw op). Tot dan tellen de graaddagen uit de eigen temperatuurgeschiedenis.",
+      "fewMeasured": "Te weinig gemeten maanden om het verwarmingsmodel te controleren: de prognose toont geen bandbreedte, saldo en voorschot staan er alleen als marge."
     },
     "assumedNote": "Geen contract voor deze maand — het laatste contract loopt tegen zijn prijzen door (aanname; contracten verlengen zich).",
     "method": {
@@ -2555,14 +2732,19 @@
       "regression_only": "stooklijn (geen eigen waarde voor de maand)",
       "heat_model": "verwarmingsmodel",
       "filled": "daggemiddelde (geen eigen waarde)",
-      "blend": "mix: {reg} stooklijn, {seasonal} seizoensprofiel"
+      "blend": "mix: {reg} stooklijn, {seasonal} seizoensprofiel",
+      "seasonal_interpolated": "Verdeelde waarden (geen gemeten maand)"
     },
     "chartAltSpan": "Lijndiagram: verbruik {from} – {to} en prognose tot {until}",
     "co2Scenario": {
       "label": "CO₂-prijs vanaf {year} ({cur}/t)",
       "placeholder": "leeg = uit",
       "delta": "Met {price} {cur}/t CO₂ vanaf {from}: +{ct} {minor}/kWh, {amount} meer in de komende 12 maanden (incl. btw)."
-    }
+    },
+    "annualNoBand": "Jaar: {value} {unit} — zonder bandbreedte, omdat het verwarmingsmodel slecht past.",
+    "annualNoBandFew": "Jaar: {value} {unit} — zonder bandbreedte, omdat er te weinig maanden gemeten zijn om het verwarmingsmodel te controleren.",
+    "annualNoBandYears": "Jaar: {value} {unit} — zonder bandbreedte: hoe sterk een maand van jaar tot jaar schommelt, blijkt pas uit metingen van meer dan één jaar.",
+    "annualBandSpread": "Jaar: {value} {unit}, in {level}% van de jaren tussen {low} en {high} {unit} — naar de spreiding van de maanden over de jaren."
   },
   "report": {
     "createdOn": "Gemaakt op {date}",
@@ -2622,7 +2804,16 @@
       "howToRead": "Het jaarrapport lezen",
       "choose": "Voor het openen kies je jaar, verbruikssoorten, taal en bijlage; dit apparaat onthoudt de keuze.",
       "costDeliveries": "Kosten: {amount} uit de leveringen; gemiddeld {price} ct/{unit}.",
-      "areaAssumed": "Het kengetal rekent met een aangenomen woonoppervlak van {area} m². Vul het echte oppervlak in onder Instellingen → Huishouden en gebouw."
+      "areaAssumed": "Het kengetal rekent met een aangenomen woonoppervlak van {area} m². Vul het echte oppervlak in onder Instellingen → Huishouden en gebouw.",
+      "interpolatedNoCompare": {
+        "one": "Geen vergelijking met {prev}: {count} maandwaarde van de twee jaren is verdeeld, niet gemeten.",
+        "other": "Geen vergelijking met {prev}: {count} maandwaarden van de twee jaren zijn verdeeld, niet gemeten."
+      },
+      "interpolatedYearExact": {
+        "one": "{count} maandwaarde van de twee jaren is verdeeld; de jaartotalen zijn toch gemeten, omdat rond de jaarwisseling is afgelezen.",
+        "other": "{count} maandwaarden van de twee jaren zijn verdeeld; de jaartotalen zijn toch gemeten, omdat rond de jaarwisseling is afgelezen."
+      },
+      "poorFit": "Het verwarmingsmodel past slecht bij deze meter (± {pct} per maand): het rapport vergelijkt hier niet weergecorrigeerd en noemt geen maanden boven de verwachting — beide zouden vooral de fout van het model zijn."
     },
     "weatherSource": "Temperaturen: Open-Meteo.com (CC BY 4.0), tenzij zelf ingevoerd.",
     "print": {
@@ -2713,7 +2904,8 @@
         "ok": "Voorschotten kloppen",
         "warn": "Kleine bijbetaling mogelijk",
         "alert": "Bijbetaling te verwachten",
-        "none": "Geen voorschotten"
+        "none": "Geen voorschotten",
+        "uncertain": "Voorschotten: schatting onzeker"
       },
       "deadlines": {
         "ok": "Geen termijn op korte termijn",
@@ -2927,20 +3119,25 @@
         "reason": "Kosten {cost}, verbruik {consumption} ten opzichte van {prev}.",
         "noPrevious": "Vergelijkingsgegevens voor {prev} ontbreken."
       },
-      "overdueSince": "over tijd sinds {date}"
+      "overdueSince": "over tijd sinds {date}",
+      "advanceUncertain": {
+        "title": "{label}: voorschot na de volgende meterstand controleren",
+        "reason": "{text}"
+      }
     },
     "money": {
       "sentence": "Energiekosten {year}: {amount}, {pct} ten opzichte van {prev}. Gewijzigde prijzen zijn goed voor {price}, de verbruikte hoeveelheid voor {volume}.",
       "sentenceNoPrevious": "Energiekosten {year}: {amount}.",
       "revenue": "{label}: opbrengst {amount}.",
-      "bonus": "In {month} is een bonus van {amount} bijgeschreven; de kosten van die maand zijn daardoor lager.",
+      "bonus": "{what} op {date}: {amount}",
       "balanceDue": "Afrekening op {date}: waarschijnlijk {amount} bijbetaling.",
       "balanceCredit": "Afrekening op {date}: waarschijnlijk {amount} tegoed.",
       "balanceEven": "Afrekening op {date}: voorschotten en kosten heffen elkaar op.",
       "advanceSuggested": "Passend voorschot: {new} in plaats van {old} per maand.",
       "advanceLower": "Het voorschot kan omlaag. Het rapport noemt geen bedrag: de betaalde voorschotten dekken de kosten tot de afrekening al.",
       "balanceLegend": "Lijn boven nul: bijbetaling, onder nul: tegoed. Gestippeld: schatting tot de afrekening.",
-      "forecast": "Verwachte kosten voor de komende twaalf maanden: {amount} (prognose, stand van vandaag)."
+      "forecast": "Verwachte kosten voor de komende twaalf maanden: {amount} (prognose, stand van vandaag).",
+      "bonusEffect": "De kosten staan er zonder bonus; het saldo rekent hem mee, zoals de afrekening."
     },
     "topic": {
       "pv": {
@@ -3106,9 +3303,10 @@
       "sourceAnchor": "Afrekendatum",
       "advances": "Voorschotten {cur}",
       "balance": "Saldo {cur}",
-      "note": "Per verbruikssoort de afrekenperiodes die dit jaar eindigen: zoals op de ingevoerde afrekeningen, anders volgens de afrekendatum. Saldo = kosten − voorschotten − extra voorschotbetalingen; positief = bijbetaling, negatief = tegoed. De andere pagina’s tonen kalenderjaren.",
+      "note": "Per verbruikssoort de afrekenperiodes die dit jaar eindigen: zoals op de ingevoerde afrekeningen, anders volgens de afrekendatum. Kosten zonder bonus; saldo = kosten − bonus − voorschotten − extra voorschotbetalingen; positief = bijbetaling, negatief = tegoed. De andere pagina’s tonen kalenderjaren.",
       "running": "* loopt nog; berekend tot de laatste meterstand (stand {date}).",
-      "partial": "† Deelperiode: de gegevens beginnen pas binnen deze periode, of het is een rest tot de afrekendatum."
+      "partial": "† Deelperiode: de gegevens beginnen pas binnen deze periode, of het is een rest tot de afrekendatum.",
+      "bonus": "Bonus"
     },
     "flexPage": {
       "bandLead": "Gemiddelde groothandelsprijs per uur in {year} (groothandelsdeel netto, excl. btw): groen is het goedkoopste derde van de uren, geel het middelste, rood het duurste. Een punt boven het uur toont zon."
@@ -3137,7 +3335,9 @@
       "advances": "Voorschotten ({code})",
       "extraAdvances": "Extra voorschotbetalingen ({code})",
       "balance": "Saldo ({code})",
-      "complete": "Volledig"
+      "complete": "Volledig",
+      "bonus": "Bonus ({code})",
+      "costWithoutBonus": "Kosten zonder bonus ({code})"
     }
   },
   "auth": {
@@ -3175,7 +3375,8 @@
       "notFound": "Herinnering niet gevonden: {id}",
       "lastDoneInvalid": "‘Laatst afgerond’ moet leeg zijn of een datum (JJJJ-MM-DD).",
       "assigneeInvalid": "‘Verantwoordelijk’ mag hoogstens {max} tekens lang zijn en geen stuurtekens bevatten.",
-      "assigneeUnknown": "Deze persoon bestaat niet (meer). Kies een persoon uit de lijst of vul een naam in."
+      "assigneeUnknown": "Deze persoon bestaat niet (meer). Kies een persoon uit de lijst of vul een naam in.",
+      "meterUnknown": "Deze meter bestaat niet (meer). Kies een meter uit de lijst of ‘geen meter’."
     },
     "tariff": {
       "waterUnsupported": "De tariefvergelijking voor water (drie-componententarief) zit niet in deze versie.",
@@ -3231,7 +3432,8 @@
       "groupHasContracts": "De metergroep heeft nog contracten — verwijder of verplaats eerst de groepscontracten",
       "heatPumpLinkInvalid": "Meter ‘{id}’ is geen stroommeter met de rol warmtepomp",
       "valueInvalid": "{field}: ‘{value}’ is geen geldige waarde",
-      "idInvalid": "Ongeldige id ‘{id}’ – toegestaan zijn letters, cijfers, _ en - (hoogstens 64 tekens)."
+      "idInvalid": "Ongeldige id ‘{id}’ – toegestaan zijn letters, cijfers, _ en - (hoogstens 64 tekens).",
+      "serialSet": "Het apparaat heeft al nummer {serial}. Een andere meter is een meterwissel."
     },
     "common": {
       "unknownUtility": "Onbekende verbruikssoort: {utility}",
@@ -3452,7 +3654,7 @@
     "bill": {
       "notFound": "Factuur niet gevonden",
       "noResult": "De factuur vermeldt geen bijbetaling en geen tegoed – er valt niets te boeken",
-      "noContract": "Er is geen contract voor deze periode – voeg er eerst een toe",
+      "noContract": "Er is geen contract voor de periode van {from} tot {to} – voeg er eerst een toe",
       "periodInvalid": "Periode ‘{from}’ tot ‘{to}’ is ongeldig",
       "amountInvalid": "Bedrag ‘{value}’ is geen geldig getal"
     },
@@ -3514,6 +3716,66 @@
     "energyFlow": {
       "dateInvalid": "Ongeldige datum: {date} (verwacht JJJJ-MM-DD tussen 2000 en 2100).",
       "monthInvalid": "Ongeldige maand: {month} (verwacht JJJJ-MM tussen 2000 en 2100)."
+    },
+    "assignee": {
+      "unknown": "Deze persoon bestaat niet (meer). Kies een persoon uit de lijst."
+    },
+    "inbox": {
+      "notFound": "Document niet gevonden in de postbak.",
+      "pdfOnly": "In de postbak gaan alleen pdf-bestanden.",
+      "duplicate": "Dit document ligt al sinds {date} in de postbak (‘{name}’).",
+      "typeInvalid": "Onbekend documenttype: {type}.",
+      "editInvalid": "‘{value}’ past niet bij het veld {field}.",
+      "statusInvalid": "Onbekende status: {status}.",
+      "assignmentInvalid": "Meter en contract wijs je alleen toe samen met een verbruikssoort.",
+      "assignmentMissing": "Wijs het document eerst toe aan een verbruikssoort.",
+      "notRead": "Het document is nog niet uitgelezen.",
+      "proposalStale": "Het voorbeeld is niet meer actueel. Laad het opnieuw en vink opnieuw aan.",
+      "consentRequired": "Om uitgelezen te worden gaat dit document naar {provider}. Geef eerst toestemming.",
+      "providerUnknown": "De dienst ‘{provider}’ voor de postbak is niet ingericht.",
+      "off": "Er is geen dienst ingesteld voor het uitlezen (Instellingen → Expert → Tekstherkenning in het thuisnetwerk).",
+      "noText": "Het document heeft geen tekstlaag (een scan). Voer het met de hand in.",
+      "badAnswer": "De dienst gaf geen bruikbaar antwoord. Probeer het opnieuw of kies een ander model.",
+      "modelMissing": "De dienst heeft het model ‘{model}’ niet. Laad het daar (Ollama: <code>ollama pull {model}</code>) of vul een ander in.",
+      "pagesInvalid": "De tekst van het document kwam niet leesbaar aan.",
+      "billMissing": "De rekening om te boeken ontbreekt.",
+      "contractMissing": "Het toegewezen contract ontbreekt.",
+      "failed": "Het uitlezen is mislukt.",
+      "base64Invalid": "De bijlage is geen geldige Base64 (veld ‘pdf_base64’).",
+      "truncated": "Het antwoord van het model paste niet in het contextvenster – ook niet met {tokens} tokens voor het antwoord ({window} tokens in totaal). Gebruik een model met een groter venster of voer het document met de hand in."
+    },
+    "inboxCloud": {
+      "off": "Uitlezen in de cloud is niet ingeschakeld voor {name} (Instellingen → Expert).",
+      "noKey": "Er is geen API-sleutel opgeslagen voor de gekozen clouddienst.",
+      "noEndpoint": "Een OpenAI-compatibele dienst heeft een adres nodig.",
+      "noModel": "Een OpenAI-compatibele dienst heeft de naam van het model nodig.",
+      "httpsOnly": "Het adres van een clouddienst begint met https:// en bevat geen inloggegevens.",
+      "notPublic": "‘{host}’ ligt in het thuisnetwerk. Uitlezen in de cloud accepteert alleen een adres op internet; een dienst in je eigen netwerk stel je in bij tekstherkenning.",
+      "unreachable": "‘{host}’ is niet bereikbaar.",
+      "timeout": "De clouddienst heeft niet binnen {seconds} seconden geantwoord.",
+      "redirect": "‘{host}’ stuurt door. Energietracker volgt geen doorverwijzingen – vul het adres in waarop de dienst zelf antwoordt.",
+      "unauthorized": "De clouddienst heeft de API-sleutel geweigerd ({code}). Controleer de sleutel in de instellingen.",
+      "rateLimited": "De clouddienst meldt te veel verzoeken. Probeer het over {seconds} seconden opnieuw.",
+      "overloaded": "De clouddienst is op dit moment niet beschikbaar ({code}). Probeer het later opnieuw.",
+      "rejected": "De clouddienst heeft het verzoek geweigerd ({code}): {detail}",
+      "refusal": "{name} heeft het uitlezen van dit document geweigerd. Voer het met de hand in.",
+      "truncated": "Het antwoord van de clouddienst was onvolledig. Probeer het opnieuw.",
+      "badAnswer": "De clouddienst gaf geen bruikbaar antwoord.",
+      "tooLarge": "Het document is te groot voor de clouddienst.",
+      "tooLargeLimits": "Het document is te groot voor {name}: hoogstens {mb} MB en {pages} pagina’s per verzoek.",
+      "keyFormat": "De API-sleutel heeft een onverwacht formaat: 8 tot 500 tekens zonder spaties.",
+      "notPdf": "Het document is geen pdf.",
+      "emptyDocument": "Het document bevat geen leesbare tekst."
+    },
+    "dossier": {
+      "scope": "Het dossier heeft een meter of een contract nodig (meter_id of contract_id)."
+    },
+    "inboxDraft": {
+      "needs": {
+        "meter": "Neem eerst de meter over, daarna dit.",
+        "contract": "Neem eerst het contract over, daarna dit."
+      },
+      "nothingSelected": "Niets geselecteerd."
     }
   },
   "login": {
@@ -3637,7 +3899,8 @@
       "diff": "Verschil",
       "amount": "Bedrag",
       "ok": "klopt",
-      "check": "controleren"
+      "check": "controleren",
+      "no_prices": "geen prijzen"
     },
     "reason": {
       "estimated_reading_at_boundary": "Aan een grens van de periode ligt een geschatte of geïnterpoleerde meterstand – de factuur kan een andere stand gebruiken.",
@@ -3645,13 +3908,23 @@
       "factor_change_inside": "De calorische waarde of de volumeherleidingsfactor verandert binnen de periode.",
       "items_not_modelled": "De overige posten zijn van de factuur overgenomen, niet nagerekend.",
       "price_missing": "Het contract heeft voor een deel van de periode geen prijs – daar ontbreken ook kosten.",
-      "gaps": "Binnen de periode ontbreken meterstanden."
+      "gaps": "Binnen de periode ontbreken meterstanden.",
+      "factor_mismatch": "De calorische waarde of de volumeherleidingsfactor op de factuur wijkt af van de omrekeningsfactoren gas in de instellingen."
     },
     "ownTotalOnly": "Nagerekend: {total}",
     "updated": "Factuur gewijzigd",
     "editing": "Je bewerkt de factuur van {from} tot {to}.",
     "editBookedNote": "Ze is al geboekt als bijzondere betaling – de boeking in het contract verandert niet mee.",
-    "periodDefault": "Vooraf ingevuld met de laatste afgesloten afrekenperiode — zoals in het afrekenjaar, uit de vastgelegde afrekeningen, anders volgens de afrekendatum. De afrekendatum per verbruikssoort stel je in onder Instellingen → Verbruikssoorten en afrekening."
+    "periodDefault": "Vooraf ingevuld met de laatste afgesloten afrekenperiode — zoals in het afrekenjaar, uit de vastgelegde afrekeningen, anders volgens de afrekendatum. De afrekendatum per verbruikssoort stel je in onder Instellingen → Verbruikssoorten en afrekening.",
+    "noPrices": {
+      "hint": "Zonder prijzen is het bedrag niet na te rekenen. Vul ze in het contract aan, dan controleert de app de factuur.",
+      "at": "{from} tot {to}: geen prijs in het contract {provider}",
+      "noContract": "{from} tot {to}: geen contract",
+      "link": "Naar de contracten"
+    },
+    "factorMismatch": {
+      "line": "Vanaf {from}: {invoice} kWh/m³ volgens de factuur ({z} × {hs}), {list} kWh/m³ in de instellingen"
+    }
   },
   "glossary": {
     "hdd": {
@@ -3979,7 +4252,7 @@
     "scenarioPresetsOnly": "In de demo zijn alleen de voorbeeldscenario’s vooraf berekend."
   },
   "manifest": {
-    "description": "Verbruik, kosten en contracten voor stroom, gas, water, stadsverwarming, huisbrandolie, pellets en zonnepanelen — lokaal en zonder cloud.",
+    "description": "Verbruik, kosten en contracten voor stroom, gas, water, stadsverwarming, huisbrandolie, pellets en zonnepanelen — op je eigen server, post van de leverancier lokaal uitgelezen, de cloud alleen als je wilt.",
     "shortcutCapture": "Meterstanden invoeren",
     "shortcutContractsShort": "Contracten"
   },
@@ -3994,7 +4267,8 @@
       "balanceCumulative": "Saldo cumulatief ({code})",
       "avgTemp": "Gem temp (°C)",
       "hdd": "GD",
-      "co2": "CO₂ (kg)"
+      "co2": "CO₂ (kg)",
+      "bonus": "Bonus ({code})"
     },
     "readings": {
       "meterId": "Meter-ID",
@@ -4095,7 +4369,14 @@
     },
     "createLink": "Link aanmaken",
     "ingressHint": "Draait de app in Home Assistant, dan geeft de link haar adres in het netwerk van Home Assistant — bedoeld voor Home Assistant zelf, bijvoorbeeld de integratie Remote Calendar. Voor agenda’s op telefoon of computer open je onder Netwerk in de configuratie van de app een poort en vervang je het begin tot /api.php door het adres van Home Assistant met die poort.",
-    "assignee": "Verantwoordelijk: {name}"
+    "assignee": "Verantwoordelijk: {name}",
+    "nameFor": "Energietracker — termijnen en afspraken: {name}",
+    "assigneeContract": "Verantwoordelijk: {name} (via het contract)",
+    "assigneeMeter": "Verantwoordelijk: {name} (via de meter)",
+    "onlyMine": "Alleen wat aan mij is toegewezen",
+    "onlyMineHint": "De link toont dan alleen termijnen en afspraken waarvoor jij verantwoordelijk bent – ook via een contract of meter.",
+    "webcalLabel": "Abonnementsadres voor agenda-apps (webcal)",
+    "httpsLabel": "Hetzelfde adres als https-link"
   },
   "tenancy": {
     "title": "Huur",
@@ -4476,7 +4757,7 @@
     "hint": {
       "page": "Deze pagina hoort bij het niveau ‘{level}’. Ze is toch geopend.",
       "switch": "Overschakelen naar ‘{level}’",
-      "data": "Je gegevens kunnen meer dan dit niveau laat zien — ‘{level}’ toont het.",
+      "data": "Je huishouden heeft meer dan dit niveau laat zien — ‘{level}’ toont het.",
       "dismiss": "Niet meer vragen"
     },
     "reason": {
@@ -4485,8 +4766,11 @@
       "severalMeters": "meerdere meters voor één verbruikssoort",
       "heatPump": "warmtepomp",
       "battery": "accu",
-      "wallbox": "laadpaal"
-    }
+      "wallbox": "laadpaal",
+      "pv": "zonnepanelen",
+      "quarterHours": "kwartierwaarden"
+    },
+    "table": "Wat kan ik op welk niveau?"
   },
   "explainer": {
     "money": {
@@ -4499,7 +4783,9 @@
       "credit": "ongeveer {amount} tegoed",
       "due": "ongeveer {amount} bijbetaling",
       "even": "vrijwel precies quitte",
-      "text": "Tot de afrekening op {date} betaal je {paid} aan voorschotten; verbruik en vastrecht kosten naar verwachting {cost}. Dat geeft {result}."
+      "text": "Tot de afrekening op {date} betaal je {paid} aan voorschotten; verbruik en vastrecht kosten naar verwachting {cost}. Dat geeft {result}.",
+      "uncertain": "tussen {low} en {high}, afhankelijk van de schatting",
+      "costRange": "{low} tot {high}"
     },
     "energy": {
       "title": "Energiestroom in huis",
@@ -4583,8 +4869,10 @@
       "text": {
         "less": "Verbruik {cons}, graaddagen {hdd} ten opzichte van dezelfde maanden een jaar eerder. Weergecorrigeerd {adj}: je hebt echt minder verbruikt.",
         "more": "Verbruik {cons}, graaddagen {hdd} ten opzichte van dezelfde maanden een jaar eerder. Weergecorrigeerd {adj}: je hebt echt meer verbruikt — niet alleen door het weer.",
-        "same": "Verbruik {cons}, graaddagen {hdd} ten opzichte van dezelfde maanden een jaar eerder. Weergecorrigeerd {adj}: ongeveer gelijk — het verschil komt door het weer."
-      }
+        "same": "Verbruik {cons}, graaddagen {hdd} ten opzichte van dezelfde maanden een jaar eerder. Weergecorrigeerd {adj}: ongeveer gelijk — het verschil komt door het weer.",
+        "poorFit": "Verbruik {cons}, graaddagen {hdd} ten opzichte van dezelfde maanden een jaar eerder. Of je echt meer of minder hebt verbruikt, valt niet aan te tonen: het verwarmingsmodel past slecht bij deze meter (± {pct} per maand)."
+      },
+      "poorFitBadge": "gecorrigeerd: niet aantoonbaar"
     },
     "timeline": {
       "title": "Contract in één oogopslag",
@@ -4653,7 +4941,7 @@
     },
     "level": {
       "title": "Hoeveel ervaring heb je?",
-      "later": "Het niveau is altijd bovenaan te wijzigen, naast licht/donker."
+      "later": "Het niveau is altijd bovenaan te wijzigen, naast licht/donker. Heeft je huishouden meer nodig, dan stelt de app het één keer voor."
     },
     "finish": {
       "title": "Zo gaat het verder",
@@ -4661,9 +4949,21 @@
       "demo": "Bekijken met voorbeeldgegevens",
       "demoHint": "Laadt het passende voorbeeldhuishouden — met de geschiedenis ‘Afgerond’, verantwoordelijken voor herinneringen en rekeningen van de leverancier. Eerst bewaart de app de huidige stand.",
       "demoPublic": "De demo toont nu het voorbeeldhuishouden ‘{persona}’. Een ander kies je onder Instellingen → Algemeen → ‘Instelassistent starten’.",
-      "own": "Beginnen met eigen gegevens",
+      "own": "Met de hand invoeren",
       "ownHint": "Daarna: meters controleren en de eerste stand invoeren.",
-      "updateCheck": "Nieuwe versies melden (kijkt één keer per dag op GitHub)"
+      "updateCheck": "Nieuwe versies melden (kijkt één keer per dag op GitHub)",
+      "docs": "Uit documenten",
+      "recommended": "aanbevolen",
+      "docsHint": "Leg post van de leverancier als pdf in de postbak; de app leest die uit en maakt er een concept van je huishouden van. Je controleert alleen wat twijfelachtig is.",
+      "docsHelpTitle": "Deze documenten helpen:",
+      "docsHelp": {
+        "tenant": "de laatste jaarrekening voor stroom en de contractbevestiging",
+        "house": "per energiebron de laatste jaarrekening, de contractbevestiging en prijswijzigingen",
+        "pv": "PV: terugleveringscontract of afrekening van de netbeheerder",
+        "heatPump": "Warmtepomp of laadpaal: de bevestiging van het speciale tarief"
+      },
+      "docsReader": "Uitlezen heeft een dienst nodig – in het thuisnetwerk of in de cloud. Stel die hier meteen in; opbergen kan ook al eerder.",
+      "docsReaderMember": "Uitlezen heeft een dienst nodig; een beheerder kan die instellen. Opbergen kan nu al."
     },
     "skip": "Overslaan",
     "back": "Terug",
@@ -4789,7 +5089,8 @@
       "high": "In het hoogtarief",
       "standard": "In het standaardtarief",
       "saving": "Besparing t.o.v. standaard",
-      "hint": "Uit de tijdvensters in het contract van deze meter: nettarief per kWh in het venster tegenover het standaardtarief. Tijdsafhankelijke nettarieven bestaan alleen bovenop module 1 en met een slim meetsysteem."
+      "hint": "Uit de tijdvensters in het contract van deze meter: nettarief per kWh in het venster tegenover het standaardtarief. Tijdsafhankelijke nettarieven bestaan alleen bovenop module 1 en met een slim meetsysteem.",
+      "net": "De bedragen staan netto in het contract; gerekend met {vat} btw."
     },
     "series": {
       "title": "Kwartierreeksen",
@@ -4834,7 +5135,8 @@
       "no": "met dynamisch tarief"
     },
     "basis": {
-      "assumed": "voorbeeldwaarde"
+      "assumed": "voorbeeldwaarde",
+      "own": "eigen waarde"
     },
     "actions": {
       "title": "Wat je kunt doen",
@@ -4933,8 +5235,7 @@
         "eur": "per jaar"
       },
       "total": "Samen tot {eur} per jaar incl. btw (grootste hefboom per apparaat), waarvan {real} met je tarief.",
-      "assumptions": "Voorbeeldwaarden: warmtepomp {hp} van het dagverbruik verschuifbaar; wasmachine {wkwh} kWh per beurt, {wn} beurten per week; vaatwasser {dkwh} kWh per beurt, {dn} beurten per week, telkens {h} uur tegenover een start op een willekeurig tijdstip.",
-      "upper": "Bovengrens: de goedkoopste kwartieren ken je de dag ervoor (day-ahead). Groothandelsprijs met {vat} btw, zoals een dynamisch tarief die afrekent, zonder diens opslag, heffingen en nettarief; zonnestroom tegen eenheidsprijs min terugleververgoeding; module 3 met de bedragen in het contract.",
+      "upper": "Bovengrens: de goedkoopste kwartieren ken je de dag ervoor (day-ahead). Groothandelsprijs met {vat} btw, zoals een dynamisch tarief die afrekent, zonder diens opslag, heffingen en nettarief; zonnestroom tegen eenheidsprijs min terugleververgoeding; module 3 met de bedragen in het contract, netto bedragen met btw.",
       "kind": {
         "ev": "Elektrische auto ({name})",
         "heat_pump": "Warmtepomp ({name})",
@@ -4951,7 +5252,8 @@
         "other": "Auto: alleen verschoven zolang hij aangesloten is — insteektijden uit {count} laadsessies van evcc."
       },
       "evPart": "Laadsessies dekken {share} van de geladen energie; op dagen zonder sessie staat de auto de hele dag klaar (voorbeeldwaarde).",
-      "evDay": "Auto: staat op laaddagen de hele dag klaar (voorbeeldwaarde). Met laadsessies uit evcc tellen de insteektijden."
+      "evDay": "Auto: staat op laaddagen de hele dag klaar (voorbeeldwaarde). Met laadsessies uit evcc tellen de insteektijden; een eigen insteektijd vul je in onder Instellingen → Verbruikssoorten en afrekening → Flexibiliteit.",
+      "evWindow": "Auto: ingeplugd van {from} tot {until} uur (je invoer); laden wordt alleen binnen deze tijd verschoven. Met laadsessies uit evcc tellen de insteektijden."
     },
     "signal": {
       "spot": "Groothandelsprijs",
@@ -4964,10 +5266,20 @@
     },
     "availability": {
       "sessions": "insteektijden uit evcc",
-      "day": "hele laaddag (voorbeeldwaarde)"
+      "day": "hele laaddag (voorbeeldwaarde)",
+      "window": "ingeplugd {from}–{until} uur (eigen waarde)"
     },
     "net": "netto, excl. btw",
-    "netNote": "ct-waarden in het verkeerslicht en de tijdvensters: groothandelsdeel netto, excl. btw — de eurobedragen van de hefbomen zijn incl. btw."
+    "netNote": "ct-waarden in het verkeerslicht en de tijdvensters: groothandelsdeel netto, excl. btw — de eurobedragen van de hefbomen zijn incl. btw.",
+    "assume": {
+      "lead": "Aannames: {parts}.",
+      "example": "{part} (voorbeeldwaarde)",
+      "own": "{part} (eigen waarde)",
+      "hp": "warmtepomp {hp} van het dagverbruik verschuifbaar",
+      "washer": "wasmachine {kwh} kWh per beurt, {n} beurten per week",
+      "dishwasher": "vaatwasser {kwh} kWh per beurt, {n} beurten per week",
+      "hours": "telkens {h} uur tegenover een start op een willekeurig tijdstip"
+    }
   },
   "pager": {
     "label": "Pagina’s van de lijst",
@@ -5089,6 +5401,10 @@
     "csv": {
       "button": "Als CSV",
       "hint": "De geschiedenis met de gekozen filters als tabel – bijvoorbeeld als bewijs voor verhuurder of beheerder"
+    },
+    "inbox": {
+      "applied": "Overgenomen uit een document: {name}",
+      "draftApplied": "Huishouden uit documenten overgenomen (items: {items}, afgeronde documenten: {documents})"
     }
   },
   "assignee": {
@@ -5113,7 +5429,16 @@
       "other": "{count} andere meldingen verborgen (filter ‘Verantwoordelijk’)"
     },
     "emptyFiltered": "Niets voor deze selectie.",
-    "wasDeleted": "De verantwoordelijke persoon is verwijderd. Vul iemand anders in of laat het veld leeg."
+    "wasDeleted": "De verantwoordelijke persoon is verwijderd. Vul iemand anders in of laat het veld leeg.",
+    "none": "– niemand –",
+    "hintMeter": "Meterstanden, herinneringen bij deze meter en de contracten ervan gaan naar deze persoon als ze geen eigen verantwoordelijke hebben. Niemand krijgt een melding.",
+    "hintContract": "Opzegtermijn, einde van het contract en ‘Rekening verwacht’ gaan naar deze persoon. Leeg = de persoon van de meter. Niemand krijgt een melding.",
+    "noPeople": "Personen voeg je toe onder Instellingen → Toegang.",
+    "via": {
+      "contract": "via het contract",
+      "meter": "via de meter"
+    },
+    "inheritsMeter": "Leeg = verantwoordelijk: {name} (via de meter)."
   },
   "notice": {
     "updated": "Bijgewerkt naar versie {version}.",
@@ -5154,7 +5479,8 @@
     "export": {
       "label": "Afrekenjaren",
       "hint": "Eén regel per afrekenperiode: periode, hoeveelheid, kosten, voorschotten, saldo. Periodes zoals op de ingevoerde afrekeningen, anders volgens de afrekendatum en tot een leverancierswissel."
-    }
+    },
+    "suggestContracts": "Je contracten beginnen op {day}, de afrekendatum staat op {anchor}. De afrekendatum is de eerste dag van de afrekenperiode: vul in de instellingen {day} in, dan beginnen de periodes met je contracten."
   },
   "scenario": {
     "title": "Prognosewerkplaats",
@@ -5307,7 +5633,9 @@
       "balance": "Saldo bij de afrekening op {date}",
       "balanceBase": "Uitgangssituatie: {amount}",
       "co2": "CO₂",
-      "co2Year": "CO₂ per jaar"
+      "co2Year": "CO₂ per jaar",
+      "advanceRange": "{low} tot {high}",
+      "advanceUncertain": "onzeker: het verwarmingsmodel past slecht"
     },
     "chart": {
       "cumTitle": "Cumulatieve kosten",
@@ -5370,7 +5698,10 @@
       "no_heat_model": "Geen verwarmingsmodel voor deze meter: winter en verwarmingspercentages hebben geen effect.",
       "tariff_unsupported": "Tarief: bij water rekent de werkplaats met het huidige contract.",
       "tariff_no_price": "Tarief: het contract mist een eenheidsprijs — berekend met het huidige contract.",
-      "no_offers": "Geen aanbod met prijzen ingevoerd — berekend met het huidige contract."
+      "no_offers": "Geen aanbod met prijzen ingevoerd — berekend met het huidige contract.",
+      "interpolated": "Maandwaarden verdeeld in plaats van gemeten: {n}. ‘Zoals vorig jaar’ en het seizoensprofiel laten ze weg.",
+      "poor_fit": "Het verwarmingsmodel past slecht bij deze meter (± {pct} per maand): het verwarmingsaandeel en alles wat erop werkt (isolatie, kamertemperatuur, winter) is onzeker; de werkplaats toont geen bandbreedte.",
+      "few_measured": "Te weinig gemeten maanden om het verwarmingsmodel te controleren: het verwarmingsaandeel en alles wat erop werkt is onzeker; de werkplaats toont het voorschot alleen als marge."
     },
     "share": {
       "image": "Resultaat als afbeelding opslaan",
@@ -5413,5 +5744,866 @@
     "assumed": "Aangenomen woonoppervlak {area} m² – vul het in. Tot dan rekent de app met deze waarde.",
     "enterHousehold": "Woonoppervlak invullen",
     "enterTenancy": "Oppervlak bij de huur invullen"
+  },
+  "inbox": {
+    "provider": {
+      "local": "{api} in het thuisnetwerk ({host})",
+      "off": "Zonder dienst om uit te lezen is de postbak een opbergplek: opbergen, toewijzen, met de hand invoeren. Voor het uitlezen volstaat een Ollama in het thuisnetwerk met het model {model} (ongeveer 18 GB geheugen).",
+      "setup": "Instellen",
+      "on": "Leest uit met {service}, model {model}. Geen document verlaat het thuisnetwerk.",
+      "onCloud": "Leest uit met {service}, model {model}. Elk document gaat daarvoor naar de dienst, andere gegevens niet; vóór elke uitlezing vraagt de app het.",
+      "cloudOff": "{service} is gekozen, maar uitlezen in de cloud staat uit of heeft geen sleutel: er gaat geen document naar buiten. Een beheerder kan het instellen of terugzetten op ‘Lokaal’ onder Instellingen → Expert."
+    },
+    "applied": {
+      "note": "Overgenomen uit het document ‘{name}’"
+    },
+    "reminder": {
+      "reading": "Meterstand {meter} doorgeven (uiterlijk {date})",
+      "specialTermination": "Bijzonder opzegrecht {provider} tot {date}",
+      "followUp": "Vervolgcontract afsluiten (levering {provider} eindigt op {end})",
+      "dunning": "Aanmaning ‘{name}’ afhandelen",
+      "document": "Document ‘{name}’ afhandelen"
+    },
+    "title": "Postbak",
+    "subtitle": "Berg post van de leverancier op als pdf, laat die uitlezen, controleer en neem over.",
+    "back": "Postbak",
+    "loadError": "Postbak niet geladen: {msg}",
+    "demo": {
+      "note": "In de demo wordt niets uitgelezen of opgeslagen. Het voorbeelddocument toont een voorbereide uitlezing."
+    },
+    "consent": {
+      "title": "Document versturen?",
+      "text": {
+        "one": "Om uitgelezen te worden gaat dit document naar {provider}. Akkoord?",
+        "other": "Om uitgelezen te worden gaan deze {count} documenten naar {provider}. Akkoord?"
+      },
+      "ok": "Versturen en uitlezen"
+    },
+    "drop": {
+      "title": "Sleep een pdf hierheen of kies er een",
+      "hint": "Rekening, contractbevestiging, prijswijziging … Op de iPad uit de app Bestanden."
+    },
+    "tab": {
+      "documents": {
+        "one": "{count} document",
+        "other": "{count} documenten"
+      },
+      "review": {
+        "one": "Controlelijst ({count})",
+        "other": "Controlelijst ({count})"
+      }
+    },
+    "toast": {
+      "uploadFailed": "‘{name}’ niet opgeborgen: {msg}",
+      "uploaded": {
+        "one": "{count} document opgeborgen",
+        "other": "{count} documenten opgeborgen"
+      },
+      "deleted": "Document verwijderd",
+      "cancelled": "Afgebroken. De dienst rekent op de achtergrond verder; het resultaat staat klaar bij de volgende uitlezing.",
+      "filed": "Herkend als {type} en opgeborgen",
+      "read": "Uitgelezen — controleer het",
+      "applied": {
+        "one": "{count} wijziging overgenomen",
+        "other": "{count} wijzigingen overgenomen"
+      },
+      "reminded": "Herinnering voor {date} aangemaakt."
+    },
+    "queue": {
+      "running": "Uitlezen: {done} van {total}",
+      "current": "nu: {name}",
+      "progress": "Voortgang",
+      "cancel": "Afbreken",
+      "waiting": {
+        "one": "{count} document wacht op uitlezen.",
+        "other": "{count} documenten wachten op uitlezen."
+      },
+      "resume": "Doorgaan",
+      "readAll": {
+        "one": "{count} document uitlezen",
+        "other": "Alle {count} uitlezen"
+      },
+      "hint": "Lokaal ongeveer een minuut per document. De pagina werkt ze een voor een af, ook als je verder klikt in de app."
+    },
+    "step": {
+      "text": "Tekst lezen …",
+      "type": "Soort herkennen …",
+      "fields": "Velden uitlezen …",
+      "elapsed": "{s} s"
+    },
+    "empty": "Nog geen post in de postbak. Berg je eerste rekening of contractbevestiging op als pdf.",
+    "col": {
+      "document": "Document",
+      "type": "Soort",
+      "status": "Status",
+      "added": "Opgeborgen",
+      "actions": "Acties"
+    },
+    "open": "Openen",
+    "delete": {
+      "label": "‘{name}’ verwijderen",
+      "title": "Document verwijderen?",
+      "text": "‘{name}’ verdwijnt uit de postbak. Hangt het al als bewijsstuk aan een rekening of contract, dan blijft het daar.",
+      "ok": "Verwijderen"
+    },
+    "flags": {
+      "one": "{count} veld controleren",
+      "other": "{count} velden controleren"
+    },
+    "status": {
+      "new": "Nieuw",
+      "queued": "In de wachtrij",
+      "read": "Uitgelezen",
+      "failed": "Mislukt",
+      "done": "Overgenomen",
+      "filed": "Opgeborgen"
+    },
+    "review": {
+      "empty": "Niets te controleren: geen uitgelezen document heeft een gemarkeerd veld.",
+      "hint": "Alleen de gemarkeerde velden van alle uitgelezen documenten. Een klik opent het document op die plek."
+    },
+    "doc": {
+      "page": "p. {n}",
+      "label": "Document",
+      "open": "Pdf openen",
+      "noViewer": "Deze browser toont het voorbeeld niet. ‘Pdf openen’ toont het document in een eigen venster."
+    },
+    "type": {
+      "invoice": "Rekening",
+      "contract_confirmation": "Contractbevestiging",
+      "price_change": "Prijswijziging",
+      "cancellation": "Opzegging",
+      "supply_start": "Begin van levering",
+      "meter_change": "Meterwissel",
+      "reading_request": "Verzoek om meterstand",
+      "advance_change": "Voorschotwijziging",
+      "dunning": "Aanmaning",
+      "withdrawal": "Herroeping",
+      "other": "Overig",
+      "unknown": "nog niet herkend"
+    },
+    "read": "Uitlezen",
+    "reread": "Opnieuw uitlezen",
+    "extracted": "Uitgelezen met {model} op {date} ({s} s)",
+    "recognizeOnly": "Herkend als {type}: opgeborgen, niets over te nemen.",
+    "assign": {
+      "title": "Toewijzing",
+      "saved": "Door jou vastgelegd.",
+      "suggested": "Vooraf ingevuld via: {by}. Aanpasbaar.",
+      "none": "Nog niet toegewezen.",
+      "utility": "Verbruikssoort",
+      "meter": "Meter",
+      "contract": "Contract",
+      "noContract": "geen contract",
+      "by": {
+        "meter_number": "meternummer",
+        "market_location": "marktlocatie",
+        "contract_number": "contract-/klantnummer",
+        "utility": "energie genoemd in het document",
+        "single_meter": "enige meter",
+        "date": "contract van de leverancier op die dag"
+      }
+    },
+    "manual": {
+      "title": "Met de hand invoeren",
+      "hint": "Opent het formulier — het document blijft ernaast staan.",
+      "bill": "Rekening invoeren",
+      "contract": "Contract",
+      "reading": "Meterstand",
+      "meter": "Meter en meterwissel",
+      "reminder": "Herinnering"
+    },
+    "reopen": "Terug in de postbak",
+    "fileAway": "Opbergen zonder overnemen",
+    "fields": {
+      "title": "Uitgelezen",
+      "flagged": {
+        "one": "{count} veld is gemarkeerd: controleer de bronvermelding, bevestig of corrigeer.",
+        "other": "{count} velden zijn gemarkeerd: controleer de bronvermelding, bevestig of corrigeer."
+      },
+      "allOk": "Elke waarde staat letterlijk in het document (bronvermelding eronder).",
+      "reviewAll": "Bij deze soort controleer je elk veld zelf.",
+      "empty": {
+        "one": "{count} veld niet in het document",
+        "other": "{count} velden niet in het document"
+      }
+    },
+    "field": {
+      "edited": "Uitgelezen was: {value}",
+      "confirm": "Klopt",
+      "correct": "Corrigeren",
+      "utility": "Energie",
+      "supplier": "Leverancier",
+      "kind": "Soort rekening",
+      "period_from": "Periode van",
+      "period_to": "Periode tot en met",
+      "consumption": "Verbruik",
+      "reading_new": "Nieuwe meterstand",
+      "reading_new_date": "Datum nieuwe meterstand",
+      "reading_old": "Vorige meterstand",
+      "reading_old_date": "Datum vorige meterstand",
+      "total_amount": "Totaalbedrag",
+      "advances_paid": "Betaalde voorschotten",
+      "advances_total": "Totaal voorschotten",
+      "result_kind": "Resultaat",
+      "result_amount": "Bedrag van het resultaat",
+      "advance_new": "Nieuw voorschot",
+      "advance_new_from": "Nieuw voorschot vanaf",
+      "meter_number": "Meternummer",
+      "market_location": "Marktlocatie",
+      "contract_number": "Contractnummer",
+      "customer_number": "Klantnummer",
+      "gas_factors": "Gasomrekening",
+      "working_prices": "Eenheidsprijzen",
+      "base_price": "Vastrecht",
+      "base_price_period": "Vastrecht per",
+      "supply_start": "Begin van levering",
+      "tariff_name": "Tarief",
+      "working_price": "Eenheidsprijs",
+      "min_term_months": "Minimale looptijd (maanden)",
+      "notice_period": "Opzegtermijn",
+      "advance": "Voorschot",
+      "bonus": "Bonus",
+      "price_guarantee_until": "Prijsgarantie tot",
+      "valid_from": "Geldig vanaf",
+      "working_price_old": "Huidige eenheidsprijs",
+      "working_price_new": "Nieuwe eenheidsprijs",
+      "base_price_old": "Huidig vastrecht",
+      "base_price_new": "Nieuw vastrecht",
+      "reason": "Reden",
+      "special_termination_until": "Bijzonder opzegrecht tot",
+      "supply_end": "Einde van levering",
+      "cancel_kind": "Soort opzegging",
+      "reading_start": "Meterstand bij begin",
+      "change_date": "Datum van de wissel",
+      "old_meter_number": "Oude meter",
+      "old_reading": "Eindstand oude meter",
+      "new_meter_number": "Nieuwe meter",
+      "new_reading": "Beginstand nieuwe meter",
+      "requested_by": "Doorgeven vóór",
+      "contract": "Contract van deze leverancier",
+      "base_price_basis": "Vastrecht netto/bruto",
+      "base_price_vat_pct": "Btw-tarief van het vastrecht",
+      "vat_pct": "Btw-tarief",
+      "document_date": "Datum van het document",
+      "document_title": "Titel van het document",
+      "meter_readings": "Meterstanden per meter",
+      "reading_new_estimated": "Eindstand geschat",
+      "reading_old_estimated": "Beginstand geschat"
+    },
+    "reason": {
+      "empty": "Ontbreekt, maar is nodig",
+      "no_quote": "Zonder bronvermelding",
+      "quote_not_found": "Bronvermelding staat niet in het document",
+      "value_not_in_quote": "Waarde staat niet in de bronvermelding",
+      "unreadable": "Waarde onleesbaar",
+      "estimated": "Alleen verwacht",
+      "mandatory": "Bij deze soort altijd controleren",
+      "price_from_invoice": "Prijs uit een rekening: netto, bruto, deelbedrag?",
+      "sum_mismatch": "Totaal past niet bij de afzonderlijke voorschotten",
+      "inconsistent": "Past niet bij totaal min voorschotten",
+      "missing": "Niet in het document",
+      "supported": "Bronvermelding onzeker, maar gestaafd door andere gegevens",
+      "price_matches": "Zoals in het contract",
+      "assumed": "Datum aangenomen: eerste van de maand na de rekening",
+      "net_price": "Netto op de factuur – omgerekend naar bruto met het vermelde btw-tarief",
+      "vat_changed": "Zelfde prijs, ander btw-tarief",
+      "invalid_format": "Ongeldige vorm – een marktlocatie heeft 11 cijfers met controlecijfer"
+    },
+    "option": {
+      "gas": "Gas",
+      "strom": "Stroom",
+      "wasser": "Water",
+      "fernwaerme": "Stadsverwarming",
+      "annual": "Jaarafrekening",
+      "final": "Eindafrekening",
+      "credit": "Tegoed",
+      "due": "Bijbetaling",
+      "month": "per maand",
+      "year": "per jaar",
+      "customer": "Bevestiging van je opzegging",
+      "supplier": "Opzegging door de leverancier",
+      "switch": "Einde door overstap",
+      "net": "netto",
+      "gross": "bruto"
+    },
+    "item": {
+      "gasFactor": "{from} t/m {to}: volumeherleidingsfactor {z} × calorische waarde {hs} kWh/m³",
+      "price": "vanaf {from}: {value}",
+      "priceNet": "vanaf {from}: {value} netto + {vat}% btw = {gross}",
+      "meterReading": "Meter {meter}: {from} → {to}",
+      "estimated": "geschat volgens de factuur"
+    },
+    "result": {
+      "due": "bijbetaling {amount}",
+      "credit": "tegoed {amount}"
+    },
+    "proposal": {
+      "reading": "Meterstand op {date}: {counter}",
+      "bill": "Rekening {from} t/m {to} invoeren, {result}",
+      "billBook": "Resultaat boeken als bijzondere betaling ({result})",
+      "advance": "Voorschot vanaf {from}: {value}",
+      "gasFactor": "Gasomrekening vanaf {from}: {z} × {hs} = {factor} kWh/m³",
+      "workingPrice": "Eenheidsprijs vanaf {from}: {value} (uit de rekening)",
+      "basePrice": "Vastrecht vanaf {from}: {value} per maand (uit de rekening)",
+      "contract": "Nieuw contract vanaf {from}: {provider} {tariff}",
+      "predecessorEnd": "Huidig contract {provider} eindigt op {date}",
+      "workingPriceChange": "Eenheidsprijs vanaf {from}: {value} (eerder {old})",
+      "basePriceChange": "Vastrecht vanaf {from}: {value} per maand (eerder {old})",
+      "reminderSpecialTermination": "Herinnering: bijzonder opzegrecht tot {date}",
+      "contractEnd": "Contract {provider} eindigt op {date}",
+      "contractStart": "Contract {provider} begint op {date} (eerder {old})",
+      "meterChange": "Meterwissel op {date}, nieuwe meter {serial}",
+      "reminderReading": "Herinnering: meterstand doorgeven vóór {date}",
+      "malo": "Marktlocatie {malo} bij de meter invullen",
+      "contractIds": "Bij het contract invullen: {ids}",
+      "reminderFollowUp": "Herinnering: vervolgcontract afsluiten vóór {date}",
+      "contractFromInvoice": "Contract {provider} vanaf {from} uit deze rekening aanmaken",
+      "contractFromSupplyStart": "Contract {provider} vanaf {from} aanmaken",
+      "meterSwapInvoice": "Meterwissel op {date}: eindstand {old_final} op meter {old_serial}, nieuwe meter {serial} met beginstand {new_initial}",
+      "readingEstimated": "Meterstand op {date}: {counter} (geschat volgens de factuur)"
+    },
+    "detail": {
+      "reading": "Vastgelegd: {counter}.",
+      "row": "In het contract staat {value}.",
+      "billOverlap": "Overlapt met de rekening {from} t/m {to}.",
+      "bill": "Er staat een rekening van {amount}.",
+      "contract": "Contract {provider} {from} t/m {to}; vanaf het nieuwe begin geldt het nieuwe.",
+      "end": "Het vastgelegde einde is {date}.",
+      "start": "Het vastgelegde begin is {date}.",
+      "factor": "Vastgelegd is {factor} kWh/m³.",
+      "malo": "Bij de meter staat {malo}.",
+      "serial": "Geplaatst is meter {serial}."
+    },
+    "pstatus": {
+      "new": "nieuw",
+      "exists": "al aanwezig",
+      "conflict": "tegenstrijdig",
+      "overlap": "overlap",
+      "check": "controleren"
+    },
+    "applyButton": {
+      "one": "{count} wijziging overnemen",
+      "other": "{count} wijzigingen overnemen"
+    },
+    "applyHint": "Alleen wat aangevinkt is, met dezelfde controles als bij handmatige invoer. Daarna hangt het document als bewijsstuk aan rekening of contract.",
+    "proposals": {
+      "title": "Voorgestelde wijzigingen",
+      "none": "Uit dit document volgt niets wat de app kan overnemen. Voer het zo nodig met de hand in.",
+      "assignFirst": "Wijs het document toe aan een verbruikssoort, dan verschijnen de voorstellen."
+    },
+    "dock": {
+      "label": "Document uit de postbak",
+      "back": "Naar het voorbeeld",
+      "close": "Document sluiten"
+    },
+    "defaultName": "Document {date}",
+    "gist": {
+      "title": "Wat betekent dit voor jou?",
+      "more": "Meer",
+      "nothingToDo": "Hier hoeft niets meer te gebeuren.",
+      "remindDate": "Termijn",
+      "figure": {
+        "perYear": "{amount} per jaar",
+        "perMonth": "{amount} per maand"
+      },
+      "priceChange": {
+        "more": "Vanaf {date} kost {provider} je ongeveer {amount} meer per jaar.",
+        "less": "Vanaf {date} betaal je {provider} ongeveer {amount} minder per jaar.",
+        "same": "Vanaf {date} gelden nieuwe prijzen; over het jaar verandert er nauwelijks iets.",
+        "new": "Vanaf {date} gelden nieuwe prijzen."
+      },
+      "invoice": {
+        "pending": "Rekening {from} tot {to}. Neem hem over en de app controleert hem met je gegevens.",
+        "ok": "De rekening {from} tot {to} klopt met je gegevens.",
+        "offMore": "De rekening ligt {amount} hoger dan je eigen berekening.",
+        "offLess": "De rekening ligt {amount} lager dan je eigen berekening.",
+        "offQuantity": "Het verbruik op de rekening wijkt {pct}% af van je meterstanden.",
+        "noCompare": "De rekening noemt geen verbruik en geen bedrag – er valt niets te vergelijken.",
+        "noPrices": "De rekening {from} tot {to}: in het contract ontbreken prijzen – de app kan het bedrag niet narekenen.",
+        "offQuantityNoPrices": "Het verbruik op de rekening wijkt {pct}% af van je meterstanden en in het contract ontbreken prijzen – de app kan het bedrag niet narekenen."
+      },
+      "advance": {
+        "ok": "Het nieuwe voorschot van {amount} past bij je verbruik.",
+        "high": "Het nieuwe voorschot van {amount} is ongeveer {diff} per maand te hoog ({recommended} zou passen).",
+        "low": "Het nieuwe voorschot van {amount} is ongeveer {diff} per maand te laag ({recommended} zou passen).",
+        "unknown": "Nieuw voorschot {amount} vanaf {date}."
+      },
+      "cancellation": {
+        "open": "De levering eindigt op {date} – er is nog geen vervolgcontract.",
+        "followed": "De levering eindigt op {date}; daarna levert {provider} vanaf {start}.",
+        "end": "De levering eindigt op {date}."
+      },
+      "reading": {
+        "who": "Meterstand {meter} doorgeven vóór {date} – {person} is verantwoordelijk.",
+        "todo": "Meterstand {meter} doorgeven vóór {date}.",
+        "done": "Klaar: de meterstand van {last} is er al."
+      },
+      "meterChange": {
+        "todo": "Meter gewisseld op {date}: eindstand {old}, nieuwe meter {serial} vanaf {new}.",
+        "done": "De meterwissel van {date} is ingevoerd."
+      },
+      "confirmation": {
+        "todo": "Nieuw contract bij {provider} vanaf {date}.",
+        "done": "Het contract bij {provider} vanaf {date} is ingevoerd."
+      },
+      "supplyStart": "{provider} levert vanaf {date}.",
+      "dunning": {
+        "todo": "Aanmaning: kijk of er een betaling openstaat en regel het vóór {date}.",
+        "set": "De herinnering voor {date} staat."
+      },
+      "filed": "Opgeborgen – hier hoeft niets te gebeuren.",
+      "fileIt": "Ter kennisname – opbergen is genoeg.",
+      "action": {
+        "apply": "Overnemen",
+        "applyPrices": "Nieuwe prijzen overnemen",
+        "applyCheck": "Overnemen en controleren",
+        "applyAdvance": "Voorschot overnemen",
+        "applyEnd": "Contracteinde overnemen",
+        "applyContract": "Contract aanmaken",
+        "compareTariffs": "Overstappen bespaart ongeveer {amount} – tarieven vergelijken",
+        "openCheck": "Rekening controleren",
+        "findFollowUp": "Vervolgcontract zoeken",
+        "enterReading": "Meterstand invoeren",
+        "openSwap": "Meterwissel invoeren",
+        "remind": "Herinnering aanmaken",
+        "file": "Opbergen",
+        "addPrices": "Prijzen in het contract invullen"
+      },
+      "detail": {
+        "assignFirst": "Koppel het document aan een meter en een contract, dan rekent de app met je gegevens.",
+        "workingPrice": "Eenheidsprijs: {old} → {new}",
+        "basePrice": "Vastrecht per maand: {old} → {new}",
+        "basis": "Berekend met ongeveer {kwh} {unit} in de komende twaalf maanden – dezelfde prognose als in de tariefvergelijking.",
+        "noForecast": "Voor de meerkosten ontbreekt een verbruiksprognose (te weinig meterstanden).",
+        "termination": "Bijzonder opzegrecht tot {date}.",
+        "terminationPassed": "Het bijzondere opzegrecht liep tot {date}.",
+        "saving": "Beste aanbod in de tariefvergelijking: {offer}, bespaart ongeveer {amount} per jaar.",
+        "noOffers": "Leg aanbiedingen vast in de tariefvergelijking, dan laat de app zien of overstappen bespaart.",
+        "noBetterOffer": "Geen opgeslagen aanbod is goedkoper.",
+        "billTotals": "Rekeningbedrag {theirs}, je eigen berekening {ours}.",
+        "newAdvance": "Nieuw voorschot {amount} vanaf {date}.",
+        "noContract": "Zonder gekoppeld contract is er geen vergelijking met de prognose.",
+        "noProjection": "Voor de vergelijking ontbreekt het saldo van de lopende periode (te weinig meterstanden, of het contract loopt nu niet).",
+        "advanceBasis": "Ongeveer {recommended} per maand zou passen; met het nieuwe voorschot eindigt de rekening met: {balance}.",
+        "switch": "De levering eindigt door een overstap naar een andere leverancier.",
+        "followUpReminder": "Voorstel: herinnering op {date}, verantwoordelijk: {person}.",
+        "gap": {
+          "one": "Tussen het einde van de levering en het nieuwe contract zit {days} dag zonder contract.",
+          "other": "Tussen het einde van de levering en het nieuwe contract zitten {days} dagen zonder contract."
+        },
+        "person": "Verantwoordelijk: {person}.",
+        "nobody": "Niemand is verantwoordelijk voor deze meter – dat stel je in bij de meter.",
+        "lastReading": "Laatste meterstand: {last}.",
+        "serialConflict": "Let op: bij de meter staat het nummer {serial}.",
+        "minTerm": "Minimale looptijd tot {date}.",
+        "guarantee": "Prijsgarantie tot {date}.",
+        "dunning": "Een aanmaning leest de app niet uit; de herinnering zorgt dat je de betaling regelt."
+      }
+    },
+    "channels": {
+      "text": "Ook zonder browser: met een opdracht vanaf iPhone of iPad, via de map ‘{dir}’ in de gegevensmap of per e-mail via Home Assistant.",
+      "pending": {
+        "one": "({count} bestand wacht.)",
+        "other": "({count} bestanden wachten.)"
+      },
+      "shortcut": "Opdracht",
+      "folder": "Map",
+      "email": "E-mail"
+    },
+    "folder": {
+      "imported": {
+        "one": "{count} document uit de map ‘{dir}’ opgeborgen",
+        "other": "{count} documenten uit de map ‘{dir}’ opgeborgen"
+      },
+      "failed": {
+        "one": "{count} bestand geweigerd (geen pdf of te groot), verplaatst naar ‘{dir}’",
+        "other": "{count} bestanden geweigerd (geen pdf of te groot), verplaatst naar ‘{dir}’"
+      }
+    },
+    "dossier": {
+      "title": "Dossier",
+      "empty": "Nog geen documenten.",
+      "none": "Niets gevonden.",
+      "filter": "Soort",
+      "allKinds": "Alle soorten",
+      "search": "Zoeken",
+      "count": {
+        "one": "{count} document",
+        "other": "{count} documenten"
+      },
+      "open": "Openen",
+      "error": "Dossier niet geladen: {msg}",
+      "period": "Rekening {from} tot {to}",
+      "photo": "Meterstand {counter}",
+      "receipt": "Bewijsstuk bij het contract {provider}",
+      "kind": {
+        "bill": "Rekening",
+        "receipt": "Bewijsstuk",
+        "photo": "Foto"
+      }
+    },
+    "note": {
+      "estimated": "Alleen verwacht: {fields}",
+      "missing": "Niet in het document, later aanvullen: {fields}",
+      "unsure": "Onzeker gelezen, niet overgenomen: {fields}",
+      "netPrice": "Netto op de factuur, omgerekend naar bruto met het vermelde btw-tarief (de app werkt met brutoprijzen).",
+      "vatChanged": "Zelfde prijs als in het contract, alleen een ander btw-tarief – de nieuwe prijsregel geldt vanaf de dag die de factuur ervoor noemt."
+    },
+    "duplicate": {
+      "text": "Waarschijnlijk hetzelfde document als ‘{name}’ (opgeborgen op {date}). Neem er maar één over; het andere kun je verwijderen.",
+      "open": "Openen",
+      "short": "waarschijnlijk een dubbel"
+    },
+    "priceBasis": {
+      "net": "netto volgens de rekening, met {vat}% btw = {gross} bruto"
+    }
+  },
+  "inboxCloud": {
+    "provider": {
+      "openai": "OpenAI-compatibele dienst"
+    },
+    "notice": {
+      "pdf": "Het document gaat als pdf naar {name} op {host} en wordt daar uitgelezen. De dienst ziet de hele inhoud – ook naam, adres, meter- en klantnummer.",
+      "text": "De tekst van het document gaat naar de dienst op {host} en wordt daar uitgelezen. De dienst ziet de hele tekst – ook naam, adres, meter- en klantnummer."
+    },
+    "experimental": "Experimenteel: nog niet getoetst aan echte ervaringen."
+  },
+  "bonus": {
+    "generic": "Bonus",
+    "typed": "Bonus ({type})",
+    "line": "Bonus −{amount} op {date}",
+    "lineOther": "Creditering −{amount} op {date}",
+    "lineTyped": "{what} −{amount} op {date}",
+    "withNote": "{line} ({note})",
+    "total": "Bonus −{amount}",
+    "costNote": "De tegel toont de kosten zonder bonus; de bonus staat eronder. Het saldo rekent hem mee, zoals de afrekening. Het maandgemiddelde laat hem weg: een eenmalige creditering is geen maandprijs."
+  },
+  "attachments": {
+    "label": "Bewijsstukken:",
+    "fallback": "Bewijsstuk {n}",
+    "open": "{name} openen"
+  },
+  "inboxDraft": {
+    "title": "Huishouden uit documenten",
+    "subtitle": "Eén concept over alle uitgelezen documenten: meters, contracten, meterstanden, rekeningen. Je controleert alleen wat gemarkeerd is.",
+    "summaryTitle": "Je huishouden als concept",
+    "summary": "{what} {from}. {ask}",
+    "count": {
+      "meters": {
+        "one": "{count} meter",
+        "other": "{count} meters"
+      },
+      "contracts": {
+        "one": "{count} contract",
+        "other": "{count} contracten"
+      },
+      "readings": {
+        "one": "{count} meterstand",
+        "other": "{count} meterstanden"
+      },
+      "bills": {
+        "one": "{count} rekening",
+        "other": "{count} rekeningen"
+      },
+      "reminders": {
+        "one": "{count} herinnering",
+        "other": "{count} herinneringen"
+      },
+      "documents": {
+        "one": "uit {count} document",
+        "other": "uit {count} documenten"
+      },
+      "questions": {
+        "one": "{count} punt heeft je nodig.",
+        "other": "{count} punten hebben je nodig."
+      },
+      "duplicates": {
+        "one": "{count} document waarschijnlijk dubbel (telt één keer)",
+        "other": "{count} documenten waarschijnlijk dubbel (tellen één keer)"
+      },
+      "without": {
+        "one": "{count} document draagt niets bij aan het concept",
+        "other": "{count} documenten dragen niets bij aan het concept"
+      },
+      "nothing": "Nog niets over te nemen",
+      "noQuestions": "Niets heeft je nodig: elke waarde staat letterlijk in het document."
+    },
+    "empty": "Nog geen document uitgelezen. Berg de post van je leverancier op in de postbak en laat die uitlezen – het concept ontstaat met het eerste uitgelezen document en groeit mee.",
+    "toInbox": "Naar de postbak",
+    "entry": {
+      "one": "Concept van het huishouden uit {count} uitgelezen document",
+      "other": "Concept van het huishouden uit {count} uitgelezen documenten"
+    },
+    "entryHint": "Alle documenten tegelijk: meters, contracten, meterstanden en rekeningen, alleen twijfelgevallen om te controleren.",
+    "queue": {
+      "running": "Wordt nog uitgelezen: {done} van {total}. Het concept groeit mee.",
+      "resume": "Verder in de postbak"
+    },
+    "status": {
+      "update": "aanvullen"
+    },
+    "tickToConfirm": "Aanvinken bevestigt deze gegevens.",
+    "optional": "Alleen een voorstel: niet vooraf aangevinkt.",
+    "rows": {
+      "one": "{count} nieuwe regel",
+      "other": "{count} nieuwe regels"
+    },
+    "existsRows": {
+      "one": "{count} regel al aanwezig",
+      "other": "{count} regels al aanwezig"
+    },
+    "confirm": "overnemen",
+    "choose": "De documenten verschillen – welke waarde klopt?",
+    "existing": "Vastgelegd is {value}.",
+    "sources": {
+      "one": "Citaat",
+      "other": "{count} citaten"
+    },
+    "unknownProvider": "(leverancier onbekend)",
+    "apply": {
+      "one": "{count} item overnemen",
+      "other": "{count} items overnemen"
+    },
+    "applyHint": "Eerst maakt de app een back-up. Alles gaat door dezelfde controles als handmatige invoer; bestaande gegevens veranderen alleen waar je dat bevestigt.",
+    "stale": "Het concept is intussen veranderd (bijvoorbeeld omdat er meer documenten zijn uitgelezen). Het is opnieuw geladen – bekijk het nog eens.",
+    "toast": {
+      "partly": {
+        "one": "{count} onderdeel niet overgenomen – zie hieronder",
+        "other": "{count} onderdelen niet overgenomen – zie hieronder"
+      }
+    },
+    "findings": {
+      "title": "Opgevallen"
+    },
+    "finding": {
+      "gap": "Gat tussen twee contracten: {from} tot {to} zonder contract. De data blijven zoals ze in de documenten staan.",
+      "overlap": "Twee contracten overlappen van {from} tot {to}. Het latere begin geldt; de data blijven zoals ze in de documenten staan.",
+      "falling": "De meterstand daalt op {date} van {a} naar {b} zonder meterwissel in de documenten – waarschijnlijk een nieuwe meter (voorstel hieronder).",
+      "chain_mismatch": "De eindstand en de beginstand van de volgende rekening komen niet overeen ({a} en {b} rond {date}). Beide standen moeten gecontroleerd worden.",
+      "duplicate": "Waarschijnlijk dubbel: {name} heeft dezelfde inhoud als {of} en telt één keer.",
+      "no_meter": "{name}: zonder meter- of contractnummer past het document bij meerdere meters. Wijs het in het document zelf toe.",
+      "same_supplier": "{name} en {of}: als dezelfde leverancier behandeld – zelfde meter, zelfde periode, een gemeenschappelijke naam.",
+      "invoice_wp": "{name}: eenheidsprijs vanaf {date} {invoice} in plaats van {chain} uit bevestiging of prijswijziging. De reeks wordt overgenomen; ‘Rekening controleren’ toont het verschil.",
+      "invoice_bp": "{name}: vastrecht vanaf {date} {invoice} in plaats van {chain} per maand uit bevestiging of prijswijziging. De reeks wordt overgenomen; ‘Rekening controleren’ toont het verschil.",
+      "start_from_invoice": "Contract {provider}: begin vervroegd naar {from} – de eerste rekening van hetzelfde contract begint vóór {to} uit de bevestiging.",
+      "bill_corrected": "Gecorrigeerde rekening: {name} vervangt {of}. De gecorrigeerde versie wordt overgenomen, de eerdere blijft als bewijsstuk."
+    },
+    "missing": {
+      "title": "Ontbreekt nog",
+      "hint": "Staat in geen enkel document – vul het later aan of laat het leeg. Dat is geen fout.",
+      "go": "Erheen",
+      "advance": "{utility}: het voorschot voor {provider} staat in geen enkel document.",
+      "prices": "{utility}: prijzen voor {provider} staan in geen enkel document.",
+      "water_prices": "{utility}: de drie prijzen voor {provider} (drinkwater, afvalwater, hemelwater) vul je met de hand in het contract in.",
+      "contract_start": "{utility}: geen document noemt het begin van het contract bij {provider}. Leg het contract met de hand aan; de rest volgt dan.",
+      "old_final": "{utility}: meterwissel op {date} zonder eindstand van de oude meter. Voer de meterwissel met die stand met de hand in.",
+      "open": "{utility}: {name} – {notes}",
+      "working_price": "{utility}: de eenheidsprijs voor {provider} staat in geen enkel document.",
+      "base_price": "{utility}: het vastrecht voor {provider} staat in geen enkel document.",
+      "prices_unconfirmed": "{utility}: prijzen voor {provider} staan alleen op rekeningen. Bevestig ze hierboven of vul ze in het contract in.",
+      "working_price_gap": "{utility}: geen document noemt een eenheidsprijs voor {provider} van {from} tot {to}.",
+      "base_price_gap": "{utility}: geen document noemt een vastrecht voor {provider} van {from} tot {to}.",
+      "two_registers": "{utility}: {name} noemt voor meter {meter} twee telwerken (hoog/laag). Vul de standen per telwerk met de hand in."
+    },
+    "documents": {
+      "title": {
+        "one": "{count} document in het concept",
+        "other": "{count} documenten in het concept"
+      }
+    },
+    "docState": {
+      "used": "in het concept",
+      "duplicate": "waarschijnlijk dubbel",
+      "duplicateOf": "waarschijnlijk dubbel (zoals {name})",
+      "no_utility": "geen verbruikssoort herkend – wijs die in het document toe",
+      "no_meter": "meter onduidelijk – wijs die in het document toe",
+      "no_start": "zonder begin van het contract",
+      "nothing": "draagt niets bij (bijvoorbeeld een verstreken datum)"
+    },
+    "item": {
+      "meter": {
+        "create": "Nieuwe meter: {name}",
+        "adopt": "Meter {name}: nummer {serial} en plaatsing invullen",
+        "existing": "Meter {name}"
+      },
+      "meterChange": "Meterwissel op {date}, nieuwe meter {serial}",
+      "contract": {
+        "new": "Contract {provider} {from} tot {to}",
+        "existing": "Bestaand contract {provider} vanaf {from}"
+      },
+      "contractEnd": "Vorig contract {provider} eindigt op {date}",
+      "prices": "Prijzen {provider}",
+      "advances": "Voorschotten {provider}",
+      "readings": "Meterstanden meter {serial}",
+      "bill": "Rekening {from} tot {to}, {result}",
+      "gasFactor": "Gasomrekening (ingangsdata van de rekeningen)",
+      "reminder": {
+        "reading": "Herinnering: meterstand {meter} doorgeven vóór {date}",
+        "specialTermination": "Herinnering: bijzonder opzegrecht {provider} tot {date}"
+      }
+    },
+    "field": {
+      "name": "Naam",
+      "installed_on": "Geplaatst sinds",
+      "start": "Begin",
+      "end": "Einde",
+      "min_term_end": "Minimale looptijd tot",
+      "due": "Uiterlijk",
+      "wp": "Eenheidsprijs vanaf {date}",
+      "bp": "Vastrecht per maand vanaf {date}",
+      "ap": "Voorschot vanaf {date}",
+      "reading": "Stand op {date}",
+      "gf": "Gasomrekening vanaf {date}"
+    },
+    "value": {
+      "factor": "volumeherleidingsfactor {z} × calorische waarde {hs} = {factor} kWh/m³"
+    },
+    "basis": {
+      "start": {
+        "supply_start": "uit de brief over het begin van de levering",
+        "invoice": "begin van de eerste rekening (geen document noemt het begin van het contract)",
+        "existing": "zoals in het bestaande contract",
+        "invoice_earlier": "begin van de eerste rekening – die ligt vóór het begin uit de bevestiging"
+      },
+      "end": {
+        "successor": "dag vóór het volgende contract"
+      },
+      "earliest": "oudste document van deze meter",
+      "price": {
+        "vat_changed": "zelfde nettoprijs, ander btw-tarief volgens de rekening – nieuwe prijsregel vanaf de dag die de rekening noemt"
+      },
+      "newest": "uit het recentste document; de andere nummers staan ter keuze"
+    },
+    "reason": {
+      "differs": "De documenten verschillen",
+      "conflict_existing": "Er is iets anders vastgelegd",
+      "invoice_differs": "Prijs op de rekening wijkt af van bevestiging en prijswijzigingen",
+      "chain_mismatch": "Eind- en beginstand komen niet overeen",
+      "inferred": "Afgeleid uit de laatste meterstand",
+      "falling_reading": "Alleen een vermoeden: de stand daalt",
+      "assumed_date": "De ingangsdatum staat niet in het document (aangenomen: de maand na de rekening)",
+      "number_change": "Nieuw meternummer op de volgende rekening",
+      "swap_open": "Na een meterwissel zonder eindstand van de oude meter – voer eerst de wissel in",
+      "swap_readings": "De standen passen niet helemaal bij de wissel (ander apparaat, dalend of onder een bekende stand) – controleer"
+    },
+    "result": {
+      "title": "Overgenomen",
+      "nothing": "Niets nieuws: alles was al vastgelegd.",
+      "meters": {
+        "one": "{count} meter aangemaakt",
+        "other": "{count} meters aangemaakt"
+      },
+      "meter_changes": {
+        "one": "{count} meterwissel ingevoerd",
+        "other": "{count} meterwissels ingevoerd"
+      },
+      "contracts": {
+        "one": "{count} contract aangemaakt",
+        "other": "{count} contracten aangemaakt"
+      },
+      "rows": {
+        "one": "{count} prijs- of voorschotregel",
+        "other": "{count} prijs- en voorschotregels"
+      },
+      "readings": {
+        "one": "{count} meterstand",
+        "other": "{count} meterstanden"
+      },
+      "bills": {
+        "one": "{count} rekening ingevoerd",
+        "other": "{count} rekeningen ingevoerd"
+      },
+      "booked": {
+        "one": "{count} resultaat als bijzondere betaling geboekt",
+        "other": "{count} resultaten als bijzondere betaling geboekt"
+      },
+      "gas_factors": {
+        "one": "{count} ingangsdatum van de gasomrekening",
+        "other": "{count} ingangsdata van de gasomrekening"
+      },
+      "reminders": {
+        "one": "{count} herinnering",
+        "other": "{count} herinneringen"
+      },
+      "done": {
+        "one": "{count} document afgerond (hangt als bewijs aan het resultaat)",
+        "other": "{count} documenten afgerond (hangen als bewijs aan het resultaat)"
+      },
+      "open": {
+        "one": "Nog open in de postbak: {count} document",
+        "other": "Nog open in de postbak: {count} documenten"
+      },
+      "billCheck": "{utility}: rekening {from} tot {to} controleren",
+      "snapshot": "Eerst bewaard: de vorige stand staat klaar als back-up.",
+      "snapshotLink": "Back-ups"
+    },
+    "setup": {
+      "button": "Uitlezen instellen",
+      "title": "Uitlezen instellen",
+      "done": "Klaar",
+      "memberHint": "Instellen doet wie deze installatie beheert. Hier zie je wat er ingesteld is; opbergen kan nu al.",
+      "ready": "Ingesteld: de app leest nu uit met {service}, model {model}.",
+      "unavailable": "De instellingen voor uitlezen zijn nu niet bereikbaar. Probeer het zo meteen opnieuw."
+    }
+  },
+  "interpolation": {
+    "leadYear": {
+      "one": "{count} van {total} maandwaarden in {year} is verdeeld, niet gemeten",
+      "other": "{count} van {total} maandwaarden in {year} zijn verdeeld, niet gemeten"
+    },
+    "leadAll": {
+      "one": "{count} van {total} maandwaarden is verdeeld, niet gemeten",
+      "other": "{count} van {total} maandwaarden zijn verdeeld, niet gemeten"
+    },
+    "readingsYear": {
+      "one": "{count} meterstand in {year}",
+      "other": "{count} meterstanden in {year}"
+    },
+    "noReadingYear": "geen meterstand in {year}",
+    "readingsRange": {
+      "one": "{count} meterstand van {from} tot {to}",
+      "other": "{count} meterstanden van {from} tot {to}"
+    },
+    "why": "Tussen twee meterstanden lagen meer dan {limit} dagen: het verbruik is gelijkmatig over de dagen verdeeld. Alleen het totaal tussen twee meterstanden is bekend.",
+    "skipHeat": "Afwijkingen, aanbevelingen en de stooklijn laten deze maanden weg.",
+    "skip": "Afwijkingen en aanbevelingen laten deze maanden weg.",
+    "heatIntervals": "Het verwarmingsmodel rekent daarom met de {intervals} perioden tussen de meterstanden.",
+    "pv": "Eigen verbruik, zelfvoorziening, besparing en terugverdientijd zijn voor deze maanden schattingen.",
+    "markTitle": "Verdeeld, niet gemeten: uit {gap} dagen tussen twee meterstanden",
+    "markTitleOpen": "Verdeeld, niet gemeten",
+    "legend": "≈ verdeeld, niet gemeten: een langere periode tussen twee meterstanden, gelijkmatig over de dagen verdeeld.",
+    "legendPv": "≈ verdeeld, niet gemeten: hoe de zonnestroom van deze maanden zich verdeelt, is geschat.",
+    "chartNote": "Gearceerde balken: verdeeld, niet gemeten.",
+    "markTitleEstimated": "Verdeeld, niet gemeten: uit {gap} dagen tussen twee meterstanden, met een geschatte meterstand als steunpunt",
+    "whyEstimated": "Ligt er een geschatte meterstand tussen, dan geldt aan elke kant een eigen dagwaarde."
+  },
+  "balanceUncertain": {
+    "range": "Afrekening op {date} onzeker: tussen {low} en {high}, omdat {why}.",
+    "advance": "Een passend voorschot ligt tussen {low} en {high} per maand; één voorstel doet de app hier niet.",
+    "even": "in evenwicht",
+    "due": "{amount} bijbetaling",
+    "credit": "{amount} tegoed",
+    "light": "{label}: onzeker, tussen {low} en {high}",
+    "why": {
+      "factor_clamped": "de laatste gemeten maanden ver van de verwachting liggen (factor {raw}, gerekend met {used})",
+      "poor_fit": "het verwarmingsmodel slecht bij deze meter past (± {pct} per maand)",
+      "both": "{a} en {b}",
+      "few_measured": "er te weinig maanden gemeten zijn om het verwarmingsmodel te controleren",
+      "three": "{a}, {b} en {c}"
+    },
+    "short": "{low} tot {high}",
+    "verdict": "onzeker"
+  },
+  "priceMissing": {
+    "contract": "Het contract heeft geen eenheidsprijs: kosten en saldo bevatten geen verbruikskosten. Vul de prijs in het contract aan.",
+    "period": "In deze periode heeft een contract geen eenheidsprijs: kosten en saldo bevatten geen verbruikskosten."
+  },
+  "regression": {
+    "reason": {
+      "too_few_points": "te weinig datapunten ({n})",
+      "poor_fit": "past niet (R² {r2})",
+      "degenerate": "niet te berekenen (te weinig verschil in de waarden)"
+    }
   }
 }

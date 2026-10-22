@@ -138,9 +138,10 @@ final class ViewSumsConsistencyTest extends ServiceTestCase
         $y = [];
         foreach ($monthly as $m) {
             $k = (int)$m['year'];
-            $y[$k] ??= ['q' => 0.0, 'cost' => 0.0, 'adv' => 0.0, 'co2' => 0.0, 'n' => 0];
+            $y[$k] ??= ['q' => 0.0, 'cost' => 0.0, 'bonus' => 0.0, 'adv' => 0.0, 'co2' => 0.0, 'n' => 0];
             $y[$k]['q'] += (float)($m[$qk] ?? 0);
             $y[$k]['cost'] += (float)($m['cost'] ?? 0);
+            $y[$k]['bonus'] += (float)($m['bonus_eur'] ?? 0);
             $y[$k]['adv'] += (float)($m['advance_eur'] ?? 0);
             $y[$k]['co2'] += (float)($m['co2_kg'] ?? 0);
             $y[$k]['n']++;
@@ -223,7 +224,8 @@ final class ViewSumsConsistencyTest extends ServiceTestCase
                 foreach ($this->consumption->forMeter($u, $mt) as $r) if ((int)$r['year'] === $y && !empty($r['contract_id'])) $priced = true;
             }
             if (!$priced) continue;
-            $cost += $years[$y]['cost']; $any = true;
+            // v3.7.0 (#33) — die Kachel zählt ohne Bonus, wie die Kachel der Verbrauchsart
+            $cost += $years[$y]['cost'] + $years[$y]['bonus']; $any = true;
         }
         $tile = array_column($m['headline']['tiles'] ?? [], null, 'key')['cost'] ?? null;
         if ($any) {
@@ -243,7 +245,8 @@ final class ViewSumsConsistencyTest extends ServiceTestCase
                     $prev = sprintf('%04d-%s', (int)substr($fm['ym'], 0, 4) - 1, substr($fm['ym'], 5, 2));
                     $row = $rows[$prev] ?? null;
                     $dim = (int)date('t', (int)strtotime($fm['ym'] . '-01'));
-                    if ($row === null || !empty($row['pre_baseline']) || (int)$row['days'] < (int)date('t', (int)strtotime($prev . '-01')) || $dim !== (int)$row['days']) continue;
+                    // v3.7.0 (#37) — ein verteilter Vorjahresmonat ist nicht gemessen: Die Werkstatt ergänzt ihn aus der Prognose (`filled`)
+                    if ($row === null || !empty($row['pre_baseline']) || !empty($row['interpolated']) || (int)$row['days'] < (int)date('t', (int)strtotime($prev . '-01')) || $dim !== (int)$row['days']) continue;
                     self::assertClose((float)$row[$qk], (float)$fm['base_qty'], 0.06, "$id $today Werkstatt $u {$mt['id']} {$fm['ym']}: Vorjahr = gemessen");
                 }
             }
@@ -305,9 +308,11 @@ final class ViewSumsConsistencyTest extends ServiceTestCase
             foreach ($now['periods'] as $i => $p) {
                 $r = $rows[$i];
                 self::assertSame([$p['from'], $p['until']], [$r[0], $r[1]], "$id $today $u CSV: Zeitraum");
-                foreach ([[4, $qk], [5, 'cost'], [6, 'advances'], [8, 'balance']] as [$col, $k]) {
+                foreach ([[4, $qk], [5, 'cost'], [6, 'advances'], [8, 'balance'], [10, 'bonus']] as [$col, $k]) {
                     self::assertClose((float)$p[$k], self::num($r[$col]), 0.0001, "$id $today $u CSV {$p['from']}: $k");
                 }
+                // v3.7.0 (#33) — Kosten ohne Bonus, die Zahl der Kachel
+                self::assertClose((float)$p['cost'] + (float)$p['bonus'], self::num($r[11]), 0.0051, "$id $today $u CSV {$p['from']}: Kosten ohne Bonus");
             }
             // (4) „Rechnung prüfen“ = Periode aus der Rechnung, am Ziel der Rechnung: der
             // Zähler, mit Gruppenvertrag die Gruppe (wie BillService::billTarget)
@@ -357,9 +362,11 @@ final class ViewSumsConsistencyTest extends ServiceTestCase
                 $dec = self::qk($u) === 'kwh' ? 0 : 1;
                 foreach ($list as $i => $p) {
                     $row = $tables[$u]['rows'][$i] ?? self::fail("$id $today Bericht $year $u: Zeile $i fehlt");
-                    self::assertSame([$this->i18n->number((float)$p[self::qk($u)], $dec), $this->i18n->number((float)$p['cost'], 2),
+                    // v3.7.0 (#33) — Kosten ohne Bonus, der Bonus als eigene Spalte
+                    self::assertSame([$this->i18n->number((float)$p[self::qk($u)], $dec), $this->i18n->number((float)$p['cost'] + (float)$p['bonus'], 2),
+                        $this->i18n->number((float)$p['bonus'], 2),
                         $this->i18n->number((float)$p['advances'], 2), $this->i18n->number((float)$p['balance'], 2)],
-                        array_slice($row, 2, 4), "$id $today Bericht $year $u {$p['from']}");
+                        array_slice($row, 2, 5), "$id $today Bericht $year $u {$p['from']}");
                 }
             }
         }

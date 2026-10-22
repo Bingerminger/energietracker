@@ -323,7 +323,8 @@ Arbeitspreis ab 2026: 12,5 ct/kWh · CO₂-Faktor des Netzes: 198 g/kWh
 ```
 
 Die Felder für Anschlussleistung, Leistungs- und Messpreis zeigt der
-Vertragsdialog in der Stufe „Experte“; gerechnet wird mit ihnen in jeder Stufe
+Vertragsdialog seit v3.7.0 in jeder Stufe (bis v3.6 nur „Experte“), den
+CO₂-Faktor des Netzes ab „Experte“; gerechnet wird mit allen in jeder Stufe
 ([Fernwärme](../verstehen/04-fernwaerme.md#feste-kosten-leistungs--und-messpreis-v310)).
 
 **3. „Eigenheim mit Wärmepumpe und PV“ — Heizwärme als Wärmemenge der
@@ -342,7 +343,7 @@ Karte „Wärmepumpe 2025“ (erfunden):
   12.953 kWh Wärme / 3.896 kWh Strom = Jahresarbeitszahl 3,3 · Heizperiode 3,4
 ```
 
-Die Karte steht in der Stufe „Experte“
+Die Karte steht seit v3.7.0 ab der Stufe „Erfahren“ (bis v3.6 „Experte“)
 ([Heizwärme §7](../verstehen/15-waerme.md#7-jahresarbeitszahl-der-wärmepumpe-v310)).
 
 > **Nicht doppelt.** Die Wärmemenge der Wärmepumpe zählt weder in den Summen der
@@ -382,8 +383,10 @@ Der Energietracker **rechnet nach**, was dabei herauskam:
 | Was verliert der Speicher? | PV-Erzeugung → Karte „Speicher {Jahr}“ | Lade- und Entladezähler ([PV §7](../verstehen/12-pv.md#7-speicher-v310)) |
 | Alle Stände ohne Abtippen | jede Verbrauchsart | Home Assistant schickt sie abends über `POST /api/ingest` ([Home Assistant](home-assistant.md)) |
 
-Ladestrom-Nachweis, Wärmepumpen-Karte, Börsenpreise und die Seite Flexibilität
-zeigt die App in der Stufe „Experte“.
+Ladestrom-Nachweis und Wärmepumpen-Karte zeigt die App seit v3.7.0 ab der
+Stufe „Erfahren“, die Seite Flexibilität seit v3.6.0 in jeder Stufe (mit der
+Nachrechnung je Zähler ab „Experte“), die Börsenpreise unter „Wechsel prüfen“
+ab „Experte“.
 
 **Im Beispielhaushalt „Eigenheim mit Wärmepumpe und PV“:**
 

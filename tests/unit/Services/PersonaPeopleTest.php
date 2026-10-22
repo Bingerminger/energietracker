@@ -65,6 +65,25 @@ final class PersonaPeopleTest extends ServiceTestCase
         }
         self::assertGreaterThan(0, $assigned, 'Haushalt mit Zuständigkeiten');
 
+        // v3.7.0 — Zuständig an Zählern und Verträgen: nur Personen des Verzeichnisses, keine gelöschte
+        $records = ['meters' => 0, 'contracts' => 0];
+        foreach ($p['utilities'] as $u => $bucket) {
+            foreach (array_keys($records) as $pot) {
+                foreach ($bucket[$pot] ?? [] as $x) {
+                    if (!isset($x['assignee_id'])) continue;
+                    $records[$pot]++;
+                    $person = $people[$x['assignee_id']] ?? null;
+                    self::assertNotNull($person, "$u/$pot {$x['id']}: Zuständige ist nicht angelegt");
+                    self::assertNull($person['deleted_at'], "$u/$pot {$x['id']}: Zuständige ist gelöscht");
+                }
+            }
+        }
+        self::assertSame(['meters' => 1, 'contracts' => 1], $records, 'ein Zähler und ein Vertrag mit Zuständiger');
+        foreach ($p['reminders'] as $r) {
+            if (!isset($r['meter_id'])) continue;
+            self::assertContains($r['meter_id'], array_column($p['utilities'][$r['utility']]['meters'] ?? [], 'id'), "Termin {$r['title']}: Zähler fehlt");
+        }
+
         foreach ($p['activity'] as $e) {
             foreach ([$e['by'] ?? null, $e['undone']['by'] ?? null, $e['assignee'] ?? null] as $who) {
                 if (!is_array($who) || !empty($who['former']) || (isset($who['type']) && $who['type'] !== 'person')) continue;
@@ -115,6 +134,57 @@ final class PersonaPeopleTest extends ServiceTestCase
         $root = dirname(__DIR__, 3);
         $dir = json_decode((string)file_get_contents("$root/demo-data/people.json"), true);
         self::assertSame(self::load('showcase')['people'], $dir);
+        // v3.7.0 — und dieselben Zuständigkeiten an Zählern, Verträgen und Terminen
+        $bak = self::load('showcase');
+        foreach (['meters', 'contracts'] as $pot) {
+            foreach (array_keys($bak['utilities']) as $u) {
+                $file = "$root/demo-data/$u/$pot.json";
+                if (!is_file($file)) continue;
+                $want = array_filter(array_column($bak['utilities'][$u][$pot], 'assignee_id', 'id'));
+                $have = array_filter(array_column((array)json_decode((string)file_get_contents($file), true), 'assignee_id', 'id'));
+                self::assertSame($want, $have, "$u/$pot: Verzeichnisform und Backup");
+            }
+        }
+        $links = fn(array $list) => array_map(fn($r) => [$r['id'], $r['utility'] ?? null, $r['meter_id'] ?? null], $list);
+        self::assertSame($links($bak['reminders']), $links(json_decode((string)file_get_contents("$root/demo-data/reminders.json"), true)));
+    }
+
+    /**
+     * v3.7.0 — In jedem Haushalt landen Fristen bei einer Person, auch ohne
+     * eigene Zuständigkeit am Termin: ein Termin am Zähler erbt die Person des
+     * Zählers (Agenda), im Schaufenster liegt die erwartete Abrechnung Strom über
+     * den Vertrag bei Anna.
+     */
+    #[DataProvider('households')]
+    public function testDeadlinesInheritThePersonOfMeterOrContract(string $id): void
+    {
+        $p = DemoDataAligner::align(self::load($id), self::TODAY);
+        (new BackupService($this->store, $this->i18n))->import($p, false, true);
+        $people = new PeopleService($this->store);
+        $resp = new \Energietracker\Services\ResponsibilityService($this->store);
+        $resp->attachPeople(fn(string $pid): ?array => $people->find($pid));
+        $rem = new ReminderService($this->store, $this->settings, $this->i18n);
+        $rem->attachPeople(fn(string $pid): ?array => $people->find($pid));
+        $rem->attachResponsibility($resp);
+        $deliveries = new \Energietracker\Services\DeliveryService($this->store, $this->meters, $this->i18n);
+        $recs = new \Energietracker\Services\RecommendationService($this->store, $this->meters, $this->consumption, $this->settings,
+            new \Energietracker\Services\BenchmarkService($this->consumption, $this->meters, $this->settings, $this->i18n), $deliveries, $this->i18n);
+        $agenda = new \Energietracker\Services\AgendaService($this->settings, $this->meters, $this->readings, $this->contracts,
+            $this->consumption, $rem, $recs, $this->i18n);
+        $agenda->attachResponsibility($resp);
+        $periods = new \Energietracker\Services\PeriodService($this->store, $this->meters, $this->i18n);
+        $bills = new \Energietracker\Services\BillService($this->store, $this->meters, $this->contracts, $this->consumption, $this->i18n);
+        $agenda->attachBillExpectations(new \Energietracker\Services\BillExpectedService($this->settings, $this->meters, $this->contracts,
+            $this->readings, $periods, $bills));
+        $events = $agenda->events(730, self::TODAY);
+        $inherited = array_filter($events, fn($e) => in_array($e['assignee_source'], ['contract', 'meter'], true) && $e['assignee'] !== null);
+        self::assertNotEmpty($inherited, 'mindestens eine Frist erbt eine Person');
+        foreach ($inherited as $e) self::assertFalse($e['assignee_deleted'], "{$e['uid']}: keine gelöschte Person");
+        if ($id === 'showcase') {
+            $bill = array_values(array_filter($events, fn($e) => $e['kind'] === 'bill_expected' && $e['ref']['utility'] === 'strom'))[0] ?? null;
+            self::assertNotNull($bill, 'Schaufenster: Abrechnung Strom erwartet');
+            self::assertSame(['Anna', 'contract'], [$bill['assignee'], $bill['assignee_source']]);
+        }
     }
 
     /** Eingespielt (ausgerichtet bis heute) und wieder gesichert: Verzeichnis und Vermerke bleiben; die App zeigt sie. */

@@ -13,7 +13,7 @@ All endpoints under `/api/…`. A uniform response envelope:
 
 `{utility}` is one of: `gas`, `strom`, `wasser`, `fernwaerme`, `heizoel`,
 `pellets`, `pv_einspeisung`, `pv_erzeugung` and, since v3.1.0, `waerme`
-(heat). As of: **166 routes**, v3.6.0 —
+(heat). As of: **186 routes**, v3.7.0 —
 `ReleaseConsistencyTest` checks that every registered route appears in the
 table below (German and English).
 
@@ -96,6 +96,7 @@ every route:
 | Session | the browser | cookie `et_session` (HttpOnly, SameSite=Strict, 30 days; since v3.4.0 sliding: a session older than one day gets a new cookie with the full duration when used) after `POST /api/session` |
 | API key | scripts, other programs, Home Assistant | `Authorization: Bearer etk_…`; scope `read` (`GET` only) or `admin` |
 | Calendar key *(v3.1.0)* | calendar apps | API key with scope `calendar`, **only** as `?token=etk_…` and **only** for `GET /api/calendar.ics` |
+| Inbox key *(v3.7.0)* | shortcut “Share → Energietracker”, Home Assistant (email) | API key with scope `inbox`, as `Authorization: Bearer etk_…`, **only** for `POST /api/inbox` (any other route `401`) |
 | Proxy | behind Authelia, Authentik, Home Assistant Ingress or similar | `ET_AUTH=proxy`, only from addresses in `ET_TRUSTED_PROXIES`. Since v3.4.0: with `ET_PROXY_USER_HEADER` exactly that header; under Home Assistant Ingress only `X-Remote-User-Id`/`X-Remote-User-Name` (person by ID); otherwise as before the first of `Remote-User`/`X-Forwarded-User`/`X-Remote-User`/`X-Remote-User-Name`/`X-Remote-User-Id` (with a warning in `GET /api/diagnostics`) |
 
 Reachable without sign-in: `POST /api/ingest` (own token, **mandatory** once
@@ -155,10 +156,10 @@ Reason: v2.0.0 silently switched `verdict` from "Nachzahlung/Erstattung" to keys
 | GET | `/api/people` | *(v3.5.0)* people for the “Responsible” choice: only `[{id, name}]`, sorted by name, for every signed-in role (read keys too); *(v3.6.0)* from the [register of people](#register-of-people-v360), without deleted ones, also without sign-in switched on (up to v3.5 `[]` then) — [Responsible](#responsible-for-reminders-v350). Class C |
 | POST | `/api/users` | *(v3.2.0)* add a person `{name, password, role?}`; `201` — admins only; *(v3.6.0)* response with `no` |
 | PATCH | `/api/users/{id}` | *(v3.2.0)* change name, role or password `{name?, role?, password?}` — admins only; *(v3.6.0)* also for people without sign-in (name and role; a password gives `400` `errors.users.noAccountPassword`) — [Register of people](#register-of-people-v360) |
-| GET | `/api/users/{id}/handover` | *(v3.6.0)* preview for “Delete person”: `{person: {id, name, no}, to: {id, name}\|null, open, done}` — open reminders and to whom, completed history entries — admins only. Class C |
-| DELETE | `/api/users/{id}` | *(v3.2.0)* delete a person; the last admin stays — admins only; since v3.4.0 `?anonymize_activity=1` replaces their name in the history with “former member” (response `activity_anonymized`); *(v3.6.0)* open reminders pass to the person deleting, completed items keep the name with “(deleted)” (response additionally `handed_over`, `handed_over_to`, `kept`) — [Register of people](#register-of-people-v360) |
+| GET | `/api/users/{id}/handover` | *(v3.6.0)* preview for “Delete person”: `{person: {id, name, no}, to: {id, name}\|null, open, done}` — open reminders and to whom, completed history entries — admins only; *(v3.7.0)* plus `meters`, `contracts` (responsibilities that pass over). Class C |
+| DELETE | `/api/users/{id}` | *(v3.2.0)* delete a person; the last admin stays — admins only; since v3.4.0 `?anonymize_activity=1` replaces their name in the history with “former member” (response `activity_anonymized`); *(v3.6.0)* open reminders pass to the person deleting, completed items keep the name with “(deleted)” (response additionally `handed_over`, `handed_over_to`, `kept`) — [Register of people](#register-of-people-v360); *(v3.7.0)* meters and contracts too (`records_handed_over`, `records_kept`) — [Responsible](#responsible-for-meters-and-contracts-v370) |
 | GET | `/api/auth/keys` | API keys (without plaintext) *(v2.6.0)*; since v3.2.0 admins only |
-| POST | `/api/auth/keys` | create a key `{name, scope: read\|admin\|calendar}`; plaintext once *(v2.6.0; `calendar` since v3.1.0)*; since v3.2.0 admins only |
+| POST | `/api/auth/keys` | create a key `{name, scope: read\|admin\|calendar\|inbox}`; plaintext once *(v2.6.0; `calendar` since v3.1.0, `inbox` since v3.7.0)*; since v3.2.0 admins only |
 | DELETE | `/api/auth/keys/{id}` | revoke a key *(v2.6.0)*; since v3.2.0 admins only |
 | GET | `/api/diagnostics` | system status, write permissions, schema; since v3.4.0 `security` (sign-in mode, proxy header, host lists, `notices`: `proxy_header`, `open_without_hosts` with a suggested `host`) |
 | GET | `/api/utilities` | list of utilities + configuration; since v2.13.0 each with `has_contracts`, `has_advance_payment_contracts` and `accounting_kind` (`consumption`, `feed_in`, `generation`); since v3.1.0 `meter_roles` for utilities with meter roles and `supports_bill_check` (bill check available: gas, electricity, water, district heating); since v3.5.0 `has_special_payments` (special payments on the contract: gas, electricity, water, district heating — [#34](https://github.com/Bingerminger/energietracker/issues/34)); `has_advance_payment_contracts` stays without water (balance by calendar, group contract) |
@@ -176,8 +177,8 @@ Reason: v2.0.0 silently switched `verdict` from "Nachzahlung/Erstattung" to keys
 | GET | `/api/geocode` | place search for the location; `?q=` (2–80 characters) — v2.12.0, see below |
 | POST | `/api/temperatures/sync-open-meteo` | Open-Meteo sync; `?start=&end=&reload=1&auto=1` (v2.8.0) — see below |
 | DELETE | `/api/temperatures/{date}` | delete a day |
-| GET | `/api/utility/{u}/meters` | meters/tanks |
-| POST | `/api/utility/{u}/meters` | create; since v3.1.0 with `role` and `capture` — [see below](#meters-role-capture-v310-additive) — and `malo_id`, `melo_id` ([see below](#meters-malo_id-melo_id-v310-additive)); for PV generation `plug_in`, `investment_eur`, `commissioned_on`, `battery_capacity_kwh` ([PV](#pv-battery-plug-in-solar-payback-v310-additive)), for heat `heat_pump_meter_ids` ([heat pump](#seasonal-performance-factor-of-the-heat-pump-v310)) |
+| GET | `/api/utility/{u}/meters` | meters/tanks; *(v3.7.0)* per meter `assignee`, `assignee_id`, `assignee_former`, `assignee_deleted` — [Responsible](#responsible-for-meters-and-contracts-v370) |
+| POST | `/api/utility/{u}/meters` | create; *(v3.7.0)* with `assignee_id`; since v3.1.0 with `role` and `capture` — [see below](#meters-role-capture-v310-additive) — and `malo_id`, `melo_id` ([see below](#meters-malo_id-melo_id-v310-additive)); for PV generation `plug_in`, `investment_eur`, `commissioned_on`, `battery_capacity_kwh` ([PV](#pv-battery-plug-in-solar-payback-v310-additive)), for heat `heat_pump_meter_ids` ([heat pump](#seasonal-performance-factor-of-the-heat-pump-v310)) |
 | GET | `/api/utility/{u}/meters/{id}` | single |
 | PATCH | `/api/utility/{u}/meters/{id}` | change; `capture` only while the meter has no data of the previous kind (v3.1.0) |
 | DELETE | `/api/utility/{u}/meters/{id}` | delete; `400` while readings, deliveries, contracts or sub-meters depend on it, since v3.1.0 also periods (`errors.meter.hasPeriods`) or supplier bills (`errors.meter.hasBills`) |
@@ -212,8 +213,8 @@ Reason: v2.0.0 silently switched `verdict` from "Nachzahlung/Erstattung" to keys
 | PATCH | `/api/utility/{u}/deliveries/{id}` | change |
 | DELETE | `/api/utility/{u}/deliveries/{id}` | delete |
 | GET | `/api/utility/{u}/meters/{id}/stock-history` | tank stock curve; since v2.10.0 the tank log with anchors and the start of the estimate — see below |
-| GET | `/api/utility/{u}/contracts` | contracts; since v3.4.0 with `phase` and `values_on` per contract ([see below](#contracts-phase-values_on-v340-additive)) |
-| POST | `/api/utility/{u}/contracts` | create; since v3.1.0 district heating with capacity and metering charges, response possibly with `warnings` — [see below](#contracts-district-heating-fixed-costs-warnings-v310-additive); for a meter group with `meter_group_id` ([Group contract](#group-contract-v310)); electricity with `grid_reduction`, price model `price_model`/`dynamic`, feed-in with `revenue_statements` ([see below](#contracts-reduced-grid-fee-price-model-credit-notes-v310-additive)); since v3.3.0 electricity with `grid_tou` ([time-variable grid fee](#contracts-time-variable-grid-fee-module-3-v330-additive)) |
+| GET | `/api/utility/{u}/contracts` | contracts; since v3.4.0 with `phase` and `values_on` per contract ([see below](#contracts-phase-values_on-v340-additive)); *(v3.7.0)* responsibility as on the meter |
+| POST | `/api/utility/{u}/contracts` | create; *(v3.7.0)* with `assignee_id`; since v3.1.0 district heating with capacity and metering charges, response possibly with `warnings` — [see below](#contracts-district-heating-fixed-costs-warnings-v310-additive); for a meter group with `meter_group_id` ([Group contract](#group-contract-v310)); electricity with `grid_reduction`, price model `price_model`/`dynamic`, feed-in with `revenue_statements` ([see below](#contracts-reduced-grid-fee-price-model-credit-notes-v310-additive)); since v3.3.0 electricity with `grid_tou` ([time-variable grid fee](#contracts-time-variable-grid-fee-module-3-v330-additive)) |
 | GET | `/api/utility/{u}/contracts/{id}` | single; since v3.4.0 with `phase` and `values_on` |
 | PATCH | `/api/utility/{u}/contracts/{id}` | change; as when creating |
 | DELETE | `/api/utility/{u}/contracts/{id}` | delete |
@@ -250,8 +251,8 @@ Reason: v2.0.0 silently switched `verdict` from "Nachzahlung/Erstattung" to keys
 | GET | `/api/recommendations` | statistical recommendations |
 | POST | `/api/recommendations/{id}/dismiss` | hide a recommendation; `{until?}`, otherwise 30 days — since v3.4.0 with a deadline (`evidence.deadline`) at least until then; the response also has `until` and `activity_id` |
 | DELETE | `/api/recommendations/{id}/dismiss` | undo hiding (v2.12.0); an ID that is not hidden is not an error |
-| GET | `/api/reminders` | appointments + due status; since v3.4.0 `last_done_by` (who did it last, from the history); since v3.5.0 per reminder `assignee`, `assignee_id`, `assignee_former` — [Responsible](#responsible-for-reminders-v350) |
-| POST | `/api/reminders` | create; since v3.5.0 optional `assignee` (name) and `assignee_id` (person) |
+| GET | `/api/reminders` | appointments + due status; since v3.4.0 `last_done_by` (who did it last, from the history); since v3.5.0 per reminder `assignee`, `assignee_id`, `assignee_former` — [Responsible](#responsible-for-reminders-v350); *(v3.7.0)* `assignee_inherited` (the meter’s person when the reminder has none of its own) |
+| POST | `/api/reminders` | create; since v3.5.0 optional `assignee` (name) and `assignee_id` (person); *(v3.7.0)* `utility` and `meter_id` (reminder on a meter) |
 | PATCH | `/api/reminders/{id}` | change; since v2.12.0 also `last_done` (date or `null`) — for "Undo" after "Done"; since v3.5.0 `assignee`/`assignee_id` |
 | DELETE | `/api/reminders/{id}` | delete |
 | POST | `/api/reminders/{id}/done` | done, roll the recurrence forward; `{done_date?, note?, attachment_id?}` — since v3.4.0 with a history entry, the response also has `activity_id` |
@@ -280,13 +281,33 @@ Reason: v2.0.0 silently switched `verdict` from "Nachzahlung/Erstattung" to keys
 | GET | `/api/activity.csv` | *(v3.5.0)* the history as CSV for proof: filters as `GET /api/activity`, `?format=1\|local&lang=`; columns date, action, title, by, reason, note; without struck-through entries — [History as CSV](#history-as-csv-v350). Class C |
 | POST | `/api/activity/{id}/undo` | *(v3.4.0)* undo: strikes through (`undone {at, by}`) and restores what the entry changed → the entry with `reverted` |
 | PATCH | `/api/activity/{id}` | *(v3.4.0)* change the note `{note}` (up to 500 characters) |
-| GET | `/api/calendar.ics` | *(v3.1.0)* the same events as a calendar subscription (iCalendar, 365 days) — [Calendar](#get-apicalendarics-v310) |
+| GET | `/api/calendar.ics` | *(v3.1.0)* the same events as a calendar subscription (iCalendar, 365 days) — [Calendar](#get-apicalendarics-v310); *(v3.7.0)* `?person=<id>` only what is assigned to this person |
 | GET | `/api/summary` | *(v3.1.0)* key figures per meter for Home Assistant and scripts, `?utility=&meter=` — [Summary](#get-apisummary-v310) |
 | GET | `/api/attachments` | *(v3.1.0)* receipts: index and storage use `usage` — [Receipts](#receipts-and-text-recognition-v310) |
 | POST | `/api/attachments` | *(v3.1.0)* upload a receipt: the file as raw body, `?kind=reading_photo` (or `bill_pdf`, `statement_pdf`, `other`), optional `&name=`; `201` with the index entry |
 | GET | `/api/attachments/{id}` | *(v3.1.0)* the file of a receipt (photo, PDF) |
 | DELETE | `/api/attachments/{id}` | *(v3.1.0)* delete a receipt; the reference on the record goes with it |
 | POST | `/api/ocr/reading` | *(v3.1.0)* read the meter value from a reading photo `{attachment_id}` — through your own text recognition service in the home network, `502` on errors of the service |
+| GET | `/api/inbox` | *(v3.7.0)* inbox: documents, queue, provider — [Inbox](#inbox-v370) |
+| POST | `/api/inbox` | *(v3.7.0)* file a PDF (raw body, `?name=`, or JSON `{name?, pdf_base64}`); `409 errors.inbox.duplicate` for the same checksum; also with an “inbox” key |
+| GET | `/api/inbox/review` | *(v3.7.0)* check list: only the flagged fields |
+| GET | `/api/inbox/draft` | *(v3.7.0)* household from documents: one draft across all read documents (`?documents=` selection) — [Draft](#household-from-documents-v370) |
+| POST | `/api/inbox/draft/apply` | *(v3.7.0)* take over a selection from the draft `{items, confirm?, choose?, documents?}` |
+| POST | `/api/inbox/folder` | *(v3.7.0)* read the watched folder `posteingang/` (admins only) — [folder](#folder--post-apiinboxfolder) |
+| POST | `/api/inbox/queue` | *(v3.7.0)* queue documents for reading `{ids?}` |
+| DELETE | `/api/inbox/queue` | *(v3.7.0)* cancel the queue |
+| GET | `/api/inbox/cloud` | *(v3.7.0)* reading in the cloud: state and providers (name, destination host, notice), never the key — only `has_key` — [Reading in the cloud](#get-apiinboxcloud--patch-apiinboxcloud-v370) |
+| PATCH | `/api/inbox/cloud` | *(v3.7.0)* save and switch on reading in the cloud (admins only) |
+| GET | `/api/inbox/cloud/models` | *(v3.7.0)* models of the cloud service that is set up, the key stays on the server (admins only) — [Model list](#get-apiinboxcloudmodels--get-apiinboxlocalcheck-v370-reading-documents-card) |
+| GET | `/api/inbox/local/check` | *(v3.7.0)* “Check connection” for your own service in the home network (admins only) |
+| GET | `/api/inbox/{id}` | *(v3.7.0)* preview: reading with quotes, assignment, proposals compared with your data |
+| PATCH | `/api/inbox/{id}` | *(v3.7.0)* assignment, corrections (`edits`), type, status, note |
+| DELETE | `/api/inbox/{id}` | *(v3.7.0)* delete a document |
+| POST | `/api/inbox/{id}/classify` | *(v3.7.0)* recognise the type `{pages, consent?, fresh?}` |
+| POST | `/api/inbox/{id}/extract` | *(v3.7.0)* read and check the fields `{pages, consent?, fresh?}` |
+| POST | `/api/inbox/{id}/apply` | *(v3.7.0)* take over the ticked proposals `{proposals: [id]}`; afterwards the key message (`gist`), for a bill with its check |
+| POST | `/api/inbox/{id}/remind` | *(v3.7.0)* reminder for a filed document (payment reminder) `{date}` |
+| GET | `/api/utility/{u}/dossier` | *(v3.7.0)* file of a meter (`?meter_id=`) or contract (`?contract_id=`) — [file](#file--get-apiutilityudossier) |
 | GET | `/api/export/{u}/monthly.csv` | monthly aggregates as CSV; `?format=1` (default) or `?format=local&lang=` *(v3.1.0)* — [CSV formats](#csv-formats-v310); *(v3.6.0)* `?period=billing`: one row per billing period ([Billing periods](#billing-periods-v360)) |
 | GET | `/api/export/{u}/readings.csv` | readings as CSV (cumulative); `format`, `lang` as above |
 | GET | `/api/export/{u}/deliveries.csv` | **v1.4.2** deliveries as CSV (heating oil/pellets); `format`, `lang` as above |
@@ -433,6 +454,69 @@ smoothings (`ma3`/`ma6`/`ma12`).
 - PV generation and feed-in calculate `co2_kg` with your own avoidance factor
   `co2_pv_avoided` when it is set.
 
+**Since v3.7.0 (GitHub #37, #38, #39), additive** — measured or interpolated
+([Basics §1](../verstehen/00-overview.md#measured-or-interpolated-since-v370)):
+
+| Field per month | Meaning |
+|---|---|
+| `measured_share` | share of the month's consumption from reading intervals of up to 45 days (0 … 1); estimated readings do not measure |
+| `interpolated` | `true` when `measured_share` is below 0.5: the value is spread evenly from a longer interval. Heating oil and pellets: `null` |
+| `reading_gap_days` | longest reading interval the month draws from (`null` when a real reading is missing on one side) |
+| `reading_gap_estimated` | *(v3.7.0)* the month is interpolated with an estimated reading as a support point (each side has its own daily rate) |
+
+Interpolated months feed no anomaly, no recommendation R1/R3, no heating curve
+(`regression_point: false`) and no heating model; the monthly values, costs,
+advance payments and the balance stay unchanged. The utility's `monthly_total`
+carries the same fields, weighted by consumption. In addition at the top level:
+
+```json
+"interpolation": {                 // null for heating oil and pellets
+  "max_gap_days": 45,
+  "months": 36, "interpolated_months": 36, "interpolated": ["2023-06", "…"],
+  "readings": 12, "readings_by_year": { "2023": 3, "2024": 4, "2025": 4, "2026": 1 },
+  "from": "2023-06", "to": "2026-05",
+  "heat_basis": "intervals",        // months | intervals | null (no heating model)
+  "heat_points": 11
+},
+"anomaly_quality": {               // null without a heating model or below 5 checked months
+  "model_quality": "poor",          // good | poor (one of the checks in reasons)
+  "reasons": ["scatter", "base_load"],
+  "ratio": 0.31, "poor_above": 0.15, // resid_scale / mean_month
+  "resid_scale": 210.4, "mean_month": 678.7, "typical": 680.0,
+  "base_load": {                    // null below 2 measured summer months
+    "model_per_day": 0.4, "measured_per_day": 6.1, "ratio": 0.066,
+    "allowed": [0.5, 1.5], "months": 4
+  },
+  "threshold_sigma": 2.0,
+  "detect_floor": 420.8, "unit": "kWh",
+  "months": 29
+}
+```
+
+`readings` counts real readings that enter the calculation (without estimated
+and skipped ones), for meters with periods the real periods. `heat_basis:
+"intervals"`: below 8 measured months, the heating model works with the
+intervals between real readings ([Basics §5](../verstehen/00-overview.md#heating-model)).
+`detect_floor` is the deviation a typical month needs at least to be reported
+([Basics §9](../verstehen/00-overview.md#9-anomalies)).
+
+**Since v3.7.0 (check against real data), all additive:**
+
+| Where | Field | Meaning |
+|---|---|---|
+| `…/meters/{id}/consumption?heat_limit=1` | `heat_limit` | heating limit suggestion of the meter: `{current, current_ratio, current_ok, best, best_ratio, suggest, default, own, months, grid: [{base, ratio, base_load_ok}]}`, `null` without a heating model, below 12 measured months or without the parameter ([Basics §5](../verstehen/00-overview.md#heating-limit-suggestion-since-v370)) |
+| `PATCH …/meters/{id}`, meter | `hdd_base_temp` | this meter's own heating limit in °C (6 to 22, only heating types with meter readings); `null` or empty removes it, then the setting applies |
+| `monthly[]` | `heat_adjusted_basis` | why `heat_adjusted` is what it is: `model`, `summer`, `base_load`, `normal_is_actual` (or `null`) |
+| `regressions.*`, `forecast.regression` | `reason` | with `valid: false`: `too_few_points`, `poor_fit`, `degenerate` |
+| `…/contract-status` | `projection_uncertain` | `{reasons: [factor_clamped \| few_measured \| poor_fit], factor, factor_raw, factor_part, factor_limits, fit_ratio, base_load_per_day, projected_range, suggested_range}` or `null`; then `suggested_advance` is `null`. `factor_part`: which factor is clamped (`base`, `heat`, `both`); `base_load_per_day`: `{model, measured}` when the range uses the measured summer base load; `suggested_range` is `null` if both ends would be equal |
+| `…/contract-status` | `projection_factor_base`, `projection_factor_heat` | calibration separately for base load and heating share (0.5–1.5; `projection_factor_heat` `null` without a heating model); since v3.7.0 `projection_factor` is the effective factor |
+| `…/contract-status` | `superseded_on` | last day before the follow-up contract that supersedes this contract (otherwise `null`); `end` stays the stored end |
+| `…/contract-status`, `…/billing-periods` | `price_missing` | contract without a unit price: costs and balance without consumption costs |
+| `…/forecast` | `fit_quality` | `{model_quality, ratio, reasons}` of the quality gate (or `null`); with `poor` `annual.low/high = null`, `annual.withheld = "poor_fit"`, months without a band |
+| `…/forecast` | `annual.withheld` | why the year has no band: `poor_fit`, `few_measured` (heating model only over the reading intervals, or unchecked), `few_years` (without a weather reference fewer than 3 degrees of freedom of the spread) |
+| `…/forecast` | `warnings[]` | new `poor_fit {ratio, reasons}`, `few_measured {heat_basis}`, `regression_invalid {model, reason, n, r2}`, `climate_normal_grid {base, min, max, hdd_source}` |
+| `POST /api/forecast/scenario` | `advance.uncertain` | with a failed quality gate or too little measured `{reasons: [few_measured \| poor_fit], fit_ratio, spread, base_range, scen_range}`, then `base_/scen_recommended: null`; `warnings[]` new `poor_fit`, `few_measured`, `basis.heat_share_year: null` |
+
 **Since v2.8.0** `hdd` only counts the days with consumption; `temp_days` says for
 how many of them temperatures are available. For HDD-relevant utilities with meter
 readings (gas, district heating, since v3.1.0 heat), the fields of the heating model are added
@@ -566,7 +650,7 @@ estimated. New fields per contract (additive):
 | `estimated_cost_remaining` | estimated cost from the reference date to the end of the contract |
 | `advance_remaining` | advances still due until the end of the contract |
 | `suggested_advance` | advance that evens out the expected balance by the end of the contract (≥ 0), otherwise `null` |
-| `projection_factor` | calibration of the estimate to the most recent level (0.5–1.5) |
+| `projection_factor` | calibration of the estimate to the most recent level (0.5–1.5); since v3.7.0 the effective factor from `projection_factor_base` and `projection_factor_heat` |
 | `balance_path` | *(v2.16.0)* only on the current contract, otherwise `null`: the same calculation as a monthly series from the contract start (since v3.6.0 from `balance_from`) to its end or the next bill — per month `ym`, cumulative `cost` (measured + estimated + standing charge − bonuses) and `paid` (advances by plan − special payments net), `balance = cost − paid`, `estimated` (contains days after the last reading), `future` (month after today). The last point is `projected_end_balance` |
 
 **Changed values:** since v2.8.0 `advance_paid` counts the advances by calendar up
@@ -607,7 +691,13 @@ the contract with the most days in the month; new are `contract_assumed`
 with more than one contract in the month — `contract_parts[]`, each entry with
 `contract_id`, `days`, `kwh`, `kwh_cost`, `base_price_eur`, `advance_eur`,
 `bonus_eur`, `cost`, `assumed`. The totals of the monthly row are the sums of the
-parts. Water stays with the contract of the first of the month.
+parts. Water stays with the contract of the first of the month. *(v3.7.0,
+additive)* Months with a bonus carry `bonus_items[]` — per bonus
+`credit_date`, `amount_eur`, `type` (`sofort`, `wechsel`, `neukunde`,
+`sonstige`) and `label` (note); their sum is `bonus_eur`. `monthly_total` of
+the whole utility then also has `bonus_eur` and `bonus_items`. `cost` stays
+net of the bonus; the “Costs” tile shows `cost + bonus_eur` and the bonus as a
+line of its own.
 
 **`contract-status`, new fields per contract:**
 
@@ -829,6 +919,7 @@ pump and solar” (`eigenheim-modern`):
 | `windows[].quarters` | quarters in which the window applies: 1 = January–March … 4 = October–December; stored sorted and without duplicates |
 | `windows[].from`, `windows[].to` | local time `HH:MM`, `to` also `24:00`; `from` lies before `to` — a window across midnight is two (`22:00`–`24:00` and `00:00`–`06:00`) |
 | `windows[].ct` | grid fee per kWh in the window (0–100); below `standard_ct` low tariff, above it high tariff |
+| `net` | *(v3.7.0, additive)* `true`: the amounts are on the contract **without VAT**; the flexibility analysis grosses them up with the app’s rate (that of the dynamic offer, otherwise 19 %, like the wholesale levers; `module3[].prices_net`, `vat_pct`). Missing or `false`: as entered (gross, as on the bill) — the field is only stored with `true` |
 
 At most 24 windows. Numbers may also come as text with a decimal comma
 (`"2,4"`). If two windows overlap, the first in the list applies. Invalid →
@@ -1029,13 +1120,13 @@ the interface only formats ([Flexibility, § 4](../anleitungen/flexibilitaet.md#
 | `levers[]` | per appliance and signal, biggest first: `kind` (`ev`, `heat_pump`, `battery`, `washer`, `dishwasher`), `meter_id`, `name`, `signal` (`spot`, `tou`, `solar`), `real` (`true` = on the contract as it is), `basis` (`measured` or `assumed` = sample value), `share`, `kwh`, `shift_kwh`, `eur` (€ a year, ≥ 1; *v3.6.0* for `spot` including VAT `vat_pct`), `window` per `summer`/`winter` (`weekday` or `null`, `from`, `to`, `ct`, `what` `cheap`/`peak`/`sun`/`low`; *v3.6.0* `plugged: true` when the window comes from the plug-in times — with plug-in times and solar power `null` in a season in which the car is never plugged in while the sun shines), for sample values `assumption`; *(v3.6.0)* `availability` (`ev`: `sessions` = charging windows from the evcc charging sessions, `day` = assumption “whole charging day”; otherwise `null`), `sessions` (number of charging sessions in the year) and `session_share` (share of the charging inside a charging window, 0–1), both `null` without charging sessions |
 | `total_eur`, `total_real_eur` | sum of the biggest lever per appliance; of it only levers with `real` |
 | `vat_pct` | *(v3.6.0)* VAT on the wholesale price in percent: `dynamic.vat_pct` of the dynamic offer, without an offer 19 |
-| `ev_availability` | *(v3.6.0)* the car’s charging windows across all wall boxes: `basis` (`sessions` or `day`), `sessions`, `share` (as above); `null` without a wall box with quarter hours |
+| `ev_availability` | *(v3.6.0)* the car’s charging windows across all wall boxes: `basis` (`sessions` or `day`; *v3.7.0* `window` = your own plug-in time from the settings, without evcc), `sessions`, `share` (as above), *(v3.7.0)* `window` (`{from, until}` in hours or `null`); `null` without a wall box with quarter hours. In `levers[]`, `availability` is then `window` too |
 | `summary` | *(v3.6.0)* the result card’s number, one rule for page, report and overview: `year`, `eur` (`total_real_eur` if ≥ 1 — otherwise `total_eur`), `real` (which of the two), `dynamic_eur` (`total_eur` if `real` and more than €1 larger, otherwise `null`), `vat_pct`, `measured` (measured quarter hours: electricity, or generation and feed-in — only then does the overview show the tile), `action` (first sentence with a time window, with `real` first one with `real`; fields as in `actions[]`); `null` without a lever |
 | `actions[]` | one sentence per appliance: the biggest lever with `real`, otherwise the biggest; *(v3.6.0)* if the one with `real` has no time window in the current season, the biggest if it has one; `kind`, `meter_id`, `name`, `signal`, `real`, `basis`, `eur`, `season`, `window` (current season), `other` (the other) |
 | `solar` | with generation and feed-in per quarter hour: `generation_kwh`, `feed_kwh`, `charged_kwh`, `self_kwh` (generation − feed-in), `direct_kwh`, `self_share`, `more_kwh`, `more_eur`, `self_share_after`, `more_share`, `working_ct`, `feed_ct`; otherwise `null` |
 | `achieved` | from the check: `profile_eur` (advantage of the controllable meters), `battery_eur`, `module3_eur` — each `null` without data |
 | `missing[]` | what is missing: `prices`, `intervals`, `devices` (no wall box or heat pump with quarter hours), `pv` (PV meters without quarter hours), `tariff` (neither a dynamic offer nor module 3 time windows) |
-| `assumptions` | the sample values: `heat_pump_share` (0.3), `ev_share` (1), `appliances` (`washer`, `dishwasher` with `kwh_per_cycle`, `cycles_per_week`, `hours`), `window_hours` (3) |
+| `assumptions` | the assumptions: `heat_pump_share` (sample 0.3), `ev_share` (1), `appliances` (`washer`, `dishwasher` with `kwh_per_cycle`, `cycles_per_week`, `hours`), `window_hours` (3); *(v3.7.0, additive)* `ev_window` and `own` (each of `heat_pump_share`, `washer`, `dishwasher`, `ev_window`: `true` = your own value from the [settings](einstellungen.md#flexibility-v370), otherwise the sample value). An appliance with your own value has the basis `basis: own` in `levers[]`; 0 cycles a week = no lever |
 
 ```text
 lever (spot, tou)  = Σ days (cost today − cost if the day’s free part (share) fills the day’s cheapest
@@ -1140,6 +1231,12 @@ At the top level:
 `annual` is absent (`null`) when there are no twelve months with a band. The
 forecast's advances come from the effective payment plan (special payments "with
 effect" change it).
+
+**Since v3.7.0 (#37, additive):** interpolated months do not form the seasonal
+profile. A calendar month without a measured value and without a model gets
+`method: "seasonal_interpolated"` (the interpolated values). `warnings` then
+carries `{ "code": "interpolated", "months": 12, "readings": 2, "heat_basis": null }`,
+and `heat_model` names its basis (`basis`: `months` or `intervals`).
 
 **CO₂ price scenario *(v3.1.0, MKT-26, additive)*.** What a higher CO₂ price
 would cost — shown next to the forecast only; `cost_estimated` and all other
@@ -1787,6 +1884,11 @@ and `wasser_personen_anzahl`.
   `settings.json`).
 - `assumed_keys` is not a setting: sent in a `PATCH`, it is listed under
   `ignored_keys`.
+- *(v3.7.0, additive)* `example_keys`: the same form for the sample values of
+  the flexibility analysis (`flex_*`, [settings](einstellungen.md#flexibility-v370))
+  that nobody has entered. The default is used; entered (even equal to the
+  default) means “your value”, `null` or `""` withdraws it. `example_keys` is
+  not a setting either.
 
 ### Country profile: `country`, `currency`, `timezone`, `gas_cv_unit` *(v2.7.0, additive)*
 
@@ -1923,6 +2025,14 @@ since v3.4.0 self-sufficiency uses the energy flow
   price — for systems below 100 kW from the calendar year after a smart
   metering system is installed (§ 51 EEG). A longer funding period partly
   offsets this (§ 51a EEG).
+- *(since v3.7.0, #39)* `hints` contains `"interpolated"` when a month rests on
+  an interpolated series; in addition `interpolation: {utility, readings, from,
+  to, months, interpolated_months}` — the series with the most interpolated
+  months and its real readings, otherwise `null`. Each monthly row carries
+  `interpolated` (bool) and `interpolated_series` (which fields:
+  `erzeugung_kwh`, `einspeisung_kwh`, `bezug_kwh`), each yearly row
+  `months_interpolated`. Self-consumption, self-sufficiency, savings and payback
+  of these months are estimates; their values stay unchanged.
 
 The setting `co2_pv_avoided` (g/kWh) replaces the electricity mix in the
 avoided CO₂ of PV generation and feed-in ([Settings](einstellungen.md)).
@@ -2186,12 +2296,18 @@ partial period of its own; a contract that renews runs until the day before
 the follow-up contract. With several meters (whole utility, group) the changes
 of all meters cut, like their bills. Each period (and `…/bills/{id}/check`)
 counts the advance payment of a month with two contracts per contract by its
-days.
+days. *(v3.7.0)* The settlement date is the **first day** of a period. **No
+short remainders:** a piece under 14 days between the settlement date and a
+change of supplier (settlement date 31-08, contracts from 1 September) joins
+the neighbouring period across the settlement date, never across a change or a
+bill; if today lies in the remainder, the current period runs to the
+settlement date after next. The totals stay the same.
 
 | Field | Meaning |
 |---|---|
 | `anchor` | settlement date of the utility (MM-DD) |
-| `suggested_anchor` | the day after the end of the last bill (MM-DD) if it differs from the settlement date; otherwise `null` |
+| `suggested_anchor` | the day after the end of the last bill (MM-DD) if it differs from the settlement date; without a bill *(v3.7.0)* the start of the follow-up contract at the latest change of supplier, otherwise the day on which at least two contracts begin; otherwise `null` |
+| `suggested_anchor_source` | *(v3.7.0, additive)* `bill`, `contracts` or `null` — where the suggestion comes from |
 | `data_from`, `measured_until` | first and last reading |
 | `unit_key` | `kwh` or `m3` (water) |
 | `periods[].from`, `until` | period, `until` inclusive |
@@ -2200,7 +2316,8 @@ days.
 | `periods[].ends_at_switch` | *(v3.6.0, additive)* `true` if the period ends on the last day with the old supplier (change of supplier) |
 | `periods[].label` | “2025” (calendar year) or “2025/26” for a whole year, otherwise `null` (the app then shows the dates) |
 | `periods[].as_of`, `days` | calculated up to the last reading in the period; days up to then |
-| `periods[].kwh` or `m3` (gas both), `energy_cost`, `fixed_cost`, `bonus`, `cost` | as `bill-check` (`cost` = `total`) |
+| `periods[].kwh` or `m3` (gas both), `energy_cost`, `fixed_cost`, `bonus`, `cost` | as `bill-check` (`cost` = `total`, net of the bonus) |
+| `periods[].bonus_items` | *(v3.7.0, additive)* the period’s bonuses one by one (`credit_date`, `amount_eur`, `type`, `label`; like `totals.bonus_items` of `bill-check`) |
 | `periods[].advances` | advance payments pro rata per day from the monthly series (as `…/bills/{id}/check`) |
 | `periods[].special` | special payments dated within the period: `extra_advances`, `refunds`, `surcharges` |
 | `periods[].balance` | `cost − advances − extra_advances`; positive = additional payment. Refunds and additional payments settle an earlier bill and do not count |
@@ -2213,8 +2330,12 @@ a group contract are carried by the first member.
 
 `monthly.csv?period=billing` (also with `format=local`): columns from, to,
 basis, days, consumption, cost, advance payments, extra advance payments,
-balance, complete; file name `…-abrechnungsjahre-…` (format 1) or
-`…-billing-years-…` (local, English). A value of `period` other than
+balance, complete; *(v3.7.0, added at the end)* bonus and cost without bonus
+(the number of the “Costs” tile and of the annual report) — “cost” stays net
+of the bonus; file name `…-abrechnungsjahre-…` (format 1) or
+`…-billing-years-…` (local, English). The monthly overview in the “local”
+format has *(v3.7.0)* the month’s bonus as its last column; format 1 stays
+byte for byte as it is. A value of `period` other than
 `calendar` or `billing` is `400` `errors.export.periodInvalid`.
 
 ### Supplier bills *(v3.1.0)*
@@ -2251,6 +2372,7 @@ Pot `<utility>/bills.json` (schema 1.7.0, part of the backup), one entry
 | `invoice` | `energy_kwh` (for water `volume_m3`), `amount_eur` (bill amount incl. VAT), `advances_paid_eur`, `result_eur` (**positive = additional payment**, negative = credit; without it `amount_eur − advances_paid_eur`), `net` (optional, only stored). Every value optional; not a number or out of range → `400` `errors.bill.amountInvalid` |
 | `items` | other items `{label, amount_eur, kind}` with `kind` ∈ `levy`, `fee`, `credit`, `other` (default); description at most 120 characters. The app does not recalculate them |
 | `co2` | optional, meaningful for gas: `{emissions_kg, cost_eur?, stated_factor?}` — emissions and CO₂ amount as on the bill, the amount **including VAT**, as the bill states it (CO2KostAufG § 3(3); read as net up to v3.1), stated factor in kg/kWh. Take precedence over the standard factor for the [CO₂ price](#co₂-price-and-sharing-v310) |
+| `factors` | *(v3.7.0, optional, gas)* correction factor and calorific value as on the bill per section `[{from, to?, zustandszahl, brennwert}]` (correction factor 0.5–1.5, calorific value 5–20 kWh/m³), e.g. from the inbox; the comparison holds them against the [gas conversion](einstellungen.md). Without them the field is missing |
 | `attachment_ids` | receipts (`kind: bill_pdf`, otherwise `other`); a receipt removed from the list is released, the receipt’s `ref.type` is `bill` |
 | `special_payment_id` | set once the result is booked |
 | `note`, `created_at` | note (at most 2000 characters), time of creation |
@@ -2281,22 +2403,30 @@ the bill check (`period_to` inclusive) and sets both side by side:
 | `group_id` | ID of the meter group when a group contract touches the period: then the app recalculates the whole group (peak and off-peak on one bill), even if the bill is recorded on one member; otherwise `null` |
 | `ours` | recalculated: quantity (`kwh` or `m3`), `energy_cost`, `fixed_cost`, `bonus`, `items_total` (sum of the other items), `total` = consumption cost + fixed costs − bonus + other items, `advances` (advances in the period per payment plan, pro rata by days; `null` without advances) |
 | `delta` | bill − recalculated: quantity absolute and in % (`kwh_pct` or `m3_pct`), amount in € and % |
-| `verdict` | `ok` if the quantity differs by at most 1 % and the amount by at most 1 % **or** 2 €; otherwise `check`. `null` if the bill states neither quantity nor amount |
-| `reasons` | possible reasons: `estimated_reading_at_boundary` (estimated or interpolated reading at a boundary), `price_change_inside`, `factor_change_inside`, `items_not_modelled` (other items taken over, not recalculated), `price_missing`, `gaps` (sections without readings) |
-| `rows` | the sections of the bill check |
+| `verdict` | `ok` if the quantity differs by at most 1 % and the amount by at most 1 % **or** 2 €; *(v3.7.0)* `no_prices` if the quantity matches (or is missing) but the contract lacks a price (or there is no contract) for part of the period, so the amount cannot be recalculated; otherwise `check` (a differing quantity stays `check`). `null` if the bill states neither quantity nor amount |
+| `reasons` | possible reasons: `estimated_reading_at_boundary` (estimated or interpolated reading at an edge of the period; *since v3.7.0* only there, and a reading on the last day or on the day before the first counts as a boundary reading, as on the bill), `price_change_inside`, `factor_change_inside` (gas: the gas conversion changes within the period, the bill does not state its values), *(v3.7.0)* `factor_mismatch` (calorific value or correction factor on the bill differ from the gas conversion), `items_not_modelled` (other items taken over, not recalculated), `price_missing`, `gaps` (sections without readings; not the single day after a boundary reading on the last day) |
+| `boundaries` | *(v3.7.0)* kind of reading at the edges `{start, end}`: `reading` (reading on the first day or on the day after the last), `reading_adjacent` (on the day before or on the last day), `reading_estimated`, `interpolated` or `null` (no reading before or after); for a group the weakest member |
+| `price_missing_at` | *(v3.7.0)* where the price is missing: `[{from, to, contract_id, provider?, meter_id?}]`, `to` inclusive, `contract_id` `null` without a contract — with every verdict, so also with `check` when the quantity differs (the page then shows the same notice with the jump to the contracts) |
+| `factor_mismatches` | *(v3.7.0, gas)* per day with differing values `{from, invoice: {zustandszahl, brennwert, kwh_per_m3}, list: {…}}`; empty when the gas conversion knows the change as the bill does |
+| `rows` | the sections of the bill check — the classification above does not change them |
 
 **Book — `POST …/bills/{id}/book`.** Adds the result (`invoice.result_eur`) as
 a special payment (F1003) in the contract: positive as `nachzahlung_ohne`,
 negative as `rueckzahlung_ohne` — **not affecting the advance** —, amount
 without sign, date = `issued_on`, otherwise the day after `period_to`, note
 “Annual bill {from} – {to}” in the language of the request. Contract:
-`contract_id`, otherwise the contract that applied on `period_to`, otherwise the
-meter’s last one — including a group contract of the group the meter belongs
-to (without shadow contracts). Response: the bill with
+`contract_id`, otherwise *(since v3.7.0)* the contract that applies on
+`period_to` (a renewing one too) if it bills more than half of the days;
+otherwise the one that bills more than half (e.g. the old contract of a final
+bill that runs one day past its end); otherwise the one on `period_to` — in
+each case including a group contract of the group the meter belongs to
+(without shadow contracts). Up to v3.6 the app took the meter’s newest contract
+when none applied on `period_to`, even if it did not touch the period at all.
+Response: the bill with
 `special_payment_id` and `contract_id`. **Once per bill** — if it is already
 booked, another call changes nothing and returns the bill unchanged. Without a
 result (missing or 0) → `400` `errors.bill.noResult`, without a contract →
-`400` `errors.bill.noContract`. Deleting the bill keeps the booked special
+`400` `errors.bill.noContract` (the message names the period). Deleting the bill keeps the booked special
 payment in the contract.
 
 *(v3.5.0, [#34](https://github.com/Bingerminger/energietracker/issues/34))*
@@ -3105,6 +3235,23 @@ responsibility ([Responsible for reminders](#responsible-for-reminders-v350)),
 otherwise `null`, `null`, `false`; *(v3.6.0)* plus `assignee_deleted` (person
 deleted, the name stays).
 
+**Inherited *(v3.7.0)*.** Without a responsible person of their own, the four
+fields carry the contract’s, otherwise the meter’s
+([Responsible for meters and contracts](#responsible-for-meters-and-contracts-v370)),
+plus additionally `assignee_source`: `own` (on the reminder), `contract`,
+`meter` or `null` (nobody). A reminder on a meter carries `ref.utility` and
+`ref.meter_id`.
+
+| Kind | inherits from |
+|---|---|
+| `reminder` | the reminder’s meter (`utility`, `meter_id`) |
+| `cancel_by`, `term_end`, `price_guarantee_end`, `price_increase`, `bill_expected` | contract, then meter (a group has no responsible person) |
+| `reading_due`, `tank_reorder` | meter |
+| `tenancy_statement_due`, `objection_deadline`, `co2_claim_deadline` | – |
+
+When ticked off (`POST /api/agenda/done`) the history entry carries the
+responsibility as the snapshot `assignee`.
+
 #### Bill expected *(v3.5.0)*
 
 `bill_expected` (F1029): when a billing period of a real contract (not a
@@ -3171,7 +3318,15 @@ in Apple Calendar, Thunderbird and Google Calendar:
 - *(v3.5.0)* A reminder with someone responsible carries
   `DESCRIPTION:Responsible: <name>` (text `calendar.assignee`; after the
   person was deleted possibly “former member”) — just the line, no
-  notification.
+  notification. *(v3.7.0)* Inherited responsibility with an addition:
+  `Responsible: <name> (via the contract)` or `(via the meter)`
+  (`calendar.assigneeContract`, `…Meter`).
+- *(v3.7.0)* **`?person=<id>`** (a person id like `u_3f9a1c2e`, otherwise 400
+  `errors.assignee.unknown`): only events assigned to this person — own or
+  inherited responsibility by id, a free name on a reminder if it matches
+  theirs; deleted people and “former member” do not count. `X-WR-CALNAME`
+  names the person (`calendar.nameFor`). Together with the calendar link:
+  `…/calendar.ics?token=etk_…&person=u_…`.
 - Advance reminder (`VALARM`, `TRIGGER:-P<n>D`) for dates, cancellation
   deadlines, contract ends, price guarantees and price increases; `<n>` is
   `reminder_warn_days_before` (setting, default 14, `0` = none). The deadlines
@@ -3251,7 +3406,8 @@ only added, and the number only rises with a breaking change.
         "tariff_name": "Basic electricity", "working_price_ct": 29.8, "base_price_month": 12.5,
         "advance_month": 78, "suggested_advance": 74, "balance": -41.3,
         "projected_end_balance": -52.9, "verdict": "refund", "balance_as_of": "2026-10-07",
-        "period_end": "2027-03-31", "cancel_by": "2027-02-28", "days_to_cancel": 144,
+        "period_end": "2027-03-31", "period_last_day": "2027-03-31",
+        "cancel_by": "2027-02-28", "days_to_cancel": 144,
         "price_increase_from": null },
       "forecast_12m": { "value": 3120.4, "cost": 1080.55, "low": 2890.1, "high": 3350.7 },
       "tank": null,
@@ -3285,7 +3441,7 @@ Per meter:
 | `reading_due` | reading or next period older than `alert_days_since_reading` (cumulative meters only) |
 | `capture` | *(v3.1.0, last key of the entry)* way of recording: `counter` (meter readings) or `period` (consumption per period) |
 | `month_to_date`, `year_to_date` | consumption of the current month and year in `consumption_unit`, `estimated: true` = contains estimated days; `null` without data in the year |
-| `contract` | current contract (utilities with contracts), otherwise `null`: prices and advance payment, `balance` and `projected_end_balance` with the sign of `contract-status` (positive = additional payment, for feed-in = payout), `verdict`, `period_end` (end or next bill), `cancel_by`, `days_to_cancel`, `price_increase_from`. Since v3.4.0 `cancel_by` and `days_to_cancel` are `null` when the contract has no dated deadline (renewing, open-ended, cancellable at any time — up to v3.3 it said “today” every day) or a follow-on contract continues without a gap |
+| `contract` | current contract (utilities with contracts), otherwise `null`: prices and advance payment, `balance` and `projected_end_balance` with the sign of `contract-status` (positive = additional payment, for feed-in = payout), `verdict`, `period_end`, *(v3.7.0, additive)* `period_last_day`, `cancel_by`, `days_to_cancel`, `price_increase_from`. For a contract with a maintained end date `period_end` is that end (inclusive), otherwise the settlement date of the next bill — the **first day of the next period**; it stays that way for existing sensors. `period_last_day` is always the **last day** of the period: the end itself or the day before the settlement date (settlement date 01-09: `period_end` 2027-09-01, `period_last_day` 2027-08-31). Since v3.4.0 `cancel_by` and `days_to_cancel` are `null` when the contract has no dated deadline (renewing, open-ended, cancellable at any time — up to v3.3 it said “today” every day) or a follow-on contract continues without a gap |
 | `forecast_12m` | forecast of the next twelve months: `value` in `consumption_unit`, `cost` (`null` for generation only), `low`/`high` = annual band; `null` for heating oil/pellets or without a valid forecast |
 | `tank` | heating oil/pellets: `stock`, `capacity`, `unit`, `percent`, `estimated_from`; otherwise `null` |
 
@@ -3431,8 +3587,8 @@ Class C.
 ### Responsible for reminders *(v3.5.0)*
 
 A reminder (`reminders.json`) optionally has a responsible person (F1028). No
-schema step; missing fields = nobody. Reminders only — not meters or
-contracts. Nobody is notified.
+schema step; missing fields = nobody. Since v3.7.0 meters and contracts too
+([below](#responsible-for-meters-and-contracts-v370)). Nobody is notified.
 
 | Field | Meaning |
 |---|---|
@@ -3464,6 +3620,25 @@ as before).
 (the full list `GET /api/users` stays with admins). Since v3.6.0 from the
 register of people, without deleted ones, and also without sign-in. The admin
 from before v3.2 only counts once they are stored.
+
+### Responsible for meters and contracts *(v3.7.0)*
+
+Meters and contracts optionally accept `assignee_id` — a person from the
+[register](#register-of-people-v360), no free names. Additive, no schema step;
+a `PATCH` without the field changes nothing.
+
+| Route | What |
+|---|---|
+| `POST`/`PATCH /api/utility/{u}/meters…`, `…/contracts…` | `assignee_id`: person id; `null` or empty = nobody. Unknown, deleted or not an id → `400` `errors.assignee.unknown`. The current person may stay unchanged even if deleted in the meantime |
+| `GET` (list, single) and the responses of `POST`/`PATCH` | plus `assignee` (name from the register), `assignee_former`, `assignee_deleted` — always all four; an unknown id shows nobody |
+| `POST`/`PATCH /api/reminders…` | `utility` and `meter_id`: the reminder’s meter (must exist, otherwise `400` `errors.reminder.meterUnknown`); `meter_id: null` removes it |
+| `GET /api/reminders` | `assignee_inherited`: `{assignee, assignee_id, assignee_former, assignee_deleted, assignee_source: "meter"}` or `null` — only when the reminder has no responsible person of its own |
+| `GET /api/agenda` | per event the inherited responsibility and `assignee_source` ([Agenda](#get-apiagendadays90-v310)) |
+| `GET /api/calendar.ics` | inherited with an addition in `DESCRIPTION`, `?person=<id>` ([Calendar](#get-apicalendarics-v310)) |
+| `GET /api/users/{id}/handover` | plus `meters`, `contracts`: how many pass over |
+| `DELETE /api/users/{id}` | meters and contracts to the person deleting (`records_handed_over`); without one the id stays (`records_kept`, “Name (deleted)”), with `?anonymize_activity=1` `assignee_former: true` replaces the id |
+
+Home Assistant: `POST /api/ingest` and `GET /api/summary` stay unchanged.
 
 ### Register of people *(v3.6.0)*
 
@@ -3635,6 +3810,549 @@ switch to lift this — a cloud service is deliberately not provided for.
 | `502` | `errors.ocr.timeout` | no answer within `ocr_timeout_s` |
 | `502` | `errors.ocr.unreachable` | name does not resolve, no connection, or an HTTP error of the service (an unknown model, say) |
 | `502` | `errors.ocr.badAnswer` | an answer without usable content |
+
+### Inbox *(v3.7.0)*
+
+File supplier mail as a PDF, have it read, check it and take it over
+([guide](../anleitungen/posteingang.md), pot `inbox.json` in the
+[data model](datenmodell.md#inbox-v370)).
+
+**File — `POST /api/inbox?name=…`.** The PDF comes as a raw body like a
+receipt (up to 10 MB, recognised by its first bytes; anything else →
+`400 errors.inbox.pdfOnly`). It is stored in the receipt store (kind
+`inbox_pdf`, reference `{type: "inbox", id}`). If the same file (same SHA-256)
+is already in the inbox: `409 errors.inbox.duplicate`, the message names the
+date and `detail.existing` is the existing entry. Answer `201` with the entry.
+*(Package betrieb)* Without `name` the document is called “Document YYYY-MM-DD
+HH.MM.pdf” (in the language of the installation). Instead of the raw body, JSON
+`{"name": "…", "pdf_base64": "…"}` works too — that is how Home Assistant passes
+on attachments from the IMAP integration; line breaks in the Base64 are allowed,
+invalid Base64 → `400 errors.inbox.base64Invalid`. With sign-in switched on, an
+API key with the scope **`inbox`** (“inbox only”) is enough: it may use exactly
+this route and no other (`401`); a read key gets `403 errors.auth.readOnlyKey`.
+Example:
+
+```sh
+curl -X POST -H "Authorization: Bearer etk_…" -H "Content-Type: application/pdf" \
+  --data-binary @Bill.pdf "http://YOUR-ENERGIETRACKER-IP:8080/api.php/api/inbox?name=Bill.pdf"
+```
+
+**List — `GET /api/inbox`.** `entries` (newest first: `id`, `attachment_id`,
+`name`, `status`, `type`, `flags`, `queued_at`, `created_at`, `applied`,
+`error`, *(package betrieb)* `gist`, `meter_id`, `contract_id`, *(v3.7.0)*
+ `duplicate_of` — the older document with the same content or
+`null`), `folder` (`dir`, `present`, `pending` — the watched folder), `queue`
+(`counts` per status, `queued`, `next`) and `provider`
+(`id`, `label`, `local`, `available`, `model`, `destination`, `notice`, `pdf`,
+`recommended_model`). `available` means the provider really sends — locally
+with an address set up, in the cloud switched on and with a key. `destination`
+(host) and `notice` (what leaves, in the language of the request) come from the
+cloud connections; the interface shows both in the dialog “This document goes
+to …”, for the local provider they are `null`.
+
+**Preview — `GET /api/inbox/{id}`.** `entry` (without the cache),
+`assignment` (saved or pre-filled: `utility`, `meter_id`, `contract_id`),
+`assignment_saved`, `suggested` (`by`: `meter_number`, `market_location`,
+`contract_number`, `utility`, `single_meter`, `date`), `proposals`, `schema`
+(kind per field), `review_all`, `recognize_only`, *(package betrieb)* `gist`,
+*(v3.7.0)* `duplicates` (`[{id, name, created_at, status}]`:
+documents of the same type with the same period or effective date and the same
+numbers and amounts — in another file; nothing is deleted).
+
+`by: date` means *since v3.7.0*: the contract **of the same supplier** (name
+without case, punctuation and legal form) on the reference date, for a bill the
+one that bills most of its period. The preview never pre-fills another
+supplier’s contract, and none without a supplier in the document.
+
+**Key message — `gist`** (computed fresh in the preview; in the list the one
+saved after the last write, field `gist` of the entry in `inbox.json`):
+
+```json
+{ "type": "price_change", "key": "inbox.gist.priceChange.more",
+  "params": { "date": "2026-04-01", "provider": "Stadtwerke Musterstadt", "amount": 52.4 },
+  "figure": { "kind": "money_year", "value": 52.4, "tone": "bad", "signed": true },
+  "action": { "kind": "apply", "key": "inbox.gist.action.applyPrices" },
+  "details": [{ "key": "inbox.gist.detail.termination", "params": { "date": "2026-03-31" } }],
+  "computed_at": "2026-10-21T10:00:00+02:00" }
+```
+
+`figure.kind`: `money_year`, `money_month`, `money`, `result` (positive =
+additional payment), `date`, `price_ct`; `tone`: `good`, `warn`, `bad`,
+`neutral`. `action.kind`: `apply` (take over the ticked proposals), `link`
+(`href` in the app), `remind` (create a reminder with `due`, `POST …/remind`),
+`file` (file away). Texts are catalogue keys with raw values (dates ISO,
+amounts as numbers). After taking over, a bill carries `check` (`verdict`,
+`delta_eur`, `reasons`, `bill_id`) from “Check bill”; with `verdict: no_prices`
+the sentence is `inbox.gist.invoice.noPrices`, the details name
+the sections without a price, and the button leads to the contracts
+(`inbox.gist.action.addPrices`). If the quantity differs and prices are
+missing as well (`verdict: check`, `price_missing_at` not empty), it is
+`inbox.gist.invoice.offQuantityNoPrices` with `pct` (deviation of the
+quantity); the details name the sections without a price as well, and the
+button opens “Check bill”. Open points of the proposals
+appear as details `inbox.note.missing` or `inbox.note.unsure` with `fields`;
+`duplicate_of` names a document with the same content (if nothing is left to
+take over, `action` is “file”). Without type or reading `null`.
+
+A field of the reading (`entry.extraction.fields.<name>`):
+
+```json
+{ "value": 1235.6, "raw": "1.235,6", "quote": "Zählerstand neu am 31.12.2025: 1.235,6 m³",
+  "page": 1, "status": "ok", "reasons": [] }
+```
+
+`status` is `ok`, `check` or `empty`. Reasons in `reasons`: `empty` (empty, but
+a proposal needs the field — *since v3.7.0* per proposal, not per document
+type), `no_quote`, `quote_not_found` (after normalising white space,
+hyphenation and case the quote is not in the text), `value_not_in_quote`,
+`unreadable`, `estimated` (“voraussichtlich”), `mandatory` (meter swap, meter
+reading request, advance payment change — *(v3.7.0)* not `document_date` and
+`document_title` unless a proposal needs them), `price_from_invoice`, `sum_mismatch`
+(total of the advance payments), `inconsistent` (result ≠ total − advance
+payments; *(v3.7.0)* then every field involved is flagged: result, total and
+the sum of the advance payments, without a sum each advance payment),
+*(v3.7.0)* `invalid_format` (market location ID not in its form:
+11 digits, the first 1–9, check digit as in the BDEW application guide
+“Identifikatoren in der Marktkommunikation”, chapters 3 and 8.1; a meter number
+with an asterisk in the value or the quote, such as an abbreviation “*EMH” in
+front of it — what belongs to the number would stay open; matching against the
+devices ignores an asterisk). List fields (`advances_paid`, `gas_factors`, `working_prices`) carry
+`items`, each with its own quote; the server adds up the advance payments
+(`sum`).
+
+*(v3.7.0)* These reasons do not flag, they explain — the `status`
+stays `ok` or `empty`:
+
+| Reason | Meaning |
+|---|---|
+| `missing` | not in the document, no proposal needs it (`status: empty`) |
+| `estimated` | “voraussichtlich” (expected): taken over as a hint, the proposal stays ticked (a flag up to v3.6) |
+| `supported` | a choice field without a valid quote that other details back: meter number, market location or contract number at the assigned meter or contract, units and keywords of the other quotes, for the bill type the new advance, for the result amount against advances |
+| `price_matches` | price from the bill = price line of the assigned contract on the same day (to rounding); the proposal is `exists` — a net price counts gross |
+| `net_price` | the price is printed net and its VAT rate is read: converted to gross (the app keeps gross prices); the entry carries `net: {vat_pct, gross}`, the proposal the gross price |
+| `vat_changed` | same net price as in the contract, only a different VAT rate: no flag, a new price line (gross) from the day the bill shows the price for |
+
+*(v3.7.0)* **Net and VAT rate.** A price on the bill counts as net when the
+rate stands in the quote (read, never guessed — not by utility or date
+either; only from a quote that stands in the document — for a quote with “…”
+only from the parts that stand there) and net is stated: by the model (`basis: net` on the unit price,
+`base_price_basis` on the standing charge) or in the quote (“netto”,
+“zzgl.”), without “brutto”/“inkl.” next to it. If the model names a rate
+(`vat_pct`, `base_price_vat_pct`), exactly that rate must stand in the quote.
+If the quote carries no rate, a rate the server reads in the text layer while
+reading counts — on the entry or field as `vat_read: {vat_pct, from}`:
+`from: row` when the model names net/gross **and** a rate and exactly that rate
+with “%” is the only one in the text line that holds the whole quote (one line
+below does not count); `from: column` when the row carries exactly one number without “%” that is a
+usual rate (0, 5, 7, 16 or 19 — § 12 (1)–(3) and § 28 (1), (2) and (5) UStG),
+not the price itself, and the header of a tax column stands above it on the
+same page (“USt %”, “MwSt.-Satz in %”); `from: line` when the bill shows
+exactly one rate in a line of its own (“Umsatzsteuer 19 % auf …”, “zzgl. 19 %
+MwSt.”). If two rates stand there (say 7 % and 19 %), neither counts — which
+price line carries which would be a guess. Otherwise the price stays as printed
+and the flag as before. “Different VAT
+rate” needs the rate of the contract price: from a document on the contract
+(contract confirmation or price change from the inbox, rate in the quote of
+the price or in the field `vat_pct`) or from the same bill. Balance and
+forecast keep calculating with the contract’s gross prices. Helper fields
+(`basis`, `vat_pct`, `base_price_basis`, `base_price_vat_pct`, `vat_pct` of
+the confirmation) never flag. A reading carries `schema_version` **4**; the
+cache depends on this version. A document read with an older version keeps its
+reading until you read it again: the app recognises net there from the quote,
+only reading again asks the model for the new fields. Reading again without
+`fresh` with the same version hits the cache: the model is not asked, the check
+runs again with the text layer sent along.
+
+*(v3.7.0, `schema_version` 3)* **Date, title, readings per meter.** Every type
+that is read carries `document_date` (date of the letter or bill) and
+`document_title` (heading, such as “Rechnungskorrektur”, also from the page
+header) — checked like every field (the date stands in the quote), without a
+flag when missing (no proposal needs them). The bill also carries
+`meter_readings` (`items` per meter: `meter_number`, `reading_old`,
+`reading_old_date`, `reading_new`, `reading_new_date`, each entry with its own
+quote); the single fields `meter_number`, `reading_old` … stay and are still
+filled. `meter_readings` yields readings at the assigned meter (by meter
+number, without duplicating the single fields). If exactly one entry with a
+foreign number stands next to exactly one of the meter, the app proposes a meter
+swap (`meter_change`, `label_key` `inbox.proposal.meterSwapInvoice`, final
+reading of the old and initial reading of the new meter, swap day = date of the
+initial reading). It is ticked in advance only when everything fits: the
+meter’s entry carries the number of the device that ran until then; removal on
+the same day or the day before; the readings rise; no known reading of the old
+device lies above the final reading, none from the swap day on; nothing
+flagged. The readings on the swap day are carried by the swap, not by a
+reading. The same number twice with two readings on the same day (two
+registers) or a foreign meter without the old one’s final reading yield no
+proposal.
+
+*(v3.7.0, `schema_version` 4)* **Periods per meter, number in the header
+line.** The server merges entries with the same number (one per reading
+period) into one: earliest initial reading, latest final reading, the entry
+keeps its form. The readings in between stand on the entry as `between:
+[{date, counter, estimated}]`, together with `merged` (number of periods) and
+`estimated_ends` (how the initial and final reading were taken); every reading
+in between becomes a reading like the final one. If a reading falls with the
+date, the entry is flagged (`inconsistent`). If the number is not in the quote
+but in the header line directly above the reading lines, it counts as backed
+(`number_from: header`); the header line of another meter backs nothing. The
+readings of the new meter are ticked in advance only when the swap is —
+otherwise they would land on the old device. If the bill shows several
+numbers, a reading of the single fields is ticked in advance only when an
+entry that may be ticked carries it at this device.
+
+*(v3.7.0, `schema_version` 3)* **Estimated readings.** Every reading on the bill
+carries how it was taken: `reading_new_estimated`, `reading_old_estimated`
+(bool, helper fields without a flag) and `estimated` per entry of
+`meter_readings` (applies to both readings of the entry). A reading counts as
+estimated only when its quote says so — with a word (“geschätzt”, “Schätzung”,
+“rechnerisch ermittelt”, *(version 4)* “hochgerechnet”) or a reading code the document itself explains as an
+estimate (“S = geschätzt”, “R: rechnerisch ermittelt”); a code without that
+explanation does not count, nor does the explanation alone. *(Version 4)* The
+same goes for a footnote mark (“5)”, “*”) the document explains as an estimate
+(“5) hochgerechnet”), a code in a code group (“10/12/26” with “12 =
+geschätzt”) and a number below a column “Ableseart” or “Ablesegrund” when the
+document explains it; what stands in the line right after the quote counts
+too. `estimated_by` (`word`/`code`/`mark`) tells why. The reading proposal then carries
+`is_estimated: true` in `data` (`label_key` `inbox.proposal.readingEstimated`)
+and creates the reading as estimated — the monthly marker does not count it as
+a measurement.
+
+*(v3.7.0)* **Quote from several places.** A quote with “…” (or “...”) counts
+as found when its parts stand in this order on the same page, each in the same
+text line as the previous one or at most 2 text lines below the previous one —
+label and value stand in the same line or in the line below, also in a wide
+table row (counted in lines, not characters); the value must be in one part.
+Without “…” a quote may split into two parts (column header and row) if both
+stand on the same page, the first before the second and at most 2 text lines
+above it, each at least four characters long, and the value is in the second,
+not the first. Umlauts as two characters in the text layer (“Ã¤” or “√§”
+instead of “ä”, letter + diaeresis) and Mac Roman bytes read as Windows-1252
+(“Š” for “ä”, “š” for “ö”, “Ÿ” for “ü”) are evened out by the comparison. The server checks quotes when reading, against the text layer,
+which it does not keep — an older reading benefits only when read again.
+
+The server determines the flags from today’s records: preview, list (`flags`)
+and review list recalculate on every call, also for documents read by an older
+version. They are stored when reading, changing and taking over — a
+`PATCH /api/inbox/{id}` with an empty body writes them to `inbox.json`. `flags`
+counts what is still to check (without what was confirmed).
+
+A proposal:
+
+```json
+{ "id": "p_3f2a9c1e0b7d", "kind": "reading", "label_key": "inbox.proposal.reading",
+  "params": { "date": "2025-12-31", "counter": 1235.6, "meter": "Main gas meter" },
+  "data": { "meter_id": "m_gas_main", "date": "2025-12-31", "counter": 1235.6 },
+  "sources": ["reading_new", "reading_new_date"], "status": "new", "detail": null,
+  "check": false, "checked": true }
+```
+
+`kind`: `reading`, `bill`, `bill_book` (result as a special payment),
+`contract_create`, `contract_end`, `contract_start`, `contract_price`,
+`contract_base_price`, `contract_advance`, `contract_ids`, `meter_ids`
+(market location), `meter_change`, `gas_factor` (effective date of the gas
+conversion), `reminder`. `status`: `new`, `exists` (skipped), `conflict`
+(overwrites only when ticked), `overlap`. `checked` is the default: new and not
+flagged. The `id` depends on kind and content.
+
+*(v3.7.0, additive)* `core` — the fields whose doubt flags the
+proposal (if absent, `sources` apply); `reasons` — `[{field, reasons}]`, why
+`check` holds; `hints` — `[{field, reason}]` without a flag (`estimated`);
+`open` — `[{field, reason}]` with `missing` (not in the document) or `unsure`
+(flagged and therefore **not** taken over, e.g. the advance of a contract
+confirmation: the contract is created without it). New as an offer (not
+ticked): `contract_create` with `label_key`
+`inbox.proposal.contractFromInvoice` (a bill with period and supplier but no
+contract of that supplier; a final bill ends with its period) and
+`inbox.proposal.contractFromSupplyStart` (supply start without a contract).
+Without a contract of that supplier `bill_book` is only an offer (`open` names
+`contract`); taken over it books only to a contract of the supplier that bills
+the period, otherwise `errors.bill.noContract`. The new advance of a bill only
+goes to a follow-up contract of the same supplier.
+
+**Change — `PATCH /api/inbox/{id}`** with `assignment`, `edits`
+(`{field: value}` confirmed or corrected; `null` takes it back), `type`
+(another type: the reading is discarded), `status` (`filed` file away, `new`
+back) or `note`. Answer like the preview.
+
+**Read — `POST /api/inbox/{id}/classify`, then `…/extract`** with
+`{pages: [text per page], consent?, fresh?}`. The browser reads the text layer
+(pdf.js). `classify` recognises the type, `extract` reads the fields of that
+type and checks them; without a type `extract` does both. Cached per provider,
+model and schema version (`fresh: true` asks again). The write lock is taken
+only after the service answers. A provider other than `local` requires
+`consent: true`, otherwise `409 errors.inbox.consentRequired` with the name of
+the service.
+
+| Status | `code` | When |
+|---|---|---|
+| `400` | `errors.inbox.off` | no service set up (`ocr_endpoint` empty) |
+| `400` | `errors.ocr.notLocal` | an address of the service is not in the home network |
+| `400` | `errors.inbox.noText` | no text layer (a scan) and a provider that takes text only |
+| `400` | `errors.inbox.pagesInvalid`, `errors.inbox.providerUnknown` | unreadable text layer, provider not registered |
+| `409` | `errors.inbox.consentRequired` | provider outside the home network without consent |
+| `502` | `errors.inbox.truncated` *(v3.7.0)* | the answer broke off at the context window (`done_reason` or `finish_reason`: `length`), also on the second attempt with a larger window and double the answer budget; names budget and window |
+| `502` | `errors.ocr.timeout`, `errors.ocr.unreachable`, `errors.inbox.badAnswer`, `errors.inbox.modelMissing` | the service does not answer, gives no usable answer, or the model is missing |
+
+When a cloud service reads, its messages come on top
+([below](#get-apiinboxcloud--patch-apiinboxcloud-v370), “When reading”).
+
+**Take over — `POST /api/inbox/{id}/apply`** with `{proposals: [id, …]}`. Only
+those, through the same services as manual entry. An unknown ID →
+`400 errors.inbox.proposalStale` (nothing happens). Answer: `applied`,
+`skipped` (already there), `failed` (error per proposal), `entry`, `proposals`.
+
+**Queue — `POST /api/inbox/queue`** (`{ids?}`; without, all new and failed
+documents) and **`DELETE /api/inbox/queue`** (queued ones become new again).
+The open page works through them one document at a time.
+
+**Check list — `GET /api/inbox/review`.** Only the flagged fields of all
+documents that have been read and not yet taken over: `entry_id`, `name`,
+`type`, `field`, `item`, `value`, `quote`, `page`, `reasons`.
+
+#### Household from documents *(v3.7.0)*
+
+One draft across all documents that have been read and not yet taken over
+([guide](../anleitungen/haushalt-aus-dokumenten.md)). It works only with the
+stored readings (`extraction`, plus `edits`) and asks no service. Whoever may
+take over a single document may write.
+
+**Draft — `GET /api/inbox/draft`** (`?documents=inb_…,inb_…` takes only these).
+Answer: `summary` (`documents`, `used`, `duplicates`, `without`, `meters`,
+`meter_changes`, `contracts`, `prices`, `advances`, `readings`, `bills`,
+`reminders`, `questions`), `utilities` (order of the sections), `items`,
+`documents` (per document `state`: `used`, `duplicate` with `duplicate_of` —
+the same older document as `entries[].duplicate_of` in `GET /api/inbox`, even
+if it has already been taken over —, `no_utility`, `no_meter`, `no_start`,
+`nothing`; plus `items`), `findings` (`gap`, `overlap`, `falling`,
+`chain_mismatch`, `duplicate`, `no_meter`, `same_supplier` — bills in another
+spelling at the meter and in the time of a contract with a shared name —,
+`invoice_wp`/`invoice_bp` — a bill price differs from the confirmation or price
+change, `{name, date, invoice, chain}` —, `start_from_invoice` — start moved
+forward to the first bill of the same contract —, `bill_corrected` — corrected
+bill, the later version applies — with `params` and `docs`), `missing`
+(`advance`, `prices`, `working_price`, `base_price`, `prices_unconfirmed` —
+prices only on bills, still to be confirmed; each with `which`: `wp`, `bp`,
+what is missing after taking over what is pre-selected —,
+`working_price_gap`/`base_price_gap` — a period without a price, `params`
+`{provider, from, to}` —, `water_prices`, `contract_start`, `old_final` (meter
+swap without the closing reading of the old meter: it is only inferred from a
+reading at most 7 days before), `open` — the open points of the proposals,
+`open: [{field, reason: missing|unsure}]`, one line per contract or supply
+relationship with its documents in `docs`, unless the draft has them from
+another document — with `href`), `targets` and `queue` (as in
+`GET /api/inbox`).
+
+An entry is a group of fields with one tick:
+
+```json
+{ "id": "d_5c1e0a9b3f27", "kind": "contract", "utility": "strom", "status": "new",
+  "check": false, "checked": true, "actionable": true, "optional": false,
+  "label_key": "inboxDraft.item.contract.new",
+  "params": { "provider": "Nordlicht Energie GmbH", "from": "2025-04-01", "to": null },
+  "fields": [
+    { "name": "start", "kind": "date", "value": "2025-04-01", "core": true, "basis": "supply_start",
+      "check": false, "reasons": [], "status": "new",
+      "sources": [{ "doc": "inb_…", "name": "lieferbeginn.pdf", "field": "supply_start", "quote": "…", "page": 1 }] },
+    { "name": "tariff_name", "kind": "text", "value": "Basis 12", "check": true, "reasons": ["differs"],
+      "options": [{ "value": "Basis 12", "sources": [] }, { "value": "Basis 24", "sources": [] }] }
+  ],
+  "docs": ["inb_…"] }
+```
+
+`kind` in the order of the take-over: `meter` (`action`: `create`, `adopt` —
+the empty default meter —, `existing`), `meter_change`, `contract`,
+`contract_end` (previous contract, only as an offer), `prices` (fields
+`wp:<date>`, `bp:<date>` per month), `advances` (`ap:<date>`), `readings`
+(`r:<date>`), `bill` (with booking of the result), `gas_factor` (`gf:<date>`),
+`reminder`. `status` of the entry: `new`, `update` (existing, gets added to),
+`exists`, `conflict`, `overlap`; per field `new`, `exists`, `conflict` (with
+`existing`; a bill price with `price_matches` is `exists`). `check` on a field:
+doubtful (flagged quote — the marks by today’s data as in the list and the
+preview, `Proposals::marks` — and no second document that confirms it; bill
+prices do not confirm each other), reasons
+from the quote check plus `differs`, `conflict_existing`, `chain_mismatch`,
+`inferred`, `falling_reading`, `assumed_date`, `swap_open` (reading after a
+swap without a closing reading), `swap_readings` (a swap from the readings
+does not quite fit: another running device, a reading above the closing
+reading, a falling new meter or a reading from the swap day on in the existing
+data — then not pre-selected, as in the single document). `hint` `newest`:
+different identifiers, the one from the most recent document is pre-selected,
+the others in `options`. Read where the extraction has them: `document_date`,
+`document_title` (corrected bill) and `meter_readings` (readings per meter of
+a bill; the same number with consecutive periods → readings of that meter,
+with overlapping ones → `missing` `two_registers`). No meter reading
+is created on the swap day (the swap carries the readings). A reading field
+marked as estimated (`is_estimated`, according to the bill:
+`reading_*_estimated`, `meter_readings[].estimated`) creates an estimated
+meter reading. `basis` of the start:
+`confirmation`, `supply_start`, `invoice`, `invoice_earlier` (moved forward to
+the first bill), `existing`; of the end `document`, `successor`; on a price
+row `vat_changed` (same net price, different VAT rate according to the bill).
+Bill prices count gross (net with a VAT rate that was read, converted as in the
+inbox, also when confirmed or corrected — entered in the same basis as
+printed); a price row only from net prices carries `net: {vat_pct}`. `core`:
+core field — if one is doubtful, the entry is `check` and not pre-selected.
+
+**Take over — `POST /api/inbox/draft/apply`** with
+`{items: [id, …], confirm: {id: [field, …]}, choose: {id: {field: option}}, documents?}`.
+A selected entry writes its fields that are new and not doubtful, plus the core
+fields (ticking confirms them), the ones named in `confirm` and the option
+picked in `choose`. An unknown ID, an unknown field or an option outside the
+list → `400 errors.inbox.proposalStale` before anything is written; nothing
+selected → `400 errors.inboxDraft.nothingSelected`. First the server makes a
+backup `pre-inbox-…` (Settings → Data, reason “before household from
+documents”). Answer: `applied` (per entry `ref`), `failed` (per entry or field
+with `error`, `code`), `created` (`meters`, `meter_changes`, `contracts`,
+`rows`, `readings`, `bills`, `booked`, `gas_factors`, `reminders`), `bills`
+(for “Check the bill”: `utility`, `id`, `meter_id`, `period_from`,
+`period_to`, `booked`), `missing`, `documents` (`done`, `filed`, `open`) and
+`snapshot`. Documents the draft covers completely are `done` afterwards (what
+was taken over in `applied`, assignment set, marks and key message `gist`
+renewed as after `POST /api/inbox/{id}/apply`), probable duplicates `filed`
+when their original is `done`; the list keeps working out `duplicate_of` from
+the content, it is not stored.
+
+**Delete — `DELETE /api/inbox/{id}`.** The entry; the PDF only while it hangs
+at the inbox alone.
+
+**Reminder — `POST /api/inbox/{id}/remind`** with `{date: "YYYY-MM-DD"}`
+*(package betrieb)*: a reminder for the document (payment reminder: “sort out
+…”) at the assigned meter, with the person responsible for the contract; the
+document is filed afterwards. Answer like the preview. Without a valid date
+`400 errors.reminder.dueRequired`.
+
+#### Folder — `POST /api/inbox/folder`
+
+*(v3.7.0, package betrieb)* Reads `<data directory>/posteingang/` (admins only,
+otherwise `403 errors.auth.adminOnly`; a missing folder is created). Only files
+directly in the folder, no hidden ones, no symbolic links; PDF by content, up
+to 10 MB; at most 20 per call, a file younger than 10 seconds waits. Afterwards
+it is in `posteingang/übernommen/` (a duplicate too), a refused one in
+`posteingang/fehler/`. Answer:
+
+```json
+{ "dir": "posteingang", "imported": [{ "name": "Bill.pdf", "id": "inb_…", "moved": "übernommen/Bill.pdf" }],
+  "duplicates": [], "failed": [{ "name": "photo.pdf", "reason": "type", "moved": "fehler/photo.pdf" }],
+  "skipped": [{ "name": "link.pdf", "reason": "symlink" }], "waiting": 0, "more": false }
+```
+
+`reason`: `type` (not a PDF), `size`, `rejected` (with `code`), `quota` (the
+receipt store is full — the file stays), for `skipped` `symlink`,
+`not_a_file`, `outside`, `unreadable`. `moved` is `null` when moving failed.
+
+#### File — `GET /api/utility/{u}/dossier`
+
+*(v3.7.0, package betrieb)* `?meter_id=` or `?contract_id=` (otherwise `400
+errors.dossier.scope`; unknown → `404`). `items`, newest first:
+
+| `kind` | What | Fields |
+|---|---|---|
+| `inbox` | a done or filed inbox document assigned to the meter or contract | `type` (document type), `inbox_id`, `status`, `gist`, `bill_id` (when it became a bill) |
+| `bill` | supplier bill | `type` (`annual`, `final`, `interim`), `bill_id`, `period_from`, `period_to`, `result_eur`, `amount_eur`, `attachment_ids` |
+| `receipt` | receipt on the contract | `contract_id`, `provider` |
+| `photo` | photo of a reading (meter only) | `counter` |
+
+Every item has `date` (the document’s effective date, otherwise when it
+arrived), `title` and `attachment_id` (or `null`). A PDF appears only once.
+
+#### `GET /api/inbox/cloud` · `PATCH /api/inbox/cloud` *(v3.7.0)*
+
+Reading in the cloud for the inbox: an opt-in, off until someone who manages
+the installation switches it on
+([guide](../anleitungen/posteingang.md#reading-in-the-cloud)). Text recognition
+stays in the home network; this is a separate path. `GET` returns the
+state, **never the key**:
+
+```json
+{ "success": true, "data": {
+  "enabled": false, "provider": "anthropic", "endpoint": "", "model": "",
+  "timeout_s": 120, "has_key": false, "keys": { "anthropic": false, "openai": false }, "ready": false,
+  "active": false,
+  "preset": "anthropic", "experimental": true,
+  "presets": [
+    { "id": "anthropic", "provider": "anthropic", "endpoint": null, "label": "Claude (Anthropic)", "host": "api.anthropic.com", "has_key": false },
+    { "id": "mistral", "provider": "openai", "endpoint": "https://api.mistral.ai/v1", "label": "Mistral", "host": "api.mistral.ai", "has_key": false },
+    { "id": "custom", "provider": "openai", "endpoint": null, "label": null, "host": "", "has_key": false } ],
+  "providers": [
+    { "id": "anthropic", "label": "Claude (Anthropic)", "destination": "api.anthropic.com",
+      "notice": "The document goes as a PDF to …", "sends": "pdf", "default_model": "claude-opus-5-5" },
+    { "id": "openai", "label": "OpenAI-compatible service", "destination": "",
+      "notice": "The document’s text goes to …", "sends": "text", "default_model": "" } ] } }
+```
+
+(`presets` shortened; in full: `anthropic`, `openai`, `mistral`, `openrouter`,
+`gemini`, `custom`.) `notice` is the note the inbox shows before every reading
+(in the language of the request), `destination` the host the document goes to,
+`sends` what leaves (`pdf` or `text`). `ready` means the service could send —
+switched on **and** with a key. After restoring a backup on another server
+`enabled` is true, `ready` is not. `active` means ready **and** chosen with the
+switch of the “Reading documents” card (`inbox_provider`) — then something
+really leaves. *(“Reading documents” card, additive)* `preset` is the preset that
+matches provider and address (otherwise `custom`), `presets[].has_key` whether a
+key is stored for that destination — on the OpenAI-compatible path it belongs to
+the host. `experimental`: no cloud path has been checked against real-world
+feedback yet; `GET /api/inbox` reports the same (`provider.experimental`).
+
+`PATCH` takes the same fields (`enabled`, `provider`, `endpoint`, `model`,
+`timeout_s`), all optional, plus `api_key` (new key; empty = keep) and
+`clear_key` (`true` = the provider's key, otherwise the id of a provider; the
+selection stays). *(“Reading documents” card, additive)* `preset` sets provider
+and address from the preset; `select: true` lets the service read as soon as it
+is ready, `select: false` leaves `inbox_provider` as it is. Response as for
+`GET`. Only a complete connection is switched on. If that makes it ready, the
+server without `select` sets `inbox_provider` to the provider, and back to
+`local` when switched off; whoever chose “Local” while the cloud was ready keeps
+that. Via `PATCH /api/settings`, `inbox_provider` only accepts a
+cloud service while it is ready, otherwise `400` (text of
+`errors.inboxCloud.off`). Admins only, otherwise `403` `errors.auth.adminOnly` —
+the same for the `inbox_*` keys via `PATCH /api/settings`.
+
+| Status | `code` | When |
+|---|---|---|
+| `400` | `errors.inboxCloud.noKey` | switching on without a key |
+| `400` | `errors.inboxCloud.noEndpoint`, `errors.inboxCloud.noModel` | OpenAI-compatible without an address or model |
+| `400` | `errors.inboxCloud.httpsOnly` | address not `https://` or with credentials |
+| `400` | `errors.inboxCloud.notPublic` | address or name in the home network (`192.168.…`, `nas.local`, `fritz.box`, a name without a dot) |
+| `400` | `errors.inboxCloud.keyFormat` | key not 8–500 printable characters without spaces |
+
+**When reading** (through the inbox) the connections report: `400`
+`errors.inboxCloud.off` or `noKey` (not switched on), `notPublic` (a resolved
+address is not public), `notPdf`, `emptyDocument`; `413` `tooLarge` or
+`tooLargeLimits`; `422` `refusal` (the model declines); `429` `rateLimited` with
+`Retry-After`; `502` `unauthorized` (the service rejects the key — deliberately
+not `401`, which in the interface means “sign in again”), `redirect`,
+`unreachable`, `badAnswer`, `truncated`, `rejected`; `503` `overloaded` with
+`Retry-After`; `504` `timeout`. What each provider sees and how the connection
+is checked: [Security](../betrieb/sicherheit.md#reading-in-the-cloud-v370).
+
+#### `GET /api/inbox/cloud/models` · `GET /api/inbox/local/check` *(v3.7.0, “Reading documents” card)*
+
+Both admins only (otherwise `403` `errors.auth.adminOnly`), both without a
+document.
+
+**`GET /api/inbox/cloud/models`** — the models of the cloud service that is set
+up (stored provider, address and key; the key stays on the server).
+OpenAI-compatible `GET <base>/models` with `Authorization: Bearer`, Claude
+`GET https://api.anthropic.com/v1/models?limit=1000` with `x-api-key` and
+`anthropic-version`. The same rules as for reading (HTTPS only, never the home
+network, the checked address, no redirect) and the same errors (`noKey`,
+`noEndpoint`, `notPublic`, `unauthorized`, `redirect` …). Only ids that may be
+stored as `inbox_cloud_model`, at most 1000, in the service’s order:
+
+```json
+{ "success": true, "data": { "provider": "openai", "preset": "mistral",
+  "models": [ { "id": "test-model-a", "label": "" }, { "id": "vendor/test-model-b", "label": "Test Model B" } ] } }
+```
+
+**`GET /api/inbox/local/check?endpoint=…&api=ollama|openai`** — “Check
+connection” for your own service (without parameters the stored
+`ocr_endpoint`/`ocr_api`): Ollama `GET /api/tags`, OpenAI-compatible
+`GET /v1/models`, home network only like text recognition. Response
+`{ host, api, models: ["qwen3.8:latest", …], model, model_found }` — `model` is
+`inbox_model`, `model_found` says whether it is among them (also with
+`:latest`). Errors as for text recognition: `400` `errors.ocr.off`,
+`errors.ocr.notLocal`, `errors.ocr.unreachable`, `errors.ocr.timeout`,
+`errors.ocr.badAnswer`.
 
 ### `POST /api/ingest` *(F1009, v1.9.0 — Home Assistant)*
 
@@ -3969,8 +4687,8 @@ to the whole installation, not per person. Outside mode `password` → `400`
 | `GET /api/users` | — | list of people, including `u_admin` while it exists | — |
 | `POST /api/users` | `{name, password, role?}`; `role` default `member` | `201` with the person (`source: "password"`) | `400` `errors.users.nameInvalid`, `errors.users.roleInvalid`, `errors.auth.passwordTooShort`; `409` `errors.users.nameTaken` |
 | `PATCH /api/users/{id}` | `{name?, role?, password?}`, each field on its own; the password without the previous one (“Reset password”) | the changed person | `404` `errors.users.notFound`; `400` as when adding; `409` `errors.users.nameTaken`, `errors.users.lastAdmin` (the last admin would become a member), `errors.auth.passwordFixed` |
-| `GET /api/users/{id}/handover` | — *(v3.6.0)* | `{person, to, open, done}` ([Register of people](#register-of-people-v360)) | `404` `errors.users.notFound` |
-| `DELETE /api/users/{id}` | — ; *(v3.4.0)* `?anonymize_activity=1` replaces the name in the history with “former member” | `{deleted: true, activity_anonymized}`; *(v3.6.0)* plus `handed_over`, `handed_over_to`, `kept` | `400` `errors.users.notSelf` (your own person); `404` `errors.users.notFound`; `409` `errors.users.lastAdmin`, `errors.auth.passwordFixed` (`u_admin` with `ET_ADMIN_PASSWORD_HASH`) |
+| `GET /api/users/{id}/handover` | — *(v3.6.0)* | `{person, to, open, done}` ([Register of people](#register-of-people-v360)); *(v3.7.0)* plus `meters`, `contracts` | `404` `errors.users.notFound` |
+| `DELETE /api/users/{id}` | — ; *(v3.4.0)* `?anonymize_activity=1` replaces the name in the history with “former member” | `{deleted: true, activity_anonymized}`; *(v3.6.0)* plus `handed_over`, `handed_over_to`, `kept`; *(v3.7.0)* `records_handed_over`, `records_kept` | `400` `errors.users.notSelf` (your own person); `404` `errors.users.notFound`; `409` `errors.users.lastAdmin`, `errors.auth.passwordFixed` (`u_admin` with `ET_ADMIN_PASSWORD_HASH`) |
 
 A deleted person is signed out at once: their session cookie no longer counts.
 A new password — changed by the person or reset by an admin — signs that person

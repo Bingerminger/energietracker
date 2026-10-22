@@ -367,8 +367,8 @@ final class BaselineCutoffTest extends ServiceTestCase
     public function testRecommendationsIgnorePreBaselineMonths(): void
     {
         $this->spikeMonth('2021-01', 900.0);
-
-        $withoutCut = $this->gasMonthsFlaggedByRecommendations();
+        // Stichtag kurz danach: 2021-01 liegt in den letzten 24 Monaten
+        $withoutCut = $this->gasMonthsFlaggedByRecommendations('2022-12-31');
         self::assertContains(
             '2021-01',
             $withoutCut,
@@ -376,7 +376,7 @@ final class BaselineCutoffTest extends ServiceTestCase
         );
 
         $this->withCut();
-        $withCut = $this->gasMonthsFlaggedByRecommendations();
+        $withCut = $this->gasMonthsFlaggedByRecommendations('2022-12-31');
         self::assertNotContains(
             '2021-01',
             $withCut,
@@ -464,10 +464,17 @@ final class BaselineCutoffTest extends ServiceTestCase
         self::assertGreaterThan(1000.0, (float)$row['weather_delta_pct'], 'Mehrverbrauch gegen die Grundlast gemessen');
     }
 
+    /**
+     * v3.7.0 — Empfehlungen aus Monaten kommen nur aus den letzten 24 Monaten
+     * (RecommendationService::RECENT_MONTHS); die Daten hier sind fest datiert,
+     * der Stichtag deshalb auch.
+     */
+    private const TODAY = '2025-12-31';
+
     /** @return array<int,string> Regel-Präfixe der Gas-Empfehlungen (r1, r2, …) */
     private function gasRuleIds(): array
     {
-        $recos = new RecommendationService(
+        $recos = (new RecommendationService(
             $this->store,
             $this->meters,
             $this->consumption,
@@ -475,7 +482,7 @@ final class BaselineCutoffTest extends ServiceTestCase
             new BenchmarkService($this->consumption, $this->meters, $this->settings, $this->i18n),
             new DeliveryService($this->store, $this->meters, $this->i18n),
             $this->i18n
-        );
+        ))->atDate(self::TODAY);
         $out = [];
         foreach ($recos->all() as $r) {
             $ev = $r['evidence'] ?? [];
@@ -486,9 +493,9 @@ final class BaselineCutoffTest extends ServiceTestCase
     }
 
     /** @return array<int,string> Monate, auf die sich Gas-Empfehlungen beziehen */
-    private function gasMonthsFlaggedByRecommendations(): array
+    private function gasMonthsFlaggedByRecommendations(string $today = self::TODAY): array
     {
-        $recos = new RecommendationService(
+        $recos = (new RecommendationService(
             $this->store,
             $this->meters,
             $this->consumption,
@@ -496,7 +503,7 @@ final class BaselineCutoffTest extends ServiceTestCase
             new BenchmarkService($this->consumption, $this->meters, $this->settings, $this->i18n),
             new DeliveryService($this->store, $this->meters, $this->i18n),
             $this->i18n
-        );
+        ))->atDate($today);
         $out = [];
         foreach ($recos->all() as $r) {
             $ev = $r['evidence'] ?? [];

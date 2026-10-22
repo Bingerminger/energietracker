@@ -186,12 +186,16 @@ PATCH  /api/activity/{id}          {note}
 DELETE /api/activity               ?before=JJJJ-MM-TT — nur Verwaltung
 GET    /api/activity.csv           (v3.5.0) dieselben Filter, ?format=1|local&lang=
 GET    /api/people                 (v3.5.0) Personen für „Zuständig“: nur ID und Name
-GET    /api/users/{id}/handover    (v3.6.0) vor dem Löschen: offene Termine an wen, erledigte Einträge
+GET    /api/users/{id}/handover    (v3.6.0) vor dem Löschen: offene Termine an wen, erledigte Einträge;
+                                   (v3.7.0) dazu meters, contracts
+GET    /api/calendar.ics           (v3.7.0) ?person=<id>: nur, was bei dieser Person liegt
 ```
 
 `POST /api/reminders/{id}/done` und `POST /api/recommendations/{id}/dismiss`
 antworten zusätzlich mit `activity_id`. Seit v3.5.0 nehmen
-`POST`/`PATCH /api/reminders…` `assignee` und `assignee_id` an. Felder,
+`POST`/`PATCH /api/reminders…` `assignee` und `assignee_id` an, seit v3.7.0
+auch `utility` und `meter_id` (Termin am Zähler); Zähler und Verträge nehmen
+`assignee_id` an, die Ereignisse der Agenda tragen `assignee_source`. Felder,
 Statuscodes und Stabilität:
 [API-Referenz](../referenz/api.md#erledigt-mit-verlauf-v340); der Topf
 `activity`: [Datenmodell](../referenz/datenmodell.md).
@@ -201,8 +205,9 @@ Statuscodes und Stabilität:
 ## 8. Zuständig an Terminen *(v3.5.0)*
 
 Ein Termin unter **Hinweise → Termine & Wartung** kann eine zuständige Person
-haben — wer die Heizung warten lässt, wer den Rauchmelder prüft. **Nur
-Termine**: Zähler und Verträge bewusst nicht. **Benachrichtigt wird niemand**;
+haben — wer die Heizung warten lässt, wer den Rauchmelder prüft. Seit v3.7.0
+auch Zähler und Verträge; ihre Fristen landen dann bei dieser Person
+([unten](#zähler-und-verträge-v370)). **Benachrichtigt wird niemand**;
 dafür gibt es den [Kalender](kalender.md) und Home Assistant.
 
 **Eintragen:** Im Termin-Dialog das Feld **„Zuständig“**. Es schlägt die
@@ -224,8 +229,8 @@ Gerät merkt sich die Wahl. „Meine Aufgaben“ ist mit Anmeldung die
 angemeldete Person — per Verknüpfung oder gleichem Namen,
 Groß-/Kleinschreibung egal. **Ohne Anmeldung** fragt die App daneben
 **„Ich bin …“** und merkt sich die Antwort auf diesem Gerät. Unter „Zu tun“
-blendet der Filter auch Hinweise ohne Zuständigkeit aus (Ablesungen,
-Verträge); eine Zeile darunter sagt, wie viele.
+blendet der Filter auch Hinweise ohne Zuständigkeit aus (etwa Ablesungen und
+Verträge ohne zuständige Person); eine Zeile darunter sagt, wie viele.
 
 **Erledigen:** Ein wiederkehrender Termin behält seine Zuständigkeit. Der
 Eintrag im Verlauf nennt, wer zuständig war — als Momentaufnahme.
@@ -243,6 +248,52 @@ ehemalige Person zu „Ohne Zuständigkeit“, bis jemand neu eingetragen ist; e
 gelöschte Person lässt sich nicht mehr zuweisen. Wer mit einem API-Schlüssel
 löscht, ist keine Person: Dann bleiben offene Termine bei der gelöschten
 Person stehen, mit „(gelöscht)“, bis jemand sie übernimmt.
+
+### Zähler und Verträge *(v3.7.0)*
+
+Auch ein Zähler und ein Vertrag können eine zuständige Person haben — die
+Fristen daran landen dann bei ihr. Gewählt wird im Zähler- bzw.
+Vertragsformular unter **„Zuständig“**, nur aus dem Personenverzeichnis (keine
+freien Namen); **„– niemand –“** heißt niemand. Die Karten der Zähler und
+Verträge zeigen die Person.
+
+**Wer bei einer Frist zuständig ist** — die erste Angabe, die es gibt, gilt:
+
+| Frist | zuerst | dann | sonst |
+|---|---|---|---|
+| Termin (Eichfrist, Zählerwechsel, Wartung …) | eigene Zuständigkeit am Termin | Zähler, an dem der Termin hängt | niemand |
+| Kündigungsfrist, Vertragsende, Preisgarantie, Preiserhöhung | Vertrag | Zähler des Vertrags | niemand |
+| Abrechnung erwartet | Vertrag | Zähler des Vertrags | niemand |
+| Ablesung fällig, Bestand niedrig (Tank) | Zähler | – | niemand |
+| Nebenkosten- und CO₂-Fristen (Mietwohnung) | – | – | niemand |
+
+Eine eigene Zuständigkeit am Termin geht immer vor — auch eine gelöschte
+Person oder „ehemalige Person“, bis jemand neu einträgt. Ein Gruppenvertrag
+hat keinen einzelnen Zähler; dort gilt nur die Person des Vertrags.
+
+**Termin am Zähler:** Im Termin-Dialog sagt das Feld **„Zähler“**, zu welchem
+Zähler ein Termin gehört. Bei einer neuen Eichfrist oder Lieferung ist der
+einzige passende Zähler vorgewählt. Bleibt „Zuständig“ leer, steht darunter,
+wer dann zuständig ist („Ohne Eintrag zuständig: Jonas (über den Zähler)“).
+
+**Anzeige:** Geerbtes trägt im Chip den Zusatz **„über den Vertrag“** bzw.
+**„über den Zähler“** — in den Terminen, unter „Zu tun“, auf **Kosten &
+Verträge → Verträge & Abschläge** und im Kalender („Zuständig: Anna (über den
+Vertrag)“).
+
+**Filter:** „Meine Aufgaben“ und die Namen zählen Geerbtes mit — in den
+Terminen, unter „Zu tun“ (auch die Sammelzeile der Ablesungen) und auf
+**Verträge & Abschläge**, das den Filter jetzt ebenfalls hat. Den
+[Kalender](kalender.md) abonniert, wer angemeldet ist, auf Wunsch **nur mit
+dem, was bei ihr oder ihm liegt** (Haken im Dialog „Im Kalender abonnieren“).
+
+**Erledigen:** Auch bei einer Frist mit geerbter Zuständigkeit nennt der
+Verlauf, wer zuständig war — als Momentaufnahme.
+
+**Person löschen:** Zähler und Verträge gehen wie offene Termine an die
+Person, die löscht. Ohne Anmeldung bleibt die Person mit „(gelöscht)“ stehen,
+mit dem Haken „ehemalige Person“ steht dort „ehemalige Person“. Der Dialog
+nennt die Zahl vorher ([Personen löschen](benutzer.md#personen-löschen)).
 
 ---
 

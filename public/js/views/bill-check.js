@@ -20,6 +20,7 @@ import { confirmModal } from '../components/modal.js';
 import { t, tp, getCurrencyMinor } from '../lib/i18n.js';
 import { info } from '../components/info.js';
 import { periodToCheck, exclusiveEnd, addDays } from '../lib/billing-period.js';
+import { attachmentNames, attachmentLinksHtml } from '../lib/attachments.js';   // v3.7.0
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -307,6 +308,7 @@ async function drawBills(container, u, meter, readPeriod) {
   if (!el) return;
   const water = u.key === 'wasser';
   const bills = await api.bills(u.key, meter.id).catch(() => []);
+  const docNames = await attachmentNames(bills);   // v3.7.0 — Dateinamen der Belege
   el.innerHTML = `
     <summary class="card__title">${escapeHtml(t('billCheck.invoice.capture'))}${bills.length ? ` <span class="muted small" data-role="bill-count">· ${escapeHtml(tp('billCheck.invoice.captured', bills.length))}</span>` : ''}</summary>
     <h2 class="settings-subhead">${t('billCheck.invoice.title')}${info('utilityStatement')}</h2>
@@ -341,7 +343,7 @@ async function drawBills(container, u, meter, readPeriod) {
         <button type="button" class="btn btn--ghost" id="bi-cancel" hidden>${t('common.cancel')}</button>
       </div>
     </form>
-    <div data-role="bill-list">${billList(bills, water)}</div>
+    <div data-role="bill-list">${billList(bills, water, docNames)}</div>
     <div data-role="bill-compare"></div>`;
 
   let attachments = [];
@@ -448,7 +450,9 @@ function showBillPeriod(container) {
   if (el) el.textContent = t('billCheck.invoice.period', { from: fmt.date(from), to: fmt.date(until) });
 }
 
-function billList(bills, water) {
+// v3.7.0 — die Belege je Rechnung über lib/attachments.js: 📄 mit Dateinamen im
+// aria-label. Bis dahin hieß der Link, der den Beleg öffnet, „Rechnung anhängen“.
+function billList(bills, water, docNames = new Map()) {
   if (!bills.length) return `<p class="muted">${t('billCheck.noBills')}</p>`;
   return `<div class="table-wrap"><table class="table table--compact">
     <thead><tr>
@@ -464,7 +468,7 @@ function billList(bills, water) {
       <td class="num">${eur(b.invoice?.amount_eur)}</td>
       <td class="num">${eur(b.invoice?.result_eur)}</td>
       <td style="text-align:right;white-space:nowrap">
-        ${(b.attachment_ids || []).map(id => `<a class="icon-btn" href="${escapeHtml(api.attachmentUrl(id))}" target="_blank" rel="noopener" aria-label="${escapeHtml(t('billCheck.invoice.attach'))}"><span aria-hidden="true">📄</span></a>`).join('')}
+        ${attachmentLinksHtml(b, docNames, { icons: true })}
         <button type="button" class="btn btn--ghost btn--sm" data-bill-check="${escapeHtml(b.id)}">${t('billCheck.compare')}</button>
         ${b.special_payment_id ? `<span class="tag">${t('billCheck.bookedTag')}</span>`
           : (b.invoice?.result_eur ? `<button type="button" class="btn btn--ghost btn--sm" data-bill-book="${escapeHtml(b.id)}">${t('billCheck.book')}</button>` : '')}
@@ -484,7 +488,7 @@ async function showCompare(container, u, id) {
     const water = u.key === 'wasser';
     const q = water ? 'm3' : 'kwh';
     const unit = water ? 'm³' : 'kWh';
-    const badge = c.verdict === 'ok' ? 'success' : c.verdict === 'check' ? 'warning' : 'neutral';
+    const badge = c.verdict === 'ok' ? 'success' : c.verdict === 'check' ? 'warning' : c.verdict === 'no_prices' ? 'info' : 'neutral';
     el.innerHTML = `
       <h3 class="settings-subhead">${escapeHtml(t('billCheck.delta.title', { from: fmt.date(c.period_from), to: fmt.date(c.period_to) }))}
         ${c.verdict ? `<span class="badge badge--${badge}">${escapeHtml(t('billCheck.delta.' + c.verdict))}</span>` : ''}</h3>
@@ -498,6 +502,33 @@ async function showCompare(container, u, id) {
           <tr><th scope="row">${t('billCheck.invoice.advances')}</th><td class="num">${eur(c.ours.advances)}</td><td class="num">${eur(c.invoice.advances_paid_eur)}</td><td></td></tr>
         </tbody>
       </table></div>
-      ${(c.reasons || []).length ? `<ul class="muted small">${c.reasons.map(r => `<li>${escapeHtml(t('billCheck.reason.' + r))}</li>`).join('')}</ul>` : ''}`;
+      ${(c.reasons || []).length ? `<ul class="muted small">${c.reasons.map(r => `<li>${escapeHtml(t('billCheck.reason.' + r))}</li>`).join('')}</ul>` : ''}
+      ${compareNotesHtml(c, u)}`;
   } catch (e) { el.innerHTML = ''; toastErr(e.message); }
+}
+
+/**
+ * v3.7.0 (treffsicher) — Was „Rechnung prüfen“ zum Urteil sagt: ohne Preise
+ * die Abschnitte samt Vertrag (Sprung zu den Verträgen), bei Gas abweichender
+ * Brennwert mit beiden Werten (Sprung zur Einstellung).
+ */
+export function compareNotesHtml(c, u = { key: 'gas' }) {
+  const parts = [];
+  // v3.7.0 (treffsicher, Nachbesserung) — auch bei „prüfen“ (die Menge weicht ab): fehlen Preise, steht es da
+  if (c.verdict === 'no_prices' || (c.price_missing_at || []).length) {
+    const at = (c.price_missing_at || []).map(x => `<li>${escapeHtml(x.contract_id
+      ? t('billCheck.noPrices.at', { from: fmt.date(x.from), to: fmt.date(x.to), provider: x.provider || '–' })
+      : t('billCheck.noPrices.noContract', { from: fmt.date(x.from), to: fmt.date(x.to) }))}</li>`).join('');
+    parts.push(`<div class="banner banner--info" data-role="no-prices"><p>${escapeHtml(t('billCheck.noPrices.hint'))}</p>
+      ${at ? `<ul class="small">${at}</ul>` : ''}
+      <p><a href="#/utility/${escapeHtml(encodeURIComponent(u.key))}/contracts">${escapeHtml(t('billCheck.noPrices.link'))}</a></p></div>`);
+  }
+  const fm = c.factor_mismatches || [];
+  if (fm.length) {
+    parts.push(`<div class="banner banner--warning" data-role="factor-mismatch"><ul class="small">${fm.map(x => `<li>${escapeHtml(t('billCheck.factorMismatch.line', {
+      from: fmt.date(x.from), invoice: fmt.num(x.invoice?.kwh_per_m3, 3), z: fmt.num(x.invoice?.zustandszahl, 4),
+      hs: fmt.num(x.invoice?.brennwert, 3), list: fmt.num(x.list?.kwh_per_m3, 3) }))}</li>`).join('')}</ul>
+      <p><a href="#/settings/utilities">${escapeHtml(t('contracts.gasFactor.link'))}</a></p></div>`);
+  }
+  return parts.join('');
 }

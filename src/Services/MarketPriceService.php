@@ -35,6 +35,22 @@ final class MarketPriceService
      */
     public const DEFAULT_VAT_PCT = 19.0;
 
+    /**
+     * v3.7.0 — der eine Umsatzsteuersatz für Strom (SSOT): der Satz eines
+     * dynamischen Angebots (`dynamic.vat_pct`, so rechnet auch Wechsel prüfen),
+     * sonst DEFAULT_VAT_PCT. Für die Börsen-Hebel der Flexibilität und für
+     * Modul-3-Beträge, die am Vertrag netto stehen.
+     *
+     * @param list<array<string,mixed>> $contracts Stromverträge (auch Angebote)
+     */
+    public static function vatPctOf(array $contracts): float
+    {
+        foreach ($contracts as $c) {
+            if (($c['price_model'] ?? null) === 'dynamic' && is_numeric($c['dynamic']['vat_pct'] ?? null)) return (float)$c['dynamic']['vat_pct'];
+        }
+        return self::DEFAULT_VAT_PCT;
+    }
+
     /** @param (\Closure(string):?string)|null $fetch Abruf einer URL (Tests) */
     public function __construct(
         private JsonStore $store,

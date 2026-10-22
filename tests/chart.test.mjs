@@ -82,6 +82,44 @@ t('Trend: zu wenige Paare → keiner', data.yoyTrend(series, 'kwh', { months: 3,
 const trWin = data.yoyTrend(series, 'kwh', { months: 12, minMonths: 2, within: ['2025-10', '2025-11'] });
 t('Trend: nur im Fenster', trWin && trWin.months.join() === '2025-10,2025-11', trWin ? trWin.months.join() : 'null');
 
+// v3.7.0 (#37) — ein verteilter Monat ergibt keinen Trend: Paare nur aus gemessenen Monaten
+t('isInterpolated: nur mit Kennung vom Server', data.isInterpolated({ interpolated: true }) && !data.isInterpolated({ interpolated: null }) && !data.isInterpolated({}));
+const sparse = series.map(r => (r.ym === '2026-01' || r.ym === '2024-12' ? { ...r, interpolated: true } : r));
+const trSparse = data.yoyTrend(sparse, 'kwh', { months: 3, minMonths: 1 });
+// 2026-01 selbst verteilt, 2025-12 mit verteiltem Vorjahresmonat — beide raus
+t('Trend: verteilte Monate (oder ihr Vorjahr) zählen nicht', trSparse && trSparse.months.join() === '2025-11,2026-02', trSparse ? trSparse.months.join() : 'null');
+
+// v3.7.0 (#37, #39) — der Hinweis: ein Satz, mit der Zahl der Ablesungen
+{
+  global.fetch = async (url) => {
+    const m = String(url).match(/public\/locales\/([a-z]+)\.json$/);
+    return m ? new Response(readFileSync(resolve(__dir, '..', 'public', 'locales', `${m[1]}.json`), 'utf8'), { status: 200 }) : new Response('{}', { status: 404 });
+  };
+  const i18n = await import(`${ROOT}/lib/i18n.js`);
+  await i18n.initI18n('de');
+  const ip = await import(`${ROOT}/lib/interpolation.js`);
+  const rows = [{ ym: '2025-01', interpolated: true }, { ym: '2025-02', interpolated: true }, { ym: '2025-03', interpolated: false }];
+  const info = { readings: 9, readings_by_year: { 2025: 2 }, from: '2023-06', to: '2026-03', max_gap_days: 45, heat_basis: 'intervals', heat_points: 11 };
+  const year = ip.interpolationNote({ rows, info, year: 2025, heat: true });
+  t('Hinweis: Jahr mit Zahl der Ablesungen, Grenze, Heizkurve, Heizmodell über die Abstände',
+    year.startsWith('2 von 3 Monatswerten in 2025 sind verteilt, nicht gemessen (2 Ablesungen in 2025).')
+    && /mehr als 45 Tage/.test(year) && /die Heizkurve lassen diese Monate aus/.test(year) && /über die 11 Abstände/.test(year), year);
+  const none = ip.interpolationNote({ rows, info: { ...info, readings_by_year: {} }, year: 2025 });
+  t('Hinweis: keine Ablesung im Jahr', /\(keine Ablesung in 2025\)/.test(none) && !/Heizkurve/.test(none), none.slice(0, 90));
+  const all = ip.interpolationNote({ rows, info, pv: true, series: 'PV-Erzeugung' });
+  t('Hinweis: ganzer Zeitraum, PV mit Reihe und Schätzung', /^PV-Erzeugung: 2 von 3 Monatswerten sind verteilt/.test(all) && /9 Ablesungen von /.test(all)
+    && /Eigenverbrauch, Autarkiequote, Ersparnis und Amortisation sind für diese Monate Schätzungen/.test(all), all.slice(0, 120));
+  t('Hinweis: ohne verteilte Monate keiner', ip.interpolationNote({ rows: [{ ym: '2025-01', interpolated: false }], info }) === '');
+  t('Markierung: Tage zwischen zwei Ablesungen, sonst Klartext ohne Zahl', /aus 92 Tagen/.test(ip.markTitle({ reading_gap_days: 92 }))
+    && ip.markTitle({ reading_gap_days: null }) === 'Verteilt, nicht gemessen');
+  // v3.7.0 (Nachlauf, V7) — eine geschätzte Ablesung als Stütze: nicht „gleichmäßig verteilt“
+  t('Markierung: mit geschätzter Ablesung als Stütze', /aus 120 Tagen zwischen zwei Ablesungen, mit einer geschätzten Ablesung als Stütze/.test(ip.markTitle({ reading_gap_days: 120, reading_gap_estimated: true }))
+    && !/Stütze/.test(ip.markTitle({ reading_gap_days: 120, reading_gap_estimated: false })));
+  const est = ip.interpolationNote({ rows: [{ ym: '2025-01', interpolated: true, reading_gap_estimated: true }, { ym: '2025-02', interpolated: false }], info });
+  t('Hinweis: mit geschätzter Ablesung je Seite eine eigene Tagesrate', /auf jeder Seite von ihr eine eigene Tagesrate/.test(est)
+    && !/eigene Tagesrate/.test(ip.interpolationNote({ rows, info })), est.slice(0, 260));
+}
+
 const win = data.lastMonths(series, 12);
 t('Fenster: Anfang, Ende, Teilmonat am Ende', win.from === '2024-10' && win.to === '2026-03' && win.partialLast
   && win.lastDays === 14 && win.lastTotal === 31);

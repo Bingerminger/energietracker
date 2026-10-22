@@ -20,7 +20,7 @@ import { activeUtilities, getSettings } from '../state.js';
 import { fmt, escapeHtml, parseDecimal, formatForInput } from '../lib/format.js';
 import { makeChart, utilColor, tokenColor, chartTableHtml } from '../components/chart.js';
 import { toastErr, toastOk } from '../components/toast.js';
-import { t } from '../lib/i18n.js';
+import { t, tp } from '../lib/i18n.js';
 import { info } from '../components/info.js';
 import { balanceView, isFeedIn } from '../lib/semantics.js';
 import { DEMO } from '../lib/demo-mode.js';
@@ -115,16 +115,8 @@ export async function render(container, params = [], ctx = {}) {
           <p class="ws-note">${esc(t('scenario.measures.hint'))}</p>
           <div class="ws-measures" id="ws-measures"></div>
           <button type="button" class="btn btn--ghost btn--sm" id="ws-add-measure">${esc(t('scenario.measures.add'))}</button>
-        </div>
-
-        <div class="ws-group" data-min-level="expert">
-          <h3>${esc(t('scenario.group.expert'))}</h3>
-          <div class="field">
-            <label for="ws-regression">${esc(t('scenario.regression'))}</label>
-            <select class="select" id="ws-regression">
-              ${REGRESSION_MODELS.map(m => `<option value="${m}">${esc(t(`forecast.models.${m}`))}</option>`).join('')}
-            </select>
-          </div>
+          <!-- v3.7.0 (Paket reifegrad) — E-Auto und Jahresarbeitszahl ab Erfahren (bis v3.6
+               Experte): Maßnahmen für Haushalte mit Wallbox oder Wärmepumpe, kein Rechenparameter -->
           <div class="fgrid" data-cap="ev">
             <div class="field field--s"><label for="ws-ev-km">${esc(t('scenario.ev.km'))}</label>
               <input class="input" id="ws-ev-km" type="text" inputmode="numeric"></div>
@@ -136,6 +128,16 @@ export async function render(container, params = [], ctx = {}) {
               <input class="input" id="ws-jaz-from" type="text" inputmode="decimal"></div>
             <div class="field field--s"><label for="ws-jaz-to">${esc(t('scenario.jaz.to'))}</label>
               <input class="input" id="ws-jaz-to" type="text" inputmode="decimal"></div>
+          </div>
+        </div>
+
+        <div class="ws-group" data-min-level="expert">
+          <h3>${esc(t('scenario.group.expert'))}</h3>
+          <div class="field">
+            <label for="ws-regression">${esc(t('scenario.regression'))}</label>
+            <select class="select" id="ws-regression">
+              ${REGRESSION_MODELS.map(m => `<option value="${m}">${esc(t(`forecast.models.${m}`))}</option>`).join('')}
+            </select>
           </div>
           <div class="fgrid">
             <div class="field field--m"><label for="ws-budget">${esc(t('scenario.budget.label'))}</label>
@@ -481,8 +483,12 @@ export async function render(container, params = [], ctx = {}) {
         esc(t('scenario.kpi.vsBase', { delta: signed(dc, fmt.eur), base: fmt.eur(tot.base.cost) })), dc > 0.5 ? 'negative' : dc < -0.5 ? 'positive' : ''),
       kpi(t('scenario.kpi.qtyYear'), esc(fmt.unit(tot.scenario.qty, unit)),
         esc(tot.delta.qty_pct != null ? pctSigned(tot.delta.qty_pct) : ''), tot.delta.qty > 0 ? 'negative' : tot.delta.qty < 0 ? 'positive' : ''),
-      kpi(t('scenario.kpi.advance'), esc(fmt.eur(result.advance.scen_recommended)),
-        esc(result.advance.current != null ? t('scenario.kpi.advanceNow', { amount: fmt.eur(result.advance.current) }) : '')),
+      // v3.7.0 (wirklichkeit-2) — Gütesperre: Spanne statt Betrag
+      kpi(t('scenario.kpi.advance'), esc(result.advance.uncertain?.scen_range
+          ? t('scenario.kpi.advanceRange', { low: fmt.eur0(result.advance.uncertain.scen_range[0]), high: fmt.eur0(result.advance.uncertain.scen_range[1]) })
+          : fmt.eur(result.advance.scen_recommended)),
+        esc([result.advance.current != null ? t('scenario.kpi.advanceNow', { amount: fmt.eur(result.advance.current) }) : '',
+          result.advance.uncertain ? t('scenario.kpi.advanceUncertain') : ''].filter(Boolean).join(' · '))),
       ...(balScen ? [kpi(t('scenario.kpi.balance', { date: fmt.date(billing.until) }), `<span class="${balScen.cls}">${esc(balScen.word)} ${esc(fmt.eur(balScen.amount))}</span>`,
         esc(t('scenario.kpi.balanceBase', { amount: balanceView(billing.base_end_balance, u)?.signed ?? '–' })), '', 'advanced')] : []),
       ...(tot.delta.co2_kg != null ? [kpi(t('scenario.kpi.co2Year'), esc(`${fmt.int(tot.scenario.co2_kg)} kg`),
@@ -602,7 +608,7 @@ export async function render(container, params = [], ctx = {}) {
     const parts = [t('scenario.honesty.model', { month: b.last_measured ? fmt.month(b.last_measured) : '–' })];
     if (b.heat_share_year != null) parts.push(t('scenario.honesty.heat', { pct: fmt.pct(b.heat_share_year, 0) }));
     if (activePreset) parts.push(t(`scenario.preset.${activePreset}.note`, { pct: fmt.pct(state.winter_pct / 100, 0) }));
-    for (const w of result.warnings || []) parts.push(t(`scenario.warn.${w.code}`, { n: w.months ?? 0 }));
+    for (const w of result.warnings || []) parts.push(t(`scenario.warn.${w.code}`, { n: w.months ?? 0, pct: fmt.pct(w.ratio ?? 0, 0) }));
     $('#ws-honesty').textContent = parts.join(' ');
   }
 
@@ -895,8 +901,13 @@ function renderResult(u, result, container) {
     unit: u.consumption_unit,
   })];
   // v2.8.0 — Jahresband und Herkunft der Heizgradtage
-  if (result.annual) {
-    lines.push(t('forecast.annualBand', {
+  // v3.7.0 (wirklichkeit-2) — Gütesperre: das Jahr ohne Band
+  // v3.7.0 (Schritt 3, N1/N3) — auch zu wenig gemessen (Heizmodell) bzw. keine Streuung über die Jahre
+  if (result.annual && result.annual.low == null) {
+    const noBand = { few_measured: 'forecast.annualNoBandFew', few_years: 'forecast.annualNoBandYears' }[result.annual.withheld] || 'forecast.annualNoBand';
+    lines.push(t(noBand, { value: fmt.num(result.annual.value, 0), unit: u.consumption_unit }));
+  } else if (result.annual) {
+    lines.push(t(u.hgt_relevant ? 'forecast.annualBand' : 'forecast.annualBandSpread', {
       value: fmt.num(result.annual.value, 0), low: fmt.num(result.annual.low, 0), high: fmt.num(result.annual.high, 0),
       level: result.annual.level_pct, unit: u.consumption_unit,
     }));
@@ -921,6 +932,19 @@ function renderResult(u, result, container) {
       return t('forecast.warn.historyShort', { months: w.months, missing: names || '–' });
     }
     if (w.code === 'no_climate_normal') return t('forecast.warn.noClimateNormal');
+    // v3.7.0 (wirklichkeit-2) — Normal vorhanden, aber nicht für diese Heizgrenze
+    if (w.code === 'climate_normal_grid') return t('forecast.warn.climateNormalGrid', { base: fmt.num(w.base, 1), min: fmt.num(w.min, 0), max: fmt.num(w.max, 0) });
+    // v3.7.0 (#37) — verteilte Monate prägen weder Saisonprofil noch Heizkurve
+    if (w.code === 'interpolated') {
+      return tp('forecast.warn.interpolated', w.months, { count: w.months, readings: w.readings ?? '–' })
+        + (w.heat_basis === 'intervals' ? ' ' + t('forecast.warn.interpolatedIntervals') : '');
+    }
+    // v3.7.0 (wirklichkeit-2) — Gütesperre und eine Heizkurve, die nicht passt
+    if (w.code === 'poor_fit') return t('forecast.warn.poorFit', { pct: fmt.pct(w.ratio ?? 0, 0) });
+    if (w.code === 'few_measured') return t('forecast.warn.fewMeasured');   // v3.7.0 (Schritt 3, N3)
+    if (w.code === 'regression_invalid') {
+      return t('forecast.warn.regressionInvalid', { model: t(`forecast.models.${w.model}`), why: t(`regression.reason.${w.reason}`, { n: w.n ?? 0, r2: fmt.num(w.r2 ?? 0, 2) }) });
+    }
     return '';
   }).filter(Boolean);
   infoEl.innerHTML = lines.join('<br>')
@@ -983,7 +1007,7 @@ function renderResult(u, result, container) {
 // v2.8.0 — Methoden lesbar. Das API-Feld bleibt unverändert
 // (`blend(reg=0.56, seasonal=0.44)`), übersetzt wird nur die Anzeige.
 function methodLabel(method) {
-  const known = ['seasonal_only', 'regression_only', 'heat_model', 'filled'];
+  const known = ['seasonal_only', 'regression_only', 'heat_model', 'filled', 'seasonal_interpolated'];   // v3.7.0 (#37)
   if (known.includes(method)) return escapeHtml(t('forecast.method.' + method));
   const blend = /^blend\(reg=([\d.]+), seasonal=([\d.]+)\)$/.exec(method || '');
   if (blend) return escapeHtml(t('forecast.method.blend', { reg: fmt.pct(Number(blend[1]), 0), seasonal: fmt.pct(Number(blend[2]), 0) }));

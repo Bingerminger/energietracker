@@ -15,9 +15,10 @@ import { info, infoNote } from '../components/info.js';
 import { isFeedIn, isGeneration, isPv, moreIsBetter } from '../lib/semantics.js';
 import { setupSteps, setupListHtml } from '../lib/onboarding.js';
 import { periodMode, periodName, pickPeriod, periodsWithData } from '../lib/billing-period.js';   // v3.6.0 (F1030)
+import { bonusOf, bonusItemsOf, bonusLineText } from '../lib/bonus.js';   // v3.7.0 (#33)
 import { periodModeHtml, wirePeriodMode } from '../components/period-mode.js';
 // v3.2.0 (F1019, F1020) — Einsteiger-Übersicht, Schaubilder, Vorschlag zum Hochstufen
-import { currentLevel, atLeast, nextLevel, saveLevel, isDismissed, dismiss } from '../lib/levels.js';
+import { currentLevel, atLeast, nextLevel, saveLevel, isDismissed, dismiss, suggestReasons, markShown } from '../lib/levels.js';
 import { moneyHtml, energyHtml, weatherHtml, timelineHtml, playExplainers } from '../components/explainer.js';
 // v3.4.0 (F1024) — Hinweise abhaken
 import { markEventDone } from '../components/done-dialog.js';
@@ -253,7 +254,8 @@ export async function render(container) {
     <div data-role="todo" data-variant="full">${todoHtml(todo)}</div>
     ${insightsHtml}
     ${whatIfHtml()}
-    ${atLeast('expert') ? `<section class="card dash-explainers" aria-labelledby="dash-ex-title" style="margin-top: var(--sp-5)">
+    <!-- v3.7.0 — Schaubilder ab Erfahren (bis v3.6 Experte): Sie erklären Zahlen, „Kälter oder mehr verbraucht?“ ist ein Vergleich -->
+    ${atLeast('advanced') ? `<section class="card dash-explainers" aria-labelledby="dash-ex-title" style="margin-top: var(--sp-5)">
       <h2 class="card__title" id="dash-ex-title"><span aria-hidden="true">🎞️</span> ${escapeHtml(t('dashboard.explainers.title'))}</h2>
       <div class="explainer-grid" data-role="explainers"><div class="loading">${escapeHtml(t('common.loading'))}</div></div>
     </section>` : ''}
@@ -287,7 +289,7 @@ export async function render(container) {
   if (hasAnyData) renderTodoBox(container.querySelector('[data-role="todo"]'), todo);
   wirePeriodMode(container);   // v3.6.0 (F1030)
 
-  // v3.2.0 — Schaubilder (Experte) und Vorschlag zum Hochstufen nachladen;
+  // v3.2.0 — Schaubilder (seit v3.7.0 ab Erfahren) und Vorschlag zum Hochstufen nachladen;
   // beides darf den ersten Inhalt nicht aufhalten
   if (hasAnyData) {
     const exBox = container.querySelector('[data-role="explainers"]');
@@ -371,9 +373,15 @@ function whatIfHtml() {
     </section>`;
 }
 
-function buildTodo(events, recs) {
+/**
+ * Zeilen von „Zu tun“ aus den fälligen Ereignissen. v3.7.0 — `keep` filtert
+ * die Ereignisse vorab (Zuständigkeit), damit auch die Sammelzeile der
+ * Ablesungen nur zählt, was passt; `items.source` hält die Quelle für den Filter.
+ */
+export function buildTodo(events, recs, keep = () => true) {
   const items = [];
-  const due = (events || []).filter(e => e.due_now);
+  const due = (events || []).filter(e => e.due_now && keep(e));
+  items.source = { events: events || [], recs: recs || [] };
   const recById = new Map((recs || []).map(r => [r.id, r]));
   // v3.4.0 (F1024) — `ev`: das Ereignis, das der Haken erledigt (can_mark_done)
   for (const e of due.filter(x => x.kind === 'reminder')) {
@@ -428,7 +436,9 @@ function buildTodo(events, recs) {
       href: e.href, ev: e, action: t('dashboard.todo.billAction') });
   }
   // Überfälliges zuerst
-  return items.sort((a, b) => (a.tone === 'alert' ? 0 : 1) - (b.tone === 'alert' ? 0 : 1));
+  const sorted = items.sort((a, b) => (a.tone === 'alert' ? 0 : 1) - (b.tone === 'alert' ? 0 : 1));
+  sorted.source = items.source;
+  return sorted;
 }
 
 /**
@@ -478,15 +488,20 @@ function beginnerTodoHtml(items) {
  * kleiner Dialog (Datum, Notiz, Beleg), danach ist die Zeile weg; „Rückgängig"
  * im Hinweis holt sie zurück.
  */
-function renderTodoBox(box, items) {
+export function renderTodoBox(box, items) {
   if (!box?.isConnected) return;
   const full = box.dataset.variant !== 'beginner';
   // v3.5.0 (F1028) — Filter nach Zuständigkeit (volle Übersicht; je Gerät gemerkt)
+  // v3.7.0 — über die Ereignisse (auch geerbte Zuständigkeit, auch Ablesungen in der Sammelzeile)
   const filter = storedFilter();
-  const withFilter = full && items.length > 0 && (items.some(x => assigneeOf(x.ev)) || filter !== 'all');
-  const shown = withFilter ? items.filter(x => matchesAssignee(x.ev || {}, filter)) : items;
+  const src = items.source;
+  const due = src ? src.events.filter(e => e.due_now) : items.map(x => x.ev).filter(Boolean);
+  const keep = (e) => matchesAssignee(e || {}, filter);
+  const withFilter = full && items.length > 0 && (due.some(e => assigneeOf(e)) || filter !== 'all');
+  const shown = !withFilter ? items : src ? buildTodo(src.events, src.recs, keep) : items.filter(x => keep(x.ev));
+  const hidden = src ? due.filter(e => !keep(e)).length : items.length - shown.length;
   box.innerHTML = full
-    ? todoHtml(shown, withFilter ? { filter, names: assigneeNames(items.map(x => x.ev).filter(Boolean)), hidden: items.length - shown.length } : null)
+    ? todoHtml(shown, withFilter ? { filter, names: assigneeNames(due), hidden } : null)
     : beginnerTodoHtml(items);
   if (withFilter) bindFilter(box, () => renderTodoBox(box, items));
   const refresh = () => refreshTodo(box);
@@ -526,10 +541,17 @@ function renderUtilityCard({ utility, consumption, billing = null, groups = null
   // v3.6.0 (F1030) — im Abrechnungsjahr die laufende Periode der Art mit
   // ihrem Stichtag (Summen vom Server, ohne Subzähler), benannt; ohne Trend
   const totalCons = billing ? Number(billing[sumKey]) || 0 : last12.reduce((s, m) => s + (m[sumKey] || 0), 0);
-  const totalCost = billing ? Number(billing.cost) || 0 : last12.reduce((s, m) => s + (m.cost  || 0), 0);
+  // v3.7.0 (GitHub #33) — Kosten ohne Bonus wie die Kachel der Verbrauchsart;
+  // der Bonus als eigene Zeile, der Trend ebenfalls ohne Bonus (ein Bonus im
+  // Vorjahr ließe das Jahr danach sonst teurer aussehen). Einspeisung unverändert.
+  const withBonus = !isFeedIn(utility) && !isGeneration(utility);
+  const bonus = withBonus ? (billing ? Number(billing.bonus) || 0 : bonusOf(last12)) : 0;
+  const totalCost = (billing ? Number(billing.cost) || 0 : last12.reduce((s, m) => s + (m.cost  || 0), 0)) + bonus;
+  const bonusText = withBonus ? bonusLineText(billing ? billing.bonus_items : bonusItemsOf(last12), bonus) : '';
+  const costRows = withBonus ? monthly.map(m => ({ ...m, cost_without_bonus: (Number(m.cost) || 0) + (Number(m.bonus_eur) || 0) })) : monthly;
   const within = last12.map(m => m.ym);
   const trendCons = billing ? null : yoyTrend(monthly, sumKey, { months: 12, minMonths: 6, within });
-  const trendCost = billing ? null : yoyTrend(monthly, 'cost', { months: 12, minMonths: 6, within });
+  const trendCost = billing ? null : yoyTrend(costRows, withBonus ? 'cost_without_bonus' : 'cost', { months: 12, minMonths: 6, within });
   const windowText = billing
     ? t('billing.dashboard.window', { name: periodName(billing, fmt.date), from: fmt.date(billing.from), until: fmt.date(billing.until) })
       + (billing.as_of && billing.as_of < billing.until ? ' · ' + t('billing.period.asOf', { date: fmt.date(billing.as_of) }) : '')
@@ -565,6 +587,7 @@ function renderUtilityCard({ utility, consumption, billing = null, groups = null
           <div class="kpi__label">${t(feedIn ? 'dashboard.kpi.revenue' : 'dashboard.kpi.cost')}</div>
           <div class="kpi__value">${noContract ? '<span class="kpi__empty" aria-hidden="true">—</span>' : `${fmt.eur(totalCost)} ${trendBadge(trendCost, better)}`}</div>
           <div class="kpi__sub">${noContract ? t('dashboard.kpi.noContract') : billing ? escapeHtml(t('billing.dashboard.costSub', { advances: fmt.eur(billing.advances) })) : t(feedIn ? 'dashboard.kpi.revenueSub' : 'dashboard.kpi.costSub')}</div>
+          ${bonusText && !noContract ? `<div class="kpi__sub kpi__bonus" data-role="kpi-bonus">${escapeHtml(bonusText)}</div>` : ''}
         </div>`}
       </div>
       ${last12.length >= 2 ? `<div class="dash-spark"><canvas data-spark="${escapeHtml(utility.key)}"></canvas></div>` : ''}
@@ -981,10 +1004,12 @@ async function loadExplainers(utilities, box) {
   const withContract = meters.filter(m => m.contract && !isPv(byKey.get(m.utility)));
   const main = [...withContract].sort((a, b) => Math.abs(Number(b.contract.advance_month) || 0) - Math.abs(Number(a.contract.advance_month) || 0))[0];
   const heat = meters.find(m => byKey.get(m.utility)?.hgt_relevant && (m.role == null || m.role === 'consumption'));
-  const [status, heatRows] = await Promise.all([
+  const [status, heatRes] = await Promise.all([
     main ? api.contractStatus(main.utility, main.meter_id).catch(() => null) : null,
-    heat ? api.meterConsumption(heat.utility, heat.meter_id).then(r => r?.monthly || r).catch(() => null) : null,
+    heat ? api.meterConsumption(heat.utility, heat.meter_id).catch(() => null) : null,
   ]);
+  // v3.7.0 (Nachlauf) — mit der Gütesperre: ohne bestandene keine bereinigte Aussage
+  const heatRows = heatRes?.monthly || (Array.isArray(heatRes) ? heatRes : null);
   const row = (status?.contracts || []).find(c => c.is_current);
   const years = pv?.yearly || [];
   const cy = new Date().getFullYear();
@@ -993,7 +1018,7 @@ async function loadExplainers(utilities, box) {
     moneyHtml(row, { color: main ? byKey.get(main.utility)?.color : undefined }),
     // v3.4.0 (F1026) — die ganze Antwort: Jahr und Monat umschaltbar
     pv ? energyHtml(pv, { year: pvYear?.year }) : '',
-    weatherHtml(Array.isArray(heatRows) ? heatRows : []),
+    weatherHtml(Array.isArray(heatRows) ? heatRows : [], { quality: heatRes?.anomaly_quality }),
     timelineHtml(row, today),
   ].filter(Boolean);
   if (!box.isConnected) return;
@@ -1007,24 +1032,23 @@ async function loadExplainers(utilities, box) {
 // Die Daten zeigen mehr, als die Stufe anzeigt: Subzähler, Home Assistant,
 // Wärmepumpe oder Speicher. Der Vorschlag blockiert nichts; „Nicht mehr
 // fragen" merkt sich das Gerät je Stufe und Anlass.
+// v3.7.0 (Paket reifegrad) — die Anlässe kommen aus dem Haushalt
+// (levels.js `suggestReasons`): Einsteiger mit PV, Speicher, Wärmepumpe oder
+// Wallbox → Erfahren; Erfahren mit Viertelstunden → Experte. Jeder Anlass
+// erscheint höchstens einmal je Gerät und Stufe.
 
 async function levelSuggestion(utilities, summary = null) {
   const next = nextLevel();
   if (!next) return '';
-  const data = summary || await api.summary().catch(() => null);
-  const meters = (data?.meters || []).filter(m => utilities.some(u => u.key === m.utility));
-  const reasons = [];
-  if (currentLevel() === 'beginner') {
-    if (meters.some(m => m.is_sub_meter)) reasons.push('subMeters');
-    if (meters.some(m => m.external_id)) reasons.push('homeAssistant');
-    if (utilities.some(u => meters.filter(m => m.utility === u.key && !m.is_sub_meter).length > 1)) reasons.push('severalMeters');
-  } else {
-    if (meters.some(m => ['heat_pump', 'heat_pump_output'].includes(m.role))) reasons.push('heatPump');
-    if (meters.some(m => ['battery_charge', 'battery_discharge'].includes(m.role))) reasons.push('battery');
-    if (meters.some(m => m.role === 'ev_charger')) reasons.push('wallbox');
-  }
+  const level = currentLevel();
+  const [data, series] = await Promise.all([
+    summary || api.summary().catch(() => null),
+    level === 'advanced' ? api.intervals().catch(() => null) : null,
+  ]);
+  const reasons = suggestReasons(level, data?.meters || [], { utilities, intervals: (series?.series || []).length });
   const open = reasons.filter(r => !isDismissed(r));
   if (!open.length) return '';
+  markShown(open);
   const name = t('level.' + next);
   return `<div class="banner banner--info level-hint" role="note" data-reasons="${escapeHtml(open.join(' '))}" data-next="${next}">
     <span>${escapeHtml(t('level.hint.data', { level: name }))}

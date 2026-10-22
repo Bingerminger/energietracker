@@ -57,7 +57,7 @@ additions from [§ 6](#6-partial-report-and-language-via-link).
 | **What paid off** | successes with an amount: less heating, a measure that works (baseline date), solar system, battery, solar power in the car, module 3, lower costs; below that “Good to know” | always; without a success, the comparison with the previous year |
 | **What needs doing** | tasks by priority, each with reason, amount, deadline and a hint | always; “Nothing to do” only when no appointments are due either |
 | **Deadlines and appointments** | the next twelve months and anything overdue; a timeline per current contract | appointments or contracts exist |
-| **Money** | costs per utility (heating oil and pellets included) and per month against the previous year, price and quantity effect, advance payments against costs per contract, forecast for the next twelve months | there are costs |
+| **Money** | costs per utility (heating oil and pellets included) and per month against the previous year, price and quantity effect, advance payments against costs per contract, forecast for the next twelve months. *(v3.7.0)* All costs without the bonus — below, one sentence per bonus with type, date, amount and note; the balance includes it. Water with advance payments has a balance and advice on the advance like gas and electricity | there are costs |
 | **Per utility** | annual value against the previous year, monthly bars; heating: “Colder, or more used?” and efficiency scale; electricity: what for (household, heat pump, wallbox); water: litres per person and day; heating oil and pellets: costs from the deliveries, stock and range | consumption in the year |
 | **Solar power** | energy flow, self-sufficiency, self-consumption, generation per month, payback, battery | solar system |
 | **Heat pump** | performance factor per month against the field test average | heat meter with a linked electricity meter |
@@ -120,6 +120,22 @@ contract prices, never from market assumptions; without a price there is no
 amount. They are rounded to whole euros and carry “about” plus their kind:
 **measured** (from the report year), **projected** (up to the bill) or
 **worked example**. Recommendations hidden in the app stay hidden in the report.
+
+*(since v3.7.0)* **Measured** also means: from measured months. If a month of
+the report year or the previous year is only interpolated (too long between two
+readings, see [Measured or interpolated](../verstehen/00-overview.md#measured-or-interpolated-since-v370)),
+“Colder, or more used?”, “Less heating” and “Costs down” are left out; a note on
+the utility’s page says why the comparison is missing. The annual values
+themselves stay as they are.
+
+*(since v3.7.0)* If the heating model fits a meter poorly (quality gate, see
+[Anomalies](../verstehen/00-overview.md#9-anomalies)), the report makes no
+weather-adjusted comparison for this heating utility: tile and status light
+“Consumption” use the raw consumption, “Colder, or more used?”, “Heating use up” and
+“Unusual month” are left out, and the appendix shows “–”; a note says why. If a
+balance estimate is uncertain, the status light “Bill” shows no tick but
+“estimate uncertain” with the range, and “Where does my money go?” gives cost and
+result as a range.
 
 A legal note appears only where the app already gives it: for a price
 increase, the special right to terminate under § 41(5) EnWG (Germany only).

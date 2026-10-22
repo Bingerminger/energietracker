@@ -81,6 +81,30 @@ Examples from the history:
    `ET_DATA_DIR` pointing at a copy of `demo-data/`, check the migration, then
    query the core endpoints and the changed paths. Never against the local
    `data/` — that holds real user data.
+8. **Bundled libraries** (since v3.7.0): check the version and security notices
+   of the files under `public/vendor/` and update them if needed —
+   - **Chart.js** — `public/vendor/chart.umd.min.js` (version in the file
+     header; the architecture docs and `CREDITS.md` name it, a test compares),
+   - **pdf.js** for the inbox — `public/vendor/pdfjs/` (version in the file
+     headers, licence and `CREDITS.md` as with Chart.js).
+
+   Every script file under `public/vendor/` must be named here
+   (`ReleaseChecklistTest`) — so a new library cannot drop out of the check.
+9. **Visual check in Safari/WebKit** (since v3.7.0): the app runs on the iPad in
+   Safari; JSDOM and Chromium do not see its quirks. With a running instance:
+
+   ```bash
+   NODE_PATH=<node_modules with playwright> node tools/webkit-check.mjs \
+     --base=http://127.0.0.1:8899 [--login=<password>] [--shots] [route …]
+   ```
+
+   Each page is checked at 820 px portrait and 1180 px landscape (device “iPad
+   Pro 11”): no input below 16 px font size, equal field heights, label above
+   the field, password fields inside a form, no horizontal scrolling, no
+   script error. Exit code 1 on findings. Without routes it checks the
+   settings pages and the overview; append the pages changed in the release as
+   routes (`/utility/gas/contracts`, without “#”). Playwright is not part of
+   the repository: once, `npm i playwright && npx playwright install webkit`.
 
 ---
 
@@ -807,6 +831,21 @@ accepted.
   learns about new ones only via GitHub, update tools or a tag like `:3`. So
   the note came as early as possible, and the tag with it — moving old tags to
   new versions would be no solution.
+- **A JSDOM test does not see the focus the way the browser sets it (v3.7.0).**
+  The dialogs were meant to focus the first field; in the browser the focus
+  landed on “×” — the first focusable element in the document — and even
+  overwrote the focus a dialog had set itself. JSDOM has no layout
+  (`offsetParent` is always null), so the test saw the intended field. Checking
+  focus and visibility needs a layout stand-in in the test
+  (`tests/a11y.test.mjs`) and a rule that does not depend on document order.
+- **Quadratic run time only shows with lots of data (v3.7.0).** With the demo
+  data every view answers in milliseconds. With ten years of daily readings the
+  annual report with appendix took 3.4 s, with twenty 12 s: the calculation
+  rebuilt the cut days of all contracts for every reading interval, read all
+  readings for every contract and all intervals for every period. A
+  measurement with a large invented household
+  ([measurement](messung-grosse-daten.md)) belongs before any statement about
+  the limits of the storage.
 
 ---
 

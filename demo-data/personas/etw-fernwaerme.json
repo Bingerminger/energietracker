@@ -6429,7 +6429,9 @@
             "notes": "Eichfrist nach MessEV",
             "active": true,
             "assignee": "Katrin",
-            "assignee_id": "u_8aa5b277"
+            "assignee_id": "u_8aa5b277",
+            "utility": "fernwaerme",
+            "meter_id": "m_fernwaerme_wohnung"
         },
         {
             "id": "rem_f38cc4d7",
@@ -6911,6 +6913,7 @@
             }
         ]
     },
+    "inbox": [],
     "demo_align": {
         "billing_anchor_days_ago": {
             "fernwaerme": 30
@@ -7506,7 +7509,8 @@
                     "auto_renews": null,
                     "min_term_end": "2026-12-31",
                     "price_guarantee_until": "2027-06-30",
-                    "signup_bonus_eur": null
+                    "signup_bonus_eur": null,
+                    "assignee_id": "u_8aa5b277"
                 }
             ],
             "deliveries": [],
@@ -7589,7 +7593,8 @@
                             "final_counter": null,
                             "reason": null
                         }
-                    ]
+                    ],
+                    "assignee_id": "u_70dd190d"
                 }
             ],
             "readings": [

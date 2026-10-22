@@ -38,9 +38,11 @@ Wasser an. Du kannst sie behalten, umbenennen oder löschen.
 > Länderprofil setzt), dann drei Fragen — wer du bist, welche Energieträger du
 > nutzt, wie viel Erfahrung du hast —, danach stehen Verbrauchsarten und
 > Nutzungsstufe. Für dieses Beispiel „Eigenheim mit
-> Gas, Öl oder Pellets“ wählen und am Ende „Mit eigenen Daten starten“; wer
-> lieber erst schaut, nimmt „Mit Beispieldaten ansehen“. Einzelheiten:
-> [Einrichten und Nutzungsstufen](einrichtung.md).
+> Gas, Öl oder Pellets“ wählen und am Ende „Von Hand anlegen“; wer
+> lieber erst schaut, nimmt „Mit Beispieldaten ansehen“. Wer seine
+> Versorgerpost schon als PDF hat, nimmt *(seit v3.7.0)* „Aus Dokumenten“ und
+> spart sich das Abtippen: [Haushalt aus Dokumenten](../anleitungen/haushalt-aus-dokumenten.md).
+> Einzelheiten: [Einrichten und Nutzungsstufen](einrichtung.md).
 
 ---
 

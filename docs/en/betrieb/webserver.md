@@ -64,7 +64,7 @@ A VirtualHost for it:
 
     # v3.4.0 — size limits like the app: 8 MB, large only for the imports
     LimitRequestBody 8388608
-    <LocationMatch "/api(\.php/api)?/(backup/import|attachments|.+/import-(csv|series|evcc))$">
+    <LocationMatch "/api(\.php/api)?/(backup/import|attachments|inbox|.+/import-(csv|series|evcc))$">
         LimitRequestBody 268435456
     </LocationMatch>
 </VirtualHost>
@@ -107,6 +107,16 @@ server {
     location ~ /\. { return 404; }
     location ~* ^/[^/]+\.(md|json|lock|ya?ml|dist|txt|conf|sh|ini)$ { return 404; }
     location ~ ^/(Dockerfile|VERSION)$ { return 404; }
+
+    # 2a. inbox: recognising and reading wait for the AI model (v3.7.0)
+    location ~ ^/api(\.php/api)?/inbox/[^/]+/(classify|extract)$ {
+        include fastcgi_params;
+        fastcgi_pass unix:/run/php/php8.4-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME $document_root/api.php;
+        fastcgi_param SCRIPT_NAME /api.php;
+        fastcgi_read_timeout 660s;         # cloud service up to 600 s, PHP raises its limit to 660 s
+        # fastcgi_param ET_DATA_DIR /srv/energietracker-data;
+    }
 
     # 2. API → api.php
     location ~ ^/api(\.php)?(/|$) {
@@ -159,7 +169,7 @@ same values:
 | PHP | `memory_limit` | `768M` | importing a large backup needs about twice its size in PHP memory |
 | PHP | `max_execution_time` | `120` | large imports |
 | nginx | `client_max_body_size` | `8m`, `256m` only for backup import, receipts and imports *(v3.4.0)* | otherwise `413 Request Entity Too Large` before PHP |
-| nginx | `fastcgi_read_timeout` | `310s` | large imports, text recognition: its time limit (`ocr_timeout_s`) goes up to 300 s; previously `120s`, when nginx cut off a slow recognition before PHP |
+| nginx | `fastcgi_read_timeout` | `310s`; `660s` only for recognising and reading in the inbox *(v3.7.0)* | large imports, text recognition: its time limit (`ocr_timeout_s`) goes up to 300 s; previously `120s`, when nginx cut off a slow recognition before PHP. The inbox waits for a cloud service up to 600 s (`inbox_cloud_timeout_s`), PHP raises its limit to 660 s for that — nginx waits just as long on these two routes (`/api/inbox/{id}/classify`, `/extract`) |
 
 - **PHP values** go into `php.ini` or the PHP-FPM pool
   (`php_admin_value[post_max_size] = 256M`); in Synology Web Station into the
@@ -183,7 +193,8 @@ same values:
   and answers with `400` and `errors.attachment.size` including the limit
   (“The file is too large – … MB at most.”).
 - If a reverse proxy sits in front, it too needs a time limit above 300
-  seconds when text recognition may take long.
+  seconds when text recognition may take long — for reading in the inbox via a
+  cloud service up to 660 seconds *(v3.7.0)*.
 
 ## PHP's own server — only for trying out
 

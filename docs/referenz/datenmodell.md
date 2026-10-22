@@ -55,6 +55,7 @@ data/
 ├── intervals/                # Viertelstundenreihen <id>.json, je Zähler bzw. Börsenpreis und Kalenderjahr (v3.3.0)
 ├── activity.json             # Verlauf erledigter Hinweise (v3.4.0) — entsteht mit dem ersten Eintrag
 ├── people.json               # Personenverzeichnis: Nummer, Name, Rolle, Löschvermerk (v3.6.0) — im Backup, ohne Passwörter
+├── inbox.json                # Posteingang: Versorgerpost mit Auslesung (v3.7.0) — entsteht mit dem ersten Dokument
 ├── instance.json             # Kennung der Installation (v3.1.0) — nicht im Backup
 ├── gas/        { meters.json, readings.json, contracts.json, meter_groups.json, periods.json, bills.json }
 ├── strom/      { meters.json, readings.json, contracts.json, meter_groups.json, periods.json, bills.json }
@@ -186,6 +187,9 @@ Kennung.
   // nur bei Strom, optional (v2.10.0):
   "heat_source": true,                   // Wärmepumpe: zählt in der Effizienzkennzahl
 
+  // v3.7.0, Heizarten mit Zählerständen, optional — fehlt = Einstellung hdd_base_temp:
+  "hdd_base_temp": 12.0,                 // eigene Heizgrenze dieses Zählers (6–22 °C, Heizgrenze-Vorschlag)
+
   // v3.1.0, optional — fehlt = Standard:
   "role": "heat_pump",                   // Rolle des Zählers, je Art (s. u.)
   "capture": "period",                   // Erfassungsart: fehlt = Zählerstände
@@ -201,9 +205,15 @@ Kennung.
   "battery_capacity_kwh": 5.0,           // Speicherkapazität, am Zähler mit Rolle battery_charge
 
   // v3.1.0, nur bei Heizwärme mit Rolle heat_pump_output, optional:
-  "heat_pump_meter_ids": ["m_wp_strom"]  // Stromzähler der Wärmepumpe (Rolle heat_pump)
+  "heat_pump_meter_ids": ["m_wp_strom"], // Stromzähler der Wärmepumpe (Rolle heat_pump)
+
+  // v3.7.0, optional — fehlt = niemand zuständig:
+  "assignee_id": "u_3f9a1c2e"            // Person aus dem Personenverzeichnis
 }
 ```
+
+**Zuständig (`assignee_id`, v3.7.0).** Am Zähler wie am Vertrag
+([Zuständig an Zählern und Verträgen](#zuständig-an-zählern-und-verträgen-v370)).
 
 **PV- und Wärmepumpen-Felder (v3.1.0).** `plug_in` (`true` oder fehlt),
 `investment_eur` (0–10.000.000), `commissioned_on` (ISO-Datum) und
@@ -319,7 +329,8 @@ werden aber **nicht** in die Verbrauchsberechnung einbezogen.
 
 Zwei optionale Felder seit v2.6.0 (additiv, nur vorhanden, wenn gesetzt):
 
-- `source`: `ingest` (Home Assistant) oder `csv` (CSV-Import).
+- `source`: `ingest` (Home Assistant), `csv` (CSV-Import) oder seit v3.7.0
+  `inbox` (aus einem Dokument im [Posteingang](#posteingang-v370) übernommen).
 - `is_suspect: true`: fallender Stand aus dem Ingest; zählt nicht, bis er
   bestätigt (`PATCH` mit `is_suspect: false`) oder korrigiert ist.
 
@@ -341,14 +352,14 @@ Geräts und meldet sie als `warnings` (siehe
 Dateien zu einem Datensatz — Fotos von Zählerständen, Belege zu Zeiträumen,
 PDFs oder Fotos von Nebenkostenabrechnungen und seit v3.1.0 von
 Versorgerrechnungen (`ref.type` `reading`, `period`, `tenancy_statement`,
-`bill`). Die Datei liegt unter
+`bill`; seit v3.7.0 `inbox` und `contract`). Die Datei liegt unter
 `data/attachments/<id>.<ext>`, ihr Eintrag im Index `attachments.json` (eine
 Liste):
 
 ```jsonc
 {
   "id": "att_5f0c2a9e81d34b67",        // att_ + 16 Hexziffern
-  "kind": "reading_photo",             // reading_photo | bill_pdf | statement_pdf | other
+  "kind": "reading_photo",             // reading_photo | bill_pdf | statement_pdf | inbox_pdf (v3.7.0) | other
   "mime": "image/jpeg",                // image/jpeg | image/png | image/webp | application/pdf — aus dem Inhalt bestimmt
   "size": 284113,                      // Byte
   "sha256": "9c1e…",
@@ -544,6 +555,9 @@ das Buchen des Ergebnisses und die CO₂-Angaben
 - **Buchen** legt eine Sonderzahlung „ohne Auswirkung“ im Vertrag an und
   merkt sich ihre ID in `special_payment_id` — einmal je Rechnung. Wer die
   Rechnung löscht, behält die Sonderzahlung; die Belege werden frei.
+- **Gas-Umrechnung laut Rechnung** *(v3.7.0, optional)*: `factors`
+  `[{from, to, zustandszahl, brennwert}]`, etwa aus dem Posteingang. „Rechnung
+  prüfen“ hält sie gegen die Stichtag-Liste; ohne Angabe fehlt das Feld.
 - **CO₂.** Emissionen und Betrag gehen beim CO₂-Preis dem Standardfaktor vor;
   `issued_on` einer Gasrechnung setzt zur Miete die Frist für die Erstattung
   ([CO₂-Preis im Brennstoff](../verstehen/16-co2-preis.md)).
@@ -576,7 +590,7 @@ Gesamtbetrag gesetzt ist, wird `unit_price_cents` genutzt.
   "base_prices":      [ { "from": "2023-01-01", "eur_per_month": 11.9 } ],
   "advance_payments": [ { "from": "2023-01-01", "amount_eur": 90 } ],
   "bonuses":          [ { "credit_date": "2024-01-15",
-                          "amount_eur": 60, "type": "wechselbonus",
+                          "amount_eur": 60, "type": "wechsel",
                           "label": "Neukundenbonus" } ],
   "special_payments": [ { "id": "sp_…", "date": "2024-03-15",
                           "kind": "rueckzahlung_mit",
@@ -593,6 +607,19 @@ Gesamtbetrag gesetzt ist, wird `unit_price_cents` genutzt.
 
 `is_shadow: true` = hypothetischer Tarif für den Vergleich; beeinflusst
 **weder** Saldo **noch** Prognose.
+
+*(v3.7.0)* Optional `assignee_id`: die zuständige Person — Kündigungsfrist,
+Vertragsende und „Abrechnung erwartet“ landen bei ihr
+([Zuständig an Zählern und Verträgen](#zuständig-an-zählern-und-verträgen-v370)).
+
+**Boni** (`bonuses[]`): `credit_date`, `amount_eur`, `type` — `sofort`,
+`wechsel`, `neukunde` oder *(v3.7.0)* `sonstige` („Sonstige Gutschrift“, etwa
+Kulanz) — und `label`, die Notiz (im Vertragsformular seit v3.7.0 sichtbar;
+bis v3.6 löschte das Formular sie beim Speichern). Jeder Bonus zählt im Monat
+seiner Gutschrift, nach dem Vertragsende im letzten Vertragsmonat. Die
+Monatszeilen und Abrechnungsperioden tragen sie einzeln als `bonus_items`
+*(v3.7.0, additiv)*; die Kachel „Kosten“ zeigt die Kosten ohne Bonus und den
+Bonus als eigene Zeile, der Saldo rechnet ihn ein.
 
 **Kündigung (v2.3.0, erweitert v2.9.0)** — alle Felder optional, `null` =
 nicht gepflegt:
@@ -679,6 +706,13 @@ Prognose noch Tarifvergleich; die Flexibilität rechnet damit die Ersparnis
 gegen den Standardtarif — Validierung und Fehler:
 [API](api.md#verträge-zeitvariables-netzentgelt-modul-3-v330-additiv). Kein
 Schema-Schritt.
+
+**Vertrags- und Kundennummer, Belege (v3.7.0)** — optional: `contract_number`
+und `customer_number` (Text, höchstens 64 Zeichen; leer entfernt das Feld),
+`attachment_ids` (Liste von Beleg-IDs, etwa das Dokument aus dem
+[Posteingang](#posteingang-v370); eine unbekannte ID lehnt die API ab,
+`errors.attachment.notFound`). Der Posteingang ordnet Dokumente über die
+Nummern zu. Kein Schema-Schritt.
 
 Wasser nutzt zusätzlich ein
 Drei-Komponenten-Modell (Trink-/Schmutz-/Niederschlagswasser), siehe
@@ -847,6 +881,47 @@ Verzeichnis die Person als gelöscht führt. Das Backup (Topf `reminders`)
 trägt die Namen wie gespeichert. Einzelheiten:
 [API](api.md#zuständig-an-terminen-v350).
 
+*(v3.7.0)* Ein Termin kann zu einem Zähler gehören (Eichfrist, Zählerwechsel,
+Lieferung) — optional, ohne Schema-Schritt:
+
+| Feld | Bedeutung |
+|---|---|
+| `utility`, `meter_id` | Verbrauchsart und Zähler; beim Speichern muss es den Zähler geben (sonst `errors.reminder.meterUnknown`), `meter_id: null` löst die Verbindung. Gibt es den Zähler nicht mehr, erbt der Termin nichts |
+
+Ohne eigene Zuständigkeit gilt die Person des Zählers; `GET /api/reminders`
+trägt sie als `assignee_inherited` (sonst `null`).
+
+### Zuständig an Zählern und Verträgen *(v3.7.0)*
+
+Zähler (`meters.json`) und Verträge (`contracts.json`) tragen optional
+`assignee_id` — eine Person aus dem
+[Personenverzeichnis](#personenverzeichnis-peoplejson-v360), keine freien
+Namen. Fehlt das Feld, ist niemand zuständig; kein Schema-Schritt, Bestand
+bleibt unverändert.
+
+| Feld | Bedeutung |
+|---|---|
+| `assignee_id` | Personen-ID (`u_…`). Beim Speichern muss es die Person geben und sie darf nicht gelöscht sein (sonst `errors.assignee.unknown`); eine inzwischen gelöschte Person bleibt beim unveränderten Speichern stehen. `null` oder leer = niemand |
+| `assignee_former` | `true`, nachdem die Person ohne Übernahme mit „ehemalige Person“ gelöscht wurde; ersetzt die ID |
+
+Den Namen liest die Anzeige über die ID aus dem Verzeichnis — eine gelöschte
+Person steht dort weiter und erscheint als „Name (gelöscht)“; eine ID, die das
+Verzeichnis nicht kennt (fremdes Backup), zeigt niemanden.
+
+**Erben:** Ein Termin oder eine Frist ohne eigene Zuständigkeit bekommt die
+des Vertrags, sonst die des Zählers, sonst niemand
+([Tabelle](../anleitungen/hinweise-erledigen.md#zähler-und-verträge-v370)). Die
+eigene Zuständigkeit eines Termins geht vor, auch gelöscht oder als
+„ehemalige Person“.
+
+**Person löschen:** Zähler und Verträge gehen an die löschende Person; ohne sie
+bleibt die ID stehen (mit „ehemalige Person“: `assignee_former`).
+
+**Backup:** Die Felder reisen in den Töpfen `meters`, `contracts` und
+`reminders` mit. Der Import prüft die Form — `assignee_id` eine Personen-ID
+oder fehlt, `assignee_former` ein Wahrheitswert —, nicht, ob es die Person
+gibt: Ein Backup ohne Topf `people` behält das vorhandene Verzeichnis.
+
 ### Verlauf erledigter Hinweise (`activity.json`) *(v3.4.0)*
 
 Was erledigt wurde, wann und von wem
@@ -880,7 +955,7 @@ dem ersten Eintrag, fehlt sie, ist der Verlauf leer. Kein Schema-Schritt.
 | `recorded_at` | Zeitpunkt des Eintrags (ISO 8601) |
 | `by` | `{type: "person", id, name}`, `{type: "key", name}` (API-Schlüssel), `{type: "integration", name}` (`home_assistant`, `evcc`), `{type: "auto", reason}` (von selbst) oder `null` (ohne Anmeldung). Nach „ehemalige Person“: `{type: "person", former: true}`; *(v3.6.0)* nach dem Löschen sonst `{type: "person", id, name, deleted: true}` („Name (gelöscht)“) |
 | `reason` | bei `auto_done` und `dismissed`: `{key, params}` — `activity.reason.successor`, `…reading`, `…delivery`, `…statement`, `…dismissed`; seit v3.5.0 `…period` (neuer Zeitraum), `…bill` (Versorgerrechnung erfasst), beim Abhaken von `bill_expected` `…billWithout` („kam ohne Erfassung“) |
-| `assignee` | *(v3.5.0)* nur beim Erledigen eines Termins mit Zuständigkeit: `{name, id?}` als Momentaufnahme, nach „ehemalige Person“ `{former: true}`, *(v3.6.0)* nach dem Löschen `{name, id, deleted: true}` |
+| `assignee` | *(v3.5.0)* nur beim Erledigen eines Termins mit Zuständigkeit: `{name, id?}` als Momentaufnahme, nach „ehemalige Person“ `{former: true}`, *(v3.6.0)* nach dem Löschen `{name, id, deleted: true}`; *(v3.7.0)* auch bei Fristen und Terminen mit geerbter Zuständigkeit (Vertrag, Zähler) |
 | `note`, `attachment_id` | Notiz (bis 500 Zeichen, auch leer) und optional ein Beleg ([Belege](#belege-v310), Verweisart `activity`) |
 | `undone` | `{at, by}` nach Rückgängig — der Eintrag bleibt, durchgestrichen |
 | `revert` | was Rückgängig zurückstellt: `reminder` (Fälligkeit, Status, `last_done`), `contract_auto_renews`, `recommendation_dismiss` — nur, solange niemand es inzwischen anders geändert hat |
@@ -969,6 +1044,109 @@ Zugangs: 1–40 Zeichen, eindeutig); ein neuer Zugang mit demselben Namen
 `people`; der Import prüft je Eintrag `id` (`u_` und 1–32 Kleinbuchstaben
 oder Ziffern) und `name`, ersetzt das Verzeichnis und behält den höheren
 Zähler. Ein Backup ohne den Topf lässt das Verzeichnis unverändert.
+
+### Posteingang *(v3.7.0)*
+
+`inbox.json` — Versorgerpost, die im Posteingang liegt
+([Anleitung](../anleitungen/posteingang.md), [API](api.md#posteingang-v370)).
+Eine Liste; die Datei entsteht mit dem ersten Dokument, kein Schema-Schritt.
+
+```jsonc
+{
+  "id": "inb_56ae17da0845",                  // inb_ + 12 Hexziffern
+  "attachment_id": "att_5240ff1e4d3c847a",   // das PDF im Belegspeicher (kind inbox_pdf)
+  "sha256": "1778…", "size": 4087, "name": "Jahresabrechnung-Erdgas-2025.pdf", "pages": 3,
+  "created_at": "2026-02-05T18:42:00+01:00", "updated_at": "2026-02-05T18:44:00+01:00",
+  "status": "read",            // new | queued | read | failed | done | filed
+  "queued_at": null,           // nur vorgemerkt: Reihenfolge der Warteschlange
+  "type": "invoice",           // Dokumentart, s. u.; type_confidence 0–1 oder null
+  "extraction": {              // das geprüfte Ergebnis, null vor dem Auslesen
+    "provider": "local", "model": "qwen3.8", "schema_version": 4, "type": "invoice",
+    "fields": {
+      "consumption": { "value": 10450, "raw": "10.450", "quote": "Verbrauch: 945,6 m³ = 10.540 kWh",
+                       "page": 1, "status": "check", "reasons": ["value_not_in_quote"] }
+      // Listenfelder (gezahlte Abschläge, Gas-Umrechnung, Arbeitspreise) tragen "items", je mit eigener Belegstelle
+    },
+    "flags": 3, "seconds": 74.2, "extracted_at": "…",
+    "text": { "chars": 1180, "kept": [1, 2], "dropped": [3], "truncated": false }   // AGB-Seiten nicht gesendet
+  },
+  "cache": { "local|qwen3.8|4": { … } },   // Rohantworten je Anbieter, Modell und Schema-Version (höchstens drei)
+  "assignment": null,          // {utility, meter_id, contract_id} — vom Nutzer gesetzt, sonst gilt die Vorbelegung
+  "edits": {},                 // bestätigte oder korrigierte Feldwerte, {feld: wert}
+  "applied": [],               // [{id, kind, key, ref, at}] — was übernommen wurde
+  "error": null,               // {key, params, at} beim letzten Fehlschlag
+  "gist": null                 // v3.7.0 (Paket betrieb): Kernaussage nach dem letzten Schreiben, s. u.
+}
+```
+
+- **Kernaussage** (`gist`, additiv): Satz, Zahl und nächster Schritt
+  ({key, params, figure, action, details, computed_at}, Form wie in der
+  [API](api.md#posteingang-v370)). Gerechnet nach jedem Schreiben am Eintrag
+  (Auslesen, Zuordnung, Korrektur, Übernehmen, Termin) und für die Liste
+  gespeichert; die Vorschau rechnet sie frisch. Fehlt das Feld (ältere
+  Einträge), rechnet die Liste sie beim Lesen. Ein Backup trägt sie mit, sie
+  lässt sich aber jederzeit neu rechnen.
+- **Überwachter Ordner** `posteingang/` im Datenverzeichnis, mit den Ablagen
+  `posteingang/übernommen/` und `posteingang/fehler/` — Dateien, die dort
+  liegen, gehören nicht zum Backup (übernommen sind sie als Beleg im
+  Belegspeicher).
+
+- **Arten** (`type`): `invoice`, `contract_confirmation`, `price_change`,
+  `cancellation`, `supply_start`, `meter_change`, `reading_request`,
+  `advance_change`; nur erkannt und abgelegt: `dunning`, `withdrawal`, `other`.
+- **Feldstatus:** `ok` oder `check` mit Gründen (`empty`, `no_quote`,
+  `quote_not_found`, `value_not_in_quote`, `unreadable`, `estimated`,
+  `mandatory`, `price_from_invoice`, `sum_mismatch`, `inconsistent`,
+  *(v3.7.0)* `invalid_format`); `flags`
+  zählt die markierten Felder. *(v3.7.0)* Ohne Marke, als
+  Hinweis: `missing` (Status `empty`: fehlt, kein Vorschlag braucht es),
+  `estimated`, `supported`, `price_matches`, `net_price`, `vat_changed` — ein
+  Feld mit diesen bleibt `ok`. `empty` heißt seither: leer, aber ein Vorschlag
+  braucht es. Gespeichert wird der Stand nach dem Bestand beim Auslesen, Ändern
+  und Übernehmen ([API](api.md#posteingang-v370)).
+- **Netto und Steuersatz** *(v3.7.0, `schema_version` 2)*: Ein Arbeitspreis
+  der Rechnung trägt `basis` (`net`/`gross`) und `vat_pct`, der Grundpreis die
+  Felder `base_price_basis` und `base_price_vat_pct`, Bestätigung und
+  Preisänderung `vat_pct` — Hilfsfelder ohne Marke. Erkennt die App einen
+  Nettopreis sicher (Satz im Zitat), steht am Eintrag bzw. Feld
+  `net: {vat_pct, gross}`; in den Vertrag geht der Bruttopreis. Einen Satz
+  ohne „%“ im Zitat, den der Server beim Auslesen in der Textebene liest
+  (dieselbe Textzeile, Steuerspalte oder die eine Umsatzsteuerzeile), hält
+  `vat_read: {vat_pct, from: row|column|line}` fest.
+- **Datum, Titel, Stände je Zähler** *(v3.7.0, `schema_version` 3)*: jede
+  ausgelesene Art `document_date` und `document_title`, die Rechnung
+  `meter_readings` (`items`: `meter_number`, `reading_old`,
+  `reading_old_date`, `reading_new`, `reading_new_date`, `estimated`), dazu die
+  Ablese-Art `reading_new_estimated`/`reading_old_estimated` (bool,
+  `estimated_by: word|code`). Der Schlüssel des
+  Zwischenspeichers endete damit auf `|3`; Auslesungen mit `|2` bleiben
+  stehen, bis das Dokument neu ausgelesen wird.
+- **Zeiträume je Zähler** *(v3.7.0, `schema_version` 4)*: Beschreibungen für
+  das Modell geändert (Zählernummer ohne Fußnotenzeichen, ein Eintrag je
+  Zeitraum, Nummer auch aus der Kopfzeile, „hochgerechnet“, Fußnoten und
+  Codegruppen), Felder unverändert. Einträge derselben Nummer fasst die
+  Prüfung zusammen; am Eintrag stehen dann `between` (`[{date, counter,
+  estimated}]`), `merged` und `estimated_ends`, bei einer Nummer aus der
+  Kopfzeile `number_from: header`; `estimated_by` kennt zusätzlich `mark`
+  (Fußnote). Der Schlüssel des Zwischenspeichers endet seither auf `|4`;
+  Auslesungen mit `|3` bleiben stehen, bis das Dokument neu ausgelesen wird.
+- **Doppel:** Ein zweites Dokument mit derselben `sha256` lehnt die API mit
+  `409` ab (`errors.inbox.duplicate`, der vorhandene Eintrag unter
+  `detail.existing`). Inhaltsgleiche Dokumente in verschiedenen Dateien
+  erkennt die Vorschau nach dem Auslesen (`duplicates`), ohne sie zu löschen.
+- **Die Textebene** wird nicht gespeichert; der Browser liest sie bei jedem
+  Auslesen aus dem PDF.
+- **Übernehmen** legt Datensätze mit den üblichen Feldern an. Eine Ablesung
+  trägt `source: "inbox"`, ein Vertrag oder eine Rechnung das Dokument in
+  `attachment_ids`; `applied` macht ein zweites Übernehmen wirkungslos.
+- **Haushalt aus Dokumenten** *(v3.7.0)*: Übernimmt der Entwurf
+  ([API](api.md#haushalt-aus-dokumenten-v370)), trägt `applied` je Eintrag
+  zusätzlich `draft: true`; ein Dokument, das der Entwurf vollständig abdeckt,
+  steht auf `done`. Ein inhaltsgleiches Dokument (andere Datei, gleiche Art und
+  Kernfelder) steht danach auf `filed`, die Datei bleibt; `duplicate_of` wird
+  nicht gespeichert — die Liste rechnet es aus dem Inhalt.
+- **Backup:** Topf `inbox`, das PDF reist mit den Belegen. Der Import prüft je
+  Eintrag `id`, `sha256` und `status`.
 
 ---
 
@@ -1107,7 +1285,9 @@ Verwaltung, im Eigenheim klassisch eine gelöschte), erfasste Versorgerrechnunge
 (`bills`) und Folgeverträge. Alle vier tragen Wohnfläche und Personen ein;
 seit v3.6.0 hat `eigenheim-klassisch` dazu eigene, erfundene Vergleichswerte
 (`reference_strom_kwh`, `reference_heat_kwh_m2`) und zeigt die Einordnung mit
-voller Ampel. Erzeugt werden sie von
+voller Ampel. Seit v3.7.0 haben in allen Haushalten und im Schaufenster ein
+Vertrag und ein Zähler eine Zuständige (`assignee_id`), Eichfristen hängen am
+Zähler (`utility`, `meter_id`) und erben dessen Person. Erzeugt werden sie von
 `tools/build-personas.mjs` aus einem Tagesmodell mit festem Startwert: Jeder
 Lauf schreibt dieselben Dateien, `--check` vergleicht nur. Namen sind
 erfunden, Marktlokations-IDs synthetisch. Beim Laden schreibt sie

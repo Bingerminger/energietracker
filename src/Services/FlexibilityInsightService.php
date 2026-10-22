@@ -96,6 +96,7 @@ final class FlexibilityInsightService
         private MeterService $meters,
         private ContractService $contracts,
         private FlexibilityService $flex,
+        private ?SettingsService $settings = null,   // v3.7.0 — eigene Werte statt Beispielwerte
     ) {}
 
     /** v3.6.0 — Ladevorgänge (Anstecken bis Abstecken) für die Ladefenster des Autos. */
@@ -196,15 +197,17 @@ final class FlexibilityInsightService
         $add = function (array $l) use (&$levers): void {
             if ($l['eur'] !== null && $l['eur'] >= self::MIN_EUR) $levers[] = $l;
         };
+        // v3.7.0 — Annahmen: Beispielwerte oder die eigenen aus den Einstellungen
+        $assume = $this->assumptions();
         // Gemessene Geräte: Wallbox zuerst (sie nutzt Sonnenstrom am meisten), dann Wärmepumpe
         $devices = [];
         foreach ($energy as $id => $e) {
             $role = Utilities::roleOf('strom', $byId[$id]);
-            if ($role === 'ev_charger') $devices[] = [$id, 'ev', self::ASSUMPTIONS['ev_share']];
+            if ($role === 'ev_charger') $devices[] = [$id, 'ev', $assume['ev_share']];
         }
         foreach ($energy as $id => $e) {
             $role = Utilities::roleOf('strom', $byId[$id]);
-            if ($role === 'heat_pump') $devices[] = [$id, 'heat_pump', self::ASSUMPTIONS['heat_pump_share']];
+            if ($role === 'heat_pump') $devices[] = [$id, 'heat_pump', $assume['heat_pump_share']];
         }
         $evInfo = [];
         foreach ($devices as [$id, $kind, $share]) {
@@ -218,7 +221,9 @@ final class FlexibilityInsightService
             $groups = $days; $plugged = null;
             if ($kind === 'ev') {
                 $w = $this->evWindows($id, $e, $days, $clock['day'], $year);
-                $base['availability'] = $w !== null ? 'sessions' : 'day';
+                // v3.7.0 — ohne Ladevorgänge aus evcc die eigene Steckzeit aus den Einstellungen
+                if ($w === null && $assume['ev_window'] !== null) $w = self::ownWindows($e, $days, $clock, $assume['ev_window']);
+                $base['availability'] = $w !== null ? $w['basis'] : 'day';
                 if ($w !== null) {
                     $groups = $w['groups'];
                     $plugged = $w['windows'];
@@ -226,7 +231,8 @@ final class FlexibilityInsightService
                     $base['session_share'] = round($w['share'], 4);
                 }
                 $evKwh = array_sum(array_map(fn($v) => (float)($v ?? 0.0), $e));
-                $evInfo[] = ['sessions' => $w['sessions'] ?? 0, 'kwh' => $evKwh, 'in' => ($w['share'] ?? 0.0) * $evKwh];
+                $evInfo[] = ['sessions' => $w['sessions'] ?? 0, 'kwh' => $evKwh, 'in' => ($w['share'] ?? 0.0) * $evKwh,
+                             'window' => ($w['basis'] ?? null) === 'window'];
             }
             if ($hasPrices) {
                 $r = self::shiftDays($e, $prices, $groups, $share, $cap, 'min');
@@ -261,12 +267,13 @@ final class FlexibilityInsightService
                 'signal' => 'spot', 'real' => false, 'kwh' => round($r['kwh'], 1), 'shift_kwh' => round($r['moved'], 1),
                 'eur' => round($r['delta'] / 100 * $gross, 2), 'window' => $this->windows($pattern, 'day', 'peak', self::WINDOW_HOURS)]);
         }
-        // Wasch- und Spülmaschine (Beispielwerte): gegen einen Start zu beliebiger Zeit
+        // Wasch- und Spülmaschine (Beispielwerte oder eigene, v3.7.0): gegen einen Start zu beliebiger Zeit
         $applianceKwh = 0.0;
-        foreach (self::APPLIANCES as $kind => $a) {
+        foreach ($assume['appliances'] as $kind => $a) {
+            // eigene Angabe 0 Gänge: 0 € — unter MIN_EUR erscheint kein Hebel
             $daily = $a['kwh_per_cycle'] * $a['cycles_per_week'] / 7;
             $w = (int)$a['hours'] * 4;
-            $base = ['kind' => $kind, 'meter_id' => null, 'name' => null, 'basis' => 'assumed', 'share' => null,
+            $base = ['kind' => $kind, 'meter_id' => null, 'name' => null, 'basis' => $assume['own'][$kind] ? 'own' : 'assumed', 'share' => null,
                 'availability' => null, 'sessions' => null, 'session_share' => null, 'assumption' => $a];
             if ($hasPrices) {
                 $r = self::applianceSpot($prices, $days, $daily, $w);
@@ -346,9 +353,11 @@ final class FlexibilityInsightService
         $evKwh = array_sum(array_column($evInfo, 'kwh'));
         $evSessions = array_sum(array_column($evInfo, 'sessions'));
         $evAvailability = $evInfo === [] ? null : [
-            'basis' => $evSessions > 0 ? 'sessions' : 'day',
+            'basis' => $evSessions > 0 ? 'sessions' : (in_array(true, array_column($evInfo, 'window'), true) ? 'window' : 'day'),
             'sessions' => $evSessions,
             'share' => $evKwh > self::EPS ? round(array_sum(array_column($evInfo, 'in')) / $evKwh, 4) : 0.0,
+            // v3.7.0 — die eigene Steckzeit ohne evcc (Stunden), sonst null
+            'window' => $assume['ev_window'],
         ];
 
         return [
@@ -370,7 +379,50 @@ final class FlexibilityInsightService
                 'module3_eur' => ($analysis['module3'] ?? []) !== [] ? round($module3, 2) : null,
             ],
             'missing' => $this->missing($hasPrices, $energy, $byId, $gen, $feed, $tou, $year),
-            'assumptions' => self::ASSUMPTIONS + ['appliances' => self::APPLIANCES, 'window_hours' => self::WINDOW_HOURS],
+            // v3.7.0 — die Werte, mit denen gerechnet wurde, und welche davon eigene sind (`own`, additiv)
+            'assumptions' => ['heat_pump_share' => $assume['heat_pump_share'], 'ev_share' => $assume['ev_share'],
+                'appliances' => $assume['appliances'], 'window_hours' => self::WINDOW_HOURS,
+                'ev_window' => $assume['ev_window'], 'own' => $assume['own']],
+        ];
+    }
+
+    /**
+     * v3.7.0 — Die Annahmen der Hebel: Beispielwerte (ASSUMPTIONS, APPLIANCES)
+     * oder die eigenen aus den Einstellungen (Verbrauchsarten → Flexibilität).
+     * Eigen ist ein Wert, sobald er gespeichert ist (SettingsService::isStored),
+     * auch wenn er dem Beispiel gleicht; ein geleertes Feld nimmt ihn zurück.
+     *   heat_pump_share  flex_heat_pump_share_pct / 100
+     *   appliances       flex_<gerät>_cycles_per_week, flex_<gerät>_kwh_per_cycle
+     *   ev_window        flex_ev_plugged_from … flex_ev_plugged_until (Stunden,
+     *                    über Mitternacht, wenn bis ≤ von): die Steckzeit ohne
+     *                    evcc; null = ganzer Ladetag (Beispielwert)
+     *
+     * @return array{heat_pump_share:float,ev_share:float,appliances:array<string,array{kwh_per_cycle:float,cycles_per_week:float,hours:int}>,ev_window:?array{from:int,until:int},own:array<string,bool>}
+     */
+    public function assumptions(): array
+    {
+        $s = $this->settings;
+        $own = fn(string $k): bool => $s !== null && $s->isStored($k);
+        $num = fn(string $k, float $fallback): float => $own($k) && is_numeric($s->get($k)) ? (float)$s->get($k) : $fallback;
+        $appliances = [];
+        $ownApp = [];
+        foreach (self::APPLIANCES as $kind => $a) {
+            $appliances[$kind] = ['kwh_per_cycle' => $num("flex_{$kind}_kwh_per_cycle", $a['kwh_per_cycle']),
+                'cycles_per_week' => $num("flex_{$kind}_cycles_per_week", $a['cycles_per_week']), 'hours' => (int)$a['hours']];
+            $ownApp[$kind] = $own("flex_{$kind}_kwh_per_cycle") || $own("flex_{$kind}_cycles_per_week");
+        }
+        $window = null;
+        if ($own('flex_ev_plugged_from') && $own('flex_ev_plugged_until')) {
+            $from = (int)$s->get('flex_ev_plugged_from'); $until = (int)$s->get('flex_ev_plugged_until');
+            if ($from !== $until) $window = ['from' => $from, 'until' => $until];   // gleich: kein Fenster, ganzer Tag
+        }
+        return [
+            'heat_pump_share' => $own('flex_heat_pump_share_pct') ? $num('flex_heat_pump_share_pct', 30.0) / 100 : self::ASSUMPTIONS['heat_pump_share'],
+            'ev_share' => self::ASSUMPTIONS['ev_share'],
+            'appliances' => $appliances,
+            'ev_window' => $window,
+            'own' => ['heat_pump_share' => $own('flex_heat_pump_share_pct'), 'washer' => $ownApp['washer'],
+                      'dishwasher' => $ownApp['dishwasher'], 'ev_window' => $window !== null],
         ];
     }
 
@@ -702,6 +754,52 @@ final class FlexibilityInsightService
             if ($last >= 0 && $a <= $windows[$last][1]) { $windows[$last][1] = max($windows[$last][1], $b); continue; }
             $windows[] = [$a, $b];
         }
+        return self::windowGroups($windows, $e, $days, $dayOf, count($raw)) + ['basis' => 'sessions'];
+    }
+
+    /**
+     * v3.7.0 — Steckzeit ohne evcc aus den Einstellungen: an jedem Tag mit
+     * Ladung ein Fenster von `from` bis `until` Uhr (über Mitternacht in den
+     * Folgetag, wenn until ≤ from) — wie ein Ladevorgang je Tag, Gruppen wie
+     * bei evWindows(). `sessions` ist 0 (keine echten Ladevorgänge).
+     *
+     * @param array{from:int,until:int} $win
+     * @return array{groups: list<list<int>>, windows: list<array{0:int,1:int}>, sessions: int, share: float, basis: string}|null
+     */
+    public static function ownWindows(array $e, array $days, array $clock, array $win): ?array
+    {
+        $from = (int)$win['from'] * 60; $until = (int)$win['until'] * 60;
+        $over = $until <= $from;
+        $keys = array_keys($days);
+        $windows = [];
+        foreach ($keys as $k => $d) {
+            $slots = [];
+            foreach ($days[$d] as $i) {
+                $m = (int)$clock['minute'][$i];
+                if ($m >= $from && ($over || $m < $until)) $slots[] = $i;
+            }
+            if ($over && isset($keys[$k + 1])) foreach ($days[$keys[$k + 1]] as $i) if ((int)$clock['minute'][$i] < $until) $slots[] = $i;
+            if ($slots === []) continue;
+            $sum = 0.0;
+            foreach ($slots as $i) $sum += max(0.0, (float)($e[$i] ?? 0.0));
+            if ($sum <= self::EPS) continue;   // ohne Ladung nichts zu verschieben
+            $windows[] = [min($slots), max($slots)];
+        }
+        if ($windows === []) return null;
+        return self::windowGroups($windows, $e, $days, $clock['day'], 0) + ['basis' => 'window'];
+    }
+
+    /**
+     * Gruppen für shiftDays()/solarShift() aus Ladefenstern (erste und letzte
+     * Viertelstunde): je Fenster eine Gruppe, an Tagen mit Fenster jede übrige
+     * Viertelstunde für sich, Tage ohne Fenster ganz. `share` = Anteil der
+     * Ladung in den Fenstern.
+     *
+     * @param list<array{0:int,1:int}> $windows sortiert, überlappungsfrei
+     * @return array{groups: list<list<int>>, windows: list<array{0:int,1:int}>, sessions: int, share: float}
+     */
+    private static function windowGroups(array $windows, array $e, array $days, array $dayOf, int $sessions): array
+    {
         $groups = []; $in = []; $covered = [];
         foreach ($windows as [$a, $b]) {
             $groups[] = range($a, $b);
@@ -717,7 +815,7 @@ final class FlexibilityInsightService
             $all += $v;
             if (isset($in[$i])) $inside += $v;
         }
-        return ['groups' => $groups, 'windows' => $windows, 'sessions' => count($raw), 'share' => $all > self::EPS ? $inside / $all : 0.0];
+        return ['groups' => $groups, 'windows' => $windows, 'sessions' => $sessions, 'share' => $all > self::EPS ? $inside / $all : 0.0];
     }
 
     /**
@@ -888,10 +986,8 @@ final class FlexibilityInsightService
      */
     private function vatPct(): float
     {
-        foreach ($this->contracts->list('strom') as $c) {
-            if (($c['price_model'] ?? null) === 'dynamic' && is_numeric($c['dynamic']['vat_pct'] ?? null)) return (float)$c['dynamic']['vat_pct'];
-        }
-        return MarketPriceService::DEFAULT_VAT_PCT;
+        // v3.7.0 — eine Regel mit Modul 3 netto (MarketPriceService::vatPctOf)
+        return MarketPriceService::vatPctOf($this->contracts->list('strom'));
     }
 
     /** Arbeitspreis des Hausanschlusses je Monat (Vertrag zur Monatsmitte, ct/kWh). @return array<int,float> */

@@ -1,6 +1,7 @@
 [
   {
     "id": "m_gas_main",
+    "assignee_id": "u_c7a2ecac",
     "name": "Hauptzähler Gas",
     "icon": "🔥",
     "created_at": "2023-01-01",
@@ -30,6 +31,29 @@
       {
         "date": "2024-08-01",
         "label": "Dachdämmung"
+      }
+    ]
+  },
+  {
+    "id": "m_gas_werkstatt",
+    "name": "Werkstatt (Zwischenzähler)",
+    "icon": "🔧",
+    "created_at": "2023-06-01",
+    "active": true,
+    "notes": "Zwischenzähler hinter dem Hauptzähler für den Gasheizer der Werkstatt; abgelesen wird nur bei der Wartung, etwa alle drei Monate.",
+    "parent_meter_id": "m_gas_main",
+    "meter_group_id": null,
+    "external_id": null,
+    "baseline_events": [],
+    "devices": [
+      {
+        "id": "d_gas_werkstatt",
+        "serial": "G-2021-316",
+        "installed_on": "2023-06-01",
+        "initial_counter": 0,
+        "removed_on": null,
+        "final_counter": null,
+        "reason": null
       }
     ]
   }

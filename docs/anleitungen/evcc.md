@@ -202,7 +202,7 @@ Viertelstunden des Wallbox-Zählers.
 ## 9. Zusammenspiel mit dem Ladestrom-Nachweis
 
 Die Stände aus evcc sind gewöhnliche Zählerstände der Wallbox. Damit rechnet
-auch die Karte „Ladestrom-Nachweis (Dienstwagen)“ (Stufe „Experte“, unter der
+auch die Karte „Ladestrom-Nachweis (Dienstwagen)“ (seit v3.7.0 ab Stufe „Erfahren“, unter der
 evcc-Karte): Vertragspreis oder Strompreispauschale je Monat, als CSV und PDF
 ([Ladestrom für den Dienstwagen nachweisen](ladestrom-nachweis.md)). Den
 Preis aus evcc verwendet der Nachweis nicht.

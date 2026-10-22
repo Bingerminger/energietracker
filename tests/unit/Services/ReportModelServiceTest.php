@@ -199,7 +199,8 @@ final class ReportModelServiceTest extends ServiceTestCase
             if (Utilities::accountingKind($u) !== 'consumption') continue;
             foreach ($this->consumption->forUtility($u)['monthly_total'] as $r) {
                 if ((int)$r['year'] !== self::YEAR) continue;
-                $overview += (float)($r['cost'] ?? 0); $n++;
+                // v3.7.0 (#33) — die Kachel zählt ohne Bonus wie die Kachel der Verbrauchsart
+                $overview += (float)($r['cost'] ?? 0) + (float)($r['bonus_eur'] ?? 0); $n++;
             }
         }
         $tile = array_column($m['headline']['tiles'], null, 'key')['cost'] ?? self::fail('Kachel Kosten fehlt');
@@ -252,7 +253,8 @@ final class ReportModelServiceTest extends ServiceTestCase
         }
         if ($m['money'] !== null) {
             self::assertEqualsWithDelta(array_sum(array_column($m['money']['by_utility'], 'cost')), $m['money']['total']['cost'], 0.05);
-            foreach ($m['money']['by_utility'] as $r) self::assertEqualsWithDelta($this->rootSum($r['utility'], 'cost'), $r['cost'], 0.05, $r['utility']);
+            // v3.7.0 (#33) — je Art ohne Bonus (Kosten der Monatszeilen plus ihr Bonus)
+            foreach ($m['money']['by_utility'] as $r) self::assertEqualsWithDelta($this->rootSum($r['utility'], 'cost') + $this->rootSum($r['utility'], 'bonus_eur'), $r['cost'], 0.05, $r['utility']);
             $t = $m['money']['total'];
             if ($t['prev'] !== null) {
                 self::assertEqualsWithDelta($t['cost'] - $t['prev'], $t['price_effect'] + $t['volume_effect'], 0.05, 'Preis- + Mengeneffekt = Kostenänderung');

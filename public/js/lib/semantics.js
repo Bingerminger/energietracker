@@ -38,6 +38,23 @@ export function changeTone(delta, u) {
  * @param {object} u  Verbrauchsart
  * @param {(n: number) => string} [money]  Formatierer, Standard fmt.eur
  */
+/**
+ * v3.7.0 (Nachlauf vor dem Release) — Spanne einer unsicheren Saldo-Schätzung
+ * (`projection_uncertain.projected_range`) als kurzer Text, etwa „ca. 120 € Guthaben
+ * bis ca. 80 € Nachzahlung“ — dieselben Wörter wie der Satz der Saldo-Karte. Positiver
+ * Saldo = Nachzahlung. Kein Punktwert: Wo die Schätzung unsicher ist, steht nur die Spanne.
+ *
+ * @param {object|null|undefined} unc
+ * @returns {string} leer ohne Spanne
+ */
+export function uncertainRangeText(unc) {
+  const r = Array.isArray(unc?.projected_range) ? unc.projected_range.map(Number) : null;
+  if (!r || r.length !== 2 || !r.every(Number.isFinite)) return '';
+  const word = (v) => Math.abs(v) < 1 ? t('balanceUncertain.even')
+    : t(v > 0 ? 'balanceUncertain.due' : 'balanceUncertain.credit', { amount: t('report.fmt.approx', { amount: fmt.eur0(Math.abs(v)) }) });
+  return t('balanceUncertain.short', { low: word(Math.min(...r)), high: word(Math.max(...r)) });
+}
+
 export function balanceView(v, u, money = fmt.eur) {
   const n = Number(v);
   if (v == null || !Number.isFinite(n)) return null;

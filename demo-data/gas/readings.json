@@ -449,5 +449,137 @@
     "note": "",
     "is_estimated": false,
     "is_future": false
+  },
+  {
+    "id": "r_gas_werkstatt_20230601",
+    "meter_id": "m_gas_werkstatt",
+    "device_id": "d_gas_werkstatt",
+    "date": "2023-06-01",
+    "counter": 412.6,
+    "price_cents": null,
+    "note": "",
+    "is_estimated": false,
+    "is_future": false
+  },
+  {
+    "id": "r_gas_werkstatt_20230830",
+    "meter_id": "m_gas_werkstatt",
+    "device_id": "d_gas_werkstatt",
+    "date": "2023-08-30",
+    "counter": 420.2,
+    "price_cents": null,
+    "note": "",
+    "is_estimated": false,
+    "is_future": false
+  },
+  {
+    "id": "r_gas_werkstatt_20231129",
+    "meter_id": "m_gas_werkstatt",
+    "device_id": "d_gas_werkstatt",
+    "date": "2023-11-29",
+    "counter": 495.4,
+    "price_cents": null,
+    "note": "",
+    "is_estimated": false,
+    "is_future": false
+  },
+  {
+    "id": "r_gas_werkstatt_20240304",
+    "meter_id": "m_gas_werkstatt",
+    "device_id": "d_gas_werkstatt",
+    "date": "2024-03-04",
+    "counter": 722.4,
+    "price_cents": null,
+    "note": "",
+    "is_estimated": false,
+    "is_future": false
+  },
+  {
+    "id": "r_gas_werkstatt_20240527",
+    "meter_id": "m_gas_werkstatt",
+    "device_id": "d_gas_werkstatt",
+    "date": "2024-05-27",
+    "counter": 792.9,
+    "price_cents": null,
+    "note": "",
+    "is_estimated": false,
+    "is_future": false
+  },
+  {
+    "id": "r_gas_werkstatt_20240902",
+    "meter_id": "m_gas_werkstatt",
+    "device_id": "d_gas_werkstatt",
+    "date": "2024-09-02",
+    "counter": 801.1,
+    "price_cents": null,
+    "note": "",
+    "is_estimated": false,
+    "is_future": false
+  },
+  {
+    "id": "r_gas_werkstatt_20241206",
+    "meter_id": "m_gas_werkstatt",
+    "device_id": "d_gas_werkstatt",
+    "date": "2024-12-06",
+    "counter": 887.4,
+    "price_cents": null,
+    "note": "",
+    "is_estimated": false,
+    "is_future": false
+  },
+  {
+    "id": "r_gas_werkstatt_20250305",
+    "meter_id": "m_gas_werkstatt",
+    "device_id": "d_gas_werkstatt",
+    "date": "2025-03-05",
+    "counter": 1097,
+    "price_cents": null,
+    "note": "",
+    "is_estimated": false,
+    "is_future": false
+  },
+  {
+    "id": "r_gas_werkstatt_20250604",
+    "meter_id": "m_gas_werkstatt",
+    "device_id": "d_gas_werkstatt",
+    "date": "2025-06-04",
+    "counter": 1172.9,
+    "price_cents": null,
+    "note": "",
+    "is_estimated": false,
+    "is_future": false
+  },
+  {
+    "id": "r_gas_werkstatt_20250904",
+    "meter_id": "m_gas_werkstatt",
+    "device_id": "d_gas_werkstatt",
+    "date": "2025-09-04",
+    "counter": 1180.6,
+    "price_cents": null,
+    "note": "",
+    "is_estimated": false,
+    "is_future": false
+  },
+  {
+    "id": "r_gas_werkstatt_20251206",
+    "meter_id": "m_gas_werkstatt",
+    "device_id": "d_gas_werkstatt",
+    "date": "2025-12-06",
+    "counter": 1271.3,
+    "price_cents": null,
+    "note": "",
+    "is_estimated": false,
+    "is_future": false
+  },
+  {
+    "id": "r_gas_werkstatt_20260226",
+    "meter_id": "m_gas_werkstatt",
+    "device_id": "d_gas_werkstatt",
+    "date": "2026-02-26",
+    "counter": 1462.5,
+    "price_cents": null,
+    "note": "",
+    "is_estimated": false,
+    "is_future": false
   }
 ]

@@ -77,6 +77,42 @@ export function utilColor(u, alpha = 1) {
   return () => (alpha >= 1 ? chartColor(u) : withAlpha(chartColor(u), alpha));
 }
 
+/**
+ * v3.7.0 (GitHub #37, #39) — Füllung für einen verteilten Monat: schräge
+ * Schraffur in der Farbe der Verbrauchsart (Hex aus `chartColor`, nie aus
+ * --util-*, Lektion 27). Gemessen = volle Fläche, Teilmonat = blass,
+ * verteilt = schraffiert. Ohne echtes Chart.js (Test-Stub) die blasse Fläche
+ * mit eigener Deckkraft — JSDOM kennt kein Canvas.
+ */
+export const HATCH_FALLBACK_ALPHA = 0.2;
+const hatchCache = new Map();
+export function hatchFill(color) {
+  const key = String(color);
+  if (hatchCache.has(key)) return hatchCache.get(key);
+  let fill = withAlpha(color, HATCH_FALLBACK_ALPHA);
+  if (window.Chart?.version) {
+    try {
+      const c = document.createElement('canvas');
+      c.width = 8; c.height = 8;
+      const g = c.getContext('2d');
+      if (g) {
+        g.fillStyle = withAlpha(color, 0.12);
+        g.fillRect(0, 0, 8, 8);
+        g.strokeStyle = withAlpha(color, 0.75);
+        g.lineWidth = 1.5;
+        g.beginPath();
+        g.moveTo(0, 8); g.lineTo(8, 0);
+        g.moveTo(-2, 2); g.lineTo(2, -2);
+        g.moveTo(6, 10); g.lineTo(10, 6);
+        g.stroke();
+        fill = g.createPattern(c, 'repeat') || fill;
+      }
+    } catch { /* ohne Canvas: blasse Fläche */ }
+  }
+  hatchCache.set(key, fill);
+  return fill;
+}
+
 /** Theme-Token (text1, accent …) als Funktion für Chart.js — folgt dem Theme. */
 export function tokenColor(name, alpha = 1) {
   return () => {

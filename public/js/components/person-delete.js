@@ -8,6 +8,8 @@
 // nie wieder vergeben (Personenverzeichnis, PeopleService). Auch Personen
 // ohne Zugang (Backup, Beispielhaushalt) lassen sich so löschen; ohne Anmeldung
 // übernimmt niemand die offenen Termine.
+// v3.7.0 — ebenso Zuständigkeiten an Zählern und Verträgen (`meters`,
+// `contracts` in der Vorschau, `records_handed_over` in der Antwort).
 // =====================================================================
 
 import { api } from '../api.js';
@@ -25,6 +27,12 @@ export function handoverText(preview, former = false) {
   else if (preview?.to?.name) lines.push(tp('settings.users.handover', open, { to: preview.to.name }));
   // ohne löschende Person (Anmeldung aus): niemand übernimmt
   else lines.push(tp('settings.users.handoverNobody', open));
+  // v3.7.0 — Zähler und Verträge der Person: wie offene Termine
+  const records = (Number(preview?.meters) || 0) + (Number(preview?.contracts) || 0);
+  if (records > 0) {
+    if (preview?.to?.name) lines.push(tp('settings.users.handoverRecords', records, { to: preview.to.name }));
+    else lines.push(former ? tp('settings.users.handoverRecordsFormer', records) : tp('settings.users.handoverRecordsNobody', records));
+  }
   if (done > 0) lines.push(former ? tp('settings.users.keepDoneFormer', done) : tp('settings.users.keepDone', done));
   return lines;
 }
@@ -58,7 +66,9 @@ export async function confirmPersonDelete(userId, onDone) {
           const r = await api.deleteUser(userId, { anonymizeActivity: !!anon?.checked });
           close(true);
           const moved = Number(r?.handed_over) || 0;
-          if (name) toastOk(t('settings.users.deletedToast', { name }) + (moved > 0 ? ' ' + tp('settings.users.handedOver', moved) : ''));
+          const records = Number(r?.records_handed_over) || 0;   // v3.7.0 — Zähler und Verträge
+          if (name) toastOk(t('settings.users.deletedToast', { name }) + (moved > 0 ? ' ' + tp('settings.users.handedOver', moved) : '')
+            + (records > 0 ? ' ' + tp('settings.users.handedOverRecords', records) : ''));
           onDone?.();
         } catch (e) { toastErr(e.message); }
       });

@@ -135,6 +135,15 @@ calendar its key; the interface stays in the sidebar. Under Ingress,
 ([Calendar](kalender.md)) — for a phone, replace the start up to `/api.php`
 with `http://<Home Assistant address>:8095`.
 
+**Supplier mail into the inbox *(v3.7.0)*.** The app only mounts its own
+storage (`/data`), no share such as `/share`; the
+[watched folder](posteingang.md#watched-folder) is therefore out of reach. Two
+ways remain: **email** through Home Assistant’s IMAP integration, which sends
+attachments with an “inbox only” key to `http://<host name of the app>/api.php/api/inbox`
+([guide](posteingang.md#by-email-via-home-assistant)), and the **shortcut**
+from the iPhone or iPad through an enabled direct port
+([shortcut](posteingang.md#with-a-shortcut-from-the-iphone-or-ipad)).
+
 Everything else that applies under Ingress is listed under
 [Running under Home Assistant Ingress](#running-under-home-assistant-ingress).
 

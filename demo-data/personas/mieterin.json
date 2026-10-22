@@ -7355,6 +7355,7 @@
             }
         ]
     },
+    "inbox": [],
     "utilities": {
         "gas": {
             "meters": [],
@@ -7389,7 +7390,8 @@
                             "final_counter": null,
                             "reason": null
                         }
-                    ]
+                    ],
+                    "assignee_id": "u_1ba213c7"
                 }
             ],
             "readings": [
@@ -7942,7 +7944,8 @@
                     "auto_renews": true,
                     "min_term_end": null,
                     "price_guarantee_until": null,
-                    "signup_bonus_eur": null
+                    "signup_bonus_eur": null,
+                    "assignee_id": "u_1ba213c7"
                 }
             ],
             "deliveries": [],

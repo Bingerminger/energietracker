@@ -38,8 +38,10 @@ electricity and water. You can keep, rename or delete them.
 > sets shown below), then three questions — who you
 > are, which energy sources you use, how much experience you have — and then
 > the utilities and the experience level are set. For this example choose
-> “Own house with gas, oil or pellets” and “Start with my own data” at the
-> end; if you would rather look first, take “Look at it with sample data”.
+> “Own house with gas, oil or pellets” and “Enter by hand” at the end; if you
+> would rather look first, take “Look at it with sample data”. If you already
+> have your supplier mail as PDF, take *(since v3.7.0)* “From documents” and
+> skip the typing: [Household from documents](../anleitungen/haushalt-aus-dokumenten.md).
 > Details: [Setup and experience levels](einrichtung.md).
 
 ---

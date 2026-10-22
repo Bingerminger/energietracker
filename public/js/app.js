@@ -23,6 +23,7 @@ import { setSession, resolveLevel, applyLevel } from './lib/levels.js';
 import { mountLevelSwitch, refreshLevelSwitch } from './lib/level-switch.js';
 import { maybeStartSetup } from './components/setup-wizard.js';
 import { showReleaseNotices } from './lib/release-notice.js';
+import { scanFolder } from './lib/inbox-folder.js';   // v3.7.0 (Paket betrieb)
 
 // v2.13.0 — ⓘ-Erklärungen: ein Handler für alle Knöpfe
 installInfoPopovers();
@@ -195,5 +196,7 @@ const boot = (session = null) => Promise.all([getSettings(), getCountries()])
       getSettings()
         .then(s => { if (s?.weather_auto_fill !== false) return api.syncOpenMeteo({ auto: 1 }); })
         .catch(() => {});
+      // v3.7.0 (Paket betrieb) — Versorgerpost aus dem überwachten Ordner (nur Verwalter)
+      scanFolder({ quiet: true }).catch(() => {});
     }
   });

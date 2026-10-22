@@ -31,6 +31,29 @@ final class MeterService
 
     public function __construct(private JsonStore $store, private I18nService $i18n) {}
 
+    /** v3.7.0 — Zuständigkeit (`assignee_id`) gegen das Personenverzeichnis prüfen. */
+    private ?ResponsibilityService $responsibility = null;
+
+    public function attachResponsibility(ResponsibilityService $responsibility): void
+    {
+        $this->responsibility = $responsibility;
+    }
+
+    /**
+     * v3.7.0 — zuständige Person aus der Eingabe (fehlt = unverändert, null
+     * oder leer = niemand). Ohne Personenverzeichnis genügt die Form der ID.
+     *
+     * @param array<string,mixed> $m
+     * @param array<string,mixed> $input
+     */
+    private function applyAssignee(array &$m, array $input): void
+    {
+        if (!array_key_exists('assignee_id', $input)) return;
+        $current = is_string($m['assignee_id'] ?? null) ? $m['assignee_id'] : null;
+        $id = ($this->responsibility ?? new ResponsibilityService($this->store))->checkInput($input['assignee_id'], $current);
+        $m = ResponsibilityService::apply($m, $id);
+    }
+
     /** @return array<int,array<string,mixed>> */
     public function list(string $utility): array
     {
@@ -223,6 +246,8 @@ final class MeterService
         $this->applyLocationIds($meter, $input);
         // v3.1.0 (H7) — PV-Anlage und Wärmepumpe
         $this->applyEnergyFields($utility, $meter, $input);
+        // v3.7.0 — zuständige Person (Ablesung, Eichfrist, Termine am Zähler)
+        $this->applyAssignee($meter, $input);
         // v3.1.0 (H3, B2) — Erfassungsart: Zählerstände (Standard) oder Verbrauch je Zeitraum
         if (array_key_exists('capture', $input)) {
             $capture = $this->normalizeCapture($utility, $input['capture']);
@@ -263,6 +288,8 @@ final class MeterService
             $this->applyRole($utility, $m, $input);
             $this->applyLocationIds($m, $input);
             $this->applyEnergyFields($utility, $m, $input);
+            $this->applyHeatLimit($utility, $m, $input);   // v3.7.0 (wirklichkeit-2)
+            $this->applyAssignee($m, $input);   // v3.7.0
             if (array_key_exists('capture', $input)) {
                 $capture = $this->normalizeCapture($utility, $input['capture']);
                 $current = (string)($m['capture'] ?? 'counter');
@@ -521,6 +548,33 @@ final class MeterService
         }
         unset($m);
         return null;
+    }
+
+    /**
+     * v3.7.0 (Haushalt aus Dokumenten) — die Nummer eines Geräts nachtragen,
+     * solange es keine hat (der Standardzähler des Erststarts). Eine andere
+     * vorhandene Nummer bleibt: Das wäre ein Gerätewechsel (replaceDevice).
+     */
+    public function setDeviceSerial(string $utility, string $meterId, string $deviceId, string $serial): array
+    {
+        $serial = trim($serial);
+        if ($serial === '' || mb_strlen($serial) > 64) {
+            throw new LocalizedException('errors.meter.valueInvalid', ['field' => 'serial', 'value' => mb_substr($serial, 0, 40)], 'serial');
+        }
+        $all = $this->list($utility);
+        foreach ($all as $mi => $m) {
+            if (($m['id'] ?? null) !== $meterId) continue;
+            foreach ($m['devices'] ?? [] as $di => $d) {
+                if (($d['id'] ?? null) !== $deviceId) continue;
+                $cur = trim((string)($d['serial'] ?? ''));
+                if ($cur === $serial) return $m;
+                if ($cur !== '') throw new LocalizedException('errors.meter.serialSet', ['serial' => $cur], 'serial set');
+                $all[$mi]['devices'][$di]['serial'] = $serial;
+                $this->store->write("$utility/meters.json", $all);
+                return $all[$mi];
+            }
+        }
+        throw new NotFoundException($this->i18n->t('errors.meter.notFound'));
     }
 
     /** Hat das Gerät keinen Vorgänger in der Kette (frühester Einbau)? */
@@ -802,6 +856,29 @@ final class MeterService
     }
 
     /**
+     * v3.7.0 (wirklichkeit-2, GitHub #38) — Heizgrenze dieses Zählers
+     * (`hdd_base_temp`), etwa aus dem Heizgrenze-Vorschlag der Analyse. Die
+     * Einstellung `hdd_base_temp` bleibt der Standard für alle Zähler ohne
+     * eigene; die beste Grenze ist je Haus verschieden. Nur Heizarten mit
+     * Zählerständen, im Raster des Klimanormals (6 bis 22 °C), damit es für
+     * sie ein Normal gibt. Leer entfernt sie.
+     */
+    private function applyHeatLimit(string $utility, array &$meter, array $input): void
+    {
+        if (!array_key_exists('hdd_base_temp', $input)) return;
+        $v = $input['hdd_base_temp'];
+        if ($v === null || $v === '') { unset($meter['hdd_base_temp']); return; }
+        if (!Utilities::isHgtRelevant($utility) || Utilities::isDelivery($utility)) {
+            throw new LocalizedException('errors.meter.valueInvalid', ['field' => 'hdd_base_temp', 'value' => (string)$v], 'hdd_base_temp utility');
+        }
+        $f = is_numeric($v) ? round((float)$v, 1) : null;
+        if ($f === null || $f < ClimateNormalService::BASE_MIN || $f > ClimateNormalService::BASE_MAX) {
+            throw new LocalizedException('errors.meter.valueInvalid', ['field' => 'hdd_base_temp', 'value' => (string)$v], 'hdd_base_temp range');
+        }
+        $meter['hdd_base_temp'] = $f;
+    }
+
+    /**
      * v3.1.0 (H5, MKT-24) — MaLo-ID (11 Ziffern, letzte = Prüfziffer) und
      * MeLo-ID (33 Zeichen: „DE" + 31 Ziffern/Großbuchstaben). Leer entfernt.
      */
@@ -824,7 +901,9 @@ final class MeterService
     /**
      * Prüfziffer der Marktlokations-ID: Ziffern an ungerader Stelle (1, 3, … 9)
      * einfach, an gerader Stelle (2, … 10) doppelt summieren; die Prüfziffer
-     * ergänzt die Summe zur nächsten Zehn.
+     * ergänzt die Summe zur nächsten Zehn. Quelle: BDEW-Anwendungshilfe
+     * „Identifikatoren in der Marktkommunikation“, Version 1.2 vom 07.02.2025,
+     * Kap. 3.2/3.3 und 8.1 (Lok- und Waggon-Kennzeichnungsverfahren).
      */
     public static function isValidMalo(string $id): bool
     {

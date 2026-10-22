@@ -207,8 +207,12 @@ export const api = {
     const q = hddBase != null ? `?hdd_base=${hddBase}` : '';
     return request('GET', `/api/utility/${u}/consumption${q}`);
   },
-  meterConsumption:   (u, id, hddBase) => {
-    const q = hddBase != null ? `?hdd_base=${hddBase}` : '';
+  meterConsumption:   (u, id, hddBase, opts = {}) => {
+    // v3.7.0 (wirklichkeit-2) — `heatLimit`: mit Heizgrenze-Vorschlag (nur die Analyse)
+    const p = new URLSearchParams();
+    if (hddBase != null) p.set('hdd_base', hddBase);
+    if (opts.heatLimit) p.set('heat_limit', '1');
+    const q = p.toString() ? `?${p}` : '';
     return request('GET', `/api/utility/${u}/meters/${id}/consumption${q}`);
   },
   contractStatus:     (u, id)           => request('GET', `/api/utility/${u}/meters/${id}/contract-status`),
@@ -260,6 +264,12 @@ export const api = {
   // v3.5.0 (N1022) — Land wechseln (mit Profil oder nur das Land); nur Abweichungen vom Default
   applyCountry:  (country, profile = true) => request('POST', '/api/settings/country', { country, profile }),
   settingsDefaultUpdates: ()           => request('GET',  '/api/settings/default-updates'),   // v2.10.0
+  // v3.7.0 (Paket cloud) — Auslesen in der Cloud: Stand (ohne Schlüssel) und speichern (nur Verwalter)
+  inboxCloud:       ()                 => request('GET',   '/api/inbox/cloud'),
+  updateInboxCloud: (data)             => request('PATCH', '/api/inbox/cloud', data),
+  // v3.7.0 (Karte „Auslesen“) — Modelle des eingerichteten Cloud-Diensts, Verbindung zum eigenen Dienst (nur Verwalter)
+  inboxCloudModels: ()                 => request('GET',   '/api/inbox/cloud/models'),
+  inboxLocalCheck:  (endpoint, api)    => request('GET',   `/api/inbox/local/check?${new URLSearchParams({ endpoint, api })}`),
   exportBackup:  ()                    => request('GET',  '/api/backup/export', null, { timeoutMs: TIMEOUT_LONG_MS }),
   // v2.6.0 — { dryRun, allowWithoutSnapshot } als Query-Flags
   importBackup:  (data, { dryRun = false, allowWithoutSnapshot = false } = {}) =>
@@ -464,6 +474,34 @@ export const api = {
   attachmentUrl:    (id)                => `${BASE}/api/attachments/${encodeURIComponent(id)}`,
   deleteAttachment: (id)                => request('DELETE', `/api/attachments/${encodeURIComponent(id)}`),
   ocrReading:       (attachmentId)      => request('POST', '/api/ocr/reading', { attachment_id: attachmentId }, { timeoutMs: TIMEOUT_LONG_MS }),
+  // v3.7.0 — PDF eines Belegs zum Lesen im Browser (pdf.js); in der Demo eine fertige Datei
+  inboxFileUrl:     (attachmentId)      => (DEMO ? demoFileUrl(`/api/attachments/${attachmentId}`, getLocale())
+    : `${BASE}/api/attachments/${encodeURIComponent(attachmentId)}`),
+
+  // ── v3.7.0 — Posteingang für Versorgerpost ──
+  inbox:            ()                  => request('GET', '/api/inbox'),
+  inboxUpload:      (blob, name)        => request('POST', `/api/inbox${name ? `?name=${encodeURIComponent(name)}` : ''}`,
+    blob, { raw: true, timeoutMs: TIMEOUT_LONG_MS }),
+  inboxEntry:       (id)                => request('GET', `/api/inbox/${encodeURIComponent(id)}`),
+  updateInbox:      (id, data)          => request('PATCH', `/api/inbox/${encodeURIComponent(id)}`, data),
+  deleteInbox:      (id)                => request('DELETE', `/api/inbox/${encodeURIComponent(id)}`),
+  // Auslesen: erst die Art, dann die Felder — je Schritt bis zu 300 s am Server
+  inboxClassify:    (id, pages, { consent = false, fresh = false, timeoutMs = TIMEOUT_LONG_MS } = {}) =>
+    request('POST', `/api/inbox/${encodeURIComponent(id)}/classify`, { pages, consent, fresh }, { timeoutMs }),
+  inboxExtract:     (id, pages, { consent = false, fresh = false, timeoutMs = TIMEOUT_LONG_MS } = {}) =>
+    request('POST', `/api/inbox/${encodeURIComponent(id)}/extract`, { pages, consent, fresh }, { timeoutMs }),
+  inboxApply:       (id, proposals)     => request('POST', `/api/inbox/${encodeURIComponent(id)}/apply`, { proposals }),
+  inboxQueue:       (ids = null)        => request('POST', '/api/inbox/queue', ids ? { ids } : {}),
+  inboxCancelQueue: ()                  => request('DELETE', '/api/inbox/queue'),
+  inboxReview:      ()                  => request('GET', '/api/inbox/review'),
+  // v3.7.0 (Haushalt aus Dokumenten) — Entwurf über alle ausgelesenen Dokumente, Übernehmen der Auswahl
+  inboxDraft:       ()                  => request('GET', '/api/inbox/draft'),
+  inboxDraftApply:  (payload)           => request('POST', '/api/inbox/draft/apply', payload, { timeoutMs: TIMEOUT_LONG_MS }),
+  // v3.7.0 (Paket betrieb) — überwachter Ordner (nur Verwalter), Termin zu einer Mahnung, Akte
+  inboxFolderScan:  ()                  => request('POST', '/api/inbox/folder', {}),
+  inboxRemind:      (id, date)          => request('POST', `/api/inbox/${encodeURIComponent(id)}/remind`, { date }),
+  dossier:          (utility, { meterId = null, contractId = null } = {}) => request('GET',
+    `/api/utility/${encodeURIComponent(utility)}/dossier?${new URLSearchParams(contractId ? { contract_id: contractId } : { meter_id: meterId || '' })}`),
 
   // ── v3.4.0 (N1019) — Hilfe auf dem Server: eine Seite der Doku dieses Release und ihre Bilder ──
   docPage:     (path) => request('GET', `/api/docs?path=${encodeURIComponent(path)}`),

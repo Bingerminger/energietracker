@@ -14,7 +14,10 @@ consumption: nine utilities, contracts and billing, weather adjustment,
 forecast and switch decision — without a database, everything as JSON files on
 your own server. It talks only to Open-Meteo (weather data), on request to
 SMARD (wholesale electricity prices) — and, if you set them up, to your own
-text recognition service and to evcc in the home network.
+text recognition service and to evcc in the home network. Reading in the inbox
+through a cloud service (Claude at `api.anthropic.com`, OpenAI, Mistral,
+OpenRouter, Google Gemini or your own OpenAI-compatible address; experimental)
+only happens with an opt-in.
 
 ---
 
@@ -32,6 +35,7 @@ text recognition service and to evcc in the home network.
 
 | Document | Contents |
 |---|---|
+| [**Household from documents**](anleitungen/haushalt-aus-dokumenten.md) | *New in v3.7.0:* file and read supplier mail, one draft across all documents — meters, contracts with their price chain, meter readings, bills, reminders; check only what is doubtful, take it over with one click; which documents help, limits |
 | [**What if? The forecast workshop**](anleitungen/was-waere-wenn.md) | *New in v3.6.0:* what does a cold winter cost, what does insulation bring, is switching worth it? Move a slider, see the result at once — result card, curves, ranking, best combination within a budget; save, print, share as an image |
 | [Enter and check the annual bill](anleitungen/jahresabrechnung.md) | Take readings, prices, gas factors and the credit from a bill and recalculate it — for gas, electricity, water and district heating; record the bill, compare it and book it as a special payment |
 | [As a tenant: heating, water and service charges](anleitungen/mieter.md) | Consumption information month by month, hot and cold water, prepayment against expected costs, the service charge statement and its deadlines |
@@ -41,6 +45,7 @@ text recognition service and to evcc in the home network.
 | [Deadlines and dates in your calendar](anleitungen/kalender.md) | Calendar subscription in Apple Calendar, Thunderbird and Google Calendar |
 | [Ticking off notices and the history](anleitungen/hinweise-erledigen.md) | What clears itself (follow-on contract, reading, delivery), ticking off by hand with date, note and receipt, undo, the “Done” tab, who appears in the history, retention and privacy |
 | [Text recognition in the home network](anleitungen/texterkennung.md) | Let a photo suggest the meter reading: set up Ollama or LM Studio, privacy, troubleshooting |
+| [Inbox: let the app read supplier mail](anleitungen/posteingang.md) | *New in v3.7.0:* file a PDF (on the iPad from the Files app), read it locally with qwen3.8, check every value against its quote, take it over with one click; enter by hand next to the document, many at once, privacy; reading in the cloud as an opt-in — Claude (Anthropic) or an OpenAI-compatible service, key, what leaves, limits |
 | [Reading the annual report](anleitungen/jahresbericht-lesen.md) | At a glance with status lights, what paid off, tasks with priority, amount and deadline, charts; partial report and language via link, sending via Home Assistant |
 | [Record charging electricity for a company car](anleitungen/ladestrom-nachweis.md) | Wall box as a meter, contract price or flat electricity rate, statement as CSV and PDF — not tax advice |
 | [Charging sessions from evcc](anleitungen/evcc.md) | Upload the CSV from evcc or fetch it in the home network, wallbox meter readings, solar share and price per month, several charging points |
@@ -71,6 +76,7 @@ text recognition service and to evcc in the home network.
 | Document | Contents |
 |---|---|
 | [Views](referenz/ansichten.md) | Every view explained, with real screenshots |
+| [What can I do at each level?](referenz/stufen.md) | *New in v3.7.0:* every feature with 🌱 Beginner · 🌿 Experienced · 🌳 Expert, ordered by task; which level suits your household (checked against the code by a test) |
 | [Settings](referenz/einstellungen.md) | Every key with default, place in the interface and effect |
 | [API reference](referenz/api.md) | All routes with status codes and stability promise (checked against the code by a test) |
 | [API examples](referenz/api-beispiele.md) | Detailed requests and responses of the most used endpoints |
@@ -96,6 +102,7 @@ text recognition service and to evcc in the home network.
 | [Translating and languages](entwicklung/uebersetzen.md) | Catalogues, language per device, style guide per language, checklists for new languages and keys |
 | [Release process](entwicklung/release-prozess.md) | Versioning, CHANGELOG, documentation upkeep, lessons learned |
 | [Screenshots](entwicklung/screenshots.md) | How the images in these docs are made |
+| [Measuring with large amounts of data](entwicklung/messung-grosse-daten.md) | Response times with ten and twenty years of daily values, threshold for N1006 (caching and storage rework) |
 
 Contributing: [CONTRIBUTING.md](../../CONTRIBUTING.md) ·
 Security issues: [SECURITY.md](../../SECURITY.md) ·

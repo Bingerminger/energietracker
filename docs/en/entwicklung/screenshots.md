@@ -47,7 +47,14 @@ v1.0.2.
 
 3. **Browser**: light (`localStorage['et-theme'] = 'light'` — a browser profile
    remembers the choice per address), window 1440 × 1500 or 1440 × 900, for the
-   iPhone 375 × 812 at double pixel density (image 750 × 1624).
+   iPhone 375 × 812 at double pixel density (image 750 × 1624). Since v3.7.0 the
+   **browser region matching the language**: `en-GB` for the English images
+   (Playwright `locale: 'en-GB'`, Chrome `--lang=en-GB`), `de-DE` for the German
+   ones. The app formats dates and numbers itself by language and country; date
+   fields (`<input type="date">`) and their placeholder come from the browser,
+   though — with a German region the English contract dialog showed
+   “01.01.2026” and “tt.mm.jjjj” instead of “01/01/2026” and “dd/mm/yyyy”. Plus
+   the time zone `Europe/Berlin`, like the demo data.
 4. **Before every capture** unregister the service worker and clear its cache
    (in the console: unregister every `navigator.serviceWorker.getRegistrations()`,
    delete `caches.keys()`) — otherwise the browser shows old files between two

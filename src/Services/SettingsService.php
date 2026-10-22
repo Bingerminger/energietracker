@@ -40,6 +40,23 @@ final class SettingsService
      */
     public const ENTERED_ONLY = ['wohnflaeche_m2', 'wasser_personen_anzahl'];
 
+    /**
+     * v3.7.0 — Beispielwerte der Seite „Flexibilität“ (FlexibilityInsightService):
+     * Bis jemand einen eigenen Wert speichert, rechnet sie mit dem Default und
+     * nennt ihn „Beispielwert“; gespeichert (auch gleich dem Default) heißt er
+     * „eigener Wert“. Ein geleertes Feld nimmt die Angabe zurück. Grenzen je
+     * Schlüssel: [min, max, ganzzahlig].
+     */
+    public const EXAMPLE_VALUES = [
+        'flex_heat_pump_share_pct'        => [0, 100, false],
+        'flex_washer_cycles_per_week'     => [0, 21, false],
+        'flex_washer_kwh_per_cycle'       => [0, 5, false],
+        'flex_dishwasher_cycles_per_week' => [0, 21, false],
+        'flex_dishwasher_kwh_per_cycle'   => [0, 5, false],
+        'flex_ev_plugged_from'            => [0, 23, true],
+        'flex_ev_plugged_until'           => [0, 23, true],
+    ];
+
     /** @var array<string,mixed> */
     private const DEFAULTS = [
         // ── Physical constants ──
@@ -156,6 +173,26 @@ final class SettingsService
         'ocr_api'                  => 'ollama', // ollama (/api/chat) | openai (/v1/chat/completions, z. B. LM Studio)
         'ocr_model'                => '',
         'ocr_timeout_s'            => 30,
+        // ── v3.7.0 — Posteingang für Versorgerpost ──
+        // Wer ausliest: `local` = der Dienst der Texterkennung im Heimnetz
+        // (ocr_endpoint/ocr_api), `anthropic` | `openai` = ein Cloud-Dienst
+        // (Paket cloud, Inbox\CloudConfig) — den nur, wenn ein Verwalter das
+        // Auslesen in der Cloud für ihn eingeschaltet hat und ein Schlüssel da
+        // ist (s. set()). Eine Wahrheit für die Auswahl im Posteingang und die
+        // Karte „Auslesen in der Cloud“; umstellen dürfen nur Verwalter.
+        'inbox_provider'           => 'local',
+        // Textmodell des lokalen Diensts; empfohlen qwen3.8 (rund 18 GB Arbeitsspeicher)
+        'inbox_model'              => 'qwen3.8',
+        // je Schritt (Art, Felder) — unter den 310 s, die nginx im Docker-Image wartet
+        'inbox_timeout_s'          => 300,
+        // v3.7.0 (Paket cloud) — Auslesen in der Cloud, Opt-in, nur Verwalter
+        // (Services\Inbox\CloudConfig). Der API-Schlüssel steht NICHT hier,
+        // sondern in inbox_cloud_key.json (nicht im Backup, nie im Browser).
+        'inbox_cloud_enabled'      => false,
+        'inbox_cloud_provider'     => 'anthropic',   // anthropic | openai
+        'inbox_cloud_endpoint'     => '',            // nur openai: https://, nie eine Adresse im Heimnetz
+        'inbox_cloud_model'        => '',            // leer = Standard des Anschlusses
+        'inbox_cloud_timeout_s'    => 120,
 
         // ── v3.1.0 (Paket H4) — CO₂-Preis (BEHG) ──
         // Eigene Jahreswerte in €/t; leer = die des Länderprofils (Countries::CO2_PRICE_DE_BEHG)
@@ -190,6 +227,16 @@ final class SettingsService
         'setup_persona'            => null,      // s. PERSONAS
         // ── v3.2.0 (F1022) — evcc im Heimnetz (leer = aus, nur lokale Adressen) ──
         'evcc_endpoint'            => '',
+        // ── v3.7.0 — Flexibilität: eigene Werte statt Beispielwerte (EXAMPLE_VALUES) ──
+        // Defaults = FlexibilityInsightService::ASSUMPTIONS/APPLIANCES (Test hält es fest)
+        'flex_heat_pump_share_pct'        => 30.0,  // % des Tagesverbrauchs der Wärmepumpe verschiebbar
+        'flex_washer_cycles_per_week'     => 4.0,
+        'flex_washer_kwh_per_cycle'       => 0.9,
+        'flex_dishwasher_cycles_per_week' => 5.0,
+        'flex_dishwasher_kwh_per_cycle'   => 1.0,
+        // Steckzeit des Autos ohne evcc (Stunde von … bis, über Mitternacht, wenn bis ≤ von); leer = ganzer Ladetag
+        'flex_ev_plugged_from'            => null,
+        'flex_ev_plugged_until'           => null,
 
         // ── v1.3.0 — Gebäude-Stammdaten für kWh/m²-Benchmark ──
         'wohnflaeche_m2'           => 100,
@@ -399,6 +446,24 @@ final class SettingsService
         return is_numeric($v) && (float)$v > 0;
     }
 
+    /** v3.7.0 — Trägt `settings.json` einen Wert für den Schlüssel (nicht nur den Default)? */
+    public function isStored(string $key): bool
+    {
+        return $this->stored($key) !== null;
+    }
+
+    /**
+     * v3.7.0 — Beispielwerte (EXAMPLE_VALUES), die niemand gespeichert hat
+     * (`example_keys` in GET /api/settings): Die Einstellungen zeigen das Feld
+     * leer, mit dem Beispielwert als Platzhalter.
+     *
+     * @return list<string>
+     */
+    public function exampleKeys(): array
+    {
+        return array_values(array_filter(array_keys(self::EXAMPLE_VALUES), fn(string $k) => $this->stored($k) === null));
+    }
+
     /** v3.6.0 — der gespeicherte Wert eines Schlüssels ohne Default (null = nie gespeichert oder geleert). */
     private function stored(string $key): mixed
     {
@@ -442,6 +507,17 @@ final class SettingsService
                 unset($current[$k]);
                 continue;
             }
+            // v3.7.0 — Beispielwerte der Flexibilität: leer = zurück zum Beispielwert, sonst Zahl in den Grenzen
+            if (isset(self::EXAMPLE_VALUES[$k])) {
+                if ($v === null || $v === '') { unset($current[$k]); continue; }
+                [$min, $max, $int] = self::EXAMPLE_VALUES[$k];
+                $num = is_string($v) ? str_replace(',', '.', trim($v)) : $v;
+                if (is_bool($num) || !is_numeric($num) || (float)$num < $min || (float)$num > $max || ($int && (float)$num != (int)$num)) {
+                    throw new \InvalidArgumentException(($this->translator())('errors.settings.valueInvalid', ['key' => $k, 'value' => is_scalar($v) ? (string)$v : gettype($v)]));
+                }
+                $current[$k] = $int ? (int)$num : round((float)$num, 2);
+                continue;
+            }
             // v2.5.0 — F1012: Die Faktorliste wird beim Speichern normalisiert
             // und validiert (Ableitung z × Hs, Sortierung, Grenzen). Ein
             // Tippfehler wie 115 statt 11,5 würde sonst jeden Gasverbrauch
@@ -475,6 +551,8 @@ final class SettingsService
                 'wohnverhaeltnis' => ['eigentum', 'miete'],
                 'waerme_energietraeger'     => [null, 'gas', 'heizoel', 'pellets', 'fernwaerme', 'strom'],
                 'warmwasser_energietraeger' => [null, 'gas', 'heizoel', 'pellets', 'fernwaerme', 'strom', 'waerme'],
+                'inbox_provider'       => ['local', ...\Energietracker\Services\Inbox\CloudConfig::PROVIDERS],   // v3.7.0
+                'inbox_cloud_provider' => \Energietracker\Services\Inbox\CloudConfig::PROVIDERS,
                 default       => null,
             };
             if ($allowed !== null && !in_array($v, $allowed, true)) {
@@ -489,14 +567,25 @@ final class SettingsService
             $range = match ($k) {
                 'attachments_max_mb' => [10, 100000],
                 'ocr_timeout_s'      => [5, 300],
+                'inbox_timeout_s'    => [30, 300],   // v3.7.0
                 'warmwasser_temp_c'  => [30, 90],
                 'co2_price_scenario_from' => [2021, 2100],
                 'activity_keep_months' => [0, 1200],   // v3.4.0 (F1024)
+                'inbox_cloud_timeout_s' => [10, 600],  // v3.7.0
                 default              => null,
             };
             $bad = ($range !== null && (!is_numeric($v) || (int)$v != $v || (int)$v < $range[0] || (int)$v > $range[1]))
                 || (in_array($k, ['ocr_endpoint', 'evcc_endpoint'], true) && !self::isHttpUrlOrEmpty($v))
-                || ($k === 'ocr_model' && (!is_string($v) || strlen($v) > 200));
+                || ($k === 'ocr_model' && (!is_string($v) || strlen($v) > 200))
+                // v3.7.0 — Modellname des lokalen Diensts wie beim Bildmodell (der Anbieter ist eine
+                // Auswahl, s. $allowed); Cloud-Modell wie „claude-opus-5-5“ oder „org/modell:tag“
+                || ($k === 'inbox_model' && (!is_string($v) || strlen($v) > 200))
+                || ($k === 'inbox_cloud_model' && (!is_string($v) || !preg_match('#^[A-Za-z0-9._:/@+-]{0,200}$#', trim($v))))
+                || ($k === 'inbox_cloud_endpoint' && !is_string($v));
+            // v3.7.0 — Cloud-Adresse: nur https:// und nie das Heimnetz (Gegenstück zu ocr_endpoint);
+            // die Namensauflösung prüft der Anschluss bei jedem Aufruf
+            if ($k === 'inbox_cloud_endpoint' && is_string($v) && trim($v) !== '') \Energietracker\Services\Inbox\CloudHttp::checkUrl($v);
+            if ($k === 'inbox_cloud_enabled') $v = (bool)$v;
             if ($bad) {
                 throw new \InvalidArgumentException(($this->translator())('errors.settings.valueInvalid', [
                     'key' => $k, 'value' => is_scalar($v) ? (string)$v : gettype($v),
@@ -518,7 +607,8 @@ final class SettingsService
                     throw new \InvalidArgumentException(($this->translator())('errors.settings.valueInvalid', ['key' => $k, 'value' => is_scalar($v) ? (string)$v : gettype($v)]));
                 } else $v = round((float)$v, 2);
             }
-            if ($k === 'ocr_endpoint' || $k === 'ocr_model' || $k === 'evcc_endpoint') $v = trim((string)$v);
+            if ($k === 'ocr_endpoint' || $k === 'ocr_model' || $k === 'evcc_endpoint' || $k === 'inbox_model'
+                || $k === 'inbox_cloud_endpoint' || $k === 'inbox_cloud_model') $v = trim((string)$v);
             // v3.4.0 (N1020) — Hostliste: kanonisch „a.example, *.b.example"
             if ($k === 'allowed_hosts') $v = self::normalizeHostList($v, $this->translator());
             if ($k === 'setup_pending') $v = (bool)$v;
@@ -532,8 +622,37 @@ final class SettingsService
             }
             $current[$k] = $v;
         }
+        $this->guardInboxProvider($current, $patch);
         $this->store->write('settings.json', $current);
         return $this->all();
+    }
+
+    /**
+     * v3.7.0 — eine Wahrheit, wer ausliest (`inbox_provider`): ein Cloud-Dienst
+     * nur, wenn ein Verwalter das Auslesen in der Cloud für genau ihn
+     * eingeschaltet hat (`inbox_cloud_enabled`, `inbox_cloud_provider`) und ein
+     * Schlüssel da ist. Wer ihn wählt, ohne dass das gilt, bekommt einen Fehler;
+     * schaltet jemand die Cloud aus oder wechselt den Dienst, liest wieder der
+     * lokale. Ein Bestand ohne Schlüssel (Sicherung von einem anderen Server)
+     * bleibt stehen — der Anschluss sendet dann nicht, der Posteingang sagt es.
+     *
+     * @param array<string,mixed> $next  Einstellungen nach dem Patch (vor dem Schreiben)
+     * @param array<string,mixed> $patch
+     */
+    private function guardInboxProvider(array &$next, array $patch): void
+    {
+        $reader = (string)($next['inbox_provider'] ?? self::DEFAULTS['inbox_provider']);
+        if ($reader === 'local') return;
+        $on = ($next['inbox_cloud_enabled'] ?? false) === true
+            && ($next['inbox_cloud_provider'] ?? self::DEFAULTS['inbox_cloud_provider']) === $reader;
+        $before = $this->store->read('settings.json', []);
+        $chosen = array_key_exists('inbox_provider', $patch) && $reader !== (string)(is_array($before) ? ($before['inbox_provider'] ?? 'local') : 'local');
+        if ($chosen && !($on && (new \Energietracker\Services\Inbox\CloudConfig($this, $this->store))->hasKey($reader))) {
+            throw new \InvalidArgumentException(($this->translator())('errors.inboxCloud.off', [
+                'name' => $reader === 'anthropic' ? \Energietracker\Services\Inbox\AnthropicProvider::LABEL : ($this->translator())('inboxCloud.provider.openai'),
+            ]));
+        }
+        if (!$on) $next['inbox_provider'] = 'local';
     }
 
     /**

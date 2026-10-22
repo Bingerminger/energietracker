@@ -53,16 +53,41 @@ final class OverlappingContractsTest extends ServiceTestCase
             'und zwar unabhängig von der Reihenfolge im Array');
     }
 
+    /**
+     * v3.7.0 (wirklichkeit-2, Schritt 3) — Vor dem kurzen Vertrag läuft nur der lange.
+     * Beginnt der kurze während der Laufzeit des langen, löst er ihn ab: Der lange
+     * endet am Vortag (ContractService::supersededOn), auch wenn der kurze ganz in
+     * ihm liegt. Nach dem Ende des kurzen läuft deshalb nicht wieder der lange,
+     * sondern der kurze verlängert sich (§ 309 Nr. 9 BGB, resolveForDate). Bis v3.6
+     * galt danach wieder der lange — bei echten Daten liefen so die Abschläge des
+     * alten Vertrags weiter.
+     */
     public function testOutsideTheOverlapTheRemainingContractStillApplies(): void
     {
         $cs = $this->pair();
 
-        // Vor dem kurzen Vertrag läuft nur der lange.
         self::assertSame('aeltererLangerVertrag',
             $this->contracts->findActiveForDate($cs, '2020-07-10')['id']);
-        // Nach seinem Ende ebenfalls.
-        self::assertSame('aeltererLangerVertrag',
-            $this->contracts->findActiveForDate($cs, '2023-06-01')['id']);
+        self::assertSame('2021-05-31', ContractService::supersededOn($cs[0], $cs));
+        self::assertNull($this->contracts->findActiveForDate($cs, '2023-06-01'), 'der lange ist abgelöst');
+        self::assertSame(['neuererKurzerVertrag', true], [
+            $this->contracts->resolveForDate($cs, '2023-06-01')['contract']['id'] ?? null,
+            $this->contracts->resolveForDate($cs, '2023-06-01')['assumed'] ?? null,
+        ], 'der kurze läuft weiter');
+    }
+
+    /** Andere Zähler oder Gruppen (Doppelbelieferung) lösen sich nicht ab. */
+    public function testContractsOfDifferentMetersDoNotSupersedeEachOther(): void
+    {
+        $cs = [
+            ['id' => 'a', 'meter_id' => 'm1', 'start' => '2024-01-01', 'end' => null],
+            ['id' => 'b', 'meter_id' => 'm2', 'start' => '2024-06-01', 'end' => null],
+            ['id' => 'g', 'meter_group_id' => 'grp', 'meter_id' => 'm1', 'start' => '2024-09-01', 'end' => null],
+            ['id' => 's', 'meter_id' => 'm1', 'start' => '2024-03-01', 'end' => null, 'is_shadow' => true],
+        ];
+        self::assertNull(ContractService::supersededOn($cs[0], $cs), 'Zähler m2, Gruppe und Schattenvertrag lösen nichts ab');
+        $cs[] = ['id' => 'c', 'meter_id' => 'm1', 'start' => '2025-01-01', 'end' => '2025-06-30'];
+        self::assertSame('2024-12-31', ContractService::supersededOn($cs[0], $cs), 'derselbe Zähler: abgelöst, auch durch einen kurzen Vertrag');
     }
 
     public function testWithoutOverlapNothingChanges(): void

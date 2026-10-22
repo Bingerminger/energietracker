@@ -26,6 +26,17 @@ unter [Grundlagen & Methodik](../verstehen/00-overview.md).
   GPS-Daten; mit einem eigenen Texterkennungsdienst im Heimnetz schlägt die App
   den Stand aus dem Foto vor
   ([Texterkennung im Heimnetz](../anleitungen/texterkennung.md)).
+- **Posteingang** (v3.7.0) für Versorgerpost: PDF ablegen, eine KI im eigenen
+  Heimnetz liest Rechnung, Vertragsbestätigung, Preisänderung oder Kündigung
+  aus, jede Angabe mit wörtlicher Belegstelle; der Server prüft sie und markiert,
+  was nicht belegt ist. Übernommen wird nach Abgleich mit dem Bestand, mit einem
+  Klick, das Dokument hängt danach als Beleg daran — siehe
+  [Posteingang](../anleitungen/posteingang.md). Zu jedem Brief sagt die App in
+  einem Satz, was er bedeutet und was zu tun ist (Mehrkosten im Jahr, Urteil der
+  Rechnungsprüfung, Abschlag gegen die Prognose, Termin bei der zuständigen
+  Person). Die Post kommt auch per Kurzbefehl vom iPhone, über einen überwachten
+  Ordner oder per E-Mail über Home Assistant; an jedem Vertrag und Zähler liegt
+  eine Akte mit allen Dokumenten.
 - **Plausibilitätsprüfung** vor dem Speichern: ein Mehrfaches des üblichen
   Tagesverbrauchs („Komma vergessen?“), ein kleinerer Stand ohne Zählertausch,
   ein Datum in der Zukunft, ein zweiter Stand am selben Tag. Ein Überlauf des
@@ -247,7 +258,7 @@ unter [Grundlagen & Methodik](../verstehen/00-overview.md).
 ## Bedienen
 
 - **Mac und iPhone**: Navigation in sieben Bereichen nach den Fragen der
-  Nutzer; am iPhone eine Tab-Leiste mit „＋ Erfassen“, Dialoge als Blatt,
+  Nutzer, seit v3.7.0 dazu der Posteingang; am iPhone eine Tab-Leiste mit „＋ Erfassen“, Dialoge als Blatt,
   44-px-Tippziele, Kontraste nach WCAG AA, installierbar als App — siehe
   [Auf dem Handy nutzen](handy.md).
 - **Hilfe in der App**: erste Schritte mit Häkchen aus den Daten, ein Glossar
@@ -267,8 +278,10 @@ unter [Grundlagen & Methodik](../verstehen/00-overview.md).
 - **Nutzungsstufen** (v3.2.0): Einsteiger, Erfahren oder Experte — die Stufe
   bestimmt, was die Oberfläche zeigt, gerechnet wird in jeder alles. Für
   Einsteiger eine Übersicht mit drei Antworten; Vorschläge zum Hochstufen,
-  wenn die Daten mehr hergeben — siehe
-  [Einrichten und Nutzungsstufen](einrichtung.md#3-nutzungsstufen).
+  wenn der Haushalt mehr braucht (seit v3.7.0 etwa mit PV oder Wallbox, je
+  Anlass höchstens einmal) — siehe
+  [Einrichten und Nutzungsstufen](einrichtung.md#3-nutzungsstufen) und, jede
+  Funktion einzeln, [Was kann ich auf welcher Stufe?](../referenz/stufen.md).
 - **Einrichtungsassistent** (v3.2.0) beim ersten Start: drei Fragen, danach
   passende Verbrauchsarten und Stufe; jederzeit erneut aus den Einstellungen.
 - **Beispieldaten** zum Ausprobieren, ohne die eigenen zu verlieren (vorher

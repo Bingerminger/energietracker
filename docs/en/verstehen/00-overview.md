@@ -43,6 +43,41 @@ Future readings (`is_future`) are ignored. For delivery-based utilities (heating
 oil/pellets) the meter difference does not apply — there the consumption is
 energetically balanced (see [Heating oil](05-heizoel.md)).
 
+### Measured or interpolated *(since v3.7.0)*
+
+When two readings are far apart, a monthly value is not a measurement but the
+even spread of a longer period: with readings at the end of September and the
+end of December, October, November and December share the same daily rate.
+Every month therefore carries a marker:
+
+```text
+measured          = reading interval ≤ 45 days
+measured_share    = share of the month's consumption from such intervals (0 … 1)
+interpolated      = measured_share < 0.5
+reading_gap_days  = longest interval the month draws from
+```
+
+What counts is the **length of the interval**, not whether there was a reading
+in the month: readings on 31 January and 1 March measure February well. An
+interval of up to 45 days reaches at most two half weeks beyond a full month;
+the spreading then shifts so little that it stays below the level at which the
+anomaly detection reports anything at all. An **estimated reading**
+(`is_estimated`) measures nothing: the interval runs from the real reading
+before it to the real one after it. For meters with periods, the period is the
+interval. Heating oil and pellets carry no marker (`null`); their months are
+modelled by degree days anyway.
+
+**Interpolated months do not count where the app learns from months** —
+anomalies (section 9), recommendations, the heating model and curve
+(section 5), the forecast's seasonal profile (section 6) and trends against the
+previous year. Their value says nothing about what was used in that very month;
+treated as a measurement, it produced convincing-looking warnings and a skewed
+heating model. **The monthly values themselves, costs, advance payments and the
+balance stay as they are** — the total between two readings is known and
+correct. Utility view, analysis and PV summary say when monthly values are
+interpolated, with the number of readings in the range; tables show “≈”, charts
+hatched bars.
+
 ---
 
 ## 2. Energy conversion
@@ -108,9 +143,17 @@ On the first fetch, the app additionally loads the daily means of the last
 **30 full calendar years** at the location and stores only the key figures
 derived from them (`data/climate_normal.json`): the mean heating degree days per
 calendar month, their spread across the years and the spread of the annual
-total — for heating limits from 10 to 22 °C in half-degree steps, because degree
+total — for heating limits from 6 to 22 °C in half-degree steps, because degree
 days cannot be derived from monthly means. The data is reloaded when the location
 moves by more than about 5 km or another year has been completed.
+
+**From 6 °C since v3.7.0** (up to v3.6 from 10 °C): with real data the heating
+model fit best far below 15 °C, and for lower heating limits the normal silently
+used 10 °C. A normal without the new grid points counts as outdated and is
+fetched again once at the next weather sync — one archive request, as the first
+time. Until then, and for a heating limit outside the grid, there is no normal
+for that limit: the app uses its own temperature history and says so
+(`climate_normal_grid`) instead of calculating with the nearest grid limit.
 
 What for: the forecast needs the degree days of a **normal** January even if your
 own history starts in May, and the adjustment compares with the long-term mean
@@ -155,6 +198,13 @@ R² = 1 - ( Σ (yi - ŷi)² ) / ( Σ (yi - ȳ)² )
 This is **goodness of fit**, not predictive quality: a model with more
 parameters always fits the same points at least as well.
 
+**Why a model does not hold (since v3.7.0):** `reason` says so —
+`too_few_points` (below the minimum points), `poor_fit` (the sigmoid with
+`R² < 0.5`) or `degenerate` (no variation in the values). Up to v3.6 every
+invalid fit was called "too few data points", even with 50 points. If the model
+chosen for the forecast does not hold, the forecast continues without a heating
+curve and says so (`regression_invalid`).
+
 **Which months are points** — since v2.8.0 one rule for analysis, adjustment and
 forecast (up to v2.7 each place chose slightly differently; the same meter showed
 R² 0.42 in the analysis and 0.56 in the forecast):
@@ -194,6 +244,16 @@ consumption — **summer included**, as it helps determine the base load. At lea
 spreads off (such as a summer with a broken boiler) once and refits. `a` and `c`
 are never negative.
 
+**Interpolated months are left out (since v3.7.0, section 1).** If fewer than 8
+measured months remain, the model works with the **reading intervals
+themselves**: the model is a sum over days and holds for a quarter as well as
+for a month. Every interval between two real readings is one point
+(consumption, degree days and days of the interval), weighted by `30.4 / days`
+— the spread grows with the length, so a quarter counts like three months.
+Again at least 8 points; otherwise there is no heating model, and the app says
+so instead of silently computing over interpolated months. The API names the
+basis (`heat_basis`: `months` or `intervals`).
+
 Heating oil and pellets get no heating model: their monthly values are
 **distributed by degree days** from the deliveries. A fit would merely reproduce
 the distribution.
@@ -219,6 +279,41 @@ random deviation by 2.7.
 This lets you separate a cold winter from real over-consumption: a January with
 `weather_delta_pct = +2 %` was normal, even if it consumed three times as much as
 October.
+
+**Why "adjusted" equals the raw value (since v3.7.0):** `heat_adjusted_basis`
+gives the reason — `summer` (at most `min_hdd_regression` degree days),
+`base_load` (consumption below the base load), `normal_is_actual` (no climate
+normal and only one year of own temperatures for this month: the "normal" is the
+month itself) — otherwise `model`. The last case is a candidate for "adjusted =
+raw in many measured months" with real data.
+
+### Heating limit suggestion *(since v3.7.0)*
+
+The heating limit (`hdd_base_temp`, default 15 °C) decides from which daily
+temperature degree days count. The analysis recalculates the measured months with
+every heating limit from 6 to 18 °C in half degrees and measures the spread like
+the quality gate (section 9). It suggests the limit with the smallest spread whose
+model also passes the base-load check — but only if it is **clearly** better:
+
+```text
+suggestion  ⇔  spread_new ≤ 2/3 × spread_today   (at least 33 % less)
+               and spread_today − spread_new ≥ 3 percentage points
+               and at least 12 measured, checked months
+```
+
+With two years of monthly values the robust spread varies by about a fifth of its
+value; a third less is clearly above that, and the percentage points prevent
+suggestions between two well-fitting models.
+
+The limit applies **per meter** (`hdd_base_temp` on the meter, 6 to 22 °C like
+the climate normal grid); the setting stays the default for all meters without
+their own — the best limit differs from house to house. Degree days, heating
+model, adjustment, balance estimate and forecast of this meter use it. It is never
+applied automatically: from the Experienced level with a button in the analysis,
+where it can also be undone; below that the sentence with the level note. With real
+data the optimum lay far below 15 °C; an invented household of the same shape (base
+load 6.5 kWh a day, heating only below 12 °C) shows a base load of 1.25 instead of
+6.5 kWh a day at 15 °C and suggests 12 °C (`RealDataFollowUpTest`).
 
 > **Replaced (deprecated since v2.8.0, still delivered):**
 > `weather_adjusted` scaled the **entire** consumption with the HDD ratio — hot
@@ -284,6 +379,14 @@ counts more strongly — but never more than 80 %. For **non**-HDD-relevant
 utilities (electricity, water) the regression is omitted: a pure seasonal
 forecast.
 
+**Since v3.7.0 only where the heating curve knows something:** if there is a
+measured seasonal value, the regression does not count in months with fewer
+degree days than its smallest point (summer; the curve is fitted over heating
+months only) and not if the heating model fails the quality gate (section 9) —
+then `seasonal_only` applies. With a convex heating curve the line lay at zero in
+summer; with weight 0.8 almost all the hot water was missing, about 23 % of the
+year with real data, also in the quantity for comparison portals.
+
 **If a calendar month is missing from your own history** (anyone who starts in
 May has no January yet), it comes from the model alone (`regression_only`),
 otherwise from the heating model (`heat_model`), otherwise from the daily mean of
@@ -291,6 +394,17 @@ all months (`filled`). Up to v2.7 it got 0 degree days and the seasonal value 0 
 January came out at less than a tenth of the correct value. `warnings` reports a
 short history (`history_short`) and a missing climate normal
 (`no_climate_normal`).
+
+**Interpolated months (since v3.7.0)** do not form the seasonal profile. If a
+calendar month was never measured and no model helps, the forecast uses the
+interpolated values for it (`seasonal_interpolated`) — for a garden meter that is
+not read in winter, that is better than the mean of the whole year. The warning
+`interpolated` names the number of interpolated months and of readings; the daily
+mean of all months (`filled`) holds for interpolated ones too. `history_short`
+counts only **measured** calendar months: someone who reads twice a year for two
+years has 24 monthly values but no measured month. The forecast workshop passes
+the warning `interpolated` on; “Same as last year” takes interpolated months of
+the previous year from the forecast, like missing ones.
 
 **Temperature offset** (what-if): a year that is δ warmer has exactly the heating
 degree days of the heating limit `T_base - δ`. With a climate normal or your own
@@ -315,6 +429,32 @@ cold winter affects all months at once, hence not the sum of the monthly spreads
 reference, the spread of the daily rate around the seasonal profile.
 `z = confidence_band_sigma`, default **1.28 ≈ 80 %** of years (up to v2.7 the
 setting had no effect).
+
+**Since v3.7.0 only with a passed quality gate.** If the heating model fits
+poorly (section 9), there is no band (`annual.low/high = null`,
+`annual.withheld = "poor_fit"`) and the warning `poor_fit`: with real data the
+80 % band hit in none of five look-backs, because the model itself was off. The
+forecast workshop then shows neither band nor heating share and a range instead of
+the advance payment — insulation and room temperature act on a heating share the
+model does not know.
+
+**Too little measured (since v3.7.0).** If the heating model only rests on the
+reading intervals, or the quality gate cannot check it (fewer than 5 measured
+months), there is no band either (`annual.withheld = "few_measured"`, warning
+`few_measured`); balance and workshop give a range (section 10).
+
+**Without a weather reference** (electricity, water) `σ_residual` is the pooled
+spread of the daily rate per calendar month across the years, with Σ(n − 1)
+degrees of freedom. Below 3 degrees of freedom there is no band
+(`annual.withheld = "few_years"`): with one value per calendar month every
+deviation is zero — up to v3.6 the band thus had zero width for water and ±1 to 2 %
+for electricity with two years. Per month at least the calendar month's own spread
+and 10 % of its value apply, the same floor as in anomaly detection (section 9).
+The seasonal profile without a weather reference takes the **median** from three
+values per calendar month: a holiday month at half its value then does not shift
+the forecast; with two values the band of that month carries the disagreement of
+the years. For heating utilities it stays the mean — there the value of a calendar
+month is mostly the weather of its winter.
 
 ### Costs
 
@@ -487,8 +627,47 @@ anomaly ⇔ |z| ≥ anomaly_threshold      (default 2.0)
 The floor prevents a mere +5 % from being reported as "6σ" when the data is very
 even: at 2σ, only what goes beyond about 20 % of a typical month is reported. Not
 checked are months with fewer than `min_days_period` days, months with a meter
-swap and months before the baseline date; with fewer than 5 usable months, nothing is
-checked at all.
+swap, months before the baseline date and, since v3.7.0, **interpolated months**
+(section 1) — their value is the daily rate of a longer reading interval, a
+"deviation" from it would be an artefact of the spreading; with fewer than 5
+usable months, nothing is checked at all.
+
+**Quality gate (since v3.7.0).** The linear heating model fits a curved heating
+curve poorly; the detection then mostly measures the model's own error, and an
+empty table would not mean "all is well". The app therefore checks two things,
+both over measured months only:
+
+```text
+ratio            = σ_robust / average measured month   (mean of the checked months)
+base load        = expectation / consumption of measured summer months
+                   (HDD ≤ min_hdd_regression, at least 2 months)
+model_quality    = poor if ratio > 15 % or base load outside 0.5 … 1.5
+detect_floor     = anomaly_threshold × max(σ_robust, 10 % of the typical month)
+```
+
+With `poor`, the anomaly table says so, names the limit `detect_floor` below
+which it detects nothing, for the base load also model and measurement per day,
+and points to the heating limit (Settings › Utilities & billing › Physical
+constants, from the Experienced level). A well-fitting model detects at 2σ from
+20 % of a typical month; above 15 % only from 30 %, one and a half times as
+late. 15 % is also the bound ASHRAE Guideline 14 names for calibrated models on
+monthly data. The spread is measured against the **mean** of the measured
+months, not against the detection's typical month: its median of the
+expectations drops the summers of a model with base load 0, and the model would
+look about a quarter better than it is. A convex heating curve pushes the base
+load `c` almost to zero; the second check catches that even when the spread
+stays just below 15 %. Summer consumption varies by 10 to 20 % in everyday
+life, well inside the band. The model itself stays unchanged in v3.7.0.
+
+What follows from `poor`: the forecast uses the measured months and shows no band
+(section 6), the balance gives a range instead of an advance suggestion
+(section 10), the forecast workshop shows neither band nor heating share, and the
+analysis — if it finds a clearly better one — suggests another heating limit
+(section 5). Since v3.7.0 **R1** also reports nothing, and the annual report makes
+no weather-adjusted comparison (no adjusted tile, no “colder or more consumed?”,
+“–” instead of the adjusted values in the appendix); a note stands in their place.
+If the anomaly table still has rows, the sentence above it says that they may just
+as well show the model's error — up to v3.6 it spoke of an empty table even then.
 
 The recommendations build on this: **R1** (over-consumption for the given
 weather) measures gas and district heating against the heating model with the
@@ -497,6 +676,12 @@ the "high" anomalies of the utilities without a weather reference — PV exclude
 since a high-yield month is no warning sign. **R2** (trend) compares the
 weather-adjusted values (`heat_adjusted`) of the last twelve months with the same
 calendar months of the previous year as soon as at least nine such pairs exist.
+R1 and R3 (summer consumption of the heating) leave interpolated months out; R2
+does not — twelve months together are not changed by the spreading, and the
+adjustment is additive per month. **Since v3.7.0, R1, R3 and R4 only report
+months of the last 24 months**; the anomaly table of the analysis still shows
+all of them. An outlier from three years ago is no longer something to act on,
+and “Hide for 30 days” should not bring it back every month.
 
 Anomalies are hints, not judgements — a move, a new heat pump or a faulty meter
 produce them alike.
@@ -531,6 +716,34 @@ the daily rate of the same calendar month. If the most recent measured months (u
 to six full ones from the last twelve) lie clearly above or below the model — a
 new heating system without a baseline date, changed behaviour — the estimate follows
 this level (`projection_factor`, limited to 0.5 to 1.5).
+Since v3.7.0 only **measured** months count for this (section 1), and the daily
+rate of a calendar month comes from measured months as long as there are any;
+only otherwise from interpolated ones. The heating model is the same as in
+section 5, so with few readings also the one over the reading intervals.
+
+**Two factors (since v3.7.0).** The factor only acts on the part it comes from:
+months whose expectation is less than 30 % heating calibrate the base load
+(`projection_factor_base`), the others the heating share
+(`projection_factor_heat`) — each with at least two months, otherwise 1, each
+limited to 0.5 to 1.5:
+
+```text
+factor_base    = Σ consumption ÷ Σ expectation            (months with hardly any heating)
+factor_heating = (Σ consumption − factor_base × Σ c × days) ÷ Σ a × HDD   (heating months)
+day            = a × HDD × factor_heating + c × factor_base
+```
+
+With real data, the single factor up to v3.6 came from summer and shoulder months
+and scaled the whole winter estimate along with them. `projection_factor` is now the
+effective factor (estimate ÷ estimate without calibration). **If the heating model
+fails the quality gate, it stays one factor for the whole:** the split assumes a
+model that separates base load and heating correctly — with real data the model's
+base load was about a tenth of the measured summer, the base-load factor stuck at
+1.5 and the heating share from shoulder months pushed the winter down. The estimate
+is uncertain anyway then (`poor_fit`); a clamped partial factor counts as
+`factor_clamped` (`factor_part`: `base`, `heat` or `both`). Without a heating model
+it stays one factor; the daily rate of a calendar month there is the median from
+three values (as in the forecast, section 6).
 
 **Advance suggestion:** if the expected balance deviates noticeably, the card
 suggests an advance that evens it out by the end of the contract:
@@ -542,6 +755,66 @@ suggestion = max(0, rounded( current advance + expected balance / remaining mont
 The breakdown on the card (`energy_cost_to_date`, `base_to_date`,
 `bonus_to_date`) adds up to the total; the estimated part is shown below it with
 the date of the last reading.
+
+**Uncertain instead of falsely certain (since v3.7.0).** If a factor sticks at
+a limit (`factor_clamped`: the recent level lies below 0.5 or above 1.5 of the
+model), too little is measured to check the heating model (`few_measured`: it only
+rests on the reading intervals, or the quality gate cannot check it), or the
+heating model fails the quality gate (`poor_fit`), the app does not know whether
+its estimate holds. There is then no single suggestion (`suggested_advance = null`)
+but `projection_uncertain` with reason and range. The same estimated energy is
+calculated with other assumptions:
+
+```text
+factor clamped:     with the unclamped factors and with 1 (the recent level fully or not at all)
+too little measured: × 0.5 and × 1.5 (the whole calibration range)
+poor model:         every assumption additionally × (1 ± ratio of the quality gate);
+                    if the base-load check fails, also with the measured summer base load
+                    (`base_load_per_day`), since otherwise the model puts summer days near zero
+range               = expected balance + (energy_assumption − estimated energy), smallest to largest
+advance             = current advance + range / remaining months
+```
+
+Without a heating model (electricity, water) there is neither a quality gate nor a
+heating share carried forward over the year; a calendar month never measured takes
+the daily rate of its reading interval. If nothing is left to estimate (billed,
+ended: no estimated quantity), the estimate counts as certain — decided by quantity,
+not by euros, so that a contract without a unit price does not silently count as
+certain; an advance range with equal ends (“between 0 € and 0 €”) is dropped.
+Contract status, summary (also for Home Assistant), balance card, annual report and
+workshop show the same flag; where it is set, only the range appears instead of an
+amount (balance card, “Expected on …” under costs & contracts, contracts table).
+
+With real data the suggestion with a clamped factor was about a third too low;
+following it would have meant paying about a quarter of the annual costs on top,
+and the annual report made it task no. 1. Card, annual report (a note instead of
+a task; the status light takes the unfavourable end of the range and, while an
+estimate is uncertain, shows no “Advance payments fit”) and forecast workshop now
+show the range with the reason; the explainer “Where does my money go?” gives cost
+and result as a range.
+
+*Finding for later:* workshop and card calculate the balance differently — the
+card from the contract start or the last captured bill up to the contract end or
+cut-off date, the workshop the running billing period. Without a captured bill
+the card thus counts several years, the workshop one; with a maintained contract
+end the card names that as the billing date.
+
+**Superseded (since v3.7.0).** If a follow-up contract begins while a contract
+is still running (open or with an end after that), the follow-up contract
+applies from its start (latest start wins). Advance payments, standing charge and
+balance of the old contract end the day before (`superseded_on`); its stored end
+stays as it is. Up to v3.6 its advance payments kept counting in the balance up to
+today — the balance was about one annual amount too favourable. This also holds
+for a follow-up contract lying **entirely inside the old one**: the old one does not
+resume afterwards; after the end of the follow-up contract, that one continues as an
+assumption (§ 309 No. 9 BGB). Only a contract of the same meter or group can
+supersede — two meters with their own contracts (dual supply) and shadow contracts
+supersede nothing. Contracts without a successor and gapless chains stay unchanged.
+
+**Price missing (since v3.7.0).** If a contract has no unit price, costs and
+balance contain only standing charge and advance payments. Contract status and
+billing year both say so (`price_missing`) instead of showing two different,
+equally wrong balances.
 
 ### Day-exact like the bill (since v2.9.0)
 

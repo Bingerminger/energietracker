@@ -197,6 +197,8 @@ $ingressMeta = $ingress && \Energietracker\Services\AuthService::fromTrustedProx
 <link rel="stylesheet" href="public/css/app.css?v=<?= $cb ?>">
 <link rel="stylesheet" href="public/css/components.css?v=<?= $cb ?>">
 <link rel="stylesheet" href="public/css/readings-entry.css?v=<?= $cb ?>">
+<link rel="stylesheet" href="public/css/inbox.css?v=<?= $cb ?>">
+<link rel="stylesheet" href="public/css/inbox-draft.css?v=<?= $cb ?>">
 <link rel="stylesheet" href="public/css/print.css?v=<?= $cb ?>">
 </head>
 <body data-app-version="<?= $h($version) ?>">

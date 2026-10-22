@@ -1108,7 +1108,12 @@ README, Release-Notes-Aufmacher. Größe: XL.
 
 ---
 
-## v3.7.0 — Konzept „Posteingang für Versorgerpost“ (Planung 2026-10-16)
+## v3.7.0 — Konzept „Posteingang für Versorgerpost“ (Planung 2026-10-16, Schnitt 2026-10-20)
+
+**Release-Tag: Do 22.10.2026** (vorgezogen vom 03.11.; Umfang am 2026-10-22 eingefroren,
+weitere Befunde gehen in 3.7.x bzw. 3.8.0). Umfang (Release-Schnitt 2026-10-20): Posteingang
+komplett (Schritte 0–3), dazu die Nachzüge aus v3.6.0, die Zuständigkeit an
+Zählern und Verträgen und ein Qualitätspaket (siehe „Im selben Release“).
 
 **Ziel:** Post vom Versorger (immer PDF) landet in einem Posteingang; eine
 **lokale KI** liest sie aus, der Nutzer prüft den Vorschlag in einer Vorschau
@@ -1125,6 +1130,35 @@ Anbieter ist über eine Einstellung frei wählbar. Seine Adresse steht in der
 Liste ausgehender Verbindungen (README, `OutboundHostsTest`). Ohne Opt-in
 verlässt kein Dokument das Heimnetz.
 
+**Anschlüsse (Review 2026-10-20):**
+- **Lokal:** die vorhandene Einstellung der Texterkennung (Ollama oder
+  OpenAI-kompatibel, nur Heimnetz, Schutz gegen DNS-Rebinding). Der Browser
+  liefert die Textebene.
+- **Cloud, OpenAI-kompatibel:** eigene Adresse, nur HTTPS, nie eine Adresse im
+  Heimnetz. Eigener Dienst, nicht `OcrService`, dessen Heimnetz-Regel bleibt.
+- **Cloud, Claude (Anthropic):** eigener Anschluss an die Messages-Schnittstelle.
+  Das PDF geht direkt mit, und der Anbieter liefert die Belegstelle als
+  wörtliches Zitat mit Seite. Belegstellen und ein fest vorgegebenes
+  Antwortformat schließen sich in einer Anfrage aus, das löst die Umsetzung.
+  Modell wählbar. Ob dieser Anschluss ins Release geht, entscheidet der
+  Maintainer vor dem Release anhand der Probe.
+- **Voreinstellungen für den OpenAI-kompatiblen Weg** (Entscheidung 2026-10-21):
+  OpenAI, Mistral, OpenRouter, Google Gemini, dazu „eigene Adresse“. Das Modell
+  wählt man aus der Liste des Dienstes (`/v1/models`), keine fest eingebauten
+  Modellnamen. Alle Cloud-Dienste einschließlich Claude sind als
+  „experimentell“ gekennzeichnet, bis Rückmeldungen aus echtem Betrieb vorliegen.
+- **Eine Karte „Auslesen“** in den Einstellungen (Entscheidung 2026-10-21):
+  Umschalter Lokal | Cloud. Lokal zeigt Adresse und Modell des eigenen Dienstes,
+  Cloud zeigt Anbieter, Schlüssel und Modell. Die Wahl ist zugleich die
+  Einstellung des Posteingangs, keine zweite Stelle.
+- **Für alle Cloud-Wege gilt:**
+  - Der Schlüssel liegt nur auf dem Server, nie im Browser und nie im Backup
+    im Klartext.
+  - Einschalten darf nur ein Verwalter.
+  - Vor jedem Auslesen nennt die App den Dienst.
+- **Ohne neue Pakete:** schlanke HTTP-Aufrufe nach der dokumentierten
+  Schnittstelle.
+
 **Massenverarbeitung** (Erstbefüllung über viele Jahre) erst nach belegter
 Trefferquote. Ein Probelauf mit den Beispielen entscheidet, ob sie schon in
 v3.7.0 möglich ist oder ein eigenes Release bekommt.
@@ -1137,9 +1171,11 @@ und nur abgelegt. Alle Beispiele haben eine Textebene; Fotos und Scans gehen
 über die vorhandene Texterkennung (Bildmodell).
 
 **Ablauf für den Nutzer:**
-1. **Ablegen:** PDF in den Posteingang ziehen, am iPad über „Teilen“ —
-   gespeichert wie ein Beleg (vorhandener Belegspeicher), Prüfsumme gegen
-   Doppelte („liegt schon seit … im Posteingang“).
+1. **Ablegen:** PDF per Dateiauswahl (am iPad aus der Dateien-App) oder per
+   Drag & Drop in den Posteingang. Ein „Teilen“-Ziel bietet iPadOS für
+   Web-Apps bisher nicht. Gespeichert wird wie ein Beleg (vorhandener
+   Belegspeicher), mit Prüfsumme gegen Doppelte („liegt schon seit … im
+   Posteingang“).
 2. **Auslesen** (Knopf je Dokument, Fortschritt, Abbrechen): Der Browser
    liest die Textebene (pdf.js, mitgeliefert wie Chart.js, keine
    Server-Abhängigkeit — läuft auf NAS, Docker und Home Assistant gleich);
@@ -1152,7 +1188,9 @@ und nur abgelegt. Alle Beispiele haben eine Textebene; Fotos und Scans gehen
    Verbrauchsart, Zähler und Vertrag ist vorbelegt (Zählernummer,
    Marktlokation, Anbieter, Zeitraum), änderbar. Jedes Feld zeigt seine
    **Belegstelle** — der zitierte Text muss im Dokument stehen, sonst gilt das
-   Feld als unsicher (Schutz gegen erfundene Werte). Abgleich mit dem
+   Feld als unsicher (Schutz gegen erfundene Werte). Wo der Anbieter
+   Belegstellen selbst liefert (Claude), gilt dessen Zitat samt Seite.
+   Abgleich mit dem
    Bestand: „schon vorhanden“, Überschneidungen, Widersprüche.
 4. **Übernehmen** nur, was angehakt ist — über dieselben Dienste und
    Prüfungen wie die Handeingabe; das Dokument hängt danach als Beleg am
@@ -1177,16 +1215,191 @@ Kennungen am Zähler (Marktlokation/Messlokation) und am Vertrag
 - (1) Posteingang ohne KI.
 - (2) Auslesen und Vorschau für Rechnung, Vertragsbestätigung, Preisänderung,
   lokal und Cloud-Opt-in.
-- (3) Lieferbeginn, Kündigung, Zählerwechsel, Abschlag.
+- (3) Lieferbeginn, Kündigung, Zählerwechsel, Abschlag, ebenfalls in v3.7.0.
+  Trägt die Trefferquote eine Art nicht, wird sie erkannt und abgelegt, aber
+  noch nicht ausgelesen (nach Rückfrage beim Maintainer).
 - (4) Massenverarbeitung, falls die Probe sie trägt.
 
-Größe: XL, eigenes Release (v3.7.0), nicht in v3.6.0.
+**Probe:** lokal mit den echten Beispielen gegen zwei bis drei Modelle des
+lokalen Ollama; Cloud-Qualität ebenfalls mit den echten Beispielen. Die
+Dokumente kommen nie ins Repo, in Tests oder in Commit-Texte, und sie werden
+nicht weitergegeben. Testdokumente fürs Repo werden erfunden.
+
+**Ergebnis der Probe (2026-10-20):** 61 Dokumente, zusammen 301 Seiten, aus
+einem Haushalt, Gas und Strom. Alle haben eine Textebene.
+
+| | qwen3.8 | gemma4:31b | qwen3.6:35b | Cloud (Claude) |
+|---|---|---|---|---|
+| Dokumentart erkannt | 100 % | 100 % | 98 % | 100 % |
+| Felder richtig | 98,6 % | 95,9 % | 91,9 % | 100 % |
+| Belegstelle gültig | 99,4 % | 94,4 % | 91,3 % | 100 % |
+| Sekunden je Dokument (Ø) | 78 | 162 | 17 | – |
+
+- Die Belegstelle taugt als Selbstprüfung. Ein Feld ist zu prüfen, wenn es leer
+  ist, kein gültiges Zitat hat oder der Wert nicht im eigenen Zitat steht. Damit
+  rutschte in der Probe kein falscher Kernwert durch.
+- Schwach sind Preise auf Rechnungen (netto/brutto, anteilige Beträge). Sie kommen
+  nur als Vorschlag mit Prüfung. Die Vertragsbestätigung liefert sie sauber.
+
+**Entscheidungen nach der Probe (2026-10-20):**
+- **Auslesen:** Rechnung, Vertragsbestätigung, Preisänderung, Kündigung,
+  Lieferbeginn.
+- **Auslesen als Vorschlag mit Pflichtprüfung** (jedes Feld markiert):
+  Zählerwechsel, Zählerstandsanforderung, Abschlagsänderung.
+- **Nur erkennen und ablegen:** Mahnung, Widerruf, Sonstiges.
+- **Massenverarbeitung schon in v3.7.0:** als fortsetzbare Hintergrund-
+  Warteschlange über dieselbe Pipeline, danach eine Prüfliste nur mit den
+  markierten Feldern.
+- **Lokales Standardmodell:** `qwen3.8` (braucht rund 18 GB Arbeitsspeicher),
+  frei wählbar.
+- **Claude-Anschluss:** als Opt-in in v3.7.0.
+
+**Titel (entschieden 2026-10-21):** „Post vom Versorger. Automatisches Einlesen
+und Verwalten von Dokumenten“.
+
+**Nutzen statt nur Technik (Prüfung 2026-10-21).** Zwei Szenarien sollen in
+v3.7.0 tragen:
+1. **Erstbefüllung ohne Tippen.**
+   - Der Einrichtungsassistent fragt vorab: Haushalt von Hand anlegen oder aus
+     Dokumenten.
+   - **„Haushalt aus Dokumenten“:** Zähler werden aus Zählernummer und
+     Marktlokation angelegt, die Dokumente in zeitlicher Reihenfolge
+     verarbeitet. Statt einer Liste je Dokument gibt es einen Entwurf über alle
+     Dokumente; geprüft werden nur die markierten Felder.
+   - Abgleich über Dokumente hinweg: Endstand gleich Anfangsstand, Verträge
+     lückenlos, Versorger in unterschiedlicher Schreibweise.
+   - Ein Mieter nur mit Strom ist einfacher als ein Eigenheim mit PV, Wallbox
+     und Gas. Die Stufen (Einsteiger, Erfahren, Experte) werden dafür
+     überdacht, die Doku bekommt eine Funktionstabelle nach Reifegrad.
+2. **Laufender Betrieb, die Post des Versorgers zentral.**
+   - **Kernaussage und nächster Schritt je Dokument:**
+     - Preisänderung: Mehrkosten im Jahr, Frist, Wechsel laut Tarifvergleich.
+     - Rechnung: „Rechnung prüfen“ läuft automatisch.
+     - Abschlagsänderung: Abschlag gegen die Prognose.
+     - Kündigung: Anschlussvertrag fehlt.
+     - Zählerstandsanforderung: Termin bei der zuständigen Person.
+     - Zählerwechsel: Zählertausch vorbelegt.
+   - **Eingangskanäle:** Kurzbefehl „Teilen → Energietracker“ per Schlüssel,
+     überwachter Ordner; E-Mail vorerst über Home Assistant.
+   - **Akte je Vertrag und Zähler:** alle Dokumente chronologisch an einer
+     Stelle.
+
+**Nutzentest Szenario 1 (2026-10-21, echter Stapel Versorgerpost, lokal).**
+- **Auslesen trägt:**
+  - Art fast immer richtig.
+  - Unmarkiert falsch nur gut 1 % der Felder.
+  - Knapp 80 s je Dokument.
+- **Die Erstbefüllung scheitert noch an fünf Stellen:**
+  1. Es entstehen kaum Verträge: Bestätigung ohne Lieferbeginn, Lieferbeginn-Brief
+     legt keinen an, fehlender Abschlag sperrt. Alles Vertragsbezogene bleibt dann
+     liegen.
+  2. Neun von zehn markierten Kernfeldern sind Fehlalarm: richtig gelesen oder im
+     Dokument wirklich nicht vorhanden.
+  3. Die Vorbelegung „Vertrag nach Datum“ trifft den Vertrag eines anderen
+     Lieferanten. Dazu bucht „Rechnung prüfen“ ohne passenden Vertrag auf den
+     jüngsten (Fehler seit v3.1.0).
+  4. Der Standardzähler sammelt mehrere Zählernummern, und ein Zählertausch bleibt
+     unerkannt.
+  5. „Rechnung prüfen“ urteilt danach fast immer „prüfen“: Preise fehlen, und der
+     Stand am letzten Tag gilt als geschätzt.
+- **Die zeitliche Reihenfolge allein ändert nichts.** Daraus drei Pakete:
+  - **Haushalt aus Dokumenten:**
+    - ein Entwurf über alle Dokumente je Lieferverhältnis
+    - Zähler mit Gerätewechsel
+    - Vertrag aus allen Briefen
+    - Preiskette
+    - Abgleich Endstand gleich Anfangsstand
+    - Assistent mit „von Hand oder aus Dokumenten“ und der Frage, welche Dokumente
+      helfen
+  - **Treffsicher:**
+    - Marken nur bei echtem Zweifel, Kernfelder je Vorschlag
+    - Vorbelegung nur bei passendem Lieferanten oder passender Nummer
+    - Buchung ohne Ausweichen
+    - „keine Preise“ und Grenzstand in „Rechnung prüfen“
+    - Dubletten nach Inhalt
+  - **Reifegrad:**
+    - Stufen neu zugeordnet, Vorschlag aus dem Haushalt
+    - Funktionstabelle nach Stufe in der Doku, per Test an den Code gebunden
+- Nach dem Zusammenführen wird der Test mit denselben gespeicherten Auslesungen
+  wiederholt.
+
+**Im selben Release:**
+- **Nachzüge v3.6.0:** Flex-Beispielwerte einstellbar, § 14a Modul 3 mit
+  Schalter „mit/ohne USt“, Wasser im Jahresbericht mit Saldo und
+  Abschlags-Rat (#34).
+- **GitHub #33, Nachbesserung zu F1030** (Rückmeldung nach v3.6.0):
+  - **Stichtag eindeutig:** Gemeint ist der erste Tag der Abrechnungsperiode.
+    Der Hinweis sprach bisher von „bis wann“ projiziert, das liest sich als
+    Endtag; ein Stichtag 31-08 bei Verträgen ab 01.09. ergab dann jedes Jahr eine
+    Eintages-Periode.
+  - **Vorschlag aus Vertragsbeginnen:** Die App schlägt den Stichtag auch aus den
+    Vertragsbeginnen vor, nicht nur aus Rechnungen.
+  - **Keine Kurzreste:** Perioden von wenigen Tagen, die ein Wechsel am Stichtag
+    abschneidet, gehen in die Nachbarperiode auf.
+  - **Kosten-Kachel ohne Bonus:** Die Kachel zeigt die Kosten ohne Bonus, der
+    Bonus steht als eigene Zeile darunter, nur der Saldo rechnet ihn ein.
+- **GitHub #35:** Das Vertragsformular zeigt bei Gas die gerade geltende
+  Umrechnung (Zustandszahl × Brennwert) mit Link zur Einstellung, dazu ⓘ und ein
+  Satz in der Doku, warum sie am Netz und nicht am Vertrag hängt. Neuer Bonustyp
+  „Sonstige Gutschrift“ mit Notizfeld (`label` gibt es am Server schon). Der
+  Posteingang schlägt Brennwert und Zustandszahl aus der Rechnung für die
+  Stichtag-Liste vor.
+- **Zuständigkeit an Zählern und Verträgen:** Fristen landen bei einer Person
+  aus dem Personenverzeichnis.
+- **Qualität:** Barrierefreiheit der Dialoge mit automatischer Prüfung,
+  Messung mit großen Datenmengen (10 Jahre Tageswerte und Viertelstunden),
+  englische Screenshots mit englischem Datum.
+- **GitHub #37, #39 und Gütesperre aus #38** (Schnitt 2026-10-22, Antworten gepostet):
+  - Jeder Monat bekommt die Kennung „gemessen“ oder „verteilt“. Regel ist die Länge
+    des Ablesungsabstands, nicht „keine Ablesung im Monat“.
+  - Verteilte Monate fallen aus der Abweichungstabelle, der Empfehlung r1 und dem Fit
+    des Heizmodells.
+  - Hinweis an Verbrauchsart, Analyse und PV-Übersicht.
+  - Passt das Heizmodell schlecht, sagt die Abweichungstabelle das, statt leer zu
+    bleiben.
+- **Prüfen gegen die Wirklichkeit** (Entscheidung 2026-10-22). Die drei Issues fand ein
+  Nutzer mit echten Daten. Die Beispielhaushalte entstehen aus dem Modell der App und
+  können die Auswertungen deshalb nicht prüfen. Neu:
+  - ein unordentlicher Testhaushalt, nicht aus dem App-Modell erzeugt
+  - ein Abgleich der Auswertungen mit echten Haushaltsdaten (nur lokal)
+  - ein Skeptiker-Lauf vor jeder Freigabe, der jede angezeigte Zahl auf Herkunft und
+    Plausibilität prüft
+- **Folgen des ersten Abgleichs** (2026-10-22):
+  - **Die Kennung „verteilt“ gilt in jedem Verbraucher:** auch in Empfehlung r3,
+    Saisonprofil der Prognose, Saldo-Schätzer, Jahresvergleichen im Jahresbericht und
+    Prognose-Werkstatt. Empfehlungen nur aus den letzten 12 bis 24 Monaten.
+  - **Die Gütesperre misst gegen den mittleren gemessenen Monat und gegen die gemessene
+    Sommer-Grundlast.**
+  - **Ein Vorschlag für eine besser passende Heizgrenze** aus gemessenen Monaten, nur
+    auf Klick übernommen. Das Klimanormal deckt Heizgrenzen unter 10 °C ab oder meldet
+    sie.
+  - **Der Abschlagsvorschlag** ist unterdrückt oder als unsicher gekennzeichnet, solange
+    das Modell schlecht passt oder seine Kalibrierung an einer Grenze klemmt.
+  - **Eine Rück- oder Nachzahlung im Zeitraum** zählt als eingegangene Rechnung.
+  - **Abgelöste Verträge:** Der Abschlagsplan endet mit Beginn des Nachfolgers.
+  - **Jahresband und Heizanteil** erscheinen nur, wenn das Modell gut passt.
+
+Größe: XL, Release v3.7.0 am Do 22.10.2026 (vorgezogen vom 03.11.2026).
 
 ---
 
 Hintergrund Lizenz: AGPL-3.0 bleibt (Downloads je Tag seit v3.0.0 höher als
 zuvor; kein Hinweis auf Abspaltungen). Ein In-App-Hinweis erreicht nur
 Installationen, die ihn schon haben — deshalb möglichst früh.
+
+---
+
+## Ausblick v3.8.0–v3.11.0 (Reihenfolge entschieden 2026-10-21)
+
+Die Release-Tage werden jeweils beim Release-Schnitt festgelegt. Im Issue #36 ist
+die Reihenfolge mit dem Vorbehalt „kann sich noch ändern“ genannt.
+
+| Release | Thema | Inhalt |
+|---|---|---|
+| **v3.8.0** | Energietracker in Home Assistant | GitHub #36: Benachrichtigungen über neue Termine, Fristen, Warnungen und Posteingang-Dokumente an Home Assistant (in der HA-App direkt über den Supervisor, sonst Webhook); Sensor „Zu tun“ mit Anzahl und nächstem Punkt; HACS-Integration mit eigenen Sensoren; überwachter Posteingang-Ordner in der HA-App über `/share` (seit v3.7.0 nur im Docker-Image erreichbar), E-Mail-Weg in einem laufenden Home Assistant geprüft. Heute schon möglich: ICS-Kalender über „Remote Calendar“, Sensoren über `/api/summary` |
+| **v3.9.0** | Die KI bedient Energietracker | MCP-Server (zuerst lesend, dann schreibend mit Bestätigung), maschinenlesbare Beschreibung der Schnittstelle (siehe Eingang „Fernsteuerung durch eine KI“) |
+| **v3.10.0** | Für alle verständlich | übersetzter Doku-Kern (fr/it/es/pt/nl), Zuständigkeit am Mietverhältnis, Erkenntnisse aus dem Posteingang im Betrieb |
+| **v3.11.0** | Lange Verläufe | Speicher-Umbau N1006, Massen-Import weiter verbessert |
 
 ---
 
@@ -1200,15 +1413,28 @@ daraus ausgewählt.
 | Code (vorläufig) | Thema | Größe | Abhängigkeit | Auslöser |
 |---|---|---|---|---|
 | N10xx | Übersetzter Doku-Kern (Erste Schritte, Einrichtung, Anwendungsfälle) für fr/it/es/pt/nl, jede Übersetzung mit Quell-Hash, veraltet → Englisch | M–L | N1019 | Release-Schnitt 2026-10-12 („Kern später“; 2026-10-13 erneut zurückgestellt) |
-| F10xx | **Abrechnungsjahr statt Kalenderjahr** (GitHub #33): Umschalter in Verbrauchsart, Dashboard und Analyse; neuer Endpunkt rechnet beliebige Abrechnungsjahre tagesgenau (auch Stichtag mitten im Monat) samt Abschlägen und CO₂; Jahresbericht und CSV mit eigener Option; Benchmark bleibt Kalenderjahr. Zäsur und Wetterbereinigung je Periode | L | `billing_cycle_anchor_<art>`, F1029 | Entscheidung 2026-10-14: **v3.6.0** |
-| — | Wasser im Jahresbericht mit Saldo und Abschlags-Rat (`has_advance`), Kalender-Saldo (`suggested_advance`, `balance_path`) für Wasser | S–M | GitHub #34 | Nachzug aus v3.5.0 |
-| — | Flexibilität: Beispielwerte einstellbar (verschiebbarer Anteil der Wärmepumpe, Läufe von Wasch- und Spülmaschine je Woche); heute auf Seite und im Bericht als Beispielwert gekennzeichnet | S–M | v3.6.0 Flexibilität | Entscheidung 2026-10-19: nach Rückmeldungen |
-| — | § 14a Modul 3: Schalter „mit/ohne USt“ am Vertrag; heute gelten die Beträge, wie sie eingetragen sind (Doku empfiehlt brutto), während die Börsen-Hebel seit v3.6.0 brutto rechnen | S | v3.6.0 Flex plus | Entscheidung 2026-10-20 |
-| — | Englische Screenshots mit englischem Datumsformat (Browser-Region beim Aufnehmen) | S | — | v3.4.0, 2026-10-13 zurückgestellt |
-| F10xx | Zuständigkeit auch an Zählern und Verträgen (Fristen landen bei der Person) | S–M | F1028 | Release-Schnitt 2026-10-13 (nur Termine gewählt) |
+| — | Wasser im Jahresbericht mit Saldo und Abschlags-Rat (`has_advance`), Kalender-Saldo (`suggested_advance`, `balance_path`) für Wasser | S–M | GitHub #34 | Nachzug aus v3.5.0 → **v3.7.0** (Schnitt 2026-10-20) |
+| — | Flexibilität: Beispielwerte einstellbar (verschiebbarer Anteil der Wärmepumpe, Läufe von Wasch- und Spülmaschine je Woche); heute auf Seite und im Bericht als Beispielwert gekennzeichnet | S–M | v3.6.0 Flexibilität | Entscheidung 2026-10-19: nach Rückmeldungen → **v3.7.0** (Schnitt 2026-10-20) |
+| F10xx | **Fernsteuerung durch eine KI (MCP):** Energietracker als MCP-Server (`/mcp`, Schlüssel mit Rechten lesen/schreiben). Werkzeuge: Übersicht, Fristen, Verträge, Verbrauch, Prognose-Szenario, „Rechnung prüfen“, Ablesung eintragen, Dokument einreichen und übernehmen; schreibende Werkzeuge nur mit Bestätigung im KI-Client. Ziel: Energietracker als zentrale Akte und Energieverwaltung, bedient von einer KI („hier ist meine Gasrechnung, trag sie ein und sag mir, ob sie stimmt“). Vorbereitung: maschinenlesbare Beschreibung der Schnittstelle (OpenAPI) | L | v3.7.0 Posteingang | Entscheidung 2026-10-21: nur Konzept, eigenes Release |
+| N1006 | Speicher-Umbau (Cache über Anfragen hinweg, weniger Dateilesen): nach der Beschleunigung in v3.7.0 erst bei langen importierten Verläufen nötig; Schwelle in `entwicklung/messung-grosse-daten.md` | L | v3.7.0 Messung | Entscheidung 2026-10-21 |
+| — | Zuständigkeit am Mietverhältnis (Nebenkosten- und CO₂-Fristen der Mieter landen bei einer Person) | S | v3.7.0 Zuständigkeit | Entscheidung 2026-10-21 |
+| — | Heizmodell für gekrümmte Heizkurven (GitHub #38): Grundlast aus den Sommermonaten, Heizgrenze angepasst statt fest, ggf. quadratischer Term; vorher Vergleich über mehrere Haushalte, weil sich jede Erwartung ändert. #38 bleibt bis dahin offen | M–L | F1013 Heizmodell, v3.7.0 Gütesperre | GitHub #38, 2026-10-22 |
+| — | Zwischenablesung prüfen: jedes Ablesungsintervall gegen das Heizmodell; benachbarte Intervalle weit unter und weit über der Erwartung bei passender Summe → „Ablesung prüfen“ (sonst verschieben Jahresvergleiche still) | M | v3.7.0 Gütesperre, neues Heizmodell | Wirklichkeitsabgleich 2026-10-22 |
+| — | Auswertungen 3.7.1 (Skeptiker-Lauf 2026-10-22): PV-Energiefluss kappt die gemessene Einspeisung an der verteilten Erzeugung und markiert weder ≈ noch Teilzeitraum; PV-Block im Jahresbericht vergleicht Teiljahre und addiert Eigenverbrauch und Einspeisung über die Erzeugung hinaus; Abrechnungsdaten um einen Tag versetzt („31.12.“ gegen „01.01.“); Abschlagsvorschlag kurz vor der Abrechnung ohne Hinweis, dass er danach sinkt; „Kündigung eilt“ trotz eingetragenem Folgevertrag; weitere Texte laut privatem Bericht | M | v3.7.0 | Skeptiker-Lauf 2026-10-22 |
+| — | Posteingang 3.7.1: Zählertausch aus der Rechnung auch vorbelegen, wenn die Zählernummer nur in der Kopfzeile über den Ständen steht (heute nur angeboten); Ablesecodes in Codegruppen („10/12/26“) und in einer Spalte „Ableseart“ als geschätzt erkennen (heute nur Wort und Fußnote); Zwischenstände zusammengefasster Zeiträume im Entwurf übernehmen; Wiederholung bei abgeschnittener Antwort auch für den PDF-Cloud-Weg | S–M | v3.7.0 Schema 4 | Nutzentest 2026-10-22 |
+| — | Saldo-Karte und Prognose-Werkstatt aus einer Quelle: heute zählt die Karte ab Vertragsbeginn bzw. letzter Rechnung, die Werkstatt die laufende Abrechnungsperiode; ohne erfasste Rechnung zeigen beide verschiedene Salden und Abschläge | M | v3.7.0 Abschlag mit Spanne | Wirklichkeitsabgleich 2026-10-22 |
+| — | Heizgrenze je Zähler: Feld im Zählerformular, Raster des Vorschlags glätten (rauscht bei zwei Jahren Monatswerten), eigene Grenze auch für Heizöl, Pellets und Zählergruppen; Übergangsmonate, die jedes Jahr als „niedrig“ erscheinen, als Muster erkennen statt melden | S–M | v3.7.0 Heizgrenze-Vorschlag | Wirklichkeitsabgleich 2026-10-22 |
+| — | Beispielhaushalte nicht mehr aus dem Modell der App erzeugen (Heizkurve mit Heizgrenze unter 15 °C, Solargewinne, Speichermasse; einige Haushalte mit lückenhaften Ablesungen), damit Demo und Render-Tests auch Unsicherheit zeigen | M | v3.7.0 unordentlicher Testhaushalt | Entscheidung 2026-10-22 |
+| — | Verbrauch zwischen zwei Ablesungen nach Wetter verteilen statt gleichmäßig (Gas nach Heizgradtagen, PV nach Globalstrahlung aus Open-Meteo) | M | v3.7.0 Kennung gemessen/verteilt | Antwort auf #39, 2026-10-22 |
+| — | Posteingang: Preisbestandteile einer Rechnung als eigene Zeilen (Energiesteuer, CO₂-Preis neben dem Arbeitspreis) zu einem Arbeitspreis zusammenführen; Rechnungskorrekturen erkennen, die eine frühere Rechnung verrechnen (Erstfassung und Korrektur für denselben Zeitraum) | M | v3.7.0 Posteingang | Nutzentest 2026-10-21 (selten, aber ohne Feld in der Auslesung) |
+| — | Personen im Haushalt ohne Anmeldung: eigene Karte unter Haushalt & Gebäude. Heute nur unter Zugriff und nur mit eingeschalteter Anmeldung, „Zuständig“ und die Zählerstand-Termine aus dem Posteingang nutzen aber alle Stufen | S–M | v3.6.0 Personen, v3.7.0 Zuständigkeit | Paket reifegrad 2026-10-21 |
+| — | Werbebilder (`docs/assets/promo/`) mit den neuen englischen Screenshots neu erzeugen | S | v3.7.0 Screenshots | Entscheidung 2026-10-21 |
+| — | § 14a Modul 3: Schalter „mit/ohne USt“ am Vertrag; heute gelten die Beträge, wie sie eingetragen sind (Doku empfiehlt brutto), während die Börsen-Hebel seit v3.6.0 brutto rechnen | S | v3.6.0 Flex plus | Entscheidung 2026-10-20 → **v3.7.0** (Schnitt 2026-10-20) |
+| — | Englische Screenshots mit englischem Datumsformat (Browser-Region beim Aufnehmen) | S | — | v3.4.0, 2026-10-13 zurückgestellt → **v3.7.0** (Schnitt 2026-10-20) |
+| F10xx | Zuständigkeit auch an Zählern und Verträgen (Fristen landen bei der Person) | S–M | F1028 | Release-Schnitt 2026-10-13 (nur Termine gewählt) → **v3.7.0** (Schnitt 2026-10-20) |
 | F10xx | HACS-Integration mit eigenen Sensoren | M–L | N1025 | Release-Schnitt 2026-10-13 (nicht gewählt) |
-| N10xx | Barrierefreiheit der neuen Dialoge (Tastatur, Fokus, Bildschirmleser) mit automatischer Prüfung | M | — | Ideen 2026-10-13 |
-| N10xx | Messung mit großen Datenmengen (10 Jahre Tageswerte + Viertelstunden) als Auslöser für N1006 | S | — | Ideen 2026-10-13 |
+| N10xx | Barrierefreiheit der neuen Dialoge (Tastatur, Fokus, Bildschirmleser) mit automatischer Prüfung | M | — | Ideen 2026-10-13 → **v3.7.0** (Schnitt 2026-10-20) |
+| N10xx | Messung mit großen Datenmengen (10 Jahre Tageswerte + Viertelstunden) als Auslöser für N1006 | S | — | Ideen 2026-10-13 → **v3.7.0** (Schnitt 2026-10-20) |
 | — | Sichtprüfung in Safari/WebKit; Chart.js-Version in der Release-Prüfliste | S | — | Ideen 2026-10-13 |
 
 ---
@@ -1241,8 +1467,7 @@ gebündelt oder vor dem nächsten MINOR mit hinein gezogen.
   BEHG-Entwurf (BT-Drs. 21/7869) nach der Lesung in der Doku nachziehen.
 - Strompreispauschale 2028 nach der Destatis-Veröffentlichung Ende September
   2027 eintragen — als jährlicher Punkt „Jahreswerte“ in der Release-Prüfliste.
-- Ollama live ausprobieren (Anleitung bisher nach Herstellerdoku und mit
-  nachgebautem Dienst geprüft).
+- ~~Ollama live ausprobieren~~ — in v3.5.1 mit glm-ocr live geprüft.
 - Home-Assistant-App: Rückmeldungen aus echten Installationen, danach
   `stage: experimental` entfernen; Anzeigename statt Benutzername
   (`X-Remote-User-Display-Name`).

@@ -46,6 +46,9 @@ use Energietracker\Services\SettingsService;
  *   DELETE /api/users/{id}           offene Termine gehen an die löschende Person,
  *                                    Erledigtes behält den Namen mit „(gelöscht)“;
  *                                    Antwort additiv: handed_over, handed_over_to, kept
+ * v3.7.0 — Zuständigkeit an Zählern und Verträgen geht beim Löschen mit über:
+ * Vorschau additiv `meters`, `contracts`; Antwort `records_handed_over`,
+ * `records_kept` (ResponsibilityService::personDeleted).
  * Personen ohne Zugang (Backup, Beispielhaushalt) stehen hinter den Zugängen in
  * `GET /api/users` (`has_account: false`, `source: "none"`); Vorschau und
  * Löschen gelten auch für sie, `PATCH /api/users/{id}` ändert Name und Rolle
@@ -112,6 +115,9 @@ final class SessionController
             'to'     => $this->recipient($id),
             'open'   => (int)$counts['open'],
             'done'   => (int)$counts['done'],
+            // v3.7.0 — Zähler und Verträge, für die die Person zuständig ist
+            'meters'    => (int)($counts['meters'] ?? 0),
+            'contracts' => (int)($counts['contracts'] ?? 0),
         ]);
     }
 
@@ -239,7 +245,8 @@ final class SessionController
     public function createKey(Request $req): never
     {
         $scope = (string)$req->input('scope', 'read');
-        if (!in_array($scope, ['read', 'admin', 'calendar'], true)) {   // v3.1.0 — calendar: Kalender-Abo
+        // v3.1.0 — calendar: Kalender-Abo; v3.7.0 (Paket betrieb) — inbox: nur PDFs ablegen
+        if (!in_array($scope, \Energietracker\Services\AuthService::API_KEY_SCOPES, true)) {
             Response::error($this->i18n->t('errors.auth.scopeInvalid'), 400);
         }
         $created = $this->auth->createApiKey((string)$req->input('name', ''), $scope);
@@ -365,7 +372,10 @@ final class SessionController
         // v3.5.0 (F1028) — Termine; v3.6.0: offene an die löschende Person
         $moved = $this->personDeleted !== null ? ($this->personDeleted)($id, $anon, $to, $name) : null;
         Response::json(['deleted' => true, 'activity_anonymized' => $anon,
-            'handed_over' => (int)($moved['handed_over'] ?? 0), 'handed_over_to' => $to, 'kept' => (int)($moved['kept'] ?? 0)]);
+            'handed_over' => (int)($moved['handed_over'] ?? 0), 'handed_over_to' => $to, 'kept' => (int)($moved['kept'] ?? 0),
+            // v3.7.0 — Zuständigkeit an Zählern und Verträgen: übergeben bzw. mit Vermerk geblieben
+            'records_handed_over' => (int)($moved['records']['handed_over'] ?? 0),
+            'records_kept'        => (int)($moved['records']['kept'] ?? 0)]);
     }
 
     /** Fehler der Benutzerverwaltung als Meldung mit stabilem Code. */

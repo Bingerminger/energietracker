@@ -272,8 +272,10 @@ final class Utilities
      * v3.5.0 (GitHub #34) — nicht mehr der Scope der Sonderzahlungen (das ist
      * {@see hasSpecialPayments()}), sondern der Standardvertrag: Saldo nach
      * Kalender mit Abschlagsvorschlag, Gruppenvertrag, Wechselentscheidung,
-     * Saldo und Abschlags-Rat im Jahresbericht. Wasser rechnet seinen Saldo
-     * über die Monate mit Ablesung und hat keine Gruppenverträge.
+     * Saldo und Abschlags-Rat im Jahresbericht. Wasser hat keine
+     * Gruppenverträge und keinen Wechsel; seinen Saldo nach Kalender samt
+     * Abschlags-Rat bekommt ein Wasservertrag mit Abschlägen seit v3.7.0 über
+     * ConsumptionService::waterWithAdvances().
      */
     public static function hasAdvancePaymentContracts(string $key): bool
     {

@@ -62,6 +62,15 @@ Worth knowing:
 - **Plausibility check on save:** volume correction 0.8–1.1, calorific value
   8–13, factor 5–15 kWh/m³. A typo like 115 instead of 11.5 would otherwise
   multiply every consumption by ten — silently.
+- *(v3.7.0)* **On the network, not on the contract.** The correction factor
+  and the calorific value depend on the supply point and on the gas in the
+  network area, not on the supplier: the network operator determines the
+  billing calorific value for its network area (DVGW worksheet G 685, gas
+  billing), and both values stay the same when you change supplier. That is why
+  they are set once in the settings and apply to every contract. For gas, the
+  contract form shows the conversion valid today (correction factor ×
+  calorific value = kWh/m³, valid from) with an ⓘ and a link to the setting
+  ([#35](https://github.com/Bingerminger/energietracker/issues/35)).
 - Heating oil and pellets keep their scalar; nobody publishes a new calorific
   value for them every month.
 - *(v2.7.0)* The input also takes the calorific value in **MJ/m³** (United

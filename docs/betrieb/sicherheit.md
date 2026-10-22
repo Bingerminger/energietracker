@@ -41,6 +41,7 @@ Auch im offenen Betrieb gelten seit v2.5.3/v2.6.0:
 | Fehlermeldungen | Keine Pfade, Dateinamen oder Zeilennummern in API-Antworten (nur mit `ET_DEBUG=1`); ein Serverfehler nennt eine Fehler-ID, die Einzelheiten stehen im Protokoll. |
 | Belege *(v3.1.0)* | Fotos und PDFs werden am Inhalt geprüft und nur über die API ausgeliefert, ein PDF ohne Skripte (§ 9). |
 | Texterkennung *(v3.1.0)* | Der Server verbindet sich nur mit Adressen im eigenen Netz, geprüft bei jedem Aufruf (§ 9). |
+| Posteingang *(v3.7.0)* | Das Dokument bleibt auf dem Server, ausgelesen wird im eigenen Netz; ein fremder Anbieter nur nach Zustimmung (§ 9). |
 | Größe und Schreibsperre *(v3.4.0)* | Große Anfragen nur dort, wo sie hingehören, gelesen wird erst nach der Anmeldung; ein langsamer Dienst hält keinen Schreibzugriff auf (§ 12). |
 | Hostliste *(v3.4.0)* | In den Einstellungen setzbar, damit eine fremde Seite ihren Namen nicht auf deine Adresse umbiegen kann (§ 8). |
 
@@ -140,6 +141,7 @@ ist nur sein Hash.
 | Lesen (`read`) | nur abrufen (`GET`) — z. B. für die REST-Sensoren in Home Assistant (`/api/summary`) oder eine Auswertung |
 | Verwalten (`admin`) | alles, auch ändern und löschen — z. B. für ein Backup-Skript, das auch einspielt |
 | Kalender (`calendar`, seit v3.1.0) | nur das Kalender-Abo `GET /api/calendar.ics`, und nur als `?token=…` im Link |
+| nur Posteingang (`inbox`, seit v3.7.0) | nur ein PDF in den Posteingang legen (`POST /api/inbox`) — für den [Kurzbefehl](../anleitungen/posteingang.md#per-kurzbefehl-vom-iphone-oder-ipad) und die [E-Mail über Home Assistant](../anleitungen/posteingang.md#per-e-mail-über-home-assistant); jede andere Route `401` |
 
 ```bash
 curl -H "Authorization: Bearer etk_…" https://energie.example.org/api.php/api/backup/export > backup.json
@@ -330,8 +332,122 @@ Einstellungen ändern darf — mit eingeschalteter Anmeldung nur Angemeldete und
 Börsenpreise (SMARD) und — nur eingeschaltet, einmal am Tag — der Hinweis auf
 neue Versionen (GitHub, *v3.6.0*) nur über HTTPS, auch nach einer Weiterleitung, und
 höchstens zwei Weiterleitungen; Texterkennung und evcc im Heimnetz ohne
-Weiterleitung. Jede Antwort höchstens 20 MB — eine größere bricht die App ab,
-statt sie in den Speicher zu laden.
+Weiterleitung; das Auslesen in der Cloud (nur eingeschaltet, *v3.7.0*) nur über
+HTTPS und ohne Weiterleitung. Jede Antwort höchstens 20 MB — eine größere bricht
+die App ab, statt sie in den Speicher zu laden.
+
+### Auslesen in der Cloud *(v3.7.0)*
+
+Für den Posteingang kann ein Cloud-Dienst die Post vom Versorger auslesen. Das
+ist ein **Opt-in**: aus, bis es jemand einschaltet, der die Installation
+verwaltet (Einstellungen → Experte → Karte „Auslesen“ → „Cloud“). Ohne dieses
+Opt-in verlässt kein Dokument das Heimnetz. Alle Cloud-Wege, auch Claude, sind
+**experimentell**: noch nicht mit echten Rückmeldungen geprüft; Karte und
+Rückfrage vor dem Auslesen sagen das. Einrichtung:
+[In der Cloud auslesen](../anleitungen/posteingang.md#in-der-cloud-auslesen).
+
+**Wer was sieht.**
+
+| Anbieter | Ziel | Was hinausgeht |
+|---|---|---|
+| Claude (Anthropic) | `api.anthropic.com` | das PDF des Dokuments und der Auftrag (welche Art, welche Felder) |
+| OpenAI-kompatibel: OpenAI, Mistral, OpenRouter, Google Gemini, eigene Adresse | `api.openai.com`, `api.mistral.ai`, `openrouter.ai`, `generativelanguage.googleapis.com` bzw. die eingetragene Adresse | der Text des Dokuments (die Textebene, die der Browser liest) und der Auftrag |
+
+Die Voreinstellungen füllen nur die Adresse vor; alle laufen über denselben
+Anschluss und dieselbe Verbindung (unten). **Die Liste der Modelle** holt der
+Server nach dem Speichern des Schlüssels (`GET /api/inbox/cloud/models`, nur
+Verwalter): Dabei gehen nur der Schlüssel und die Anfrage nach der Liste hinaus,
+kein Dokument; sie fragt nur den eingerichteten Dienst.
+
+Der Dienst sieht den ganzen Inhalt des Dokuments — auch Name, Anschrift,
+Zähler-, Kunden- und Vertragsnummer und Beträge. Andere Daten aus dem
+Energietracker (Ablesungen, Verträge, Einstellungen) gehen nicht mit. Vor jedem
+Auslesen nennt die App den Dienst und sein Ziel. Wie lange der Dienst eine
+Anfrage aufbewahrt und wofür er sie nutzen darf, regeln seine Bedingungen;
+darauf hat der Energietracker keinen Einfluss.
+
+**Der API-Schlüssel**
+
+- liegt nur auf dem Server, in `data/inbox_cloud_key.json` (Rechte `0600`,
+  für den Webserver gesperrt wie der Rest von `data/`);
+- geht nie zurück an den Browser — die Schnittstelle meldet nur `has_key`, das
+  Feld bleibt leer;
+- steht nicht in `settings.json`, also nicht in `GET /api/settings`, nicht im
+  Backup und in keinem Snapshot. Nach dem Einspielen einer Sicherung auf einem
+  anderen Server fehlt er; dort geht nichts hinaus, bis jemand ihn neu einträgt;
+- erscheint in keinem Protokoll und keiner Fehlermeldung. Wiederholt ein Dienst
+  ihn in seiner Antwort, ersetzt die App ihn durch `***`;
+- gehört beim OpenAI-kompatiblen Weg zum Host der Adresse: Wechselt jemand die
+  Voreinstellung (etwa von Mistral auf OpenRouter), geht der bisherige Schlüssel
+  nicht an den neuen Dienst.
+
+Wer das Datenverzeichnis als Ganzes kopiert (etwa das Docker-Volume), kopiert
+die Datei mit — so eine Kopie ist so vertraulich wie der Schlüssel selbst.
+
+**Die Verbindung** baut der Server auf, nie der Browser. Sie ist das
+Gegenstück zur Texterkennung: Dort muss jede Adresse im Heimnetz liegen, hier
+darf keine dort liegen.
+
+- Nur `https://`. Ein Name ohne Punkt oder mit einer Endung wie `.local`,
+  `.lan`, `.home.arpa` oder `fritz.box` wird schon beim Speichern abgelehnt.
+- Bei jedem Aufruf löst der Server den Namen auf, und **jede** Adresse muss
+  öffentlich sein: kein privates Netz, kein Loopback, kein Link-local samt
+  Metadatendienst, kein `100.64.0.0/10`, kein Multicast. IPv4 in IPv6
+  (`::ffff:…`, NAT64, 6to4) zählt mit der eingebetteten Adresse.
+- Verbunden wird mit genau der geprüften Adresse, ohne Proxy aus der Umgebung
+  und ohne Weiterleitung. Die Antwort darf höchstens 20 MB groß sein.
+
+**Einschalten darf nur ein Verwalter**: `PATCH /api/inbox/cloud`, die
+Modellliste `GET /api/inbox/cloud/models`, die Prüfung des eigenen Diensts
+`GET /api/inbox/local/check` und die Schlüssel `inbox_*` in
+`PATCH /api/settings` antworten Mitgliedern mit `403`.
+Ohne Anmeldung darf das jeder, der die App erreicht — wie alles andere
+(Abschnitt 1).
+
+### Posteingang *(v3.7.0)*
+
+Der Posteingang liest Versorgerpost mit einer KI im eigenen Netz aus
+([Anleitung](../anleitungen/posteingang.md)). Was wohin geht:
+
+| Was | Wohin |
+|---|---|
+| das PDF | in den Belegspeicher (`data/attachments/`, Art `inbox_pdf`), ausgeliefert wie jeder Beleg; im Backup |
+| die Textebene | liest der **Browser** mit dem mitgelieferten PDF.js (ohne `eval`, keine Skripte aus dem PDF) und schickt sie an den eigenen Server; gespeichert wird sie nicht |
+| der Text ohne AGB-Seiten | vom **Server** an den Dienst der Texterkennung (`ocr_endpoint`) — dieselbe Heimnetz-Regel wie oben, geprüft bei jedem Aufruf nach der Namensauflösung, verbunden mit genau der geprüften Adresse |
+| das Ergebnis (Werte, Belegstellen, Seiten) | in `inbox.json`, je Dokument zwischengespeichert; im Backup |
+
+- Den Anbieter (`inbox_provider`, Umschalter Lokal | Cloud der Karte
+  „Auslesen“) stellen mit eingeschalteter Anmeldung nur Verwalter um — wie die
+  Adresse der Texterkennung. „Verbindung prüfen“ fragt den eigenen Dienst nur
+  nach seinen Modellen, mit derselben Heimnetz-Regel und ohne Dokument. Einen Anbieter außerhalb
+  des Heimnetzes nimmt der Server dort nur an, solange ein Verwalter das
+  [Auslesen in der Cloud](#auslesen-in-der-cloud-v370) für ihn eingeschaltet
+  hat und ein Schlüssel da ist. Er bekommt ein Dokument nur nach ausdrücklicher
+  Zustimmung im Browser — je Dokument, bei der Warteschlange einmal für die
+  Dokumente dieses Laufs; gemerkt wird sie nicht. Ohne sie antwortet der Server
+  `409` und schickt nichts.
+- Ein Aufruf des Diensts hält die Schreibsperre nicht (§ 12); geschrieben wird
+  erst, wenn die Antwort da ist.
+- Übernommen wird über dieselben Dienste und Prüfungen wie bei der
+  Handeingabe; nichts ohne Klick.
+
+**Eingangskanäle *(v3.7.0, Paket betrieb)*.** Kurzbefehl, Ordner und E-Mail
+legen nur ab — gelesen und übernommen wird wie oben.
+
+- **Schlüssel „nur Posteingang“** (`inbox`, § 5): darf `POST /api/inbox` und
+  sonst nichts, auch kein Lesen; ein verlorenes Telefon öffnet damit keine Daten.
+  Ohne Anmeldung nimmt der Posteingang PDFs aus dem ganzen Heimnetz an — wie
+  jede andere Route.
+- **Überwachter Ordner** `data/posteingang/`: eingelesen nur mit Verwalterrechten
+  (`POST /api/inbox/folder`), nur Dateien direkt im Ordner, die nach `realpath`
+  dort liegen; keine symbolischen Links (weder Datei noch Ordner noch Ablage),
+  keine Unterordner, keine versteckten Dateien. PDF wird am Inhalt erkannt
+  (`%PDF-`), die Grenze ist dieselbe wie beim Hochladen (10 MB). Abgelegtes wird
+  nach `übernommen/` bzw. `fehler/` verschoben, nie gelöscht. Der Ordner liegt im
+  Datenverzeichnis, das kein Webserver ausliefert (§ 9).
+- **E-Mail über Home Assistant**: Der Anhang kommt als Base64 im JSON-Körper;
+  dieselben Prüfungen wie beim Hochladen. Die Zugangsdaten des Postfachs kennt
+  nur Home Assistant.
 
 ## 10. Protokoll und Fehlersuche
 
@@ -365,7 +481,7 @@ Anmeldung brachten ein NAS an die Speichergrenze.
 | Route | Höchstens |
 |---|---|
 | ohne Anmeldung erreichbar: `POST /api/ingest`, `POST /api/session` | 1 MB |
-| Backup-Import, Belege, CSV- und Zeitreihen-Importe (`…/import-csv`, `…/import-series`, `…/import-evcc`) | 256 MB |
+| Backup-Import, Belege, Posteingang (`POST /api/inbox`, *v3.7.0*), CSV- und Zeitreihen-Importe (`…/import-csv`, `…/import-series`, `…/import-evcc`) | 256 MB |
 | alle anderen | 8 MB |
 
 Darüber antwortet die App mit `413`. Im Docker-Image setzt nginx dieselben
@@ -377,7 +493,7 @@ beantworten:
 
 ```apache
 LimitRequestBody 8388608
-<LocationMatch "/api(\.php/api)?/(backup/import|attachments|.+/import-(csv|series|evcc))$">
+<LocationMatch "/api(\.php/api)?/(backup/import|attachments|inbox|.+/import-(csv|series|evcc))$">
     LimitRequestBody 268435456
 </LocationMatch>
 ```

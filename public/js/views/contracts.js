@@ -8,7 +8,7 @@
 
 import { api } from '../api.js';
 import { getUtility, getSettings } from '../state.js';
-import { gasEntryOn } from '../lib/gas-factor.js';
+import { gasEntryOn, gasFactorOf, cvUnit } from '../lib/gas-factor.js';
 import { fmt, escapeHtml, todayIso, parseDecimal, formatForInput, normalizeTime } from '../lib/format.js';
 import { toastOk, toastErr } from '../components/toast.js';
 import { openModal, confirmModal, guardSubmit } from '../components/modal.js';
@@ -17,6 +17,12 @@ import { associateFieldLabels } from '../lib/a11y.js';
 import { showFieldError } from '../lib/form.js';
 import { renderError } from '../components/error.js';
 import { groupContracts, phasePill, yearsOf } from '../lib/contract-order.js';
+// v3.7.0 — Zuständig am Vertrag (Person aus dem Verzeichnis)
+import { chipHtml, personSelectHtml, personPayload } from '../lib/assignee.js';
+import { BONUS_TYPES, bonusTypeLabel, bonusDetailLines } from '../lib/bonus.js';   // v3.7.0 (#35)
+import { infoNote } from '../components/info.js';   // v3.7.0 (#35)
+import { attachmentNames, attachmentLinksHtml, attachmentIdsOf } from '../lib/attachments.js';   // v3.7.0 — Belege am Vertrag
+import { dossierHtml, wireDossiers } from '../components/dossier.js';   // v3.7.0 (Paket betrieb) — Akte je Vertrag
 
 // Titel/Labels werden zur Render-Zeit über t() aufgelöst (nicht beim Modul-
 // Laden, da der Sprachkatalog dann ggf. noch nicht steht).
@@ -29,9 +35,12 @@ const GROUPS = [
 ];
 
 // v3.1.0 (H5, CALC-31) — Fernwärme: Leistungspreis je kW und Jahr, Messpreis je Jahr
+// v3.7.0 (Paket reifegrad) — für alle (bis v3.6 Experte): Beide stehen auf jeder
+// Fernwärmerechnung neben Arbeits- und Grundpreis; ohne sie stimmt „was es kostet“
+// nicht. Die Kennwerte (CO₂, Primärenergie) bleiben Experten vorbehalten.
 const FW_GROUPS = [
-  { key: 'capacity_prices', titleKey: 'contracts.fw.capacityPrice', dateKey: 'from', amountKey: 'eur_per_kw_year', amountKey_: 'contracts.unit.eurPerKwYear', level: 'expert' },
-  { key: 'metering_prices', titleKey: 'contracts.fw.meteringPrice', dateKey: 'from', amountKey: 'eur_per_year',    amountKey_: 'contracts.unit.eurPerYear', level: 'expert' },
+  { key: 'capacity_prices', titleKey: 'contracts.fw.capacityPrice', dateKey: 'from', amountKey: 'eur_per_kw_year', amountKey_: 'contracts.unit.eurPerKwYear' },
+  { key: 'metering_prices', titleKey: 'contracts.fw.meteringPrice', dateKey: 'from', amountKey: 'eur_per_year',    amountKey_: 'contracts.unit.eurPerYear' },
 ];
 // v3.1.0 (H6, MKT-13) — § 14a EnWG Modul 1: pauschale Reduzierung des Netzentgelts je Jahr (Strom)
 const GRID_GROUP = { key: 'grid_reduction', titleKey: 'contracts.gridReduction.title', dateKey: 'from', amountKey: 'eur_per_year', amountKey_: 'contracts.unit.eurPerYear', level: 'expert' };
@@ -129,6 +138,8 @@ async function refresh(container, u) {
   // Bis v3.3 nur nach Beginn: Angebote für das nächste Jahr standen als
   // „neuester Vertrag“ oben, ein lange laufender Vertrag ganz unten.
   const grouped = groupContracts(contracts);
+  // v3.7.0 — Dateinamen der Belege (nur, wenn ein Vertrag welche hat)
+  const docNames = await attachmentNames(contracts);
 
   container.innerHTML = `
     <div data-utility="${u.key}">
@@ -146,10 +157,12 @@ async function refresh(container, u) {
 
       <div id="contracts-list">
         ${contracts.length === 0 ? `<p class="muted">${t('contracts.empty')}</p>${meters.length ? `<button type="button" class="btn btn--util" data-action="new-contract">${t('contracts.emptyCta')}</button>` : ''}` : ''}
-        ${grouped.map(g => renderContractGroup(g, meters, u, groups)).join('')}
+        ${grouped.map(g => renderContractGroup(g, meters, u, groups, docNames)).join('')}
       </div>
     </div>
   `;
+
+  wireDossiers(container);   // v3.7.0 (Paket betrieb) — Akte je Vertrag
 
   container.querySelectorAll('[data-action="new-contract"]').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -307,8 +320,8 @@ function checkContractBasics(form, { workingRows, workingMsg, workingLabel, date
 // Angebote (Schattenverträge) rechnen nirgends mit und stehen am Ende.
 
 /** Eine Gruppe der Vertragsliste; „Beendet“ zum Aufklappen. */
-function renderContractGroup(g, meters, u, groups) {
-  const cards = g.items.map(c => renderContractCard(c, meters, u, groups)).join('');
+function renderContractGroup(g, meters, u, groups, docNames = new Map()) {
+  const cards = g.items.map(c => renderContractCard(c, meters, u, groups, docNames)).join('');
   if (g.group === 'past') {
     return `<details class="contract-group" data-phase-group="past"${g.collapsed ? '' : ' open'}>
       <summary class="contract-group__title">${escapeHtml(tp('contracts.phaseGroup.past', g.items.length))}</summary>
@@ -346,7 +359,24 @@ function contractValuesHtml(c, u) {
   return `<strong>${parts.map(escapeHtml).join(' · ')}</strong>${on}`;
 }
 
-function renderContractCard(c, meters, u, groups = []) {
+/** v3.7.0 (#35) — die Boni des Vertrags mit Art, Datum und Notiz (bis v3.6 nur ihre Zahl ab „Experte“). */
+function bonusCardHtml(c) {
+  const lines = bonusDetailLines(c.bonuses);
+  if (!lines.length) return '';
+  return `<p class="muted small contract-card__bonuses" data-role="contract-bonuses" data-min-level="advanced">${escapeHtml(lines.join(' · '))}</p>`;
+}
+
+/**
+ * v3.7.0 — die Belege am Vertrag (`attachment_ids`, etwa aus dem Posteingang
+ * übernommen) mit Dateinamen und Link zum Öffnen. Bis dahin stand ein
+ * übernommenes Dokument am Vertrag, ohne dass die Karte es zeigte.
+ */
+function documentsCardHtml(c, docNames) {
+  if (!attachmentIdsOf(c).length) return '';
+  return `<p class="muted small contract-card__documents" data-role="contract-documents">${escapeHtml(t('attachments.label'))} ${attachmentLinksHtml(c, docNames)}</p>`;
+}
+
+function renderContractCard(c, meters, u, groups = [], docNames = new Map()) {
   const meter = meters.find(m => m.id === c.meter_id);
   const group = c.meter_group_id ? groups.find(g => g.id === c.meter_group_id) : null;
   let summary;
@@ -382,7 +412,7 @@ function renderContractCard(c, meters, u, groups = []) {
       <div class="section-head">
         <h3 style="margin:0;font-size:var(--fs-lg)">${escapeHtml(c.provider || t('contracts.card.fallbackProvider'))}${c.tariff_name ? ' · ' + escapeHtml(c.tariff_name) : ''}
           ${phasePill(c)}
-          <span class="contract-card__years muted">${escapeHtml(yrs.since ? t('contracts.card.since', { year: yrs.since }) : yrs.span)}</span></h3>
+          <span class="contract-card__years muted">${escapeHtml(yrs.since ? t('contracts.card.since', { year: yrs.since }) : yrs.span)}</span>${chipHtml(c)}</h3>
         <div class="section-actions">
           <button class="btn btn--sm btn--ghost" data-edit-contract="${escapeHtml(c.id)}">${t('contracts.card.edit')}</button>
           ${u.key !== 'wasser' && u.accounting_kind !== 'feed_in' && !c.is_shadow ? `<label class="btn btn--sm btn--ghost" data-min-level="expert">${t('contracts.priceImport.button')}
@@ -398,7 +428,10 @@ function renderContractCard(c, meters, u, groups = []) {
           : `${t('contracts.card.meterLabel')} <strong>${escapeHtml(meter?.name || t('contracts.card.noMeter'))}</strong>`}
         <span class="contract-card__counts" data-min-level="expert">· ${summary}</span>
       </div>
-      ${c.notes ? `<p style="margin-top:var(--sp-2)">${escapeHtml(c.notes)}</p>` : ''}
+      ${bonusCardHtml(c)}
+      ${documentsCardHtml(c, docNames)}
+      ${c.notes ?`<p style="margin-top:var(--sp-2)">${escapeHtml(c.notes)}</p>` : ''}
+      ${c.is_shadow ? '' : dossierHtml({ utility: u.key, contractId: c.id })}
     </div>
   `;
 }
@@ -413,8 +446,9 @@ async function openContractModal(u, meters, existing, contracts = [], groups = [
   perM3Ctx = null;
   if (u?.unit === 'm³' && u?.consumption_unit === 'kWh') {
     const s = await getSettings().catch(() => null);
-    perM3Ctx = { factors: s?.gas_conversion_factors || [] };
+    perM3Ctx = { factors: s?.gas_conversion_factors || [], cvUnit: s?.gas_cv_unit };
   }
+  const people = await api.people().catch(() => []);   // v3.7.0 — Auswahl „Zuständig“
   return new Promise(resolve => {
     const isEdit = !!existing;
     // v2.12.0 (Review UI-16) — die ersten Preiszeilen gelten ab Vertragsbeginn;
@@ -461,6 +495,7 @@ async function openContractModal(u, meters, existing, contracts = [], groups = [
                   `<option value="g:${escapeHtml(g.id)}" ${g.id === initial.meter_group_id ? 'selected' : ''}>${escapeHtml(g.name)}</option>`).join('')}</optgroup>` : ''}
               </select>
             </div>
+            ${personSelectHtml({ id: 'cf-assignee', record: existing, people, hintKey: 'assignee.hintContract' })}
           </div>
         </fieldset>
 
@@ -479,14 +514,17 @@ async function openContractModal(u, meters, existing, contracts = [], groups = [
             <!-- v2.3.1 — Wechselplanung. Diese Felder speisen den Tarifvergleich:
                  Ohne Kündigungsfrist kann er keinen Wechseltermin errechnen und
                  nicht vor ablaufenden Fristen warnen. Alle optional.
-                 v3.2.0 (F1019) — ab „Erfahren“; ausgeblendet bleiben die Werte im Formular -->
+                 v3.2.0 (F1019) — ab „Erfahren“; ausgeblendet bleiben die Werte im Formular
+                 v3.7.0 (Paket reifegrad) — die Kündigungsfrist für alle: Aus ihr entsteht
+                 „Kündigen bis …“ in „Zu tun“, das auch Einsteiger sehen, und der Posteingang
+                 trägt sie aus der Vertragsbestätigung ein -->
             <div class="field field--s" data-min-level="advanced">
               <label>${t('contracts.modal.priceGuarantee')}</label>
               <input class="input" type="date" name="price_guarantee_until"
                      value="${escapeHtml(initial.price_guarantee_until || '')}">
               <span class="settings-field__hint">${t('contracts.modal.priceGuaranteeHint')}</span>
             </div>
-            <div class="field field--m field--new" data-min-level="advanced">
+            <div class="field field--m field--new" data-role="notice">
               <label for="cf-notice">${t('contracts.modal.noticePeriod')}</label>
               <!-- v2.9.0 (CALC-11) — Frist in Monaten, Wochen oder Tagen -->
               <div class="input-pair">
@@ -526,14 +564,15 @@ async function openContractModal(u, meters, existing, contracts = [], groups = [
         ${priceGroups.map(g => renderGroupSection(g, initial[g.key] || [])).join('')}
         <div data-role="member-prices" data-min-level="expert">${memberPricesHtml(initial.meter_group_id, meters, initial.working_prices_by_meter)}</div>
         ${u?.key === 'fernwaerme' ? `
-        <fieldset class="fgroup" data-min-level="expert"><legend>${t('contracts.fw.title')}</legend>
+        <!-- v3.7.0 — die Anschlussleistung für alle (sie trägt den Leistungspreis), die Kennwerte ab Experte -->
+        <fieldset class="fgroup" data-role="fw-plant"><legend>${t('contracts.fw.title')}</legend>
           <p class="fgroup__hint">${t('contracts.fw.hint')}</p>
           <div class="fgrid">
             <div class="field field--m"><label>${t('contracts.fw.capacityKw')}</label>
               <input class="input" name="capacity_kw" type="text" inputmode="decimal" value="${escapeHtml(formatForInput(initial.capacity_kw))}"></div>
-            <div class="field field--m"><label>${t('contracts.fw.co2Factor')}</label>
+            <div class="field field--m" data-role="fw-factors" data-min-level="expert"><label>${t('contracts.fw.co2Factor')}</label>
               <input class="input" name="co2_g_per_kwh" type="text" inputmode="decimal" value="${escapeHtml(formatForInput(initial.co2_g_per_kwh))}"></div>
-            <div class="field field--m"><label>${t('contracts.fw.primaryEnergy')}</label>
+            <div class="field field--m" data-min-level="expert"><label>${t('contracts.fw.primaryEnergy')}</label>
               <input class="input" name="primary_energy_factor" type="text" inputmode="decimal" value="${escapeHtml(formatForInput(initial.primary_energy_factor))}"></div>
           </div>
         </fieldset>` : ''}
@@ -593,7 +632,7 @@ async function openContractModal(u, meters, existing, contracts = [], groups = [
             noticeOk ? null : t(unit === 'months' ? 'errors.contract.noticeOutOfRange' : 'errors.contract.noticeDaysOutOfRange'));
           if (!noticeOk) return;
 
-          const payload = collectPayload(f, u);
+          const payload = { ...collectPayload(f, u), ...personPayload(f.querySelector('[name="assignee_id"]'), existing) };   // v3.7.0
           if (!await confirmSupersede(contracts, payload, existing)) return;
           try {
             const saved = isEdit ? await api.updateContract(u.key, existing.id, payload) : await api.createContract(u.key, payload);
@@ -695,6 +734,11 @@ function gridTouHtml(tou) {
     <div class="fgrid">
       <div class="field field--s"><label>${t('contracts.gridTou.standard')}</label>
         <input class="input" data-role="tou-standard" type="text" inputmode="decimal" autocomplete="off" value="${escapeHtml(formatForInput(tou?.standard_ct))}"></div>
+      <!-- v3.7.0 — Beträge ohne USt (wie auf dem Preisblatt des Netzbetreibers); Standard: wie eingetragen (brutto) -->
+      <div class="field field--m">
+        <label class="check"><input type="checkbox" data-role="tou-net" ${tou?.net ? 'checked' : ''}> ${t('contracts.gridTou.net')}</label>
+        <span class="settings-field__hint">${escapeHtml(t('contracts.gridTou.netHint'))}</span>
+      </div>
     </div>
     <div class="rowlist rowlist--tou" data-role="tou-rows">${(tou?.windows || []).map(gridTouRow).join('')}</div>
   </fieldset>`;
@@ -712,7 +756,9 @@ function collectGridTou(form) {
     ct: amountValue(r.querySelector('[data-role="tou-ct"]').value.trim()),
   })).filter(w => w.from || w.to || w.ct !== '');
   if (!standard && !windows.length) return null;
-  return { standard_ct: amountValue(standard), windows };
+  // v3.7.0 — netto: der Server rechnet mit der USt der App auf brutto
+  const net = !!box.querySelector('[data-role="tou-net"]')?.checked;
+  return { standard_ct: amountValue(standard), windows, ...(net ? { net: true } : {}) };
 }
 
 // ───── Group rendering ──────────────────────────────────────────────
@@ -723,25 +769,49 @@ const newestFirst = (entries, dateKey) => [...entries].sort((a, b) => String(b?.
 // v3.4.0 (N1021) — jede Preisliste ist eine Feldgruppe (Kasten, Legende im
 // Kasten, „+ Zeile" rechts im Kopf); `nested` = Liste innerhalb einer Gruppe
 // (Preise je Zähler eines Gruppenvertrags) ohne eigenen Kasten.
+// v3.7.0 (Qualität) — Die Meldung einer Preisliste („Mindestens ein
+// Arbeitspreis …“) hängt per aria-describedby an ihrer Gruppe.
+let groupSeq = 0;
 function renderGroupSection(g, entries, nested = false) {
   entries = entries.length === 0 ? [{ [g.dateKey]: '', [g.amountKey]: '' }] : newestFirst(entries, g.dateKey);
   const title = g.title ? escapeHtml(g.title) : t(g.titleKey);
+  const ids = `grp-${++groupSeq}`;
   // v3.2.0 (F1019) — Preiswechsel ab „Erfahren“; vorhandene Zeilen bleiben sichtbar
   const add = `<button type="button" class="btn btn--sm btn--ghost${nested ? '' : ' fgroup__add'}" data-action="add-row" data-min-level="advanced">${t('contracts.group.addRow')}</button>`;
-  const attrs = `data-group="${escapeHtml(g.key)}" data-date-key="${g.dateKey}" data-amount-key="${g.amountKey}"${g.level ? ` data-min-level="${g.level}"` : ''}`;
+  const attrs = `data-group="${escapeHtml(g.key)}" data-date-key="${g.dateKey}" data-amount-key="${g.amountKey}"${g.level ? ` data-min-level="${g.level}"` : ''} aria-describedby="${ids}-msg"`;
   const inner = `
-      <div class="field-error" data-role="group-msg" role="alert" hidden></div>
+      <div class="field-error" id="${ids}-msg" data-role="group-msg" role="alert" hidden></div>
       <div class="entries rowlist">
         ${entries.map(e => renderEntryRow(g, e)).join('')}
       </div>
-      ${g.key === 'working_prices' && perM3Ctx ? renderPerM3() : ''}`;
+      ${g.key === 'working_prices' && perM3Ctx ? gasFactorNoteHtml() + renderPerM3() : ''}`;
   return nested
-    ? `<div class="entry-group entry-group--nested" ${attrs}>
-        <div class="entry-group__head"><span class="fgroup__title">${title}</span>${add}</div>${inner}
+    ? `<div class="entry-group entry-group--nested" role="group" aria-labelledby="${ids}-title" ${attrs}>
+        <div class="entry-group__head"><span class="fgroup__title" id="${ids}-title">${title}</span>${add}</div>${inner}
       </div>`
     : `<fieldset class="fgroup entry-group" ${attrs}>
         <legend>${title}</legend>${add}${inner}
       </fieldset>`;
+}
+
+/**
+ * v3.7.0 (GitHub #35) — Gas: die heute geltende Umrechnung (Zustandszahl ×
+ * Brennwert = kWh/m³, gültig ab) mit Verweis auf die Einstellung. Sie hängt
+ * an Entnahmestelle und Netz, nicht am Lieferanten — deshalb steht sie nicht
+ * am Vertrag, und das ⓘ sagt warum.
+ */
+function gasFactorNoteHtml() {
+  const e = gasEntryOn(perM3Ctx?.factors || [], todayIso());
+  const factor = e ? gasFactorOf(e) : NaN;
+  if (!e || !(factor > 0)) return '';
+  const z = Number(e.zustandszahl), hs = Number(e.brennwert);
+  const unit = cvUnit(perM3Ctx?.cvUnit);
+  const value = z > 0 && hs > 0
+    ? t('contracts.gasFactor.zhs', { z: fmt.num(z, 4), hs: fmt.num(hs * unit.perKwh, unit.digits), hsUnit: unit.label, factor: fmt.num(factor, 3) })
+    : t('contracts.gasFactor.direct', { factor: fmt.num(factor, 3) });
+  const since = e.from ? t('contracts.gasFactor.since', { date: fmt.date(e.from) }) : t('contracts.gasFactor.undated');
+  return `<p class="muted small gas-factor-note" data-role="gas-factor-note">${escapeHtml(t('contracts.gasFactor.now', { value, since }))}${infoNote(t('contracts.gasFactor.term'), t('contracts.gasFactor.why'))}
+    <a href="#/settings/utilities" data-role="gas-factor-link">${escapeHtml(t('contracts.gasFactor.link'))}</a></p>`;
 }
 
 function renderPerM3() {
@@ -963,8 +1033,13 @@ function renderBonusSection(bonuses) {
   `;
 }
 
-// Gutschrift am | Betrag | Art | ✕
+// Gutschrift am | Betrag | Art | Notiz | ✕
+// v3.7.0 (GitHub #35) — Art „Sonstige Gutschrift“ (`sonstige`) und das Notizfeld
+// (`label`). Bis v3.6 schickte das Formular `label: ''` und löschte beim
+// Speichern still eine Notiz, die es nicht zeigte (etwa aus den Beispieldaten).
 function renderBonusRow(b = {}) {
+  const type = b.type || 'sofort';
+  const options = BONUS_TYPES.includes(type) ? BONUS_TYPES : [...BONUS_TYPES, type];   // unbekannte Art bleibt erhalten
   return `
     <div class="entry-row bonus-row rowlist__row">
       <div class="field">
@@ -978,10 +1053,13 @@ function renderBonusRow(b = {}) {
       <div class="field">
         <label>${t('contracts.bonus.type')}</label>
         <select class="select" data-role="type">
-          <option value="sofort"     ${b.type === 'sofort'     ? 'selected' : ''}>${t('contracts.bonusTypes.sofort')}</option>
-          <option value="wechsel"    ${b.type === 'wechsel'    ? 'selected' : ''}>${t('contracts.bonusTypes.wechsel')}</option>
-          <option value="neukunde"   ${b.type === 'neukunde'   ? 'selected' : ''}>${t('contracts.bonusTypes.neukunde')}</option>
+          ${options.map(o => `<option value="${escapeHtml(o)}" ${o === type ? 'selected' : ''}>${escapeHtml(bonusTypeLabel(o))}</option>`).join('')}
         </select>
+      </div>
+      <div class="field bonus-row__note">
+        <label>${t('contracts.bonus.note')}</label>
+        <input class="input input--text" type="text" data-role="note" maxlength="120" value="${escapeHtml(b.label || '')}"
+               placeholder="${escapeHtml(t(type === 'sonstige' ? 'contracts.bonus.notePlaceholderOther' : 'contracts.bonus.notePlaceholder'))}">
       </div>
       <button type="button" class="btn btn--sm btn--danger btn--icon rowlist__del" data-action="remove-bonus" title="${t('contracts.bonus.remove')}" aria-label="${t('contracts.bonus.remove')}"><span aria-hidden="true">×</span></button>
     </div>
@@ -1004,6 +1082,12 @@ function bindBonusHandlers(modalEl) {
 
 function bindBonusRow(row) {
   row.querySelector('[data-action="remove-bonus"]')?.addEventListener('click', () => row.remove());
+  // v3.7.0 (#35) — bei „Sonstige Gutschrift“ sagt die Notiz, wofür
+  const typeEl = row.querySelector('[data-role="type"]');
+  const noteEl = row.querySelector('[data-role="note"]');
+  typeEl?.addEventListener('change', () => {
+    if (noteEl) noteEl.placeholder = t(typeEl.value === 'sonstige' ? 'contracts.bonus.notePlaceholderOther' : 'contracts.bonus.notePlaceholder');
+  });
   const dateEl   = row.querySelector('[data-role="date"]');
   const amountEl = row.querySelector('[data-role="amount"]');
   [dateEl, amountEl].filter(Boolean).forEach(i => {
@@ -1242,8 +1326,10 @@ function collectPayload(form, u = null) {
     const cd  = row.querySelector('[data-role="date"]').value.trim();
     const am  = row.querySelector('[data-role="amount"]').value.trim();
     const tp  = row.querySelector('[data-role="type"]').value;
+    // v3.7.0 (#35) — die Notiz (`label`) mit; bis v3.6 stand hier immer ''
+    const note = row.querySelector('[data-role="note"]')?.value.trim() || '';
     if (!cd && !am) return;
-    bonusEntries.push({ credit_date: cd, amount_eur: amountValue(am), type: tp, label: '' });
+    bonusEntries.push({ credit_date: cd, amount_eur: amountValue(am), type: tp, label: note });
   });
   payload.bonuses = bonusEntries;
 
@@ -1272,6 +1358,7 @@ function collectPayload(form, u = null) {
 // Drei separate Komponenten: Trinkwasser, Schmutzwasser, Niederschlagswasser.
 // Eigene Saldo-Logik, eigene Felder.
 async function openWaterContractModal(u, meters, existing, contracts = []) {
+  const people = await api.people().catch(() => []);   // v3.7.0 — Auswahl „Zuständig“
   return new Promise(resolve => {
     const isEdit = !!existing;
     const initial = existing || {
@@ -1296,7 +1383,7 @@ async function openWaterContractModal(u, meters, existing, contracts = []) {
     };
 
     const body = document.createElement('div');
-    body.innerHTML = waterFormHtml(initial, meters, u);
+    body.innerHTML = waterFormHtml(initial, meters, u, people, existing);
 
     const footer = document.createElement('div');
     footer.innerHTML = `
@@ -1350,8 +1437,8 @@ async function openWaterContractModal(u, meters, existing, contracts = []) {
             return;
           }
           let payload;
-          try { payload = collectWaterForm(modalEl); }
-          catch (err) { toastErr(err.message); return; }
+          try { payload = { ...collectWaterForm(modalEl), ...personPayload(modalEl.querySelector('[name="assignee_id"]'), existing) };   // v3.7.0
+          } catch (err) { toastErr(err.message); return; }
           if (!await confirmSupersede(contracts, payload, existing)) return;
           try {
             if (isEdit) await api.updateContract(u.key, existing.id, payload);
@@ -1365,7 +1452,7 @@ async function openWaterContractModal(u, meters, existing, contracts = []) {
   });
 }
 
-function waterFormHtml(c, meters, u) {
+function waterFormHtml(c, meters, u, people = [], existing = null) {
   const meterOpts = meters.map(m => `<option value="${escapeHtml(m.id)}" ${m.id === c.meter_id ? 'selected' : ''}>${escapeHtml(m.name)}</option>`).join('');
   const sw = c.schmutzwasser || {};
   const basis = sw.basis || 'trinkwasser';
@@ -1385,6 +1472,7 @@ function waterFormHtml(c, meters, u) {
           <div class="field-error" data-role="start-msg" role="alert" hidden></div></div>
         <div class="field field--s"><label>${t('contracts.water.end')}</label><input class="input" type="date" name="end" value="${escapeHtml(c.end || '')}"></div>
         <div class="field field--m"><label>${t('contracts.water.meter')}</label><select class="select" name="meter_id" required>${meterOpts}</select></div>
+        ${personSelectHtml({ id: 'wf-assignee', record: existing, people, hintKey: 'assignee.hintContract' })}
         <div class="field field--full">
           <label>${t('contracts.water.notes')}</label>
           <input class="input input--text" name="notes" value="${escapeHtml(c.notes || '')}">
@@ -1468,25 +1556,36 @@ function waterFormHtml(c, meters, u) {
   `;
 }
 
+// v3.7.0 (Qualität) — Felder in den Wasser-Tabellen tragen ihren Namen
+// (Spaltenkopf, davor die Gruppe): Im Formularmodus lesen Bildschirmleser den
+// Spaltenkopf nicht vor, die Felder hießen nur „Eingabefeld“. Die Gruppe ist
+// eine role="group" mit Titel und Fehlermeldung.
+const waterCellLabel = (group, column) => (group ? `${group}: ${column}` : column);
+function waterGroupLabels(group) {
+  const title = group.querySelector('[data-role="group-title"]')?.textContent || '';
+  return [...group.querySelectorAll('thead th[scope="col"]')].map(th => waterCellLabel(title, th.textContent.trim()));
+}
+
 function renderWaterEntryGroup(groupKey, title, entries, fields, labels) {
   entries = entries.length ? newestFirst(entries, fields[0]) : [Object.fromEntries(fields.map(f => [f, '']))];
   const inputs = fields.map((f, i) => `<th scope="col">${escapeHtml(labels[i])}</th>`).join('');
+  const key = escapeHtml(groupKey);
   const rows = entries.map((e, idx) => `
     <tr data-row="${idx}">
       ${fields.map((f, i) => `
         <td>
           ${i === 0
-            ? `<input class="input" type="date" data-field="${escapeHtml(f)}" value="${escapeHtml(e[f] ?? '')}">`
-            : waterNumberInput(f, e[f])}
+            ? `<input class="input" type="date" data-field="${escapeHtml(f)}" value="${escapeHtml(e[f] ?? '')}" aria-label="${escapeHtml(waterCellLabel(title, labels[i]))}">`
+            : waterNumberInput(f, e[f], waterCellLabel(title, labels[i]))}
         </td>
       `).join('')}
       <td><button type="button" class="btn btn--sm btn--ghost" data-act="del-row" title="${t('contracts.row.removeRow')}" aria-label="${t('contracts.row.removeRow')}"><span aria-hidden="true">×</span></button></td>
     </tr>
   `).join('');
   return `
-    <div class="field" data-group="${escapeHtml(groupKey)}" data-fields='${escapeHtml(JSON.stringify(fields))}'>
-      <label>${escapeHtml(title)}</label>
-      <div class="field-error" data-role="group-msg" role="alert" hidden></div>
+    <div class="field" role="group" aria-labelledby="wg-${key}-title" aria-describedby="wg-${key}-msg" data-group="${key}" data-fields='${escapeHtml(JSON.stringify(fields))}'>
+      <label id="wg-${key}-title" data-role="group-title">${escapeHtml(title)}</label>
+      <div class="field-error" id="wg-${key}-msg" data-role="group-msg" role="alert" hidden></div>
       <table class="table table--compact water-table">
         <thead><tr>${inputs}<th scope="col"><span class="sr-only">${t('common.actions')}</span></th></tr></thead>
         <tbody>${rows}</tbody>
@@ -1498,24 +1597,34 @@ function renderWaterEntryGroup(groupKey, title, entries, fields, labels) {
 
 // Zahlenfeld der Wasser-Tabellen — Text mit Dezimaltastatur wie im
 // Standardformular (amountInput), gelesen mit parseDecimal.
-function waterNumberInput(field, value) {
-  return `<input class="input num" type="text" inputmode="decimal" autocomplete="off" data-field="${escapeHtml(field)}" value="${escapeHtml(formatForInput(value))}">`;
+function waterNumberInput(field, value, label = '') {
+  return `<input class="input num" type="text" inputmode="decimal" autocomplete="off" data-field="${escapeHtml(field)}" value="${escapeHtml(formatForInput(value))}"${label ? ` aria-label="${escapeHtml(label)}"` : ''}>`;
+}
+
+// v3.7.0 (GitHub #35) — mit der Art (auch „Sonstige Gutschrift“). Bis v3.6
+// speicherte das Wasserformular jeden Bonus als „neukunde“, auch einen anderen.
+function waterBonusTypeSelect(type = 'neukunde') {
+  const options = BONUS_TYPES.includes(type) ? BONUS_TYPES : [...BONUS_TYPES, type];
+  return `<select class="select" data-field="type" aria-label="${escapeHtml(t('contracts.bonus.type'))}">${options.map(o =>
+    `<option value="${escapeHtml(o)}" ${o === type ? 'selected' : ''}>${escapeHtml(bonusTypeLabel(o))}</option>`).join('')}</select>`;
 }
 
 function renderWaterBonusGroup(bonuses) {
   if (!bonuses.length) bonuses = [{ credit_date: '', amount_eur: '', type: 'neukunde', label: '' }];
+  const [lDate, lLabel] = [t('contracts.water.bonusCredit'), t('contracts.water.bonusLabel')].map(escapeHtml);
   const rows = bonuses.map((b, idx) => `
     <tr data-row="${idx}">
-      <td><input class="input" type="date" data-field="credit_date" value="${escapeHtml(b.credit_date || '')}"></td>
-      <td>${waterNumberInput('amount_eur', b.amount_eur)}</td>
-      <td><input class="input input--text" data-field="label" value="${escapeHtml(b.label || '')}"></td>
+      <td><input class="input" type="date" data-field="credit_date" value="${escapeHtml(b.credit_date || '')}" aria-label="${lDate}"></td>
+      <td>${waterNumberInput('amount_eur', b.amount_eur, t('contracts.water.bonusAmount'))}</td>
+      <td>${waterBonusTypeSelect(b.type || 'neukunde')}</td>
+      <td><input class="input input--text" data-field="label" value="${escapeHtml(b.label || '')}" aria-label="${lLabel}"></td>
       <td><button type="button" class="btn btn--sm btn--ghost" data-act="del-row" title="${t('contracts.row.removeRow')}" aria-label="${t('contracts.row.removeRow')}"><span aria-hidden="true">×</span></button></td>
     </tr>
   `).join('');
   return `
-    <div class="field" data-group="bonuses" data-fields='["credit_date","amount_eur","label"]'>
+    <div class="field" data-group="bonuses" data-fields='["credit_date","amount_eur","type","label"]'>
       <table class="table table--compact water-table">
-        <thead><tr><th scope="col">${t('contracts.water.bonusCredit')}</th><th scope="col">${t('contracts.water.bonusAmount')}</th><th scope="col">${t('contracts.water.bonusLabel')}</th><th scope="col"><span class="sr-only">${t('common.actions')}</span></th></tr></thead>
+        <thead><tr><th scope="col">${t('contracts.water.bonusCredit')}</th><th scope="col">${t('contracts.water.bonusAmount')}</th><th scope="col">${t('contracts.bonus.type')}</th><th scope="col">${t('contracts.water.bonusLabel')}</th><th scope="col"><span class="sr-only">${t('common.actions')}</span></th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
       <button type="button" class="btn btn--sm btn--ghost" data-act="add-row" style="margin-top:6px">${t('contracts.water.addRow')}</button>
@@ -1536,16 +1645,19 @@ function bindWaterEntryHandlers(modalEl) {
     } else if (btn.getAttribute('data-act') === 'add-row') {
       const tbody = group.querySelector('tbody');
       const fields = JSON.parse(group.getAttribute('data-fields') || '[]');
+      const names = waterGroupLabels(group);
       const tr = document.createElement('tr');
       tr.setAttribute('data-row', tbody.children.length);
       const cells = fields.map((f, i) => {
+        const aria = names[i] ? ` aria-label="${escapeHtml(names[i])}"` : '';
         if (f === 'credit_date' || f === 'from') {
-          return `<td><input class="input" type="date" data-field="${f}"></td>`;
+          return `<td><input class="input" type="date" data-field="${f}"${aria}></td>`;
         }
         if (f === 'label') {
-          return `<td><input class="input input--text" data-field="${f}"></td>`;
+          return `<td><input class="input input--text" data-field="${f}"${aria}></td>`;
         }
-        return `<td>${waterNumberInput(f, '')}</td>`;
+        if (f === 'type') return `<td>${waterBonusTypeSelect()}</td>`;   // v3.7.0 (#35)
+        return `<td>${waterNumberInput(f, '', names[i] || '')}</td>`;
       }).join('');
       tr.innerHTML = `${cells}<td><button type="button" class="btn btn--sm btn--ghost" data-act="del-row" title="${t('contracts.row.removeRow')}" aria-label="${t('contracts.row.removeRow')}"><span aria-hidden="true">×</span></button></td>`;
       // v3.4.0 (N1021) — Preiszeilen: neueste oben; Boni bleiben in Erfassungsreihenfolge
@@ -1558,8 +1670,9 @@ function bindWaterEntryHandlers(modalEl) {
 // v2.2.0 — Pflichtfelder je Wasser-Gruppe. Beim Bonus ist `label` optional,
 // überall sonst müssen alle Spalten einer Zeile gefüllt sein (oder keine).
 function requiredWaterFields(groupKey, fields) {
+  // v3.7.0 (#35) — die Art ist eine Auswahl und immer gesetzt: kein Pflichtfeld
   return groupKey === 'bonuses'
-    ? fields.filter(f => f !== 'label')
+    ? fields.filter(f => f !== 'label' && f !== 'type')
     : fields;
 }
 
@@ -1646,11 +1759,12 @@ function collectWaterForm(modalEl) {
       })),
     },
     advance_payments: collect('ap').map(r => ({ from: r.from, amount_eur: num(r.amount_eur) })),
-    bonuses: collect('bonuses').map(r => ({
+    // v3.7.0 (#35) — die gewählte Art statt immer „neukunde“; Zeilen nur mit Art zählen als leer
+    bonuses: collect('bonuses').filter(r => r.credit_date || r.amount_eur || r.label).map(r => ({
       credit_date: r.credit_date,
       amount_eur: num(r.amount_eur),
       label: r.label || '',
-      type: 'neukunde',
+      type: r.type || 'neukunde',
     })),
   };
   // v3.5.0 (GitHub #34) — Sonderzahlungen, sofern der Abschnitt da ist

@@ -34,7 +34,8 @@ final class SettingsController
      */
     private function withAssumed(array $all): array
     {
-        return $all + ['assumed_keys' => $this->settings->assumedKeys()];
+        // v3.7.0 — additiv `example_keys`: Beispielwerte der Flexibilität ohne eigenen Wert
+        return $all + ['assumed_keys' => $this->settings->assumedKeys(), 'example_keys' => $this->settings->exampleKeys()];
     }
 
     public function update(Request $req): never

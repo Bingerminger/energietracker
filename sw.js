@@ -21,7 +21,7 @@
 // VERSION, damit das Bumpen nicht vergessen werden kann.
 // =====================================================================
 
-const VERSION = 'v3.6.0';
+const VERSION = 'v3.7.0';
 // v3.1.0 (Ökosystem G1) — Caches tragen den Scope der Installation im Namen.
 // Zwei Installationen auf einem Ursprung (ACC und Prod auf derselben NAS,
 // die App unter Home-Assistant-Ingress neben HAs eigenem Worker) löschten
@@ -45,6 +45,8 @@ const SHELL_URLS = [
   './public/css/app.css',
   './public/css/components.css',
   './public/css/readings-entry.css',
+  './public/css/inbox.css',            // v3.7.0 — Posteingang
+  './public/css/inbox-draft.css',      // v3.7.0 — Haushalt aus Dokumenten
   './public/css/print.css',
   './public/vendor/fonts.css',
   './public/vendor/fonts/dm-sans.woff2',

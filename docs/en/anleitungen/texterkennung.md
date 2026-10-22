@@ -171,18 +171,22 @@ All three lead to addresses in your own network and pass the check.
 
 ## Settings
 
-**Settings → Expert → 🔎 Text recognition in the home network** (at the top of
-the page, before the collapsed calculation parameters):
+At the top of **Settings → Expert**, before the collapsed calculation
+parameters, there are two cards. Text recognition shares address and interface
+with the inbox; since v3.7.0 they therefore appear once, in the **📥 Reading
+documents** card under **Local** (with **Check connection**, see
+[Inbox](posteingang.md#setting-up-reading)). Meter photos are always read by your
+own service, even when the inbox reads in the cloud.
 
-| Field | Key | Entry |
-|---|---|---|
-| Service address | `ocr_endpoint` | base address with `http://` or `https://`; the app appends the path (`/api/chat` or `/v1/chat/completions`). Empty = off |
-| Interface | `ocr_api` | **Ollama** or **OpenAI-compatible (LM Studio, LocalAI)** |
-| Model | `ocr_model` | the name as in the service, such as `qwen2.5vl` |
-| Time limit | `ocr_timeout_s` | seconds the server waits; default 30 (5–300) — fully usable in the Docker image ([Limits](#limits)) |
+| Card | Field | Key | Entry |
+|---|---|---|---|
+| 📥 Reading documents → Local | Service address | `ocr_endpoint` | base address with `http://` or `https://`; the app appends the path (`/api/chat` or `/v1/chat/completions`). Empty = off |
+| 📥 Reading documents → Local | Interface | `ocr_api` | **Ollama** or **OpenAI-compatible (LM Studio, LocalAI)** |
+| 🔎 Text recognition in the home network | Model | `ocr_model` | the name as in the service, such as `qwen2.5vl` |
+| 🔎 Text recognition in the home network | Time limit | `ocr_timeout_s` | seconds the server waits; default 30 (5–300) — fully usable in the Docker image ([Limits](#limits)) |
 
-Save. The next time you open “Meter readings”, text recognition is active. All
-keys:
+Save (each card on its own). The next time you open “Meter readings”, text
+recognition is active. All keys:
 [Settings → Text recognition in the home network](../referenz/einstellungen.md#text-recognition-in-the-home-network-v310).
 
 ---

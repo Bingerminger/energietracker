@@ -137,6 +137,8 @@ export async function openCaptureSheet() {
       entry(`#/utility/${u.key}?add=level`, '📏', t('nav.sheet.tankLevel', { utility: u.label })),
     ]),
     entry('#/reminders?add=1', '📌', t('nav.sheet.reminder')),
+    // v3.7.0 — Versorgerpost ablegen (am iPad aus der Dateien-App)
+    entry('#/inbox', '📥', t('nav.sheet.inbox'), t('nav.sheet.inboxHint')),
   ];
   openModal({
     title: t('nav.sheet.title'),

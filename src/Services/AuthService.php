@@ -843,6 +843,9 @@ final class AuthService
 
     // ── API-Schlüssel für Skripte (v2.6.0) ──────────────────────────────
 
+    /** Bereiche eines API-Schlüssels (v3.7.0 (Paket betrieb): `inbox` — nur ablegen). */
+    public const API_KEY_SCOPES = ['read', 'admin', 'calendar', 'inbox'];
+
     /** @return list<array{id:string,name:string,scope:string,created_at:string,last_used_at:?string}> */
     public function apiKeys(): array
     {
@@ -863,7 +866,8 @@ final class AuthService
     public function createApiKey(string $name, string $scope): array
     {
         // v3.1.0 (MKT-09) — `calendar`: nur das Kalender-Abo, nur als ?token=
-        if (!in_array($scope, ['read', 'admin', 'calendar'], true)) throw new \InvalidArgumentException('scope');
+        // v3.7.0 (Paket betrieb) — `inbox`: nur PDFs in den Posteingang legen (POST /api/inbox)
+        if (!in_array($scope, self::API_KEY_SCOPES, true)) throw new \InvalidArgumentException('scope');
         $name = trim($name) === '' ? $scope : mb_substr(trim($name), 0, 60);
         $key  = 'etk_' . bin2hex(random_bytes(24));
         $id   = 'k_' . bin2hex(random_bytes(4));

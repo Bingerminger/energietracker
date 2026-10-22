@@ -9,6 +9,13 @@
 // angemeldete Person (ID oder gleicher Name, Groß-/Kleinschreibung egal),
 // ohne Anmeldung die Auswahl „Ich bin …“ dieses Geräts. Benachrichtigt wird
 // niemand.
+//
+// v3.7.0 — Zuständig auch an Zählern und Verträgen (`assignee_id`, nur
+// Personen aus dem Verzeichnis). Fristen erben: eigene am Termin → Vertrag →
+// Zähler. Agenda-Ereignisse tragen die geerbte Zuständigkeit samt
+// `assignee_source` (contract | meter), Termine am Zähler `assignee_inherited`;
+// der Chip sagt „über den Vertrag“ bzw. „über den Zähler“, Filter und
+// „Meine Aufgaben“ zählen sie mit.
 // =====================================================================
 
 import { t, tp } from './i18n.js';
@@ -17,19 +24,35 @@ import { sessionUser } from './levels.js';
 
 const FILTER_KEY = 'et-assignee-filter';
 const ME_KEY = 'et-assignee-me';
+/** v3.7.0 — woher eine geerbte Zuständigkeit kommt (Katalogschlüssel wörtlich, nicht zusammengesetzt). */
+const VIA_KEY = { contract: 'assignee.via.contract', meter: 'assignee.via.meter' };
 
 /** Namen vergleichen: getrimmt, Groß-/Kleinschreibung egal. */
 export const normName = (s) => String(s ?? '').trim().normalize('NFC').toLowerCase();
 
 /**
- * Zuständigkeit eines Termins oder Ereignisses: {name, id, former, deleted} oder
- * null (niemand). v3.6.0 — `deleted`: Die Person ist gelöscht, ihr Name bleibt
- * („Name (gelöscht)“); sie zählt wie „ehemalige Person“ zu „Ohne Zuständigkeit“.
+ * Die eigene Zuständigkeit eines Termins (oder die Felder eines Zählers,
+ * Vertrags, Ereignisses): {name, id, former, deleted} oder null (niemand).
+ * v3.6.0 — `deleted`: Die Person ist gelöscht, ihr Name bleibt („Name
+ * (gelöscht)“); sie zählt wie „ehemalige Person“ zu „Ohne Zuständigkeit“.
  */
-export function assigneeOf(x) {
+export function ownAssigneeOf(x) {
   const name = typeof x?.assignee === 'string' && x.assignee.trim() !== '' ? x.assignee.trim() : null;
   if (name) return { name, id: typeof x.assignee_id === 'string' && x.assignee_id ? x.assignee_id : null, former: false, deleted: !!x.assignee_deleted };
   return x?.assignee_former ? { name: null, id: null, former: true, deleted: false } : null;
+}
+
+/**
+ * Wer zuständig ist, wie Liste, Filter und Chip es zeigen: die eigene
+ * Zuständigkeit, sonst (v3.7.0) die geerbte — `via` = 'contract' | 'meter'
+ * bzw. null, wenn sie am Termin selbst steht.
+ */
+export function assigneeOf(x) {
+  const own = ownAssigneeOf(x);
+  if (own) return { ...own, via: VIA_KEY[x?.assignee_source] ? x.assignee_source : null };
+  const inh = x?.assignee_inherited;
+  const a = inh && typeof inh === 'object' ? ownAssigneeOf(inh) : null;
+  return a ? { ...a, via: VIA_KEY[inh.assignee_source] ? inh.assignee_source : 'meter' } : null;
 }
 
 /** Niemand mehr zuständig: keine Angabe, „ehemalige Person“ oder gelöschte Person. */
@@ -96,13 +119,67 @@ export function anyAssigned(items) {
   return (items || []).some(x => assigneeOf(x) !== null);
 }
 
-/** Namens-Chip („👤 Anna“, „ehemalige Person“, v3.6.0 „Anna (gelöscht)“); leer ohne Zuständigkeit. */
+/** Anzeigename: „ehemalige Person“, „Anna (gelöscht)“ oder der Name. */
+export function displayName(a) {
+  if (!a) return '';
+  return a.former ? t('activity.by.former') : a.deleted ? t('people.deletedName', { name: a.name }) : a.name;
+}
+
+/**
+ * Namens-Chip („👤 Anna“, „ehemalige Person“, v3.6.0 „Anna (gelöscht)“); leer
+ * ohne Zuständigkeit. v3.7.0 — geerbt mit dem Zusatz „über den Vertrag“ bzw.
+ * „über den Zähler“.
+ */
 export function chipHtml(x) {
   const a = assigneeOf(x);
   if (!a) return '';
-  const name = a.former ? t('activity.by.former') : a.deleted ? t('people.deletedName', { name: a.name }) : a.name;
-  return ` <span class="chip chip--assignee${a.former || a.deleted ? ' chip--former' : ''}" title="${esc(t('assignee.label'))}">`
-    + `<span aria-hidden="true">👤</span> <span class="sr-only">${esc(t('assignee.label'))}: </span>${esc(name)}</span>`;
+  const via = a.via ? t(VIA_KEY[a.via]) : '';
+  return ` <span class="chip chip--assignee${a.former || a.deleted ? ' chip--former' : ''}${via ? ' chip--via' : ''}" title="${esc(t('assignee.label') + (via ? ` (${via})` : ''))}">`
+    + `<span aria-hidden="true">👤</span> <span class="sr-only">${esc(t('assignee.label'))}: </span>${esc(displayName(a))}`
+    + `${via ? ` <span class="chip__via">${esc(via)}</span>` : ''}</span>`;
+}
+
+/** v3.7.0 — Auswahlwert für „ehemalige Person“ (bleibt beim Speichern stehen). */
+const FORMER = '__former';
+
+/**
+ * v3.7.0 — Auswahl „Zuständig“ an Zähler und Vertrag: „– niemand –“ und die
+ * Personen aus dem Verzeichnis (GET /api/people). Eine gelöschte Person oder
+ * „ehemalige Person“, die der Datensatz noch trägt, steht als eigene Option
+ * da — unverändert gespeichert bleibt sie stehen. `hintKey`: Satz darunter.
+ */
+export function personSelectHtml({ id, record = null, people = [], hintKey = '' } = {}) {
+  const cur = ownAssigneeOf(record);
+  const value = cur?.former ? FORMER : (cur?.id || '');
+  const opts = [`<option value="">${esc(t('assignee.none'))}</option>`];
+  for (const p of people || []) {
+    if (!p?.id) continue;
+    opts.push(`<option value="${esc(p.id)}"${p.id === value ? ' selected' : ''}>${esc(p.name)}</option>`);
+  }
+  // gelöscht oder unbekannt: als eigene Option, damit das Formular sie nicht still verliert
+  if (cur && (cur.former || !(people || []).some(p => p.id === cur.id))) {
+    opts.push(`<option value="${esc(value)}" selected>${esc(displayName(cur))}</option>`);
+  }
+  const hint = [hintKey ? t(hintKey) : '', (people || []).length ? '' : t('assignee.noPeople')].filter(Boolean).join(' ');
+  return `<div class="field field--m" data-role="assignee-field">
+      <label for="${esc(id)}">${esc(t('assignee.label'))}</label>
+      <select class="select" id="${esc(id)}" name="assignee_id" aria-describedby="${esc(id)}-hint">${opts.join('')}</select>
+      <small class="settings-field__hint" id="${esc(id)}-hint">${esc(hint)}</small>
+    </div>`;
+}
+
+/**
+ * v3.7.0 — was an den Server geht: nichts, solange die Auswahl unverändert
+ * ist (eine gelöschte Person bleibt so stehen), sonst `assignee_id` (null =
+ * niemand).
+ */
+export function personPayload(selectEl, record = null) {
+  if (!selectEl) return {};
+  const cur = ownAssigneeOf(record);
+  const before = cur?.former ? FORMER : (cur?.id || '');
+  const v = String(selectEl.value || '');
+  if (v === before) return {};
+  return { assignee_id: v === '' || v === FORMER ? null : v };
 }
 
 /**

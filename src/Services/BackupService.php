@@ -65,6 +65,8 @@ final class BackupService
         'activity'                  => 'activity.json',
         // v3.6.0 — Personenverzeichnis: Nummer, Name, Rolle, Löschvermerk (ohne Passwörter, s. PeopleService)
         'people'                    => PeopleService::FILE,
+        // v3.7.0 — Posteingang: Dokument, Prüfsumme, Status, Auslesung, Zuordnung (das PDF unter attachment_files)
+        'inbox'                     => InboxService::FILE,
     ];
 
     /**
@@ -342,6 +344,13 @@ final class BackupService
             if ($key === 'tenancy_statements') {
                 $this->checkList($payload[$key], $key, ['id', 'tenancy_id', 'period_from', 'period_to'], ['period_from', 'period_to'], $problem);
             }
+            // v3.7.0 — Posteingang: Kennung, Prüfsumme, Status aus der Liste
+            if ($key === 'inbox' && $this->checkList($payload[$key], $key, ['id', 'sha256', 'status'], [], $problem)) {
+                foreach ($payload[$key] as $i => $e) {
+                    if (!preg_match(InboxService::ID, (string)$e['id'])) $problem($key, $i, 'id');
+                    elseif (!in_array($e['status'], InboxService::STATUSES, true)) $problem($key, $i, 'status');
+                }
+            }
             // v3.6.0 — Personenverzeichnis: {last_no, people: [{id, name, …}]} oder leer ([] aus completePayload)
             if ($key === 'people') {
                 $list = $payload[$key] === [] ? [] : ($payload[$key]['people'] ?? null);
@@ -432,7 +441,8 @@ final class BackupService
                     'periods'      => [['id', 'meter_id', 'from', 'to'], ['from', 'to']],
                     'bills'        => [['id', 'meter_id', 'period_from', 'period_to'], ['period_from', 'period_to']],
                 };
-                if ($this->checkList($list, "$key/$pot", $required, $dates, $problem)) {
+                if ($this->checkList($list, "$key/$pot", $required, $dates, $problem)
+                    && (!in_array($pot, ResponsibilityService::POTS, true) || self::checkAssignees($list, "$key/$pot", $problem))) {
                     $writes["$key/$pot.json"] = $list;
                 }
                 $counts[$pot] = is_array($list) ? count($list) : 0;
@@ -478,6 +488,27 @@ final class BackupService
                 $problem($pot, $i, 'unsafe_id:devices.id'); $ok = false;
                 break;
             }
+        }
+        return $ok;
+    }
+
+    /**
+     * v3.7.0 — Zuständigkeit an Zählern und Verträgen: `assignee_id` ist eine
+     * Personen-ID wie im Verzeichnis (oder fehlt), `assignee_former` ein
+     * Wahrheitswert. Ob es die Person gibt, prüft der Import nicht — ein
+     * Backup ohne Topf `people` behält das vorhandene Verzeichnis; eine
+     * unbekannte ID zeigt niemanden.
+     *
+     * @param list<array<string,mixed>> $list
+     * @param callable(string, ?int, string): void $problem
+     */
+    private static function checkAssignees(array $list, string $pot, callable $problem): bool
+    {
+        $ok = true;
+        foreach ($list as $i => $row) {
+            $id = $row['assignee_id'] ?? null;
+            if ($id !== null && (!is_string($id) || !preg_match(PeopleService::ID, $id))) { $problem($pot, $i, 'assignee_id'); $ok = false; }
+            if (array_key_exists('assignee_former', $row) && !is_bool($row['assignee_former'])) { $problem($pot, $i, 'assignee_former'); $ok = false; }
         }
         return $ok;
     }
@@ -626,6 +657,7 @@ final class BackupService
             str_starts_with($name, 'pre-migration-') => 'migration',
             str_starts_with($name, 'pre-demo-')      => 'demo',
             str_starts_with($name, 'pre-v09-')       => 'v09',
+            str_starts_with($name, 'pre-inbox-')     => 'inbox',   // v3.7.0 — vor „Haushalt aus Dokumenten übernehmen“
             default                                  => 'manual',
         };
     }

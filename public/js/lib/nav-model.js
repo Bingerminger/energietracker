@@ -111,6 +111,9 @@ export function sidebarModel(utilities) {
   return [
     { key: 'dashboard', section: 'overview', href: '#/dashboard', icon: '🏠', label: t('nav.dashboard') },
     { key: 'readings-entry', section: 'capture', href: '#/zaehlerstaende', icon: '📋', label: t('nav.readings'), badge: 'outbox' },
+    // v3.7.0 — Posteingang für Versorgerpost, in jeder Stufe: Ablegen und „Von Hand
+    // erfassen“ gehen ohne KI, und das Auslesen nimmt gerade Einsteigern die Formulare ab
+    { key: 'inbox', section: 'inbox', href: '#/inbox', icon: '📥', label: t('nav.inbox'), badge: 'inbox' },
     {
       key: 'consumption', section: 'consumption', group: t('nav.group.consumption'),
       children: utilities.map(u => ({

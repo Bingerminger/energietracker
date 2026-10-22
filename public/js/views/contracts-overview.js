@@ -17,6 +17,24 @@ import { t, tp } from '../lib/i18n.js';
 // v3.4.0 (F1024) — Folgevertrag und Verlauf je Vertrag
 import { openModal } from '../components/modal.js';
 import { entryTitle, reasonText, whenWho } from '../lib/activity.js';
+import { uncertainRangeText } from '../lib/semantics.js';   // v3.7.0 (Nachlauf)
+// v3.7.0 — Zuständig: Vertrag, sonst Zähler; Filter wie in „Zu tun“ (je Gerät gemerkt)
+import { assigneeOf, assigneeNames, chipHtml, filterHtml, bindFilter, filterNoteHtml, matchesAssignee, storedFilter } from '../lib/assignee.js';
+
+/**
+ * v3.7.0 — wer für die Fristen eines Zählers mit laufendem Vertrag zuständig
+ * ist: die Person des Vertrags, sonst die des Zählers (wie die Agenda). Form
+ * wie ein Agenda-Ereignis (`assignee*`, `assignee_source`).
+ */
+export function responsibleOf(contract, meter) {
+  for (const [x, source] of [[contract, 'contract'], [meter, 'meter']]) {
+    if (x && (x.assignee || x.assignee_former)) {
+      return { assignee: x.assignee ?? null, assignee_id: x.assignee_id ?? null, assignee_former: !!x.assignee_former,
+               assignee_deleted: !!x.assignee_deleted, assignee_source: source };
+    }
+  }
+  return {};
+}
 
 export async function render(container) {
   const header = `
@@ -41,11 +59,14 @@ export async function render(container) {
   // Je Verbrauchsart die Zähler, je Zähler der Vertragsstatus — parallel
   const blocks = await Promise.all(utilities.map(async u => {
     try {
-      const meters = await api.meters(u.key);
-      const rows = await Promise.all(meters.map(async m => ({
-        meter: m,
-        contracts: await api.contractStatus(u.key, m.id).then(d => d?.contracts || []).catch(() => []),
-      })));
+      // v3.7.0 — gespeicherte Verträge für die Zuständigkeit (contract-status trägt sie nicht)
+      const [meters, stored] = await Promise.all([api.meters(u.key), api.contracts(u.key).catch(() => [])]);
+      const byId = new Map((stored || []).map(c => [c.id, c]));
+      const rows = await Promise.all(meters.map(async m => {
+        const contracts = await api.contractStatus(u.key, m.id).then(d => d?.contracts || []).catch(() => []);
+        const cur = contracts.find(x => x.is_current);
+        return { meter: m, contracts, who: responsibleOf(cur ? byId.get(cur.contract_id) : null, m) };
+      }));
       return { u, rows };
     } catch (e) {
       return { u, error: e };
@@ -60,7 +81,26 @@ export async function render(container) {
     byContract.get(cid).push(e);
   }
   historyByContract = byContract;
-  container.innerHTML = `${header}${blocks.map(utilityCard).join('')}`;
+  draw(container, header, blocks);
+}
+
+/**
+ * v3.7.0 — zeichnen, mit Filter nach Zuständigkeit, sobald ein laufender
+ * Vertrag oder Zähler eine Person hat (oder ein Filter gemerkt ist).
+ */
+function draw(container, header, blocks) {
+  const filter = storedFilter();
+  const all = blocks.flatMap(b => b.rows || []);
+  const withFilter = all.some(r => assigneeOf(r.who)) || filter !== 'all';
+  const shown = (b) => withFilter && b.rows ? { ...b, rows: b.rows.filter(r => matchesAssignee(r.who, filter)) } : b;
+  const visible = blocks.map(shown);
+  const hidden = all.length - visible.reduce((n, b) => n + (b.rows?.length || 0), 0);
+  container.innerHTML = `${header}
+    ${withFilter ? filterHtml({ id: 'co-assignee', value: filter, names: assigneeNames(all.map(r => r.who)) }) : ''}
+    ${visible.filter(b => b.error || !withFilter || b.rows.length).map(utilityCard).join('')}
+    ${withFilter && hidden > 0 && visible.every(b => !b.error && !b.rows.length) ? `<p class="muted" data-role="assignee-empty">${escapeHtml(t('assignee.emptyFiltered'))}</p>` : ''}
+    ${withFilter ? filterNoteHtml(hidden, filter) : ''}`;
+  bindFilter(container, () => draw(container, header, blocks));
   container.querySelectorAll('[data-history]').forEach(b => b.addEventListener('click', () => openHistory(b.dataset.history, b.dataset.name)));
 }
 
@@ -91,7 +131,7 @@ function utilityCard({ u, rows, error }) {
   } else if (!rows.length) {
     body = `<p class="muted">${escapeHtml(t('contractsOverview.noMeter'))}</p>`;
   } else {
-    body = rows.map(({ meter, contracts }) => meterBlock(u, meter, contracts, rows.length > 1)).join('');
+    body = rows.map(({ meter, contracts, who }) => meterBlock(u, meter, contracts, rows.length > 1, who)).join('');
   }
   return `
     <section class="card contract-overview card--${escapeHtml(u.key)}" data-utility="${escapeHtml(u.key)}">
@@ -103,13 +143,13 @@ function utilityCard({ u, rows, error }) {
     </section>`;
 }
 
-function meterBlock(u, meter, contracts, showMeter) {
+function meterBlock(u, meter, contracts, showMeter, who = {}) {
   const c = (contracts || []).find(x => x.is_current);
   const meterLine = showMeter ? `<div class="contract-overview__meter">${escapeHtml(t('contractsOverview.meter', { name: meter.name }))}</div>` : '';
   if (!c) {
     return `<div class="contract-overview__row">${meterLine}
       <p class="muted">${escapeHtml(t('contractsOverview.noContract'))}
-        <a href="#/utility/${escapeHtml(u.key)}/contracts">${escapeHtml(t('contractsOverview.addContract'))}</a></p>
+        <a href="#/utility/${escapeHtml(u.key)}/contracts">${escapeHtml(t('contractsOverview.addContract'))}</a>${chipHtml(who)}</p>
     </div>`;
   }
   const name = [c.provider, c.tariff_name].filter(Boolean).join(' · ') || '–';
@@ -150,7 +190,13 @@ function meterBlock(u, meter, contracts, showMeter) {
   const verdict = c.verdict;
   const good = verdict === 'refund' || verdict === 'payout';
   const bad = verdict === 'surcharge' || verdict === 'reclaim';
-  const expected = c.projected_end_balance != null && verdict
+  // v3.7.0 (Nachlauf vor dem Release) — unsichere Schätzung: die Spanne der Saldo-Karte statt eines Betrags
+  const expected = c.projected_end_balance != null && c.projection_uncertain
+    ? `<div class="contract-overview__expected" data-role="expected-range">
+        ${escapeHtml(t('contractsOverview.expected', { date: fmt.date(c.effective_end) }))}
+        <strong>${escapeHtml(uncertainRangeText(c.projection_uncertain))}</strong> <span class="muted">(${escapeHtml(t('balanceUncertain.verdict'))})</span>
+      </div>`
+    : c.projected_end_balance != null && verdict
     ? `<div class="contract-overview__expected">
         ${escapeHtml(t('contractsOverview.expected', { date: fmt.date(c.effective_end) }))}
         <strong class="${good ? 'success-text' : bad ? 'danger-text' : ''}">${escapeHtml(t('utility.verdict.' + verdict))} ${
@@ -167,7 +213,7 @@ function meterBlock(u, meter, contracts, showMeter) {
 
   return `<div class="contract-overview__row">
       ${meterLine}
-      <div class="contract-overview__name">${escapeHtml(name)}</div>
+      <div class="contract-overview__name">${escapeHtml(name)}${chipHtml(who)}</div>
       <div class="muted">${escapeHtml(term)}</div>
       ${facts.length ? `<div class="contract-overview__facts">${facts.join('<span aria-hidden="true"> · </span>')}</div>` : ''}
       ${expected}

@@ -165,11 +165,16 @@ final class SummaryService
                 'base_price_month'          => $c['current_base_price_eur'] ?? null,
                 'advance_month'             => $c['current_advance_amount'] ?? null,
                 'suggested_advance'         => $c['suggested_advance'] ?? null,
+                // v3.7.0 (wirklichkeit-2) — Spanne statt Vorschlag, wenn die Schätzung unsicher ist
+                'projection_uncertain'      => $c['projection_uncertain'] ?? null,
                 'balance'                   => $c['current_balance'] ?? null,
                 'projected_end_balance'     => $c['projected_end_balance'] ?? null,
                 'verdict'                   => $c['verdict'] ?? null,
                 'balance_as_of'             => $c['balance_as_of'] ?? null,
+                // Bei offenen Verträgen der Stichtag (erster Tag der nächsten Periode) —
+                // so bleibt es für Home Assistant; v3.7.0 (#33) daneben der letzte Tag
                 'period_end'                => $c['effective_end'] ?? null,
+                'period_last_day'           => ConsumptionService::periodLastDay($c),
                 'cancel_by'                 => $dated ? ($c['cancel_by'] ?? null) : null,
                 'days_to_cancel'            => $dated ? ($c['days_to_cancel'] ?? null) : null,
                 'price_increase_from'       => $c['price_increase']['from'] ?? null,

@@ -39,6 +39,14 @@ use Energietracker\Support\Dates;
  * `assignee_former` (bei Terminen die Zuständigkeit, sonst null/false);
  * v3.6.0 dazu `assignee_deleted` (Person gelöscht, Name bleibt).
  *
+ * v3.7.0 — Zuständigkeit geerbt (ResponsibilityService): eigene am Termin →
+ * Vertrag → Zähler → niemand. Vertragsfristen (cancel_by, term_end,
+ * price_guarantee_end, price_increase) und `bill_expected` vom Vertrag, sonst
+ * vom Zähler; Ablesung und Bestand vom Zähler; ein Termin am Zähler (`utility`,
+ * `meter_id`) vom Zähler. Dazu `assignee_source`: own, contract, meter oder
+ * null. Nebenkosten- und CO₂-Fristen haben keine. Beim Abhaken nennt der
+ * Verlauf die Zuständige als Momentaufnahme.
+ *
  * Jedes Ereignis: {uid, kind, date, title, title_key, params, severity,
  * due_now, href, ref, occurrence, can_mark_done, done}.
  * `uid` bleibt über Zeit stabil (der Kalender aktualisiert so dasselbe
@@ -93,6 +101,42 @@ final class AgendaService
         $this->activity = $activity;
     }
 
+    /** v3.7.0 — Zuständigkeit an Zählern und Verträgen (optional; ohne sie nur die eigene der Termine). */
+    private ?ResponsibilityService $responsibility = null;
+
+    public function attachResponsibility(ResponsibilityService $responsibility): void
+    {
+        $this->responsibility = $responsibility;
+    }
+
+    /** @var array<string,array<string,array<string,mixed>>> Zähler je Verbrauchsart, je Aufruf von events() */
+    private array $meterIndex = [];
+
+    /** v3.7.0 — gespeicherter Zähler (keine Gruppe) oder null. */
+    private function meterOf(string $utility, string $id): ?array
+    {
+        if ($utility === '' || $id === '' || !Utilities::exists($utility)) return null;
+        if (!isset($this->meterIndex[$utility])) {
+            $this->meterIndex[$utility] = [];
+            foreach ($this->meters->list($utility) as $m) $this->meterIndex[$utility][(string)($m['id'] ?? '')] = $m;
+        }
+        return $this->meterIndex[$utility][$id] ?? null;
+    }
+
+    /**
+     * v3.7.0 — wer zuständig ist: eigene (Termin) → Vertrag → Zähler → niemand.
+     *
+     * @param array<string,mixed>|null $own
+     * @param array<string,mixed>|null $contract
+     * @param array<string,mixed>|null $meter
+     * @return array<string,mixed>
+     */
+    private function who(?array $own, ?array $contract = null, ?array $meter = null): array
+    {
+        return ResponsibilityService::own($own)
+            ?? ($this->responsibility?->inherit($contract, $meter) ?? ResponsibilityService::NOBODY);
+    }
+
     /**
      * v3.4.0 (F1024) — UID eines Ereignisses `<art>-<teil>-<teil>` (Verträge,
      * Preiserhöhung, Tank). Eine Stelle für Agenda, Empfehlungen und Verlauf.
@@ -115,6 +159,7 @@ final class AgendaService
         $recs = $this->recommendations->all();
         $recIds = array_flip(array_column($recs, 'id'));
         $events = [];
+        $this->meterIndex = [];   // v3.7.0 — Zähler je Aufruf frisch
 
         // ── Termine ──
         foreach ($this->reminders->listWithStatus() as $r) {
@@ -122,11 +167,19 @@ final class AgendaService
             if ($date === '' || $date > $until) continue;
             $status = (string)($r['status'] ?? 'ok');
             $due = in_array($status, ['due', 'overdue'], true);
+            // v3.7.0 — Termin am Zähler: Verweis und, ohne eigene Zuständigkeit, die des Zählers
+            $mu = is_string($r['utility'] ?? null) ? $r['utility'] : '';
+            $mid = is_string($r['meter_id'] ?? null) ? $r['meter_id'] : '';
+            $meter = $this->meterOf($mu, $mid);
+            // v3.7.0 (Paket betrieb) — „Zählerstand melden“ führt direkt in die Erfassung des Zählers
+            $href = $meter !== null && ($r['category'] ?? '') === ReminderService::CATEGORY_READING
+                ? '#/zaehlerstaende?meter=' . rawurlencode($mid) : '#/reminders';
             $events[] = $this->event('reminder', 'reminder-' . $r['id'], $date, 'calendar.event.reminder',
                 ['title' => (string)($r['title'] ?? '')],
-                $status === 'overdue' ? 'overdue' : ($due ? 'due' : 'upcoming'), $due, '#/reminders',
+                $status === 'overdue' ? 'overdue' : ($due ? 'due' : 'upcoming'), $due, $href,
                 ['reminder_id' => (string)$r['id'], 'category' => (string)($r['category'] ?? ''),
-                 'days_until' => $r['days_until'] ?? null], $date, null, $r);
+                 'days_until' => $r['days_until'] ?? null] + ($meter !== null ? ['utility' => $mu, 'meter_id' => $mid] : []),
+                $date, null, $this->who($r, null, $meter));
         }
 
         // ── fällige Ablesungen (kumulative Zähler in Betrieb) ──
@@ -144,7 +197,8 @@ final class AgendaService
                 'calendar.event.readingDue', ['label' => $row['utility_label'], 'meter' => $row['meter_name']],
                 $due ? 'due' : 'upcoming', $due, '#/zaehlerstaende?meter=' . rawurlencode((string)$row['meter_id']),
                 ['utility' => $row['utility'], 'meter_id' => $row['meter_id'], 'last_reading' => $last,
-                 'days_since_reading' => $since, 'icon' => (string)($row['utility_icon'] ?? '')], $last ?? 'none');
+                 'days_since_reading' => $since, 'icon' => (string)($row['utility_icon'] ?? '')], $last ?? 'none',
+                null, $this->who(null, null, $this->meterOf((string)$row['utility'], (string)$row['meter_id'])));   // v3.7.0
         }
 
         // ── Verträge: Kündigungsstichtag, Vertragsende, Preisgarantie, Preiserhöhung ──
@@ -180,6 +234,8 @@ final class AgendaService
                     $auto = $successor !== null && (int)$successor['gap_days'] === 0
                         ? $this->successorDone($successor, ActivityService::occurrence("contract-$cid", $anchor)) : null;
                     $renewed = !empty($c['renewed']);
+                    // v3.7.0 — Fristen des Vertrags: seine Zuständige, sonst die des Zählers
+                    $who = $this->who(null, $raw[$cid] ?? null, $meter);
 
                     // v3.4.0 (F1024) — nur ein datierter Stichtag (s. Klassenkommentar)
                     $cancel = ContractService::hasFixedCancelBy($raw[$cid] ?? [], $renewed) ? ($c['cancel_by'] ?? null) : null;
@@ -187,19 +243,19 @@ final class AgendaService
                         $due = $remind && $basis === 'cancel_by';
                         $events[] = $this->event('cancel_by', self::uid('cancel_by', $cid), (string)$cancel, 'calendar.event.cancelBy', $params,
                             $due ? ((int)($c['days_to_cancel'] ?? 99) <= 14 ? 'urgent' : 'due') : 'upcoming', $due, $href,
-                            $ref + ['days' => $c['days_to_cancel'] ?? null], $anchor, $auto);
+                            $ref + ['days' => $c['days_to_cancel'] ?? null], $anchor, $auto, $who);
                     }
                     $end = $c['end'] ?? null;
                     if ($end !== null && !$renewed && $end >= $today && ($end <= $until || ($remind && $basis === 'end'))) {
                         $due = $remind && $basis === 'end';
                         $events[] = $this->event('term_end', self::uid('term_end', $cid), (string)$end, 'calendar.event.termEnd', $params,
                             $due ? ((int)($c['days_until_end'] ?? 99) <= 14 ? 'urgent' : 'due') : 'upcoming', $due, $href,
-                            $ref + ['days' => $c['days_until_end'] ?? null], $anchor, $auto);
+                            $ref + ['days' => $c['days_until_end'] ?? null], $anchor, $auto, $who);
                     }
                     $guarantee = $raw[$cid]['price_guarantee_until'] ?? null;
                     if (is_string($guarantee) && $guarantee >= $today && $guarantee <= $until) {
                         $events[] = $this->event('price_guarantee_end', self::uid('price_guarantee_end', $cid), $guarantee,
-                            'calendar.event.priceGuaranteeEnd', $params, 'upcoming', false, $href, $ref, $anchor, $auto);
+                            'calendar.event.priceGuaranteeEnd', $params, 'upcoming', false, $href, $ref, $anchor, $auto, $who);
                     }
                     $increase = $c['price_increase']['from'] ?? null;
                     if (is_string($increase) && $increase >= $today && $increase <= $until) {
@@ -208,7 +264,7 @@ final class AgendaService
                         $incDue = isset($recIds[$incId]);
                         $events[] = $this->event('price_increase', self::uid('price_increase', $cid, $increase), $increase,
                             'calendar.event.priceIncrease', $params, $incDue ? 'due' : 'upcoming', $incDue, $href,
-                            $ref + ($incDue ? ['recommendation_id' => $incId] : []), $anchor, $auto);
+                            $ref + ($incDue ? ['recommendation_id' => $incId] : []), $anchor, $auto, $who);
                     }
                 }
             }
@@ -229,7 +285,8 @@ final class AgendaService
                 '#/utility/' . rawurlencode($u) . '?add=delivery',
                 ['utility' => $u, 'meter_id' => $m, 'recommendation_id' => (string)$r['id']],
                 // v3.4.0 (F1024) — Vorkommen: seit der letzten Lieferung
-                (string)($r['evidence']['anchor'] ?? 'none'));
+                (string)($r['evidence']['anchor'] ?? 'none'),
+                null, $this->who(null, null, $this->meterOf($u, $m)));   // v3.7.0 — Zuständige des Tanks
         }
 
         // ── v3.5.0 (F1029) — Abrechnung erwartet: Zeitraum beendet, keine Versorgerrechnung ──
@@ -245,7 +302,10 @@ final class AgendaService
                 ['utility' => (string)$x['utility'], 'meter_id' => (string)$x['target_id'], 'contract_id' => (string)$x['contract_id'],
                  'period_from' => (string)$x['from'], 'period_until' => (string)$x['until'], 'final' => (bool)$x['final'],
                  'deadline' => $x['deadline'], 'overdue' => (bool)$x['overdue']],
-                (string)$x['until']);
+                (string)$x['until'], null,
+                // v3.7.0 — Zuständige des Vertrags, sonst des Zählers (eine Gruppe hat keine)
+                $this->who(null, $this->contracts->get((string)$x['utility'], (string)$x['contract_id']),
+                    empty($x['is_group']) ? $this->meterOf((string)$x['utility'], (string)$x['target_id']) : null));
             // Tage im Titel in der Schreibweise der Sprache (params bleiben JJJJ-MM-TT)
             $ev['title'] = $this->i18n->t($titleKey, array_map(fn($v) => is_string($v) && Dates::isIsoDate($v) ? $this->i18n->date($v) : $v, $params));
             $events[] = $ev;
@@ -361,6 +421,8 @@ final class AgendaService
             'revert'        => $revert,
             // v3.5.0 (F1029) — von Hand abgehakt heißt: kam ohne Erfassung
             'reason'        => $event['kind'] === 'bill_expected' ? ['key' => 'activity.reason.billWithout', 'params' => []] : null,
+            // v3.7.0 — wer zuständig war (geerbt vom Vertrag oder Zähler), als Momentaufnahme
+            'assignee'      => ResponsibilityService::snapshot($event),
         ]);
         return ['activity_id' => $entry['id'], 'entry' => $entry, 'event' => self::markedDone($event, $entry)];
     }
@@ -389,7 +451,8 @@ final class AgendaService
      * @param array<string,mixed>  $ref
      * @param string               $anchor Anker des Vorkommens (s. ActivityService)
      * @param array<string,mixed>|null $autoDone aus den Daten erledigt (Folgevertrag)
-     * @param array<string,mixed>|null $assignee v3.5.0 (F1028) — Termin mit Zuständigkeit (ReminderService::withAssignee)
+     * @param array<string,mixed>|null $assignee v3.5.0 (F1028) — Termin mit Zuständigkeit (ReminderService::withAssignee);
+     *        v3.7.0 aufgelöst über who() samt `assignee_source`
      * @return array<string,mixed>
      */
     private function event(string $kind, string $uid, string $date, string $titleKey, array $params,
@@ -420,6 +483,9 @@ final class AgendaService
             'assignee_former' => !empty($assignee['assignee_former']),
             // v3.6.0 — Person gelöscht, Name bleibt („(gelöscht)“)
             'assignee_deleted' => !empty($assignee['assignee_deleted']),
+            // v3.7.0 — woher: own (Termin), contract, meter; null = niemand
+            'assignee_source' => in_array($assignee['assignee_source'] ?? null, ResponsibilityService::SOURCES, true)
+                ? $assignee['assignee_source'] : null,
         ];
     }
 

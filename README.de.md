@@ -14,11 +14,11 @@ Beispielhaushalt, bis heute fortgeschrieben, in sieben Sprachen, ohne Installati
 
 [![CI](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml)
 [![Docker Publish](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml)
-[![Version](https://img.shields.io/badge/version-3.6.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-3.7.0-blue.svg)](CHANGELOG.md)
 [![Lizenz: AGPL-3.0-or-later](https://img.shields.io/badge/Lizenz-AGPL--3.0--or--later-success.svg)](LICENSE)
 [![PHP](https://img.shields.io/badge/PHP-%E2%89%A5%208.2-777BB4.svg)](composer.json)
 [![Abhängigkeiten: 0](https://img.shields.io/badge/Abh%C3%A4ngigkeiten-0-success.svg)](composer.json)
-[![Tests](https://img.shields.io/badge/Tests-1074-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-1477-success.svg)](tests/)
 [![Sprachen](https://img.shields.io/badge/Sprachen-7-7c5cff.svg)](public/locales/)
 [![Verbrauchsarten](https://img.shields.io/badge/Verbrauchsarten-9-f59e0b.svg)](docs/einstieg/funktionen.md)
 [![Docker](https://img.shields.io/badge/Docker-amd64%20%7C%20arm64-2496ed.svg)](docker-compose.yml)
@@ -106,13 +106,22 @@ Alles bleibt auf deinem Server: keine Konten, keine Werbung, keine Telemetrie,
 keine Datenbank — nur JSON-Dateien. Nach außen spricht die App nur mit
 Open-Meteo: beim täglichen Wetterabgleich (übermittelt wird der auf rund 1 km
 gerundete Standort, abschaltbar) und bei der Ortssuche, wenn du sie benutzt.
-Dazu kommen drei Wege, die du selbst einschaltest: dein eigener
-Texterkennungsdienst im Heimnetz, wenn du ihn einträgst, dein evcc im
+Dazu kommen Wege, die du selbst einschaltest: dein eigener
+Texterkennungsdienst im Heimnetz, wenn du ihn einträgst (für Zählerfotos und
+zum Auslesen der Versorgerpost im Posteingang), dein evcc im
 Heimnetz, wenn du die Ladevorgänge abrufst, die
 Börsenstrompreise für den Dynamik-Check, wenn du auf „Von SMARD laden“ tippst
 (Bundesnetzagentur; dabei geht nichts von dir hinaus), und der Hinweis auf neue
 Versionen (einmal am Tag wird GitHub nach der neuesten Versionsnummer gefragt;
-sichtbar ist nur die Adresse deines Servers). Schriften und Chart.js
+sichtbar ist nur die Adresse deines Servers). Das Auslesen im Posteingang über
+einen Cloud-Dienst ist aus, bis es jemand einschaltet, der die Installation
+verwaltet; dann gehen Dokumente an den gewählten Dienst — an Claude (Anthropic)
+unter `api.anthropic.com`, OpenAI (`api.openai.com`), Mistral (`api.mistral.ai`),
+OpenRouter (`openrouter.ai`), Google Gemini (`generativelanguage.googleapis.com`)
+oder an eine eigene OpenAI-kompatible Adresse, die nur mit diesem Opt-in
+angesprochen wird. Jeden dieser Hosts spricht die App nur mit Opt-in an: nach dem
+Speichern des Schlüssels für die Liste der Modelle, nach dem Einschalten zum
+Auslesen. Alle Cloud-Wege sind experimentell. Schriften, Chart.js und PDF.js
 liegen im Repository.
 
 ## Hilfe und Dokumentation
@@ -143,11 +152,16 @@ er ohne Klassen und sagt warum; Währungen rechnet er nicht um —
 
 ## Stand und Ausblick
 
-**v3.6.0** ist die aktuelle Version — [CHANGELOG](CHANGELOG.md). Schnittstellen,
+**v3.7.0** ist die aktuelle Version — [CHANGELOG](CHANGELOG.md). Schnittstellen,
 CSV-Formate und das Backup-Format ändern sich nur additiv; entfernt wird erst
-mit einer neuen Hauptversion und nach Ankündigung. 3.6.0 wertet neben dem
-Kalenderjahr auch nach Abrechnungsjahr aus — Perioden wie auf deinen erfassten
-Rechnungen — und kann auf neue Versionen hinweisen. In 3.5.0 ging es um wer,
+mit einer neuen Hauptversion und nach Ankündigung. 3.7.0 liest die Post vom
+Versorger: PDF in den Posteingang, eine KI im eigenen Heimnetz (oder, als
+experimentelles Opt-in, ein Cloud-Dienst) liest es aus, belegt jede Zahl mit
+ihrer Stelle im Dokument, und ein Klick übernimmt sie — auch einen ganzen
+Haushalt aus einem Stapel Briefe. Monatswerte sagen jetzt, ob sie gemessen oder
+zwischen zwei Ablesungen verteilt sind. Mit 3.6.0 kamen das Abrechnungsjahr
+neben dem Kalenderjahr — Perioden wie auf deinen erfassten Rechnungen — und der
+Hinweis auf neue Versionen. In 3.5.0 ging es um wer,
 wann und wohin: Termine bekommen eine zuständige Person, fehlende
 Versorgerrechnungen fallen auf, und der Energiefluss spielt einen Tag in
 Viertelstunden ab. Mit Home Assistant OS läuft die App als App, es gibt ein
@@ -196,8 +210,9 @@ Seit Version 3.0.0 steht der Energietracker unter der
 Versionen bis 2.16.0 bleiben unter der MIT-Lizenz verfügbar, unter der sie
 erschienen sind.
 
-Mitgeliefert werden [Chart.js](https://www.chartjs.org/) (MIT) und die
-Schriften DM Sans und DM Mono (SIL Open Font License 1.1); die Wetterdaten
+Mitgeliefert werden [Chart.js](https://www.chartjs.org/) (MIT),
+[PDF.js](https://mozilla.github.io/pdf.js/) (Apache-2.0) und die Schriften
+DM Sans und DM Mono (SIL Open Font License 1.1); die Wetterdaten
 stammen von [Open-Meteo.com](https://open-meteo.com/) unter
 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) — Einzelheiten in
 [CREDITS.md](CREDITS.md), Produktnamen in [TRADEMARKS.md](TRADEMARKS.md).

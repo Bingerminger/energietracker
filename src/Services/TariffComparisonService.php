@@ -179,6 +179,12 @@ final class TariffComparisonService
 
             $total   = $calc['total'];
             $consump = $calc['consumption'];
+            // v3.7.0 (GitHub #35) — welche Boni im Betrag stecken (Art, Datum, Notiz),
+            // je Monat nach derselben Regel wie die Monatszeilen (bonusForMonth)
+            $bonusItems = [];
+            foreach (array_unique($calc['yms']) as $ym) {
+                foreach (ContractService::bonusesForMonth($c, (int)substr($ym, 0, 4), (int)substr($ym, 5, 2)) as $b) $bonusItems[] = $b;
+            }
 
             $rows[] = [
                 'contract_id'        => (string)$c['id'],
@@ -205,6 +211,9 @@ final class TariffComparisonService
                                         ? round($total - $realSame, 2) : null,
                 'vs_real_pct'        => ($total !== null && $realSame !== null && $realSame != 0.0)
                                         ? round(($total - $realSame) / $realSame * 100.0, 1) : null,
+                // v3.7.0 (#35) — additiv: Boni im Betrag, Summe und einzeln
+                'bonus_eur'          => round(array_sum(array_column($bonusItems, 'amount_eur')), 2),
+                'bonus_items'        => $bonusItems,
             ];
         }
 

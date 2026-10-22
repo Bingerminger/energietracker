@@ -134,6 +134,31 @@ final class ReportFlexPageTest extends ServiceTestCase
         self::assertNotContains('Flexibilität', array_column($s['pdf']->layoutLog()['bookmarks'], 'title'), 'PDF nur mit der Option');
     }
 
+    /**
+     * v3.7.0 (Paket nachzuege) — eigene Werte statt Beispielwerte: der Satz mit
+     * den Annahmen nennt je Teil, woher der Wert kommt, die Hebel-Zeile der
+     * Waschmaschine sagt „eigener Wert“ statt „Beispielwert“.
+     */
+    public function testOwnValuesReplaceTheSampleValuesInTheText(): void
+    {
+        $this->importPersona('eigenheim-modern');
+        $this->i18n->setLocale('de');
+        $before = $this->reportServices()['model']->build(self::YEAR, ['today' => self::TODAY, 'flex' => true])['flex_page'];
+        self::assertStringNotContainsString('eigener Wert', json_encode($before, JSON_UNESCAPED_UNICODE), 'ohne Einstellung nur Beispielwerte');
+        self::assertMatchesRegularExpression('/Wärmepumpe 30\h*% des Tagesverbrauchs verschiebbar \(Beispielwert\)/u', $before['notes'][0]);
+
+        $this->settings->set(['flex_heat_pump_share_pct' => 40, 'flex_washer_cycles_per_week' => 3]);
+        $f = $this->reportServices()['model']->build(self::YEAR, ['today' => self::TODAY, 'flex' => true])['flex_page'];
+        $lead = $f['notes'][0];
+        self::assertMatchesRegularExpression('/Wärmepumpe 40\h*% des Tagesverbrauchs verschiebbar \(eigener Wert\)/u', $lead);
+        self::assertStringContainsString('Waschmaschine 0,9 kWh je Gang, 3 Gänge je Woche (eigener Wert)', $lead);
+        self::assertStringContainsString('Spülmaschine 1,0 kWh je Gang, 5 Gänge je Woche (Beispielwert)', $lead, 'was nicht gesetzt ist, bleibt Beispielwert');
+        $washer = array_values(array_filter($f['levers']['rows'], fn($r) => str_contains($r['label'], 'Wasch')));
+        self::assertNotSame([], $washer);
+        self::assertStringContainsString('(eigener Wert)', $washer[0]['label']);
+        self::assertStringNotContainsString('Beispielwert', $washer[0]['label']);
+    }
+
     /** Jede Sprache: Struktur, Box-Protokoll, Fließtext ab 10 pt, keine Rohschlüssel. */
     public function testThePdfPageInEveryLanguage(): void
     {

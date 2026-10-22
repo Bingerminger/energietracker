@@ -41,6 +41,7 @@ Since v2.5.3/v2.6.0 the following also applies in open operation:
 | Error messages | No paths, file names or line numbers in API responses (only with `ET_DEBUG=1`); a server error names an error ID, the details are in the log. |
 | Receipts *(v3.1.0)* | Photos and PDFs are checked by their content and only served through the API, a PDF without scripts (§ 9). |
 | Text recognition *(v3.1.0)* | The server only connects to addresses in your own network, checked on every call (§ 9). |
+| Inbox *(v3.7.0)* | The document stays on the server, reading happens in your own network; a foreign provider only after consent (§ 9). |
 | Size and write lock *(v3.4.0)* | Large requests only where they belong, the body is read only after sign-in; a slow service no longer holds up any write (§ 12). |
 | Host list *(v3.4.0)* | Can be set in the settings, so a foreign site cannot point its name at your address (§ 8). |
 
@@ -138,6 +139,7 @@ Access → "Sign-in & access" → "API keys for scripts". The key (`etk_…`) is
 | Read (`read`) | fetch only (`GET`) — e.g. for the REST sensors in Home Assistant (`/api/summary`) or an evaluation |
 | Manage (`admin`) | everything, including changing and deleting — e.g. for a backup script that also restores |
 | Calendar (`calendar`, since v3.1.0) | only the calendar subscription `GET /api/calendar.ics`, and only as `?token=…` in the link |
+| Inbox only (`inbox`, since v3.7.0) | only put a PDF into the inbox (`POST /api/inbox`) — for the [shortcut](../anleitungen/posteingang.md#with-a-shortcut-from-the-iphone-or-ipad) and [email via Home Assistant](../anleitungen/posteingang.md#by-email-via-home-assistant); any other route `401` |
 
 ```bash
 curl -H "Authorization: Bearer etk_…" https://energy.example.org/api.php/api/backup/export > backup.json
@@ -316,8 +318,121 @@ switched on, only signed-in users and `admin` keys. Setup:
 **Outgoing connections** *(v3.4.0)*: weather (Open-Meteo), exchange prices
 (SMARD) and — only when switched on, once a day — the note about new versions
 (GitHub, *v3.6.0*) only via HTTPS, also after a redirect, and at most two redirects; text
-recognition and evcc in the home network without redirects. Every response at
-most 20 MB — the app aborts a larger one instead of loading it into memory.
+recognition and evcc in the home network without redirects; reading in the
+cloud (only when switched on, *v3.7.0*) only via HTTPS and without redirects.
+Every response at most 20 MB — the app aborts a larger one instead of loading it
+into memory.
+
+### Reading in the cloud *(v3.7.0)*
+
+For the inbox, a cloud service can read the post from your supplier. This is an
+**opt-in**: off until someone who manages the installation switches it on
+(Settings → Expert → “Reading documents” card → “Cloud”). Without this opt-in
+no document leaves the home network. All cloud paths, Claude included, are
+**experimental**: not yet checked against real-world feedback; the card and the
+question before reading say so. Setup:
+[Reading in the cloud](../anleitungen/posteingang.md#reading-in-the-cloud).
+
+**Who sees what.**
+
+| Provider | Destination | What leaves |
+|---|---|---|
+| Claude (Anthropic) | `api.anthropic.com` | the document’s PDF and the task (which kind, which fields) |
+| OpenAI-compatible: OpenAI, Mistral, OpenRouter, Google Gemini, own address | `api.openai.com`, `api.mistral.ai`, `openrouter.ai`, `generativelanguage.googleapis.com` or the address you entered | the document’s text (the text layer the browser reads) and the task |
+
+The presets only fill in the address; all of them use the same connection and
+the same rules (below). **The list of models** is fetched by the server once the
+key is saved (`GET /api/inbox/cloud/models`, admins only): only the key and the
+request for the list leave, no document, and only the service that is set up is
+asked.
+
+The service sees the whole content of the document — including name, address,
+meter, customer and contract number, and amounts. Other data from Energietracker
+(readings, contracts, settings) does not go along. Before every reading the app
+names the service and its destination. How long the service keeps a request and
+what it may use it for is governed by its terms; Energietracker has no influence
+on that.
+
+**The API key**
+
+- lives only on the server, in `data/inbox_cloud_key.json` (permissions `0600`,
+  blocked for the web server like the rest of `data/`);
+- never goes back to the browser — the interface only reports `has_key`, the
+  field stays empty;
+- is not in `settings.json`, so not in `GET /api/settings`, not in the backup
+  and in no snapshot. After restoring a backup on another server it is missing;
+  nothing leaves there until someone enters it again;
+- appears in no log and no error message. If a service repeats it in its
+  answer, the app replaces it with `***`;
+- belongs to the host of the address on the OpenAI-compatible path: if someone
+  switches the preset (from Mistral to OpenRouter, say), the previous key does
+  not go to the new service.
+
+Whoever copies the data directory as a whole (the Docker volume, say) copies the
+file along — such a copy is as confidential as the key itself.
+
+**The connection** is made by the server, never by the browser. It is the
+counterpart of text recognition: there every address must be in the home
+network, here none may be.
+
+- Only `https://`. A name without a dot or with an ending like `.local`,
+  `.lan`, `.home.arpa` or `fritz.box` is rejected when saving.
+- On every call the server resolves the name, and **every** address must be
+  public: no private network, no loopback, no link-local including the metadata
+  service, no `100.64.0.0/10`, no multicast. IPv4 in IPv6 (`::ffff:…`, NAT64,
+  6to4) counts with the embedded address.
+- The connection goes to exactly the checked address, without a proxy from the
+  environment and without redirects. The response may be at most 20 MB.
+
+**Only an admin may switch it on**: `PATCH /api/inbox/cloud`, the model list
+`GET /api/inbox/cloud/models`, the check of your own service
+`GET /api/inbox/local/check` and the `inbox_*` keys in `PATCH /api/settings`
+answer members with `403`. Without sign-in anyone
+who can reach the app may do it — like everything else (section 1).
+
+### Inbox *(v3.7.0)*
+
+The inbox reads supplier mail with an AI in your own network
+([guide](../anleitungen/posteingang.md)). What goes where:
+
+| What | Where to |
+|---|---|
+| the PDF | into the receipt store (`data/attachments/`, kind `inbox_pdf`), served like any receipt; in the backup |
+| the text layer | read by the **browser** with the bundled PDF.js (without `eval`, no scripts from the PDF) and sent to your own server; it is not stored |
+| the text without terms pages | from the **server** to the text recognition service (`ocr_endpoint`) — the same home-network rule as above, checked on every call after name resolution, connected to exactly the checked address |
+| the result (values, quotes, pages) | in `inbox.json`, cached per document; in the backup |
+
+- With sign-in switched on, only administrators switch the provider
+  (`inbox_provider`, the Local | Cloud switch of the “Reading documents” card) —
+  like the text recognition address. “Check connection” only asks your own
+  service for its models, with the same home-network rule and without a
+  document. The server only
+  accepts a provider outside the home network there while an administrator has
+  switched on [reading in the cloud](#reading-in-the-cloud-v370) for it and a key
+  is stored. It only gets a document after explicit consent in the browser —
+  per document, for the queue once for the documents of that run; it is not
+  remembered. Without it the server answers `409` and sends nothing.
+- A call to the service does not hold the write lock (§ 12); writing only
+  happens once the answer is there.
+- Taking over goes through the same services and checks as manual entry;
+  nothing without a click.
+
+**Ways in *(v3.7.0, package betrieb)*.** Shortcut, folder and email only file
+documents — reading and taking over work as above.
+
+- **“Inbox only” key** (`inbox`, § 5): may use `POST /api/inbox` and nothing
+  else, not even reading; a lost phone opens no data with it. Without sign-in
+  the inbox accepts PDFs from the whole home network — like every other route.
+- **Watched folder** `data/posteingang/`: read only with admin rights
+  (`POST /api/inbox/folder`), only files directly in the folder that are there
+  according to `realpath`; no symbolic links (neither file nor folder nor the
+  stores), no sub-folders, no hidden files. A PDF is recognised by its content
+  (`%PDF-`), the limit is the same as for uploads (10 MB). Filed files are moved
+  to `übernommen/` or `fehler/`, never deleted. The folder lives in the data
+  directory, which no web server delivers (§ 9).
+- **Email via Home Assistant**: the attachment comes as Base64 in the JSON body;
+  the same checks as for uploads. Only Home Assistant knows the mailbox
+  credentials.
 
 ## 10. Logging and troubleshooting
 
@@ -351,7 +466,7 @@ sign-in brought a NAS to its memory limit.
 | Route | At most |
 |---|---|
 | reachable without sign-in: `POST /api/ingest`, `POST /api/session` | 1 MB |
-| backup import, receipts, CSV and time-series imports (`…/import-csv`, `…/import-series`, `…/import-evcc`) | 256 MB |
+| backup import, receipts, inbox (`POST /api/inbox`, *v3.7.0*), CSV and time-series imports (`…/import-csv`, `…/import-series`, `…/import-evcc`) | 256 MB |
 | all others | 8 MB |
 
 Above that the app answers `413`. In the Docker image nginx sets the same
@@ -362,7 +477,7 @@ would otherwise answer every request with `500`:
 
 ```apache
 LimitRequestBody 8388608
-<LocationMatch "/api(\.php/api)?/(backup/import|attachments|.+/import-(csv|series|evcc))$">
+<LocationMatch "/api(\.php/api)?/(backup/import|attachments|inbox|.+/import-(csv|series|evcc))$">
     LimitRequestBody 268435456
 </LocationMatch>
 ```

@@ -65,16 +65,45 @@ final class AnomalyService
         return $pos ? self::median($pos) : 0.0;
     }
 
-    public function detect(string $utility, array $monthly): array
-    {
-        if (Utilities::isDelivery($utility)) return [];
-        $u = Utilities::get($utility);
-        $threshold = (float)$this->settings->get('anomaly_threshold', 2.0);
-        $minDays = (int)$this->settings->get('min_days_period', 20);
-        $valueField = $u['consumption_unit'] === 'kWh' ? 'kwh' : 'm3';
-        $hgt = !empty($u['hgt_relevant']);
+    /**
+     * v3.7.0 (GitHub #38) — Gütesperre, erste Prüfung: Ab diesem Verhältnis der
+     * robusten Streuung der Abweichungen zum **mittleren gemessenen Monat**
+     * passt das Heizmodell schlecht. Mit gut passendem Modell bestimmt die
+     * Rauschuntergrenze (10 %) die Streuung, die Tabelle meldet bei 2σ ab 20 %;
+     * über 15 % erst ab 30 % — anderthalbmal so spät —, und eine leere Tabelle
+     * hieße nicht „alles in Ordnung“. 15 % ist zugleich die Grenze, die ASHRAE
+     * Guideline 14 für kalibrierte Modelle auf Monatsdaten nennt (CV(RMSE)).
+     * Gemessen wird gegen den Mittelwert der gemessenen Monate, nicht gegen
+     * `typical()`: Der Median der positiven Erwartungen lässt die Sommer eines
+     * Modells mit Grundlast 0 fallen, das Modell sah dadurch rund ein Viertel
+     * besser aus, als es ist.
+     */
+    public const POOR_FIT_RATIO = 0.15;
 
-        $valid = array_values(array_filter($monthly, fn($m) =>
+    /**
+     * v3.7.0 (GitHub #38) — Gütesperre, zweite Prüfung: Die Erwartung des
+     * Modells in gemessenen Sommermonaten (praktisch ohne Heizgradtage, also
+     * Warmwasser und Kochen) gegen den Verbrauch dieser Monate. Liegt sie unter
+     * der Hälfte oder über dem Anderthalbfachen, beschreibt die Grundlast `c`
+     * das Haus nicht — bei einer konvexen Heizkurve fällt sie auf fast null
+     * (#38: rund ein Fünftel des Sommerverbrauchs). Alltagsschwankung im Sommer
+     * liegt bei 10 bis 20 %, weit innerhalb des Bandes. Mindestens zwei
+     * gemessene Sommermonate, sonst entfällt diese Prüfung.
+     */
+    public const BASE_LOAD_MIN = 0.5;
+    public const BASE_LOAD_MAX = 1.5;
+
+    /**
+     * Monate, die die Erkennung prüft — eine Auswahl für detect() und quality().
+     *
+     * @return list<array<string,mixed>>
+     */
+    private function validMonths(string $utility, array $monthly): array
+    {
+        $u = Utilities::get($utility);
+        $minDays = (int)$this->settings->get('min_days_period', 20);
+        $hgt = !empty($u['hgt_relevant']);
+        return array_values(array_filter($monthly, fn($m) =>
             ($m['days'] ?? 0) >= $minDays
             // v1.6.1 — Issue #13: Wechsel-Monate aus z-Score-Erkennung
             // ausschließen. Ein Zählertausch ist ein erklärlicher Sonder-
@@ -87,26 +116,119 @@ final class AnomalyService
             // zwei Zuständen — und jeder Monat danach meldet dauerhaft
             // „unter dem Mittel", während echte Ausreißer untergehen.
             && empty($m['pre_baseline'])
+            // v3.7.0 (#37) — verteilte Monate sind nicht gemessen: Ihr Wert ist
+            // die Tagesrate eines längeren Ablesungsabstands. Als „+98 % über
+            // der Erwartung“ gemeldet, wirkten sie überzeugend und waren falsch.
+            && empty($m['interpolated'])
             // v2.8.0 — Heizarten brauchen die Erwartung aus dem Heizmodell
             && (!$hgt || ($m['expected_heat'] ?? null) !== null)
         ));
-        if (count($valid) < self::MIN_MONTHS) return [];
+    }
 
-        $expected = $hgt
+    /**
+     * Abweichungen der geprüften Monate von ihrer Erwartung, mit Zentrum,
+     * Streuung und typischem Monat. null, wenn zu wenig Monate da sind.
+     *
+     * @return array{valid:list<array>,expected:array<int,?float>,residuals:array<int,float>,center:float,scale:float,typical:float}|null
+     */
+    private function residuals(string $utility, array $monthly): ?array
+    {
+        if (Utilities::isDelivery($utility)) return null;
+        $u = Utilities::get($utility);
+        $valueField = $u['consumption_unit'] === 'kWh' ? 'kwh' : 'm3';
+        $valid = $this->validMonths($utility, $monthly);
+        if (count($valid) < self::MIN_MONTHS) return null;
+
+        $expected = !empty($u['hgt_relevant'])
             ? array_map(fn($m) => (float)$m['expected_heat'], $valid)
             : $this->seasonalExpectations($valid, $valueField);
 
         $residuals = [];
-        $idx = [];
         foreach ($valid as $i => $m) {
             if ($expected[$i] === null) continue;
             $residuals[$i] = (float)($m[$valueField] ?? 0) - $expected[$i];
-            $idx[] = $i;
         }
-        if (count($residuals) < self::MIN_MONTHS) return [];
+        if (count($residuals) < self::MIN_MONTHS) return null;
 
         [$center, $scale] = self::robustScale(array_values($residuals));
         $typical = self::typical(array_filter($expected, fn($e) => $e !== null));
+        return compact('valid', 'expected', 'residuals', 'center', 'scale', 'typical');
+    }
+
+    /**
+     * v3.7.0 (GitHub #38) — Gütesperre der Abweichungstabelle. Das lineare
+     * Heizmodell kann eine gekrümmte Heizkurve nicht abbilden; dann misst die
+     * Erkennung vor allem den eigenen Modellfehler und bleibt leer, obwohl sie
+     * blind ist. `poor`, wenn eine der beiden Prüfungen anschlägt (`reasons`):
+     *
+     *   scatter    robuste Streuung ÷ mittlerer gemessener Monat > POOR_FIT_RATIO
+     *   base_load  Erwartung ÷ Verbrauch gemessener Sommermonate außerhalb
+     *              BASE_LOAD_MIN … BASE_LOAD_MAX
+     *
+     * Geprüft wird nur über gemessene Monate (dieselbe Auswahl wie detect()).
+     * `detect_floor`: Abweichung, die ein typischer Monat mindestens braucht, um
+     * gemeldet zu werden — so rechnet die Erkennung selbst (σ-Schwelle ×
+     * Streuung, mindestens die Rauschuntergrenze des typischen Monats). Nur für
+     * Arten mit Heizmodell, sonst null.
+     *
+     * @return array<string,mixed>|null
+     */
+    public function quality(string $utility, array $monthly): ?array
+    {
+        if (!Utilities::isHgtRelevant($utility) || Utilities::isDelivery($utility)) return null;
+        $r = $this->residuals($utility, $monthly);
+        if ($r === null || $r['typical'] <= 0) return null;
+        $u = Utilities::get($utility);
+        $vf = $u['consumption_unit'] === 'kWh' ? 'kwh' : 'm3';
+        $values = array_map(fn($m) => (float)($m[$vf] ?? 0), array_intersect_key($r['valid'], $r['residuals']));
+        $mean = $values ? array_sum($values) / count($values) : 0.0;
+        if ($mean <= 0) return null;
+        $threshold = (float)$this->settings->get('anomaly_threshold', 2.0);
+        $ratio = $r['scale'] / $mean;
+
+        // Sommer: gemessene Monate praktisch ohne Heizgradtage
+        $minHdd = (float)$this->settings->get('min_hdd_regression', 5.0);
+        $exp = $act = 0.0; $days = 0; $n = 0;
+        foreach ($r['valid'] as $i => $m) {
+            if (!isset($r['residuals'][$i]) || (float)($m['hdd'] ?? 0) > $minHdd) continue;
+            $exp += (float)$r['expected'][$i]; $act += (float)($m[$vf] ?? 0); $days += (int)($m['days'] ?? 0); $n++;
+        }
+        $base = $n >= 2 && $act > 0 && $days > 0 ? [
+            'model_per_day'    => round($exp / $days, 2),
+            'measured_per_day' => round($act / $days, 2),
+            'ratio'            => round($exp / $act, 3),
+            'allowed'          => [self::BASE_LOAD_MIN, self::BASE_LOAD_MAX],
+            'months'           => $n,
+        ] : null;
+        $reasons = [];
+        if ($ratio > self::POOR_FIT_RATIO) $reasons[] = 'scatter';
+        if ($base !== null && ($exp / $act < self::BASE_LOAD_MIN || $exp / $act > self::BASE_LOAD_MAX)) $reasons[] = 'base_load';
+        return [
+            'model_quality'   => $reasons !== [] ? 'poor' : 'good',
+            'reasons'         => $reasons,
+            'ratio'           => round($ratio, 3),
+            'poor_above'      => self::POOR_FIT_RATIO,
+            'resid_scale'     => round($r['scale'], 1),
+            'mean_month'      => round($mean, 1),
+            'base_load'       => $base,
+            'typical'         => round($r['typical'], 1),
+            'threshold_sigma' => $threshold,
+            'detect_floor'    => round($threshold * max($r['scale'], self::noiseFloor($r['typical'], $r['typical'])), 1),
+            'unit'            => (string)($u['consumption_unit'] ?? ''),
+            'months'          => count($r['residuals']),
+        ];
+    }
+
+    public function detect(string $utility, array $monthly): array
+    {
+        $r = $this->residuals($utility, $monthly);
+        if ($r === null) return [];
+        $u = Utilities::get($utility);
+        $threshold = (float)$this->settings->get('anomaly_threshold', 2.0);
+        $valueField = $u['consumption_unit'] === 'kWh' ? 'kwh' : 'm3';
+        ['valid' => $valid, 'expected' => $expected, 'residuals' => $residuals,
+         'center' => $center, 'scale' => $scale, 'typical' => $typical] = $r;
+        $idx = array_keys($residuals);
         if (max($scale, self::noiseFloor(0.0, $typical)) < 1e-6) return [];
 
         $anomalies = [];

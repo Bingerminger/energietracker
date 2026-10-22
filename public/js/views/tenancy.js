@@ -64,7 +64,8 @@ export async function render(container, params, ctx) {
   const co2 = await api.co2Split(co2Year).catch(() => null);
   container.innerHTML = `${header}
     ${budgetCard(budget)}
-    <div data-min-level="expert">${co2Card(co2, co2Year)}</div>
+    <!-- v3.7.0 — „CO₂-Kosten teilen“ mit der Seite (bis v3.6 Experte): Anteil des Vermieters prüfen -->
+    <div data-role="co2-split">${co2Card(co2, co2Year)}</div>
     ${detailsCard(ten, utilities)}
     ${statementsCard(statements)}`;
   wire(container, ten, utilities, statements);

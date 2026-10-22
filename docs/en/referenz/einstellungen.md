@@ -11,10 +11,13 @@ stable: anything is removed only with a new major version and after notice — t
 deprecated ones are at the end.
 
 Since v3.2.0 a household can have several people with roles
-([Users in the household](../anleitungen/benutzer.md)). Five keys can then
+([Users in the household](../anleitungen/benutzer.md)). Ten keys can then
 only be changed by admins, because they make the app talk to other addresses,
-let it be embedded, block names or shorten the history: `frame_ancestors`, `ocr_endpoint`,
-`evcc_endpoint` and (since v3.4.0) `allowed_hosts` and `activity_keep_months`. A
+let it be embedded, block names, shorten the history or send documents to the
+cloud: `frame_ancestors`, `ocr_endpoint`, `evcc_endpoint`, (since v3.4.0)
+`allowed_hosts` and `activity_keep_months`, and (since v3.7.0) `inbox_provider`,
+where supplier mail goes to be read, and `inbox_cloud_enabled`,
+`inbox_cloud_provider`, `inbox_cloud_endpoint` and `inbox_cloud_model`. A
 member who sends one of them gets `403` `errors.auth.adminOnly`; members may
 change every other key. Without sign-in the restriction does not apply.
 
@@ -43,7 +46,7 @@ level stays reachable and shows a note whose one click raises the level. More:
 
 | Key | Default | In the app | Effect |
 |---|---|---|---|
-| `ui_level` | `expert` | Switch at the top next to day/night; card “Experience level and setup” | `beginner` (🌱 Beginner), `advanced` (🌿 Experienced) or `expert` (🌳 Expert). Beginner: overview with three answers, meter readings, simple contracts, annual report. Experienced: plus analyses, forecast, switching, bill check and meter structure. Expert: everything, with explainers, groups, calculation parameters and access. The default Expert means: an existing installation sees everything as before after the update; a new installation picks the level in the setup assistant. With sign-in every person has their own level (`PATCH /api/session/me`); this key then applies to people without a choice of their own. |
+| `ui_level` | `expert` | Switch at the top next to day/night; card “Experience level and setup” | `beginner` (🌱 Beginner), `advanced` (🌿 Experienced) or `expert` (🌳 Expert). Beginner: see what you use, what it costs and whether the advance payment is enough; enter readings, let the app read supplier mail, deal with reminders. Experienced: plus compare and check (tariffs, bills, analyses, meter structure, tenancy, Home Assistant). Expert: see and connect everything (quarter hours, calculation parameters, access, system). Every feature: [What can I do at each level?](stufen.md). The default Expert means: an existing installation sees everything as before after the update; a new installation picks the level in the setup assistant. With sign-in every person has their own level (`PATCH /api/session/me`); this key then applies to people without a choice of their own. |
 | `setup_pending` | `false` | — | `true` means: the setup assistant appears the next time the app opens. It is only set on the very first start of a new installation, never after an update; the assistant resets it when it is finished or skipped, and so does loading an example household. The assistant can be started again at any time with “Start the setup assistant” on the card “Experience level and setup” — that does not need this key. |
 | `setup_persona` | empty (`null`) | Setup assistant, first question | The persona chosen last: `mieterin`, `etw-fernwaerme`, `eigenheim-klassisch`, `eigenheim-modern` or `showcase` (“Just look at everything first”); empty or `none` = none. The assistant suggests the answer from it; loading an example household sets the loaded persona. Calculates nothing. |
 
@@ -162,11 +165,11 @@ values under `assumed_keys` ([API](api.md#assumed-values-assumed_keys-v360)).
 
 | Key | Default | In the app | Effect |
 |---|---|---|---|
-| `billing_cycle_anchor_gas` | `01-01` | Settlement date gas | Day of the annual bill as `MM-DD` (displayed `DD-MM`); the balance card projects the expected bill up to it. Since v3.6.0 it also cuts the **billing years** (switch “Calendar year · Billing year” on the utility page, the overview and the analysis, appendix in the annual report, CSV per period). Recorded supplier bills take precedence: their period applies exactly as on the bill; the settlement date only fills the gaps before, between and after them. If the last bill does not end the day before the settlement date, the utility page suggests the matching day. 29 Feb acts as 28 Feb. |
-| `billing_cycle_anchor_strom` | `01-01` | Settlement date electricity | like gas |
-| `billing_cycle_anchor_wasser` | `01-01` | Settlement date water | like gas |
-| `billing_cycle_anchor_fernwaerme` | `01-01` | Settlement date district heating | like gas |
-| `billing_cycle_anchor_pv_einspeisung` | `01-01` | Settlement date PV feed-in | Billing day of the feed-in remuneration (since v2.13.0; before, 1 January applied). |
+| `billing_cycle_anchor_gas` | `01-01` | Settlement date gas: first day of the billing period | The **first day** of the billing period as `MM-DD` (displayed `DD-MM`): `09-01` means 1 September to 31 August, `01-01` the calendar year. The balance card projects the expected bill up to the day before, the last day of the period. Since v3.6.0 it also cuts the **billing years** (switch “Calendar year · Billing year” on the utility page, the overview and the analysis, appendix in the annual report, CSV per period). Recorded supplier bills take precedence: their period applies exactly as on the bill; the settlement date only fills the gaps before, between and after them. If the last bill does not end the day before the settlement date, the utility page suggests the matching day; without a bill *(v3.7.0)* the start of the contract after the latest change of supplier, otherwise the day on which several contracts begin. If a change of supplier shortly before or after the settlement date cuts off fewer than 14 days, they join the neighbouring period *(v3.7.0)*. 29 Feb acts as 28 Feb. |
+| `billing_cycle_anchor_strom` | `01-01` | Settlement date electricity: first day of the billing period | like gas |
+| `billing_cycle_anchor_wasser` | `01-01` | Settlement date water: first day of the billing period | like gas |
+| `billing_cycle_anchor_fernwaerme` | `01-01` | Settlement date district heating: first day of the billing period | like gas |
+| `billing_cycle_anchor_pv_einspeisung` | `01-01` | Settlement date PV feed-in: first day of the billing period | First day of the billing period of the feed-in remuneration (since v2.13.0; before, 1 January applied). |
 
 ### Physical constants
 
@@ -208,6 +211,24 @@ a change in it open it.
 |---|---|---|---|
 | `pv_assumed_self_consumption_pct` | empty (`null`) | Assumed self-consumption | Share of generation in % (0–100) that the household uses itself — for a plug-in solar device without a feed-in meter. Only takes effect when a generation meter is marked as plug-in solar and there is no feed-in meter: self-consumption is then generation × share. Empty = no assumption, no ratio ([PV](../verstehen/12-pv.md#8-plug-in-solar-v310)). |
 
+### Flexibility *(v3.7.0)*
+
+What “Your lever” on the Flexibility page uses where nothing is measured. An
+empty field means **sample value** (the default); what you enter — even the
+same value — the page and the annual report call **your value**. Clearing the
+field withdraws it. The fields stay empty with the sample value as placeholder
+as long as nothing is entered (`example_keys` in `GET /api/settings`).
+
+| Key | Default | In the app | Effect |
+|---|---|---|---|
+| `flex_heat_pump_share_pct` | 30 | Heat pump: shiftable share | Share of the heat pump’s daily use in % (0–100) that the building and buffer tank let you move to other hours. |
+| `flex_washer_cycles_per_week` | 4 | Washing machine: cycles a week | 0–21; 0 = no such appliance, the lever is dropped. |
+| `flex_washer_kwh_per_cycle` | 0.9 | Washing machine: kWh per cycle | 0–5 kWh. |
+| `flex_dishwasher_cycles_per_week` | 5 | Dishwasher: cycles a week | 0–21; 0 = no such appliance. |
+| `flex_dishwasher_kwh_per_cycle` | 1.0 | Dishwasher: kWh per cycle | 0–5 kWh. |
+| `flex_ev_plugged_from` | empty (`null`) | Car without evcc: plugged in from | Full hour 0–23. Together with `flex_ev_plugged_until` the car’s plug-in time when there are no charging sessions from evcc: charging is only shifted within it. Empty = available all day on charging days (sample value). With charging sessions from evcc, their plug-in times count. |
+| `flex_ev_plugged_until` | empty (`null`) | Car without evcc: plugged in until | Full hour 0–23; if it comes before “from”, the time runs past midnight (18 to 7 = evening to morning). Equal to “from” = no window. |
+
 ## Settings → Weather data
 
 ### Location and sync
@@ -235,11 +256,12 @@ a change in it open it.
 
 ## Settings → Expert
 
-Since v3.1.0 the groups “Receipts” and “Text recognition in the home network”
-come first, since v3.2.0 also “evcc in your home network”; the calculation
-parameters (regression & forecast, recommendations & distribution, since
-v3.1.0 CO₂ price) sit below, collapsed behind “Show calculation parameters”.
-The page belongs to the Expert level.
+Since v3.7.0 the card “Reading documents” comes first (who reads the post in the
+inbox, Local | Cloud), since v3.1.0 the groups “Receipts” and “Text recognition
+in the home network”, since v3.2.0 also “evcc in your home network”; the
+calculation parameters (regression & forecast, recommendations & distribution,
+since v3.1.0 CO₂ price) sit below, collapsed behind “Show calculation
+parameters”. The page belongs to the Expert level.
 
 ### Receipts *(v3.1.0)*
 
@@ -251,14 +273,34 @@ The page belongs to the Expert level.
 
 Suggests the meter reading from a photo using your own service such as Ollama
 or LM Studio — only in your own network. Setup:
-[Text recognition in the home network](../anleitungen/texterkennung.md).
+[Text recognition in the home network](../anleitungen/texterkennung.md). Text
+recognition shares address and interface with the inbox; since v3.7.0 they
+therefore appear only once, in the “Reading documents” card under “Local”. The
+“Text recognition in the home network” card shows the image model and the time
+limit.
 
 | Key | Default | In the app | Effect |
 |---|---|---|---|
-| `ocr_endpoint` | empty | Service address | Base address with `http://` or `https://`, for example `http://192.168.178.20:11434` (Ollama) or `http://192.168.178.20:1234/v1` (LM Studio); the app appends the path. Empty = off, the app opens no connection. Every address the name points to must be in your own network, otherwise text recognition refuses. Since v3.2.0 admins only. |
-| `ocr_api` | `ollama` | Interface | `ollama` (`/api/chat`) or `openai` — OpenAI-compatible (`/v1/chat/completions`), such as LM Studio or LocalAI. |
+| `ocr_endpoint` | empty | Reading documents → Local: Service address | Base address with `http://` or `https://`, for example `http://192.168.178.20:11434` (Ollama) or `http://192.168.178.20:1234/v1` (LM Studio); the app appends the path. Empty = off, the app opens no connection. Every address the name points to must be in your own network, otherwise text recognition refuses. Since v3.2.0 admins only. |
+| `ocr_api` | `ollama` | Reading documents → Local: Interface | `ollama` (`/api/chat`) or `openai` — OpenAI-compatible (`/v1/chat/completions`), such as LM Studio or LocalAI. |
 | `ocr_model` | empty | Model | Name of a vision model as the service knows it, for example `qwen2.5vl`, `llama3.2-vision` or `minicpm-v` (at most 200 characters). |
 | `ocr_timeout_s` | 30 | Time limit | Seconds the server waits for the answer (5–300). On a NAS without a graphics card, vision models often need 20 to 60 seconds. Since v3.1.0 nginx in the Docker image waits up to 310 seconds, so the whole time limit applies; behind your own web server or reverse proxy, its limit counts. |
+
+### Inbox *(v3.7.0)*
+
+Reads supplier mail in the inbox — locally through the text recognition service
+(address and interface as above), with a text model. Everything for it is in
+**one** card, “Reading documents” (Settings → Expert), with the switch **Local |
+Cloud** and a **Save** button of its own; “Local” shows address, interface, text
+model, time limit and “Check connection” (`GET /api/inbox/local/check`, admins
+only). Setup:
+[Inbox → Setting up reading](../anleitungen/posteingang.md#setting-up-reading).
+
+| Key | Default | In the app | Effect |
+|---|---|---|---|
+| `inbox_provider` | `local` | Reading documents → Local \| Cloud | Who reads — the one place for it is the switch of the “Reading documents” card: `local` = the text recognition service in the home network, `anthropic` or `openai` = a cloud service ([reading in the cloud](#inbox-reading-in-the-cloud-v370)). The server only accepts a cloud service while reading in the cloud is switched on for exactly that service and a key is stored. Saving on “Cloud” sets the value to the service once it is ready, saving on “Local” sets `local`; switching off sets it back to `local`. Before every reading in the cloud the app asks whether the document may go there. Admins only. |
+| `inbox_model` | `qwen3.8` | Reading documents → Local: Text model | Name of a text model as the service knows it (at most 200 characters; empty = `qwen3.8`). Recommended: `qwen3.8`, needs about 18 GB of memory. |
+| `inbox_timeout_s` | 300 | Reading documents → Local: Time limit per step | Seconds per step (recognise the type, read the fields), 30–300. Every step is a request of its own and so stays below the 310 seconds nginx waits in the Docker image. |
 
 ### evcc in your home network *(v3.2.0)*
 
@@ -270,6 +312,45 @@ without this key. Setup:
 | Key | Default | In the app | Effect |
 |---|---|---|---|
 | `evcc_endpoint` | empty | evcc address | Base address with `http://` or `https://` at which you open evcc in the browser, for example `http://192.168.178.30:7070` or `http://evcc.local:7070`; the app appends `/api/sessions`. Empty = off, the app opens no connection. Every address the name points to must be in your own network, otherwise the fetch refuses (as with text recognition). Admins only. |
+
+### Inbox: reading in the cloud *(v3.7.0)*
+
+An opt-in for the inbox: a cloud service reads the post from your supplier
+when there is no powerful computer at home. Off until an admin switches it on;
+before every reading the app names the service. **Experimental:** all cloud
+paths, Claude included, have not yet been checked against real-world feedback;
+the card and the question say so. The cloud side of the “Reading documents” card
+(Settings → Expert) saves via `PATCH /api/inbox/cloud`
+([API](api.md#get-apiinboxcloud--patch-apiinboxcloud-v370)). Setup:
+[Reading in the cloud](../anleitungen/posteingang.md#reading-in-the-cloud).
+
+**Presets** *(“Reading documents” card)*: Claude (Anthropic), OpenAI
+(`https://api.openai.com/v1`), Mistral (`https://api.mistral.ai/v1`), OpenRouter
+(`https://openrouter.ai/api/v1`), Google Gemini
+(`https://generativelanguage.googleapis.com/v1beta/openai`) and “Own address”.
+They are not a setting of their own: they only fill in `inbox_cloud_provider`
+and `inbox_cloud_endpoint`, and which one applies follows from those two. Any
+other address is “Own address”. The card loads the **list of models** once the
+key is saved, via `GET /api/inbox/cloud/models` (admins only; the key stays on
+the server); if that fails, the field stays free.
+
+The **API key is not a settings key**: it lives in a separate file on the server
+(`inbox_cloud_key.json`, readable only by the web server), never in
+`settings.json`, never in `GET /api/settings` and never in the backup. On the
+OpenAI-compatible path it belongs to the host of the address: switching the
+preset does not send the previous key to the new service, and it is still there
+when you switch back.
+
+Who reads is decided by `inbox_provider` ([Inbox](#inbox-v370)), that is the
+card’s switch; the keys here set up the cloud service.
+
+| Key | Default | In the app | Effect |
+|---|---|---|---|
+| `inbox_cloud_enabled` | off | Reading documents → Cloud: Switched on | The switch of the opt-in. Off = no document leaves the home network. The card only switches on with a key (for OpenAI-compatible also with an address and a model). Admins only. |
+| `inbox_cloud_provider` | `anthropic` | Reading documents → Cloud: Provider | `anthropic` — Claude (Anthropic), the PDF goes along and the service returns the source passage with its page — or `openai`, an OpenAI-compatible service (OpenAI, Mistral, OpenRouter, Google Gemini or your own address) that only gets the document’s text. Admins only. |
+| `inbox_cloud_endpoint` | empty | Reading documents → Cloud: Provider or address | Only for `openai`: base address with `https://` up to the version, for example `https://api.example.com/v1`; the app appends `/chat/completions` (without a version, as before, `/v1/chat/completions`). The presets enter their address. Never an address in the home network (the counterpart of `ocr_endpoint`); checked when saving and on every call after name resolution. Admins only. |
+| `inbox_cloud_model` | empty | Reading documents → Cloud: Model | From the service’s list or by hand. Empty = the provider’s default (`claude-opus-5-5` for Claude, the only built-in name); required for `openai`. Letters, digits and `. _ : / @ + -`, at most 200 characters. Changing the provider or the service behind the address clears the model. Admins only. |
+| `inbox_cloud_timeout_s` | 120 | Reading documents → Cloud: Time limit | Seconds the server waits for the cloud service (10–600). Behind your own web server or reverse proxy its limit applies; in the Docker image nginx waits up to 660 seconds when recognising and reading *(v3.7.0)*. |
 
 ### Regression & forecast
 

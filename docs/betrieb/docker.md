@@ -84,6 +84,18 @@ Energietracker-Daten also immer dort, egal wie oft du den Container neu baust.
 > „Created“, und Docker Desktop meldet einen Fehler (`mounts denied`, in der
 > Oberfläche oft nur „HTTP 500“). Am einfachsten ist dort ein Named Volume.
 
+**Ordner für Versorgerpost *(v3.7.0)*.** PDFs in `/data/posteingang/` wandern
+in den [Posteingang](../anleitungen/posteingang.md#überwachter-ordner) — mit dem
+Ordner-Volume also `./data/posteingang/` auf dem Host. Mit einem Named Volume
+einen Ordner des Hosts nur dafür einbinden:
+
+```
+-v energietracker-data:/data -v "$PWD/posteingang:/data/posteingang"
+```
+
+Der Ordner muss für den Benutzer des Containers beschreibbar sein (die Datei
+wandert danach nach `übernommen/` oder `fehler/`).
+
 ---
 
 ## Variante A — `docker compose` (empfohlen)
@@ -368,8 +380,13 @@ vielen Jahren Tagesdaten ließ sich damit nicht zurückspielen. Ebenfalls seit
 v3.1.0 wartet nginx bis zu **310 Sekunden** auf PHP (`fastcgi_read_timeout`,
 vorher 120 s): Die Texterkennung im Heimnetz darf bis 300 Sekunden rechnen
 (`ocr_timeout_s`), auf einem NAS ohne Grafikkarte kommt das vor. Das Warten
-auf den Dienst zählt unter Linux nicht in `max_execution_time`. Steht ein
-eigener Reverse-Proxy davor, gilt dessen Zeitlimit zusätzlich.
+auf den Dienst zählt unter Linux nicht in `max_execution_time`. Seit v3.7.0
+wartet nginx beim Erkennen und Auslesen im Posteingang
+(`/api/inbox/{id}/classify` und `/extract`) bis zu **660 Sekunden**: Ein
+Cloud-Dienst darf bis 600 Sekunden antworten (`inbox_cloud_timeout_s`), PHP
+hebt seine Grenze dafür auf 660 Sekunden. Alle anderen Routen bleiben bei
+310 Sekunden. Steht ein eigener Reverse-Proxy davor, gilt dessen Zeitlimit
+zusätzlich.
 
 **Healthcheck:** Der Container fragt `GET /api/health` ab. Seit v2.6.0
 antwortet der Endpunkt bei einer echten Störung (Daten nicht schreibbar,

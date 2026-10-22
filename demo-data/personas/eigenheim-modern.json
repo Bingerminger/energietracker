@@ -6455,7 +6455,9 @@
             "recurrence_months": 96,
             "last_done": "2022-10-12",
             "notes": "Eichfrist nach MessEV",
-            "active": true
+            "active": true,
+            "utility": "strom",
+            "meter_id": "m_strom_haushalt"
         },
         {
             "id": "rem_5b74dce6",
@@ -14355,6 +14357,7 @@
             }
         ]
     },
+    "inbox": [],
     "utilities": {
         "gas": {
             "meters": [],
@@ -14389,7 +14392,8 @@
                             "final_counter": null,
                             "reason": null
                         }
-                    ]
+                    ],
+                    "assignee_id": "u_7845ecdf"
                 },
                 {
                     "id": "m_strom_waermepumpe",
@@ -15805,7 +15809,8 @@
                     "auto_renews": null,
                     "min_term_end": null,
                     "price_guarantee_until": "2026-12-31",
-                    "signup_bonus_eur": null
+                    "signup_bonus_eur": null,
+                    "assignee_id": "u_03f37328"
                 },
                 {
                     "id": "c_strom_dynamisch",

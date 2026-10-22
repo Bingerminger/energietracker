@@ -221,22 +221,39 @@ Rechnungsbetrag und Nachzahlung/Guthaben. **„Vergleichen“** zeigt eine Tabel
 Abschläge, dazu ein Urteil:
 
 - **„passt“** — Menge auf 1 % genau und Betrag auf 1 % oder 2 € genau;
-- **„prüfen“** — sonst; ohne Menge und Betrag gibt es kein Urteil.
+- **„keine Preise“** *(v3.7.0)* — die Menge passt (oder fehlt), aber für einen
+  Teil des Zeitraums fehlt im Vertrag ein Preis: Den Betrag kann die App nicht
+  nachrechnen. Sie nennt die Abschnitte samt Vertrag und führt zu den
+  Verträgen;
+- **„prüfen“** — sonst; ohne Menge und Betrag gibt es kein Urteil. Weicht die
+  Menge ab und fehlen zugleich Preise, bleibt es „prüfen“, und der Hinweis auf
+  die fehlenden Preise steht trotzdem darunter, samt Abschnitten und Sprung zu
+  den Verträgen *(v3.7.0)*.
 
 Darunter die möglichen Gründe einer Abweichung, etwa: ein geschätzter oder
-interpolierter Stand an einer Grenze des Zeitraums, ein Preiswechsel oder ein
-Brennwertwechsel im Zeitraum, weitere Posten, die die App nur übernimmt, ein
-fehlender Preis im Vertrag oder fehlende Zählerstände. Nachgerechnet heißt:
-Verbrauchskosten + feste Kosten − Bonus + weitere Posten.
+interpolierter Stand an einem Rand des Zeitraums, ein Preiswechsel im
+Zeitraum, ein Brennwert laut Rechnung, der von den Gas-Umrechnungsfaktoren in
+den Einstellungen abweicht (beide Werte, mit Sprung zur Einstellung), weitere
+Posten, die die App nur übernimmt, ein fehlender Preis im Vertrag oder
+fehlende Zählerstände. Seit v3.7.0 gilt eine Ablesung am letzten Tag des
+Zeitraums (oder am Tag vor dem ersten) als Grenzstand wie auf der Rechnung,
+nicht als Schätzung, und ein Brennwertwechsel, den die Gas-Umrechnung so kennt,
+wie die Rechnung ihn aufteilt, ist kein Grund. Nachgerechnet heißt:
+Verbrauchskosten + feste Kosten − Bonus + weitere Posten; an dieser Rechnung
+ändert die Einstufung nichts.
 
 **Buchen.** **„Als Sonderzahlung buchen“** legt das Ergebnis als
 Sonderzahlung im Vertrag an — eine Nachzahlung bzw. Rückzahlung **„ohne
 Auswirkung auf Abschläge“**, Betrag ohne Vorzeichen, Datum = Rechnungsdatum
 (ohne Datum der Tag nach dem Zeitraum), Notiz „Jahresabrechnung … – …“. Der
-Vertrag ist der, der am Ende des Zeitraums galt. Danach trägt die Rechnung
-„gebucht“; ein zweites Buchen ändert nichts. Den neuen Abschlag trägst du als
-Abschlagszeile am Vertrag ein (Schritt 6). Ohne Ergebnis oder ohne Vertrag
-lehnt die App ab und sagt warum.
+Vertrag ist der, der am Ende des Zeitraums gilt, wenn er den Zeitraum
+überwiegend abrechnet; sonst der, der das tut (etwa der alte Vertrag einer
+Schlussrechnung, die einen Tag über sein Ende reicht) *(v3.7.0 — bis v3.6 nahm
+die App den jüngsten Vertrag des Zählers, auch wenn er den Zeitraum gar nicht
+berührte)*. Danach trägt die Rechnung „gebucht“; ein zweites Buchen ändert
+nichts. Den neuen Abschlag trägst du als Abschlagszeile am Vertrag ein
+(Schritt 6). Ohne Ergebnis oder ohne Vertrag für den Zeitraum lehnt die App ab
+und sagt warum.
 
 **Löschen** (🗑️) fragt nach. Eine schon gebuchte Sonderzahlung bleibt im
 Vertrag; sie löschst du dort, wenn sie weg soll.
@@ -249,10 +266,12 @@ Gruppenvertrag.
 
 ## 8. Danach
 
-- Die **Saldo-Karte** rechnet jetzt bis zum nächsten Abrechnungsstichtag
-  (Einstellungen → Verbrauchsarten & Abrechnung → Stichtag Gas; Standard
-  1. Januar) und schlägt einen Abschlag vor. Liegt der Vorschlag weit neben dem
-  neuen Abschlag des Versorgers, lohnt ein Blick in die Prognose.
+- Die **Saldo-Karte** rechnet jetzt bis zum Ende der laufenden
+  Abrechnungsperiode, dem Tag vor dem nächsten Stichtag, und schlägt einen
+  Abschlag vor. Der **Stichtag** (Einstellungen → Verbrauchsarten & Abrechnung;
+  Standard 01-01) ist der **erste Tag** der Abrechnungsperiode: 01-09 heißt
+  1.9. bis 31.8. Liegt der Vorschlag weit neben dem neuen Abschlag des
+  Versorgers, lohnt ein Blick in die Prognose.
 - Hast du das Ergebnis gebucht („Als Sonderzahlung buchen“), rechnet der Saldo
   eines weiterlaufenden Vertrags seit v3.6.0 ab dem Tag nach der Rechnung — die
   abgerechnete Zeit und die Rück- oder Nachzahlung zählen nicht mehr mit. Ohne
@@ -266,7 +285,9 @@ Gruppenvertrag.
   den Zeitraum der erfassten Rechnung, etwa 15.04. bis 30.03., mit Abschlägen
   und Saldo; zwischen und nach den Rechnungen schneidet der Stichtag. Die
   laufende Periode beginnt am Tag nach der Rechnung. Endet die Rechnung nicht
-  am Tag vor deinem Stichtag, schlägt die Ansicht den passenden Tag vor. Die
+  am Tag vor deinem Stichtag, schlägt die Ansicht den passenden Tag vor; ohne
+  erfasste Rechnung *(v3.7.0)* den Beginn des Vertrags nach dem jüngsten
+  Lieferantenwechsel oder den Tag, an dem mehrere Verträge beginnen. Die
   Wahl gilt auf diesem Gerät auch für Übersicht und Analyse; der Jahresbericht
   hat dafür den Anhang „Abrechnungsjahre“, der CSV-Export eine Tabelle je
   Periode (Einstellungen → Daten).
@@ -278,7 +299,10 @@ Gruppenvertrag.
   beim selben Versorger teilt nicht. Liegt zwischen gekündigtem altem und
   neuem Vertrag eine Lücke, ist sie eine eigene Teilperiode; verlängert sich
   der alte, läuft er bis zum Tag vor dem neuen. Eine erfasste Rechnung geht
-  immer vor.
+  immer vor. *(v3.7.0)* Liegt der Wechsel nur wenige Tage neben dem Stichtag —
+  Stichtag 31-08, neuer Vertrag ab 01.09. —, gibt es keine Periode von einem
+  Tag: Reste unter 14 Tagen gehen in die Nachbarperiode auf. Die Summen
+  bleiben dieselben.
 - **Laufendes Jahr in beiden Ansichten:** Das Kalenderjahr zählt Grundpreis
   und Abschlag des Monats der letzten Ablesung ganz, das Abrechnungsjahr nur
   die Tage bis zur Ablesung; das ⓘ an „Abschläge bis …“ sagt es. Ganze Jahre

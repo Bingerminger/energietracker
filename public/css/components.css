@@ -383,7 +383,11 @@ fieldset.fgroup, .fgroup {
   border-bottom: 1px solid var(--border-1);
   display: flex; justify-content: space-between; align-items: center;
 }
-.modal__title { font-size: var(--fs-lg); font-weight: 600; }
+/* v3.7.0 (Qualität) — Titel ist eine <h2> (Überschriften-Navigation der
+   Bildschirmleser); der Dialog selbst nimmt den Fokus nur als Rückfall an,
+   ohne Rahmen um die ganze Fläche. */
+.modal__title { font-size: var(--fs-lg); font-weight: 600; line-height: 1.3; }
+.modal:focus { outline: none; }
 .modal__close { background: transparent; border: none; color: var(--text-3); font-size: 24px; cursor: pointer; }
 .modal__close:hover { color: var(--text-1); }
 .modal__body { padding: var(--sp-5); overflow-y: auto; flex: 1 1 auto; min-height: 0; overscroll-behavior: contain; }
@@ -1038,6 +1042,14 @@ a.icon-btn { display: inline-flex; align-items: center; justify-content: center;
   background: var(--accent); color: var(--accent-fg);
   border-color: var(--accent); font-weight: 600;
 }
+/* v3.7.0 (Karte „Auslesen“) — derselbe Umschalter als Radiogruppe (Lokal | Cloud) */
+.seg--radio { border: 0; margin: 0 0 var(--sp-2); padding: 0; min-width: 0; }
+.seg--radio legend { width: 100%; padding: 0; margin-bottom: 4px; font-size: var(--fs-sm); color: var(--text-2); }
+.seg--radio .seg__btn { position: relative; display: inline-flex; align-items: center; }
+.seg--radio .seg__btn input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer; }
+.seg--radio .seg__btn:has(input:checked) { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); font-weight: 600; }
+.seg--radio .seg__btn:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+.seg--radio .seg__btn:has(input:disabled) { opacity: .7; cursor: not-allowed; }
 
 /* Empfehlungs-Karten */
 .rec-list { display: flex; flex-direction: column; gap: var(--sp-3); }
@@ -1513,6 +1525,9 @@ a.icon-btn { display: inline-flex; align-items: center; justify-content: center;
 .dash-todo__head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0 var(--sp-3); }
 .dash-todo__head .assignee-filter { margin-bottom: var(--sp-2); }
 .dash-todo__text .chip--assignee { align-self: flex-start; margin-top: 2px; }
+/* v3.7.0 — geerbt (über den Vertrag / den Zähler): gestrichelt, Zusatz leiser */
+.chip--via { border-style: dashed; }
+.chip__via { color: var(--text-2); }
 
 /* v2.12.0 (Review UI-20) — Werkzeugleisten: beschriftete Auswahlfelder in
    Inhaltsbreite statt 100 %, Umbruch auf schmalen Bildschirmen */
@@ -1607,6 +1622,10 @@ a.icon-btn { display: inline-flex; align-items: center; justify-content: center;
 .flex-tag--assumed { background: var(--warning-soft); color: var(--warning); }
 /* v3.6.0 (Paket flexplus) — Auto mit Steckzeiten aus evcc */
 .flex-tag--sessions { background: var(--success-soft); color: var(--success); }
+/* v3.7.0 — eigener Wert aus den Einstellungen statt Beispielwert */
+.flex-tag--own { background: var(--success-soft); color: var(--success); }
+/* v3.7.0 (#33) — Bonus als eigene Zeile unter der Kachel „Kosten“ */
+.kpi__bonus { color: var(--success); }
 /* Nachtrag — reiner Börsenanteil: „netto, ohne USt“ (neben den Hebeln inkl. USt) */
 .flex-tag--net { background: var(--bg-2); color: var(--text-2); font-weight: 500; font-size: var(--fs-xs); }
 .flex-ampel__head { display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: center; justify-content: space-between; }

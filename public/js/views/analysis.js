@@ -12,7 +12,9 @@ import { activeUtilities, getSettings } from '../state.js';
 import { fmt, escapeHtml, monthShortNames } from '../lib/format.js';
 import { makeChart, utilColor, tokenColor, chartTableHtml } from '../components/chart.js';
 import { isPartial, daysInMonth } from '../lib/chart-data.js';
-import { toastErr } from '../components/toast.js';
+import { isInterpolated, interpolationNote, markTitle, MARK } from '../lib/interpolation.js';   // v3.7.0 (#37)
+import { atLeast } from '../lib/levels.js';
+import { toastErr, toastOk } from '../components/toast.js';
 import { t, tp } from '../lib/i18n.js';
 import { info } from '../components/info.js';
 import { isFeedIn, isGeneration, moreIsBetter, changeTone } from '../lib/semantics.js';
@@ -82,7 +84,7 @@ function destroyCharts() {
 
 async function renderForMeter(u, meterId, body) {
   let meterData;
-  try { meterData = await api.meterConsumption(u.key, meterId); }
+  try { meterData = await api.meterConsumption(u.key, meterId, null, { heatLimit: !!u.hgt_relevant }); }
   catch (e) { toastErr(e.message); body.innerHTML = `<div class="banner banner--error">${escapeHtml(e.message)}</div>`; return; }
   // Contract status drives the F-05 contract-end reminder. It is optional —
   // a meter without contracts simply yields no reminder banner.
@@ -105,10 +107,15 @@ async function renderForMeter(u, meterId, body) {
   const modeBar = billingApplies(u)
     ? `<div class="period-mode-bar">${periodModeHtml(wantBilling ? 'billing' : 'calendar')}</div>`
     : calendarOnlyNote(u.label);
+  // v3.7.0 (GitHub #37) — ein Hinweis, wenn Monatswerte verteilt statt gemessen sind
+  const interpText = interpolationNote({ rows: monthly, info: meterData.interpolation || null,
+    heat: !!u.hgt_relevant && meterData.regressions_note !== 'delivery_modelled' });
+  const anomalyLimit = (baseline?.limits || []).find(l => l.key === 'anomalies' && !l.ok) || null;
 
   body.innerHTML = `
     ${modeBar}
     ${renderContractReminders(contractStatus)}
+    ${interpText ? `<p class="banner banner--info" data-role="interpolation-note"><span aria-hidden="true">${MARK}</span> ${escapeHtml(interpText)}</p>` : ''}
     <div data-min-level="expert">${renderBaselineBlock(baseline, comparison, u)}</div>
     ${u.key === 'wasser' ? await renderWaterSparindex(monthly) : ''}
     <div class="grid grid-2">
@@ -144,7 +151,12 @@ async function renderForMeter(u, meterId, body) {
 
     <div class="card" style="margin-top: var(--sp-5)">
       <h3 class="card__title">${t('analysis.anomalies', { count: anomalies.length })}${info('anomaly')}</h3>
-      ${anomalies.length === 0 ? `<p class="muted">${t('analysis.noAnomalies')}</p>` : `
+      ${qualityHtml(meterData.anomaly_quality, anomalies.length)}
+      ${heatLimitHtml(meterData.heat_limit)}
+      ${anomalies.length === 0 ? (meterData.anomaly_quality?.model_quality === 'poor' ? ''
+        // v3.7.0 (#37) — zu wenig geprüfte Monate (etwa alle verteilt): das sagen, nicht „alle im Erwartungsbereich“
+        : anomalyLimit ? `<p class="muted" data-role="anomaly-limit">${t('analysis.baseline.limit.anomalies', { need: anomalyLimit.need, have: anomalyLimit.have })}</p>`
+        : `<p class="muted">${t('analysis.noAnomalies')}</p>`) : `
         <p class="muted" style="margin-bottom:12px">
           ${u.hgt_relevant ? t('analysis.anomalyExplainHgt') : t('analysis.anomalyExplainSeasonal')}
         </p>
@@ -189,6 +201,69 @@ async function renderForMeter(u, meterId, body) {
   else if (!u.hgt_relevant) renderSeasonalProfile(monthly, u, consKey, body);
   renderYearComparison(series, u, body);
   wirePeriodMode(body);
+  // v3.7.0 (wirklichkeit-2, #38) — den Vorschlag für diesen Zähler übernehmen bzw. die
+  // eigene Grenze zurücknehmen (nur ab Erfahren sichtbar); die Einstellung bleibt der Standard
+  for (const el of body.querySelectorAll('[data-role="heat-limit-apply"], [data-role="heat-limit-reset"]')) {
+    el.addEventListener('click', async (e) => {
+      const btn = e.currentTarget;
+      const value = btn.dataset.role === 'heat-limit-reset' ? null : Number(btn.dataset.value);
+      btn.disabled = true;
+      try {
+        await api.updateMeter(u.key, meterId, { hdd_base_temp: value });
+        toastOk(value === null ? t('analysis.heatLimit.resetDone') : t('analysis.heatLimit.applied', { value: fmt.num(value, 1) }));
+        await renderForMeter(u, meterId, body);
+      } catch (err) { toastErr(err.message); btn.disabled = false; }
+    });
+  }
+}
+
+// ── v3.7.0 (wirklichkeit-2, #38): Heizgrenze-Vorschlag je Zähler ──────
+// Der Server rechnet die gemessenen Monate mit jeder Heizgrenze von 6 bis
+// 18 °C durch (ConsumptionService::heatLimitSuggestion) und schlägt nur vor,
+// was deutlich besser passt. Die Grenze gilt dann für diesen Zähler (die
+// Einstellung bleibt der Standard der anderen). Übernommen wird nie
+// automatisch: ab Erfahren per Knopf (wie die Karte „Physikalische
+// Konstanten“), darunter mit dem Stufenhinweis — wie bei der Gütesperre.
+function heatLimitHtml(h) {
+  if (!h) return '';
+  const advanced = atLeast('advanced');
+  const levelNote = escapeHtml(t('analysis.quality.levelNote', { level: t('level.advanced') }));
+  // eine eigene Grenze dieses Zählers: sagen und zurücknehmen lassen
+  const own = h.own ? `<p class="muted small" data-role="heat-limit-own">${escapeHtml(t('analysis.heatLimit.own', { value: fmt.num(h.current, 1), default: fmt.num(h.default, 1) }))}
+      ${advanced ? `<button type="button" class="btn btn--sm" data-role="heat-limit-reset">${escapeHtml(t('analysis.heatLimit.reset', { value: fmt.num(h.default, 1) }))}</button>` : ''}</p>` : '';
+  if (!h.suggest) return own;
+  const text = t('analysis.heatLimit.suggest', {
+    best: fmt.num(h.best, 1), current: fmt.num(h.current, 1), bestPct: fmt.pct(h.best_ratio, 0), currentPct: fmt.pct(h.current_ratio, 0),
+  });
+  const action = advanced
+    ? `<button type="button" class="btn btn--sm" data-role="heat-limit-apply" data-value="${h.best}">${escapeHtml(t('analysis.heatLimit.apply', { value: fmt.num(h.best, 1) }))}</button>`
+    : levelNote;
+  return `<p class="banner banner--info" data-role="heat-limit">${escapeHtml(text)} ${escapeHtml(t('analysis.heatLimit.scope'))}<br>${action}</p>${own}`;
+}
+
+// ── v3.7.0 (GitHub #38): Gütesperre der Abweichungstabelle ───────────
+// Passt das Heizmodell schlecht (robuste Streuung über 15 % eines mittleren
+// gemessenen Monats, AnomalyService::POOR_FIT_RATIO, oder Grundlast weit neben
+// den gemessenen Sommermonaten), misst die Tabelle vor allem den eigenen
+// Modellfehler. Statt leer zu bleiben, sagt sie das — mit der Grenze, unter der
+// sie nichts erkennt, und dem Weg zur Heizgrenze. Die Karte „Physikalische
+// Konstanten“ steht ab Erfahren (settings.js); darunter nur der Weg.
+function qualityHtml(q, rows = 0) {
+  if (q?.model_quality !== 'poor') return '';
+  const n = (v) => fmt.num(v, 0);
+  const parts = [t('analysis.quality.poor', { scale: n(q.resid_scale), unit: q.unit, pct: fmt.pct(q.ratio, 0), mean: n(q.mean_month) })];
+  if ((q.reasons || []).includes('base_load') && q.base_load) {
+    parts.push(t('analysis.quality.baseLoad', { model: fmt.num(q.base_load.model_per_day, 1), measured: fmt.num(q.base_load.measured_per_day, 1), unit: q.unit }));
+  }
+  // v3.7.0 (Schritt 3, N2) — mit Zeilen nicht „dass sie leer ist“: Was sie zeigt, kann der Modellfehler sein
+  parts.push(t(rows > 0 ? 'analysis.quality.floorRows' : 'analysis.quality.floor', { floor: n(q.detect_floor), unit: q.unit }));
+  const text = parts.join(' ');
+  const path = [t('nav.settings'), t('settings.page.utilities.title'), t('settings.group.physical.title'), t('settings.field.hdd_base_temp.label')].join(' › ');
+  const where = atLeast('advanced')
+    ? `<a href="#/settings/utilities?field=hdd_base_temp" data-role="quality-link">${escapeHtml(path)}</a>`
+    : `${escapeHtml(path)} ${escapeHtml(t('analysis.quality.levelNote', { level: t('level.advanced') }))}`;
+  return `<p class="banner banner--warning" data-role="anomaly-quality">${escapeHtml(text)}
+      <br>${escapeHtml(t('analysis.quality.hint'))} ${where}</p>`;
 }
 
 // ── F1011: Zäsur — Hinweisband, Grenzen, Vorher/Nachher ─────────────
@@ -427,7 +502,9 @@ function renderHgtScatter(monthly, u, consKey, regressions) {
   // v2.15.0 (Review FE-20) — die Punkte als Tabelle, mit ihrer Rolle im Modell
   const box = document.querySelector('[data-role="hdd-data"]');
   if (box) {
-    const role = (m) => m.pre_baseline ? t('analysis.baseline.chartPre') : inFit(m) ? t('analysis.pointInFit') : t('analysis.scatterNotInFit');
+    // v3.7.0 (#37) — verteilte Monate sind nicht im Modell, und das aus anderem Grund
+    const role = (m) => m.pre_baseline ? t('analysis.baseline.chartPre') : inFit(m) ? t('analysis.pointInFit')
+      : isInterpolated(m) ? t('analysis.pointInterpolated') : t('analysis.scatterNotInFit');
     box.innerHTML = chartTableHtml({
       caption: t('analysis.hgtTitle'),
       columns: [t('utility.monthlyTable.colMonth'), t('common.hddShort'), u.consumption_unit, t('analysis.pointRole')],
@@ -467,7 +544,9 @@ function renderHgtScatter(monthly, u, consKey, regressions) {
 }
 
 function formatCoefficients(model, reg, u) {
-  if (!reg?.valid) return t('analysis.reg.tooFew');
+  // v3.7.0 (wirklichkeit-2) — der Grund vom Server (RegressionService::withReason);
+  // bis v3.6 hieß jeder ungültige Fit „zu wenige Datenpunkte“, auch bei 50 Punkten
+  if (!reg?.valid) return reg?.reason ? t(`regression.reason.${reg.reason}`, { n: reg.n ?? 0, r2: fmt.num(reg.r2 ?? 0, 2) }) : t('analysis.reg.tooFew');
   const unit = u.consumption_unit;
   switch (model) {
     case 'linear':
@@ -586,8 +665,8 @@ function renderYearComparison(series, u, root = document) {
           borderDash: st.dash,
           pointStyle: st.point,
           pointRadius: latest ? 4 : 3,
-          // v2.15.0 (Review FE-08) — Teilmonat als hohler Punkt
-          pointBackgroundColor: (ctx) => (partial[ctx.dataIndex] ? 'transparent' : utilColor({ color: st.color })()),
+          // v2.15.0 (Review FE-08) — Teilmonat als hohler Punkt; v3.7.0 (#37) — verteilter Monat ebenso
+          pointBackgroundColor: (ctx) => (partial[ctx.dataIndex] || isInterpolated(series.rows[y]?.[ctx.dataIndex]) ? 'transparent' : utilColor({ color: st.color })()),
           tension: 0.25, spanGaps: true,
         };
       }),
@@ -597,7 +676,10 @@ function renderYearComparison(series, u, root = document) {
       plugins: { tooltip: { callbacks: { afterLabel: (item) => {
         const y = years[item.datasetIndex];
         const row = series.rows[y]?.[item.dataIndex];
-        return row && isPartial(row) ? t('chart.partialMonth', { days: row.days, total: daysInMonth(row.ym) }) : '';
+        const lines = [];
+        if (row && isPartial(row)) lines.push(t('chart.partialMonth', { days: row.days, total: daysInMonth(row.ym) }));
+        if (isInterpolated(row)) lines.push(`${MARK} ${markTitle(row)}`);
+        return lines.join('\n');
       } } } },
       scales: { y: { title: { display: true, text: u.consumption_unit } } },
     }
@@ -609,11 +691,14 @@ function renderYearComparison(series, u, root = document) {
       columns: [t('utility.monthlyTable.colMonth'), ...years.map(y => `${series.names[y]} (${u.consumption_unit})`)],
       rows: labels.map((l, i) => [l, ...years.map(y => {
         const v = byYear[y][i];
-        return v == null ? null : fmt.int(v) + (partialByYear[y][i] ? ' *' : '');
+        return v == null ? null : fmt.int(v) + (partialByYear[y][i] ? ' *' : '') + (isInterpolated(series.rows[y]?.[i]) ? ` ${MARK}` : '');
       })]),
     });
     if (years.some(y => partialByYear[y].some(Boolean))) {
       box.insertAdjacentHTML('beforeend', `<p class="chart-note">${escapeHtml(t('analysis.partialStar'))}</p>`);
+    }
+    if (years.some(y => (series.rows[y] || []).some(isInterpolated))) {
+      box.insertAdjacentHTML('beforeend', `<p class="chart-note">${escapeHtml(t('interpolation.legend'))}</p>`);
     }
   }
 }
@@ -655,7 +740,7 @@ function renderContractReminders(contractStatus) {
 // Month-by-month comparison of the two most recent years that have data,
 // with absolute and percentage deltas. Complements the existing
 // "Jahresvergleich" line chart with concrete numbers.
-function renderYoyWidget(series, u) {
+export function renderYoyWidget(series, u) {   // exportiert für die Render-Prüfung (v3.7.0)
   const byYear = series.values;
   const years = series.keys;
   if (years.length < 2) {
@@ -679,13 +764,22 @@ function renderYoyWidget(series, u) {
     const a = byYear[prevKey][i];
     const b = byYear[currKey][i];
     let delta = null, pct = null;
-    if (a != null && b != null) {
+    // v3.7.0 (Nachlauf) — ein Teilmonat (etwa der laufende) ist mit einem vollen Monat nicht
+    // vergleichbar: mit * gekennzeichnet, ohne Δ und nicht in der Summe
+    const pa = !!series.partial?.[prevKey]?.[i], pb = !!series.partial?.[currKey]?.[i];
+    if (a != null && b != null && !pa && !pb) {
       delta = b - a;
       pct = a !== 0 ? (delta / a) * 100 : null;
       sumPrev += a; sumCurr += b; nBoth++;
     }
-    return { name, a, b, delta, pct };
+    // v3.7.0 (#37) — verteilte Monate gekennzeichnet; ihre Differenz ist keine Messung
+    const ia = isInterpolated(series.rows[prevKey]?.[i]), ib = isInterpolated(series.rows[currKey]?.[i]);
+    return { name, a, b, delta, pct, ia, ib, pa: pa && a != null, pb: pb && b != null };
   });
+  const anyInterp = rows.some(r => r.ia || r.ib);
+  const anyPartial = rows.some(r => r.pa || r.pb);
+  const mark = (on, partial = false) => (on ? ` <span class="muted" aria-hidden="true">${MARK}</span>` : '')
+    + (partial ? '<span class="muted" data-role="yoy-partial">*</span>' : '');
   const totalDelta = nBoth ? sumCurr - sumPrev : null;
   const totalPct = nBoth && sumPrev !== 0 ? (totalDelta / sumPrev) * 100 : null;
 
@@ -715,8 +809,8 @@ function renderYoyWidget(series, u) {
           ${rows.map(r => `
             <tr>
               <td><strong>${r.name}</strong></td>
-              <td class="num">${cell(r.a)}</td>
-              <td class="num">${cell(r.b)}</td>
+              <td class="num">${cell(r.a)}${mark(r.ia, r.pa)}</td>
+              <td class="num">${cell(r.b)}${mark(r.ib, r.pb)}</td>
               ${deltaCell(r.delta, r.pct)}
             </tr>
           `).join('')}
@@ -730,6 +824,8 @@ function renderYoyWidget(series, u) {
       </table></div>
       <p class="muted" style="font-size: var(--fs-xs); margin-top: var(--sp-2)">
         ${t(moreIsBetter(u) ? 'analysis.yoy.notePv' : 'analysis.yoy.note')}
+        ${anyInterp ? `<br>${escapeHtml(t('interpolation.legend'))}` : ''}
+        ${anyPartial ? `<br><span data-role="yoy-partial-note">${escapeHtml(t('analysis.yoy.partialNote'))}</span>` : ''}
       </p>
     </div>
   `;

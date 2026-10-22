@@ -13,8 +13,8 @@ Alle Endpunkte unter `/api/…`. Antwort-Hülle einheitlich:
 
 `{utility}` ist eine von: `gas`, `strom`, `wasser`, `fernwaerme`,
 `heizoel`, `pellets`, `pv_einspeisung`, `pv_erzeugung` und seit v3.1.0
-`waerme` (Heizwärme). Stand: **166 Routen**,
-v3.6.0 — `ReleaseConsistencyTest` prüft, dass jede registrierte Route in der
+`waerme` (Heizwärme). Stand: **186 Routen**,
+v3.7.0 — `ReleaseConsistencyTest` prüft, dass jede registrierte Route in der
 Tabelle unten steht (DE und EN).
 
 > Ausführliche Request-/Response-Beispiele für die meistgenutzten Endpunkte
@@ -99,6 +99,7 @@ für jede Route **eines** davon:
 | Sitzung | den Browser | Cookie `et_session` (HttpOnly, SameSite=Strict, 30 Tage; seit v3.4.0 gleitend: eine Sitzung, die älter als ein Tag ist, bekommt bei Gebrauch ein neues Cookie mit voller Dauer) nach `POST /api/session` |
 | API-Schlüssel | Skripte, andere Programme, Home Assistant | `Authorization: Bearer etk_…`; Bereich `read` (nur `GET`) oder `admin` |
 | Kalender-Schlüssel *(v3.1.0)* | Kalender-Apps | API-Schlüssel mit Bereich `calendar`, **nur** als `?token=etk_…` und **nur** für `GET /api/calendar.ics` |
+| Posteingang-Schlüssel *(v3.7.0)* | Kurzbefehl „Teilen → Energietracker“, Home Assistant (E-Mail) | API-Schlüssel mit Bereich `inbox`, als `Authorization: Bearer etk_…`, **nur** für `POST /api/inbox` (jede andere Route `401`) |
 | Proxy | Betrieb hinter Authelia, Authentik, Home-Assistant-Ingress o. Ä. | `ET_AUTH=proxy`, nur von Adressen in `ET_TRUSTED_PROXIES`. Seit v3.4.0: mit `ET_PROXY_USER_HEADER` genau diese Kopfzeile; unter Home-Assistant-Ingress nur `X-Remote-User-Id`/`X-Remote-User-Name` (Person über die Kennung); sonst wie bisher die erste von `Remote-User`/`X-Forwarded-User`/`X-Remote-User`/`X-Remote-User-Name`/`X-Remote-User-Id` (mit Warnung in `GET /api/diagnostics`) |
 
 Ohne Anmeldung erreichbar bleiben `POST /api/ingest` (eigener Token, mit
@@ -160,10 +161,10 @@ nicht wieder passieren.
 | GET | `/api/people` | *(v3.5.0)* Personen für die Auswahl „Zuständig“: nur `[{id, name}]`, nach Namen sortiert, für jede angemeldete Rolle (auch Lese-Schlüssel); *(v3.6.0)* aus dem [Personenverzeichnis](#personenverzeichnis-v360), ohne gelöschte, auch ohne eingeschaltete Anmeldung (bis v3.5 dann `[]`) — [Zuständig](#zuständig-an-terminen-v350). Klasse C |
 | POST | `/api/users` | *(v3.2.0)* Person anlegen `{name, password, role?}`; `201` — nur Verwalter; *(v3.6.0)* Antwort mit `no` |
 | PATCH | `/api/users/{id}` | *(v3.2.0)* Name, Rolle oder Passwort ändern `{name?, role?, password?}` — nur Verwalter; *(v3.6.0)* auch für Personen ohne Zugang (Name und Rolle; ein Passwort `400` `errors.users.noAccountPassword`) — [Personenverzeichnis](#personenverzeichnis-v360) |
-| GET | `/api/users/{id}/handover` | *(v3.6.0)* Vorschau „Person löschen“: `{person: {id, name, no}, to: {id, name}\|null, open, done}` — offene Termine und an wen, erledigte Einträge im Verlauf — nur Verwalter. Klasse C |
-| DELETE | `/api/users/{id}` | *(v3.2.0)* Person löschen; der letzte Verwalter bleibt — nur Verwalter; seit v3.4.0 ersetzt `?anonymize_activity=1` ihren Namen im Verlauf durch „ehemalige Person“ (Antwort `activity_anonymized`); *(v3.6.0)* offene Termine gehen an die löschende Person, Erledigtes behält den Namen mit „(gelöscht)“ (Antwort additiv `handed_over`, `handed_over_to`, `kept`) — [Personenverzeichnis](#personenverzeichnis-v360) |
+| GET | `/api/users/{id}/handover` | *(v3.6.0)* Vorschau „Person löschen“: `{person: {id, name, no}, to: {id, name}\|null, open, done}` — offene Termine und an wen, erledigte Einträge im Verlauf — nur Verwalter; *(v3.7.0)* dazu `meters`, `contracts` (Zuständigkeiten, die mit übergehen). Klasse C |
+| DELETE | `/api/users/{id}` | *(v3.2.0)* Person löschen; der letzte Verwalter bleibt — nur Verwalter; seit v3.4.0 ersetzt `?anonymize_activity=1` ihren Namen im Verlauf durch „ehemalige Person“ (Antwort `activity_anonymized`); *(v3.6.0)* offene Termine gehen an die löschende Person, Erledigtes behält den Namen mit „(gelöscht)“ (Antwort additiv `handed_over`, `handed_over_to`, `kept`) — [Personenverzeichnis](#personenverzeichnis-v360); *(v3.7.0)* ebenso Zähler und Verträge (`records_handed_over`, `records_kept`) — [Zuständig](#zuständig-an-zählern-und-verträgen-v370) |
 | GET | `/api/auth/keys` | API-Schlüssel (ohne Klartext) *(v2.6.0)*; seit v3.2.0 nur Verwalter |
-| POST | `/api/auth/keys` | Schlüssel erzeugen `{name, scope: read\|admin\|calendar}`; Klartext einmalig *(v2.6.0; `calendar` seit v3.1.0)*; seit v3.2.0 nur Verwalter |
+| POST | `/api/auth/keys` | Schlüssel erzeugen `{name, scope: read\|admin\|calendar\|inbox}`; Klartext einmalig *(v2.6.0; `calendar` seit v3.1.0, `inbox` seit v3.7.0)*; seit v3.2.0 nur Verwalter |
 | DELETE | `/api/auth/keys/{id}` | Schlüssel widerrufen *(v2.6.0)*; seit v3.2.0 nur Verwalter |
 | GET | `/api/diagnostics` | Systemstatus, Schreibrechte, Schema; seit v3.4.0 `security` (Anmeldemodus, Proxy-Kopfzeile, Hostlisten, `notices`: `proxy_header`, `open_without_hosts` samt Vorschlag `host`) |
 | GET | `/api/utilities` | Liste der Verbrauchsarten + Konfiguration; seit v2.13.0 je Art `has_contracts`, `has_advance_payment_contracts` und `accounting_kind` (`consumption`, `feed_in`, `generation`); seit v3.1.0 `meter_roles` bei Arten mit Zählerrollen und `supports_bill_check` (Rechnungsprüfung möglich: Gas, Strom, Wasser, Fernwärme); seit v3.5.0 `has_special_payments` (Sonderzahlungen am Vertrag: Gas, Strom, Wasser, Fernwärme — [#34](https://github.com/Bingerminger/energietracker/issues/34)); `has_advance_payment_contracts` bleibt ohne Wasser (Saldo nach Kalender, Gruppenvertrag) |
@@ -181,8 +182,8 @@ nicht wieder passieren.
 | GET | `/api/geocode` | Ortssuche für den Standort; `?q=` (2–80 Zeichen) — v2.12.0, s. u. |
 | POST | `/api/temperatures/sync-open-meteo` | Open-Meteo-Abgleich; `?start=&end=&reload=1&auto=1` (v2.8.0) — s. u. |
 | DELETE | `/api/temperatures/{date}` | Tagesdatum löschen |
-| GET | `/api/utility/{u}/meters` | Zähler/Tanks |
-| POST | `/api/utility/{u}/meters` | anlegen; seit v3.1.0 mit `role` und `capture` — [s. u.](#zähler-role-capture-v310-additiv) — sowie `malo_id`, `melo_id` ([s. u.](#zähler-malo_id-melo_id-v310-additiv)); bei PV-Erzeugung `plug_in`, `investment_eur`, `commissioned_on`, `battery_capacity_kwh` ([PV](#pv-speicher-balkonkraftwerk-amortisation-v310-additiv)), bei Heizwärme `heat_pump_meter_ids` ([Wärmepumpe](#jahresarbeitszahl-der-wärmepumpe-v310)) |
+| GET | `/api/utility/{u}/meters` | Zähler/Tanks; *(v3.7.0)* je Zähler `assignee`, `assignee_id`, `assignee_former`, `assignee_deleted` — [Zuständig](#zuständig-an-zählern-und-verträgen-v370) |
+| POST | `/api/utility/{u}/meters` | anlegen; *(v3.7.0)* mit `assignee_id`; seit v3.1.0 mit `role` und `capture` — [s. u.](#zähler-role-capture-v310-additiv) — sowie `malo_id`, `melo_id` ([s. u.](#zähler-malo_id-melo_id-v310-additiv)); bei PV-Erzeugung `plug_in`, `investment_eur`, `commissioned_on`, `battery_capacity_kwh` ([PV](#pv-speicher-balkonkraftwerk-amortisation-v310-additiv)), bei Heizwärme `heat_pump_meter_ids` ([Wärmepumpe](#jahresarbeitszahl-der-wärmepumpe-v310)) |
 | GET | `/api/utility/{u}/meters/{id}` | einzeln |
 | PATCH | `/api/utility/{u}/meters/{id}` | ändern; `capture` nur, solange der Zähler keine Daten der bisherigen Art hat (v3.1.0) |
 | DELETE | `/api/utility/{u}/meters/{id}` | löschen; `400`, solange Ablesungen, Lieferungen, Verträge oder Subzähler daran hängen, seit v3.1.0 auch Zeiträume (`errors.meter.hasPeriods`) oder Versorgerrechnungen (`errors.meter.hasBills`) |
@@ -217,8 +218,8 @@ nicht wieder passieren.
 | PATCH | `/api/utility/{u}/deliveries/{id}` | ändern |
 | DELETE | `/api/utility/{u}/deliveries/{id}` | löschen |
 | GET | `/api/utility/{u}/meters/{id}/stock-history` | Tank-Bestandskurve; seit v2.10.0 Tankbuch mit Stützstellen und Schätzbeginn — s. u. |
-| GET | `/api/utility/{u}/contracts` | Verträge; seit v3.4.0 je Vertrag `phase` und `values_on` ([s. u.](#verträge-phase-values_on-v340-additiv)) |
-| POST | `/api/utility/{u}/contracts` | anlegen; seit v3.1.0 Fernwärme mit Leistungs- und Messpreis, Antwort ggf. mit `warnings` — [s. u.](#verträge-fernwärme-fixkosten-warnings-v310-additiv); für eine Zählergruppe mit `meter_group_id` ([Gruppenvertrag](#gruppenvertrag-v310)); Strom mit `grid_reduction`, Preismodell `price_model`/`dynamic`, Einspeisung mit `revenue_statements` ([s. u.](#verträge-reduziertes-netzentgelt-preismodell-gutschriften-v310-additiv)); seit v3.3.0 Strom mit `grid_tou` ([zeitvariables Netzentgelt](#verträge-zeitvariables-netzentgelt-modul-3-v330-additiv)) |
+| GET | `/api/utility/{u}/contracts` | Verträge; seit v3.4.0 je Vertrag `phase` und `values_on` ([s. u.](#verträge-phase-values_on-v340-additiv)); *(v3.7.0)* Zuständigkeit wie beim Zähler |
+| POST | `/api/utility/{u}/contracts` | anlegen; *(v3.7.0)* mit `assignee_id`; seit v3.1.0 Fernwärme mit Leistungs- und Messpreis, Antwort ggf. mit `warnings` — [s. u.](#verträge-fernwärme-fixkosten-warnings-v310-additiv); für eine Zählergruppe mit `meter_group_id` ([Gruppenvertrag](#gruppenvertrag-v310)); Strom mit `grid_reduction`, Preismodell `price_model`/`dynamic`, Einspeisung mit `revenue_statements` ([s. u.](#verträge-reduziertes-netzentgelt-preismodell-gutschriften-v310-additiv)); seit v3.3.0 Strom mit `grid_tou` ([zeitvariables Netzentgelt](#verträge-zeitvariables-netzentgelt-modul-3-v330-additiv)) |
 | GET | `/api/utility/{u}/contracts/{id}` | einzeln; seit v3.4.0 mit `phase` und `values_on` |
 | PATCH | `/api/utility/{u}/contracts/{id}` | ändern; wie beim Anlegen |
 | DELETE | `/api/utility/{u}/contracts/{id}` | löschen |
@@ -255,8 +256,8 @@ nicht wieder passieren.
 | GET | `/api/recommendations` | statistische Empfehlungen |
 | POST | `/api/recommendations/{id}/dismiss` | Empfehlung ausblenden; `{until?}`, sonst 30 Tage — seit v3.4.0 mit Frist (`evidence.deadline`) mindestens bis dahin; Antwort zusätzlich `until` und `activity_id` |
 | DELETE | `/api/recommendations/{id}/dismiss` | Ausblenden zurücknehmen (v2.12.0); eine nicht ausgeblendete ID ist kein Fehler |
-| GET | `/api/reminders` | Termine + Fälligkeitsstatus; seit v3.4.0 `last_done_by` (wer zuletzt erledigt hat, aus dem Verlauf); seit v3.5.0 je Termin `assignee`, `assignee_id`, `assignee_former` — [Zuständig](#zuständig-an-terminen-v350) |
-| POST | `/api/reminders` | anlegen; seit v3.5.0 optional `assignee` (Name) und `assignee_id` (Person) |
+| GET | `/api/reminders` | Termine + Fälligkeitsstatus; seit v3.4.0 `last_done_by` (wer zuletzt erledigt hat, aus dem Verlauf); seit v3.5.0 je Termin `assignee`, `assignee_id`, `assignee_former` — [Zuständig](#zuständig-an-terminen-v350); *(v3.7.0)* `assignee_inherited` (Person des Zählers, wenn der Termin keine eigene hat) |
+| POST | `/api/reminders` | anlegen; seit v3.5.0 optional `assignee` (Name) und `assignee_id` (Person); *(v3.7.0)* `utility` und `meter_id` (Termin am Zähler) |
 | PATCH | `/api/reminders/{id}` | ändern; seit v2.12.0 auch `last_done` (Datum oder `null`) — für „Rückgängig" nach „Erledigt"; seit v3.5.0 `assignee`/`assignee_id` |
 | DELETE | `/api/reminders/{id}` | löschen |
 | POST | `/api/reminders/{id}/done` | erledigt, Recurrence fortschreiben; `{done_date?, note?, attachment_id?}` — seit v3.4.0 mit Eintrag im Verlauf, Antwort zusätzlich `activity_id` |
@@ -285,13 +286,33 @@ nicht wieder passieren.
 | GET | `/api/activity.csv` | *(v3.5.0)* der Verlauf als CSV zum Nachweis: Filter wie `GET /api/activity`, `?format=1\|local&lang=`; Spalten Datum, Aktion, Titel, Wer, Grund, Notiz; ohne Durchgestrichenes — [Verlauf als CSV](#verlauf-als-csv-v350). Klasse C |
 | POST | `/api/activity/{id}/undo` | *(v3.4.0)* Rückgängig: streicht durch (`undone {at, by}`) und stellt zurück, was der Eintrag geändert hat → Eintrag mit `reverted` |
 | PATCH | `/api/activity/{id}` | *(v3.4.0)* Notiz ändern `{note}` (bis 500 Zeichen) |
-| GET | `/api/calendar.ics` | *(v3.1.0)* Dieselben Ereignisse als Kalender-Abo (iCalendar, 365 Tage) — [Kalender](#get-apicalendarics-v310) |
+| GET | `/api/calendar.ics` | *(v3.1.0)* Dieselben Ereignisse als Kalender-Abo (iCalendar, 365 Tage) — [Kalender](#get-apicalendarics-v310); *(v3.7.0)* `?person=<id>` nur, was bei dieser Person liegt |
 | GET | `/api/summary` | *(v3.1.0)* Kennzahlen je Zähler für Home Assistant und Skripte, `?utility=&meter=` — [Kennzahlen](#get-apisummary-v310) |
 | GET | `/api/attachments` | *(v3.1.0)* Belege: Index und Speicherbelegung `usage` — [Belege](#belege-und-texterkennung-v310) |
 | POST | `/api/attachments` | *(v3.1.0)* Beleg hochladen: Datei als roher Body, `?kind=reading_photo` (bzw. `bill_pdf`, `statement_pdf`, `other`), optional `&name=`; `201` mit dem Indexeintrag |
 | GET | `/api/attachments/{id}` | *(v3.1.0)* Datei eines Belegs (Foto, PDF) |
 | DELETE | `/api/attachments/{id}` | *(v3.1.0)* Beleg löschen; der Verweis am Datensatz verschwindet mit |
 | POST | `/api/ocr/reading` | *(v3.1.0)* Zählerstand aus einem Ablesefoto lesen `{attachment_id}` — über den eigenen Texterkennungsdienst im Heimnetz, `502` bei Fehlern des Dienstes |
+| GET | `/api/inbox` | *(v3.7.0)* Posteingang: Dokumente, Warteschlange, Anbieter — [Posteingang](#posteingang-v370) |
+| POST | `/api/inbox` | *(v3.7.0)* PDF ablegen (roher Body, `?name=`, oder JSON `{name?, pdf_base64}`); `409 errors.inbox.duplicate` bei gleicher Prüfsumme; auch mit einem Schlüssel „Posteingang“ |
+| GET | `/api/inbox/review` | *(v3.7.0)* Prüfliste: nur die markierten Felder |
+| GET | `/api/inbox/draft` | *(v3.7.0)* Haushalt aus Dokumenten: Entwurf über alle ausgelesenen Dokumente (`?documents=` Auswahl) — [Entwurf](#haushalt-aus-dokumenten-v370) |
+| POST | `/api/inbox/draft/apply` | *(v3.7.0)* Auswahl aus dem Entwurf übernehmen `{items, confirm?, choose?, documents?}` |
+| POST | `/api/inbox/folder` | *(v3.7.0)* Überwachten Ordner `posteingang/` einlesen (nur Verwalter) — [Ordner](#ordner--post-apiinboxfolder) |
+| POST | `/api/inbox/queue` | *(v3.7.0)* Dokumente zum Auslesen vormerken `{ids?}` |
+| DELETE | `/api/inbox/queue` | *(v3.7.0)* Warteschlange abbrechen |
+| GET | `/api/inbox/cloud` | *(v3.7.0)* Auslesen in der Cloud: Stand und Anbieter (Name, Ziel-Host, Hinweistext), nie der Schlüssel — nur `has_key` — [Auslesen in der Cloud](#get-apiinboxcloud--patch-apiinboxcloud-v370) |
+| PATCH | `/api/inbox/cloud` | *(v3.7.0)* Auslesen in der Cloud speichern und einschalten (nur Verwalter) |
+| GET | `/api/inbox/cloud/models` | *(v3.7.0)* Modelle des eingerichteten Cloud-Diensts, der Schlüssel bleibt auf dem Server (nur Verwalter) — [Modellliste](#get-apiinboxcloudmodels--get-apiinboxlocalcheck-v370-karte-auslesen) |
+| GET | `/api/inbox/local/check` | *(v3.7.0)* „Verbindung prüfen“ für den eigenen Dienst im Heimnetz (nur Verwalter) |
+| GET | `/api/inbox/{id}` | *(v3.7.0)* Vorschau: Auslesung mit Belegstellen, Zuordnung, Vorschläge mit Abgleich |
+| PATCH | `/api/inbox/{id}` | *(v3.7.0)* Zuordnung, Korrekturen (`edits`), Art, Status, Notiz |
+| DELETE | `/api/inbox/{id}` | *(v3.7.0)* Dokument löschen |
+| POST | `/api/inbox/{id}/classify` | *(v3.7.0)* Art erkennen `{pages, consent?, fresh?}` |
+| POST | `/api/inbox/{id}/extract` | *(v3.7.0)* Felder lesen und prüfen `{pages, consent?, fresh?}` |
+| POST | `/api/inbox/{id}/apply` | *(v3.7.0)* Angehakte Vorschläge übernehmen `{proposals: [id]}`; danach die Kernaussage (`gist`), bei einer Rechnung samt Prüfung |
+| POST | `/api/inbox/{id}/remind` | *(v3.7.0)* Termin zu einem abgelegten Dokument (Mahnung) `{date}` |
+| GET | `/api/utility/{u}/dossier` | *(v3.7.0)* Akte eines Zählers (`?meter_id=`) oder Vertrags (`?contract_id=`) — [Akte](#akte--get-apiutilityudossier) |
 | GET | `/api/export/{u}/monthly.csv` | Monatsaggregate als CSV; `?format=1` (Standard) oder `?format=local&lang=` *(v3.1.0)* — [CSV-Formate](#csv-formate-v310); *(v3.6.0)* `?period=billing`: eine Zeile je Abrechnungsperiode ([Abrechnungsperioden](#abrechnungsperioden-v360)) |
 | GET | `/api/export/{u}/readings.csv` | Ablesungen als CSV (kumulativ); `format`, `lang` wie oben |
 | GET | `/api/export/{u}/deliveries.csv` | **v1.4.2** Lieferungen als CSV (Heizöl/Pellets); `format`, `lang` wie oben |
@@ -441,6 +462,70 @@ Monat u. a.: `ym`, `days`, `kwh` *oder* `m3`, `cost`, `avg_temp`,
 - PV-Erzeugung und -Einspeisung rechnen `co2_kg` mit dem eigenen
   Vermeidungsfaktor `co2_pv_avoided`, wenn er gesetzt ist.
 
+**Seit v3.7.0 (GitHub #37, #38, #39), additiv** — gemessen oder verteilt
+([Grundlagen §1](../verstehen/00-overview.md#gemessen-oder-verteilt-seit-v370)):
+
+| Feld je Monat | Bedeutung |
+|---|---|
+| `measured_share` | Anteil des Monatsverbrauchs aus Ablesungsabständen bis 45 Tage (0 … 1); geschätzte Ablesungen messen nicht |
+| `interpolated` | `true`, wenn `measured_share` unter 0,5 liegt: Der Wert ist aus einem längeren Abstand gleichmäßig verteilt. Heizöl und Pellets: `null` |
+| `reading_gap_days` | längster Ablesungsabstand, aus dem der Monat stammt (`null`, wenn auf einer Seite eine echte Ablesung fehlt) |
+| `reading_gap_estimated` | *(v3.7.0)* der Monat ist an einer geschätzten Ablesung als Stütze verteilt (je Seite eine eigene Tagesrate) |
+
+Verteilte Monate gehen in keine Anomalie, Empfehlung R1/R3, Heizkurve
+(`regression_point: false`) und kein Heizmodell ein; die Monatswerte, Kosten,
+Abschläge und der Saldo bleiben unverändert. `monthly_total` der Art trägt
+dieselben Felder, gewichtet nach Verbrauch. Dazu auf oberster Ebene:
+
+```json
+"interpolation": {                 // null bei Heizöl und Pellets
+  "max_gap_days": 45,
+  "months": 36, "interpolated_months": 36, "interpolated": ["2023-06", "…"],
+  "readings": 12, "readings_by_year": { "2023": 3, "2024": 4, "2025": 4, "2026": 1 },
+  "from": "2023-06", "to": "2026-05",
+  "heat_basis": "intervals",        // months | intervals | null (kein Heizmodell)
+  "heat_points": 11
+},
+"anomaly_quality": {               // null ohne Heizmodell oder unter 5 geprüften Monaten
+  "model_quality": "poor",          // good | poor (eine der Prüfungen in reasons)
+  "reasons": ["scatter", "base_load"],
+  "ratio": 0.31, "poor_above": 0.15, // resid_scale / mean_month
+  "resid_scale": 210.4, "mean_month": 678.7, "typical": 680.0,
+  "base_load": {                    // null unter 2 gemessenen Sommermonaten
+    "model_per_day": 0.4, "measured_per_day": 6.1, "ratio": 0.066,
+    "allowed": [0.5, 1.5], "months": 4
+  },
+  "threshold_sigma": 2.0,
+  "detect_floor": 420.8, "unit": "kWh",
+  "months": 29
+}
+```
+
+`readings` zählt echte Ablesungen, die in die Rechnung eingehen (ohne
+geschätzte und ohne übergangene), bei Zählern mit Zeiträumen die echten
+Zeiträume. `heat_basis: "intervals"`: Unter 8 gemessenen Monaten rechnet das
+Heizmodell über die Abstände zwischen echten Ablesungen
+([Grundlagen §5](../verstehen/00-overview.md#heizmodell)). `detect_floor` ist die
+Abweichung, die ein typischer Monat mindestens braucht, um gemeldet zu werden
+([Grundlagen §9](../verstehen/00-overview.md#9-anomalien)).
+
+**Seit v3.7.0 (Abgleich mit echten Daten), alles additiv:**
+
+| Wo | Feld | Bedeutung |
+|---|---|---|
+| `…/meters/{id}/consumption?heat_limit=1` | `heat_limit` | Heizgrenze-Vorschlag des Zählers: `{current, current_ratio, current_ok, best, best_ratio, suggest, default, own, months, grid: [{base, ratio, base_load_ok}]}`, `null` ohne Heizmodell, unter 12 gemessenen Monaten oder ohne den Parameter ([Grundlagen §5](../verstehen/00-overview.md#heizgrenze-vorschlag-seit-v370)) |
+| `PATCH …/meters/{id}`, Zähler | `hdd_base_temp` | eigene Heizgrenze dieses Zählers in °C (6 bis 22, nur Heizarten mit Zählerständen); `null` oder leer entfernt sie, dann gilt die Einstellung |
+| `monthly[]` | `heat_adjusted_basis` | warum `heat_adjusted` so ist: `model`, `summer`, `base_load`, `normal_is_actual` (oder `null`) |
+| `regressions.*`, `forecast.regression` | `reason` | bei `valid: false`: `too_few_points`, `poor_fit`, `degenerate` |
+| `…/contract-status` | `projection_uncertain` | `{reasons: [factor_clamped \| few_measured \| poor_fit], factor, factor_raw, factor_part, factor_limits, fit_ratio, base_load_per_day, projected_range, suggested_range}` oder `null`; dann ist `suggested_advance` `null`. `factor_part`: welcher Faktor klemmt (`base`, `heat`, `both`); `base_load_per_day`: `{model, measured}`, wenn die Spanne die gemessene Sommer-Grundlast nimmt; `suggested_range` `null`, wenn beide Enden gleich wären |
+| `…/contract-status` | `projection_factor_base`, `projection_factor_heat` | Kalibrierung getrennt für Grundlast und Heizanteil (0,5–1,5; `projection_factor_heat` `null` ohne Heizmodell); `projection_factor` ist seit v3.7.0 der wirksame Faktor |
+| `…/contract-status` | `superseded_on` | letzter Tag vor dem Folgevertrag, der diesen Vertrag ablöst (sonst `null`); `end` bleibt das gespeicherte Ende |
+| `…/contract-status`, `…/billing-periods` | `price_missing` | Vertrag ohne Arbeitspreis: Kosten und Saldo ohne Verbrauchskosten |
+| `…/forecast` | `fit_quality` | `{model_quality, ratio, reasons}` der Gütesperre (oder `null`); bei `poor` `annual.low/high = null`, `annual.withheld = "poor_fit"`, Monate ohne Band |
+| `…/forecast` | `annual.withheld` | warum das Jahr ohne Band ist: `poor_fit`, `few_measured` (Heizmodell nur über die Ablesungsabstände oder ungeprüft), `few_years` (ohne Wetterbezug weniger als 3 Freiheitsgrade der Streuung) |
+| `…/forecast` | `warnings[]` | neu `poor_fit {ratio, reasons}`, `few_measured {heat_basis}`, `regression_invalid {model, reason, n, r2}`, `climate_normal_grid {base, min, max, hdd_source}` |
+| `POST /api/forecast/scenario` | `advance.uncertain` | bei nicht bestandener Gütesperre oder zu wenig Gemessenem `{reasons: [few_measured \| poor_fit], fit_ratio, spread, base_range, scen_range}`, dann `base_/scen_recommended: null`; `warnings[]` neu `poor_fit`, `few_measured`, `basis.heat_share_year: null` |
+
 **Seit v2.8.0** zählen `hdd` nur die Tage mit Verbrauch; `temp_days` sagt,
 für wie viele davon Temperaturen vorliegen. Bei HGT-relevanten Arten mit
 Zählerständen (Gas, Fernwärme, seit v3.1.0 Heizwärme) kommen die Felder des Heizmodells dazu
@@ -574,7 +659,7 @@ Vertrag (additiv):
 | `estimated_cost_remaining` | geschätzte Kosten vom Stichtag bis Vertragsende |
 | `advance_remaining` | noch fällige Abschläge bis Vertragsende |
 | `suggested_advance` | Abschlag, der den erwarteten Saldo bis Vertragsende ausgleicht (≥ 0), sonst `null` |
-| `projection_factor` | Kalibrierung der Schätzung am jüngsten Niveau (0,5–1,5) |
+| `projection_factor` | Kalibrierung der Schätzung am jüngsten Niveau (0,5–1,5); seit v3.7.0 der wirksame Faktor aus `projection_factor_base` und `projection_factor_heat` |
 | `balance_path` | *(v2.16.0)* nur beim laufenden Vertrag, sonst `null`: dieselbe Rechnung als Monatsreihe vom Vertragsbeginn (seit v3.6.0 ab `balance_from`) bis zum Ende bzw. zur nächsten Abrechnung — je Monat `ym`, aufsummiert `cost` (gemessen + geschätzt + Grundpreis − Boni) und `paid` (Abschläge nach Plan − Sonderzahlungen netto), `balance = cost − paid`, `estimated` (enthält Tage nach der letzten Ablesung), `future` (Monat nach heute). Der letzte Punkt ist `projected_end_balance` |
 
 **Geänderte Werte:** `advance_paid` zählt seit v2.8.0 die Abschläge nach
@@ -618,7 +703,13 @@ Vertrag ist abgelaufen und läuft ohne Nachfolger weiter) und — nur bei mehr
 als einem Vertrag im Monat — `contract_parts[]` mit je `contract_id`,
 `days`, `kwh`, `kwh_cost`, `base_price_eur`, `advance_eur`, `bonus_eur`,
 `cost`, `assumed`. Die Summen der Monatszeile sind die Summen der Teile.
-Wasser bleibt beim Vertrag des Monatsersten.
+Wasser bleibt beim Vertrag des Monatsersten. *(v3.7.0, additiv)* Monate mit
+Bonus tragen `bonus_items[]` — je Bonus `credit_date`, `amount_eur`, `type`
+(`sofort`, `wechsel`, `neukunde`, `sonstige`) und `label` (Notiz); ihre Summe
+ist `bonus_eur`. In `monthly_total` der ganzen Art stehen dann auch
+`bonus_eur` und `bonus_items`. `cost` bleibt nach Abzug des Bonus; die
+Oberfläche zeigt in der Kachel „Kosten“ `cost + bonus_eur` und den Bonus als
+eigene Zeile.
 
 **`contract-status`, neue Felder je Vertrag:**
 
@@ -839,6 +930,7 @@ und PV“ (`eigenheim-modern`):
 | `windows[].quarters` | Quartale, in denen das Fenster gilt: 1 = Januar–März … 4 = Oktober–Dezember; gespeichert sortiert und ohne doppelte |
 | `windows[].from`, `windows[].to` | Ortszeit `HH:MM`, `to` auch `24:00`; `from` liegt vor `to` — ein Fenster über Mitternacht sind zwei (`22:00`–`24:00` und `00:00`–`06:00`) |
 | `windows[].ct` | Netzentgelt je kWh im Fenster (0–100); unter `standard_ct` Niedrigtarif, darüber Hochtarif |
+| `net` | *(v3.7.0, additiv)* `true`: die Beträge stehen **ohne Umsatzsteuer** am Vertrag; die Flexibilität rechnet sie mit dem Satz der App auf brutto (der des dynamischen Angebots, sonst 19 %, wie die Börsen-Hebel; `module3[].prices_net`, `vat_pct`). Fehlt oder `false`: wie eingetragen (brutto, wie auf der Rechnung) — gespeichert wird das Feld nur mit `true` |
 
 Höchstens 24 Fenster. Zahlen dürfen auch als Text mit Dezimalkomma kommen
 (`"2,4"`). Überschneiden sich zwei Fenster, gilt das erste der Liste. Ungültig
@@ -1040,13 +1132,13 @@ formatiert nur ([Flexibilität, § 4](../anleitungen/flexibilitaet.md#4-die-seit
 | `levers[]` | je Gerät und Signal, größter zuerst: `kind` (`ev`, `heat_pump`, `battery`, `washer`, `dishwasher`), `meter_id`, `name`, `signal` (`spot`, `tou`, `solar`), `real` (`true` = mit dem Vertrag, wie er ist), `basis` (`measured` oder `assumed` = Beispielwert), `share`, `kwh`, `shift_kwh`, `eur` (€ im Jahr, ≥ 1; *v3.6.0* bei `spot` mit Umsatzsteuer `vat_pct`), `window` je `summer`/`winter` (`weekday` oder `null`, `from`, `to`, `ct`, `what` `cheap`/`peak`/`sun`/`low`; *v3.6.0* `plugged: true`, wenn das Fenster aus den Steckzeiten kommt — mit Steckzeiten und Sonnenstrom `null` in einer Jahreszeit, in der das Auto bei Sonne nie angesteckt ist), bei Beispielwerten `assumption`; *(v3.6.0)* `availability` (`ev`: `sessions` = Ladefenster aus den Ladevorgängen von evcc, `day` = Annahme „ganzer Ladetag“; sonst `null`), `sessions` (Zahl der Ladevorgänge im Jahr) und `session_share` (Anteil der Ladung in einem Ladefenster, 0–1), beide `null` ohne Ladevorgänge |
 | `total_eur`, `total_real_eur` | Summe des größten Hebels je Gerät; davon nur Hebel mit `real` |
 | `vat_pct` | *(v3.6.0)* Umsatzsteuer auf den Börsenpreis in Prozent: `dynamic.vat_pct` des dynamischen Angebots, ohne Angebot 19 |
-| `ev_availability` | *(v3.6.0)* Ladefenster des Autos über alle Wallboxen: `basis` (`sessions` oder `day`), `sessions`, `share` (wie oben); `null` ohne Wallbox mit Viertelstunden |
+| `ev_availability` | *(v3.6.0)* Ladefenster des Autos über alle Wallboxen: `basis` (`sessions` oder `day`; *v3.7.0* `window` = eigene Steckzeit aus den Einstellungen, ohne evcc), `sessions`, `share` (wie oben), *(v3.7.0)* `window` (`{from, until}` in Stunden oder `null`); `null` ohne Wallbox mit Viertelstunden. In `levers[]` heißt `availability` dann ebenfalls `window` |
 | `summary` | *(v3.6.0)* die Zahl der Ergebniskarte, eine Regel für Seite, Bericht und Übersicht: `year`, `eur` (`total_real_eur`, wenn ≥ 1 — sonst `total_eur`), `real` (welches von beiden), `dynamic_eur` (`total_eur`, wenn `real` und um mehr als 1 € größer, sonst `null`), `vat_pct`, `measured` (gemessene Viertelstunden: Strom oder Erzeugung und Einspeisung — nur dann zeigt die Übersicht die Kachel), `action` (erster Satz mit Zeitfenster, bei `real` zuerst einer mit `real`; Felder wie `actions[]`); `null` ohne Hebel |
 | `actions[]` | je Gerät ein Satz: der größte Hebel mit `real`, sonst der größte; *(v3.6.0)* hat der mit `real` in der laufenden Jahreszeit kein Zeitfenster, der größte, wenn er eins hat; `kind`, `meter_id`, `name`, `signal`, `real`, `basis`, `eur`, `season`, `window` (laufende Jahreszeit), `other` (die andere) |
 | `solar` | mit Erzeugung und Einspeisung je Viertelstunde: `generation_kwh`, `feed_kwh`, `charged_kwh`, `self_kwh` (Erzeugung − Einspeisung), `direct_kwh`, `self_share`, `more_kwh`, `more_eur`, `self_share_after`, `more_share`, `working_ct`, `feed_ct`; sonst `null` |
 | `achieved` | aus der Nachrechnung: `profile_eur` (Vorteil der steuerbaren Zähler), `battery_eur`, `module3_eur` — je `null` ohne Daten |
 | `missing[]` | was fehlt: `prices`, `intervals`, `devices` (keine Wallbox oder Wärmepumpe mit Viertelstunden), `pv` (PV-Zähler ohne Viertelstunden), `tariff` (weder dynamisches Angebot noch Zeitfenster für Modul 3) |
-| `assumptions` | die Beispielwerte: `heat_pump_share` (0,3), `ev_share` (1), `appliances` (`washer`, `dishwasher` mit `kwh_per_cycle`, `cycles_per_week`, `hours`), `window_hours` (3) |
+| `assumptions` | die Annahmen: `heat_pump_share` (Beispiel 0,3), `ev_share` (1), `appliances` (`washer`, `dishwasher` mit `kwh_per_cycle`, `cycles_per_week`, `hours`), `window_hours` (3); *(v3.7.0, additiv)* `ev_window` und `own` (je `heat_pump_share`, `washer`, `dishwasher`, `ev_window`: `true` = eigener Wert aus den [Einstellungen](einstellungen.md#flexibilität-v370), sonst Beispielwert). Ein Gerät mit eigenem Wert hat in `levers[]` die Grundlage `basis: own`; 0 Gänge je Woche = kein Hebel |
 
 ```text
 Hebel (spot, tou)  = Σ Tage (Kosten heute − Kosten, wenn der freie Teil des Tages (share) die günstigsten
@@ -1153,6 +1245,12 @@ Auf oberster Ebene:
 `annual` fehlt (`null`), wenn keine zwölf Monate mit Band vorliegen. Die
 Abschläge der Prognose kommen aus dem effektiven Zahlungsplan
 (Sonderzahlungen „mit Auswirkung" ändern ihn).
+
+**Seit v3.7.0 (#37, additiv):** Verteilte Monate bilden das Saisonprofil nicht.
+Für einen Kalendermonat ohne gemessenen Wert und ohne Modell steht
+`method: "seasonal_interpolated"` (die verteilten Werte). `warnings` trägt
+dann `{ "code": "interpolated", "months": 12, "readings": 2, "heat_basis": null }`,
+und `heat_model` nennt seine Grundlage (`basis`: `months` oder `intervals`).
 
 **CO₂-Preis-Szenario *(v3.1.0, MKT-26, additiv)*.** Was ein höherer CO₂-Preis
 kosten würde — nur ein Ausweis neben der Prognose; `cost_estimated` und alle
@@ -1834,6 +1932,11 @@ deren Wert nur der Standard ist, weil niemand sie eingetragen hat — heute
   (der Schlüssel verschwindet aus `settings.json`).
 - `assumed_keys` ist keine Einstellung: In einem `PATCH` steht der Schlüssel
   unter `ignored_keys`.
+- *(v3.7.0, additiv)* `example_keys`: dieselbe Form für die Beispielwerte der
+  Flexibilität (`flex_*`, [Einstellungen](einstellungen.md#flexibilität-v370)),
+  die niemand eingetragen hat. Gerechnet wird mit dem Standard; eingetragen
+  (auch gleich dem Standard) heißt „eigener Wert“, `null` oder `""` nimmt ihn
+  zurück. Auch `example_keys` ist keine Einstellung.
 
 ### Länderprofil: `country`, `currency`, `timezone`, `gas_cv_unit` *(v2.7.0, additiv)*
 
@@ -1971,6 +2074,14 @@ bisher; die Autarkie rechnet seit v3.4.0 mit dem Energiefluss
   bei Anlagen unter 100 kW ab dem Kalenderjahr nach dem Einbau eines
   intelligenten Messsystems (§ 51 EEG). Zum Teil ausgeglichen wird das durch
   einen längeren Vergütungszeitraum (§ 51a EEG).
+- *(seit v3.7.0, #39)* `hints` enthält `"interpolated"`, wenn ein Monat auf
+  einer verteilten Reihe beruht; dazu `interpolation: {utility, readings, from,
+  to, months, interpolated_months}` — die Reihe mit den meisten verteilten
+  Monaten und ihre echten Ablesungen, sonst `null`. Je Monatszeile
+  `interpolated` (bool) und `interpolated_series` (welche Felder:
+  `erzeugung_kwh`, `einspeisung_kwh`, `bezug_kwh`), je Jahreszeile
+  `months_interpolated`. Eigenverbrauch, Autarkie, Ersparnis und Amortisation
+  dieser Monate sind Schätzungen; ihre Werte bleiben unverändert.
 
 Die Einstellung `co2_pv_avoided` (g/kWh) ersetzt für PV-Erzeugung und
 -Einspeisung den Strommix im vermiedenen CO₂ ([Einstellungen](einstellungen.md)).
@@ -2236,12 +2347,18 @@ Vertrag ist eine eigene Teilperiode; ein Vertrag, der sich verlängert, läuft
 bis zum Tag vor dem Folgevertrag. Bei mehreren Zählern (ganze Art, Gruppe)
 schneiden die Wechsel aller Zähler, wie ihre Rechnungen. Den Abschlag eines
 Monats mit zwei Verträgen zählt jede Periode (und `…/bills/{id}/check`) je
-Vertrag nach dessen Tagen.
+Vertrag nach dessen Tagen. *(v3.7.0)* Der Stichtag ist der **erste Tag** einer
+Periode. **Keine Kurzreste:** Ein Stück unter 14 Tagen zwischen Stichtag und
+Wechsel (Stichtag 31-08, Verträge ab 01.09.) geht über den Stichtag hinweg in
+die Nachbarperiode auf, nie über einen Wechsel oder eine Rechnung; liegt heute
+im Rest, läuft die laufende Periode bis zum übernächsten Stichtag. Die Summen
+bleiben dieselben.
 
 | Feld | Bedeutung |
 |---|---|
 | `anchor` | Stichtag der Art (MM-TT) |
-| `suggested_anchor` | Tag nach dem Ende der letzten Rechnung (MM-TT), wenn er vom Stichtag abweicht; sonst `null` |
+| `suggested_anchor` | Tag nach dem Ende der letzten Rechnung (MM-TT), wenn er vom Stichtag abweicht; ohne Rechnung *(v3.7.0)* der Beginn des Folgevertrags beim jüngsten Lieferantenwechsel, sonst der Tag, an dem mindestens zwei Verträge beginnen; sonst `null` |
+| `suggested_anchor_source` | *(v3.7.0, additiv)* `bill`, `contracts` oder `null` — woher der Vorschlag kommt |
 | `data_from`, `measured_until` | erste und letzte Ablesung |
 | `unit_key` | `kwh` oder `m3` (Wasser) |
 | `periods[].from`, `until` | Zeitraum, `until` einschließlich |
@@ -2250,7 +2367,8 @@ Vertrag nach dessen Tagen.
 | `periods[].ends_at_switch` | *(v3.6.0, additiv)* `true`, wenn die Periode am letzten Tag beim alten Versorger endet (Lieferantenwechsel) |
 | `periods[].label` | „2025“ (Kalenderjahr) oder „2025/26“ für ein ganzes Jahr, sonst `null` (die App nennt dann die Daten) |
 | `periods[].as_of`, `days` | gerechnet bis zur letzten Ablesung in der Periode; Tage bis dahin |
-| `periods[].kwh` bzw. `m3` (Gas beide), `energy_cost`, `fixed_cost`, `bonus`, `cost` | wie `bill-check` (`cost` = `total`) |
+| `periods[].kwh` bzw. `m3` (Gas beide), `energy_cost`, `fixed_cost`, `bonus`, `cost` | wie `bill-check` (`cost` = `total`, nach Abzug des Bonus) |
+| `periods[].bonus_items` | *(v3.7.0, additiv)* die Boni der Periode einzeln (`credit_date`, `amount_eur`, `type`, `label`; wie `totals.bonus_items` von `bill-check`) |
 | `periods[].advances` | Abschläge tagesanteilig aus der Monatsreihe (wie `…/bills/{id}/check`) |
 | `periods[].special` | Sonderzahlungen mit Datum in der Periode: `extra_advances`, `refunds`, `surcharges` |
 | `periods[].balance` | `cost − advances − extra_advances`; positiv = Nachzahlung. Rück- und Nachzahlungen gleichen eine frühere Abrechnung aus und zählen nicht mit |
@@ -2263,7 +2381,11 @@ Gruppenvertrags trägt das erste Mitglied.
 
 `monthly.csv?period=billing` (auch mit `format=local`): Spalten Von, Bis,
 Grundlage, Tage, Verbrauch, Kosten, Abschläge, zusätzliche
-Abschlagszahlungen, Saldo, vollständig; Dateiname `…-abrechnungsjahre-…`.
+Abschlagszahlungen, Saldo, vollständig; *(v3.7.0, additiv am Ende)* Bonus und
+Kosten ohne Bonus (die Zahl der Kachel „Kosten“ und des Jahresberichts) —
+„Kosten“ bleibt nach Abzug des Bonus; Dateiname `…-abrechnungsjahre-…`. Die
+Monatsübersicht im Format „local“ hat *(v3.7.0)* als letzte Spalte den Bonus
+des Monats; Format 1 bleibt Byte für Byte, wie es ist.
 Ein anderer Wert für `period` als `calendar` oder `billing` ist `400`
 `errors.export.periodInvalid`.
 
@@ -2301,6 +2423,7 @@ Topf `<art>/bills.json` (Schema 1.7.0, im Backup), ein Eintrag (Beispielwerte):
 | `invoice` | `energy_kwh` (bei Wasser `volume_m3`), `amount_eur` (Rechnungsbetrag brutto), `advances_paid_eur`, `result_eur` (**positiv = Nachzahlung**, negativ = Guthaben; ohne Angabe `amount_eur − advances_paid_eur`), `net` (optional, wird nur gespeichert). Jeder Wert optional; keine Zahl oder außerhalb des Bereichs → `400` `errors.bill.amountInvalid` |
 | `items` | weitere Posten `{label, amount_eur, kind}` mit `kind` ∈ `levy` (Umlage), `fee` (Gebühr), `credit` (Gutschrift), `other` (Standard); Bezeichnung höchstens 120 Zeichen. Die App rechnet sie nicht nach |
 | `co2` | optional, nur sinnvoll bei Gas: `{emissions_kg, cost_eur?, stated_factor?}` — Emissionen und CO₂-Betrag laut Rechnung, der Betrag **mit Umsatzsteuer**, wie die Rechnung ihn ausweist (CO2KostAufG § 3 Abs. 3; bis v3.1 als netto gelesen), angegebener Faktor in kg/kWh. Gehen beim [CO₂-Preis](#co₂-preis-und-aufteilung-v310) dem Standardfaktor vor |
+| `factors` | *(v3.7.0, optional, Gas)* Zustandszahl und Brennwert laut Rechnung je Abschnitt `[{from, to?, zustandszahl, brennwert}]` (Zustandszahl 0,5–1,5, Brennwert 5–20 kWh/m³), etwa aus dem Posteingang; der Vergleich hält sie gegen die [Gas-Umrechnung](einstellungen.md). Ohne Angabe fehlt das Feld |
 | `attachment_ids` | Belege (`kind: bill_pdf`, sonst `other`); ein aus der Liste entfernter Beleg wird gelöst, `ref.type` des Belegs ist `bill` |
 | `special_payment_id` | gesetzt, sobald das Ergebnis gebucht ist |
 | `note`, `created_at` | Notiz (höchstens 2000 Zeichen), Zeitpunkt des Anlegens |
@@ -2332,22 +2455,30 @@ gegenüber:
 | `group_id` | ID der Zählergruppe, wenn ein Gruppenvertrag den Zeitraum berührt: Dann rechnet die App die ganze Gruppe nach (HT und NT einer Rechnung), auch wenn die Rechnung an einem Mitglied erfasst ist; sonst `null` |
 | `ours` | nachgerechnet: Menge (`kwh` bzw. `m3`), `energy_cost`, `fixed_cost`, `bonus`, `items_total` (Summe der weiteren Posten), `total` = Verbrauchskosten + feste Kosten − Bonus + weitere Posten, `advances` (Abschläge im Zeitraum laut Zahlungsplan, anteilig nach Tagen; `null` ohne Abschläge) |
 | `delta` | Rechnung − nachgerechnet: Menge absolut und in % (`kwh_pct` bzw. `m3_pct`), Betrag in € und % |
-| `verdict` | `ok`, wenn die Menge um höchstens 1 % und der Betrag um höchstens 1 % **oder** 2 € abweicht; sonst `check`. `null`, wenn die Rechnung weder Menge noch Betrag nennt |
-| `reasons` | mögliche Gründe: `estimated_reading_at_boundary` (geschätzter oder interpolierter Stand an einer Grenze), `price_change_inside`, `factor_change_inside`, `items_not_modelled` (weitere Posten übernommen, nicht nachgerechnet), `price_missing`, `gaps` (Abschnitte ohne Zählerstände) |
-| `rows` | die Abschnitte der Rechnungsprüfung |
+| `verdict` | `ok`, wenn die Menge um höchstens 1 % und der Betrag um höchstens 1 % **oder** 2 € abweicht; *(v3.7.0)* `no_prices`, wenn die Menge passt (oder fehlt), aber für einen Teil des Zeitraums ein Preis im Vertrag fehlt (oder ein Vertrag) und der Betrag deshalb nicht nachzurechnen ist; sonst `check` (eine abweichende Menge bleibt `check`). `null`, wenn die Rechnung weder Menge noch Betrag nennt |
+| `reasons` | mögliche Gründe: `estimated_reading_at_boundary` (geschätzter oder interpolierter Stand an einem Rand des Zeitraums; *seit v3.7.0* nur dort, und eine Ablesung am letzten Tag bzw. am Tag vor dem ersten gilt als Grenzstand wie auf der Rechnung), `price_change_inside`, `factor_change_inside` (Gas: Die Gas-Umrechnung wechselt im Zeitraum, die Rechnung nennt ihre Werte nicht), *(v3.7.0)* `factor_mismatch` (Brennwert oder Zustandszahl laut Rechnung weichen von der Gas-Umrechnung ab), `items_not_modelled` (weitere Posten übernommen, nicht nachgerechnet), `price_missing`, `gaps` (Abschnitte ohne Zählerstände; nicht der eine Tag nach einem Grenzstand am letzten Tag) |
+| `boundaries` | *(v3.7.0)* Ableseart an den Rändern `{start, end}`: `reading` (Ablesung am ersten Tag bzw. am Tag nach dem letzten), `reading_adjacent` (am Tag davor bzw. am letzten Tag), `reading_estimated`, `interpolated` oder `null` (keine Ablesung davor bzw. danach); bei einer Gruppe das schwächste Mitglied |
+| `price_missing_at` | *(v3.7.0)* wo der Preis fehlt: `[{from, to, contract_id, provider?, meter_id?}]`, `to` einschließlich, `contract_id` `null` ohne Vertrag — bei jedem Urteil, also auch bei `check` mit abweichender Menge (die Seite zeigt dann denselben Hinweis samt Sprung zu den Verträgen) |
+| `factor_mismatches` | *(v3.7.0, Gas)* je Tag mit abweichenden Werten `{from, invoice: {zustandszahl, brennwert, kwh_per_m3}, list: {…}}`; leer, wenn die Gas-Umrechnung den Wechsel wie die Rechnung kennt |
+| `rows` | die Abschnitte der Rechnungsprüfung — die Einstufung oben ändert an ihnen nichts |
 
 **Buchen — `POST …/bills/{id}/book`.** Legt das Ergebnis (`invoice.result_eur`)
 als Sonderzahlung (F1003) im Vertrag an: positiv als `nachzahlung_ohne`,
 negativ als `rueckzahlung_ohne` — **ohne Auswirkung auf den Abschlag** —,
 Betrag ohne Vorzeichen, Datum = `issued_on`, sonst der Tag nach `period_to`,
 Notiz „Jahresabrechnung {von} – {bis}“ in der Sprache der Anfrage. Vertrag:
-`contract_id`, sonst der Vertrag, der am `period_to` galt, sonst der letzte des
-Zählers — auch ein Gruppenvertrag der Gruppe, zu der der Zähler gehört (ohne
-Schattenverträge). Antwort: die Rechnung mit `special_payment_id`
+`contract_id`, sonst *(seit v3.7.0)* der Vertrag, der am `period_to` gilt
+(auch ein weiterlaufender), wenn er mehr als die Hälfte der Tage abrechnet;
+sonst der, der mehr als die Hälfte abrechnet (etwa der alte Vertrag einer
+Schlussrechnung, die einen Tag über sein Ende reicht); sonst der am
+`period_to` — jeweils auch ein Gruppenvertrag der Gruppe, zu der der Zähler
+gehört (ohne Schattenverträge). Bis v3.6 nahm die App ohne Vertrag am
+`period_to` den jüngsten Vertrag des Zählers, auch wenn er den Zeitraum gar
+nicht berührte. Antwort: die Rechnung mit `special_payment_id`
 und `contract_id`. **Einmal je Rechnung** — ist schon gebucht, ändert ein
 weiterer Aufruf nichts und liefert die Rechnung unverändert. Ohne Ergebnis
 (fehlt oder 0) → `400` `errors.bill.noResult`, ohne Vertrag → `400`
-`errors.bill.noContract`. Wer die Rechnung löscht, behält die gebuchte
+`errors.bill.noContract` (die Meldung nennt den Zeitraum). Wer die Rechnung löscht, behält die gebuchte
 Sonderzahlung im Vertrag.
 
 *(v3.5.0, [#34](https://github.com/Bingerminger/energietracker/issues/34))*
@@ -3164,6 +3295,23 @@ selbst; weiterlaufende und unbefristete Verträge haben kein `cancel_by` mehr
 ([Zuständig an Terminen](#zuständig-an-terminen-v350)), sonst `null`, `null`,
 `false`; *(v3.6.0)* dazu `assignee_deleted` (Person gelöscht, Name bleibt).
 
+**Geerbt *(v3.7.0)*.** Ohne eigene Zuständigkeit tragen die vier Felder die
+des Vertrags, sonst die des Zählers
+([Zuständig an Zählern und Verträgen](#zuständig-an-zählern-und-verträgen-v370)),
+dazu additiv `assignee_source`: `own` (am Termin), `contract`, `meter` oder
+`null` (niemand). Ein Termin am Zähler trägt `ref.utility` und
+`ref.meter_id`.
+
+| Art | geerbt von |
+|---|---|
+| `reminder` | Zähler des Termins (`utility`, `meter_id`) |
+| `cancel_by`, `term_end`, `price_guarantee_end`, `price_increase`, `bill_expected` | Vertrag, dann Zähler (eine Gruppe hat keine Zuständigkeit) |
+| `reading_due`, `tank_reorder` | Zähler |
+| `tenancy_statement_due`, `objection_deadline`, `co2_claim_deadline` | – |
+
+Beim Abhaken (`POST /api/agenda/done`) steht die Zuständigkeit als
+Momentaufnahme `assignee` im Verlaufseintrag.
+
 #### Abrechnung erwartet *(v3.5.0)*
 
 `bill_expected` (F1029): Endet ein Abrechnungszeitraum eines echten Vertrags
@@ -3231,7 +3379,15 @@ Felder unten) und die **UIDs**; die Texte können sich mit einer Übersetzung
   Termin erledigt, steht beim nächsten Abruf dasselbe Ereignis am neuen Datum.
 - *(v3.5.0)* Ein Termin mit Zuständigkeit trägt `DESCRIPTION:Zuständig: <Name>`
   (Text `calendar.assignee`; nach dem Löschen der Person mit „ehemalige
-  Person“) — nur die Zeile, keine Benachrichtigung.
+  Person“) — nur die Zeile, keine Benachrichtigung. *(v3.7.0)* Geerbte
+  Zuständigkeit mit Zusatz: `Zuständig: <Name> (über den Vertrag)` bzw.
+  `(über den Zähler)` (`calendar.assigneeContract`, `…Meter`).
+- *(v3.7.0)* **`?person=<id>`** (eine Personen-ID wie `u_3f9a1c2e`, sonst 400
+  `errors.assignee.unknown`): nur Ereignisse, die bei dieser Person liegen —
+  eigene oder geerbte Zuständigkeit per ID, ein freier Name am Termin, wenn er
+  ihrem gleicht; gelöschte und „ehemalige Person“ zählen nicht.
+  `X-WR-CALNAME` nennt die Person (`calendar.nameFor`). Mit dem Kalender-Link
+  zusammen: `…/calendar.ics?token=etk_…&person=u_…`.
 - Vorab-Erinnerung (`VALARM`, `TRIGGER:-P<n>D`) für Termine, Kündigungsstichtage,
   Vertragsenden, Preisgarantien und Preiserhöhungen; `<n>` ist
   `reminder_warn_days_before` (Einstellung, Standard 14, `0` = keine). Die
@@ -3311,7 +3467,8 @@ Abfrage für alle Sensoren statt `consumption`, `contract-status` und
         "tariff_name": "Strom Basis", "working_price_ct": 29.8, "base_price_month": 12.5,
         "advance_month": 78, "suggested_advance": 74, "balance": -41.3,
         "projected_end_balance": -52.9, "verdict": "refund", "balance_as_of": "2026-10-07",
-        "period_end": "2027-03-31", "cancel_by": "2027-02-28", "days_to_cancel": 144,
+        "period_end": "2027-03-31", "period_last_day": "2027-03-31",
+        "cancel_by": "2027-02-28", "days_to_cancel": 144,
         "price_increase_from": null },
       "forecast_12m": { "value": 3120.4, "cost": 1080.55, "low": 2890.1, "high": 3350.7 },
       "tank": null,
@@ -3345,7 +3502,7 @@ Je Zähler:
 | `reading_due` | Ablesung bzw. nächster Zeitraum älter als `alert_days_since_reading` (nur kumulative Zähler) |
 | `capture` | *(v3.1.0, letzter Schlüssel des Eintrags)* Erfassungsart: `counter` (Zählerstände) oder `period` (Verbrauch je Zeitraum) |
 | `month_to_date`, `year_to_date` | Verbrauch des laufenden Monats bzw. Jahres in `consumption_unit`, `estimated: true` = enthält geschätzte Tage; `null` ohne Daten im Jahr |
-| `contract` | laufender Vertrag (Arten mit Verträgen), sonst `null`: Preise und Abschlag, `balance` und `projected_end_balance` mit dem Vorzeichen von `contract-status` (positiv = Nachzahlung, bei der Einspeisung = Auszahlung), `verdict`, `period_end` (Ende bzw. nächste Abrechnung), `cancel_by`, `days_to_cancel`, `price_increase_from`. Seit v3.4.0 sind `cancel_by` und `days_to_cancel` `null`, wenn der Vertrag keinen datierten Stichtag hat (weiterlaufend, unbefristet, jederzeit kündbar — bis v3.3 stand dort jeden Tag „heute“) oder ein Folgevertrag lückenlos anschließt |
+| `contract` | laufender Vertrag (Arten mit Verträgen), sonst `null`: Preise und Abschlag, `balance` und `projected_end_balance` mit dem Vorzeichen von `contract-status` (positiv = Nachzahlung, bei der Einspeisung = Auszahlung), `verdict`, `period_end`, *(v3.7.0, additiv)* `period_last_day`, `cancel_by`, `days_to_cancel`, `price_increase_from`. `period_end` ist bei einem Vertrag mit gepflegtem Ende dieses Ende (einschließlich), sonst der Stichtag der nächsten Abrechnung — der **erste Tag der nächsten Periode**; so bleibt es für bestehende Sensoren. `period_last_day` ist immer der **letzte Tag** der Periode: das Ende selbst bzw. der Tag vor dem Stichtag (Stichtag 01-09: `period_end` 2027-09-01, `period_last_day` 2027-08-31). Seit v3.4.0 sind `cancel_by` und `days_to_cancel` `null`, wenn der Vertrag keinen datierten Stichtag hat (weiterlaufend, unbefristet, jederzeit kündbar — bis v3.3 stand dort jeden Tag „heute“) oder ein Folgevertrag lückenlos anschließt |
 | `forecast_12m` | Prognose der nächsten zwölf Monate: `value` in `consumption_unit`, `cost` (bei reiner Erzeugung `null`), `low`/`high` = Jahresband; `null` bei Heizöl/Pellets oder ohne gültige Prognose |
 | `tank` | Heizöl/Pellets: `stock`, `capacity`, `unit`, `percent`, `estimated_from`; sonst `null` |
 
@@ -3491,8 +3648,9 @@ der Sprache des Geräts. Unbekanntes Format `400`
 ### Zuständig an Terminen *(v3.5.0)*
 
 Ein Termin (`reminders.json`) hat optional eine zuständige Person (F1028).
-Kein Schemaschritt; fehlende Felder = niemand. Nur Termine — Zähler und
-Verträge nicht. Benachrichtigt wird niemand.
+Kein Schemaschritt; fehlende Felder = niemand. Seit v3.7.0 auch Zähler und
+Verträge ([unten](#zuständig-an-zählern-und-verträgen-v370)). Benachrichtigt
+wird niemand.
 
 | Feld | Bedeutung |
 |---|---|
@@ -3525,6 +3683,25 @@ offene Termine mit `assignee_deleted: true` stehen. Im Verlauf bekommen `by`,
 (die volle Liste `GET /api/users` bleibt Verwaltern). Seit v3.6.0 aus dem
 Personenverzeichnis, ohne gelöschte, und auch ohne Anmeldung. Der Verwalter
 aus der Zeit vor v3.2 zählt erst, wenn er eingetragen ist.
+
+### Zuständig an Zählern und Verträgen *(v3.7.0)*
+
+Zähler und Verträge nehmen optional `assignee_id` an — eine Person aus dem
+[Verzeichnis](#personenverzeichnis-v360), keine freien Namen. Additiv, kein
+Schemaschritt; ein `PATCH` ohne das Feld ändert nichts.
+
+| Weg | Was |
+|---|---|
+| `POST`/`PATCH /api/utility/{u}/meters…`, `…/contracts…` | `assignee_id`: Personen-ID; `null` oder leer = niemand. Unbekannt, gelöscht oder keine ID → `400` `errors.assignee.unknown`. Die bisherige Person darf unverändert stehen bleiben, auch wenn sie inzwischen gelöscht ist |
+| `GET` (Liste, einzeln) und die Antworten von `POST`/`PATCH` | dazu `assignee` (Name aus dem Verzeichnis), `assignee_former`, `assignee_deleted` — immer alle vier; eine unbekannte ID zeigt niemanden |
+| `POST`/`PATCH /api/reminders…` | `utility` und `meter_id`: der Zähler des Termins (muss es geben, sonst `400` `errors.reminder.meterUnknown`); `meter_id: null` löst ihn |
+| `GET /api/reminders` | `assignee_inherited`: `{assignee, assignee_id, assignee_former, assignee_deleted, assignee_source: "meter"}` oder `null` — nur, wenn der Termin keine eigene Zuständigkeit hat |
+| `GET /api/agenda` | je Ereignis die geerbte Zuständigkeit und `assignee_source` ([Agenda](#get-apiagendadays90-v310)) |
+| `GET /api/calendar.ics` | geerbt mit Zusatz in `DESCRIPTION`, `?person=<id>` ([Kalender](#get-apicalendarics-v310)) |
+| `GET /api/users/{id}/handover` | dazu `meters`, `contracts`: wie viele mit übergehen |
+| `DELETE /api/users/{id}` | Zähler und Verträge an die löschende Person (`records_handed_over`); ohne sie bleibt die ID stehen (`records_kept`, „Name (gelöscht)“), mit `?anonymize_activity=1` ersetzt `assignee_former: true` die ID |
+
+Home Assistant: `POST /api/ingest` und `GET /api/summary` bleiben unverändert.
 
 ### Personenverzeichnis *(v3.6.0)*
 
@@ -3700,6 +3877,558 @@ vorgesehen.
 | `502` | `errors.ocr.timeout` | keine Antwort innerhalb von `ocr_timeout_s` |
 | `502` | `errors.ocr.unreachable` | Name nicht auflösbar, keine Verbindung oder HTTP-Fehler des Dienstes (etwa ein unbekanntes Modell) |
 | `502` | `errors.ocr.badAnswer` | Antwort ohne verwertbaren Inhalt |
+
+### Posteingang *(v3.7.0)*
+
+Versorgerpost als PDF ablegen, auslesen lassen, prüfen und übernehmen
+([Anleitung](../anleitungen/posteingang.md), Topf `inbox.json` im
+[Datenmodell](datenmodell.md#posteingang-v370)).
+
+**Ablegen — `POST /api/inbox?name=…`.** Das PDF kommt als roher Body wie ein
+Beleg (bis 10 MB, erkannt an den ersten Bytes; anderes → `400 errors.inbox.pdfOnly`).
+Gespeichert wird es im Belegspeicher (Art `inbox_pdf`, Verweis
+`{type: "inbox", id}`). Liegt dieselbe Datei (gleiche SHA-256) schon im
+Posteingang: `409 errors.inbox.duplicate`, die Meldung nennt den Tag, und
+`detail.existing` ist der vorhandene Eintrag. Antwort `201` mit dem Eintrag.
+*(Paket betrieb)* Ohne `name` heißt das Dokument „Dokument JJJJ-MM-TT HH.MM.pdf“
+(in der Sprache der Installation). Statt des rohen Körpers geht auch JSON
+`{"name": "…", "pdf_base64": "…"}` — so reicht Home Assistant Anhänge aus der
+IMAP-Integration weiter; Zeilenumbrüche im Base64 sind erlaubt, ungültiges
+Base64 → `400 errors.inbox.base64Invalid`. Mit eingeschalteter Anmeldung genügt
+ein API-Schlüssel mit dem Bereich **`inbox`** („nur Posteingang“): Er darf genau
+diese Route und sonst keine (`401`); ein Lese-Schlüssel bekommt `403
+errors.auth.readOnlyKey`. Beispiel:
+
+```sh
+curl -X POST -H "Authorization: Bearer etk_…" -H "Content-Type: application/pdf" \
+  --data-binary @Abrechnung.pdf "http://DEINE-ENERGIETRACKER-IP:8080/api.php/api/inbox?name=Abrechnung.pdf"
+```
+
+**Liste — `GET /api/inbox`.** `entries` (neueste zuerst: `id`,
+`attachment_id`, `name`, `status`, `type`, `flags`, `queued_at`, `created_at`,
+`applied`, `error`, *(Paket betrieb)* `gist`, `meter_id`, `contract_id`,
+*(v3.7.0)* `duplicate_of` — das ältere inhaltsgleiche Dokument
+oder `null`), `folder` (`dir`, `present`, `pending` — der überwachte Ordner),
+`queue` (`counts` je Status, `queued`, `next`) und
+`provider` (`id`, `label`, `local`, `available`, `model`, `destination`,
+`notice`, `pdf`, `recommended_model`). `available` heißt: Der Anbieter sendet
+wirklich — lokal mit eingetragener Adresse, in der Cloud eingeschaltet und mit
+Schlüssel. `destination` (Ziel-Host) und `notice` (was hinausgeht, in der
+Sprache der Anfrage) liefern die Cloud-Anschlüsse; die Oberfläche zeigt beides
+im Dialog „Dieses Dokument geht an …“, beim lokalen Anbieter sind sie `null`.
+
+**Vorschau — `GET /api/inbox/{id}`.** `entry` (ohne Zwischenspeicher),
+`assignment` (gespeichert oder vorbelegt: `utility`, `meter_id`,
+`contract_id`), `assignment_saved`, `suggested` (`by`: `meter_number`,
+`market_location`, `contract_number`, `utility`, `single_meter`, `date`),
+`proposals`, `schema` (Art je Feld), `review_all`, `recognize_only`,
+*(Paket betrieb)* `gist`, *(v3.7.0)* `duplicates`
+(`[{id, name, created_at, status}]`: Dokumente gleicher Art mit demselben
+Zeitraum bzw. Stichtag und denselben Nummern und Beträgen — in einer anderen
+Datei; gelöscht wird nichts).
+
+`by: date` heißt *seit v3.7.0*: der Vertrag **desselben Versorgers** (Name ohne
+Groß/klein, Satzzeichen und Rechtsform) am Stichtag, bei einer Rechnung der,
+der ihren Zeitraum überwiegend abrechnet. Den Vertrag eines anderen Versorgers
+belegt die Vorschau nicht vor; ohne Versorger im Dokument auch keinen.
+
+**Kernaussage — `gist`** (Vorschau frisch gerechnet; in der Liste die nach dem
+letzten Schreiben gespeicherte, Feld `gist` am Eintrag in `inbox.json`):
+
+```json
+{ "type": "price_change", "key": "inbox.gist.priceChange.more",
+  "params": { "date": "2026-04-01", "provider": "Stadtwerke Musterstadt", "amount": 52.4 },
+  "figure": { "kind": "money_year", "value": 52.4, "tone": "bad", "signed": true },
+  "action": { "kind": "apply", "key": "inbox.gist.action.applyPrices" },
+  "details": [{ "key": "inbox.gist.detail.termination", "params": { "date": "2026-03-31" } }],
+  "computed_at": "2026-10-21T10:00:00+02:00" }
+```
+
+`figure.kind`: `money_year`, `money_month`, `money`, `result` (positiv =
+Nachzahlung), `date`, `price_ct`; `tone`: `good`, `warn`, `bad`, `neutral`.
+`action.kind`: `apply` (die angehakten Vorschläge übernehmen), `link` (`href`
+in der App), `remind` (Termin mit `due` anlegen, `POST …/remind`), `file`
+(ablegen). Texte sind Katalogschlüssel mit rohen Werten (Tage ISO, Beträge als
+Zahl). Eine Rechnung trägt nach der Übernahme `check` (`verdict`, `delta_eur`,
+`reasons`, `bill_id`) aus „Rechnung prüfen“; bei `verdict: no_prices`
+lautet der Satz `inbox.gist.invoice.noPrices`, die Details
+nennen die Abschnitte ohne Preis, der Knopf führt zu den Verträgen
+(`inbox.gist.action.addPrices`). Weicht die Menge ab und fehlen zugleich
+Preise (`verdict: check`, `price_missing_at` nicht leer), lautet er
+`inbox.gist.invoice.offQuantityNoPrices` mit `pct` (Abweichung der Menge),
+die Details nennen ebenso die Abschnitte ohne Preis, der Knopf öffnet „Rechnung
+prüfen“. Offene Punkte der Vorschläge
+stehen als Details `inbox.note.missing` bzw. `inbox.note.unsure` mit `fields`;
+`duplicate_of` nennt ein inhaltsgleiches Dokument (ist nichts mehr zu
+übernehmen, ist `action` „ablegen“). Ohne Art oder Auslesung `null`.
+
+Ein Feld der Auslesung (`entry.extraction.fields.<name>`):
+
+```json
+{ "value": 1235.6, "raw": "1.235,6", "quote": "Zählerstand neu am 31.12.2025: 1.235,6 m³",
+  "page": 1, "status": "ok", "reasons": [] }
+```
+
+`status` ist `ok`, `check` (prüfen) oder `empty`. Gründe in `reasons`:
+`empty` (leer, aber ein Vorschlag braucht das Feld — *seit v3.7.0* je
+Vorschlag, nicht je Dokumentart), `no_quote`, `quote_not_found` (das Zitat steht nach
+Normalisierung von Leerraum, Silbentrennung und Groß/klein nicht im Text),
+`value_not_in_quote`, `unreadable`, `estimated` („voraussichtlich“),
+`mandatory` (Zählerwechsel, Zählerstandsanforderung, Abschlagsänderung —
+*(v3.7.0)* ohne `document_date` und `document_title`, außer ein Vorschlag
+braucht sie),
+`price_from_invoice`, `sum_mismatch` (Summe der Abschläge), `inconsistent`
+(Ergebnis ≠ Gesamtbetrag − Abschläge; *(v3.7.0)* markiert sind dann alle
+beteiligten Felder: Ergebnis, Gesamtbetrag und die Summe der Abschläge, ohne
+Summe jeder Abschlag), *(v3.7.0)* `invalid_format`
+(Marktlokations-ID nicht in ihrer Form: 11 Ziffern, die erste 1–9, Prüfziffer
+nach der BDEW-Anwendungshilfe „Identifikatoren in der Marktkommunikation“,
+Kap. 3 und 8.1; Zählernummer mit Sternchen im Wert oder im Zitat, etwa ein
+Kürzel „*EMH“ davor — was zur Nummer gehört, bliebe offen; beim Abgleich mit
+den Geräten zählt ein Sternchen nicht). Listenfelder (`advances_paid`,
+`gas_factors`, `working_prices`) tragen `items` mit je eigenem Zitat; die
+Summe der Abschläge bildet der Server (`sum`).
+
+*(v3.7.0)* Diese Gründe markieren nicht, sie erklären — der
+`status` bleibt `ok` bzw. `empty`:
+
+| Grund | Bedeutung |
+|---|---|
+| `missing` | fehlt im Dokument, kein Vorschlag braucht es (`status: empty`) |
+| `estimated` | „voraussichtlich“: übernommen als Hinweis, der Vorschlag bleibt angehakt (bis v3.6 eine Marke) |
+| `supported` | ein Auswahlfeld ohne gültiges Zitat, das andere Angaben stützen: Zählernummer, Marktlokation oder Vertragsnummer am zugeordneten Zähler bzw. Vertrag, Einheiten und Stichwörter der übrigen Zitate, bei der Rechnungsart der neue Abschlag, beim Ergebnis Betrag gegen Abschläge |
+| `price_matches` | Preis aus der Rechnung = Preiszeile des zugeordneten Vertrags am selben Tag (auf Rundung genau); der Vorschlag ist `exists` — ein Nettopreis zählt dabei brutto |
+| `net_price` | der Preis steht netto da, Steuersatz gelesen: umgerechnet in brutto (die App führt Bruttopreise); der Eintrag trägt `net: {vat_pct, gross}`, der Vorschlag den Bruttopreis |
+| `vat_changed` | gleicher Nettopreis wie im Vertrag, nur ein anderer Steuersatz: keine Marke, eine neue Preiszeile (brutto) ab dem Tag, für den die Rechnung den Preis ausweist |
+
+*(v3.7.0)* **Netto und Steuersatz.** Ein Preis der Rechnung gilt als netto,
+wenn der Satz im Zitat steht (gelesen, nie vermutet — auch nicht nach
+Verbrauchsart oder Datum; nur aus einem Zitat, das dasteht —
+bei einem Zitat mit „…“ nur aus den Teilen, die dastehen) und netto ausgewiesen ist: vom Modell (`basis: net`
+am Arbeitspreis, `base_price_basis` am Grundpreis) oder im Zitat („netto“,
+„zzgl.“), ohne „brutto“/„inkl.“ daneben. Nennt das Modell einen Satz
+(`vat_pct`, `base_price_vat_pct`), muss genau er im Zitat stehen. Steht im
+Zitat kein Satz, gilt einer, den der Server beim Auslesen in der Textebene
+liest — am Eintrag bzw. Feld als `vat_read: {vat_pct, from}`: `from: row`, wenn
+das Modell netto/brutto **und** einen Satz nennt und genau dieser Satz mit „%“
+als einziger in der Textzeile steht, in der das ganze Zitat steht (eine Zeile
+tiefer nicht); `from: column`,
+wenn die Zeile genau eine Zahl ohne „%“ trägt, die ein üblicher Satz ist (0, 5,
+7, 16 oder 19 — § 12 Abs. 1–3 und § 28 Abs. 1, 2 und 5 UStG), nicht der Preis
+selbst, und darüber auf derselben Seite der Kopf einer Steuerspalte steht
+(„USt %“, „MwSt.-Satz in %“); `from: line`, wenn die Rechnung in einer eigenen
+Zeile genau einen Satz ausweist („Umsatzsteuer 19 % auf …“, „zzgl. 19 % MwSt.“).
+Stehen dort zwei Sätze (etwa 7 % und 19 %), gilt keiner — welche Preiszeile
+welchen trägt, wäre geraten. Sonst bleibt
+der Preis, wie er gedruckt ist, und die Marke wie bisher. „Anderer Steuersatz“
+braucht den Satz des Vertragspreises: aus einem Dokument am Vertrag
+(Vertragsbestätigung oder Preisänderung aus dem Posteingang, Satz im Zitat des
+Preises oder im Feld `vat_pct`) oder aus derselben Rechnung. Saldo und Prognose
+rechnen weiter mit den Bruttopreisen des Vertrags. Hilfsfelder (`basis`,
+`vat_pct`, `base_price_basis`, `base_price_vat_pct`, `vat_pct` der Bestätigung)
+markieren nie. Die Auslesung trägt `schema_version` **4**; an dieser Version
+hängt der Zwischenspeicher. Ein Dokument, das mit einer älteren Version
+ausgelesen ist, behält seine Auslesung, bis du es neu ausliest: Netto erkennt
+die App dort aus dem Zitat, nach den neuen Feldern fragt erst das neue Auslesen
+das Modell. Ein neues Auslesen ohne `fresh` mit derselben Version trifft den
+Zwischenspeicher: Das Modell wird nicht gefragt, die Prüfung läuft mit der
+mitgeschickten Textebene neu.
+
+*(v3.7.0, `schema_version` 3)* **Datum, Titel, Stände je Zähler.** Jede
+ausgelesene Art trägt `document_date` (Brief- bzw. Rechnungsdatum) und
+`document_title` (Überschrift, etwa „Rechnungskorrektur“, auch aus dem
+Seitenkopf) — geprüft wie jedes Feld (das Datum steht im Zitat), ohne Marke,
+wenn sie fehlen (kein Vorschlag braucht sie). Die Rechnung trägt zusätzlich
+`meter_readings` (`items` je Zähler: `meter_number`, `reading_old`,
+`reading_old_date`, `reading_new`, `reading_new_date`, je Eintrag mit eigenem
+Zitat); die Einzelfelder `meter_number`, `reading_old` … bleiben und werden
+weiter gefüllt. Aus `meter_readings` entstehen Ablesungen am zugeordneten
+Zähler (nach Zählernummer, ohne Doppel zu den Einzelfeldern). Steht genau ein
+Eintrag mit fremder Nummer neben genau einem des Zählers, schlägt die App einen
+Zählertausch vor (`meter_change`, `label_key`
+`inbox.proposal.meterSwapInvoice`, Endstand alt und Anfangsstand neu, Tauschtag
+= Datum des Anfangsstands). Vorbelegt ist er nur, wenn alles zusammenpasst: Der
+Eintrag des Zählers trägt die Nummer des Geräts, das bis dahin lief; Ausbau am
+selben Tag oder am Vortag; die Stände steigen; kein bekannter Stand des alten
+Geräts liegt über dem Endstand, keiner ab dem Tauschtag; nichts markiert. Die
+Stände am Tauschtag trägt der Tausch, nicht eine Ablesung. Dieselbe Nummer
+zweimal mit zwei Ständen am selben Tag (zwei Zählwerke) oder ein fremder Zähler
+ohne Endstand des alten ergeben keinen Vorschlag.
+
+*(v3.7.0, `schema_version` 4)* **Zeiträume je Zähler, Nummer in der
+Kopfzeile.** Einträge derselben Nummer (je Ablesezeitraum einer) fasst der
+Server zu einem zusammen: frühester Anfangsstand, spätester Endstand, die Form
+des Eintrags bleibt. Die Stände dazwischen stehen am Eintrag als `between:
+[{date, counter, estimated}]`, dazu `merged` (Zahl der Zeiträume) und
+`estimated_ends` (Ablese-Art von Anfangs- und Endstand); jeder Zwischenstand
+wird eine Ablesung wie der Endstand. Fällt ein Stand mit dem Tag, ist der
+Eintrag markiert (`inconsistent`). Steht die Nummer nicht im Zitat, sondern in
+der Kopfzeile direkt über den Standzeilen, gilt sie als belegt
+(`number_from: header`); die Kopfzeile eines anderen Zählers belegt nichts.
+Die Stände des neuen Zählers sind nur vorbelegt, wenn der Tausch es ist — sonst
+landeten sie am alten Gerät. Stehen mehrere Nummern auf der Rechnung, ist ein
+Stand der Einzelfelder nur vorbelegt, wenn ein vorbelegbarer Eintrag ihn an
+diesem Gerät trägt.
+
+*(v3.7.0, `schema_version` 3)* **Geschätzte Zählerstände.** Jeder Stand der
+Rechnung trägt seine Ablese-Art: `reading_new_estimated`,
+`reading_old_estimated` (bool, Hilfsfelder ohne Marke) und `estimated` je
+Eintrag von `meter_readings` (gilt für beide Stände des Eintrags). Geschätzt ist
+ein Stand nur, wenn seine Belegstelle es sagt — mit einem Wort („geschätzt“,
+„Schätzung“, „rechnerisch ermittelt“, *(Version 4)* „hochgerechnet“) oder einem Ablesecode, den das Dokument
+selbst als Schätzung erklärt („S = geschätzt“, „R: rechnerisch ermittelt“); ein
+Code ohne diese Erklärung zählt nicht, die Erklärung allein auch nicht.
+*(Version 4)* Ebenso ein Fußnotenzeichen („5)“, „*“), das das Dokument als
+Schätzung erklärt („5) hochgerechnet“), ein Code in einer Codegruppe
+(„10/12/26“ mit „12 = geschätzt“) und eine Zahl unter einer Spalte
+„Ableseart“ oder „Ablesegrund“, wenn das Dokument sie erklärt; was in der
+Zeile direkt hinter dem Zitat steht, gehört dazu.
+`estimated_by` (`word`/`code`/`mark`) sagt, woran. Der Ablesungsvorschlag trägt dann
+`is_estimated: true` in `data` (`label_key` `inbox.proposal.readingEstimated`)
+und legt die Ablesung als geschätzt an — die Monatskennung zählt sie nicht als
+Messung.
+
+*(v3.7.0)* **Belegstelle aus mehreren Stellen.** Ein Zitat mit „…“ (oder
+„...“) gilt als gefunden, wenn seine Teile in dieser Reihenfolge auf derselben
+Seite stehen, jeder in derselben Textzeile wie der vorige oder höchstens 2
+Textzeilen unter dem vorigen — Bezeichnung und Wert stehen in derselben Zeile
+oder in der darunter, auch in einer breiten Tabellenzeile (gezählt nach
+Zeilen, nicht nach Zeichen); der Wert muss in einem Teil stehen. Ohne
+„…“ darf ein Zitat in zwei Teile zerfallen (Spaltenkopf und Zeile), wenn beide
+auf derselben Seite stehen, der erste vor dem zweiten und höchstens 2
+Textzeilen darüber, jeder mindestens vier Zeichen lang, und der Wert im zweiten
+steht, nicht im ersten. Umlaute als zwei Zeichen in der Textebene („Ã¤“ oder
+„√§“ statt „ä“, Buchstabe + Trema) und Mac-Roman-Bytes, als Windows-1252
+gelesen („Š“ statt „ä“, „š“ statt „ö“, „Ÿ“ statt „ü“), gleicht der Vergleich aus. Belegstellen prüft der Server beim
+Auslesen gegen die Textebene, die er nicht aufbewahrt — eine ältere Auslesung
+profitiert davon erst beim neuen Auslesen.
+
+Die Marken bestimmt der Server nach dem heutigen Bestand: Vorschau, Liste
+(`flags`) und Prüfliste rechnen bei jedem Abruf, auch für Dokumente, die eine
+ältere Version ausgelesen hat. Gespeichert werden sie beim Auslesen, Ändern
+und Übernehmen — ein `PATCH /api/inbox/{id}` mit leerem Körper schreibt sie
+nach `inbox.json`. `flags` zählt, was noch zu prüfen ist (ohne Bestätigtes).
+
+Ein Vorschlag:
+
+```json
+{ "id": "p_3f2a9c1e0b7d", "kind": "reading", "label_key": "inbox.proposal.reading",
+  "params": { "date": "2025-12-31", "counter": 1235.6, "meter": "Hauptzähler Gas" },
+  "data": { "meter_id": "m_gas_main", "date": "2025-12-31", "counter": 1235.6 },
+  "sources": ["reading_new", "reading_new_date"], "status": "new", "detail": null,
+  "check": false, "checked": true }
+```
+
+`kind`: `reading`, `bill`, `bill_book` (Ergebnis als Sonderzahlung),
+`contract_create`, `contract_end`, `contract_start`, `contract_price`,
+`contract_base_price`, `contract_advance`, `contract_ids`, `meter_ids`
+(Marktlokation), `meter_change`, `gas_factor` (Stichtag der Gas-Umrechnung),
+`reminder`. `status`: `new`, `exists` (wird übersprungen), `conflict`
+(überschreibt nur angehakt), `overlap`. `checked` ist die Vorbelegung: neu und
+ohne Marke. Die `id` hängt an Art und Inhalt.
+
+*(v3.7.0, additiv)* `core` — die Felder, deren Zweifel den
+Vorschlag markieren (fehlt es, gilt `sources`); `reasons` — `[{field,
+reasons}]`, warum `check` gilt; `hints` — `[{field, reason}]` ohne Marke
+(`estimated`); `open` — `[{field, reason}]` mit `missing` (fehlt im Dokument)
+oder `unsure` (markiert und deshalb **nicht** übernommen, etwa der Abschlag
+einer Vertragsbestätigung: Der Vertrag entsteht ohne ihn). Neu als Angebot
+(nicht vorbelegt): `contract_create` mit `label_key`
+`inbox.proposal.contractFromInvoice` (Rechnung mit Zeitraum und Versorger ohne
+Vertrag dieses Versorgers; eine Schlussrechnung endet mit ihrem Zeitraum) und
+`inbox.proposal.contractFromSupplyStart` (Lieferbeginn ohne Vertrag). Ohne
+Vertrag dieses Versorgers ist `bill_book` nur ein Angebot (`open` nennt
+`contract`); übernommen bucht es nur an einen Vertrag des Versorgers, der den
+Zeitraum abrechnet, sonst `errors.bill.noContract`. Der neue Abschlag einer
+Rechnung geht nur an einen Folgevertrag desselben Versorgers.
+
+**Ändern — `PATCH /api/inbox/{id}`** mit `assignment`, `edits`
+(`{feld: wert}` bestätigt oder korrigiert; `null` nimmt zurück), `type`
+(andere Art: Auslesung verworfen), `status` (`filed` ablegen, `new` zurück)
+oder `note`. Antwort wie die Vorschau.
+
+**Auslesen — `POST /api/inbox/{id}/classify`, dann `…/extract`** mit
+`{pages: [Text je Seite], consent?, fresh?}`. Die Textebene liest der Browser
+(pdf.js). `classify` erkennt die Art, `extract` liest die Felder dieser Art und
+prüft sie; ohne Art läuft `extract` beides. Zwischengespeichert je Anbieter,
+Modell und Schema-Version (`fresh: true` fragt neu). Gesperrt wird erst nach der
+Antwort des Diensts. Ein Anbieter außer `local` verlangt `consent: true`,
+sonst `409 errors.inbox.consentRequired` mit dem Namen des Diensts.
+
+| Status | `code` | Wann |
+|---|---|---|
+| `400` | `errors.inbox.off` | kein Dienst eingetragen (`ocr_endpoint` leer) |
+| `400` | `errors.ocr.notLocal` | eine Adresse des Diensts liegt nicht im Heimnetz |
+| `400` | `errors.inbox.noText` | keine Textebene (Scan) und ein Anbieter, der nur Text nimmt |
+| `400` | `errors.inbox.pagesInvalid`, `errors.inbox.providerUnknown` | Textebene unlesbar bzw. Anbieter nicht angemeldet |
+| `409` | `errors.inbox.consentRequired` | Anbieter außerhalb des Heimnetzes ohne Zustimmung |
+| `502` | `errors.ocr.timeout`, `errors.ocr.unreachable`, `errors.inbox.badAnswer`, `errors.inbox.modelMissing` | der Dienst antwortet nicht, nicht verwertbar, oder das Modell fehlt |
+| `502` | `errors.inbox.truncated` *(v3.7.0)* | die Antwort brach am Kontextfenster ab (`done_reason` bzw. `finish_reason`: `length`), auch beim zweiten Versuch mit größerem Fenster und doppeltem Antwortbudget; nennt Budget und Fenster |
+
+Liest ein Cloud-Dienst aus, kommen dessen Meldungen dazu
+([unten](#get-apiinboxcloud--patch-apiinboxcloud-v370), „Beim Auslesen“).
+
+**Übernehmen — `POST /api/inbox/{id}/apply`** mit `{proposals: [id, …]}`. Nur
+diese, über dieselben Dienste wie die Handeingabe. Eine unbekannte ID →
+`400 errors.inbox.proposalStale` (nichts geschieht). Antwort: `applied`,
+`skipped` (vorhanden), `failed` (Fehler je Vorschlag), `entry`, `proposals`.
+
+**Warteschlange — `POST /api/inbox/queue`** (`{ids?}`; ohne alle neuen und
+fehlgeschlagenen) und **`DELETE /api/inbox/queue`** (Vorgemerktes wieder neu).
+Abgearbeitet wird von der geöffneten Seite, Dokument für Dokument.
+
+**Prüfliste — `GET /api/inbox/review`.** Nur die markierten Felder aller
+ausgelesenen, noch nicht übernommenen Dokumente: `entry_id`, `name`, `type`,
+`field`, `item`, `value`, `quote`, `page`, `reasons`.
+
+#### Haushalt aus Dokumenten *(v3.7.0)*
+
+Ein Entwurf über alle ausgelesenen, noch nicht übernommenen Dokumente
+([Anleitung](../anleitungen/haushalt-aus-dokumenten.md)). Er arbeitet nur mit
+den gespeicherten Auslesungen (`extraction`, dazu `edits`) und fragt keinen
+Dienst. Schreiben darf, wer ein einzelnes Dokument übernehmen darf.
+
+**Entwurf — `GET /api/inbox/draft`** (`?documents=inb_…,inb_…` nimmt nur diese).
+Antwort: `summary` (`documents`, `used`, `duplicates`, `without`, `meters`,
+`meter_changes`, `contracts`, `prices`, `advances`, `readings`, `bills`,
+`reminders`, `questions`), `utilities` (Reihenfolge der Abschnitte), `items`,
+`documents` (je Dokument `state`: `used`, `duplicate` mit `duplicate_of` —
+dasselbe ältere Dokument wie `entries[].duplicate_of` in `GET /api/inbox`,
+auch wenn es schon übernommen ist —, `no_utility`, `no_meter`, `no_start`,
+`nothing`; dazu `items`), `findings` (`gap`, `overlap`, `falling`,
+`chain_mismatch`, `duplicate`, `no_meter`, `same_supplier` — Rechnungen in
+anderer Schreibweise am Zähler und zur Zeit eines Vertrags mit gemeinsamem
+Namen —, `invoice_wp`/`invoice_bp` — Rechnungspreis weicht von Bestätigung
+oder Preisänderung ab, `{name, date, invoice, chain}` —, `start_from_invoice`
+— Beginn auf die erste Rechnung desselben Vertrags vorgezogen —,
+`bill_corrected` — Rechnungskorrektur, die spätere Fassung gilt — mit `params`
+und `docs`), `missing` (`advance`, `prices`, `working_price`, `base_price`,
+`prices_unconfirmed` — Preise nur auf Rechnungen, noch zu bestätigen; je mit
+`which`: `wp`, `bp`, was nach dem Übernehmen des Vorbelegten fehlt —,
+`working_price_gap`/`base_price_gap` — ein Abschnitt ohne Preis, `params`
+`{provider, from, to}` —, `water_prices`, `contract_start`, `old_final`
+(Zählertausch ohne Endstand des alten Zählers: erschlossen wird er nur aus einem
+Stand höchstens 7 Tage davor), `open` — die offenen Punkte der
+Vorschläge, `open: [{field, reason: missing|unsure}]`, eine Zeile je Vertrag
+bzw. Lieferverhältnis mit ihren Dokumenten in `docs`, soweit der Entwurf sie
+nicht aus einem anderen Dokument hat — mit `href`), `targets`
+und `queue` (wie bei `GET /api/inbox`).
+
+Ein Eintrag ist eine Feldgruppe mit einem Haken:
+
+```json
+{ "id": "d_5c1e0a9b3f27", "kind": "contract", "utility": "strom", "status": "new",
+  "check": false, "checked": true, "actionable": true, "optional": false,
+  "label_key": "inboxDraft.item.contract.new",
+  "params": { "provider": "Nordlicht Energie GmbH", "from": "2025-04-01", "to": null },
+  "fields": [
+    { "name": "start", "kind": "date", "value": "2025-04-01", "core": true, "basis": "supply_start",
+      "check": false, "reasons": [], "status": "new",
+      "sources": [{ "doc": "inb_…", "name": "lieferbeginn.pdf", "field": "supply_start", "quote": "…", "page": 1 }] },
+    { "name": "tariff_name", "kind": "text", "value": "Basis 12", "check": true, "reasons": ["differs"],
+      "options": [{ "value": "Basis 12", "sources": [] }, { "value": "Basis 24", "sources": [] }] }
+  ],
+  "docs": ["inb_…"] }
+```
+
+`kind` in der Reihenfolge der Übernahme: `meter` (`action`: `create`, `adopt` —
+der leere Standardzähler —, `existing`), `meter_change`, `contract`,
+`contract_end` (bisheriger Vertrag, nur als Angebot), `prices` (Felder
+`wp:<Datum>`, `bp:<Datum>` je Monat), `advances` (`ap:<Datum>`), `readings`
+(`r:<Datum>`), `bill` (mit Buchung des Ergebnisses), `gas_factor`
+(`gf:<Datum>`), `reminder`. `status` des Eintrags: `new`, `update` (vorhanden,
+wird ergänzt), `exists`, `conflict`, `overlap`; je Feld `new`, `exists`,
+`conflict` (mit `existing`; ein Rechnungspreis mit `price_matches` ist
+`exists`). `check` am Feld: zweifelhaft (Belegstelle markiert — die Marken
+nach dem heutigen Bestand wie in Liste und Vorschau, `Proposals::marks` — und
+kein zweites Dokument, das sie bestätigt; Rechnungspreise bestätigen sich nicht
+gegenseitig), Gründe aus der Belegprüfung und `differs`,
+`conflict_existing`, `chain_mismatch`, `inferred`, `falling_reading`,
+`assumed_date`, `swap_open` (Stand nach einem Tausch ohne Endstand),
+`swap_readings` (Tausch aus den Ständen passt nicht ganz: anderes laufendes
+Gerät, Stand über dem Endstand, fallender neuer Zähler oder ein Stand ab dem
+Tauschtag im Bestand — dann nicht vorbelegt, wie im Einzeldokument). `hint`
+`newest`: verschiedene Kennungen, vorgewählt die aus dem jüngsten Dokument,
+die anderen in `options`. Gelesen, wo die Auslesung sie hat:
+`document_date`, `document_title` (Rechnungskorrektur) und `meter_readings`
+(Stände je Zähler einer Rechnung; dieselbe Nummer mit aufeinanderfolgenden
+Zeiträumen → Ablesungen desselben Zählers, mit überlappenden → `missing`
+`two_registers`). Am Tauschtag entsteht keine Ablesung (die Stände trägt der
+Tausch). Ein als geschätzt markiertes Ablesungsfeld (`is_estimated`, laut
+Rechnung: `reading_*_estimated`, `meter_readings[].estimated`) legt eine
+geschätzte Ablesung an. `basis` am Beginn: `confirmation`, `supply_start`, `invoice`,
+`invoice_earlier` (vorgezogen auf die erste Rechnung), `existing`; am Ende
+`document`, `successor`; an einer Preiszeile `vat_changed` (gleicher
+Nettopreis, anderer Steuersatz laut Rechnung). Rechnungspreise zählen brutto
+(netto mit gelesenem Steuersatz umgerechnet wie im Posteingang, auch bestätigt
+oder korrigiert — eingegeben in derselben Basis wie gedruckt); stammt eine
+Preiszeile nur aus Nettopreisen, trägt sie `net: {vat_pct}`. `core`: Kernfeld — ist eines zweifelhaft, ist
+der Eintrag `check` und nicht vorbelegt.
+
+**Übernehmen — `POST /api/inbox/draft/apply`** mit
+`{items: [id, …], confirm: {id: [feld, …]}, choose: {id: {feld: option}}, documents?}`.
+Ein ausgewählter Eintrag schreibt seine Felder, die neu und nicht zweifelhaft
+sind, dazu die Kernfelder (anhaken bestätigt sie), die in `confirm` genannten
+und die in `choose` gewählte Option. Eine unbekannte ID, ein unbekanntes Feld
+oder eine Option außerhalb der Liste → `400 errors.inbox.proposalStale`, bevor
+etwas geschrieben wird; ohne Auswahl `400 errors.inboxDraft.nothingSelected`.
+Vorher legt der Server eine Sicherung `pre-inbox-…` an (Einstellungen → Daten,
+Anlass „vor Haushalt aus Dokumenten“). Antwort: `applied` (je Eintrag `ref`),
+`failed` (je Eintrag oder Feld mit `error`, `code`), `created` (`meters`,
+`meter_changes`, `contracts`, `rows`, `readings`, `bills`, `booked`,
+`gas_factors`, `reminders`), `bills` (für „Rechnung prüfen“: `utility`, `id`,
+`meter_id`, `period_from`, `period_to`, `booked`), `missing`, `documents`
+(`done`, `filed`, `open`) und `snapshot`. Dokumente, die der Entwurf vollständig
+abdeckt, stehen danach auf `done` (Übernommenes in `applied`, Zuordnung
+gesetzt, Marken und Kernaussage `gist` neu wie nach `POST /api/inbox/{id}/apply`),
+wohl doppelte auf `filed`, wenn ihr Original `done` ist; `duplicate_of`
+rechnet die Liste weiter aus dem Inhalt, gespeichert wird es nicht.
+
+**Löschen — `DELETE /api/inbox/{id}`.** Der Eintrag; das PDF nur, solange es
+nur am Posteingang hängt.
+
+**Termin — `POST /api/inbox/{id}/remind`** mit `{date: "JJJJ-MM-TT"}` *(Paket
+betrieb)*: ein Termin zum Dokument (Mahnung: „… klären“) am zugeordneten Zähler,
+mit der Zuständigen des Vertrags; das Dokument ist danach abgelegt. Antwort wie
+die Vorschau. Ohne gültigen Tag `400 errors.reminder.dueRequired`.
+
+#### Ordner — `POST /api/inbox/folder`
+
+*(v3.7.0, Paket betrieb)* Liest `<Datenverzeichnis>/posteingang/` ein (nur
+Verwalter, sonst `403 errors.auth.adminOnly`; fehlt der Ordner, wird er
+angelegt). Nur Dateien direkt im Ordner, keine versteckten, keine
+symbolischen Links; PDF nach Inhalt, bis 10 MB; höchstens 20 je Aufruf, eine
+Datei, die jünger als 10 Sekunden ist, wartet. Danach liegt sie in
+`posteingang/übernommen/` (auch ein Doppel), eine abgelehnte in
+`posteingang/fehler/`. Antwort:
+
+```json
+{ "dir": "posteingang", "imported": [{ "name": "Abrechnung.pdf", "id": "inb_…", "moved": "übernommen/Abrechnung.pdf" }],
+  "duplicates": [], "failed": [{ "name": "foto.pdf", "reason": "type", "moved": "fehler/foto.pdf" }],
+  "skipped": [{ "name": "link.pdf", "reason": "symlink" }], "waiting": 0, "more": false }
+```
+
+`reason`: `type` (kein PDF), `size`, `rejected` (mit `code`), `quota` (Speicher
+der Belege voll — die Datei bleibt liegen), bei `skipped` `symlink`,
+`not_a_file`, `outside`, `unreadable`. `moved` ist `null`, wenn das
+Verschieben nicht ging.
+
+#### Akte — `GET /api/utility/{u}/dossier`
+
+*(v3.7.0, Paket betrieb)* `?meter_id=` oder `?contract_id=` (sonst `400
+errors.dossier.scope`; unbekannt → `404`). `items`, neueste zuerst:
+
+| `kind` | Was | Felder |
+|---|---|---|
+| `inbox` | erledigtes oder abgelegtes Dokument des Posteingangs, dem Zähler bzw. Vertrag zugeordnet | `type` (Dokumentart), `inbox_id`, `status`, `gist`, `bill_id` (wenn daraus eine Rechnung wurde) |
+| `bill` | Versorgerrechnung | `type` (`annual`, `final`, `interim`), `bill_id`, `period_from`, `period_to`, `result_eur`, `amount_eur`, `attachment_ids` |
+| `receipt` | Beleg am Vertrag | `contract_id`, `provider` |
+| `photo` | Foto einer Ablesung (nur beim Zähler) | `counter` |
+
+Jeder Eintrag hat `date` (Stichtag des Dokuments, sonst Eingang), `title` und
+`attachment_id` (oder `null`). Ein PDF steht nur einmal.
+
+#### `GET /api/inbox/cloud` · `PATCH /api/inbox/cloud` *(v3.7.0)*
+
+Auslesen in der Cloud für den Posteingang: ein Opt-in, aus, bis es jemand
+einschaltet, der die Installation verwaltet
+([Anleitung](../anleitungen/posteingang.md#in-der-cloud-auslesen)). Die
+Texterkennung bleibt im Heimnetz; dies ist ein eigener Weg. `GET` liefert
+den Stand, **nie den Schlüssel**:
+
+```json
+{ "success": true, "data": {
+  "enabled": false, "provider": "anthropic", "endpoint": "", "model": "",
+  "timeout_s": 120, "has_key": false, "keys": { "anthropic": false, "openai": false }, "ready": false,
+  "active": false,
+  "preset": "anthropic", "experimental": true,
+  "presets": [
+    { "id": "anthropic", "provider": "anthropic", "endpoint": null, "label": "Claude (Anthropic)", "host": "api.anthropic.com", "has_key": false },
+    { "id": "mistral", "provider": "openai", "endpoint": "https://api.mistral.ai/v1", "label": "Mistral", "host": "api.mistral.ai", "has_key": false },
+    { "id": "custom", "provider": "openai", "endpoint": null, "label": null, "host": "", "has_key": false } ],
+  "providers": [
+    { "id": "anthropic", "label": "Claude (Anthropic)", "destination": "api.anthropic.com",
+      "notice": "Das Dokument geht als PDF an …", "sends": "pdf", "default_model": "claude-opus-5-5" },
+    { "id": "openai", "label": "OpenAI-kompatibler Dienst", "destination": "",
+      "notice": "Der Text des Dokuments geht an …", "sends": "text", "default_model": "" } ] } }
+```
+
+(`presets` gekürzt; vollständig: `anthropic`, `openai`, `mistral`, `openrouter`,
+`gemini`, `custom`.) `notice` ist der Hinweis, den der Posteingang vor jedem
+Auslesen zeigt (in der Sprache der Anfrage), `destination` der Host, an den das
+Dokument geht, `sends` was hinausgeht (`pdf` oder `text`). `ready` heißt: Der
+Dienst könnte senden — eingeschaltet **und** mit Schlüssel. Nach dem Einspielen
+einer Sicherung auf einem anderen Server ist `enabled` wahr, `ready` nicht.
+`active` heißt: bereit **und** im Umschalter der Karte „Auslesen“ gewählt
+(`inbox_provider`) — dann geht wirklich etwas hinaus. *(Karte „Auslesen“,
+additiv)* `preset` ist die Voreinstellung, die zu Anbieter und Adresse passt
+(sonst `custom`), `presets[].has_key`, ob für dieses Ziel ein Schlüssel liegt —
+beim OpenAI-kompatiblen Weg gehört er zum Host. `experimental`: Alle Cloud-Wege
+sind noch nicht mit echten Rückmeldungen geprüft; `GET /api/inbox` meldet es
+ebenso (`provider.experimental`).
+
+`PATCH` nimmt dieselben Felder (`enabled`, `provider`, `endpoint`, `model`,
+`timeout_s`), alle optional, dazu `api_key` (neuer Schlüssel; leer = behalten)
+und `clear_key` (`true` = den des Anbieters, sonst die Kennung eines Anbieters;
+die Auswahl bleibt). *(Karte „Auslesen“, additiv)* `preset` setzt Anbieter und
+Adresse aus der Voreinstellung; `select: true` lässt den Dienst auslesen, sobald
+er bereit ist, `select: false` lässt `inbox_provider`, wie es ist. Antwort wie
+`GET`. Eingeschaltet wird nur ein vollständiger Anschluss. Wird er dadurch
+bereit, setzt der Server ohne `select` `inbox_provider` auf den Anbieter, beim
+Ausschalten zurück auf `local`; wer bei bereiter Cloud „Lokal“ gewählt hat,
+behält das. Über `PATCH /api/settings` nimmt `inbox_provider`
+einen Cloud-Dienst nur an, solange er bereit ist, sonst `400`
+(`errors.inboxCloud.off` als Text). Nur Verwalter, sonst `403`
+`errors.auth.adminOnly` — ebenso für die Schlüssel `inbox_*` über
+`PATCH /api/settings`.
+
+| Status | `code` | Wann |
+|---|---|---|
+| `400` | `errors.inboxCloud.noKey` | einschalten ohne Schlüssel |
+| `400` | `errors.inboxCloud.noEndpoint`, `errors.inboxCloud.noModel` | OpenAI-kompatibel ohne Adresse bzw. Modell |
+| `400` | `errors.inboxCloud.httpsOnly` | Adresse nicht `https://` oder mit Zugangsdaten |
+| `400` | `errors.inboxCloud.notPublic` | Adresse oder Name im Heimnetz (`192.168.…`, `nas.local`, `fritz.box`, ein Name ohne Punkt) |
+| `400` | `errors.inboxCloud.keyFormat` | Schlüssel nicht 8–500 druckbare Zeichen ohne Leerzeichen |
+
+**Beim Auslesen** (über den Posteingang) melden die Anschlüsse: `400`
+`errors.inboxCloud.off` bzw. `noKey` (nicht eingeschaltet), `notPublic` (eine
+aufgelöste Adresse ist nicht öffentlich), `notPdf`, `emptyDocument`; `413`
+`tooLarge` bzw. `tooLargeLimits`; `422` `refusal` (das Modell lehnt ab); `429`
+`rateLimited` mit `Retry-After`; `502` `unauthorized` (der Dienst lehnt den
+Schlüssel ab — bewusst nicht `401`, das hieße in der Oberfläche „neu
+anmelden“), `redirect`, `unreachable`, `badAnswer`, `truncated`, `rejected`;
+`503` `overloaded` mit `Retry-After`; `504` `timeout`. Was jeder Anbieter
+sieht und wie die Verbindung geprüft wird:
+[Sicherheit](../betrieb/sicherheit.md#auslesen-in-der-cloud-v370).
+
+#### `GET /api/inbox/cloud/models` · `GET /api/inbox/local/check` *(v3.7.0, Karte „Auslesen“)*
+
+Beide nur für Verwalter (sonst `403` `errors.auth.adminOnly`), beide ohne
+Dokument.
+
+**`GET /api/inbox/cloud/models`** — die Modelle des eingerichteten Cloud-Diensts
+(gespeicherter Anbieter, Adresse und Schlüssel; der Schlüssel bleibt auf dem
+Server). OpenAI-kompatibel `GET <basis>/models` mit `Authorization: Bearer`,
+Claude `GET https://api.anthropic.com/v1/models?limit=1000` mit `x-api-key` und
+`anthropic-version`. Dieselben Regeln wie beim Auslesen (nur HTTPS, nie das
+Heimnetz, geprüfte Adresse, keine Weiterleitung) und dieselben Fehler
+(`noKey`, `noEndpoint`, `notPublic`, `unauthorized`, `redirect` …). Nur
+Kennungen, die als `inbox_cloud_model` gespeichert werden dürfen, höchstens
+1000, in der Reihenfolge des Diensts:
+
+```json
+{ "success": true, "data": { "provider": "openai", "preset": "mistral",
+  "models": [ { "id": "test-model-a", "label": "" }, { "id": "vendor/test-model-b", "label": "Test Model B" } ] } }
+```
+
+**`GET /api/inbox/local/check?endpoint=…&api=ollama|openai`** — „Verbindung
+prüfen“ für den eigenen Dienst (ohne Parameter die gespeicherten
+`ocr_endpoint`/`ocr_api`): Ollama `GET /api/tags`, OpenAI-kompatibel
+`GET /v1/models`, nur im Heimnetz wie die Texterkennung. Antwort
+`{ host, api, models: ["qwen3.8:latest", …], model, model_found }` — `model` ist
+`inbox_model`, `model_found` sagt, ob es dabei ist (auch mit `:latest`). Fehler
+wie bei der Texterkennung: `400` `errors.ocr.off`, `errors.ocr.notLocal`,
+`errors.ocr.unreachable`, `errors.ocr.timeout`, `errors.ocr.badAnswer`.
 
 ### `POST /api/ingest` *(F1009, v1.9.0 — Home Assistant)*
 
@@ -4037,8 +4766,8 @@ gilt für die ganze Installation, nicht je Person. Außerhalb des Modus
 | `GET /api/users` | — | Liste der Personen, samt `u_admin`, solange es ihn gibt | — |
 | `POST /api/users` | `{name, password, role?}`; `role` Standard `member` | `201` mit der Person (`source: "password"`) | `400` `errors.users.nameInvalid`, `errors.users.roleInvalid`, `errors.auth.passwordTooShort`; `409` `errors.users.nameTaken` |
 | `PATCH /api/users/{id}` | `{name?, role?, password?}`, jedes Feld für sich; das Passwort ohne das bisherige („Passwort neu setzen“) | die geänderte Person | `404` `errors.users.notFound`; `400` wie beim Anlegen; `409` `errors.users.nameTaken`, `errors.users.lastAdmin` (der letzte Verwalter würde Mitglied), `errors.auth.passwordFixed` |
-| `GET /api/users/{id}/handover` | — *(v3.6.0)* | `{person, to, open, done}` ([Personenverzeichnis](#personenverzeichnis-v360)) | `404` `errors.users.notFound` |
-| `DELETE /api/users/{id}` | — ; *(v3.4.0)* `?anonymize_activity=1` ersetzt den Namen im Verlauf durch „ehemalige Person“ | `{deleted: true, activity_anonymized}`; *(v3.6.0)* dazu `handed_over`, `handed_over_to`, `kept` | `400` `errors.users.notSelf` (die eigene Person); `404` `errors.users.notFound`; `409` `errors.users.lastAdmin`, `errors.auth.passwordFixed` (`u_admin` bei `ET_ADMIN_PASSWORD_HASH`) |
+| `GET /api/users/{id}/handover` | — *(v3.6.0)* | `{person, to, open, done}` ([Personenverzeichnis](#personenverzeichnis-v360)); *(v3.7.0)* dazu `meters`, `contracts` | `404` `errors.users.notFound` |
+| `DELETE /api/users/{id}` | — ; *(v3.4.0)* `?anonymize_activity=1` ersetzt den Namen im Verlauf durch „ehemalige Person“ | `{deleted: true, activity_anonymized}`; *(v3.6.0)* dazu `handed_over`, `handed_over_to`, `kept`; *(v3.7.0)* `records_handed_over`, `records_kept` | `400` `errors.users.notSelf` (die eigene Person); `404` `errors.users.notFound`; `409` `errors.users.lastAdmin`, `errors.auth.passwordFixed` (`u_admin` bei `ET_ADMIN_PASSWORD_HASH`) |
 
 Eine gelöschte Person ist sofort abgemeldet: Ihr Sitzungs-Cookie gilt nicht
 mehr. Ein neues Passwort — selbst geändert oder vom Verwalter neu gesetzt —

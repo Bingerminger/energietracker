@@ -54,6 +54,7 @@ data/
 ├── intervals/                # quarter-hour series <id>.json, per meter or wholesale price and calendar year (v3.3.0)
 ├── activity.json             # history of done notices (v3.4.0) — created with the first entry
 ├── people.json               # register of people: number, name, role, deletion note (v3.6.0) — in the backup, without passwords
+├── inbox.json                # inbox: supplier mail with its reading (v3.7.0) — created with the first document
 ├── instance.json             # identifier of the installation (v3.1.0) — not in the backup
 ├── gas/        { meters.json, readings.json, contracts.json, meter_groups.json, periods.json, bills.json }
 ├── strom/      { meters.json, readings.json, contracts.json, meter_groups.json, periods.json, bills.json }
@@ -184,6 +185,9 @@ same identifier.
   // electricity only, optional (v2.10.0):
   "heat_source": true,                   // heat pump: counts in the efficiency figure
 
+  // v3.7.0, heating types with meter readings, optional — missing = setting hdd_base_temp:
+  "hdd_base_temp": 12.0,                 // this meter's own heating limit (6–22 °C, heating limit suggestion)
+
   // v3.1.0, optional — missing = default:
   "role": "heat_pump",                   // role of the meter, per utility (see below)
   "capture": "period",                   // way of recording: missing = meter readings
@@ -199,9 +203,15 @@ same identifier.
   "battery_capacity_kwh": 5.0,           // storage capacity, on the meter with role battery_charge
 
   // v3.1.0, heat with role heat_pump_output only, optional:
-  "heat_pump_meter_ids": ["m_wp_strom"]  // electricity meters of the heat pump (role heat_pump)
+  "heat_pump_meter_ids": ["m_wp_strom"], // electricity meters of the heat pump (role heat_pump)
+
+  // v3.7.0, optional — missing = nobody responsible:
+  "assignee_id": "u_3f9a1c2e"            // person from the register of people
 }
 ```
+
+**Responsible (`assignee_id`, v3.7.0).** On the meter as on the contract
+([Responsible for meters and contracts](#responsible-for-meters-and-contracts-v370)).
 
 **PV and heat pump fields (v3.1.0).** `plug_in` (`true` or missing),
 `investment_eur` (0–10,000,000), `commissioned_on` (ISO date) and
@@ -316,7 +326,8 @@ included in the consumption calculation.
 
 Two optional fields since v2.6.0 (additive, only present when set):
 
-- `source`: `ingest` (Home Assistant) or `csv` (CSV import).
+- `source`: `ingest` (Home Assistant), `csv` (CSV import) or, since v3.7.0,
+  `inbox` (taken over from a document in the [inbox](#inbox-v370)).
 - `is_suspect: true`: a falling reading from the ingest; it does not count until
   confirmed (`PATCH` with `is_suspect: false`) or corrected.
 
@@ -337,14 +348,15 @@ device and reports them as `warnings` (see
 
 Files belonging to a record — photos of meter readings, receipts for periods,
 PDFs or photos of service charge statements and, since v3.1.0, of supplier bills
-(`ref.type` `reading`, `period`, `tenancy_statement`, `bill`). The file lives
+(`ref.type` `reading`, `period`, `tenancy_statement`, `bill`; since v3.7.0
+`inbox` and `contract`). The file lives
 under `data/attachments/<id>.<ext>`,
 its entry in the index `attachments.json` (a list):
 
 ```jsonc
 {
   "id": "att_5f0c2a9e81d34b67",        // att_ + 16 hex digits
-  "kind": "reading_photo",             // reading_photo | bill_pdf | statement_pdf | other
+  "kind": "reading_photo",             // reading_photo | bill_pdf | statement_pdf | inbox_pdf (v3.7.0) | other
   "mime": "image/jpeg",                // image/jpeg | image/png | image/webp | application/pdf — determined from the content
   "size": 284113,                      // bytes
   "sha256": "9c1e…",
@@ -539,6 +551,9 @@ CO₂ details
 - **Booking** adds a special payment “not affecting advances” in the contract
   and keeps its ID in `special_payment_id` — once per bill. Deleting the bill
   keeps the special payment; the receipts are released.
+- **Gas conversion as on the bill** *(v3.7.0, optional)*: `factors`
+  `[{from, to, zustandszahl, brennwert}]`, e.g. from the inbox. “Check bill”
+  holds them against the dated list; without them the field is missing.
 - **CO₂.** Emissions and amount take precedence over the standard factor for
   the CO₂ price; the `issued_on` of a gas bill sets, for tenants, the deadline
   for the refund ([CO₂ price in fuel](../verstehen/16-co2-preis.md)).
@@ -571,7 +586,7 @@ is set is `unit_price_cents` used.
   "base_prices":      [ { "from": "2023-01-01", "eur_per_month": 11.9 } ],
   "advance_payments": [ { "from": "2023-01-01", "amount_eur": 90 } ],
   "bonuses":          [ { "credit_date": "2024-01-15",
-                          "amount_eur": 60, "type": "wechselbonus",
+                          "amount_eur": 60, "type": "wechsel",
                           "label": "New-customer bonus" } ],
   "special_payments": [ { "id": "sp_…", "date": "2024-03-15",
                           "kind": "rueckzahlung_mit",
@@ -588,6 +603,19 @@ is set is `unit_price_cents` used.
 
 `is_shadow: true` = a hypothetical tariff for the comparison; affects **neither**
 the balance **nor** the forecast.
+
+*(v3.7.0)* Optionally `assignee_id`: the person responsible — the notice
+deadline, the end of the contract and “bill expected” go to them
+([Responsible for meters and contracts](#responsible-for-meters-and-contracts-v370)).
+
+**Bonuses** (`bonuses[]`): `credit_date`, `amount_eur`, `type` — `sofort`,
+`wechsel`, `neukunde` or *(v3.7.0)* `sonstige` (“Other credit”, for example a
+goodwill credit) — and `label`, the note (visible in the contract form since
+v3.7.0; up to v3.6 the form deleted it on saving). Each bonus counts in the
+month it is credited, after the end of the contract in its last month. The
+monthly rows and billing periods carry them one by one as `bonus_items`
+*(v3.7.0, additive)*; the “Costs” tile shows the costs without the bonus and
+the bonus as a line of its own, the balance includes it.
 
 **Cancellation (v2.3.0, extended in v2.9.0)** — all fields optional, `null` = not
 maintained:
@@ -673,6 +701,13 @@ balance nor forecast nor tariff comparison; flexibility uses it to calculate the
 saving against the standard tariff — validation and errors:
 [API](api.md#contracts-time-variable-grid-fee-module-3-v330-additive). No
 schema step.
+
+**Contract and customer number, receipts (v3.7.0)** — optional:
+`contract_number` and `customer_number` (text, at most 64 characters; empty
+removes the field), `attachment_ids` (list of receipt IDs, such as the
+document from the [inbox](#inbox-v370); an unknown ID is rejected,
+`errors.attachment.notFound`). The inbox assigns documents by these
+numbers. No schema step.
 
 Water additionally uses a three-component model (drinking/waste/rainwater), see
 [Water](../verstehen/03-wasser.md).
@@ -836,6 +871,47 @@ with `assignee_deleted` or become “former member”. API responses always carr
 person as deleted. The backup (pot `reminders`) carries the names as stored.
 Details: [API](api.md#responsible-for-reminders-v350).
 
+*(v3.7.0)* A reminder can belong to a meter (calibration, meter swap,
+delivery) — optional, without a schema step:
+
+| Field | Meaning |
+|---|---|
+| `utility`, `meter_id` | utility and meter; when saving, the meter must exist (otherwise `errors.reminder.meterUnknown`), `meter_id: null` removes the link. If the meter no longer exists, the reminder inherits nothing |
+
+Without a responsible person of its own, the meter’s person applies;
+`GET /api/reminders` carries it as `assignee_inherited` (otherwise `null`).
+
+### Responsible for meters and contracts *(v3.7.0)*
+
+Meters (`meters.json`) and contracts (`contracts.json`) optionally carry
+`assignee_id` — a person from the
+[register of people](#register-of-people-peoplejson-v360), no free names. If
+the field is missing, nobody is responsible; no schema step, existing data
+stays unchanged.
+
+| Field | Meaning |
+|---|---|
+| `assignee_id` | person id (`u_…`). When saving, the person must exist and must not be deleted (otherwise `errors.assignee.unknown`); a person deleted in the meantime stays when saving unchanged. `null` or empty = nobody |
+| `assignee_former` | `true` after the person was deleted with “former member” and nobody took over; replaces the id |
+
+The display reads the name from the register via the id — a deleted person
+stays listed there and appears as “Name (deleted)”; an id the register does
+not know (backup from elsewhere) shows nobody.
+
+**Inheriting:** a reminder or deadline without a responsible person of its own
+gets the contract’s, otherwise the meter’s, otherwise nobody
+([table](../anleitungen/hinweise-erledigen.md#meters-and-contracts-v370)). A
+reminder’s own responsible person comes first, even deleted or as “former
+member”.
+
+**Deleting a person:** meters and contracts pass to the person deleting;
+without one the id stays (with “former member”: `assignee_former`).
+
+**Backup:** the fields travel in the pots `meters`, `contracts` and
+`reminders`. The import checks the form — `assignee_id` a person id or
+missing, `assignee_former` a boolean — not whether the person exists: a backup
+without the pot `people` keeps the existing register.
+
 ### History of done notices (`activity.json`) *(v3.4.0)*
 
 What was done, when and by whom
@@ -869,7 +945,7 @@ first entry, if it is missing the history is empty. No schema step.
 | `recorded_at` | time of the entry (ISO 8601) |
 | `by` | `{type: "person", id, name}`, `{type: "key", name}` (API key), `{type: "integration", name}` (`home_assistant`, `evcc`), `{type: "auto", reason}` (by itself) or `null` (without sign-in). After “former member”: `{type: "person", former: true}`; *(v3.6.0)* otherwise after deletion `{type: "person", id, name, deleted: true}` (“Name (deleted)”) |
 | `reason` | for `auto_done` and `dismissed`: `{key, params}` — `activity.reason.successor`, `…reading`, `…delivery`, `…statement`, `…dismissed`; since v3.5.0 `…period` (new period), `…bill` (supplier’s bill recorded), when ticking off `bill_expected` `…billWithout` (“arrived without being recorded”) |
-| `assignee` | *(v3.5.0)* only when a reminder with someone responsible is done: `{name, id?}` as a snapshot, after “former member” `{former: true}`, *(v3.6.0)* after deletion `{name, id, deleted: true}` |
+| `assignee` | *(v3.5.0)* only when a reminder with someone responsible is done: `{name, id?}` as a snapshot, after “former member” `{former: true}`, *(v3.6.0)* after deletion `{name, id, deleted: true}`; *(v3.7.0)* also for deadlines and reminders with inherited responsibility (contract, meter) |
 | `note`, `attachment_id` | note (up to 500 characters, may be empty) and optionally a receipt ([Receipts](#receipts-v310), reference type `activity`) |
 | `undone` | `{at, by}` after undo — the entry stays, struck through |
 | `revert` | what undo restores: `reminder` (due date, status, `last_done`), `contract_auto_renews`, `recommendation_dismiss` — only as long as nobody has changed it differently in the meantime |
@@ -957,6 +1033,106 @@ their id and number. **Backup:** pot `people`; the
 import checks `id` (`u_` and 1–32 lower-case letters or digits) and `name` per
 entry, replaces the register and keeps the higher counter. A backup without
 the pot leaves the register unchanged.
+
+### Inbox *(v3.7.0)*
+
+`inbox.json` — supplier mail in the inbox
+([guide](../anleitungen/posteingang.md), [API](api.md#inbox-v370)). A list; the
+file is created with the first document, no schema step.
+
+```jsonc
+{
+  "id": "inb_56ae17da0845",                  // inb_ + 12 hex digits
+  "attachment_id": "att_5240ff1e4d3c847a",   // the PDF in the receipt store (kind inbox_pdf)
+  "sha256": "1778…", "size": 4087, "name": "Jahresabrechnung-Erdgas-2025.pdf", "pages": 3,
+  "created_at": "2026-02-05T18:42:00+01:00", "updated_at": "2026-02-05T18:44:00+01:00",
+  "status": "read",            // new | queued | read | failed | done | filed
+  "queued_at": null,           // only when queued: order of the queue
+  "type": "invoice",           // document type, see below; type_confidence 0–1 or null
+  "extraction": {              // the checked result, null before reading
+    "provider": "local", "model": "qwen3.8", "schema_version": 4, "type": "invoice",
+    "fields": {
+      "consumption": { "value": 10450, "raw": "10.450", "quote": "Verbrauch: 945,6 m³ = 10.540 kWh",
+                       "page": 1, "status": "check", "reasons": ["value_not_in_quote"] }
+      // list fields (advance payments made, gas conversion, working prices) carry "items", each with its own quote
+    },
+    "flags": 3, "seconds": 74.2, "extracted_at": "…",
+    "text": { "chars": 1180, "kept": [1, 2], "dropped": [3], "truncated": false }   // terms pages not sent
+  },
+  "cache": { "local|qwen3.8|4": { … } },   // raw answers per provider, model and schema version (at most three)
+  "assignment": null,          // {utility, meter_id, contract_id} — set by the user, otherwise the prefill applies
+  "edits": {},                 // confirmed or corrected field values, {field: value}
+  "applied": [],               // [{id, kind, key, ref, at}] — what was taken over
+  "error": null,               // {key, params, at} on the last failure
+  "gist": null                 // v3.7.0 (package betrieb): key message after the last write, see below
+}
+```
+
+- **Key message** (`gist`, additive): sentence, figure and next step
+  ({key, params, figure, action, details, computed_at}, same form as in the
+  [API](api.md#inbox-v370)). Calculated after every write to the entry
+  (reading, assignment, correction, taking over, reminder) and saved for the
+  list; the preview calculates it fresh. If the field is missing (older
+  entries), the list calculates it when reading. A backup carries it, but it
+  can be recalculated at any time.
+- **Watched folder** `posteingang/` in the data directory, with the stores
+  `posteingang/übernommen/` and `posteingang/fehler/` — files lying there are
+  not part of the backup (taken over, they are receipts in the receipt store).
+
+- **Types** (`type`): `invoice`, `contract_confirmation`, `price_change`,
+  `cancellation`, `supply_start`, `meter_change`, `reading_request`,
+  `advance_change`; only recognised and filed: `dunning`, `withdrawal`, `other`.
+- **Field status:** `ok` or `check` with reasons (`empty`, `no_quote`,
+  `quote_not_found`, `value_not_in_quote`, `unreadable`, `estimated`,
+  `mandatory`, `price_from_invoice`, `sum_mismatch`, `inconsistent`,
+  *(v3.7.0)* `invalid_format`); `flags`
+  counts the flagged fields. *(v3.7.0)* Without a flag, as a
+  hint: `missing` (status `empty`: not in the document, no proposal needs it),
+  `estimated`, `supported`, `price_matches`, `net_price`, `vat_changed` — a
+  field with these stays `ok`. Since then `empty` means: empty, but a proposal
+  needs it. The state after today’s records is stored when reading, changing
+  and taking over ([API](api.md#inbox-v370)).
+- **Net and VAT rate** *(v3.7.0, `schema_version` 2)*: a unit price on the
+  bill carries `basis` (`net`/`gross`) and `vat_pct`, the standing charge the
+  fields `base_price_basis` and `base_price_vat_pct`, confirmation and price
+  change `vat_pct` — helper fields without a flag. If the app recognises a net
+  price for sure (rate in the quote), the entry or field carries
+  `net: {vat_pct, gross}`; the contract gets the gross price. A rate without
+  “%” in the quote that the server reads in the text layer while reading (same
+  text line, tax column or the one VAT line) is kept as
+  `vat_read: {vat_pct, from: row|column|line}`.
+- **Date, title, readings per meter** *(v3.7.0, `schema_version` 3)*: every
+  type that is read carries `document_date` and `document_title`, the bill
+  `meter_readings` (`items`: `meter_number`, `reading_old`,
+  `reading_old_date`, `reading_new`, `reading_new_date`, `estimated`), plus how
+  each reading was taken: `reading_new_estimated`/`reading_old_estimated` (bool,
+  `estimated_by: word|code`). The cache key then ended in
+  `|3`; readings with `|2` stay until the document is read again.
+- **Periods per meter** *(v3.7.0, `schema_version` 4)*: descriptions for the
+  model changed (meter number without footnote marks, one entry per period,
+  number also from the header line, “hochgerechnet”, footnotes and code
+  groups), fields unchanged. The check merges entries with the same number;
+  the entry then carries `between` (`[{date, counter, estimated}]`), `merged`
+  and `estimated_ends`, with a number from the header line `number_from:
+  header`; `estimated_by` also knows `mark` (footnote). The cache key ends in
+  `|4` since then; readings with `|3` stay until the document is read again.
+- **Duplicates:** a second document with the same `sha256` is rejected with
+  `409` (`errors.inbox.duplicate`, the existing entry under `detail.existing`).
+  Documents with the same content in different files are recognised by the
+  preview after reading (`duplicates`), without deleting them.
+- **The text layer** is not stored; the browser reads it from the PDF on every
+  reading.
+- **Taking over** creates records with the usual fields. A reading carries
+  `source: "inbox"`, a contract or bill the document in `attachment_ids`;
+  `applied` makes a second take-over a no-op.
+- **Household from documents** *(v3.7.0)*: when the draft takes over
+  ([API](api.md#household-from-documents-v370)), each `applied` entry also
+  carries `draft: true`; a document the draft covers completely is `done`. A
+  document with the same content (another file, same type and core fields) is
+  then `filed`, the file stays; `duplicate_of` is not stored — the list works
+  it out from the content.
+- **Backup:** pot `inbox`, the PDF travels with the receipts. The import checks
+  `id`, `sha256` and `status` per entry.
 
 ---
 
@@ -1091,7 +1267,10 @@ classic house), recorded supplier bills
 (`bills`) and follow-up contracts. All four enter living area and people;
 since v3.6.0 `eigenheim-klassisch` also has its own made-up reference values
 (`reference_strom_kwh`, `reference_heat_kwh_m2`) and shows the benchmark with a
-full traffic light. `tools/build-personas.mjs`
+full traffic light. Since v3.7.0 one contract and one meter in every household
+and in the showcase have a responsible person (`assignee_id`), calibration
+reminders belong to the meter (`utility`, `meter_id`) and inherit its person.
+`tools/build-personas.mjs`
 generates them from a daily model with a fixed seed: every run writes the same
 files, `--check` only compares. Names are made up, market location IDs
 synthetic. When loaded, `DemoDataAligner` carries them forward to today like

@@ -14,11 +14,11 @@ sample household carried forward to today, in seven languages, nothing to instal
 
 [![CI](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml)
 [![Docker Publish](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml)
-[![Version](https://img.shields.io/badge/version-3.6.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-3.7.0-blue.svg)](CHANGELOG.md)
 [![License: AGPL-3.0-or-later](https://img.shields.io/badge/License-AGPL--3.0--or--later-success.svg)](LICENSE)
 [![PHP](https://img.shields.io/badge/PHP-%E2%89%A5%208.2-777BB4.svg)](composer.json)
 [![Dependencies: 0](https://img.shields.io/badge/dependencies-0-success.svg)](composer.json)
-[![Tests](https://img.shields.io/badge/Tests-1074-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-1477-success.svg)](tests/)
 [![Languages](https://img.shields.io/badge/languages-7-7c5cff.svg)](public/locales/)
 [![Utilities](https://img.shields.io/badge/utilities-9-f59e0b.svg)](docs/en/einstieg/funktionen.md)
 [![Docker](https://img.shields.io/badge/Docker-amd64%20%7C%20arm64-2496ed.svg)](docker-compose.yml)
@@ -104,14 +104,22 @@ Without Docker, PHP 8.2 or later is enough: `git clone`, then
 Everything stays on your server: no accounts, no ads, no telemetry, no
 database — just JSON files. The app talks only to Open-Meteo: for the daily
 weather sync (it sends your location rounded to about 1 km, and can be switched
-off) and the place search, if you use it. Three more paths are yours to switch
-on: your own text recognition service in your home network, if you set one up,
+off) and the place search, if you use it. More paths are yours to switch
+on: your own text recognition service in your home network, if you set one up
+(for meter photos and for reading supplier mail in the inbox),
 your evcc in your home network, when you fetch its charging sessions,
 wholesale electricity prices for the dynamic tariff check, when you tap
 “Load from SMARD” (Federal Network Agency; nothing of yours is sent), and the
 note about new versions (once a day GitHub is asked for the newest version
-number; only your server’s address is visible). Fonts and
-Chart.js ship with the repository.
+number; only your server’s address is visible). Reading in the inbox through a
+cloud service is off until someone who manages the installation switches it on;
+then documents go to the chosen service — Claude (Anthropic) at
+`api.anthropic.com`, OpenAI (`api.openai.com`), Mistral (`api.mistral.ai`),
+OpenRouter (`openrouter.ai`), Google Gemini (`generativelanguage.googleapis.com`)
+or your own OpenAI-compatible address, which is only contacted with this opt-in.
+The app contacts each of these hosts only with the opt-in: for the list of
+models once the key is saved, and for reading once it is switched on. All cloud
+paths are experimental. Fonts, Chart.js and PDF.js ship with the repository.
 
 ## Help and documentation
 
@@ -142,11 +150,16 @@ classes and says why; it does not convert currencies —
 
 ## Status and outlook
 
-**v3.6.0** is the current version — [CHANGELOG](CHANGELOG.en.md) (German
+**v3.7.0** is the current version — [CHANGELOG](CHANGELOG.en.md) (German
 version: [CHANGELOG.md](CHANGELOG.md)). APIs, CSV formats and the backup format
 change only additively; anything is removed only with a new major version and
-after notice. 3.6.0 evaluates by billing year as well as calendar year — periods
-as on your recorded bills — and can tell you about new versions. 3.5.0 was about who, when and where to: reminders get someone
+after notice. 3.7.0 reads your supplier mail: drop a PDF into the inbox, an AI
+in your own home network (or, as an experimental opt-in, a cloud service) reads
+it, backs every figure with its quote in the document, and one click takes it
+over — a whole household from a stack of letters, too. Monthly values now say
+whether they are measured or spread between two readings. 3.6.0 added the
+billing year next to the calendar year — periods as on your recorded bills —
+and the note about new versions. 3.5.0 was about who, when and where to: reminders get someone
 responsible, missing supplier bills stand out, and the energy flow plays a day
 in quarter hours. Home Assistant OS users can install it as an app, there is
 an image without root, and the setup asks for language and country first.
@@ -192,8 +205,9 @@ Since version 3.0.0 the Energietracker is under the
 Versions up to 2.16.0 remain available under the MIT licence they were
 published with.
 
-It ships [Chart.js](https://www.chartjs.org/) (MIT) and the fonts DM Sans and
-DM Mono (SIL Open Font License 1.1); weather data comes from
+It ships [Chart.js](https://www.chartjs.org/) (MIT), [PDF.js](https://mozilla.github.io/pdf.js/)
+(Apache-2.0) and the fonts DM Sans and DM Mono (SIL Open Font License 1.1);
+weather data comes from
 [Open-Meteo.com](https://open-meteo.com/) under
 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) — details in
 [CREDITS.md](CREDITS.md), product names in [TRADEMARKS.md](TRADEMARKS.md).

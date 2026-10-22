@@ -1,0 +1,15 @@
+[
+    {
+        "id": "att_5240ff1e4d3c847a",
+        "kind": "inbox_pdf",
+        "mime": "application/pdf",
+        "size": 4087,
+        "sha256": "177853d503cb1a0f196d0a40af85d3df73ee2a7c86081a9139ad464f65e24273",
+        "created_at": "2026-02-05T18:42:00+01:00",
+        "ref": {
+            "type": "inbox",
+            "id": "inb_56ae17da0845"
+        },
+        "original_name": "Jahresabrechnung-Erdgas-2025.pdf"
+    }
+]

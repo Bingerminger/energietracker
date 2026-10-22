@@ -53,13 +53,21 @@ The “Set up” dialog has five steps (“Step 1 of 5”):
    ([§ 2](#district-heating-or-heat)).
 4. **“How much experience do you have?”** — Beginner, Experienced or Expert
    ([§ 3](#3-experience-levels)).
-5. **“What comes next”** — the summary and a choice:
-   - **“Look at it with sample data”** loads the sample household for your
-     answer in step 2 ([§ 2](#2-the-sample-households)). The app saves the
-     current state as a snapshot first.
-   - **“Start with my own data”** takes you to “Meter readings”: check the
-     meters, add the first reading — continue with
-     [Getting started](erste-schritte.md).
+5. **“What comes next”** — the summary and one of three ways *(since
+   v3.7.0)*:
+   - **“From documents”** *(recommended)* takes you to the inbox: file supplier
+     mail as PDF, have it read, and a draft of your household is built —
+     [Household from documents](../anleitungen/haushalt-aus-dokumenten.md).
+     Below it the assistant lists which documents help for your answer in
+     step 2. If no service for reading is set up yet, **“Set up reading”**
+     opens the “Reading documents” card as a dialog above the assistant
+     (administrators only; members read that an administrator sets it up).
+   - **“Enter by hand”** takes you to “Meter readings”: check the meters, add
+     the first reading — continue with [Getting started](erste-schritte.md).
+   - **“Look at it with sample data”** *(administrators only)* loads the
+     sample household for your answer in step 2
+     ([§ 2](#2-the-sample-households)). The app saves the current state as a
+     snapshot first.
 
 Nothing is saved until **“Let’s go”**: the active utilities, the tenure
 (Settings → Household & building → “I live”: “in a rented home” for “I rent my
@@ -210,18 +218,24 @@ with “There is no sample household “…”.”
 ## 3. Experience levels
 
 Three levels: **🌱 Beginner**, **🌿 Experienced** and **🌳 Expert**. They decide
-what you see — not what the app calculates.
+what you see — not what the app calculates. Since v3.7.0 three sentences
+decide: beginners want to know what they use, what it costs and whether the
+advance payment is enough, and let the app read the supplier’s mail.
+Experienced users compare and check. Experts see and connect everything.
+Anyone with PV, a battery, a heat pump or a wallbox sees their pages at every
+level. Every feature on its own, with three households to choose from:
+**[What can I do at each level?](../referenz/stufen.md)**
 
 | Area | 🌱 Beginner | 🌿 Experienced | 🌳 Expert |
 |---|---|---|---|
-| Overview | three answers: Will I get money back? More or less than last year? What needs doing? — with one explainer | all key figures | plus the “Explainers” section |
-| Meter readings | record, photo as a receipt | plus CSV import | plus time series from portals and text recognition |
-| Consumption per utility | monthly trend, balance, explainers | plus previous year, weather-adjusted, table | everything, e.g. anomalies, CO₂ price, seasonal performance factor, charging record |
-| Contracts | unit price, standing charge, advance | plus price changes, bonuses, notice, special payments | plus groups and peak/off-peak, § 14a, shadow contracts, monthly prices, capacity charge for district heating |
+| Overview | three answers: Will I get money back? More or less than last year? What needs doing? — with one explainer | all key figures, since v3.7.0 with the “Explainers” section | as Experienced |
+| Meter readings | record, photo as a receipt | plus CSV import | plus time series from portals |
+| Consumption per utility | monthly trend, balance, explainers — for PV, wallbox and heat pump too | plus previous year, weather-adjusted, table; since v3.7.0 seasonal performance factor, battery and payback, charging record | plus hot water heat and CO₂ price in the fuel |
+| Contracts | unit price, standing charge, advance; since v3.7.0 the notice period and, for district heating, capacity and metering charge | plus price changes, bonuses, how cancellation takes effect, minimum term, special payments | plus groups and peak/off-peak, § 14a, monthly prices, district heating key figures |
 | Tariff switch, check a bill | hidden — the recommendations point to them | yes | plus dynamic tariff check and wholesale prices |
-| Tenancy (when renting) | “Does the prepayment cover it?” on the overview | the whole page | plus CO₂ split and check |
-| Insights | annual report | plus analysis, forecast, weather data | plus baseline date, models, scenarios |
-| Meter structure | hidden | sub-meters, roles | plus groups, alias, devices |
+| Tenancy (when renting) | “Does the prepayment cover it?” on the overview | the whole page, since v3.7.0 with “Sharing CO₂ costs” | as Experienced |
+| Insights | forecast workshop with three sliders, flexibility with its result, annual report | plus analysis, weather data, more levers (since v3.7.0 also electric car and seasonal performance factor) | plus baseline date, models, budget |
+| Meter structure | hidden | sub-meters, roles, since v3.7.0 PV system and heat pump electricity meter | plus groups, baseline dates, time series |
 | Settings | General, Household & building, Utilities & billing, Data | plus Weather data, Integrations | everything, including Access, Expert and System |
 
 ### Hiding is not switching off
@@ -275,16 +289,18 @@ same as at the other levels.
 
 ### Suggestions to move up
 
-If your data has more to offer than the level shows, the overview suggests the
-next level: “Your data holds more than this level shows — “…” shows it.”
+If your household needs more than the level shows, the overview suggests the
+next level: “Your household has more than this level shows — “…” shows it.”
 
-| Level | Reason in the data | Suggestion |
+| Level | Reason in the household | Suggestion |
 |---|---|---|
-| Beginner | sub-meters, values from Home Assistant (a meter with an alias), several meters for one utility | Experienced |
-| Experienced | a meter with the role heat pump, battery or wallbox | Expert |
+| Beginner | since v3.7.0 a PV system or a meter with the role battery, heat pump or wallbox; sub-meters, values from Home Assistant (a meter with an alias), several meters for one utility | Experienced |
+| Experienced | since v3.7.0 quarter-hour values (up to v3.6 heat pump, battery or wallbox) | Expert |
 
-“Switch to “…”” moves up with one click. **“Don’t ask again”** is remembered
-by this device, per level and reason. The suggestion never blocks anything.
+“Switch to “…”” moves up with one click. Since v3.7.0 each reason appears
+**at most once** per device and level: once you have seen it, it does not come
+back, even without **“Don’t ask again”**. If a new reason appears, only that one
+shows. The suggestion never blocks anything.
 
 ---
 
@@ -303,7 +319,7 @@ Four pictures, each answering one question — with your figures:
 
 - **Consumption view of a utility**, at every level: the card “Explainers”
   with all that fit this utility.
-- **Overview, Expert level:** the “Explainers” section — money and timeline for
+- **Overview, from the Experienced level** (since v3.7.0, up to v3.6 Expert): the “Explainers” section — money and timeline for
   the contract with the highest advance, the energy flow of the previous year
   and “Colder, or used more?” for the heating.
 - **Overview, Beginner level:** one explainer, “Where does my money go?”.

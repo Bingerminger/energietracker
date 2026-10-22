@@ -196,6 +196,8 @@ function serve(dir, port) {
       `#/utility/gas?year=${year - 1}`,
       '#/contracts', '#/tariffs', '#/bill-check', '#/analysis', '#/forecast', '#/flexibility', '#/report', '#/report/print',
       '#/reminders', '#/recommendations', '#/help', '#/temperatures',
+      // v3.7.0 — Posteingang: Liste, Prüfliste und die Vorschau des Beispieldokuments
+      '#/inbox', '#/inbox?view=review', ...(await api.inbox()).entries.map(e => `#/inbox/${e.id}`), '#/inbox/draft',
       // v3.4.0 (N1019) — Handbuch: Index, Sprung in einen Abschnitt, Seite mit Bildern, Datei im Wurzelverzeichnis
       '#/help/doc/README.md', '#/help/doc/anleitungen/anwendungsfaelle.md?h=case-heat',
       '#/help/doc/en/referenz/ansichten.md', '#/help/doc/root/CHANGELOG.md',
@@ -233,6 +235,21 @@ function serve(dir, port) {
         await sleep(400); await settle();
         t('Werkstatt in der Demo: eigener Wert → Hinweis statt Fehler', /Beispielszenarien/.test(view.querySelector('#ws-banner')?.textContent || ''));
         for (const k of [...(w.__etDemoMisses || [])]) if (k.startsWith('POST /api/forecast/scenario') && k.includes('"saving_pct":7')) w.__etDemoMisses.delete(k);
+      }
+      // v3.7.0 — In der Demo liest niemand aus: vorbereitete Auslesung, Übernehmen gesperrt, das PDF als Datei
+      // v3.7.0 (Haushalt aus Dokumenten) — der Entwurf aus der vorbereiteten Auslesung, Übernehmen gesperrt
+      if (r === '#/inbox/draft') {
+        t('Posteingang in der Demo: Entwurf über die Dokumente, Übernehmen gesperrt', !!view.querySelector('#draft-summary')
+          && view.querySelectorAll('.draft-item').length > 0 && (!view.querySelector('#draft-apply') || view.querySelector('#draft-apply').disabled)
+          && [...view.querySelectorAll('input[data-pick]')].every(c => c.disabled));
+      } else if (r.startsWith('#/inbox/')) {
+        t('Posteingang in der Demo: Vorschau mit vorbereiteter Auslesung und Vorschlägen', !!view.querySelector('#inbox-fields .inbox-field--check')
+          && view.querySelectorAll('#inbox-proposals input[data-proposal]').length > 3 && !!view.querySelector('#inbox-apply[disabled]')
+          && !view.querySelector('#inbox-read'));
+        const href = view.querySelector('#inbox-doc a')?.getAttribute('href') || '';
+        const pdfRes = href ? await browserFetch(href) : null;
+        const head = pdfRes?.ok ? Buffer.from(await pdfRes.arrayBuffer()).subarray(0, 5).toString() : '';
+        t('Posteingang in der Demo: das Beispieldokument liegt als Datei bereit', head === '%PDF-', href);
       }
       if (r === '#/settings/system') {
         const link = view.querySelector('[data-source-link]')?.getAttribute('href') || '';

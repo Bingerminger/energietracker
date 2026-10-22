@@ -69,6 +69,8 @@
         "recurrence_months": 96,
         "last_done": "2023-05-31",
         "notes": "Eichfrist nach MessEV",
-        "active": true
+        "active": true,
+        "utility": "gas",
+        "meter_id": "m_gas_main"
     }
 ]

@@ -346,6 +346,16 @@ comes as a global `Chart`. Every view draws through `components/chart.js`:
 same full months a year earlier, weather-adjusted when all carry a value),
 `lastMonths()` and `seriesSummary()` for short descriptions.
 
+**PDF preview (since v3.7.0).** PDF.js 6.4.299 (legacy build, Apache-2.0) lives
+under `public/vendor/pdfjs/` — unchanged from the npm package `pdfjs-dist`,
+only with the extension `.js` instead of `.mjs`, so that every web server sends
+a module's type. It is loaded only in the inbox: `lib/pdf.js` imports it on
+demand with the app version as cache key, the worker comes from the same
+origin, `isEvalSupported: false`. `textPages()` reads the text layer per page
+for reading a document, `renderPages()` draws pages only once they come into
+view. Without `DOMMatrix`, workers or canvas (older browsers, JSDOM in the
+tests) the preview shows the link to the file.
+
 > ⚠️ **Architecture-critical:** since all modules are loaded via a single ES module
 > graph, **a single faulty relative import** (404) breaks the *entire* app — the
 > interface stays at "Loading…". That was exactly bug v1.4.1 (`sidebar.js` imported

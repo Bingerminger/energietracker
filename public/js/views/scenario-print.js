@@ -164,7 +164,11 @@ export function scenarioHtml({ cur, r, u, meters = [], contracts = [], cardId = 
             ${row(t('scenario.kpi.cost'), fmt.eur(r.totals.base.cost), fmt.eur(r.totals.scenario.cost), signed(d.cost, fmt.eur))}
             ${row(t('scenario.kpi.qtyYear'), fmt.unit(r.totals.base.qty, r.unit), fmt.unit(r.totals.scenario.qty, r.unit), d.qty_pct != null ? pctSigned(d.qty_pct) : '–')}
             ${d.co2_kg != null ? row(t('scenario.kpi.co2Year'), `${fmt.int(r.totals.base.co2_kg)} kg`, `${fmt.int(r.totals.scenario.co2_kg)} kg`, `${signed(d.co2_kg, fmt.int)} kg`) : ''}
-            ${row(t('scenario.kpi.advance'), fmt.eur(r.advance.base_recommended), fmt.eur(r.advance.scen_recommended), signed(r.advance.scen_recommended - r.advance.base_recommended, fmt.eur))}
+            ${r.advance.uncertain
+              // v3.7.0 (wirklichkeit-2) — Gütesperre: Spannen statt Beträge
+              ? row(t('scenario.kpi.advance'), ...['base_range', 'scen_range'].map(k => r.advance.uncertain[k]
+                  ? t('scenario.kpi.advanceRange', { low: fmt.eur0(r.advance.uncertain[k][0]), high: fmt.eur0(r.advance.uncertain[k][1]) }) : '–'), t('scenario.kpi.advanceUncertain'))
+              : row(t('scenario.kpi.advance'), fmt.eur(r.advance.base_recommended), fmt.eur(r.advance.scen_recommended), signed(r.advance.scen_recommended - r.advance.base_recommended, fmt.eur))}
             ${r.billing ? row(t('scenario.kpi.balance', { date: fmt.date(r.billing.until) }), bal(r.billing.base_end_balance), bal(r.billing.scen_end_balance), '') : ''}
           </tbody></table></div>
       </section>

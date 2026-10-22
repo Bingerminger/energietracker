@@ -1,0 +1,552 @@
+{
+    "monthly": {
+        "2023-01": {
+            "kwh": 294.5,
+            "days": 31,
+            "cost": 41.45,
+            "co2_kg": 53.6,
+            "m3": 294.5,
+            "contract_id": "c1",
+            "advance_eur": 90,
+            "base_price_eur": 12,
+            "kwh_cost": 29.45,
+            "monthly_balance": -48.55,
+            "cumulative_balance": -48.55
+        },
+        "2023-02": {
+            "kwh": 257.6,
+            "days": 28,
+            "cost": 37.76,
+            "co2_kg": 46.9,
+            "m3": 257.6,
+            "contract_id": "c1",
+            "advance_eur": 90,
+            "base_price_eur": 12,
+            "kwh_cost": 25.76,
+            "monthly_balance": -52.24,
+            "cumulative_balance": -100.79
+        },
+        "2023-03": {
+            "kwh": 248,
+            "days": 31,
+            "cost": 36.8,
+            "co2_kg": 45.1,
+            "m3": 248,
+            "contract_id": "c1",
+            "advance_eur": 90,
+            "base_price_eur": 12,
+            "kwh_cost": 24.8,
+            "monthly_balance": -53.2,
+            "cumulative_balance": -153.99
+        },
+        "2023-04": {
+            "kwh": 204,
+            "days": 30,
+            "cost": 32.4,
+            "co2_kg": 37.1,
+            "m3": 204,
+            "contract_id": "c1",
+            "advance_eur": 90,
+            "base_price_eur": 12,
+            "kwh_cost": 20.4,
+            "monthly_balance": -57.6,
+            "cumulative_balance": -211.59
+        },
+        "2023-05": {
+            "kwh": 164.3,
+            "days": 31,
+            "cost": 28.43,
+            "co2_kg": 29.9,
+            "m3": 164.3,
+            "contract_id": "c1",
+            "advance_eur": 90,
+            "base_price_eur": 12,
+            "kwh_cost": 16.43,
+            "monthly_balance": -61.57,
+            "cumulative_balance": -273.16
+        },
+        "2023-06": {
+            "kwh": 150,
+            "days": 30,
+            "cost": 27,
+            "co2_kg": 27.3,
+            "m3": 150,
+            "contract_id": "c1",
+            "advance_eur": 90,
+            "base_price_eur": 12,
+            "kwh_cost": 15,
+            "monthly_balance": -63,
+            "cumulative_balance": -336.16
+        },
+        "2023-07": {
+            "kwh": 155,
+            "days": 31,
+            "cost": 27.5,
+            "co2_kg": 28.2,
+            "m3": 155,
+            "contract_id": "c1",
+            "advance_eur": 90,
+            "base_price_eur": 12,
+            "kwh_cost": 15.5,
+            "monthly_balance": -62.5,
+            "cumulative_balance": -398.66
+        },
+        "2023-08": {
+            "kwh": 155,
+            "days": 31,
+            "cost": 27.5,
+            "co2_kg": 28.2,
+            "m3": 155,
+            "contract_id": "c1",
+            "advance_eur": 90,
+            "base_price_eur": 12,
+            "kwh_cost": 15.5,
+            "monthly_balance": -62.5,
+            "cumulative_balance": -461.16
+        },
+        "2023-09": {
+            "kwh": 159,
+            "days": 30,
+            "cost": 27.9,
+            "co2_kg": 28.9,
+            "m3": 159,
+            "contract_id": "c1",
+            "advance_eur": 90,
+            "base_price_eur": 12,
+            "kwh_cost": 15.9,
+            "monthly_balance": -62.1,
+            "cumulative_balance": -523.26
+        },
+        "2023-10": {
+            "kwh": 210.8,
+            "days": 31,
+            "cost": 33.08,
+            "co2_kg": 38.4,
+            "m3": 210.8,
+            "contract_id": "c1",
+            "advance_eur": 90,
+            "base_price_eur": 12,
+            "kwh_cost": 21.08,
+            "monthly_balance": -56.92,
+            "cumulative_balance": -580.18
+        },
+        "2023-11": {
+            "kwh": 249,
+            "days": 30,
+            "cost": 36.9,
+            "co2_kg": 45.3,
+            "m3": 249,
+            "contract_id": "c1",
+            "advance_eur": 90,
+            "base_price_eur": 12,
+            "kwh_cost": 24.9,
+            "monthly_balance": -53.1,
+            "cumulative_balance": -633.28
+        },
+        "2023-12": {
+            "kwh": 285.2,
+            "days": 31,
+            "cost": 40.52,
+            "co2_kg": 51.9,
+            "m3": 285.2,
+            "contract_id": "c1",
+            "advance_eur": 90,
+            "base_price_eur": 12,
+            "kwh_cost": 28.52,
+            "monthly_balance": -49.48,
+            "cumulative_balance": -682.76
+        },
+        "2024-01": {
+            "kwh": 294.5,
+            "days": 31,
+            "cost": 41.45,
+            "co2_kg": 53.6,
+            "m3": 294.5,
+            "contract_id": "c1",
+            "advance_eur": 90,
+            "base_price_eur": 12,
+            "kwh_cost": 29.45,
+            "monthly_balance": -48.55,
+            "cumulative_balance": -731.31
+        },
+        "2024-02": {
+            "kwh": 266.8,
+            "days": 29,
+            "cost": 38.68,
+            "co2_kg": 48.6,
+            "m3": 266.8,
+            "contract_id": "c1",
+            "advance_eur": 90,
+            "base_price_eur": 12,
+            "kwh_cost": 26.68,
+            "monthly_balance": -51.32,
+            "cumulative_balance": -782.63
+        },
+        "2024-03": {
+            "kwh": 248,
+            "days": 31,
+            "cost": 36.8,
+            "co2_kg": 45.1,
+            "m3": 248,
+            "contract_id": "c1",
+            "advance_eur": 90,
+            "base_price_eur": 12,
+            "kwh_cost": 24.8,
+            "monthly_balance": -53.2,
+            "cumulative_balance": -835.83
+        },
+        "2024-04": {
+            "kwh": 204,
+            "days": 30,
+            "cost": 37.5,
+            "co2_kg": 37.1,
+            "m3": 204,
+            "contract_id": "c1",
+            "advance_eur": 90,
+            "base_price_eur": 12,
+            "kwh_cost": 25.5,
+            "monthly_balance": -52.5,
+            "cumulative_balance": -888.33
+        },
+        "2024-05": {
+            "kwh": 164.3,
+            "days": 31,
+            "cost": 32.54,
+            "co2_kg": 29.9,
+            "m3": 164.3,
+            "contract_id": "c1",
+            "advance_eur": 90,
+            "base_price_eur": 12,
+            "kwh_cost": 20.54,
+            "monthly_balance": -57.46,
+            "cumulative_balance": -945.79
+        },
+        "2024-06": {
+            "kwh": 167.5,
+            "days": 30,
+            "cost": 32.94,
+            "co2_kg": 30.5,
+            "m3": 167.5,
+            "contract_id": "c1",
+            "advance_eur": 90,
+            "base_price_eur": 12,
+            "kwh_cost": 20.94,
+            "monthly_balance": -57.06,
+            "cumulative_balance": -1002.85
+        },
+        "2024-07": {
+            "kwh": 173.1,
+            "days": 31,
+            "cost": 33.64,
+            "co2_kg": 31.5,
+            "m3": 173.1,
+            "contract_id": "c1",
+            "advance_eur": 90,
+            "base_price_eur": 12,
+            "kwh_cost": 21.64,
+            "monthly_balance": -56.36,
+            "cumulative_balance": -1059.21
+        },
+        "2024-08": {
+            "kwh": 173.1,
+            "days": 31,
+            "cost": 33.64,
+            "co2_kg": 31.5,
+            "m3": 173.1,
+            "contract_id": "c1",
+            "advance_eur": 90,
+            "base_price_eur": 12,
+            "kwh_cost": 21.64,
+            "monthly_balance": -56.36,
+            "cumulative_balance": -1115.57
+        },
+        "2024-09": {
+            "kwh": 168.7,
+            "days": 30,
+            "cost": 33.09,
+            "co2_kg": 30.7,
+            "m3": 168.7,
+            "contract_id": "c1",
+            "advance_eur": 90,
+            "base_price_eur": 12,
+            "kwh_cost": 21.09,
+            "monthly_balance": -56.91,
+            "cumulative_balance": -1172.49
+        },
+        "2024-10": {
+            "kwh": 212.9,
+            "days": 31,
+            "cost": 38.61,
+            "co2_kg": 38.7,
+            "m3": 212.9,
+            "contract_id": "c1",
+            "advance_eur": 90,
+            "base_price_eur": 12,
+            "kwh_cost": 26.61,
+            "monthly_balance": -51.39,
+            "cumulative_balance": -1223.88
+        },
+        "2024-11": {
+            "kwh": 309.8,
+            "days": 30,
+            "cost": 50.72,
+            "co2_kg": 56.4,
+            "m3": 309.8,
+            "contract_id": "c1",
+            "advance_eur": 90,
+            "base_price_eur": 12,
+            "kwh_cost": 38.72,
+            "monthly_balance": -39.28,
+            "cumulative_balance": -1263.15
+        },
+        "2024-12": {
+            "kwh": 320.1,
+            "days": 31,
+            "cost": 52.01,
+            "co2_kg": 58.3,
+            "m3": 320.1,
+            "contract_id": "c1",
+            "advance_eur": 90,
+            "base_price_eur": 12,
+            "kwh_cost": 40.01,
+            "monthly_balance": -37.99,
+            "cumulative_balance": -1301.14
+        },
+        "2025-01": {
+            "kwh": 319,
+            "days": 31,
+            "cost": 45.09,
+            "co2_kg": 58.1,
+            "m3": 319,
+            "contract_id": "c2",
+            "advance_eur": 80,
+            "base_price_eur": 10,
+            "kwh_cost": 35.09,
+            "monthly_balance": -34.91,
+            "cumulative_balance": -34.91
+        },
+        "2025-02": {
+            "kwh": 257.9,
+            "days": 28,
+            "cost": 38.37,
+            "co2_kg": 46.9,
+            "m3": 257.9,
+            "contract_id": "c2",
+            "advance_eur": 80,
+            "base_price_eur": 10,
+            "kwh_cost": 28.37,
+            "monthly_balance": -41.63,
+            "cumulative_balance": -76.54
+        },
+        "2025-03": {
+            "kwh": 248,
+            "days": 31,
+            "cost": 37.28,
+            "co2_kg": 45.1,
+            "m3": 248,
+            "contract_id": "c2",
+            "advance_eur": 80,
+            "base_price_eur": 10,
+            "kwh_cost": 27.28,
+            "monthly_balance": -42.72,
+            "cumulative_balance": -119.26
+        },
+        "2025-04": {
+            "kwh": 204,
+            "days": 30,
+            "cost": 32.44,
+            "co2_kg": 37.1,
+            "m3": 204,
+            "contract_id": "c2",
+            "advance_eur": 80,
+            "base_price_eur": 10,
+            "kwh_cost": 22.44,
+            "monthly_balance": -47.56,
+            "cumulative_balance": -166.82
+        },
+        "2025-05": {
+            "kwh": 164.3,
+            "days": 31,
+            "cost": 28.07,
+            "co2_kg": 29.9,
+            "m3": 164.3,
+            "contract_id": "c2",
+            "advance_eur": 80,
+            "base_price_eur": 10,
+            "kwh_cost": 18.07,
+            "monthly_balance": -51.93,
+            "cumulative_balance": -218.75
+        }
+    },
+    "contracts": {
+        "c1": {
+            "months_actual": 24,
+            "actual_kwh": 5235.2,
+            "actual_cost": 858.86,
+            "advance_paid": 2160,
+            "current_balance": -1301.14,
+            "projected_end_balance": -1301.14,
+            "verdict": "refund",
+            "cost_to_date": 858.86,
+            "estimated_cost_to_date": 0
+        },
+        "c2": {
+            "months_actual": 5,
+            "actual_kwh": 1193.2,
+            "actual_cost": 181.25,
+            "advance_paid": 400,
+            "current_balance": -218.75,
+            "projected_end_balance": -218.75,
+            "verdict": "refund",
+            "cost_to_date": 181.25,
+            "estimated_cost_to_date": 0
+        }
+    },
+    "totals": [
+        [
+            "2023-01",
+            294.5,
+            41.45
+        ],
+        [
+            "2023-02",
+            257.6,
+            37.76
+        ],
+        [
+            "2023-03",
+            248,
+            36.8
+        ],
+        [
+            "2023-04",
+            204,
+            32.4
+        ],
+        [
+            "2023-05",
+            164.3,
+            28.43
+        ],
+        [
+            "2023-06",
+            150,
+            27
+        ],
+        [
+            "2023-07",
+            155,
+            27.5
+        ],
+        [
+            "2023-08",
+            155,
+            27.5
+        ],
+        [
+            "2023-09",
+            159,
+            27.9
+        ],
+        [
+            "2023-10",
+            210.8,
+            33.08
+        ],
+        [
+            "2023-11",
+            249,
+            36.9
+        ],
+        [
+            "2023-12",
+            285.2,
+            40.52
+        ],
+        [
+            "2024-01",
+            294.5,
+            41.45
+        ],
+        [
+            "2024-02",
+            266.8,
+            38.68
+        ],
+        [
+            "2024-03",
+            248,
+            36.8
+        ],
+        [
+            "2024-04",
+            204,
+            37.5
+        ],
+        [
+            "2024-05",
+            164.3,
+            32.54
+        ],
+        [
+            "2024-06",
+            167.5,
+            32.94
+        ],
+        [
+            "2024-07",
+            173.1,
+            33.64
+        ],
+        [
+            "2024-08",
+            173.1,
+            33.64
+        ],
+        [
+            "2024-09",
+            168.7,
+            33.09
+        ],
+        [
+            "2024-10",
+            212.9,
+            38.61
+        ],
+        [
+            "2024-11",
+            309.8,
+            50.72
+        ],
+        [
+            "2024-12",
+            320.1,
+            52.01
+        ],
+        [
+            "2025-01",
+            319,
+            45.09
+        ],
+        [
+            "2025-02",
+            257.9,
+            38.37
+        ],
+        [
+            "2025-03",
+            248,
+            37.28
+        ],
+        [
+            "2025-04",
+            204,
+            32.44
+        ],
+        [
+            "2025-05",
+            164.3,
+            28.07
+        ]
+    ]
+}

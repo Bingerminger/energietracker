@@ -23,6 +23,14 @@ export function isPartial(row) {
   return Number.isFinite(d) && d > 0 && d < daysInMonth(row.ym);
 }
 
+/**
+ * v3.7.0 (GitHub #37, #39) — Ist der Monatswert aus einem längeren
+ * Ablesungsabstand verteilt statt gemessen (`interpolated` vom Server)?
+ */
+export function isInterpolated(row) {
+  return row?.interpolated === true;
+}
+
 /** `YYYY-MM` um `n` Monate verschieben. */
 export function shiftYm(ym, n) {
   const [y, m] = String(ym).split('-').map(Number);
@@ -34,7 +42,9 @@ export function shiftYm(ym, n) {
  * Trend gegen dieselben Monate des Vorjahres.
  *
  * Verglichen werden nur volle Monate, die es ein Jahr früher ebenfalls voll
- * gibt — „Januar bis März gegen Januar bis März“. Tragen alle beteiligten
+ * gibt — „Januar bis März gegen Januar bis März“. v3.7.0 (#37): und nur
+ * gemessene; ein verteilter Monat trägt die Tagesrate eines längeren
+ * Ablesungsabstands, sein „Trend“ wäre ein Artefakt. Tragen alle beteiligten
  * Monate einen witterungsbereinigten Wert (`adjustedKey`), zählt der: Dann
  * sagt der Pfeil, ob gespart wurde, nicht, ob der Winter mild war.
  *
@@ -49,7 +59,7 @@ export function yoyTrend(rows, key, { months = 3, minMonths = months, adjustedKe
   const list = Array.isArray(rows) ? rows : [];
   const byYm = new Map(list.map(r => [r.ym, r]));
   const allowed = within ? new Set(within) : null;
-  const usable = (r) => !!r && !isPartial(r) && r[key] != null && Number.isFinite(Number(r[key]));
+  const usable = (r) => !!r && !isPartial(r) && !isInterpolated(r) && r[key] != null && Number.isFinite(Number(r[key]));
   const candidates = list.filter(r => usable(r) && (!allowed || allowed.has(r.ym))).slice(-months);
   const pairs = candidates
     .map(r => [r, byYm.get(shiftYm(r.ym, -12))])

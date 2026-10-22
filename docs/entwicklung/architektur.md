@@ -357,6 +357,16 @@ kommt als globales `Chart`. Alle Ansichten zeichnen über
 (dieselben vollen Monate ein Jahr zuvor, witterungsbereinigt, wenn alle einen
 Wert tragen), `lastMonths()` und `seriesSummary()` für Kurzbeschreibungen.
 
+**PDF-Vorschau (seit v3.7.0).** PDF.js 6.4.299 (Legacy-Build, Apache-2.0)
+liegt unter `public/vendor/pdfjs/` — unverändert aus dem npm-Paket
+`pdfjs-dist`, nur mit der Endung `.js` statt `.mjs`, damit jeder Webserver den
+Typ eines Moduls schickt. Geladen wird es erst im Posteingang: `lib/pdf.js`
+importiert es bei Bedarf mit der App-Version als Cache-Schlüssel, der Worker
+kommt aus derselben Quelle, `isEvalSupported: false`. `textPages()` liest die
+Textebene je Seite für das Auslesen, `renderPages()` zeichnet die Seiten erst,
+wenn sie ins Bild kommen. Ohne `DOMMatrix`, Worker oder Canvas (ältere Browser,
+JSDOM in den Tests) zeigt die Vorschau den Link auf die Datei.
+
 > ⚠️ **Architektur-kritisch:** Da alle Module über einen einzigen
 > ES-Modulgraphen geladen werden, bricht **ein einziger fehlerhafter
 > relativer Import** (404) die *gesamte* App — die Oberfläche bleibt bei

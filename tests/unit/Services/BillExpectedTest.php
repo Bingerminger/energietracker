@@ -360,4 +360,49 @@ final class BillExpectedTest extends ServiceTestCase
         $until = $this->anchorDaysAgo('strom', 31);
         self::assertSame(['bill_expected', $this->day(42, $until)], [$summary()['agenda']['next']['kind'] ?? null, $summary()['agenda']['next']['date'] ?? null]);
     }
+
+    /**
+     * v3.7.0 (wirklichkeit-2, Punkt 4) — eine als Sonderzahlung erfasste Rück- oder
+     * Nachzahlung nach dem Periodenende zählt als eingegangene Rechnung; eine
+     * Abschlagszahlung oder eine Zahlung lange vor dem Ende nicht.
+     */
+    public function testASettlingPaymentCountsAsTheBill(): void
+    {
+        $m = $this->meter('strom');
+        $until = $this->anchorDaysAgo('strom', 60);
+        $c = $this->contract('strom', $m);
+        self::assertCount(1, $this->expected->open(), 'ohne Rechnung und Zahlung: erwartet');
+        $pay = fn(string $kind, string $date) => $this->contracts->update('strom', (string)$c['id'], ['special_payments' => [
+            ['id' => 'sp1', 'date' => $date, 'kind' => $kind, 'amount_eur' => 42.0, 'note' => ''],
+        ]]);
+        $pay('abschlagszahlung', $this->day(10, $until));
+        self::assertCount(1, $this->expected->open(), 'eine Abschlagszahlung gleicht keine Abrechnung aus');
+        $pay('rueckzahlung_ohne', $this->day(-60, $until));
+        self::assertCount(1, $this->expected->open(), 'zwei Monate vor dem Periodenende: gehört nicht zu dieser Abrechnung');
+        $pay('rueckzahlung_ohne', $this->day(20, $until));
+        self::assertSame([], $this->expected->open(), 'Rückzahlung nach dem Periodenende: Rechnung ist da');
+        self::assertSame([], $this->billEvents(), 'auch in der Agenda kein „Abrechnung erwartet“ mehr');
+        $x = $this->expected->expected()[0];
+        self::assertSame(['sp1', null], [$x['payment']['id'] ?? null, $x['bill_id']]);
+        $pay('nachzahlung_mit', $this->day(5, $until));
+        self::assertSame([], $this->expected->open(), 'ebenso eine Nachzahlung');
+    }
+
+    /**
+     * v3.7.0 (wirklichkeit-2, Punkt 4) — Kurzreste: Endet ein Vertrag weniger als 14
+     * Tage nach dem Stichtag, gehören die Tage zur Periode davor (#33); bei 20 Tagen
+     * bleibt es eine eigene, kurze Schlussrechnung — der Versorger rechnet sie ab.
+     */
+    public function testAShortRestAfterTheCutoffIsItsOwnFinalBillFromFourteenDays(): void
+    {
+        $m = $this->meter('strom');
+        $anchorEnd = $this->anchorDaysAgo('strom', 80);   // Stichtag vor 80 Tagen
+        $anchor = $this->day(1, $anchorEnd);
+        $c = $this->contract('strom', $m, ['end' => $this->day(19, $anchor), 'auto_renews' => false]);
+        $x = array_values(array_filter($this->expected->expected(), fn($e) => $e['contract_id'] === (string)$c['id']))[0];
+        self::assertSame([$anchor, $this->day(19, $anchor), true], [$x['from'], $x['until'], $x['final']], '20 Tage: eigene Schlussrechnung ab dem Stichtag');
+        $this->contracts->update('strom', (string)$c['id'], ['end' => $this->day(9, $anchor)]);
+        $x = array_values(array_filter($this->expected->expected(), fn($e) => $e['contract_id'] === (string)$c['id']))[0];
+        self::assertLessThan($anchor, $x['from'], '10 Tage: Kurzrest, die Schlussrechnung beginnt mit der Periode davor');
+    }
 }

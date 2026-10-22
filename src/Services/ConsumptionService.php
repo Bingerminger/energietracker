@@ -35,6 +35,37 @@ final class ConsumptionService
     public const MIN_POINTS_REGRESSION  = 8;
 
     /**
+     * v3.7.0 (GitHub #37, #39) — gemessen oder verteilt. Zwischen zwei
+     * Ablesungen verteilt die Rechnung den Verbrauch gleichmäßig auf die Tage.
+     * Maßgeblich ist die Länge des Ablesungsabstands, aus dem ein Monat stammt —
+     * nicht, ob im Monat abgelesen wurde: Ablesungen am 31. und am Ersten des
+     * übernächsten Monats messen den Monat dazwischen gut.
+     *
+     * Grenze 45 Tage: Ein solcher Abstand reicht über einen vollen Monat um
+     * höchstens 14 Tage hinaus (Februar 17), die Verteilung verschiebt damit
+     * höchstens gut ein Drittel des Abstands über die Monatsgrenze. Selbst wenn
+     * die Tagesrate dort um ein Drittel anders liegt (Gas im Herbst), bleibt der
+     * Fehler des Monats bei rund 10 % — unter den 20 % eines typischen Monats,
+     * ab denen die Abweichungserkennung überhaupt meldet (2σ mit der
+     * Rauschuntergrenze von 10 %, AnomalyService::RELATIVE_NOISE_FLOOR). Drei
+     * Monate zwischen zwei Ablesungen sind dagegen keine Messung eines Monats.
+     *
+     * Geschätzte Ablesungen (`is_estimated`) zählen nicht als Messung: Der
+     * Abstand reicht dann von der echten Ablesung davor bis zur echten danach.
+     */
+    public const MEASURED_GAP_MAX_DAYS = 45;
+
+    /**
+     * Ein Monat gilt als verteilt (`interpolated`), wenn weniger als die Hälfte
+     * seines Verbrauchs aus Abständen bis MEASURED_GAP_MAX_DAYS stammt — dann
+     * bestimmt die Verteilung den Wert, nicht die Messung.
+     */
+    public const MEASURED_SHARE_MIN = 0.5;
+
+    /** Tage eines mittleren Monats — Gewicht eines Ablesungsabstands im Heizmodell. */
+    private const MONTH_DAYS = 365.25 / 12;
+
+    /**
      * Meter ids currently being computed — recursion guard for the
      * Schmutzwasser `separater_zaehler` lookup (a meter referencing another
      * meter as its waste-water measurement basis). Prevents infinite
@@ -121,12 +152,15 @@ final class ConsumptionService
         // sonst wird der Subzähler-Anteil doppelt gezählt. In `monthly_total`
         // fließen also nur Zähler OHNE `parent_meter_id` ein.
         $totals = [];
+        $markers = [];   // v3.7.0 (#39) — gemessen oder verteilt, gewichtet nach Verbrauch
+        $vfT = $u['consumption_unit'] === 'kWh' ? 'kwh' : 'm3';
         foreach ($perMeter as $entry) {
             if (!MeterService::countsInTotals($entry['meter'])) {
                 continue; // Subzähler: bereits im Elternzähler enthalten
             }
             foreach ($entry['monthly'] as $m) {
                 $ym = $m['ym'];
+                $markers[$ym] = self::accumulateMarker($markers[$ym] ?? null, $m, $vfT);
                 if (!isset($totals[$ym])) {
                     $totals[$ym] = [
                         'ym' => $ym, 'year' => $m['year'], 'month' => $m['month'],
@@ -149,8 +183,15 @@ final class ConsumptionService
                         $totals[$ym][$f] = round((float)($totals[$ym][$f] ?? 0.0) + (float)$m[$f], 2);
                     }
                 }
+                // v3.7.0 (#33) — Boni je Monat für die Kachel „Kosten“ der Übersicht (additiv)
+                if ((float)($m['bonus_eur'] ?? 0) != 0.0) {
+                    $totals[$ym]['bonus_eur'] = round((float)($totals[$ym]['bonus_eur'] ?? 0.0) + (float)$m['bonus_eur'], 2);
+                    $totals[$ym]['bonus_items'] = array_merge($totals[$ym]['bonus_items'] ?? [], (array)($m['bonus_items'] ?? []));
+                }
             }
         }
+        foreach ($totals as $ym => &$t) $t = array_merge($t, self::sharedMarker($markers[$ym]));
+        unset($t);
         ksort($totals);
         $totalsList = array_values($totals);
 
@@ -226,10 +267,19 @@ final class ConsumptionService
         foreach ($contracts as $c) {
             $cid     = $c['id'];
             $mList   = $byContract[$cid] ?? [];
+            // v3.7.0 (wirklichkeit-2) — abgelöst: Ein Folgevertrag beginnt, während
+            // dieser noch läuft (offen oder mit Ende danach). Ab dessen Beginn gilt
+            // der Folgevertrag (spätester Beginn gewinnt, Lektion 28); Abschläge,
+            // Grundpreis und Saldo dieses Vertrags enden am Tag davor. Bis v3.6
+            // zählten seine Abschläge im Saldo bis heute weiter — der Saldo lag um
+            // etwa einen Jahresbetrag zu günstig. Gespeichert bleibt das Ende, wie es ist.
+            $storedEnd = $c['end'] ?? null;
+            $supersededOn = self::supersededOn($c, $contracts);
+            if ($supersededOn !== null) $c['end'] = $supersededOn;
             $isCur   = ($c['start'] ?? '9999') <= $today && (empty($c['end']) || $c['end'] >= $today);
             $isPast  = !empty($c['end']) && $c['end'] < $today;
             $isFut   = ($c['start'] ?? '9999') > $today;
-            $isOpen  = empty($c['end']);
+            $isOpen  = empty($storedEnd);
             // v2.9.0 (Review CALC-10) — abgelaufen, aber ohne Nachfolger und
             // nicht gekündigt: Der Vertrag läuft weiter (§ 309 Nr. 9 BGB).
             // Er zählt dann als laufend, bis zur nächsten Abrechnung.
@@ -352,7 +402,9 @@ final class ConsumptionService
             //   for past contracts: projected = current.
             $projected = $currentBalance;
             $projection = null;
-            if (Utilities::hasAdvancePaymentContracts($utility)) {
+            // v3.7.0 (#34-Nachzug) — auch Wasser mit Abschlägen: Saldo nach Kalender mit
+            // Abschlagsvorschlag und Saldo-Verlauf (Jahresbericht: Saldo und Abschlags-Rat)
+            if (Utilities::hasAdvancePaymentContracts($utility) || self::waterWithAdvances($utility, $c)) {
                 // v2.8.0 (Review CALC-02) — Saldo nach Kalender statt nach
                 // Ablesemonaten, Hochrechnung mit Wetter statt Durchschnitt.
                 $projection = $this->balanceProjection($utility, $meter, $c, $monthly, $today, $effEnd, $spSummary['net'], $renewed, $isCur,
@@ -440,7 +492,12 @@ final class ConsumptionService
                 'provider'                    => $c['provider']    ?? '',
                 'tariff_name'                 => $c['tariff_name'] ?? '',
                 'start'                       => $c['start']       ?? null,
-                'end'                         => $c['end']         ?? null,
+                'end'                         => $storedEnd,
+                // v3.7.0 (wirklichkeit-2) — letzter Tag vor dem Beginn des Folgevertrags,
+                // wenn dieser den Vertrag ablöst (sonst null, additiv)
+                'superseded_on'               => $supersededOn,
+                // v3.7.0 (wirklichkeit-2) — kein Arbeitspreis: Kosten ohne Verbrauch (additiv)
+                'price_missing'               => self::lacksWorkingPrice($utility, $c),
                 'effective_end'               => $effEnd,
                 'is_current'                  => $isCur,
                 'is_past'                     => $isPast,
@@ -505,7 +562,13 @@ final class ConsumptionService
                     'estimated_cost_remaining' => $projection['estimated_cost_remaining'],
                     'advance_remaining'        => $projection['advance_remaining'],
                     'suggested_advance'        => $projection['suggested_advance'],
+                    // v3.7.0 (wirklichkeit-2) — {reasons, factor, factor_raw, factor_part, factor_limits,
+                    // fit_ratio, base_load_per_day, projected_range, suggested_range} oder null (additiv)
+                    'projection_uncertain'     => $projection['uncertain'],
+                    // v3.7.0 (Schritt 3) — wirksamer Faktor; getrennt für Grundlast und Heizanteil (additiv)
                     'projection_factor'        => $projection['factor'],
+                    'projection_factor_base'   => $projection['factor_base'],
+                    'projection_factor_heat'   => $projection['factor_heat'],
                     // v2.16.0 (Review FE-31) — Monatsreihe für den Saldo-Verlauf,
                     // nur beim laufenden Vertrag (additiv)
                     'balance_path'             => $projection['path'],
@@ -626,9 +689,99 @@ final class ConsumptionService
         return null;
     }
 
+    /**
+     * v3.7.0 (wirklichkeit-2) — Vertrag ohne Arbeitspreis: Kosten und Saldo
+     * enthalten dann nur Grundpreis und Abschläge. Vertragsstatus und
+     * Abrechnungsjahr sagen es beide (`price_missing`), statt zwei verschiedene,
+     * gleich falsche Salden zu zeigen. Einspeisung und dynamische Tarife
+     * (Preise aus den Marktdaten) ausgenommen.
+     */
+    public static function lacksWorkingPrice(string $utility, array $c): bool
+    {
+        if (Utilities::isFeedIn($utility) || ($c['price_model'] ?? null) === 'dynamic') return false;
+        [$list, $field] = $utility === 'wasser'
+            ? [(array)($c['trinkwasser']['working_prices'] ?? []), 'ct_per_m3']
+            : [(array)($c['working_prices'] ?? []), 'ct_per_kwh'];
+        foreach ($list as $e) if (is_array($e) && is_numeric($e[$field] ?? null)) return false;
+        return true;
+    }
+
+    /**
+     * v3.7.0 (wirklichkeit-2) — Der Tag, an dem ein Vertrag durch einen später
+     * beginnenden Folgevertrag desselben Zählers abgelöst ist (Tag vor dessen
+     * Beginn), wenn er dann noch liefe: offen, oder sein Ende liegt am oder nach
+     * dem Beginn des Folgevertrags. Sonst null — ein Vertrag ohne Nachfolger und
+     * eine lückenlose Kette (Ende = Tag vor dem Folgebeginn) bleiben, wie sie sind.
+     */
+    public static function supersededOn(array $c, array $contracts): ?string
+    {
+        // v3.7.0 (Schritt 3) — eine Regel mit der Zuordnung der Monate (ContractService::findActiveForDate),
+        // auch für einen Folgevertrag ganz innerhalb des alten
+        return ContractService::supersededOn($c, $contracts);
+    }
+
+    /**
+     * v3.7.0 (#34-Nachzug) — Wasservertrag mit Abschlagsplan: Er bekommt den
+     * Saldo nach Kalender (balanceProjection) wie Gas und Strom. Ohne Abschläge
+     * bleibt es beim Saldo über die Monate mit Ablesung.
+     */
+    public static function waterWithAdvances(string $utility, array $c): bool
+    {
+        return $utility === 'wasser' && array_filter((array)($c['advance_payments'] ?? []), fn($a) => is_array($a) && is_numeric($a['amount_eur'] ?? null)) !== [];
+    }
+
+    /**
+     * v3.7.0 (#34-Nachzug) — Ein Wasservertrag, wie ihn der Saldo nach Kalender
+     * liest: Arbeitspreis je m³ = Trinkwasser + Schmutzwasser (bei eigenem bzw.
+     * Garten-Abzugszähler mit dem gemessenen Anteil Schmutzwasser an der
+     * Trinkwassermenge), feste Kosten je Monat = Grundpreis Trinkwasser +
+     * Niederschlagswasser (Fläche × €/m²·a ÷ 12), je Stichtag einer der Listen.
+     * Dieselben Bausteine wie applyWaterContracts().
+     */
+    private static function waterBalanceView(array $c, array $monthly): array
+    {
+        $tw = (array)($c['trinkwasser'] ?? []); $sw = (array)($c['schmutzwasser'] ?? []); $nw = (array)($c['niederschlagswasser'] ?? []);
+        $share = 1.0;
+        if (($sw['basis'] ?? 'trinkwasser') !== 'trinkwasser') {
+            $a = 0.0; $b = 0.0;
+            foreach ($monthly as $m) {
+                if (($m['contract_id'] ?? null) !== ($c['id'] ?? null) || !is_array($m['schmutzwasser'] ?? null)) continue;
+                $a += (float)($m['trinkwasser']['m3'] ?? $m['m3'] ?? 0); $b += (float)($m['schmutzwasser']['m3'] ?? 0);
+            }
+            $share = $a > 0 ? $b / $a : 1.0;
+        }
+        $at = function (array $list, string $field, string $date): ?float {
+            $v = null; $best = '';
+            foreach ($list as $e) {
+                $f = (string)($e['from'] ?? '');
+                if ($f === '' || $f > $date || !is_numeric($e[$field] ?? null) || $f < $best) continue;
+                $best = $f; $v = (float)$e[$field];
+            }
+            return $v;
+        };
+        $dates = fn(array ...$lists) => array_values(array_unique(array_filter(array_merge(...array_map(fn($l) => array_column($l, 'from'), $lists)))));
+        $wp = [];
+        $wd = $dates((array)($tw['working_prices'] ?? []), (array)($sw['working_prices'] ?? []));
+        sort($wd);
+        foreach ($wd as $d) {
+            $t = $at((array)($tw['working_prices'] ?? []), 'ct_per_m3', $d); $s = $at((array)($sw['working_prices'] ?? []), 'ct_per_m3', $d);
+            if ($t !== null || $s !== null) $wp[] = ['from' => $d, 'ct_per_kwh' => round(($t ?? 0.0) + $share * ($s ?? 0.0), 4)];
+        }
+        $bp = [];
+        $bd = $dates((array)($tw['base_prices'] ?? []), (array)($nw['rates'] ?? []));
+        sort($bd);
+        foreach ($bd as $d) {
+            $base = $at((array)($tw['base_prices'] ?? []), 'eur_per_month', $d);
+            $rate = $at((array)($nw['rates'] ?? []), 'eur_per_m2_year', $d); $area = $at((array)($nw['rates'] ?? []), 'versiegelte_flaeche_m2', $d);
+            if ($base !== null || ($rate !== null && $area !== null)) $bp[] = ['from' => $d, 'eur_per_month' => round(($base ?? 0.0) + ($rate !== null && $area !== null ? $rate * $area / 12 : 0.0), 4)];
+        }
+        return ['working_prices' => $wp, 'base_prices' => $bp] + $c;
+    }
+
     private function balanceProjection(string $utility, array $meter, array $c, array $monthly, string $today, string $effEnd, float $specialNet, bool $renewed = false, bool $withPath = false,
         ?string $from = null, ?array $payments = null): array
     {
+        if ($utility === 'wasser') $c = self::waterBalanceView($c, $monthly);   // v3.7.0 (#34-Nachzug)
         // v3.6.0 (F1030) — `$from`: Saldo ab dem Tag nach der letzten Rechnung
         // (sonst Vertragsbeginn); `$payments`: die Sonderzahlungen, die dann zählen
         $start = $from ?? (string)($c['start'] ?? $today);
@@ -658,7 +811,7 @@ final class ConsumptionService
 
         $u   = Utilities::get($utility);
         $vf  = ($u['consumption_unit'] ?? '') === 'kWh' ? 'kwh' : 'm3';
-        $est = $this->volumeEstimator($utility, $monthly, $vf);
+        $est = $this->volumeEstimator($utility, $monthly, $vf, $meter);
         $fallbackWp = null;
         foreach ($monthly as $m) if (!empty($m['working_price_ct'])) $fallbackWp = (float)$m['working_price_ct'];
 
@@ -666,13 +819,13 @@ final class ConsumptionService
         // nach dem Ende eines weiterlaufenden Vertrags zu seinem letzten Preis
         $c = $this->contractView($utility, $meter, $c);   // v3.1.0 (H6) — HT/NT der Gruppe: Mischpreis
         $end = (string)($c['end'] ?? '');
-        $energy = function (string $from, string $to) use ($c, $est, $fallbackWp, $end): float {
+        $energy = function (string $from, string $to, ?array $opt = null) use ($c, $est, $fallbackWp, $end): float {
             // v2.8.1 — ohne verwertbare Monate (noch keine zwei Ablesungen,
             // oder alle vor einer Zäsur) gibt es nichts hochzurechnen. In
             // v2.8.0 rief der Saldo hier null auf und brach mit HTTP 500 ab.
             if ($est === null) return 0.0;
             $sum = 0.0;
-            foreach ($est($from, $to) as $date => $vol) {
+            foreach ($est($from, $to, $opt) as $date => $vol) {
                 $priceDay = $end !== '' && $date > $end ? $end : $date;
                 $wp = $this->contracts->valueOnDate($c['working_prices'] ?? [], 'ct_per_kwh', $priceDay) ?? $fallbackWp ?? 0.0;
                 $sum += $vol * (float)$wp / 100.0;
@@ -681,6 +834,10 @@ final class ConsumptionService
         };
         $gapEnergy       = $gapFrom < $asOf ? $energy($gapFrom, $asOf) : 0.0;
         $remainingEnergy = $energy(max($asOf, $gapFrom), $endExcl);
+        // v3.7.0 (Schritt 3) — dieselbe Energie mit anderen Annahmen (Spanne einer unsicheren Schätzung)
+        $energyWith = fn(?array $opt): float => ($gapFrom < $asOf ? $energy($gapFrom, $asOf, $opt) : 0.0) + $energy(max($asOf, $gapFrom), $endExcl, $opt);
+        $uncalibrated = $est !== null ? $energyWith(['base' => 1.0, 'heat' => 1.0]) : 0.0;
+        $effFactor = $uncalibrated > 0 ? ($gapEnergy + $remainingEnergy) / $uncalibrated : 1.0;
 
         // Grundpreis tagesanteilig, Boni nach Monat, Abschläge nach Plan
         $plan = $this->contracts->effectiveAdvanceSchedule($c);
@@ -703,6 +860,19 @@ final class ConsumptionService
         if ($monthsLeft >= 1 && $curAp !== null && $asOf === $today) {
             $suggested = max(0.0, round((float)$curAp + $projected / $monthsLeft));
         }
+        // v3.7.0 (wirklichkeit-2) — unsicher (Faktor klemmt, Heizmodell schlecht):
+        // kein einzelner Vorschlag, sondern die Spanne. `suggested_advance` bleibt
+        // dann null, damit kein Verbraucher einen falschen sicheren Wert zeigt.
+        $estVolume = 0.0;   // geschätzte Menge (Lücke und Rest), unabhängig vom Preis
+        if ($est !== null) {
+            if ($gapFrom < $asOf) $estVolume += array_sum($est($gapFrom, $asOf));
+            if (max($asOf, $gapFrom) < $endExcl) $estVolume += array_sum($est(max($asOf, $gapFrom), $endExcl));
+        }
+        $uncertain = $est !== null
+            ? $this->projectionUncertainty($utility, $monthly, $meter, $gapEnergy + $remainingEnergy, $estVolume, $energyWith, $projected,
+                $curAp !== null ? (float)$curAp : null, $monthsLeft, $asOf === $today)
+            : null;
+        if ($uncertain !== null) $suggested = null;
 
         // v2.16.0 (Review FE-31) — dieselbe Rechnung als Monatsreihe für den
         // Saldo-Verlauf: je Monat die Kosten (gemessen, geschätzt, Grundpreis,
@@ -774,7 +944,10 @@ final class ConsumptionService
         return [
             'as_of'                    => $asOf,
             'method'                   => $est === null ? 'flat_average' : 'forecast',
-            'factor'                   => $est === null ? null : round($this->lastProjectionFactor, 2),
+            // v3.7.0 (Schritt 3) — wirksamer Faktor über Grundlast und Heizanteil (geschätzt ÷ unkalibriert)
+            'factor'                   => $est === null ? null : round($effFactor, 2),
+            'factor_base'              => $est === null ? null : round($this->lastProjection['base'], 2),
+            'factor_heat'              => $est === null || $this->lastProjection['model'] === null ? null : round($this->lastProjection['heat'], 2),
             'measured_until'           => $measuredUntil,
             'cost_to_date'             => round($costToDate, 2),
             // die Teile von cost_to_date — die Oberfläche schlüsselt sie auf
@@ -788,6 +961,7 @@ final class ConsumptionService
             'current_balance'          => $current,
             'projected_end_balance'    => $projected,
             'suggested_advance'        => $suggested,
+            'uncertain'                => $uncertain,
             'path'                     => $path,
         ];
     }
@@ -854,47 +1028,105 @@ final class ConsumptionService
      * Tagestemperatur, für Tage ohne Wert aus dem Normal des Monats); sonst die
      * Tagesrate desselben Kalendermonats aus vollen Monaten.
      *
-     * @return (callable(string,string):array<string,float>)|null  Tag → Menge
+     * @internal v3.7.0 — öffentlich nur über contractStatus(); Tests rufen per Reflection
+     * @return (callable(string,string,?array):array<string,float>)|null  Tag → Menge
      */
-    private function volumeEstimator(string $utility, array $monthly, string $vf): ?callable
+    private function volumeEstimator(string $utility, array $monthly, string $vf, ?array $meter = null): ?callable
     {
         $minDays = (int)$this->settings->get('min_days_period', 20);
-        $heat = $this->heatModel($utility, $monthly);
-        $rates = []; $all = [];
+        // v3.7.0 (#37) — dasselbe Heizmodell wie Analyse und Prognose (verteilte
+        // Monate nicht im Fit, sonst über die Ablesungsabstände)
+        $heat = $this->heatModel($utility, $monthly, $meter);
+        // v3.7.0 (Nachlauf vor dem Release) — die Aufteilung der Kalibrierung auf Grundlast
+        // und Heizanteil (Schritt 3, N5) setzt voraus, dass das Modell beide richtig trennt.
+        // Besteht es die Gütesperre nicht, stimmt genau diese Trennung nicht (bei echten Daten
+        // Grundlast etwa ein Zehntel des gemessenen Sommers): Der Grundlast-Faktor klemmte an
+        // 1,5, der Heizanteil kam aus Übergangsmonaten und drückte den Winter. Dann ein Faktor
+        // für das Ganze wie bis Schritt 2 — die Schätzung ist ohnehin als unsicher gekennzeichnet.
+        $splitOk = $heat !== null && ($this->anomalyQuality($utility, $monthly)['model_quality'] ?? null) !== 'poor';
+        // v3.7.0 (#37) — Tagesrate je Kalendermonat aus gemessenen Monaten; nur wo
+        // ein Kalendermonat nie gemessen wurde, aus den verteilten (wie die Prognose).
+        // Das Mittel aller Monate stimmt auch für verteilte.
+        $rates = []; $interpRates = []; $all = [];
         foreach ($monthly as $m) {
             if (!empty($m['pre_baseline']) || (int)($m['days'] ?? 0) < $minDays) continue;
             $r = (float)($m[$vf] ?? 0) / (int)$m['days'];
-            $rates[(int)$m['month']][] = $r;
+            if (!empty($m['interpolated'])) $interpRates[(int)$m['month']][] = $r;
+            else $rates[(int)$m['month']][] = $r;
             $all[] = $r;
         }
+        foreach ($interpRates as $mo => $list) $rates[$mo] ??= $list;
+        // v3.7.0 (Schritt 3, N1) — je Kalendermonat wie die Prognose (ohne Wetterbezug ab drei Werten der Median)
+        $hgtUtility = Utilities::isHgtRelevant($utility);
+        $rates = array_map(fn(array $list): float => (float)self::seasonalRate($list, !$hgtUtility), $rates);
         if ($heat === null && $all === []) return null;
         $overall = $all ? array_sum($all) / count($all) : 0.0;
-        $temps = $this->store->read('temperatures.json', []);
-        $base = (float)$this->settings->get('hdd_base_temp', 15.0);
-        $normals = $this->hddNormals();
+        $temps = $this->temperatures();
+        $base = $this->hddBaseFor($meter);   // v3.7.0 — die Heizgrenze des Zählers
+        $normals = $this->hddNormals($base);
 
         // Kalibrierung am jüngsten Niveau: Liegen die letzten gemessenen
         // Monate (bis zu sechs volle aus den letzten zwölf) deutlich unter oder
         // über dem Modell — neue Heizung ohne Zäsur, anderes Verhalten —, folgt
         // die Schätzung diesem Niveau. Begrenzt auf 0,5 bis 1,5, damit ein
         // einzelner Ausnahmemonat die Hochrechnung nicht kippt.
-        $factor = 1.0;
+        // v3.7.0 (#37) — nur gemessene Monate: Ein verteilter Monat trägt die
+        // Tagesrate eines längeren Abstands, sein „Niveau“ ist ein Artefakt; ohne
+        // zwei gemessene Monate im letzten Jahr bleibt der Faktor 1
         $recent = array_slice(array_values(array_filter($monthly, fn($m) =>
-            empty($m['pre_baseline']) && (int)($m['days'] ?? 0) >= $minDays
+            empty($m['pre_baseline']) && empty($m['interpolated']) && (int)($m['days'] ?? 0) >= $minDays
             && (string)($m['ym'] ?? '') >= date('Y-m', strtotime(date('Y-m-01') . ' -12 months')))), -6);
-        $act = $exp = 0.0;
-        foreach ($recent as $m) {
-            $e = $heat !== null
-                ? ($m['expected_heat'] ?? null)
-                : (!empty($rates[(int)$m['month']]) ? array_sum($rates[(int)$m['month']]) / count($rates[(int)$m['month']]) * (int)$m['days'] : null);
-            if ($e === null || $e <= 0) continue;
-            $act += (float)($m[$vf] ?? 0);
-            $exp += (float)$e;
+        $clamp = fn(?float $r): float => $r === null ? 1.0 : max(self::PROJECTION_FACTOR_MIN, min(self::PROJECTION_FACTOR_MAX, $r));
+        if ($heat !== null && !$splitOk) {
+            // ein Faktor über Grundlast und Heizanteil (Nachlauf, s. o.), gerechnet wie bis Schritt 2
+            $act = $exp = 0.0;
+            foreach ($recent as $m) {
+                $e = $m['expected_heat'] ?? null;
+                if ($e === null || $e <= 0) continue;
+                $act += (float)($m[$vf] ?? 0); $exp += (float)$e;
+            }
+            $rawBase = $rawHeat = count($recent) >= 2 && $exp > 0 ? $act / $exp : null;
+            $fBase = $fHeat = $clamp($rawBase);
+        } elseif ($heat !== null) {
+            // v3.7.0 (wirklichkeit-2, Schritt 3) — der Faktor wirkt nur auf den Teil, aus dem
+            // er stammt: Monate fast ohne Heizung (Heizanteil der Erwartung unter
+            // CALIBRATION_HEAT_SHARE) kalibrieren die Grundlast, Heizmonate den Heizanteil.
+            // Bei echten Daten kam der Faktor aus Sommer- und Übergangsmonaten und skalierte
+            // die ganze Winterschätzung mit.
+            $base0 = $baseE = $heatAct = $heatE = $heatBaseE = 0.0; $nBase = $nHeat = 0;
+            foreach ($recent as $m) {
+                $days = (int)($m['days'] ?? 0);
+                $eb = $heat['c'] * $days;
+                $eh = $heat['a'] * (float)($m['hdd'] ?? 0);
+                if ($eb + $eh <= 0 || ($m['expected_heat'] ?? null) === null) continue;
+                $act = (float)($m[$vf] ?? 0);
+                if ($eh / ($eb + $eh) < self::CALIBRATION_HEAT_SHARE) { $base0 += $act; $baseE += $eb + $eh; $nBase++; }
+                else { $heatAct += $act; $heatE += $eh; $heatBaseE += $eb; $nHeat++; }
+            }
+            $rawBase = $nBase >= 2 && $baseE > 0 ? $base0 / $baseE : null;
+            $fBase = $clamp($rawBase);
+            $rawHeat = $nHeat >= 2 && $heatE > 0 ? ($heatAct - $fBase * $heatBaseE) / $heatE : null;
+            $fHeat = $clamp($rawHeat);
+        } else {
+            $act = $exp = 0.0;
+            foreach ($recent as $m) {
+                $e = isset($rates[(int)$m['month']]) ? $rates[(int)$m['month']] * (int)$m['days'] : null;
+                if ($e === null || $e <= 0) continue;
+                $act += (float)($m[$vf] ?? 0);
+                $exp += (float)$e;
+            }
+            $rawBase = $rawHeat = count($recent) >= 2 && $exp > 0 ? $act / $exp : null;
+            $fBase = $fHeat = $clamp($rawBase);
         }
-        if (count($recent) >= 2 && $exp > 0) $factor = max(0.5, min(1.5, $act / $exp));
-        $this->lastProjectionFactor = $factor;
+        $this->lastProjection = ['base' => $fBase, 'heat' => $fHeat, 'raw_base' => $rawBase, 'raw_heat' => $rawHeat, 'model' => $heat,
+            'split' => $splitOk];
 
-        return function (string $from, string $to) use ($heat, $rates, $overall, $temps, $base, $normals, $factor): array {
+        // `$opt` (v3.7.0) — für die Spanne einer unsicheren Schätzung: andere Faktoren
+        // (`base`, `heat`) oder eine andere Grundlast je Tag (`c`, etwa die gemessene)
+        return function (string $from, string $to, ?array $opt = null) use ($heat, $rates, $overall, $temps, $base, $normals, $fBase, $fHeat): array {
+            $fb = (float)($opt['base'] ?? $fBase);
+            $fh = (float)($opt['heat'] ?? $fHeat);
+            $c = $heat !== null ? (float)($opt['c'] ?? $heat['c']) : 0.0;
             $out = [];
             for ($t = strtotime($from . ' 12:00:00'); $t !== false && date('Y-m-d', $t) < $to; $t += 86400) {
                 $d = date('Y-m-d', $t);
@@ -903,31 +1135,302 @@ final class ConsumptionService
                     $hdd = isset($temps[$d]['avg'])
                         ? max(0.0, $base - (float)$temps[$d]['avg'])
                         : (($normals[$mo]['mean'] ?? null) !== null ? $normals[$mo]['mean'] / (int)date('t', $t) : 0.0);
-                    $vol = $heat['a'] * $hdd + $heat['c'];
+                    $vol = $heat['a'] * $hdd * $fh + $c * $fb;
                 } else {
-                    $vol = !empty($rates[$mo]) ? array_sum($rates[$mo]) / count($rates[$mo]) : $overall;
+                    $vol = ($rates[$mo] ?? $overall) * $fb;
                 }
                 // v2.9.0 — je Tag: der Arbeitspreis gilt tagesgenau (CALC-10)
-                $out[$d] = $vol * $factor;
+                $out[$d] = $vol;
             }
             return $out;
         };
     }
 
-    /** Kalibrierfaktor der letzten Saldo-Schätzung (für die Antwort). */
-    private float $lastProjectionFactor = 1.0;
+    /**
+     * v3.7.0 (Schritt 3) — Ab diesem Heizanteil der Erwartung zählt ein Monat bei der
+     * Kalibrierung als Heizmonat; darunter kalibriert er die Grundlast. 0,3: ein Monat,
+     * dessen Erwartung zu weniger als knapp einem Drittel aus Heizung besteht, sagt über
+     * den Heizanteil zu wenig, sein Rest wäre fast nur Rauschen der Grundlast.
+     */
+    public const CALIBRATION_HEAT_SHARE = 0.3;
+
+    /**
+     * v3.7.0 (wirklichkeit-2, Schritt 3, N1) — Tagesrate eines Kalendermonats aus
+     * seinen Jahren: ab drei Werten der Median, sonst das Mittel (null ohne Wert).
+     * Ein einzelner Ausnahmemonat (Urlaub, halber Wert) verschob das Mittel und
+     * damit jede folgende Prognose und Schätzung dieses Monats; der Median von
+     * drei Jahren lässt ihn liegen. Bei zwei Werten gibt es keine Mitte — dort
+     * zeigt die Streuung des Prognosebands die Unsicherheit.
+     *
+     * `$median` false: das Mittel (Heizarten). Dort ist der Wert eines Kalendermonats
+     * vor allem das Wetter seines Winters — der Median wählte einen Winter, statt sie
+     * zu mitteln, und die Prognose mischt ohnehin mit dem Heizmodell.
+     *
+     * @param list<float> $rates
+     */
+    public static function seasonalRate(array $rates, bool $median = true): ?float
+    {
+        $n = count($rates);
+        if ($n === 0) return null;
+        if ($n < 3 || !$median) return array_sum($rates) / $n;
+        sort($rates);
+        return $n % 2 ? (float)$rates[intdiv($n, 2)] : ($rates[$n / 2 - 1] + $rates[$n / 2]) / 2;
+    }
+
+    /**
+     * Kalibrierung der letzten Saldo-Schätzung: Faktoren für Grundlast und Heizanteil
+     * (begrenzt), dieselben vor dem Begrenzen (null ohne Kalibrierung) und das Heizmodell.
+     *
+     * `split`: getrennt kalibriert (Gütesperre bestanden) oder ein Faktor für das Ganze.
+     *
+     * @var array{base:float,heat:float,raw_base:?float,raw_heat:?float,model:?array,split:bool}
+     */
+    private array $lastProjection = ['base' => 1.0, 'heat' => 1.0, 'raw_base' => null, 'raw_heat' => null, 'model' => null, 'split' => false];
+
+    /**
+     * Grenzen des Kalibrierfaktors der Saldo-Schätzung: Ein einzelner
+     * Ausnahmemonat soll die Hochrechnung nicht kippen. Klemmt der Faktor an
+     * einer Grenze, folgt die Schätzung dem jüngsten Niveau nur zum Teil — und
+     * ob das Niveau echt ist oder ein Fehler des Heizmodells, weiß die App
+     * nicht (v3.7.0: dann ist der Abschlagsvorschlag unsicher).
+     */
+    public const PROJECTION_FACTOR_MIN = 0.5;
+    public const PROJECTION_FACTOR_MAX = 1.5;
+
+    /**
+     * v3.7.0 (wirklichkeit-2) — Gütesperre des Heizmodells für einen Zähler
+     * (AnomalyService::quality), hier für Saldo-Schätzung und Prognose.
+     *
+     * @return array<string,mixed>|null
+     */
+    public function anomalyQuality(string $utility, array $monthly): ?array
+    {
+        return (new AnomalyService($this->regression ?? new RegressionService(), $this->settings))->quality($utility, $monthly);
+    }
+
+    /**
+     * v3.7.0 (wirklichkeit-2, GitHub #38) — Heizgrenze eines Zählers: seine
+     * eigene (`hdd_base_temp` am Zähler, etwa aus dem Heizgrenze-Vorschlag),
+     * sonst die Einstellung. Die beste Grenze ist je Haus verschieden; eine
+     * Gruppe ohne eigene nimmt die Einstellung, ihre Mitglieder rechnen je mit
+     * ihrer.
+     */
+    public function hddBaseFor(?array $meter): float
+    {
+        $own = $meter['hdd_base_temp'] ?? null;
+        return is_numeric($own) ? (float)$own : (float)$this->settings->get('hdd_base_temp', 15.0);
+    }
+
+    /** v3.7.0 (wirklichkeit-2) — Raster des Heizgrenze-Vorschlags in °C: von, bis, Schritt. */
+    public const HEAT_LIMIT_GRID = [6.0, 18.0, 0.5];
+    /** Mindestens so viele gemessene, geprüfte Monate (ein ganzer Jahreslauf mit Übergangszeiten). */
+    public const HEAT_LIMIT_MIN_MONTHS = 12;
+    /**
+     * „Deutlich besser“: höchstens zwei Drittel der heutigen Streuung und
+     * mindestens 3 Prozentpunkte weniger. Die robuste Streuung (MAD) schwankt
+     * bei zwei Jahren Monatswerten um rund ein Fünftel ihres Werts; ein Drittel
+     * weniger liegt deutlich darüber. Die Punkte verhindern Vorschläge zwischen
+     * zwei Modellen, die beide gut passen (4 % statt 6 %).
+     */
+    public const HEAT_LIMIT_GAIN = 2 / 3;
+    public const HEAT_LIMIT_MIN_DROP = 0.03;
+
+    /**
+     * v3.7.0 (wirklichkeit-2) — Heizgrenze-Vorschlag: Mit welcher Heizgrenze
+     * streut das Heizmodell über die gemessenen Monate am wenigsten? Gerechnet
+     * wird wie die Gütesperre (robuste Streuung ÷ mittlerer gemessener Monat,
+     * AnomalyService::quality) für jede Grenze des Rasters; Grenzen, deren Modell
+     * die Grundlast-Prüfung nicht besteht, scheiden aus. Vorgeschlagen wird nur,
+     * was deutlich besser ist (HEAT_LIMIT_GAIN, HEAT_LIMIT_MIN_DROP) — nie
+     * automatisch übernommen. Unter HEAT_LIMIT_MIN_MONTHS gemessenen Monaten kein
+     * Vorschlag. Bei echten Daten lag das Optimum weit unter 15 °C.
+     *
+     * @return array<string,mixed>|null
+     */
+    public function heatLimitSuggestion(string $utility, array $meter): ?array
+    {
+        if (!Utilities::isHgtRelevant($utility) || Utilities::isDelivery($utility)) return null;
+        $current = $this->hddBaseFor($meter);
+        $now = $this->anomalyQuality($utility, $this->forMeter($utility, $meter));
+        if ($now === null || (int)$now['months'] < self::HEAT_LIMIT_MIN_MONTHS) return null;
+        [$from, $to, $step] = self::HEAT_LIMIT_GRID;
+        $grid = [];
+        for ($b = $from; $b <= $to + 1e-9; $b += $step) {
+            $b = round($b, 1);
+            $q = abs($b - $current) < 1e-9 ? $now : $this->anomalyQuality($utility, $this->forMeter($utility, $meter, $b));
+            if ($q === null) continue;
+            $grid[] = ['base' => $b, 'ratio' => (float)$q['ratio'], 'base_load_ok' => !in_array('base_load', (array)$q['reasons'], true)];
+        }
+        return self::pickHeatLimit($grid, $current, (float)$now['ratio']) + [
+            // die Grenze gilt je Zähler; `default` ist die Einstellung, `own` ob er eine eigene hat
+            'default'    => (float)$this->settings->get('hdd_base_temp', 15.0),
+            'own'        => is_numeric($meter['hdd_base_temp'] ?? null),
+            'current_ok' => $now['model_quality'] === 'good',
+            'months'     => (int)$now['months'],
+            'grid'       => $grid,
+        ];
+    }
+
+    /**
+     * Die Wahl des Heizgrenze-Vorschlags aus dem Raster (rein, testbar): die
+     * Grenze mit der kleinsten Streuung unter denen, deren Modell die
+     * Grundlast-Prüfung besteht; vorgeschlagen nur, wenn sie deutlich besser ist
+     * als heute (HEAT_LIMIT_GAIN, HEAT_LIMIT_MIN_DROP).
+     *
+     * @param list<array{base:float,ratio:float,base_load_ok:bool}> $grid
+     * @return array{current:float,current_ratio:float,best:?float,best_ratio:?float,suggest:bool}
+     */
+    public static function pickHeatLimit(array $grid, float $current, float $ratioNow): array
+    {
+        $best = null;
+        foreach ($grid as $g) {
+            if (!$g['base_load_ok']) continue;
+            if ($best === null || $g['ratio'] < $best['ratio'] - 1e-9) $best = $g;
+        }
+        // (die heutige Grenze kann so nie vorgeschlagen werden: Sie ist nicht deutlich besser als sie selbst)
+        $suggest = $best !== null
+            && $best['ratio'] <= $ratioNow * self::HEAT_LIMIT_GAIN && $ratioNow - $best['ratio'] >= self::HEAT_LIMIT_MIN_DROP;
+        return [
+            'current'       => $current,
+            'current_ratio' => round($ratioNow, 3),
+            'best'          => $best['base'] ?? null,
+            'best_ratio'    => $best !== null ? round($best['ratio'], 3) : null,
+            'suggest'       => $suggest,
+        ];
+    }
+
+    /**
+     * v3.7.0 (wirklichkeit-2) — Ist die Schätzung von Lücke und Rest des Saldos
+     * unsicher? Dann gibt es keinen einzelnen Abschlagsvorschlag, sondern eine
+     * Spanne über dieselbe Energie mit anderen Annahmen (`$energyWith`):
+     *
+     *   factor_clamped  ein Kalibrierfaktor (Grundlast oder Heizanteil) klemmt
+     *                   an einer Grenze: das jüngste Niveau ganz oder gar nicht
+     *   few_measured    (Schritt 3, N3) das Heizmodell steht nur auf den
+     *                   Ablesungsabständen, oder die Gütesperre kann es nicht
+     *                   prüfen: die ganze Kalibrierspanne (0,5 … 1,5)
+     *   poor_fit        das Heizmodell besteht die Gütesperre nicht: jede Annahme
+     *                   zusätzlich ± Streuung je Monat (Verhältnis der Gütesperre);
+     *                   der Fehler einer konvexen Heizkurve ist systematisch, er
+     *                   mittelt sich über die Monate nicht heraus. Fällt die
+     *                   Grundlast-Prüfung, reicht die Spanne bis zur gemessenen
+     *                   Sommer-Grundlast (N4).
+     *
+     * Ohne Heizmodell (Wasser, Strom) gibt es keine Gütesperre und keinen
+     * Heizanteil, der über das Jahr fortgeschrieben wird: Ein nie gemessener
+     * Kalendermonat nimmt die Tagesrate seines Ablesungsabstands, die sich vom
+     * Monat nur um den kleinen Jahresgang unterscheidet — dort kein Grund.
+     *
+     * Bei echten Daten lag der Vorschlag mit klemmendem Faktor rund ein Drittel
+     * zu niedrig; ein sicher wirkender Betrag ist dann schlimmer als keiner.
+     *
+     * @return array<string,mixed>|null null = sicher genug (oder nichts mehr zu schätzen)
+     */
+    private function projectionUncertainty(string $utility, array $monthly, array $meter, float $estimatedEnergy, float $estimatedVolume,
+        callable $energyWith, float $projected, ?float $curAp, int $monthsLeft, bool $suggestable): ?array
+    {
+        $p = $this->lastProjection;
+        $out = fn(?float $r): bool => $r !== null && ($r < self::PROJECTION_FACTOR_MIN || $r > self::PROJECTION_FACTOR_MAX);
+        $reasons = [];
+        $energies = [$estimatedEnergy];
+        $baseLoad = null;
+        // Faktor klemmt (Grundlast oder Heizanteil, jeder Teilfaktor zählt): das jüngste Niveau ganz oder gar nicht
+        $clamped = null;
+        if ($out($p['raw_heat'])) $clamped = [$out($p['raw_base']) ? 'both' : 'heat', $p['raw_heat'], $p['heat']];
+        elseif ($out($p['raw_base'])) $clamped = ['base', $p['raw_base'], $p['base']];
+        if ($clamped !== null) {
+            $reasons[] = 'factor_clamped';
+            $energies[] = $energyWith(['base' => max(0.0, $p['raw_base'] ?? $p['base']), 'heat' => max(0.0, $p['raw_heat'] ?? $p['heat'])]);
+            $energies[] = $energyWith(['base' => 1.0, 'heat' => 1.0]);
+        }
+        // v3.7.0 (Schritt 3, N3) — zu wenig gemessen: Das Heizmodell steht nur auf den
+        // Ablesungsabständen (oder fehlt), oder die Gütesperre kann es nicht prüfen. Dann
+        // ist die ganze Kalibrierspanne offen (0,5 … 1,5 der Schätzung) — dieselben
+        // Grenzen, in denen die App einem jüngsten Niveau überhaupt folgt.
+        $hgt = Utilities::isHgtRelevant($utility) && !Utilities::isDelivery($utility);
+        $quality = $hgt ? $this->anomalyQuality($utility, $monthly) : null;
+        if ($hgt && (($p['model']['basis'] ?? null) !== 'months' || $quality === null)) {
+            $reasons[] = 'few_measured';
+            $energies[] = $estimatedEnergy * self::PROJECTION_FACTOR_MIN;
+            $energies[] = $estimatedEnergy * self::PROJECTION_FACTOR_MAX;
+        }
+        $ratio = null;
+        if (($quality['model_quality'] ?? null) === 'poor') {
+            $reasons[] = 'poor_fit';
+            $ratio = (float)$quality['ratio'];
+            // v3.7.0 (Schritt 3, N4) — fällt die Grundlast-Prüfung, schätzt das Modell die
+            // Sommertage mit fast null: die Spanne reicht dann bis zur gemessenen Grundlast
+            if (in_array('base_load', (array)$quality['reasons'], true) && is_numeric($quality['base_load']['measured_per_day'] ?? null)) {
+                $baseLoad = ['model' => (float)$quality['base_load']['model_per_day'], 'measured' => (float)$quality['base_load']['measured_per_day']];
+                $energies[] = $energyWith(['c' => $baseLoad['measured'], 'base' => 1.0]);   // gemessen: nicht noch einmal kalibrieren
+            }
+            $energies = array_merge(...array_map(fn($e) => [$e * max(0.0, 1.0 - $ratio), $e * (1.0 + $ratio)], $energies));
+        }
+        // v3.7.0 (Schritt 3) — nichts mehr zu schätzen (abgerechnet, beendet): keine Spanne der
+        // Breite null. Nachlauf: entschieden über die geschätzte Menge, nicht über Euro — sonst
+        // fiel ein unsicherer Vertrag ohne Arbeitspreis für die geschätzten Tage still heraus
+        if ($reasons === [] || $estimatedVolume <= 0.0) return null;
+        $range = [round($projected + min($energies) - $estimatedEnergy, 2), round($projected + max($energies) - $estimatedEnergy, 2)];
+        $sugg = null;
+        if ($suggestable && $curAp !== null && $monthsLeft >= 1) {
+            $sugg = [max(0.0, round($curAp + $range[0] / $monthsLeft)), max(0.0, round($curAp + $range[1] / $monthsLeft))];
+            // keine Spanne der Breite null („zwischen 0 € und 0 €“, wenn beide Enden ins Guthaben fallen)
+            if ($sugg[0] === $sugg[1]) $sugg = null;
+        }
+        return [
+            'reasons'          => $reasons,
+            'factor'           => $clamped !== null ? round($clamped[2], 2) : round($p['heat'], 2),
+            'factor_raw'       => $clamped !== null ? round($clamped[1], 2) : null,
+            'factor_part'      => $clamped[0] ?? null,
+            'factor_limits'    => [self::PROJECTION_FACTOR_MIN, self::PROJECTION_FACTOR_MAX],
+            'fit_ratio'        => $ratio !== null ? round($ratio, 3) : null,
+            // N4: Grundlast je Tag laut Modell und gemessen, wenn die Spanne die gemessene nimmt
+            'base_load_per_day' => $baseLoad,
+            'projected_range'  => $range,
+            'suggested_range'  => $sugg,
+        ];
+    }
 
     /** Datum der letzten gültigen Ablesung (Plausibilitätsprüfung wie die Rechnung). */
     private function lastReadingDate(string $utility, array $meter): ?string
     {
         if (!Utilities::isCumulative($utility)) return null;
+        // v3.7.0 (Qualität) — je Anfrage einmal je Zähler (wie forMeter): Der
+        // Vertragsstatus fragt es für jeden Vertrag und las dafür jedes Mal
+        // alle Ablesungen — bei zehn Jahren Tageswerten mit einem Vertrag je
+        // Jahr drei Viertel seiner Antwortzeit.
+        $key = $utility . '|' . md5(serialize($meter)) . '|' . $this->store->generation();
+        if (array_key_exists($key, $this->lastReadingMemo)) return $this->lastReadingMemo[$key];
         // v3.1.0 (H6) — Gruppe: gemessen bis zum frühesten letzten Stand der Mitglieder
         if (!empty($meter['is_group'])) {
             $dates = array_filter(array_map(fn($m) => $this->lastReadingDate($utility, $m), $this->meters->groupMembers($utility, (string)$meter['id'])));
-            return $dates ? min($dates) : null;
+            return $this->lastReadingMemo[$key] = $dates ? min($dates) : null;
         }
         [$kept] = $this->plausibleReadings($this->readings->list($utility, (string)($meter['id'] ?? '')), $meter);
-        return $kept ? (string)end($kept)['date'] : null;
+        return $this->lastReadingMemo[$key] = $kept ? (string)end($kept)['date'] : null;
+    }
+
+    /** @var array<string,?string> v3.7.0 — lastReadingDate() je Anfrage */
+    private array $lastReadingMemo = [];
+
+    /** @var array{0:int,1:array<string,mixed>}|null v3.7.0 — temperatures.json je Anfrage [Generation, Daten] */
+    private ?array $tempsMemo = null;
+
+    /**
+     * v3.7.0 (Qualität) — Tagestemperaturen, je Anfrage einmal gelesen (bis
+     * zum nächsten Schreiben über den Store). Bisher las jede Monatsrechnung
+     * und jede Saldo-Schätzung je Vertrag die ganze Datei neu.
+     *
+     * @return array<string,mixed>
+     */
+    private function temperatures(): array
+    {
+        $gen = $this->store->generation();
+        if ($this->tempsMemo === null || $this->tempsMemo[0] !== $gen) {
+            $t = $this->store->read('temperatures.json', []);
+            $this->tempsMemo = [$gen, is_array($t) ? $t : []];
+        }
+        return $this->tempsMemo[1];
     }
 
     private function monthsBetween(string $a, string $b): int
@@ -1041,6 +1544,24 @@ final class ConsumptionService
      * Saldo of open-ended contracts up to the next Jahresabrechnung instead
      * of the arbitrary "today + 12 months" of v1.0.x.
      */
+    /**
+     * v3.7.0 (#33) — der letzte Tag der Periode hinter `effective_end` eines
+     * Vertragsstatus. Ist `effective_end` das gepflegte Ende des Vertrags,
+     * ist es selbst der letzte Tag (einschließlich). Sonst ist es der
+     * Stichtag der nächsten Abrechnung, also der erste Tag der nächsten
+     * Periode, und die Periode endet am Tag davor — auch beim weiterlaufenden
+     * Vertrag (sein Ende liegt vor heute) und bei der Einspeisung, wenn der
+     * Stichtag vor dem Ende kommt. Dieselbe Grenze wie `$endExcl` in
+     * balanceProjection().
+     */
+    public static function periodLastDay(array $status): ?string
+    {
+        $eff = $status['effective_end'] ?? null;
+        if (!is_string($eff) || $eff === '') return null;
+        if ($eff === (string)($status['end'] ?? '')) return $eff;
+        return (new \DateTimeImmutable($eff))->modify('-1 day')->format('Y-m-d');
+    }
+
     private function nextBillingAnchor(string $utility, string $today): string
     {
         $anchor = (string)$this->settings->get('billing_cycle_anchor_' . $utility, '01-01');
@@ -1218,10 +1739,9 @@ final class ConsumptionService
     {
         $u = Utilities::get($utility);
         $readings = $this->readings->list($utility, $meter['id']);
-        $temps    = $this->store->read('temperatures.json', []);
-        if (!is_array($temps)) $temps = [];
+        $temps    = $this->temperatures();
         $today    = date('Y-m-d');
-        $hddBase  = $hddBaseOverride ?? (float)$this->settings->get('hdd_base_temp', 15.0);
+        $hddBase  = $hddBaseOverride ?? $this->hddBaseFor($meter);   // v3.7.0 — je Zähler
         // v2.5.0 — F1012: Der Faktor ist nicht mehr eine Zahl je Zähler,
         // sondern eine Funktion des Tages. Für Gas kommt er aus der datierten
         // Liste (Zustandszahl × Brennwert je Stichtag), für alle anderen Arten
@@ -1278,6 +1798,8 @@ final class ConsumptionService
 
         $monthly = [];
         $coverage = [];   // v2.8.0 — ym → abgedeckte Tagesspannen
+        // v3.7.0 (#37) — je Ablesepaar die Länge des Ablesungsabstands, aus dem es stammt
+        $gaps = self::measuringGaps($actual);
         for ($i = 1; $i < count($actual); $i++) {
             $prev = $actual[$i - 1];
             $curr = $actual[$i];
@@ -1320,11 +1842,121 @@ final class ConsumptionService
                 $monthly[$ym]['raw']  += $v['raw'];
                 $monthly[$ym]['days'] += $v['days'];
                 $monthly[$ym]['cost'] += $v['cost'];
+                self::addMeasured($monthly[$ym], $v, $gaps[$i], !empty($prev['is_estimated']) || !empty($curr['is_estimated']));
                 foreach ($v['spans'] as $span) $coverage[$ym][] = $span;
             }
         }
 
         return $this->finishMonthly($monthly, $coverage, $utility, $meter, $temps, $hddBase);
+    }
+
+    /**
+     * v3.7.0 (#37) — Länge des Ablesungsabstands je Ablesepaar (Index des
+     * späteren Stands): von der letzten echten Ablesung am oder vor dem Paar
+     * bis zur ersten echten danach. Geschätzte Stände messen nichts; fehlt
+     * eine echte Ablesung auf einer Seite, ist der Abstand unbegrenzt.
+     *
+     * @param list<array<string,mixed>> $rows  nach Datum sortiert; `date`, `is_estimated` (Ablesungen) bzw. `from`/`to` (Zeiträume)
+     * @return array<int,int>
+     */
+    private static function measuringGaps(array $rows): array
+    {
+        $n = count($rows);
+        $before = []; $last = null;
+        for ($i = 0; $i < $n; $i++) {
+            if (empty($rows[$i]['is_estimated'])) $last = $i;
+            $before[$i] = $last;
+        }
+        $after = []; $next = null;
+        for ($i = $n - 1; $i >= 0; $i--) {
+            if (empty($rows[$i]['is_estimated'])) $next = $i;
+            $after[$i] = $next;
+        }
+        $out = [];
+        for ($i = 1; $i < $n; $i++) {
+            $a = $before[$i - 1]; $b = $after[$i];
+            $out[$i] = $a === null || $b === null ? PHP_INT_MAX
+                : (int)(new \DateTime((string)$rows[$a]['date']))->diff(new \DateTime((string)$rows[$b]['date']))->days;
+        }
+        return $out;
+    }
+
+    /**
+     * v3.7.0 (#37) — Buchführung „gemessen“ je Monat: Verbrauch und Tage aus
+     * Abständen bis MEASURED_GAP_MAX_DAYS, dazu der längste Abstand im Monat.
+     *
+     * @param array<string,mixed> $row  Monatssumme (wird ergänzt)
+     * @param array{kwh:float,days:int} $part  Anteil eines Abstands an diesem Monat
+     */
+    private static function addMeasured(array &$row, array $part, int $gap, bool $estimatedSupport = false): void
+    {
+        $measured = $gap <= self::MEASURED_GAP_MAX_DAYS;
+        $row['_measured_kwh']  = ($row['_measured_kwh'] ?? 0.0) + ($measured ? (float)$part['kwh'] : 0.0);
+        $row['_measured_days'] = ($row['_measured_days'] ?? 0) + ($measured ? (int)$part['days'] : 0);
+        $row['_gap_days']      = max((int)($row['_gap_days'] ?? 0), $gap);
+        // v3.7.0 (Nachlauf) — verteilt an einer geschätzten Ablesung als Stütze: je Seite eine eigene Tagesrate
+        if (!$measured && $estimatedSupport) $row['_gap_est'] = true;
+    }
+
+    /**
+     * v3.7.0 (#37, #39) — die Kennung je Monatszeile aus der Buchführung:
+     *
+     *   measured_share    Anteil des Monatsverbrauchs aus Ablesungsabständen
+     *                     bis MEASURED_GAP_MAX_DAYS (ohne Verbrauch: Anteil der Tage)
+     *   interpolated      true, wenn dieser Anteil unter MEASURED_SHARE_MIN liegt —
+     *                     der Wert ist dann vor allem verteilt, nicht gemessen
+     *   reading_gap_days  längster Ablesungsabstand, aus dem der Monat stammt
+     *                     (null, wenn eine echte Ablesung auf einer Seite fehlt)
+     *
+     * Die Monatswerte selbst ändern sich nicht — nur, was aus ihnen gelernt wird.
+     */
+    private static function markMeasured(array $monthly): array
+    {
+        foreach ($monthly as &$m) {
+            $kwh = (float)($m['kwh'] ?? 0.0);
+            $days = (int)($m['days'] ?? 0);
+            $share = abs($kwh) > 1e-9 ? (float)($m['_measured_kwh'] ?? 0.0) / $kwh
+                : ($days > 0 ? (int)($m['_measured_days'] ?? 0) / $days : 1.0);
+            $share = max(0.0, min(1.0, $share));
+            $gap = (int)($m['_gap_days'] ?? 0);
+            $m['measured_share'] = round($share, 3);
+            $m['interpolated'] = $share < self::MEASURED_SHARE_MIN;
+            $m['reading_gap_days'] = $gap === PHP_INT_MAX ? null : $gap;
+            // v3.7.0 (Nachlauf) — eine geschätzte Ablesung im Abstand: nicht „gleichmäßig verteilt“
+            $m['reading_gap_estimated'] = !empty($m['_gap_est']);
+            unset($m['_measured_kwh'], $m['_measured_days'], $m['_gap_days'], $m['_gap_est']);
+        }
+        unset($m);
+        return $monthly;
+    }
+
+    /**
+     * v3.7.0 (#39) — Kennung einer Summe mehrerer Zähler (Gruppe, Summe der
+     * Art): Anteil gewichtet nach Verbrauch, ohne Verbrauch nach Tagen.
+     * `$acc`: [Σ Anteil × Wert, Σ Wert, Σ Anteil × Tage, Σ Tage, längster Abstand, ohne Kennung?]
+     *
+     * @return array{measured_share:?float,interpolated:?bool,reading_gap_days:?int}
+     */
+    private static function sharedMarker(array $acc): array
+    {
+        [$wv, $v, $wd, $d, $gap, $none] = $acc;
+        if ($none) return ['measured_share' => null, 'interpolated' => null, 'reading_gap_days' => null];
+        $share = abs($v) > 1e-9 ? $wv / $v : ($d > 0 ? $wd / $d : 1.0);
+        $share = max(0.0, min(1.0, $share));
+        return ['measured_share' => round($share, 3), 'interpolated' => $share < self::MEASURED_SHARE_MIN, 'reading_gap_days' => $gap];
+    }
+
+    /** Eine Monatszeile in die Kennung einer Summe aufnehmen (s. sharedMarker). */
+    private static function accumulateMarker(?array $acc, array $m, string $vf): array
+    {
+        $acc ??= [0.0, 0.0, 0.0, 0, null, false];
+        if (!array_key_exists('measured_share', $m) || $m['measured_share'] === null) { $acc[5] = true; return $acc; }
+        $share = (float)$m['measured_share'];
+        $v = abs((float)($m[$vf] ?? 0.0));
+        $d = (int)($m['days'] ?? 0);
+        $acc[0] += $share * $v; $acc[1] += $v; $acc[2] += $share * $d; $acc[3] += $d;
+        if (($m['reading_gap_days'] ?? null) !== null) $acc[4] = max((int)($acc[4] ?? 0), (int)$m['reading_gap_days']);
+        return $acc;
     }
 
     /**
@@ -1339,10 +1971,13 @@ final class ConsumptionService
         $nullable = ['base_price_eur', 'advance_eur', 'bonus_eur'];
         $rows = [];
         $parts = [];   // ym → Vertrag → Teil
+        $markers = []; // v3.7.0 (#37) — ym → Kennung „gemessen“ der Summe
+        $vfG = (Utilities::get($utility)['consumption_unit'] ?? 'kWh') === 'kWh' ? 'kwh' : 'm3';
         // v3.6.0 — ohne Subzähler, deren Elternzähler Mitglied ist (sonst doppelt)
         foreach ($this->meters->groupSumMembers($utility, (string)$group['id']) as $member) {
             foreach ($this->forMeter($utility, $member, $hddBaseOverride) as $r) {
                 $ym = (string)$r['ym'];
+                $markers[$ym] = self::accumulateMarker($markers[$ym] ?? null, $r, $vfG);
                 if (!isset($rows[$ym])) {
                     $rows[$ym] = $r;
                     foreach ($sumKeys as $k) if (isset($r[$k])) $rows[$ym][$k] = 0.0;
@@ -1397,6 +2032,7 @@ final class ConsumptionService
             foreach (['cost', 'kwh_cost', 'base_price_eur', 'advance_eur', 'bonus_eur', 'grid_reduction_eur'] as $k) {
                 if (isset($row[$k])) $row[$k] = round((float)$row[$k], 2);
             }
+            $row = array_merge($row, self::sharedMarker($markers[$ym]));
             $row['working_price_ct'] = !empty($row['kwh']) && isset($row['kwh_cost']) ? round((float)$row['kwh_cost'] / (float)$row['kwh'] * 100, 4) : null;
             $row['monthly_balance'] = isset($row['advance_eur']) ? round((float)$row['cost'] - (float)$row['advance_eur'], 2) : null;
             $row['cumulative_balance'] = $main !== null && isset($running[$main]) && isset($row['advance_eur']) ? round($running[$main], 2) : null;
@@ -1414,6 +2050,8 @@ final class ConsumptionService
     private function finishMonthly(array $monthly, array $coverage, string $utility, array $meter, array $temps, float $hddBase): array
     {
         $u = Utilities::get($utility);
+        // v3.7.0 (#37) — vor dem Runden: gemessen oder verteilt
+        $monthly = self::markMeasured($monthly);
         $monthly = $this->enrichWithWeather($monthly, $temps, $hddBase, $coverage);
         $monthly = $this->applyUtilityFields($monthly, $utility, $meter);
         $monthly = $this->applyContracts($monthly, $utility, $meter, $coverage);
@@ -1428,7 +2066,7 @@ final class ConsumptionService
         // am Monat (`regression_point`), statt in jeder Ansicht neu gefiltert.
         $monthly = $this->markRegressionPoints($monthly, $utility);
         $valueField = $u['consumption_unit'] === 'kWh' ? 'kwh' : 'm3';
-        $monthly = $this->applyWeatherAdjustment($monthly, $utility, $valueField);
+        $monthly = $this->applyWeatherAdjustment($monthly, $utility, $valueField, $meter, $hddBase);
         return $this->addMovingAverages($monthly, $valueField);
     }
 
@@ -1455,6 +2093,8 @@ final class ConsumptionService
             $meterUnit = ($p['value_unit'] ?? 'consumption') === 'meter';
             $fOn = $meterUnit ? $factorOn : static fn(string $d): float => 1.0;
             $bounds = $meterUnit ? $factorBoundaries($from, $end) : [];
+            // v3.7.0 (#37) — der Zeitraum ist der Ablesungsabstand; ein geschätzter misst nichts
+            $gap = empty($p['is_estimated']) ? $days : PHP_INT_MAX;
             foreach ($this->distributeToMonths($from, $end, max(0.0, (float)($p['value'] ?? 0)) / $days, 0.0, $fOn, $bounds) as $ym => $v) {
                 if (!$meterUnit && $utility === 'gas') {
                     $f = $factorOn($ym . '-15');
@@ -1464,6 +2104,7 @@ final class ConsumptionService
                 $monthly[$ym]['kwh']  += $v['kwh'];
                 $monthly[$ym]['raw']  += $v['raw'];
                 $monthly[$ym]['days'] += $v['days'];
+                self::addMeasured($monthly[$ym], $v, $gap);
                 foreach ($v['spans'] as $span) $coverage[$ym][] = $span;
             }
         }
@@ -1545,37 +2186,9 @@ final class ConsumptionService
     public function gasBillBreakdown(array $meter, string $from, string $to): array
     {
         $utility = 'gas';
-        $readings = $this->readings->list($utility, (string)($meter['id'] ?? ''));
-        // v2.6.0 — dieselbe Plausibilitätsprüfung wie die Verbrauchsrechnung.
-        [$actual, $warnings] = $this->plausibleReadings($readings, $meter);
-
-        $devicesById = [];
-        foreach ($meter['devices'] ?? [] as $d) {
-            $devicesById[$d['id']] = $d;
-        }
-
-        // Intervalle mit Tagesrate (roh) vorbereiten
-        $intervals = [];
-        for ($i = 1; $i < count($actual); $i++) {
-            $prev = $actual[$i - 1];
-            $curr = $actual[$i];
-            $days = (int)(new \DateTime($prev['date']))->diff(new \DateTime($curr['date']))->days;
-            if ($days <= 0) continue;
-            $raw = $this->consumptionBetween($prev, $curr, $devicesById, $meter);
-            if ($raw === null || $raw < 0) continue;
-            $intervals[] = [
-                'start' => (string)$prev['date'],
-                'end'   => (string)$curr['date'],
-                'rate'  => $raw / $days,
-                'estimated_end' => !empty($curr['is_estimated']),
-                // v2.5.2 — für den Ersatzwert an einer Grenze innerhalb des
-                // Intervalls: nur auf demselben Gerät ist ein Stand
-                // interpolierbar; über einen Zählertausch hinweg gibt es
-                // keinen fortlaufenden Zählerstand.
-                'start_counter' => (float)($prev['counter'] ?? 0),
-                'same_device'   => ($prev['device_id'] ?? null) === ($curr['device_id'] ?? null),
-            ];
-        }
+        // v2.6.0 — dieselbe Plausibilitätsprüfung wie die Verbrauchsrechnung;
+        // Intervalle mit Tagesrate (roh). v3.7.0 — einmal je Zähler und Anfrage.
+        [$actual, $warnings, $intervals] = $this->billBasis($utility, $meter);
 
         // v2.5.2 — Zählerstand an einer Grenze samt Ableseart, wie die
         // Rechnung ihn ausweist: eine echte Ablesung (`reading`), eine als
@@ -1621,17 +2234,17 @@ final class ConsumptionService
 
         $rows = [];
         $totM3 = 0.0; $totKwh = 0.0; $totDays = 0; $gaps = 0;
+        $k = 0;
         for ($i = 0; $i < count($dates) - 1; $i++) {
             $a = $dates[$i];
             $b = $dates[$i + 1];
             $days = (int)(new \DateTime($a))->diff(new \DateTime($b))->days;
             if ($days <= 0) continue;
 
-            // Ableseintervall, das $a umschließt (halboffen)
-            $rate = null;
-            foreach ($intervals as $iv) {
-                if ($iv['start'] <= $a && $a < $iv['end']) { $rate = $iv['rate']; break; }
-            }
+            // Ableseintervall, das $a umschließt (halboffen). v3.7.0 — Zeilen
+            // und Intervalle sind aufsteigend: weiterzählen statt jedes Mal von
+            // vorn suchen (bei täglichen Ständen Zeilen × Intervalle Vergleiche)
+            [$rate, $k] = self::rateAt($intervals, $a, $k);
             $entry = $this->factors()->entryOn($a);
             $m3    = $rate !== null ? $rate * $days : null;
             $kwh   = $m3 !== null ? $m3 * $entry['kwh_per_m3'] : null;
@@ -1705,31 +2318,38 @@ final class ConsumptionService
             ? $this->gasBillBreakdown($meter, $from, $to)
             : $this->genericBillRows($utility, $meter, $from, $to, $contracts);
         $energy = 0.0; $fixed = 0.0; $missingPrice = false;
+        $cuts = $this->contracts->cutDates($contracts);
         foreach ($out['rows'] as &$row) {
             $qty = $utility === 'wasser' ? ($row['m3'] ?? null) : ($row['kwh'] ?? null);
             $c = $utility === 'wasser'
                 ? $this->waterRowCosts($row['from'], $row['to'], $qty, $contracts, $meter)
-                : $this->rowCosts($row['from'], $row['to'], $qty, $contracts, $ctx);
+                : $this->rowCosts($row['from'], $row['to'], $qty, $contracts, $ctx, $cuts);
             $row += $c;
             $energy += (float)($c['energy_cost'] ?? 0);
             $fixed += (float)($c['fixed_cost'] ?? 0);
             if ($qty !== null && $c['energy_cost'] === null) $missingPrice = true;
         }
         unset($row);
-        $bonus = 0.0;
+        $bonus = 0.0; $bonusItems = [];
         foreach ($contracts as $c) {
             if (!self::carriesFixed($c, $ctx)) continue;
             foreach ($c['bonuses'] ?? [] as $b) {
                 $d = (string)($b['credit_date'] ?? '');
-                if ($d >= $from && $d < $to && is_numeric($b['amount_eur'] ?? null)) $bonus += (float)$b['amount_eur'];
+                if ($d >= $from && $d < $to && is_numeric($b['amount_eur'] ?? null)) {
+                    $bonus += (float)$b['amount_eur'];
+                    $bonusItems[] = ContractService::bonusItem($b);   // v3.7.0 (#33)
+                }
             }
         }
+        usort($bonusItems, fn($a, $b) => $a['credit_date'] <=> $b['credit_date']);
         $out['totals'] += [
             'energy_cost' => round($energy, 2),
             'fixed_cost'  => round($fixed, 2),
             'bonus'       => round($bonus, 2),
             'total'       => round($energy + $fixed - $bonus, 2),
             'price_missing' => $missingPrice,
+            // v3.7.0 (#33) — die Boni einzeln (Datum, Betrag, Art, Notiz), additiv
+            'bonus_items' => $bonusItems,
         ];
         $out['utility'] = $utility;
         return $out;
@@ -1740,13 +2360,14 @@ final class ConsumptionService
     {
         $rows = []; $warnings = [];
         $tot = ['days' => 0, 'kwh' => 0.0, 'm3' => 0.0, 'gaps' => 0, 'energy_cost' => 0.0, 'fixed_cost' => 0.0,
-                'bonus' => 0.0, 'total' => 0.0, 'price_missing' => false];
+                'bonus' => 0.0, 'total' => 0.0, 'price_missing' => false, 'bonus_items' => []];
         // v3.6.0 — ohne Subzähler, deren Elternzähler Mitglied ist (wie computeForGroup)
         foreach ($this->meters->groupSumMembers($utility, (string)$group['id']) as $m) {
             $b = $this->billBreakdown($utility, $m, $from, $to);
             foreach ($b['rows'] as $r) $rows[] = $r + ['meter_id' => (string)$m['id'], 'meter_name' => (string)($m['name'] ?? $m['id'])];
             $t = $b['totals'];
             $tot['days'] = max($tot['days'], (int)($t['days'] ?? 0));
+            $tot['bonus_items'] = array_merge($tot['bonus_items'], (array)($t['bonus_items'] ?? []));
             foreach (['kwh', 'm3', 'energy_cost', 'fixed_cost', 'bonus', 'total'] as $k) $tot[$k] += (float)($t[$k] ?? 0);
             $tot['gaps'] += (int)($t['gaps'] ?? 0);
             $tot['price_missing'] = $tot['price_missing'] || !empty($t['price_missing']);
@@ -1760,23 +2381,95 @@ final class ConsumptionService
                 'utility' => $utility, 'group_id' => (string)$group['id']];
     }
 
-    /** Zeilen für Strom, Fernwärme, Wasser: Grenzen an Ablesungen und Vertrags-/Preisstichtagen. */
-    private function genericBillRows(string $utility, array $meter, string $from, string $to, array $contracts): array
+    /**
+     * v3.7.0 (Qualität) — Tagesrate des Ableseintervalls, das `$date`
+     * umschließt (halboffen [start, end)), ab Position `$from` gesucht.
+     * Intervalle aufsteigend und überschneidungsfrei (aufeinanderfolgende
+     * Ablesungen); wer mit aufsteigenden Tagen fragt, gibt die gelieferte
+     * Position zurück und sucht nie zweimal von vorn.
+     *
+     * @param list<array{start:string,end:string,rate:float}> $intervals
+     * @return array{0:?float,1:int} Rate (null = Lücke) und Position für die nächste Frage
+     */
+    private static function rateAt(array $intervals, string $date, int $from = 0): array
     {
-        $readings = $this->readings->list($utility, (string)($meter['id'] ?? ''));
-        [$actual, $warnings] = $this->plausibleReadings($readings, $meter);
+        $n = count($intervals);
+        $k = $from;
+        while ($k < $n && $intervals[$k]['end'] <= $date) $k++;
+        return [$k < $n && $intervals[$k]['start'] <= $date ? (float)$intervals[$k]['rate'] : null, $k];
+    }
+
+    /** @var array<string,array{0:list<array<string,mixed>>,1:list<array<string,mixed>>,2:list<array<string,mixed>>}> */
+    private array $billBasisMemo = [];
+
+    /**
+     * v3.7.0 (Qualität) — Grundlage der Rechnungsprüfung eines Zählers:
+     * plausible Ablesungen, übergangene (Warnungen) und die Intervalle mit
+     * Tagesrate (roh). Je Zähler und Anfrage einmal (bis zum nächsten
+     * Schreiben): Die Abrechnungsperioden prüfen jede Periode und — mit Anhang
+     * im Jahresbericht — jeden Monat; jede Prüfung las bisher alle Ablesungen
+     * und baute alle Intervalle neu.
+     *
+     * Intervall: `start`, `end`, `rate`, `estimated_end`, `start_counter`,
+     * `same_device` (v2.5.2 — nur auf demselben Gerät ist ein Stand
+     * interpolierbar; über einen Zählertausch hinweg gibt es keinen
+     * fortlaufenden Zählerstand).
+     *
+     * @return array{0:list<array<string,mixed>>,1:list<array<string,mixed>>,2:list<array<string,mixed>>}
+     */
+    private function billBasis(string $utility, array $meter): array
+    {
+        $key = $utility . '|' . md5(serialize($meter)) . '|' . $this->store->generation();
+        if (isset($this->billBasisMemo[$key])) return $this->billBasisMemo[$key];
+        [$actual, $warnings] = $this->plausibleReadings($this->readings->list($utility, (string)($meter['id'] ?? '')), $meter);
         $devicesById = [];
         foreach ($meter['devices'] ?? [] as $d) $devicesById[$d['id']] = $d;
         $intervals = [];
         for ($i = 1; $i < count($actual); $i++) {
-            $prev = $actual[$i - 1]; $curr = $actual[$i];
+            $prev = $actual[$i - 1];
+            $curr = $actual[$i];
             $days = (int)(new \DateTime($prev['date']))->diff(new \DateTime($curr['date']))->days;
             if ($days <= 0) continue;
             $raw = $this->consumptionBetween($prev, $curr, $devicesById, $meter);
             if ($raw === null || $raw < 0) continue;
-            $intervals[] = ['start' => (string)$prev['date'], 'end' => (string)$curr['date'], 'rate' => $raw / $days,
-                'start_counter' => (float)($prev['counter'] ?? 0), 'same_device' => ($prev['device_id'] ?? null) === ($curr['device_id'] ?? null)];
+            $intervals[] = [
+                'start' => (string)$prev['date'],
+                'end'   => (string)$curr['date'],
+                'rate'  => $raw / $days,
+                'estimated_end' => !empty($curr['is_estimated']),
+                'start_counter' => (float)($prev['counter'] ?? 0),
+                'same_device'   => ($prev['device_id'] ?? null) === ($curr['device_id'] ?? null),
+            ];
         }
+        return $this->billBasisMemo[$key] = [$actual, $warnings, $intervals];
+    }
+
+    /**
+     * v3.7.0 (treffsicher) — Ableseart echter Ablesungen an einzelnen Tagen
+     * (`reading` | `reading_estimated`), aus denselben plausiblen Ablesungen
+     * wie die Rechnungsprüfung (billBasis). Nur lesend — für die Einstufung der
+     * Grenzstände in BillService::compare(); an der Rechnung ändert es nichts.
+     *
+     * @param list<string> $dates
+     * @return array<string,string> Tag → Ableseart; Tage ohne Ablesung fehlen
+     */
+    public function readingKindsOn(string $utility, array $meter, array $dates): array
+    {
+        if (!Utilities::isCumulative($utility) || !empty($meter['is_group'])) return [];
+        [$actual] = $this->billBasis($utility, $meter);
+        $want = array_flip($dates);
+        $out = [];
+        foreach ($actual as $r) {
+            $d = (string)$r['date'];
+            if (isset($want[$d])) $out[$d] = !empty($r['is_estimated']) ? 'reading_estimated' : 'reading';
+        }
+        return $out;
+    }
+
+    /** Zeilen für Strom, Fernwärme, Wasser: Grenzen an Ablesungen und Vertrags-/Preisstichtagen. */
+    private function genericBillRows(string $utility, array $meter, string $from, string $to, array $contracts): array
+    {
+        [$actual, $warnings, $intervals] = $this->billBasis($utility, $meter);   // v3.7.0 — wie gasBillBreakdown
         $byDate = [];
         foreach ($actual as $r) $byDate[(string)$r['date']] = $r;
         $counterAt = function (string $date) use ($byDate, $intervals): array {
@@ -1805,12 +2498,12 @@ final class ConsumptionService
         $dates = array_keys($bounds);
         $unitKey = $utility === 'wasser' ? 'm3' : 'kwh';
         $rows = []; $tot = 0.0; $totDays = 0; $gaps = 0;
+        $k = 0;
         for ($i = 0; $i < count($dates) - 1; $i++) {
             [$a, $b] = [$dates[$i], $dates[$i + 1]];
             $days = (int)(new \DateTime($a))->diff(new \DateTime($b))->days;
             if ($days <= 0) continue;
-            $rate = null;
-            foreach ($intervals as $iv) if ($iv['start'] <= $a && $a < $iv['end']) { $rate = $iv['rate']; break; }
+            [$rate, $k] = self::rateAt($intervals, $a, $k);   // v3.7.0 — wie gasBillBreakdown
             $q = $rate !== null ? $rate * $days : null;
             if ($q === null) $gaps++;
             $cFrom = $counterAt($a); $cTo = $counterAt($b);
@@ -1835,12 +2528,14 @@ final class ConsumptionService
      *
      * @return array<string,mixed>
      */
-    private function rowCosts(string $a, string $b, ?float $kwh, array $contracts, ?array $ctx = null): array
+    private function rowCosts(string $a, string $b, ?float $kwh, array $contracts, ?array $ctx = null, ?array $cuts = null): array
     {
         $days = max(1, self::daysBetweenDates($a, $b));
         $energy = $kwh === null ? null : 0.0;
         $fixed = 0.0; $hasFixed = false; $cid = null; $ct = null;
-        foreach ($this->contracts->segmentsBetween($contracts, $a, $b) as $seg) {
+        // v3.7.0 — Schnitttage vom Aufrufer (einmal je Rechnungsprüfung statt je Zeile)
+        $segments = $cuts !== null ? $this->contracts->segmentsWithin($contracts, $cuts, $a, $b) : $this->contracts->segmentsBetween($contracts, $a, $b);
+        foreach ($segments as $seg) {
             $c = $seg['contract'];
             if ($c === null) { if ($kwh !== null) $energy = null; continue; }
             $cid ??= (string)$c['id'];
@@ -2012,10 +2707,15 @@ final class ConsumptionService
      * Prognose 0,56 (n = 15). Ein Monat zählt, wenn er genug Tage Verbrauch hat
      * (`min_days_period`) — ein 14-Tage-Teilmonat verzerrt die Kurve —, genug
      * Heizgradtage und überhaupt Verbrauch.
+     *
+     * v3.7.0 (#37) — und wenn er gemessen ist: Ein aus einem längeren
+     * Ablesungsabstand verteilter Monat liegt nicht auf der Heizkurve, sondern
+     * auf der Geraden „Tagesrate des Abstands × Tage“.
      */
     public static function isRegressionCandidate(array $m, string $valueField, float $minHdd, int $minDays): bool
     {
         return (int)($m['days'] ?? 0) >= $minDays
+            && empty($m['interpolated'])
             && self::hasTemperatureCoverage($m)
             && (float)($m['hdd'] ?? 0) > $minHdd
             && (float)($m[$valueField] ?? 0) > 0;
@@ -2046,9 +2746,21 @@ final class ConsumptionService
      * Ablesungen; bei Lieferarten ist die Monatsverteilung selbst nach
      * Gradtagen gemacht, ein Fit wäre ein Zirkelschluss.
      *
-     * @return array{a:float,c:float,n:int,resid_sd:float}|null
+     * v3.7.0 (#37) — verteilte Monate (`interpolated`) gehen nicht ein: Ihr
+     * Wert ist die gleichmäßige Verteilung eines längeren Ablesungsabstands,
+     * kein Verbrauch bei den Heizgradtagen dieses Monats; als Punkte zogen sie
+     * a und c und damit jede Erwartung. Bleiben weniger als
+     * MIN_POINTS_REGRESSION gemessene Monate, rechnet das Modell — mit dem
+     * Zähler als drittem Argument — über die Ablesungsabstände selbst
+     * ({@see heatIntervalPoints()}): Das Modell ist eine Summe über Tage und
+     * gilt für drei Monate genauso wie für einen. Kein stiller Rückfall auf
+     * die verteilten Monate (Lektion 33). `basis` sagt, worüber gerechnet wurde.
+     *
+     * @param array<string,mixed>|null $meter  für den Rückfall über die Ablesungsabstände
+     * @param float|null $hddBase              Heizgrenze der Monatszeilen (Analyse mit `hdd_base`)
+     * @return array{a:float,c:float,n:int,resid_sd:float,basis:string}|null
      */
-    public function heatModel(string $utility, array $monthly): ?array
+    public function heatModel(string $utility, array $monthly, ?array $meter = null, ?float $hddBase = null): ?array
     {
         if (!Utilities::isHgtRelevant($utility) || Utilities::isDelivery($utility)) return null;
         $u = Utilities::get($utility);
@@ -2056,20 +2768,33 @@ final class ConsumptionService
         $minDays = (int)$this->settings->get('min_days_period', 20);
         $pts = [];
         foreach ($monthly as $m) {
-            if (!empty($m['pre_baseline']) || !empty($m['device_swap'])) continue;
+            if (!empty($m['pre_baseline']) || !empty($m['device_swap']) || !empty($m['interpolated'])) continue;
             $days = (int)($m['days'] ?? 0);
             $y = (float)($m[$vf] ?? 0);
             if ($days < $minDays || $y <= 0 || !self::hasTemperatureCoverage($m)) continue;
-            $pts[] = [(float)($m['hdd'] ?? 0), (float)$days, $y];
+            $pts[] = [(float)($m['hdd'] ?? 0), (float)$days, $y, 1.0];
         }
-        if (count($pts) < self::MIN_POINTS_REGRESSION) return null;
+        if (count($pts) >= self::MIN_POINTS_REGRESSION) return self::fitHeatPoints($pts) + ['basis' => 'months'];
+        if ($meter === null) return null;
+        $spans = $this->heatIntervalPoints($utility, $meter, $monthly, $hddBase);
+        return count($spans) >= self::MIN_POINTS_REGRESSION ? self::fitHeatPoints($spans) + ['basis' => 'intervals'] : null;
+    }
+
+    /**
+     * Fit mit einem Robustheitsschritt: Ein einzelner Ausreißer (etwa ein
+     * Sommer mit defekter Therme) zöge sonst die Grundlast c mit hoch — und
+     * damit genau die Erwartung, an der er gemessen wird. Punkte jenseits von
+     * 3,5 robusten Streuungen fallen einmal heraus, dann wird neu gefittet.
+     * Residuen gewichtet (√w), `resid_sd` damit je mittleren Monat.
+     *
+     * @param list<array{0:float,1:float,2:float,3:float}> $pts  [HGT, Tage, Verbrauch, Gewicht]
+     * @return array{a:float,c:float,n:int,resid_sd:float}
+     */
+    private static function fitHeatPoints(array $pts): array
+    {
         [$a, $c] = self::fitHeatModel($pts);
-        // Ein Robustheitsschritt: Ein einzelner Ausreißer (etwa ein Sommer mit
-        // defekter Therme) zöge sonst die Grundlast c mit hoch — und damit
-        // genau die Erwartung, an der er gemessen wird. Punkte jenseits von
-        // 3,5 robusten Streuungen fallen einmal heraus, dann wird neu gefittet.
         $res = [];
-        foreach ($pts as $i => [$h, $d, $y]) $res[$i] = $y - ($a * $h + $c * $d);
+        foreach ($pts as $i => [$h, $d, $y, $w]) $res[$i] = ($y - ($a * $h + $c * $d)) * sqrt($w);
         [$center, $scale] = AnomalyService::robustScale(array_values($res));
         if ($scale > 0) {
             $kept = array_values(array_filter($pts, fn($p, $i) => abs($res[$i] - $center) <= 3.5 * $scale, ARRAY_FILTER_USE_BOTH));
@@ -2078,23 +2803,130 @@ final class ConsumptionService
                 [$a, $c] = self::fitHeatModel($pts);
             }
         }
-        $res = [];
-        foreach ($pts as [$h, $d, $y]) $res[] = $y - ($a * $h + $c * $d);
-        $sd = count($res) > 2 ? sqrt(array_sum(array_map(fn($r) => $r * $r, $res)) / (count($res) - 2)) : 0.0;
+        // bei Gewicht 1 dieselbe Rechnung wie bis v3.6 (Summe der Quadrate in derselben Reihenfolge)
+        $sq = [];
+        foreach ($pts as [$h, $d, $y, $w]) { $r = $y - ($a * $h + $c * $d); $sq[] = $w * $r * $r; }
+        $sd = count($pts) > 2 ? sqrt(array_sum($sq) / (count($pts) - 2)) : 0.0;
         return ['a' => $a, 'c' => $c, 'n' => count($pts), 'resid_sd' => $sd];
     }
 
     /**
-     * Kleinste Quadrate für y = a·h + c·d ohne Achsenabschnitt; a, c ≥ 0.
+     * v3.7.0 (#37) — Punkte des Heizmodells aus den Ablesungsabständen statt aus
+     * Monaten: je Abstand zwischen zwei echten Ablesungen (bzw. je Zeitraum)
+     * Verbrauch, Heizgradtage und Tage. Gewicht MONTH_DAYS / Tage: Die Streuung
+     * eines Abstands wächst mit seiner Länge, so zählt ein Vierteljahr wie drei
+     * Monate, nicht wie neun. Ausgelassen werden Abstände mit Tagen vor der
+     * Zäsur (anderes Gebäude), ohne Temperaturen (weniger als 90 % der Tage) und
+     * unter `min_days_period` Tagen. Einen Abstand über einen Zählertausch gibt
+     * es nicht (measuringSpans); ein Abstand auf einem Gerät ist auch im
+     * Tausch-Monat eine saubere Messung — anders als der Monat, der die
+     * Überbrückung enthält.
      *
-     * @param list<array{0:float,1:float,2:float}> $pts  [HGT, Tage, Verbrauch]
+     * @return list<array{0:float,1:float,2:float,3:float}>
+     */
+    private function heatIntervalPoints(string $utility, array $meter, array $monthly, ?float $hddBase = null): array
+    {
+        if (!empty($meter['is_group']) || !Utilities::isCumulative($utility)) return [];
+        $hddBase ??= $this->hddBaseFor($meter);
+        $minDays = (int)$this->settings->get('min_days_period', 20);
+        $excluded = [];
+        foreach ($monthly as $m) {
+            if (!empty($m['pre_baseline'])) $excluded[(string)$m['ym']] = true;
+        }
+        $temps = $this->temperatures();
+        $out = [];
+        foreach ($this->measuringSpans($utility, $meter) as [$from, $to, $y]) {
+            $days = 0; $tempDays = 0; $hdd = 0.0; $skip = false;
+            for ($t = strtotime($from . ' 12:00:00'), $e = strtotime($to . ' 00:00:00'); $t < $e; $t += 86400) {
+                $d = date('Y-m-d', $t);
+                if (isset($excluded[substr($d, 0, 7)])) { $skip = true; break; }
+                $days++;
+                if (!isset($temps[$d]['avg'])) continue;
+                $tempDays++;
+                $hdd += max(0.0, $hddBase - (float)$temps[$d]['avg']);
+            }
+            if ($skip || $days < $minDays || $y <= 0 || $tempDays < (int)floor($days * 0.9)) continue;
+            $out[] = [$hdd, (float)$days, $y, self::MONTH_DAYS / $days];
+        }
+        return $out;
+    }
+
+    /**
+     * v3.7.0 (#37) — die Ablesungsabstände eines Zählers: von einer echten
+     * Ablesung zur nächsten (geschätzte dazwischen messen nichts), mit dem
+     * Verbrauch dazwischen in der Verbrauchseinheit (Gas mit den datierten
+     * Faktoren). Ein Abstand, in dem ein Paar nicht rechenbar ist oder das
+     * Gerät wechselt, fehlt. Zähler mit Zeiträumen: je echter Zeitraum einer.
+     *
+     * @return list<array{0:string,1:string,2:float}>  [von, bis (ohne), Verbrauch]
+     */
+    private function measuringSpans(string $utility, array $meter): array
+    {
+        $u = Utilities::get($utility);
+        $factorOn = !empty($u['unit_to_kwh'])
+            ? fn(string $date): float => $this->factors()->factorOn($utility, $date)
+            : static fn(string $date): float => 1.0;
+        $bounds = fn(string $a, string $b): array => $utility === 'gas' ? $this->factors()->boundariesBetween($a, $b) : [];
+        $sumKwh = function (string $a, string $b, float $perDay, callable $fOn, array $cuts): float {
+            $s = 0.0;
+            foreach ($this->distributeToMonths($a, $b, $perDay, 0.0, $fOn, $cuts) as $v) $s += $v['kwh'];
+            return $s;
+        };
+        $days = static fn(string $a, string $b): int => (int)(new \DateTime($a))->diff(new \DateTime($b))->days;
+
+        if (($meter['capture'] ?? 'counter') === 'period') {
+            $out = [];
+            foreach ((array)$this->store->read("$utility/periods.json", []) as $p) {
+                if (!is_array($p) || ($p['meter_id'] ?? null) !== ($meter['id'] ?? null) || !empty($p['is_estimated'])) continue;
+                $from = (string)($p['from'] ?? ''); $to = (string)($p['to'] ?? '');
+                if (!Dates::isIsoDate($from) || !Dates::isIsoDate($to) || $from > $to) continue;
+                $end = date('Y-m-d', (int)strtotime($to . ' +1 day'));
+                $n = $days($from, $end);
+                $meterUnit = ($p['value_unit'] ?? 'consumption') === 'meter';
+                $y = $sumKwh($from, $end, max(0.0, (float)($p['value'] ?? 0)) / $n,
+                    $meterUnit ? $factorOn : static fn(string $d): float => 1.0, $meterUnit ? $bounds($from, $end) : []);
+                $out[] = [$from, $end, $y];
+            }
+            usort($out, fn($a, $b) => strcmp($a[0], $b[0]));
+            return $out;
+        }
+
+        [$actual] = $this->plausibleReadings($this->readings->list($utility, (string)$meter['id']), $meter);
+        $devicesById = [];
+        foreach ($meter['devices'] ?? [] as $d) $devicesById[$d['id'] ?? ''] = $d;
+        $dev = fn(array $r): ?string => $r['device_id'] ?? $this->deviceIdOnDate($meter, (string)$r['date']);
+        $out = [];
+        $start = null; $y = 0.0; $ok = true;
+        foreach ($actual as $i => $r) {
+            if ($i > 0 && $start !== null) {
+                $prev = $actual[$i - 1];
+                $n = $days((string)$prev['date'], (string)$r['date']);
+                $raw = $n > 0 ? $this->consumptionBetween($prev, $r, $devicesById, $meter) : 0.0;
+                if ($raw === null || $raw < 0 || $dev($prev) !== $dev($r)) $ok = false;
+                elseif ($n > 0) $y += $sumKwh((string)$prev['date'], (string)$r['date'], $raw / $n, $factorOn, $bounds((string)$prev['date'], (string)$r['date']));
+            }
+            if (!empty($r['is_estimated'])) continue;
+            if ($start !== null && $ok && (string)$r['date'] > $start) $out[] = [$start, (string)$r['date'], $y];
+            $start = (string)$r['date']; $y = 0.0; $ok = true;
+        }
+        return $out;
+    }
+
+    /**
+     * Gewichtete kleinste Quadrate für y = a·h + c·d ohne Achsenabschnitt;
+     * a, c ≥ 0. Bei Monatspunkten ist jedes Gewicht 1 — dieselben Zahlen wie
+     * bis v3.6.
+     *
+     * @param list<array{0:float,1:float,2:float,3?:float}> $pts  [HGT, Tage, Verbrauch, Gewicht]
      * @return array{0:float,1:float}
      */
     private static function fitHeatModel(array $pts): array
     {
         $shh = $shd = $sdd = $shy = $sdy = 0.0;
-        foreach ($pts as [$h, $d, $y]) {
-            $shh += $h * $h; $shd += $h * $d; $sdd += $d * $d; $shy += $h * $y; $sdy += $d * $y;
+        foreach ($pts as $p) {
+            [$h, $d, $y] = $p;
+            $w = (float)($p[3] ?? 1.0);
+            $shh += $w * $h * $h; $shd += $w * $h * $d; $sdd += $w * $d * $d; $shy += $w * $h * $y; $sdy += $w * $d * $y;
         }
         $det = $shh * $sdd - $shd * $shd;
         $a = $c = null;
@@ -2147,7 +2979,7 @@ final class ConsumptionService
         }
         if (count($out) < 12) {
             // Eigene Temperaturhistorie: HGT je vollständigem Monat, gemittelt
-            $temps = $this->store->read('temperatures.json', []);
+            $temps = $this->temperatures();
             $sums = []; $cnt = [];
             foreach (is_array($temps) ? $temps : [] as $date => $t) {
                 if (!is_array($t) || !isset($t['avg'])) continue;
@@ -2168,7 +3000,7 @@ final class ConsumptionService
                 $sd = count($v) > 2
                     ? sqrt(array_sum(array_map(fn($x) => ($x - $mean) ** 2, $v)) / (count($v) - 1))
                     : null;
-                $out[$m] = ['mean' => $mean, 'sd' => $sd, 'source' => 'temperature_history'];
+                $out[$m] = ['mean' => $mean, 'sd' => $sd, 'source' => 'temperature_history', 'years' => count($v)];   // v3.7.0 — `years` additiv
             }
         }
         return $this->hddNormalsMemo[$key] = $out;
@@ -2199,16 +3031,19 @@ final class ConsumptionService
      *                      `weather_adjusted`, das auch das Warmwasser
      *                      skalierte (September ×1,54).
      */
-    private function applyHeatModel(array $monthly, string $utility, string $valueField): array
+    private function applyHeatModel(array $monthly, string $utility, string $valueField, ?array $meter = null, ?float $hddBase = null): array
     {
-        $model   = $this->heatModel($utility, $monthly);
+        $model   = $this->heatModel($utility, $monthly, $meter, $hddBase);
         $minDays = (int)$this->settings->get('min_days_period', 20);
         $minHdd  = (float)$this->settings->get('min_hdd_regression', 5.0);
-        $normals = $this->hddNormals();
+        // v3.7.0 — das Normal für dieselbe Heizgrenze wie die Gradtage des Monats
+        // (die des Zählers bzw. die angefragte; bis v3.6 immer die Einstellung)
+        $normals = $this->hddNormals($hddBase ?? $this->hddBaseFor($meter));
         foreach ($monthly as &$m) {
             $m['expected_heat'] = null;
             $m['weather_delta_pct'] = null;
             $m['heat_adjusted'] = null;
+            $m['heat_adjusted_basis'] = null;   // v3.7.0 (wirklichkeit-2)
             $m['hdd_normal'] = null;
             $days = (int)($m['days'] ?? 0);
             $dim  = (int)date('t', mktime(0, 0, 0, (int)($m['month'] ?? 1), 1, (int)($m['year'] ?? 2000)));
@@ -2233,6 +3068,14 @@ final class ConsumptionService
                 $m['heat_adjusted'] = $hdd > $minHdd && $val > $base
                     ? round(max($base, $val + $model['a'] * ($m['hdd_normal'] - $hdd)), 1)
                     : round($val, 1);
+                // v3.7.0 (wirklichkeit-2) — warum „bereinigt“ gleich dem Rohwert ist
+                // (bei echten Daten in vielen gemessenen Monaten): Sommer, unter der
+                // Grundlast, oder das Normal ist dieser Monat selbst (eigene
+                // Temperaturhistorie mit nur einem Jahr, kein Klimanormal)
+                $src = (string)($normals[(int)($m['month'] ?? 0)]['source'] ?? '');
+                $m['heat_adjusted_basis'] = $hdd <= $minHdd ? 'summer'
+                    : ($val <= $base ? 'base_load'
+                    : ($src === 'temperature_history' && (int)($normals[(int)$m['month']]['years'] ?? 2) < 2 ? 'normal_is_actual' : 'model'));
             }
         }
         unset($m);
@@ -2285,7 +3128,8 @@ final class ConsumptionService
             if (!empty($m['pre_baseline'])) continue;
             $monthsAfter++;
             if ($firstMonth === null) $firstMonth = (string)($m['ym'] ?? '');
-            if (($m['days'] ?? 0) >= $minDays && empty($m['device_swap'])) $anomalyMonths++;
+            // v3.7.0 (#37) — dieselbe Auswahl wie AnomalyService::detect: verteilte Monate zählen nicht
+            if (($m['days'] ?? 0) >= $minDays && empty($m['device_swap']) && empty($m['interpolated'])) $anomalyMonths++;
         }
         // Dieselbe Punktauswahl, die die Wetterbereinigung wirklich verwendet.
         $pointsAfter = $this->regressionPoints($monthly, $utility, false, $minHdd)['n'];
@@ -2326,6 +3170,108 @@ final class ConsumptionService
             'points_after' => $pointsAfter,
             'limits'       => $limits,
         ];
+    }
+
+    /**
+     * v3.7.0 (GitHub #37, #39) — Wie viele Monatswerte eines Zählers sind
+     * verteilt statt gemessen, und auf wie vielen Ablesungen beruhen sie?
+     * Grundlage für den Hinweis in Verbrauchsart, Analyse und PV-Übersicht
+     * (`readings` zählt echte Ablesungen, die in die Rechnung eingehen — ohne
+     * geschätzte und ohne übergangene; bei Zählern mit Zeiträumen die echten
+     * Zeiträume). `heat_basis`: worüber das Heizmodell rechnet (`months`,
+     * `intervals`), null ohne Modell. Lieferarten: null.
+     *
+     * @return array<string,mixed>|null
+     */
+    public function interpolationInfo(string $utility, array $meter, array $monthly): ?array
+    {
+        if (Utilities::isDelivery($utility) || $monthly === []) return null;
+        $yms = [];
+        foreach ($monthly as $m) if (!empty($m['interpolated'])) $yms[] = (string)$m['ym'];
+        $byYear = $this->measuringReadingsByYear($utility, $meter);
+        $heat = Utilities::isHgtRelevant($utility) ? $this->heatModel($utility, $monthly, $meter) : null;
+        return [
+            'max_gap_days'        => self::MEASURED_GAP_MAX_DAYS,
+            'months'              => count($monthly),
+            'interpolated_months' => count($yms),
+            'interpolated'        => $yms,
+            'readings'            => array_sum($byYear),
+            'readings_by_year'    => (object)$byYear,
+            'from'                => (string)$monthly[0]['ym'],
+            'to'                  => (string)$monthly[count($monthly) - 1]['ym'],
+            'heat_basis'          => $heat['basis'] ?? null,
+            'heat_points'         => $heat['n'] ?? null,
+        ];
+    }
+
+    /**
+     * v3.7.0 (wirklichkeit-2) — Liegt der Beginn des Tages `$date` genau auf einer
+     * echten Ablesung (bzw. Zeitraumgrenze) oder in einem kurzen Abstand
+     * (≤ MEASURED_GAP_MAX_DAYS)? Dann ist eine Summe, die an diesem Tag beginnt
+     * oder endet, gemessen — auch wenn Monate dazwischen verteilt sind: Die Summe
+     * über verteilte Monate ist die Differenz der Stände, nur ihre Aufteilung ist
+     * geschätzt. Geschätzte Ablesungen zählen nicht; eine Gruppe nur, wenn jedes
+     * Mitglied gemessen ist.
+     */
+    public function boundaryMeasured(string $utility, array $meter, string $date): bool
+    {
+        if (!empty($meter['is_group'])) {
+            $members = $this->meters->groupSumMembers($utility, (string)$meter['id']);
+            foreach ($members as $m) if (!$this->boundaryMeasured($utility, $m, $date)) return false;
+            return $members !== [];
+        }
+        $spans = [];   // [von, bis (ohne)]
+        if (($meter['capture'] ?? 'counter') === 'period') {
+            foreach ((array)$this->store->read("$utility/periods.json", []) as $p) {
+                if (!is_array($p) || ($p['meter_id'] ?? null) !== ($meter['id'] ?? null) || !empty($p['is_estimated'])) continue;
+                if (!Dates::isIsoDate($p['from'] ?? null) || !Dates::isIsoDate($p['to'] ?? null) || $p['from'] > $p['to']) continue;
+                $spans[] = [(string)$p['from'], date('Y-m-d', (int)strtotime($p['to'] . ' +1 day'))];
+            }
+        } else {
+            [$actual] = $this->plausibleReadings($this->readings->list($utility, (string)($meter['id'] ?? '')), $meter);
+            $dates = [];
+            foreach ($actual as $r) if (empty($r['is_estimated'])) $dates[] = (string)$r['date'];
+            sort($dates);
+            for ($i = 1; $i < count($dates); $i++) $spans[] = [$dates[$i - 1], $dates[$i]];
+        }
+        foreach ($spans as [$a, $b]) {
+            if ($a === $date || $b === $date) return true;
+            if ($a < $date && $date < $b) {
+                return (int)(new \DateTime($a))->diff(new \DateTime($b))->days <= self::MEASURED_GAP_MAX_DAYS;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Echte Ablesungen (bzw. Zeiträume) je Jahr, wie sie in die Rechnung eingehen.
+     *
+     * @return array<string,int>
+     */
+    private function measuringReadingsByYear(string $utility, array $meter): array
+    {
+        $out = [];
+        if (!empty($meter['is_group'])) {
+            foreach ($this->meters->groupSumMembers($utility, (string)$meter['id']) as $member) {
+                foreach ($this->measuringReadingsByYear($utility, $member) as $y => $n) $out[$y] = ($out[$y] ?? 0) + $n;
+            }
+        } elseif (($meter['capture'] ?? 'counter') === 'period') {
+            foreach ((array)$this->store->read("$utility/periods.json", []) as $p) {
+                if (!is_array($p) || ($p['meter_id'] ?? null) !== ($meter['id'] ?? null) || !empty($p['is_estimated'])) continue;
+                if (!Dates::isIsoDate($p['to'] ?? null)) continue;
+                $y = substr((string)$p['to'], 0, 4);
+                $out[$y] = ($out[$y] ?? 0) + 1;
+            }
+        } else {
+            [$actual] = $this->plausibleReadings($this->readings->list($utility, (string)($meter['id'] ?? '')), $meter);
+            foreach ($actual as $r) {
+                if (!empty($r['is_estimated'])) continue;
+                $y = substr((string)$r['date'], 0, 4);
+                $out[$y] = ($out[$y] ?? 0) + 1;
+            }
+        }
+        ksort($out);
+        return $out;
     }
 
     /**
@@ -2954,6 +3900,8 @@ final class ConsumptionService
     private function applyStandardContracts(array $monthly, array $contracts, array $coverage = [], ?array $ctx = null): array
     {
         $running = [];
+        // v3.7.0 (Qualität) — Schnitttage einmal je Zähler statt je Ableseintervall
+        $cuts = $this->contracts->cutDates($contracts);
         foreach ($monthly as $ym => &$m) {
             $y = (int)$m['year']; $mn = (int)$m['month'];
             $monthStart  = sprintf('%04d-%02d-01', $y, $mn);
@@ -2974,7 +3922,7 @@ final class ConsumptionService
                 [$a, $b] = $span;
                 $spanKwh  = (float)($span[2] ?? 0.0);
                 $spanDays = max(1, (int)round((strtotime($b) - strtotime($a)) / 86400));
-                foreach ($this->contracts->segmentsBetween($contracts, $a, $b) as $seg) {
+                foreach ($this->contracts->segmentsWithin($contracts, $cuts, $a, $b) as $seg) {
                     $share = $spanKwh * $seg['days'] / $spanDays;
                     $c = $seg['contract'];
                     if ($c === null) {
@@ -2991,7 +3939,7 @@ final class ConsumptionService
                 }
             }
             // Grundpreis und Abschlag nach Kalendertagen des Monats
-            foreach ($this->contracts->segmentsBetween($contracts, $monthStart, $nextMonth) as $seg) {
+            foreach ($this->contracts->segmentsWithin($contracts, $cuts, $monthStart, $nextMonth) as $seg) {
                 $c = $seg['contract'];
                 if ($c === null) continue;
                 $parts[$c['id']] ??= self::emptyContractPart($c);
@@ -3031,7 +3979,9 @@ final class ConsumptionService
                     : null;
                 $fixedShare = self::carriesFixed($c, $ctx);   // v3.1.0 (H6) — Gruppenvertrag: einmal
                 $p['advance'] = $ap !== null && $fixedShare ? $ap * min(1.0, $p['days'] / $dim) : null;
-                $p['bonus']   = !$fixedShare || ($p['assumed'] && ($c['end'] ?? '') < $monthStart) ? 0.0 : $this->contracts->bonusForMonth($c, $y, $mn);
+                // v3.7.0 (#33) — die Boni einzeln (Datum, Art, Notiz) für „Bonus −X € am …“
+                $p['bonus_items'] = !$fixedShare || ($p['assumed'] && ($c['end'] ?? '') < $monthStart) ? [] : ContractService::bonusesForMonth($c, $y, $mn);
+                $p['bonus']   = (float)array_sum(array_column($p['bonus_items'], 'amount_eur'));
                 $p['cost']    = $p['kwh_cost'] + $p['base'] - $p['bonus'];
                 $sum['kwh']      += $p['kwh'];
                 $sum['kwh_cost'] += $p['kwh_cost'];
@@ -3060,6 +4010,8 @@ final class ConsumptionService
             $m['base_price_eur']   = $hasBase ? round($sum['base'], 2) : null;
             $m['working_price_ct'] = $wpNow !== null ? round($wpNow, 4) : null;
             $m['bonus_eur']        = round($sum['bonus'], 2);
+            $items = array_merge(...array_values(array_map(fn($p) => $p['bonus_items'] ?? [], $parts)));
+            if ($items !== []) $m['bonus_items'] = $items;   // v3.7.0 — additiv, nur in Monaten mit Bonus
             $red = array_sum(array_map(fn($p) => (float)($p['grid_reduction'] ?? 0.0), $parts));
             if ($red > 0) $m['grid_reduction_eur'] = round($red, 2);   // v3.1.0 (H6) — additiv, nur mit § 14a Modul 1
             $m['kwh_cost']         = round($sum['kwh_cost'], 2);
@@ -3203,13 +4155,15 @@ final class ConsumptionService
             // setzt den Abschlag ab ihrem Stichtag (ohne Sonderzahlungen
             // derselbe Wert wie advance_payments)
             $ap = $this->contracts->valueValidOn($this->contracts->effectiveAdvanceSchedule($c), 'amount_eur', $y, $mn);
-            $bn = $this->contracts->bonusForMonth($c, $y, $mn);
+            $bonusItems = ContractService::bonusesForMonth($c, $y, $mn);
+            $bn = (float)array_sum(array_column($bonusItems, 'amount_eur'));
 
             $combined = round($twTotal + $swTotal + $nwTotal - $bn, 2);
 
             $m['contract_id']  = $c['id'];
             $m['advance_eur']  = $ap;
             $m['bonus_eur']    = round($bn, 2);
+            if ($bonusItems !== []) $m['bonus_items'] = $bonusItems;   // v3.7.0 (#33) — additiv
             $m['trinkwasser']  = [
                 'm3'             => $m3,
                 'ct_per_m3'      => $twWp,
@@ -3324,12 +4278,12 @@ final class ConsumptionService
      * Voraussetzung: ≥ 12 Monate Historie. Bei weniger wird nichts
      * gerechnet (Felder bleiben weg, Frontend zeigt „—").
      */
-    private function applyWeatherAdjustment(array $monthly, string $utility, string $valueField): array
+    private function applyWeatherAdjustment(array $monthly, string $utility, string $valueField, ?array $meter = null, ?float $hddBase = null): array
     {
         if (!Utilities::isHgtRelevant($utility)) return $monthly;
         // v2.8.0 — die neuen Felder brauchen keine zwölf eigenen Monate: Die
         // Referenz kommt aus dem Klimanormal, die Erwartung aus dem Heizmodell.
-        $monthly = $this->applyHeatModel($monthly, $utility, $valueField);
+        $monthly = $this->applyHeatModel($monthly, $utility, $valueField, $meter, $hddBase);
         $n = count($monthly);
         // Ab hier die bisherigen Felder `weather_adjusted`/`delta_pct` —
         // veraltet seit v2.8.0, für bestehende API-Nutzer unverändert berechnet.
@@ -3484,9 +4438,8 @@ final class ConsumptionService
     private function computeForDeliveryMeter(string $utility, array $meter, ?float $hddBaseOverride = null): array
     {
         $u       = Utilities::get($utility);
-        $temps   = $this->store->read('temperatures.json', []);
-        if (!is_array($temps)) $temps = [];
-        $hddBase = $hddBaseOverride ?? (float)$this->settings->get('hdd_base_temp', 15.0);
+        $temps   = $this->temperatures();
+        $hddBase = $hddBaseOverride ?? (float)$this->settings->get('hdd_base_temp', 15.0);   // Lieferarten: keine eigene Grenze
 
         // v2.10.0 — Tankbuch (CALC-04): Verbrauch und Kosten aus derselben
         // Rechnung wie die Bestandskurve. Kosten zum gleitenden
@@ -3538,7 +4491,15 @@ final class ConsumptionService
         $monthly = $this->applyWeatherAdjustment($monthly, $utility, $valueField);
         // v2.8.0 — Lieferarten gehen in keine Heizkurve ein (ihre Monatswerte
         // sind nach Gradtagen verteilt); das Feld steht trotzdem in jeder Zeile.
-        foreach ($monthly as &$m) $m['regression_point'] = false;
+        // v3.7.0 (#37) — die Kennung „gemessen oder verteilt“ gilt für sie nicht
+        // (null): Ihre Monate sind nach Gradtagen modelliert und gehen schon
+        // seit v2.8.0 in keine Abweichung, Empfehlung und Heizkurve ein.
+        foreach ($monthly as &$m) {
+            $m['regression_point'] = false;
+            $m['measured_share'] = null;
+            $m['interpolated'] = null;
+            $m['reading_gap_days'] = null;
+        }
         unset($m);
         return $this->addMovingAverages($monthly, $valueField);
     }

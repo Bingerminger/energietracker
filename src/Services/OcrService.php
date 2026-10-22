@@ -213,12 +213,56 @@ final class OcrService
     }
 
     /**
-     * POST über curl an die geprüfte Adresse (CURLOPT_RESOLVE), ohne
+     * v3.7.0 (Posteingang) — derselbe Transport für den lokalen Anschluss des
+     * Posteingangs (Inbox\LocalProvider): an die geprüfte Adresse, ohne
      * Weiterleitungen.
      *
      * @return array{ok:bool, body:?string, http_code:?int, error_code:?string}
      */
-    private static function curlPost(string $url, string $json, int $timeout, ?string $ip): array
+    public static function post(string $url, string $json, int $timeout, ?string $ip): array
+    {
+        return self::curlPost($url, $json, $timeout, $ip);
+    }
+
+    /**
+     * v3.7.0 (Karte „Auslesen“) — „Verbindung prüfen“: fragt den eigenen
+     * Dienst nach seinen Modellen (Ollama `GET /api/tags`, OpenAI-kompatibel
+     * `GET /v1/models`), ohne Foto und ohne Dokument. Dieselben Regeln wie
+     * beim Auslesen: nur das Heimnetz, die geprüfte Adresse, keine Weiterleitung.
+     *
+     * @return list<string> Namen der Modelle, wie der Dienst sie nennt
+     */
+    public function listModels(string $endpoint, string $api): array
+    {
+        $endpoint = trim($endpoint);
+        if ($endpoint === '') throw new LocalizedException('errors.ocr.off', [], 'OCR endpoint not configured');
+        if (!in_array($api, self::APIS, true)) $api = 'ollama';
+        $base = rtrim($endpoint, '/');
+        foreach (['/chat/completions', '/api/chat'] as $tail) {
+            if (str_ends_with($base, $tail)) $base = substr($base, 0, -strlen($tail));
+        }
+        $url = $api === 'openai' ? (str_ends_with($base, '/v1') ? "$base/models" : "$base/v1/models") : "$base/api/tags";
+        if (!preg_match('#^https?://#i', $url)) throw new LocalizedException('errors.ocr.unreachable', ['seconds' => 0, 'code' => ''], 'OCR endpoint without http(s)');
+        $ip = $this->checkLocal($url);
+        $resp = self::curlPost($url, null, 10, $ip);
+        if (!$resp['ok']) {
+            $key = ($resp['error_code'] ?? '') === 'timeout' ? 'errors.ocr.timeout' : 'errors.ocr.unreachable';
+            throw new LocalizedException($key, ['seconds' => 10, 'code' => (string)($resp['http_code'] ?? '')], 'OCR check failed');
+        }
+        try {
+            return array_column(\Energietracker\Services\Inbox\CloudHttp::models((string)$resp['body']), 'id');
+        } catch (\Throwable) {
+            throw new LocalizedException('errors.ocr.badAnswer', [], 'OCR check: no model list');
+        }
+    }
+
+    /**
+     * POST über curl an die geprüfte Adresse (CURLOPT_RESOLVE), ohne
+     * Weiterleitungen. v3.7.0: ohne Körper (null) ein GET (listModels).
+     *
+     * @return array{ok:bool, body:?string, http_code:?int, error_code:?string}
+     */
+    private static function curlPost(string $url, ?string $json, int $timeout, ?string $ip): array
     {
         if (!function_exists('curl_init')) return ['ok' => false, 'body' => null, 'http_code' => null, 'error_code' => 'noTransport'];
         $p = parse_url($url);
@@ -227,9 +271,7 @@ final class OcrService
         $ch = curl_init($url);
         // v3.4.0 (N1020) — ohne Weiterleitungen, Antwort höchstens 20 MB (Support\Outbound)
         $body = '';
-        $opts = [
-            CURLOPT_POST           => true,
-            CURLOPT_POSTFIELDS     => $json,
+        $opts = ($json === null ? [CURLOPT_HTTPGET => true] : [CURLOPT_POST => true, CURLOPT_POSTFIELDS => $json]) + [
             CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
             CURLOPT_TIMEOUT        => $timeout,
             CURLOPT_CONNECTTIMEOUT => min(10, $timeout),

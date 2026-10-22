@@ -1,0 +1,68 @@
+/* =====================================================================
+   v3.7.0 (Haushalt aus Dokumenten) — der Entwurf über alle ausgelesenen
+   Dokumente (views/inbox-draft.js) und sein Einstieg im Posteingang.
+   Eine Spalte; am breiten Bildschirm Wert und Beschriftung nebeneinander.
+   ===================================================================== */
+
+/* Einrichtungsassistent: „Aus Dokumenten“ — welche Dokumente helfen */
+.setup-docs { margin-top: var(--sp-3); padding: var(--sp-2) var(--sp-3); border: 1px solid var(--border-1); border-radius: var(--r-sm); background: var(--bg-2); }
+.setup-docs__title { margin: 0 0 var(--sp-1); font-weight: 600; font-size: var(--fs-sm); }
+.setup-docs ul { margin: 0; padding-left: var(--sp-5); font-size: var(--fs-sm); display: grid; gap: var(--sp-1); }
+.setup-docs .banner { margin: var(--sp-2) 0 0; }
+
+.inbox-draft-entry { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-3); margin: 0 0 var(--sp-4); }
+
+.draft-summary, .draft-utility, .draft-missing, .draft-docs, .draft-result { margin-bottom: var(--sp-4); }
+.draft-summary__text { font-size: var(--fs-md, 1.05rem); color: var(--text-1); margin: 0 0 var(--sp-1); }
+.draft-queue { margin-bottom: var(--sp-4); }
+
+.draft-findings { list-style: none; margin: 0 0 var(--sp-3); padding: var(--sp-2) var(--sp-3); border-left: 3px solid var(--warning);
+  background: var(--warning-soft); border-radius: var(--r-sm); display: grid; gap: var(--sp-1); font-size: var(--fs-sm); color: var(--text-1); }
+
+.draft-items { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-3); }
+.draft-item { border: 1px solid var(--border-1); border-radius: var(--r-md); padding: var(--sp-3); min-width: 0; }
+.draft-item--check { border-color: var(--warning); }
+.draft-item--conflict { border-color: var(--danger); }
+.draft-item--exists { opacity: .8; }
+.draft-item__head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); }
+.draft-item__pick { display: inline-flex; align-items: baseline; gap: var(--sp-2); cursor: pointer; flex: 1 1 18rem; min-width: 0; }
+.draft-item__pick input { flex: none; width: 1.15rem; height: 1.15rem; }
+.draft-item__title { font-weight: 600; color: var(--text-1); overflow-wrap: anywhere; }
+.draft-item__reason { margin: var(--sp-2) 0 0; font-size: var(--fs-sm); color: var(--text-1); }
+
+.draft-fields { list-style: none; margin: var(--sp-2) 0 0; padding: 0; display: grid; gap: var(--sp-1); }
+.draft-field { padding: var(--sp-1) var(--sp-2); border-radius: var(--r-sm); min-width: 0; }
+.draft-field--check { background: var(--warning-soft); }
+.draft-field--exists { color: var(--text-2); }
+.draft-field__row { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 var(--sp-3); align-items: baseline; }
+@media (min-width: 640px) {
+  .draft-field__row { grid-template-columns: minmax(10rem, 16rem) minmax(0, 1fr) auto; }
+}
+.draft-field__label { font-size: var(--fs-sm); color: var(--text-2); }
+.draft-field__value { font-weight: 600; color: var(--text-1); overflow-wrap: anywhere; }
+.draft-field--exists .draft-field__value { font-weight: 400; color: var(--text-2); }
+.draft-field__hint { margin: 0; }
+.draft-field__confirm { margin: var(--sp-1) 0 0; display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-3); align-items: baseline; font-size: var(--fs-sm); }
+.draft-field__confirm label { display: inline-flex; gap: var(--sp-1); align-items: baseline; cursor: pointer; font-weight: 600; }
+.draft-field__reason { color: var(--text-1); }
+
+.draft-choice { border: 1px solid var(--border-2); border-radius: var(--r-sm); margin: var(--sp-1) 0 0; padding: var(--sp-2) var(--sp-3); }
+.draft-choice legend { font-size: var(--fs-sm); color: var(--text-1); padding: 0 var(--sp-1); }
+.draft-choice__opt + .draft-choice__opt { margin-top: var(--sp-2); }
+.draft-choice__opt label { display: inline-flex; gap: var(--sp-2); align-items: baseline; cursor: pointer; font-weight: 600; }
+
+.draft-src { margin: var(--sp-1) 0 0; font-size: var(--fs-sm); }
+.draft-src summary, .draft-exists summary, .draft-docs > summary { cursor: pointer; color: var(--text-2); }
+.draft-src ul { list-style: none; margin: var(--sp-1) 0 0; padding: 0; display: grid; gap: var(--sp-1); }
+.draft-exists { margin-top: var(--sp-2); font-size: var(--fs-sm); }
+
+.draft-missing ul, .draft-docs ul, .draft-result ul { margin: var(--sp-2) 0 0; padding-left: var(--sp-5); display: grid; gap: var(--sp-1); }
+.draft-docs { padding: var(--sp-3) var(--sp-4); }
+.draft-docs li { overflow-wrap: anywhere; }
+
+/* Übernehmen bleibt erreichbar, auch am iPhone über der Tab-Leiste */
+.draft-applybar { position: sticky; bottom: calc(var(--tabbar-h, 0px) + env(safe-area-inset-bottom, 0px)); z-index: 5; display: flex; flex-wrap: wrap;
+  align-items: center; gap: var(--sp-2) var(--sp-3); padding: var(--sp-3); margin-top: var(--sp-4);
+  background: var(--bg-1); border: 1px solid var(--border-2); border-radius: var(--r-md); box-shadow: 0 -2px 12px rgba(0, 0, 0, .12); }
+@media (min-width: 900px) { .draft-applybar { bottom: var(--sp-3); } }
+@media print { .draft-applybar { display: none; } }

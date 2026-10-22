@@ -16,8 +16,12 @@ import { checkReading, issueText, typicalPerDay, deviceChangedBetween } from '..
 import { associateFieldLabels } from '../lib/a11y.js';
 import { exampleReadingsCsv, downloadExample } from '../lib/csv-example.js';
 import { renderError } from '../components/error.js';
+// v3.7.0 — Zuständig am Zähler (Person aus dem Verzeichnis)
+import { chipHtml, personSelectHtml, personPayload } from '../lib/assignee.js';
+// v3.7.0 (Paket betrieb) — Akte je Zähler
+import { dossierHtml, wireDossiers } from '../components/dossier.js';
 
-export async function render(container, params) {
+export async function render(container, params, ctx = {}) {
   const utilityKey = params[0];
   const u = await getUtility(utilityKey);
   if (!u) {
@@ -26,7 +30,31 @@ export async function render(container, params) {
   }
 
   container.setAttribute('data-utility', u.key);
-  await refresh(container, u);
+  const meters = await refresh(container, u);
+  // v3.7.0 (Paket betrieb) — Zählerwechsel aus dem Posteingang: der Dialog mit
+  // Tag, End- und Anfangsstand und neuer Nummer vorbelegt (#/utility/<u>/meters?replace=<id>&…)
+  const q = ctx.query;
+  const wanted = q?.get('replace');
+  const m = wanted ? (meters || []).find(x => x.id === wanted) : null;
+  if (m && m.capture !== 'period') {
+    // nicht abwarten: Der Dialog bleibt offen, bis man ihn schließt — die Ansicht ist fertig
+    openReplaceDeviceModal(u, m, swapPrefill(q)).then((changed) => {
+      try { history.replaceState(history.state, '', `#/utility/${u.key}/meters`); } catch { /* egal */ }
+      if (changed && container.isConnected) refresh(container, u);
+    }).catch(() => {});
+  }
+}
+
+/** Vorbelegung des Zählertauschs aus der Adresse (Zahlen mit Punkt, wie der Server sie schreibt). */
+export function swapPrefill(q) {
+  const num = (k) => { const v = q?.get(k); return v !== null && v !== undefined && v !== '' && Number.isFinite(Number(v)) ? Number(v) : null; };
+  const date = q?.get('date') || '';
+  return {
+    date: /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : null,
+    old: num('old'), new: num('new'),
+    serial: (q?.get('serial') || '').slice(0, 64) || null,
+    fromInbox: !!q?.get('inbox'),
+  };
 }
 
 async function refresh(container, u) {
@@ -40,7 +68,7 @@ async function refresh(container, u) {
   } catch (e) {
     // v2.11.0 (Review FE-25) — sonst hing die Ansicht nach dem Speichern bei „Lädt…"
     renderError(container, e, () => refresh(container, u));
-    return;
+    return null;
   }
 
   // C — Übersichtszeile aus den bereits geladenen Daten.
@@ -155,6 +183,8 @@ async function refresh(container, u) {
       catch (e) { toastErr(e.message); }
     });
   });
+  wireDossiers(container);   // v3.7.0 (Paket betrieb) — Akte je Zähler
+  return meters;
 }
 
 // ───── Gruppen-Übersicht + Topologie-Baum ───────────────────────────
@@ -215,6 +245,7 @@ function renderMeterCard(meter, u, groups, isSub) {
           ${gName ? `<span class="tag tag--util">${t('meters.card.group', { name: escapeHtml(gName) })}</span>` : ''}
           ${meter.capture === 'period' ? `<span class="tag">${t('meters.card.periodTag')}</span>` : ''}
           ${roleOf(u, meter) && roleOf(u, meter) !== u.meter_roles[0] ? `<span class="tag">${escapeHtml(t(`meters.roles.${u.key}.${roleOf(u, meter)}`))}</span>` : ''}
+          ${chipHtml(meter)}
         </div>
         <div class="meter-card__meta">
           ${tp('meters.card.devices', devices.length)}
@@ -232,6 +263,7 @@ function renderMeterCard(meter, u, groups, isSub) {
             </li>
           `).join('')}
         </ul>
+        ${dossierHtml({ utility: u.key, meterId: meter.id })}
       </div>
       <div class="row-actions" style="flex-direction:column; gap: 4px">
         ${meter.capture === 'period' ? '' : `<button class="btn btn--sm" data-replace-device="${escapeHtml(meter.id)}">${t('meters.card.replace')}</button>`}
@@ -269,6 +301,8 @@ async function openMeterModal(u, existing, allMeters = [], groups = []) {
   const volUnit = u.volume_unit || u.unit || '';
   // v2.6.0 — Stellen des Zählwerks am eingebauten Gerät (Überlauf-Erkennung)
   const activeDigits = (existing?.devices || []).find(d => !d.removed_on)?.digits ?? '';
+  // v3.7.0 — Personen für „Zuständig“ (auch ohne Anmeldung, etwa im Beispielhaushalt)
+  const people = await api.people().catch(() => []);
   return new Promise(resolve => {
     // v3.4.0 (N1021) — ein Raster wie im Vertrag. Rolle und Erfassung
     // bestimmen den Zähler und stehen jetzt oben (bis v3.3 hinter Notizen
@@ -305,6 +339,7 @@ async function openMeterModal(u, existing, allMeters = [], groups = []) {
               </select>
               <span class="settings-field__hint" id="mf-capture-hint">${t('meters.modal.captureHint')}</span>
             </div>`}
+            ${personSelectHtml({ id: 'mf-assignee', record: existing, people, hintKey: 'assignee.hintMeter' })}
           </div>
         </fieldset>
         ${isDelivery ? `
@@ -391,8 +426,9 @@ async function openMeterModal(u, existing, allMeters = [], groups = []) {
           <p class="fgroup__hint" id="mf-malo-hint">${t('meters.modal.maloHint')}</p>
         </fieldset>`}
         ${u.key === 'pv_erzeugung' ? `
-        <!-- v3.1.0 (H7, CALC-29) — Balkonkraftwerk, Amortisation, Speicher -->
-        <fieldset class="fgroup" data-min-level="expert"><legend>${t('meters.pv.title')}</legend>
+        <!-- v3.1.0 (H7, CALC-29) — Balkonkraftwerk, Amortisation, Speicher
+             v3.7.0 — ab Erfahren (bis v3.6 Experte), wie Speicher und Amortisation in der Verbrauchsansicht -->
+        <fieldset class="fgroup" data-role="pv-plant" data-min-level="advanced"><legend>${t('meters.pv.title')}</legend>
           <div class="fgrid">
             <div class="field field--full">
               <label class="check"><input type="checkbox" name="plug_in" ${existing?.plug_in ? 'checked' : ''}> ${t('meters.pv.plugIn')}</label>
@@ -408,8 +444,9 @@ async function openMeterModal(u, existing, allMeters = [], groups = []) {
           <p class="fgroup__hint">${t('meters.pv.hint')}</p>
         </fieldset>` : ''}
         ${u.key === 'waerme' ? `
-        <!-- v3.1.0 (H7, MKT-18) — Stromzähler der Wärmepumpe für die Jahresarbeitszahl -->
-        <fieldset class="fgroup" data-role="hp-link" data-min-level="expert"><legend>${t('meters.heatPumpLink.title')}</legend>
+        <!-- v3.1.0 (H7, MKT-18) — Stromzähler der Wärmepumpe für die Jahresarbeitszahl
+             v3.7.0 — ab Erfahren (bis v3.6 Experte), wie die Jahresarbeitszahl selbst -->
+        <fieldset class="fgroup" data-role="hp-link" data-min-level="advanced"><legend>${t('meters.heatPumpLink.title')}</legend>
           <div data-role="hp-list" class="check-grid muted small">${t('meters.heatPumpLink.loading')}</div>
           <p class="fgroup__hint">${t('meters.heatPumpLink.hint')}</p>
         </fieldset>` : ''}
@@ -589,6 +626,7 @@ async function openMeterModal(u, existing, allMeters = [], groups = []) {
                 meter_group_id:  f.meter_group_id.value || null,
                 baseline_events: baselineEvents,   // F1011
                 ...energyFields(f),                // v3.1.0 (H7)
+                ...personPayload(f.querySelector('[name="assignee_id"]'), existing),   // v3.7.0
               };
               // v2.1.1 — Fix #18: Tank-Felder mitsenden (nur Heizöl/Pellets).
               if (isDelivery) {
@@ -614,6 +652,7 @@ async function openMeterModal(u, existing, allMeters = [], groups = []) {
                 ...(f.melo_id?.value ? { melo_id: f.melo_id.value } : {}),
                 ...(f.capture?.value === 'period' ? { capture: 'period' } : {}),   // v3.1.0 (B2)
                 ...energyFields(f),                                                  // v3.1.0 (H7)
+                ...personPayload(f.querySelector('[name="assignee_id"]'), null),     // v3.7.0
               };
               // v2.1.1 — Fix #18: Delivery-Utilities bekommen Tank-Kapazität +
               // Anfangsbestand statt eines kumulativen Anfangsstands.
@@ -637,7 +676,7 @@ async function openMeterModal(u, existing, allMeters = [], groups = []) {
 }
 
 // ───── Device replacement (F2) ──────────────────────────────────────
-async function openReplaceDeviceModal(u, meter) {
+async function openReplaceDeviceModal(u, meter, prefill = {}) {
   // v2.5.3 — Letzter erfasster Stand als Orientierung und Plausibilitätsgrenze
   // für den Endstand des alten Geräts (UI-03 im Review 2026-09-24).
   let last = null;
@@ -645,31 +684,39 @@ async function openReplaceDeviceModal(u, meter) {
     const rs = await api.readings(u.key, meter.id);
     last = (rs || []).filter(r => !r.is_future).sort((a, b) => String(b.date).localeCompare(String(a.date)))[0] || null;
   } catch { /* ohne Hinweis weiter */ }
+  // v3.7.0 (Paket betrieb) — aus dem Posteingang vorbelegt (Zählerwechsel des Netzbetreibers)
+  const pre = {
+    date: prefill.date || todayIso(),
+    old: prefill.old !== null && prefill.old !== undefined ? formatForInput(prefill.old) : '',
+    new: formatForInput(prefill.new !== null && prefill.new !== undefined ? prefill.new : 0),
+    serial: prefill.serial || '',
+  };
   return new Promise(resolve => {
     const body = `
       <p>${t('meters.replace.intro')}</p>
+      ${prefill.fromInbox ? `<p class="banner banner--info" data-role="swap-prefilled">${escapeHtml(t('meters.replace.fromInbox'))}</p>` : ''}
         <form id="replace-form">
         <!-- v3.4.0 (N1021) — Formularraster: Die lange Beschriftung des
              Anfangsstands brach um und schob das Feld 17 px tiefer -->
         <div class="fgrid">
           <div class="field field--s">
             <label>${t('meters.replace.date')}</label>
-            <input class="input" name="date" type="date" required value="${todayIso()}">
+            <input class="input" name="date" type="date" required value="${escapeHtml(pre.date)}">
           </div>
           <div class="field field--s">
             <label>${t('meters.replace.oldFinal', { unit: u.unit })}</label>
-            <input class="input" name="old_final_counter" type="text" inputmode="decimal" autocomplete="off" required aria-describedby="rp-old-msg rp-old-hint">
+            <input class="input" name="old_final_counter" type="text" inputmode="decimal" autocomplete="off" required value="${escapeHtml(pre.old)}" aria-describedby="rp-old-msg${last ? ' rp-old-hint' : ''}">
             ${last ? `<small class="settings-field__hint" id="rp-old-hint">${t('meters.replace.lastKnown', { value: fmt.num(last.counter, 2), unit: u.unit, date: fmt.date(last.date) })}</small>` : ''}
             <div class="field-error" id="rp-old-msg" role="alert" hidden></div>
           </div>
           <div class="field field--s">
             <label>${t('meters.replace.newInitial', { unit: u.unit })}</label>
-            <input class="input" name="new_initial_counter" type="text" inputmode="decimal" autocomplete="off" required value="${escapeHtml(formatForInput(0))}" aria-describedby="rp-new-msg">
+            <input class="input" name="new_initial_counter" type="text" inputmode="decimal" autocomplete="off" required value="${escapeHtml(pre.new)}" aria-describedby="rp-new-msg">
             <div class="field-error" id="rp-new-msg" role="alert" hidden></div>
           </div>
           <div class="field field--s">
             <label>${t('meters.replace.serial')}</label>
-            <input class="input" name="serial" type="text">
+            <input class="input" name="serial" type="text" value="${escapeHtml(pre.serial)}">
           </div>
           <div class="field field--l">
             <label>${t('meters.replace.reason')}</label>
@@ -1001,7 +1048,7 @@ async function openMergeModal(u, meters, groups) {
       <p>${t('meters.mergeModal.intro')}</p>
       <form id="merge-form">
         <!-- v3.4.0 (N1021) — Auswahl als Feldgruppe, Kästchen in Satzschreibung -->
-        <fieldset class="fgroup">
+        <fieldset class="fgroup" aria-describedby="merge-select-msg">
           <legend>${t('meters.mergeModal.select')}</legend>
           <div class="check-grid check-scroll">
             ${meters.map(m => `
@@ -1013,7 +1060,7 @@ async function openMergeModal(u, meters, groups) {
             `).join('')}
           </div>
           <!-- v2.12.0 (Review UI-22) — Fehler am Feld statt im Toast -->
-          <div class="field-error" data-role="select-msg" role="alert" hidden></div>
+          <div class="field-error" id="merge-select-msg" data-role="select-msg" role="alert" hidden></div>
         </fieldset>
         <div class="fgrid">
           <div class="field">

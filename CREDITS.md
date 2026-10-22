@@ -13,9 +13,10 @@ the MIT licence and remain available under it.
 |---|---|---|
 | [Chart.js](https://www.chartjs.org/) 4.5.1 | MIT | `public/vendor/chart.umd.min.js`, licence in [`public/vendor/chart.js-LICENSE.md`](public/vendor/chart.js-LICENSE.md) |
 | DM Sans and DM Mono (Colophon Foundry) | SIL Open Font License 1.1 | `public/vendor/fonts/`, licence in [`public/vendor/fonts/OFL.txt`](public/vendor/fonts/OFL.txt) |
+| [PDF.js](https://mozilla.github.io/pdf.js/) 6.4.299 (Mozilla, legacy build) | Apache-2.0 | `public/vendor/pdfjs/pdf.min.js` and `pdf.worker.min.js`, licence in [`public/vendor/pdfjs/LICENSE`](public/vendor/pdfjs/LICENSE) — loaded only on the Inbox page (since v3.7.0) |
 
-Both are vendored so that the app works without internet access; nothing is
-loaded from a CDN at runtime.
+All of them are vendored so that the app works without internet access;
+nothing is loaded from a CDN at runtime.
 
 Since v3.4.0 the PDF reports measure text with the character widths of the
 standard PDF fonts Helvetica, Helvetica-Bold and ZapfDingbats, taken from
@@ -81,8 +82,9 @@ MIT-Lizenz erschienen und bleiben unter ihr verfügbar.
 |---|---|---|
 | [Chart.js](https://www.chartjs.org/) 4.5.1 | MIT | `public/vendor/chart.umd.min.js`, Lizenz in [`public/vendor/chart.js-LICENSE.md`](public/vendor/chart.js-LICENSE.md) |
 | DM Sans und DM Mono (Colophon Foundry) | SIL Open Font License 1.1 | `public/vendor/fonts/`, Lizenz in [`public/vendor/fonts/OFL.txt`](public/vendor/fonts/OFL.txt) |
+| [PDF.js](https://mozilla.github.io/pdf.js/) 6.4.299 (Mozilla, Legacy-Build) | Apache-2.0 | `public/vendor/pdfjs/pdf.min.js` und `pdf.worker.min.js`, Lizenz in [`public/vendor/pdfjs/LICENSE`](public/vendor/pdfjs/LICENSE) — nur auf der Seite Posteingang geladen (seit v3.7.0) |
 
-Beides liegt im Repository, damit die App ohne Internetzugang funktioniert;
+Alles liegt im Repository, damit die App ohne Internetzugang funktioniert;
 zur Laufzeit wird nichts von einem CDN geladen.
 
 Seit v3.4.0 misst der PDF-Bericht Text mit den Zeichenbreiten der

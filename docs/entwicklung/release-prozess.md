@@ -90,6 +90,32 @@ Beispiele aus der Historie:
    `ET_DATA_DIR` auf eine Kopie von `demo-data/` starten, Migration prüfen,
    Kern-Endpunkte und die geänderten Pfade abfragen. Nie gegen das lokale
    `data/` — dort liegen echte Nutzdaten.
+8. **Mitgelieferte Bibliotheken** (seit v3.7.0): Version und Sicherheitsmeldungen
+   der Dateien unter `public/vendor/` prüfen und bei Bedarf aktualisieren —
+   - **Chart.js** — `public/vendor/chart.umd.min.js` (Version im Dateikopf; die
+     Architektur-Doku und `CREDITS.md` nennen sie, ein Test vergleicht),
+   - **pdf.js** für den Posteingang — `public/vendor/pdfjs/` (Version im Kopf
+     der Dateien, Lizenz und `CREDITS.md` wie bei Chart.js).
+
+   Jede Skriptdatei unter `public/vendor/` muss hier genannt sein
+   (`ReleaseChecklistTest`) — eine neue Bibliothek fällt so nicht aus der
+   Prüfung.
+9. **Sichtprüfung in Safari/WebKit** (seit v3.7.0): Die App läuft auf dem iPad
+   in Safari; JSDOM und Chromium sehen dessen Eigenheiten nicht. Mit einer
+   laufenden Instanz:
+
+   ```bash
+   NODE_PATH=<node_modules mit playwright> node tools/webkit-check.mjs \
+     --base=http://127.0.0.1:8899 [--login=<passwort>] [--shots] [route …]
+   ```
+
+   Geprüft wird je Seite bei 820 px hochkant und 1180 px quer (Gerät „iPad Pro
+   11“): keine Eingabe unter 16 px Schrift, gleiche Feldhöhen, Beschriftung
+   über dem Feld, Passwortfelder im Formular, kein waagerechtes Scrollen, kein
+   Skriptfehler. Rückgabewert 1 bei Befunden. Ohne Routen die Seiten der
+   Einstellungen und die Übersicht; geänderte Seiten des Release als Routen
+   anhängen (`/utility/gas/contracts`, ohne „#“). Playwright gehört nicht zum
+   Repo: einmalig `npm i playwright && npx playwright install webkit`.
 
 ---
 
@@ -866,6 +892,21 @@ abgenommen ist.
   hat, erfährt von neuen nur über GitHub, Update-Werkzeuge oder ein Tag wie
   `:3`. Deshalb kam der Hinweis so früh wie möglich und das Tag gleich mit —
   alte Tags auf neue Versionen umzubiegen wäre keine Lösung.
+- **Ein JSDOM-Test sieht den Fokus nicht, wie der Browser ihn setzt (v3.7.0).**
+  Die Dialoge sollten das erste Feld fokussieren; im Browser landete der Fokus
+  auf „×“ — dem ersten fokussierbaren Element im Dokument — und überschrieb
+  sogar den Fokus, den ein Dialog selbst gesetzt hatte. JSDOM kennt kein
+  Layout (`offsetParent` immer null), der Test sah das gewünschte Feld. Eine
+  Prüfung von Fokus und Sichtbarkeit braucht einen Layout-Ersatz im Test
+  (`tests/a11y.test.mjs`) und eine Regel, die nicht am Dokument hängt.
+- **Quadratische Laufzeit fällt erst mit vielen Daten auf (v3.7.0).** Mit den
+  Beispieldaten antwortet jede Ansicht in Millisekunden. Mit zehn Jahren
+  täglicher Ablesungen brauchte der Jahresbericht mit Anhang 3,4 s, mit zwanzig
+  12 s: Die Rechnung baute je Ableseintervall die Schnitttage aller Verträge
+  neu, las je Vertrag alle Ablesungen und je Periode alle Intervalle. Eine
+  Messung mit einem großen erfundenen Haushalt
+  ([Messung](messung-grosse-daten.md)) gehört vor jede Aussage über die
+  Grenzen der Speicherung.
 
 ---
 

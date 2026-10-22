@@ -6483,7 +6483,9 @@
             "recurrence_months": 72,
             "last_done": "2021-03-31",
             "notes": "Eichfrist nach MessEV — Austausch durch den Versorger",
-            "active": true
+            "active": true,
+            "utility": "wasser",
+            "meter_id": "m_wasser_haupt"
         },
         {
             "id": "rem_62d08672",
@@ -6494,7 +6496,9 @@
             "recurrence_months": 96,
             "last_done": "2019-04-10",
             "notes": "Eichfrist nach MessEV",
-            "active": true
+            "active": true,
+            "utility": "gas",
+            "meter_id": "m_gas_haus"
         },
         {
             "id": "rem_a0f6fb04",
@@ -7231,6 +7235,7 @@
             }
         ]
     },
+    "inbox": [],
     "demo_align": {
         "billing_anchor_days_ago": {
             "gas": 56
@@ -7266,7 +7271,8 @@
                             "final_counter": null,
                             "reason": null
                         }
-                    ]
+                    ],
+                    "assignee_id": "u_95ced969"
                 }
             ],
             "readings": [
@@ -7785,7 +7791,8 @@
                     "auto_renews": true,
                     "min_term_end": null,
                     "price_guarantee_until": "2026-06-30",
-                    "signup_bonus_eur": null
+                    "signup_bonus_eur": null,
+                    "assignee_id": "u_b0fee241"
                 }
             ],
             "deliveries": [],
@@ -9398,6 +9405,12 @@
                             "amount_eur": 120,
                             "type": "neukunde",
                             "label": "Neukundenbonus"
+                        },
+                        {
+                            "credit_date": "2026-02-16",
+                            "amount_eur": 25,
+                            "type": "sonstige",
+                            "label": "Kulanz für die verspätete Jahresabrechnung"
                         }
                     ],
                     "special_payments": [

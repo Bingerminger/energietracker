@@ -252,10 +252,12 @@ final class FlexibilityService
             foreach ($t as $k => $_) { $v = (float)($a[$k] ?? 0.0); $t[$k] += $v; $row[$k === 'saving' ? 'saving_eur' : $k . '_kwh'] = round($k === 'saving' ? $v / 100 : $v, 2); }
             $rows[] = $row;
         }
+        // v3.7.0 — additiv: am Vertrag netto eingetragen und mit welcher USt auf brutto gerechnet
+        $net = array_values(array_filter($byMonth, fn($x) => !empty($x['net'])));
         return ['months' => $rows, 'total' => [
             'low_kwh' => round($t['low'], 2), 'high_kwh' => round($t['high'], 2), 'standard_kwh' => round($t['standard'], 2),
             'saving_eur' => round($t['saving'] / 100, 2),
-        ]];
+        ], 'prices_net' => $net !== [], 'vat_pct' => $net !== [] ? (float)$net[0]['vat_pct'] : null];
     }
 
     /**
@@ -270,11 +272,37 @@ final class FlexibilityService
         $list = array_values(array_filter($this->contracts->list('strom', $meterId), fn($c) => empty($c['is_shadow'])));
         if ($list === []) return [];
         $byMonth = [];
+        $vat = null;
         for ($mo = 1; $mo <= 12; $mo++) {
             $c = $this->contracts->resolveForDate($list, sprintf('%04d-%02d-01', $year, $mo))['contract'] ?? null;
-            if (is_array($c['grid_tou'] ?? null)) $byMonth[$mo] = $c['grid_tou'];
+            if (!is_array($c['grid_tou'] ?? null)) continue;
+            $tou = $c['grid_tou'];
+            // v3.7.0 — am Vertrag netto eingetragen (`net`): mit dem Umsatzsteuersatz
+            // der App (MarketPriceService::vatPctOf, wie die Börsen-Hebel) auf brutto;
+            // sonst wie eingetragen (brutto, wie auf der Rechnung)
+            if (!empty($tou['net'])) {
+                $vat ??= MarketPriceService::vatPctOf($this->contracts->list('strom'));
+                $tou = self::grossTou($tou, $vat);
+            }
+            $byMonth[$mo] = $tou;
         }
         return $byMonth;
+    }
+
+    /**
+     * v3.7.0 — Zeitfenster für Modul 3 von netto auf brutto: Standardtarif und
+     * jedes Fenster × (1 + USt/100); `vat_pct` hält fest, womit gerechnet wurde.
+     *
+     * @param array<string,mixed> $tou
+     * @return array<string,mixed>
+     */
+    public static function grossTou(array $tou, float $vatPct): array
+    {
+        $f = 1 + $vatPct / 100;
+        $tou['standard_ct'] = round((float)$tou['standard_ct'] * $f, 4);
+        foreach ((array)($tou['windows'] ?? []) as $i => $w) $tou['windows'][$i]['ct'] = round((float)$w['ct'] * $f, 4);
+        $tou['vat_pct'] = $vatPct;
+        return $tou;
     }
 
     /** Netzentgelt (ct/kWh) zu einer Minute des Tages in einem Monat laut Zeitfenstern. */

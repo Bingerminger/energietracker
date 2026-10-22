@@ -172,18 +172,22 @@ Alle drei Wege führen auf Adressen im eigenen Netz und bestehen die Prüfung.
 
 ## Einstellungen
 
-**Einstellungen → Experte → 🔎 Texterkennung im Heimnetz** (oben auf der Seite,
-vor den eingeklappten Rechenparametern):
+Oben auf der Seite **Einstellungen → Experte**, vor den eingeklappten
+Rechenparametern, stehen zwei Karten. Adresse und Schnittstelle teilt die
+Texterkennung mit dem Posteingang; seit v3.7.0 stehen sie deshalb einmal, in der
+Karte **📥 Auslesen** unter **Lokal** (mit **Verbindung prüfen**, siehe
+[Posteingang](posteingang.md#auslesen-einrichten)). Die Zählerfotos liest immer
+der eigene Dienst, auch wenn der Posteingang in der Cloud ausliest.
 
-| Feld | Schlüssel | Eintrag |
-|---|---|---|
-| Adresse des Dienstes | `ocr_endpoint` | Basisadresse mit `http://` oder `https://`; den Pfad (`/api/chat` bzw. `/v1/chat/completions`) hängt die App an. Leer = aus |
-| Schnittstelle | `ocr_api` | **Ollama** oder **OpenAI-kompatibel (LM Studio, LocalAI)** |
-| Modell | `ocr_model` | Name wie im Dienst, etwa `qwen2.5vl` |
-| Zeitlimit | `ocr_timeout_s` | Sekunden, die der Server wartet; Standard 30 (5–300) — im Docker-Image voll nutzbar ([Grenzen](#grenzen)) |
+| Karte | Feld | Schlüssel | Eintrag |
+|---|---|---|---|
+| 📥 Auslesen → Lokal | Adresse des Dienstes | `ocr_endpoint` | Basisadresse mit `http://` oder `https://`; den Pfad (`/api/chat` bzw. `/v1/chat/completions`) hängt die App an. Leer = aus |
+| 📥 Auslesen → Lokal | Schnittstelle | `ocr_api` | **Ollama** oder **OpenAI-kompatibel (LM Studio, LocalAI)** |
+| 🔎 Texterkennung im Heimnetz | Modell | `ocr_model` | Name wie im Dienst, etwa `qwen2.5vl` |
+| 🔎 Texterkennung im Heimnetz | Zeitlimit | `ocr_timeout_s` | Sekunden, die der Server wartet; Standard 30 (5–300) — im Docker-Image voll nutzbar ([Grenzen](#grenzen)) |
 
-Speichern. Beim nächsten Öffnen von „Zählerstände“ ist die Texterkennung
-aktiv. Alle Schlüssel:
+Speichern (jede Karte für sich). Beim nächsten Öffnen von „Zählerstände“ ist die
+Texterkennung aktiv. Alle Schlüssel:
 [Einstellungen → Texterkennung im Heimnetz](../referenz/einstellungen.md#texterkennung-im-heimnetz-v310).
 
 ---

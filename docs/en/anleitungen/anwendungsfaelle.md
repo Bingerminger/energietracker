@@ -325,7 +325,8 @@ Unit price from 2026: 12.5 ct/kWh · network CO₂ factor: 198 g/kWh
 ```
 
 The contract dialog shows the fields for connected load, capacity and metering
-charge at the level “Expert”; the app calculates with them at every level
+charge at every level since v3.7.0 (up to v3.6 only at “Expert”), the network’s
+CO₂ factor from “Expert”; the app calculates with all of them at every level
 ([District heating](../verstehen/04-fernwaerme.md#fixed-costs-capacity-and-metering-charge-v310)).
 
 **3. “Own house with heat pump and solar” — heat as the heat pump’s output.**
@@ -344,7 +345,7 @@ Card “Heat pump 2025” (made up):
   12,953 kWh heat / 3,896 kWh electricity = seasonal performance factor 3.3 · heating season 3.4
 ```
 
-The card appears at the level “Expert”
+The card appears from the level “Experienced” since v3.7.0 (up to v3.6 “Expert”)
 ([Heat §7](../verstehen/15-waerme.md#7-seasonal-performance-factor-of-the-heat-pump-v310)).
 
 > **Not twice.** The heat pump output counts neither in the sums of heat nor in
@@ -383,8 +384,10 @@ Energietracker **checks the numbers** of what came out of it:
 | What does the battery lose? | PV generation → card “Battery {year}” | charging and discharging meters ([PV §7](../verstehen/12-pv.md#7-battery-v310)) |
 | All readings without typing | every utility | Home Assistant sends them in the evening via `POST /api/ingest` ([Home Assistant](home-assistant.md)) |
 
-The app shows the charging record, the heat pump card, the wholesale prices and
-the Flexibility page at the level “Expert”.
+The app shows the charging record and the heat pump card from the level
+“Experienced” since v3.7.0, the Flexibility page at every level since v3.6.0
+(with the recalculation per meter from “Expert”), and the wholesale prices
+under “Tariff switch” from “Expert”.
 
 **In the sample household “Own house with heat pump and solar”:**
 

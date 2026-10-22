@@ -104,6 +104,7 @@
   },
   {
     "id": "c_strom_004",
+    "assignee_id": "u_a1fbab95",
     "meter_id": "m_strom_main",
     "provider": "Energie Nordring",
     "tariff_name": "Strom Direkt 12 — 2026",

@@ -122,6 +122,16 @@ globalThis.fetch = async (url, init) => {
   check('GET /api/agenda und /api/reminders → assignee_deleted (v3.6.0)',
     (ag.events || []).every(e => typeof e.assignee_deleted === 'boolean') && rem.every(r => typeof r.assignee_deleted === 'boolean')
       && rem.filter(r => r.assignee_id).every(r => r.assignee_deleted || people.some(p => p.id === r.assignee_id)));
+  // v3.7.0 (Paket zustaendig) — Zuständig an Zählern und Verträgen; Fristen mit Herkunft
+  const four = (x) => 'assignee' in x && 'assignee_id' in x && typeof x.assignee_former === 'boolean' && typeof x.assignee_deleted === 'boolean';
+  const mStrom = await j('/api/utility/strom/meters');
+  const cStrom = await j('/api/utility/strom/contracts');
+  check('GET …/meters und …/contracts → assignee, assignee_id, assignee_former, assignee_deleted (v3.7.0)',
+    mStrom.every(four) && cStrom.every(four), `${mStrom.length} Zähler, ${cStrom.length} Verträge`);
+  check('GET /api/agenda → assignee_source (own | contract | meter | null), GET /api/reminders → assignee_inherited',
+    (ag.events || []).every(e => [null, 'own', 'contract', 'meter'].includes(e.assignee_source)
+      && (e.assignee_source === null) === (e.assignee === null && !e.assignee_former))
+      && rem.every(r => 'assignee_inherited' in r));
   const act = await j('/api/activity');
   check('GET /api/activity → Array', Array.isArray(act), `${act.length} Einträge`);
   const actCsv = await fetch(`${BASE}/api/activity.csv?format=local`);
@@ -161,6 +171,51 @@ globalThis.fetch = async (url, init) => {
     const head = Buffer.from(await png.arrayBuffer()).subarray(1, 4).toString();
     check('GET /api/docs/asset → image/png, nosniff', png.status === 200 && png.headers.get('content-type') === 'image/png'
       && png.headers.get('x-content-type-options') === 'nosniff' && head === 'PNG');
+  }
+
+  // v3.7.0 — Posteingang: was views/inbox.js und lib/inbox-queue.js lesen
+  {
+    const box = await j('/api/inbox');
+    check('GET /api/inbox → entries[], queue{counts,queued,next}, provider{id,label,local,available,model}',
+      Array.isArray(box.entries) && Number.isInteger(box.queue?.queued) && typeof box.queue?.counts === 'object'
+        && box.provider?.id === 'local' && typeof box.provider.label === 'string' && box.provider.local === true
+        && typeof box.provider.available === 'boolean' && typeof box.provider.model === 'string', `${box.entries?.length} Dokumente`);
+    const e0 = box.entries?.[0];
+    check('… Eintrag: id, attachment_id, name, status, type, flags, queued_at, created_at',
+      !!e0 && /^inb_[0-9a-f]{12}$/.test(e0.id) && /^att_/.test(e0.attachment_id) && 'flags' in e0 && 'queued_at' in e0 && !!e0.status && 'type' in e0);
+    if (e0) {
+      const pv = await j(`/api/inbox/${e0.id}`);
+      const f = pv.entry?.extraction?.fields?.consumption;
+      check('GET /api/inbox/{id} → entry.extraction.fields{value,quote,page,status,reasons}, ohne Zwischenspeicher',
+        !!f && 'value' in f && 'quote' in f && 'page' in f && ['ok', 'check', 'empty'].includes(f.status) && Array.isArray(f.reasons) && !('cache' in pv.entry));
+      const p0 = pv.proposals?.[0];
+      check('… assignment{utility,meter_id,contract_id}, suggested.by[], proposals[{id,kind,label_key,params,status,check,checked,sources}], schema',
+        pv.assignment && 'utility' in pv.assignment && 'meter_id' in pv.assignment && 'contract_id' in pv.assignment && Array.isArray(pv.suggested?.by)
+          && !!p0 && /^p_[0-9a-f]{12}$/.test(p0.id) && /^inbox\.proposal\./.test(p0.label_key) && typeof p0.params === 'object'
+          && ['new', 'exists', 'conflict', 'overlap'].includes(p0.status) && typeof p0.check === 'boolean' && typeof p0.checked === 'boolean'
+          && Array.isArray(p0.sources) && pv.schema?.period_from?.kind === 'date', `${pv.proposals?.length} Vorschläge`);
+      const rev = await j('/api/inbox/review');
+      check('GET /api/inbox/review → [{entry_id, field, value, quote, page, reasons}]', Array.isArray(rev) && rev.every(r => r.entry_id && r.field && Array.isArray(r.reasons)), `${rev.length}`);
+      // v3.7.0 (Paket betrieb) — Kernaussage (lib/inbox.js gistText/gistFigure, views/inbox.js), Ordner, Akte (components/dossier.js)
+      const g = pv.gist;
+      check('… gist{type,key,params,figure{kind,value,tone},action{kind,key},details[]} — auch in der Liste',
+        !!g && /^inbox\.gist\./.test(g.key) && typeof g.params === 'object' && ['money_year', 'money_month', 'money', 'result', 'date', 'price_ct'].includes(g.figure?.kind)
+          && ['good', 'warn', 'bad', 'neutral'].includes(g.figure.tone) && ['apply', 'link', 'remind', 'file'].includes(g.action?.kind) && Array.isArray(g.details)
+          && e0.gist?.key === g.key, g ? `${g.key} · ${g.action?.kind}` : 'kein gist');
+      check('GET /api/inbox → folder{dir,present,pending}', box.folder?.dir === 'posteingang' && typeof box.folder.present === 'boolean' && Number.isInteger(box.folder.pending));
+      const dos = await j(`/api/utility/gas/dossier?meter_id=${encodeURIComponent(pv.assignment.meter_id || 'm_gas_default')}`);
+      check('GET /api/utility/{u}/dossier → items[{kind,type,date,title,attachment_id}]', Array.isArray(dos.items)
+        && dos.items.every(i => ['inbox', 'bill', 'receipt', 'photo'].includes(i.kind) && typeof i.date === 'string' && 'attachment_id' in i && 'title' in i), `${dos.items?.length}`);
+    }
+    const pdf = Buffer.from('%PDF-1.4\n% shape test\n%%EOF\n');
+    const upPdf = await fetch(`${BASE}/api/inbox?name=shape.pdf`, { method: 'POST', headers: { 'Content-Type': 'application/pdf' }, body: pdf })
+      .then(async r => ({ status: r.status, data: (await r.json()).data }));
+    check('POST /api/inbox (PDF, roher Body) → 201, Eintrag „neu“', upPdf.status === 201 && upPdf.data?.status === 'new' && upPdf.data.name === 'shape.pdf', `HTTP ${upPdf.status}`);
+    const dup = await fetch(`${BASE}/api/inbox?name=nochmal.pdf`, { method: 'POST', headers: { 'Content-Type': 'application/pdf' }, body: pdf });
+    const dupJ = await dup.json();
+    check('… dasselbe noch einmal → 409 errors.inbox.duplicate mit detail.existing', dup.status === 409 && dupJ.code === 'errors.inbox.duplicate'
+      && dupJ.detail?.existing?.id === upPdf.data?.id);
+    if (upPdf.data?.id) await fetch(`${BASE}/api/inbox/${upPdf.data.id}`, { method: 'DELETE' });
   }
 
   // v3.1.0 (H2) — Beleg hochladen (roher Body), ausliefern, an eine Ablesung
@@ -465,6 +520,13 @@ globalThis.fetch = async (url, init) => {
       && (pvs.yearly || []).every(y => 'flow' in y && 'heat_pump_kwh' in y && 'ev_charger_kwh' in y
         && (y.flow === null || (Number.isInteger(y.flow.months) && y.autarkiequote === y.flow.autarky))),
     pvm ? `${pvm.ym}: Haus ${pvm.flow.house} kWh, Autarkie ${pvm.flow.autarky}` : 'keine PV');
+  // v3.7.0 (#39) — verteilte Monate: Kennung je Monat und Jahr, Hinweis mit Zahl der Ablesungen
+  check('pv-summary (v3.7.0): monthly[].interpolated, interpolated_series[], yearly[].months_interpolated, interpolation null oder {utility, readings, from, to}',
+    (pvs.monthly || []).every(m => typeof m.interpolated === 'boolean' && Array.isArray(m.interpolated_series))
+      && (pvs.yearly || []).every(y => Number.isInteger(y.months_interpolated))
+      && (pvs.interpolation === null || (Number.isInteger(pvs.interpolation.readings) && typeof pvs.interpolation.utility === 'string'))
+      && ((pvs.interpolation !== null) === (pvs.hints || []).includes('interpolated')),
+    JSON.stringify(pvs.interpolation));
 
   // 4a. v2.7.0 — Länderprofile: settings.js, temperatures.js und app.js lesen
   //     code/languages/currency/timezone/location_name/latitude/longitude
@@ -644,18 +706,44 @@ globalThis.fetch = async (url, init) => {
       gRow ? Object.keys(gRow).filter(k => /heat|weather|normal|regression/.test(k)).join(',') : 'kein Regressionspunkt');
     check('consumption(gas): Regression mit Kurvenpunkten',
       Array.isArray(gm.regressions?.linear?.curve) && gm.regressions.linear.curve.length >= 2);
+    // v3.7.0 (#37, #38) — Kennung je Monat und an der Antwort, additiv
+    check('consumption(gas): je Monat interpolated (bool), measured_share (0…1), reading_gap_days',
+      (gm.monthly || []).length > 0 && gm.monthly.every(m => typeof m.interpolated === 'boolean'
+        && typeof m.measured_share === 'number' && m.measured_share >= 0 && m.measured_share <= 1 && 'reading_gap_days' in m));
+    check('consumption(gas): interpolation {max_gap_days, months, interpolated_months, interpolated[], readings, readings_by_year, from, to, heat_basis}',
+      gm.interpolation && gm.interpolation.max_gap_days === 45 && Array.isArray(gm.interpolation.interpolated)
+        && Number.isInteger(gm.interpolation.readings) && typeof gm.interpolation.readings_by_year === 'object'
+        && /^\d{4}-\d{2}$/.test(gm.interpolation.from) && ['months', 'intervals', null].includes(gm.interpolation.heat_basis),
+      JSON.stringify(gm.interpolation || null).slice(0, 160));
+    check('consumption(gas): anomaly_quality {model_quality good|poor, ratio, detect_floor, unit}',
+      gm.anomaly_quality === null || (['good', 'poor'].includes(gm.anomaly_quality.model_quality)
+        && typeof gm.anomaly_quality.detect_floor === 'number' && gm.anomaly_quality.unit === 'kWh'),
+      JSON.stringify(gm.anomaly_quality));
     const hMeters2 = await j('/api/utility/heizoel/meters');
     if (hMeters2.length) {
       const hm = await j(`/api/utility/heizoel/meters/${hMeters2[0].id}/consumption`);
       check('consumption(heizoel): keine Heizkurve, Hinweis statt Zirkelschluss',
         Object.keys(hm.regressions || {}).length === 0 && hm.regressions_note === 'delivery_modelled'
         && (hm.monthly || []).length > 0 && hm.monthly.every(m => m.regression_point === false));
+      // v3.7.0 — Lieferarten: Kennung gilt nicht (null), keine Antwort-Kennung
+      check('consumption(heizoel): interpolated null, interpolation null, anomaly_quality null',
+        hm.monthly.every(m => m.interpolated === null && m.measured_share === null) && hm.interpolation === null && hm.anomaly_quality === null);
     }
     const gfc = await j(`/api/utility/gas/meters/${gasMeters[0].id}/forecast`);
     check('forecast(gas): warnings[], hdd_source, annual, band je Monat',
       Array.isArray(gfc.warnings) && 'hdd_source' in gfc && 'annual' in gfc
         && (gfc.forecast || []).every(f => 'band_low' in f && 'band_high' in f && 'contract_assumed' in f),
       `hdd_source=${gfc.hdd_source} warnings=${(gfc.warnings || []).map(w => w.code).join(',')}`);
+    // v3.7.0 (wirklichkeit-2) — additiv: Gütesperre der Prognose, Grund je Monat, Heizgrenze nur auf Anfrage
+    check('forecast(gas): fit_quality {model_quality, ratio, reasons}',
+      gfc.fit_quality === null || (['good', 'poor'].includes(gfc.fit_quality.model_quality) && Array.isArray(gfc.fit_quality.reasons)),
+      JSON.stringify(gfc.fit_quality));
+    check('consumption(gas): heat_adjusted_basis je Monat (model|summer|base_load|normal_is_actual|null), heat_limit nur mit ?heat_limit=1',
+      (gm.monthly || []).every(m => [null, 'model', 'summer', 'base_load', 'normal_is_actual'].includes(m.heat_adjusted_basis)) && gm.heat_limit === null);
+    const ghl = await j(`/api/utility/gas/meters/${gasMeters[0].id}/consumption?heat_limit=1`);
+    check('consumption(gas)?heat_limit=1: {current, best, suggest, grid[]} oder null',
+      ghl.heat_limit === null || (typeof ghl.heat_limit.suggest === 'boolean' && typeof ghl.heat_limit.current === 'number' && Array.isArray(ghl.heat_limit.grid)),
+      JSON.stringify(ghl.heat_limit ? { ...ghl.heat_limit, grid: ghl.heat_limit.grid.length } : null));
 
     // v2.5.1 — Sonderzahlungen in der Vertragstabelle: der Status trägt die
     // Einzelposten (Gas), Wasser hat das Feld nicht.
@@ -681,6 +769,12 @@ globalThis.fetch = async (url, init) => {
       !!curC && ['renewed', 'cancel_by', 'days_to_cancel', 'switch_date', 'notice_basis', 'remind_basis', 'cancel_missed', 'price_increase']
         .every(k => k in curC) && typeof curC.renewed === 'boolean',
       curC ? `basis ${curC.notice_basis}` : 'kein laufender Vertrag');
+    // v3.7.0 (wirklichkeit-2) — unsichere Schätzung, abgelöste Verträge, Preis fehlt (additiv)
+    check('contract-status(gas): projection_uncertain (null oder {reasons, projected_range}), superseded_on, price_missing',
+      (cs.contracts || []).every(c => 'superseded_on' in c && typeof c.price_missing === 'boolean')
+        && !!curC && (curC.projection_uncertain === null
+          || (Array.isArray(curC.projection_uncertain.reasons) && curC.projection_uncertain.projected_range?.length === 2 && curC.suggested_advance === null)),
+      JSON.stringify(curC?.projection_uncertain ?? null));
     // v3.4.0 (F1026) — Zeitstrahl: Mindestlaufzeit, Preisgarantie, Verlängerung
     check('contract-status(gas): min_term_end, price_guarantee_until, auto_renews (bool)',
       (cs.contracts || []).every(c => 'min_term_end' in c && 'price_guarantee_until' in c && typeof c.auto_renews === 'boolean'),

@@ -44,8 +44,8 @@ on an image or a PDF yourself.
 | **Measures** | per measure % on the heating part, % on the base load, cost | Experienced |
 | **Forecast model** | weather-adjusted (the forecast), same as last year, trend | Experienced |
 | **Heating curve** | the regression model of the forecast (linear, robust …) | Expert |
-| **Electric car** | electricity: km per year × kWh/100 km, evenly over the days | Expert |
-| **Heat pump (SPF)** | electricity of a meter with the heat pump role: quantity × SPF today ÷ SPF in the scenario | Expert |
+| **Electric car** | electricity: km per year × kWh/100 km, evenly over the days | Experienced (since v3.7.0, up to v3.6 Expert) |
+| **Heat pump (SPF)** | electricity of a meter with the heat pump role: quantity × SPF today ÷ SPF in the scenario | Experienced (since v3.7.0, up to v3.6 Expert) |
 | **Budget** | finds the best combination of measures (§ 7) | Expert |
 
 You enter the percentages of a measure yourself, ideally from your energy

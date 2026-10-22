@@ -131,6 +131,14 @@ final class ConsumptionController
             'baseline_comparison' => $this->consumption->baselineComparison($utility, $meter, $monthly),
             // v2.6.0 — Ablesungen, die die Rechnung übergangen hat, und warum
             'warnings'    => $this->consumption->readingWarnings($utility, $meter),
+            // v3.7.0 (#37, #39) — wie viele Monatswerte verteilt sind, auf wie vielen Ablesungen
+            'interpolation' => $this->consumption->interpolationInfo($utility, $meter, $monthly),
+            // v3.7.0 (#38) — Gütesperre: passt das Heizmodell, ab welcher Abweichung die Tabelle sieht
+            'anomaly_quality' => $this->anomalies->quality($utility, $monthly),
+            // v3.7.0 (wirklichkeit-2) — Heizgrenze-Vorschlag, nur auf Anfrage (?heat_limit=1,
+            // die Analyse): jede Grenze des Rasters rechnet den Zähler einmal durch
+            'heat_limit' => $req->queryParam('heat_limit') === '1' && $hddBase === null
+                ? $this->consumption->heatLimitSuggestion($utility, $meter) : null,
         ]);
     }
 

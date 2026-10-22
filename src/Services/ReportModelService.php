@@ -108,27 +108,35 @@ final class ReportModelService
             if (!Utilities::supportsBillCheck($u)) continue;
             $data = $this->billing->forUtility($u, false, $this->today);
             $qk = (string)$data['unit_key']; $dec = $this->decimals($u);
-            $rows = []; $sum = ['q' => 0.0, 'cost' => 0.0, 'adv' => 0.0, 'bal' => 0.0];
-            $running = false; $partial = false;
+            $rows = []; $sum = ['q' => 0.0, 'cost' => 0.0, 'bonus' => 0.0, 'adv' => 0.0, 'bal' => 0.0];
+            $running = false; $partial = false; $items = [];
             foreach ($data['periods'] as $p) {
                 if ((int)substr((string)$p['until'], 0, 4) !== $this->year) continue;
                 $name = $p['label'] ?? ($this->i18n->date((string)$p['from']) . '–' . $this->i18n->date((string)$p['until']));
                 if (!empty($p['running'])) { $name .= ' *'; $running = true; }
                 elseif (empty($p['complete'])) { $name .= ' †'; $partial = true; }
+                // v3.7.0 (#33) — Kosten ohne Bonus wie die Kachel, der Bonus als eigene Spalte:
+                // Saldo = Kosten − Bonus − Abschläge (− zusätzliche Abschlagszahlungen)
+                $bonus = (float)($p['bonus'] ?? 0);
                 $rows[] = [$name, $this->i18n->t($p['source'] === 'bill' ? 'report.billing.sourceBill' : 'report.billing.sourceAnchor'),
-                           $nf((float)($p[$qk] ?? 0), $dec), $nf((float)$p['cost'], 2), $nf((float)$p['advances'], 2), $nf((float)$p['balance'], 2)];
-                $sum['q'] += (float)($p[$qk] ?? 0); $sum['cost'] += (float)$p['cost'];
+                           $nf((float)($p[$qk] ?? 0), $dec), $nf((float)$p['cost'] + $bonus, 2), $nf($bonus, 2),
+                           $nf((float)$p['advances'], 2), $nf((float)$p['balance'], 2)];
+                $sum['q'] += (float)($p[$qk] ?? 0); $sum['cost'] += (float)$p['cost'] + $bonus; $sum['bonus'] += $bonus;
                 $sum['adv'] += (float)$p['advances']; $sum['bal'] += (float)$p['balance'];
+                foreach ((array)($p['bonus_items'] ?? []) as $b) $items[] = $b;
             }
             if ($rows === []) continue;
             $notes = [$this->i18n->t('report.billing.note')];
             if ($running) $notes[] = $this->i18n->t('report.billing.running', ['date' => $this->i18n->date($this->today)]);
             if ($partial) $notes[] = $this->i18n->t('report.billing.partial');
+            if ($items !== []) $notes[] = $this->bonusSentence($items);
             $out[] = ['utility' => $u, 'label' => $this->i18n->utilityLabel($u),
                       'head' => [$this->i18n->t('report.billing.period'), $this->i18n->t('report.billing.source'), self::unit($u),
-                                 $this->i18n->t('report.tableCost'), $this->i18n->t('report.billing.advances'), $this->i18n->t('report.billing.balance')],
+                                 $this->i18n->t('report.tableCost'), $this->i18n->t('report.billing.bonus'),
+                                 $this->i18n->t('report.billing.advances'), $this->i18n->t('report.billing.balance')],
                       'rows' => $rows,
-                      'total' => [$this->i18n->t('report.appendix.total'), '', $nf($sum['q'], $dec), $nf($sum['cost'], 2), $nf($sum['adv'], 2), $nf($sum['bal'], 2)],
+                      'total' => [$this->i18n->t('report.appendix.total'), '', $nf($sum['q'], $dec), $nf($sum['cost'], 2), $nf($sum['bonus'], 2),
+                                  $nf($sum['adv'], 2), $nf($sum['bal'], 2)],
                       'notes' => $notes, 'numeric_from' => 2];
         }
         return $out;
@@ -270,6 +278,36 @@ final class ReportModelService
         return $this->rowCache[$key] ??= $this->consumption->forMeter($u, $m);
     }
 
+    /**
+     * v3.7.0 (wirklichkeit-2, Schritt 3, N2) — Gütesperre einer Heizart: die erste
+     * nicht bestandene eines Zählers, der in Summen zählt (AnomalyService::quality),
+     * sonst null. Dann vergleicht der Bericht nicht witterungsbereinigt: Der
+     * bereinigte Wert wäre vor allem der Fehler des Modells.
+     *
+     * @return array<string,mixed>|null
+     */
+    private function poorFit(string $u): ?array
+    {
+        if (!Utilities::isHgtRelevant($u) || Utilities::isDelivery($u)) return null;
+        if (!array_key_exists($u, $this->poorFitCache)) {
+            $this->poorFitCache[$u] = null;
+            foreach ($this->rootMeters($u) as $m) {
+                $q = $this->consumption->anomalyQuality($u, $this->rows($u, $m));
+                if (($q['model_quality'] ?? null) === 'poor') { $this->poorFitCache[$u] = $q; break; }
+            }
+        }
+        return $this->poorFitCache[$u];
+    }
+
+    /** @var array<string,?array> */
+    private array $poorFitCache = [];
+
+    /** Hinweis an der Stelle der witterungsbereinigten Vergleiche (N2). */
+    private function poorFitNote(array $q): string
+    {
+        return $this->i18n->t('report.page.poorFit', ['pct' => $this->advice->share((float)$q['ratio'] * 100)]);
+    }
+
     private static function valueField(string $u): string
     {
         return (Utilities::get($u)['consumption_unit'] ?? '') === 'kWh' ? 'kwh' : 'm3';
@@ -295,7 +333,12 @@ final class ReportModelService
     {
         return ['value' => 0.0, 'cost' => 0.0, 'kwh_cost' => 0.0, 'co2' => 0.0, 'adj' => null, 'hdd' => 0.0,
                 'months' => array_fill(1, 12, null), 'cost_months' => array_fill(1, 12, null), 'estimated' => array_fill(1, 12, false),
-                'bonus' => 0.0, 'bonus_months' => [], 'coverage' => 0, 'has_contract' => false, 'priced' => false, 'adj_months' => 0, 'full_months' => 0];
+                'bonus' => 0.0, 'bonus_months' => [], 'coverage' => 0, 'has_contract' => false, 'priced' => false, 'adj_months' => 0, 'full_months' => 0,
+                // v3.7.0 (#33) — Kosten ohne Bonus (Kacheln, Geld, Seiten) und die Boni einzeln
+                'cost_gross' => 0.0, 'cost_months_gross' => array_fill(1, 12, null), 'bonus_items' => [],
+                // v3.7.0 (#37) — Monate, die aus längeren Ablesungsabständen verteilt sind;
+                // wirklichkeit-2: beide Jahresgrenzen in kurzen Abständen (Jahressumme exakt)
+                'interpolated' => 0, 'interp_months' => [], 'bounds_measured' => true];
     }
 
     /** Jahreswerte einer Art über die Zähler, die in Summen zählen. */
@@ -316,24 +359,51 @@ final class ReportModelService
                 $out['hdd'] += (float)($r['hdd'] ?? 0);
                 $out['months'][$mo] = ($out['months'][$mo] ?? 0.0) + $v;
                 $out['cost_months'][$mo] = ($out['cost_months'][$mo] ?? 0.0) + (float)($r['cost'] ?? 0);
+                // v3.7.0 (#33) — ohne Bonus: Kosten der Zeile plus ihr Bonus
+                $out['cost_gross'] += (float)($r['cost'] ?? 0) + (float)($r['bonus_eur'] ?? 0);
+                $out['cost_months_gross'][$mo] = ($out['cost_months_gross'][$mo] ?? 0.0) + (float)($r['cost'] ?? 0) + (float)($r['bonus_eur'] ?? 0);
                 if ((int)($r['estimated_days'] ?? 0) > 0) $out['estimated'][$mo] = true;
                 if ((float)($r['bonus_eur'] ?? 0) > 0) {
                     $out['bonus'] += (float)$r['bonus_eur'];
                     $out['bonus_months'][$mo] = ($out['bonus_months'][$mo] ?? 0.0) + (float)$r['bonus_eur'];
+                    foreach ((array)($r['bonus_items'] ?? []) as $b) $out['bonus_items'][] = $b;
                 }
                 if (!empty($r['contract_id'])) $out['has_contract'] = true;
                 // v3.6.0 — Kosten, die mitzählen: aus dem Vertrag oder (Heizöl,
                 // Pellets) aus den Lieferungen, wie in der Übersicht
                 if (!empty($r['contract_id']) || (Utilities::isDelivery($u) && (float)($r['cost'] ?? 0) != 0.0)) $out['priced'] = true;
                 if (($r['heat_adjusted'] ?? null) !== null) { $adj += (float)$r['heat_adjusted']; $adjN++; }
+                if (!empty($r['interpolated'])) $out['interp_months'][$mo] = true;
                 if ((int)($r['days'] ?? 0) >= (int)date('t', mktime(0, 0, 0, $mo, 1, $y))) $out['full_months']++;
             }
         }
         $out['coverage'] = count(array_filter($out['months'], fn($v) => $v !== null));
+        $out['interpolated'] = count($out['interp_months']);
+        // v3.7.0 (wirklichkeit-2) — mit verteilten Monaten: Liegen beide Jahresgrenzen
+        // in kurzen Abständen (oder genau auf einer Ablesung), ist die Jahressumme
+        // trotzdem die Differenz gemessener Stände
+        if ($out['interpolated'] > 0) {
+            foreach ($this->rootMeters($u) as $m) {
+                if (!$this->consumption->boundaryMeasured($u, $m, sprintf('%d-01-01', $y))
+                    || !$this->consumption->boundaryMeasured($u, $m, sprintf('%d-01-01', $y + 1))) { $out['bounds_measured'] = false; break; }
+            }
+        }
         $out['adj_months'] = $adjN;
         // witterungsbereinigt nur, wenn jeder Monat mit Verbrauch einen Wert hat
-        $out['adj'] = $adjN > 0 && $adjN >= $out['coverage'] && $out['coverage'] >= 12 ? $adj : null;
+        // v3.7.0 (Schritt 3, N2) — und nur bei bestandener Gütesperre
+        $out['adj'] = $adjN > 0 && $adjN >= $out['coverage'] && $out['coverage'] >= 12 && $this->poorFit($u) === null ? $adj : null;
         return $out;
+    }
+
+    /**
+     * v3.7.0 (#37, wirklichkeit-2) — Ist die Jahressumme gemessen? Ja ohne verteilte
+     * Monate, und mit verteilten Monaten, wenn beide Jahresgrenzen in kurzen
+     * Abständen liegen. Vorjahresvergleiche der Summen („gemessen −X %“) nur dann;
+     * Monatsvergleiche bleiben streng (verteilte Monate zählen dort nicht).
+     */
+    private static function yearExact(array $y): bool
+    {
+        return (int)$y['interpolated'] === 0 || !empty($y['bounds_measured']);
     }
 
     /** Ø Arbeitspreis eines Jahres in ct je Einheit (nur der verbrauchsabhängige Teil) — null ohne Preis. */
@@ -383,17 +453,22 @@ final class ReportModelService
         $cn = $cp = 0.0; $hasCost = false;
         $en = $ep = 0.0; $hasEnergy = false; $adjUsed = false;
         $co2n = $co2p = 0.0;
+        // v3.7.0 (#37) — stecken verteilte Monate im Vergleich, ist eine Ersparnis nicht „gemessen“
+        $t['interpolated'] = false;
         foreach ($consumptionU as $u) {
             $now = $yd[$u][$y]; $prev = $yd[$u][$p];
+            if (!self::yearExact($now) || !self::yearExact($prev)) $t['interpolated'] = true;
             $co2n += $now['co2']; $co2p += $prev['co2'];
-            if ($now['priced'] && $now['cost'] != 0.0) {
-                $cn += $now['cost']; $hasCost = true;
+            // v3.7.0 (#33) — Kosten ohne Bonus, wie die Kachel der Verbrauchsart: Eine
+            // einmalige Gutschrift wäre sonst ein „Preiseffekt“ im Jahr danach
+            if ($now['priced'] && $now['cost_gross'] != 0.0) {
+                $cn += $now['cost_gross']; $hasCost = true;
                 if ($prev['priced'] && $prev['value'] > 0 && $prev['coverage'] >= 12 && $now['coverage'] >= 12) {
-                    $cp += $prev['cost'];
-                    $pp = $prev['cost'] / $prev['value'];
+                    $cp += $prev['cost_gross'];
+                    $pp = $prev['cost_gross'] / $prev['value'];
                     $vol = ($now['value'] - $prev['value']) * $pp;
                     $t['volume_effect'] += $vol;
-                    $t['price_effect'] += ($now['cost'] - $prev['cost']) - $vol;
+                    $t['price_effect'] += ($now['cost_gross'] - $prev['cost_gross']) - $vol;
                 }
             }
             if (self::unit($u) === 'kWh' && $now['value'] > 0 && $prev['value'] > 0 && $now['coverage'] >= 12 && $prev['coverage'] >= 12) {
@@ -422,7 +497,7 @@ final class ReportModelService
             $c = 0.0; $e = 0.0; $k = 0.0;
             foreach ($consumptionU as $u) {
                 $d = $yd[$u][$hy];
-                if ($d['priced']) $c += $d['cost'];
+                if ($d['priced']) $c += $d['cost_gross'];
                 if (self::unit($u) === 'kWh') $e += Utilities::isHgtRelevant($u) && $d['adj'] !== null ? $d['adj'] : $d['value'];
                 $k += $d['co2'];
             }
@@ -499,7 +574,8 @@ final class ReportModelService
                         'meter_name' => (string)($target['name'] ?? $mid), 'provider' => (string)(($c['provider'] ?? '') ?: ($c['tariff_name'] ?? '')),
                         'unit' => self::unit($u),
                         'switchable' => Utilities::isSwitchable($u),
-                        'has_advance' => Utilities::hasAdvancePaymentContracts($u),
+                        // v3.7.0 (#34-Nachzug) — auch Wasser mit Abschlägen: Saldo und Abschlags-Rat
+                        'has_advance' => Utilities::hasAdvancePaymentContracts($u) || ($u === 'wasser' && array_key_exists('suggested_advance', $c)),
                         'is_current' => !empty($c['is_current']), 'is_future' => !empty($c['is_future']),
                         'start' => $c['start'] ?? null, 'end' => $c['end'] ?? null, 'effective_end' => $c['effective_end'] ?? null,
                         'is_open_ended' => !empty($c['is_open_ended']), 'renewed' => !empty($c['renewed']),
@@ -509,6 +585,8 @@ final class ReportModelService
                         'projected_end_balance' => $c['projected_end_balance'] ?? null,
                         'current_advance' => $c['current_advance_amount'] ?? null,
                         'suggested_advance' => $c['suggested_advance'] ?? null,
+                        // v3.7.0 (wirklichkeit-2) — Saldo-Schätzung unsicher: Spanne statt Vorschlag
+                        'projection_uncertain' => $c['projection_uncertain'] ?? null,
                         'settle_date' => $c['effective_end'] ?? null,
                         'balance_path' => $c['balance_path'] ?? null,
                         'energy_cost_to_date' => $c['energy_cost_to_date'] ?? null,
@@ -565,6 +643,8 @@ final class ReportModelService
             if (!Utilities::isHgtRelevant($u) || Utilities::isDelivery($u)) continue;
             $now = $yd[$u][$this->year]; $prev = $yd[$u][$this->year - 1];
             if ($now['adj'] === null || $prev['adj'] === null) continue;
+            // v3.7.0 (#37) — „gemessen −X %“ nur aus gemessenen Jahressummen beider Jahre
+            if (!self::yearExact($now) || !self::yearExact($prev)) continue;
             $out[] = ['utility' => $u, 'label' => $this->i18n->utilityLabel($u), 'adj_now' => $now['adj'], 'adj_prev' => $prev['adj'],
                       'price_ct' => self::priceCt($now)];
         }
@@ -611,6 +691,7 @@ final class ReportModelService
         foreach ($this->rows($u, $meter) as $r) {
             if ((string)$r['ym'] === $ym || substr((string)$r['ym'], 5) !== substr($ym, 5)) continue;
             if ((int)($r['days'] ?? 0) < 20) continue;
+            if (!empty($r['interpolated'])) continue;   // v3.7.0 (#37) — wie die Anomalie-Erkennung
             $vals[] = (float)($r[$vf] ?? 0);
         }
         if ($vals === []) return null;
@@ -789,21 +870,28 @@ final class ReportModelService
         $sum = $x['summary'];
         $useReal = (bool)($sum['real'] ?? false);
         // Grundlage der Ladefenster des Autos: Steckzeiten aus evcc oder Beispielwert
+        // (v3.7.0: oder die eigene Steckzeit aus den Einstellungen, `window`)
         $ev = $x['ev_availability'];
-        $evTag = $ev === null ? '' : ' · ' . $t($ev['basis'] === 'sessions' ? 'flex.availability.sessions' : 'flex.availability.day');
+        $evSpan = $ev !== null && $ev['basis'] === 'window' && is_array($ev['window'] ?? null)
+            ? ['from' => $hh((int)$ev['window']['from']), 'until' => $hh((int)$ev['window']['until'])] : null;
+        $evTag = $ev === null ? '' : ' · ' . ($evSpan !== null ? $t('flex.availability.window', $evSpan)
+            : $t($ev['basis'] === 'sessions' ? 'flex.availability.sessions' : 'flex.availability.day'));
         $evNote = null;
         if ($ev !== null) {
-            $evNote = $ev['basis'] !== 'sessions' ? $t('flex.lever.evDay')
+            $evNote = $evSpan !== null ? $t('flex.lever.evWindow', $evSpan)
+                : ($ev['basis'] !== 'sessions' ? $t('flex.lever.evDay')
                 : $this->i18n->tp('flex.lever.evSessions', (int)$ev['sessions'], ['count' => $this->i18n->number((float)$ev['sessions'], 0)])
-                  . ((float)$ev['share'] < 0.995 ? ' ' . $t('flex.lever.evPart', ['share' => $this->advice->share((float)$ev['share'] * 100)]) : '');
+                  . ((float)$ev['share'] < 0.995 ? ' ' . $t('flex.lever.evPart', ['share' => $this->advice->share((float)$ev['share'] * 100)]) : ''));
         }
+        // v3.7.0 — „Beispielwert“ oder „eigener Wert“ (aus den Einstellungen)
+        $basisTag = fn(string $basis): string => $basis === 'assumed' ? $t('flex.basis.assumed') : ($basis === 'own' ? $t('flex.basis.own') : '');
 
         $actions = [];
         foreach ($x['actions'] as $a) {
             if ($a['window'] === null) continue;
             $actions[] = [
                 'text' => $t("flex.actions.{$a['kind']}.{$a['window']['what']}", ['window' => $win($a['window']), 'eur' => $eur((float)$a['eur'])]),
-                'tag' => $t($a['real'] ? 'flex.real.yes' : 'flex.real.no') . ($a['basis'] === 'assumed' ? ' · ' . $t('flex.basis.assumed') : '')
+                'tag' => $t($a['real'] ? 'flex.real.yes' : 'flex.real.no') . ($basisTag($a['basis']) !== '' ? ' · ' . $basisTag($a['basis']) : '')
                     . ($a['kind'] === 'ev' ? $evTag : ''),
                 'other' => $a['other'] !== null ? $t('flex.actions.other', ['season' => $t("flex.seasonBtn.$other"), 'window' => $win($a['other'])]) : null,
                 'signal' => $a['signal'],
@@ -831,7 +919,7 @@ final class ReportModelService
         $rows = [];
         foreach ($x['levers'] as $l) {
             // Grundlage der Ladefenster des Autos: in den Hinweisen unter der Tabelle (die Spalte bleibt schmal)
-            $rows[] = ['label' => $label($l) . ($l['basis'] === 'assumed' ? ' (' . $t('flex.basis.assumed') . ')' : ''),
+            $rows[] = ['label' => $label($l) . ($basisTag($l['basis']) !== '' ? ' (' . $basisTag($l['basis']) . ')' : ''),
                 'signal' => $t("flex.signal.{$l['signal']}"), 'real' => (bool)$l['real'], 'real_text' => $t($l['real'] ? 'flex.real.yes' : 'flex.real.no'),
                 'kwh' => $this->i18n->number((float)$l['shift_kwh'], 0) . ' kWh', 'eur' => $eur((float)$l['eur'])];
         }
@@ -868,10 +956,7 @@ final class ReportModelService
                     'after' => $this->advice->share((float)$s['self_share_after'] * 100), 'share' => $this->advice->share((float)$s['self_share'] * 100),
                     'eur' => $eur((float)$s['more_eur']), 'wp' => $ct($s['working_ct']), 'feed' => $ct($s['feed_ct'])]) : '')),
             'notes' => [
-                $t('flex.lever.assumptions', ['hp' => $this->advice->share($a['heat_pump_share'] * 100),
-                    'wkwh' => $this->i18n->number($a['appliances']['washer']['kwh_per_cycle'], 1), 'wn' => $this->i18n->number($a['appliances']['washer']['cycles_per_week'], 0),
-                    'dkwh' => $this->i18n->number($a['appliances']['dishwasher']['kwh_per_cycle'], 1), 'dn' => $this->i18n->number($a['appliances']['dishwasher']['cycles_per_week'], 0),
-                    'h' => $this->i18n->number((float)$a['appliances']['washer']['hours'], 0)]),
+                $this->assumptionsText($a),
                 ...($evNote !== null ? [$evNote] : []),
                 $t('flex.lever.upper', ['vat' => $this->advice->share((float)$x['vat_pct'])]),
                 // Nachtrag — ct-Werte von Ampel und Zeitfenstern: reiner Börsenanteil, netto
@@ -879,6 +964,28 @@ final class ReportModelService
             ],
             'legend' => [$t('flex.ampel.level.cheap'), $t('flex.ampel.level.mid'), $t('flex.ampel.level.expensive'), $t('flex.ampel.sun.strong')],
         ];
+    }
+
+    /**
+     * v3.7.0 — die Annahmen der Hebel als Satz, je Teil „(Beispielwert)“ oder
+     * „(eigener Wert)“ — dieselbe Regel wie lib/flex-text.js assumptionsText().
+     *
+     * @param array<string,mixed> $a FlexibilityInsightService `assumptions`
+     */
+    private function assumptionsText(array $a): string
+    {
+        $t = fn(string $k, array $p = []): string => $this->i18n->t($k, $p);
+        $own = (array)($a['own'] ?? []);
+        $mark = fn(bool $on, string $part): string => $t($on ? 'flex.assume.own' : 'flex.assume.example', ['part' => $part]);
+        $parts = [$mark(!empty($own['heat_pump_share']), $t('flex.assume.hp', ['hp' => $this->advice->share((float)$a['heat_pump_share'] * 100)]))];
+        foreach (['washer', 'dishwasher'] as $k) {
+            $ap = $a['appliances'][$k] ?? null;
+            if ($ap === null) continue;
+            $parts[] = $mark(!empty($own[$k]), $t("flex.assume.$k", ['kwh' => $this->i18n->number((float)$ap['kwh_per_cycle'], 1),
+                'n' => $this->i18n->number((float)$ap['cycles_per_week'], fmod((float)$ap['cycles_per_week'], 1.0) == 0.0 ? 0 : 1)]));
+        }
+        $parts[] = $t('flex.assume.hours', ['h' => $this->i18n->number((float)($a['appliances']['washer']['hours'] ?? 2), 0)]);
+        return $t('flex.assume.lead', ['parts' => implode('; ', $parts)]);
     }
 
     private function evFacts(array $utilities): ?array
@@ -1109,13 +1216,14 @@ final class ReportModelService
         if (($totals['cost_now'] ?? 0) <= 0) return null;
         $y = $this->year; $p = $y - 1;
         $by = [];
+        // v3.7.0 (#33) — Kosten ohne Bonus, wie die Kachel; die Boni stehen darunter (bonus_notes)
         foreach ($consumptionU as $u) {
             $now = $yd[$u][$y];
-            if (!$now['priced'] || $now['cost'] == 0.0) continue;
+            if (!$now['priced'] || $now['cost_gross'] == 0.0) continue;
             $prev = $yd[$u][$p];
-            $by[] = ['utility' => $u, 'label' => $this->i18n->utilityLabel($u), 'cost' => round($now['cost'], 2),
-                     'prev' => $prev['priced'] && $prev['coverage'] >= 12 ? round($prev['cost'], 2) : null,
-                     'color' => (string)Utilities::get($u)['color'], 'text' => $this->i18n->money(round($now['cost']), 0)];
+            $by[] = ['utility' => $u, 'label' => $this->i18n->utilityLabel($u), 'cost' => round($now['cost_gross'], 2),
+                     'prev' => $prev['priced'] && $prev['coverage'] >= 12 ? round($prev['cost_gross'], 2) : null,
+                     'color' => (string)Utilities::get($u)['color'], 'text' => $this->i18n->money(round($now['cost_gross']), 0)];
         }
         usort($by, fn($a, $b) => $b['cost'] <=> $a['cost']);
         $revenue = [];
@@ -1128,21 +1236,19 @@ final class ReportModelService
         }
         // Kosten je Monat (Summe der Arten mit Vertrag bzw. Lieferungen) gegen Vorjahr
         $names = array_map('trim', explode(',', $this->i18n->t('format.monthsShort')));
-        $monthly = []; $bonusMonths = [];
+        $monthly = []; $bonusItems = [];
         for ($mo = 1; $mo <= 12; $mo++) {
             $v = null; $pv = null;
             foreach ($consumptionU as $u) {
-                if ($yd[$u][$y]['priced'] && $yd[$u][$y]['cost_months'][$mo] !== null) $v = ($v ?? 0.0) + $yd[$u][$y]['cost_months'][$mo];
-                if ($yd[$u][$p]['priced'] && $yd[$u][$p]['cost_months'][$mo] !== null) $pv = ($pv ?? 0.0) + $yd[$u][$p]['cost_months'][$mo];
-                if (isset($yd[$u][$y]['bonus_months'][$mo])) $bonusMonths[$mo] = ($bonusMonths[$mo] ?? 0.0) + $yd[$u][$y]['bonus_months'][$mo];
+                if ($yd[$u][$y]['priced'] && $yd[$u][$y]['cost_months_gross'][$mo] !== null) $v = ($v ?? 0.0) + $yd[$u][$y]['cost_months_gross'][$mo];
+                if ($yd[$u][$p]['priced'] && $yd[$u][$p]['cost_months_gross'][$mo] !== null) $pv = ($pv ?? 0.0) + $yd[$u][$p]['cost_months_gross'][$mo];
             }
             $monthly[] = ['ym' => sprintf('%d-%02d', $y, $mo), 'label' => $names[$mo - 1] ?? (string)$mo,
                           'value' => $v !== null ? round(max(0.0, $v), 2) : null, 'prev' => $pv !== null ? round(max(0.0, $pv), 2) : null];
         }
-        $bonusNotes = [];
-        foreach ($bonusMonths as $mo => $b) {
-            $bonusNotes[] = $this->i18n->t('report.money.bonus', ['month' => $this->i18n->month(sprintf('%d-%02d', $y, $mo)), 'amount' => $this->advice->approx($b)]);
-        }
+        // v3.7.0 (#33, #35) — je Bonus ein Satz mit Datum, Art und Notiz, dazu was er bewirkt
+        foreach ($consumptionU as $u) if ($yd[$u][$y]['priced']) foreach ($yd[$u][$y]['bonus_items'] as $b) $bonusItems[] = $b;
+        $bonusNotes = $bonusItems === [] ? [] : [$this->bonusSentence($bonusItems)];
         // Saldo je laufendem Vertrag (Stand heute)
         $balances = [];
         foreach ($contracts as $c) {
@@ -1157,6 +1263,11 @@ final class ReportModelService
                 : $this->i18n->t($bal > 0 ? 'report.money.balanceDue' : 'report.money.balanceCredit', ['date' => $date, 'amount' => $this->advice->approx(abs($bal))]);
             $advText = $show ? $this->i18n->t('report.money.advanceSuggested', ['old' => $this->i18n->money(round($adv), 0), 'new' => $this->i18n->money(round((float)$sugg), 0)])
                 : ($bal < 0 && ($sugg === null || (float)$sugg <= 0) ? $this->i18n->t('report.money.advanceLower') : null);
+            // v3.7.0 (wirklichkeit-2) — unsichere Schätzung: Spanne und Grund statt eines Betrags
+            $unc = $c['projection_uncertain'] ?? null;
+            if (is_array($unc)) {
+                [$text, $advText] = $this->advice->uncertainBalance($unc, $date);
+            }
             $path = [];
             foreach ((array)($c['balance_path'] ?? []) as $pt) {
                 $path[] = ['label' => $this->i18n->month((string)$pt['ym']), 'value' => (float)$pt['balance'], 'projected' => !empty($pt['estimated'])];
@@ -1164,9 +1275,12 @@ final class ReportModelService
             $balances[] = [
                 'utility' => $c['utility'], 'label' => $c['label'], 'provider' => $c['provider'], 'meter_name' => $c['meter_name'],
                 'projected_end_balance' => round($bal, 2), 'current_advance' => $adv, 'suggested_advance' => $show ? (float)$sugg : null,
+                'uncertain' => is_array($unc) ? $unc : null,
                 'text' => $text, 'advance_text' => $advText, 'path' => $path, 'color' => (string)Utilities::get($c['utility'])['color'],
                 'explainer' => ['balance_path' => $c['balance_path'], 'energy_cost_to_date' => $c['energy_cost_to_date'],
-                    'base_to_date' => $c['base_to_date'], 'bonus_to_date' => $c['bonus_to_date'], 'projected_end_balance' => $c['projected_end_balance']],
+                    'base_to_date' => $c['base_to_date'], 'bonus_to_date' => $c['bonus_to_date'], 'projected_end_balance' => $c['projected_end_balance'],
+                    // v3.7.0 (Schritt 3) — „Wohin geht mein Geld?“ zeigt dann die Spanne
+                    'projection_uncertain' => is_array($unc) ? $unc : null],
             ];
             $this->term('balance', 'advance');
         }
@@ -1186,6 +1300,31 @@ final class ReportModelService
             'balances' => $balances, 'balances_as_of_today' => true,
             'forecast' => $forecast,
         ];
+    }
+
+    /**
+     * v3.7.0 (GitHub #33, #35) — die Boni als ein Satz: je Bonus Art, Datum,
+     * Betrag und Notiz („Bonus (Neukunde) am 15.03.2025: ca. 100 €;
+     * Sonstige Gutschrift am … (Kulanz)“), dann was er bewirkt: Die Kosten
+     * zählen ohne ihn, der Saldo mit ihm — wie die Kachel der Verbrauchsart.
+     *
+     * @param list<array<string,mixed>> $items
+     */
+    private function bonusSentence(array $items): string
+    {
+        usort($items, fn($a, $b) => (string)($a['credit_date'] ?? '') <=> (string)($b['credit_date'] ?? ''));
+        $parts = [];
+        foreach ($items as $b) {
+            $type = (string)($b['type'] ?? '');
+            $what = $type === 'sonstige' ? $this->i18n->t('contracts.bonusTypes.sonstige')
+                : (in_array($type, ContractService::BONUS_TYPES, true)
+                    ? $this->i18n->t('bonus.typed', ['type' => $this->i18n->t("contracts.bonusTypes.$type")]) : $this->i18n->t('bonus.generic'));
+            $line = $this->i18n->t('report.money.bonus', ['what' => $what, 'date' => $this->i18n->date((string)($b['credit_date'] ?? '')),
+                'amount' => $this->advice->approx((float)($b['amount_eur'] ?? 0))]);
+            $note = trim((string)($b['label'] ?? ''));
+            $parts[] = $note !== '' ? $this->i18n->t('bonus.withNote', ['line' => $line, 'note' => $note]) : $line;
+        }
+        return implode('; ', $parts) . '. ' . $this->i18n->t('report.money.bonusEffect');
     }
 
     private function signed(float $v): string
@@ -1237,6 +1376,8 @@ final class ReportModelService
         $notes = [];
         if ($now['coverage'] < 12) $notes[] = $this->i18n->tp('report.page.coverage', $now['coverage'], ['count' => $now['coverage']]);
         if (in_array(true, $now['estimated'], true)) { $notes[] = $this->i18n->t('report.page.estimatedNote'); $this->term('estimated'); }
+        // v3.7.0 (#33, #35) — die Boni der Art mit Datum, Art und Notiz
+        if ($now['has_contract'] && $now['bonus_items'] !== []) $notes[] = $this->bonusSentence($now['bonus_items']);
 
         $page = [
             'utility' => $u, 'label' => $label, 'unit' => $unit, 'color' => (string)Utilities::get($u)['color'],
@@ -1247,8 +1388,19 @@ final class ReportModelService
             'sub_meters' => $this->subMeters($u), 'notes' => $notes, 'weather_rows' => [],
         ];
         if ($page['sub_meters'] !== []) $this->term('subMeter');
-        // Heizung: kälter oder mehr verbraucht?
-        if (Utilities::isHgtRelevant($u) && $now['adj'] !== null && $prev['adj'] !== null && $prev['value'] > 0) {
+        // Heizung: kälter oder mehr verbraucht? v3.7.0 (#37) — „Gemessen −X %“ nur, wenn
+        // beide Jahre gemessen sind; sonst sagt eine Notiz, warum der Vergleich fehlt
+        $interp = $now['interpolated'] + $prev['interpolated'];
+        // wirklichkeit-2 — erlaubt, wenn beide Jahresgrenzen gemessen sind (die Summe ist exakt)
+        $exact = self::yearExact($now) && self::yearExact($prev);
+        // v3.7.0 (Schritt 3, N2) — Gütesperre nicht bestanden: der Hinweis statt „kälter oder mehr verbraucht?“
+        if (($q = $this->poorFit($u)) !== null && ($now['value'] > 0 || $prev['value'] > 0)) $page['notes'][] = $this->poorFitNote($q);
+        if (Utilities::isHgtRelevant($u) && $interp > 0 && $now['adj'] !== null && $prev['adj'] !== null) {
+            $page['notes'][] = $exact
+                ? $this->i18n->tp('report.page.interpolatedYearExact', $interp, ['count' => $interp])
+                : $this->i18n->tp('report.page.interpolatedNoCompare', $interp, ['count' => $interp, 'prev' => $this->year - 1]);
+        }
+        if (Utilities::isHgtRelevant($u) && $exact && $now['adj'] !== null && $prev['adj'] !== null && $prev['value'] > 0) {
             [$hddNow, $hddPrev] = $this->hddPair($u);
             $cons = ($now['value'] / $prev['value'] - 1) * 100;
             $hdd = $hddPrev > 0 ? ($hddNow / $hddPrev - 1) * 100 : 0.0;
@@ -1333,8 +1485,9 @@ final class ReportModelService
     {
         if ($now['has_contract']) {
             $this->term('workingPrice', 'basePrice');
-            return ['basis' => 'contract', 'value' => round($now['cost'], 2),
-                    'text' => $this->i18n->t('report.page.cost', ['amount' => $this->advice->approx($now['cost']),
+            // v3.7.0 (#33) — ohne Bonus, wie die Kachel; der Bonus steht in den Hinweisen der Seite
+            return ['basis' => 'contract', 'value' => round($now['cost_gross'], 2),
+                    'text' => $this->i18n->t('report.page.cost', ['amount' => $this->advice->approx($now['cost_gross']),
                         'price' => self::priceCt($now) !== null ? $this->i18n->number((float)self::priceCt($now), $u === 'wasser' ? 0 : 1) : '–',
                         'unit' => self::unit($u)])];
         }
@@ -1578,6 +1731,7 @@ final class ReportModelService
             $kind = Utilities::accountingKind($u);
             $vf = self::valueField($u); $dec = $this->decimals($u);
             $heating = Utilities::isHgtRelevant($u) && $kind === 'consumption';
+            $poor = $heating ? $this->poorFit($u) : null;   // v3.7.0 (Schritt 3, N2)
             $rows = [];
             $hasCost = false;
             $sum = ['value' => 0.0, 'cost' => 0.0];
@@ -1588,7 +1742,8 @@ final class ReportModelService
                     $ym = (string)$r['ym'];
                     $byYm[$ym] ??= ['value' => 0.0, 'cost' => 0.0, 'temp' => $r['avg_temp'] ?? null, 'hdd' => $r['hdd'] ?? null, 'adj' => 0.0, 'delta' => $r['weather_delta_pct'] ?? null];
                     $byYm[$ym]['value'] += (float)($r[$vf] ?? 0);
-                    $byYm[$ym]['cost'] += (float)($r['cost'] ?? 0);
+                    // v3.7.0 (#33) — Kosten ohne Bonus wie Kachel und Seiten; die Boni stehen in den Hinweisen
+                    $byYm[$ym]['cost'] += (float)($r['cost'] ?? 0) + ($kind === 'consumption' ? (float)($r['bonus_eur'] ?? 0) : 0.0);
                     $byYm[$ym]['adj'] = ($r['heat_adjusted'] ?? null) === null || $byYm[$ym]['adj'] === null ? null : $byYm[$ym]['adj'] + (float)$r['heat_adjusted'];
                     if (!empty($r['contract_id'])) $hasCost = true;
                 }
@@ -1602,8 +1757,8 @@ final class ReportModelService
                 if ($heating) {
                     $row[] = $x['temp'] !== null ? $nf((float)$x['temp'], 1) : '–';
                     $row[] = $x['hdd'] !== null ? $nf((float)$x['hdd'], 0) : '–';
-                    $row[] = $x['adj'] !== null && $x['adj'] > 0 ? $nf((float)$x['adj'], 0) : '–';
-                    $row[] = $x['delta'] !== null ? $this->advice->pct((float)$x['delta']) : '–';
+                    $row[] = $poor === null && $x['adj'] !== null && $x['adj'] > 0 ? $nf((float)$x['adj'], 0) : '–';
+                    $row[] = $poor === null && $x['delta'] !== null ? $this->advice->pct((float)$x['delta']) : '–';
                 }
                 $rows[] = $row;
                 $sum['value'] += $x['value']; $sum['cost'] += $x['cost'];
@@ -1615,7 +1770,14 @@ final class ReportModelService
             $total = [$this->i18n->t('report.appendix.total'), $nf($sum['value'], $dec)];
             if ($hasCost && $kind !== 'generation') $total[] = $nf($sum['cost'], 2);
             $notes = [];
-            if ($heating) $notes[] = $this->i18n->t('report.weatherNote');
+            if ($heating) $notes[] = $poor !== null ? $this->poorFitNote($poor) : $this->i18n->t('report.weatherNote');
+            if ($hasCost && $kind === 'consumption') {
+                $items = [];
+                foreach ($this->rootMeters($u) as $m) foreach ($this->rows($u, $m) as $r) {
+                    if ((int)$r['year'] === $this->year) foreach ((array)($r['bonus_items'] ?? []) as $b) $items[] = $b;
+                }
+                if ($items !== []) $notes[] = $this->bonusSentence($items);
+            }
             foreach ($this->subMeters($u) as $s) $notes[] = $s['text'];
             if ($heating && array_filter(array_column($byYm, 'temp'), fn($v) => $v !== null) !== []) {
                 $notes[] = $this->i18n->t('report.weatherSource');

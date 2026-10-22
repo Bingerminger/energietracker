@@ -11,10 +11,13 @@ Schlüssel bleiben stabil: Entfernt wird erst mit einer neuen Hauptversion und
 nach Ankündigung — die veralteten stehen am Ende.
 
 Seit v3.2.0 kann ein Haushalt mehrere Personen mit Rollen haben
-([Benutzer im Haushalt](../anleitungen/benutzer.md)). Fünf Schlüssel ändern
+([Benutzer im Haushalt](../anleitungen/benutzer.md)). Zehn Schlüssel ändern
 dann nur Verwalter, weil die App mit ihnen andere Adressen anspricht, sich
-einbetten lässt, Namen sperrt oder den Verlauf kürzt: `frame_ancestors`, `ocr_endpoint`,
-`evcc_endpoint` und (seit v3.4.0) `allowed_hosts` und `activity_keep_months`. Ein
+einbetten lässt, Namen sperrt, den Verlauf kürzt oder Dokumente in die Cloud
+schickt: `frame_ancestors`, `ocr_endpoint`, `evcc_endpoint`, (seit v3.4.0)
+`allowed_hosts` und `activity_keep_months` sowie (seit v3.7.0) `inbox_provider`,
+wohin Versorgerpost zum Auslesen geht, und `inbox_cloud_enabled`,
+`inbox_cloud_provider`, `inbox_cloud_endpoint` und `inbox_cloud_model`. Ein
 Mitglied, das einen davon mitschickt, bekommt `403` `errors.auth.adminOnly`;
 alle anderen Schlüssel dürfen auch Mitglieder ändern. Ohne Anmeldung gilt die
 Einschränkung nicht.
@@ -44,7 +47,7 @@ hebt. Mehr dazu: [Einrichtung](../einstieg/einrichtung.md).
 
 | Schlüssel | Standard | In der App | Wirkung |
 |---|---|---|---|
-| `ui_level` | `expert` | Umschalter oben neben Tag/Nacht; Karte „Nutzungsstufe und Einrichtung“ | `beginner` (🌱 Einsteiger), `advanced` (🌿 Erfahren) oder `expert` (🌳 Experte). Einsteiger: Übersicht mit drei Antworten, Zählerstände, einfache Verträge, Jahresbericht. Erfahren: dazu Auswertungen, Prognose, Wechsel, Rechnungsprüfung und Zähler-Aufbau. Experte: alles, mit Schaubildern, Gruppen, Rechenparametern und Zugriff. Der Standard Experte heißt: Eine bestehende Installation sieht nach dem Update alles wie bisher; eine Neuinstallation wählt die Stufe im Einrichtungsassistenten. Mit Anmeldung hat jede Person ihre eigene Stufe (`PATCH /api/session/me`); dieser Schlüssel gilt dann für Personen ohne eigene Wahl. |
+| `ui_level` | `expert` | Umschalter oben neben Tag/Nacht; Karte „Nutzungsstufe und Einrichtung“ | `beginner` (🌱 Einsteiger), `advanced` (🌿 Erfahren) oder `expert` (🌳 Experte). Einsteiger: sehen, was man verbraucht, was es kostet und ob der Abschlag reicht; Stände erfassen, Versorgerpost auslesen lassen, Termine erledigen. Erfahren: dazu vergleichen und prüfen (Tarife, Rechnungen, Analysen, Zähler-Aufbau, Mietverhältnis, Home Assistant). Experte: alles sehen und anbinden (Viertelstunden, Rechenparameter, Zugriff, System). Jede Funktion: [Was kann ich auf welcher Stufe?](stufen.md). Der Standard Experte heißt: Eine bestehende Installation sieht nach dem Update alles wie bisher; eine Neuinstallation wählt die Stufe im Einrichtungsassistenten. Mit Anmeldung hat jede Person ihre eigene Stufe (`PATCH /api/session/me`); dieser Schlüssel gilt dann für Personen ohne eigene Wahl. |
 | `setup_pending` | `false` | — | `true` heißt: Beim nächsten Öffnen erscheint der Einrichtungsassistent. Gesetzt wird es nur beim allerersten Start einer Neuinstallation, nie nach einem Update; der Assistent setzt es zurück, wenn er fertig ist oder übersprungen wird, ebenso das Laden eines Beispielhaushalts. Erneut starten lässt sich der Assistent jederzeit über „Einrichtungsassistent starten“ auf der Karte „Nutzungsstufe und Einrichtung“ — dafür braucht es diesen Schlüssel nicht. |
 | `setup_persona` | leer (`null`) | Einrichtungsassistent, erste Frage | Die zuletzt gewählte Persona: `mieterin`, `etw-fernwaerme`, `eigenheim-klassisch`, `eigenheim-modern` oder `showcase` („Erst einmal alles ansehen“); leer oder `none` = keine. Der Assistent schlägt damit die Antwort vor; das Laden eines Beispielhaushalts setzt die geladene Persona. Rechnet nichts. |
 
@@ -165,11 +168,11 @@ die offenen Angaben unter `assumed_keys` ([API](api.md#angenommene-angaben-assum
 
 | Schlüssel | Standard | In der App | Wirkung |
 |---|---|---|---|
-| `billing_cycle_anchor_gas` | `01-01` | Stichtag Gas | Tag der Jahresabrechnung als `MM-TT` (angezeigt `TT-MM`); bis dorthin rechnet die Saldo-Karte die erwartete Abrechnung. Seit v3.6.0 schneidet er auch die **Abrechnungsjahre** (Umschalter „Kalenderjahr · Abrechnungsjahr“ in Verbrauchsart, Übersicht und Analyse, Anhang im Jahresbericht, CSV je Periode). Erfasste Versorgerrechnungen gehen vor: Ihr Zeitraum gilt genau wie auf der Rechnung, der Stichtag füllt nur die Lücken davor, dazwischen und danach. Endet die letzte Rechnung nicht am Tag vor dem Stichtag, schlägt die Verbrauchsart den passenden Tag vor. Ein 29.02. wirkt als 28.02. |
-| `billing_cycle_anchor_strom` | `01-01` | Stichtag Strom | wie Gas |
-| `billing_cycle_anchor_wasser` | `01-01` | Stichtag Wasser | wie Gas |
-| `billing_cycle_anchor_fernwaerme` | `01-01` | Stichtag Fernwärme | wie Gas |
-| `billing_cycle_anchor_pv_einspeisung` | `01-01` | Stichtag PV-Einspeisung | Abrechnungstag der Einspeisevergütung (seit v2.13.0; vorher galt fest der 1. Januar). |
+| `billing_cycle_anchor_gas` | `01-01` | Stichtag Gas: erster Tag der Abrechnungsperiode | Der **erste Tag** der Abrechnungsperiode als `MM-TT` (angezeigt `TT-MM`): `09-01` heißt 1.9. bis 31.8., `01-01` das Kalenderjahr. Die Saldo-Karte rechnet die erwartete Abrechnung bis zum Tag davor, dem letzten Tag der Periode. Seit v3.6.0 schneidet er auch die **Abrechnungsjahre** (Umschalter „Kalenderjahr · Abrechnungsjahr“ in Verbrauchsart, Übersicht und Analyse, Anhang im Jahresbericht, CSV je Periode). Erfasste Versorgerrechnungen gehen vor: Ihr Zeitraum gilt genau wie auf der Rechnung, der Stichtag füllt nur die Lücken davor, dazwischen und danach. Endet die letzte Rechnung nicht am Tag vor dem Stichtag, schlägt die Verbrauchsart den passenden Tag vor; ohne Rechnung *(v3.7.0)* den Beginn des Vertrags nach dem jüngsten Lieferantenwechsel, sonst den Tag, an dem mehrere Verträge beginnen. Schneidet ein Lieferantenwechsel kurz vor oder nach dem Stichtag weniger als 14 Tage ab, gehen sie in die Nachbarperiode auf *(v3.7.0)*. Ein 29.02. wirkt als 28.02. |
+| `billing_cycle_anchor_strom` | `01-01` | Stichtag Strom: erster Tag der Abrechnungsperiode | wie Gas |
+| `billing_cycle_anchor_wasser` | `01-01` | Stichtag Wasser: erster Tag der Abrechnungsperiode | wie Gas |
+| `billing_cycle_anchor_fernwaerme` | `01-01` | Stichtag Fernwärme: erster Tag der Abrechnungsperiode | wie Gas |
+| `billing_cycle_anchor_pv_einspeisung` | `01-01` | Stichtag PV-Einspeisung: erster Tag der Abrechnungsperiode | Erster Tag der Abrechnungsperiode der Einspeisevergütung (seit v2.13.0; vorher galt fest der 1. Januar). |
 
 ### Physikalische Konstanten
 
@@ -211,6 +214,24 @@ Felder und nach dem Speichern einer Änderung darin klappt sie auf.
 |---|---|---|---|
 | `pv_assumed_self_consumption_pct` | leer (`null`) | Eigenverbrauch angenommen | Anteil der Erzeugung in % (0–100), den der Haushalt selbst nutzt — für ein Balkonkraftwerk ohne Einspeisezähler. Wirkt nur, wenn ein Erzeugungszähler als Balkonkraftwerk markiert ist und es keinen Einspeisezähler gibt: Dann ist der Eigenverbrauch Erzeugung × Anteil. Leer = keine Annahme, keine Quote ([PV](../verstehen/12-pv.md#8-balkonkraftwerk-v310)). |
 
+### Flexibilität *(v3.7.0)*
+
+Womit „Dein Hebel“ auf der Seite Flexibilität rechnet, wo nichts gemessen ist.
+Ein leeres Feld heißt **Beispielwert** (der Standard); was du einträgst — auch
+derselbe Wert —, nennen Seite und Jahresbericht **eigener Wert**. Leeren nimmt
+die Angabe zurück. Die Felder bleiben leer mit dem Beispielwert als Platzhalter,
+solange nichts eingetragen ist (`example_keys` in `GET /api/settings`).
+
+| Schlüssel | Standard | In der App | Wirkung |
+|---|---|---|---|
+| `flex_heat_pump_share_pct` | 30 | Wärmepumpe: verschiebbarer Anteil | Anteil des Tagesverbrauchs der Wärmepumpe in % (0–100), den Gebäude und Pufferspeicher in andere Stunden verschieben lassen. |
+| `flex_washer_cycles_per_week` | 4 | Waschmaschine: Gänge je Woche | 0–21; 0 = kein solches Gerät, der Hebel entfällt. |
+| `flex_washer_kwh_per_cycle` | 0,9 | Waschmaschine: kWh je Gang | 0–5 kWh. |
+| `flex_dishwasher_cycles_per_week` | 5 | Spülmaschine: Gänge je Woche | 0–21; 0 = kein solches Gerät. |
+| `flex_dishwasher_kwh_per_cycle` | 1,0 | Spülmaschine: kWh je Gang | 0–5 kWh. |
+| `flex_ev_plugged_from` | leer (`null`) | Auto ohne evcc: angesteckt ab | Volle Stunde 0–23. Zusammen mit `flex_ev_plugged_until` die Steckzeit des Autos, wenn es keine Ladevorgänge aus evcc gibt: Verschoben wird nur in dieser Zeit. Leer = am Ladetag den ganzen Tag bereit (Beispielwert). Mit Ladevorgängen aus evcc zählen deren Steckzeiten. |
+| `flex_ev_plugged_until` | leer (`null`) | Auto ohne evcc: angesteckt bis | Volle Stunde 0–23; liegt sie vor „ab“, geht die Zeit über Mitternacht (18 bis 7 = abends bis morgens). Gleich „ab“ = kein Fenster. |
+
 ## Einstellungen → Wetterdaten
 
 ### Standort und Abgleich
@@ -238,8 +259,9 @@ Felder und nach dem Speichern einer Änderung darin klappt sie auf.
 
 ## Einstellungen → Experte
 
-Oben stehen seit v3.1.0 die Gruppen „Belege“ und „Texterkennung im Heimnetz“,
-seit v3.2.0 auch „evcc im Heimnetz“; die Rechenparameter (Regression &
+Oben stehen seit v3.7.0 die Karte „Auslesen“ (wer die Post im Posteingang
+ausliest, Lokal | Cloud), seit v3.1.0 die Gruppen „Belege“ und „Texterkennung im
+Heimnetz“, seit v3.2.0 auch „evcc im Heimnetz“; die Rechenparameter (Regression &
 Prognose, Empfehlungen & Verteilung, seit v3.1.0 CO₂-Preis) liegen darunter
 eingeklappt hinter „Rechenparameter anzeigen“. Die Seite gehört zur Stufe
 Experte.
@@ -254,14 +276,33 @@ Experte.
 
 Liest den Zählerstand aus einem Foto über einen eigenen Dienst wie Ollama oder
 LM Studio — nur im eigenen Netz. Einrichtung:
-[Texterkennung im Heimnetz](../anleitungen/texterkennung.md).
+[Texterkennung im Heimnetz](../anleitungen/texterkennung.md). Adresse und
+Schnittstelle teilt die Texterkennung mit dem Posteingang; seit v3.7.0 stehen
+sie deshalb nur einmal, in der Karte „Auslesen“ unter „Lokal“. Die Karte
+„Texterkennung im Heimnetz“ zeigt Bildmodell und Zeitlimit.
 
 | Schlüssel | Standard | In der App | Wirkung |
 |---|---|---|---|
-| `ocr_endpoint` | leer | Adresse des Dienstes | Basisadresse mit `http://` oder `https://`, etwa `http://192.168.178.20:11434` (Ollama) oder `http://192.168.178.20:1234/v1` (LM Studio); den Pfad hängt die App an. Leer = aus, die App baut keine Verbindung auf. Jede Adresse, auf die der Name zeigt, muss im eigenen Netz liegen, sonst lehnt die Texterkennung ab. Seit v3.2.0 nur Verwalter. |
-| `ocr_api` | `ollama` | Schnittstelle | `ollama` (`/api/chat`) oder `openai` — OpenAI-kompatibel (`/v1/chat/completions`), etwa LM Studio oder LocalAI. |
+| `ocr_endpoint` | leer | Auslesen → Lokal: Adresse des Dienstes | Basisadresse mit `http://` oder `https://`, etwa `http://192.168.178.20:11434` (Ollama) oder `http://192.168.178.20:1234/v1` (LM Studio); den Pfad hängt die App an. Leer = aus, die App baut keine Verbindung auf. Jede Adresse, auf die der Name zeigt, muss im eigenen Netz liegen, sonst lehnt die Texterkennung ab. Seit v3.2.0 nur Verwalter. |
+| `ocr_api` | `ollama` | Auslesen → Lokal: Schnittstelle | `ollama` (`/api/chat`) oder `openai` — OpenAI-kompatibel (`/v1/chat/completions`), etwa LM Studio oder LocalAI. |
 | `ocr_model` | leer | Modell | Name eines Bildmodells, wie der Dienst es kennt, etwa `qwen2.5vl`, `llama3.2-vision` oder `minicpm-v` (höchstens 200 Zeichen). |
 | `ocr_timeout_s` | 30 | Zeitlimit | Sekunden, die der Server auf die Antwort wartet (5–300). Auf einem NAS ohne Grafikkarte brauchen Bildmodelle oft 20 bis 60 Sekunden. Im Docker-Image wartet nginx seit v3.1.0 bis zu 310 Sekunden, das ganze Zeitlimit läuft also durch; hinter einem eigenen Webserver oder Reverse-Proxy gilt dessen Grenze. |
+
+### Posteingang *(v3.7.0)*
+
+Liest Versorgerpost im Posteingang aus — lokal über den Dienst der
+Texterkennung (Adresse und Schnittstelle wie oben), mit einem Textmodell. Alles
+dazu steht in **einer** Karte, „Auslesen“ (Einstellungen → Experte), mit dem
+Umschalter **Lokal | Cloud** und einer eigenen Taste „Speichern“; „Lokal“ zeigt
+Adresse, Schnittstelle, Textmodell, Zeitlimit und „Verbindung prüfen“
+(`GET /api/inbox/local/check`, nur Verwalter). Einrichtung:
+[Posteingang → Auslesen einrichten](../anleitungen/posteingang.md#auslesen-einrichten).
+
+| Schlüssel | Standard | In der App | Wirkung |
+|---|---|---|---|
+| `inbox_provider` | `local` | Auslesen → Lokal \| Cloud | Wer ausliest — die eine Stelle dafür ist der Umschalter der Karte „Auslesen“: `local` = der Dienst der Texterkennung im Heimnetz, `anthropic` oder `openai` = ein Cloud-Dienst ([Auslesen in der Cloud](#posteingang-auslesen-in-der-cloud-v370)). Einen Cloud-Dienst nimmt der Server nur an, solange das Auslesen in der Cloud für genau ihn eingeschaltet ist und ein Schlüssel da ist. Speichern auf „Cloud“ setzt den Wert auf den Dienst, sobald er bereit ist, Speichern auf „Lokal“ auf `local`; Ausschalten stellt zurück auf `local`. Vor jedem Auslesen in der Cloud fragt die App, ob das Dokument dorthin darf. Nur Verwalter. |
+| `inbox_model` | `qwen3.8` | Auslesen → Lokal: Textmodell | Name eines Textmodells, wie der Dienst es kennt (höchstens 200 Zeichen; leer = `qwen3.8`). Empfohlen: `qwen3.8`, braucht rund 18 GB Arbeitsspeicher. |
+| `inbox_timeout_s` | 300 | Auslesen → Lokal: Zeitlimit je Schritt | Sekunden je Schritt (Art erkennen, Felder lesen), 30–300. Jeder Schritt ist eine eigene Anfrage und bleibt so unter den 310 Sekunden, die nginx im Docker-Image wartet. |
 
 ### evcc im Heimnetz *(v3.2.0)*
 
@@ -273,6 +314,46 @@ immer, auch ohne diesen Schlüssel. Einrichtung:
 | Schlüssel | Standard | In der App | Wirkung |
 |---|---|---|---|
 | `evcc_endpoint` | leer | Adresse von evcc | Basisadresse mit `http://` oder `https://`, unter der du evcc im Browser öffnest, etwa `http://192.168.178.30:7070` oder `http://evcc.local:7070`; die App hängt `/api/sessions` an. Leer = aus, die App baut keine Verbindung auf. Jede Adresse, auf die der Name zeigt, muss im eigenen Netz liegen, sonst lehnt der Abruf ab (wie bei der Texterkennung). Nur Verwalter. |
+
+### Posteingang: Auslesen in der Cloud *(v3.7.0)*
+
+Ein Opt-in für den Posteingang: Ein Cloud-Dienst liest die Post vom Versorger
+aus, wenn im Haus kein starker Rechner steht. Aus, bis ein Verwalter es
+einschaltet; vor jedem Auslesen nennt die App den Dienst. **Experimentell:**
+Alle Cloud-Wege, auch Claude, sind noch nicht mit echten Rückmeldungen geprüft;
+Karte und Rückfrage sagen das. Die Cloud-Seite der Karte „Auslesen“
+(Einstellungen → Experte) speichert über `PATCH /api/inbox/cloud`
+([API](api.md#get-apiinboxcloud--patch-apiinboxcloud-v370)).
+Einrichtung: [In der Cloud auslesen](../anleitungen/posteingang.md#in-der-cloud-auslesen).
+
+**Voreinstellungen** *(Karte „Auslesen“)*: Claude (Anthropic), OpenAI
+(`https://api.openai.com/v1`), Mistral (`https://api.mistral.ai/v1`), OpenRouter
+(`https://openrouter.ai/api/v1`), Google Gemini
+(`https://generativelanguage.googleapis.com/v1beta/openai`) und „Eigene
+Adresse“. Sie sind keine eigene Einstellung: Sie füllen nur
+`inbox_cloud_provider` und `inbox_cloud_endpoint`; welche gilt, folgt aus diesen
+beiden. Eine andere Adresse ist „Eigene Adresse“. Die **Modellliste** lädt die
+Karte nach dem Speichern des Schlüssels über `GET /api/inbox/cloud/models` (nur
+Verwalter; der Schlüssel bleibt auf dem Server); schlägt das fehl, bleibt das
+Feld frei.
+
+Der **API-Schlüssel ist kein Einstellungsschlüssel**: Er steht in einer eigenen
+Datei auf dem Server (`inbox_cloud_key.json`, nur für den Webserver lesbar),
+nie in `settings.json`, nie in `GET /api/settings` und nie im Backup. Beim
+OpenAI-kompatiblen Weg gehört er zum Host der Adresse: Wer die Voreinstellung
+wechselt, schickt den bisherigen Schlüssel nicht an den neuen Dienst; beim
+Zurückstellen ist er noch da.
+
+Wer ausliest, bestimmt `inbox_provider` ([Posteingang](#posteingang-v370)), also
+der Umschalter der Karte; die Schlüssel hier richten den Cloud-Dienst ein.
+
+| Schlüssel | Standard | In der App | Wirkung |
+|---|---|---|---|
+| `inbox_cloud_enabled` | aus | Auslesen → Cloud: Eingeschaltet | Der Schalter des Opt-ins. Aus = kein Dokument verlässt das Heimnetz. Einschalten geht über die Karte nur mit Schlüssel (bei OpenAI-kompatibel auch mit Adresse und Modell). Nur Verwalter. |
+| `inbox_cloud_provider` | `anthropic` | Auslesen → Cloud: Anbieter | `anthropic` — Claude (Anthropic), das PDF geht mit, die Belegstelle kommt samt Seite vom Dienst — oder `openai`, ein OpenAI-kompatibler Dienst (OpenAI, Mistral, OpenRouter, Google Gemini oder eigene Adresse), der nur den Text des Dokuments bekommt. Nur Verwalter. |
+| `inbox_cloud_endpoint` | leer | Auslesen → Cloud: Anbieter bzw. Adresse | Nur bei `openai`: Basisadresse mit `https://` bis zur Versionsstufe, etwa `https://api.example.com/v1`; die App hängt `/chat/completions` an (ohne Versionsstufe wie bisher `/v1/chat/completions`). Die Voreinstellungen tragen ihre Adresse ein. Nie eine Adresse im Heimnetz (Gegenstück zu `ocr_endpoint`); geprüft beim Speichern und bei jedem Aufruf nach der Namensauflösung. Nur Verwalter. |
+| `inbox_cloud_model` | leer | Auslesen → Cloud: Modell | Aus der Liste des Dienstes oder von Hand. Leer = Standard des Anbieters (`claude-opus-5-5` bei Claude, der einzige fest eingebaute Name); bei `openai` Pflicht. Buchstaben, Ziffern und `. _ : / @ + -`, höchstens 200 Zeichen. Wechselt der Anbieter oder der Dienst hinter der Adresse, wird das Modell geleert. Nur Verwalter. |
+| `inbox_cloud_timeout_s` | 120 | Auslesen → Cloud: Zeitlimit | Sekunden, die der Server auf den Cloud-Dienst wartet (10–600). Hinter einem eigenen Webserver oder Reverse-Proxy gilt dessen Grenze; im Docker-Image wartet nginx beim Erkennen und Auslesen bis zu 660 Sekunden *(v3.7.0)*. |
 
 ### Regression & Prognose
 

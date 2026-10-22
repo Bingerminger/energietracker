@@ -38,6 +38,9 @@ const PAGES = {
   report:        ['docs/anleitungen/jahresbericht-lesen.md', 'docs/en/anleitungen/jahresbericht-lesen.md'], // v3.4.0 (F1025)
   done:          ['docs/anleitungen/hinweise-erledigen.md', 'docs/en/anleitungen/hinweise-erledigen.md'], // v3.4.0 (F1024)
   whatIf:        ['docs/anleitungen/was-waere-wenn.md',  'docs/en/anleitungen/was-waere-wenn.md'],    // v3.6.0 (F1031)
+  inbox:         ['docs/anleitungen/posteingang.md',     'docs/en/anleitungen/posteingang.md'],       // v3.7.0
+  inboxDraft:    ['docs/anleitungen/haushalt-aus-dokumenten.md', 'docs/en/anleitungen/haushalt-aus-dokumenten.md'], // v3.7.0
+  levels:        ['docs/referenz/stufen.md',             'docs/en/referenz/stufen.md'],               // v3.7.0 (Paket reifegrad)
 };
 
 /** Die Repo-Pfade aller verlinkten Seiten — ein Test prüft, dass es sie gibt. */

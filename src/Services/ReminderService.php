@@ -48,6 +48,13 @@ use Energietracker\Support\Dates;
  *   assignee_deleted true — die Person ist gelöscht, der Name bleibt („(gelöscht)“)
  * Die Antworten tragen das Feld immer (additiv). Eine gelöschte Person lässt
  * sich nicht mehr zuweisen.
+ *
+ * v3.7.0 — Termin am Zähler, optional und additiv:
+ *   utility, meter_id  der Zähler, zu dem der Termin gehört (Eichfrist,
+ *                      Zählerwechsel, Lieferung planen …)
+ * Ohne eigene Zuständigkeit gilt die des Zählers (ResponsibilityService);
+ * `GET /api/reminders` trägt sie als `assignee_inherited` (sonst null), und
+ * beim Erledigen nennt der Verlauf sie als Momentaufnahme.
  */
 final class ReminderService
 {
@@ -60,8 +67,15 @@ final class ReminderService
         'waermezaehler_eichung' => 60,   // v2.9.0 (CALC-24): MessEV Anlage 7 Nr. 7.1, fünf Jahre
         'dichtheitspruefung'    => 48,
         'lieferung_planen'      => null,
+        'zaehlerstand_melden'   => null,   // v3.7.0 (Paket betrieb) — Zählerstandsanforderung des Versorgers
         'custom'                => null,
     ];
+
+    /**
+     * v3.7.0 (Paket betrieb) — Termin „Zählerstand melden“ (aus dem Posteingang):
+     * mit Zähler führt er direkt in dessen Erfassung (AgendaService, Termine).
+     */
+    public const CATEGORY_READING = 'zaehlerstand_melden';
 
     public function __construct(
         private JsonStore $store,
@@ -90,6 +104,47 @@ final class ReminderService
     public function attachPeople(callable $lookup): void
     {
         $this->people = $lookup;
+    }
+
+    /** v3.7.0 — Zuständigkeit am Zähler eines Termins (ResponsibilityService). */
+    private ?ResponsibilityService $responsibility = null;
+
+    public function attachResponsibility(ResponsibilityService $responsibility): void
+    {
+        $this->responsibility = $responsibility;
+    }
+
+    /**
+     * v3.7.0 — Zähler eines Termins aus einer Eingabe: null = unverändert,
+     * [] = ohne Zähler, sonst {utility, meter_id} eines vorhandenen Zählers.
+     *
+     * @param array<string,mixed> $input
+     * @return array{utility?:string, meter_id?:string}|null
+     */
+    private function meterInput(array $input): ?array
+    {
+        if (!array_key_exists('meter_id', $input)) return null;
+        $mid = $input['meter_id'];
+        if ($mid === null || $mid === '') return [];
+        $u = $input['utility'] ?? null;
+        $link = is_string($mid) && is_string($u) ? ['utility' => $u, 'meter_id' => $mid] : null;
+        if ($link === null || !\Energietracker\Config\Utilities::exists($u) || !BackupService::safeId($mid)
+            || ($this->responsibility !== null && $this->responsibility->linkedMeter($link) === null)) {
+            throw new \InvalidArgumentException($this->i18n->t('errors.reminder.meterUnknown'));
+        }
+        return $link;
+    }
+
+    /**
+     * v3.7.0 — Was für einen Termin ohne eigene Zuständigkeit gilt (die des
+     * Zählers), sonst null.
+     *
+     * @param array<string,mixed> $r Termin mit withAssignee
+     */
+    private function inherited(array $r): ?array
+    {
+        if ($this->responsibility === null || ResponsibilityService::own($r) !== null) return null;
+        return $this->responsibility->inheritedFor($r);
     }
 
     /** @return array<int,array<string,mixed>> */
@@ -138,7 +193,10 @@ final class ReminderService
                 $last = $this->activity->lastDone('reminder_id', (string)($r['id'] ?? ''));
                 $r['last_done_by'] = $last !== null ? ($last['by'] ?? null) : null;
             }
-            $out[] = $this->withAssignee($r);
+            $r = $this->withAssignee($r);
+            // v3.7.0 — ohne eigene Zuständigkeit: die des Zählers (additiv, sonst null)
+            $r['assignee_inherited'] = $this->inherited($r);
+            $out[] = $r;
         }
         return $out;
     }
@@ -321,6 +379,7 @@ final class ReminderService
             throw new \InvalidArgumentException($this->i18n->t('errors.reminder.dueRequired'));
         }
         $assignee = $this->assigneeInput($input) ?? [];   // v3.5.0 (F1028)
+        $meter = $this->meterInput($input) ?? [];         // v3.7.0 — Termin am Zähler
 
         $reminder = [
             'id'                => 'rem_' . substr(bin2hex(random_bytes(5)), 0, 8),
@@ -332,7 +391,7 @@ final class ReminderService
             'last_done'         => null,
             'notes'             => (string)($input['notes'] ?? ''),
             'active'            => true,
-        ] + $assignee;
+        ] + $assignee + $meter;
         $all = $this->store->read('reminders.json', []);
         if (!is_array($all)) $all = [];
         $all[] = $reminder;
@@ -354,6 +413,7 @@ final class ReminderService
             throw new \InvalidArgumentException($this->i18n->t('errors.reminder.lastDoneInvalid'));
         }
         $assignee = $this->assigneeInput($patch);   // v3.5.0 (F1028) — null: unverändert
+        $meter = $this->meterInput($patch);         // v3.7.0 — null: unverändert, []: ohne Zähler
         $all = $this->store->read('reminders.json', []);
         if (!is_array($all)) $all = [];
         $found = null;
@@ -368,6 +428,10 @@ final class ReminderService
                 }
             }
             if ($assignee !== null) $r = self::applyAssignee($r, $assignee);
+            if ($meter !== null) {
+                unset($r['utility'], $r['meter_id']);
+                $r += $meter;
+            }
             $found = $r;
             break;
         }
@@ -445,8 +509,9 @@ final class ReminderService
                 'done_on'       => $done,
                 'note'          => $note,
                 'attachment_id' => $attachmentId,
-                // v3.5.0 (F1028) — wer zuständig war, als Momentaufnahme
-                'assignee'      => $this->assigneeSnapshot($found),
+                // v3.5.0 (F1028) — wer zuständig war, als Momentaufnahme;
+                // v3.7.0 — ohne eigene Zuständigkeit die des Zählers
+                'assignee'      => $this->assigneeSnapshot($found) ?? ResponsibilityService::snapshot($this->inherited($this->withAssignee($found))),
                 'revert'        => ['type' => 'reminder', 'id' => $id, 'before' => $before, 'after' => [
                     'next_due' => $found['next_due'] ?? null, 'active' => $found['active'] ?? true, 'last_done' => $found['last_done'] ?? null,
                 ]],

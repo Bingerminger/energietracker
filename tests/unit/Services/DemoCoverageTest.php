@@ -142,6 +142,9 @@ final class DemoCoverageTest extends TestCase
                 }
                 return false;
             }))],
+            // v3.7.0 (Paket nachzuege, GitHub #35) — Bonusart „Sonstige Gutschrift“ mit Notiz
+            '#35-other'     => ['#35', 'Sonstige Gutschrift mit Notiz (Kachel „Kosten“ ohne Bonus, Bonus als eigene Zeile)', $raw(fn($p) => self::anyPot($p, 'contracts',
+                fn($c) => self::realContract($c) && array_filter($c['bonuses'] ?? [], fn($b) => ($b['type'] ?? '') === 'sonstige' && trim((string)($b['label'] ?? '')) !== '') !== []))],
             // Zähler
             'F1006-sub'     => ['F1006', 'Subzähler (im Elternzähler enthalten)', $raw(fn($p) => self::anyPot($p, 'meters', fn($m) => !empty($m['parent_meter_id'])))],
             'F1006-group'   => ['F1006', 'Zählergruppe mit Mitgliedern', $raw(fn($p) => self::anyPot($p, 'meter_groups', fn($g, $u) => self::anyPot(['utilities' => [$u => $p['utilities'][$u]]], 'meters', fn($m) => ($m['meter_group_id'] ?? null) === $g['id'])))],
@@ -154,6 +157,16 @@ final class DemoCoverageTest extends TestCase
                 && array_filter($p['settings']['gas_conversion_factors'] ?? [], fn($f) => !empty($f['from'])) !== [])],
             '#13-swap'      => ['#13', 'Zählertausch (zwei Geräte an einem Zähler)', $raw(fn($p) => self::anyPot($p, 'meters', fn($m) => count($m['devices'] ?? []) >= 2))],
             'F1004-est'     => ['F1004', 'Geschätzte Ablesung', $raw(fn($p) => self::anyPot($p, 'readings', fn($r) => !empty($r['is_estimated'])))],
+            // v3.7.0 (#37) — Zähler mit dünnen Ablesungen: Monatswerte verteilt, Heizmodell über die Abstände
+            '#37-sparse'    => ['#37', 'Zähler mit wenigen Ablesungen (Monatswerte verteilt)', $raw(fn($p) => self::anyPot($p, 'meters', function ($m, $u) use ($p) {
+                $dates = array_values(array_map(fn($r) => (string)$r['date'], array_filter($p['utilities'][$u]['readings'] ?? [], fn($r) => $r['meter_id'] === $m['id'])));
+                sort($dates);
+                if (count($dates) < 9) return false;
+                $gaps = [];
+                for ($i = 1; $i < count($dates); $i++) $gaps[] = (strtotime($dates[$i]) - strtotime($dates[$i - 1])) / 86400;
+                sort($gaps);
+                return $gaps[intdiv(count($gaps), 2)] > \Energietracker\Services\ConsumptionService::MEASURED_GAP_MAX_DAYS;
+            }))],
             'water-3'       => ['v1.0.3', 'Wasser: Trink-, Schmutz- und Niederschlagswasser', $raw(fn($p) => array_filter($p['utilities']['wasser']['contracts'] ?? [], fn($c) => !empty($c['niederschlagswasser']['rates'])) !== [])],
             'F1008-deduct'  => ['F1008', 'Schmutzwasser abzüglich Gartenzähler', $raw(fn($p) => array_filter($p['utilities']['wasser']['contracts'] ?? [], fn($c) => ($c['schmutzwasser']['basis'] ?? '') === 'trinkwasser_minus_abzug') !== [])],
             'F1008-warm'    => ['F1008', 'Warmwasserzähler', $raw(fn($p) => self::anyPot($p, 'meters', fn($m) => ($m['role'] ?? null) === 'warm'))],

@@ -7,12 +7,14 @@ use Energietracker\Http\Request;
 use Energietracker\Http\Response;
 use Energietracker\Services\AgendaService;
 use Energietracker\Services\CalendarService;
+use Energietracker\Services\I18nService;
+use Energietracker\Services\PeopleService;
 use Energietracker\Services\SummaryService;
 
 /**
  * v3.1.0 (Paket H1) — Fristen und Kennzahlen für außen:
  *   GET /api/agenda?days=90   Ereignisse (Klasse B), Quelle für „Zu tun"
- *   GET /api/calendar.ics     Kalender-Abo (Klasse A: Form und UIDs)
+ *   GET /api/calendar.ics     Kalender-Abo (Klasse A: Form und UIDs); v3.7.0 `?person=<id>`
  *   GET /api/summary          Kennzahlen für Home Assistant (Klasse A)
  *   POST /api/agenda/done     v3.4.0 (F1024) — Hinweis abhaken {uid, occurrence?,
  *                             done_on?, note?, attachment_id?, cancelled?} (Klasse C)
@@ -23,6 +25,7 @@ final class AgendaController
         private AgendaService $agenda,
         private CalendarService $calendar,
         private SummaryService $summary,
+        private ?I18nService $i18n = null,   // v3.7.0 — Meldung zum Filter `person`
     ) {}
 
     public function agenda(Request $req): never
@@ -38,9 +41,14 @@ final class AgendaController
         Response::json($r, empty($r['duplicate']) ? 201 : 200);
     }
 
+    /** v3.7.0 — `?person=<id>`: nur, was bei dieser Person liegt (eigene oder geerbte Zuständigkeit). */
     public function calendar(Request $req): never
     {
-        $ics = $this->calendar->ics();
+        $person = $req->queryParam('person');
+        if ($person !== null && $person !== '' && !preg_match(PeopleService::ID, $person)) {
+            Response::error($this->i18n?->t('errors.assignee.unknown') ?? 'errors.assignee.unknown', 400, null, 'errors.assignee.unknown');
+        }
+        $ics = $this->calendar->ics(null, $person !== '' ? $person : null);
         while (ob_get_level() > 0) ob_end_clean();
         header('Content-Type: text/calendar; charset=utf-8');
         header('Content-Disposition: inline; filename="energietracker.ics"');

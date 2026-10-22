@@ -84,6 +84,30 @@ final class ContractService
         $this->activity = $activity;
     }
 
+    /** v3.7.0 — Zuständigkeit (`assignee_id`) gegen das Personenverzeichnis prüfen. */
+    private ?ResponsibilityService $responsibility = null;
+
+    public function attachResponsibility(ResponsibilityService $responsibility): void
+    {
+        $this->responsibility = $responsibility;
+    }
+
+    /**
+     * v3.7.0 — zuständige Person aus der Eingabe (fehlt = unverändert, null
+     * oder leer = niemand): Kündigungsfrist, Vertragsende und „Abrechnung
+     * erwartet“ landen bei ihr. Ohne Personenverzeichnis genügt die Form der ID.
+     *
+     * @param array<string,mixed> $c
+     * @param array<string,mixed> $input
+     * @return array<string,mixed>
+     */
+    private function withAssignee(array $c, array $input, ?string $current): array
+    {
+        if (!array_key_exists('assignee_id', $input)) return $c;
+        $id = ($this->responsibility ?? new ResponsibilityService($this->store))->checkInput($input['assignee_id'], $current);
+        return ResponsibilityService::apply($c, $id);
+    }
+
     /**
      * v3.4.0 (F1024) — Nach dem Speichern oder Löschen eines Vertrags: Für
      * jeden Vorgänger desselben Ziels, dem er lückenlos folgt (und der noch
@@ -210,6 +234,11 @@ final class ContractService
             // bereits terminierte Gutschriften.
             'signup_bonus_eur'      => $input['signup_bonus_eur']      ?? null,
         ];
+        // v3.7.0 (Posteingang) — Kennungen für die Zuordnung von Versorgerpost
+        // und Belege (das Dokument, aus dem der Vertrag stammt); nur, wenn gesetzt
+        foreach (self::DOCUMENT_FIELDS as $f) {
+            if (array_key_exists($f, $input)) $base[$f] = $input[$f];
+        }
 
         if ($utility === 'wasser') {
             $base['trinkwasser']         = $input['trinkwasser']         ?? [];
@@ -259,13 +288,30 @@ final class ContractService
             $this->assertPriceModel($utility, $contract);
         }
 
+        $contract = $this->withAssignee($contract, $input, null);   // v3.7.0
         $all = $this->store->read("$utility/contracts.json", []);
         if (!is_array($all)) $all = [];
         $this->assertNoGroupOverlap($utility, $contract, $all);
         $all[] = $contract;
         $this->store->write("$utility/contracts.json", $all);
+        $this->linkAttachments($utility, (string)$contract['id'], [], (array)($contract['attachment_ids'] ?? []));   // v3.7.0
         $this->noteSuccession($utility, (string)$contract['id'], $contract);   // v3.4.0 (F1024)
         return $contract + self::warnings($contract);
+    }
+
+    /**
+     * v3.7.0 (Posteingang) — optionale Felder an jedem Vertrag: Vertrags- und
+     * Kundennummer (Zuordnung der Versorgerpost) und Belege (`attachment_ids`,
+     * wie an der Versorgerrechnung).
+     */
+    public const DOCUMENT_FIELDS = ['contract_number', 'customer_number', 'attachment_ids'];
+
+    /** v3.7.0 — Belege verknüpfen wie BillService: entfernte lösen, alle übrigen auf diesen Vertrag zeigen lassen. */
+    private function linkAttachments(string $utility, string $id, array $old, array $new): void
+    {
+        if ($old === $new) return;
+        if (array_diff($old, $new) !== []) AttachmentService::unlinkRef($this->store, 'contract', $id);
+        foreach ($new as $att) AttachmentService::link($this->store, (string)$att, null, ['type' => 'contract', 'utility' => $utility, 'id' => $id]);
     }
 
     public function update(string $utility, string $id, array $input): array
@@ -282,7 +328,8 @@ final class ContractService
         // v2.3.0 — die Wechselfelder gelten für jede Vertragsart, auch für
         // Wasser und Einspeisung: eine Kündigungsfrist hat jeder Vertrag.
         $switchFields = ['notice_period_months', 'min_term_end', 'price_guarantee_until',
-                         'signup_bonus_eur', 'auto_renews', 'notice_period_days', 'notice_mode'];
+                         'signup_bonus_eur', 'auto_renews', 'notice_period_days', 'notice_mode',
+                         ...self::DOCUMENT_FIELDS];   // v3.7.0 (Posteingang)
         $standardFields = array_merge($isFeedIn
             ? ['provider', 'tariff_name', 'start', 'end', 'notes', 'meter_id',
                'working_prices', 'bonuses', 'revenue_statements',   // v3.1.0 (H7)
@@ -306,8 +353,11 @@ final class ContractService
             $waterFields[]    = 'special_payments';
         }
 
+        $oldAttachments = [];
         foreach ($all as &$c) {
             if (($c['id'] ?? null) !== $id) continue;
+            $oldAttachments = (array)($c['attachment_ids'] ?? []);   // v3.7.0
+            $c = $this->withAssignee($c, $input, is_string($c['assignee_id'] ?? null) ? $c['assignee_id'] : null);   // v3.7.0
             $fields = $utility === 'wasser' ? $waterFields : $standardFields;
             foreach ($fields as $f) {
                 if (array_key_exists($f, $input)) $c[$f] = $input[$f];
@@ -333,6 +383,7 @@ final class ContractService
         unset($c);
         if (!$found) throw new NotFoundException($this->i18n->t('errors.contract.notFound'));
         $this->store->write("$utility/contracts.json", $all);
+        if (array_key_exists('attachment_ids', $input)) $this->linkAttachments($utility, $id, $oldAttachments, (array)($found['attachment_ids'] ?? []));   // v3.7.0
         $this->noteSuccession($utility, $id, $found);   // v3.4.0 (F1024)
         return $found + self::warnings($found);
     }
@@ -344,6 +395,7 @@ final class ContractService
         $kept = array_values(array_filter($all, fn($c) => ($c['id'] ?? null) !== $id));
         if (count($kept) === count($all)) throw new NotFoundException($this->i18n->t('errors.contract.notFound'));
         $this->store->write("$utility/contracts.json", $kept);
+        AttachmentService::unlinkRef($this->store, 'contract', $id);   // v3.7.0 — Belege des Vertrags lösen
         $this->noteSuccession($utility, $id, null);   // v3.4.0 (F1024)
     }
 
@@ -637,6 +689,25 @@ final class ContractService
                 throw new \InvalidArgumentException($this->i18n->t('errors.contract.bonusNegative'));
             }
             $c['signup_bonus_eur'] = (float)$bonus;
+        }
+
+        // v3.7.0 (Posteingang) — Vertrags-/Kundennummer: kurzer Text, leer entfernt;
+        // Belege: Liste gültiger Beleg-IDs (verknüpft in create()/update())
+        foreach (['contract_number', 'customer_number'] as $f) {
+            if (!array_key_exists($f, $c)) continue;
+            $v = is_scalar($c[$f]) ? trim((string)$c[$f]) : '';
+            if ($v === '') unset($c[$f]);
+            else $c[$f] = mb_substr($v, 0, 64);
+        }
+        if (array_key_exists('attachment_ids', $c)) {
+            $ids = array_values(array_unique(array_filter(array_map('strval', (array)$c['attachment_ids']), fn($x) => $x !== '')));
+            $known = array_column(array_filter((array)$this->store->read(AttachmentService::INDEX, []), 'is_array'), 'id');
+            foreach ($ids as $x) {
+                if (!preg_match(AttachmentService::ID, $x) || !in_array($x, $known, true)) {
+                    throw new LocalizedException('errors.attachment.notFound', [], "contract attachment $x");
+                }
+            }
+            if ($ids === []) unset($c['attachment_ids']); else $c['attachment_ids'] = $ids;
         }
 
         return $c;
@@ -1210,7 +1281,9 @@ final class ContractService
         $best = null;
         foreach ($contracts as $c) {
             if ($date < ($c['start'] ?? '9999')) continue;
-            if (!empty($c['end']) && $date > $c['end']) continue;
+            // v3.7.0 (wirklichkeit-2) — ein abgelöster Vertrag gilt nur bis zum Vortag des Folgevertrags
+            $end = self::effectiveEnd($c, $contracts);
+            if ($end !== null && $date > $end) continue;
             if ($best === null || ($c['start'] ?? '') > ($best['start'] ?? '')) {
                 $best = $c;
             }
@@ -1318,13 +1391,44 @@ final class ContractService
      */
     public static function lastEndedBefore(array $contracts, string $date): ?array
     {
-        $best = null;
+        $best = null; $bestEnd = '';
         foreach ($contracts as $c) {
-            $end = (string)($c['end'] ?? '');
+            $end = (string)(self::effectiveEnd($c, $contracts) ?? '');   // v3.7.0 — abgelöst = beendet
             if ($end === '' || $end >= $date || ($c['start'] ?? '9999') > $date) continue;
-            if ($best === null || $end > (string)$best['end']) $best = $c;
+            if ($best === null || $end > $bestEnd) { $best = $c; $bestEnd = $end; }
         }
         return $best;
+    }
+
+    /**
+     * v3.7.0 (wirklichkeit-2) — Der Tag, an dem ein Vertrag abgelöst ist: Beginnt
+     * während seiner Laufzeit (offen, oder bis einschließlich seines Endes) ein
+     * späterer Vertrag **desselben Zählers bzw. derselben Gruppe**, endet er am Tag
+     * davor — auch wenn der neue ganz innerhalb des alten liegt (bei echten Daten
+     * liefen die Abschläge des alten sonst weiter). Der früheste solche Beginn
+     * zählt. Zwei Zähler oder Gruppen (Doppelbelieferung) lösen sich nicht ab;
+     * Schattenverträge nie. Ohne einen solchen: null.
+     */
+    public static function supersededOn(array $c, array $contracts): ?string
+    {
+        $start = (string)($c['start'] ?? '');
+        if ($start === '' || !empty($c['is_shadow'])) return null;
+        $end = (string)($c['end'] ?? '');
+        $target = fn(array $x): string => (string)(($x['meter_group_id'] ?? null) ?: ($x['meter_id'] ?? ''));
+        $best = null;
+        foreach ($contracts as $o) {
+            if ((string)($o['id'] ?? '') === (string)($c['id'] ?? '') || !empty($o['is_shadow']) || $target($o) !== $target($c)) continue;
+            $os = (string)($o['start'] ?? '');
+            if ($os === '' || $os <= $start || ($end !== '' && $os > $end)) continue;
+            if ($best === null || $os < $best) $best = $os;
+        }
+        return $best !== null ? date('Y-m-d', (int)strtotime("$best -1 day")) : null;
+    }
+
+    /** Wirksames Ende: abgelöst am Vortag des Folgevertrags, sonst das gepflegte Ende (oder null). */
+    public static function effectiveEnd(array $c, array $contracts): ?string
+    {
+        return self::supersededOn($c, $contracts) ?? (!empty($c['end']) ? (string)$c['end'] : null);
     }
 
     /** v3.4.0 (N1021) — Phasen eines Vertrags für die Anzeige, in der Rangfolge der Listen. */
@@ -1427,7 +1531,26 @@ final class ContractService
      */
     public function segmentsBetween(array $contracts, string $from, string $to): array
     {
-        if ($to <= $from) return [];
+        return $this->segmentsWithin($contracts, $this->cutDates($contracts), $from, $to);
+    }
+
+    /**
+     * v3.7.0 (Qualität) — Alle Schnitttage einer Vertragsliste, sortiert:
+     * Beginn, Tag nach dem Ende, Stichtage aller Preislisten und des
+     * effektiven Abschlagsplans.
+     *
+     * Herausgelöst aus segmentsBetween(): Die Monatsrechnung ruft es je
+     * Ableseintervall auf (bei täglichen Ständen tausende Male je Zähler) und
+     * baute die Liste jedes Mal neu — bei zehn Jahren Tageswerten mit einem
+     * Vertrag je Jahr der größte Posten der Antwortzeit
+     * (docs/entwicklung/messung-grosse-daten.md). Wer viele Abschnitte derselben
+     * Liste braucht, holt die Tage einmal und ruft segmentsWithin().
+     *
+     * @param array<int,array<string,mixed>> $contracts
+     * @return list<string>
+     */
+    public function cutDates(array $contracts): array
+    {
         $cuts = [];
         foreach ($contracts as $c) {
             $dates = [(string)($c['start'] ?? '')];
@@ -1441,12 +1564,28 @@ final class ContractService
                 foreach ((array)$list as $e) $dates[] = (string)($e['from'] ?? '');
             }
             foreach ($this->effectiveAdvanceSchedule($c) as $e) $dates[] = $e['from'];
-            foreach ($dates as $d) {
-                if ($d > $from && $d < $to) $cuts[$d] = true;
-            }
+            foreach ($dates as $d) $cuts[$d] = true;
         }
-        $cuts = array_keys($cuts);
+        $cuts = array_map('strval', array_keys($cuts));
         sort($cuts);
+        return $cuts;
+    }
+
+    /**
+     * segmentsBetween() mit vorab geholten Schnitttagen ({@see cutDates()} derselben Liste).
+     *
+     * @param array<int,array<string,mixed>> $contracts
+     * @param list<string> $allCuts
+     * @return list<array{from:string,to:string,days:int,contract:?array,assumed:bool}>
+     */
+    public function segmentsWithin(array $contracts, array $allCuts, string $from, string $to): array
+    {
+        if ($to <= $from) return [];
+        $cuts = [];
+        foreach ($allCuts as $d) {
+            if ($d >= $to) break;
+            if ($d > $from) $cuts[] = $d;
+        }
         $bounds = array_merge([$from], $cuts, [$to]);
         $out = [];
         for ($i = 0, $n = count($bounds) - 1; $i < $n; $i++) {
@@ -1555,7 +1694,12 @@ final class ContractService
         }
         if (count($windows) > 24) throw new LocalizedException('errors.contract.gridTouInvalid', ['field' => 'windows'], 'grid_tou too many');
         if ($windows === [] && (($in['standard_ct'] ?? '') === '' || $in['standard_ct'] === null)) return null;
-        return ['standard_ct' => $ct($in['standard_ct'] ?? null, 'standard_ct'), 'windows' => $windows];
+        $out = ['standard_ct' => $ct($in['standard_ct'] ?? null, 'standard_ct'), 'windows' => $windows];
+        // v3.7.0 — Schalter „ohne USt“: die Beträge stehen netto am Vertrag; gerechnet
+        // wird brutto (FlexibilityService::gridTouByMonth). Fehlt er, gelten sie wie
+        // eingetragen (brutto) — so bleiben gespeicherte Verträge, wie sie sind.
+        if (filter_var($in['net'] ?? false, FILTER_VALIDATE_BOOLEAN)) $out['net'] = true;
+        return $out;
     }
 
     /**
@@ -1702,19 +1846,40 @@ final class ContractService
      */
     public function bonusForMonth(array $contract, int $year, int $month): float
     {
+        return array_sum(array_column(self::bonusesForMonth($contract, $year, $month), 'amount_eur'));
+    }
+
+    /**
+     * v3.7.0 (GitHub #33, #35) — die Boni hinter bonusForMonth() einzeln:
+     * Gutschriftsdatum, Betrag, Art (`sofort`, `wechsel`, `neukunde`,
+     * `sonstige`) und Notiz (`label`). Für die Zeile „Bonus −X € am …“ unter
+     * der Kachel „Kosten“ und die Sätze im Jahresbericht.
+     *
+     * @return list<array{credit_date:string,amount_eur:float,type:string,label:string}>
+     */
+    public static function bonusesForMonth(array $contract, int $year, int $month): array
+    {
         $ym      = sprintf('%04d-%02d', $year, $month);
         $startYm = substr((string)($contract['start'] ?? ''), 0, 7);
         $endYm   = !empty($contract['end']) ? substr((string)$contract['end'], 0, 7) : null;
-        $sum = 0.0;
+        $out = [];
         foreach ($contract['bonuses'] ?? [] as $b) {
-            if (empty($b['credit_date'])) continue;
+            if (!is_array($b) || empty($b['credit_date'])) continue;
             $bYm = substr((string)$b['credit_date'], 0, 7);
             if ($endYm !== null && $bYm > $endYm) $bYm = $endYm;
             if ($startYm !== '' && $bYm < $startYm) $bYm = $startYm;
-            if ($bYm === $ym) {
-                $sum += (float)($b['amount_eur'] ?? 0);
-            }
+            if ($bYm === $ym) $out[] = self::bonusItem($b);
         }
-        return $sum;
+        return $out;
+    }
+
+    /** v3.7.0 (#35) — die Bonusarten; unbekannte zeigt die Oberfläche als „Bonus“. */
+    public const BONUS_TYPES = ['sofort', 'wechsel', 'neukunde', 'sonstige'];
+
+    /** @return array{credit_date:string,amount_eur:float,type:string,label:string} */
+    public static function bonusItem(array $b): array
+    {
+        return ['credit_date' => (string)($b['credit_date'] ?? ''), 'amount_eur' => (float)($b['amount_eur'] ?? 0),
+                'type' => (string)($b['type'] ?? 'sofort'), 'label' => (string)($b['label'] ?? '')];
     }
 }

@@ -41,17 +41,27 @@ of the supplier bill under *Check a bill*
 *with-effect* type sets the new advance from its effective date — in the months,
 in the balance and in the forecast.
 
-For water the balance is calculated over the months with readings, not by
-calendar as for gas, electricity and district heating
-([Fundamentals §10](00-overview.md#10-balance-to-date)):
+*(v3.7.0)* If the water contract has **advance payments**, the balance is
+calculated **by calendar** as for gas, electricity and district heating
+([Fundamentals §10](00-overview.md#10-balance-to-date)): measured up to the
+last reading, estimated after that, standing charge by the day, advances by
+plan up to today. Per m³ count drinking water and wastewater (with a meter of
+its own or a garden deduction meter at the measured wastewater share), as fixed
+costs the standing charge and the rainwater charge (area × €/m²·a ÷ 12). As
+there, you get a **suggested advance payment** (`suggested_advance`), the
+**balance history** (`balance_path`) and, in the annual report, the balance and
+the advice on the advance. The API marks this with `projection_method: forecast`.
+
+Without advance payments the balance stays over the months with readings
+(`projection_method: flat_average`, as water always calculated up to v3.6):
 
 ```text
 balance today     = costs of the read months − advances of those months + special payments net
 expected at end   = balance today + (average cost per month − current advance) × remaining months
 ```
 
-The API marks this with `projection_method: flat_average`. The overview, the
-page *Contracts & payments* and the water consumption view show both values.
+The overview, the page *Contracts & payments* and the water consumption view
+show both values.
 
 ## Roles: cold, hot, garden *(v3.1.0)*
 

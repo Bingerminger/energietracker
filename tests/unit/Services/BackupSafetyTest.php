@@ -141,9 +141,12 @@ final class BackupSafetyTest extends ServiceTestCase
         $covered = array_values(BackupService::TOP_POTS);
         foreach (BackupService::UTILITY_POTS as $pot) $covered[] = "*/$pot.json";
         $covered = array_merge($covered, ['meta.json', 'auth.json']);   // auth bewusst nicht im Backup
+        // v3.7.0 (Paket cloud) — der API-Schlüssel fürs Auslesen in der Cloud bewusst nicht
+        $covered[] = \Energietracker\Services\Inbox\CloudConfig::KEY_FILE;
 
         $missing = [];
-        foreach (glob(dirname(__DIR__, 3) . '/src/{Services,Storage,Controllers}/*.php', GLOB_BRACE) as $file) {
+        // v3.7.0 — auch Unterordner wie Services/Inbox (bis v3.6 nur eine Ebene)
+        foreach (glob(dirname(__DIR__, 3) . '/src/{Services,Services/*,Storage,Controllers}/*.php', GLOB_BRACE) as $file) {
             preg_match_all('/store->write\(\s*["\']([^"\']+)["\']/', (string)file_get_contents($file), $m);
             foreach ($m[1] as $target) {
                 $target = preg_replace('#^(\$\w+|[a-z_]+)/#', '*/', $target);   // "$utility/readings.json", "wasser/meters.json" → "*/…"

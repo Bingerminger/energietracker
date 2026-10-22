@@ -44,6 +44,41 @@ Zukunfts-Ablesungen (`is_future`) werden ignoriert. Bei lieferbasierten
 Arten (Heizöl/Pellets) entfällt die Zähler-Differenz — dort wird der
 Verbrauch energetisch bilanziert (siehe [Heizöl](05-heizoel.md)).
 
+### Gemessen oder verteilt *(seit v3.7.0)*
+
+Liegen zwei Ablesungen weit auseinander, ist der Monatswert keine Messung,
+sondern die gleichmäßige Verteilung eines längeren Zeitraums: Bei Ablesungen
+Ende September und Ende Dezember haben Oktober, November und Dezember dieselbe
+Tagesrate. Jeder Monat trägt deshalb eine Kennung:
+
+```text
+gemessen          = Ablesungsabstand ≤ 45 Tage
+measured_share    = Anteil des Monatsverbrauchs aus solchen Abständen (0 … 1)
+interpolated      = measured_share < 0,5        („verteilt“)
+reading_gap_days  = längster Abstand, aus dem der Monat stammt
+```
+
+Maßgeblich ist die **Länge des Abstands**, nicht, ob im Monat abgelesen wurde:
+Ablesungen am 31. Januar und am 1. März messen den Februar gut. Ein Abstand bis
+45 Tage reicht über einen vollen Monat um höchstens zwei halbe Wochen hinaus; die
+Verteilung verschiebt dann so wenig, dass es unter der Schwelle bleibt, ab der
+die Anomalie-Erkennung überhaupt meldet. Eine **geschätzte Ablesung**
+(`is_estimated`) misst nichts: Der Abstand reicht von der echten Ablesung davor
+bis zur echten danach. Bei Zählern mit Zeiträumen ist der Zeitraum der Abstand.
+Heizöl und Pellets tragen keine Kennung (`null`), ihre Monate sind ohnehin nach
+Gradtagen modelliert.
+
+**Verteilte Monate zählen nicht, wo die App aus Monaten lernt** — Anomalien
+(Abschnitt 9), Empfehlungen, Heizmodell und Heizkurve (Abschnitt 5), das
+Saisonprofil der Prognose (Abschnitt 6) und Trends gegen das Vorjahr. Ihr Wert
+sagt nichts darüber, was in genau diesem Monat verbraucht wurde; als Messung
+behandelt, ergab er überzeugend wirkende Warnungen und ein verzerrtes
+Heizmodell. **Die Monatswerte selbst, Kosten, Abschläge und Saldo bleiben, wie
+sie sind** — die Summe zwischen zwei Ablesungen ist bekannt und stimmt.
+Verbrauchsart, Analyse und PV-Übersicht sagen, wenn Monatswerte verteilt sind,
+mit der Zahl der Ablesungen im Zeitraum; Tabellen zeigen „≈“, Diagramme
+schraffierte Säulen.
+
 ---
 
 ## 2. Energieumrechnung
@@ -113,10 +148,19 @@ Beim ersten Abruf lädt die App zusätzlich die Tagesmittel der letzten
 **30 vollen Kalenderjahre** am Standort und speichert daraus nur die
 Kennzahlen (`data/climate_normal.json`): die mittleren Heizgradtage je
 Kalendermonat, ihre Streuung über die Jahre und die Streuung der
-Jahressumme — für Heizgrenzen von 10 bis 22 °C in halben Grad, weil
+Jahressumme — für Heizgrenzen von 6 bis 22 °C in halben Grad, weil
 Gradtage nicht aus Monatsmitteln folgen. Neu geladen wird, wenn sich der
 Standort um mehr als rund 5 km verschiebt oder ein weiteres Jahr
 abgeschlossen ist.
+
+**Seit v3.7.0 ab 6 °C** (bis v3.6 ab 10 °C): Bei echten Daten passte das
+Heizmodell weit unter 15 °C am besten, und für niedrigere Heizgrenzen rechnete
+das Normal still mit 10 °C. Ein Normal ohne die neuen Rasterpunkte gilt als
+veraltet und wird beim nächsten Wetterabgleich einmal neu geholt — ein
+Archivabruf wie beim ersten Mal. Bis dahin, und für eine Heizgrenze außerhalb
+des Rasters, gibt es für diese Grenze kein Normal: Die App rechnet mit der
+eigenen Temperaturhistorie und sagt es (`climate_normal_grid`), statt mit der
+nächsten Rastergrenze zu rechnen.
 
 Wozu: Die Prognose braucht die Gradtage eines **normalen** Januars,
 auch wenn die eigene Historie im Mai beginnt, und die Bereinigung
@@ -162,6 +206,13 @@ R² = 1 - ( Σ (yi - ŷi)² ) / ( Σ (yi - ȳ)² )
 Das ist **Anpassung**, keine Vorhersagegüte: Ein Modell mit mehr
 Parametern trifft dieselben Punkte immer mindestens so gut.
 
+**Warum ein Modell nicht gilt (seit v3.7.0):** `reason` sagt es —
+`too_few_points` (unter den Mindestpunkten), `poor_fit` (die Sigmoide mit
+`R² < 0,5`) oder `degenerate` (kein Unterschied in den Werten). Bis v3.6 hieß
+jeder ungültige Fit „zu wenige Datenpunkte“, auch bei 50 Punkten. Gilt das in
+der Prognose gewählte Modell nicht, rechnet sie ohne Heizkurve weiter und sagt
+es (`regression_invalid`).
+
 **Welche Monate Punkte sind** — seit v2.8.0 eine Regel für Analyse,
 Bereinigung und Prognose (bis v2.7 wählte jede Stelle etwas anders; derselbe
 Zähler zeigte R² 0,42 in der Analyse und 0,56 in der Prognose):
@@ -203,6 +254,17 @@ Mindestens 8 Monate. Ein Robustheitsschritt nimmt Monate, die mehr als
 3,5 robuste Streuungen daneben liegen (etwa ein Sommer mit defekter
 Therme), einmal heraus und fittet neu. `a` und `c` sind nie negativ.
 
+**Verteilte Monate gehen nicht ein (seit v3.7.0, Abschnitt 1).** Bleiben
+dadurch weniger als 8 gemessene Monate, rechnet das Modell über die
+**Ablesungsabstände selbst**: Das Modell ist eine Summe über Tage und gilt für
+ein Vierteljahr genauso wie für einen Monat. Jeder Abstand zwischen zwei echten
+Ablesungen ist ein Punkt (Verbrauch, Heizgradtage und Tage des Abstands),
+gewichtet mit `30,4 / Tage` — die Streuung wächst mit der Länge, ein
+Vierteljahr zählt wie drei Monate. Auch hier mindestens 8 Punkte; sonst gibt
+es kein Heizmodell, und die App sagt es, statt still über verteilte Monate zu
+rechnen. Die API nennt die Grundlage (`heat_basis`: `months` oder
+`intervals`).
+
 Heizöl und Pellets bekommen kein Heizmodell: Ihre Monatswerte sind aus
 den Lieferungen **nach Gradtagen verteilt**. Ein Fit würde nur die
 Verteilung zurückrechnen.
@@ -228,6 +290,44 @@ mit 2,7 multiplizieren.
 Damit lässt sich ein kalter Winter von echtem Mehrverbrauch trennen:
 Ein Januar mit `weather_delta_pct = +2 %` war normal, auch wenn er
 dreimal so viel verbraucht hat wie der Oktober.
+
+**Warum „bereinigt“ gleich dem Rohwert ist (seit v3.7.0):**
+`heat_adjusted_basis` nennt den Grund — `summer` (höchstens
+`min_hdd_regression` Gradtage), `base_load` (Verbrauch unter der Grundlast),
+`normal_is_actual` (kein Klimanormal und nur ein Jahr eigene Temperaturen für
+diesen Monat: Das „Normal“ ist der Monat selbst) — sonst `model`. Der letzte
+Fall ist bei echten Daten ein Kandidat für „bereinigt = roh in vielen gemessenen
+Monaten“.
+
+### Heizgrenze-Vorschlag *(seit v3.7.0)*
+
+Die Heizgrenze (`hdd_base_temp`, Standard 15 °C) bestimmt, ab welcher
+Tagestemperatur Gradtage zählen. Die Analyse rechnet die gemessenen Monate mit
+jeder Heizgrenze von 6 bis 18 °C in halben Grad durch und misst die Streuung wie
+die Gütesperre (Abschnitt 9). Vorgeschlagen wird die Grenze mit der kleinsten
+Streuung, deren Modell auch die Grundlast-Prüfung besteht — aber nur, wenn sie
+**deutlich** besser ist:
+
+```text
+Vorschlag  ⇔  Streuung_neu ≤ 2/3 × Streuung_heute   (mindestens 33 % weniger)
+              und Streuung_heute − Streuung_neu ≥ 3 Prozentpunkte
+              und mindestens 12 gemessene, geprüfte Monate
+```
+
+Die robuste Streuung schwankt bei zwei Jahren Monatswerten um rund ein Fünftel
+ihres Werts; ein Drittel weniger liegt deutlich darüber, und die Prozentpunkte
+verhindern Vorschläge zwischen zwei gut passenden Modellen.
+
+Die Grenze gilt **je Zähler** (`hdd_base_temp` am Zähler, 6 bis 22 °C wie das
+Raster des Klimanormals); die Einstellung bleibt der Standard aller Zähler ohne
+eigene — die beste Grenze ist je Haus verschieden. Mit ihr rechnen Gradtage,
+Heizmodell, Bereinigung, Saldo-Schätzung und Prognose dieses Zählers. Übernommen
+wird nie automatisch: ab der Stufe Erfahren per Knopf in der Analyse, dort lässt
+sie sich auch zurücknehmen; darunter steht der Satz mit dem Stufenhinweis. Bei
+echten Daten lag das Optimum weit unter 15 °C; ein erfundener Haushalt in derselben
+Form (Grundlast 6,5 kWh am Tag, Heizung erst unter 12 °C) zeigt bei 15 °C eine
+Grundlast von 1,25 statt 6,5 kWh am Tag und schlägt 12 °C vor
+(`RealDataFollowUpTest`).
 
 > **Ersetzt (seit v2.8.0 veraltet, weiter geliefert):**
 > `weather_adjusted` skalierte den **ganzen** Verbrauch mit dem
@@ -291,6 +391,14 @@ Anschaulich: Erklärt die Heizkurve den Verbrauch gut (`R²` hoch), zählt
 sie stärker — aber nie mehr als 80 %. Für **nicht** HGT-relevante Arten
 (Strom, Wasser) entfällt die Regression: reine Saisonprognose.
 
+**Seit v3.7.0 nur, wo die Heizkurve etwas weiß:** Gibt es einen gemessenen
+Saisonwert, zählt die Regression nicht in Monaten mit weniger Gradtagen als ihr
+kleinster Punkt (der Sommer; die Kurve ist nur über Heizmonate gefittet) und
+nicht, wenn das Heizmodell die Gütesperre nicht besteht (Abschnitt 9) — dann gilt
+`seasonal_only`. Bei einer konvexen Heizkurve lag die Gerade im Sommer auf null;
+mit Gewicht 0,8 fehlte so fast das ganze Warmwasser, bei echten Daten rund 23 %
+im Jahr, auch in der Menge fürs Vergleichsportal.
+
 **Fehlt ein Kalendermonat in der eigenen Historie** (wer im Mai beginnt,
 hat noch keinen Januar), kommt er aus dem Modell allein
 (`regression_only`), sonst aus dem Heizmodell (`heat_model`), sonst aus
@@ -299,6 +407,17 @@ den Saisonwert 0 — der Januar lag bei weniger als einem Zehntel des
 richtigen Werts. `warnings` meldet
 eine kurze Historie (`history_short`) und fehlendes Klimanormal
 (`no_climate_normal`).
+
+**Verteilte Monate (seit v3.7.0)** bilden das Saisonprofil nicht. Wurde ein
+Kalendermonat nie gemessen und hilft kein Modell, nimmt die Prognose für ihn
+die verteilten Werte (`seasonal_interpolated`) — für einen Gartenzähler, der im
+Winter nicht abgelesen wird, ist das besser als das Mittel des ganzen Jahres.
+Der Hinweis `interpolated` nennt die Zahl der verteilten Monate und der
+Ablesungen; das Tagesmittel aller Monate (`filled`) stimmt auch für verteilte.
+`history_short` zählt nur **gemessene** Kalendermonate: Wer zwei Jahre lang nur
+zweimal im Jahr abliest, hat zwar 24 Monatswerte, aber keinen gemessenen Monat.
+Die Prognose-Werkstatt gibt den Hinweis `interpolated` weiter; „Wie im Vorjahr“
+nimmt verteilte Vorjahresmonate wie fehlende aus der Prognose.
 
 **Temperaturversatz** (What-if): Ein um δ wärmeres Jahr hat genau die
 Heizgradtage der Heizgrenze `T_base - δ`. Mit Klimanormal oder eigener
@@ -323,6 +442,31 @@ nicht die Summe der Monatsstreuungen. `σ_Rest` ist das Rauschen des
 Heizmodells; bei Arten ohne Wetterbezug die Streuung der Tagesrate um
 das Saisonprofil. `z = confidence_band_sigma`, Default **1,28 ≈ 80 %**
 der Jahre (die Einstellung war bis v2.7 ohne Wirkung).
+
+**Seit v3.7.0 nur bei bestandener Gütesperre.** Passt das Heizmodell schlecht
+(Abschnitt 9), gibt es kein Band (`annual.low/high = null`,
+`annual.withheld = "poor_fit"`) und den Hinweis `poor_fit`: Bei echten Daten
+traf das 80-%-Band in keinem von fünf Rückblicken, weil das Modell selbst
+danebenlag. Die Prognose-Werkstatt zeigt dann weder Band noch Heizanteil und
+statt des Abschlags eine Spanne — Dämmung und Raumtemperatur wirken auf einen
+Heizanteil, den das Modell nicht kennt.
+
+**Zu wenig gemessen (seit v3.7.0).** Steht das Heizmodell nur auf den
+Ablesungsabständen, oder kann die Gütesperre es nicht prüfen (unter 5 gemessenen
+Monaten), gibt es ebenso kein Band (`annual.withheld = "few_measured"`, Hinweis
+`few_measured`); Saldo und Werkstatt nennen eine Spanne (Abschnitt 10).
+
+**Ohne Wetterbezug** (Strom, Wasser) ist `σ_Rest` die gepoolte Streuung der
+Tagesrate je Kalendermonat über die Jahre, mit Σ(n − 1) Freiheitsgraden. Unter 3
+Freiheitsgraden gibt es kein Band (`annual.withheld = "few_years"`): Mit einem Wert
+je Kalendermonat ist jede Abweichung null — bis v3.6 hatte das Band bei Wasser so
+die Breite null und bei Strom mit zwei Jahren ±1 bis 2 %. Je Monat gilt mindestens
+die eigene Streuung des Kalendermonats und 10 % seines Werts, dieselbe Untergrenze
+wie in der Anomalie-Erkennung (Abschnitt 9). Das Saisonprofil ohne Wetterbezug nimmt
+ab drei Werten je Kalendermonat den **Median**: Ein Urlaubsmonat mit halbem Wert
+verschiebt die Prognose dann nicht; bei zwei Werten trägt das Band dieses Monats
+den Widerspruch der Jahre. Bei Heizarten bleibt es das Mittel — dort ist der Wert
+eines Kalendermonats vor allem das Wetter seines Winters.
 
 ### Kosten
 
@@ -496,8 +640,48 @@ Anomalie ⇔ |z| ≥ anomaly_threshold      (Default 2,0)
 Die Untergrenze verhindert, dass bei sehr gleichmäßigen Daten schon
 +5 % als „6σ" gemeldet werden: Gemeldet wird erst, was bei 2σ über rund
 20 % eines typischen Monats hinausgeht. Nicht geprüft werden Monate mit
-weniger als `min_days_period` Tagen, Monate mit Zählertausch und Monate
-vor der Zäsur; unter 5 verwertbaren Monaten gar nichts.
+weniger als `min_days_period` Tagen, Monate mit Zählertausch, Monate
+vor der Zäsur und seit v3.7.0 **verteilte Monate** (Abschnitt 1) — ihr Wert ist
+die Tagesrate eines längeren Ablesungsabstands, eine „Abweichung“ davon wäre
+ein Artefakt der Verteilung; unter 5 verwertbaren Monaten gar nichts.
+
+**Gütesperre (seit v3.7.0).** Das lineare Heizmodell trifft eine gekrümmte
+Heizkurve schlecht; dann misst die Erkennung vor allem den eigenen
+Modellfehler, und eine leere Tabelle hieße nicht „alles in Ordnung“. Die App
+prüft deshalb zweierlei, beides nur über gemessene Monate:
+
+```text
+Verhältnis       = σ_robust / mittlerer gemessener Monat   (Mittel der geprüften Monate)
+Grundlast        = Erwartung / Verbrauch gemessener Sommermonate
+                   (HGT ≤ min_hdd_regression, mindestens 2 Monate)
+model_quality    = poor, wenn Verhältnis > 15 % oder Grundlast außerhalb 0,5 … 1,5
+detect_floor     = anomaly_threshold × max(σ_robust, 10 % des typischen Monats)
+```
+
+Bei `poor` sagt die Abweichungstabelle das, nennt die Grenze `detect_floor`,
+unter der sie nichts erkennt, bei der Grundlast auch Modell und Messung je Tag,
+und verweist auf die Heizgrenze (Einstellungen › Verbrauchsarten & Abrechnung ›
+Physikalische Konstanten, ab Stufe Erfahren). Ein gut passendes Modell erkennt
+bei 2σ ab 20 % eines typischen Monats; über 15 % erst ab 30 %, anderthalbmal so
+spät. 15 % ist auch die Grenze, die ASHRAE Guideline 14 für kalibrierte Modelle
+auf Monatsdaten nennt. Gemessen wird gegen den **Mittelwert** der gemessenen
+Monate, nicht gegen den typischen Monat der Erkennung: Dessen Median der
+Erwartungen lässt die Sommer eines Modells mit Grundlast 0 fallen, das Modell
+sähe rund ein Viertel besser aus, als es ist. Eine konvexe Heizkurve drückt die
+Grundlast `c` fast auf null; die zweite Prüfung fängt das, auch wenn die
+Streuung knapp unter 15 % bleibt. Sommerverbrauch schwankt im Alltag um 10 bis
+20 %, weit innerhalb des Bandes. Das Modell selbst bleibt in v3.7.0 unverändert.
+
+Was aus `poor` folgt: Die Prognose rechnet mit den gemessenen Monaten und zeigt
+kein Band (Abschnitt 6), der Saldo nennt eine Spanne statt eines
+Abschlagsvorschlags (Abschnitt 10), die Prognose-Werkstatt zeigt weder Band noch
+Heizanteil, und die Analyse schlägt — wenn sie eine deutlich bessere findet —
+eine andere Heizgrenze vor (Abschnitt 5). Seit v3.7.0 meldet außerdem **R1**
+nichts, und der Jahresbericht vergleicht nicht witterungsbereinigt (keine
+bereinigte Kachel, kein „kälter oder mehr verbraucht?“, im Anhang „–“ statt der
+bereinigten Werte); an ihrer Stelle steht ein Hinweis. Hat die Abweichungstabelle
+trotzdem Zeilen, sagt der Satz darüber, dass sie ebenso den Fehler des Modells
+zeigen können — bis v3.6 sprach er auch dann von einer leeren Tabelle.
 
 Die Empfehlungen bauen darauf auf: **R1** (Mehrverbrauch bei gegebenem
 Wetter) misst Gas und Fernwärme am Heizmodell mit derselben Streuung und
@@ -506,7 +690,12 @@ Untergrenze (Schwelle `recommendation_anomaly_sigma`), **R4** meldet die
 ertragreicher Monat ist kein Warnsignal. **R2** (Trend) vergleicht die
 witterungsbereinigten Werte (`heat_adjusted`) der letzten zwölf Monate
 mit denselben Kalendermonaten des Vorjahrs, sobald mindestens neun
-solche Paare vorliegen.
+solche Paare vorliegen. R1 und R3 (Sommerverbrauch der Heizung) lassen
+verteilte Monate aus; R2 nicht — zwölf Monate zusammen ändert die Verteilung
+nicht, und die Bereinigung ist je Monat additiv. **Seit v3.7.0 melden R1, R3
+und R4 nur Monate der letzten 24 Monate**; die Abweichungstabelle der Analyse
+zeigt weiter alle. Ein Ausreißer von vor drei Jahren ist keine Handlung mehr,
+und „30 Tage ausblenden“ soll ihn nicht jeden Monat zurückbringen.
 
 Anomalien sind Hinweise, keine Urteile — ein Umzug, eine neue
 Wärmepumpe oder ein defekter Zähler erzeugen sie gleichermaßen.
@@ -541,6 +730,35 @@ Tagesrate desselben Kalendermonats. Liegen die letzten gemessenen Monate
 (bis zu sechs volle aus den letzten zwölf) deutlich über oder unter dem
 Modell — neue Heizung ohne Zäsur, anderes Verhalten —, folgt die
 Schätzung diesem Niveau (`projection_factor`, begrenzt auf 0,5 bis 1,5).
+Seit v3.7.0 zählen dafür nur **gemessene** Monate (Abschnitt 1), und die
+Tagesrate eines Kalendermonats kommt aus gemessenen Monaten, solange es welche
+gibt; nur sonst aus verteilten. Das Heizmodell ist dasselbe wie in Abschnitt 5,
+bei wenigen Ablesungen also auch das über die Ablesungsabstände.
+
+**Zwei Faktoren (seit v3.7.0).** Der Faktor wirkt nur auf den Teil, aus dem er
+stammt: Monate, deren Erwartung zu weniger als 30 % aus Heizung besteht,
+kalibrieren die Grundlast (`projection_factor_base`), die übrigen den Heizanteil
+(`projection_factor_heat`) — je mit mindestens zwei Monaten, sonst 1, je begrenzt
+auf 0,5 bis 1,5:
+
+```text
+Faktor_Grundlast = Σ Verbrauch ÷ Σ Erwartung            (Monate fast ohne Heizung)
+Faktor_Heizung   = (Σ Verbrauch − Faktor_Grundlast × Σ c × Tage) ÷ Σ a × HGT   (Heizmonate)
+Tag              = a × HGT × Faktor_Heizung + c × Faktor_Grundlast
+```
+
+Bei echten Daten kam der eine Faktor bis v3.6 aus Sommer- und Übergangsmonaten
+und skalierte die ganze Winterschätzung mit. `projection_factor` ist jetzt der
+wirksame Faktor (Schätzung ÷ Schätzung ohne Kalibrierung). **Besteht das
+Heizmodell die Gütesperre nicht, bleibt es ein Faktor für das Ganze:** Die
+Aufteilung setzt ein Modell voraus, das Grundlast und Heizung richtig trennt —
+bei echten Daten lag die Grundlast des Modells bei etwa einem Zehntel des
+gemessenen Sommers, der Grundlast-Faktor klemmte an 1,5 und der Heizanteil aus
+Übergangsmonaten drückte den Winter. Die Schätzung ist dann ohnehin unsicher
+(`poor_fit`); ein klemmender Teilfaktor zählt als `factor_clamped`
+(`factor_part`: `base`, `heat` oder `both`). Ohne Heizmodell bleibt
+es ein Faktor; die Tagesrate eines Kalendermonats ist dort ab drei Werten der
+Median (wie in der Prognose, Abschnitt 6).
 
 **Abschlagsvorschlag:** Weicht der erwartete Saldo spürbar ab, schlägt
 die Karte einen Abschlag vor, der ihn bis zum Vertragsende ausgleicht:
@@ -552,6 +770,67 @@ Vorschlag = max(0, gerundet( aktueller Abschlag + erwarteter Saldo / verbleibend
 Die Aufschlüsselung auf der Karte (`energy_cost_to_date`,
 `base_to_date`, `bonus_to_date`) ergibt die Summe; der geschätzte Teil
 steht darunter mit dem Datum der letzten Ablesung.
+
+**Unsicher statt falsch sicher (seit v3.7.0).** Klemmt ein Faktor an einer
+Grenze (`factor_clamped`: das jüngste Niveau liegt unter 0,5 oder über 1,5 des
+Modells), ist zu wenig gemessen, um das Heizmodell zu prüfen (`few_measured`: es
+steht nur auf den Ablesungsabständen, oder die Gütesperre kann es nicht prüfen),
+oder besteht das Heizmodell die Gütesperre nicht (`poor_fit`), weiß die App
+nicht, ob ihre Schätzung stimmt. Dann gibt es keinen einzelnen Vorschlag
+(`suggested_advance = null`), sondern `projection_uncertain` mit Grund und
+Spanne. Gerechnet wird dieselbe geschätzte Energie mit anderen Annahmen:
+
+```text
+Faktor klemmt:    mit den ungeklemmten Faktoren und mit 1 (das jüngste Niveau ganz oder gar nicht)
+zu wenig gemessen: × 0,5 und × 1,5 (die ganze Kalibrierspanne)
+Modell schlecht:  jede Annahme zusätzlich × (1 ± Verhältnis der Gütesperre);
+                  fällt die Grundlast-Prüfung, auch mit der gemessenen Sommer-Grundlast
+                  (`base_load_per_day`), denn sonst schätzt das Modell Sommertage fast mit null
+Spanne            = erwarteter Saldo + (Energie_Annahme − geschätzte Energie), kleinste bis größte
+Abschlag          = aktueller Abschlag + Spanne / verbleibende Monate
+```
+
+Ohne Heizmodell (Strom, Wasser) gibt es weder Gütesperre noch einen Heizanteil,
+der über das Jahr fortgeschrieben wird; ein nie gemessener Kalendermonat nimmt die
+Tagesrate seines Ablesungsabstands. Ist nichts mehr zu schätzen (abgerechnet,
+beendet: keine geschätzte Menge), gilt die Schätzung als sicher — entschieden über
+die Menge, nicht über Euro, damit ein Vertrag ohne Arbeitspreis nicht still als
+sicher gilt; eine Spanne des Abschlags mit gleichen Enden („zwischen 0 € und 0 €“)
+entfällt. Dieselbe Kennzeichnung zeigen Vertragsstatus, Übersicht (auch für Home
+Assistant), Saldo-Karte, Jahresbericht und Werkstatt; wo sie gesetzt ist, steht
+statt eines Betrags nur die Spanne (Saldo-Karte, „Erwartet zum …“ unter Kosten &
+Verträge, Verträge-Tabelle).
+
+Bei echten Daten lag der Vorschlag mit klemmendem Faktor rund ein Drittel zu
+niedrig; wer ihm folgte, hätte rund ein Viertel der Jahreskosten nachgezahlt,
+und der Jahresbericht machte daraus Aufgabe Nr. 1. Jetzt zeigen Karte,
+Jahresbericht (ein Hinweis statt einer Aufgabe; die Ampel nimmt das ungünstige
+Ende der Spanne und zeigt, solange eine Schätzung unsicher ist, kein
+„Abschläge passen“) und Prognose-Werkstatt die Spanne mit dem Grund; das
+Schaubild „Wohin geht mein Geld?“ nennt Kosten und Ergebnis als Spanne.
+
+*Befund für später:* Werkstatt und Karte rechnen den Saldo verschieden — die
+Karte vom Vertragsbeginn bzw. der letzten erfassten Rechnung bis zum Vertragsende
+oder Stichtag, die Werkstatt die laufende Abrechnungsperiode. Ohne erfasste
+Rechnung zählt die Karte so mehrere Jahre, die Werkstatt eines; mit einem
+gepflegten Vertragsende nennt die Karte dieses als Abrechnungstag.
+
+**Abgelöst (seit v3.7.0).** Beginnt ein Folgevertrag, während ein Vertrag noch
+läuft (offen oder mit Ende danach), gilt ab dessen Beginn der Folgevertrag
+(spätester Beginn gewinnt). Abschläge, Grundpreis und Saldo des alten Vertrags
+enden am Tag davor (`superseded_on`); gespeichert bleibt sein Ende, wie es ist.
+Bis v3.6 zählten seine Abschläge im Saldo bis heute weiter — der Saldo lag um
+etwa einen Jahresbetrag zu günstig. Das gilt auch für einen Folgevertrag, der
+**ganz im alten liegt**: Der alte läuft danach nicht wieder auf, nach dem Ende des
+Folgevertrags läuft dieser als Annahme weiter (§ 309 Nr. 9 BGB). Ablösen kann nur
+ein Vertrag desselben Zählers bzw. derselben Gruppe — zwei Zähler mit eigenen
+Verträgen (Doppelbelieferung) und Schattenverträge lösen nichts ab. Verträge ohne
+Nachfolger und lückenlose Ketten bleiben unverändert.
+
+**Preis fehlt (seit v3.7.0).** Hat ein Vertrag keinen Arbeitspreis, enthalten
+Kosten und Saldo nur Grundpreis und Abschläge. Vertragsstatus und
+Abrechnungsjahr sagen es beide (`price_missing`), statt zwei verschiedene,
+gleich falsche Salden zu zeigen.
 
 ### Tagesgenau wie die Rechnung (seit v2.9.0)
 

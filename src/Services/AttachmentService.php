@@ -25,11 +25,13 @@ use Energietracker\Support\LocalizedException;
  */
 final class AttachmentService
 {
-    public const KINDS = ['reading_photo', 'bill_pdf', 'statement_pdf', 'other'];
+    /** v3.7.0 — `inbox_pdf`: Versorgerpost im Posteingang (InboxService) */
+    public const KINDS = ['reading_photo', 'bill_pdf', 'statement_pdf', 'inbox_pdf', 'other'];
     public const INDEX = 'attachments.json';
     public const ID = '/^att_[0-9a-f]{16}$/';
     private const IMAGE_MAX = 3 * 1024 * 1024;
-    private const PDF_MAX = 10 * 1024 * 1024;
+    /** v3.7.0 (Paket betrieb) — öffentlich: dieselbe Grenze gilt für den überwachten Ordner (Inbox\FolderIntake) */
+    public const PDF_MAX = 10 * 1024 * 1024;
     private const ORPHAN_AFTER = 86400;
     private const EXT = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp', 'application/pdf' => 'pdf'];
 
@@ -134,8 +136,41 @@ final class AttachmentService
             'bill'    => Utilities::exists($u) ? "$u/bills.json" : null,
             'tenancy_statement' => 'tenancy_statements.json',
             'activity' => ActivityService::FILE,   // v3.4.0 (F1024) — Beleg eines erledigten Hinweises
+            // v3.7.0 (Posteingang) — Dokument im Posteingang, Beleg am Vertrag
+            'inbox'    => InboxService::FILE,
+            'contract' => Utilities::exists($u) ? "$u/contracts.json" : null,
             default   => null,
         };
+    }
+
+    /**
+     * v3.7.0 (Posteingang) — Belege, auf die ein Datensatz zeigt, auch wenn ihr
+     * Verweis woandershin ging oder gelöst wurde: Ein Dokument kann an Eintrag
+     * im Posteingang, Vertrag und Rechnung zugleich hängen, der Index kennt nur
+     * einen Verweis. Diese räumt das Aufräumen nicht weg.
+     *
+     * @return array<string,true>
+     */
+    private static function referenced(JsonStore $store): array
+    {
+        $ids = [];
+        $collect = function (mixed $rows) use (&$ids): void {
+            foreach (is_array($rows) ? $rows : [] as $r) {
+                if (!is_array($r)) continue;
+                if (!empty($r['attachment_id']) && is_string($r['attachment_id'])) $ids[$r['attachment_id']] = true;
+                foreach ((array)($r['attachment_ids'] ?? []) as $a) if (is_string($a)) $ids[$a] = true;
+            }
+        };
+        try {
+            $collect($store->read(InboxService::FILE, []));
+            foreach (Utilities::keys() as $u) {
+                foreach (['contracts', 'bills'] as $pot) if ($store->exists("$u/$pot.json")) $collect($store->read("$u/$pot.json", []));
+            }
+        } catch (\Throwable) {
+            // eine beschädigte Datei: lieber nichts als zu viel aufräumen
+            return ['*' => true];
+        }
+        return $ids;
     }
 
     /** Entfernt `attachment_id` bzw. den Eintrag in `attachment_ids` am Datensatz. */
@@ -180,9 +215,14 @@ final class AttachmentService
         $now ??= time();
         $keep = []; $removed = 0;
         $idx = $store->read(self::INDEX, []);
+        $referenced = null;   // v3.7.0 — erst nachsehen, wenn ein Beleg verwaist aussieht
         foreach (is_array($idx) ? array_filter($idx, 'is_array') : [] as $a) {
             $since = (string)($a['unlinked_at'] ?? $a['created_at'] ?? '');
             $orphan = empty($a['ref']) && strtotime($since) < $now - self::ORPHAN_AFTER;
+            if ($orphan) {
+                $referenced ??= self::referenced($store);
+                if (isset($referenced['*']) || isset($referenced[(string)($a['id'] ?? '')])) $orphan = false;
+            }
             if ($orphan && preg_match(self::ID, (string)($a['id'] ?? ''))) {
                 @unlink($store->path('attachments/' . $a['id'] . '.' . (self::EXT[$a['mime'] ?? ''] ?? 'bin')));
                 $removed++;

@@ -34,7 +34,7 @@ import { t } from '../lib/i18n.js';
 import { info } from '../components/info.js';
 import { docUrl } from '../lib/docs.js';
 import { resultCardHtml, downloadResultCard } from '../components/result-card.js';
-import { windowText, leverLabel, actionText, evBasisText } from '../lib/flex-text.js';
+import { windowText, leverLabel, actionText, evBasisText, availabilityTagText, assumptionsText } from '../lib/flex-text.js';
 
 const esc = escapeHtml;
 
@@ -187,8 +187,14 @@ function legacyBanners(r, meters, year) {
 }
 
 function tagFor(x, ins = null) {
-  return `<span class="tag flex-tag flex-tag--${x.real ? 'real' : 'dynamic'}">${esc(t(x.real ? 'flex.real.yes' : 'flex.real.no'))}</span>${x.basis === 'assumed'
-    ? ` <span class="tag flex-tag flex-tag--assumed">${esc(t('flex.basis.assumed'))}</span>` : ''}${availabilityTag(x.kind === 'ev' ? ins?.ev_availability : null)}`;
+  return `<span class="tag flex-tag flex-tag--${x.real ? 'real' : 'dynamic'}">${esc(t(x.real ? 'flex.real.yes' : 'flex.real.no'))}</span>${basisTag(x.basis)}${availabilityTag(x.kind === 'ev' ? ins?.ev_availability : null)}`;
+}
+
+/** v3.7.0 — „Beispielwert“ oder, mit eigenem Wert aus den Einstellungen, „eigener Wert“. */
+function basisTag(basis) {
+  if (basis === 'assumed') return ` <span class="tag flex-tag flex-tag--assumed">${esc(t('flex.basis.assumed'))}</span>`;
+  if (basis === 'own') return ` <span class="tag flex-tag flex-tag--own" data-basis="own">${esc(t('flex.basis.own'))}</span>`;
+  return '';
 }
 
 /**
@@ -203,8 +209,10 @@ function netTag() {
 /** v3.6.0 — Schild am Auto: Steckzeiten aus evcc oder die Annahme „ganzer Ladetag“ (Beispielwert). */
 function availabilityTag(ev) {
   if (!ev) return '';
-  const sessions = ev.basis === 'sessions';
-  return ` <span class="tag flex-tag flex-tag--${sessions ? 'sessions' : 'assumed'}" data-availability="${sessions ? 'sessions' : 'day'}">${esc(t(sessions ? 'flex.availability.sessions' : 'flex.availability.day'))}</span>`;
+  // v3.7.0 — dazu die eigene Steckzeit aus den Einstellungen (`window`)
+  const basis = ev.basis === 'sessions' || ev.basis === 'window' ? ev.basis : 'day';
+  const cls = basis === 'sessions' ? 'sessions' : basis === 'window' ? 'own' : 'assumed';
+  return ` <span class="tag flex-tag flex-tag--${cls}" data-availability="${basis}">${esc(availabilityTagText(ev))}</span>`;
 }
 
 function actionsCard(ins) {
@@ -298,24 +306,18 @@ function leversCard(ins) {
   const levers = ins.levers || [];
   if (!levers.length) return '';
   const sig = (l) => t(`flex.signal.${l.signal}`);
-  const a = ins.assumptions || {};
-  const ap = a.appliances || {};
   return `<div class="card flex-levers" data-min-level="advanced">
     <h2 class="card__title">${esc(t('flex.lever.title'))}</h2>
     <p class="muted small">${esc(t('flex.lever.lead'))}</p>
     <div class="table-wrap"><table class="table table--compact">
       <thead><tr><th scope="col">${esc(t('flex.lever.col.device'))}</th><th scope="col">${esc(t('flex.lever.col.signal'))}</th>
         <th scope="col" class="num flex-col-opt">${esc(t('flex.lever.col.shift'))}</th><th scope="col" class="num">${esc(t('flex.lever.col.eur'))}</th></tr></thead>
-      <tbody>${levers.map(l => `<tr data-lever="${esc(l.kind)}" data-signal="${esc(l.signal)}"><th scope="row">${esc(leverLabel(l))}${l.basis === 'assumed' ? ` <span class="tag flex-tag flex-tag--assumed">${esc(t('flex.basis.assumed'))}</span>` : ''}${availabilityTag(l.kind === 'ev' ? ins.ev_availability : null)}</th>
+      <tbody>${levers.map(l => `<tr data-lever="${esc(l.kind)}" data-signal="${esc(l.signal)}"><th scope="row">${esc(leverLabel(l))}${basisTag(l.basis)}${availabilityTag(l.kind === 'ev' ? ins.ev_availability : null)}</th>
         <td>${esc(sig(l))} <span class="muted small">· ${esc(t(l.real ? 'flex.real.yes' : 'flex.real.no'))}</span></td>
         <td class="num flex-col-opt">${esc(fmt.unit(l.shift_kwh, 'kWh'))}</td><td class="num"><strong>${esc(fmt.eur0(l.eur))}</strong></td></tr>`).join('')}</tbody>
     </table></div>
     <p class="small">${esc(t('flex.lever.total', { eur: fmt.eur0(ins.total_eur), real: fmt.eur0(ins.total_real_eur) }))}</p>
-    <p class="muted small">${esc(t('flex.lever.assumptions', {
-      hp: fmt.pct(a.heat_pump_share ?? 0.3, 0),
-      wkwh: fmt.dec(ap.washer?.kwh_per_cycle ?? 0.9, 1), wn: fmt.dec(ap.washer?.cycles_per_week ?? 4, 1),
-      dkwh: fmt.dec(ap.dishwasher?.kwh_per_cycle ?? 1, 1), dn: fmt.dec(ap.dishwasher?.cycles_per_week ?? 5, 1),
-      h: fmt.int(ap.washer?.hours ?? 2) }))}</p>
+    <p class="muted small" data-role="assumptions">${esc(assumptionsText(ins.assumptions || {}))}</p>
     ${ins.ev_availability ? `<p class="muted small" data-role="ev-basis">${esc(evBasisText(ins.ev_availability))}</p>` : ''}
     <p class="muted small">${esc(t('flex.lever.upper', { vat: fmt.pct((ins.vat_pct ?? 19) / 100, 0) }))}</p>
   </div>`;
@@ -377,6 +379,7 @@ function module3Card(m) {
       [t('flex.module3.saving'), fmt.eur(tot.saving_eur)],
     ])}
     <p class="small muted">${esc(t('flex.module3.hint'))}</p>
+    ${m.prices_net ? `<p class="small muted" data-role="module3-net">${esc(t('flex.module3.net', { vat: fmt.pct((m.vat_pct ?? 19) / 100, 0) }))}</p>` : ''}
   </div>`;
 }
 

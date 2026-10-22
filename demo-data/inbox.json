@@ -1,0 +1,421 @@
+[
+    {
+        "id": "inb_56ae17da0845",
+        "attachment_id": "att_5240ff1e4d3c847a",
+        "sha256": "177853d503cb1a0f196d0a40af85d3df73ee2a7c86081a9139ad464f65e24273",
+        "size": 4087,
+        "name": "Jahresabrechnung-Erdgas-2025.pdf",
+        "pages": 3,
+        "created_at": "2026-02-05T18:42:00+01:00",
+        "updated_at": "2026-02-05T18:44:00+01:00",
+        "status": "read",
+        "type": "invoice",
+        "type_confidence": 0.98,
+        "extraction": {
+            "provider": "local",
+            "model": "qwen3.8",
+            "schema_version": 4,
+            "type": "invoice",
+            "fields": {
+                "utility": {
+                    "value": "gas",
+                    "raw": "gas",
+                    "quote": "Jahresabrechnung Erdgas 2025",
+                    "page": 1,
+                    "status": "ok",
+                    "reasons": []
+                },
+                "supplier": {
+                    "value": "Nordwind Energie GmbH",
+                    "raw": "Nordwind Energie GmbH",
+                    "quote": "Nordwind Energie GmbH",
+                    "page": 1,
+                    "status": "ok",
+                    "reasons": []
+                },
+                "kind": {
+                    "value": "annual",
+                    "raw": "annual",
+                    "quote": "Jahresabrechnung Erdgas 2025",
+                    "page": 1,
+                    "status": "ok",
+                    "reasons": []
+                },
+                "period_from": {
+                    "value": "2025-01-01",
+                    "raw": "01.01.2025",
+                    "quote": "Abrechnungszeitraum: 01.01.2025 bis 31.12.2025",
+                    "page": 1,
+                    "status": "ok",
+                    "reasons": []
+                },
+                "period_to": {
+                    "value": "2025-12-31",
+                    "raw": "31.12.2025",
+                    "quote": "Abrechnungszeitraum: 01.01.2025 bis 31.12.2025",
+                    "page": 1,
+                    "status": "ok",
+                    "reasons": []
+                },
+                "consumption": {
+                    "value": 10450,
+                    "raw": "10.450",
+                    "quote": "Verbrauch: 945,6 m³ = 10.540 kWh",
+                    "page": 1,
+                    "status": "check",
+                    "reasons": [
+                        "value_not_in_quote"
+                    ]
+                },
+                "reading_new": {
+                    "value": 1235.6,
+                    "raw": "1.235,6",
+                    "quote": "Zählerstand neu am 31.12.2025: 1.235,6 m³",
+                    "page": 1,
+                    "status": "ok",
+                    "reasons": []
+                },
+                "reading_new_date": {
+                    "value": "2025-12-31",
+                    "raw": "31.12.2025",
+                    "quote": "Zählerstand neu am 31.12.2025",
+                    "page": 1,
+                    "status": "ok",
+                    "reasons": []
+                },
+                "reading_new_estimated": {
+                    "value": false,
+                    "status": "ok",
+                    "reasons": [],
+                    "raw": null,
+                    "quote": null,
+                    "page": null
+                },
+                "reading_old": {
+                    "value": 290,
+                    "raw": "290,0",
+                    "quote": "Zählerstand alt am 31.12.2024: 290,0 m³",
+                    "page": 1,
+                    "status": "ok",
+                    "reasons": []
+                },
+                "reading_old_date": {
+                    "value": "2024-12-31",
+                    "raw": "31.12.2024",
+                    "quote": "Zählerstand alt am 31.12.2024",
+                    "page": 1,
+                    "status": "ok",
+                    "reasons": []
+                },
+                "reading_old_estimated": {
+                    "value": false,
+                    "status": "ok",
+                    "reasons": [],
+                    "raw": null,
+                    "quote": null,
+                    "page": null
+                },
+                "total_amount": {
+                    "value": 951.46,
+                    "raw": "951,46",
+                    "quote": "Rechnungsbetrag brutto: 951,46 €",
+                    "page": 1,
+                    "status": "ok",
+                    "reasons": []
+                },
+                "advances_paid": {
+                    "value": [
+                        {
+                            "amount": 750,
+                            "date": null
+                        },
+                        {
+                            "amount": 750,
+                            "date": null
+                        }
+                    ],
+                    "raw": null,
+                    "quote": null,
+                    "page": null,
+                    "status": "ok",
+                    "reasons": [],
+                    "items": [
+                        {
+                            "value": {
+                                "amount": 750,
+                                "date": null
+                            },
+                            "quote": "Abschläge Januar bis Juni 2025: 6 × 125,00 € = 750,00 €",
+                            "page": 2,
+                            "status": "ok",
+                            "reasons": []
+                        },
+                        {
+                            "value": {
+                                "amount": 750,
+                                "date": null
+                            },
+                            "quote": "Abschläge Juli bis Dezember 2025: 6 × 125,00 € = 750,00 €",
+                            "page": 2,
+                            "status": "ok",
+                            "reasons": []
+                        }
+                    ],
+                    "sum": 1500
+                },
+                "advances_total": {
+                    "value": 1500,
+                    "raw": "1.500,00",
+                    "quote": "Summe der Abschläge: 1.500,00 €",
+                    "page": 2,
+                    "status": "ok",
+                    "reasons": []
+                },
+                "result_kind": {
+                    "value": "credit",
+                    "raw": "credit",
+                    "quote": "Ihr Guthaben: 548,54 €",
+                    "page": 1,
+                    "status": "ok",
+                    "reasons": []
+                },
+                "result_amount": {
+                    "value": 548.54,
+                    "raw": "548,54",
+                    "quote": "Ihr Guthaben: 548,54 €",
+                    "page": 1,
+                    "status": "ok",
+                    "reasons": []
+                },
+                "advance_new": {
+                    "value": 80,
+                    "raw": "80,00",
+                    "quote": "Ihr neuer Abschlag ab 01.02.2026: 80,00 € monatlich",
+                    "page": 1,
+                    "status": "ok",
+                    "reasons": []
+                },
+                "advance_new_from": {
+                    "value": "2026-02-01",
+                    "raw": "01.02.2026",
+                    "quote": "Ihr neuer Abschlag ab 01.02.2026",
+                    "page": 1,
+                    "status": "ok",
+                    "reasons": []
+                },
+                "meter_number": {
+                    "value": "G-2024-998",
+                    "raw": "G-2024-998",
+                    "quote": "Zählernummer: G-2024-998",
+                    "page": 1,
+                    "status": "ok",
+                    "reasons": []
+                },
+                "meter_readings": {
+                    "value": [],
+                    "raw": null,
+                    "quote": null,
+                    "page": null,
+                    "status": "empty",
+                    "reasons": [
+                        "missing"
+                    ],
+                    "items": []
+                },
+                "market_location": {
+                    "value": "50123456789",
+                    "raw": "50123456789",
+                    "quote": "Marktlokation: 50123456789",
+                    "page": 1,
+                    "status": "ok",
+                    "reasons": []
+                },
+                "contract_number": {
+                    "value": "NW-GAS-4417",
+                    "raw": "NW-GAS-4417",
+                    "quote": "Vertragskonto: NW-GAS-4417",
+                    "page": 1,
+                    "status": "ok",
+                    "reasons": []
+                },
+                "customer_number": {
+                    "value": "KD-2025-0815",
+                    "raw": "KD-2025-0815",
+                    "quote": "Kundennummer: KD-2025-0815",
+                    "page": 1,
+                    "status": "ok",
+                    "reasons": []
+                },
+                "gas_factors": {
+                    "value": [
+                        {
+                            "from": "2025-01-01",
+                            "to": "2025-09-30",
+                            "z": 0.96,
+                            "hs": 11.65
+                        },
+                        {
+                            "from": "2025-10-01",
+                            "to": "2025-12-31",
+                            "z": 0.96,
+                            "hs": 11.52
+                        }
+                    ],
+                    "raw": null,
+                    "quote": null,
+                    "page": null,
+                    "status": "ok",
+                    "reasons": [],
+                    "items": [
+                        {
+                            "value": {
+                                "from": "2025-01-01",
+                                "to": "2025-09-30",
+                                "z": 0.96,
+                                "hs": 11.65
+                            },
+                            "quote": "Zeitraum 01.01.2025 bis 30.09.2025: 663,0 m³ × Zustandszahl 0,9600 × Brennwert 11,650 kWh/m³",
+                            "page": 2,
+                            "status": "ok",
+                            "reasons": []
+                        },
+                        {
+                            "value": {
+                                "from": "2025-10-01",
+                                "to": "2025-12-31",
+                                "z": 0.96,
+                                "hs": 11.52
+                            },
+                            "quote": "Zeitraum 01.10.2025 bis 31.12.2025: 282,6 m³ × Zustandszahl 0,9600 × Brennwert 11,520 kWh/m³",
+                            "page": 2,
+                            "status": "ok",
+                            "reasons": []
+                        }
+                    ]
+                },
+                "working_prices": {
+                    "value": [
+                        {
+                            "from": "2025-01-01",
+                            "ct": 7.9,
+                            "basis": null,
+                            "vat_pct": null
+                        }
+                    ],
+                    "raw": null,
+                    "quote": null,
+                    "page": null,
+                    "status": "check",
+                    "reasons": [
+                        "price_from_invoice"
+                    ],
+                    "items": [
+                        {
+                            "value": {
+                                "from": "2025-01-01",
+                                "ct": 7.9,
+                                "basis": null,
+                                "vat_pct": null
+                            },
+                            "quote": "Arbeitspreis ab 01.01.2025: 7,90 ct/kWh",
+                            "page": 2,
+                            "status": "check",
+                            "reasons": [
+                                "price_from_invoice"
+                            ],
+                            "vat_read": {
+                                "vat_pct": 19,
+                                "from": "line"
+                            }
+                        }
+                    ]
+                },
+                "base_price": {
+                    "value": 9.9,
+                    "raw": "9,90",
+                    "quote": "Grundpreis: 9,90 € pro Monat",
+                    "page": 2,
+                    "status": "check",
+                    "reasons": [
+                        "price_from_invoice"
+                    ],
+                    "vat_read": {
+                        "vat_pct": 19,
+                        "from": "line"
+                    }
+                },
+                "base_price_period": {
+                    "value": "month",
+                    "raw": "month",
+                    "quote": "Grundpreis: 9,90 € pro Monat",
+                    "page": 2,
+                    "status": "ok",
+                    "reasons": []
+                },
+                "base_price_basis": {
+                    "value": null,
+                    "raw": null,
+                    "quote": null,
+                    "page": null,
+                    "status": "empty",
+                    "reasons": [
+                        "missing"
+                    ]
+                },
+                "base_price_vat_pct": {
+                    "value": null,
+                    "raw": null,
+                    "quote": null,
+                    "page": null,
+                    "status": "empty",
+                    "reasons": [
+                        "missing"
+                    ]
+                },
+                "document_date": {
+                    "value": null,
+                    "raw": null,
+                    "quote": null,
+                    "page": null,
+                    "status": "empty",
+                    "reasons": [
+                        "missing"
+                    ]
+                },
+                "document_title": {
+                    "value": null,
+                    "raw": null,
+                    "quote": null,
+                    "page": null,
+                    "status": "empty",
+                    "reasons": [
+                        "missing"
+                    ]
+                }
+            },
+            "flags": 3,
+            "seconds": {
+                "classify": 9.4,
+                "extract": 68.7
+            },
+            "cached": false,
+            "extracted_at": "2026-02-05T18:44:00+01:00",
+            "text": {
+                "chars": 1180,
+                "kept": [
+                    1,
+                    2
+                ],
+                "dropped": [
+                    3
+                ],
+                "truncated": false
+            }
+        },
+        "cache": {},
+        "assignment": null,
+        "edits": {},
+        "applied": [],
+        "error": null
+    }
+]

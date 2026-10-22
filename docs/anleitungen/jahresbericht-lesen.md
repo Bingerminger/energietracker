@@ -57,7 +57,7 @@ erzeugt genau die Zusätze aus [§ 6](#6-teilbericht-und-sprache-per-link).
 | **Was hat sich gelohnt** | Erfolge mit Betrag: weniger geheizt, eine Maßnahme, die wirkt (Zäsur), Solaranlage, Speicher, Sonnenstrom im Auto, Modul 3, gesunkene Kosten; darunter „Gut zu wissen“ | immer; ohne Erfolg steht der Vergleich mit dem Vorjahr |
 | **Was ist zu tun** | Aufgaben nach Priorität, je mit Grund, Betrag, Frist und Hinweis | immer; „Nichts zu tun“ nur, wenn auch keine Termine anstehen |
 | **Fristen und Termine** | die nächsten zwölf Monate und alles Überfällige; je laufendem Vertrag ein Zeitstrahl | Termine oder Verträge vorhanden |
-| **Geld** | Kosten je Verbrauchsart (auch Heizöl und Pellets) und je Monat gegen das Vorjahr, Preis- und Mengeneffekt, Abschläge gegen Kosten je Vertrag, Prognose der nächsten zwölf Monate | es gibt Kosten |
+| **Geld** | Kosten je Verbrauchsart (auch Heizöl und Pellets) und je Monat gegen das Vorjahr, Preis- und Mengeneffekt, Abschläge gegen Kosten je Vertrag, Prognose der nächsten zwölf Monate. *(v3.7.0)* Alle Kosten ohne Bonus — darunter je Bonus ein Satz mit Art, Datum, Betrag und Notiz; der Saldo rechnet ihn ein. Wasser mit Abschlägen hat Saldo und Abschlags-Rat wie Gas und Strom | es gibt Kosten |
 | **Je Verbrauchsart** | Jahreswert gegen Vorjahr, Monatsbalken; Heizung: „Kälter oder mehr verbraucht?“ und Effizienzskala; Strom: wofür (Haushalt, Wärmepumpe, Wallbox); Wasser: Liter je Person und Tag; Heizöl und Pellets: Kosten aus den Lieferungen, Bestand und Reichweite | Verbrauch im Jahr |
 | **Sonnenstrom** | Energiefluss, Autarkiequote, Eigenverbrauch, Erzeugung je Monat, Amortisation, Speicher | Solaranlage |
 | **Wärmepumpe** | Arbeitszahl je Monat gegen das Feldtest-Mittel | Wärmemengenzähler mit verknüpftem Stromzähler |
@@ -120,6 +120,22 @@ Vertragspreisen, nie aus Marktannahmen; ohne Preis steht kein Betrag. Sie sind
 auf ganze Euro gerundet und tragen „ca.“ sowie ihre Art: **gemessen** (aus dem
 Berichtsjahr), **hochgerechnet** (bis zur Abrechnung) oder **Rechenbeispiel**.
 Ausgeblendete Empfehlungen bleiben auch im Bericht ausgeblendet.
+
+*(seit v3.7.0)* **Gemessen** heißt auch: aus gemessenen Monaten. Ist ein Monat
+des Berichtsjahres oder des Vorjahres nur verteilt (zu lange zwischen zwei
+Ablesungen, siehe [Gemessen oder verteilt](../verstehen/00-overview.md#gemessen-oder-verteilt-seit-v370)),
+entfallen „Kälter oder mehr verbraucht?“, „Weniger geheizt“ und „Kosten
+gesunken“; auf der Seite der Verbrauchsart sagt eine Notiz, warum der Vergleich
+fehlt. Die Jahreswerte selbst bleiben, wie sie sind.
+
+*(seit v3.7.0)* Passt das Heizmodell schlecht zu einem Zähler (Gütesperre, siehe
+[Anomalien](../verstehen/00-overview.md#9-anomalien)), vergleicht der Bericht diese
+Heizart nicht witterungsbereinigt: Kachel und Ampel „Verbrauch“ nehmen den rohen
+Verbrauch, „Kälter oder mehr verbraucht?“, „Heizverbrauch gestiegen“ und
+„Auffälliger Monat“ entfallen, im Anhang steht „–“; eine Notiz sagt, warum. Ist
+eine Saldo-Schätzung unsicher, zeigt die Ampel „Abrechnung“ keinen Haken, sondern
+„Schätzung unsicher“ mit der Spanne, und „Wohin geht mein Geld?“ nennt Kosten und
+Ergebnis als Spanne.
 
 Einen Rechtshinweis gibt es nur dort, wo die App ihn ohnehin führt: bei einer
 Preiserhöhung das Sonderkündigungsrecht nach § 41 Abs. 5 EnWG (nur in

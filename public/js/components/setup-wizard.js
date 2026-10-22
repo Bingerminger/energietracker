@@ -35,6 +35,8 @@ import { DEMO, demoPersona, setDemoPersona, setDemoLanguage } from '../lib/demo-
 import { loadDemo } from '../lib/demo.js';
 import { regionFacts, saveRegion } from '../lib/region.js';
 import { switchLanguage } from '../lib/language.js';
+import { openReadingSetup } from './reading-setup.js';   // v3.7.0 — „Auslesen einrichten“ als Dialog
+import { docUrl } from '../lib/docs.js';   // v3.7.0 (Paket reifegrad) — Funktionstabelle nach Stufe
 
 /** Persona → Katalogname, Symbol und vorgeschlagene Verbrauchsarten. */
 export const PERSONAS = [
@@ -46,6 +48,21 @@ export const PERSONAS = [
 ];
 
 const persona = (id) => PERSONAS.find(p => p.id === id) || PERSONAS[PERSONAS.length - 1];
+
+/**
+ * v3.7.0 (Haushalt aus Dokumenten) — welche Dokumente beim Weg „Aus
+ * Dokumenten“ helfen, je Haushalt: zur Miete die letzte Jahresrechnung und die
+ * Vertragsbestätigung; sonst je Energieträger Jahresrechnung, Bestätigung und
+ * Preisänderungen; mit Einspeisung der Vertrag bzw. die Abrechnung des
+ * Netzbetreibers; mit Wärmepumpe oder Wallbox die Bestätigung des Sondertarifs.
+ * @returns {string[]} Katalogschlüssel
+ */
+export function docsHelp(personaId, utilities = []) {
+  const keys = [personaId === 'mieterin' ? 'tenant' : 'house'];
+  if (utilities.includes('pv_einspeisung')) keys.push('pv');
+  if (personaId === 'eigenheim-modern') keys.push('heatPump');
+  return keys.map(k => `setup.finish.docsHelp.${k}`);
+}
 
 /**
  * v3.5.0 (N1022) — die Schritte des Assistenten: zuerst Sprache und Land, in
@@ -68,6 +85,8 @@ export async function openSetupWizard({ session = null, firstRun = false } = {})
   // bot der Assistent nur das aktuelle Land an, die Einstellungen später alle.
   // Einmal direkt nachladen statt ein Feld mit einer einzigen Wahl zu zeigen.
   if (!countries.length && !DEMO) countries = await api.countries().catch(() => []);
+  // v3.7.0 (Haushalt aus Dokumenten) — ist das Auslesen eingerichtet? Sonst bietet „Aus Dokumenten“ den Dialog „Auslesen einrichten“
+  let reader = DEMO ? null : await api.inbox().then(d => d?.provider || null).catch(() => null);
   // Was gilt, wenn der Assistent öffnet — Vergleich für „nur Abweichungen“ und fürs Zurücknehmen
   const start = { language: getLocale(), country: settings.country || 'DE' };
   const state = {
@@ -78,8 +97,8 @@ export async function openSetupWizard({ session = null, firstRun = false } = {})
     utilities: Array.isArray(settings.active_utilities) && settings.active_utilities.length
       ? [...settings.active_utilities] : utilities.map(u => u.key),
     level: firstRun ? null : currentLevel(),
-    // Beispieldaten ersetzen den ganzen Haushalt — das dürfen nur Verwalter (F1023)
-    start: sessionRole() === 'admin' ? 'demo' : 'own',
+    // v3.7.0 — empfohlen: aus Dokumenten (Beispieldaten ersetzen den ganzen Haushalt, das dürfen nur Verwalter, F1023)
+    start: 'docs',
     // v3.6.0 — Hinweis auf neue Versionen: bei der Einrichtung vorgeschlagen (sichtbar,
     // abwählbar); beim erneuten Öffnen die aktuelle Einstellung
     updateCheck: firstRun ? true : !!settings.update_check,
@@ -158,7 +177,8 @@ export async function openSetupWizard({ session = null, firstRun = false } = {})
             <span class="muted small">${esc(t('settings.level.describe.' + l))}</span></span>
         </label>`).join('')}
     </div>
-    <p class="muted small">${esc(t('setup.level.later'))}</p>`;
+    <p class="muted small">${esc(t('setup.level.later'))}
+      <a href="${esc(docUrl('levels'))}" target="_blank" rel="noopener" data-role="level-table">${esc(t('level.table'))}</a></p>`;
 
   const finishStep = () => {
     const p = persona(state.persona);
@@ -167,31 +187,34 @@ export async function openSetupWizard({ session = null, firstRun = false } = {})
       return `<h3 class="setup__question">${esc(t('setup.finish.title'))}</h3>
         <p>${esc(t('setup.finish.demoPublic', { persona: name }))}</p>`;
     }
-    if (!canLoadDemo) {
-      return `<h3 class="setup__question">${esc(t('setup.finish.title'))}</h3>
-        <p class="muted">${esc(t('setup.finish.summary', { persona: name, level: t('level.' + state.level) }))}</p>
-        <p>${esc(t('setup.finish.ownHint'))}</p>`;
-    }
+    // v3.7.0 — drei Wege: aus Dokumenten (empfohlen), von Hand, Beispielhaushalt (nur Verwalter)
+    const choice = (value, icon, title, hint, extra = '') => `
+        <label class="setup-choice${state.start === value ? ' setup-choice--on' : ''}">
+          <input type="radio" name="setup-start" value="${value}" ${state.start === value ? 'checked' : ''}>
+          <span class="setup-choice__icon" aria-hidden="true">${icon}</span>
+          <span class="setup-choice__body"><strong>${esc(title)}</strong>${extra}
+            <span class="muted small">${esc(hint)}</span></span>
+        </label>`;
+    const docsBox = state.start !== 'docs' ? '' : `
+      <div class="setup-docs" data-role="setup-docs">
+        <p class="setup-docs__title">${esc(t('setup.finish.docsHelpTitle'))}</p>
+        <ul>${docsHelp(p.id, state.utilities).map(k => `<li>${esc(t(k))}</li>`).join('')}</ul>
+        ${reader?.available ? '' : `<div class="banner banner--info small" data-role="setup-reader"><p>${esc(canLoadDemo
+          ? t('setup.finish.docsReader') : t('setup.finish.docsReaderMember'))}</p>
+          ${canLoadDemo ? `<p><button type="button" class="btn btn--primary btn--sm" data-act="reading-setup">${esc(t('inboxDraft.setup.button'))}</button></p>` : ''}</div>`}
+      </div>`;
     return `
       <h3 class="setup__question">${esc(t('setup.finish.title'))}</h3>
       <p class="muted">${esc(t('setup.finish.summary', { persona: name, level: t('level.' + state.level) }))}</p>
       <div class="setup-choices" role="radiogroup" aria-label="${esc(t('setup.finish.title'))}">
-        <label class="setup-choice${state.start === 'demo' ? ' setup-choice--on' : ''}">
-          <input type="radio" name="setup-start" value="demo" ${state.start === 'demo' ? 'checked' : ''}>
-          <span class="setup-choice__icon" aria-hidden="true">🧪</span>
-          <span class="setup-choice__body"><strong>${esc(t('setup.finish.demo'))}</strong>
-            <span class="muted small">${esc(t('setup.finish.demoHint', { persona: name }))}</span></span>
-        </label>
-        <label class="setup-choice${state.start === 'own' ? ' setup-choice--on' : ''}">
-          <input type="radio" name="setup-start" value="own" ${state.start === 'own' ? 'checked' : ''}>
-          <span class="setup-choice__icon" aria-hidden="true">📋</span>
-          <span class="setup-choice__body"><strong>${esc(t('setup.finish.own'))}</strong>
-            <span class="muted small">${esc(t('setup.finish.ownHint'))}</span></span>
-        </label>
+        ${choice('docs', '📥', t('setup.finish.docs'), t('setup.finish.docsHint'), ` <span class="badge badge--info">${esc(t('setup.finish.recommended'))}</span>`)}
+        ${choice('own', '📋', t('setup.finish.own'), t('setup.finish.ownHint'))}
+        ${canLoadDemo ? choice('demo', '🧪', t('setup.finish.demo'), t('setup.finish.demoHint', { persona: name })) : ''}
       </div>
-      <label class="settings-field__check setup-update-check">
+      ${docsBox}
+      ${canLoadDemo ? `<label class="settings-field__check setup-update-check">
         <input type="checkbox" name="setup-update-check" ${state.updateCheck ? 'checked' : ''}>
-        ${esc(t('setup.finish.updateCheck'))}</label>`;
+        ${esc(t('setup.finish.updateCheck'))}</label>` : ''}`;
   };
 
   const html = { region: regionStep, persona: personaStep, utilities: utilitiesStep, level: levelStep, finish: finishStep };
@@ -269,6 +292,12 @@ export async function openSetupWizard({ session = null, firstRun = false } = {})
         draw(el.type === 'radio' || el.type === 'checkbox' ? `input[name="${el.name}"][value="${el.value}"]` : undefined);
       });
       back.addEventListener('click', () => { state.step = Math.max(0, state.step - 1); draw(); });
+      // v3.7.0 — „Auslesen einrichten“ über dem Assistenten; danach zeigt der Schritt den neuen Stand
+      body.addEventListener('click', async (e) => {
+        if (!e.target.closest?.('[data-act="reading-setup"]')) return;
+        reader = await openReadingSetup().catch(() => reader) ?? reader;
+        if (body.isConnected) draw('input[name="setup-start"][value="docs"]');
+      });
       modalEl.querySelector('[data-act="skip"]').addEventListener('click', async () => {
         if (!DEMO && settings.setup_pending) await saveSettings({ setup_pending: false }).catch(() => {});
         if (DEMO && !demoPersona(true)) setDemoPersona('showcase');
@@ -342,10 +371,13 @@ async function finish(state, { start, settings, countries, session }) {
   });
   if (langChanged) syncOwnLanguage(state.language, session);
   await saveLevel(state.level);
-  if (state.start === 'demo') {
+  if (state.start === 'demo' && canAdmin()) {
     await loadDemo({ persona: p.id });
     return null;
   }
+  // v3.7.0 — aus Dokumenten: in den Posteingang zum Ablegen (ohne eingerichtetes
+  // Auslesen bietet er dort „Auslesen einrichten“ als Dialog an)
+  if (state.start === 'docs') return '#/inbox';
   return '#/zaehlerstaende';
 }
 

@@ -137,6 +137,16 @@ der Seitenleiste. Unter Ingress nennt „Im Kalender abonnieren“ die Adresse i
 Netz von Home Assistant ([Kalender](kalender.md)) — für das Handy den Anfang
 bis `/api.php` durch `http://<Adresse von Home Assistant>:8095` ersetzen.
 
+**Versorgerpost in den Posteingang *(v3.7.0)*.** Die App bindet nur ihren
+eigenen Speicher (`/data`) ein, keine Freigabe wie `/share`; den
+[überwachten Ordner](posteingang.md#überwachter-ordner) erreicht man deshalb
+nicht. Zwei Wege bleiben: **E-Mail** über die IMAP-Integration von Home
+Assistant, die Anhänge mit einem Schlüssel „nur Posteingang“ an
+`http://<Hostname der App>/api.php/api/inbox` schickt
+([Anleitung](posteingang.md#per-e-mail-über-home-assistant)), und der
+**Kurzbefehl** vom iPhone oder iPad über einen freigegebenen direkten Port
+([Kurzbefehl](posteingang.md#per-kurzbefehl-vom-iphone-oder-ipad)).
+
 Was unter Ingress sonst gilt, steht unter
 [Betrieb unter Home-Assistant-Ingress](#betrieb-unter-home-assistant-ingress).
 

@@ -205,16 +205,34 @@ final class ReportAdviceService
         foreach ((array)($f['contracts'] ?? []) as $c) {
             if (empty($c['has_advance']) || ($c['projected_end_balance'] ?? null) === null) continue;
             $adv = (float)($c['current_advance'] ?? 0);
-            $ratio = $adv > 0 ? (float)$c['projected_end_balance'] / $adv : ((float)$c['projected_end_balance'] > 0 ? INF : -INF);
+            // v3.7.0 (wirklichkeit-2) — unsichere Schätzung: das ungünstige Ende der Spanne
+            $bal = is_array($c['projection_uncertain'] ?? null) ? max(array_map('floatval', (array)$c['projection_uncertain']['projected_range']))
+                : (float)$c['projected_end_balance'];
+            $ratio = $adv > 0 ? $bal / $adv : ($bal > 0 ? INF : -INF);
             if ($worst === null || $ratio > $worst) { $worst = $ratio; $worstC = $c; }
         }
         $lv = self::billingLevel($worst === null ? null : (is_infinite($worst) ? ($worst > 0 ? 99.0 : -99.0) : $worst));
+        // v3.7.0 (wirklichkeit-2, Schritt 3) — „Abschläge passen ✔“ nicht, solange eine
+        // Schätzung unsicher ist: dann ohne Haken, mit der Spanne dieses Vertrags
+        $word = "report.light.billing.$lv";
+        if ($lv === 'ok') {
+            foreach ((array)($f['contracts'] ?? []) as $c) {
+                if (!empty($c['has_advance']) && ($c['projected_end_balance'] ?? null) !== null && is_array($c['projection_uncertain'] ?? null)) {
+                    $lv = 'none'; $word = 'report.light.billing.uncertain'; $worstC = $c;
+                    break;
+                }
+            }
+        }
+        $worstUnc = is_array($worstC['projection_uncertain'] ?? null) ? $worstC['projection_uncertain'] : null;
         $out[] = ['key' => 'billing', 'level' => $lv, 'as_of_today' => true,
-            'word' => $this->i18n->t("report.light.billing.$lv"),
+            'word' => $this->i18n->t($word),
             'detail' => $worstC === null ? $this->i18n->t('report.light.billingNone')
-                : $this->i18n->t((float)$worstC['projected_end_balance'] > 0 ? 'report.light.billingDue' : 'report.light.billingCredit', [
-                    'label' => (string)$worstC['label'], 'amount' => $this->approx(abs((float)$worstC['projected_end_balance'])),
-                ])];
+                : ($worstUnc !== null
+                    ? $this->i18n->t('balanceUncertain.light', ['label' => (string)$worstC['label'],
+                        'low' => $this->balanceWord((float)min($worstUnc['projected_range'])), 'high' => $this->balanceWord((float)max($worstUnc['projected_range']))])
+                    : $this->i18n->t((float)$worstC['projected_end_balance'] > 0 ? 'report.light.billingDue' : 'report.light.billingCredit', [
+                        'label' => (string)$worstC['label'], 'amount' => $this->approx(abs((float)$worstC['projected_end_balance'])),
+                    ]))];
         // Fristen — Stand heute
         $next = null; $nextE = null;
         foreach ((array)($f['agenda'] ?? []) as $e) {
@@ -242,8 +260,16 @@ final class ReportAdviceService
         $today = (string)$f['today'];
         $label = (string)$c['label'];
         $provider = (string)($c['provider'] ?? '') ?: '—';
-        // Abschlag
-        if (!empty($c['has_advance']) && ($c['projected_end_balance'] ?? null) !== null && !empty($c['is_current'])) {
+        // v3.7.0 (wirklichkeit-2) — unsichere Saldo-Schätzung (Faktor klemmt, Heizmodell
+        // schlecht): keine Aufgabe mit Betrag und Priorität, sondern ein Hinweis mit der
+        // Spanne. Bei echten Daten wurde aus einem zu niedrigen Vorschlag Aufgabe Nr. 1.
+        $unc = $c['projection_uncertain'] ?? null;
+        if (!empty($c['has_advance']) && is_array($unc) && !empty($c['is_current'])) {
+            $date = $this->i18n->date((string)($c['settle_date'] ?? $c['effective_end'] ?? $today));
+            [$text, $adv] = $this->uncertainBalance($unc, $date);
+            $out[] = $this->info('advanceUncertain', $c['utility'] ?? null, 'report.advice.advanceUncertain.title', ['label' => $label],
+                'report.advice.advanceUncertain.reason', ['text' => $text . ($adv !== null ? ' ' . $adv : '')], true);
+        } elseif (!empty($c['has_advance']) && ($c['projected_end_balance'] ?? null) !== null && !empty($c['is_current'])) {
             $bal = (float)$c['projected_end_balance'];
             $adv = (float)($c['current_advance'] ?? 0);
             $limit = max(self::ADVANCE_MIN_EUR, $adv);
@@ -555,6 +581,8 @@ final class ReportAdviceService
     {
         $now = $t['cost_now'] ?? null; $prev = $t['cost_prev'] ?? null;
         if ($now === null || $prev === null || (float)$prev <= 0 || (float)$now >= (float)$prev) return null;
+        // v3.7.0 (#37) — „gemessen“ nur ohne verteilte Monate in beiden Jahren
+        if (!empty($t['interpolated'])) return null;
         return $this->success('costDown', null, 'report.advice.costDown.title', [], 'report.advice.costDown.reason', [
             'prev' => $year - 1, 'pct' => $this->pct(((float)$now / (float)$prev - 1) * 100),
         ], $this->euro((float)$prev - (float)$now, 'year', 'measured', 'earned'));
@@ -626,6 +654,51 @@ final class ReportAdviceService
     private function info(string $rule, ?string $utility, string $titleKey, array $titleParams, string $reasonKey, array $params, bool $today): array
     {
         return $this->base('info', $rule, $utility, '', $titleKey, $titleParams, $reasonKey, $params, null, null, [], $today);
+    }
+
+    /**
+     * v3.7.0 (wirklichkeit-2) — Saldo zur Abrechnung und Abschlag, wenn die
+     * Schätzung unsicher ist (ConsumptionService::projectionUncertainty):
+     * [Satz mit Spanne und Grund, Satz mit der Spanne des Abschlags oder null].
+     *
+     * @param array<string,mixed> $unc
+     * @return array{0:string, 1:?string}
+     */
+    public function uncertainBalance(array $unc, string $date): array
+    {
+        [$lo, $hi] = array_map('floatval', (array)$unc['projected_range']);
+        $text = $this->i18n->t('balanceUncertain.range', ['date' => $date, 'low' => $this->balanceWord($lo),
+            'high' => $this->balanceWord($hi), 'why' => $this->uncertainWhy($unc)]);
+        $s = $unc['suggested_range'] ?? null;
+        $adv = is_array($s) ? $this->i18n->t('balanceUncertain.advance', ['low' => $this->eur((float)$s[0]), 'high' => $this->eur((float)$s[1])]) : null;
+        return [$text, $adv];
+    }
+
+    /** Nachzahlung, Guthaben oder ausgeglichen — positiver Saldo = Nachzahlung. */
+    private function balanceWord(float $v): string
+    {
+        if (abs($v) < 1) return $this->i18n->t('balanceUncertain.even');
+        return $this->i18n->t($v > 0 ? 'balanceUncertain.due' : 'balanceUncertain.credit', ['amount' => $this->approx(abs($v))]);
+    }
+
+    /** Warum unsicher: Faktor klemmt, zu wenig gemessen (v3.7.0, Schritt 3), Heizmodell schlecht — einzeln oder zusammen. */
+    public function uncertainWhy(array $unc): string
+    {
+        $parts = [];
+        foreach ((array)($unc['reasons'] ?? []) as $r) {
+            $parts[] = match ($r) {
+                'factor_clamped' => $this->i18n->t('balanceUncertain.why.factor_clamped', ['raw' => $this->i18n->number((float)($unc['factor_raw'] ?? 0), 2),
+                    'used' => $this->i18n->number((float)($unc['factor'] ?? 0), 2)]),
+                'few_measured' => $this->i18n->t('balanceUncertain.why.few_measured'),
+                default => $this->i18n->t('balanceUncertain.why.poor_fit', ['pct' => $this->share((float)($unc['fit_ratio'] ?? 0) * 100)]),
+            };
+        }
+        return match (count($parts)) {
+            0 => '',
+            1 => $parts[0],
+            2 => $this->i18n->t('balanceUncertain.why.both', ['a' => $parts[0], 'b' => $parts[1]]),
+            default => $this->i18n->t('balanceUncertain.why.three', ['a' => $parts[0], 'b' => $parts[1], 'c' => $parts[2]]),
+        };
     }
 
     /** „ca. 120 €“ — ganze Euro, mit „ca.“ (Bericht §3). */

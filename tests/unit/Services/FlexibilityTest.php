@@ -109,6 +109,37 @@ final class FlexibilityTest extends ServiceTestCase
             'Juli: kein Fenster im dritten Quartal → Standard');
     }
 
+    /**
+     * v3.7.0 — Schalter „ohne USt“: Dieselben Fenster netto eingetragen rechnen
+     * mit dem Umsatzsteuersatz der App (Regelsatz 19 %, mit dynamischem Angebot
+     * dessen Satz) auf brutto: 2 ct × 1,19 statt 2 ct. Ohne Schalter wie
+     * eingetragen; gespeicherte Verträge ohne das Feld bleiben unverändert.
+     */
+    public function testModule3NetAmountsAreGrossedUpWithTheVatOfTheApp(): void
+    {
+        $hp = (string)$this->meters->create('strom', ['name' => 'Wärmepumpe', 'installed_on' => '2024-01-01', 'role' => 'heat_pump'])['id'];
+        $c = $this->contracts->create('strom', ['meter_id' => $hp, 'provider' => 'X', 'start' => '2024-01-01',
+            'working_prices' => [['from' => '2024-01-01', 'ct_per_kwh' => 25]],
+            'grid_tou' => ['standard_ct' => '8', 'net' => true, 'windows' => [
+                ['quarters' => [1], 'from' => '00:00', 'to' => '06:00', 'ct' => 2],
+                ['quarters' => [1], 'from' => '17:00', 'to' => '20:00', 'ct' => '12'],
+            ]]]);
+        self::assertTrue($c['grid_tou']['net'], 'gespeichert');
+        $this->iv->mergeEnergy('strom', $hp, [$this->at('2025-02-10 03:00') => 100.0, $this->at('2025-02-10 18:00') => 100.0], 'test');
+        $m3 = $this->flex()->analyze(2025)['module3'][0];
+        self::assertEqualsWithDelta(100 * ((8 - 2) + (8 - 12)) * 1.19 / 100, $m3['total']['saving_eur'], 0.0001, 'brutto mit 19 % (2,38 statt 2,00 €)');
+        self::assertSame([true, 19.0], [$m3['prices_net'], $m3['vat_pct']]);
+        $tou = $this->flex()->gridTouByMonth($hp, 2025)[2];
+        self::assertSame([9.52, 2.38], [$tou['standard_ct'], $tou['windows'][0]['ct']]);
+        // mit dynamischem Angebot dessen Satz (dieselbe Regel wie die Börsen-Hebel)
+        $this->contracts->create('strom', ['meter_id' => $hp, 'provider' => 'Börse', 'start' => '2027-01-01', 'is_shadow' => true,
+            'shadow_label' => 'Dynamisch', 'price_model' => 'dynamic', 'dynamic' => ['markup_ct_per_kwh' => 18, 'base_eur_month' => 10, 'vat_pct' => 7]]);
+        self::assertSame(7.0, $this->flex()->analyze(2025)['module3'][0]['vat_pct']);
+        // ohne Schalter: wie eingetragen, kein Feld `net`
+        self::assertArrayNotHasKey('net', ContractService::normalizeGridTou(['standard_ct' => 8, 'net' => false, 'windows' => []]));
+        self::assertArrayNotHasKey('net', ContractService::normalizeGridTou(['standard_ct' => 8, 'windows' => []]));
+    }
+
     public function testTheContractChecksTheWindows(): void
     {
         self::assertNull(ContractService::normalizeGridTou([]));

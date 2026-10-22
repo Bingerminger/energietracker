@@ -31,6 +31,8 @@ final class AttachmentController
      */
     public function ocr(Request $req): never
     {
+        // v3.7.0 — `ocr_timeout_s` darf bis 300 s; PHP bricht sonst nach 30 s ab
+        if (function_exists('set_time_limit')) @set_time_limit(360);
         try {
             $r = $this->ocr->read((string)$req->input('attachment_id', ''));
         } catch (LocalizedException $e) {

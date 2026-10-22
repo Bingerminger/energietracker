@@ -173,8 +173,11 @@
   /* ── Semantic ───────────────────────────────────────────────────
      v2.11.0 (Review UI-09) — auf Weiß gemessen: Grün 3,8 → 5,5, Orange
      3,2 → 5,6, Rot 4,8 → 6,5 (auf der eigenen Tönung 4,1 → 5,5). Salden,
-     „Abschlag €", Empfehlungstitel und Effizienzklassen erreichen damit AA. */
-  --success:     #047857;
+     „Abschlag €", Empfehlungstitel und Effizienzklassen erreichen damit AA.
+     v3.7.0 (Qualität) — Grün noch eine Stufe dunkler: Als Abzeichen in einer
+     Feldgruppe (Tönung über --bg-2, Dialog „Zähler bearbeiten“) kam #047857
+     auf 4,4:1; #036c4e erreicht dort 5,1:1 und auf Weiß 6,4:1. */
+  --success:     #036c4e;
   --warning:     #a84d07;
   --danger:      #b91c1c;
   --danger-strong: #b91c1c;

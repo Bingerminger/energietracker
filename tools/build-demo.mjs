@@ -100,9 +100,17 @@ async function enumerate(get, post = null) {
     '/api/intervals', '/api/flexibility',    // v3.3.0 (F1021) — Vorbelegung: Vorjahr
     '/api/activity',                          // v3.4.0 (F1024) — Hinweise › Erledigt, Verlauf je Vertrag
     '/api/people',                            // v3.5.0 (F1028) — Personen für „Zuständig“; v3.6.0 aus dem Verzeichnis
-    '/api/users');                            // v3.6.0 — Einstellungen → Zugriff: Personen ohne Zugang
+    '/api/users',                             // v3.6.0 — Einstellungen → Zugriff: Personen ohne Zugang
+    '/api/inbox/cloud');                      // v3.7.0 (cloud) — Einstellungen → Experte: Auslesen in der Cloud (aus)
   // v3.6.0 — Vorschau „Person löschen“ je Person (Löschen selbst lehnt die Demo ab)
   for (const p of (await get('/api/people')).json?.data ?? []) add(`/api/users/${p.id}/handover`);
+  // v3.7.0 — Posteingang: Liste, Prüfliste und die Vorschau je Dokument (vorberechnete Auslesung)
+  add('/api/inbox', '/api/inbox/review', '/api/inbox/draft');   // v3.7.0 — dazu der Entwurf (Haushalt aus Dokumenten)
+  const inboxFiles = [];
+  for (const e of (await get('/api/inbox')).json?.data?.entries ?? []) {
+    add(`/api/inbox/${e.id}`);
+    if (e.attachment_id) inboxFiles.push(`/api/attachments/${e.attachment_id}`);   // das PDF für pdf.js
+  }
 
   // v3.5.0 (F1027) — Tagesfilm: welche Tage es gibt, die Tage des Monats der
   // Vorbelegung und der typische Tag je Monat. Andere Tage meldet die Demo als
@@ -150,6 +158,8 @@ async function enumerate(get, post = null) {
         `/api/utility/${k}/meters/${id}/tariff-switch`);
       if (delivery) add(`/api/utility/${k}/deliveries?meter_id=${q}`, `/api/utility/${k}/meters/${id}/stock-history`);
       if (u.supports_bill_check) add(`/api/utility/${k}/bills?meter_id=${q}`);    // v3.1.0 (H5)
+      // v3.7.0 (wirklichkeit-2) — die Analyse fragt Heizarten mit Heizgrenze-Vorschlag
+      if (u.hgt_relevant) add(`/api/utility/${k}/meters/${id}/consumption?heat_limit=1`);
       // v3.6.0 (F1030) — Verbrauchsart und Analyse im Abrechnungsjahr
       if (u.supports_bill_check && m.capture !== 'period') add(`/api/utility/${k}/meters/${id}/billing-periods?months=1`);
       // v3.6.0 (Paket abrechnung) — „Rechnung prüfen“ schlägt die jüngste
@@ -162,6 +172,7 @@ async function enumerate(get, post = null) {
         }
       }
       if (m.capture === 'period') add(`/api/utility/${k}/periods?meter_id=${q}`); // v3.1.0 (H3)
+      add(`/api/utility/${k}/dossier?meter_id=${q}`);   // v3.7.0 (Paket betrieb) — Akte je Zähler
       for (const model of FORECAST_MODELS) {
         // Vorbelegung der Prognose-Ansicht: ohne Was-wäre-wenn, Horizont aus den Einstellungen
         add(`/api/utility/${k}/meters/${id}/forecast?` + new URLSearchParams({
@@ -184,6 +195,8 @@ async function enumerate(get, post = null) {
     }
     for (const c of (await get(`/api/utility/${k}/contracts`)).json?.data ?? []) {
       add(`/api/utility/${k}/contracts/${c.id}`);
+      // v3.7.0 (Paket betrieb) — Akte je Vertrag (Angebote haben keine)
+      if (!c.is_shadow) add(`/api/utility/${k}/dossier?contract_id=${encodeURIComponent(c.id)}`);
     }
     // v3.6.0 (Paket abrechnung) — Zählergruppen der Übersicht im Abrechnungsjahr
     if (u.supports_bill_check) {
@@ -230,6 +243,7 @@ async function enumerate(get, post = null) {
   }
   csv('/api/export/temperatures.csv');
   files.push('/api/reports/yearly.pdf', '/api/calendar.ics');   // v3.1.0 — Kalender-Abo
+  files.push(...inboxFiles);                                     // v3.7.0 — Dokumente im Posteingang
   for (const y of years) files.push(`/api/reports/yearly.pdf?year=${y}`);
   return { keys: [...keys].sort(), files, years, scenarios };
 }

@@ -92,7 +92,9 @@
       "readingsHint": "Todos os contadores de uma vez",
       "delivery": "Entrega — {utility}",
       "tankLevel": "Leitura do depósito — {utility}",
-      "reminder": "Novo lembrete"
+      "reminder": "Novo lembrete",
+      "inbox": "Guardar correio do fornecedor",
+      "inboxHint": "PDF a partir de Ficheiros ou do e-mail"
     },
     "sectionNav": "Páginas desta secção",
     "menu": "Menu",
@@ -103,11 +105,16 @@
       "outbox": {
         "one": "{count} leitura ainda não guardada",
         "other": "{count} leituras ainda não guardadas"
+      },
+      "inbox": {
+        "one": "{count} documento pendente na caixa de entrada",
+        "other": "{count} documentos pendentes na caixa de entrada"
       }
     },
     "tenancy": "Arrendamento",
     "flexibility": "Flexibilidade",
-    "activity": "Concluído"
+    "activity": "Concluído",
+    "inbox": "Caixa de entrada"
   },
   "dashboard": {
     "loading": "A carregar a visão geral…",
@@ -880,7 +887,7 @@
       "nachzahlung_ohne": "Acerto a pagar (não afeta os adiantamentos)",
       "abschlagszahlung": "Adiantamento"
     },
-    "bonusTypes": { "sofort": "Imediato", "wechsel": "Mudança", "neukunde": "Novo cliente" },
+    "bonusTypes": { "sofort": "Imediato", "wechsel": "Mudança", "neukunde": "Novo cliente", "sonstige": "Outro crédito" },
     "modal": {
       "titleEdit": "Editar contrato",
       "titleNew": "Novo contrato",
@@ -936,7 +943,10 @@
       "creditDate": "Data do crédito",
       "amount": "Montante {cur}",
       "type": "Tipo",
-      "remove": "Remover"
+      "remove": "Remover",
+      "note": "Nota",
+      "notePlaceholder": "opcional",
+      "notePlaceholderOther": "porquê, p. ex. compensação"
     },
     "special": {
       "title": "Pagamentos extraordinários",
@@ -1044,7 +1054,9 @@
       "to": "Até (HH:MM, também 24:00)",
       "ct": "ct/kWh na janela",
       "addWindow": "+ Janela horária",
-      "removeWindow": "Remover janela horária"
+      "removeWindow": "Remover janela horária",
+      "net": "Montantes sem IVA (líquidos)",
+      "netHint": "Sem visto, os montantes valem como introduzidos (brutos, como na fatura). Com visto, a aplicação acrescenta-lhes o IVA — a taxa que usa também para o preço grossista."
     },
     "phase": {
       "future": "FUTURO",
@@ -1063,6 +1075,16 @@
       "shadow": "Ofertas para comparação – não contam",
       "shadowHint": "As ofertas (contratos hipotéticos) são simulações e não contam nos custos, no saldo nem na previsão.",
       "toTariffs": "Ir para a mudança de tarifa"
+    },
+    "gasFactor": {
+      "term": "Conversão do gás",
+      "now": "Conversão hoje: {value}, {since}.",
+      "zhs": "coeficiente de correção {z} × poder calorífico {hs} {hsUnit} = {factor} kWh/m³",
+      "direct": "{factor} kWh/m³",
+      "since": "válido a partir de {date}",
+      "undated": "entrada sem data",
+      "link": "Ir para a definição",
+      "why": "O coeficiente de correção e o poder calorífico dependem do ponto de entrega (altitude, pressão) e do gás da rede, não do fornecedor: mantêm-se numa mudança e cada fatura de gás indica-os. Por isso definem-se uma vez nas definições e valem para todos os contratos."
     }
   },
   "meters": {
@@ -1177,7 +1199,8 @@
       "done": "Contador substituído",
       "lastKnown": "Última leitura: {value} {unit} em {date}",
       "confirmLower": "A leitura final {oldFinal} {unit} é inferior à última leitura ({last} {unit} em {lastDate}). A leitura de um contador não desce – verifique. Continuar mesmo assim?",
-      "confirmSummary": "Em {date}, o dispositivo antigo é fechado com {oldFinal} {unit} e o novo começa com {newInitial} {unit}. Não é possível anular isto na aplicação."
+      "confirmSummary": "Em {date}, o dispositivo antigo é fechado com {oldFinal} {unit} e o novo começa com {newInitial} {unit}. Não é possível anular isto na aplicação.",
+      "fromInbox": "Preenchido a partir da caixa de entrada – compare de novo os valores com a carta."
     },
     "import": {
       "title": "Importar leituras: {name}",
@@ -1324,7 +1347,8 @@
       "ocrModel": "qwen2.5vl",
       "referenceSource": "p. ex. índice 2025",
       "evccEndpoint": "http://192.168.178.30:7070",
-      "allowedHosts": "energie.example.org, *.home.arpa"
+      "allowedHosts": "energie.example.org, *.home.arpa",
+      "inboxModel": "qwen3.8"
     },
     "loading": "A carregar…",
     "saved": "Definições guardadas",
@@ -1347,12 +1371,15 @@
       "pctYear": "%/ano",
       "lPerPersonDay": "L/pessoa/dia",
       "seconds": "segundos",
-      "eurPerTonne": "{cur}/t"
+      "eurPerTonne": "{cur}/t",
+      "perWeek": "por semana",
+      "kwhPerCycle": "kWh por ciclo",
+      "oClock": "h"
     },
     "group": {
       "physical": { "title": "Constantes físicas", "hint": "Conversão e base de graus-dia — afetam todas as análises." },
       "co2": { "title": "Fatores de emissão de CO₂", "hint": "Gramas de CO₂ por unidade de consumo, para a estimativa de emissões.", "list": "Fatores por serviço e eletricidade por ano" },
-      "billing": { "title": "Ciclo de faturação", "hint": "Data de acerto anual por serviço (formato DD-MM, p. ex. 01-01 para 1 de janeiro, 15-04 para 15 de abril). Determina até onde é projetado o saldo dos contratos abertos; os contratos com data de fim definida usam essa data." },
+      "billing": { "title": "Ciclo de faturação", "hint": "A data de acerto é o primeiro dia do período de faturação, por serviço no formato DD-MM: 01-09 significa de 1 de setembro a 31 de agosto, 01-01 o ano civil. O saldo dos contratos abertos vai até ao dia anterior, o último dia do período; os contratos com data de fim definida usam essa data. As faturas registadas têm prioridade." },
       "contractReminders": { "title": "Lembretes", "hint": "Três níveis antes do fim do contrato ou do prazo de denúncia; nos lembretes, o pré-aviso e a tolerância até «em atraso»." },
       "water": { "title": "Valores de referência de água", "hint": "Dimensão do agregado, referência por pessoa e bandas do índice de poupança." },
       "regression": { "title": "Regressão e previsão", "hint": "Filtros para a base de regressão e parâmetros do modelo de previsão." },
@@ -1371,7 +1398,7 @@
       },
       "ocr": {
         "title": "Reconhecimento de texto na rede doméstica",
-        "hint": "Propõe a leitura a partir de uma fotografia – através de um serviço próprio como Ollama ou LM Studio. Apenas endereços da rede própria; nada vai para um serviço na nuvem. Vazio = desligado."
+        "hint": "Propõe a leitura a partir de uma fotografia – através do serviço próprio, cujo endereço e interface se definem no cartão «Leitura de documentos», em «Local». Aqui apenas o modelo de imagem e o tempo limite. Nada vai para um serviço na nuvem."
       },
       "tenancy": {
         "title": "Habitação e água quente",
@@ -1400,6 +1427,11 @@
       "updates": {
         "title": "Novas versões",
         "hint": "Uma vez por dia a app pode verificar no GitHub se existe uma versão mais recente. O GitHub só vê o endereço do servidor, nenhum dado da app."
+      },
+      "inbox": {},
+      "flex": {
+        "title": "Flexibilidade",
+        "hint": "Com o que a página Flexibilidade calcula «A sua alavanca» enquanto nada é medido. Vazio = valor de exemplo; o que for indicado, a página e o relatório anual chamam «valor próprio»."
       }
     },
     "field": {
@@ -1410,9 +1442,9 @@
       "co2_fernwaerme": { "label": "CO₂ aquecimento urbano", "hint": "Valor fixo do BAFA. É mais preciso o valor da sua rede de calor, que o fornecedor indica." },
       "co2_heizoel": { "label": "CO₂ gasóleo", "hint": "BAFA, referido ao poder calorífico inferior, tal como a aplicação calcula o gasóleo." },
       "co2_pellets": { "label": "CO₂ pellets", "hint": "BAFA, CO₂ equivalente incluindo a cadeia a montante." },
-      "billing_cycle_anchor_gas": { "label": "Data de acerto gás" },
-      "billing_cycle_anchor_strom": { "label": "Data de acerto eletricidade" },
-      "billing_cycle_anchor_wasser": { "label": "Data de acerto água" },
+      "billing_cycle_anchor_gas": { "label": "Data de acerto gás: primeiro dia do período" },
+      "billing_cycle_anchor_strom": { "label": "Data de acerto eletricidade: primeiro dia do período" },
+      "billing_cycle_anchor_wasser": { "label": "Data de acerto água: primeiro dia do período" },
       "contract_remind_days_1": { "label": "Nível 1 — aviso antecipado" },
       "contract_remind_days_2": { "label": "Nível 2 — lembrete" },
       "contract_remind_days_3": { "label": "Nível 3 — urgente" },
@@ -1440,7 +1472,7 @@
       "reminder_overdue_days": { "label": "Tolerância até «vencido»", "hint": "Durante estes dias após a data, um lembrete continua pendente; depois, em atraso. 0 = a partir do dia seguinte." },
       "recommendation_anomaly_sigma": { "label": "Limiar de anomalia das recomendações", "hint": "O mesmo tipo de limiar para as recomendações: só a partir deste desvio surge um aviso." },
       "recommendation_trend_pct_year": { "label": "Limiar de tendência das recomendações", "hint": "A partir de que aumento anual as recomendações assinalam um consumo crescente." },
-      "billing_cycle_anchor_fernwaerme": { "label": "Data de acerto aquecimento urbano" },
+      "billing_cycle_anchor_fernwaerme": { "label": "Data de acerto aquecimento urbano: primeiro dia do período" },
       "location_name": { "label": "Nome do local" },
       "latitude": { "label": "Latitude" },
       "longitude": { "label": "Longitude" },
@@ -1466,7 +1498,7 @@
         "hint": "Água quente por esquentador ou termoacumulador, não pelo aquecimento: o valor tipo certificado recebe um acréscimo de 20 kWh/m²·a, a partir de 2027 de 16 kWh/m²·a (§ 82 GModG)."
       },
       "billing_cycle_anchor_pv_einspeisung": {
-        "label": "Data de acerto injeção FV"
+        "label": "Data de acerto injeção FV: primeiro dia do período"
       },
       "confidence_band_sigma": {
         "label": "Largura da banda de previsão",
@@ -1555,6 +1587,40 @@
       "update_check": {
         "label": "Avisar sobre novas versões",
         "hint": "Aparece um aviso até ser fechado para essa versão. Desativado, não sai nenhum pedido."
+      },
+      "inbox_provider": {},
+      "inbox_model": {
+        "label": "Modelo de texto",
+        "hint": "Como o serviço o designa, por exemplo qwen3.8 (vazio = qwen3.8). Outro modelo também serve, mas pode ler pior."
+      },
+      "inbox_timeout_s": {
+        "label": "Tempo limite por passo",
+        "hint": "Segundos por passo (reconhecer o tipo, ler os campos), 30–300. Num Mac potente, o qwen3.8 leva cerca de um minuto por documento."
+      },
+      "flex_heat_pump_share_pct": {
+        "label": "Bomba de calor: parte deslocável",
+        "hint": "Parte do consumo diário que o edifício e o depósito de inércia permitem deslocar para outras horas."
+      },
+      "flex_washer_cycles_per_week": {
+        "label": "Máquina de lavar roupa: ciclos por semana"
+      },
+      "flex_washer_kwh_per_cycle": {
+        "label": "Máquina de lavar roupa: kWh por ciclo"
+      },
+      "flex_dishwasher_cycles_per_week": {
+        "label": "Máquina de lavar loiça: ciclos por semana",
+        "hint": "0 ciclos significa: não existe tal aparelho, a alavanca desaparece."
+      },
+      "flex_dishwasher_kwh_per_cycle": {
+        "label": "Máquina de lavar loiça: kWh por ciclo"
+      },
+      "flex_ev_plugged_from": {
+        "label": "Carro sem evcc: ligado a partir das",
+        "hint": "Hora inteira 0–23. Vazio = disponível todo o dia nos dias de carga (valor de exemplo). Com as sessões do evcc contam as respetivas horas de ligação."
+      },
+      "flex_ev_plugged_until": {
+        "label": "Carro sem evcc: ligado até às",
+        "hint": "Se «até» vier antes de «a partir das», o horário passa a meia-noite: 18 a 7 significa da noite à manhã."
       }
     },
     "boolActive": "ativado",
@@ -1617,7 +1683,8 @@
         "restore": "antes da importação",
         "migration": "antes da migração",
         "demo": "antes dos dados de demonstração",
-        "v09": "antes da importação v0.9"
+        "v09": "antes da importação v0.9",
+        "inbox": "antes de agregado a partir de documentos"
       },
       "snapDownload": "Transferir",
       "snapRestore": "Restaurar…",
@@ -1828,7 +1895,8 @@
       "scopeCalendar": "só subscrição de calendário",
       "logoutEverywhere": "Terminar sessão em todo o lado",
       "logoutEverywhereTitle": "Terminar sessão em todos os dispositivos?",
-      "logoutEverywhereMsg": "Todas as sessões desta conta terminam – em cada dispositivo, incluindo este. As chaves de API e o token do Home Assistant continuam válidos."
+      "logoutEverywhereMsg": "Todas as sessões desta conta terminam – em cada dispositivo, incluindo este. As chaves de API e o token do Home Assistant continuam válidos.",
+      "scopeInbox": "só caixa de entrada (arquivar PDF)"
     },
     "region": {
       "country": "País",
@@ -1922,7 +1990,7 @@
     },
     "system": {
       "aboutTitle": "Sobre o Energietracker",
-      "about": "Energietracker {version} – consumo, custos e contratos, localmente e sem nuvem.",
+      "about": "Energietracker {version} – consumo, custos e contratos no próprio servidor. O correio do fornecedor é lido localmente, na nuvem só se isso for ativado.",
       "license": "Software livre sob a licença GNU AGPL v3.0 ou posterior",
       "source": "Código-fonte desta versão"
     },
@@ -1952,9 +2020,9 @@
       "hint": "Define o que a interface mostra — todos os níveis calculam tudo. Aplica-se a todos os dispositivos desta instalação.",
       "hintPerson": "Define o que a interface mostra — todos os níveis calculam tudo. Aplica-se a {name} em todos os dispositivos.",
       "describe": {
-        "beginner": "Resumo com três respostas, leituras, contratos simples, relatório anual.",
-        "advanced": "Mais análises, previsão, mudança de fornecedor, verificação de fatura e estrutura de contadores.",
-        "expert": "Tudo, com esquemas explicativos, grupos, parâmetros de cálculo e acesso."
+        "beginner": "Ver quanto se consome, quanto custa e se o adiantamento chega. Registar leituras, deixar a aplicação ler o correio do fornecedor, tratar dos lembretes.",
+        "advanced": "Mais comparar e verificar: tarifas e mudança, faturas, análises com o tempo, estrutura de contadores, arrendamento, Home Assistant.",
+        "expert": "Ver e ligar tudo: quartos de hora e novo cálculo por contador, parâmetros de cálculo, acesso, chaves de API, sistema."
       },
       "saved": "Nível guardado."
     },
@@ -1986,7 +2054,7 @@
       "saved": "Guardado.",
       "anonymizeActivity": "Substituir o nome no histórico por «antigo membro»",
       "no": "n.º {no}",
-      "deleteHint": "Só quem administra pode eliminar pessoas. Os lembretes abertos da pessoa passam para quem a elimina; o que está feito mantém o nome com «(perfil eliminado)». O número de uma pessoa nunca volta a ser atribuído.",
+      "deleteHint": "Só quem administra pode eliminar pessoas. Os lembretes abertos, contadores e contratos da pessoa passam para quem a elimina; o que está feito mantém o nome com «(perfil eliminado)». O número de uma pessoa nunca volta a ser atribuído.",
       "memberDeleteHint": "Só quem administra pode adicionar, alterar e eliminar pessoas.",
       "handover": {
         "one": "{count} lembrete aberto passa para {to}.",
@@ -2008,7 +2076,7 @@
       },
       "noAccess": "sem acesso",
       "hintOff": "Sem início de sessão não há contas. Estas pessoas vêm de uma cópia de segurança ou de um agregado de exemplo e podem ser escolhidas em «Responsável»; quem chega ao endereço pode eliminá-las.",
-      "deleteHintOff": "Sem início de sessão ninguém assume ao eliminar: os lembretes abertos da pessoa ficam com «(perfil eliminado)» até alguém os reatribuir; o que está feito mantém o nome. O número de uma pessoa nunca volta a ser atribuído.",
+      "deleteHintOff": "Sem início de sessão ninguém assume ao eliminar: os lembretes abertos, contadores e contratos da pessoa ficam com «(perfil eliminado)» até alguém os reatribuir; o que está feito mantém o nome. O número de uma pessoa nunca volta a ser atribuído.",
       "noAccessHint": "«sem acesso»: uma pessoa de uma cópia de segurança ou de um agregado de exemplo. «Criar acesso» coloca o nome em «Adicionar uma pessoa»; com uma palavra-passe passa a ser um acesso com o mesmo número, e os lembretes e entradas continuam a ser dela.",
       "grant": "Criar acesso",
       "deleteConfirmNoAccess": "Esta pessoa deixa de estar disponível para escolha. Os dados do agregado mantêm-se.",
@@ -2021,7 +2089,23 @@
       "renameHint": "Os lembretes abertos passam a mostrar o novo nome; o que está feito mantém o nome que a pessoa tinha nesse momento.",
       "renamed": "A pessoa passa a chamar-se {name}.",
       "renameHintLogin": "O início de sessão passa a usar o novo nome.",
-      "loginNeeded": "As pessoas com acesso próprio podem ser adicionadas quando o início de sessão estiver ativado. Sem início de sessão, qualquer pessoa que chegue ao endereço pode ver e alterar tudo."
+      "loginNeeded": "As pessoas com acesso próprio podem ser adicionadas quando o início de sessão estiver ativado. Sem início de sessão, qualquer pessoa que chegue ao endereço pode ver e alterar tudo.",
+      "handoverRecords": {
+        "one": "{count} contador ou contrato passa para {to}.",
+        "other": "{count} contadores e contratos passam para {to}."
+      },
+      "handoverRecordsNobody": {
+        "one": "{count} contador ou contrato fica com a pessoa, com «(perfil eliminado)», até alguém assumir.",
+        "other": "{count} contadores e contratos ficam com a pessoa, com «(perfil eliminado)», até alguém assumir."
+      },
+      "handoverRecordsFormer": {
+        "one": "{count} contador ou contrato mostra então «antigo membro».",
+        "other": "{count} contadores e contratos mostram então «antigo membro»."
+      },
+      "handedOverRecords": {
+        "one": "{count} contador ou contrato é agora seu.",
+        "other": "{count} contadores e contratos são agora seus."
+      }
     },
     "securityCheck": {
       "title": "Verificação de segurança",
@@ -2039,7 +2123,67 @@
       "text": "O Energietracker é independente e de código aberto, sem publicidade e sem conta. Se lhe for útil, pode apoiar o desenvolvimento – de forma totalmente voluntária, a aplicação continua igual.",
       "link": "Apoiar através do Buy Me a Coffee"
     },
-    "assumedValue": "Ainda não introduzido. Até lá a aplicação calcula com {value}; a comparação da visão geral aguarda o dado."
+    "assumedValue": "Ainda não introduzido. Até lá a aplicação calcula com {value}; a comparação da visão geral aguarda o dado.",
+    "inboxProviders": {},
+    "inboxCloud": {
+      "enabled": "Ligado",
+      "enabledHint": "Os documentos são enviados para o serviço escolhido para leitura.",
+      "provider": "Serviço",
+      "endpoint": "Endereço",
+      "endpointHint": "Apenas https://, nunca um endereço da rede doméstica. Até à versão, p. ex. https://api.example.com/v1; a app acrescenta o caminho /chat/completions.",
+      "model": "Modelo",
+      "modelDefault": "Vazio = {model}.",
+      "modelRequired": "Nome do modelo tal como o serviço o conhece (obrigatório).",
+      "key": "Chave API",
+      "keyStored": "Guardada. Deixe vazio para a manter – nunca é mostrada.",
+      "keyMissing": "Ainda não há nenhuma chave guardada. Fica no servidor e não entra na cópia de segurança.",
+      "keyClear": "Eliminar chave",
+      "keyClearConfirm": "Eliminar a chave API de {name}? Sem chave já nada é enviado para este serviço.",
+      "timeout": "Tempo máximo",
+      "adminOnly": "Só quem administra esta instalação o pode alterar.",
+      "stateOn": "Nuvem ligada – «{name}»: cada documento lido vai para {host}. Nenhum outro dado da casa sai.",
+      "stateOff": "Local: nenhum documento sai da rede doméstica.",
+      "stateNoKey": "Ligado, mas sem chave: nada sai até ser introduzida uma.",
+      "sends": {
+        "pdf": "É enviado: o PDF; o serviço devolve a passagem de origem com a página.",
+        "text": "É enviado: o texto do documento; o próprio PDF fica aqui."
+      },
+      "confirmTitle": "Ligar a leitura na nuvem?",
+      "confirmOn": "Ligar",
+      "stateReady": "A nuvem está ligada para «{name}», mas quem lê é «Local»: nenhum documento sai da rede doméstica.",
+      "privacy": "Importante para os dados: na nuvem, cada documento lido sai da rede doméstica. Vai para o serviço escolhido e é tratado lá segundo as condições desse serviço – o serviço vê todo o conteúdo, incluindo nome, morada, número do contador e de cliente. Nada mais sai: nem leituras, nem contratos, nem definições ou outros dados da casa, apenas o documento, a instrução de leitura da aplicação e a chave para entrar no serviço. Quem não quiser isso fica em «Local»."
+    },
+    "exampleValue": "Valor de exemplo {value}. Indique um valor próprio e a página Flexibilidade passa a usá-lo.",
+    "reading": {
+      "title": "Leitura de documentos",
+      "hint": "Quem lê o correio da caixa de entrada: o serviço próprio na rede doméstica ou um serviço na nuvem. A escolha vale para toda a caixa de entrada; antes de cada leitura na nuvem, a app pergunta.",
+      "mode": "Lido por",
+      "modeLocal": "Local",
+      "modeCloud": "Nuvem (experimental)",
+      "localShared": "O endereço e a interface valem também para o reconhecimento de texto das fotografias do contador.",
+      "check": "Verificar ligação",
+      "checkOk": {
+        "one": "Ligação a {host} estabelecida, {count} modelo encontrado.",
+        "other": "Ligação a {host} estabelecida, {count} modelos encontrados."
+      },
+      "checkModelFound": "«{model}» está incluído.",
+      "checkModelMissing": "«{model}» ainda não está lá.",
+      "preset": {
+        "custom": "Endereço próprio (compatível com OpenAI)"
+      },
+      "modelList": "Modelo da lista do serviço",
+      "modelOther": "Indicar outro modelo…",
+      "modelListLoaded": {
+        "one": "{count} modelo de {name}.",
+        "other": "{count} modelos de {name}."
+      },
+      "modelListFailed": "Lista não carregada: {reason}",
+      "modelListEmpty": "O serviço não indicou nenhum modelo.",
+      "modelListAfterSave": "Depois de guardar a chave, o cartão carrega a lista do serviço.",
+      "pickModel": "Guardado. Escolha agora um modelo da lista e depois ligue.",
+      "saved": "Leitura de documentos guardada.",
+      "modelLoad": "Carregar os modelos do serviço"
+    }
   },
   "reminders": {
     "suggest": {
@@ -2064,7 +2208,8 @@
       "dichtheitspruefung": "Ensaio de estanquidade",
       "lieferung_planen": "Planear entrega",
       "custom": "Outro",
-      "waermezaehler_eichung": "Calibração do contador de calor"
+      "waermezaehler_eichung": "Calibração do contador de calor",
+      "zaehlerstand_melden": "Comunicar a leitura"
     },
     "recurrence": { "none": "Única", "yearly": "Anual", "semi-yearly": "Semestral", "custom-months": "A cada N meses" },
     "due": {
@@ -2078,7 +2223,7 @@
         "other": "há {days} dias"
       }
     },
-    "action": { "done": "Concluído", "edit": "Editar", "delete": "Eliminar", "doneNamed": "Concluído: {title}", "editNamed": "Editar: {title}", "deleteNamed": "Eliminar: {title}" },
+    "action": { "done": "Concluído", "edit": "Editar", "delete": "Eliminar", "doneNamed": "Concluído: {title}", "editNamed": "Editar: {title}", "deleteNamed": "Eliminar: {title}", "enterReading": "Registar a leitura" },
     "toast": { "deleted": "Eliminado", "saved": "Guardado", "error": "Erro: {msg}", "doneNext": "«{title}» concluído · próximo prazo {date}", "doneOnce": "«{title}» concluído", "undone": "«{title}» voltou a estar pendente" },
     "deleteConfirm": { "title": "Eliminar lembrete", "confirm": "Eliminar", "messageNamed": "Eliminar mesmo «{title}»? Não é possível anular." },
     "form": {
@@ -2094,7 +2239,10 @@
       "save": "Guardar",
       "intervalInvalid": "O intervalo tem de ser um número inteiro de 1 a 120 meses.",
       "titleRequired": "Introduza um título.",
-      "dueRequired": "Escolha uma data de vencimento."
+      "dueRequired": "Escolha uma data de vencimento.",
+      "fMeter": "Contador",
+      "meterNone": "– nenhum contador –",
+      "meterHint": "Calibração, troca de contador ou entrega: sem responsável próprio, aplica-se a pessoa do contador."
     },
     "everyMonths": {
       "one": "Todos os meses",
@@ -2391,7 +2539,8 @@
       "import": "Importar ficheiro",
       "loaded": "Preços grossistas de {from} a {to} carregados",
       "attribution": "Preços grossistas Alemanha/Luxemburgo: Bundesnetzagentur | SMARD.de (CC BY 4.0)"
-    }
+    },
+    "bonusIncludedIn": "inclui: {lines}"
   },
   "analysis": {
     "noUtilities": "Nenhum serviço ativo. Nas definições pode escolher quais aparecem.",
@@ -2448,7 +2597,8 @@
       "colDeltaPct": "Δ %",
       "sumRow": "Total (meses comuns)",
       "note": "Comparação apenas sobre os meses com dados em ambos os anos. Valores positivos = mais consumo do que no ano anterior.",
-      "notePv": "Valores positivos = mais rendimento do que no mesmo mês do ano anterior (verde). Só se comparam meses com dados em ambos os anos."
+      "notePv": "Valores positivos = mais rendimento do que no mesmo mês do ano anterior (verde). Só se comparam meses com dados em ambos os anos.",
+      "partialNote": "* Mês parcial: não comparável com um mês completo, por isso sem Δ e fora da soma."
     },
     "spar": {
       "title": "💧 Índice de poupança de água",
@@ -2510,7 +2660,25 @@
     "yearsCount": "Anos",
     "partialStar": "* Mês parcial: só uma parte dos dias foi registada.",
     "pointRole": "Modelo",
-    "pointInFit": "no modelo"
+    "pointInFit": "no modelo",
+    "pointInterpolated": "repartido, fora do modelo",
+    "quality": {
+      "poor": "O modelo de aquecimento ajusta-se mal a este contador: um mês desvia-se tipicamente ± {scale} {unit}, {pct} de um mês medido médio ({mean} {unit}).",
+      "baseLoad": "Para o verão, prevê {model} {unit} por dia, mas foram medidos {measured} {unit} por dia.",
+      "floor": "Por isso, a tabela só deteta desvios a partir de {floor} {unit} — aqui, uma tabela vazia não significa «tudo em ordem».",
+      "hint": "Muitas vezes, a curva de aquecimento ajusta-se melhor com uma temperatura base GD mais baixa:",
+      "levelNote": "(a partir do nível «{level}»)",
+      "floorRows": "Por isso, a tabela só deteta desvios a partir de {floor} {unit}; o que mostra pode ser tanto o erro do modelo como uma variação real do consumo."
+    },
+    "heatLimit": {
+      "suggest": "Com uma temperatura base GD de {best} °C, o modelo de aquecimento ajusta-se muito melhor: um mês desvia-se tipicamente {bestPct} de um mês medido médio em vez de {currentPct} com {current} °C.",
+      "scope": "A temperatura passa a valer para este contador e altera o esperado, a correção e a previsão; a definição continua a ser o padrão dos restantes.",
+      "apply": "Definir a temperatura base GD deste contador em {value} °C",
+      "applied": "Temperatura base GD deste contador definida em {value} °C",
+      "own": "Este contador usa a sua própria temperatura base GD de {value} °C (padrão {default} °C).",
+      "reset": "Voltar a {value} °C",
+      "resetDone": "Temperatura base GD deste contador reposta"
+    }
   },
   "forecast": {
     "noUtilities": "Nenhum serviço ativo. Nas definições pode escolher quais aparecem.",
@@ -2547,7 +2715,16 @@
     "hddSourceHistory": "Graus-dia: média do seu próprio histórico de temperaturas.",
     "warn": {
       "historyShort": "Histórico curto: consumo para {months} de 12 meses. Os que faltam ({missing}) vêm do modelo — a previsão é, por isso, mais incerta.",
-      "noClimateNormal": "Sem normal climática: os graus-dia vêm do seu próprio histórico. Uma sincronização de temperaturas obtém uma vez 30 anos de dados climáticos."
+      "noClimateNormal": "Sem normal climática: os graus-dia vêm do seu próprio histórico. Uma sincronização de temperaturas obtém uma vez 30 anos de dados climáticos.",
+      "interpolated": {
+        "one": "{count} valor mensal está repartido, não medido ({readings} leituras no total): não influencia o perfil sazonal nem a curva de aquecimento.",
+        "other": "{count} valores mensais estão repartidos, não medidos ({readings} leituras no total): não influenciam o perfil sazonal nem a curva de aquecimento."
+      },
+      "interpolatedIntervals": "O modelo de aquecimento usa os intervalos entre leituras.",
+      "poorFit": "O modelo de aquecimento se ajusta mal a este contador (± {pct} por mês): a previsão usa os meses medidos e não mostra uma faixa.",
+      "regressionInvalid": "A curva de aquecimento escolhida ({model}) não é válida — {why}. A previsão calcula sem ela.",
+      "climateNormalGrid": "Ainda não há normal climática para a temperatura base GD {base} °C (pré-calculada de {min} a {max} °C; a aplicação volta a obter uma normal antiga na próxima sincronização meteorológica). Até lá, contam os GD do próprio histórico de temperaturas.",
+      "fewMeasured": "Poucos meses medidos para verificar o modelo de aquecimento: a previsão não mostra uma faixa, e saldo e adiantamento só aparecem como intervalo."
     },
     "assumedNote": "Sem contrato para este mês — o último contrato continua com os seus preços (pressuposto; os contratos renovam-se).",
     "method": {
@@ -2555,14 +2732,19 @@
       "regression_only": "curva de aquecimento (sem valor próprio para o mês)",
       "heat_model": "modelo de aquecimento",
       "filled": "média diária (sem valor próprio)",
-      "blend": "combinação: {reg} curva de aquecimento, {seasonal} perfil sazonal"
+      "blend": "combinação: {reg} curva de aquecimento, {seasonal} perfil sazonal",
+      "seasonal_interpolated": "Valores repartidos (nenhum mês medido)"
     },
     "chartAltSpan": "Gráfico de linhas: consumo {from} – {to} e previsão até {until}",
     "co2Scenario": {
       "label": "Preço do CO₂ a partir de {year} ({cur}/t)",
       "placeholder": "vazio = desligado",
       "delta": "Com {price} {cur}/t de CO₂ a partir de {from}: +{ct} {minor}/kWh, mais {amount} nos próximos 12 meses (com IVA)."
-    }
+    },
+    "annualNoBand": "Ano: {value} {unit} — sem faixa, porque o modelo de aquecimento se ajusta mal.",
+    "annualNoBandFew": "Ano: {value} {unit} — sem faixa, porque há poucos meses medidos para verificar o modelo de aquecimento.",
+    "annualNoBandYears": "Ano: {value} {unit} — sem faixa: quanto um mês varia de ano para ano só se vê com medições de mais de um ano.",
+    "annualBandSpread": "Ano: {value} {unit}, em {level}% dos anos entre {low} e {high} {unit} — conforme a dispersão dos meses ao longo dos anos."
   },
   "report": {
     "createdOn": "Criado a {date}",
@@ -2622,7 +2804,16 @@
       "howToRead": "Ler o relatório anual",
       "choose": "Antes de abrir, escolhem-se ano, serviços, idioma e anexo; este dispositivo memoriza a escolha.",
       "costDeliveries": "Custos: {amount} segundo as entregas; em média {price} ct/{unit}.",
-      "areaAssumed": "O indicador usa uma área habitável presumida de {area} m². Introduza a área real em Definições → Agregado e edifício."
+      "areaAssumed": "O indicador usa uma área habitável presumida de {area} m². Introduza a área real em Definições → Agregado e edifício.",
+      "interpolatedNoCompare": {
+        "one": "Sem comparação com {prev}: {count} valor mensal dos dois anos está repartido, não medido.",
+        "other": "Sem comparação com {prev}: {count} valores mensais dos dois anos estão repartidos, não medidos."
+      },
+      "interpolatedYearExact": {
+        "one": "{count} valor mensal dos dois anos está repartido; os totais anuais continuam medidos, porque houve leituras na passagem de ano.",
+        "other": "{count} valores mensais dos dois anos estão repartidos; os totais anuais continuam medidos, porque houve leituras na passagem de ano."
+      },
+      "poorFit": "O modelo de aquecimento se ajusta mal a este contador (± {pct} por mês): aqui o relatório não compara valores corrigidos pelo clima nem indica meses acima do esperado — ambos seriam sobretudo o erro do modelo."
     },
     "weatherSource": "Temperaturas: Open-Meteo.com (CC BY 4.0), salvo as introduzidas por si.",
     "print": {
@@ -2713,7 +2904,8 @@
         "ok": "Adiantamentos adequados",
         "warn": "Possível pequeno acerto",
         "alert": "Acerto previsto",
-        "none": "Sem adiantamentos"
+        "none": "Sem adiantamentos",
+        "uncertain": "Adiantamentos: estimativa incerta"
       },
       "deadlines": {
         "ok": "Nenhum prazo próximo",
@@ -2927,20 +3119,25 @@
         "reason": "Custos {cost}, consumo {consumption} face a {prev}.",
         "noPrevious": "Faltam dados de comparação de {prev}."
       },
-      "overdueSince": "em atraso desde {date}"
+      "overdueSince": "em atraso desde {date}",
+      "advanceUncertain": {
+        "title": "{label}: verificar o adiantamento após a próxima leitura",
+        "reason": "{text}"
+      }
     },
     "money": {
       "sentence": "Custos de energia {year}: {amount}, {pct} face a {prev}. As alterações de preço representam {price} e a quantidade consumida {volume}.",
       "sentenceNoPrevious": "Custos de energia {year}: {amount}.",
       "revenue": "{label}: receita {amount}.",
-      "bonus": "Em {month} foi creditado um bónus de {amount}; por isso os custos desse mês são mais baixos.",
+      "bonus": "{what} a {date}: {amount}",
       "balanceDue": "Acerto de {date}: provavelmente {amount} a pagar.",
       "balanceCredit": "Acerto de {date}: provavelmente {amount} a receber.",
       "balanceEven": "Acerto de {date}: adiantamentos e custos equilibram-se.",
       "advanceSuggested": "Adiantamento adequado: {new} em vez de {old} por mês.",
       "advanceLower": "O adiantamento pode baixar. O relatório não indica um montante: os adiantamentos pagos já cobrem os custos até ao acerto.",
       "balanceLegend": "Linha acima de zero: acerto a pagar; abaixo de zero: crédito. Tracejado: estimativa até ao acerto.",
-      "forecast": "Custos previstos para os próximos doze meses: {amount} (previsão, situação à data de hoje)."
+      "forecast": "Custos previstos para os próximos doze meses: {amount} (previsão, situação à data de hoje).",
+      "bonusEffect": "Os custos são indicados sem o bónus; o saldo inclui-o, como a fatura."
     },
     "topic": {
       "pv": {
@@ -3106,9 +3303,10 @@
       "sourceAnchor": "Data de acerto",
       "advances": "Adiantamentos {cur}",
       "balance": "Saldo {cur}",
-      "note": "Para cada serviço, os períodos de faturação que terminam este ano: como nas faturas registadas; caso contrário, segundo a data de acerto. Saldo = custo − adiantamentos − adiantamentos adicionais; positivo = acerto a pagar, negativo = crédito. As restantes páginas mostram anos civis.",
+      "note": "Para cada serviço, os períodos de faturação que terminam este ano: como nas faturas registadas; caso contrário, segundo a data de acerto. Custo sem bónus; saldo = custo − bónus − adiantamentos − adiantamentos adicionais; positivo = acerto a pagar, negativo = crédito. As restantes páginas mostram anos civis.",
       "running": "* em curso; calculado até à última leitura (situação a {date}).",
-      "partial": "† Período parcial: os dados só começam dentro dele, ou é um resto até à data de acerto."
+      "partial": "† Período parcial: os dados só começam dentro dele, ou é um resto até à data de acerto.",
+      "bonus": "Bónus"
     },
     "flexPage": {
       "bandLead": "Preço grossista médio por hora em {year} (parte grossista líquida, sem IVA): o verde é o terço das horas mais barato, o amarelo o intermédio e o vermelho o mais caro. Um ponto acima da hora indica sol."
@@ -3137,7 +3335,9 @@
       "advances": "Adiantamentos ({code})",
       "extraAdvances": "Adiantamentos adicionais ({code})",
       "balance": "Saldo ({code})",
-      "complete": "Completo"
+      "complete": "Completo",
+      "bonus": "Bónus ({code})",
+      "costWithoutBonus": "Custo sem bónus ({code})"
     }
   },
   "auth": {
@@ -3175,7 +3375,8 @@
       "notFound": "Lembrete não encontrado: {id}",
       "lastDoneInvalid": "«Última vez» deve estar vazio ou ser uma data (AAAA-MM-DD).",
       "assigneeInvalid": "«Responsável» pode ter no máximo {max} caracteres e nenhum carácter de controlo.",
-      "assigneeUnknown": "Esta pessoa não existe (ou já não existe). Escolha uma pessoa da lista ou introduza um nome."
+      "assigneeUnknown": "Esta pessoa não existe (ou já não existe). Escolha uma pessoa da lista ou introduza um nome.",
+      "meterUnknown": "Este contador não existe (ou já não existe). Escolha um contador da lista ou «nenhum contador»."
     },
     "tariff": {
       "waterUnsupported": "A comparação de tarifas para a água (tarifa de três componentes) não está incluída nesta versão.",
@@ -3231,7 +3432,8 @@
       "groupHasContracts": "O grupo de contadores ainda tem contratos — elimine ou reatribua primeiro os contratos de grupo",
       "heatPumpLinkInvalid": "O contador «{id}» não é um contador de eletricidade com a função bomba de calor",
       "valueInvalid": "{field}: «{value}» não é um valor válido",
-      "idInvalid": "Identificador «{id}» inválido – são permitidos letras, algarismos, _ e - (no máximo 64 caracteres)."
+      "idInvalid": "Identificador «{id}» inválido – são permitidos letras, algarismos, _ e - (no máximo 64 caracteres).",
+      "serialSet": "O aparelho já tem o número {serial}. Outro contador é uma troca de contador."
     },
     "common": {
       "unknownUtility": "Serviço desconhecido: {utility}",
@@ -3452,7 +3654,7 @@
     "bill": {
       "notFound": "Fatura não encontrada",
       "noResult": "A fatura não indica acerto nem crédito – não há nada a registar",
-      "noContract": "Não há contrato para este período – adicione primeiro um",
+      "noContract": "Não há contrato para o período de {from} a {to} – adicione primeiro um",
       "periodInvalid": "O período «{from}» – «{to}» não é válido",
       "amountInvalid": "O montante «{value}» não é um número válido"
     },
@@ -3514,6 +3716,66 @@
     "energyFlow": {
       "dateInvalid": "Data inválida: {date} (esperado AAAA-MM-DD entre 2000 e 2100).",
       "monthInvalid": "Mês inválido: {month} (esperado AAAA-MM entre 2000 e 2100)."
+    },
+    "assignee": {
+      "unknown": "Esta pessoa não existe (ou já não existe). Escolha uma pessoa da lista."
+    },
+    "inbox": {
+      "notFound": "Documento não encontrado na caixa de entrada.",
+      "pdfOnly": "A caixa de entrada só aceita ficheiros PDF.",
+      "duplicate": "Este documento já está na caixa de entrada desde {date} («{name}»).",
+      "typeInvalid": "Tipo de documento desconhecido: {type}.",
+      "editInvalid": "«{value}» não se adequa ao campo {field}.",
+      "statusInvalid": "Estado desconhecido: {status}.",
+      "assignmentInvalid": "Contador e contrato só se atribuem em conjunto com um serviço.",
+      "assignmentMissing": "Atribua primeiro o documento a um serviço.",
+      "notRead": "O documento ainda não foi lido.",
+      "proposalStale": "A pré-visualização já não está atualizada. Recarregue-a e marque de novo.",
+      "consentRequired": "Para ser lido, este documento é enviado para {provider}. Dê primeiro o seu consentimento.",
+      "providerUnknown": "O serviço «{provider}» da caixa de entrada não está configurado.",
+      "off": "Não há nenhum serviço configurado para a leitura (Definições → Especialista → Reconhecimento de texto na rede doméstica).",
+      "noText": "O documento não tem camada de texto (uma digitalização). Introduza-o à mão.",
+      "badAnswer": "O serviço não deu uma resposta utilizável. Tente de novo ou use outro modelo.",
+      "modelMissing": "O serviço não tem o modelo «{model}». Carregue-o lá (Ollama: <code>ollama pull {model}</code>) ou indique outro.",
+      "pagesInvalid": "O texto do documento não chegou de forma legível.",
+      "billMissing": "Falta a fatura a registar.",
+      "contractMissing": "Falta o contrato atribuído.",
+      "failed": "A leitura do documento falhou.",
+      "base64Invalid": "O anexo não é Base64 válido (campo «pdf_base64»).",
+      "truncated": "A resposta do modelo não coube na janela de contexto – nem com {tokens} tokens para a resposta ({window} tokens no total). Use um modelo com uma janela maior ou introduza o documento à mão."
+    },
+    "inboxCloud": {
+      "off": "A leitura na nuvem não está ativada para {name} (Definições → Especialista).",
+      "noKey": "Não está guardada nenhuma chave API para o serviço na nuvem escolhido.",
+      "noEndpoint": "Um serviço compatível com OpenAI precisa de um endereço.",
+      "noModel": "Um serviço compatível com OpenAI precisa do nome do modelo.",
+      "httpsOnly": "O endereço de um serviço na nuvem começa por https:// e não contém credenciais.",
+      "notPublic": "«{host}» está na rede doméstica. A leitura na nuvem só aceita um endereço na Internet; um serviço da rede própria configura-se no reconhecimento de texto.",
+      "unreachable": "«{host}» não está acessível.",
+      "timeout": "O serviço na nuvem não respondeu em {seconds} segundos.",
+      "redirect": "«{host}» redireciona. O Energietracker não segue redirecionamentos – introduza o endereço em que o próprio serviço responde.",
+      "unauthorized": "O serviço na nuvem recusou a chave API ({code}). Verifique a chave nas definições.",
+      "rateLimited": "O serviço na nuvem indica demasiados pedidos. Tente novamente dentro de {seconds} segundos.",
+      "overloaded": "O serviço na nuvem não está disponível neste momento ({code}). Tente novamente mais tarde.",
+      "rejected": "O serviço na nuvem recusou o pedido ({code}): {detail}",
+      "refusal": "{name} recusou-se a ler este documento. Introduza-o manualmente.",
+      "truncated": "A resposta do serviço na nuvem estava incompleta. Tente novamente.",
+      "badAnswer": "O serviço na nuvem não devolveu uma resposta utilizável.",
+      "tooLarge": "O documento é demasiado grande para o serviço na nuvem.",
+      "tooLargeLimits": "O documento é demasiado grande para {name}: no máximo {mb} MB e {pages} páginas por pedido.",
+      "keyFormat": "A chave API tem um formato inesperado: 8 a 500 caracteres sem espaços.",
+      "notPdf": "O documento não é um PDF.",
+      "emptyDocument": "O documento não contém texto legível."
+    },
+    "dossier": {
+      "scope": "O processo precisa de um contador ou de um contrato (meter_id ou contract_id)."
+    },
+    "inboxDraft": {
+      "needs": {
+        "meter": "Adote primeiro o contador, depois isto.",
+        "contract": "Adote primeiro o contrato, depois isto."
+      },
+      "nothingSelected": "Nada selecionado."
     }
   },
   "login": {
@@ -3637,7 +3899,8 @@
       "diff": "Diferença",
       "amount": "Montante",
       "ok": "confere",
-      "check": "verificar"
+      "check": "verificar",
+      "no_prices": "sem preços"
     },
     "reason": {
       "estimated_reading_at_boundary": "Num limite do período há uma leitura estimada ou interpolada – a fatura pode usar outra leitura.",
@@ -3645,13 +3908,23 @@
       "factor_change_inside": "O PCS ou o coeficiente de correção muda dentro do período.",
       "items_not_modelled": "As outras rubricas são retiradas da fatura, sem recálculo.",
       "price_missing": "O contrato não tem preço para parte do período – aí também faltam custos.",
-      "gaps": "Faltam leituras dentro do período."
+      "gaps": "Faltam leituras dentro do período.",
+      "factor_mismatch": "O PCS ou o coeficiente de correção da fatura difere dos fatores de conversão do gás nas definições."
     },
     "ownTotalOnly": "Recalculado: {total}",
     "updated": "Fatura alterada",
     "editing": "A editar a fatura de {from} a {to}.",
     "editBookedNote": "Já está registada como pagamento extraordinário – o lançamento no contrato não se altera.",
-    "periodDefault": "Preenchido com o último período de faturação concluído — como no ano de faturação, a partir das faturas registadas ou, caso contrário, pela data de acerto. A data de acerto de cada serviço define-se em Definições → Serviços e faturação."
+    "periodDefault": "Preenchido com o último período de faturação concluído — como no ano de faturação, a partir das faturas registadas ou, caso contrário, pela data de acerto. A data de acerto de cada serviço define-se em Definições → Serviços e faturação.",
+    "noPrices": {
+      "hint": "Sem preços, o valor não pode ser recalculado. Adicione-os ao contrato e a app verifica a fatura.",
+      "at": "De {from} a {to}: sem preço no contrato {provider}",
+      "noContract": "De {from} a {to}: nenhum contrato",
+      "link": "Ir para os contratos"
+    },
+    "factorMismatch": {
+      "line": "A partir de {from}: {invoice} kWh/m³ segundo a fatura ({z} × {hs}), {list} kWh/m³ nas definições"
+    }
   },
   "glossary": {
     "hdd": {
@@ -3979,7 +4252,7 @@
     "scenarioPresetsOnly": "Na demonstração, apenas os cenários de exemplo estão pré-calculados."
   },
   "manifest": {
-    "description": "Consumo, custos e contratos de eletricidade, gás, água, aquecimento urbano, gasóleo, pellets e fotovoltaico — localmente e sem nuvem.",
+    "description": "Consumo, custos e contratos de eletricidade, gás, água, aquecimento urbano, gasóleo, pellets e fotovoltaico — no próprio servidor, correio do fornecedor lido localmente, a nuvem só a pedido.",
     "shortcutCapture": "Registar leituras",
     "shortcutContractsShort": "Contratos"
   },
@@ -3994,7 +4267,8 @@
       "balanceCumulative": "Saldo acumulado ({code})",
       "avgTemp": "Temp média (°C)",
       "hdd": "GD",
-      "co2": "CO₂ (kg)"
+      "co2": "CO₂ (kg)",
+      "bonus": "Bónus ({code})"
     },
     "readings": {
       "meterId": "ID contador",
@@ -4095,7 +4369,14 @@
     },
     "createLink": "Criar ligação",
     "ingressHint": "Se a app funcionar no Home Assistant, a ligação indica o endereço dela na rede do Home Assistant — pensado para o próprio Home Assistant, por exemplo a integração Remote Calendar. Para calendários no telemóvel ou no computador, abra uma porta em Rede, na configuração da app, e substitua o início até /api.php pelo endereço do Home Assistant com essa porta.",
-    "assignee": "Responsável: {name}"
+    "assignee": "Responsável: {name}",
+    "nameFor": "Energietracker — prazos e compromissos: {name}",
+    "assigneeContract": "Responsável: {name} (através do contrato)",
+    "assigneeMeter": "Responsável: {name} (através do contador)",
+    "onlyMine": "Apenas o que lhe está atribuído",
+    "onlyMineHint": "A ligação mostra então apenas os prazos e compromissos pelos quais é responsável – também através de um contrato ou contador.",
+    "webcalLabel": "Endereço de subscrição para apps de calendário (webcal)",
+    "httpsLabel": "O mesmo endereço como ligação https"
   },
   "tenancy": {
     "title": "Arrendamento",
@@ -4476,7 +4757,7 @@
     "hint": {
       "page": "Esta página pertence ao nível «{level}». Está aberta na mesma.",
       "switch": "Mudar para «{level}»",
-      "data": "Os dados dizem mais do que este nível mostra — «{level}» mostra-o.",
+      "data": "A casa tem mais do que este nível mostra — «{level}» mostra-o.",
       "dismiss": "Não perguntar mais"
     },
     "reason": {
@@ -4485,8 +4766,11 @@
       "severalMeters": "vários contadores de um serviço",
       "heatPump": "bomba de calor",
       "battery": "bateria",
-      "wallbox": "wallbox"
-    }
+      "wallbox": "wallbox",
+      "pv": "sistema fotovoltaico",
+      "quarterHours": "valores por quarto de hora"
+    },
+    "table": "O que se pode fazer em cada nível?"
   },
   "explainer": {
     "money": {
@@ -4499,7 +4783,9 @@
       "credit": "cerca de {amount} de crédito",
       "due": "cerca de {amount} de acerto a pagar",
       "even": "um saldo quase nulo",
-      "text": "Até à fatura de {date} paga {paid} em adiantamentos; consumo e termo fixo deverão custar {cost}. Resultado: {result}."
+      "text": "Até à fatura de {date} paga {paid} em adiantamentos; consumo e termo fixo deverão custar {cost}. Resultado: {result}.",
+      "uncertain": "entre {low} e {high}, conforme a estimativa",
+      "costRange": "entre {low} e {high}"
     },
     "energy": {
       "title": "Fluxo de energia em casa",
@@ -4583,8 +4869,10 @@
       "text": {
         "less": "Consumo {cons}, graus-dia {hdd} face aos mesmos meses do ano anterior. Corrigido do clima {adj}: o consumo baixou mesmo.",
         "more": "Consumo {cons}, graus-dia {hdd} face aos mesmos meses do ano anterior. Corrigido do clima {adj}: o consumo subiu mesmo — não é só o tempo.",
-        "same": "Consumo {cons}, graus-dia {hdd} face aos mesmos meses do ano anterior. Corrigido do clima {adj}: praticamente igual — a diferença é o tempo."
-      }
+        "same": "Consumo {cons}, graus-dia {hdd} face aos mesmos meses do ano anterior. Corrigido do clima {adj}: praticamente igual — a diferença é o tempo.",
+        "poorFit": "Consumo {cons}, graus-dia {hdd} face aos mesmos meses do ano anterior. Não é possível demonstrar se consumiu realmente mais ou menos: o modelo de aquecimento se ajusta mal a este contador (± {pct} por mês)."
+      },
+      "poorFitBadge": "corrigido: não demonstrável"
     },
     "timeline": {
       "title": "O contrato num relance",
@@ -4653,7 +4941,7 @@
     },
     "level": {
       "title": "Qual é a sua experiência?",
-      "later": "O nível pode ser alterado a qualquer momento no topo, junto a dia/noite."
+      "later": "O nível pode ser alterado a qualquer momento no topo, junto a dia/noite. Se a casa precisar de mais, a aplicação propõe-no uma vez."
     },
     "finish": {
       "title": "Próximos passos",
@@ -4661,9 +4949,21 @@
       "demo": "Ver com dados de exemplo",
       "demoHint": "Carrega o agregado de exemplo correspondente — com o histórico «Concluído», os responsáveis pelos lembretes e as faturas do fornecedor. Antes, a aplicação guarda o estado atual.",
       "demoPublic": "A demonstração mostra agora o agregado de exemplo «{persona}». Para escolher outro: Definições → Geral → «Iniciar o assistente de configuração».",
-      "own": "Começar com dados próprios",
+      "own": "Introduzir à mão",
       "ownHint": "A seguir: verificar os contadores e registar a primeira leitura.",
-      "updateCheck": "Avisar sobre novas versões (consulta o GitHub uma vez por dia)"
+      "updateCheck": "Avisar sobre novas versões (consulta o GitHub uma vez por dia)",
+      "docs": "A partir de documentos",
+      "recommended": "recomendado",
+      "docsHint": "Colocar o correio do fornecedor em PDF na caixa de entrada; a aplicação lê-o e cria um rascunho do agregado. Só é preciso verificar o que for duvidoso.",
+      "docsHelpTitle": "Estes documentos ajudam:",
+      "docsHelp": {
+        "tenant": "a última fatura anual de eletricidade e a confirmação de contrato",
+        "house": "para cada fonte de energia a última fatura anual, a confirmação de contrato e as alterações de preço",
+        "pv": "PV: contrato de injeção ou acerto do operador de rede",
+        "heatPump": "Bomba de calor ou carregador: a confirmação da tarifa especial"
+      },
+      "docsReader": "Para ler é preciso um serviço – na rede de casa ou na nuvem. Configure-o já aqui; guardar documentos também é possível antes.",
+      "docsReaderMember": "Para ler é preciso um serviço; um administrador pode configurá-lo. Guardar documentos já é possível."
     },
     "skip": "Saltar",
     "back": "Voltar",
@@ -4789,7 +5089,8 @@
       "high": "Na tarifa alta",
       "standard": "Na tarifa padrão",
       "saving": "Poupança face ao padrão",
-      "hint": "A partir das janelas horárias do contrato deste contador: tarifa de rede por kWh na janela face à tarifa padrão. As tarifas de rede variáveis só existem em complemento ao módulo 1 e com sistema de contagem inteligente."
+      "hint": "A partir das janelas horárias do contrato deste contador: tarifa de rede por kWh na janela face à tarifa padrão. As tarifas de rede variáveis só existem em complemento ao módulo 1 e com sistema de contagem inteligente.",
+      "net": "Os montantes estão líquidos no contrato; calculados com {vat} de IVA."
     },
     "series": {
       "title": "Séries por quarto de hora",
@@ -4834,7 +5135,8 @@
       "no": "com tarifa dinâmica"
     },
     "basis": {
-      "assumed": "valor de exemplo"
+      "assumed": "valor de exemplo",
+      "own": "valor próprio"
     },
     "actions": {
       "title": "O que se pode fazer",
@@ -4933,8 +5235,7 @@
         "eur": "por ano"
       },
       "total": "No total até {eur} por ano com IVA (maior alavanca por aparelho), dos quais {real} com a tarifa atual.",
-      "assumptions": "Valores de exemplo: bomba de calor {hp} do consumo diário deslocável; máquina de lavar roupa {wkwh} kWh por ciclo, {wn} ciclos por semana; máquina de lavar loiça {dkwh} kWh por ciclo, {dn} ciclos por semana, cada um de {h} horas face a um arranque a qualquer hora.",
-      "upper": "Limite máximo: os quartos de hora mais baratos conhecem-se na véspera (day-ahead). Preço grossista com {vat} de IVA, como o fatura uma tarifa dinâmica, sem a respetiva margem, taxas nem tarifa de rede; eletricidade solar ao preço unitário menos a tarifa de injeção; módulo 3 com os montantes do contrato.",
+      "upper": "Limite máximo: os quartos de hora mais baratos conhecem-se na véspera (day-ahead). Preço grossista com {vat} de IVA, como o fatura uma tarifa dinâmica, sem a respetiva margem, taxas nem tarifa de rede; eletricidade solar ao preço unitário menos a tarifa de injeção; módulo 3 com os montantes do contrato, os líquidos com IVA.",
       "kind": {
         "ev": "Carro elétrico ({name})",
         "heat_pump": "Bomba de calor ({name})",
@@ -4951,7 +5252,8 @@
         "other": "Carro: só se desloca enquanto está ligado — horas de ligação de {count} sessões de carregamento do evcc."
       },
       "evPart": "As sessões de carregamento cobrem {share} da energia carregada; nos dias sem sessão o carro está disponível todo o dia (valor de exemplo).",
-      "evDay": "Carro: disponível todo o dia nos dias de carga (valor de exemplo). Com as sessões de carregamento do evcc contam as horas de ligação."
+      "evDay": "Carro: disponível todo o dia nos dias de carga (valor de exemplo). Com as sessões de carregamento do evcc contam as horas de ligação; um horário próprio indica-se em Definições → Serviços e faturação → Flexibilidade.",
+      "evWindow": "Carro: ligado das {from} às {until} (dado indicado); a carga só se desloca dentro deste horário. Com as sessões de carregamento do evcc contam as horas de ligação."
     },
     "signal": {
       "spot": "Preço grossista",
@@ -4964,10 +5266,20 @@
     },
     "availability": {
       "sessions": "horas de ligação do evcc",
-      "day": "dia de carga inteiro (valor de exemplo)"
+      "day": "dia de carga inteiro (valor de exemplo)",
+      "window": "ligado {from}–{until} (valor próprio)"
     },
     "net": "líquido, sem IVA",
-    "netNote": "Valores em ct do semáforo e das janelas horárias: parte grossista líquida, sem IVA — os montantes em euros das alavancas incluem IVA."
+    "netNote": "Valores em ct do semáforo e das janelas horárias: parte grossista líquida, sem IVA — os montantes em euros das alavancas incluem IVA.",
+    "assume": {
+      "lead": "Pressupostos: {parts}.",
+      "example": "{part} (valor de exemplo)",
+      "own": "{part} (valor próprio)",
+      "hp": "bomba de calor {hp} do consumo diário deslocável",
+      "washer": "máquina de lavar roupa {kwh} kWh por ciclo, {n} ciclos por semana",
+      "dishwasher": "máquina de lavar loiça {kwh} kWh por ciclo, {n} ciclos por semana",
+      "hours": "cada um de {h} horas face a um arranque a qualquer hora"
+    }
   },
   "pager": {
     "label": "Páginas da lista",
@@ -5089,6 +5401,10 @@
     "csv": {
       "button": "Como CSV",
       "hint": "O histórico com os filtros escolhidos em tabela – por exemplo como comprovativo para o senhorio ou a administração"
+    },
+    "inbox": {
+      "applied": "Retirado de um documento: {name}",
+      "draftApplied": "Agregado adotado a partir de documentos (entradas: {items}, documentos concluídos: {documents})"
     }
   },
   "assignee": {
@@ -5113,7 +5429,16 @@
       "other": "{count} entradas a mais ocultas (filtro «Responsável»)"
     },
     "emptyFiltered": "Nada para esta seleção.",
-    "wasDeleted": "A pessoa responsável foi eliminada. Indique outra pessoa ou deixe o campo vazio."
+    "wasDeleted": "A pessoa responsável foi eliminada. Indique outra pessoa ou deixe o campo vazio.",
+    "none": "– ninguém –",
+    "hintMeter": "As leituras, os lembretes deste contador e os seus contratos vão para esta pessoa, se não tiverem responsável próprio. Ninguém é avisado.",
+    "hintContract": "O prazo de denúncia, o fim do contrato e «Fatura esperada» vão para esta pessoa. Se estiver vazio, aplica-se a pessoa do contador. Ninguém é avisado.",
+    "noPeople": "As pessoas adicionam-se em Definições → Acesso.",
+    "via": {
+      "contract": "através do contrato",
+      "meter": "através do contador"
+    },
+    "inheritsMeter": "Se estiver vazio, responsável: {name} (através do contador)."
   },
   "notice": {
     "updated": "Atualizado para a versão {version}.",
@@ -5154,7 +5479,8 @@
     "export": {
       "label": "Anos de faturação",
       "hint": "Uma linha por período de faturação: período, quantidade, custo, adiantamentos, saldo. Períodos como nas faturas registadas; caso contrário, segundo a data de acerto e até uma mudança de fornecedor."
-    }
+    },
+    "suggestContracts": "Os contratos começam a {day} e a data de acerto é {anchor}. A data de acerto é o primeiro dia do período de faturação: indique {day} nas definições e os períodos passam a começar com os contratos."
   },
   "scenario": {
     "title": "Oficina de previsão",
@@ -5307,7 +5633,9 @@
       "balance": "Saldo na fatura de {date}",
       "balanceBase": "Caso base: {amount}",
       "co2": "CO₂",
-      "co2Year": "CO₂ por ano"
+      "co2Year": "CO₂ por ano",
+      "advanceRange": "de {low} a {high}",
+      "advanceUncertain": "incerto: o modelo de aquecimento se ajusta mal"
     },
     "chart": {
       "cumTitle": "Custo acumulado",
@@ -5370,7 +5698,10 @@
       "no_heat_model": "Sem modelo de aquecimento para este contador: o inverno e as percentagens de aquecimento não têm efeito.",
       "tariff_unsupported": "Tarifa: na água, a oficina usa o contrato atual.",
       "tariff_no_price": "Tarifa: falta um preço unitário ao contrato — calculado com o contrato atual.",
-      "no_offers": "Nenhuma oferta com preços registada — calculado com o contrato atual."
+      "no_offers": "Nenhuma oferta com preços registada — calculado com o contrato atual.",
+      "interpolated": "Valores mensais repartidos em vez de medidos: {n}. «Como no ano anterior» e o perfil sazonal deixam-nos de fora.",
+      "poor_fit": "O modelo de aquecimento se ajusta mal a este contador (± {pct} por mês): a parte de aquecimento e tudo o que atua sobre ela (isolamento, temperatura ambiente, inverno) são incertos; a oficina não mostra uma faixa.",
+      "few_measured": "Poucos meses medidos para verificar o modelo de aquecimento: a parte de aquecimento e tudo o que atua sobre ela são incertos; a oficina mostra o adiantamento só como intervalo."
     },
     "share": {
       "image": "Guardar o resultado como imagem",
@@ -5413,5 +5744,866 @@
     "assumed": "Área habitável presumida {area} m² – introduza-a, por favor. Até lá a aplicação calcula com este valor.",
     "enterHousehold": "Introduzir a área habitável",
     "enterTenancy": "Introduzir a área no arrendamento"
+  },
+  "inbox": {
+    "provider": {
+      "local": "{api} na rede doméstica ({host})",
+      "off": "Sem serviço de leitura, a caixa de entrada é um arquivo: guardar, atribuir, introduzir à mão. Para ler basta um Ollama na rede doméstica com o modelo {model} (cerca de 18 GB de memória).",
+      "setup": "Configurar",
+      "on": "Lê com {service}, modelo {model}. Nenhum documento sai da rede doméstica.",
+      "onCloud": "Lê com {service}, modelo {model}. Cada documento vai para o serviço, nenhum outro dado; antes de cada leitura a aplicação pergunta.",
+      "cloudOff": "Está escolhido {service}, mas a leitura na nuvem está desligada ou sem chave: nenhum documento sai. Um administrador pode configurá-la ou voltar a «Local» em Definições → Especialista."
+    },
+    "applied": {
+      "note": "Retirado do documento «{name}»"
+    },
+    "reminder": {
+      "reading": "Comunicar a leitura {meter} (até {date})",
+      "specialTermination": "Direito de rescisão extraordinário {provider} até {date}",
+      "followUp": "Celebrar o contrato seguinte (fim do fornecimento {provider} em {end})",
+      "dunning": "Esclarecer o aviso de pagamento «{name}»",
+      "document": "Tratar o documento «{name}»"
+    },
+    "title": "Caixa de entrada",
+    "subtitle": "Guarde em PDF o correio do fornecedor, peça a leitura, verifique e adote-o.",
+    "back": "Caixa de entrada",
+    "loadError": "Caixa de entrada não carregada: {msg}",
+    "demo": {
+      "note": "Na demo nada é lido nem guardado. O documento de exemplo mostra uma leitura preparada."
+    },
+    "consent": {
+      "title": "Enviar o documento?",
+      "text": {
+        "one": "Para ser lido, este documento é enviado para {provider}. Concorda?",
+        "other": "Para serem lidos, estes {count} documentos são enviados para {provider}. Concorda?"
+      },
+      "ok": "Enviar e ler"
+    },
+    "drop": {
+      "title": "Arraste um PDF para aqui ou escolha um",
+      "hint": "Fatura, confirmação de contrato, alteração de preço … No iPad a partir da app Ficheiros."
+    },
+    "tab": {
+      "documents": {
+        "one": "{count} documento",
+        "other": "{count} documentos"
+      },
+      "review": {
+        "one": "A verificar ({count})",
+        "other": "A verificar ({count})"
+      }
+    },
+    "toast": {
+      "uploadFailed": "«{name}» não guardado: {msg}",
+      "uploaded": {
+        "one": "{count} documento guardado",
+        "other": "{count} documentos guardados"
+      },
+      "deleted": "Documento eliminado",
+      "cancelled": "Cancelado. O serviço termina em segundo plano; o resultado fica pronto na próxima leitura.",
+      "filed": "Reconhecido como {type} e arquivado",
+      "read": "Lido — verifique",
+      "applied": {
+        "one": "{count} alteração adotada",
+        "other": "{count} alterações adotadas"
+      },
+      "reminded": "Lembrete para {date} criado."
+    },
+    "queue": {
+      "running": "A ler: {done} de {total}",
+      "current": "agora: {name}",
+      "progress": "Progresso",
+      "cancel": "Cancelar",
+      "waiting": {
+        "one": "{count} documento aguarda leitura.",
+        "other": "{count} documentos aguardam leitura."
+      },
+      "resume": "Continuar",
+      "readAll": {
+        "one": "Ler {count} documento",
+        "other": "Ler os {count}"
+      },
+      "hint": "Localmente cerca de um minuto por documento. A página trata-os um a um, mesmo que se continue a usar a aplicação."
+    },
+    "step": {
+      "text": "A ler o texto …",
+      "type": "A reconhecer o tipo …",
+      "fields": "A ler os campos …",
+      "elapsed": "{s} s"
+    },
+    "empty": "Ainda não há correio. Guarde em PDF a primeira fatura ou confirmação de contrato.",
+    "col": {
+      "document": "Documento",
+      "type": "Tipo",
+      "status": "Estado",
+      "added": "Guardado",
+      "actions": "Ações"
+    },
+    "open": "Abrir",
+    "delete": {
+      "label": "Eliminar «{name}»",
+      "title": "Eliminar o documento?",
+      "text": "«{name}» desaparece da caixa de entrada. Se já estiver anexado como comprovativo a uma fatura ou a um contrato, fica lá.",
+      "ok": "Eliminar"
+    },
+    "flags": {
+      "one": "{count} campo a verificar",
+      "other": "{count} campos a verificar"
+    },
+    "status": {
+      "new": "Novo",
+      "queued": "Em fila",
+      "read": "Lido",
+      "failed": "Falhou",
+      "done": "Adotado",
+      "filed": "Arquivado"
+    },
+    "review": {
+      "empty": "Nada a verificar: nenhum documento lido tem um campo assinalado.",
+      "hint": "Apenas os campos assinalados de todos os documentos lidos. Um clique abre o documento nesse ponto."
+    },
+    "doc": {
+      "page": "p. {n}",
+      "label": "Documento",
+      "open": "Abrir o PDF",
+      "noViewer": "Este navegador não mostra a pré-visualização. «Abrir o PDF» mostra o documento numa janela própria."
+    },
+    "type": {
+      "invoice": "Fatura",
+      "contract_confirmation": "Confirmação de contrato",
+      "price_change": "Alteração de preço",
+      "cancellation": "Rescisão",
+      "supply_start": "Início do fornecimento",
+      "meter_change": "Troca de contador",
+      "reading_request": "Pedido de leitura",
+      "advance_change": "Alteração do adiantamento",
+      "dunning": "Aviso de pagamento",
+      "withdrawal": "Livre resolução",
+      "other": "Outro",
+      "unknown": "ainda não reconhecido"
+    },
+    "read": "Ler",
+    "reread": "Ler de novo",
+    "extracted": "Lido com {model} em {date} ({s} s)",
+    "recognizeOnly": "Reconhecido como {type}: arquivado, nada a adotar.",
+    "assign": {
+      "title": "Atribuição",
+      "saved": "Definida manualmente.",
+      "suggested": "Preenchida com base em: {by}. Alterável.",
+      "none": "Ainda não atribuído.",
+      "utility": "Serviço",
+      "meter": "Contador",
+      "contract": "Contrato",
+      "noContract": "nenhum contrato",
+      "by": {
+        "meter_number": "número do contador",
+        "market_location": "ponto de entrega",
+        "contract_number": "número de contrato ou cliente",
+        "utility": "energia indicada no documento",
+        "single_meter": "contador único",
+        "date": "contrato do fornecedor nessa data"
+      }
+    },
+    "manual": {
+      "title": "Introduzir à mão",
+      "hint": "Abre o formulário — o documento fica ao lado.",
+      "bill": "Introduzir a fatura",
+      "contract": "Contrato",
+      "reading": "Leitura",
+      "meter": "Contador e troca de contador",
+      "reminder": "Lembrete"
+    },
+    "reopen": "Voltar à caixa de entrada",
+    "fileAway": "Arquivar sem adotar",
+    "fields": {
+      "title": "Lido do documento",
+      "flagged": {
+        "one": "{count} campo está assinalado: verifique a citação e depois confirme ou corrija.",
+        "other": "{count} campos estão assinalados: verifique as citações e depois confirme ou corrija."
+      },
+      "allOk": "Cada valor aparece literalmente no documento (citação abaixo).",
+      "reviewAll": "Neste tipo, cada campo é verificado manualmente.",
+      "empty": {
+        "one": "{count} campo não consta do documento",
+        "other": "{count} campos não constam do documento"
+      }
+    },
+    "field": {
+      "edited": "Valor lido: {value}",
+      "confirm": "Está certo",
+      "correct": "Corrigir",
+      "utility": "Energia",
+      "supplier": "Fornecedor",
+      "kind": "Tipo de fatura",
+      "period_from": "Período de",
+      "period_to": "Período até",
+      "consumption": "Consumo",
+      "reading_new": "Leitura nova",
+      "reading_new_date": "Data da leitura nova",
+      "reading_old": "Leitura anterior",
+      "reading_old_date": "Data da leitura anterior",
+      "total_amount": "Montante total",
+      "advances_paid": "Adiantamentos pagos",
+      "advances_total": "Total dos adiantamentos",
+      "result_kind": "Resultado",
+      "result_amount": "Montante do resultado",
+      "advance_new": "Novo adiantamento",
+      "advance_new_from": "Novo adiantamento a partir de",
+      "meter_number": "Número do contador",
+      "market_location": "Ponto de entrega",
+      "contract_number": "Número de contrato",
+      "customer_number": "Número de cliente",
+      "gas_factors": "Conversão do gás",
+      "working_prices": "Preços unitários",
+      "base_price": "Termo fixo",
+      "base_price_period": "Termo fixo por",
+      "supply_start": "Início do fornecimento",
+      "tariff_name": "Tarifário",
+      "working_price": "Preço unitário",
+      "min_term_months": "Duração mínima (meses)",
+      "notice_period": "Prazo de pré-aviso",
+      "advance": "Adiantamento",
+      "bonus": "Bónus",
+      "price_guarantee_until": "Preço garantido até",
+      "valid_from": "Válido a partir de",
+      "working_price_old": "Preço unitário atual",
+      "working_price_new": "Novo preço unitário",
+      "base_price_old": "Termo fixo atual",
+      "base_price_new": "Novo termo fixo",
+      "reason": "Motivo",
+      "special_termination_until": "Rescisão extraordinária até",
+      "supply_end": "Fim do fornecimento",
+      "cancel_kind": "Tipo de rescisão",
+      "reading_start": "Leitura no início",
+      "change_date": "Data da troca",
+      "old_meter_number": "Contador antigo",
+      "old_reading": "Leitura final do contador antigo",
+      "new_meter_number": "Contador novo",
+      "new_reading": "Leitura inicial do contador novo",
+      "requested_by": "Comunicar até",
+      "contract": "Contrato deste fornecedor",
+      "base_price_basis": "Termo fixo líquido/bruto",
+      "base_price_vat_pct": "Taxa de IVA do termo fixo",
+      "vat_pct": "Taxa de IVA",
+      "document_date": "Data do documento",
+      "document_title": "Título do documento",
+      "meter_readings": "Leituras por contador",
+      "reading_new_estimated": "Leitura final estimada",
+      "reading_old_estimated": "Leitura inicial estimada"
+    },
+    "reason": {
+      "empty": "Em falta, mas necessário",
+      "no_quote": "Sem citação",
+      "quote_not_found": "A citação não consta do documento",
+      "value_not_in_quote": "O valor não consta da citação",
+      "unreadable": "Valor ilegível",
+      "estimated": "Apenas previsto",
+      "mandatory": "Verificar sempre neste tipo",
+      "price_from_invoice": "Preço de uma fatura: líquido, bruto, montante parcial?",
+      "sum_mismatch": "O total não bate com os adiantamentos",
+      "inconsistent": "Não bate com o total menos os adiantamentos",
+      "missing": "Não consta do documento",
+      "supported": "Citação incerta, mas confirmada por outros dados",
+      "price_matches": "Como no contrato",
+      "assumed": "Data presumida: primeiro dia do mês após a fatura",
+      "net_price": "Líquido na fatura – convertido em bruto com a taxa de IVA indicada",
+      "vat_changed": "Mesmo preço, outra taxa de IVA",
+      "invalid_format": "Formato inválido – um ponto de entrega tem 11 dígitos com dígito de controlo"
+    },
+    "option": {
+      "gas": "Gás",
+      "strom": "Eletricidade",
+      "wasser": "Água",
+      "fernwaerme": "Aquecimento urbano",
+      "annual": "Fatura anual",
+      "final": "Fatura final",
+      "credit": "Crédito",
+      "due": "Acerto",
+      "month": "por mês",
+      "year": "por ano",
+      "customer": "Confirmação da rescisão pedida",
+      "supplier": "Rescisão pelo fornecedor",
+      "switch": "Fim por mudança de fornecedor",
+      "net": "líquido",
+      "gross": "bruto"
+    },
+    "item": {
+      "gasFactor": "de {from} a {to}: coeficiente de correção {z} × poder calorífico {hs} kWh/m³",
+      "price": "a partir de {from}: {value}",
+      "priceNet": "a partir de {from}: {value} líquido + {vat}% de IVA = {gross}",
+      "meterReading": "Contador {meter}: {from} → {to}",
+      "estimated": "estimada segundo a fatura"
+    },
+    "result": {
+      "due": "acerto de {amount}",
+      "credit": "crédito de {amount}"
+    },
+    "proposal": {
+      "reading": "Leitura de {date}: {counter}",
+      "bill": "Introduzir a fatura de {from} a {to}, {result}",
+      "billBook": "Registar o resultado como pagamento extraordinário ({result})",
+      "advance": "Adiantamento a partir de {from}: {value}",
+      "gasFactor": "Conversão do gás a partir de {from}: {z} × {hs} = {factor} kWh/m³",
+      "workingPrice": "Preço unitário a partir de {from}: {value} (da fatura)",
+      "basePrice": "Termo fixo a partir de {from}: {value} por mês (da fatura)",
+      "contract": "Novo contrato a partir de {from}: {provider} {tariff}",
+      "predecessorEnd": "O contrato anterior {provider} termina em {date}",
+      "workingPriceChange": "Preço unitário a partir de {from}: {value} (antes {old})",
+      "basePriceChange": "Termo fixo a partir de {from}: {value} por mês (antes {old})",
+      "reminderSpecialTermination": "Lembrete: rescisão extraordinária até {date}",
+      "contractEnd": "O contrato {provider} termina em {date}",
+      "contractStart": "O contrato {provider} começa em {date} (antes {old})",
+      "meterChange": "Troca de contador em {date}, contador novo {serial}",
+      "reminderReading": "Lembrete: comunicar a leitura até {date}",
+      "malo": "Registar o ponto de entrega {malo} no contador",
+      "contractIds": "Registar no contrato: {ids}",
+      "reminderFollowUp": "Lembrete: celebrar o contrato seguinte até {date}",
+      "contractFromInvoice": "Criar o contrato {provider} a partir de {from} com base nesta fatura",
+      "contractFromSupplyStart": "Criar o contrato {provider} a partir de {from}",
+      "meterSwapInvoice": "Troca de contador em {date}: leitura final {old_final} no contador {old_serial}, contador novo {serial} com leitura inicial {new_initial}",
+      "readingEstimated": "Leitura de {date}: {counter} (estimada segundo a fatura)"
+    },
+    "detail": {
+      "reading": "Registada: {counter}.",
+      "row": "No contrato consta {value}.",
+      "billOverlap": "Sobrepõe-se à fatura de {from} a {to}.",
+      "bill": "Está registada uma fatura de {amount}.",
+      "contract": "Contrato {provider} de {from} a {to}; o novo vale desde o seu início.",
+      "end": "O fim registado é {date}.",
+      "start": "O início registado é {date}.",
+      "factor": "O valor registado é {factor} kWh/m³.",
+      "malo": "No contador consta {malo}.",
+      "serial": "O contador instalado é {serial}."
+    },
+    "pstatus": {
+      "new": "novo",
+      "exists": "já existe",
+      "conflict": "contradição",
+      "overlap": "sobreposição",
+      "check": "verificar"
+    },
+    "applyButton": {
+      "one": "Adotar {count} alteração",
+      "other": "Adotar {count} alterações"
+    },
+    "applyHint": "Apenas o que está marcado, com as mesmas verificações da introdução manual. Depois o documento fica anexado à fatura ou ao contrato.",
+    "proposals": {
+      "title": "Alterações propostas",
+      "none": "Nada neste documento pode ser adotado pela aplicação. Se necessário, introduza-o à mão.",
+      "assignFirst": "Atribua o documento a um serviço para ver as propostas."
+    },
+    "dock": {
+      "label": "Documento da caixa de entrada",
+      "back": "Para a pré-visualização",
+      "close": "Fechar o documento"
+    },
+    "defaultName": "Documento {date}",
+    "gist": {
+      "title": "O que significa isto?",
+      "more": "Mais",
+      "nothingToDo": "Aqui já não há nada a fazer.",
+      "remindDate": "Prazo",
+      "figure": {
+        "perYear": "{amount} por ano",
+        "perMonth": "{amount} por mês"
+      },
+      "priceChange": {
+        "more": "A partir de {date}, {provider} custa cerca de {amount} a mais por ano.",
+        "less": "A partir de {date}, paga-se a {provider} cerca de {amount} a menos por ano.",
+        "same": "A partir de {date} aplicam-se novos preços; ao longo do ano quase nada muda.",
+        "new": "A partir de {date} aplicam-se novos preços."
+      },
+      "invoice": {
+        "pending": "Fatura de {from} a {to}. Ao retirá-la, a aplicação verifica-a com os dados registados.",
+        "ok": "A fatura de {from} a {to} corresponde aos dados registados.",
+        "offMore": "A fatura fica {amount} acima do cálculo próprio.",
+        "offLess": "A fatura fica {amount} abaixo do cálculo próprio.",
+        "offQuantity": "O consumo da fatura difere {pct}% das leituras registadas.",
+        "noCompare": "A fatura não indica consumo nem montante – não há nada a comparar.",
+        "noPrices": "A fatura de {from} a {to}: faltam preços no contrato – a app não consegue recalcular o montante.",
+        "offQuantityNoPrices": "O consumo da fatura difere {pct}% das leituras registadas e faltam preços no contrato – a app não consegue recalcular o montante."
+      },
+      "advance": {
+        "ok": "O novo adiantamento de {amount} corresponde ao consumo.",
+        "high": "O novo adiantamento de {amount} é cerca de {diff} por mês alto demais (o adequado seria {recommended}).",
+        "low": "O novo adiantamento de {amount} é cerca de {diff} por mês baixo demais (o adequado seria {recommended}).",
+        "unknown": "Novo adiantamento de {amount} a partir de {date}."
+      },
+      "cancellation": {
+        "open": "O fornecimento termina em {date} – ainda falta o contrato seguinte.",
+        "followed": "O fornecimento termina em {date}; depois fornece {provider} a partir de {start}.",
+        "end": "O fornecimento termina em {date}."
+      },
+      "reading": {
+        "who": "Comunicar a leitura {meter} até {date} – responsável: {person}.",
+        "todo": "Comunicar a leitura {meter} até {date}.",
+        "done": "Feito: a leitura de {last} já existe."
+      },
+      "meterChange": {
+        "todo": "Contador trocado em {date}: leitura final {old}, novo contador {serial} a partir de {new}.",
+        "done": "A troca de contador de {date} está registada."
+      },
+      "confirmation": {
+        "todo": "Novo contrato com {provider} a partir de {date}.",
+        "done": "O contrato com {provider} a partir de {date} está registado."
+      },
+      "supplyStart": "{provider} fornece a partir de {date}.",
+      "dunning": {
+        "todo": "Aviso de pagamento: verificar se há um pagamento em falta e esclarecer até {date}.",
+        "set": "O lembrete para {date} está criado."
+      },
+      "filed": "Arquivado – aqui não há nada a fazer.",
+      "fileIt": "Para conhecimento – basta arquivar.",
+      "action": {
+        "apply": "Retirar",
+        "applyPrices": "Retirar os novos preços",
+        "applyCheck": "Retirar e verificar",
+        "applyAdvance": "Retirar o adiantamento",
+        "applyEnd": "Retirar o fim do contrato",
+        "applyContract": "Criar o contrato",
+        "compareTariffs": "Mudar poupa cerca de {amount} – comparar tarifas",
+        "openCheck": "Verificar a fatura",
+        "findFollowUp": "Encontrar o contrato seguinte",
+        "enterReading": "Registar a leitura",
+        "openSwap": "Registar a troca de contador",
+        "remind": "Criar lembrete",
+        "file": "Arquivar",
+        "addPrices": "Introduzir os preços no contrato"
+      },
+      "detail": {
+        "assignFirst": "Associando o documento a um contador e a um contrato, a aplicação calcula com os dados registados.",
+        "workingPrice": "Preço unitário: {old} → {new}",
+        "basePrice": "Termo fixo por mês: {old} → {new}",
+        "basis": "Calculado com cerca de {kwh} {unit} nos próximos doze meses – a mesma previsão da comparação de tarifas.",
+        "noForecast": "Para o custo adicional falta uma previsão do consumo (poucas leituras).",
+        "termination": "Direito de rescisão extraordinário até {date}.",
+        "terminationPassed": "O direito de rescisão extraordinário vigorou até {date}.",
+        "saving": "Melhor oferta da comparação de tarifas: {offer}, poupa cerca de {amount} por ano.",
+        "noOffers": "Com ofertas na comparação de tarifas, a aplicação mostra se mudar compensa.",
+        "noBetterOffer": "Nenhuma oferta guardada é mais barata.",
+        "billTotals": "Montante da fatura {theirs}, cálculo próprio {ours}.",
+        "newAdvance": "Novo adiantamento de {amount} a partir de {date}.",
+        "noContract": "Sem contrato associado não há comparação com a previsão.",
+        "noProjection": "Para a comparação falta o saldo do período em curso (poucas leituras, ou o contrato não está em vigor).",
+        "advanceBasis": "O adequado seria cerca de {recommended} por mês; com o novo adiantamento a fatura terminaria com: {balance}.",
+        "switch": "O fornecimento termina por mudança de fornecedor.",
+        "followUpReminder": "Proposta: lembrete em {date}, responsável: {person}.",
+        "gap": {
+          "one": "Entre o fim do fornecimento e o novo contrato fica {days} dia sem contrato.",
+          "other": "Entre o fim do fornecimento e o novo contrato ficam {days} dias sem contrato."
+        },
+        "person": "Responsável: {person}.",
+        "nobody": "Ninguém é responsável por este contador – isso define-se no contador.",
+        "lastReading": "Última leitura: {last}.",
+        "serialConflict": "Atenção: o contador tem registado o número {serial}.",
+        "minTerm": "Duração mínima até {date}.",
+        "guarantee": "Garantia de preço até {date}.",
+        "dunning": "A aplicação não lê avisos de pagamento; o lembrete serve para esclarecer o pagamento."
+      }
+    },
+    "channels": {
+      "text": "Também sem navegador: com um atalho no iPhone ou iPad, pela pasta «{dir}» do diretório de dados ou por e-mail através do Home Assistant.",
+      "pending": {
+        "one": "({count} ficheiro em espera.)",
+        "other": "({count} ficheiros em espera.)"
+      },
+      "shortcut": "Atalho",
+      "folder": "Pasta",
+      "email": "E-mail"
+    },
+    "folder": {
+      "imported": {
+        "one": "{count} documento arquivado a partir da pasta «{dir}»",
+        "other": "{count} documentos arquivados a partir da pasta «{dir}»"
+      },
+      "failed": {
+        "one": "{count} ficheiro recusado (não é PDF ou é grande demais), movido para «{dir}»",
+        "other": "{count} ficheiros recusados (não são PDF ou são grandes demais), movidos para «{dir}»"
+      }
+    },
+    "dossier": {
+      "title": "Processo",
+      "empty": "Ainda não há documentos.",
+      "none": "Nada encontrado.",
+      "filter": "Tipo",
+      "allKinds": "Todos os tipos",
+      "search": "Pesquisar",
+      "count": {
+        "one": "{count} documento",
+        "other": "{count} documentos"
+      },
+      "open": "Abrir",
+      "error": "Processo não carregado: {msg}",
+      "period": "Fatura de {from} a {to}",
+      "photo": "Leitura {counter}",
+      "receipt": "Comprovativo do contrato {provider}",
+      "kind": {
+        "bill": "Fatura",
+        "receipt": "Comprovativo",
+        "photo": "Fotografia"
+      }
+    },
+    "note": {
+      "estimated": "Apenas previsto: {fields}",
+      "missing": "Não consta do documento, a completar depois: {fields}",
+      "unsure": "Lido com dúvida, não adotado: {fields}",
+      "netPrice": "Líquido na fatura, convertido em bruto com a taxa de IVA indicada (a app usa preços brutos).",
+      "vatChanged": "Mesmo preço que no contrato, só muda a taxa de IVA – a nova linha de preço vale a partir do dia que a fatura indica para ela."
+    },
+    "duplicate": {
+      "text": "Provavelmente o mesmo documento que «{name}» (guardado em {date}). Adote apenas um; o outro pode ser eliminado.",
+      "open": "Abrir",
+      "short": "provavelmente um duplicado"
+    },
+    "priceBasis": {
+      "net": "líquido segundo a fatura, com {vat}% de IVA = {gross} bruto"
+    }
+  },
+  "inboxCloud": {
+    "provider": {
+      "openai": "Serviço compatível com OpenAI"
+    },
+    "notice": {
+      "pdf": "O documento é enviado como PDF para {name} em {host} e lido lá. O serviço vê todo o conteúdo – incluindo nome, morada, número do contador e de cliente.",
+      "text": "O texto do documento é enviado para o serviço em {host} e lido lá. O serviço vê todo o texto – incluindo nome, morada, número do contador e de cliente."
+    },
+    "experimental": "Experimental: ainda não verificado com reações de uso real."
+  },
+  "bonus": {
+    "generic": "Bónus",
+    "typed": "Bónus ({type})",
+    "line": "Bónus −{amount} a {date}",
+    "lineOther": "Crédito −{amount} a {date}",
+    "lineTyped": "{what} −{amount} a {date}",
+    "withNote": "{line} ({note})",
+    "total": "Bónus −{amount}",
+    "costNote": "O cartão mostra os custos sem o bónus; o bónus aparece por baixo. O saldo inclui-o, como a fatura. A média mensal exclui-o: um crédito pontual não é um preço mensal."
+  },
+  "attachments": {
+    "label": "Comprovativos:",
+    "fallback": "Comprovativo {n}",
+    "open": "Abrir {name}"
+  },
+  "inboxDraft": {
+    "title": "Agregado a partir de documentos",
+    "subtitle": "Um rascunho com todos os documentos lidos: contadores, contratos, leituras, faturas. Só é preciso verificar o que está assinalado.",
+    "summaryTitle": "O agregado em rascunho",
+    "summary": "{what} {from}. {ask}",
+    "count": {
+      "meters": {
+        "one": "{count} contador",
+        "other": "{count} contadores"
+      },
+      "contracts": {
+        "one": "{count} contrato",
+        "other": "{count} contratos"
+      },
+      "readings": {
+        "one": "{count} leitura",
+        "other": "{count} leituras"
+      },
+      "bills": {
+        "one": "{count} fatura",
+        "other": "{count} faturas"
+      },
+      "reminders": {
+        "one": "{count} lembrete",
+        "other": "{count} lembretes"
+      },
+      "documents": {
+        "one": "de {count} documento",
+        "other": "de {count} documentos"
+      },
+      "questions": {
+        "one": "{count} ponto precisa de verificação.",
+        "other": "{count} pontos precisam de verificação."
+      },
+      "duplicates": {
+        "one": "{count} documento provavelmente duplicado (conta uma vez)",
+        "other": "{count} documentos provavelmente duplicados (contam uma vez)"
+      },
+      "without": {
+        "one": "{count} documento não contribui para o rascunho",
+        "other": "{count} documentos não contribuem para o rascunho"
+      },
+      "nothing": "Ainda nada a adotar",
+      "noQuestions": "Nada precisa de verificação: cada valor está citado do documento."
+    },
+    "empty": "Ainda nenhum documento lido. Guarde o correio do fornecedor na caixa de entrada e peça a leitura: o rascunho surge com o primeiro documento lido e cresce com os seguintes.",
+    "toInbox": "Ir para a caixa de entrada",
+    "entry": {
+      "one": "Rascunho do agregado de {count} documento lido",
+      "other": "Rascunho do agregado de {count} documentos lidos"
+    },
+    "entryHint": "Todos os documentos de uma vez: contadores, contratos, leituras e faturas, só o duvidoso para verificar.",
+    "queue": {
+      "running": "Ainda a ler: {done} de {total}. O rascunho cresce ao mesmo tempo.",
+      "resume": "Continuar na caixa de entrada"
+    },
+    "status": {
+      "update": "completar"
+    },
+    "tickToConfirm": "Assinalar confirma estes valores.",
+    "optional": "Apenas uma proposta: não assinalada.",
+    "rows": {
+      "one": "{count} linha nova",
+      "other": "{count} linhas novas"
+    },
+    "existsRows": {
+      "one": "{count} linha já existe",
+      "other": "{count} linhas já existem"
+    },
+    "confirm": "adotar",
+    "choose": "Os documentos divergem – qual é o valor certo?",
+    "existing": "Registado: {value}.",
+    "sources": {
+      "one": "Citação",
+      "other": "{count} citações"
+    },
+    "unknownProvider": "(fornecedor desconhecido)",
+    "apply": {
+      "one": "Adotar {count} entrada",
+      "other": "Adotar {count} entradas"
+    },
+    "applyHint": "Antes, a aplicação faz uma cópia de segurança. Tudo passa pelos mesmos controlos da introdução manual; os dados existentes só mudam onde for confirmado.",
+    "stale": "O rascunho mudou entretanto (por exemplo, porque foram lidos mais documentos). Foi recarregado – verifique-o de novo.",
+    "toast": {
+      "partly": {
+        "one": "{count} parte não adotada – ver abaixo",
+        "other": "{count} partes não adotadas – ver abaixo"
+      }
+    },
+    "findings": {
+      "title": "Detetado"
+    },
+    "finding": {
+      "gap": "Intervalo entre dois contratos: de {from} a {to} sem contrato. As datas ficam como nos documentos.",
+      "overlap": "Dois contratos sobrepõem-se de {from} a {to}. Vale o início mais tardio; as datas ficam como nos documentos.",
+      "falling": "A leitura desce em {date} de {a} para {b} sem troca de contador nos documentos – provavelmente um contador novo (proposta abaixo).",
+      "chain_mismatch": "A leitura final e a inicial da fatura seguinte não coincidem ({a} e {b} por volta de {date}). Ambas devem ser verificadas.",
+      "duplicate": "Provavelmente duplicado: {name} tem o mesmo conteúdo que {of} e conta uma vez.",
+      "no_meter": "{name}: sem número de contador nem de contrato, o documento serve para vários contadores. Atribua-o no próprio documento.",
+      "same_supplier": "{name} e {of}: tratados como o mesmo fornecedor – mesmo contador, mesmo período, um nome em comum.",
+      "invoice_wp": "{name}: preço unitário a partir de {date} {invoice} em vez de {chain} da confirmação ou da alteração de preço. É retomada a cadeia; «Verificar fatura» mostra a diferença.",
+      "invoice_bp": "{name}: preço fixo a partir de {date} {invoice} em vez de {chain} por mês da confirmação ou da alteração de preço. É retomada a cadeia; «Verificar fatura» mostra a diferença.",
+      "start_from_invoice": "Contrato {provider}: início antecipado para {from} – a primeira fatura do mesmo contrato começa antes de {to} indicado na confirmação.",
+      "bill_corrected": "Fatura retificativa: {name} substitui {of}. É retomada a versão corrigida, a anterior fica como comprovativo."
+    },
+    "missing": {
+      "title": "Ainda falta",
+      "hint": "Não consta de nenhum documento – acrescente depois ou deixe em branco. Não é um erro.",
+      "go": "Ir",
+      "advance": "{utility}: o adiantamento de {provider} não consta de nenhum documento.",
+      "prices": "{utility}: os preços de {provider} não constam de nenhum documento.",
+      "water_prices": "{utility}: os três preços de {provider} (água potável, águas residuais, águas pluviais) introduzem-se à mão no contrato.",
+      "contract_start": "{utility}: nenhum documento indica o início do contrato de {provider}. Crie o contrato à mão; o resto segue depois.",
+      "old_final": "{utility}: troca de contador em {date} sem leitura final do contador antigo. Registe a troca com essa leitura à mão.",
+      "open": "{utility}: {name} – {notes}",
+      "working_price": "{utility}: o preço unitário de {provider} não consta de nenhum documento.",
+      "base_price": "{utility}: o preço fixo de {provider} não consta de nenhum documento.",
+      "prices_unconfirmed": "{utility}: os preços de {provider} só constam de faturas. Confirme-os acima ou introduza-os no contrato.",
+      "working_price_gap": "{utility}: nenhum documento indica um preço unitário para {provider} de {from} a {to}.",
+      "base_price_gap": "{utility}: nenhum documento indica um preço fixo para {provider} de {from} a {to}.",
+      "two_registers": "{utility}: {name} indica dois registos (vazio/fora de vazio) para o contador {meter}. Introduza à mão as leituras por registo."
+    },
+    "documents": {
+      "title": {
+        "one": "{count} documento no rascunho",
+        "other": "{count} documentos no rascunho"
+      }
+    },
+    "docState": {
+      "used": "no rascunho",
+      "duplicate": "provavelmente duplicado",
+      "duplicateOf": "provavelmente duplicado (como {name})",
+      "no_utility": "serviço não reconhecido – atribua-o no documento",
+      "no_meter": "contador incerto – atribua-o no documento",
+      "no_start": "sem início de contrato",
+      "nothing": "não contribui (por exemplo, um prazo já passado)"
+    },
+    "item": {
+      "meter": {
+        "create": "Contador novo: {name}",
+        "adopt": "Contador {name}: registar o número {serial} e a instalação",
+        "existing": "Contador {name}"
+      },
+      "meterChange": "Troca de contador em {date}, contador novo {serial}",
+      "contract": {
+        "new": "Contrato {provider} de {from} a {to}",
+        "existing": "Contrato existente {provider} a partir de {from}"
+      },
+      "contractEnd": "O contrato anterior {provider} termina em {date}",
+      "prices": "Preços {provider}",
+      "advances": "Adiantamentos {provider}",
+      "readings": "Leituras do contador {serial}",
+      "bill": "Fatura de {from} a {to}, {result}",
+      "gasFactor": "Conversão do gás (datas de efeito das faturas)",
+      "reminder": {
+        "reading": "Lembrete: comunicar a leitura {meter} até {date}",
+        "specialTermination": "Lembrete: direito de rescisão extraordinário {provider} até {date}"
+      }
+    },
+    "field": {
+      "name": "Nome",
+      "installed_on": "Instalado desde",
+      "start": "Início",
+      "end": "Fim",
+      "min_term_end": "Prazo mínimo até",
+      "due": "Prazo",
+      "wp": "Preço unitário a partir de {date}",
+      "bp": "Termo fixo por mês a partir de {date}",
+      "ap": "Adiantamento a partir de {date}",
+      "reading": "Leitura de {date}",
+      "gf": "Conversão do gás a partir de {date}"
+    },
+    "value": {
+      "factor": "coeficiente de correção {z} × poder calorífico {hs} = {factor} kWh/m³"
+    },
+    "basis": {
+      "start": {
+        "supply_start": "da carta de início de fornecimento",
+        "invoice": "início da primeira fatura (nenhum documento indica o início do contrato)",
+        "existing": "como no contrato existente",
+        "invoice_earlier": "início da primeira fatura – é anterior ao início indicado na confirmação"
+      },
+      "end": {
+        "successor": "dia anterior ao contrato seguinte"
+      },
+      "earliest": "documento mais antigo deste contador",
+      "price": {
+        "vat_changed": "mesmo preço líquido, outra taxa de IVA segundo a fatura – nova linha de preço a partir do dia indicado na fatura"
+      },
+      "newest": "do documento mais recente; os outros números ficam à escolha"
+    },
+    "reason": {
+      "differs": "Os documentos divergem",
+      "conflict_existing": "Está registado outro valor",
+      "invoice_differs": "O preço da fatura difere da confirmação e das alterações de preço",
+      "chain_mismatch": "A leitura final e a inicial não coincidem",
+      "inferred": "Deduzido da última leitura",
+      "falling_reading": "Apenas uma suspeita: a leitura desce",
+      "assumed_date": "A data de início não consta do documento (suposto: o mês após a fatura)",
+      "number_change": "Número de contador novo na fatura seguinte",
+      "swap_open": "Após uma troca de contador sem leitura final do contador antigo – introduza primeiro a troca",
+      "swap_readings": "As leituras não correspondem bem à troca (outro aparelho, a descer ou abaixo de uma leitura conhecida) – verifique"
+    },
+    "result": {
+      "title": "Adotado",
+      "nothing": "Nada de novo: estava tudo já registado.",
+      "meters": {
+        "one": "{count} contador criado",
+        "other": "{count} contadores criados"
+      },
+      "meter_changes": {
+        "one": "{count} troca de contador registada",
+        "other": "{count} trocas de contador registadas"
+      },
+      "contracts": {
+        "one": "{count} contrato criado",
+        "other": "{count} contratos criados"
+      },
+      "rows": {
+        "one": "{count} linha de preço ou adiantamento",
+        "other": "{count} linhas de preços e adiantamentos"
+      },
+      "readings": {
+        "one": "{count} leitura",
+        "other": "{count} leituras"
+      },
+      "bills": {
+        "one": "{count} fatura registada",
+        "other": "{count} faturas registadas"
+      },
+      "booked": {
+        "one": "{count} resultado lançado como pagamento extraordinário",
+        "other": "{count} resultados lançados como pagamentos extraordinários"
+      },
+      "gas_factors": {
+        "one": "{count} data de efeito da conversão do gás",
+        "other": "{count} datas de efeito da conversão do gás"
+      },
+      "reminders": {
+        "one": "{count} lembrete",
+        "other": "{count} lembretes"
+      },
+      "done": {
+        "one": "{count} documento concluído (anexado ao resultado)",
+        "other": "{count} documentos concluídos (anexados aos resultados)"
+      },
+      "open": {
+        "one": "Ainda aberto na caixa de entrada: {count} documento",
+        "other": "Ainda abertos na caixa de entrada: {count} documentos"
+      },
+      "billCheck": "{utility}: verificar a fatura de {from} a {to}",
+      "snapshot": "Guardado antes: o estado anterior está disponível como cópia de segurança.",
+      "snapshotLink": "Cópias de segurança"
+    },
+    "setup": {
+      "button": "Configurar a leitura",
+      "title": "Configurar a leitura",
+      "done": "Concluído",
+      "memberHint": "A configuração cabe a quem administra esta instalação. Aqui vê-se o que está definido; guardar documentos já é possível.",
+      "ready": "Configurado: a aplicação lê agora com {service}, modelo {model}.",
+      "unavailable": "As definições de leitura não estão acessíveis agora. Tente novamente daqui a pouco."
+    }
+  },
+  "interpolation": {
+    "leadYear": {
+      "one": "{count} de {total} valores mensais de {year} está repartido, não medido",
+      "other": "{count} de {total} valores mensais de {year} estão repartidos, não medidos"
+    },
+    "leadAll": {
+      "one": "{count} de {total} valores mensais está repartido, não medido",
+      "other": "{count} de {total} valores mensais estão repartidos, não medidos"
+    },
+    "readingsYear": {
+      "one": "{count} leitura em {year}",
+      "other": "{count} leituras em {year}"
+    },
+    "noReadingYear": "nenhuma leitura em {year}",
+    "readingsRange": {
+      "one": "{count} leitura de {from} a {to}",
+      "other": "{count} leituras de {from} a {to}"
+    },
+    "why": "Entre duas leituras passaram mais de {limit} dias: o consumo é repartido por igual pelos dias. Só se conhece o total entre duas leituras.",
+    "skipHeat": "As anomalias, as recomendações e a curva de aquecimento não têm em conta estes meses.",
+    "skip": "As anomalias e as recomendações não têm em conta estes meses.",
+    "heatIntervals": "Por isso, o modelo de aquecimento usa os {intervals} intervalos entre leituras.",
+    "pv": "O autoconsumo, a autossuficiência, a poupança e a amortização são estimativas para estes meses.",
+    "markTitle": "Repartido, não medido: de {gap} dias entre duas leituras",
+    "markTitleOpen": "Repartido, não medido",
+    "legend": "≈ repartido, não medido: um intervalo mais longo entre duas leituras, repartido por igual pelos dias.",
+    "legendPv": "≈ repartido, não medido: a repartição da eletricidade solar destes meses é estimada.",
+    "chartNote": "Barras tracejadas: repartidas, não medidas.",
+    "markTitleEstimated": "Repartido, não medido: de {gap} dias entre duas leituras, com uma leitura estimada como ponto de apoio",
+    "whyEstimated": "Se houver uma leitura estimada pelo meio, cada lado tem a sua própria taxa diária."
+  },
+  "balanceUncertain": {
+    "range": "Acerto de {date} incerto: entre {low} e {high}, porque {why}.",
+    "advance": "Um adiantamento adequado ficaria entre {low} e {high} por mês; aqui a aplicação não propõe um valor único.",
+    "even": "equilibrado",
+    "due": "{amount} de acerto",
+    "credit": "{amount} de crédito",
+    "light": "{label}: incerto, entre {low} e {high}",
+    "why": {
+      "factor_clamped": "os últimos meses medidos se afastam muito do esperado (fator {raw}, calculado com {used})",
+      "poor_fit": "o modelo de aquecimento se ajusta mal a este contador (± {pct} por mês)",
+      "both": "{a} e {b}",
+      "few_measured": "há poucos meses medidos para verificar o modelo de aquecimento",
+      "three": "{a}, {b} e {c}"
+    },
+    "short": "de {low} a {high}",
+    "verdict": "incerto"
+  },
+  "priceMissing": {
+    "contract": "O contrato não tem preço unitário: custos e saldo não incluem os custos de consumo. O preço deve ser acrescentado ao contrato.",
+    "period": "Neste período, um contrato não tem preço unitário: custos e saldo não incluem os custos de consumo."
+  },
+  "regression": {
+    "reason": {
+      "too_few_points": "poucos pontos ({n})",
+      "poor_fit": "não se ajusta (R² {r2})",
+      "degenerate": "não calculável (pouca variação nos valores)"
+    }
   }
 }

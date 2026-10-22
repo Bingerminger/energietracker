@@ -200,7 +200,7 @@ quarter hours of the wallbox meter.
 ## 9. Working with the charging record
 
 The readings from evcc are ordinary wallbox meter readings. The card “Charging
-record (company car)” (“Expert” level, below the evcc card) calculates with
+record (company car)” (since v3.7.0 from the “Experienced” level, below the evcc card) calculates with
 them too: contract price or flat electricity rate per month, as CSV and PDF
 ([Record charging electricity for a company car](ladestrom-nachweis.md)). The
 record does not use the price from evcc.

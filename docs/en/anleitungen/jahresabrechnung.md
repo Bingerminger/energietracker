@@ -220,21 +220,36 @@ and additional payment/credit. **“Compare”** shows a table **Recalculated ·
 the bill · Difference** for quantity, amount and advances paid, plus a verdict:
 
 - **“matches”** — quantity within 1 % and amount within 1 % or 2 €;
-- **“check”** — otherwise; without quantity and amount there is no verdict.
+- **“no prices”** *(v3.7.0)* — the quantity matches (or is missing), but the
+  contract lacks a price for part of the period: the amount cannot be
+  recalculated. The page names the sections and the contract and links to the
+  contracts;
+- **“check”** — otherwise; without quantity and amount there is no verdict. If
+  the quantity differs and prices are missing as well, it stays “check”, and
+  the notice about the missing prices still appears below, with the sections
+  and the jump to the contracts *(v3.7.0)*.
 
 Below it the possible reasons for a difference, for example: an estimated or
-interpolated reading at a boundary of the period, a price change or a change of
-calorific value within the period, other items the app only takes over, a
-missing price in the contract or missing readings. Recalculated means:
-consumption cost + fixed costs − bonus + other items.
+interpolated reading at an edge of the period, a price change within the
+period, a calorific value on the bill that differs from the gas conversion
+factors in the settings (both values shown, with a link to the setting), other
+items the app only takes over, a missing price in the contract or missing
+readings. Since v3.7.0 a reading on the last day of the period (or on the day
+before the first) counts as a boundary reading, as on the bill, not as an
+estimate, and a change of calorific value that the gas conversion knows just
+as the bill splits it is no reason. Recalculated means: consumption cost +
+fixed costs − bonus + other items; the classification does not change it.
 
 **Book.** **“Book as special payment”** adds the result as a special payment in
 the contract — a back-payment or refund **“not affecting advances”**, amount
 without sign, date = bill date (without a date the day after the period), note
-“Annual bill … – …”. The contract is the one that applied at the end of the
-period. Afterwards the bill shows “booked”; booking again changes nothing. Enter
+“Annual bill … – …”. The contract is the one that applies at the end of the
+period if it bills most of it; otherwise the one that does (e.g. the old
+contract of a final bill that runs one day past its end) *(v3.7.0 — up to
+v3.6 the app took the meter’s newest contract, even if it did not touch the
+period)*. Afterwards the bill shows “booked”; booking again changes nothing. Enter
 the new advance as an advance row on the contract (step 6). Without a result or
-without a contract the app refuses and says why.
+without a contract for the period the app refuses and says why.
 
 **Delete** (🗑️) asks first. A special payment already booked stays in the
 contract; delete it there if you want it gone.
@@ -246,9 +261,11 @@ both. “Book as special payment” books into the group contract.
 
 ## 8. Afterwards
 
-- The **balance card** now calculates up to the next billing date (Settings →
-  Utilities & billing → Settlement date gas; default 1 January) and suggests an
-  advance. If the suggestion is far from the supplier's new advance, the
+- The **balance card** now calculates up to the end of the current billing
+  period, the day before the next settlement date, and suggests an advance.
+  The **settlement date** (Settings → Utilities & billing; default 01-01) is
+  the **first day** of the billing period: 01-09 means 1 September to
+  31 August. If the suggestion is far from the supplier's new advance, the
   forecast is worth a look.
 - Once you have booked the result (“Book as special payment”), the balance of a
   contract that runs on counts from the day after the bill since v3.6.0 — the
@@ -263,7 +280,9 @@ both. “Book as special payment” books into the group contract.
   bill, for example 15 Apr to 30 Mar, with advance payments and balance;
   between and after the bills the settlement date cuts. The current period
   starts the day after the bill. If the bill does not end the day before your
-  settlement date, the view suggests the matching day. On this device the
+  settlement date, the view suggests the matching day; without a recorded bill
+  *(v3.7.0)* the start of the contract after the latest change of supplier or
+  the day on which several contracts begin. On this device the
   choice also applies to the overview and the analysis; the annual report has
   the appendix “Billing years” for it, the CSV export a table per period
   (Settings → Data).
@@ -274,7 +293,10 @@ both. “Book as special payment” books into the group contract.
   bill. A renewal or a new tariff with the same supplier does not split. A gap
   between a cancelled old contract and the new one is a partial period of its
   own; if the old one renews, it runs until the day before the new one. A
-  recorded bill always comes first.
+  recorded bill always comes first. *(v3.7.0)* If the change lies only a few
+  days next to the settlement date — settlement date 31-08, new contract from
+  1 September —, there is no one-day period: remainders under 14 days join the
+  neighbouring period. The totals stay the same.
 - **Current year in both views:** the calendar year counts the standing
   charge and advance payment of the month of the last reading in full, the
   billing year only the days up to the reading; the ⓘ next to “Advances up to

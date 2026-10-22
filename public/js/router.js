@@ -34,6 +34,9 @@ const ROUTES = [
   [/^\/?$/,                          'dashboard'],
   [/^\/dashboard$/,                  'dashboard'],
   [/^\/zaehlerstaende$/,             'readings-entry'],
+  [/^\/inbox$/,                      'inbox'],          // v3.7.0 — Posteingang
+  [/^\/inbox\/draft$/,               'inbox-draft'],    // v3.7.0 — Haushalt aus Dokumenten (vor der Vorschau)
+  [/^\/inbox\/([^/]+)$/,             'inbox'],          // v3.7.0 — ein Dokument: Vorschau
   [/^\/utility\/([^/]+)\/meters$/,   'meters'],
   [/^\/utility\/([^/]+)\/contracts$/, 'contracts'],
   [/^\/utility\/([^/]+)$/,           'utility'],
@@ -62,6 +65,8 @@ const ROUTES = [
 const VIEWS = {
   'dashboard':          { section: 'overview',    load: () => import('./views/dashboard.js') },
   'readings-entry':     { section: 'capture',     load: () => import('./views/readings-entry.js') },
+  'inbox':              { section: 'inbox',       load: () => import('./views/inbox.js') },   // v3.7.0
+  'inbox-draft':        { section: 'inbox', tab: 'inbox', load: () => import('./views/inbox-draft.js') },   // v3.7.0 — Haushalt aus Dokumenten
   'utility':            { section: 'consumption', load: () => import('./views/utility.js') },
   'meters':             { section: 'consumption', load: () => import('./views/meters.js') },
   'contracts':          { section: 'costs', tab: 'contracts-overview', load: () => import('./views/contracts.js') },
@@ -188,7 +193,8 @@ export function startRouter(container, { routes = ROUTES, views = VIEWS } = {}) 
     // v3.2.0 (F1019) — Seite über der Nutzungsstufe (Link, Lesezeichen): sie
     // öffnet trotzdem, darüber steht der Vorschlag, umzustellen
     const gateKey = view === 'settings' ? activeKey : view;
-    if (!viewAllowed(gateKey)) host.prepend(levelHint(viewLevel(gateKey)));
+    const hinted = !viewAllowed(gateKey);
+    if (hinted) host.prepend(levelHint(viewLevel(gateKey)));
 
     let body = host;
     if (TABBED.has(def.section)) {
@@ -201,6 +207,15 @@ export function startRouter(container, { routes = ROUTES, views = VIEWS } = {}) 
         body = host.querySelector('.view-body');
         window.dispatchEvent(new CustomEvent('et:badges-slots'));
       }
+    }
+    // v3.7.0 (Paket reifegrad) — ohne Tabs schrieb die Ansicht in den Container
+    // selbst und löschte den Hinweis: Einsteiger sahen „Wechsel prüfen“,
+    // „Rechnung prüfen“ und „Mietverhältnis“ (Kosten hat für sie nur einen Tab)
+    // ohne „Diese Seite gehört zur Stufe …“. Mit Hinweis bekommt die Ansicht
+    // einen eigenen Bereich darunter.
+    if (hinted && body === host) {
+      host.insertAdjacentHTML('beforeend', '<div class="view-body"></div>');
+      body = host.querySelector('.view-body');
     }
     body.innerHTML = `<div class="loading" role="status">${escapeHtml(t('common.loading'))}</div>`;
 

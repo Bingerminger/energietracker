@@ -405,13 +405,40 @@ final class RegressionService
      */
     public function fit(string $model, array $x, array $y, ?SettingsService $settings = null): array
     {
-        return match ($model) {
+        $reg = match ($model) {
             'polynomial' => $this->polynomial($x, $y),
             'robust'     => $this->robust($x, $y),
             'segmented'  => $this->segmentedFromSettings($x, $y, $settings),
             'sigmoid'    => $this->sigmoid($x, $y),
             default      => $this->linear($x, $y),
         };
+        return self::withReason($reg);
+    }
+
+    /**
+     * Mindestzahl der Punkte je Modell — dieselben Grenzen wie in den Fits.
+     * (`linear` braucht 3, Polynom und Huber 4, Knick und Sigmoide 8.)
+     */
+    public const MIN_POINTS = ['linear' => 3, 'polynomial' => 4, 'robust' => 4, 'segmented' => 8, 'sigmoid' => 8];
+
+    /**
+     * v3.7.0 (wirklichkeit-2) — warum ein Fit nicht gilt, als stabiler Schlüssel
+     * (`reason`): `too_few_points` (unter MIN_POINTS), `poor_fit` (die Sigmoide
+     * mit R² unter 0,5 — sie gilt sonst nicht), `degenerate` (kein Unterschied
+     * in den Werten, Rechnung entartet). Bis v3.6 sagte die Analyse bei jedem
+     * ungültigen Fit „zu wenige Datenpunkte“ — auch bei 50 Punkten.
+     *
+     * @param array<string,mixed> $reg
+     * @return array<string,mixed>
+     */
+    public static function withReason(array $reg): array
+    {
+        if (!empty($reg['valid']) || isset($reg['reason'])) return $reg;
+        $n = (int)($reg['n'] ?? 0);
+        $model = (string)($reg['model'] ?? 'linear');
+        $reg['reason'] = $n < (self::MIN_POINTS[$model] ?? 3) ? 'too_few_points'
+            : ($model === 'sigmoid' && isset($reg['A']) ? 'poor_fit' : 'degenerate');
+        return $reg;
     }
 
     private function segmentedFromSettings(array $x, array $y, ?SettingsService $settings): array

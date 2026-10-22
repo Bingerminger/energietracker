@@ -56,6 +56,15 @@ use Energietracker\Config\Utilities;
  */
 final class ForecastService
 {
+    /**
+     * v3.7.0 (wirklichkeit-2, Schritt 3, N1) — Mindestzahl an Freiheitsgraden der
+     * gepoolten Streuung (Σ(n − 1) über die Kalendermonate) für ein Band ohne
+     * Heizmodell. Drei: Drei Kalendermonate mit zwei Jahren Werten sind das
+     * Wenigste, bei dem eine Streuung nicht an einem einzigen Monatspaar hängt.
+     * Darunter, etwa mit einem Wert je Monat, zeigt die Prognose kein Band.
+     */
+    public const BAND_MIN_DOF = 3;
+
     public function __construct(
         private ConsumptionService $consumption,
         private RegressionService $regression,
@@ -88,11 +97,12 @@ final class ForecastService
         $tempOffset = (float)($opts['temp_offset'] ?? 0.0);
         $priceFactor= (float)($opts['price_factor'] ?? 1.0);
         $hgt        = !empty($u['hgt_relevant']);
-        $hddBase    = (float)$this->settings->get('hdd_base_temp', 15.0);
+        $hddBase    = $this->consumption->hddBaseFor($meter);   // v3.7.0 — die Heizgrenze des Zählers
 
         // Saisonprofil je Kalendermonat als Tagesrate (Teilmonate zählen
         // nicht, 28 und 31 Tage werden vergleichbar).
         $rates = array_fill(1, 12, []);
+        $interpRates = array_fill(1, 12, []);   // v3.7.0 (#37)
         $seasonalHdd = array_fill(1, 12, []);
         $allRates = [];
         foreach ($monthly as $m) {
@@ -104,25 +114,49 @@ final class ForecastService
             $days = (int)($m['days'] ?? 0);
             if ($days < $minDays) continue;
             $rate = (float)($m[$valueField] ?? 0) / $days;
-            $rates[(int)$m['month']][] = $rate;
             $allRates[] = $rate;
             if ($hgt && ($m['hdd'] ?? 0) > 0) {
                 $seasonalHdd[(int)$m['month']][] = (float)$m['hdd'];
             }
+            // v3.7.0 (#37) — das Saisonprofil aus gemessenen Monaten: Ein verteilter
+            // Januar hat die Tagesrate eines ganzen Winters. Nur wo ein Kalendermonat
+            // nie gemessen wurde und kein Modell hilft, zählt die Verteilung — sie
+            // ist dann immer noch besser als das Mittel des ganzen Jahres (ein
+            // Gartenzähler, der im Winter nicht abgelesen wird). Das Tagesmittel
+            // aller Monate stimmt auch für verteilte.
+            if (!empty($m['interpolated'])) { $interpRates[(int)$m['month']][] = $rate; continue; }
+            $rates[(int)$m['month']][] = $rate;
         }
-        $avgRate = array_map(fn($arr) => count($arr) ? array_sum($arr) / count($arr) : null, $rates);
+        // v3.7.0 (wirklichkeit-2, Schritt 3, N1) — ohne Wetterbezug ab drei Werten der
+        // Median (ConsumptionService::seasonalRate); bei Heizarten bleibt es das Mittel
+        $avgRate = array_map(fn($arr) => ConsumptionService::seasonalRate($arr, !$hgt), $rates);
+        $avgInterp = array_map(fn($arr) => count($arr) ? array_sum($arr) / count($arr) : null, $interpRates);
         $overallRate = $allRates ? array_sum($allRates) / count($allRates) : 0.0;
         $avgHdd = array_map(fn($arr) => count($arr) ? array_sum($arr) / count($arr) : null, $seasonalHdd);
 
         // Regression fit (only for HGT-relevant) — v2.8.0: dieselbe
         // Punktauswahl wie Analyse und Bereinigung (eine Stelle).
         $reg = null;
+        $regXMin = null;
         if ($hgt) {
             $pts = $this->consumption->regressionPoints($monthly, $utility);
             $model = (string)($opts['model'] ?? $this->settings->get('forecast_model', 'linear'));
             $reg = $this->regression->fit($model, $pts['x'], $pts['y'], $this->settings);
+            // v3.7.0 (wirklichkeit-2) — die Heizkurve kennt nur Monate mit Heizgradtagen
+            // über min_hdd_regression; darunter (Sommer) ist sie geraten
+            $regXMin = $pts['x'] !== [] ? (float)min($pts['x']) : null;
         }
-        $heat = $hgt ? $this->consumption->heatModel($utility, $monthly) : null;
+        // v3.7.0 (#37) — mit dem Zähler: zu wenig gemessene Monate → über die Ablesungsabstände
+        $heat = $hgt ? $this->consumption->heatModel($utility, $monthly, $meter) : null;
+        // v3.7.0 (wirklichkeit-2) — Band und Heizanteil nur bei bestandener Gütesperre:
+        // Bei echten Daten traf das 80-%-Band in keinem von fünf Rückblicken, weil das
+        // Modell selbst danebenlag; ein Band um ein schlechtes Modell täuscht Sicherheit vor
+        $quality = $hgt ? $this->consumption->anomalyQuality($utility, $monthly) : null;
+        $poorFit = ($quality['model_quality'] ?? null) === 'poor';
+        // v3.7.0 (wirklichkeit-2, Schritt 3, N3) — das Heizmodell steht nur auf den
+        // Ablesungsabständen (oder fehlt), oder die Gütesperre kann es nicht prüfen:
+        // Ein Band behauptete dann eine Sicherheit, die niemand geprüft hat
+        $fewMeasured = $hgt && !Utilities::isDelivery($utility) && (($heat['basis'] ?? null) !== 'months' || $quality === null);
 
         // Fallback working price — the last month that carries one. Used only
         // when the active contract has no working price pflegt for a forecast
@@ -166,15 +200,29 @@ final class ForecastService
         $z = (float)$this->settings->get('confidence_band_sigma', 1.28);
         $slope = $heat['a'] ?? (($reg['model'] ?? '') === 'linear' ? (float)($reg['a'] ?? 0) : null);
         $residSd = $heat['resid_sd'] ?? null;
+        $fewYears = false;
+        $ownSd = [];
         if (!$hgt) {
-            $sq = [];
-            foreach ($monthly as $m) {
-                if (!empty($m['pre_baseline']) || (int)($m['days'] ?? 0) < $minDays) continue;
-                $mean = $avgRate[(int)$m['month']] ?? null;
-                if ($mean === null) continue;
-                $sq[] = ((float)($m[$valueField] ?? 0) / (int)$m['days'] - $mean) ** 2;
+            // v3.7.0 (wirklichkeit-2, Schritt 3, N1) — gepoolte Streuung je Kalendermonat
+            // über die Jahre: Freiheitsgrade Σ(n − 1), nicht (Anzahl − 1). Mit einem Wert
+            // je Monat ist jede Abweichung null — das Band hatte bei Wasser die Breite null,
+            // bei Strom mit zwei Jahren ±1 bis 2 %. Unter BAND_MIN_DOF kein Band (`few_years`).
+            // Dazu die eigene Streuung jedes Kalendermonats: Ein Monat, dessen Jahre sich
+            // widersprechen (Urlaub, halber Wert), trägt diesen Widerspruch in sein Band —
+            // gepoolt verschwände ein einzelner Ausreißer in den anderen elf Monaten.
+            $sq = 0.0; $dof = 0;
+            foreach ($rates as $mo => $list) {
+                $n = count($list);
+                if ($n < 2) continue;
+                $mean = array_sum($list) / $n;
+                $own = 0.0;
+                foreach ($list as $r) $own += ($r - $mean) ** 2;
+                $sq += $own;
+                $dof += $n - 1;
+                $ownSd[$mo] = sqrt($own / ($n - 1));
             }
-            $residSd = count($sq) > 1 ? sqrt(array_sum($sq) / (count($sq) - 1)) : null;   // je Tag
+            $fewYears = $dof < self::BAND_MIN_DOF;
+            $residSd = $fewYears ? null : sqrt($sq / $dof);   // je Tag
         }
 
         // Build forecast months
@@ -209,9 +257,19 @@ final class ForecastService
             }
 
             $seasonalVal = $avgRate[$mn] !== null ? $avgRate[$mn] * $daysInMonth : null;
+            // v3.7.0 (#37) — „fehlt“ heißt: kein gemessener Wert (verteilte füllen nur auf)
             if ($seasonalVal === null) $missing[] = $mn;
             $regressionVal = ($reg && ($reg['valid'] ?? false) && $hdd !== null)
                 ? $this->regression->predict($reg, $hdd) : null;
+            // v3.7.0 (wirklichkeit-2, Punkt 8) — mit gemessenem Saisonwert keine Heizkurve
+            //   unter ihren Punkten: Im Sommer lag die Gerade bei einer konvexen
+            //     Heizkurve auf null (Achsenabschnitt negativ), mit Gewicht 0,8 fehlte so
+            //     fast das ganze Warmwasser — bei echten Daten rund 23 % im Jahr, auch
+            //     in der Menge fürs Vergleichsportal
+            //   bei nicht bestandener Gütesperre: Der gemessene Monat ist näher als das Modell
+            if ($seasonalVal !== null && $regressionVal !== null && ($poorFit || ($regXMin !== null && $hdd < $regXMin))) {
+                $regressionVal = null;
+            }
             $heatVal = ($heat !== null && $hdd !== null)
                 ? $heat['a'] * $hdd + $heat['c'] * $daysInMonth : null;
 
@@ -228,6 +286,10 @@ final class ForecastService
             } elseif ($heatVal !== null) {
                 $blended = $heatVal;
                 $method = 'heat_model';
+            } elseif ($avgInterp[$mn] !== null) {
+                // v3.7.0 (#37) — nur verteilte Werte für diesen Kalendermonat
+                $blended = $avgInterp[$mn] * $daysInMonth;
+                $method = 'seasonal_interpolated';
             } else {
                 // Ohne Wetterbezug oder ohne Modell: Tagesmittel aller Monate
                 $blended = $overallRate * $daysInMonth;
@@ -237,8 +299,12 @@ final class ForecastService
             // Band je Monat
             $bandLow = $bandHigh = null;
             $wSd = ($slope !== null && $hddSd !== null) ? $slope * $hddSd : null;
-            $nSd = $residSd !== null ? ($hgt ? $residSd : $residSd * $daysInMonth) : null;
-            if ($wSd !== null || $nSd !== null) {
+            // v3.7.0 (Schritt 3, N1) — ohne Heizmodell mindestens die Streuung, unter der auch
+            // die Anomalie-Erkennung nichts meldet (10 % des Monats, AnomalyService::noiseFloor):
+            // Ein Monat schwankt im Alltag um einige Prozent, auch wenn zwei Jahre gleich waren
+            $nSd = $residSd !== null ? ($hgt ? $residSd
+                : max(max($residSd, $ownSd[$mn] ?? 0.0) * $daysInMonth, AnomalyService::noiseFloor($blended, 0.0))) : null;
+            if (!$poorFit && !$fewMeasured && ($wSd !== null || $nSd !== null)) {
                 $half = $z * sqrt(($wSd ?? 0.0) ** 2 + ($nSd ?? 0.0) ** 2);
                 $bandLow = round(max(0.0, $blended - $half), 1);
                 $bandHigh = round($blended + $half, 1);
@@ -291,7 +357,12 @@ final class ForecastService
         // Jahresband: Das Wetter eines Jahres wirkt auf alle Monate zugleich —
         // mit der Jahresstreuung aus dem Klimanormal statt der Monatssumme.
         $annual = null;
-        if ($bandMonths === 12 && $bandOk) {
+        // das Jahr ohne Band (v3.7.0, wirklichkeit-2): Gütesperre, zu wenig gemessen (Schritt 3,
+        // N3) oder ohne Heizmodell keine Streuung über die Jahre (N1)
+        $withheld = $poorFit ? 'poor_fit' : ($fewMeasured ? 'few_measured' : ($fewYears ? 'few_years' : null));
+        if ($bandMonths === 12 && $withheld !== null) {
+            $annual = ['value' => round($annualValue, 1), 'low' => null, 'high' => null, 'sigma' => $z, 'level_pct' => null, 'withheld' => $withheld];
+        } elseif ($bandMonths === 12 && $bandOk) {
             $yearSd = ($hgt && $slope !== null) ? $this->consumption->hddNormalYearSd($hddBase - $tempOffset) : null;
             $weather = $yearSd !== null ? ($slope * $yearSd) ** 2 : $weatherVar;
             $half = $z * sqrt($weather + $noiseVar);
@@ -306,6 +377,8 @@ final class ForecastService
 
         // Hinweise (Lektion 33: nicht stumm)
         $warnings = [];
+        // v3.7.0 (#37) — „Verbrauch für N Kalendermonate“ zählt gemessene Kalendermonate:
+        // Ohne sie lag die Prognose bei echten Daten ohne Warnung weit daneben
         $covered = count(array_filter($avgRate, fn($v) => $v !== null));
         if ($covered < 12) {
             $warnings[] = [
@@ -315,7 +388,36 @@ final class ForecastService
             ];
         }
         if ($hgt && $hddSource !== 'climate_normal') {
-            $warnings[] = ['code' => 'no_climate_normal', 'hdd_source' => $hddSource];
+            // v3.7.0 (wirklichkeit-2) — es gibt ein Normal, aber nicht für diese Heizgrenze
+            // (gespeichert vor dem Raster ab 6 °C, oder außerhalb des Rasters): sagen, statt
+            // still mit der nächsten Rastergrenze zu rechnen
+            $climate = $this->consumption->climate();
+            $warnings[] = $climate->summary() !== null && !$climate->covers($hddBase - $tempOffset)
+                ? ['code' => 'climate_normal_grid', 'base' => round($hddBase - $tempOffset, 1), 'min' => ClimateNormalService::BASE_MIN,
+                   'max' => ClimateNormalService::BASE_MAX, 'hdd_source' => $hddSource]
+                : ['code' => 'no_climate_normal', 'hdd_source' => $hddSource];
+        }
+        // v3.7.0 (#37) — verteilte Monate prägen weder Saisonprofil noch Heizkurve;
+        // die Prognose sagt, worauf sie stattdessen beruht (Lektion 33: nicht stumm)
+        $interp = count(array_filter($monthly, fn($m) => !empty($m['interpolated']) && empty($m['pre_baseline'])));
+        if ($interp > 0) {
+            $info = $this->consumption->interpolationInfo($utility, $meter, $monthly);
+            $warnings[] = ['code' => 'interpolated', 'months' => $interp, 'readings' => $info['readings'] ?? null,
+                'heat_basis' => $heat['basis'] ?? null];
+        }
+        // v3.7.0 (wirklichkeit-2) — Gütesperre: kein Band, Heizanteil unsicher
+        if ($poorFit) {
+            $warnings[] = ['code' => 'poor_fit', 'ratio' => $quality['ratio'], 'reasons' => $quality['reasons']];
+        }
+        // v3.7.0 (Schritt 3, N3) — zu wenig gemessen, um das Heizmodell zu prüfen: kein Band
+        if ($fewMeasured) {
+            $warnings[] = ['code' => 'few_measured', 'heat_basis' => $heat['basis'] ?? null];
+        }
+        // v3.7.0 (wirklichkeit-2) — die gewählte Heizkurve passt nicht (zu wenig Punkte,
+        // R² zu klein, entartet): Die Prognose rechnet dann ohne sie weiter und sagt es
+        if ($reg !== null && empty($reg['valid'])) {
+            $warnings[] = ['code' => 'regression_invalid', 'model' => (string)($reg['model'] ?? ''), 'reason' => (string)($reg['reason'] ?? 'too_few_points'),
+                'n' => (int)($reg['n'] ?? 0), 'r2' => isset($reg['r2']) ? (float)$reg['r2'] : null];
         }
 
         // v3.1.0 (H4, MKT-26) — CO₂-Preis-Szenario: Mehrkosten ab einem Jahr, wenn der
@@ -355,8 +457,11 @@ final class ForecastService
             'climate_normal' => $this->consumption->climate()->summary(),
             'co2_scenario' => $co2Scenario,
             // v3.6.0 (F1031) — Heizmodell Verbrauch = a × HGT + c × Tage (oder null)
-            'heat_model'   => $heat !== null ? ['a' => round($heat['a'], 6), 'c' => round($heat['c'], 6), 'n' => $heat['n']] : null,
+            // v3.7.0 (#37) — `basis`: months | intervals (Ablesungsabstände)
+            'heat_model'   => $heat !== null ? ['a' => round($heat['a'], 6), 'c' => round($heat['c'], 6), 'n' => $heat['n'], 'basis' => $heat['basis'] ?? 'months'] : null,
             'hdd_base'     => $hgt ? $hddBase : null,
+            // v3.7.0 (wirklichkeit-2) — Gütesperre des Heizmodells (additiv)
+            'fit_quality'  => $quality !== null ? ['model_quality' => $quality['model_quality'], 'ratio' => $quality['ratio'], 'reasons' => $quality['reasons']] : null,
             'options'      => [
                 'temp_offset'   => $tempOffset,
                 'price_factor'  => $priceFactor,

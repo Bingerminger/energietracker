@@ -6551,7 +6551,9 @@
             "recurrence_months": 96,
             "last_done": "2023-05-31",
             "notes": "Eichfrist nach MessEV",
-            "active": true
+            "active": true,
+            "utility": "gas",
+            "meter_id": "m_gas_main"
         }
     ],
     "activity": [
@@ -7013,6 +7015,30 @@
                             "date": "2024-08-01",
                             "label": "Dachdämmung"
                         }
+                    ],
+                    "assignee_id": "u_c7a2ecac"
+                },
+                {
+                    "id": "m_gas_werkstatt",
+                    "name": "Werkstatt (Zwischenzähler)",
+                    "icon": "🔧",
+                    "created_at": "2023-06-01",
+                    "active": true,
+                    "notes": "Zwischenzähler hinter dem Hauptzähler für den Gasheizer der Werkstatt; abgelesen wird nur bei der Wartung, etwa alle drei Monate.",
+                    "parent_meter_id": "m_gas_main",
+                    "meter_group_id": null,
+                    "external_id": null,
+                    "baseline_events": [],
+                    "devices": [
+                        {
+                            "id": "d_gas_werkstatt",
+                            "serial": "G-2021-316",
+                            "installed_on": "2023-06-01",
+                            "initial_counter": 0,
+                            "removed_on": null,
+                            "final_counter": null,
+                            "reason": null
+                        }
                     ]
                 }
             ],
@@ -7463,6 +7489,138 @@
                     "device_id": "d_gas_002",
                     "date": "2026-03-15",
                     "counter": 1384.6,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_gas_werkstatt_20230601",
+                    "meter_id": "m_gas_werkstatt",
+                    "device_id": "d_gas_werkstatt",
+                    "date": "2023-06-01",
+                    "counter": 412.6,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_gas_werkstatt_20230830",
+                    "meter_id": "m_gas_werkstatt",
+                    "device_id": "d_gas_werkstatt",
+                    "date": "2023-08-30",
+                    "counter": 420.2,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_gas_werkstatt_20231129",
+                    "meter_id": "m_gas_werkstatt",
+                    "device_id": "d_gas_werkstatt",
+                    "date": "2023-11-29",
+                    "counter": 495.4,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_gas_werkstatt_20240304",
+                    "meter_id": "m_gas_werkstatt",
+                    "device_id": "d_gas_werkstatt",
+                    "date": "2024-03-04",
+                    "counter": 722.4,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_gas_werkstatt_20240527",
+                    "meter_id": "m_gas_werkstatt",
+                    "device_id": "d_gas_werkstatt",
+                    "date": "2024-05-27",
+                    "counter": 792.9,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_gas_werkstatt_20240902",
+                    "meter_id": "m_gas_werkstatt",
+                    "device_id": "d_gas_werkstatt",
+                    "date": "2024-09-02",
+                    "counter": 801.1,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_gas_werkstatt_20241206",
+                    "meter_id": "m_gas_werkstatt",
+                    "device_id": "d_gas_werkstatt",
+                    "date": "2024-12-06",
+                    "counter": 887.4,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_gas_werkstatt_20250305",
+                    "meter_id": "m_gas_werkstatt",
+                    "device_id": "d_gas_werkstatt",
+                    "date": "2025-03-05",
+                    "counter": 1097,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_gas_werkstatt_20250604",
+                    "meter_id": "m_gas_werkstatt",
+                    "device_id": "d_gas_werkstatt",
+                    "date": "2025-06-04",
+                    "counter": 1172.9,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_gas_werkstatt_20250904",
+                    "meter_id": "m_gas_werkstatt",
+                    "device_id": "d_gas_werkstatt",
+                    "date": "2025-09-04",
+                    "counter": 1180.6,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_gas_werkstatt_20251206",
+                    "meter_id": "m_gas_werkstatt",
+                    "device_id": "d_gas_werkstatt",
+                    "date": "2025-12-06",
+                    "counter": 1271.3,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_gas_werkstatt_20260226",
+                    "meter_id": "m_gas_werkstatt",
+                    "device_id": "d_gas_werkstatt",
+                    "date": "2026-02-26",
+                    "counter": 1462.5,
                     "price_cents": null,
                     "note": "",
                     "is_estimated": false,
@@ -8278,7 +8436,8 @@
                     "notice_period_months": 1,
                     "min_term_end": null,
                     "price_guarantee_until": null,
-                    "signup_bonus_eur": null
+                    "signup_bonus_eur": null,
+                    "assignee_id": "u_a1fbab95"
                 },
                 {
                     "id": "c_strom_shadow_natur",
@@ -10805,5 +10964,444 @@
                 "deleted_by": null
             }
         ]
-    }
+    },
+    "attachments": [
+        {
+            "id": "att_5240ff1e4d3c847a",
+            "kind": "inbox_pdf",
+            "mime": "application/pdf",
+            "size": 4087,
+            "sha256": "177853d503cb1a0f196d0a40af85d3df73ee2a7c86081a9139ad464f65e24273",
+            "created_at": "2026-02-05T18:42:00+01:00",
+            "ref": {
+                "type": "inbox",
+                "id": "inb_56ae17da0845"
+            },
+            "original_name": "Jahresabrechnung-Erdgas-2025.pdf"
+        }
+    ],
+    "attachment_files": {
+        "att_5240ff1e4d3c847a": "JVBERi0xLjQKJeLjz9MKMSAwIG9iago8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgMiAwIFIgL0xhbmcgKGRlLURFKSA+PgplbmRvYmoKMiAwIG9iago8PCAvVHlwZSAvUGFnZXMgL0tpZHMgWzYgMCBSIDggMCBSIDEwIDAgUl0gL0NvdW50IDMgPj4KZW5kb2JqCjMgMCBvYmoKPDwgL1R5cGUgL0ZvbnQgL1N1YnR5cGUgL1R5cGUxIC9CYXNlRm9udCAvSGVsdmV0aWNhIC9FbmNvZGluZyAvV2luQW5zaUVuY29kaW5nID4+CmVuZG9iago0IDAgb2JqCjw8IC9UeXBlIC9Gb250IC9TdWJ0eXBlIC9UeXBlMSAvQmFzZUZvbnQgL0hlbHZldGljYS1Cb2xkIC9FbmNvZGluZyAvV2luQW5zaUVuY29kaW5nID4+CmVuZG9iago1IDAgb2JqCjw8IC9MZW5ndGggMTI4NiA+PgpzdHJlYW0KQlQgL0YxIDggVGYgMSAwIDAgMSA1NiA3NzcgVG0gKE5vcmR3aW5kIEVuZXJnaWUgR21iSCC3IEt1bmRlbnNlcnZpY2UgtyBQb3N0ZmFjaCAxMiAzNCC3IDIwMDAxIE11c3RlcmhhZmVuKSBUaiBFVApCVCAvRjIgMTUgVGYgMSAwIDAgMSA1NiA3MzEgVG0gKEphaHJlc2FicmVjaG51bmcgRXJkZ2FzIDIwMjUpIFRqIEVUCkJUIC9GMSAxMCBUZiAxIDAgMCAxIDU2IDcwOCBUbSAoUmVjaG51bmdzZGF0dW06IDAzLjAyLjIwMjYpIFRqIEVUCkJUIC9GMSAxMCBUZiAxIDAgMCAxIDU2IDY5MyBUbSAoS3VuZGVubnVtbWVyOiBLRC0yMDI1LTA4MTUpIFRqIEVUCkJUIC9GMSAxMCBUZiAxIDAgMCAxIDU2IDY3OCBUbSAoVmVydHJhZ3Nrb250bzogTlctR0FTLTQ0MTcpIFRqIEVUCkJUIC9GMSAxMCBUZiAxIDAgMCAxIDU2IDY2MyBUbSAoVGFyaWY6IEVhc3kgR2FzIDEyKSBUaiBFVApCVCAvRjEgMTAgVGYgMSAwIDAgMSA1NiA2NDAgVG0gKEFicmVjaG51bmdzemVpdHJhdW06IDAxLjAxLjIwMjUgYmlzIDMxLjEyLjIwMjUpIFRqIEVUCkJUIC9GMSAxMCBUZiAxIDAgMCAxIDU2IDYyNSBUbSAoWuRobGVybnVtbWVyOiBHLTIwMjQtOTk4KSBUaiBFVApCVCAvRjEgMTAgVGYgMSAwIDAgMSA1NiA2MTAgVG0gKE1hcmt0bG9rYXRpb246IDUwMTIzNDU2Nzg5KSBUaiBFVApCVCAvRjEgMTAgVGYgMSAwIDAgMSA1NiA1ODcgVG0gKFrkaGxlcnN0YW5kIGFsdCBhbSAzMS4xMi4yMDI0OiAyOTAsMCBtsykgVGogRVQKQlQgL0YxIDEwIFRmIDEgMCAwIDEgNTYgNTcyIFRtICha5GhsZXJzdGFuZCBuZXUgYW0gMzEuMTIuMjAyNTogMS4yMzUsNiBtsykgVGogRVQKQlQgL0YxIDEwIFRmIDEgMCAwIDEgNTYgNTU3IFRtIChWZXJicmF1Y2g6IDk0NSw2IG2zID0gMTAuNTQwIGtXaCkgVGogRVQKQlQgL0YyIDEwIFRmIDEgMCAwIDEgNTYgNTM0IFRtIChSZWNobnVuZ3NiZXRyYWcgYnJ1dHRvOiA5NTEsNDYggCkgVGogRVQKQlQgL0YxIDEwIFRmIDEgMCAwIDEgNTYgNTE5IFRtIChHZWxlaXN0ZXRlIEFic2NobORnZTogMS41MDAsMDAggCkgVGogRVQKQlQgL0YyIDEwIFRmIDEgMCAwIDEgNTYgNTA0IFRtIChJaHIgR3V0aGFiZW46IDU0OCw1NCCAKSBUaiBFVApCVCAvRjEgMTAgVGYgMSAwIDAgMSA1NiA0ODEgVG0gKERhcyBHdXRoYWJlbiD8YmVyd2Vpc2VuIHdpciBpbiBkZW4gbuRjaHN0ZW4gVGFnZW4gYXVmIElociBLb250by4pIFRqIEVUCkJUIC9GMiAxMCBUZiAxIDAgMCAxIDU2IDQ2NiBUbSAoSWhyIG5ldWVyIEFic2NobGFnIGFiIDAxLjAyLjIwMjY6IDgwLDAwIIAgbW9uYXRsaWNoKSBUaiBFVAplbmRzdHJlYW0KZW5kb2JqCjYgMCBvYmoKPDwgL1R5cGUgL1BhZ2UgL1BhcmVudCAyIDAgUiAvTWVkaWFCb3ggWzAgMCA1OTUgODQyXSAvUmVzb3VyY2VzIDw8IC9Gb250IDw8IC9GMSAzIDAgUiAvRjIgNCAwIFIgPj4gPj4gL0NvbnRlbnRzIDUgMCBSID4+CmVuZG9iago3IDAgb2JqCjw8IC9MZW5ndGggOTQxID4+CnN0cmVhbQpCVCAvRjIgMTMgVGYgMSAwIDAgMSA1NiA3NjIgVG0gKEFicmVjaG51bmdzZGV0YWlscykgVGogRVQKQlQgL0YxIDkgVGYgMSAwIDAgMSA1NiA3NDAgVG0gKFplaXRyYXVtIDAxLjAxLjIwMjUgYmlzIDMwLjA5LjIwMjU6IDY2MywwIG2zINcgWnVzdGFuZHN6YWhsIDAsOTYwMCDXIEJyZW5ud2VydCAxMSw2NTAga1doL22zID0gNy40MTUga1doKSBUaiBFVApCVCAvRjEgOSBUZiAxIDAgMCAxIDU2IDcyNiBUbSAoWmVpdHJhdW0gMDEuMTAuMjAyNSBiaXMgMzEuMTIuMjAyNTogMjgyLDYgbbMg1yBadXN0YW5kc3phaGwgMCw5NjAwINcgQnJlbm53ZXJ0IDExLDUyMCBrV2gvbbMgPSAzLjEyNSBrV2gpIFRqIEVUCkJUIC9GMSA5IFRmIDEgMCAwIDEgNTYgNzA0IFRtIChBcmJlaXRzcHJlaXMgYWIgMDEuMDEuMjAyNTogNyw5MCBjdC9rV2gg1yAxMC41NDAga1doID0gODMyLDY2IIApIFRqIEVUCkJUIC9GMSA5IFRmIDEgMCAwIDEgNTYgNjkwIFRtIChHcnVuZHByZWlzOiA5LDkwIIAgcHJvIE1vbmF0INcgMTIgTW9uYXRlID0gMTE4LDgwIIApIFRqIEVUCkJUIC9GMiA5IFRmIDEgMCAwIDEgNTYgNjc2IFRtIChHZXNhbXRiZXRyYWcgYnJ1dHRvIFwoaW5rbC4gMTkgJSBVU3QuXCk6IDk1MSw0NiCAKSBUaiBFVApCVCAvRjEgOSBUZiAxIDAgMCAxIDU2IDY1NCBUbSAoQWJzY2hs5GdlIEphbnVhciBiaXMgSnVuaSAyMDI1OiA2INcgMTI1LDAwIIAgPSA3NTAsMDAggCkgVGogRVQKQlQgL0YxIDkgVGYgMSAwIDAgMSA1NiA2NDAgVG0gKEFic2NobORnZSBKdWxpIGJpcyBEZXplbWJlciAyMDI1OiA2INcgMTI1LDAwIIAgPSA3NTAsMDAggCkgVGogRVQKQlQgL0YxIDkgVGYgMSAwIDAgMSA1NiA2MjYgVG0gKFN1bW1lIGRlciBBYnNjaGzkZ2U6IDEuNTAwLDAwIIApIFRqIEVUCkJUIC9GMiA5IFRmIDEgMCAwIDEgNTYgNjEyIFRtIChHdXRoYWJlbjogNTQ4LDU0IIApIFRqIEVUCmVuZHN0cmVhbQplbmRvYmoKOCAwIG9iago8PCAvVHlwZSAvUGFnZSAvUGFyZW50IDIgMCBSIC9NZWRpYUJveCBbMCAwIDU5NSA4NDJdIC9SZXNvdXJjZXMgPDwgL0ZvbnQgPDwgL0YxIDMgMCBSIC9GMiA0IDAgUiA+PiA+PiAvQ29udGVudHMgNyAwIFIgPj4KZW5kb2JqCjkgMCBvYmoKPDwgL0xlbmd0aCA1MzMgPj4Kc3RyZWFtCkJUIC9GMiAxMiBUZiAxIDAgMCAxIDU2IDc2MyBUbSAoRXJn5G56ZW5kZSBCZWRpbmd1bmdlbiBkZXIgTm9yZHdpbmQgRW5lcmdpZSBHbWJIKSBUaiBFVApCVCAvRjEgOSBUZiAxIDAgMCAxIDU2IDc0NSBUbSAopyAxIEdlbHR1bmdzYmVyZWljaCkgVGogRVQKQlQgL0YxIDkgVGYgMSAwIDAgMSA1NiA3MjcgVG0gKKcgMiBWZXJ0cmFnc3NjaGx1c3MgdW5kIExpZWZlcmJlZ2lubikgVGogRVQKQlQgL0YxIDkgVGYgMSAwIDAgMSA1NiA3MDkgVG0gKKcgMyBQcmVpc2UgdW5kIFByZWlz5G5kZXJ1bmdlbikgVGogRVQKQlQgL0YxIDkgVGYgMSAwIDAgMSA1NiA2OTEgVG0gKKcgNCBBYnJlY2hudW5nIHVuZCBBYnNjaGzkZ2UpIFRqIEVUCkJUIC9GMSA5IFRmIDEgMCAwIDEgNTYgNjczIFRtICinIDUgWmFobHVuZyB1bmQgVmVyenVnKSBUaiBFVApCVCAvRjEgOSBUZiAxIDAgMCAxIDU2IDY1NSBUbSAopyA2IExhdWZ6ZWl0IHVuZCBL/G5kaWd1bmcpIFRqIEVUCkJUIC9GMSA5IFRmIDEgMCAwIDEgNTYgNjM3IFRtICinIDcgSGFmdHVuZykgVGogRVQKZW5kc3RyZWFtCmVuZG9iagoxMCAwIG9iago8PCAvVHlwZSAvUGFnZSAvUGFyZW50IDIgMCBSIC9NZWRpYUJveCBbMCAwIDU5NSA4NDJdIC9SZXNvdXJjZXMgPDwgL0ZvbnQgPDwgL0YxIDMgMCBSIC9GMiA0IDAgUiA+PiA+PiAvQ29udGVudHMgOSAwIFIgPj4KZW5kb2JqCjExIDAgb2JqCjw8IC9UaXRsZSAoSmFocmVzYWJyZWNobnVuZyBFcmRnYXMgMjAyNSkgL1Byb2R1Y2VyIChFbmVyZ2lldHJhY2tlciBCZWlzcGllbGRhdGVuKSA+PgplbmRvYmoKeHJlZgowIDEyCjAwMDAwMDAwMDAgNjU1MzUgZiAKMDAwMDAwMDAxNSAwMDAwMCBuIAowMDAwMDAwMDc4IDAwMDAwIG4gCjAwMDAwMDAxNDggMDAwMDAgbiAKMDAwMDAwMDI0NSAwMDAwMCBuIAowMDAwMDAwMzQ3IDAwMDAwIG4gCjAwMDAwMDE2ODQgMDAwMDAgbiAKMDAwMDAwMTgyMCAwMDAwMCBuIAowMDAwMDAyODExIDAwMDAwIG4gCjAwMDAwMDI5NDcgMDAwMDAgbiAKMDAwMDAwMzUzMCAwMDAwMCBuIAowMDAwMDAzNjY3IDAwMDAwIG4gCnRyYWlsZXIKPDwgL1NpemUgMTIgL1Jvb3QgMSAwIFIgL0luZm8gMTEgMCBSID4+CnN0YXJ0eHJlZgozNzY4CiUlRU9GCg=="
+    },
+    "inbox": [
+        {
+            "id": "inb_56ae17da0845",
+            "attachment_id": "att_5240ff1e4d3c847a",
+            "sha256": "177853d503cb1a0f196d0a40af85d3df73ee2a7c86081a9139ad464f65e24273",
+            "size": 4087,
+            "name": "Jahresabrechnung-Erdgas-2025.pdf",
+            "pages": 3,
+            "created_at": "2026-02-05T18:42:00+01:00",
+            "updated_at": "2026-02-05T18:44:00+01:00",
+            "status": "read",
+            "type": "invoice",
+            "type_confidence": 0.98,
+            "extraction": {
+                "provider": "local",
+                "model": "qwen3.8",
+                "schema_version": 4,
+                "type": "invoice",
+                "fields": {
+                    "utility": {
+                        "value": "gas",
+                        "raw": "gas",
+                        "quote": "Jahresabrechnung Erdgas 2025",
+                        "page": 1,
+                        "status": "ok",
+                        "reasons": []
+                    },
+                    "supplier": {
+                        "value": "Nordwind Energie GmbH",
+                        "raw": "Nordwind Energie GmbH",
+                        "quote": "Nordwind Energie GmbH",
+                        "page": 1,
+                        "status": "ok",
+                        "reasons": []
+                    },
+                    "kind": {
+                        "value": "annual",
+                        "raw": "annual",
+                        "quote": "Jahresabrechnung Erdgas 2025",
+                        "page": 1,
+                        "status": "ok",
+                        "reasons": []
+                    },
+                    "period_from": {
+                        "value": "2025-01-01",
+                        "raw": "01.01.2025",
+                        "quote": "Abrechnungszeitraum: 01.01.2025 bis 31.12.2025",
+                        "page": 1,
+                        "status": "ok",
+                        "reasons": []
+                    },
+                    "period_to": {
+                        "value": "2025-12-31",
+                        "raw": "31.12.2025",
+                        "quote": "Abrechnungszeitraum: 01.01.2025 bis 31.12.2025",
+                        "page": 1,
+                        "status": "ok",
+                        "reasons": []
+                    },
+                    "consumption": {
+                        "value": 10450,
+                        "raw": "10.450",
+                        "quote": "Verbrauch: 945,6 m³ = 10.540 kWh",
+                        "page": 1,
+                        "status": "check",
+                        "reasons": [
+                            "value_not_in_quote"
+                        ]
+                    },
+                    "reading_new": {
+                        "value": 1235.6,
+                        "raw": "1.235,6",
+                        "quote": "Zählerstand neu am 31.12.2025: 1.235,6 m³",
+                        "page": 1,
+                        "status": "ok",
+                        "reasons": []
+                    },
+                    "reading_new_date": {
+                        "value": "2025-12-31",
+                        "raw": "31.12.2025",
+                        "quote": "Zählerstand neu am 31.12.2025",
+                        "page": 1,
+                        "status": "ok",
+                        "reasons": []
+                    },
+                    "reading_new_estimated": {
+                        "value": false,
+                        "status": "ok",
+                        "reasons": [],
+                        "raw": null,
+                        "quote": null,
+                        "page": null
+                    },
+                    "reading_old": {
+                        "value": 290,
+                        "raw": "290,0",
+                        "quote": "Zählerstand alt am 31.12.2024: 290,0 m³",
+                        "page": 1,
+                        "status": "ok",
+                        "reasons": []
+                    },
+                    "reading_old_date": {
+                        "value": "2024-12-31",
+                        "raw": "31.12.2024",
+                        "quote": "Zählerstand alt am 31.12.2024",
+                        "page": 1,
+                        "status": "ok",
+                        "reasons": []
+                    },
+                    "reading_old_estimated": {
+                        "value": false,
+                        "status": "ok",
+                        "reasons": [],
+                        "raw": null,
+                        "quote": null,
+                        "page": null
+                    },
+                    "total_amount": {
+                        "value": 951.46,
+                        "raw": "951,46",
+                        "quote": "Rechnungsbetrag brutto: 951,46 €",
+                        "page": 1,
+                        "status": "ok",
+                        "reasons": []
+                    },
+                    "advances_paid": {
+                        "value": [
+                            {
+                                "amount": 750,
+                                "date": null
+                            },
+                            {
+                                "amount": 750,
+                                "date": null
+                            }
+                        ],
+                        "raw": null,
+                        "quote": null,
+                        "page": null,
+                        "status": "ok",
+                        "reasons": [],
+                        "items": [
+                            {
+                                "value": {
+                                    "amount": 750,
+                                    "date": null
+                                },
+                                "quote": "Abschläge Januar bis Juni 2025: 6 × 125,00 € = 750,00 €",
+                                "page": 2,
+                                "status": "ok",
+                                "reasons": []
+                            },
+                            {
+                                "value": {
+                                    "amount": 750,
+                                    "date": null
+                                },
+                                "quote": "Abschläge Juli bis Dezember 2025: 6 × 125,00 € = 750,00 €",
+                                "page": 2,
+                                "status": "ok",
+                                "reasons": []
+                            }
+                        ],
+                        "sum": 1500
+                    },
+                    "advances_total": {
+                        "value": 1500,
+                        "raw": "1.500,00",
+                        "quote": "Summe der Abschläge: 1.500,00 €",
+                        "page": 2,
+                        "status": "ok",
+                        "reasons": []
+                    },
+                    "result_kind": {
+                        "value": "credit",
+                        "raw": "credit",
+                        "quote": "Ihr Guthaben: 548,54 €",
+                        "page": 1,
+                        "status": "ok",
+                        "reasons": []
+                    },
+                    "result_amount": {
+                        "value": 548.54,
+                        "raw": "548,54",
+                        "quote": "Ihr Guthaben: 548,54 €",
+                        "page": 1,
+                        "status": "ok",
+                        "reasons": []
+                    },
+                    "advance_new": {
+                        "value": 80,
+                        "raw": "80,00",
+                        "quote": "Ihr neuer Abschlag ab 01.02.2026: 80,00 € monatlich",
+                        "page": 1,
+                        "status": "ok",
+                        "reasons": []
+                    },
+                    "advance_new_from": {
+                        "value": "2026-02-01",
+                        "raw": "01.02.2026",
+                        "quote": "Ihr neuer Abschlag ab 01.02.2026",
+                        "page": 1,
+                        "status": "ok",
+                        "reasons": []
+                    },
+                    "meter_number": {
+                        "value": "G-2024-998",
+                        "raw": "G-2024-998",
+                        "quote": "Zählernummer: G-2024-998",
+                        "page": 1,
+                        "status": "ok",
+                        "reasons": []
+                    },
+                    "meter_readings": {
+                        "value": [],
+                        "raw": null,
+                        "quote": null,
+                        "page": null,
+                        "status": "empty",
+                        "reasons": [
+                            "missing"
+                        ],
+                        "items": []
+                    },
+                    "market_location": {
+                        "value": "50123456789",
+                        "raw": "50123456789",
+                        "quote": "Marktlokation: 50123456789",
+                        "page": 1,
+                        "status": "ok",
+                        "reasons": []
+                    },
+                    "contract_number": {
+                        "value": "NW-GAS-4417",
+                        "raw": "NW-GAS-4417",
+                        "quote": "Vertragskonto: NW-GAS-4417",
+                        "page": 1,
+                        "status": "ok",
+                        "reasons": []
+                    },
+                    "customer_number": {
+                        "value": "KD-2025-0815",
+                        "raw": "KD-2025-0815",
+                        "quote": "Kundennummer: KD-2025-0815",
+                        "page": 1,
+                        "status": "ok",
+                        "reasons": []
+                    },
+                    "gas_factors": {
+                        "value": [
+                            {
+                                "from": "2025-01-01",
+                                "to": "2025-09-30",
+                                "z": 0.96,
+                                "hs": 11.65
+                            },
+                            {
+                                "from": "2025-10-01",
+                                "to": "2025-12-31",
+                                "z": 0.96,
+                                "hs": 11.52
+                            }
+                        ],
+                        "raw": null,
+                        "quote": null,
+                        "page": null,
+                        "status": "ok",
+                        "reasons": [],
+                        "items": [
+                            {
+                                "value": {
+                                    "from": "2025-01-01",
+                                    "to": "2025-09-30",
+                                    "z": 0.96,
+                                    "hs": 11.65
+                                },
+                                "quote": "Zeitraum 01.01.2025 bis 30.09.2025: 663,0 m³ × Zustandszahl 0,9600 × Brennwert 11,650 kWh/m³",
+                                "page": 2,
+                                "status": "ok",
+                                "reasons": []
+                            },
+                            {
+                                "value": {
+                                    "from": "2025-10-01",
+                                    "to": "2025-12-31",
+                                    "z": 0.96,
+                                    "hs": 11.52
+                                },
+                                "quote": "Zeitraum 01.10.2025 bis 31.12.2025: 282,6 m³ × Zustandszahl 0,9600 × Brennwert 11,520 kWh/m³",
+                                "page": 2,
+                                "status": "ok",
+                                "reasons": []
+                            }
+                        ]
+                    },
+                    "working_prices": {
+                        "value": [
+                            {
+                                "from": "2025-01-01",
+                                "ct": 7.9,
+                                "basis": null,
+                                "vat_pct": null
+                            }
+                        ],
+                        "raw": null,
+                        "quote": null,
+                        "page": null,
+                        "status": "check",
+                        "reasons": [
+                            "price_from_invoice"
+                        ],
+                        "items": [
+                            {
+                                "value": {
+                                    "from": "2025-01-01",
+                                    "ct": 7.9,
+                                    "basis": null,
+                                    "vat_pct": null
+                                },
+                                "quote": "Arbeitspreis ab 01.01.2025: 7,90 ct/kWh",
+                                "page": 2,
+                                "status": "check",
+                                "reasons": [
+                                    "price_from_invoice"
+                                ],
+                                "vat_read": {
+                                    "vat_pct": 19,
+                                    "from": "line"
+                                }
+                            }
+                        ]
+                    },
+                    "base_price": {
+                        "value": 9.9,
+                        "raw": "9,90",
+                        "quote": "Grundpreis: 9,90 € pro Monat",
+                        "page": 2,
+                        "status": "check",
+                        "reasons": [
+                            "price_from_invoice"
+                        ],
+                        "vat_read": {
+                            "vat_pct": 19,
+                            "from": "line"
+                        }
+                    },
+                    "base_price_period": {
+                        "value": "month",
+                        "raw": "month",
+                        "quote": "Grundpreis: 9,90 € pro Monat",
+                        "page": 2,
+                        "status": "ok",
+                        "reasons": []
+                    },
+                    "base_price_basis": {
+                        "value": null,
+                        "raw": null,
+                        "quote": null,
+                        "page": null,
+                        "status": "empty",
+                        "reasons": [
+                            "missing"
+                        ]
+                    },
+                    "base_price_vat_pct": {
+                        "value": null,
+                        "raw": null,
+                        "quote": null,
+                        "page": null,
+                        "status": "empty",
+                        "reasons": [
+                            "missing"
+                        ]
+                    },
+                    "document_date": {
+                        "value": null,
+                        "raw": null,
+                        "quote": null,
+                        "page": null,
+                        "status": "empty",
+                        "reasons": [
+                            "missing"
+                        ]
+                    },
+                    "document_title": {
+                        "value": null,
+                        "raw": null,
+                        "quote": null,
+                        "page": null,
+                        "status": "empty",
+                        "reasons": [
+                            "missing"
+                        ]
+                    }
+                },
+                "flags": 3,
+                "seconds": {
+                    "classify": 9.4,
+                    "extract": 68.7
+                },
+                "cached": false,
+                "extracted_at": "2026-02-05T18:44:00+01:00",
+                "text": {
+                    "chars": 1180,
+                    "kept": [
+                        1,
+                        2
+                    ],
+                    "dropped": [
+                        3
+                    ],
+                    "truncated": false
+                }
+            },
+            "cache": {},
+            "assignment": null,
+            "edits": {},
+            "applied": [],
+            "error": null
+        }
+    ]
 }

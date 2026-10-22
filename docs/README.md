@@ -2,7 +2,7 @@
 
 [English](en/README.md) · **Deutsch**
 
-> Dokumentation zu Energietracker **v3.6.0**, geordnet nach dem, was du
+> Dokumentation zu Energietracker **v3.7.0**, geordnet nach dem, was du
 > vorhast. Deutsch ist die maßgebliche Fassung, Englisch der vollständige
 > Spiegel; die übrigen Oberflächensprachen haben die Hilfe in der App.
 >
@@ -15,7 +15,9 @@ Abrechnung, Wetterbereinigung, Prognose und Wechselentscheidung — ohne
 Datenbank, alles als JSON-Dateien auf dem eigenen Server. Nach außen spricht sie
 nur mit Open-Meteo (Wetterdaten), auf Knopfdruck mit SMARD (Börsenstrompreise)
 — und, wenn du sie einträgst, mit deinem eigenen Texterkennungsdienst und mit
-evcc im Heimnetz.
+evcc im Heimnetz. Das Auslesen im Posteingang über einen Cloud-Dienst (Claude
+unter `api.anthropic.com`, OpenAI, Mistral, OpenRouter, Google Gemini oder eine
+eigene OpenAI-kompatible Adresse; experimentell) geht nur mit einem Opt-in.
 
 ---
 
@@ -33,6 +35,7 @@ evcc im Heimnetz.
 
 | Dokument | Inhalt |
 |---|---|
+| [**Haushalt aus Dokumenten anlegen**](anleitungen/haushalt-aus-dokumenten.md) | *Neu in v3.7.0:* Versorgerpost ablegen und auslesen, ein Entwurf über alle Dokumente — Zähler, Verträge mit Preiskette, Ablesungen, Rechnungen, Termine; nur Zweifelhaftes prüfen, mit einem Klick übernehmen; welche Dokumente helfen, Grenzen |
 | [**Was wäre wenn? Die Prognose-Werkstatt**](anleitungen/was-waere-wenn.md) | *Neu in v3.6.0:* Was kostet ein kalter Winter, was bringt die Dämmung, lohnt der Wechsel? Regler bewegen, Ergebnis sofort sehen — Ergebniskarte, Kurven, Rangliste, beste Kombination unter einem Budget; speichern, drucken, als Bild teilen |
 | [Jahresabrechnung eintragen und prüfen](anleitungen/jahresabrechnung.md) | Stände, Preise, Gasfaktoren und Guthaben einer Rechnung übernehmen und nachrechnen — für Gas, Strom, Wasser und Fernwärme; die Rechnung erfassen, vergleichen und als Sonderzahlung buchen |
 | [Als Mieter: Heizung, Wasser und Nebenkosten](anleitungen/mieter.md) | Verbrauchsinfo Monat für Monat, Warm- und Kaltwasser, Vorauszahlung gegen erwartete Kosten, Nebenkostenabrechnung und ihre Fristen |
@@ -42,6 +45,7 @@ evcc im Heimnetz.
 | [Fristen und Termine im Kalender](anleitungen/kalender.md) | Kalender-Abo in Apple Kalender, Thunderbird und Google Kalender |
 | [Hinweise erledigen und der Verlauf](anleitungen/hinweise-erledigen.md) | Was sich von selbst erledigt (Folgevertrag, Ablesung, Lieferung), von Hand abhaken mit Datum, Notiz und Beleg, Rückgängig, Tab „Erledigt“, wer im Verlauf steht, Aufbewahrung und Datenschutz |
 | [Texterkennung im Heimnetz](anleitungen/texterkennung.md) | Zählerstand vom Foto vorschlagen lassen: Ollama oder LM Studio einrichten, Datenschutz, Fehlersuche |
+| [Posteingang: Versorgerpost auslesen lassen](anleitungen/posteingang.md) | *Neu in v3.7.0:* PDF ablegen (am iPad aus der Dateien-App), lokal mit qwen3.8 auslesen, jede Angabe mit Belegstelle prüfen, mit einem Klick übernehmen; von Hand erfassen neben dem Dokument, viele auf einmal, Datenschutz; in der Cloud auslesen als Opt-in — Claude (Anthropic) oder ein OpenAI-kompatibler Dienst, Schlüssel, was hinausgeht, Grenzen |
 | [Jahresbericht lesen](anleitungen/jahresbericht-lesen.md) | Das Wichtigste mit Ampeln, was sich gelohnt hat, Aufgaben mit Priorität, Betrag und Frist, Grafiken; Teilbericht und Sprache per Link, Versand über Home Assistant |
 | [Ladestrom für den Dienstwagen nachweisen](anleitungen/ladestrom-nachweis.md) | Wallbox als Zähler, Vertragspreis oder Strompreispauschale, Aufstellung als CSV und PDF — keine Steuerberatung |
 | [Ladevorgänge aus evcc](anleitungen/evcc.md) | CSV aus evcc hochladen oder im Heimnetz abrufen, Zählerstände der Wallbox, Sonnenanteil und Preis je Monat, mehrere Ladepunkte |
@@ -72,6 +76,7 @@ evcc im Heimnetz.
 | Dokument | Inhalt |
 |---|---|
 | [Ansichten](referenz/ansichten.md) | Jede Ansicht erklärt, mit echten Screenshots |
+| [Was kann ich auf welcher Stufe?](referenz/stufen.md) | *Neu in v3.7.0:* jede Funktion mit 🌱 Einsteiger · 🌿 Erfahren · 🌳 Experte, nach Aufgaben geordnet; welche Stufe zu deinem Haushalt passt (von einem Test gegen den Code geprüft) |
 | [Einstellungen](referenz/einstellungen.md) | Jeder Schlüssel mit Standardwert, Ort in der Oberfläche und Wirkung |
 | [API-Referenz](referenz/api.md) | Alle Routen mit Statuscodes und Stabilitätszusage (von einem Test gegen den Code geprüft) |
 | [API-Beispiele](referenz/api-beispiele.md) | Ausführliche Anfragen und Antworten der meistgenutzten Endpunkte |
@@ -97,6 +102,7 @@ evcc im Heimnetz.
 | [Übersetzen und Sprachen](entwicklung/uebersetzen.md) | Kataloge, Sprache je Gerät, Stilguide je Sprache, Checklisten für neue Sprachen und Schlüssel |
 | [Release-Prozess](entwicklung/release-prozess.md) | Versionierung, CHANGELOG, Doku-Pflege, Lessons Learned |
 | [Screenshots](entwicklung/screenshots.md) | Wie die Bilder dieser Doku entstehen |
+| [Messung mit großen Datenmengen](entwicklung/messung-grosse-daten.md) | Antwortzeiten bei zehn und zwanzig Jahren Tageswerten, Schwelle für N1006 (Caching und Speicher-Umbau) |
 
 Mitwirken: [CONTRIBUTING.de.md](../CONTRIBUTING.de.md) ·
 Sicherheitslücken: [SECURITY.md](../SECURITY.md) ·

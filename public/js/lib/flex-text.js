@@ -38,7 +38,36 @@ export function actionText(a) {
  */
 export function evBasisText(ev) {
   if (!ev) return '';
+  // v3.7.0 — eigene Steckzeit aus den Einstellungen (ohne evcc)
+  if (ev.basis === 'window' && ev.window) return t('flex.lever.evWindow', { from: hh(ev.window.from), until: hh(ev.window.until) });
   if (ev.basis !== 'sessions') return t('flex.lever.evDay');
   const all = tp('flex.lever.evSessions', ev.sessions, { count: fmt.int(ev.sessions) });
   return ev.share < 0.995 ? `${all} ${t('flex.lever.evPart', { share: fmt.pct(ev.share, 0) })}` : all;
+}
+
+/** v3.7.0 — Schild am Auto: Steckzeiten aus evcc, eigene Steckzeit oder „ganzer Ladetag (Beispielwert)“. */
+export function availabilityTagText(ev) {
+  if (!ev) return '';
+  if (ev.basis === 'sessions') return t('flex.availability.sessions');
+  if (ev.basis === 'window' && ev.window) return t('flex.availability.window', { from: hh(ev.window.from), until: hh(ev.window.until) });
+  return t('flex.availability.day');
+}
+
+/**
+ * v3.7.0 — die Annahmen der Hebel als Satz, je Teil „(Beispielwert)“ oder
+ * „(eigener Wert)“ — eigen, sobald in den Einstellungen gespeichert
+ * (`assumptions.own`, FlexibilityInsightService::assumptions()). Bis v3.6
+ * hießen alle „Beispielwerte“.
+ */
+export function assumptionsText(a = {}) {
+  const own = a.own || {};
+  const ap = a.appliances || {};
+  const mark = (on, part) => t(on ? 'flex.assume.own' : 'flex.assume.example', { part });
+  const parts = [
+    mark(own.heat_pump_share, t('flex.assume.hp', { hp: fmt.pct(a.heat_pump_share ?? 0.3, 0) })),
+    ...['washer', 'dishwasher'].filter(k => ap[k]).map(k => mark(own[k],
+      t(`flex.assume.${k}`, { kwh: fmt.dec(ap[k].kwh_per_cycle, 1), n: fmt.dec(ap[k].cycles_per_week, 1) }))),
+    t('flex.assume.hours', { h: fmt.int(ap.washer?.hours ?? 2) }),
+  ];
+  return t('flex.assume.lead', { parts: parts.join('; ') });
 }

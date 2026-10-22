@@ -16,12 +16,14 @@
 > “Expert” level shows today, and they do not show the level switch yet.
 
 The app is a single-page application. Since **v2.11.0** its navigation follows
-the users' questions: seven areas instead of 17 entries.
+the users' questions: seven areas instead of 17 entries. Since v3.7.0 the
+inbox is the eighth entry, below the meter readings.
 
 | Area | Pages |
 |---|---|
 | Overview | "To do", key figures, tanks and recommendations at a glance |
 | Meter readings | all meters in one go |
+| Inbox *(v3.7.0)* | File, read and take over supplier mail; key message per document (“What does this mean for you?”), review list; a file below every contract and meter — [guide](../anleitungen/posteingang.md) |
 | Consumption | one page per active utility |
 | Costs & contracts | Contracts & payments · Tariff switch · Check a bill · Tenancy (v3.1.0, only “in a rented home”) |
 | Insights | Analysis · Forecast · Flexibility (v3.3.0) · Annual report |
@@ -38,7 +40,8 @@ higher experience level shows (below).
 **Mac and iPad in landscape:** sidebar on the left once the window is at least
 **900 px** wide (since v3.5.0; up to v3.4 from 801 px — the iPad in portrait got
 it and left two thirds of the width to the content). The top bar holds **＋ Add**: meter readings,
-delivery and tank reading for heating oil and pellets, reminder. Next to it the
+delivery and tank reading for heating oil and pellets, reminder, since v3.7.0
+filing supplier mail. Next to it the
 appearance switch (system, light, dark), since v3.2.0 with the experience
 level in front of it.
 
@@ -65,9 +68,12 @@ it in the browser. An existing installation is on “Expert” after the update.
 
 | From level | Pages | Parts of pages |
 |---|---|---|
-| 🌱 Beginner | Overview (a view of its own, §1), Meter readings, Consumption per utility, Contracts & payments, Forecast workshop (v3.6.0, three sliders), Flexibility (v3.6.0: result, action sentences, typical day), Annual report, Reminders & maintenance, Recommendations, Help; Settings → General, Household & building, Utilities & billing, Data | — |
-| 🌿 Experienced | Tariff switch, Check a bill, Tenancy, Analysis, meter management of a utility (`#/utility/…/meters`), Weather data, Reminders & tips → Done (v3.4.0), Settings → Integrations | the overview with every key figure; in Flexibility (v3.6.0) the week, the best time windows, “Using solar power at home” and “Your lever”; in the forecast workshop room temperature, base load, forecast model, measures, ranking, month-by-month curve, balance and CO₂; in the consumption view the CO₂ tile, “Measured”/“Weather-adjusted”, the monthly table, the PV energy flow, “Check a bill” and “Charging sessions from evcc” (§3); in the contract dialog notice period, price guarantee, how cancellation takes effect, minimum term, “Renews unless cancelled”, bonuses and special payments; in the settings Display, Reminders, Own reference values, Water reference values, Physical constants and Energy sources (delivery) |
-| 🌳 Expert | Settings → Access, Expert, System | on the overview the “Explainers” section; in Flexibility the check per meter, battery, module 3 and the quarter-hour series (up to v3.5.0 the whole page was reserved for experts); in the consumption view hot-water heat, CO₂ price in the fuel, charging record, heat pump and the PV battery and payback; in the analysis the baseline date and “Effect of the measure”; in the forecast the model and the CO₂ price scenario, in the workshop heating curve, electric car, SPF, budget with optimisation, model comparison, range and CSV; under Tariff switch the dynamic tariff and “Wholesale electricity prices”; in the contract list the counts per contract (v3.4.0); in the contract dialog capacity and metering charge and the key figures of district heating, the reduced grid fee (§ 14a), the time-variable grid fee (§ 14a module 3, v3.3.0), the energy price per meter of a group, credit notes from the direct marketer and “Import monthly prices”; in the meter dialog group, baseline dates, PV system, the heat pump’s electricity meter and “Import time series”; in the tenancy “Sharing CO₂ costs”; in the settings CO₂ emission factors and Photovoltaics |
+| 🌱 Beginner | Overview (a view of its own, §1), Meter readings, Inbox (v3.7.0), Consumption per utility, Contracts & payments, Forecast workshop (v3.6.0, three sliders), Flexibility (v3.6.0: result, action sentences, typical day), Annual report, Reminders & maintenance, Recommendations, Help; Settings → General, Household & building, Utilities & billing, Data | since v3.7.0 in the contract dialog the notice period and, for district heating, capacity charge, metering charge and connected load |
+| 🌿 Experienced | Tariff switch, Check a bill, Tenancy, Analysis, meter management of a utility (`#/utility/…/meters`), Weather data, Reminders & tips → Done (v3.4.0), Settings → Integrations | the overview with every key figure and, since v3.7.0, the “Explainers” section; in Flexibility (v3.6.0) the week, the best time windows, “Using solar power at home” and “Your lever”; in the forecast workshop room temperature, base load, forecast model, measures, since v3.7.0 electric car and SPF, ranking, month-by-month curve, balance and CO₂; in the consumption view the CO₂ tile, “Measured”/“Weather-adjusted”, the monthly table, the PV energy flow, “Check a bill” and “Charging sessions from evcc” (§3), since v3.7.0 charging record, heat pump and the PV battery and payback; in the contract dialog price guarantee, how cancellation takes effect, minimum term, “Renews unless cancelled”, bonuses and special payments; in the meter dialog since v3.7.0 PV system and the heat pump’s electricity meter; in the tenancy since v3.7.0 “Sharing CO₂ costs”; in the settings Display, Reminders, Own reference values, Water reference values, Physical constants, Energy sources (delivery) and since v3.7.0 Photovoltaics |
+| 🌳 Expert | Settings → Access, Expert, System | in Flexibility the check per meter, battery, module 3 and the quarter-hour series (up to v3.5.0 the whole page was reserved for experts); in the consumption view hot-water heat and CO₂ price in the fuel; in the analysis the baseline date and “Effect of the measure”; in the forecast the model and the CO₂ price scenario, in the workshop heating curve, budget with optimisation, model comparison, range and CSV; under Tariff switch the dynamic tariff and “Wholesale electricity prices”; in the contract list the counts per contract (v3.4.0); in the contract dialog the key figures of district heating, the reduced grid fee (§ 14a), the time-variable grid fee (§ 14a module 3, v3.3.0), the energy price per meter of a group, credit notes from the direct marketer and “Import monthly prices”; in the meter dialog group, baseline dates and “Import time series”; in the settings CO₂ emission factors |
+
+Every feature on its own, ordered by task and checked against the code:
+[What can I do at each level?](stufen.md)
 
 An area shows as tabs only the pages of its level, none if just one is left;
 “Insights” in the sidebar takes beginners to the forecast workshop since v3.6.0, next to the annual report. A link, a
@@ -288,16 +294,19 @@ Below, the explainer “Where does my money go?” explains the contract with th
 highest advance payment. The figures are the same as at the other levels
 (`GET /api/summary`, contract status).
 
-**Suggestion to move up (v3.2.0):** if the data holds more than the level
-shows, the top of the overview reads “Your data holds more than this level
-shows — “…” shows it.” with the reason in small print. For beginners that is
-sub-meters, values from Home Assistant (a meter with an alias) and several
-meters for one utility — suggestion “Experienced”; for the experienced level a
-meter with the role heat pump, battery or wallbox — suggestion “Expert”.
-**“Switch to “…””** moves up with one click, **“Don’t ask again”** is
-remembered on this device per level and reason. The suggestion blocks nothing.
+**Suggestion to move up (v3.2.0):** if the household needs more than the
+level shows, the top of the overview reads “Your household has more than this
+level shows — “…” shows it.” with the reason in small print. For beginners
+that is, since v3.7.0, a PV system or a meter with the role battery, heat pump
+or wallbox, plus sub-meters, values from Home Assistant (a meter with an
+alias) and several meters for one utility — suggestion “Experienced”; for the
+experienced level, since v3.7.0, quarter-hour values — suggestion “Expert”.
+**“Switch to “…””** moves up with one click. Since v3.7.0 each reason appears
+at most once per device and level, **“Don’t ask again”** closes it at once.
+The suggestion blocks nothing
+([What can I do at each level?](stufen.md#3-the-app-suggests)).
 
-**Explainers (v3.2.0, Expert level):** between “To do” with the efficiency,
+**Explainers (v3.2.0, since v3.7.0 from the Experienced level, up to v3.6 Expert):** between “To do” with the efficiency,
 tank, electricity-balance and recommendation cards and the cards of the
 utilities sits the section 🎞️ **“Explainers”**: “Where
 does my money go?” and “Contract at a glance” for the contract with the
@@ -494,6 +503,14 @@ Identical structure per utility: year selection, meter selection, KPI bar
 (consumption, costs, advances with the balance of the months read, daily average,
 CO₂), contract/balance card, a consumption chart with a temperature overlay, and a
 monthly table with moving averages (MA-3/MA-6) and weather adjustment.
+
+**Costs without the bonus (v3.7.0, GitHub #33):** the “Costs” tile — here as
+on the overview, in calendar and billing years — shows the costs without the
+bonus; the bonus is a line of its own below (“Bonus −€50.00 on 15/03/2025”, an
+other credit with its note). The balance includes it, like the bill; the
+monthly average excludes it, because a one-off credit is not a monthly price.
+The monthly table still shows each month’s cost net of the bonus (in the month
+it is credited).
 
 **Calendar year or billing year (v3.6.0, GitHub #33):** above the year
 selection sits the switch *Calendar year · Billing year*. The device remembers
@@ -717,9 +734,10 @@ consumption, cost, advances and daily average, balance card, explainers,
 contracts, the monthly chart and the readings, periods or deliveries. From
 “Experienced” on the CO₂ tile, the “Measured”/“Weather-adjusted” switch, the
 monthly table, for PV the energy flow and the cards “Check a bill” and
-“Charging sessions from evcc” are added. Only “Expert” shows hot-water heat,
-CO₂ price in the fuel, the charging record, the heat pump and, for PV
-generation, battery, payback and notes. “⚙️ Meters” in the header of the view
+“Charging sessions from evcc” are added, since v3.7.0 also the charging record,
+the heat pump and, for PV generation, battery, payback and notes (up to v3.6
+Expert). Only “Expert” shows hot-water heat and CO₂ price in the fuel.
+“⚙️ Meters” in the header of the view
 leads to the meter management; it belongs to the “Experienced” level, and
 beginners see it with the notice described above.
 
@@ -795,8 +813,8 @@ insulated, Cheapest offer, Save 10% (whichever fit the meter).
 | Level | Sliders | Result |
 |---|---|---|
 | 🌱 Beginner | Winter (heating degree days ± %), Save (%), Tariff (current contract, offer, cheapest offer) | result card; cost per year, consumption per year, recommended advance payment; cumulative cost |
-| 🌿 Experienced | plus room temperature (± °C), base load (± %), forecast model (weather-adjusted, same as last year, trend), measures with % heating, % base load and cost, own price | plus balance at the next bill, CO₂, month by month, ranking with payback |
-| 🌳 Expert | plus heating curve (regression model), electric car (km, kWh/100 km), heat pump (SPF today → scenario), budget | plus forecast models compared, range, best combination within the budget, CSV |
+| 🌿 Experienced | plus room temperature (± °C), base load (± %), forecast model (weather-adjusted, same as last year, trend), measures with % heating, % base load and cost, own price; since v3.7.0 electric car (km, kWh/100 km) and heat pump (SPF today → scenario), when the household has them | plus balance at the next bill, CO₂, month by month, ranking with payback |
+| 🌳 Expert | plus heating curve (regression model), budget | plus forecast models compared, range, best combination within the budget, CSV |
 
 Scenarios can be named, **saved per device** (in the browser) and compared.
 **Save result as image** stores the card as a PNG, **Print or save as PDF**
@@ -1440,12 +1458,12 @@ Since v2.12.0 **nine sub-pages** instead of one long page:
 |---|---|---|
 | General | since v3.2.0 at the top “Experience level and setup” and, with sign-in, “My account”; Language & country, overview (months, forecast horizon, warn after days without a reading), contract reminders | Beginner; the groups “Display” and “Reminders” from Experienced |
 | Household & building | living area, building type, heated basement, hot water; since v3.1.0 “Home and hot water” and “Own reference values” (for the benchmark); water reference values with the number of people in the household | Beginner; “Own reference values” and “Water reference values” from Experienced |
-| Utilities & billing | active utilities (since v3.1.0 including heat), all billing dates in one card, physical constants (gas factors, heating threshold), calorific values and tank warning, CO₂ factors (since v3.1.0 with “CO₂ avoided by PV”), since v3.1.0 “Photovoltaics” (assumed self-consumption of plug-in solar) | Beginner; physical constants and calorific values from Experienced, CO₂ factors and Photovoltaics from Expert |
+| Utilities & billing | active utilities (since v3.1.0 including heat), all billing dates in one card, physical constants (gas factors, heating threshold), calorific values and tank warning, CO₂ factors (since v3.1.0 with “CO₂ avoided by PV”), since v3.1.0 “Photovoltaics” (assumed self-consumption of plug-in solar) | Beginner; physical constants, calorific values and since v3.7.0 Photovoltaics from Experienced, CO₂ factors from Expert |
 | Weather data | §10 | Experienced |
 | Data | CSV export (spreadsheet in the default language or format 1), backup & restore with snapshots, demo data; link to the annual report | Beginner |
 | Integrations | Home Assistant integration | Experienced |
 | Access | since v3.4.0 “Security check” (does the web server serve `data/`?, proxy header, open operation without a host list), sign-in & access with “Sign out everywhere”, since v3.2.0 “Users and roles”, embedding, since v3.4.0 “Host names” | Expert |
-| Expert | since v3.1.0 at the top receipts (storage limit) and text recognition in the home network, since v3.2.0 “evcc in your home network”; below, collapsed (“Show calculation parameters”) and with a warning: regression, forecast model, anomaly and recommendation thresholds, since v3.1.0 CO₂ price | Expert |
+| Expert | since v3.7.0 at the top the “Reading documents” card (Local \| Cloud), since v3.1.0 receipts (storage limit) and text recognition in the home network, since v3.2.0 “evcc in your home network”; below, collapsed (“Show calculation parameters”) and with a warning: regression, forecast model, anomaly and recommendation thresholds, since v3.1.0 CO₂ price | Expert |
 | System | version, licence, since v3.4.0 “Support Energietracker”, security check (v3.4.0), system diagnostics | Expert |
 
 Each page saves through a bar at the bottom ("Discard" · "Save") that appears
@@ -1485,13 +1503,16 @@ the very top. Its hint reads “Decides what the interface shows — every level
 calculates everything.” and says who the level applies to: “Applies to all
 devices of this installation.” or, with sign-in, “Applies to you (…) on all
 devices.” Below it the choice “Experience level” — the same as in the top bar;
-it saves at once (“Level saved.”) — and one line per level on what it shows:
-Beginner “Overview with three answers, meter readings, simple contracts,
-annual report.”, Experienced “Plus analyses, forecast, switching, bill check
-and meter structure.”, Expert “Everything, with explainers, groups,
-calculation parameters and access.” The buttons **“Start the setup
-assistant”** (§16) and **“Guide”**
-([Setup and experience levels](../einstieg/einrichtung.md)) close the card.
+it saves at once (“Level saved.”) — and one line per level on what you can do
+there (since v3.7.0): Beginner “See what you use, what it costs and whether
+the advance payment is enough. Enter readings, let the app read supplier mail,
+deal with reminders.”, Experienced “Plus compare and check: tariffs and
+switching, bills, analyses with weather, meter structure, tenancy, Home
+Assistant.”, Expert “See and connect everything: quarter hours and
+recalculation per meter, calculation parameters, access, API keys, system.” The
+buttons **“Start the setup assistant”** (§16), **“Guide”**
+([Setup and experience levels](../einstieg/einrichtung.md)) and since v3.7.0
+**“What can I do at each level?”** ([feature table](stufen.md)) close the card.
 
 **My account (v3.2.0, General page):** only with sign-in and a person signed
 in — 👤 **“My account: {name}”** with the role (“Admin” or “Member”). Whoever
@@ -1583,10 +1604,23 @@ temperature” in °C ([Settings](einstellungen.md#home-and-hot-water-v310)).
 of the page, before the collapsed part “Show calculation parameters” — they are
 not calculation parameters. **📎 Receipts** with “Storage for receipts, at
 most” (`attachments_max_mb`). **🔎 Text recognition in the home network** with
-“Service address”, “Interface” (Ollama or “OpenAI-compatible (LM Studio,
-LocalAI)”), “Model” and “Time limit”. Left empty, text recognition stays off
+“Model” and “Time limit”; “Service address” and “Interface” (Ollama or
+“OpenAI-compatible (LM Studio, LocalAI)”) have been in the **📥 Reading
+documents** card under “Local” since v3.7.0, because the inbox uses them too.
+Left empty, text recognition stays off
 ([Settings](einstellungen.md#text-recognition-in-the-home-network-v310),
 [guide](../anleitungen/texterkennung.md)).
+
+**Reading documents (v3.7.0, Expert page):** the 📥 card comes first, before the
+collapsed part. The switch **Local | Cloud (experimental)** is the choice of who
+reads the post in the inbox (`inbox_provider`). “Local”: address and interface
+of your own service (with the sentence that they also apply to meter photos),
+“Check connection”, text model and time limit per step. “Cloud”: the
+“Experimental” note, provider (Claude, OpenAI, Mistral, OpenRouter, Google
+Gemini, own address), key (never shown, only “Stored”), model from the service’s
+list or by hand, time limit and “Switched on”. A **Save** button of its own; only
+admins change the switch and the cloud fields
+([Inbox](../anleitungen/posteingang.md#setting-up-reading)).
 
 **evcc in your home network (v3.2.0, Expert page):** the 🚗 group sits next to
 receipts and text recognition, before the collapsed part. Its field **“evcc
@@ -2001,12 +2035,19 @@ household or leads to your own data. Explained in
    it the note “District heating or heat? …”.
 3. **“How much experience do you have?”** — the three levels with the same
    lines as in the settings and “You can change the level at any time at the
-   top, next to light/dark.”
-4. **“What comes next”** — “{answer} · level “…”” and the choice **“Look at
-   it with sample data”** (“Loads the matching sample household. The app saves
-   the current state first.”) or **“Start with my own data”** (“Next: check
-   the meters and add the first reading.”). The button here reads **“Let’s
-   go”**.
+   top, next to light/dark. If your household needs more, the app suggests it
+   once.”; since v3.7.0 followed by the link **“What can I do at each
+   level?”** ([feature table](stufen.md)), which opens in a new tab — the
+   assistant stays open.
+4. **“What comes next”** — “{answer} · level “…”” and the choice *(three ways
+   since v3.7.0)* **“From documents”** (*recommended*; below it, which
+   documents help, and without a reading service the button “Set up reading”
+   with the “Reading documents” card as a dialog; afterwards you go to the
+   inbox), **“Enter by hand”**
+   (“Next: check the meters and add the first reading.”) or — administrators
+   only — **“Look at it with sample data”** (“Loads the matching sample
+   household. The app saves the current state first.”). The button here reads
+   **“Let’s go”**.
 
 | Answer in step 1 | Sample household | Suggested utilities | Level |
 |---|---|---|---|

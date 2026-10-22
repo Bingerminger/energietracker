@@ -43,8 +43,8 @@ selbst ein Bild oder eine PDF weitergibst.
 | **Maßnahmen** | je Maßnahme % auf den Heizanteil, % auf die Grundlast, Kosten | Erfahren |
 | **Prognosemodell** | witterungsbereinigt (die Prognose), wie im Vorjahr, Trend | Erfahren |
 | **Heizkurve** | das Regressionsmodell der Prognose (linear, robust …) | Experte |
-| **E-Auto** | Strom: km im Jahr × kWh/100 km, gleichmäßig auf die Tage | Experte |
-| **Wärmepumpe (JAZ)** | Strom eines Zählers mit der Rolle Wärmepumpe: Menge × JAZ heute ÷ JAZ im Szenario | Experte |
+| **E-Auto** | Strom: km im Jahr × kWh/100 km, gleichmäßig auf die Tage | Erfahren (seit v3.7.0, bis v3.6 Experte) |
+| **Wärmepumpe (JAZ)** | Strom eines Zählers mit der Rolle Wärmepumpe: Menge × JAZ heute ÷ JAZ im Szenario | Erfahren (seit v3.7.0, bis v3.6 Experte) |
 | **Budget** | sucht die beste Kombination der Maßnahmen (§ 7) | Experte |
 
 Die Prozente einer Maßnahme trägst du selbst ein, am besten aus deiner

@@ -106,6 +106,11 @@ data stays. Since **v3.6.0** also:
 - **Open reminders pass to you**, the person deleting — including reminders
   with a free name that matches theirs. The dialog says beforehand how many
   and to whom.
+- *(v3.7.0)* **Meters and contracts** they were responsible for pass to you as
+  well; the dialog gives their number
+  ([Responsible for meters and contracts](hinweise-erledigen.md#meters-and-contracts-v370)).
+  Without sign-in the person stays there with “(deleted)”; with the tick
+  “former member” that is shown instead.
 - **Completed items keep their name** with **“(deleted)”** — in the history,
   on completed reminders, in the CSV file and in the calendar. The name stays
   as it was when the item was done. The dialog states the number of entries.
@@ -115,13 +120,14 @@ data stays. Since **v3.6.0** also:
 - **The number stays taken.** The register keeps counting: the next person
   gets the next number, never that of a deleted one. Someone added later with
   the same name is a new person.
-- A deleted person can no longer be assigned to a reminder and is no longer
-  offered for selection.
+- A deleted person can no longer be assigned to a reminder, meter or contract
+  and is no longer offered for selection.
 
 In proxy operation deleting does not lock anyone out: if the person comes back
 through the proxy, the app creates them again (with a new number) — locking
 out is the proxy’s job. If an API key deletes, nobody takes over: open
-reminders then stay with “(deleted)” until someone reassigns them.
+reminders, meters and contracts then stay with “(deleted)” until someone
+reassigns them.
 
 ### People without sign-in
 
@@ -293,9 +299,11 @@ GET    /api/users                 people (admins only), since v3.6.0 with number
 POST   /api/users                 {name, password, role: admin|member}
 PATCH  /api/users/{id}            {name?, role?, password?}; v3.6.0 also for people without sign-in
                                   ({name?, role?}; a password: 400 errors.users.noAccountPassword)
-GET    /api/users/{id}/handover   (v3.6.0) before deleting: {person, to, open, done}
+GET    /api/users/{id}/handover   (v3.6.0) before deleting: {person, to, open, done};
+                                  v3.7.0 plus meters, contracts
 DELETE /api/users/{id}            ?anonymize_activity=1 — replace the name in the history (v3.4.0);
-                                  v3.6.0: handed_over, handed_over_to, kept
+                                  v3.6.0: handed_over, handed_over_to, kept;
+                                  v3.7.0: records_handed_over, records_kept (meters and contracts)
 GET    /api/people                (v3.5.0) ID and name for “Responsible”; v3.6.0 from the register
 ```
 

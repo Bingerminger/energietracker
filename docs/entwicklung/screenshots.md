@@ -47,7 +47,14 @@ noch fünf SVG-Attrappen aus v1.0.2.
 
 3. **Browser**: hell (`localStorage['et-theme'] = 'light'` — ein Browserprofil
    merkt sich die Wahl je Adresse), Fenster 1440 × 1500 bzw. 1440 × 900, fürs
-   iPhone 375 × 812 mit doppelter Pixeldichte (Bild 750 × 1624).
+   iPhone 375 × 812 mit doppelter Pixeldichte (Bild 750 × 1624). Seit v3.7.0
+   die **Browser-Region passend zur Sprache**: für die englischen Bilder
+   `en-GB` (Playwright `locale: 'en-GB'`, Chrome `--lang=en-GB`), für die
+   deutschen `de-DE`. Die App formatiert Datum und Zahlen selbst nach Sprache
+   und Land; Datumsfelder (`<input type="date">`) und ihr Platzhalter kommen
+   aber vom Browser — mit deutscher Region stand im englischen Vertragsdialog
+   „01.01.2026“ und „tt.mm.jjjj“ statt „01/01/2026“ und „dd/mm/yyyy“. Dazu die
+   Zeitzone `Europe/Berlin` wie die Beispieldaten.
 4. **Vor jeder Aufnahme** den Service Worker abmelden und seinen Cache leeren
    (in der Konsole: alle `navigator.serviceWorker.getRegistrations()`
    abmelden, `caches.keys()` löschen) — sonst zeigt der Browser zwischen zwei

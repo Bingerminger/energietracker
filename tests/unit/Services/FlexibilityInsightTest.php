@@ -32,7 +32,7 @@ final class FlexibilityInsightTest extends ServiceTestCase
     private function service(): FlexibilityInsightService
     {
         $flex = new FlexibilityService($this->iv, $this->meters, $this->contracts);
-        $s = new FlexibilityInsightService($this->iv, $this->meters, $this->contracts, $flex);
+        $s = new FlexibilityInsightService($this->iv, $this->meters, $this->contracts, $flex, $this->settings);
         $s->attachSessions(new EvccService($this->store, $this->meters, $this->readings,
             new ReadingImportService($this->readings, $this->meters, $this->i18n), $this->settings));
         return $s;
@@ -356,7 +356,74 @@ final class FlexibilityInsightTest extends ServiceTestCase
         // Satz: die günstigsten drei Stunden, in denen das Auto meist angesteckt ist — nicht sonntags mittags
         self::assertSame(['weekday' => null, 'from' => 0, 'to' => 3], array_intersect_key($ev['window']['winter'], ['weekday' => 1, 'from' => 1, 'to' => 1]));
         self::assertTrue($ev['window']['winter']['plugged']);
-        self::assertSame(['basis' => 'sessions', 'sessions' => 32, 'share' => 1.0], $x['ev_availability']);
+        self::assertSame(['basis' => 'sessions', 'sessions' => 32, 'share' => 1.0, 'window' => null], $x['ev_availability']);
+    }
+
+    /**
+     * v3.7.0 — Eigene Steckzeit ohne evcc (Einstellungen): 18 bis 7 Uhr wirkt wie
+     * ein Ladevorgang je Tag — dasselbe Ergebnis wie mit den Steckzeiten aus
+     * evcc oben, Grundlage `window` statt `sessions`.
+     */
+    public function testAnOwnPlugInTimeWithoutEvccActsLikeSessions(): void
+    {
+        $this->weekPrices();
+        $this->household();
+        $this->settings->set(['flex_ev_plugged_from' => 18, 'flex_ev_plugged_until' => 7]);
+        $x = $this->compute();
+        $ev = array_values(array_filter($x['levers'], fn($l) => $l['kind'] === 'ev' && $l['signal'] === 'spot'))[0];
+        self::assertSame('window', $ev['availability']);
+        self::assertSame(0, $ev['sessions'], 'keine echten Ladevorgänge');
+        self::assertEqualsWithDelta((30 * 8 * (20 - 5) + 8 * (20 - 10)) / 100 * self::GROSS, $ev['eur'], 0.01);
+        self::assertSame(['basis' => 'window', 'sessions' => 0, 'share' => 1.0, 'window' => ['from' => 18, 'until' => 7]], $x['ev_availability']);
+        self::assertTrue($x['assumptions']['own']['ev_window']);
+        // nur eine der beiden Stunden: kein Fenster, wieder der ganze Ladetag (Beispielwert)
+        $this->settings->set(['flex_ev_plugged_until' => '']);
+        self::assertSame('day', $this->compute()['ev_availability']['basis']);
+    }
+
+    /**
+     * v3.7.0 — Eigene Werte statt Beispielwerte: Spülmaschine 7 Gänge je Woche
+     * (Grundlage `own`), Wärmepumpe 20 % statt 30 %; die Waschmaschine bleibt
+     * beim Beispielwert. 0 Gänge: kein solches Gerät, kein Hebel.
+     */
+    public function testOwnValuesReplaceTheSampleValues(): void
+    {
+        $this->weekPrices();
+        $this->household();
+        $this->settings->set(['flex_dishwasher_cycles_per_week' => 7, 'flex_heat_pump_share_pct' => 20]);
+        $x = $this->compute();
+        $by = [];
+        foreach ($x['levers'] as $l) $by[$l['kind'] . '|' . $l['signal']] = $l;
+        self::assertSame('own', $by['dishwasher|spot']['basis']);
+        self::assertEqualsWithDelta(7.0 / 7 * $this->applianceGainPerKwh() / 100 * self::GROSS, $by['dishwasher|spot']['eur'], 0.01);
+        self::assertSame('assumed', $by['washer|spot']['basis']);
+        self::assertEqualsWithDelta(31 * 72 * 0.3 * 0.2 * (8 - 2) / 100, $by['heat_pump|tou']['eur'], 0.01, '20 % statt 30 % des Tagesverbrauchs');
+        self::assertSame(['heat_pump_share' => true, 'washer' => false, 'dishwasher' => true, 'ev_window' => false], $x['assumptions']['own']);
+        self::assertSame(0.2, $x['assumptions']['heat_pump_share']);
+        // derselbe Wert wie das Beispiel, aber eingetragen: eigener Wert
+        $this->settings->set(['flex_washer_kwh_per_cycle' => 0.9]);
+        self::assertTrue($this->compute()['assumptions']['own']['washer']);
+        $this->settings->set(['flex_dishwasher_cycles_per_week' => 0]);
+        self::assertArrayNotHasKey('dishwasher', array_column($this->compute()['levers'], null, 'kind'), '0 Gänge: kein Hebel');
+    }
+
+    /** v3.7.0 — Die Defaults der Einstellungen sind die Beispielwerte; Grenzen beim Speichern, leer nimmt zurück. */
+    public function testTheSettingsDefaultsAreTheSampleValues(): void
+    {
+        self::assertSame(FlexibilityInsightService::ASSUMPTIONS['heat_pump_share'] * 100, \Energietracker\Services\SettingsService::defaultFor('flex_heat_pump_share_pct'));
+        foreach (FlexibilityInsightService::APPLIANCES as $k => $a) {
+            self::assertSame($a['cycles_per_week'], \Energietracker\Services\SettingsService::defaultFor("flex_{$k}_cycles_per_week"));
+            self::assertSame($a['kwh_per_cycle'], \Energietracker\Services\SettingsService::defaultFor("flex_{$k}_kwh_per_cycle"));
+        }
+        self::assertSame(array_keys(\Energietracker\Services\SettingsService::EXAMPLE_VALUES), $this->settings->exampleKeys(), 'Neuinstallation: alles Beispielwerte');
+        $this->settings->set(['flex_washer_kwh_per_cycle' => '1,2']);
+        self::assertSame(1.2, $this->settings->get('flex_washer_kwh_per_cycle'));
+        self::assertNotContains('flex_washer_kwh_per_cycle', $this->settings->exampleKeys());
+        $this->settings->set(['flex_washer_kwh_per_cycle' => null]);
+        self::assertContains('flex_washer_kwh_per_cycle', $this->settings->exampleKeys(), 'geleert: wieder Beispielwert');
+        foreach ([['flex_heat_pump_share_pct', 150], ['flex_ev_plugged_from', 7.5], ['flex_ev_plugged_until', 24], ['flex_washer_cycles_per_week', 'oft']] as [$k, $v]) {
+            try { $this->settings->set([$k => $v]); self::fail("$k = $v angenommen"); } catch (\InvalidArgumentException) { self::assertTrue(true); }
+        }
     }
 
     /**

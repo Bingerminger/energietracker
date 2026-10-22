@@ -81,6 +81,8 @@ jobs:
           node tests/assignee.test.mjs
           # v3.6.0 (F1031) — Prognose-Werkstatt: Anfrage, Beispiele, Speichern, CSV, Stufen
           node tests/scenario.test.mjs
+          # v3.7.0 — Posteingang: Texte, Warteschlange, Textebene mit dem mitgelieferten pdf.js
+          node tests/inbox.test.mjs
 
       - name: Demo-Daten vorbereiten
         run: cp -r demo-data /tmp/etdata
@@ -187,6 +189,30 @@ jobs:
       # einen eigenen Server auf einem freien Port (ET_LISTS_PORT).
       - name: Listen, Verträge, Rechnung prüfen (Beispielhaushalt)
         run: node tests/lists.test.mjs
+
+      # v3.7.0 (Haushalt aus Dokumenten) — der Entwurf über alle ausgelesenen
+      # Dokumente mit einem erfundenen Stapel (Auslesungen wie gespeichert, ohne
+      # Modell), Übernehmen, „Auslesen einrichten“ als Dialog, der Assistent mit
+      # drei Wegen. Eigener Server auf einem freien Port (ET_DRAFT_PORT).
+      - name: Haushalt aus Dokumenten (Entwurf, Einrichtung)
+        run: node tests/inbox-draft.test.mjs
+
+      # v3.7.0 (Qualität) — Barrierefreiheit der Dialoge: die echte App in JSDOM,
+      # jeder Knopf jeder erreichbaren Seite; jeder Dialog, der über modal.js
+      # aufgeht, gegen die Regeln (Rolle, Titel, Fokus, Fokusfalle, Escape,
+      # Rückkehr des Fokus, Beschriftungen, Fehlermeldungen, Kontrast hell und
+      # dunkel). Ohne Liste der Dialoge: neue prüft er von selbst mit. Startet
+      # einen eigenen Server auf einem freien Port (ET_A11Y_PORT).
+      - name: Barrierefreiheit der Dialoge
+        run: node tests/a11y.test.mjs
+
+      # v3.7.0 (Qualität) — Grenzen mit großen Datenmengen: ein erfundener
+      # Haushalt mit zehn Jahren Tageswerten und zwei Jahren Viertelstunden
+      # (tools/large-household.mjs), die Endpunkte der Hauptansichten mit
+      # großzügigen Schranken (Zehnfaches der Messung in
+      # docs/entwicklung/messung-grosse-daten.md). Eigener Server, freier Port.
+      - name: Grenzen mit großen Datenmengen
+        run: node tests/large-data.test.mjs
 
   lint-php:
     name: PHP Syntax-Check (PHP ${{ matrix.php }})

@@ -23,7 +23,7 @@ use Energietracker\Http\NotFoundException;
 final class ReadingService
 {
     /** v2.6.0 — erlaubte Werte für das optionale Feld `source` */
-    private const SOURCES = ['ingest', 'csv'];
+    private const SOURCES = ['ingest', 'csv', 'inbox'];   // v3.7.0 — `inbox`: aus einem Dokument im Posteingang
 
     public function __construct(
         private JsonStore $store,

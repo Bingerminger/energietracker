@@ -41,18 +41,27 @@ der Versorgerrechnung unter *Rechnung prüfen*
 *mit Auswirkung* setzt den neuen Abschlag ab ihrem Stichtag — in den Monaten,
 im Saldo und in der Prognose.
 
-Der Saldo rechnet bei Wasser über die Monate mit Ablesung, nicht nach Kalender
-wie bei Gas, Strom und Fernwärme
-([Grundlagen §10](00-overview.md#10-saldo-bis-heute)):
+*(v3.7.0)* Hat der Wasservertrag **Abschläge**, rechnet der Saldo **nach
+Kalender** wie bei Gas, Strom und Fernwärme
+([Grundlagen §10](00-overview.md#10-saldo-bis-heute)): gemessen bis zur letzten
+Ablesung, danach geschätzt, Grundpreis tagesanteilig, Abschläge nach Plan bis
+heute. Je m³ zählen Trinkwasser und Schmutzwasser (bei eigenem oder
+Garten-Abzugszähler mit dem gemessenen Anteil Schmutzwasser), als feste Kosten
+der Grundpreis und das Niederschlagswasser (Fläche × €/m²·a ÷ 12). Dazu kommen
+wie dort ein **Vorschlag für den Abschlag** (`suggested_advance`), der
+**Saldo-Verlauf** (`balance_path`) und im Jahresbericht Saldo und Abschlags-Rat.
+In der API steht `projection_method: forecast`.
+
+Ohne Abschläge bleibt es beim Saldo über die Monate mit Ablesung
+(`projection_method: flat_average`, so rechnete Wasser bis v3.6 immer):
 
 ```text
 Saldo heute       = Kosten der abgelesenen Monate − Abschläge dieser Monate + Sonderzahlungen netto
 Erwartet am Ende  = Saldo heute + (Kosten je Monat im Schnitt − aktueller Abschlag) × verbleibende Monate
 ```
 
-In der API steht dafür `projection_method: flat_average`. Die Übersicht, die
-Seite *Verträge & Abschläge* und die Verbrauchsansicht Wasser zeigen beide
-Werte.
+Die Übersicht, die Seite *Verträge & Abschläge* und die Verbrauchsansicht
+Wasser zeigen beide Werte.
 
 ## Rollen: Kalt, Warm, Garten *(v3.1.0)*
 

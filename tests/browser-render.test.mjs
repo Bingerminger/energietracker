@@ -681,6 +681,60 @@ async function renderView(modPath, params = [], ctx = {}) {
     const splitOpt = view.querySelector('[data-key="segmented_split_mode"] option[value="auto"]');
     t('settings/experte: Split-Modus übersetzt', !!splitOpt && splitOpt.textContent.trim() !== 'auto', splitOpt?.textContent);
     t('settings/experte: Breite des Prognosebands', !!view.querySelector('[data-key="confidence_band_sigma"]'));
+    // v3.7.0 — Karte „Auslesen“: Umschalter Lokal | Cloud (die Wahl ist `inbox_provider`),
+    // Lokal mit den gemeinsamen Feldern der Texterkennung, Cloud mit Voreinstellungen und
+    // „experimentell“; eigene Speichern-Taste (nicht die Speicherleiste)
+    const card = view.querySelector('#inbox-reading-card');
+    t('settings/experte: Karte „Auslesen“', !!card);
+    const pane = (role) => card?.querySelector(`[data-role="${role}"]`);
+    const modeOf = () => card?.querySelector('input[name="rd-mode"]:checked')?.value;
+    t('settings/experte: ohne Cloud steht der Umschalter auf „Lokal“',
+      modeOf() === 'local' && pane('rd-local')?.hidden === false && pane('rd-cloud')?.hidden === true, modeOf());
+    t('settings/experte: Lokal mit Adresse, Schnittstelle, Textmodell, „Verbindung prüfen“ und dem Satz zur Texterkennung',
+      !!card?.querySelector('#rd-endpoint[data-field="ocr_endpoint"]') && !!card?.querySelector('#rd-api[data-field="ocr_api"]')
+      && !!card?.querySelector('#rd-model[data-field="inbox_model"]') && !!pane('rd-check')
+      && /Zählerfotos/.test(pane('rd-shared')?.textContent || ''));
+    t('settings/experte: Adresse und Schnittstelle stehen nur einmal, die Texterkennung behält Bildmodell und Zeitlimit',
+      view.querySelectorAll('[data-key="ocr_endpoint"], [data-field="ocr_endpoint"]').length === 1
+      && view.querySelectorAll('[data-key="ocr_api"], [data-field="ocr_api"]').length === 1
+      && !!view.querySelector('[data-key="ocr_model"]') && !!view.querySelector('[data-key="ocr_timeout_s"]'));
+    t('settings/experte: keine zweite Stelle für die Wahl, wer ausliest', !view.querySelector('[data-key="inbox_provider"]'));
+    t('settings/experte: Cloud aus — kein Dokument verlässt das Heimnetz',
+      !!card && !card.querySelector('#ic-enabled')?.checked && /Heimnetz|home network/.test(pane('ic-state')?.textContent || ''));
+    const cloudRadio = card?.querySelector('input[name="rd-mode"][value="cloud"]');
+    if (cloudRadio) { cloudRadio.checked = true; cloudRadio.dispatchEvent(new global.window.Event('change', { bubbles: true })); }
+    t('settings/experte: „Cloud“ zeigt die Cloud-Felder mit dem Vermerk „experimentell“',
+      pane('rd-cloud')?.hidden === false && pane('rd-local')?.hidden === true
+      && /Experimentell: noch nicht mit echten Rückmeldungen geprüft/.test(pane('ic-experimental')?.textContent || ''));
+    const keyInput = card?.querySelector('#ic-key');
+    t('settings/experte: Schlüsselfeld verdeckt und leer', keyInput?.type === 'password' && keyInput.value === '' && keyInput.getAttribute('autocomplete') === 'new-password');
+    const providerSel = card?.querySelector('#ic-provider');
+    const presetIds = [...(providerSel?.options || [])].map(o => o.value).join();
+    t('settings/experte: Voreinstellungen Claude, OpenAI, Mistral, OpenRouter, Gemini, eigene Adresse',
+      presetIds === 'anthropic,openai,mistral,openrouter,gemini,custom', presetIds);
+    t('settings/experte: Claude schickt das PDF, Adresse nur bei eigener Adresse',
+      pane('ic-endpoint-field')?.hidden === true && /PDF/.test(pane('ic-sends')?.textContent || ''));
+    const pick = (v) => { if (providerSel) { providerSel.value = v; providerSel.dispatchEvent(new global.window.Event('change', { bubbles: true })); } };
+    pick('mistral');
+    t('settings/experte: Mistral füllt die Adresse vor (kein Adressfeld), schickt nur den Text',
+      pane('ic-endpoint-field')?.hidden === true && /Text/.test(pane('ic-sends')?.textContent || ''));
+    t('settings/experte: Modellliste kommt nach dem Speichern des Schlüssels, bis dahin frei einzutragen',
+      pane('ic-model-list')?.hidden === true && card?.querySelector('#ic-model')?.hidden === false
+      && /Nach dem Speichern des Schlüssels/.test(pane('ic-model-hint')?.textContent || ''), pane('ic-model-hint')?.textContent);
+    pick('custom');
+    t('settings/experte: eigene Adresse zeigt das Adressfeld', pane('ic-endpoint-field')?.hidden === false);
+    t('settings/experte: Felder der Karte ohne data-key (nicht in der Speicherleiste)', !card?.querySelector('[data-key]'));
+    // Einschalten ist das Opt-in: erst eine Rückfrage, die nennt, wohin was geht — und „experimentell“
+    pick('anthropic');
+    const enabledBox = card?.querySelector('#ic-enabled');
+    if (enabledBox) enabledBox.checked = true;
+    card?.querySelector('form[data-role="ic-form"]')?.dispatchEvent(new global.window.Event('submit', { bubbles: true, cancelable: true }));
+    await new Promise(r => setTimeout(r, 30));
+    const ask = global.document.querySelector('.modal');
+    t('settings/experte: Einschalten fragt nach, nennt das Ziel und „experimentell“',
+      !!ask && /api\.anthropic\.com/.test(ask.textContent) && /Experimentell/.test(ask.querySelector('[data-role="confirm-detail"]')?.textContent || ''),
+      ask?.textContent?.slice(0, 120));
+    global.document.querySelector('.modal [data-act="cancel"]')?.click();
   } catch (e) { t('settings/experte: render', false, e.message); }
 
   try {
@@ -860,6 +914,9 @@ async function renderView(modPath, params = [], ctx = {}) {
       !!access.querySelector('#security-card') && !access.querySelector('#security-card').classList.contains('settings-card--wide')
       && access.querySelector('#keys-card')?.classList.contains('settings-card--wide') && !!access.querySelector('#keys-card #btn-key-create')
       && noOldGrid(access));
+    // v3.7.0 (Paket betrieb) — Schlüssel „nur Posteingang“ für Kurzbefehl und E-Mail
+    const scopes = [...access.querySelectorAll('#key-scope option')].map(o => `${o.value}:${o.textContent.trim()}`);
+    t('Zugriff: Bereich „nur Posteingang (PDF ablegen)“ wählbar', scopes.includes('inbox:nur Posteingang (PDF ablegen)'), scopes.join(' | '));
     const system = await settingsPage('system');
     const link = system.querySelector('#support-card a[data-support-link]');
     t('N1021 System: „Energietracker unterstützen" mit Link in neuem Tab',
@@ -1296,7 +1353,8 @@ async function renderView(modPath, params = [], ctx = {}) {
     freshDom();
     const nm = await import(`${ROOT}/lib/nav-model.js`);
     const top = nm.sidebarModel([{ key: 'gas', label: 'Gas' }, { key: 'strom', label: 'Strom' }]).map(m => m.key);
-    t('nav: sieben Bereiche', top.join(',') === 'dashboard,readings-entry,consumption,costs,analysis,hints,settings', top.join(','));
+    // v3.7.0 — dazu der Posteingang hinter den Zählerständen (Erfassen)
+    t('nav: acht Bereiche mit dem Posteingang', top.join(',') === 'dashboard,readings-entry,inbox,consumption,costs,analysis,hints,settings', top.join(','));
     t('nav: „Rechnung prüfen" nur mit Gas',
       nm.sectionPages('costs', { utilities: [{ key: 'gas' }] }).some(p => p.view === 'bill-check')
       && !nm.sectionPages('costs', { utilities: [{ key: 'strom' }] }).some(p => p.view === 'bill-check'));
@@ -1513,7 +1571,8 @@ async function renderView(modPath, params = [], ctx = {}) {
     t('utility(gas): Monatschart eingetragen, Farbe als Funktion (folgt dem Theme)', !!mc && typeof ds?.borderColor === 'function' && typeof ds?.backgroundColor === 'function');
     const pIdx = months.length - 1;
     const fullBg = ds?.backgroundColor?.({ dataIndex: 0 }) || '', partBg = ds?.backgroundColor?.({ dataIndex: pIdx }) || '';
-    t('utility(gas): Teilmonat blass, volle Monate kräftig', /0\.12\)$/.test(partBg) && /0\.35\)$/.test(fullBg), `${fullBg} | ${partBg}`);
+    // v3.7.0 (#37) — ist der Teilmonat zugleich verteilt (Schaufenster: Lücke Ende Januar bis Mitte März), ist er schraffiert
+    t('utility(gas): Teilmonat blass (verteilt: schraffiert), volle Monate kräftig', /0\.(12|2)\)$/.test(partBg) && /0\.35\)$/.test(fullBg), `${fullBg} | ${partBg}`);
     const footer = mc?.config?.options?.plugins?.tooltip?.callbacks?.footer?.([{ dataIndex: pIdx }]) || '';
     t('utility(gas): Tooltip nennt die erfassten Tage', /Teilmonat: 14 von 31 Tagen/.test(footer), footer);
     t('utility(gas): Teilmonat in der Tabelle „14 / 31“ und erklärt', !!partialRow && partialRow.classList.contains('is-partial')
@@ -2095,6 +2154,792 @@ async function renderView(modPath, params = [], ctx = {}) {
     global.document.querySelector('.modal [data-act="cancel"]')?.click();
     void tj;
   } catch (e) { t('einpers: Einordnung', false, e.message); }
+
+  // ── 21. v3.7.0 (Paket zustaendig) — Zuständig an Zählern und Verträgen, Fristen erben ──
+  // Lädt selbst Eigenheim klassisch (Gaszähler: Jonas, Gasvertrag: Sabine, Eichfristen am Zähler)
+  try {
+    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+    const click = (el) => el?.dispatchEvent(new global.window.MouseEvent('click', { bubbles: true }));
+    const imp = await fetch(`${HOST}/api/demo/import`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ force: true, persona: 'eigenheim-klassisch' }) });
+    const people = (await (await fetch(`${HOST}/api/people`)).json()).data || [];
+    const idOf = (name) => people.find(p => p.name === name)?.id;
+    t('zustaendig: Beispielhaushalt geladen, Personen da', imp.ok && !!idOf('Jonas') && !!idOf('Sabine'));
+    // aktive Verbrauchsarten des neuen Haushalts (der Zwischenspeicher hält noch die vorigen)
+    const st = await import(`${ROOT}/state.js`);
+    st.invalidateSettings();
+    st.invalidateUtilities();
+    try { localStorage.removeItem('et-assignee-filter'); } catch { /* egal */ }
+
+    const mv = await renderView(`${ROOT}/views/meters.js`, ['gas']);
+    const card = [...mv.view.querySelectorAll('.meter-card')].find(c => c.textContent.includes('Gaszähler'));
+    t('zustaendig: Zählerkarte mit Chip der Zuständigen', /Jonas/.test(card?.querySelector('.chip--assignee')?.textContent || ''));
+    click(card?.querySelector('[data-edit-meter]'));
+    for (let i = 0; i < 40 && !global.document.querySelector('#mf-assignee'); i++) await sleep(25);
+    const ms = global.document.querySelector('#mf-assignee');
+    t('zustaendig: Zählerformular — Auswahl „Zuständig“ mit den Personen, Jonas gewählt', ms?.value === idOf('Jonas')
+      && [...(ms?.options || [])].map(o => o.textContent).includes('Sabine') && ms.options[0].value === '');
+    global.document.querySelector('.modal [data-act="cancel"]')?.click();
+
+    const cv = await renderView(`${ROOT}/views/contracts.js`, ['gas']);
+    const ccard = cv.view.querySelector('[data-contract-id="c_gas_fix"]');
+    t('zustaendig: Vertragskarte mit Chip der Zuständigen', /Sabine/.test(ccard?.querySelector('.chip--assignee')?.textContent || ''));
+    click(ccard?.querySelector('[data-edit-contract]'));
+    for (let i = 0; i < 40 && !global.document.querySelector('#cf-assignee'); i++) await sleep(25);
+    t('zustaendig: Vertragsformular — Sabine gewählt, Satz zu den Fristen', global.document.querySelector('#cf-assignee')?.value === idOf('Sabine')
+      && /Kündigungsfrist/.test(global.document.querySelector('#cf-assignee-hint')?.textContent || ''));
+    global.document.querySelector('.modal [data-act="cancel"]')?.click();
+
+    const rv = await renderView(`${ROOT}/views/reminders.js`);
+    const row = [...rv.view.querySelectorAll('tbody tr')].find(r => r.textContent.includes('Eichung Gaszähler'));
+    t('zustaendig: Eichfrist erbt die Person des Zählers (Chip „über den Zähler“)', /Jonas/.test(row?.textContent || '')
+      && !!row?.querySelector('.chip--via') && /über den Zähler/.test(row?.textContent || ''));
+    click(row?.querySelector('[data-edit]'));
+    for (let i = 0; i < 40 && !global.document.querySelector('#f-meter'); i++) await sleep(25);
+    const fm = global.document.querySelector('#f-meter');
+    const inh = global.document.querySelector('[data-role="assignee-inherit"]');
+    t('zustaendig: Termin-Dialog — Zähler gewählt, Satz „Ohne Eintrag zuständig: Jonas“', fm?.value === 'gas|m_gas_haus'
+      && /Ohne Eintrag zuständig: Jonas/.test(inh?.textContent || ''), `${fm?.value}|${inh?.textContent}`);
+    const fa = global.document.querySelector('#f-assignee');
+    fa.value = 'Thomas';
+    fa.dispatchEvent(new global.window.Event('input', { bubbles: true }));
+    t('zustaendig: mit eigenem Eintrag entfällt der Satz', inh?.hidden === true && inh.textContent === '');
+    fa.value = '';
+    fa.dispatchEvent(new global.window.Event('input', { bubbles: true }));
+    fm.value = '';
+    fm.dispatchEvent(new global.window.Event('change', { bubbles: true }));
+    click(global.document.querySelector('.modal [data-act="save"]'));
+    let saved = null;
+    for (let i = 0; i < 40; i++) {
+      await sleep(50);
+      saved = ((await (await fetch(`${HOST}/api/reminders`)).json()).data || []).find(r => r.title === 'Eichung Gaszähler');
+      if (saved && !saved.meter_id) break;
+    }
+    t('zustaendig: Termin ohne Zähler gespeichert — erbt nichts mehr', !!saved && !saved.meter_id && saved.assignee_inherited === null);
+    // neue Eichfrist: der einzige Gaszähler ist vorgewählt, solange niemand wählt
+    const rv2 = await renderView(`${ROOT}/views/reminders.js`);
+    click(rv2.view.querySelector('#rem-add'));
+    const cat = global.document.querySelector('#f-cat');
+    cat.value = 'gaszaehler_eichung';
+    cat.dispatchEvent(new global.window.Event('change', { bubbles: true }));
+    t('zustaendig: neue Eichfrist — einziger passender Zähler vorgewählt, Satz zur Person',
+      global.document.querySelector('#f-meter')?.value === 'gas|m_gas_haus'
+        && /Jonas/.test(global.document.querySelector('[data-role="assignee-inherit"]')?.textContent || ''));
+    global.document.querySelector('.modal [data-act="cancel"]')?.click();
+
+    const ov = await renderView(`${ROOT}/views/contracts-overview.js`);
+    for (let i = 0; i < 40 && ov.view.querySelector('.loading'); i++) await sleep(25);
+    const gasRow = ov.view.querySelector('.contract-overview[data-utility="gas"] .contract-overview__row');
+    t('zustaendig: Verträge & Abschläge — Chip „über den Vertrag“ und Filter', /Sabine/.test(gasRow?.textContent || '')
+      && /über den Vertrag/.test(gasRow?.textContent || '') && !!ov.view.querySelector('#co-assignee option[value="name:sabine"]'));
+    const fsel = ov.view.querySelector('#co-assignee');
+    fsel.value = 'none';
+    fsel.dispatchEvent(new global.window.Event('change', { bubbles: true }));
+    t('zustaendig: Filter „Ohne Zuständigkeit“ blendet Gas (Sabine) aus und nennt es', !ov.view.querySelector('.contract-overview[data-utility="gas"]')
+      && !!ov.view.querySelector('.contract-overview[data-utility="strom"]') && !!ov.view.querySelector('[data-role="assignee-hidden"]'));
+    try { localStorage.removeItem('et-assignee-filter'); } catch { /* egal */ }
+
+    const ev = (await (await fetch(`${HOST}/api/agenda?days=365`)).json()).data?.events || [];
+    const sources = new Set(ev.map(e => e.assignee_source));
+    t('zustaendig: Agenda — Fristen tragen die Herkunft (Vertrag, Zähler)', sources.has('contract') && sources.has('meter'), [...sources].join(','));
+  } catch (e) { t('zustaendig: Zuständig an Zählern und Verträgen', false, e.message); }
+
+  // ── 22. v3.7.0 (Paket nachzuege) — Kosten ohne Bonus, Sonstige Gutschrift, Gas-Umrechnung,
+  //        Flexibilität mit eigenen Werten, Modul 3 netto ──
+  try {
+    const patch = (body) => fetch(`${HOST}/api/settings`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const impS = await fetch(`${HOST}/api/demo/import`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ force: true }) });
+    t('nachzuege: Beispieldaten (Schaufenster) geladen', impS.ok, `HTTP ${impS.status}`);
+    const { fmt } = await import(`${ROOT}/lib/format.js`);
+    const apiMod = await import(`${ROOT}/api.js`);
+    // (1) Kachel „Kosten“ ohne Bonus, der Bonus als eigene Zeile — im Jahr mit Bonus
+    const gasMeters = await apiMod.api.meters('gas');
+    const cons = await apiMod.api.meterConsumption('gas', gasMeters[0].id);
+    const byYear = {};
+    for (const m of cons.monthly || []) { byYear[m.year] ??= { cost: 0, bonus: 0, n: 0 }; byYear[m.year].cost += m.cost || 0; byYear[m.year].bonus += m.bonus_eur || 0; byYear[m.year].n++; }
+    const bonusYear = Object.keys(byYear).find(y => byYear[y].bonus > 0);
+    t('nachzuege: Beispieldaten mit Bonus bei Gas (Vorbedingung)', !!bonusYear);
+    const uv = await renderView(`${ROOT}/views/utility.js`, ['gas'], { query: new URLSearchParams(`year=${bonusYear}`) });
+    await new Promise(r => setTimeout(r, 700));
+    const y = byYear[bonusYear];
+    const costTxt = uv.view.querySelector('[data-role="kpi-cost"]')?.textContent || '';
+    t('nachzuege: Kachel „Kosten“ ohne Bonus', costTxt === fmt.eur(y.cost + y.bonus), `${costTxt} / ${fmt.eur(y.cost + y.bonus)}`);
+    const bonusTxt = uv.view.querySelector('[data-role="kpi-bonus"]')?.textContent || '';
+    t('nachzuege: Bonus als eigene Zeile mit Datum', /^Bonus −/.test(bonusTxt) && /\d{2}\.\d{2}\.\d{4}/.test(bonusTxt), bonusTxt);
+    t('nachzuege: Ø je Monat ohne Bonus', (uv.view.querySelector('[data-role="kpi-cost"]')?.nextElementSibling?.textContent || '').includes(fmt.eur((y.cost + y.bonus) / y.n)));
+    t('nachzuege: ⓘ erklärt Kachel, Saldo und Ø', /Saldo rechnet ihn ein/.test(uv.view.querySelector('[data-role="kpi-cost"]')?.parentElement?.querySelector('[data-info-text]')?.dataset.infoText || ''));
+    // (2) Vertragsformular: Sonstige Gutschrift mit Notiz; die Notiz eines Bonus bleibt erhalten
+    const cv = await renderView(`${ROOT}/views/contracts.js`, ['gas']);
+    await new Promise(r => setTimeout(r, 400));
+    const withBonus = (await apiMod.api.contracts('gas')).find(c => (c.bonuses || []).some(b => b.label));
+    cv.view.querySelector(`[data-edit-contract="${withBonus?.id}"]`)?.click();
+    await new Promise(r => setTimeout(r, 400));
+    const form = global.document.querySelector('#modal-root #contract-form');
+    const brow = form?.querySelector('.bonus-row');
+    t('nachzuege: Bonus mit Art „Sonstige Gutschrift“', !!brow?.querySelector('[data-role="type"] option[value="sonstige"]')
+      && brow.querySelector('[data-role="type"] option[value="sonstige"]').textContent === 'Sonstige Gutschrift');
+    t('nachzuege: Notizfeld zeigt die gespeicherte Notiz', brow?.querySelector('[data-role="note"]')?.value === withBonus.bonuses.find(b => b.label).label,
+      brow?.querySelector('[data-role="note"]')?.value);
+    // (3) Gas: die heute geltende Umrechnung mit ⓘ und Verweis auf die Einstellung
+    const gf = form?.querySelector('[data-role="gas-factor-note"]');
+    t('nachzuege: Gas-Umrechnung im Vertragsformular', /Umrechnung heute: .*kWh\/m³/.test(gf?.textContent || '')
+      && gf.querySelector('a')?.getAttribute('href') === '#/settings/utilities' && /Netz/.test(gf.querySelector('[data-info-text]')?.dataset.infoText || ''),
+      gf?.textContent.replace(/\s+/g, ' ').trim().slice(0, 120));
+    t('nachzuege: Vertragskarte nennt die Boni mit Art', !!cv.view.querySelector('[data-role="contract-bonuses"]')
+      && /Bonus \(/.test(cv.view.querySelector('[data-role="contract-bonuses"]')?.textContent || ''));
+    // Speichern behält die Notiz (vorher ging sie beim Speichern verloren) und nimmt die neue Art an
+    const keptLabel = withBonus.bonuses.find(b => b.label).label;
+    const btype = brow?.querySelector('[data-role="type"]');
+    if (btype) { btype.value = 'sonstige'; btype.dispatchEvent(new global.window.Event('change', { bubbles: true })); }
+    // JSDOM kennt den Namenszugriff `form.provider` nicht (der Browser schon): nachrüsten
+    for (const el of form?.elements || []) {
+      if (el.name && !(el.name in form)) Object.defineProperty(form, el.name, { get: () => form.elements.namedItem(el.name), configurable: true });
+    }
+    global.document.querySelector('#modal-root [data-act="save"]')?.click();
+    for (let i = 0; i < 30 && global.document.querySelector('#modal-root #contract-form'); i++) await new Promise(r => setTimeout(r, 50));
+    const saved = (await apiMod.api.contracts('gas')).find(c => c.id === withBonus.id);
+    const savedB = (saved?.bonuses || []).find(b => b.label === keptLabel);
+    t('nachzuege: Speichern behält die Notiz und speichert „Sonstige Gutschrift“', !global.document.querySelector('#modal-root #contract-form')
+      && savedB?.type === 'sonstige', JSON.stringify(saved?.bonuses));
+    // Tarifvergleich (Rückblick): welche Boni im Betrag stecken, mit Art und Notiz
+    const tv = await renderView(`${ROOT}/views/tariff.js`);
+    await new Promise(r => setTimeout(r, 300));
+    const tUtil = tv.view.querySelector('#t-util');
+    if (tUtil) { tUtil.value = 'gas'; tUtil.dispatchEvent(new global.window.Event('change', { bubbles: true })); }
+    await new Promise(r => setTimeout(r, 700));
+    const tBonus = [...tv.view.querySelectorAll('#t-retro [data-role="tariff-bonus"]')].map(e => e.textContent).join(' | ');
+    t('nachzuege: Tarifvergleich nennt den Bonus mit Art, Datum und Notiz',
+      /(Bonus \([^)]+\)|Sonstige Gutschrift) −[\d.,]+\s€ am \d{2}\.\d{2}\.\d{4} \([^)]+\)/.test(tBonus), tBonus || 'keine Zeile');
+    // (4) Strom: Modul 3 mit Schalter „ohne USt“, keine Gasumrechnung
+    const sv = await renderView(`${ROOT}/views/contracts.js`, ['strom']);
+    await new Promise(r => setTimeout(r, 400));
+    sv.view.querySelector('[data-action="new-contract"]')?.click();
+    await new Promise(r => setTimeout(r, 400));
+    const sform = global.document.querySelector('#modal-root #contract-form');
+    const net = sform?.querySelector('[data-role="grid-tou"] [data-role="tou-net"]');
+    t('nachzuege: Modul 3 mit Schalter „ohne USt“ (aus = brutto)', !!net && net.checked === false && net.closest('label')?.matches('.check'));
+    t('nachzuege: Strom ohne Gasumrechnung', !sform?.querySelector('[data-role="gas-factor-note"]'));
+    global.document.querySelector('.modal [data-act="cancel"]')?.click();
+    // gespeichert: der Schalter kommt als `net: true` am Vertrag an
+    const stromC = (await apiMod.api.contracts('strom')).find(c => !c.is_shadow && sv.view.querySelector(`[data-edit-contract="${c.id}"]`));
+    sv.view.querySelector(`[data-edit-contract="${stromC?.id}"]`)?.click();
+    await new Promise(r => setTimeout(r, 400));
+    const eform = global.document.querySelector('#modal-root #contract-form');
+    const touBox = eform?.querySelector('[data-role="grid-tou"]');
+    if (touBox) {
+      touBox.querySelector('[data-role="tou-standard"]').value = '8';
+      touBox.querySelector('[data-role="tou-net"]').checked = true;
+    }
+    for (const el of eform?.elements || []) {
+      if (el.name && !(el.name in eform)) Object.defineProperty(eform, el.name, { get: () => eform.elements.namedItem(el.name), configurable: true });
+    }
+    global.document.querySelector('#modal-root [data-act="save"]')?.click();
+    for (let i = 0; i < 30 && global.document.querySelector('#modal-root #contract-form'); i++) await new Promise(r => setTimeout(r, 50));
+    const touSaved = (await apiMod.api.contracts('strom')).find(c => c.id === stromC?.id)?.grid_tou;
+    t('nachzuege: Modul 3 „ohne USt“ wird gespeichert', touSaved?.net === true && Number(touSaved?.standard_ct) === 8, JSON.stringify(touSaved));
+    if (global.document.querySelector('#modal-root #contract-form')) global.document.querySelector('.modal [data-act="cancel"]')?.click();
+    // (5) Einstellungen: Flexibilität mit Beispielwerten als Platzhalter
+    await patch({ flex_washer_kwh_per_cycle: null, flex_dishwasher_cycles_per_week: null });
+    const st = await renderView(`${ROOT}/views/settings.js`, ['utilities']);
+    await new Promise(r => setTimeout(r, 300));
+    const dish = st.view.querySelector('[data-key="flex_dishwasher_cycles_per_week"]');
+    t('nachzuege: Flexibilität — leeres Feld, Beispielwert als Platzhalter und Satz', dish?.value === '' && dish.getAttribute('placeholder') === '5'
+      && /Beispielwert 5/.test(st.view.querySelector('#set-flex_dishwasher_cycles_per_week-assumed')?.textContent || ''), `${dish?.value}|${dish?.getAttribute('placeholder')}`);
+    t('nachzuege: Steckzeit des Autos ohne Platzhalter-Satz (leer = ganzer Ladetag)', st.view.querySelector('[data-key="flex_ev_plugged_from"]')?.value === ''
+      && !st.view.querySelector('#set-flex_ev_plugged_from-assumed'));
+    t('nachzuege: Stichtag eindeutig „erster Tag der Abrechnungsperiode“', /erster Tag der Abrechnungsperiode/.test(st.view.querySelector('label[for="set-billing_cycle_anchor_gas"]')?.textContent || '')
+      && /01-09 heißt 1\.9\. bis 31\.8\./.test(st.view.textContent));
+    // (6) Flexibilität: eigener Wert statt Beispielwert
+    const impM = await fetch(`${HOST}/api/demo/import`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ force: true, persona: 'eigenheim-modern' }) });
+    await patch({ flex_dishwasher_cycles_per_week: 7 });
+    const fv = await renderView(`${ROOT}/views/flexibility.js`, [], { query: new URLSearchParams('year=2025') });
+    await new Promise(r => setTimeout(r, 500));
+    const dishRow = fv.view.querySelector('.flex-levers tr[data-lever="dishwasher"]');
+    t('nachzuege: Flexibilität nennt den eigenen Wert', impM.ok && !!dishRow?.querySelector('.flex-tag--own') && !dishRow.querySelector('.flex-tag--assumed'));
+    t('nachzuege: Annahmen je Teil Beispielwert oder eigener Wert', /Spülmaschine 1 kWh je Gang, 7 Gänge je Woche \(eigener Wert\)/.test(fv.view.querySelector('[data-role="assumptions"]')?.textContent || '')
+      && /\(Beispielwert\)/.test(fv.view.querySelector('[data-role="assumptions"]')?.textContent || ''), fv.view.querySelector('[data-role="assumptions"]')?.textContent);
+    await patch({ flex_dishwasher_cycles_per_week: null });
+  } catch (e) { t('nachzuege: v3.7.0', false, e.message); }
+
+  // ── 23. v3.7.0 (Integration nachzuege) — Belege am Vertrag: Dateiname, Link zum Öffnen,
+  //        ohne Namen „Beleg 2“; ein Vertrag ohne Belege zeigt keine Zeile ──
+  try {
+    const jpost = (path, method, body, type = 'application/json') => fetch(`${HOST}${path}`, { method, headers: { 'Content-Type': type }, body });
+    const impB = await jpost('/api/demo/import', 'POST', JSON.stringify({ force: true }));
+    t('belege: Schaufenster geladen', impB.ok, `HTTP ${impB.status}`);
+    const pdf = (tag) => `%PDF-1.4\n% render attachments ${tag}\n1 0 obj<</Type/Catalog>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n`;
+    const a1 = (await (await jpost('/api/attachments?kind=other&name=Stromvertrag-Beispiel.pdf', 'POST', pdf('a'), 'application/pdf')).json()).data?.id;
+    const a2 = (await (await jpost('/api/attachments?kind=other', 'POST', pdf('b'), 'application/pdf')).json()).data?.id;
+    // der Dateiname kommt vom Hochladen — er darf nicht als HTML in die Seite
+    const a3 = (await (await jpost(`/api/attachments?kind=other&name=${encodeURIComponent('<i>kursiv<i>.pdf')}`, 'POST', pdf('c'), 'application/pdf')).json()).data?.id;
+    const scs = ((await (await fetch(`${HOST}/api/utility/strom/contracts`)).json()).data || []).filter(c => !c.is_shadow);
+    const target = scs[0];
+    const upd = await jpost(`/api/utility/strom/contracts/${encodeURIComponent(target?.id)}`, 'PATCH', JSON.stringify({ attachment_ids: [a1, a2, a3] }));
+    t('belege: drei Belege am Stromvertrag gespeichert (Vorbedingung)', !!a1 && !!a2 && !!a3 && upd.ok && scs.length >= 2, `HTTP ${upd.status}, ${scs.length} Verträge`);
+    const st = await import(`${ROOT}/state.js`);
+    st.invalidateSettings(); st.invalidateUtilities();
+    const cv = await renderView(`${ROOT}/views/contracts.js`, ['strom']);
+    for (let i = 0; i < 40 && cv.view.querySelector('.loading'); i++) await new Promise(r => setTimeout(r, 25));
+    const docs = cv.view.querySelector(`[data-contract-id="${target?.id}"] [data-role="contract-documents"]`);
+    const links = [...(docs?.querySelectorAll('a[data-attachment]') || [])];
+    t('belege: Vertragskarte nennt die Belege mit Dateinamen', /^Belege:/.test(docs?.textContent.trim() || '') && links.length === 3
+      && /Stromvertrag-Beispiel\.pdf/.test(links[0]?.textContent || '') && /Beleg 2/.test(links[1]?.textContent || ''), docs?.textContent.replace(/\s+/g, ' ').trim() || 'keine Zeile');
+    t('belege: Dateiname als Text, nicht als HTML', !!links[2] && !links[2].querySelector('i') && links[2].textContent.includes('<i>kursiv<i>.pdf'), links[2]?.innerHTML);
+    t('belege: Link öffnet den Beleg in einem neuen Tab', links.every(a => /api\.php\/api\/attachments\/att_[0-9a-f]{16}$/.test(a.getAttribute('href') || '')
+      && a.getAttribute('target') === '_blank' && a.getAttribute('rel') === 'noopener') && links[0]?.getAttribute('title') === 'Stromvertrag-Beispiel.pdf öffnen',
+      links.map(a => a.getAttribute('href')).join(' '));
+    const other = cv.view.querySelector(`[data-contract-id="${scs.find(c => !(c.attachment_ids || []).length && c.id !== target?.id)?.id}"]`);
+    t('belege: Vertrag ohne Belege ohne Zeile', !!other && !other.querySelector('[data-role="contract-documents"]'));
+    // Zusammenführen (contracts.js): Bonuszeile des Wasservertrags mit Art (#35) und beschrifteten Feldern (Qualität)
+    const wv = await renderView(`${ROOT}/views/contracts.js`, ['wasser']);
+    for (let i = 0; i < 40 && wv.view.querySelector('.loading'); i++) await new Promise(r => setTimeout(r, 25));
+    wv.view.querySelector('[data-action="new-contract"]')?.click();
+    for (let i = 0; i < 40 && !global.document.querySelector('.modal [data-group="bonuses"]'); i++) await new Promise(r => setTimeout(r, 25));
+    const wrow = global.document.querySelector('.modal [data-group="bonuses"] tbody tr');
+    t('belege/zusammengeführt: Wasserbonus mit Art und beschrifteten Feldern', !!wrow?.querySelector('select[data-field="type"] option[value="sonstige"]')
+      && ['credit_date', 'amount_eur', 'label'].every(f => (wrow.querySelector(`[data-field="${f}"]`)?.getAttribute('aria-label') || '') !== ''),
+      wrow ? [...wrow.querySelectorAll('[data-field]')].map(e => `${e.dataset.field}:${e.getAttribute('aria-label') || '–'}`).join(' ') : 'kein Dialog');
+    global.document.querySelector('.modal [data-act="cancel"]')?.click();
+  } catch (e) { t('belege: Belege am Vertrag', false, e.stack || e.message); }
+
+  // ── 24. v3.7.0 — Posteingang mit dem Beispieldokument des Schaufensters ──
+  // Am Ende: Das Übernehmen ändert Bestand, auf den frühere Abschnitte bauen.
+  try {
+    const imp = await fetch(`${HOST}/api/demo/import`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ force: true }) });
+    t('inbox: Schaufenster mit Beispieldokument geladen', imp.ok, `HTTP ${imp.status}`);
+    // die Verbrauchsarten des vorigen Haushalts nicht weiterverwenden (state.js merkt sie sich)
+    const st = await import(`${ROOT}/state.js`);
+    st.invalidateSettings(); st.invalidateUtilities();
+    const list = await renderView(`${ROOT}/views/inbox.js`, [], { query: new URLSearchParams() });
+    const lv = list.view;
+    const input = lv.querySelector('#inbox-file');
+    t('inbox: Ablegen per Dateiauswahl (nur PDF, mehrere) und Ziehen', input?.type === 'file' && /application\/pdf/.test(input.getAttribute('accept') || '')
+      && input.hasAttribute('multiple') && !!lv.querySelector('label#inbox-drop[for="inbox-file"]'));
+    t('inbox: Hinweis aufs iPad (Dateien-App)', /Dateien-App/.test(lv.querySelector('#inbox-drop')?.textContent || ''));
+    const row = lv.querySelector('#inbox-list tr[data-entry]');
+    // v3.7.0 (treffsicher) — gespeichert sind 3 Marken (ohne Bestand); Arbeits- und Grundpreis
+    // stehen so im Vertrag des Schaufensters, also bleibt nur der eingebaute Zahlendreher
+    t('inbox: Beispieldokument in der Liste, ausgelesen mit 1 Marke (Preise wie im Vertrag)', !!row && /Jahresabrechnung-Erdgas-2025\.pdf/.test(row.textContent)
+      && /Ausgelesen · 1 Feld prüfen/.test(row.textContent) && /Rechnung/.test(row.textContent), row?.textContent.replace(/\s+/g, ' ').trim());
+    t('inbox: ohne Dienst der Hinweis auf qwen3.8 und 18 GB', /qwen3\.8/.test(lv.querySelector('[data-role="provider"]')?.textContent || '')
+      && /18 GB/.test(lv.querySelector('[data-role="provider"]')?.textContent || ''));
+    t('inbox: keine rohen Schlüssel', !/inbox\.[a-z]/.test(lv.textContent));
+    const id = row?.dataset.entry;
+    // v3.7.0 (Paket betrieb) — Kernaussage in der Liste, Hinweis auf Kurzbefehl, Ordner, E-Mail
+    const gl = row?.querySelector('[data-role="gist"]');
+    t('inbox/betrieb: Kernaussage unter dem Namen (Satz und Zahl)', !!gl && /Abrechnung 01\.01\.2025 bis 31\.12\.2025/.test(gl.textContent)
+      && /Guthaben|Nachzahlung/.test(gl.textContent), gl?.textContent.trim());
+    const ga = row?.querySelector('[data-gist-action]');
+    t('inbox/betrieb: Knopf „Übernehmen und prüfen“ führt in die Vorschau', ga?.getAttribute('href') === `#/inbox/${encodeURIComponent(id)}`
+      && /Übernehmen und prüfen/.test(ga.textContent), ga?.outerHTML);
+    const ch = lv.querySelector('#inbox-channels');
+    t('inbox/betrieb: „Auch ohne Browser“ mit Kurzbefehl, Ordner und E-Mail', !!ch && /Kurzbefehl/.test(ch.textContent) && /posteingang/.test(ch.textContent)
+      && ['inbox-shortcut', 'inbox-folder', 'inbox-email'].every(a => [...ch.querySelectorAll('a')].some(x => (x.getAttribute('href') || '').endsWith(`?h=${a}`))),
+      [...(ch?.querySelectorAll('a') || [])].map(a => a.getAttribute('href')).join(' '));
+
+    // v3.7.0 (cloud) — Zustimmung: einzeln je Dokument, die Warteschlange einmal für
+    // alle Dokumente des Laufs mit ihrer Zahl; Ziel und Hinweis im Dialog; nichts gemerkt
+    try {
+      const jpost = (path, method, body) => fetch(`${HOST}${path}`, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const on = await jpost('/api/inbox/cloud', 'PATCH', { enabled: true, provider: 'anthropic', api_key: 'sk-ant-test-render-0000' });
+      const added = [];
+      for (const tag of ['a', 'b']) {
+        const pdf = `%PDF-1.4\n% render consent ${tag}\n1 0 obj<</Type/Catalog>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n`;
+        const r = await fetch(`${HOST}/api/inbox?name=cloud-${tag}.pdf`, { method: 'POST', headers: { 'Content-Type': 'application/pdf' }, body: pdf });
+        added.push((await r.json()).data?.id);
+      }
+      t('inbox/cloud: eingeschaltet mit Schlüssel, zwei neue Dokumente', on.ok && added.every(Boolean));
+      const cl = (await renderView(`${ROOT}/views/inbox.js`, [], { query: new URLSearchParams() })).view;
+      t('inbox/cloud: Hinweis nennt den Cloud-Dienst', /Claude \(Anthropic\)/.test(cl.querySelector('[data-role="provider"]')?.textContent || ''));
+      cl.querySelector('#inbox-read-all')?.click();
+      await new Promise(r => setTimeout(r, 50));
+      const askAll = global.document.querySelector('.modal');
+      t('inbox/cloud: „Alle auslesen“ fragt einmal für alle mit ihrer Zahl, Ziel und Hinweis',
+        !!askAll && /Diese 2 Dokumente gehen zum Auslesen an Claude \(Anthropic\) – api\.anthropic\.com/.test(askAll.textContent)
+        && /als PDF an Claude \(Anthropic\) unter api\.anthropic\.com/.test(askAll.querySelector('[data-role="confirm-detail"]')?.textContent || '')
+        && /Experimentell: noch nicht mit echten Rückmeldungen geprüft/.test(askAll.querySelector('[data-role="confirm-detail"]')?.textContent || ''),
+        askAll?.textContent.replace(/\s+/g, ' ').trim().slice(0, 160));
+      global.document.querySelector('.modal [data-act="cancel"]')?.click();
+      await new Promise(r => setTimeout(r, 50));
+      const after = (await (await fetch(`${HOST}/api/inbox`)).json()).data;
+      t('inbox/cloud: abgelehnt — nichts vorgemerkt, nichts gesendet', after.queue?.queued === 0
+        && added.every(i => after.entries.find(e => e.id === i)?.status === 'new'));
+      const one = (await renderView(`${ROOT}/views/inbox.js`, [added[0]], { query: new URLSearchParams() })).view;
+      await new Promise(r => setTimeout(r, 100));
+      one.querySelector('#inbox-read')?.click();
+      await new Promise(r => setTimeout(r, 50));
+      const askOne = global.document.querySelector('.modal');
+      t('inbox/cloud: einzeln fragt je Dokument', !!askOne && /Dieses Dokument geht zum Auslesen an Claude \(Anthropic\) – api\.anthropic\.com/.test(askOne.textContent),
+        askOne?.textContent.replace(/\s+/g, ' ').trim().slice(0, 160));
+      global.document.querySelector('.modal [data-act="cancel"]')?.click();
+      await new Promise(r => setTimeout(r, 50));
+      // eine Wahrheit: der Umschalter der Karte „Auslesen“ zeigt, wer ausliest, und stellt es um
+      st.invalidateSettings();
+      const ex1 = (await renderView(`${ROOT}/views/settings.js`, ['expert'])).view;
+      const mode1 = ex1.querySelector('#inbox-reading-card input[name="rd-mode"]:checked')?.value;
+      t('inbox/cloud: die Karte „Auslesen“ steht auf „Cloud“ und sagt, wohin Dokumente gehen',
+        mode1 === 'cloud' && /geht an api\.anthropic\.com/.test(ex1.querySelector('[data-role="ic-state"]')?.textContent || ''), mode1);
+      // v3.7.0 — in der Cloud-Ansicht steht deutlich, was hinausgeht und was nicht
+      t('inbox/cloud: die Cloud-Ansicht sagt, dass jedes Dokument hinausgeht und sonst nichts',
+        /verlässt jedes Dokument.*Sonst geht nichts hinaus/s.test(ex1.querySelector('[data-role="ic-privacy"]')?.textContent || ''));
+      const localRadio = ex1.querySelector('#inbox-reading-card input[name="rd-mode"][value="local"]');
+      if (localRadio) { localRadio.checked = true; localRadio.dispatchEvent(new global.window.Event('change', { bubbles: true })); }
+      ex1.querySelector('#inbox-reading-card form[data-role="ic-form"]')?.dispatchEvent(new global.window.Event('submit', { bubbles: true, cancelable: true }));
+      await new Promise(r => setTimeout(r, 150));
+      const afterLocal = (await (await fetch(`${HOST}/api/settings`)).json()).data;
+      t('inbox/cloud: „Lokal“ wählen und speichern stellt inbox_provider um, die Cloud bleibt eingeschaltet',
+        afterLocal.inbox_provider === 'local' && afterLocal.inbox_cloud_enabled === true, `${afterLocal.inbox_provider} ${afterLocal.inbox_cloud_enabled}`);
+      st.invalidateSettings();
+      const ex2 = (await renderView(`${ROOT}/views/settings.js`, ['expert'])).view;
+      t('inbox/cloud: „Lokal“ gewählt — die Karte sagt, dass nichts hinausgeht',
+        ex2.querySelector('#inbox-reading-card input[name="rd-mode"]:checked')?.value === 'local'
+        && /es liest aber „Lokal“/.test(ex2.querySelector('[data-role="ic-state"]')?.textContent || ''),
+        ex2.querySelector('[data-role="ic-state"]')?.textContent);
+      for (const i of added) await fetch(`${HOST}/api/inbox/${i}`, { method: 'DELETE' });
+      await jpost('/api/inbox/cloud', 'PATCH', { enabled: false, clear_key: true });
+      st.invalidateSettings();
+    } catch (e) { t('inbox/cloud: Zustimmung', false, e.message); }
+
+    const rev = await renderView(`${ROOT}/views/inbox.js`, [], { query: new URLSearchParams('view=review') });
+    const items = [...rev.view.querySelectorAll('#inbox-review .inbox-review__item')];
+    t('inbox: Prüfliste nur mit den markierten Feldern (Preise wie im Vertrag nicht)', items.length === 1 && /Verbrauch/.test(items.map(i => i.textContent).join(' '))
+      && /Wert steht nicht in der Belegstelle/.test(rev.view.textContent), `${items.length} Einträge`);
+
+    const det = await renderView(`${ROOT}/views/inbox.js`, [id], { query: new URLSearchParams() });
+    const dv = det.view;
+    await new Promise(r => setTimeout(r, 200));
+    const cons = [...dv.querySelectorAll('#inbox-fields [data-field]')].find(li => li.dataset.field === 'consumption');
+    t('inbox: markiertes Feld hervorgehoben, mit Grund und Belegstelle', cons?.classList.contains('inbox-field--check')
+      && /Wert steht nicht in der Belegstelle/.test(cons.textContent) && /Verbrauch: 945,6 m³ = 10\.540 kWh/.test(cons.querySelector('.inbox-quote')?.textContent || ''));
+    t('inbox: markierte Felder zuerst', dv.querySelector('#inbox-fields [data-field]')?.classList.contains('inbox-field--check'));
+    const wpF = [...dv.querySelectorAll('#inbox-fields [data-field]')].find(li => li.dataset.field === 'working_prices');
+    t('inbox: Preis wie im Vertrag ohne Marke, mit Hinweis (v3.7.0 treffsicher)', !!wpF && !wpF.classList.contains('inbox-field--check')
+      && /Wie im Vertrag/.test(wpF.querySelector('[data-role="hint"]')?.textContent || ''), wpF?.textContent.replace(/\s+/g, ' ').trim());
+    // v3.7.0 (treffsicher, Nachbesserung 2) — Hilfsfelder (netto/brutto, Steuersatz) nicht unter „nicht im Dokument“
+    const auxNames = Object.entries((await (await fetch(`${HOST}/api/inbox/${encodeURIComponent(id)}`)).json()).data?.schema || {})
+      .filter(([, d]) => d.aux).map(([n]) => n);
+    const auxShown = [...dv.querySelectorAll('#inbox-fields-card [data-field]')].map(li => li.dataset.field).filter(n => auxNames.includes(n));
+    t('inbox: Hilfsfelder Netto/Steuersatz nur, wenn sie dastehen', auxNames.length >= 2 && auxShown.length === 0, `${auxNames.join(',')} | gezeigt: ${auxShown.join(',')}`);
+    // v3.7.0 (Paket betrieb) — Karte „Was heißt das für dich?“ oben: Zahl, Satz, Knopf, Rest aufklappbar
+    const gc = dv.querySelector('#inbox-gist');
+    t('inbox/betrieb: Kernaussage oben in der Vorschau', !!gc && dv.querySelector('#inbox-side')?.firstElementChild === gc
+      && gc.dataset.gist === 'inbox.gist.invoice.pending' && /Übernimm sie, dann prüft die App/.test(gc.textContent)
+      && !!gc.querySelector('[data-role="gist-figure"]') && /Übernehmen und prüfen/.test(gc.querySelector('[data-gist-action="apply"]')?.textContent || ''),
+      gc?.textContent.replace(/\s+/g, ' ').trim());
+    t('inbox/betrieb: der Rest aufklappbar (neuer Abschlag)', /Neuer Abschlag 80,00\s€ ab 01\.02\.2026/.test(gc?.querySelector('details.inbox-gist__more')?.textContent || ''),
+      gc?.querySelector('details')?.textContent.replace(/\s+/g, ' ').trim());
+    t('inbox: Zuordnung vorbelegt (Gas, Hauptzähler, Vertrag am Stichtag)', dv.querySelector('#inbox-utility')?.value === 'gas'
+      && dv.querySelector('#inbox-meter')?.value === 'm_gas_main' && dv.querySelector('#inbox-contract')?.value === 'c_gas_003'
+      && /Zählernummer/.test(dv.querySelector('#inbox-assign')?.textContent || ''), `${dv.querySelector('#inbox-meter')?.value} ${dv.querySelector('#inbox-contract')?.value}`);
+    const props = [...dv.querySelectorAll('#inbox-proposals .inbox-proposal')];
+    const prop = (re) => props.find(p => re.test(p.textContent));
+    const readingP = prop(/Ablesung am 31\.12\.2025: 1\.235,6 m³/);
+    t('inbox: Vorschlag Ablesung neu und angehakt', !!readingP && readingP.querySelector('input').checked && /neu/.test(readingP.textContent));
+    const billP = prop(/Rechnung 01\.01\.2025 bis 31\.12\.2025 erfassen, Guthaben 548,54/);
+    t('inbox: Rechnung mit markierter Quelle nicht vorbelegt', !!billP && !billP.querySelector('input').checked && /prüfen/.test(billP.textContent), billP?.textContent.replace(/\s+/g, ' ').trim());
+    const factorP = props.filter(p => /Gas-Umrechnung ab/.test(p.textContent));
+    t('inbox: Gas-Umrechnung schon vorhanden (Stichtag-Liste)', factorP.length === 2 && factorP.every(p => /schon vorhanden/.test(p.textContent) && p.querySelector('input').disabled));
+    t('inbox: Arbeitspreis aus der Rechnung: vorhanden und markiert', /schon vorhanden/.test(prop(/Arbeitspreis ab 01\.01\.2025/)?.textContent || ''));
+    t('inbox: neuer Abschlag am Folgevertrag', /Abschlag ab 01\.02\.2026: 80,00\s€/.test(prop(/Abschlag ab/)?.textContent || ''));
+    const bookP = prop(/Sonderzahlung buchen/);
+    t('inbox: Buchung folgt der Rechnung (markiert, nicht vorbelegt)', !!bookP && !bookP.querySelector('input').checked && /prüfen/.test(bookP.textContent));
+    t('inbox: Vorschau des Dokuments — ohne pdf.js der Link auf die Datei', /PDF öffnen/.test(dv.querySelector('#inbox-doc')?.textContent || '')
+      && /api\.php\/api\/attachments\/att_/.test(dv.querySelector('#inbox-doc a')?.getAttribute('href') || ''));
+    const manual = dv.querySelector('#inbox-manual a[data-manual]');
+    t('inbox: „Von Hand erfassen“ zuerst die Rechnung, mit Zähler und Zeitraum', manual?.dataset.manual === 'bill'
+      && /#\/bill-check\?.*utility=gas.*capture=1.*meter=m_gas_main.*from=2025-01-01.*until=2025-12-31/.test(manual.getAttribute('href') || ''), manual?.getAttribute('href'));
+    manual.dispatchEvent(new global.window.MouseEvent('click', { bubbles: true, cancelable: true }));
+    const dock = global.document.getElementById('doc-dock');
+    t('inbox: Dokument bleibt daneben (Andockfenster außerhalb der Ansicht)', !!dock && global.document.body.classList.contains('doc-dock-open')
+      && /Jahresabrechnung-Erdgas-2025\.pdf/.test(dock.textContent));
+    dock?.querySelector('[data-act="close"]')?.click();
+    t('inbox: Andockfenster schließt', !global.document.getElementById('doc-dock') && !global.document.body.classList.contains('doc-dock-open'));
+
+    // Verbrauch korrigieren → die Rechnung ist danach vorbelegt; übernehmen
+    cons.querySelector('[data-correct="consumption"]')?.click();
+    const ed = cons.querySelector('[data-role="edit"]');
+    ed.value = '10540';
+    cons.querySelector('[data-role="ok"]')?.click();
+    for (let i = 0; i < 40 && !dv.querySelector('#inbox-fields .inbox-field--edited'); i++) await new Promise(r => setTimeout(r, 50));
+    const bill2 = [...dv.querySelectorAll('#inbox-proposals .inbox-proposal')].find(p => /Rechnung 01\.01\.2025/.test(p.textContent));
+    t('inbox: nach der Korrektur ist die Rechnung vorbelegt', !!bill2?.querySelector('input').checked, bill2?.textContent.replace(/\s+/g, ' ').trim());
+    dv.querySelector('#inbox-apply')?.click();
+    for (let i = 0; i < 60 && !/Übernommen/.test(dv.querySelector('#inbox-state')?.textContent || ''); i++) await new Promise(r => setTimeout(r, 50));
+    const bills = (await (await fetch(`${HOST}/api/utility/gas/bills`)).json()).data || [];
+    const b = bills.find(x => x.period_from === '2025-01-01' && x.period_to === '2025-12-31');
+    t('inbox: übernommen — Rechnung mit Dokument als Beleg und gebucht', !!b && b.attachment_ids?.length === 1 && !!b.special_payment_id
+      && Math.round(b.invoice.energy_kwh) === 10540, JSON.stringify(b?.invoice || {}));
+    t('inbox: Stand „Übernommen“', /Übernommen/.test(dv.querySelector('#inbox-state')?.textContent || ''));
+    const cts = (await (await fetch(`${HOST}/api/utility/gas/contracts`)).json()).data || [];
+    const next = cts.find(c => (c.advance_payments || []).some(a => a.from === '2026-02-01' && a.amount_eur === 80));
+    t('inbox: der neue Abschlag steht am Vertrag, der ab Februar 2026 läuft', !!next && next.start <= '2026-02-01' && next.start > '2025-12-31', next?.id);
+    const again = [...dv.querySelectorAll('#inbox-proposals .inbox-proposal')];
+    // (die alte Ablesung 31.12.2024 war freiwillig und nicht angehakt — sie bleibt „neu“)
+    const done = again.filter(p => /Ablesung am 31\.12\.2025|Rechnung 01\.01\.2025|Sonderzahlung buchen|Abschlag ab 01\.02\.2026/.test(p.textContent));
+    t('inbox: danach ist alles Übernommene „schon vorhanden“', done.length === 4 && done.every(p => /schon vorhanden/.test(p.textContent)),
+      done.map(p => p.textContent.replace(/\s+/g, ' ').trim()).join(' | '));
+    const acts = (await (await fetch(`${HOST}/api/activity`)).json()).data || [];
+    t('inbox: Verlauf „Aus Dokument übernommen“', acts.some(a => a.subject?.kind === 'inbox' && /Aus Dokument übernommen/.test(a.title)));
+    // v3.7.0 (Integration nachzuege) — die übernommene Rechnung nennt ihr Dokument beim Namen
+    // (eine Rechnung hängt an der Rechnung; an den Vertrag gehen Briefe wie Preis- und Abschlagsänderung)
+    const bcx = await renderView(`${ROOT}/views/bill-check.js`, [], { query: new URLSearchParams('utility=gas&meter=m_gas_main&from=2025-01-01&to=2026-01-01') });
+    for (let i = 0; i < 40 && !bcx.view.querySelector('[data-role="bill-list"] a[data-attachment]'); i++) await new Promise(r => setTimeout(r, 50));
+    const bdoc = bcx.view.querySelector('[data-role="bill-list"] a[data-attachment]');
+    t('inbox: Rechnungsliste — Beleg öffnen mit Dateinamen (nicht „Rechnung anhängen“)', bdoc?.getAttribute('aria-label') === 'Jahresabrechnung-Erdgas-2025.pdf öffnen'
+      && /api\.php\/api\/attachments\/att_/.test(bdoc.getAttribute('href') || ''), bdoc?.getAttribute('aria-label') || 'kein Link');
+
+    // v3.7.0 (Paket betrieb) — nach dem Übernehmen ist die Rechnung geprüft
+    const gk = dv.querySelector('#inbox-gist')?.dataset.gist || '';
+    t('inbox/betrieb: nach dem Übernehmen das Urteil von „Rechnung prüfen“', /^inbox\.gist\.invoice\.(ok|offMore|offLess|offQuantity)$/.test(gk), gk);
+    const listAfter = (await (await fetch(`${HOST}/api/inbox`)).json()).data.entries.find(e => e.id === id);
+    t('inbox/betrieb: die Liste trägt die gespeicherte Kernaussage samt Prüfung', listAfter?.gist?.key === gk && !!listAfter.gist.check?.bill_id, JSON.stringify(listAfter?.gist?.check || {}));
+
+    // v3.7.0 (Paket betrieb) — Akte am Zähler: das übernommene Dokument mit seiner Kernaussage, die Rechnung nicht doppelt
+    st.invalidateUtilities();
+    const mv = await renderView(`${ROOT}/views/meters.js`, ['gas'], { query: new URLSearchParams() });
+    const dz = [...mv.view.querySelectorAll('details.dossier')].find(d => d.dataset.dossierMeter === 'm_gas_main');
+    t('akte: aufklappbar am Zähler', !!dz && /Akte/.test(dz.querySelector('summary')?.textContent || ''));
+    if (dz) { dz.open = true; dz.dispatchEvent(new global.window.Event('toggle')); }
+    for (let i = 0; i < 60 && !dz?.querySelector('[data-role="dossier-list"]'); i++) await new Promise(r => setTimeout(r, 50));
+    const dItems = [...(dz?.querySelectorAll('.dossier__item') || [])];
+    const dInbox = dItems.find(li => /Jahresabrechnung-Erdgas-2025\.pdf/.test(li.textContent));
+    t('akte: Dokument aus dem Posteingang mit Kernaussage, Art und Öffnen', !!dInbox && dInbox.dataset.kind === 'inbox:invoice'
+      && /passt zu deinen Daten|über deiner eigenen Rechnung|unter deiner eigenen Rechnung|weicht um/.test(dInbox.textContent)
+      && /api\.php\/api\/attachments\/att_/.test(dInbox.querySelector('.dossier__open')?.getAttribute('href') || ''), dInbox?.textContent.replace(/\s+/g, ' ').trim());
+    t('akte: das PDF steht nur einmal', dItems.filter(li => /Jahresabrechnung-Erdgas-2025\.pdf/.test(li.textContent)).length === 1);
+    const kindSel = dz?.querySelector('[data-role="dossier-kind"]');
+    if (kindSel) { kindSel.value = 'inbox:invoice'; kindSel.dispatchEvent(new global.window.Event('change')); }
+    const shown = [...(dz?.querySelectorAll('.dossier__item') || [])];
+    t('akte: Filter nach Art', shown.length >= 1 && shown.every(li => li.dataset.kind === 'inbox:invoice'), shown.map(li => li.dataset.kind).join(','));
+
+    // v3.7.0 (Paket betrieb) — Zählerwechsel aus dem Posteingang: Dialog vorbelegt
+    await renderView(`${ROOT}/views/meters.js`, ['gas'], { query: new URLSearchParams('replace=m_gas_main&date=2026-05-15&old=13902.5&new=0.8&serial=TEST-NEU&inbox=inb_x') });
+    for (let i = 0; i < 40 && !global.document.querySelector('.modal #replace-form'); i++) await new Promise(r => setTimeout(r, 50));
+    const rf = global.document.querySelector('.modal #replace-form');
+    const fv = (n) => rf?.querySelector(`[name="${n}"]`)?.value;
+    t('zähler: Zählertausch vorbelegt aus dem Posteingang', fv('date') === '2026-05-15' && fv('old_final_counter') === '13902,5'
+      && fv('new_initial_counter') === '0,8' && fv('serial') === 'TEST-NEU' && !!global.document.querySelector('.modal [data-role="swap-prefilled"]'),
+      rf ? ['date', 'old_final_counter', 'new_initial_counter', 'serial'].map(fv).join(' ') : 'kein Dialog');
+    global.document.querySelector('.modal [data-act="cancel"]')?.click();
+  } catch (e) { t('inbox: Posteingang', false, e.stack || e.message); }
+
+  // ── v3.7.0 (Paket reifegrad) — Navigation je Stufe über den echten Router,
+  //    Vorschlag „höhere Stufe“ höchstens einmal je Anlass (Haushalt mit PV),
+  //    Schaubilder der Übersicht ab Erfahren, E-Auto/JAZ der Werkstatt ab
+  //    Erfahren, Link auf die Funktionstabelle. Am Ende wieder Experte. ──
+  const prevStorage = Object.getOwnPropertyDescriptor(global, 'localStorage');
+  try {
+    const L = await import(`${ROOT}/lib/levels.js`);
+    const { startRouter } = await import(`${ROOT}/router.js`);
+    const waitFor = async (fn, ms = 8000) => {
+      for (let i = 0; i < ms / 50 && !fn(); i++) await new Promise(r => setTimeout(r, 50));
+      return fn();
+    };
+    const routed = async (level, hash) => {
+      const dom = freshDom();
+      dom.window.scrollTo = () => {};
+      L.applyLevel(level);
+      dom.window.location.hash = hash;
+      const view = global.document.getElementById('view');
+      startRouter(view);
+      await waitFor(() => view.querySelector('.view-host h1') && !view.querySelector('.view-host > .loading, .view-body > .loading'));
+      return view;
+    };
+    const tabs = (v) => [...v.querySelectorAll('.section-tabs a')].map(a => a.getAttribute('href'));
+    let v = await routed('beginner', '#/contracts');
+    t('stufen: Einsteiger — Kosten ohne „Wechsel prüfen“ und „Rechnung prüfen“', !!v.querySelector('h1')
+      && !tabs(v).includes('#/tariffs') && !tabs(v).includes('#/bill-check'), tabs(v).join(' ') || 'keine Tabs');
+    v = await routed('advanced', '#/contracts');
+    t('stufen: Erfahren — Kosten mit „Wechsel prüfen“ und „Rechnung prüfen“', tabs(v).includes('#/tariffs') && tabs(v).includes('#/bill-check'), tabs(v).join(' '));
+    v = await routed('beginner', '#/settings');
+    t('stufen: Einsteiger — Einstellungen Allgemein, Haushalt, Verbrauchsarten, Daten',
+      tabs(v).join() === '#/settings,#/settings/household,#/settings/utilities,#/settings/data', tabs(v).join(' '));
+    t('stufen: Einstellungen › Stufe verlinkt die Funktionstabelle',
+      /referenz\/stufen\.md$/.test(decodeURIComponent(v.querySelector('[data-role="level-table"]')?.getAttribute('href') || '')),
+      v.querySelector('[data-role="level-table"]')?.getAttribute('href') || 'kein Link');
+    v = await routed('expert', '#/settings');
+    t('stufen: Experte — alle neun Einstellungsseiten', tabs(v).length === 9, tabs(v).join(' '));
+    // bis v3.6 löschte die Ansicht den Hinweis, wenn der Bereich keine Tabs hatte
+    // (Kosten hat für Einsteiger nur „Verträge & Abschläge“)
+    for (const hash of ['#/tariffs', '#/bill-check']) {
+      v = await routed('beginner', hash);
+      t(`stufen: ausgeblendete Seite ${hash} öffnet trotzdem, mit Hinweis über der Ansicht`, !!v.querySelector('.view-host > .level-hint')
+        && /Erfahren/.test(v.querySelector('.level-hint')?.textContent || '') && !!v.querySelector('.view-host > .view-body h1'));
+    }
+
+    // Einsteiger mit PV (Schaufenster): Vorschlag „Erfahren“, ein zweites Mal nicht mehr
+    const dom = freshDom();
+    Object.defineProperty(global, 'localStorage', { value: dom.window.localStorage, configurable: true, writable: true });
+    L.applyLevel('beginner');
+    const dash = await import(`${ROOT}/views/dashboard.js?t=${Date.now()}`);
+    const box = global.document.getElementById('view');
+    await dash.render(box);
+    await waitFor(() => box.querySelector('[data-role="level-hint"] .level-hint'), 3000);
+    const hint = box.querySelector('[data-role="level-hint"] .level-hint');
+    t('stufen: Einsteiger mit PV — Vorschlag „Erfahren“ mit Anlass', hint?.dataset.next === 'advanced'
+      && (hint.dataset.reasons || '').split(' ').includes('pv') && /PV-Anlage/.test(hint.textContent), hint?.dataset.reasons || 'kein Hinweis');
+    await dash.render(box);
+    await new Promise(r => setTimeout(r, 400));
+    t('stufen: … und höchstens einmal je Anlass', !!box.querySelector('[data-role="level-hint"]') && !box.querySelector('[data-role="level-hint"] .level-hint'));
+
+    L.applyLevel('advanced');
+    freshDom();
+    const box2 = global.document.getElementById('view');
+    await dash.render(box2);
+    t('stufen: Erfahren — Übersicht mit „Schaubilder“ (bis v3.6 Experte)', !!box2.querySelector('section.dash-explainers'));
+    L.applyLevel('beginner');
+    freshDom();
+    const box3 = global.document.getElementById('view');
+    await dash.render(box3);
+    t('stufen: Einsteiger — Übersicht ohne den Abschnitt „Schaubilder“', !!box3.querySelector('.dash-answers') && !box3.querySelector('section.dash-explainers'));
+
+    L.applyLevel('expert');
+    const { view: fv } = await renderView(`${ROOT}/views/forecast.js`);
+    t('stufen: Werkstatt — E-Auto und JAZ unter „Mehr Stellschrauben“ (ab Erfahren)',
+      ['#ws-ev-km', '#ws-ev-kwh', '#ws-jaz-from', '#ws-jaz-to'].every(s => fv.querySelector(s)?.closest('[data-min-level]')?.dataset.minLevel === 'advanced')
+      && fv.querySelector('#ws-regression')?.closest('[data-min-level]')?.dataset.minLevel === 'expert');
+  } catch (e) { t('stufen: Navigation und Vorschlag', false, e.stack || e.message); }
+  finally {
+    try { (await import(`${ROOT}/lib/levels.js`)).applyLevel('expert'); } catch { /* bleibt */ }
+    if (prevStorage) Object.defineProperty(global, 'localStorage', prevStorage);
+    else delete global.localStorage;
+  }
+
+  // ── 23. v3.7.0 (Paket interpolation, GitHub #37, #38, #39) — gemessen oder verteilt ──
+  // Lädt selbst das Schaufenster (Zwischenzähler Werkstatt, vierteljährlich abgelesen),
+  // legt einen Zähler an, den das Heizmodell schlecht trifft, und zum Schluss ein
+  // Balkonkraftwerk mit zwei Ablesungen im Haushalt der Mieterin.
+  try {
+    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+    const post = (path, body) => fetch(`${HOST}/api${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const json = async (path) => (await (await fetch(`${HOST}/api${path}`)).json()).data;
+    const st = await import(`${ROOT}/state.js`);
+    const fresh = () => { st.invalidateSettings(); st.invalidateUtilities(); };
+    const imp = await post('/demo/import', { force: true });
+    fresh();
+    const cons = await json('/utility/gas/meters/m_gas_werkstatt/consumption');
+    const year = Math.max(...cons.monthly.filter(m => m.interpolated).map(m => m.year).filter(y => cons.monthly.filter(m => m.year === y).length === 12));
+    t('interpolation: Schaufenster mit Zwischenzähler, Monatswerte verteilt, Heizmodell über die Abstände', imp.ok && cons.interpolation?.interpolated_months > 12
+      && cons.interpolation.heat_basis === 'intervals' && cons.monthly.every(m => m.interpolated === true),
+      `${cons.interpolation?.interpolated_months} von ${cons.interpolation?.months}, ${cons.interpolation?.readings} Ablesungen, ${cons.interpolation?.heat_basis}`);
+    t('interpolation: verteilte Monate nicht in der Abweichungstabelle', (cons.anomalies || []).length === 0 && cons.anomaly_quality === null);
+
+    // Verbrauchsart: ein Hinweis mit der Zahl der Ablesungen im Jahr, ≈ in der Tabelle, schraffiert im Diagramm
+    const { view } = await renderView(`${ROOT}/views/utility.js`, ['gas'], { query: new URLSearchParams(`meter=m_gas_werkstatt&year=${year}`) });
+    await sleep(600);
+    const note = view.querySelectorAll('[data-role="interpolation-note"]');
+    const inYear = Number(cons.interpolation.readings_by_year?.[year] ?? 0);
+    t('interpolation: Verbrauchsart — genau ein Hinweis, mit Ablesungen im Jahr und Heizmodell', note.length === 1
+      && new RegExp(`12 von 12 Monatswerten in ${year} sind verteilt, nicht gemessen \\(${inYear} Ablesungen in ${year}\\)`).test(note[0].textContent)
+      && /Heizmodell rechnet deshalb über die \d+ Abstände/.test(note[0].textContent), note[0]?.textContent.trim().slice(0, 160));
+    t('interpolation: Monatstabelle markiert jeden verteilten Monat (≈ mit Klartext)', view.querySelectorAll('[data-role="interpolated"]').length === 12
+      && /aus \d+ Tagen zwischen zwei Ablesungen/.test(view.querySelector('[data-role="interpolated"]')?.getAttribute('title') || '')
+      && !!view.querySelector('[data-role="interpolated-legend"]'));
+    const [mc] = chartOn('month-chart');
+    const cur = (mc?.config?.data?.datasets || []).find(d => typeof d.backgroundColor === 'function');
+    t('interpolation: Monatschart schraffiert (Farbe aus u.color) mit Satz darunter', /0\.2\)$/.test(cur?.backgroundColor?.({ dataIndex: 3 }) || '')
+      && /Schraffierte Säulen/.test(view.querySelector('[data-role="month-chart-note"]')?.textContent || ''), cur?.backgroundColor?.({ dataIndex: 3 }));
+    const main = await renderView(`${ROOT}/views/utility.js`, ['gas'], { query: new URLSearchParams('meter=m_gas_main&year=2025') });
+    await sleep(500);
+    t('interpolation: Hauptzähler monatlich abgelesen — kein Hinweis', !main.view.querySelector('[data-role="interpolation-note"]'));
+
+    // Analyse: Hinweis über den ganzen Zeitraum, „verteilt, nicht im Modell“, statt „alle im Erwartungsbereich“ die Grenze
+    const an = await renderView(`${ROOT}/views/analysis.js`);
+    const us = an.view.querySelector('#util-select');
+    // Erst warten, bis die Ansicht ihren eigenen Aufbau beendet hat — sonst überschreibt er die Auswahl
+    const settled = async (opt) => {
+      for (let i = 0; i < 100 && !(an.view.querySelector(`#meter-select option[value="${opt}"]`)
+        && !an.view.querySelector('#analysis-body > .loading') && an.view.querySelector('#ch-years')); i++) await sleep(50);
+    };
+    if (us.value !== 'gas') { us.value = 'gas'; us.dispatchEvent(new global.window.Event('change')); }
+    await settled('m_gas_werkstatt');
+    const ms = an.view.querySelector('#meter-select');
+    ms.value = 'm_gas_werkstatt'; ms.dispatchEvent(new global.window.Event('change'));
+    const wantReadings = `${cons.interpolation.readings} Ablesungen von `;
+    for (let i = 0; i < 80 && !(an.view.querySelector('[data-role="interpolation-note"]')?.textContent || '').includes(wantReadings); i++) await sleep(50);
+    const aNote = an.view.querySelector('[data-role="interpolation-note"]')?.textContent || '';
+    t('interpolation: Analyse — Hinweis mit den Ablesungen des Zeitraums', new RegExp(`${cons.interpolation.readings} Ablesungen von `).test(aNote)
+      && /Anomalien, Empfehlungen und die Heizkurve lassen diese Monate aus/.test(aNote), aNote.trim().slice(0, 140));
+    t('interpolation: Analyse — Punkte der Heizkurve „verteilt, nicht im Modell“', /verteilt, nicht im Modell/.test(an.view.querySelector('[data-role="hdd-data"]')?.textContent || ''));
+    t('interpolation: Analyse — keine Prüfung möglich, statt „alle Monate im Erwartungsbereich“', !!an.view.querySelector('[data-role="anomaly-limit"]')
+      && !/alle Monate liegen innerhalb/.test(an.view.textContent));
+    // wirklichkeit-2 (Punkt 6) — der Grund, mit der Zahl der Punkte
+    t('wirklichkeit-2: ungültige Heizkurve sagt den Grund („zu wenige Datenpunkte (0)“)', /zu wenige Datenpunkte \(0\)/.test(an.view.querySelector('#reg-summary')?.textContent || ''),
+      (an.view.querySelector('#reg-summary')?.textContent || '').replace(/\s+/g, ' ').slice(0, 160));
+
+    // Gütesperre (#38): Monat für Monat ±40 % — das Heizmodell trifft nichts, die Tabelle bliebe leer.
+    // Dazu eine stark konvexe Heizkurve (kubisch in den Gradtagen): Die Gerade drückt die Grundlast auf null.
+    const mk = await (await post('/utility/gas/meters', { name: 'Werkstatt Test', installed_on: '2023-07-01', parent_meter_id: 'm_gas_main' })).json();
+    const mid = mk?.data?.id;
+    const temp = [0, 0.5, 1.5, 5, 9, 14, 17, 19, 18, 14, 9, 4, 1.5];
+    let counter = 0;
+    for (let i = 0; i <= 34; i++) {
+      const d = new Date(Date.UTC(2023, 6 + i, 1));
+      const date = d.toISOString().slice(0, 10);
+      await post('/utility/gas/readings', { meter_id: mid, date, counter: Math.round(counter * 10) / 10 });
+      const mo = d.getUTCMonth() + 1;
+      const h = Math.max(0, 15 - temp[mo]);
+      counter += (0.6 + 0.003 * h * h * h) * 30 * [0.6, 1.4][i % 2];
+    }
+    const q = (await json(`/utility/gas/meters/${mid}/consumption`)).anomaly_quality;
+    us.dispatchEvent(new global.window.Event('change'));   // Zählerliste neu laden
+    await sleep(100);
+    await settled(mid);
+    ms.value = mid; ms.dispatchEvent(new global.window.Event('change'));
+    for (let i = 0; i < 80 && !an.view.querySelector('[data-role="anomaly-quality"]'); i++) await sleep(50);
+    const qa = an.view.querySelector('[data-role="anomaly-quality"]');
+    t('gütesperre: schlechtes Modell — Satz über der Tabelle mit Grenze', q?.model_quality === 'poor' && /passt schlecht/.test(qa?.textContent || '')
+      && new RegExp(`eines mittleren gemessenen Monats \\(${Math.round(q.mean_month).toLocaleString('de-DE')} kWh\\)`).test(qa?.textContent || '')
+      && new RegExp(`ab ${Math.round(q.detect_floor).toLocaleString('de-DE')} kWh`).test(qa?.textContent || ''), `${q?.ratio} · ${qa?.textContent.trim().slice(0, 120)}`);
+    t('gütesperre: Sprung zur Heizgrenze (Einstellungen › Verbrauchsarten & Abrechnung › Physikalische Konstanten)',
+      qa?.querySelector('a')?.getAttribute('href') === '#/settings/utilities?field=hdd_base_temp'
+      && /Verbrauchsarten & Abrechnung › Physikalische Konstanten › HGT-Basistemperatur/.test(qa?.querySelector('a')?.textContent || ''));
+    t('gütesperre: kein „alle Monate liegen innerhalb“', !/alle Monate liegen innerhalb/.test(an.view.textContent));
+    // v3.7.0 (wirklichkeit-2, Schritt 3, N2) — der Satz über der Tabelle passt zu ihr: mit Zeilen nicht „dass sie leer ist“
+    const rowsShown = ((await json(`/utility/gas/meters/${mid}/consumption`))?.anomalies || []).length;
+    t(`gütesperre: Satz über der Tabelle passt zu ihr (${rowsShown} Zeilen)`, rowsShown > 0
+      ? /kann ebenso der Fehler des Modells sein/.test(qa?.textContent || '') && !/dass sie leer ist/.test(qa?.textContent || '')
+      : /dass sie leer ist/.test(qa?.textContent || ''), (qa?.textContent || '').trim().slice(-160));
+    t('gütesperre: Grundlast weit unter den gemessenen Sommermonaten — Satz mit Modell und Messung je Tag',
+      (q?.reasons || []).includes('base_load')
+      && (() => {
+        const one = (v) => v.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+        return (qa?.textContent || '').includes(`Für den Sommer sagt es ${one(q.base_load.model_per_day)} kWh am Tag voraus, gemessen sind ${one(q.base_load.measured_per_day)} kWh am Tag.`);
+      })(),
+      `${JSON.stringify(q?.reasons)} · ${JSON.stringify(q?.base_load)}`);
+
+    // ── wirklichkeit-2 (Punkt 3) — Gütesperre: Spanne statt Abschlagsvorschlag ──
+    await post('/utility/gas/contracts', { meter_id: mid, provider: 'Testgas', start: '2023-07-01',
+      working_prices: [{ from: '2023-07-01', ct_per_kwh: 11 }], advance_payments: [{ from: '2023-07-01', amount_eur: 120 }] });
+    const cs = ((await json(`/utility/gas/meters/${mid}/contract-status`))?.contracts || []).find(c => c.is_current);
+    t('wirklichkeit-2: Gütesperre → kein Abschlagsvorschlag, Spanne mit Grund', cs?.suggested_advance === null
+      && (cs?.projection_uncertain?.reasons || []).includes('poor_fit') && cs.projection_uncertain.projected_range?.length === 2, JSON.stringify(cs?.projection_uncertain));
+    const uv = await renderView(`${ROOT}/views/utility.js`, ['gas'], { query: new URLSearchParams(`meter=${mid}`) });
+    for (let i = 0; i < 60 && !uv.view.querySelector('[data-role="balance-uncertain"]'); i++) await sleep(50);
+    const bu = uv.view.querySelector('[data-role="balance-uncertain"]')?.textContent || '';
+    t('wirklichkeit-2: Saldo-Karte — „unsicher: zwischen … und …, weil das Heizmodell schlecht passt“', /unsicher: zwischen .+ und .+, weil das Heizmodell schlecht zu diesem Zähler passt/.test(bu)
+      && !/Abschlag von .+ statt/.test(uv.view.querySelector('.balance-suggest:not([data-role])')?.textContent || ''), bu.slice(0, 220));
+    // ── Nachlauf vor dem Release (Skeptiker V1–V3) ──
+    const vr = uv.view.querySelector('[data-role="verdict-range"]')?.textContent || '';
+    const pointEur = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(Math.abs(cs?.projected_end_balance ?? 0));
+    t('Nachlauf V1: Saldo-Karte ohne Punktwert, nur die Spanne', /(Guthaben|Nachzahlung|ausgeglichen) bis .*(Guthaben|Nachzahlung|ausgeglichen)/.test(vr)
+      && !(uv.view.querySelector('.balance-verdict__value')?.textContent || '').includes(pointEur) && !/≈/.test(vr)
+      && /unsicher/.test(uv.view.querySelector('.balance-verdict__verdict')?.textContent || ''), `${vr} · ${pointEur}`);
+    const er = uv.view.querySelector('.contracts-table [data-role="expected-range"]')?.textContent || '';
+    t('Nachlauf V2: Verträge-Tabelle — „Erwartet“ als Spanne', /bis/.test(er), er);
+    const co = await renderView(`${ROOT}/views/contracts-overview.js`);
+    for (let i = 0; i < 80 && !co.view.querySelector('[data-role="expected-range"]'); i++) await sleep(50);
+    const coText = co.view.querySelector('[data-role="expected-range"]')?.textContent.replace(/\s+/g, ' ').trim() || '';
+    t('Nachlauf V2: Kosten & Verträge — „Erwartet zum …“ mit der Spanne der Saldo-Karte', /^Erwartet zum .+: .+ bis .+ \(unsicher\)$/.test(coText), coText);
+    const wx = uv.view.querySelector('.ex-weather .explainer__text')?.textContent || '';
+    t('Nachlauf V3: „Kälter oder mehr verbraucht?“ ohne bereinigte Aussage bei Gütesperre', !uv.view.querySelector('.ex-weather')
+      || (/lässt sich nicht belegen/.test(wx) && !/Du hast wirklich/.test(wx)), wx.slice(0, 200));
+    // V6 — Teilmonat im Jahresvergleich: mit *, ohne Δ, nicht in der Summe
+    const { renderYoyWidget } = await import(`${ROOT}/views/analysis.js`);
+    const yoy = global.document.createElement('div');
+    yoy.innerHTML = renderYoyWidget({ keys: [2025, 2026], names: { 2025: '2025', 2026: '2026' }, labels: ['Jan', 'Feb', 'Mär'],
+      values: { 2025: [100, 100, 100], 2026: [110, 90, 40] }, rows: { 2025: [], 2026: [] },
+      partial: { 2025: [false, false, false], 2026: [false, false, true] } }, { key: 'strom', consumption_unit: 'kWh' });
+    const foot = [...yoy.querySelectorAll('tfoot td')].map(td => td.textContent.trim());
+    const mar = [...yoy.querySelectorAll('tbody tr')][2]?.textContent || '';
+    t('Nachlauf V6: Teilmonat mit *, ohne Δ, Summe nur über volle Monate', foot[1] === '200' && foot[2] === '200'
+      && !!yoy.querySelector('[data-role="yoy-partial"]') && !/[+−-]\d/.test(mar) && !!yoy.querySelector('[data-role="yoy-partial-note"]'), `${foot.join(' | ')} · ${mar.replace(/\s+/g, ' ')}`);
+
+    // ── wirklichkeit-2 (Schritt 3, N3) — vierteljährlich abgelesen (Heizmodell über die Abstände): Spanne ──
+    const fewC = (await (await post('/utility/gas/contracts', { meter_id: 'm_gas_werkstatt', provider: 'Testgas', start: '2024-01-01',
+      working_prices: [{ from: '2024-01-01', ct_per_kwh: 11 }], advance_payments: [{ from: '2024-01-01', amount_eur: 60 }] })).json())?.data;
+    const fs = ((await json('/utility/gas/meters/m_gas_werkstatt/contract-status'))?.contracts || []).find(c => c.is_current);
+    t('wirklichkeit-2 (Schritt 3): zu wenig gemessen → Spanne statt Vorschlag', fs?.suggested_advance === null
+      && (fs?.projection_uncertain?.reasons || []).includes('few_measured'), JSON.stringify(fs?.projection_uncertain));
+    const fv = await renderView(`${ROOT}/views/utility.js`, ['gas'], { query: new URLSearchParams('meter=m_gas_werkstatt') });
+    for (let i = 0; i < 60 && !fv.view.querySelector('[data-role="balance-uncertain"]'); i++) await sleep(50);
+    const fb = fv.view.querySelector('[data-role="balance-uncertain"]')?.textContent || '';
+    t('wirklichkeit-2 (Schritt 3): Saldo-Karte — „weil zu wenige Monate gemessen sind, um das Heizmodell zu prüfen“',
+      /unsicher: zwischen .+ und .+, weil zu wenige Monate gemessen sind, um das Heizmodell zu prüfen/.test(fb), fb.slice(0, 220));
+    const fm = fv.view.querySelector('.ex-money .explainer__text')?.textContent || '';
+    t('wirklichkeit-2 (Schritt 3): „Wohin geht mein Geld?“ mit Spanne', !fv.view.querySelector('.ex-money') || /je nach Schätzung zwischen/.test(fm), fm.slice(0, 220));
+    if (fewC?.id) await fetch(`${HOST}/api/utility/gas/contracts/${fewC.id}`, { method: 'DELETE' });
+    // dieselbe Prognose: das Jahr ohne Band, mit Grund und Hinweis
+    const fcv = await renderView(`${ROOT}/views/forecast.js`);
+    await sleep(600);
+    const fu = fcv.view.querySelector('#util-select');
+    if (fu && fu.value !== 'gas') { fu.value = 'gas'; fu.dispatchEvent(new global.window.Event('change')); await sleep(600); }
+    const fms = fcv.view.querySelector('#meter-select');
+    if (fms) { fms.value = 'm_gas_werkstatt'; fms.dispatchEvent(new global.window.Event('change')); }
+    for (let i = 0; i < 100 && !/Heizmodell zu prüfen/.test(fcv.view.querySelector('#fc-info')?.textContent || ''); i++) await sleep(50);
+    const finfo = fcv.view.querySelector('#fc-info')?.textContent || '';
+    t('wirklichkeit-2 (Schritt 3): Prognose — Jahr ohne Band, weil zu wenig gemessen, mit Hinweis',
+      /ohne Band, weil zu wenige Monate gemessen sind, um das Heizmodell zu prüfen/.test(finfo)
+      && /Zu wenige gemessene Monate, um das Heizmodell zu prüfen: Die Prognose zeigt kein Band/.test(finfo), finfo.replace(/\s+/g, ' ').slice(0, 300));
+    // N1 — Strom: das Jahresband aus der Streuung über die Jahre, nicht „je nach Winter“
+    if (fu) { fu.value = 'strom'; fu.dispatchEvent(new global.window.Event('change')); }
+    const fcInfo = () => fcv.view.querySelector('#fc-info')?.textContent || '';
+    for (let i = 0; i < 100 && !(/Jahr: /.test(fcInfo()) && !/Heizmodell zu prüfen/.test(fcInfo())); i++) await sleep(50);
+    const sinfo = fcv.view.querySelector('#fc-info')?.textContent || '';
+    t('wirklichkeit-2 (Schritt 3): Prognose Strom — Jahresband nach der Streuung über die Jahre', /nach der Streuung der Monate über die Jahre/.test(sinfo) && !/je nach Winter/.test(sinfo),
+      sinfo.replace(/\s+/g, ' ').slice(0, 300));
+
+    // ── wirklichkeit-2 (Punkt 1) — Heizgrenze-Vorschlag: ein Zähler, der genau unter 10,5 °C heizt ──
+    const temps = await json('/temperatures');
+    const hk = (await (await post('/utility/gas/meters', { name: 'Heizgrenze Test', installed_on: '2023-07-01', parent_meter_id: 'm_gas_main' })).json())?.data?.id;
+    let ctr = 0;
+    for (const d = new Date(Date.UTC(2023, 6, 1)); d <= new Date(Date.UTC(2026, 4, 1)); d.setUTCDate(d.getUTCDate() + 1)) {
+      const iso = d.toISOString().slice(0, 10);
+      if (iso.endsWith('-01')) await post('/utility/gas/readings', { meter_id: hk, date: iso, counter: Math.round(ctr * 100) / 100 });
+      const avg = temps?.[iso]?.avg;
+      ctr += 0.4 + 0.25 * Math.max(0, 10.5 - (avg ?? 10.5));
+    }
+    const hl = (await json(`/utility/gas/meters/${hk}/consumption?heat_limit=1`))?.heat_limit;
+    t('wirklichkeit-2: Heizgrenze-Vorschlag über die API (nur mit ?heat_limit=1)', hl?.suggest === true && hl.best >= 9.5 && hl.best <= 11.5
+      && (await json(`/utility/gas/meters/${hk}/consumption`))?.heat_limit === null, JSON.stringify({ ...hl, grid: undefined }));
+    us.dispatchEvent(new global.window.Event('change'));
+    await sleep(100);
+    await settled(hk);
+    ms.value = hk; ms.dispatchEvent(new global.window.Event('change'));
+    for (let i = 0; i < 100 && !an.view.querySelector('[data-role="heat-limit"]'); i++) await sleep(50);
+    const hb = an.view.querySelector('[data-role="heat-limit"]');
+    const btn = hb?.querySelector('[data-role="heat-limit-apply"]');
+    t('wirklichkeit-2: Analyse — Satz mit beiden Streuungen und Knopf je Zähler (Stufe Experte)', /als Heizgrenze passt das Heizmodell deutlich besser/.test(hb?.textContent || '')
+      && /gilt dann für diesen Zähler/.test(hb?.textContent || '') && /Heizgrenze dieses Zählers auf/.test(btn?.textContent || '')
+      && Number(btn?.dataset.value) === hl?.best, (hb?.textContent || '').trim().slice(0, 200));
+    btn?.click();
+    let m1 = null;
+    for (let i = 0; i < 60; i++) { m1 = await json(`/utility/gas/meters/${hk}`); if (Number(m1?.hdd_base_temp) === hl?.best) break; await sleep(50); }
+    const s1 = await json('/settings');
+    t('wirklichkeit-2: übernommen erst per Klick — am Zähler, die Einstellung bleibt', Number(m1?.hdd_base_temp) === hl?.best && Number(s1?.hdd_base_temp) === 15,
+      `${m1?.hdd_base_temp} / ${s1?.hdd_base_temp}`);
+    for (let i = 0; i < 100 && !an.view.querySelector('[data-role="heat-limit-reset"]'); i++) await sleep(50);
+    const own = an.view.querySelector('[data-role="heat-limit-own"]');
+    t('wirklichkeit-2: danach eigene Grenze genannt, kein neuer Vorschlag, zurücknehmbar', /eigener Heizgrenze/.test(own?.textContent || '')
+      && !an.view.querySelector('[data-role="heat-limit"]') && !!own?.querySelector('[data-role="heat-limit-reset"]'), (own?.textContent || '').trim().slice(0, 140));
+    own?.querySelector('[data-role="heat-limit-reset"]')?.click();
+    let m2 = null;
+    for (let i = 0; i < 60; i++) { m2 = await json(`/utility/gas/meters/${hk}`); if (m2 && !('hdd_base_temp' in m2)) break; await sleep(50); }
+    t('wirklichkeit-2: zurückgenommen — der Zähler rechnet wieder mit der Einstellung', m2 && !('hdd_base_temp' in m2), JSON.stringify(m2?.hdd_base_temp));
+    fresh();
+
+    // PV (#39): Balkonkraftwerk mit zwei Ablesungen
+    await post('/demo/import', { force: true, persona: 'mieterin' });
+    const s0 = await json('/settings');
+    await fetch(`${HOST}/api/settings`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ active_utilities: [...new Set([...(s0.active_utilities || []), 'pv_erzeugung'])] }) });
+    const pvm = (await (await post('/utility/pv_erzeugung/meters', { name: 'Balkonkraftwerk', installed_on: '2024-04-01' })).json())?.data;
+    await post('/utility/pv_erzeugung/readings', { meter_id: pvm?.id, date: '2024-04-01', counter: 0 });
+    await post('/utility/pv_erzeugung/readings', { meter_id: pvm?.id, date: '2025-10-01', counter: 1104.3 });
+    fresh();
+    const pv = await json('/pv-summary');
+    t('pv: Übersicht mit Hinweis „verteilt“ und der Zahl der Ablesungen', (pv.hints || []).includes('interpolated')
+      && pv.interpolation?.readings === 2 && pv.interpolation.utility === 'pv_erzeugung', JSON.stringify(pv.interpolation));
+    const pvv = await renderView(`${ROOT}/views/utility.js`, ['pv_erzeugung'], { query: new URLSearchParams('year=2025') });
+    await sleep(600);
+    const pvNote = pvv.view.querySelectorAll('[data-role="interpolation-note"]');
+    t('pv: ein Hinweis — Monatswerte verteilt, Eigenverbrauch, Ersparnis und Amortisation Schätzungen', pvNote.length === 1
+      && /von 9 Monatswerten in 2025 sind verteilt|9 von 9 Monatswerten in 2025 sind verteilt/.test(pvNote[0].textContent)
+      && /Eigenverbrauch, Autarkiequote, Ersparnis und Amortisation sind für diese Monate Schätzungen/.test(pvNote[0].textContent), pvNote[0]?.textContent.trim().slice(0, 200));
+    t('pv: Energiefluss — verteilte Monate markiert', !!pvv.view.querySelector('[data-role="pv-interpolated-legend"]')
+      && /≈/.test(pvv.view.querySelector('.chart-data')?.textContent || ''));
+  } catch (e) { t('interpolation: gemessen oder verteilt', false, e.stack || e.message); }
 
   console.log(`\n  ERGEBNIS: ${pass} bestanden, ${fail} fehlgeschlagen`);
   process.exit(fail ? 1 : 0);

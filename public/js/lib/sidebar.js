@@ -14,10 +14,12 @@ import { api, appScope } from '../api.js';
 import { t, tp } from './i18n.js';
 import { escapeHtml as esc } from './format.js';
 import { sidebarModel } from './nav-model.js';
+import { openCount } from './inbox.js';   // v3.7.0
 
 let lastRoute = null;
 // v3.1.0 (H2) — outbox: offline erfasste Stände, die noch nicht beim Server sind
-const badgeCounts = { reminders: 0, remindersAlert: false, recommendations: 0, outbox: 0 };
+// v3.7.0 — inbox: Dokumente im Posteingang, die noch Arbeit machen
+const badgeCounts = { reminders: 0, remindersAlert: false, recommendations: 0, outbox: 0, inbox: 0 };
 
 function itemHtml(item, cls = 'sidebar__item') {
   const attrs = [
@@ -97,11 +99,12 @@ function applyBadges() {
     recommendations: [badgeCounts.recommendations, false],
     hints: [hints, badgeCounts.remindersAlert],
     outbox: [badgeCounts.outbox, true],
+    inbox: [badgeCounts.inbox, false],
   };
   document.querySelectorAll('[data-badge]').forEach(slot => {
     const kind = slot.getAttribute('data-badge');
     const [count, alert] = values[kind] || [0, false];
-    const title = kind === 'outbox' ? ` title="${esc(tp('nav.badge.outbox', count))}"` : '';
+    const title = kind === 'outbox' || kind === 'inbox' ? ` title="${esc(tp(`nav.badge.${kind}`, count))}"` : '';
     slot.innerHTML = count > 0
       ? `<span class="sidebar__badge${alert ? ' sidebar__badge--alert' : ''}"${title}>${count}</span>`
       : '';
@@ -118,14 +121,18 @@ window.addEventListener('et:outbox', (e) => { badgeCounts.outbox = Number(e.deta
  * melden Änderungen über `et:badges-refresh`.
  */
 export async function refreshSidebarBadges() {
-  const [recs, rem] = await appScope(() => Promise.all([
+  const [recs, rem, inbox] = await appScope(() => Promise.all([
     api.recommendations().catch(() => null),
     api.reminders().catch(() => null),
+    api.inbox().catch(() => null),   // v3.7.0
   ]));
   const due = Array.isArray(rem) ? rem.filter(r => ['due', 'overdue'].includes(r.status)) : [];
   badgeCounts.reminders = due.length;
   badgeCounts.remindersAlert = due.length > 0;
   badgeCounts.recommendations = Array.isArray(recs) ? recs.length : 0;
+  badgeCounts.inbox = openCount(inbox?.entries);
   applyBadges();
 }
+// v3.7.0 — der Posteingang meldet seine Zahl selbst (nach Ablegen, Auslesen, Übernehmen)
+window.addEventListener('et:inbox', (e) => { badgeCounts.inbox = Number(e.detail) || 0; applyBadges(); });
 window.addEventListener('et:badges-refresh', () => { refreshSidebarBadges().catch(() => {}); });

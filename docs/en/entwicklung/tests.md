@@ -120,7 +120,17 @@ Without a server run `tests/format.test.mjs`, `tests/ha-snippet.test.mjs`,
   unknown = expert), which page needs which level, navigation and CSS follow
   the level; the money explainer uses the billing period (`balance_path`), the
   weather explainer needs six months with an adjusted value and last year. The
-  demo click test walks through every example household at two levels.
+  demo click test walks through every example household at two levels. Since
+  v3.7.0 the test requires an entry in `VIEW_LEVEL` for every router view and
+  every settings page and reads the feature table
+  ([What can I do at each level?](../referenz/stufen.md), DE and EN): every row
+  with an anchor `<a id="level-…">` gives the minimum level (the first column
+  without “–”), pages against `VIEW_LEVEL`, parts of pages against the marker
+  in the source (`data-min-level` on the same tag, `level:` on the same line,
+  `atLeast(…)`). Plus the reasons of the suggestion from the household
+  (`suggestReasons`) and “at most once per reason”. The render test checks the
+  navigation per level through the real router and the “Experienced”
+  suggestion for the household with PV.
 - **`tests/explainer.test.mjs`** (v3.4.0) — explainers, second edition,
   without a server: the energy-flow formula against
   `tests/fixtures/energy-flows.json` (the same file is checked in PHP by
@@ -176,6 +186,44 @@ Without a server run `tests/format.test.mjs`, `tests/ha-snippet.test.mjs`,
   same phase, readings with “N in year · M in total”, “All years”, paging and
   “only flagged”, checking a bill without a period and when switching utility
   and meter. Port from `ET_LISTS_PORT`, otherwise a free one.
+- **`tests/inbox-draft.test.mjs`** (v3.7.0) — household from documents: texts
+  and request of the draft (`lib/inbox-draft.js`) without a server, then an
+  invented pile (readings as stored via `tests/fixtures/draft-seed.php`, no
+  model) in the real `app.js`: button in the inbox, summary, one tick per group
+  of fields, only doubtful values ask, quotes, “Still missing”, taking over
+  with “check the bill”; “Set up reading” as a dialog; the assistant with three
+  ways; the guide DE/EN against the catalogue. The merging itself is checked by
+  `HouseholdDraftTest` and `InboxDraftEndpointTest` (PHPUnit). Port from
+  `ET_DRAFT_PORT`, otherwise a free one.
+- **`tests/a11y.test.mjs`** (v3.7.0) — accessibility of the dialogs without
+  external packages. Loads the real `app.js` with a copy of the demo data in
+  JSDOM, walks through every page the navigation reaches and clicks every
+  button; inside a dialog it clicks every button again (confirmations, error
+  messages when saving without input). The test answers write requests and
+  calls to the internet itself with an error. Every dialog that opens through
+  `components/modal.js` is checked — there is no list of dialogs, new ones are
+  checked automatically (around 45 kinds, at least 25 required):
+  `role="dialog"`/`"alertdialog"` with `aria-modal`, background `inert`, title
+  as a heading via `aria-labelledby`, confirmation with a description, focus
+  inside the dialog on opening and not on “×”, focus trap, Escape closes, focus
+  returns to the trigger, every field labelled (a placeholder does not count),
+  every button named, `aria-*` references and IDs, error messages as a live
+  region and — once visible — linked to the field via `aria-describedby` with
+  `aria-invalid`, contrast per WCAG AA in light and dark. A small cascade
+  recomputes the contrast from the app’s stylesheets (specificity, `var()`,
+  inheritance, semi-transparent surfaces, `color-mix`), because JSDOM knows
+  neither `var()` nor inheritance. Plus the mechanics of `modal.js` on dialogs
+  of its own (initial focus, touch, radio groups, `<summary>`, nested dialogs,
+  trigger after a re-render). Port from `ET_A11Y_PORT`, otherwise a free one;
+  `A11Y_DEBUG=1` lists all findings, the triggers per page and all dialogs.
+- **`tests/large-data.test.mjs`** (v3.7.0) — limits with large amounts of data:
+  builds the household from the [measurement](messung-grosse-daten.md) with
+  `tools/large-household.mjs` (ten years of daily values, two years of quarter
+  hours) and requests the endpoints of the main views. Every request answers
+  with 200 and complete data; the response time stays below ten times the
+  measurement (CI, catches a relapse into quadratic run time), with
+  `ET_PERF_STRICT=1` below the measurement + 50 % (local). Port from
+  `ET_LARGE_PORT`, otherwise a free one.
 
 In addition there is the **PHPUnit suite** for the service layer (`tests/unit/…`,
 base class `ServiceTestCase`, since v3.1.0 `HttpServerTestCase` for tests over
@@ -215,6 +263,25 @@ stand-in (interface `WeatherSource`) and checks which values a sync may
 overwrite. Every new rule got a **counter-check**: deliberately revert the code,
 and the test must turn red. Several tests were initially green even without their
 rule (test data too smooth) and only became meaningful through this.
+
+**A messy household (v3.7.0).** The faults in #37, #38 and #39 were found by a
+user with real data, not by our tests: the sample households compute heating
+consumption with the app's own model (a constant × degree days at the 15 °C
+heating limit) and are read regularly — a circular argument the model always
+fits. `tests/fixtures/messy-household/` therefore holds a test household with
+its own physics, produced by `generate.mjs` (fixed seed;
+`node tests/fixtures/messy-household/generate.mjs` writes `household.json`,
+`--check` only compares): heating only below 12.5 °C, only some rooms heated in
+the shoulder season, solar gains, thermal mass with a one-day lag, a boiler that
+loses efficiency in the cold — a convex heating curve as in #38. It is read like
+in real life: irregularly, sometimes twice a month, nothing for over three months
+in autumn, a summer break, an estimated reading, a meter swap in mid-month, PV
+generation read only twice in more than two years, electricity once a year.
+`MessyHouseholdTest` requires the app to show uncertainty instead of
+confident-looking figures: interpolated months marked, none of them in the
+anomaly table, the quality gate firing, the PV hint appearing, forecast and
+expectation not vanishing silently — and balance and costs staying the total
+between the readings.
 
 **Contracts to the day (v2.9.0).** `ContractDayAccurateTest` checks months with a
 price change, a contract switch and a gap, the renewed and the cancelled

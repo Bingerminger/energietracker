@@ -25,6 +25,17 @@ The detailed feature overview. What the views look like is shown in the
   without GPS data; with your own text recognition service in the home network
   the app suggests the reading from the photo
   ([Text recognition in the home network](../anleitungen/texterkennung.md)).
+- **Inbox** (v3.7.0) for supplier mail: file a PDF, an AI in your own home
+  network reads a bill, contract confirmation, price change or cancellation,
+  every value with its verbatim quote; the server checks them and flags what
+  is not backed by the document. Taking over follows a comparison with your
+  data, with one click, and the document is attached as a receipt — see
+  [Inbox](../anleitungen/posteingang.md). For every letter the app says in one
+  sentence what it means and what to do (extra cost per year, the verdict of
+  the bill check, advance payment against the forecast, a reminder with the
+  person responsible). Mail also comes in with a shortcut from the iPhone,
+  through a watched folder or by email via Home Assistant; every contract and
+  meter has a file with all its documents.
 - **Plausibility check** before saving: a multiple of the usual daily
   consumption ("forgot a comma?"), a smaller reading without a meter swap, a
   date in the future, a second reading on the same day. A register rollover
@@ -243,7 +254,8 @@ The detailed feature overview. What the views look like is shown in the
 
 ## Use
 
-- **Mac and iPhone**: navigation in seven areas along the users' questions; on
+- **Mac and iPhone**: navigation in seven areas along the users' questions,
+  since v3.7.0 plus the inbox; on
   the iPhone a tab bar with "＋ Add", dialogs as sheets, 44 px touch targets,
   contrast per WCAG AA, installable as an app — see
   [Use on your phone](handy.md).
@@ -264,8 +276,10 @@ The detailed feature overview. What the views look like is shown in the
 - **Experience levels** (v3.2.0): Beginner, Experienced or Expert — the level
   decides what the interface shows, every level calculates everything. For
   beginners an overview with three answers; suggestions to move up when the
-  data holds more — see
-  [Setup and experience levels](einrichtung.md#3-experience-levels).
+  household needs more (since v3.7.0 for instance with PV or a wallbox, at
+  most once per reason) — see
+  [Setup and experience levels](einrichtung.md#3-experience-levels) and, every
+  feature on its own, [What can I do at each level?](../referenz/stufen.md).
 - **Setup assistant** (v3.2.0) on the first start: three questions, then
   matching utilities and level; start it again from the settings at any time.
 - **Sample data** to try it out without losing your own (the app saves the

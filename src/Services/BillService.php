@@ -224,24 +224,175 @@ final class BillService
         $qtyOk = $delta[$qtyKey . '_pct'] === null || abs($delta[$qtyKey . '_pct']) <= self::OK_PCT;
         $eurOk = $delta['eur'] === null || abs($delta['eur']) <= self::OK_EUR || ($delta['eur_pct'] !== null && abs($delta['eur_pct']) <= self::OK_PCT);
         $reasons = [];
+        // v3.7.0 (treffsicher) — Einstufung, nicht Rechnung: Die Zeilen bleiben, wie
+        // billBreakdown() sie liefert; geändert ist nur, was als Grund zählt.
+        //  - Geschätzt ist ein Stand nur an den beiden Rändern des Zeitraums.
+        //    Innen (Preis- und Brennwertstichtage) schätzt auch der Versorger,
+        //    und die Summe hängt dort nicht am Stand. Bis v3.6 zählte jede Zeile.
+        //  - Eine Ablesung am letzten Tag (bzw. am Tag vor dem ersten) ist ein
+        //    Grenzstand wie auf der Rechnung, keine Schätzung; der eine Tag danach
+        //    ohne Ablesung ist dann auch keine Lücke.
+        $bounds = $this->boundaries($utility, $meter, (string)$b['period_from'], (string)$b['period_to'], $bd['rows']);
+        if ($bounds['estimated']) $reasons['estimated_reading_at_boundary'] = true;
         foreach ($bd['rows'] as $r) {
-            if (in_array($r['counter_from_kind'] ?? null, ['interpolated', 'reading_estimated'], true)
-                || in_array($r['counter_to_kind'] ?? null, ['interpolated', 'reading_estimated'], true)) $reasons['estimated_reading_at_boundary'] = true;
             if (str_contains((string)($r['reason'] ?? ''), 'price')) $reasons['price_change_inside'] = true;
-            if (str_contains((string)($r['reason'] ?? ''), 'factor')) $reasons['factor_change_inside'] = true;
         }
+        //  - Gas: Ein Wechsel von Brennwert oder Zustandszahl ist kein Grund, wenn
+        //    die Stichtag-Liste ihn genauso kennt wie die Rechnung (`factors`, aus
+        //    dem Posteingang); sonst beide Werte. Ohne Angaben der Rechnung bleibt
+        //    der Hinweis wie bisher.
+        $factors = $utility === 'gas' ? $this->factorCheck($b, $bd['rows']) : ['inside' => false, 'known' => false, 'mismatches' => []];
+        if ($factors['mismatches'] !== []) $reasons['factor_mismatch'] = true;
+        elseif ($factors['inside'] && !$factors['known']) $reasons['factor_change_inside'] = true;
         if ($items != 0) $reasons['items_not_modelled'] = true;
         if (!empty($bd['totals']['price_missing'])) $reasons['price_missing'] = true;
-        if (($bd['totals']['gaps'] ?? 0) > 0) $reasons['gaps'] = true;
+        if ((int)($bd['totals']['gaps'] ?? 0) - $bounds['trailing_gap'] > 0) $reasons['gaps'] = true;
+        //  - Ohne Preise ist der Betrag nicht nachzurechnen: eigenes Urteil
+        //    `no_prices` mit den Abschnitten, in denen sie fehlen (Sprung zum
+        //    Vertrag). Eine abweichende Menge bleibt „prüfen“.
+        $verdict = null;
+        if ($invQty !== null || isset($inv['amount_eur'])) {
+            $verdict = !$qtyOk ? 'check' : (isset($inv['amount_eur']) && !empty($bd['totals']['price_missing']) ? 'no_prices' : ($eurOk ? 'ok' : 'check'));
+        }
         return [
             'bill_id' => $b['id'], 'utility' => $utility, 'meter_id' => $b['meter_id'],
             'group_id' => !empty($meter['is_group']) ? (string)$meter['id'] : null,   // v3.1.0 (H6) — verglichen mit der Gruppe
             'period_from' => $b['period_from'], 'period_to' => $b['period_to'],
             'ours' => $ours, 'invoice' => $inv, 'delta' => $delta,
-            'verdict' => ($invQty === null && !isset($inv['amount_eur'])) ? null : ($qtyOk && $eurOk ? 'ok' : 'check'),
+            'verdict' => $verdict,
             'reasons' => array_keys($reasons),
+            // v3.7.0 (treffsicher) — additiv: Ableseart an den Rändern, fehlende Preise, Brennwert laut Rechnung gegen die Liste
+            'boundaries' => ['start' => $bounds['start'], 'end' => $bounds['end']],
+            'price_missing_at' => $this->priceMissingAt($utility, $bd['rows']),
+            'factor_mismatches' => $factors['mismatches'],
             'rows' => $bd['rows'],
         ];
+    }
+
+    /**
+     * v3.7.0 (treffsicher) — Ableseart an den Rändern des Zeitraums: am ersten
+     * Tag (Beginn) und am Tag nach dem letzten (Ende, `period_to` ist
+     * einschließlich).
+     *
+     *   reading           Ablesung genau dort
+     *   reading_adjacent  Ablesung am Tag davor (Beginn) bzw. am letzten Tag
+     *                     (Ende) — der Grenzstand der Rechnung: Sie nennt den
+     *                     Stand am letzten Tag ihres Zeitraums, die Prüfung
+     *                     rechnet bis zum Folgetag
+     *   reading_estimated als geschätzt erfasst
+     *   interpolated      kein Stand in der Nähe, zwischen Ablesungen gerechnet
+     *   null              keine Ablesung davor bzw. danach (Lücke)
+     *
+     * Bei einer Gruppe je Mitglied, gemeldet wird das schwächste.
+     * `trailing_gap`: Abschnitte, die nur der eine Tag nach einem Grenzstand am
+     * letzten Tag sind und deshalb keine Menge haben (keine echte Lücke).
+     *
+     * @param list<array<string,mixed>> $rows
+     * @return array{start: ?string, end: ?string, estimated: bool, trailing_gap: int}
+     */
+    private function boundaries(string $utility, array $meter, string $from, string $to, array $rows): array
+    {
+        $group = !empty($meter['is_group']);
+        $members = $group ? $this->meters->groupSumMembers($utility, (string)$meter['id']) : [$meter];
+        $before = date('Y-m-d', (int)strtotime("$from -1 day"));
+        $toExcl = date('Y-m-d', (int)strtotime("$to +1 day"));
+        $qty = in_array($utility, ['gas', 'wasser'], true) ? 'm3' : 'kwh';
+        $rank = fn(?string $k): int => ['reading' => 0, 'reading_adjacent' => 1, 'reading_estimated' => 3, 'interpolated' => 4][$k ?? ''] ?? 2;
+        $out = ['start' => null, 'end' => null, 'estimated' => false, 'trailing_gap' => 0];
+        $seen = false;
+        foreach ($members as $m) {
+            $mid = (string)($m['id'] ?? '');
+            $mine = $group ? array_values(array_filter($rows, fn($r) => (string)($r['meter_id'] ?? '') === $mid)) : $rows;
+            if ($mine === []) continue;
+            $k = $this->consumption->readingKindsOn($utility, $m, [$before, $from, $to, $toExcl]);
+            $first = $mine[0];
+            $last = $mine[count($mine) - 1];
+            $s = $k[$from] ?? (isset($k[$before]) ? ($k[$before] === 'reading' ? 'reading_adjacent' : $k[$before]) : ($first['counter_from_kind'] ?? null));
+            $e = $k[$toExcl] ?? (isset($k[$to]) ? ($k[$to] === 'reading' ? 'reading_adjacent' : $k[$to]) : ($last['counter_to_kind'] ?? null));
+            if ($e === 'reading_adjacent' && (string)($last['from'] ?? '') === $to && ($last[$qty] ?? null) === null) $out['trailing_gap']++;
+            foreach (['start' => $s, 'end' => $e] as $side => $kind) {
+                if (in_array($kind, ['reading_estimated', 'interpolated'], true)) $out['estimated'] = true;
+                if (!$seen || $rank($kind) > $rank($out[$side])) $out[$side] = $kind;
+            }
+            $seen = true;
+        }
+        return $out;
+    }
+
+    /**
+     * v3.7.0 (treffsicher) — Gas: Brennwert und Zustandszahl laut Rechnung
+     * (`factors` an der Rechnung) gegen die Stichtag-Liste, an jedem Tag, an
+     * dem eine der beiden wechselt. `inside`: Die Liste wechselt im Zeitraum.
+     * `known`: Die Rechnung nennt ihre Werte.
+     *
+     * @param list<array<string,mixed>> $rows
+     * @return array{inside: bool, known: bool, mismatches: list<array<string,mixed>>}
+     */
+    private function factorCheck(array $bill, array $rows): array
+    {
+        $from = (string)$bill['period_from'];
+        $to = (string)$bill['period_to'];
+        $inside = false;
+        $dates = [$from => true];
+        foreach ($rows as $r) {
+            if (!str_contains((string)($r['reason'] ?? ''), 'factor')) continue;
+            $inside = true;
+            $dates[(string)$r['from']] = true;
+        }
+        $inv = array_values(array_filter((array)($bill['factors'] ?? []), fn($f) => is_array($f) && Dates::isIsoDate($f['from'] ?? null)
+            && is_numeric($f['zustandszahl'] ?? null) && is_numeric($f['brennwert'] ?? null)));
+        if ($inv === []) return ['inside' => $inside, 'known' => false, 'mismatches' => []];
+        usort($inv, fn($a, $b) => strcmp((string)$a['from'], (string)$b['from']));
+        foreach ($inv as $f) if ($f['from'] > $from && $f['from'] <= $to) $dates[(string)$f['from']] = true;
+        ksort($dates);
+        $mismatches = [];
+        foreach (array_keys($dates) as $d) {
+            $i = $inv[0];   // vor dem ersten Eintrag der Rechnung: dessen Werte
+            foreach ($inv as $f) if ((string)$f['from'] <= $d) $i = $f;
+            $row = null;
+            foreach ($rows as $r) if ((string)$r['from'] <= $d && $d < (string)$r['to']) { $row = $r; break; }
+            if ($row === null) continue;
+            $z = (float)$i['zustandszahl']; $hs = (float)$i['brennwert'];
+            $same = $row['zustandszahl'] !== null && $row['brennwert'] !== null
+                ? abs((float)$row['zustandszahl'] - $z) < 0.00005 && abs((float)$row['brennwert'] - $hs) < 0.0005
+                : abs((float)$row['kwh_per_m3'] - $z * $hs) < 0.0005 * max(1.0, $z * $hs);
+            if ($same) continue;
+            $mismatches[] = ['from' => (string)$d,
+                'invoice' => ['zustandszahl' => $z, 'brennwert' => $hs, 'kwh_per_m3' => round($z * $hs, 4)],
+                'list' => ['zustandszahl' => $row['zustandszahl'], 'brennwert' => $row['brennwert'], 'kwh_per_m3' => $row['kwh_per_m3']]];
+        }
+        return ['inside' => $inside, 'known' => true, 'mismatches' => $mismatches];
+    }
+
+    /**
+     * v3.7.0 (treffsicher) — Wo fehlt ein Preis? Zusammenhängende Abschnitte mit
+     * Menge, aber ohne Verbrauchskosten, je Vertrag (null: kein Vertrag) und
+     * Zähler (Gruppe), `to` einschließlich.
+     *
+     * @param list<array<string,mixed>> $rows
+     * @return list<array<string,mixed>>
+     */
+    private function priceMissingAt(string $utility, array $rows): array
+    {
+        $qty = $utility === 'wasser' ? 'm3' : 'kwh';
+        $out = [];
+        foreach ($rows as $r) {
+            if (($r[$qty] ?? null) === null || ($r['energy_cost'] ?? null) !== null) continue;
+            $cid = isset($r['contract_id']) ? (string)$r['contract_id'] : null;
+            $mid = isset($r['meter_id']) ? (string)$r['meter_id'] : null;
+            $n = count($out) - 1;
+            if ($n >= 0 && $out[$n]['contract_id'] === $cid && $out[$n]['meter_id'] === $mid && $out[$n]['to_excl'] === (string)$r['from']) {
+                $out[$n]['to_excl'] = (string)$r['to'];
+                continue;
+            }
+            $out[] = ['from' => (string)$r['from'], 'to_excl' => (string)$r['to'], 'contract_id' => $cid, 'meter_id' => $mid];
+        }
+        return array_map(function (array $x) use ($utility): array {
+            $c = $x['contract_id'] !== null ? $this->contracts->get($utility, $x['contract_id']) : null;
+            return array_filter(['from' => $x['from'], 'to' => date('Y-m-d', (int)strtotime($x['to_excl'] . ' -1 day')),
+                'contract_id' => $x['contract_id'], 'provider' => $c !== null ? (string)($c['provider'] ?? '') : null,
+                'meter_id' => $x['meter_id']], fn($v) => $v !== null) + ['contract_id' => null];
+        }, $out);
     }
 
     /**
@@ -262,16 +413,11 @@ final class BillService
         }
         $date = (string)($b['issued_on'] ?? '') ?: date('Y-m-d', (int)strtotime((string)$b['period_to'] . ' +1 day'));
         $contract = !empty($b['contract_id']) ? $this->contracts->get($utility, (string)$b['contract_id']) : null;
+        $contract ??= $this->contractFor($utility, (string)$b['meter_id'], (string)$b['period_from'], (string)$b['period_to']);
         if ($contract === null) {
-            $list = $this->contracts->list($utility, (string)$b['meter_id']);
-            // v3.1.0 (H6, #17) — ein Gruppenvertrag gilt auch für die Rechnung eines Mitglieds
-            $gid = (string)(($this->meters->get($utility, (string)$b['meter_id']) ?? [])['meter_group_id'] ?? '');
-            if ($gid !== '') $list = [...$list, ...$this->contracts->list($utility, $gid)];
-            $list = array_values(array_filter($list, fn($c) => empty($c['is_shadow'])));
-            usort($list, fn($x, $y) => strcmp((string)($x['start'] ?? ''), (string)($y['start'] ?? '')));
-            $contract = $this->contracts->findActiveForDate($list, (string)$b['period_to']) ?? ($list ? end($list) : null);
+            throw new LocalizedException('errors.bill.noContract',
+                ['from' => $this->i18n->date((string)$b['period_from']), 'to' => $this->i18n->date((string)$b['period_to'])], 'bill without contract');
         }
-        if ($contract === null) throw new LocalizedException('errors.bill.noContract', [], 'bill without contract');
         $spId = 'sp_' . bin2hex(random_bytes(5));
         $payments = (array)($contract['special_payments'] ?? []);
         $payments[] = ['id' => $spId, 'date' => $date, 'kind' => (float)$result > 0 ? 'nachzahlung_ohne' : 'rueckzahlung_ohne',
@@ -283,6 +429,48 @@ final class BillService
             throw new \LogicException("special payment not stored in contract ($utility)");
         }
         return $this->update($utility, $id, ['special_payment_id' => $spId, 'contract_id' => (string)$contract['id']]);
+    }
+
+    /**
+     * v3.7.0 (treffsicher) — Der Vertrag einer Rechnung, wenn sie keinen nennt:
+     *   1. der Vertrag, der am letzten Tag des Zeitraums gilt
+     *      (ContractService::resolveForDate, also auch ein weiterlaufender),
+     *      wenn er mehr als die Hälfte der Tage abrechnet;
+     *   2. sonst der, der mehr als die Hälfte der Tage abrechnet — etwa der
+     *      alte Vertrag einer Schlussrechnung, die einen Tag über sein Ende
+     *      reicht, während am letzten Tag schon der neue Versorger liefert;
+     *   3. sonst der am letzten Tag (z. B. drei Tarife nacheinander);
+     *   4. sonst keiner: Die Buchung wird abgelehnt.
+     * Bis v3.6 nahm book() ohne Vertrag am Periodenende den jüngsten Vertrag
+     * des Zählers — oft einen, der den Zeitraum gar nicht berührt.
+     *
+     * Abgerechnet wird je Tag wie im Saldo (ContractService::segmentsBetween);
+     * Gruppenverträge (#17) zählen mit, Schattenverträge nicht. `$accept`
+     * schränkt die Verträge ein (der Posteingang: nur desselben Versorgers).
+     *
+     * @param (callable(array<string,mixed>): bool)|null $accept
+     * @return array<string,mixed>|null
+     */
+    public function contractFor(string $utility, string $meterId, string $from, string $to, ?callable $accept = null): ?array
+    {
+        $list = $this->contracts->list($utility, $meterId);
+        // v3.1.0 (H6, #17) — ein Gruppenvertrag gilt auch für die Rechnung eines Mitglieds
+        $gid = (string)(($this->meters->get($utility, $meterId) ?? [])['meter_group_id'] ?? '');
+        if ($gid !== '') $list = [...$list, ...$this->contracts->list($utility, $gid)];
+        $list = array_values(array_filter($list, fn($c) => empty($c['is_shadow']) && ($accept === null || $accept($c))));
+        if ($list === [] || !Dates::isIsoDate($from) || !Dates::isIsoDate($to) || $to < $from) return null;
+        $toExcl = date('Y-m-d', (int)strtotime("$to +1 day"));
+        $days = []; $total = 0;
+        foreach ($this->contracts->segmentsBetween($list, $from, $toExcl) as $seg) {
+            $total += (int)$seg['days'];
+            if ($seg['contract'] !== null) $days[(string)$seg['contract']['id']] = ($days[(string)$seg['contract']['id']] ?? 0) + (int)$seg['days'];
+        }
+        $most = fn(?array $c): bool => $c !== null && 2 * ($days[(string)($c['id'] ?? '')] ?? 0) > $total;
+        $atEnd = $this->contracts->resolveForDate($list, $to)['contract'] ?? null;
+        if ($most($atEnd)) return $atEnd;
+        arsort($days);
+        foreach ($list as $c) if ((string)($c['id'] ?? '') === (string)array_key_first($days) && $most($c)) return $c;
+        return $atEnd;
     }
 
     // ── intern ───────────────────────────────────────────────────────────
@@ -380,6 +568,24 @@ final class BillService
                 if (isset($c['stated_factor']) && $c['stated_factor'] !== '') $co2['stated_factor'] = $this->num($c['stated_factor'], 0, 10);
             }
             $out['co2'] = $co2 === [] ? null : $co2;
+        }
+        // v3.7.0 (treffsicher) — Gas: Zustandszahl und Brennwert laut Rechnung je
+        // Abschnitt (aus dem Posteingang), für den Abgleich mit der Stichtag-Liste
+        // in compare(). Optional; ohne Angabe fehlt das Feld.
+        if (array_key_exists('factors', $in)) {
+            $fs = [];
+            foreach ((array)($in['factors'] ?? []) as $f) {
+                if (!is_array($f)) continue;
+                $ff = (string)($f['from'] ?? '');
+                $ft = (string)($f['to'] ?? '');
+                if (!Dates::isIsoDate($ff) || ($ft !== '' && !Dates::isIsoDate($ft))) {
+                    throw new LocalizedException('errors.bill.periodInvalid', ['from' => $ff, 'to' => $ft], 'bill factor date');
+                }
+                $fs[] = ['from' => $ff, 'to' => $ft === '' ? null : $ft,
+                         'zustandszahl' => $this->num($f['zustandszahl'] ?? null, 0.5, 1.5), 'brennwert' => $this->num($f['brennwert'] ?? null, 5, 20)];
+            }
+            usort($fs, fn($a, $b) => strcmp($a['from'], $b['from']));
+            $out['factors'] = $fs === [] ? null : $fs;
         }
         if ($isNew || array_key_exists('note', $in)) $out['note'] = mb_substr((string)($in['note'] ?? ''), 0, 2000);
         return $out;

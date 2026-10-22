@@ -98,9 +98,16 @@ export function moneyHtml(row, { color } = {}) {
   const balance = Number(row.projected_end_balance);
   // positiv = Nachzahlung (Kosten über dem Bezahlten), negativ = Guthaben
   const credit = balance < 0;
-  const result = Math.abs(balance) < 1 ? t('explainer.money.even')
-    : t(credit ? 'explainer.money.credit' : 'explainer.money.due', { amount: fmt.eur(Math.abs(balance)) });
-  const gapX = x0 + Math.min(w(paid), w(cost)), gapW = Math.abs(w(paid) - w(cost));
+  const word = (v) => Math.abs(v) < 1 ? t('explainer.money.even')
+    : t(v < 0 ? 'explainer.money.credit' : 'explainer.money.due', { amount: fmt.eur(Math.abs(v)) });
+  // v3.7.0 (wirklichkeit-2, Schritt 3) — unsichere Schätzung (projection_uncertain):
+  // Kosten und Ergebnis als Spanne, keine Lücke, die einen Punktwert behauptet
+  const range = Array.isArray(row.projection_uncertain?.projected_range) ? row.projection_uncertain.projected_range.map(Number) : null;
+  const result = range ? t('explainer.money.uncertain', { low: word(Math.min(...range)), high: word(Math.max(...range)) }) : word(balance);
+  const costText = range
+    ? t('explainer.money.costRange', { low: fmt.eur0(Math.max(0, cost + Math.min(...range) - balance)), high: fmt.eur0(Math.max(0, cost + Math.max(...range) - balance)) })
+    : fmt.eur(cost);
+  const gapX = x0 + Math.min(w(paid), w(cost)), gapW = range ? 0 : Math.abs(w(paid) - w(cost));
   const leg = legend([
     { text: t('explainer.money.energy'), swatch: `style="fill:${c}"` },
     { text: t('explainer.money.base'), swatch: `style="fill:${c}; opacity:.55"` },
@@ -111,14 +118,14 @@ export function moneyHtml(row, { color } = {}) {
     ${label(W, 12, fmt.eur(paid), 'ex-fade ex-value', 'end')}
     <rect class="ex-grow ex-bar--paid" style="--d:.0s" x="${x0}" y="18" width="${w(paid).toFixed(1)}" height="18" rx="3"/>
     ${label(0, 56, t('explainer.money.cost'))}
-    ${label(W, 56, fmt.eur(cost), 'ex-fade ex-value', 'end')}
+    ${label(W, 56, costText, 'ex-fade ex-value', 'end')}
     <rect class="ex-grow" style="--d:.25s; fill:${c}" x="${x0}" y="62" width="${w(energy).toFixed(1)}" height="18" rx="3"/>
     <rect class="ex-grow" style="--d:.45s; fill:${c}; opacity:.55" x="${(x0 + w(energy)).toFixed(1)}" y="62" width="${w(base).toFixed(1)}" height="18"/>
     <rect class="ex-grow ex-bar--estimate" style="--d:.65s; fill:${c}" x="${(x0 + w(energy) + w(base)).toFixed(1)}" y="62" width="${w(rest).toFixed(1)}" height="18"/>
     ${gapW > 2 ? `<rect class="ex-fade ${credit ? 'ex-gap--credit' : 'ex-gap--due'}" style="--d:1s" x="${gapX.toFixed(1)}" y="${credit ? 38 : 82}" width="${gapW.toFixed(1)}" height="5" rx="2.5"/>` : ''}
     ${leg.svg}`;
   const caption = t('explainer.money.text', {
-    date: fmt.date(`${end.ym}-${String(daysInMonth(end.ym)).padStart(2, '0')}`), paid: fmt.eur(paid), cost: fmt.eur(cost), result,
+    date: fmt.date(`${end.ym}-${String(daysInMonth(end.ym)).padStart(2, '0')}`), paid: fmt.eur(paid), cost: costText, result,
   });
   return figure('ex-money', t('explainer.money.title'), { h: 96 + leg.h + 4, body }, caption);
 }
@@ -140,9 +147,11 @@ export function energyHtml(input, opts = {}) {
 
 /**
  * @param {Array<object>} monthly  Monatszeilen eines Heizzählers (kwh, hdd, heat_adjusted)
+ * @param {{quality?: object}} [opts]  `anomaly_quality` des Zählers: Besteht das Heizmodell die
+ *   Gütesperre nicht (v3.7.0, Nachlauf), gibt es keine bereinigte Aussage — wie im Jahresbericht
  * @returns {string} leer ohne Vorjahr
  */
-export function weatherHtml(monthly) {
+export function weatherHtml(monthly, { quality } = {}) {
   // Nur Monate mit bereinigtem Wert, ganze Monate: Alle drei Vergleiche laufen
   // über dieselben Monate (und dieselben Monate des Vorjahres)
   const rows = (monthly || []).filter(m => m && m.ym && m.heat_adjusted != null && !isPartial(m));
@@ -162,8 +171,9 @@ export function weatherHtml(monthly) {
   const pc = p(cons.pct), ph = p(hdd.pct);
   const x0 = 0, BW = W - Math.max(textWidth(pc, FS.value, true), textWidth(ph, FS.value, true)) - 6;
   const bar = (y, v, m, cls, d) => `<rect class="ex-grow ${cls}" style="--d:${d}s" x="${x0}" y="${y}" width="${(v / m * BW).toFixed(1)}" height="11" rx="2"/>`;
-  const verdict = adj.pct < -2 ? 'less' : adj.pct > 2 ? 'more' : 'same';
-  const badge = t('explainer.weather.adjusted', { pct: p(adj.pct) });
+  const poor = quality?.model_quality === 'poor';
+  const verdict = poor ? 'same' : adj.pct < -2 ? 'less' : adj.pct > 2 ? 'more' : 'same';
+  const badge = poor ? t('explainer.weather.poorFitBadge') : t('explainer.weather.adjusted', { pct: p(adj.pct) });
   const bw = Math.min(W, Math.max(170, textWidth(badge, FS.label) + 24));
   const leg = legend([
     { text: t('explainer.weather.before'), swatch: 'class="ex-bar--prev"' },
@@ -181,7 +191,9 @@ export function weatherHtml(monthly) {
       ${label(W / 2, 118, badge, 'ex-badge__text', 'middle')}
     </g>
     ${leg.svg}`;
-  const caption = t(`explainer.weather.text.${verdict}`, { cons: p(cons.pct), hdd: p(hdd.pct), adj: p(adj.pct) });
+  const caption = poor
+    ? t('explainer.weather.text.poorFit', { cons: p(cons.pct), hdd: p(hdd.pct), pct: fmt.pct(Number(quality.ratio) || 0, 0) })
+    : t(`explainer.weather.text.${verdict}`, { cons: p(cons.pct), hdd: p(hdd.pct), adj: p(adj.pct) });
   return figure('ex-weather', t('explainer.weather.title'), { h: 138 + leg.h + 4, body }, caption);
 }
 

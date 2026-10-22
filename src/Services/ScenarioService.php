@@ -219,6 +219,33 @@ final class ScenarioService
             return $head + ['supported' => true, 'valid' => false, 'reason_code' => 'too_few_months'];
         }
         $warnings = [];
+        // v3.7.0 (#37) — verteilte Monate prägen weder „wie letztes Jahr“ noch das
+        // Saisonprofil; die Werkstatt sagt es wie die Prognose
+        foreach ($fc['warnings'] ?? [] as $w) {
+            if (($w['code'] ?? '') === 'interpolated') $warnings[] = ['code' => 'interpolated', 'months' => (int)($w['months'] ?? 0)];
+        }
+        // v3.7.0 (wirklichkeit-2) — Gütesperre: Heizanteil, Band und Abschlag sind dann
+        // unsicher. Bei echten Daten lag der Heizanteil bei etwa der Hälfte des
+        // Gemessenen; Dämmung und Raumtemperatur wirkten nur halb.
+        $fitRatio = ($fc['fit_quality']['model_quality'] ?? null) === 'poor' ? (float)$fc['fit_quality']['ratio'] : null;
+        if ($fitRatio !== null) $warnings[] = ['code' => 'poor_fit', 'ratio' => $fitRatio];
+        // v3.7.0 (Schritt 3, N3) — zu wenig gemessen, um das Heizmodell zu prüfen: wie die
+        // Saldo-Schätzung die ganze Kalibrierspanne (ConsumptionService::PROJECTION_FACTOR_*)
+        $fewMeasured = in_array('few_measured', array_column($fc['warnings'] ?? [], 'code'), true);
+        if ($fewMeasured) $warnings[] = ['code' => 'few_measured'];
+        $uncReasons = array_keys(array_filter(['few_measured' => $fewMeasured, 'poor_fit' => $fitRatio !== null]));
+        $uncRatio = $fewMeasured ? ConsumptionService::PROJECTION_FACTOR_MAX * (1 + ($fitRatio ?? 0.0)) - 1 : $fitRatio;
+        // v3.7.0 (Nachlauf vor dem Release) — eine Quelle: die Gründe des laufenden Vertrags
+        // (Vertragsstatus, Saldo-Karte, Übersicht, Jahresbericht) gelten auch hier, samt
+        // klemmendem Faktor; dessen Breite ist der Abstand zwischen ungeklemmt und geklemmt
+        $csUnc = self::currentUncertainty($this->consumption, $utility, $meter);
+        if ($csUnc !== null) {
+            $uncReasons = array_values(array_unique(array_merge((array)$csUnc['reasons'], $uncReasons)));
+            if (in_array('factor_clamped', $uncReasons, true) && (float)($csUnc['factor'] ?? 0) > 0) {
+                $uncRatio = max($uncRatio ?? 0.0, abs((float)($csUnc['factor_raw'] ?? $csUnc['factor']) / (float)$csUnc['factor'] - 1.0));
+            }
+            $uncRatio ??= 0.0;
+        }
         $vf = $unit === 'kWh' ? 'kwh' : 'm3';
         $rows = $fc['forecast'];
         $heatA = (float)($fc['heat_model']['a'] ?? 0.0);
@@ -390,6 +417,7 @@ final class ScenarioService
         // ── Abschlag und Saldo zur nächsten Abrechnung ──────────────────
         $billing = $this->billing($utility, $meter, $months, $baseCost, $scenCost, $today, $fc['historical'] ?? []);
         $advance = self::advance($months, $baseCost, $scenCost, $billing);
+        if ($uncRatio !== null) $advance = self::uncertainAdvance($advance, $months, $baseQty, $scenQty, $uncRatio, $uncReasons, $fitRatio);
 
         // ── Rangliste und Optimierung (gegen den Ausgangsfall) ──────────
         $zero = ['winter_pct' => 0.0, 'saving_pct' => 0.0, 'baseload_pct' => 0.0, 'heat_a' => $levers['heat_a'],
@@ -468,7 +496,8 @@ final class ScenarioService
                 'history_months' => count($fc['historical'] ?? []),
                 'last_measured'  => (string)(end($fc['historical'])['ym'] ?? ''),
                 'hdd_source'     => $fc['hdd_source'] ?? null,
-                'heat_share_year'=> $hasHeat && $tb['qty'] > 0
+                // v3.7.0 (wirklichkeit-2) — nur bei bestandener Gütesperre
+                'heat_share_year'=> $hasHeat && $tb['qty'] > 0 && $uncRatio === null
                     ? round(array_sum(array_map(fn($m, $q) => $q * (float)($m['heat_share'] ?? 0), $months, $baseQty)) / array_sum($baseQty), 3) : null,
                 'co2_kg_per_unit'=> $co2f !== null ? round($co2f, 4) : null,
             ],
@@ -545,6 +574,9 @@ final class ScenarioService
         $byYm = [];
         foreach ($history as $h) {
             if (!empty($h['pre_baseline']) || (int)($h['days'] ?? 0) < $minDays) continue;
+            // v3.7.0 (#37) — „wie letztes Jahr“ nur aus gemessenen Monaten; ein
+            // verteilter Vorjahresmonat kommt aus der Prognose (zählt in `filled`)
+            if (!empty($h['interpolated'])) continue;
             $byYm[(string)$h['ym']] = (float)($h[$vf] ?? 0) / (int)$h['days'];
         }
         $shift = static fn(string $ym, int $years) => sprintf('%04d-%s', (int)substr($ym, 0, 4) - $years, substr($ym, 5, 2));
@@ -681,6 +713,64 @@ final class ScenarioService
         return ['current' => $current !== null ? round((float)$current, 2) : null, 'method' => 'year_twelfth', 'months_left' => null,
             'base_recommended' => max(0.0, (float)ceil(array_sum($baseCost) / 12)),
             'scen_recommended' => max(0.0, (float)ceil(array_sum($scenCost) / 12))];
+    }
+
+    /**
+     * v3.7.0 (wirklichkeit-2) — Abschlag, wenn das Heizmodell die Gütesperre
+     * nicht besteht: statt eines Betrags die Spanne. Die Arbeitskosten der
+     * Monate, die in den Abschlag eingehen (bis zur Abrechnung bzw. das Jahr),
+     * schwanken um ± das Verhältnis der Gütesperre (systematischer Fehler einer
+     * gekrümmten Heizkurve, er mittelt sich nicht heraus); der Grundpreis nicht.
+     * Wie im Vertragsstatus (ConsumptionService::projectionUncertainty) gibt es
+     * dann keinen einzelnen Vorschlag.
+     *
+     * v3.7.0 (Schritt 3, N3) — auch, wenn zu wenig gemessen ist, um das
+     * Heizmodell zu prüfen (`few_measured`): dann ± die halbe Arbeit (die
+     * Kalibrierspanne 0,5 … 1,5 der Saldo-Schätzung), mit schlechtem Modell
+     * zusätzlich mal (1 + Verhältnis).
+     *
+     * @param array<string,mixed> $advance aus advance()
+     * @param list<array<string,mixed>> $months
+     * @param list<float> $baseQty
+     * @param list<float> $scenQty
+     * @param list<string> $reasons
+     * @return array<string,mixed>
+     */
+    /** v3.7.0 (Nachlauf) — `projection_uncertain` des laufenden Vertrags (dieselbe Quelle wie Karte und Übersicht), sonst null. */
+    public static function currentUncertainty(ConsumptionService $consumption, string $utility, array $meter): ?array
+    {
+        try {
+            foreach ($consumption->contractStatus($utility, $meter)['contracts'] ?? [] as $c) {
+                if (!empty($c['is_current'])) return is_array($c['projection_uncertain'] ?? null) ? $c['projection_uncertain'] : null;
+            }
+        } catch (\Throwable) { /* ohne Vertragsstatus: nur die Gründe der Prognose */ }
+        return null;
+    }
+
+    public static function uncertainAdvance(array $advance, array $months, array $baseQty, array $scenQty, float $ratio, array $reasons = ['poor_fit'], ?float $fitRatio = null): array
+    {
+        if ($reasons === ['poor_fit']) $fitRatio ??= $ratio;
+        $billing = $advance['method'] === 'billing_period';
+        $n = $billing ? (int)$advance['months_left'] : count($months);
+        $div = $billing ? max(1, $n) : 12;
+        $eb = $es = 0.0;
+        foreach (array_slice($months, 0, $n, true) as $i => $m) {
+            $eb += (float)$m['unit'] * (float)$baseQty[$i];
+            $es += (float)$m['unit'] * (float)$scenQty[$i];
+        }
+        $range = function (?float $rec, float $energy) use ($ratio, $div): ?array {
+            if ($rec === null) return null;
+            $d = $ratio * $energy / $div;
+            $r = [max(0.0, (float)round($rec - $d)), (float)round($rec + $d)];
+            return $r[0] === $r[1] ? null : $r;   // v3.7.0 (Schritt 3) — keine Spanne der Breite null
+        };
+        return array_merge($advance, [
+            // `fit_ratio` ist die Streuung der Gütesperre (null ohne sie), `spread` die ganze Breite
+            'uncertain'        => ['reasons' => $reasons, 'fit_ratio' => $fitRatio !== null ? round($fitRatio, 3) : null, 'spread' => round($ratio, 3),
+                                   'base_range' => $range($advance['base_recommended'], $eb), 'scen_range' => $range($advance['scen_recommended'], $es)],
+            'base_recommended' => null,
+            'scen_recommended' => null,
+        ]);
     }
 
     /**

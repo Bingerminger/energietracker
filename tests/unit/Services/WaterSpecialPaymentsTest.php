@@ -61,8 +61,9 @@ final class WaterSpecialPaymentsTest extends ServiceTestCase
             // BillService::book() verlässt sich darauf: jede Rechnung lässt sich buchen
             self::assertSame(Utilities::supportsBillCheck($k), Utilities::hasSpecialPayments($k), "$k: Rechnungsprüfung = Sonderzahlungen");
         }
-        self::assertFalse(Utilities::hasAdvancePaymentContracts('wasser'),
-            'Wasser bleibt ohne Saldo nach Kalender, Gruppenvertrag und Abschlags-Rat im Jahresbericht');
+        // v3.7.0 (#34-Nachzug) — Saldo nach Kalender und Abschlags-Rat hat Wasser mit Abschlägen
+        // jetzt über ConsumptionService::waterWithAdvances(); Gruppenvertrag und Wechsel weiter nicht
+        self::assertFalse(Utilities::hasAdvancePaymentContracts('wasser'), 'Wasser bleibt ohne Gruppenvertrag und Wechselentscheidung');
     }
 
     // ── Speichern und Prüfen ─────────────────────────────────────────────
@@ -151,7 +152,8 @@ final class WaterSpecialPaymentsTest extends ServiceTestCase
         $before = $this->waterStatus($meter);
         self::assertTrue($before['is_current']);
         self::assertSame([], $before['special_payments']);
-        self::assertSame('flat_average', $before['projection_method'], 'Wasser rechnet über den Monatsdurchschnitt (Doku 03-wasser)');
+        // v3.7.0 (#34-Nachzug) — Wasser mit Abschlägen rechnet den Saldo nach Kalender (bis v3.6 Monatsdurchschnitt)
+        self::assertSame('forecast', $before['projection_method'], 'Wasser mit Abschlägen: Saldo nach Kalender (Doku 03-wasser)');
 
         $this->contracts->update('wasser', $c['id'], ['special_payments' => [
             ['date' => $this->month($start, 2), 'kind' => 'rueckzahlung_ohne', 'amount_eur' => 50.0, 'note' => 'Abrechnung'],
@@ -186,13 +188,12 @@ final class WaterSpecialPaymentsTest extends ServiceTestCase
 
         $after = $this->waterStatus($meter);
         self::assertEqualsWithDelta(35.0, $after['current_advance_amount'], 1e-9);
-        // +30 Rückzahlung, +6 × 5 € weniger Abschlag in den gemessenen Monaten
-        self::assertEqualsWithDelta(60.0, $after['current_balance'] - $before['current_balance'], 0.01);
-        // Hochrechnung: restliche Monate mit dem neuen Abschlag
-        $avg = $before['actual_cost'] / $before['months_actual'];
-        $monthsToEnd = ($before['projected_end_balance'] - $before['current_balance']) / ($avg - 40.0);
-        self::assertGreaterThanOrEqual(6, $monthsToEnd);
-        self::assertEqualsWithDelta(($avg - 35.0) * $monthsToEnd, $after['projected_end_balance'] - $after['current_balance'], 0.05);
+        // v3.7.0 — Saldo nach Kalender: +30 Rückzahlung, +7 × 5 € weniger Abschlag ab dem
+        // Stichtag bis heute (der laufende Monat zählt ganz, fällig am Monatsanfang; bis v3.6
+        // nur die 6 gemessenen Monate)
+        self::assertEqualsWithDelta(30.0 + 7 * 5.0, $after['current_balance'] - $before['current_balance'], 0.01);
+        // Hochrechnung bis Vertragsende: jeder Monat ab dem Stichtag mit dem neuen Abschlag (18 Monate)
+        self::assertEqualsWithDelta(30.0 + 18 * 5.0, $after['projected_end_balance'] - $before['projected_end_balance'], 0.05);
     }
 
     public function testDashboardSummaryCarriesTheWaterSpecialPayments(): void
@@ -343,6 +344,9 @@ final class WaterSpecialPaymentsTest extends ServiceTestCase
     {
         $in = [
             'meter_id' => $meterId, 'provider' => 'Stadtwerk', 'tariff_name' => 'Wasser', 'start' => $start, 'end' => $end,
+            // v3.7.0 — ein beendeter Vertrag läuft hier nicht weiter: Seit dem Saldo nach Kalender
+            // zählte ein weiterlaufender auch die geschätzten Monate bis heute
+            'auto_renews' => $end === null ? null : false,
             'trinkwasser' => [
                 'working_prices' => [['from' => $start, 'ct_per_m3' => 200.0]],
                 'base_prices'    => [['from' => $start, 'eur_per_month' => 5.0]],

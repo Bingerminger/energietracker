@@ -64,7 +64,7 @@ trait ReportFixture
         // v3.6.0 (F1030) — Anhang „Abrechnungsjahre“
         $model->attachBillingPeriods(new BillingPeriodService($this->settings, $this->meters, $this->readings, $this->consumption, $bills));
         // v3.6.0 — Seite „Flexibilität“, das Auto mit seinen Steckzeiten (wie bootstrap.php)
-        $insights = new FlexibilityInsightService($intervals, $this->meters, $this->contracts, $flex);
+        $insights = new FlexibilityInsightService($intervals, $this->meters, $this->contracts, $flex, $this->settings);
         $insights->attachSessions($evcc);
         $model->attachFlexInsights($insights);
         $pdf = new PdfReportService($this->meters, $this->consumption, $this->settings, $benchmark, $recs, $this->i18n, $model);

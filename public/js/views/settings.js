@@ -26,6 +26,8 @@ import { openSetupWizard } from '../components/setup-wizard.js';
 import { confirmPersonDelete } from '../components/person-delete.js';   // v3.6.0
 // v3.6.0 — Aufklappbereich für lange Listen (CO₂-Faktoren), wie in der Prognose
 import { disclosureHtml, wireDisclosures, openDisclosureOf } from '../components/disclosure.js';
+// v3.7.0 — Karte „Auslesen“: Lokal | Cloud an einer Stelle (eigene Speichern-Taste und Schnittstelle)
+import { renderReadingCard, wireReadingCard } from '../components/inbox-cloud.js';
 
 // Each group renders as a settings card. `hint` is an optional explanatory
 // line under the card title; each field may carry its own `hint` too.
@@ -105,6 +107,17 @@ const GROUPS = [
     { key: 'pellets_kwh_per_kg', unit: 'kWh/kg', step: '0.1' },
     { key: 'tank_warn_pct', unitKey: 'settings.unit.pctRemaining', step: '1' },
   ]},
+  // v3.7.0 — Flexibilität: eigene Werte statt der Beispielwerte (leer = Beispielwert,
+  // `example_keys`); die Seite Flexibilität und der Bericht nennen sie dann „eigener Wert“
+  { gkey: 'flex', page: 'utilities', icon: '⏱️', level: 'advanced', fields: [
+    { key: 'flex_heat_pump_share_pct', unit: '%', step: '1' },
+    { key: 'flex_washer_cycles_per_week', unitKey: 'settings.unit.perWeek', step: '0.5' },
+    { key: 'flex_washer_kwh_per_cycle', unitKey: 'settings.unit.kwhPerCycle', step: '0.1' },
+    { key: 'flex_dishwasher_cycles_per_week', unitKey: 'settings.unit.perWeek', step: '0.5' },
+    { key: 'flex_dishwasher_kwh_per_cycle', unitKey: 'settings.unit.kwhPerCycle', step: '0.1' },
+    { key: 'flex_ev_plugged_from', unitKey: 'settings.unit.oClock', step: '1' },
+    { key: 'flex_ev_plugged_until', unitKey: 'settings.unit.oClock', step: '1' },
+  ]},
   // v3.6.0 — die lange Liste standardmäßig zu (Kacheln stehen ruhig); derselbe
   // Aufklappbereich wie „Prognose im Detail“ (components/disclosure.js)
   { gkey: 'co2', page: 'utilities', icon: '🌍', level: 'expert', collapse: 'et-settings-co2-open', fields: [
@@ -121,7 +134,8 @@ const GROUPS = [
     { key: 'co2_pv_avoided', unit: 'g/kWh', step: '1' },
   ]},
   // v3.1.0 (H7, CALC-29) — Balkonkraftwerk ohne Einspeisezähler
-  { gkey: 'pv', page: 'utilities', icon: '☀️', level: 'expert', fields: [
+  // v3.7.0 — ab Erfahren (bis v3.6 Experte), wie die PV-Anlage im Zählerdialog
+  { gkey: 'pv', page: 'utilities', icon: '☀️', level: 'advanced', fields: [
     { key: 'pv_assumed_self_consumption_pct', unit: '%', step: '1' },
   ]},
   // ── Zugriff ──
@@ -163,9 +177,12 @@ const GROUPS = [
   { gkey: 'attachments', page: 'expert', icon: '📎', visible: true, fields: [
     { key: 'attachments_max_mb', unit: 'MB', step: '1' },
   ]},
+  // v3.7.0 (Karte „Auslesen“) — Adresse und Schnittstelle des eigenen Diensts
+  // (`ocr_endpoint`, `ocr_api`) teilt die Texterkennung mit dem Posteingang; sie
+  // stehen einmal, in der Karte „Auslesen“ unter „Lokal“. Hier bleibt, was nur
+  // die Zählerfotos betrifft (Bildmodell, Zeitlimit). Die frühere Gruppe
+  // „Posteingang“ (inbox_provider, inbox_model, inbox_timeout_s) ist in derselben Karte.
   { gkey: 'ocr', page: 'expert', icon: '🔎', visible: true, fields: [
-    { key: 'ocr_endpoint',  type: 'text', placeholderKey: 'settings.placeholder.ocrEndpoint' },
-    { key: 'ocr_api',       type: 'select', options: ['ollama', 'openai'], optionLabels: 'settings.ocrApis' },
     { key: 'ocr_model',     type: 'text', placeholderKey: 'settings.placeholder.ocrModel' },
     { key: 'ocr_timeout_s', unitKey: 'settings.unit.seconds', step: '1' },
   ]},
@@ -231,6 +248,8 @@ export async function render(container, params = [], ctx = {}) {
   // v3.6.0 — auch ohne Anmeldung: dann die Personen ohne Zugang aus dem Personenverzeichnis
   const users = page === 'access' && isAdmin
     ? await api.users().catch(() => []) : [];
+  // v3.7.0 (Paket cloud) — Stand des Auslesens in der Cloud (ohne Schlüssel, nur has_key)
+  const inboxCloud = page === 'expert' ? await api.inboxCloud().catch(() => null) : null;
 
   // F1009 — Zähler je (nicht-Delivery-)Utility für die Alias-Verwaltung laden.
   const haUtilities = (utilities || []).filter(u => u.reading_kind !== 'delivery');
@@ -254,6 +273,8 @@ export async function render(container, params = [], ctx = {}) {
   const groupCards = (list) => [...list.filter(g => !g.wide), ...list.filter(g => g.wide)].map(g => renderGroup(g, settings));
   // v3.1.0 — Gruppen mit `visible` stehen auf der Experten-Seite vor dem
   // eingeklappten Teil (Belege, Texterkennung sind keine Rechenparameter)
+  // v3.7.0 — wer ausliest (`inbox_provider`), steht nur noch in der Karte
+  // „Auslesen“ (Umschalter Lokal | Cloud); der Server prüft dasselbe.
   const groups = GROUPS.filter(g => g.page === page);
   const pageGroups = groupCards(page === 'expert' ? groups.filter(g => !g.visible) : groups);
   const narrowGroups = groupCards(groups.filter(g => !g.wide && (page !== 'expert' || !g.visible)));
@@ -323,7 +344,7 @@ export async function render(container, params = [], ctx = {}) {
       : grid(`<div class="card settings-card"><p class="muted">${escapeHtml(t('settings.users.memberHint'))}</p>
           <p class="muted" data-role="member-delete-hint">${escapeHtml(t('settings.users.memberDeleteHint'))}</p></div>`),
     expert: `
-      ${grid(groupCards(groups.filter(g => g.visible)))}
+      ${grid(renderReadingCard(inboxCloud, settings, isAdmin), groupCards(groups.filter(g => g.visible)))}
       <details class="settings-expert">
         <summary>${escapeHtml(t('settings.expert.summary'))}</summary>
         <p class="banner banner--warning">${escapeHtml(t('settings.expert.warning'))}</p>
@@ -490,6 +511,7 @@ export async function render(container, params = [], ctx = {}) {
   if (page === 'access' || page === 'system') wireSecurityCheck(container, () => render(container, params, ctx));
   if (page === 'general') wireLevelCard(container, session);
   if (page === 'integrations') wireIntegrationsPage(container, () => render(container, params, ctx));
+  if (page === 'expert') wireReadingCard(container, inboxCloud, settings, isAdmin, () => render(container, params, ctx));   // v3.7.0
   wireDisclosures(container);   // v3.6.0
 
   // v3.6.0 — Sprung zu einem Feld (`?field=wohnflaeche_m2`, Einladung der
@@ -497,7 +519,8 @@ export async function render(container, params = [], ctx = {}) {
   // Rendern, denn der Router scrollt danach an den Anfang der Ansicht.
   const wanted = ctx?.query?.get?.('field');
   if (wanted && /^[a-z0-9_]+$/.test(wanted)) {
-    const el = container.querySelector(`[data-key="${wanted}"]`);
+    // v3.7.0 — auch Felder der Karte „Auslesen“ (`data-field`, eigene Speichern-Taste)
+    const el = container.querySelector(`[data-key="${wanted}"], [data-field="${wanted}"]`);
     if (el) {
       openDisclosureOf(el);
       el.closest('.settings-field')?.setAttribute('data-target', '');
@@ -814,11 +837,13 @@ function wireAccessPage(container, rerender) {
 
   container.querySelector('#btn-key-create')?.addEventListener('click', async () => {
     const nameEl = container.querySelector('#key-name');
-    const scope = container.querySelector('#key-scope')?.value === 'admin' ? 'admin' : 'read';
+    // v3.7.0 (Paket betrieb) — `inbox`: nur PDFs in den Posteingang (Kurzbefehl, Home Assistant)
+    const picked = container.querySelector('#key-scope')?.value;
+    const scope = ['admin', 'inbox'].includes(picked) ? picked : 'read';
     const name = (nameEl?.value || '').trim();
     try {
       const res = await api.createApiKey(name, scope);
-      const shown = name || t(scope === 'admin' ? 'settings.security.scopeAdmin' : 'settings.security.scopeRead');
+      const shown = name || t(scopeLabelKey(scope));
       container.querySelector('#key-reveal').innerHTML = `
         <div class="banner banner--success" style="margin-top:.5rem">
           <strong>${t('settings.security.keyReveal', { name: escapeHtml(shown) })}</strong>
@@ -1180,6 +1205,8 @@ function renderLevelCard(session) {
       <div class="section-actions">
         <button type="button" class="btn btn--ghost" id="btn-setup-wizard">${escapeHtml(t('setup.restart'))}</button>
         <a class="btn btn--ghost" href="${escapeHtml(docUrl('setup'))}">${escapeHtml(t('common.guide'))}</a>
+        <!-- v3.7.0 (Paket reifegrad) — die Funktionstabelle nach Stufe im Handbuch -->
+        <a class="btn btn--ghost" data-role="level-table" href="${escapeHtml(docUrl('levels'))}">${escapeHtml(t('level.table'))}</a>
       </div>
     </div>`;
 }
@@ -1490,6 +1517,7 @@ function renderKeysCard(keys) {
           <select class="select" id="key-scope">
             <option value="read">${t('settings.security.scopeRead')}</option>
             <option value="admin">${t('settings.security.scopeAdmin')}</option>
+            <option value="inbox">${t('settings.security.scopeInbox')}</option>
           </select>
         </div>
         <div class="field field--m">
@@ -1499,6 +1527,11 @@ function renderKeysCard(keys) {
       <div id="key-reveal"></div>
     </div>`;
 }
+
+/** Katalogschlüssel des Bereichs eines API-Schlüssels (v3.7.0 (Paket betrieb): dazu `inbox`). */
+const scopeLabelKey = (scope) => ({
+  admin: 'settings.security.scopeAdmin', calendar: 'settings.security.scopeCalendar', inbox: 'settings.security.scopeInbox',
+}[scope] || 'settings.security.scopeRead');
 
 function renderKeyTable(keys) {
   // v3.6.0 — in der Größe der übrigen Hinweise der Seite (bis v3.5 Grundschrift)
@@ -1513,7 +1546,7 @@ function renderKeyTable(keys) {
     </tr></thead>
     <tbody>${keys.map(k => `<tr>
       <td>${escapeHtml(k.name)}</td>
-      <td>${t(k.scope === 'admin' ? 'settings.security.scopeAdmin' : k.scope === 'calendar' ? 'settings.security.scopeCalendar' : 'settings.security.scopeRead')}</td>
+      <td>${t(scopeLabelKey(k.scope))}</td>
       <td>${stampHtml(k.created_at)}</td>
       <td>${k.last_used_at ? stampHtml(k.last_used_at) : `<span class="muted">${t('settings.security.keyNever')}</span>`}</td>
       <td style="text-align:right">
@@ -1704,10 +1737,19 @@ function renderField(f, value, settings = {}) {
     return renderCo2Years(f, yearMap(value), hint);
   }
   if (f.type === 'select') {
+    // v3.7.0 — `keepValue`: ein gespeicherter Wert, den die Liste nicht kennt (etwa ein
+    // Anbieter, der sich angemeldet hat), bleibt wählbar — sonst stellte Speichern ihn still um
+    const options = f.keepValue && typeof value === 'string' && value !== '' && !f.options.includes(value) ? [...f.options, value] : f.options;
+    const optLabel = (o) => {
+      if (!f.optionLabels) return escapeHtml(o);
+      const k = `${f.optionLabels}.${o}`;
+      const s = t(k);
+      return escapeHtml(s === k ? o : s);
+    };
     return `<div class="field settings-field">
       ${labelHtml}
       <select class="select" id="${fieldId}" data-key="${f.key}"${describedBy}>
-        ${f.options.map(o => `<option value="${o}" ${o === value ? 'selected' : ''}>${f.optionLabels ? escapeHtml(t(`${f.optionLabels}.${o}`)) : o}</option>`).join('')}
+        ${options.map(o => `<option value="${escapeHtml(o)}" ${o === value ? 'selected' : ''}>${optLabel(o)}</option>`).join('')}
       </select>
       ${hint}
     </div>`;
@@ -1749,10 +1791,14 @@ function renderField(f, value, settings = {}) {
   // (`assumed_keys`): Feld leer, der Default als Platzhalter und ein Satz dazu.
   // Erst eine Eingabe (auch derselbe Wert) zählt für die Einordnung; leer
   // gespeichert bleibt die Angabe offen (der Server nimmt sie zurück).
-  const assumed = (settings.assumed_keys || []).includes(f.key);
+  // v3.7.0 — Beispielwerte der Flexibilität (`example_keys`): genauso leer mit Platzhalter, eigener Satz
+  const example = (settings.example_keys || []).includes(f.key);
+  const assumed = example || (settings.assumed_keys || []).includes(f.key);
   const assumedId = fieldId + '-assumed';
-  const assumedHint = assumed ? `<span class="settings-field__hint" id="${assumedId}" data-role="assumed">${escapeHtml(t('settings.assumedValue', { value: formatForInput(value) + (unit ? ' ' + unit : '') }))}</span>` : '';
-  const describedNum = assumed ? ` aria-describedby="${assumedId}${hasHint ? ' ' + hintId : ''}"` : describedBy;
+  const assumedText = !assumed || value == null ? ''
+    : t(example ? 'settings.exampleValue' : 'settings.assumedValue', { value: formatForInput(value) + (unit ? ' ' + unit : '') });
+  const assumedHint = assumedText ? `<span class="settings-field__hint" id="${assumedId}" data-role="${example ? 'example' : 'assumed'}">${escapeHtml(assumedText)}</span>` : '';
+  const describedNum = assumedText ? ` aria-describedby="${assumedId}${hasHint ? ' ' + hintId : ''}"` : describedBy;
   return `<div class="field settings-field">
     ${labelHtml}
     <input class="input" type="text" ${f.signed ? '' : 'inputmode="decimal" '}autocomplete="off" id="${fieldId}" data-key="${f.key}" data-type="number"

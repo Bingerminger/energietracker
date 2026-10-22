@@ -76,7 +76,35 @@ final class BillExpectedService
      */
     public function open(?string $today = null): array
     {
-        return array_values(array_filter($this->expected($today), fn($x) => $x['bill_id'] === null));
+        return array_values(array_filter($this->expected($today), fn($x) => $x['bill_id'] === null && $x['payment'] === null));
+    }
+
+    /** Sonderzahlungen, die eine Abrechnung ausgleichen (nicht die „Abschlagszahlung“). */
+    public const SETTLING_KINDS = ['rueckzahlung_mit', 'rueckzahlung_ohne', 'nachzahlung_mit', 'nachzahlung_ohne'];
+
+    /**
+     * v3.7.0 (wirklichkeit-2) — Die Rück- oder Nachzahlung, die eine Periode
+     * ausgleicht, ohne dass die Rechnung erfasst ist: am Vertrag, datiert ab
+     * TOLERANCE_DAYS vor dem Periodenende bis heute, und keiner erfassten
+     * Rechnung zugeordnet (die gehört zu deren Zeitraum). Wer den Ausgleich
+     * gebucht hat, hat die Rechnung — bei echten Daten blieb sonst „Schlussrechnung
+     * überfällig“ in der Aufgabenliste stehen.
+     *
+     * @return array{id:string,date:string,kind:string}|null
+     */
+    public static function settlingPayment(array $c, array $bills, string $until, string $today): ?array
+    {
+        $taken = [];
+        foreach ($bills as $b) if (is_array($b) && !empty($b['special_payment_id'])) $taken[(string)$b['special_payment_id']] = true;
+        $from = self::addDays($until, -self::TOLERANCE_DAYS);
+        $best = null;
+        foreach ((array)($c['special_payments'] ?? []) as $sp) {
+            if (!is_array($sp) || !in_array((string)($sp['kind'] ?? ''), self::SETTLING_KINDS, true)) continue;
+            $d = (string)($sp['date'] ?? '');
+            if (!Dates::isIsoDate($d) || $d < $from || $d > $today || isset($taken[(string)($sp['id'] ?? '')])) continue;
+            if ($best === null || $d < $best['date']) $best = ['id' => (string)($sp['id'] ?? ''), 'date' => $d, 'kind' => (string)$sp['kind']];
+        }
+        return $best;
     }
 
     /**
@@ -120,6 +148,9 @@ final class BillExpectedService
                     if ($this->baselineAfter($u, $meterIds, $until)) continue;
                     $bills ??= $this->bills->list($u);
                     $match = self::matchingBill($bills, $meterIds, $tid, (string)$c['id'], $until);
+                    // v3.7.0 (wirklichkeit-2) — ohne erfasste Rechnung: eine Rück- oder
+                    // Nachzahlung am Vertrag nach dem Periodenende zählt als eingegangene Rechnung
+                    $payment = $match === null ? self::settlingPayment($c, $bills, $until, $today) : null;
                     $deadline = $deadlineDays !== null ? self::addDays($until, $deadlineDays) : null;
                     $out[] = [
                         'uid'         => AgendaService::uid('bill_expected', (string)$c['id'], $until),
@@ -135,6 +166,8 @@ final class BillExpectedService
                         'deadline'    => $deadline,
                         'overdue'     => $deadline !== null && $today > $deadline,
                         'bill_id'     => $match !== null ? (string)$match['id'] : null,
+                        // v3.7.0 (wirklichkeit-2) — {id, date, kind} der ausgleichenden Sonderzahlung oder null
+                        'payment'     => $payment,
                     ];
                 }
             }
@@ -166,6 +199,11 @@ final class BillExpectedService
             // Derselbe Versorger, lückenlos: Das Lieferverhältnis endet nicht
             if ($succ !== null && self::sameProvider($c, $succ) && (string)$succ['start'] <= self::addDays($effEnd, 1)) return null;
             [$from] = TenancyBudgetService::periodAround($anchor, $effEnd);
+            // v3.7.0 (#33) — endet der Vertrag kurz nach dem Stichtag (Kurzrest),
+            // gehören die Tage zur Periode davor — wie BillingPeriodService
+            if ($from > $start && self::days($from, $effEnd) + 1 < BillingPeriodService::SHORT_REST_DAYS) {
+                [$from] = TenancyBudgetService::periodAround($anchor, self::addDays($from, -1));
+            }
             return [max($from, $start), $effEnd, true];
         }
         // läuft: die zuletzt abgeschlossene Periode nach dem Stichtag
@@ -173,6 +211,9 @@ final class BillExpectedService
         $until = self::addDays($current, -1);
         if ($start > $until) return null;
         [$from] = TenancyBudgetService::periodAround($anchor, $until);
+        // v3.7.0 (#33) — begann der Vertrag kurz vor dem Stichtag (Kurzrest),
+        // beginnt die Periode mit ihm
+        if ($start < $from && self::days($start, $from) < BillingPeriodService::SHORT_REST_DAYS) $from = $start;
         $from = max($from, $start);
         if (self::days($from, $until) + 1 < self::MIN_PERIOD_DAYS) return null;
         return [$from, $until, false];

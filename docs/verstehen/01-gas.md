@@ -62,6 +62,15 @@ Wichtig zu wissen:
 - **Plausibilitätsprüfung beim Speichern:** Zustandszahl 0,8–1,1, Brennwert
   8–13, Faktor 5–15 kWh/m³. Ein Tippfehler wie 115 statt 11,5 würde sonst
   jeden Verbrauch verzehnfachen — still.
+- *(v3.7.0)* **Am Netz, nicht am Vertrag.** Zustandszahl und Brennwert hängen
+  an der Entnahmestelle und am Gas im Netzgebiet, nicht am Lieferanten: Den
+  Abrechnungsbrennwert ermittelt der Netzbetreiber für sein Netzgebiet
+  (DVGW-Arbeitsblatt G 685, Gasabrechnung), und bei einem Lieferantenwechsel
+  bleiben beide Werte gleich. Deshalb stehen sie einmal in den Einstellungen
+  und gelten für jeden Vertrag. Das Vertragsformular zeigt bei Gas die heute
+  geltende Umrechnung (Zustandszahl × Brennwert = kWh/m³, gültig ab) mit ⓘ und
+  Verweis auf die Einstellung
+  ([#35](https://github.com/Bingerminger/energietracker/issues/35)).
 - Heizöl und Pellets behalten ihren Skalar; dort veröffentlicht niemand
   monatlich einen neuen Brennwert.
 - *(v2.7.0)* Den Brennwert nimmt die Eingabe auch in **MJ/m³** (Vereinigtes

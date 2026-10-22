@@ -108,6 +108,11 @@ die Daten des Haushalts bleiben. Seit **v3.6.0** gilt außerdem:
 - **Offene Termine gehen an dich**, die Person, die löscht — auch Termine mit
   einem freien Namen, der ihrem gleicht. Der Dialog sagt vorher, wie viele es
   sind und an wen sie gehen.
+- *(v3.7.0)* **Zähler und Verträge**, für die sie zuständig war, gehen
+  ebenso an dich; der Dialog nennt ihre Zahl
+  ([Zuständig an Zählern und Verträgen](hinweise-erledigen.md#zähler-und-verträge-v370)).
+  Ohne Anmeldung bleibt die Person dort mit „(gelöscht)“ stehen, mit dem
+  Haken „ehemalige Person“ steht „ehemalige Person“ da.
 - **Erledigtes behält ihren Namen** mit dem Zusatz **„(gelöscht)“** — im
   Verlauf, an erledigten Terminen, in der CSV-Datei und im Kalender. Der Name
   steht so da, wie er beim Erledigen hieß. Der Dialog nennt die Zahl der
@@ -118,13 +123,13 @@ die Daten des Haushalts bleiben. Seit **v3.6.0** gilt außerdem:
 - **Die Nummer bleibt vergeben.** Das Personenverzeichnis zählt weiter: Die
   nächste Person bekommt die nächste Nummer, nie die einer gelöschten. Wer
   später mit demselben Namen angelegt wird, ist eine neue Person.
-- Eine gelöschte Person lässt sich keinem Termin mehr zuweisen und steht nicht
-  mehr zur Wahl.
+- Eine gelöschte Person lässt sich keinem Termin, Zähler oder Vertrag mehr
+  zuweisen und steht nicht mehr zur Wahl.
 
 Im Proxy-Betrieb sperrt Löschen niemanden aus: Kommt die Person wieder über
 den Proxy, legt die App sie neu an (mit neuer Nummer) — aussperren muss dort
-der Proxy. Löscht ein API-Schlüssel, übernimmt niemand: Offene Termine bleiben
-dann mit „(gelöscht)“ stehen, bis jemand sie neu zuweist.
+der Proxy. Löscht ein API-Schlüssel, übernimmt niemand: Offene Termine, Zähler
+und Verträge bleiben dann mit „(gelöscht)“ stehen, bis jemand sie neu zuweist.
 
 ### Personen ohne Zugang
 
@@ -301,9 +306,11 @@ GET    /api/users                 Personen (nur Verwaltung), seit v3.6.0 mit Num
 POST   /api/users                 {name, password, role: admin|member}
 PATCH  /api/users/{id}            {name?, role?, password?}; v3.6.0 auch für Personen ohne Zugang
                                   ({name?, role?}; ein Passwort: 400 errors.users.noAccountPassword)
-GET    /api/users/{id}/handover   (v3.6.0) vor dem Löschen: {person, to, open, done}
+GET    /api/users/{id}/handover   (v3.6.0) vor dem Löschen: {person, to, open, done};
+                                  v3.7.0 dazu meters, contracts
 DELETE /api/users/{id}            ?anonymize_activity=1 — Name im Verlauf ersetzen (v3.4.0);
-                                  v3.6.0: handed_over, handed_over_to, kept
+                                  v3.6.0: handed_over, handed_over_to, kept;
+                                  v3.7.0: records_handed_over, records_kept (Zähler und Verträge)
 GET    /api/people                (v3.5.0) ID und Name für „Zuständig“; v3.6.0 aus dem Verzeichnis
 ```
 

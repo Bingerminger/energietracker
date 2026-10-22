@@ -51,6 +51,9 @@ use Energietracker\Controllers\UpdateCheckController;    // v3.6.0
 use Energietracker\Services\ScenarioService;             // v3.6.0 (F1031)
 use Energietracker\Controllers\ScenarioController;       // v3.6.0 (F1031)
 use Energietracker\Services\FlexibilityInsightService;   // v3.6.0 — Flexibilität: Ampel, Hebel, Zeitfenster
+use Energietracker\Services\InboxService;                // v3.7.0 — Posteingang für Versorgerpost
+use Energietracker\Services\Inbox\{ProviderRegistry, LocalProvider, Proposals as InboxProposals, Applier as InboxApplier};
+use Energietracker\Controllers\InboxController;          // v3.7.0
 
 /**
  * Minimal hand-rolled autoloader for the Energietracker namespace.
@@ -90,6 +93,8 @@ final class App
     public BenchmarkService $benchmark;
     public TariffComparisonService $tariffs;
     public TariffSwitchService $tariffSwitch;
+    public \Energietracker\Services\Inbox\FolderIntake $inboxFolder;   // v3.7.0 (Paket betrieb) — überwachter Ordner
+    public \Energietracker\Services\DossierService $dossier;           // v3.7.0 (Paket betrieb) — Akte je Zähler und Vertrag
     public RecommendationService $recommendations;
     public ReminderService $reminders;
     public PdfReportService $reports;
@@ -128,6 +133,14 @@ final class App
     public BillExpectedService $billsExpected; // v3.5.0 (F1029)
     public BillingPeriodService $billingPeriods; // v3.6.0 (F1030)
     public ScenarioService $scenarios;           // v3.6.0 (F1031) — Prognose-Werkstatt
+    public \Energietracker\Services\InboxDraftService $inboxDraft;   // v3.7.0 — Haushalt aus Dokumenten
+    public \Energietracker\Services\ResponsibilityService $responsibility;   // v3.7.0 — Zuständig an Zählern und Verträgen
+    public InboxService $inbox;                  // v3.7.0 — Posteingang
+    public ProviderRegistry $inboxProviders;     // v3.7.0 — Anbieter fürs Auslesen (lokal; Cloud meldet sich an)
+    // ── v3.7.0 (Paket cloud) — Auslesen in der Cloud, Opt-in ──
+    public \Energietracker\Services\Inbox\CloudConfig $inboxCloud;
+    public \Energietracker\Services\Inbox\AnthropicProvider $inboxAnthropic;
+    public \Energietracker\Services\Inbox\OpenAiCompatibleProvider $inboxOpenAi;
 
     public function __construct(string $dataDir)
     {
@@ -188,7 +201,7 @@ final class App
         // v3.3.0 (F1021) — Werte je Viertelstunde und was das Verschieben gebracht hat
         $this->intervals    = new IntervalService($this->store, $this->settings);
         $this->flexibility  = new FlexibilityService($this->intervals, $this->meters, $this->contracts);
-        $this->flexInsights = new FlexibilityInsightService($this->intervals, $this->meters, $this->contracts, $this->flexibility);
+        $this->flexInsights = new FlexibilityInsightService($this->intervals, $this->meters, $this->contracts, $this->flexibility, $this->settings);
         $this->energyFlowDay = new EnergyFlowDayService($this->intervals, $this->meters);   // v3.5.0 (F1027) — Tagesfilm
         $this->marketPrices = new MarketPriceService($this->store, $this->i18n, null, $this->intervals);   // v3.1.0 (H6)
         $this->tariffs      = new TariffComparisonService($this->consumption, $this->contracts, $this->meters, $this->i18n, $this->marketPrices, $this->flexibility);
@@ -257,12 +270,20 @@ final class App
         // Verlauf auch für Zeiträume und geänderte Abrechnungen (Nachtrag F1024)
         // v3.6.0 — aus dem Personenverzeichnis (auch gelöschte, `deleted: true`);
         // der Verwalter aus der Zeit vor v3.2 steht nur in auth.json
-        $this->reminders->attachPeople(function (string $id): ?array {
+        $findPerson = function (string $id): ?array {
             $p = $this->people->find($id);
             if ($p !== null) return $p;
             $u = $this->auth->userById($id);
             return $u === null ? null : ['id' => (string)$u['id'], 'name' => (string)($u['name'] ?? '')];
-        });
+        };
+        $this->reminders->attachPeople($findPerson);
+        // v3.7.0 — Zuständig an Zählern und Verträgen; Termine und Fristen erben
+        // (eigene → Vertrag → Zähler), Kalender je Person
+        $this->responsibility = new \Energietracker\Services\ResponsibilityService($this->store);
+        $this->responsibility->attachPeople($findPerson);
+        foreach ([$this->meters, $this->contracts, $this->reminders, $this->agenda, $this->calendar] as $svc) {
+            $svc->attachResponsibility($this->responsibility);
+        }
         $this->periods->attachActivity($this->activity);
         $this->billsExpected = new BillExpectedService($this->settings, $this->meters, $this->contracts,
             $this->readings, $this->periods, $this->bills);
@@ -279,6 +300,39 @@ final class App
         // v3.6.0 (F1031) — Prognose-Werkstatt: Szenarien auf der Prognose, liest nur
         $this->scenarios = new ScenarioService($this->forecasts, $this->consumption, $this->contracts, $this->meters,
             $this->settings, $this->tariffSwitch, $this->billingPeriods);
+        // v3.7.0 — Posteingang: lokal über die Einstellung der Texterkennung;
+        // weitere Anbieter melden sich mit $this->inboxProviders->register() an
+        $this->inboxProviders = new ProviderRegistry($this->settings, new LocalProvider($this->settings, $this->ocr, $this->i18n));
+        $inboxProposals = new InboxProposals($this->meters, $this->contracts, $this->readings, $this->bills, $this->reminders, $this->settings);
+        $this->inbox = new InboxService($this->store, $this->i18n, $this->attachments, $this->inboxProviders,
+            $inboxProposals,
+            new InboxApplier($this->meters, $this->contracts, $this->readings, $this->bills, $this->reminders, $this->settings, $this->i18n));
+        $this->inbox->attachActivity($this->activity);
+        // v3.7.0 (Paket betrieb) — Kernaussage je Dokument, überwachter Ordner, Akte
+        $inboxProposals->attachResponsibility($this->responsibility);
+        $this->inbox->attachGist(new \Energietracker\Services\Inbox\Gist($this->meters, $this->contracts, $this->consumption,
+            $this->bills, $this->readings, $this->tariffSwitch, $this->responsibility));
+        $this->inboxFolder = new \Energietracker\Services\Inbox\FolderIntake($this->store, $this->inbox);
+        $this->dossier = new \Energietracker\Services\DossierService($this->inbox, $this->attachments, $this->bills,
+            $this->contracts, $this->meters, $this->readings, $this->i18n);
+        // v3.7.0 (Haushalt aus Dokumenten) — ein Entwurf über alle ausgelesenen Dokumente
+        $this->inboxDraft = new \Energietracker\Services\InboxDraftService($this->inbox,
+            new \Energietracker\Services\Inbox\HouseholdDraft($this->meters, $this->contracts, $this->readings, $this->bills, $this->reminders, $this->settings, $this->i18n, $inboxProposals),
+            new \Energietracker\Services\Inbox\DraftApplier($this->meters, $this->contracts, $this->readings, $this->bills, $this->reminders, $this->settings, $this->i18n));
+        $this->inboxDraft->attach($this->backups, $this->activity);
+
+        // ── v3.7.0 (Paket cloud) — Auslesen in der Cloud (Opt-in) ───────────
+        // Zwei Anschlüsse am Posteingang, Auswahl über `inbox_provider`. Sie
+        // senden nur eingeschaltet, gewählt und mit Schlüssel
+        // (CloudConfig::allows); der Schlüssel liegt in inbox_cloud_key.json,
+        // nicht im Backup. Die Registry legt der Posteingang an, hier wird nur
+        // angemeldet.
+        $this->inboxCloud     = new \Energietracker\Services\Inbox\CloudConfig($this->settings, $this->store);
+        $this->inboxAnthropic = new \Energietracker\Services\Inbox\AnthropicProvider($this->inboxCloud, $this->i18n);
+        $this->inboxOpenAi    = new \Energietracker\Services\Inbox\OpenAiCompatibleProvider($this->inboxCloud, $this->i18n);
+        $this->inboxProviders->register($this->inboxOpenAi);
+        $this->inboxProviders->register($this->inboxAnthropic);
+        // ── Ende v3.7.0 (Paket cloud) ──
 
         // Auto-migrate or initialize on first run.
         // Reihenfolge wichtig: ein komplett leeres Verzeichnis (echter
@@ -353,6 +407,7 @@ final class App
         '#^/api/market-prices/sync-smard(-intervals)?$#',
         '#^/api/utility/strom/meters/[^/]+/sync-evcc$#',
         '#^/api/forecast/scenario$#',   // v3.6.0 (F1031) — schreibt nichts
+        '#^/api/inbox/[^/]+/(classify|extract)$#',   // v3.7.0 — Posteingang: erst die KI, dann schreiben
     ];
 
     /**
@@ -384,7 +439,7 @@ final class App
     public const BODY_PUBLIC = 1048576;
     public const BODY_DEFAULT = 8 * 1048576;
     public const BODY_LARGE = 256 * 1048576;
-    public const LARGE_BODY_ROUTES = '#^/api/(backup/import|attachments|.+/import-(csv|series|evcc))$#';
+    public const LARGE_BODY_ROUTES = '#^/api/(backup/import|attachments|inbox|.+/import-(csv|series|evcc))$#';   // v3.7.0 — inbox: PDF ablegen
 
     public static function bodyLimit(Request $req): int
     {
@@ -585,6 +640,13 @@ final class App
         if ($req->method === 'DELETE' && preg_match('#^/api/backup/snapshots/[^/]+$#', $p)) return true;
         // v3.4.0 (F1024) — den Verlauf leeren (abhaken, Rückgängig und Notiz dürfen Mitglieder)
         if ($req->method === 'DELETE' && $p === '/api/activity') return true;
+        // v3.7.0 (Paket cloud) — Auslesen in der Cloud einschalten, Schlüssel, Adresse
+        if ($p === '/api/inbox/cloud' && !in_array($req->method, ['GET', 'HEAD'], true)) return true;
+        // v3.7.0 (Karte „Auslesen“) — Modellliste mit dem Schlüssel, Prüfung des eigenen Diensts:
+        // beide fragen einen Dienst, auch wenn sie nichts ändern
+        if ($p === '/api/inbox/cloud/models' || $p === '/api/inbox/local/check') return true;
+        // v3.7.0 (Paket betrieb) — den überwachten Ordner liest nur ein Verwalter ein (Dateien des Servers)
+        if ($p === '/api/inbox/folder') return true;
         if (in_array($req->method, ['PATCH', 'PUT', 'POST'], true) && $p === '/api/settings' && is_array($req->body)) {
             foreach (self::ADMIN_SETTINGS as $k) {
                 if (!array_key_exists($k, $req->body)) continue;
@@ -603,7 +665,9 @@ final class App
      * Einstellungen, die nur Verwalter ändern (Einbettung, Adressen im Netz,
      * Hostliste; v3.4.0 (F1024) — wie lange der Verlauf aufbewahrt wird).
      */
-    private const ADMIN_SETTINGS = ['frame_ancestors', 'ocr_endpoint', 'evcc_endpoint', 'allowed_hosts', 'activity_keep_months'];
+    private const ADMIN_SETTINGS = ['frame_ancestors', 'ocr_endpoint', 'evcc_endpoint', 'allowed_hosts', 'activity_keep_months',
+        // v3.7.0 — `inbox_provider`: wohin Versorgerpost zum Auslesen geht; (Paket cloud) ob Dokumente in die Cloud gehen
+        'inbox_provider', 'inbox_cloud_enabled', 'inbox_cloud_provider', 'inbox_cloud_endpoint', 'inbox_cloud_model'];
 
     /** v3.2.0 — Person dieser Anfrage (öffentlich, mit Einstellungen), sonst null. */
     public function currentUser(): ?array
@@ -662,6 +726,13 @@ final class App
         }
         $scope = $this->auth->apiKeyScope($req->bearerToken());
         if ($scope === 'calendar') return false;
+        // v3.7.0 (Paket betrieb) — Schlüssel „Posteingang“ (Kurzbefehl, Home Assistant):
+        // darf genau eines, ein PDF ablegen; überall sonst gilt er nicht
+        if ($scope === 'inbox') {
+            if ($req->method !== 'POST' || $req->path !== '/api/inbox') return false;
+            $this->keyName = $this->auth->apiKeyName($req->bearerToken());
+            return true;
+        }
         if ($scope !== null) {
             $this->readOnlyKey = $scope === 'read';
             $this->keyName = $this->auth->apiKeyName($req->bearerToken());   // v3.4.0 (F1024)
@@ -750,7 +821,7 @@ final class App
         $r->get('/api/docs/asset', fn($req) => $docsCtrl->asset($req));
 
         // ── Meters per utility ──
-        $meterCtrl = new MeterController($this->meters, $this->i18n);
+        $meterCtrl = new MeterController($this->meters, $this->i18n, $this->responsibility);   // v3.7.0 — Zuständig
         $r->get('/api/utility/{utility}/meters',                fn($req) => $meterCtrl->index($req));
         $r->post('/api/utility/{utility}/meters',               fn($req) => $meterCtrl->create($req));
         $r->get('/api/utility/{utility}/meters/{id}',           fn($req) => $meterCtrl->show($req));
@@ -858,7 +929,7 @@ final class App
                                                              fn($req) => $deliveryCtrl->stockHistory($req));
 
         // ── Contracts ──
-        $contractCtrl = new ContractController($this->contracts, $this->i18n);
+        $contractCtrl = new ContractController($this->contracts, $this->i18n, $this->responsibility);   // v3.7.0 — Zuständig
         $r->get('/api/utility/{utility}/contracts',         fn($req) => $contractCtrl->index($req));
         $r->post('/api/utility/{utility}/contracts',        fn($req) => $contractCtrl->create($req));
         $r->get('/api/utility/{utility}/contracts/{id}',    fn($req) => $contractCtrl->show($req));
@@ -974,7 +1045,7 @@ final class App
         $r->get('/api/reports/yearly',     fn($req) => $repCtrl->yearlyData($req));   // v3.1.0 (I18N-12)
 
         // v3.1.0 (Paket H1) — Agenda, Kalender-Abo, Kennzahlen für Home Assistant
-        $agCtrl = new AgendaController($this->agenda, $this->calendar, $this->summary);
+        $agCtrl = new AgendaController($this->agenda, $this->calendar, $this->summary, $this->i18n);
         $r->get('/api/agenda',        fn($req) => $agCtrl->agenda($req));
         $r->get('/api/calendar.ics',  fn($req) => $agCtrl->calendar($req));
         $r->get('/api/summary',       fn($req) => $agCtrl->summary($req));
@@ -997,6 +1068,35 @@ final class App
         $r->delete('/api/attachments/{id}',  fn($req) => $attCtrl->destroy($req));
         $r->post('/api/ocr/reading',         fn($req) => $attCtrl->ocr($req));
 
+        // v3.7.0 — Posteingang für Versorgerpost (feste Pfade vor {id})
+        $inCtrl = new InboxController($this->inbox, $this->i18n, $this->inboxFolder);
+        $r->get('/api/inbox',                 fn($req) => $inCtrl->index($req));
+        $r->post('/api/inbox',                fn($req) => $inCtrl->create($req));
+        $r->get('/api/inbox/review',          fn($req) => $inCtrl->review($req));
+        // v3.7.0 (Haushalt aus Dokumenten) — Entwurf über alle ausgelesenen Dokumente (vor {id})
+        $draftCtrl = new \Energietracker\Controllers\InboxDraftController($this->inboxDraft);
+        $r->get('/api/inbox/draft',           fn($req) => $draftCtrl->show($req));
+        $r->post('/api/inbox/draft/apply',    fn($req) => $draftCtrl->apply($req));
+        $r->post('/api/inbox/folder',         fn($req) => $inCtrl->folder($req));   // v3.7.0 (Paket betrieb) — überwachter Ordner, nur Verwalter
+        $r->post('/api/inbox/queue',          fn($req) => $inCtrl->queue($req));
+        $r->delete('/api/inbox/queue',        fn($req) => $inCtrl->cancelQueue($req));
+        // ── v3.7.0 (Paket cloud) — Karte „Auslesen in der Cloud“ (PATCH nur Verwalter) ──
+        $icCtrl = new \Energietracker\Controllers\InboxCloudController($this->inboxCloud, $this->inboxAnthropic, $this->inboxOpenAi, $this->ocr, $this->settings);
+        $r->get('/api/inbox/cloud/models',    fn($req) => $icCtrl->models($req));       // v3.7.0 (Karte „Auslesen“), nur Verwalter
+        $r->get('/api/inbox/local/check',     fn($req) => $icCtrl->localCheck($req));   // v3.7.0 (Karte „Auslesen“), nur Verwalter
+        $r->get('/api/inbox/cloud',           fn($req) => $icCtrl->show($req));
+        $r->patch('/api/inbox/cloud',         fn($req) => $icCtrl->update($req));
+        $r->get('/api/inbox/{id}',            fn($req) => $inCtrl->show($req));
+        $r->patch('/api/inbox/{id}',          fn($req) => $inCtrl->update($req));
+        $r->delete('/api/inbox/{id}',         fn($req) => $inCtrl->destroy($req));
+        $r->post('/api/inbox/{id}/classify',  fn($req) => $inCtrl->classify($req));
+        $r->post('/api/inbox/{id}/extract',   fn($req) => $inCtrl->extract($req));
+        $r->post('/api/inbox/{id}/apply',     fn($req) => $inCtrl->apply($req));
+        $r->post('/api/inbox/{id}/remind',    fn($req) => $inCtrl->remind($req));   // v3.7.0 (Paket betrieb) — Termin zu einer Mahnung
+        // v3.7.0 (Paket betrieb) — Akte je Zähler und Vertrag
+        $dosCtrl = new \Energietracker\Controllers\DossierController($this->dossier, $this->i18n);
+        $r->get('/api/utility/{utility}/dossier', fn($req) => $dosCtrl->show($req));
+
         // ── F1005 (v1.7.0) — Strom-Saldo + PV-Summary ──
         $saldoCtrl = new StromSaldoController($this->stromSaldo);
         $r->get('/api/strom-saldo', fn($req) => $saldoCtrl->index($req));
@@ -1017,13 +1117,16 @@ final class App
         $sessCtrl = new SessionController($this->auth, $this->i18n, fn(): bool => $this->authenticated,
             fn(): ?array => $this->currentUser(), fn(): string => $this->role,
             fn(string $id) => $this->activity->anonymize($id),   // v3.4.0 (F1024)
-            // v3.5.0 (F1028); v3.6.0 — offene Termine an die löschende Person
-            fn(string $id, bool $anon, ?array $to, string $name): array => $this->reminders->personDeleted($id, $anon, $to, $name),
+            // v3.5.0 (F1028); v3.6.0 — offene Termine an die löschende Person;
+            // v3.7.0 — ebenso Zähler und Verträge (`records`)
+            fn(string $id, bool $anon, ?array $to, string $name): array => $this->reminders->personDeleted($id, $anon, $to, $name)
+                + ['records' => $this->responsibility->personDeleted($id, $anon, $to)],
             // v3.6.0 — Personenverzeichnis, „(gelöscht)“ im Verlauf, Vorschau für den Dialog
             $this->people,
             fn(string $id): int => $this->activity->markDeleted($id),
             fn(string $id, string $name): array => ['open' => $this->reminders->openCountFor($id, $name),
-                                                    'done' => $this->activity->mentions($id)]);
+                                                    'done' => $this->activity->mentions($id)]
+                + $this->responsibility->countFor($id));   // v3.7.0 — {meters, contracts}
         $r->get('/api/session',              fn($req) => $sessCtrl->status($req));
         $r->post('/api/session',             fn($req) => $sessCtrl->login($req));
         $r->delete('/api/session',           fn($req) => $sessCtrl->logout($req));

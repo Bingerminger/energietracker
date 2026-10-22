@@ -182,6 +182,39 @@ final class RecommendationService
         return $meter !== null && $this->tankStatus($utility, $meter) !== null;
     }
 
+    /**
+     * v3.7.0 (#37) — Empfehlungen aus Monaten (R1, R3, R4) nur aus den letzten
+     * 24 Monaten. Eine Empfehlung soll zu einer Handlung führen; ein auffälliger
+     * Monat vor drei Jahren beschreibt einen Zustand, den eine Prüfung heute
+     * nicht mehr findet — bei echten Daten kamen so Empfehlungen aus fünf Jahre
+     * alten Monaten. 24 Monate decken zwei Heizperioden ab, R3 (Juli gegen
+     * Januar) hat damit auch das Vorjahr. Die Abweichungstabelle der Analyse
+     * zeigt weiter die ganze Geschichte.
+     */
+    public const RECENT_MONTHS = 24;
+
+    /** Liegt der Monat `YYYY-MM` in den letzten RECENT_MONTHS Monaten (ab heute)? */
+    public static function isRecent(string $ym, ?string $today = null): bool
+    {
+        $first = (new \DateTimeImmutable(($today ?? date('Y-m-d')) . ' 12:00'))->modify('first day of this month')
+            ->modify('-' . self::RECENT_MONTHS . ' months')->format('Y-m');
+        return $ym >= $first;
+    }
+
+    /** Stichtag für das Fenster der Empfehlungen (Tests mit festen Daten); sonst heute. */
+    private ?string $today = null;
+
+    public function atDate(?string $today): static
+    {
+        $this->today = $today;
+        return $this;
+    }
+
+    private function recent(string $ym): bool
+    {
+        return self::isRecent($ym, $this->today);
+    }
+
     // ─── Regelfamilien ───────────────────────────────────────────────────
 
     /**
@@ -196,12 +229,18 @@ final class RecommendationService
     private function ruleWeatherIndependent(string $utility, array $meter, array $monthly): array
     {
         if (!Utilities::isHgtRelevant($utility) || Utilities::isDelivery($utility)) return [];
+        // v3.7.0 (wirklichkeit-2, Schritt 3, N2) — besteht das Heizmodell die Gütesperre
+        // nicht, misst „mehr als das Wetter erklärt“ vor allem den Fehler des Modells
+        // (AnomalyService::quality); Analyse und Jahresbericht sagen das an seiner Stelle
+        if (($this->anomalies()->quality($utility, $monthly)['model_quality'] ?? null) === 'poor') return [];
         $sigma = (float)$this->settings->get('recommendation_anomaly_sigma', 2.0);
         $valueField = $this->valueField($utility);
         // v1.4.0 — F1011: nur die aktuelle Epoche (`expected_heat` ist davor null)
         $res = [];
         foreach ($monthly as $i => $m) {
             if (($m['weather_delta_pct'] ?? null) === null) continue;
+            // v3.7.0 (#37) — verteilte Monate sind nicht gemessen (wie AnomalyService::detect)
+            if (!empty($m['interpolated'])) continue;
             $res[$i] = (float)($m[$valueField] ?? 0) - (float)$m['expected_heat'];
         }
         if (count($res) < 6) return [];
@@ -212,6 +251,7 @@ final class RecommendationService
         $out = [];
         foreach ($res as $i => $r) {
             $m = $monthly[$i];
+            if (!$this->recent((string)$m['ym'])) continue;   // v3.7.0 — nur aus den letzten 24 Monaten
             // gleiche Untergrenze wie die Anomalie-Erkennung: kleine Schwankungen sind Alltag
             $z = ($r - $center) / max($scale, AnomalyService::noiseFloor((float)$m['expected_heat'], $typical));
             if ($z >= $sigma) {
@@ -246,6 +286,10 @@ final class RecommendationService
             // F1011: nur die aktuelle Epoche; Teilmonate verzerren den Vergleich
             if (!empty($m['pre_baseline']) || (int)($m['days'] ?? 0) < $minDays) continue;
             if (($m['heat_adjusted'] ?? null) === null) continue;
+            // v3.7.0 (#37) — verteilte Monate bleiben drin: Verglichen werden Summen
+            // über zwölf Monate, und innerhalb eines Ablesungsabstands ändert die
+            // Verteilung die Summe nicht; die Bereinigung ist additiv
+            // (a × (HGT_normal − HGT_ist) je Monat, Lektion 50).
             $byYm[(string)$m['ym']] = (float)$m['heat_adjusted'];
         }
         if (!$byYm) return [];
@@ -287,6 +331,9 @@ final class RecommendationService
         $byYear = [];
         foreach ($monthly as $m) {
             if ((int)($m['days'] ?? 0) < $minDays) continue;
+            // v3.7.0 (#37) — ein verteilter Juli oder Januar hat die Tagesrate eines
+            // längeren Abstands: Zwei Ablesungen im Jahr ergäben „Juli = Januar“
+            if (!empty($m['interpolated'])) continue;
             $y = (int)($m['year'] ?? 0); $mn = (int)($m['month'] ?? 0);
             if ($mn === 1)  $byYear[$y]['jan'] = (float)($m[$valueField] ?? 0);
             if ($mn === 7)  $byYear[$y]['jul'] = (float)($m[$valueField] ?? 0);
@@ -294,6 +341,7 @@ final class RecommendationService
         $out = [];
         foreach ($byYear as $y => $v) {
             if (!isset($v['jan'], $v['jul']) || $v['jan'] <= 0) continue;
+            if (!$this->recent(sprintf('%d-07', $y))) continue;   // v3.7.0 — nur aus den letzten 24 Monaten
             $ratio = $v['jul'] / $v['jan'];
             if ($ratio > 0.30) {
                 $out[] = $this->mk(
@@ -324,6 +372,7 @@ final class RecommendationService
         $out = [];
         foreach ($this->anomalies()->detect($utility, $monthly) as $a) {
             if (($a['kind'] ?? '') !== 'high') continue;
+            if (!$this->recent((string)$a['ym'])) continue;   // v3.7.0 — nur aus den letzten 24 Monaten
             $out[] = $this->mk(
                 'r4', [$utility, $meter['id'], $a['ym']],
                 'info', 'anomalie',

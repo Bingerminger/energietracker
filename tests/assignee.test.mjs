@@ -301,5 +301,87 @@ t('… ohne offene Termine', P.handoverText({ to: { name: 'Thomas' }, open: 0, d
   global.fetch = localeFetch;
 }
 
+// v3.7.0 (Paket zustaendig) — Zuständig an Zählern und Verträgen; Fristen erben
+console.log('Zähler und Verträge (v3.7.0)');
+{
+  const viaContract = { assignee: 'Anna', assignee_id: 'u_anna', assignee_former: false, assignee_deleted: false, assignee_source: 'contract' };
+  const viaMeter = { assignee: 'Ben', assignee_id: 'u_ben', assignee_source: 'meter' };
+  const own = { ...anna, assignee_source: 'own' };
+  t('Ereignis: geerbt vom Vertrag', S.assigneeOf(viaContract)?.via === 'contract' && S.assigneeOf(viaContract)?.name === 'Anna');
+  t('Ereignis: eigene Zuständigkeit ohne Zusatz', S.assigneeOf(own)?.via === null);
+  const rem = { assignee: null, assignee_id: null, assignee_former: false, assignee_inherited: viaMeter };
+  t('Termin am Zähler: geerbt aus `assignee_inherited`', S.assigneeOf(rem)?.name === 'Ben' && S.assigneeOf(rem)?.via === 'meter');
+  t('… die eigene geht vor', S.assigneeOf({ ...rem, assignee: 'Carla' })?.name === 'Carla' && S.assigneeOf({ ...rem, assignee: 'Carla' })?.via === null);
+  t('… das Formular liest nur die eigene', S.ownAssigneeOf(rem) === null);
+  const c = S.chipHtml(viaContract);
+  t('Chip „über den Vertrag“, gestrichelt', c.includes('über den Vertrag') && c.includes('chip--via') && c.includes('Anna'), c);
+  t('Chip „über den Zähler“ am Termin', S.chipHtml(rem).includes('über den Zähler'));
+  t('Chip ohne Zusatz bei eigener Zuständigkeit', !S.chipHtml(own).includes('chip--via'));
+  t('„Meine Aufgaben“ zählt Geerbtes mit (per ID)', S.isMine(viaContract, meLogged) && S.isMine(rem, { id: 'u_ben', name: 'Ben', loggedIn: true }));
+  t('Filter nach Namen und Namensliste mit Geerbtem', S.matchesAssignee(rem, 'name:ben', null) && S.assigneeNames([rem, viaContract]).join() === 'Anna,Ben');
+  t('gelöschte Person, geerbt: zählt zu „Ohne Zuständigkeit“', S.matchesAssignee({ ...viaContract, assignee_deleted: true }, 'none', null));
+
+  const box = document.createElement('div');
+  box.innerHTML = S.personSelectHtml({ id: 'mf-assignee', record: { assignee_id: 'u_ben', assignee: 'Ben' }, people, hintKey: 'assignee.hintMeter' });
+  const sel = box.querySelector('select');
+  t('Auswahl: niemand und die Personen des Verzeichnisses', [...sel.options].map(o => o.value).join() === ',u_anna,u_ben' && sel.value === 'u_ben'
+    && sel.name === 'assignee_id' && box.querySelector('label')?.getAttribute('for') === 'mf-assignee');
+  t('Auswahl: Hinweis zum Zähler', box.textContent.includes('Ablesung'));
+  t('unverändert: nichts an den Server', JSON.stringify(S.personPayload(sel, { assignee_id: 'u_ben', assignee: 'Ben' })) === '{}');
+  sel.value = 'u_anna';
+  t('andere Person: ihre ID', JSON.stringify(S.personPayload(sel, { assignee_id: 'u_ben', assignee: 'Ben' })) === '{"assignee_id":"u_anna"}');
+  sel.value = '';
+  t('niemand: null', JSON.stringify(S.personPayload(sel, { assignee_id: 'u_ben', assignee: 'Ben' })) === '{"assignee_id":null}');
+  t('neu ohne Auswahl: nichts', JSON.stringify(S.personPayload(sel, null)) === '{}');
+  box.innerHTML = S.personSelectHtml({ id: 'x', record: gone, people });
+  const g = box.querySelector('select');
+  t('gelöschte Person bleibt als Option „(gelöscht)“ gewählt', g.value === 'u_lukas' && g.selectedOptions[0].textContent === 'Lukas (gelöscht)'
+    && JSON.stringify(S.personPayload(g, gone)) === '{}');
+  box.innerHTML = S.personSelectHtml({ id: 'x', record: former, people: [] });
+  const f = box.querySelector('select');
+  t('„ehemalige Person“ bleibt stehen; ohne Personen der Hinweis auf Zugriff',
+    f.selectedOptions[0].textContent === 'ehemalige Person' && JSON.stringify(S.personPayload(f, former)) === '{}'
+      && box.textContent.includes('Einstellungen → Zugriff'));
+
+  t('Termin: Zähler an den Server', JSON.stringify(R.meterPayload('strom|m_strom_haus')) === '{"utility":"strom","meter_id":"m_strom_haus"}'
+    && JSON.stringify(R.meterPayload('')) === '{"meter_id":null}');
+  t('Kalender je Person: Parameter angehängt', R.calendarLinkFor('http://h/api/calendar.ics?token=a', 'u_anna') === 'http://h/api/calendar.ics?token=a&person=u_anna'
+    && R.calendarLinkFor('http://h/api/calendar.ics', 'u_anna') === 'http://h/api/calendar.ics?person=u_anna');
+
+  const lines = P.handoverText({ to: { name: 'Thomas' }, open: 1, done: 0, meters: 1, contracts: 1 });
+  t('Dialog „Person löschen“: Zähler und Verträge gehen mit', lines.includes('2 Zähler und Verträge gehen an Thomas.'), lines.join(' | '));
+  t('… ohne löschende Person: bleiben mit „(gelöscht)“', P.handoverText({ to: null, open: 0, done: 0, meters: 1, contracts: 0 })
+    .some(s => s.startsWith('1 Zähler oder Vertrag behält die Person')));
+  t('… mit „ehemalige Person“', P.handoverText({ to: null, open: 0, done: 0, meters: 0, contracts: 3 }, true)
+    .some(s => s === '3 Zähler und Verträge zeigen dann „ehemalige Person“.'));
+  t('… ohne Zähler und Verträge kein Satz', P.handoverText({ to: { name: 'Thomas' }, open: 0, done: 0 }).length === 1);
+
+  // „Zu tun“: der Filter wirkt auf die Ereignisse — auch die Sammelzeile der Ablesungen zählt nur, was passt
+  const D = await import(`${JS}/views/dashboard.js`);
+  const rd = (id, name) => ({ uid: `reading-strom-${id}`, kind: 'reading_due', due_now: true, severity: 'due', date: '2026-01-01',
+    title: id, params: { label: 'Strom', meter: id }, href: '#/zaehlerstaende', ref: { days_since_reading: 60 },
+    assignee: name, assignee_id: 'u_' + name.toLowerCase(), assignee_former: false, assignee_deleted: false, assignee_source: 'meter' });
+  const readingEvents = [rd('m1', 'Ben'), rd('m2', 'Ben'), rd('m3', 'Ben'), rd('m4', 'Anna')];
+  const all = D.buildTodo(readingEvents, []);
+  t('Zu tun: vier Ablesungen in einer Sammelzeile', all.length === 1 && all[0].text.startsWith('4 Zähler'), all.map(x => x.text).join());
+  const todoBox = document.createElement('div');
+  todoBox.dataset.variant = 'full';
+  document.body.appendChild(todoBox);
+  S.setStoredFilter('name:ben');
+  D.renderTodoBox(todoBox, all);
+  const todoLines = [...todoBox.querySelectorAll('.dash-todo__item')].map(li => li.textContent.replace(/\s+/g, ' ').trim());
+  t('Zu tun gefiltert: die Sammelzeile zählt nur Bens Ablesungen, eine ist ausgeblendet',
+    todoLines.length === 1 && todoLines[0].includes('3 Zähler') && todoBox.querySelector('[data-role="assignee-hidden"]')?.textContent.includes('1 weiterer'), todoLines.join(' | '));
+  S.setStoredFilter('all');
+  todoBox.remove();
+  localStorage.clear();
+
+  const O = await import(`${JS}/views/contracts-overview.js`);
+  const meter = { assignee: 'Ben', assignee_id: 'u_ben' };
+  t('Verträge & Abschläge: die Person des Vertrags geht vor', O.responsibleOf({ assignee: 'Anna', assignee_id: 'u_anna' }, meter).assignee_source === 'contract');
+  t('… sonst die des Zählers', O.responsibleOf({ assignee: null }, meter).assignee === 'Ben' && O.responsibleOf(null, meter).assignee_source === 'meter');
+  t('… sonst niemand', S.assigneeOf(O.responsibleOf(null, {})) === null);
+}
+
 console.log(`\nassignee.test: ${pass} bestanden, ${fail} fehlgeschlagen`);
 process.exit(fail ? 1 : 0);

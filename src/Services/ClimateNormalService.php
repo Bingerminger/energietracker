@@ -27,8 +27,15 @@ use Energietracker\Storage\JsonStore;
 final class ClimateNormalService
 {
     public const FILE = 'climate_normal.json';
-    /** Raster der Heizgrenzen, für die das Normal vorberechnet wird. */
-    public const BASE_MIN  = 10.0;
+    /**
+     * Raster der Heizgrenzen, für die das Normal vorberechnet wird.
+     * v3.7.0 (wirklichkeit-2) — ab 6 statt 10 °C: Bei echten Daten passte das
+     * Heizmodell weit unter 15 °C am besten, und darunter rechnete das Normal
+     * still mit 10 °C. Ein gespeichertes Normal ohne die neuen Rasterpunkte
+     * gilt als veraltet und wird beim nächsten Wetterabgleich einmal neu geholt
+     * (ein Archivabruf wie beim ersten Mal, die Datei wächst um acht Spalten).
+     */
+    public const BASE_MIN  = 6.0;
     public const BASE_MAX  = 22.0;
     public const BASE_STEP = 0.5;
     /** Länge der Referenzperiode in Jahren. */
@@ -76,7 +83,30 @@ final class ClimateNormalService
         if (abs((float)($n['latitude'] ?? 999) - $lat) > 0.05) return true;
         if (abs((float)($n['longitude'] ?? 999) - $lon) > 0.05) return true;
         $year = $currentYear ?? (int)date('Y');
+        if (!self::gridComplete($n)) return true;   // v3.7.0 — Raster ab 6 °C fehlt
         return (int)substr((string)($n['period']['to'] ?? '0000'), 0, 4) < $year - 1;
+    }
+
+    /** Trägt ein gespeichertes Normal das ganze heutige Raster? */
+    private static function gridComplete(array $n): bool
+    {
+        return isset($n['hdd'][number_format(self::BASE_MIN, 1, '.', '')], $n['hdd'][number_format(self::BASE_MAX, 1, '.', '')]);
+    }
+
+    /**
+     * v3.7.0 (wirklichkeit-2) — Deckt das gespeicherte Normal diese Heizgrenze ab?
+     * Sonst gibt es für sie kein Normal (die Rechnung nimmt die eigene
+     * Temperaturhistorie und sagt es), statt still mit der nächsten Rastergrenze
+     * zu rechnen.
+     */
+    public function covers(?float $base = null): bool
+    {
+        $n = $this->get();
+        if ($n === null) return false;
+        $b = $base ?? (float)$this->settings->get('hdd_base_temp', 15.0);
+        if ($b < self::BASE_MIN - 1e-9 || $b > self::BASE_MAX + 1e-9) return false;
+        [$lo, $hi] = $this->gridPoints($b);
+        return isset($n['hdd'][$lo], $n['hdd'][$hi]);
     }
 
     /** Referenzperiode: die letzten dreißig vollen Kalenderjahre. */
@@ -185,7 +215,7 @@ final class ClimateNormalService
     public function hddForMonth(int $month, ?float $base = null): ?array
     {
         $n = $this->get();
-        if ($n === null || $month < 1 || $month > 12) return null;
+        if ($n === null || $month < 1 || $month > 12 || !$this->covers($base)) return null;
         [$lo, $hi, $w] = $this->gridPoints($base);
         $a = $n['hdd'][$lo] ?? null;
         $b = $n['hdd'][$hi] ?? null;
@@ -205,7 +235,7 @@ final class ClimateNormalService
     public function yearSd(?float $base = null): ?float
     {
         $n = $this->get();
-        if ($n === null) return null;
+        if ($n === null || !$this->covers($base)) return null;
         [$lo, $hi, $w] = $this->gridPoints($base);
         $a = $n['hdd'][$lo]['year_sd'] ?? null;
         $b = $n['hdd'][$hi]['year_sd'] ?? null;

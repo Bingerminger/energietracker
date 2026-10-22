@@ -6,6 +6,560 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [3.7.0] — 2026-10-22 — Post vom Versorger. Automatisches Einlesen und Verwalten von Dokumenten
+
+MINOR-Release ohne Schemaschritt (bleibt 1.8.0): ein **Posteingang für
+Versorgerpost**. PDF ablegen, auslesen lassen — von einer KI im eigenen
+Heimnetz oder, experimentell und nur mit Opt-in, von einem Cloud-Dienst —,
+jede Angabe an ihrer Belegstelle prüfen und mit einem Klick in Verträge,
+Zähler, Rechnungen und Ablesungen übernehmen. Aus einem Stapel Briefe entsteht
+der ganze Haushalt; im laufenden Betrieb sagt jeder Brief, was er bedeutet und
+was jetzt zu tun ist, die Post kommt auch per Kurzbefehl, Ordner oder E-Mail,
+und jeder Vertrag und Zähler hat eine Akte. Dazu: Monatswerte sagen, ob sie
+gemessen oder zwischen zwei Ablesungen verteilt sind (GitHub [#37], [#39]),
+eine Gütesperre für das Heizmodell mit Vorschlag für die Heizgrenze ([#38]),
+ein Abschlagsvorschlag, der seine Unsicherheit nennt, Stufen nach dem
+Haushalt, Zuständige an Zählern und Verträgen, die Nachbesserungen zu [#33]
+und [#35] und Dialoge für Tastatur und Bildschirmleser. API, CSV-Format 1,
+Backup-Format 3.0 und Docker-Umgebung wachsen nur additiv.
+
+### ⚠️ Für bestehende Installationen
+
+- **Kosten ohne Bonus** ([#33]): Die Kachel „Kosten“ zeigt die Kosten ohne
+  Bonus, der Bonus steht als eigene Zeile darunter; nur der Saldo rechnet ihn
+  ein. Die API (`cost`) bleibt, wie sie war.
+- **Wasser mit Abschlägen:** Wasserverträge mit Abschlagsplan haben jetzt einen
+  Saldo nach Kalender wie Gas und Strom. Saldo und erwarteter Endsaldo können
+  sich gegenüber 3.6.0 ändern.
+- **Verteilte Monate** ([#37], [#39]): Monate aus einem Ablesungsabstand über
+  45 Tage zählen nicht mehr wie gemessen. Bei Zählern mit wenigen Ablesungen
+  können sich Erwartung, bereinigter Verbrauch, Abweichungen, Empfehlungen,
+  Prognose und die Saldo-Schätzung bis heute ändern; Monatswerte, Kosten,
+  Abschläge und der Saldo bis zur letzten Ablesung bleiben gleich. Empfehlungen
+  kommen nur noch aus den letzten 24 Monaten.
+- **Prognose im Sommer:** Im Sommer gilt der gemessene Saisonwert statt der
+  Heizkurve. Prognose, Menge fürs Vergleichsportal und die Prognose im
+  Jahresbericht können sich ändern (Fehler behoben, siehe „Fixed“).
+- **Abschlag mit Spanne:** Ist die Schätzung unsicher, nennt die Saldo-Karte
+  statt eines Abschlags eine Spanne mit Grund, und `suggested_advance` ist
+  `null` — auch im Sensor für Home Assistant.
+- **Abgelöste Verträge:** Beginnt ein Folgevertrag, während der alte noch
+  läuft, zählt der alte Abschläge, Grundpreis und Saldo nur bis zum Tag davor.
+  Sein Saldo kann sich deutlich ändern.
+- **Buchung ohne Ausweichen:** „Als Sonderzahlung buchen“ nimmt nicht mehr den
+  jüngsten Vertrag, wenn keiner am Periodenende gilt, sondern den Vertrag des
+  Zeitraums oder lehnt ab (Fehler behoben, siehe „Fixed“).
+- **„Rechnung prüfen“** kennt das Urteil „keine Preise“ und nimmt eine
+  Ablesung am letzten Tag als Grenzstand statt als Schätzung; gerechnet wird
+  wie bisher, das Urteil lautet seltener „prüfen“.
+- **Kurze Reste** ([#33]): Ein Rest unter 14 Tagen zwischen Stichtag und
+  Lieferantenwechsel geht in die Nachbarperiode auf. Grenzen und Namen der
+  Abrechnungsperioden können sich verschieben, die Summen bleiben gleich.
+- **Stufen:** Elf Teile von Seiten liegen eine Stufe tiefer, weil sie zum
+  Haushalt gehören und nicht zum Fachwissen; Einsteiger und Erfahrene sehen
+  dadurch mehr.
+- **Dialoge** öffnen mit dem Fokus im ersten Feld statt auf „×“; Rückfragen
+  stehen auf „Abbrechen“.
+- **Klimanormal:** Damit es Heizgrenzen ab 6 °C abdeckt, holt die App ein
+  gespeichertes Klimanormal beim nächsten Wetterabgleich einmal neu bei
+  Open-Meteo — dieselbe Abfrage wie beim ersten Start.
+- **Ordner `posteingang/`:** Startet ein Verwalter die App (ohne Anmeldung
+  also jeder), legt sie im Datenverzeichnis den überwachten Ordner an. Gelöscht
+  wird darin nichts.
+- **Keine neue Verbindung nach außen ohne Zutun:** Lokal liest der Dienst, der
+  für die Texterkennung eingetragen ist; der Cloud-Weg bleibt aus, bis ein
+  Verwalter ihn einschaltet.
+
+### Added
+
+#### Haushalt aus Dokumenten
+
+- **Ein Entwurf über alle Dokumente:** Versorgerpost ablegen und auslesen
+  lassen — statt einer Liste je Dokument entsteht ein Entwurf des ganzen
+  Haushalts: Zähler, Verträge mit Preiskette und Abschlägen, Ablesungen,
+  Rechnungen mit Buchung, Gas-Umrechnung und Termine. Geprüft wird nur, was
+  zweifelhaft ist; ein Klick übernimmt den Rest über dieselben Dienste und
+  Prüfungen wie die Handeingabe, vorher legt die App eine Sicherung an. Der
+  Entwurf wächst mit jedem ausgelesenen Dokument, ein zweites Übernehmen ändert
+  nichts.
+- **Zähler und Lieferverhältnisse:** Zähler entstehen aus Zählernummer und
+  Marktlokation; eine neue Nummer an derselben Messstelle wird ein Zählertausch,
+  der leere Standardzähler wird übernommen, und ein Zähler, an dem nichts
+  hängt, entsteht nicht. Dokumente gehören über Vertrags- oder Kundennummer
+  zusammen oder über denselben Versorger in anderer Schreibweise (Rechtsform,
+  „Stadtwerke“, Marke eines Versorgers).
+- **Verträge aus allen Briefen:** Beginn aus Vertragsbestätigung,
+  Lieferbeginn-Brief oder erster Rechnung, Ende aus Kündigung, Schlussrechnung
+  oder dem Tag vor dem Folgevertrag; der Abschlag ist kein Pflichtfeld, sondern
+  ein offener Punkt. Preise aus Bestätigung und Preisänderung bilden die Kette,
+  ein Rechnungspreis bestätigt sie (brutto gegen brutto) oder fällt als Befund
+  auf. Eine Rechnungskorrektur ersetzt die frühere Fassung.
+- **Abgleich über die Dokumente hinweg:** Endstand gleich Anfangsstand wird
+  eine Ablesung, Lücken und Überschneidungen zwischen Verträgen fallen auf,
+  inhaltsgleiche Dokumente zählen einmal. „Fehlt noch“ nennt, was die Post
+  nicht hergibt — etwa Preise für einen Abschnitt oder den Endstand des alten
+  Zählers —, mit Sprung zum Feld.
+- **Einrichtungsassistent:** Am Ende drei Wege — aus Dokumenten (empfohlen, mit
+  den Dokumenten, die für deinen Haushalt helfen), von Hand anlegen oder mit
+  Beispieldaten ansehen. „Auslesen einrichten“ öffnet die Karte „Auslesen“ als
+  Dialog, im Assistenten wie im Posteingang.
+
+#### Post im laufenden Betrieb
+
+- **Posteingang** für alle Stufen, in der Navigation und als „Versorgerpost
+  ablegen“ im Erfassen-Blatt: PDF auswählen oder hineinziehen, am iPad aus der
+  Dateien-App. Dieselbe Datei erkennt die App an der Prüfsumme, dasselbe
+  Schreiben in einer anderen Datei nach dem Auslesen am Inhalt („Wohl dasselbe
+  Dokument wie …“). Ohne KI bleibt er ein Ablageort; „Von Hand erfassen“ öffnet
+  das passende Formular, das Dokument steht daneben.
+- **Vorschau neben dem Dokument:** Zuordnung zu Verbrauchsart, Zähler und
+  Vertrag vorbelegt und änderbar, Abgleich mit dem Bestand (neu, schon
+  vorhanden, Widerspruch, Überschneidung). Übernommen wird nur das Angehakte,
+  über dieselben Prüfungen wie bei der Handeingabe: Ablesungen, Rechnung und
+  Sonderzahlung, neuer Abschlag, neuer Vertrag mit Preisen, Bonus, Fristen und
+  Nummern, Preisänderung mit Termin fürs Sonderkündigungsrecht, Kündigung,
+  Lieferbeginn, Zählertausch, Zustandszahl und Brennwert für die Gas-Umrechnung
+  ([#35]). Danach hängt das Dokument als Beleg am Datensatz, der Verlauf sagt
+  „Aus Dokument übernommen“, ein zweites Übernehmen ändert nichts.
+- **Was heißt das für dich?** Je Dokument ein Satz, eine Zahl, ein Knopf. Bei
+  einer Preisänderung die Mehrkosten im Jahr aus der eigenen Prognose und der
+  Weg zum Tarifvergleich, wenn ein Angebot spart; eine Rechnung prüft die App
+  beim Übernehmen gleich mit („passt“ oder „liegt … über deiner Rechnung“, mit
+  Grund); ein neuer Abschlag steht gegen den, mit dem die Abrechnung bei null
+  endet; eine Kündigung ohne Anschlussvertrag bekommt einen Termin davor; eine
+  Zählerstandsanforderung landet als Termin bei der zuständigen Person und
+  führt direkt zur Erfassung; ein Zählerwechsel öffnet den Zählertausch
+  vorbelegt; eine Mahnung bekommt einen Termin.
+- **Viele auf einmal:** „Alle auslesen“ arbeitet die Dokumente nacheinander ab,
+  fortsetzbar und abbrechbar; danach zeigt die Prüfliste nur die markierten
+  Felder.
+- **Post ohne Browser:** Kurzbefehl „Teilen → Energietracker“ für iPhone und
+  iPad mit einem API-Schlüssel, der nur ablegen darf (neuer Bereich „nur
+  Posteingang“); überwachter Ordner `posteingang/` im Datenverzeichnis
+  (NAS-Freigabe, Docker-Volume) — nur PDF nach Inhalt, keine symbolischen
+  Links, Dateien wandern nach `übernommen/` oder `fehler/`, gelöscht wird nie;
+  E-Mail-Anhänge über die IMAP-Integration von Home Assistant (Anleitung). In
+  der Home-Assistant-App ist der Ordner nicht erreichbar, dort gehen Kurzbefehl
+  und E-Mail.
+- **Akte je Vertrag und Zähler:** alle Dokumente an einer Stelle — übernommene
+  Post, Rechnungen mit PDF, Belege, Fotos der Ablesungen —, mit Kernaussage,
+  Filter und Suche. Vertragskarte und Rechnung nennen ihre Belege beim
+  Dateinamen.
+- **Termine „Zählerstand melden“** führen direkt in die Erfassung des Zählers.
+
+#### Auslesen lokal oder in der Cloud (experimentell)
+
+- **Lokal als Standard:** Es liest eine KI im eigenen Heimnetz, der Dienst der
+  Texterkennung (Ollama oder OpenAI-kompatibel), empfohlen `qwen3.8` mit rund
+  18 GB Arbeitsspeicher. Erst die Art, dann die Felder dieser Art, jedes mit
+  Wert, wörtlicher Belegstelle und Seite. Seiten mit AGB gehen nicht mit, bei
+  Ollama passt die App das Kontextfenster an die Länge des Dokuments an und
+  fragt einmal mit größerem Antwortbudget nach, wenn eine Antwort am Fenster
+  abbricht (ebenso beim OpenAI-kompatiblen Dienst); das Ergebnis bleibt je Dokument, Modell und Schema zwischengespeichert. Es gilt
+  die Heimnetz-Regel der Texterkennung, geprüft bei jedem Aufruf; die
+  Textebene liest der Browser (PDF.js, mitgeliefert), gespeichert wird sie
+  nicht.
+- **Was gelesen wird:** Rechnung, Vertragsbestätigung, Preisänderung,
+  Kündigung und Lieferbeginn; Zählerwechsel, Zählerstandsanforderung und
+  Abschlagsänderung mit Prüfung jedes Felds; Mahnung, Widerruf und Sonstiges
+  werden erkannt und abgelegt.
+- **Eine Karte „Auslesen“** unter Einstellungen → Experte mit dem Umschalter
+  Lokal | Cloud; die Wahl gilt für den ganzen Posteingang. „Lokal“ zeigt
+  Adresse und Schnittstelle (dieselben wie für die Zählerfotos), Textmodell,
+  Zeitlimit und „Verbindung prüfen“.
+- **In der Cloud als Opt-in:** Claude (Anthropic) bekommt das PDF und liefert
+  die Belegstelle als wörtliches Zitat samt Seite; OpenAI, Mistral, OpenRouter,
+  Google Gemini oder eine eigene OpenAI-kompatible `https://`-Adresse bekommen
+  den Text. Das Modell wählst du aus der Liste des Dienstes. Aus, bis ein
+  Verwalter es einschaltet; vor jedem Auslesen nennt die App Dienst, Ziel und
+  was hinausgeht, die Warteschlange fragt einmal je Lauf. Alle Cloud-Wege sind
+  als experimentell gekennzeichnet, bis Rückmeldungen aus echtem Betrieb
+  vorliegen.
+- **Was hinausgeht und was nicht:** Jedes Dokument, das du in der Cloud
+  auslesen lässt, verlässt das Heimnetz; der gewählte Dienst sieht den ganzen
+  Inhalt und verarbeitet ihn nach seinen Bedingungen. Hinaus gehen nur das
+  Dokument, die Leseanweisung und der Schlüssel zur Anmeldung — keine
+  Zählerstände, Verträge, Einstellungen oder anderen Haushaltsdaten. Das sagen
+  die Karte „Auslesen“ in der Ansicht „Cloud“ und ihr Zustand, der Posteingang
+  und die Anleitung.
+- **Schlüssel und Verbindung:** Der API-Schlüssel bleibt auf dem Server — nie
+  im Browser, im Backup oder im Protokoll — und gehört zu seinem Dienst.
+  Adressen im Heimnetz lehnt der Cloud-Weg ab; verbunden wird nur mit der
+  geprüften Adresse, ohne Weiterleitung und ohne Proxy. Im Docker-Image wartet
+  nginx beim Auslesen bis zu 660 s (Zeitlimit der Cloud bis 600 s), sonst
+  weiter 310 s.
+
+#### Treffsicherheit
+
+- **Die Belegstelle prüft der Server:** Ein Feld ist zu prüfen, wenn sein Zitat
+  fehlt oder nicht im Dokument steht oder der Wert nicht im eigenen Zitat.
+  Deutsche Zahlen liest er deutsch („12.345“ ist zwölftausend). Zitate aus
+  Tabellen gelten, wenn ihre Teile in Reihenfolge nah beieinanderstehen (dieselbe
+  Zeile oder höchstens zwei darunter); Umlaute, die die Textebene als zwei Zeichen oder in
+  Mac Roman liefert, stören nicht. Eine Marktlokations-ID muss ihre Form haben
+  (11 Ziffern, Prüfziffer nach BDEW).
+- **Marken nur bei echtem Zweifel:** Ein Feld, das im Dokument fehlt, markiert
+  nur, wenn ein Vorschlag es braucht (Kernfelder je Vorschlag); „voraussichtlich“
+  ist ein Hinweis; ein Preis, der zum Vertrag passt, ist „schon vorhanden“;
+  Auswahlfelder stützen sich auf andere Angaben (Zählernummer am bekannten
+  Zähler, Einheiten, Tarif). Unsicher gelesene Nebenangaben übernimmt die App
+  nicht still.
+- **Gegenrechnung der Rechnung:** Die gezahlten Abschläge zählt der Server
+  selbst zusammen, und das Ergebnis muss Gesamtbetrag minus Abschläge sein.
+  Geht die Rechnung nicht auf, sind alle beteiligten Beträge markiert, nicht nur
+  das Ergebnis.
+- **Nettopreise wie auf der Rechnung:** Weist die Rechnung netto mit
+  Steuersatz aus, rechnet die App in brutto um und vergleicht brutto mit brutto;
+  der Vertrag bekommt den Bruttopreis. Den Satz liest sie aus dem Zitat, aus
+  derselben Textzeile, aus einer Steuerspalte („USt %“) oder aus der einen
+  Umsatzsteuerzeile — gelesen, nie vermutet, und nur aus Belegstellen, die im
+  Dokument stehen; bei zwei Sätzen rechnet sie nicht um. Gleicher Nettopreis mit anderem Steuersatz ist eine neue Preiszeile, kein
+  Widerspruch.
+- **Nie mehr an den falschen Vertrag:** Die Vorbelegung nach Datum gilt nur für
+  Verträge desselben Versorgers, sonst bietet der Posteingang „Vertrag aus
+  diesem Dokument anlegen“ an; der neue Abschlag einer Rechnung geht nur an
+  einen Folgevertrag desselben Versorgers. Beginnt ein neuer Vertrag am selben
+  Zähler, ist „bisheriger Vertrag endet am Vortag“ vorab angehakt, ebenso der
+  Anfangsstand der Rechnung, wenn er zwischen die bekannten Stände passt.
+- **Zählertausch auf der Jahresabrechnung:** Stehen zwei Zähler auf der
+  Rechnung, schlägt der Posteingang den Tausch mit Endstand und Anfangsstand
+  vor — vorab angehakt, wenn Nummern, Tag und Stände zusammenpassen. Mehrere
+  Ablesezeiträume eines Zählers werden ein Eintrag, die Zwischenstände eigene
+  Ablesungen; ein Endstand des neuen Zählers landet nie am alten Gerät.
+- **Geschätzte Zählerstände** erkennt der Posteingang am Wort („geschätzt“,
+  „hochgerechnet“, „rechnerisch ermittelt“), an einer Fußnote mit Erklärung oder
+  an einem Ablesecode, den die Rechnung selbst erklärt („S = geschätzt“, auch in
+  einer Codegruppe oder einer Spalte „Ableseart“); die Ablesung entsteht als geschätzt und zählt nicht
+  als Messung.
+- **Datum und Titel jedes Dokuments** werden mitgelesen; sie ordnen die Post
+  zeitlich und zeigen eine Korrektur als solche.
+
+#### Gemessen oder verteilt
+
+- **Jeder Monatswert sagt, ob er gemessen ist** ([#37]): Liegen zwei Ablesungen
+  weit auseinander, ist der Monatswert die gleichmäßige Verteilung eines
+  längeren Zeitraums. Maßgeblich ist die Länge des Abstands (bis 45 Tage
+  gemessen), nicht, ob im Monat abgelesen wurde; geschätzte Ablesungen messen
+  nicht. Verbrauchsart und Analyse sagen es mit der Zahl der Ablesungen,
+  Tabellen zeigen „≈“, Diagramme schraffierte Säulen.
+- ⚠️ **Verteilte Monate lernen nichts:** Abweichungstabelle, Empfehlungen,
+  Heizmodell und Heizkurve, Saisonprofil der Prognose, Trend gegen das Vorjahr,
+  Saldo-Schätzung, „Wie im Vorjahr“ der Werkstatt und die Vorjahresvergleiche
+  im Jahresbericht lassen sie aus. Bei wenigen Ablesungen rechnet das
+  Heizmodell über die Abstände zwischen den Ablesungen. Empfehlungen kommen nur
+  aus den letzten 24 Monaten; die Analyse zeigt weiter alle Abweichungen.
+- **Jahresbericht:** Jahressummen vergleicht er weiter, wenn an beiden
+  Jahreswechseln abgelesen wurde, auch mit verteilten Monaten dazwischen; sonst
+  sagt eine Notiz, warum der Vergleich fehlt.
+- **PV mit wenigen Ablesungen** ([#39]): Die Übersicht sagt, wie viele
+  Monatswerte verteilt sind und aus wie vielen Ablesungen, dass Eigenverbrauch,
+  Autarkiequote, Ersparnis und Amortisation für diese Monate Schätzungen sind,
+  und markiert die Monate im Energiefluss.
+
+#### Gütesperre und Heizgrenze-Vorschlag
+
+- **Gütesperre** ([#38]): Passt das Heizmodell schlecht — Streuung über 15 %
+  eines mittleren gemessenen Monats oder Grundlast weit neben den gemessenen
+  Sommern —, sagt die Abweichungstabelle das, statt leer zu bleiben, nennt die
+  Grenze, unter der sie nichts erkennt, und führt zur Heizgrenze.
+- **Heizgrenze-Vorschlag je Zähler** ([#38]): Die Analyse rechnet die
+  gemessenen Monate eines Zählers mit Heizgrenzen von 6 bis 18 °C durch und
+  schlägt eine deutlich besser passende vor. Übernommen wird sie nur per Klick
+  (ab Erfahren) und nur für diesen Zähler, zurücknehmbar; die Einstellung
+  bleibt der Standard der übrigen.
+- **Klimanormal ab 6 °C** für niedrige Heizgrenzen; außerhalb des Rasters sagt
+  die Prognose es, statt still an der Grenze zu rechnen.
+- **Jahresband und Heizanteil nur bei passendem Heizmodell**, sonst sagt die
+  Prognose, warum sie ohne Band rechnet. Ungültige Heizkurven nennen den Grund
+  (zu wenige Punkte, passt nicht, nicht berechenbar), und jeder bereinigte
+  Monat sagt, worauf er beruht.
+
+#### Stufen
+
+- **Stufen überdacht:** Die Stufe folgt drei Sätzen — Einsteiger wollen wissen,
+  was sie verbrauchen, was es kostet und ob der Abschlag reicht; Erfahrene
+  vergleichen und prüfen; Experten sehen alles und binden an. Wer PV, Speicher,
+  Wärmepumpe oder Wallbox hat, sieht die Seiten dazu in jeder Stufe.
+- **Für alle:** Kündigungsfrist im Vertrag; bei Fernwärme Leistungspreis,
+  Messpreis und Anschlussleistung. **Ab Erfahren** (bis 3.6.0 Experte):
+  Schaubilder auf der Übersicht, Jahresarbeitszahl, Speicher und Amortisation
+  der PV, Ladestrom-Nachweis, E-Auto und JAZ in der Werkstatt, „CO₂-Kosten
+  teilen“, PV-Anlage und Stromzähler der Wärmepumpe im Zählerdialog,
+  Einstellung Photovoltaik.
+- **Vorschlag aus dem Haushalt:** PV, Speicher, Wärmepumpe oder Wallbox
+  schlagen Einsteigern „Erfahren“ vor, Viertelstundenwerte Erfahrenen
+  „Experte“ — je Anlass höchstens einmal.
+- **„Was kann ich auf welcher Stufe?“** im Handbuch: jede Funktion mit ihrer
+  Stufe, nach Aufgaben geordnet, mit drei Haushalten zum Wählen; verlinkt aus
+  Einstellungen und Assistent, von einem Test gegen den Code geprüft.
+
+#### Nachzüge aus 3.6.0
+
+- **Flexibilität mit eigenen Werten:** Wärmepumpenanteil, Wasch- und
+  Spülgänge und die Steckzeit des Autos ohne evcc lassen sich unter
+  Einstellungen → Verbrauchsarten einstellen (ab Erfahren); Seite und Bericht
+  sagen dann „eigener Wert“ statt „Beispielwert“. Steckzeiten aus evcc gehen
+  vor.
+- **§ 14a Modul 3 ohne USt:** Netzentgelte lassen sich netto eintragen
+  („Beträge ohne USt“); die App rechnet sie mit ihrem Umsatzsteuersatz auf
+  brutto.
+- ⚠️ **Wasser mit Abschlägen** ([#34]): Wasserverträge mit Abschlagsplan haben
+  einen Saldo nach Kalender wie Gas und Strom, mit Abschlagsvorschlag und
+  Saldo-Verlauf; der Arbeitspreis ist Trink- plus Schmutzwasser. Der
+  Jahresbericht zeigt Saldo und Abschlags-Rat. Ohne Abschläge bleibt alles wie
+  bisher.
+
+#### Abrechnungsjahr und Gutschriften
+
+- ⚠️ **Kosten ohne Bonus** ([#33]): Die Kachel „Kosten“ (Verbrauchsart im
+  Kalender- und Abrechnungsjahr, Übersicht, Jahresbericht) zeigt die Kosten
+  ohne Bonus; der Bonus steht als eigene Zeile darunter. Der Saldo rechnet ihn
+  ein wie die Rechnung, der Ø je Monat nicht — eine einmalige Gutschrift ist
+  kein Monatspreis. Die API (`cost`) bleibt nach Abzug, neu ist `bonus_items`;
+  die CSV der Abrechnungsjahre bekommt am Ende „Bonus“ und „Kosten ohne Bonus“.
+- **Stichtag eindeutig** ([#33]): Einstellungen, Handbuch und API sagen, dass
+  der Stichtag der erste Tag der Abrechnungsperiode ist (01-09 heißt 1.9. bis
+  31.8.). Ohne erfasste Rechnung schlägt die App ihn aus den Vertragsbeginnen
+  vor.
+- **Sonstige Gutschrift** ([#35]): neue Bonusart mit Notiz, etwa für eine
+  Kulanzgutschrift; Art und Notiz stehen in Vertrag, Jahresbericht und
+  Tarifvergleich.
+- **Gas-Umrechnung im Vertrag** ([#35]): Das Vertragsformular zeigt bei Gas
+  die heute geltende Umrechnung (Zustandszahl × Brennwert) mit Sprung zur
+  Einstellung und sagt, warum sie am Netz hängt und nicht am Vertrag.
+
+#### Zuständig an Zählern und Verträgen
+
+- **Zuständig:** Im Zähler- und Vertragsformular wählst du eine Person aus dem
+  Haushalt. Fristen landen dann bei ihr: Kündigungsfrist, Vertragsende,
+  Preisgarantie und „Abrechnung erwartet“ beim Vertrag, Ablesung und Bestand
+  beim Zähler.
+- **Fristen erben die Zuständigkeit:** Ein Termin ohne eigene Zuständigkeit
+  bekommt die des Vertrags, sonst die des Zählers. Der Chip sagt „über den
+  Vertrag“ bzw. „über den Zähler“ — in den Terminen, unter „Zu tun“, auf
+  Verträge & Abschläge und im Kalender. Eine eigene Zuständigkeit am Termin geht
+  immer vor.
+- **Termin am Zähler:** Eichfrist, Zählerwechsel oder Lieferung lassen sich
+  einem Zähler zuordnen und erben so dessen Person.
+- **„Meine Aufgaben“ überall:** Der Filter zählt Geerbtes mit und steht jetzt
+  auch auf Verträge & Abschläge. Wer angemeldet ist, abonniert den Kalender auf
+  Wunsch nur mit dem, was bei ihr oder ihm liegt.
+- **Person löschen** übergibt auch Zähler und Verträge an die Person, die
+  löscht; ohne Anmeldung bleiben sie mit „(gelöscht)“ stehen. Der Dialog nennt
+  die Zahl vorher.
+
+#### Qualität
+
+- **Dialoge für Tastatur und Bildschirmleser:** Jeder Dialog öffnet mit dem
+  Fokus im ersten Feld (am Touchscreen auf dem Dialog, ohne dass die Tastatur
+  aufspringt); Rückfragen stehen auf „Abbrechen“ und werden samt Frage
+  vorgelesen, der Titel ist eine Überschrift. Die Tabulator-Taste bleibt im
+  Dialog, Escape schließt, und der Fokus kehrt zum Knopf zurück, auch wenn die
+  Liste nach dem Speichern neu aufgebaut wird. Fehlermeldungen hängen am Feld.
+  Eine automatische Prüfung klickt sich durch alle Seiten und jeden Dialog,
+  auch künftige.
+- **Schneller mit vielen Daten:** Mit zehn Jahren täglicher Ablesungen
+  antworten Übersicht, Abrechnungsperioden, Jahresbericht und
+  Prognose-Werkstatt zwei- bis viermal schneller, und die Zeit wächst nur noch
+  linear mit der Datenmenge — bei gleichen Zahlen.
+- **Englische Screenshots mit englischem Datum** (dd/mm/yyyy).
+- **Release-Prüfliste** mit den mitgelieferten Bibliotheken (Chart.js, PDF.js)
+  und der Sichtprüfung in Safari/WebKit (`tools/webkit-check.mjs`).
+
+#### API und Daten (additiv)
+
+- **Routen:** `GET`/`POST /api/inbox`, `GET /api/inbox/review`,
+  `POST`/`DELETE /api/inbox/queue`, `GET`/`PATCH`/`DELETE /api/inbox/{id}`,
+  `POST /api/inbox/{id}/classify|extract|apply|remind`,
+  `GET /api/inbox/draft`, `POST /api/inbox/draft/apply`,
+  `POST /api/inbox/folder`, `GET`/`PATCH /api/inbox/cloud`,
+  `GET /api/inbox/cloud/models`, `GET /api/inbox/local/check`,
+  `GET /api/utility/{u}/dossier`; `POST /api/inbox` nimmt auch JSON mit
+  `pdf_base64`.
+- **Daten:** neuer Topf `inbox.json` (im Backup); am Vertrag
+  `contract_number`, `customer_number`, `attachment_ids`, `assignee_id`; am
+  Zähler `assignee_id`, `hdd_base_temp`; an Terminen `utility`, `meter_id`; an
+  Rechnungen `factors`; Ablesungen mit `source: inbox`; API-Schlüssel-Bereich
+  `inbox`; Einstellungen `inbox_*`, `inbox_cloud_*`, `flex_*`.
+- **Antworten:** je Monat `interpolated`, `measured_share`,
+  `reading_gap_days`, dazu `interpolation` und `anomaly_quality`;
+  `bonus_items`; `projection_uncertain`, `price_missing`, `superseded_on` am
+  Vertragsstatus; in „Rechnung prüfen“ `no_prices`, `boundaries`,
+  `price_missing_at`, `factor_mismatches`; `suggested_anchor_source` an den
+  Abrechnungsperioden; `period_last_day` in `GET /api/summary`;
+  `assignee_source` in der Agenda; `?person=` am Kalender; `example_keys` in
+  `GET /api/settings`.
+- **CSV:** Abrechnungsjahre mit „Bonus“ und „Kosten ohne Bonus“ am Ende, die
+  lokale Monatsübersicht mit „Bonus“; Format 1 bleibt unverändert.
+
+### Changed
+
+- **Unsicher heißt überall unsicher:** Saldo-Karte, Übersicht (auch für Home
+  Assistant), Jahresbericht und Werkstatt nennen dieselben Gründe. Wo die
+  Schätzung unsicher ist, steht nur die Spanne — auf der Karte, bei „Erwartet
+  zum …“ unter Kosten & Verträge und in der Verträge-Tabelle. Passt das
+  Heizmodell schlecht, sagt „Kälter oder mehr verbraucht?“ nicht mehr „wirklich
+  weniger verbraucht“, sondern dass es sich nicht belegen lässt; dann schätzt
+  der Saldo mit einem Faktor für das Ganze (⚠️ geschätzte Kosten und Saldo
+  dieser Zähler ändern sich).
+- **Jahresvergleich der Monate:** Ein angefangener Monat steht mit * und wird
+  nicht mit einem vollen verglichen (bestand vor 3.7.0). Verteilte Monate mit
+  einer geschätzten Ablesung als Stütze heißen nicht mehr „gleichmäßig
+  verteilt“.
+- ⚠️ **Abschlag mit Spanne, wenn er unsicher ist:** Passt das Heizmodell
+  schlecht oder klemmt seine Kalibrierung an einer Grenze, nennt die
+  Saldo-Karte statt eines Betrags eine Spanne mit Grund; der Jahresbericht
+  macht daraus einen Hinweis statt einer Aufgabe, die Prognose-Werkstatt zeigt
+  die Spanne. `suggested_advance` ist dann `null` (`projection_uncertain`), auch
+  im Sensor für Home Assistant.
+- ⚠️ **Abgelöste Verträge:** Beginnt ein Folgevertrag, während der alte noch
+  läuft, enden dessen Abschläge, Grundpreis und Saldo am Tag davor
+  (`superseded_on`); gespeichert bleibt das eingetragene Ende. Bisher zählten
+  seine Abschläge bis heute weiter. Lückenlose Ketten rechnen wie bisher.
+- ⚠️ **„Rechnung prüfen“ mit Aussage:** neues Urteil „keine Preise“ mit Sprung
+  zum Vertrag, auch wenn zugleich die Menge abweicht; eine Ablesung am letzten
+  Tag des Zeitraums ist ein Grenzstand, keine Schätzung; ein Brennwertwechsel,
+  den Gas-Umrechnung und Rechnung gleich kennen, ist kein Grund mehr, sonst
+  stehen beide Werte da. Die Rechnung selbst rechnet unverändert.
+- **Vertrag ohne Arbeitspreis:** Saldo-Karte und Abrechnungsjahr sagen „Preis
+  fehlt“.
+- **Beispieldaten:** Der Schaufenster-Haushalt hat eine erfundene
+  Jahresabrechnung im Posteingang mit vorberechneter Auslesung, einen Entwurf
+  aus Dokumenten und einen vierteljährlich abgelesenen Zwischenzähler, an dem
+  die verteilten Monate zu sehen sind; jeder Haushalt hat einen Vertrag und
+  einen Zähler mit Zuständigen, Eigenheim klassisch eine sonstige Gutschrift.
+  Die öffentliche Demo zeigt den Posteingang ohne Auslesen.
+- **Handbuch:** neue Anleitungen
+  [Posteingang](docs/anleitungen/posteingang.md) und
+  [Haushalt aus Dokumenten](docs/anleitungen/haushalt-aus-dokumenten.md), die
+  Funktionstabelle [Was kann ich auf welcher Stufe?](docs/referenz/stufen.md)
+  und für Entwickler die
+  [Messung mit großen Datenmengen](docs/entwicklung/messung-grosse-daten.md).
+
+### Fixed
+
+- **Verteilte Monate als Abweichung** ([#37]): Abweichungstabelle, Empfehlung
+  r1 und das Heizmodell nahmen Monate, die nur aus einem langen
+  Ablesungsabstand verteilt waren, wie gemessen und meldeten Abweichungen, die
+  es nicht gab — jeden Monat dieselben aufs Neue.
+- **Heizmodell bei konvexer Heizkurve** ([#38]): Passte das Modell schlecht,
+  blieb die Abweichungstabelle leer und sagte nicht, warum.
+- **PV mit zwei Ablesungen** ([#39]): Die PV-Übersicht zeigte gleiche Monate
+  und Jahre ohne Hinweis, dass sie verteilt sind.
+- **Ein-Tages-Perioden** ([#33]): Lag der Stichtag ein paar Tage neben dem
+  Vertragsbeginn (etwa einen Tag davor), blieb bei jedem Wechsel
+  eine Mini-Periode übrig; der Hinweis zum Stichtag las sich als Endtag. Ein
+  Rest unter 14 Tagen geht jetzt in die Nachbarperiode auf, die Summen bleiben
+  gleich.
+- **Bonus-Notiz** ([#35]): Das Vertragsformular löschte beim Speichern still
+  die Notiz eines Bonus, das Wasserformular speicherte jeden Bonus als
+  „Neukunde“.
+- ⚠️ **Als Sonderzahlung buchen** nahm ohne Vertrag am Periodenende den
+  jüngsten Vertrag des Zählers, auch wenn er den Zeitraum gar nicht berührte
+  (seit v3.1.0, auch ohne Posteingang). Jetzt bucht die App auf den Vertrag,
+  der den Zeitraum überwiegend abrechnet — etwa bei einer Schlussrechnung einen
+  Tag über das Vertragsende —, sonst lehnt sie mit dem Zeitraum ab.
+- ⚠️ **Prognose im Sommer:** Die Heizkurve rechnete auch unterhalb ihres
+  kleinsten Punkts; bei konvexer Heizkurve mit viel Warmwasser lagen
+  Jahresprognose und Menge fürs Vergleichsportal deutlich zu niedrig. Jetzt
+  gilt im Sommer der gemessene Saisonwert, und bei schlecht passendem
+  Heizmodell rechnet keine Heizkurve.
+- **„Abrechnung erwartet“** übersah eine gebuchte Rück- oder Nachzahlung im
+  Zeitraum; sie zählt jetzt als eingegangene Rechnung.
+- **Stufenhinweis:** Einsteiger sahen über „Wechsel prüfen“, „Rechnung prüfen“
+  und „Mietverhältnis“ den Hinweis „Diese Seite gehört zur Stufe …“ nicht.
+- **Dialoge:** Der Fokus stand beim Öffnen auf „×“; Felder im Kalender-Abo und
+  in den Tabellen des Wasservertrags hatten keine Beschriftung; Grün hatte im
+  Hellmodus zu wenig Kontrast.
+- **„Zu tun“ mit „Meine Aufgaben“:** Die Sammelzeile der fälligen Ablesungen
+  fiel ganz weg.
+
+### Bekannte Grenzen (folgen in 3.7.x)
+
+- **Photovoltaik mit sehr wenigen Ablesungen:** Der Energiefluss kappt die
+  gemessene Einspeisung an der gleichmäßig verteilten Erzeugung, und der Block
+  „Sonnenstrom“ im Jahresbericht vergleicht Teiljahre. Die PV-Übersicht sagt,
+  dass die Monatswerte verteilt sind; Eigenverbrauch und Autarkie je Monat sind
+  in diesem Fall nur grobe Schätzungen.
+- **Saldo-Karte und Prognose-Werkstatt** rechnen den erwarteten Saldo über
+  verschiedene Zeiträume und können verschiedene Abrechnungstage nennen; ist
+  die Schätzung unsicher, zeigt die Karte nur die Spanne.
+- **Posteingang:** Ein Zählertausch, dessen Nummer nur in der Kopfzeile über
+  den Ständen steht, wird angeboten, aber nicht vorab angehakt; Ablesecodes in
+  Codegruppen oder einer Spalte „Ableseart“ erkennt er noch nicht als geschätzt.
+
+### Migration
+
+Keine. Schema bleibt 1.8.0. Neu im Backup ist der Topf `inbox.json`; der
+Schlüssel eines Cloud-Diensts liegt in einer eigenen Datei und bleibt bewusst
+draußen. Das Auslesen steht auf „Lokal“, der Cloud-Weg auf „aus“.
+
+### Tests
+
+- **Posteingang:** `InboxServiceTest`, `InboxEvidenceTest` (Belegprüfung),
+  `InboxMarksTest` (Marken, Vorschläge, Übernehmen), `InboxLocalProviderTest`
+  (gegen ein nachgebautes Ollama über HTTP), `InboxGistTest`,
+  `InboxFolderTest`, `DossierServiceTest`, `InboxOperationDocsTest`,
+  `BillVerdictTest`; über HTTP `InboxEndpointTest`,
+  `InboxChannelsEndpointTest`, `InboxDraftEndpointTest`,
+  `LongRequestTimeLimitTest`, `NginxReadTimeoutTest`.
+- **Haushalt aus Dokumenten:** `HouseholdDraftTest`,
+  `InterpolationFromDraftTest`, Node-Suite `inbox-draft.test`.
+- **Cloud:** `CloudExtractionTest` gegen einen nachgebauten Dienst (Form der
+  Anfrage, Belegstellen, Fehler, Adressprüfung, Schlüssel in keiner Meldung;
+  kein echter Aufruf), `InboxCloudEndpointTest` (Schlüssel in keiner Antwort,
+  keinem Backup, keinem Protokoll).
+- **Gemessen oder verteilt, Gütesperre:** `InterpolationTest` (Monatswerte,
+  Kosten, Abschläge und Saldo bit-gleich gegen Aufnahmen mit dem Code von
+  3.6.0), `MessyHouseholdTest` mit einem unordentlichen Testhaushalt aus eigener
+  Physik (`tests/fixtures/messy-household/`), `RealDataFollowUpTest`.
+- **Nachzüge, [#33], [#35]:** `ShortRestPeriodsTest`, `CostWithoutBonusTest`,
+  `WaterCalendarBalanceTest`, `SummaryPeriodLastDayTest`.
+- **Zuständig, Qualität:** `ResponsibilityTest`, `ResponsibilityHttpTest`,
+  `ReleaseChecklistTest`; neue Node-Suiten `inbox.test`, `a11y.test` (klickt
+  jede erreichbare Seite und jeden Dialog durch) und `large-data.test` (zehn
+  Jahre Tageswerte, Laufzeit linear).
+- Erweitert: `BackupSafetyTest`, `BaselineCutoffTest`, `BillExpectedTest`,
+  `BillingPeriodServiceTest`, `DemoCoverageTest`, `FlexibilityInsightTest`,
+  `FlexibilityTest`, `OutboundHostsTest`, `PersonaPeopleTest`,
+  `ReportFlexPageTest`, `ReportModelServiceTest`, `ViewSumsConsistencyTest`,
+  `WaterSpecialPaymentsTest`; `levels.test`, `assignee.test`, `chart.test`,
+  Render-, Shape- und Demo-Tests.
+- 1477 Testmethoden (+403), PHPUnit zählt 1795 Tests. Jede neue Regel hat eine
+  Gegenprobe, die sie bricht: 937 in 14 Paketen, alle rot.
+
+### Lessons Learned
+
+- **Beispieldaten aus dem eigenen Modell bestätigen sich selbst.** [#37], [#38]
+  und [#39] fand ein Nutzer mit echten Daten, nicht unsere Tests: Die
+  Beispielhaushalte entstehen aus dem Heizmodell der App und werden regelmäßig
+  abgelesen — an ihnen kann eine Gütesperre nie anschlagen. Neu sind darum ein
+  unordentlicher Testhaushalt mit eigener Physik (konvexe Heizkurve, Lücken,
+  Zählertausch, geschätzte Ablesung), ein Abgleich der Auswertungen mit echten
+  Haushaltsdaten, der nur lokal läuft und nichts ins Repo bringt, und vor jeder
+  Freigabe ein Skeptiker-Lauf, der jede angezeigte Zahl auf Herkunft und
+  Plausibilität prüft.
+- **Treffer je Feld sind noch kein Nutzen.** Im Nutzentest mit echter
+  Versorgerpost las die KI die Felder fast immer richtig, und trotzdem entstand
+  kaum ein brauchbarer Haushalt: Verträge blieben liegen, weil ein Pflichtfeld
+  fehlte, die meisten Marken waren Fehlalarm, die Vorbelegung traf den Vertrag
+  eines anderen Versorgers, und „Rechnung prüfen“ urteilte fast immer
+  „prüfen“. Gemessen wird seitdem am fertigen Haushalt — derselbe Test mit
+  denselben gespeicherten Auslesungen, nach jeder Nachbesserung wiederholt.
+- **Ein Betrag ohne Unsicherheit ist eine Behauptung.** Der Abschlagsvorschlag
+  nannte auch bei schlecht passendem Modell einen genauen Betrag; der Abgleich
+  mit echten Daten zeigte, wie weit er danebenliegen kann. Jetzt nennt die App
+  eine Spanne und sagt, wovon sie abhängt.
+
+[#33]: https://github.com/Bingerminger/energietracker/issues/33
+[#34]: https://github.com/Bingerminger/energietracker/issues/34
+[#35]: https://github.com/Bingerminger/energietracker/issues/35
+[#37]: https://github.com/Bingerminger/energietracker/issues/37
+[#38]: https://github.com/Bingerminger/energietracker/issues/38
+[#39]: https://github.com/Bingerminger/energietracker/issues/39
+
+---
+
 ## [3.6.0] — 2026-10-20 — Was wäre wenn und wie auf der Rechnung
 
 MINOR-Release ohne Schemaschritt (bleibt 1.8.0): die Prognose-Werkstatt

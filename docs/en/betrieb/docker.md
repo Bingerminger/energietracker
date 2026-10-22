@@ -82,6 +82,18 @@ data always lives there, no matter how often you rebuild the container.
 > Desktop reports an error (`mounts denied`, in the interface often just
 > "HTTP 500"). A named volume is the easiest choice there.
 
+**Folder for supplier mail *(v3.7.0)*.** PDFs in `/data/posteingang/` move into
+the [inbox](../anleitungen/posteingang.md#watched-folder) — with the folder
+volume that is `./data/posteingang/` on the host. With a named volume, mount a
+host folder just for this:
+
+```
+-v energietracker-data:/data -v "$PWD/posteingang:/data/posteingang"
+```
+
+The folder must be writable for the container user (afterwards the file moves
+to `übernommen/` or `fehler/`).
+
 ---
 
 ## Variant A — `docker compose` (recommended)
@@ -362,8 +374,12 @@ many years of daily data could not be restored with them. Also since v3.1.0,
 nginx waits up to **310 seconds** for PHP (`fastcgi_read_timeout`, previously
 120 s): text recognition in the home network may take up to 300 seconds
 (`ocr_timeout_s`), which happens on a NAS without a graphics card. Under Linux,
-waiting for the service does not count towards `max_execution_time`. If your
-own reverse proxy sits in front, its time limit applies as well.
+waiting for the service does not count towards `max_execution_time`. Since
+v3.7.0 nginx waits up to **660 seconds** when the inbox recognises and reads a
+document (`/api/inbox/{id}/classify` and `/extract`): a cloud service may take
+up to 600 seconds to answer (`inbox_cloud_timeout_s`), and PHP raises its limit
+to 660 seconds for that. All other routes stay at 310 seconds. If your own
+reverse proxy sits in front, its time limit applies as well.
 
 **Health check:** the container queries `GET /api/health`. Since v2.6.0 the
 endpoint answers a real fault (data not writable, corrupt file, data newer than

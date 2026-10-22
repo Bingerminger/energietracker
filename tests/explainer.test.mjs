@@ -394,9 +394,10 @@ t('heute ohne Angabe = Ortszeit (todayIso)', EX.timelineHtml(TL['befristet, 1 Mo
 
 // ── 5. Geld und Wetter mit Extremwerten ─────────────────────────────────
 section('Geld und Wetter');
-const money = (paid, cost, energy, base, bal) => EX.moneyHtml({
+const money = (paid, cost, energy, base, bal, range = null) => EX.moneyHtml({
   balance_path: [{ ym: '2026-01', paid: paid / 12, cost: cost / 12 }, { ym: '2026-12', paid, cost }],
   energy_cost_to_date: energy, base_to_date: base, bonus_to_date: 0, projected_end_balance: bal,
+  projection_uncertain: range ? { reasons: ['few_measured'], projected_range: range } : null,
 });
 const wm = (y, mo, kwh, hdd) => ({ ym: `${y}-${String(mo).padStart(2, '0')}`, kwh, hdd, heat_adjusted: kwh });
 const weather = (k0, k1, h0, h1, adjF) => {
@@ -410,6 +411,8 @@ const EXTREME = {
   'Geld groß, Nachzahlung': () => money(9800, 14321.09, 12000, 2000, 4521.09),
   'Geld klein': () => money(12, 9.5, 6, 2, -2.5),
   'Geld ohne Abschläge (0 €)': () => money(0, 1500, 1200, 300, 1500),
+  // v3.7.0 (Schritt 3) — unsichere Schätzung: Kosten als Spanne
+  'Geld unsicher, groß': () => money(98765.43, 123456.78, 80000, 15000, 24691.35, [-12345.67, 61728.39]),
   'Wetter +250 % / Gradtage −60 %': () => weather(1000, 3500, 300, 120, 1.5),
   'Wetter −80 % / Gradtage +60 %': () => weather(1000, 200, 300, 480, 0.2),
   'Wetter gleich': () => weather(1000, 1010, 300, 300, 1.0),
@@ -442,6 +445,18 @@ for (const lang of LANGS) {
 }
 await initI18n('de');
 t('Geld: 0 € Abschläge werden genannt', parse(EXTREME['Geld ohne Abschläge (0 €)']()).querySelector('svg').textContent.includes(fmt.eur(0)));
+// v3.7.0 (wirklichkeit-2, Schritt 3) — „Wohin geht mein Geld?“ bei unsicherer Schätzung: Spanne statt Punktwert
+{
+  const fig = parse(money(1200, 1300, 700, 300, 100, [-50, 250]));
+  const cap = fig.querySelector('.explainer__text')?.textContent || '';
+  const svg = fig.querySelector('svg').textContent;
+  t('Geld unsicher: Kosten als Spanne (Bild und Satz)', svg.includes(`${fmt.eur0(1150)} bis ${fmt.eur0(1450)}`) && cap.includes(`${fmt.eur0(1150)} bis ${fmt.eur0(1450)}`), `${svg} | ${cap}`);
+  t('Geld unsicher: Ergebnis als Spanne, kein „rund 100 € Nachzahlung“ allein', /je nach Schätzung zwischen rund .+ Guthaben und rund .+ Nachzahlung/.test(cap)
+    && !cap.includes(`Das ergibt rund ${fmt.eur(100)} Nachzahlung`), cap);
+  t('Geld unsicher: keine Lücke, die einen Punktwert zeigt', !fig.querySelector('.ex-gap--due, .ex-gap--credit'));
+  const sure = parse(money(1200, 1300, 700, 300, 100));
+  t('Geld sicher: wie bisher ein Betrag', (sure.querySelector('.explainer__text')?.textContent || '').includes(`Das ergibt rund ${fmt.eur(100)} Nachzahlung`) && !!sure.querySelector('.ex-gap--due'));
+}
 
 console.log(`\nexplainer.test: ${pass} bestanden, ${fail} fehlgeschlagen`);
 process.exit(fail ? 1 : 0);

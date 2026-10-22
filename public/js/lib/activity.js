@@ -20,6 +20,7 @@ export const AREAS = {
   tenancy_statement_due: 'tenancy', objection_deadline: 'tenancy', co2_claim_deadline: 'tenancy',
   tenancy_statement: 'tenancy',  // v3.5.0 — Nebenkostenabrechnung geändert
   recommendation: 'recommendations',
+  inbox: 'contracts',            // v3.7.0 — aus einem Dokument im Posteingang übernommen
 };
 export const AREA_KEYS = ['reminders', 'contracts', 'readings', 'tank', 'tenancy', 'recommendations'];
 

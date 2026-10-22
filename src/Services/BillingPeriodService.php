@@ -31,6 +31,15 @@ use Energietracker\Support\LocalizedException;
  *      Vertrag, ist sie eine eigene Teilperiode. Eine Verlängerung oder ein
  *      Folgevertrag desselben Versorgers ohne Lücke teilt nicht; Rechnungen
  *      gehen vor (eine Schlussrechnung teilt ohnehin).
+ *   5. v3.7.0 (GitHub #33) — keine Kurzreste: Schneidet ein Wechsel kurz
+ *      vor oder nach dem Stichtag eine Periode von weniger als
+ *      SHORT_REST_DAYS Tagen ab (Stichtag 31-08, Verträge jeweils ab 01.09.:
+ *      jedes Jahr eine Periode 31.08.–31.08.), geht der Rest über den Stichtag
+ *      hinweg in die Nachbarperiode auf — nie über einen Wechsel oder eine
+ *      Rechnung. Die Summen bleiben dieselben, sie verteilen sich nur anders.
+ *
+ * Der Stichtag ist der ERSTE Tag einer Abrechnungsperiode: 01-09 heißt
+ * 1. September bis 31. August.
  *
  * Summen je Periode mit denselben Bausteinen wie „Rechnung prüfen“
  * (ConsumptionService::billBreakdown: Menge, Arbeits- und Grundpreis
@@ -44,6 +53,18 @@ use Energietracker\Support\LocalizedException;
  */
 final class BillingPeriodService
 {
+    /**
+     * v3.7.0 (#33) — Ein Stück unter so vielen Tagen zwischen Stichtag und
+     * Lieferantenwechsel ist ein Kurzrest. Zwei Wochen: weniger als ein halber
+     * Abschlagsmonat und weit unter den 31 Tagen, um die „Abrechnung erwartet“
+     * ein Rechnungsende vom Periodenende abweichen lässt
+     * (BillExpectedService::TOLERANCE_DAYS) — eine eigene Rechnung bekommt so
+     * ein Stück nicht; es ist ein Stichtag, der ein paar Tage neben dem
+     * Lieferbeginn liegt. 17 Tage (Stichtag 01-11, Wechsel am 15.10.) bleiben
+     * dagegen ein eigener, kurzer erster Abschnitt.
+     */
+    public const SHORT_REST_DAYS = 14;
+
     public function __construct(
         private SettingsService $settings,
         private MeterService $meters,
@@ -107,7 +128,20 @@ final class BillingPeriodService
         $bills = self::billSpans(array_values(array_filter($this->bills->list($utility),
             fn($b) => in_array((string)($b['meter_id'] ?? ''), $ids, true))));
         [$start, $end] = $this->dataSpan($utility, $meters, $today);
-        $out = ['utility' => $utility, 'anchor' => $anchor, 'suggested_anchor' => self::suggestedAnchor($bills, $anchor),
+        // v3.6.0 — Verträge, nach denen die Zähler rechnen: Wechsel teilen die
+        // Perioden, ihr Beginn ordnet die Abschläge eines geteilten Monats zu
+        $scope = [];
+        foreach ($meters as $m) $scope[(string)$m['id']] = $this->consumption->contractScope($utility, $m)[0];
+        $starts = $scope === [] ? [] : ConsumptionService::contractStarts(array_merge(...array_values($scope)));
+        $switches = self::switches($scope);
+        // v3.7.0 (#33) — ohne Rechnung ein Vorschlag aus den Vertragsbeginnen
+        $suggested = self::suggestedAnchor($bills, $anchor);
+        $source = $suggested !== null ? 'bill' : null;
+        if ($bills === []) {
+            $suggested = self::suggestedAnchorFromContracts(array_values($starts), $switches, $anchor);
+            $source = $suggested !== null ? 'contracts' : null;
+        }
+        $out = ['utility' => $utility, 'anchor' => $anchor, 'suggested_anchor' => $suggested, 'suggested_anchor_source' => $source,
                 'today' => $today, 'data_from' => $start, 'measured_until' => $end,
                 'unit_key' => $utility === 'wasser' ? 'm3' : 'kwh', 'periods' => []];
         if ($start === null || $meters === []) return $out;
@@ -118,12 +152,7 @@ final class BillingPeriodService
         $billById = [];
         foreach ($this->bills->list($utility) as $b) $billById[(string)($b['id'] ?? '')] = $b;
 
-        // v3.6.0 — Verträge, nach denen die Zähler rechnen: Wechsel teilen die
-        // Perioden, ihr Beginn ordnet die Abschläge eines geteilten Monats zu
-        $scope = [];
-        foreach ($meters as $m) $scope[(string)$m['id']] = $this->consumption->contractScope($utility, $m)[0];
-        $starts = ConsumptionService::contractStarts(array_merge(...array_values($scope)));
-        $periods = self::build($bills, $anchor, $start, $today, self::switches($scope));
+        $periods = self::build($bills, $anchor, $start, $today, $switches);
         foreach ($periods as &$p) {
             // gerechnet bis zur letzten Ablesung (der Stand gehört zum Folgetag,
             // wie die Abschnitte von bill-check) — Kosten und Abschläge auf
@@ -133,6 +162,14 @@ final class BillingPeriodService
             $p['as_of'] = $toExcl > $p['from'] ? self::addDays($toExcl, -1) : null;
             $sp = self::specialPayments($contracts, $p['from'], min($p['until'], $today));
             $p['special'] = $sp;
+            // v3.7.0 (wirklichkeit-2) — ein Vertrag der Periode ohne Arbeitspreis: dieselbe
+            // Aussage wie der Vertragsstatus (`price_missing`), statt eines anderen Saldos
+            $p['price_missing'] = false;
+            foreach ($contracts as $c) {
+                $cEnd = ConsumptionService::supersededOn($c, $contracts) ?? (string)($c['end'] ?? '');
+                if ((string)($c['start'] ?? '9999') > $p['until'] || ($cEnd !== '' && $cEnd < $p['from'])) continue;
+                if (ConsumptionService::lacksWorkingPrice($utility, $c)) { $p['price_missing'] = true; break; }
+            }
             $p['balance'] = round($p['cost'] - $p['advances'] - $sp['extra_advances'], 2);
             if ($p['bill_id'] !== null) {
                 $inv = (array)($billById[$p['bill_id']]['invoice'] ?? []);
@@ -204,6 +241,67 @@ final class BillingPeriodService
             $cursor = self::addDays($b['until'], 1);
         }
         if ($cursor <= $today) $fill($cursor, self::gridAround($anchor, $today)[1], true);
+        return self::mergeShortRests($out, $anchor, $cuts, $today);
+    }
+
+    /**
+     * v3.7.0 (GitHub #33) — Kurzreste in die Nachbarperiode: Ein Stück der
+     * Stichtag-Perioden unter SHORT_REST_DAYS Tagen, das auf der einen Seite
+     * am Stichtag und auf der anderen an einem Wechsel (bzw. einer Lücke ohne
+     * Vertrag) liegt, geht über den Stichtag hinweg in das Nachbarstück auf:
+     *   [Stichtag, Wechsel]       → an die Periode davor (Ende beim alten Versorger)
+     *   [Folgevertrag, Stichtag)  → an die Periode danach; ist sie noch nicht
+     *                               angebrochen (heute liegt im Rest), läuft die
+     *                               laufende Periode bis zum übernächsten Stichtag
+     * Nie über einen Wechsel, nie mit einer Rechnung, nie am Beginn der Daten.
+     * „complete“ und der Name folgen den neuen Grenzen.
+     *
+     * @param list<array<string,mixed>> $out
+     * @param array<string,array<string,bool>> $cuts
+     * @return list<array<string,mixed>>
+     */
+    private static function mergeShortRests(array $out, string $anchor, array $cuts, string $today): array
+    {
+        if ($cuts === []) return $out;
+        $isCut = fn(string $d): bool => isset($cuts[$d]);
+        $gridStart = fn(string $d): bool => self::gridAround($anchor, $d)[0] === $d;
+        $gridEnd = fn(string $d): bool => self::gridAround($anchor, $d)[1] === $d;
+        $finish = function (array $p) use ($cuts, $today, $gridStart, $gridEnd): array {
+            $p['ends_at_switch'] = !empty($cuts[self::addDays($p['until'], 1)]['end']);
+            $p['complete'] = ($gridStart($p['from']) || !empty($cuts[$p['from']]['start']))
+                && ($gridEnd($p['until']) || $p['ends_at_switch']) && $p['until'] < $today;
+            $p['running'] = $p['until'] >= $today;
+            $p['label'] = self::yearLabel($p['from'], $p['until']);
+            return $p;
+        };
+        $short = fn(array $p): bool => $p['source'] === 'anchor' && self::days($p['from'], self::addDays($p['until'], 1)) < self::SHORT_REST_DAYS;
+        for ($i = 0; $i < count($out); $i++) {
+            $p = $out[$i];
+            if (!$short($p)) continue;
+            $next = self::addDays($p['until'], 1);
+            // [Stichtag, Wechsel]: an die Periode davor
+            if ($gridStart($p['from']) && !$isCut($p['from']) && $isCut($next) && $i > 0
+                && $out[$i - 1]['source'] === 'anchor' && self::addDays($out[$i - 1]['until'], 1) === $p['from']) {
+                $out[$i - 1] = $finish(['until' => $p['until']] + $out[$i - 1]);
+                array_splice($out, $i, 1);
+                $i--;
+                continue;
+            }
+            // [Folgevertrag, Stichtag): an die Periode danach
+            if ($isCut($p['from']) && $gridEnd($p['until']) && !$isCut($next)) {
+                if (isset($out[$i + 1]) && $out[$i + 1]['source'] === 'anchor' && $out[$i + 1]['from'] === $next) {
+                    $out[$i] = $finish(['until' => $out[$i + 1]['until']] + $p);
+                    array_splice($out, $i + 1, 1);
+                } elseif (!isset($out[$i + 1]) && $p['until'] >= $today) {
+                    // die laufende Periode: bis zum übernächsten Stichtag, höchstens bis zu einem künftigen Wechsel
+                    $until = self::gridAround($anchor, $next)[1];
+                    foreach ($cuts as $day => $_) {
+                        if ($day > $next && $day <= $until) { $until = self::addDays((string)$day, -1); break; }
+                    }
+                    $out[$i] = $finish(['until' => $until] + $p);
+                }
+            }
+        }
         return $out;
     }
 
@@ -259,6 +357,38 @@ final class BillingPeriodService
         $next = substr(self::addDays($bills[count($bills) - 1]['until'], 1), 5);
         $next = self::normalizeAnchor($next);
         return $next === self::normalizeAnchor($anchor) ? null : $next;
+    }
+
+    /**
+     * v3.7.0 (GitHub #33) — Vorschlag ohne Rechnung, aus den Verträgen (MM-TT):
+     *   1. der Beginn des Folgevertrags beim jüngsten Lieferantenwechsel — der
+     *      jetzige Versorger rechnet ab Lieferbeginn im Jahresrhythmus;
+     *   2. sonst der Tag im Jahr, an dem mindestens zwei Verträge beginnen (der
+     *      häufigste; bei Gleichstand der des jüngsten Beginns) — wer jedes
+     *      Jahr zum 01.09. verlängert, rechnet vom 1.9. bis 31.8. ab.
+     * Null, wenn der Vorschlag der Stichtag schon ist oder nichts dafür spricht.
+     *
+     * @param list<string> $starts Vertragsbeginne (JJJJ-MM-TT), je Vertrag einer
+     * @param list<array{until:string,next:string}> $switches aufsteigend ({@see switches()})
+     */
+    public static function suggestedAnchorFromContracts(array $starts, array $switches, string $anchor): ?string
+    {
+        $byDay = [];
+        foreach ($starts as $s) {
+            if (!Dates::isIsoDate($s)) continue;
+            $md = self::normalizeAnchor(substr($s, 5));
+            $byDay[$md] = ['n' => ($byDay[$md]['n'] ?? 0) + 1, 'last' => max($byDay[$md]['last'] ?? '', $s)];
+        }
+        uasort($byDay, fn($a, $b) => [$b['n'], $b['last']] <=> [$a['n'], $a['last']]);
+        $best = array_key_first($byDay);
+        $pick = null;
+        if ($switches !== []) {
+            usort($switches, fn($a, $b) => (string)$a['next'] <=> (string)$b['next']);
+            $pick = self::normalizeAnchor(substr((string)end($switches)['next'], 5));
+        } elseif ($best !== null && $byDay[$best]['n'] >= 2) {
+            $pick = (string)$best;
+        }
+        return $pick === null || $pick === self::normalizeAnchor($anchor) ? null : $pick;
     }
 
     /** Name einer ganzen Jahresperiode: „2025“ (Kalenderjahr) oder „2025/26“; sonst null (der Browser nennt die Daten). */
@@ -355,7 +485,8 @@ final class BillingPeriodService
     {
         $qk = $utility === 'wasser' ? 'm3' : 'kwh';
         $t = ['days' => max(0, self::days($from, $toExcl)), $qk => 0.0, 'energy_cost' => 0.0, 'fixed_cost' => 0.0,
-              'bonus' => 0.0, 'cost' => 0.0, 'advances' => 0.0, 'co2_kg' => 0.0, 'gaps' => 0, 'price_missing' => false];
+              'bonus' => 0.0, 'cost' => 0.0, 'advances' => 0.0, 'co2_kg' => 0.0, 'gaps' => 0, 'price_missing' => false,
+              'bonus_items' => []];
         if ($utility === 'gas') $t['m3'] = 0.0;
         if ($toExcl <= $from) return $t;
         foreach ($meters as $m) {
@@ -363,6 +494,8 @@ final class BillingPeriodService
             $t[$qk] += (float)($bt[$qk] ?? 0);
             if ($utility === 'gas') $t['m3'] += (float)($bt['m3'] ?? 0);
             foreach (['energy_cost', 'fixed_cost', 'bonus'] as $k) $t[$k] += (float)($bt[$k] ?? 0);
+            // v3.7.0 (#33) — die Boni einzeln für „Bonus −X € am …“ unter der Kachel
+            $t['bonus_items'] = array_merge($t['bonus_items'], (array)($bt['bonus_items'] ?? []));
             $t['cost'] += (float)($bt['total'] ?? 0);
             $t['gaps'] += (int)($bt['gaps'] ?? 0);
             $t['price_missing'] = $t['price_missing'] || !empty($bt['price_missing']);

@@ -7,40 +7,52 @@ use Energietracker\Http\Request;
 use Energietracker\Http\Response;
 use Energietracker\Services\MeterService;
 use Energietracker\Services\I18nService;
+use Energietracker\Services\ResponsibilityService;
 
 /**
  * Zähler-CRUD inkl. F2-Zählertausch (`replace-device`). Beim
  * Anlegen ohne explizites Device wird ein Default-Device erzeugt.
+ *
+ * v3.7.0 — Zuständig: `assignee_id` (Person aus dem Verzeichnis) schreiben;
+ * die Antworten tragen dazu `assignee`, `assignee_former`, `assignee_deleted`.
  */
 final class MeterController
 {
     public function __construct(
         private MeterService $meters,
         private I18nService $i18n,
+        private ?ResponsibilityService $responsibility = null,
     ) {}
+
+    /** v3.7.0 — Zähler mit Zuständigkeit für die Antwort. */
+    private function out(?array $m): ?array
+    {
+        return $m === null || $this->responsibility === null ? $m : $this->responsibility->decorate($m);
+    }
 
     public function index(Request $req): never
     {
-        Response::json($this->meters->list($req->param('utility')));
+        $list = $this->meters->list($req->param('utility'));
+        Response::json($this->responsibility?->decorateAll($list) ?? $list);
     }
 
     public function show(Request $req): never
     {
         $m = $this->meters->get($req->param('utility'), $req->param('id'));
         if (!$m) Response::error($this->i18n->t('errors.meter.notFound'), 404);
-        Response::json($m);
+        Response::json($this->out($m));
     }
 
     public function create(Request $req): never
     {
         $m = $this->meters->create($req->param('utility'), (array)$req->body);
-        Response::json($m, 201);
+        Response::json($this->out($m), 201);
     }
 
     public function update(Request $req): never
     {
         $m = $this->meters->update($req->param('utility'), $req->param('id'), (array)$req->body);
-        Response::json($m);
+        Response::json($this->out($m));
     }
 
     public function destroy(Request $req): never
@@ -53,7 +65,7 @@ final class MeterController
     public function replaceDevice(Request $req): never
     {
         $m = $this->meters->replaceDevice($req->param('utility'), $req->param('id'), (array)$req->body);
-        Response::json($m);
+        Response::json(is_array($m) ? $this->out($m) : $m);
     }
 
     // ── v1.2.0 — F1006 Zählergruppen ──────────────────────────────────────

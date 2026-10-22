@@ -83,14 +83,18 @@ final class CsvExportService
             $unit = Utilities::get($utility)['consumption_unit'];
             $qk = $data['unit_key'];
             $h = fn(string $k, array $p = []) => $this->i18n->t('csv.billing.' . $k, $p);
+            // v3.7.0 (#33) — additiv am Ende: Bonus und Kosten ohne Bonus (die Zahl der
+            // Kachel und des Jahresberichts); „Kosten“ bleibt nach Abzug des Bonus wie bisher
             $rows = [[$h('from'), $h('until'), $h('source'), $h('days'), $h('consumption', ['unit' => $unit]),
-                      $h('cost'), $h('advances'), $h('extraAdvances'), $h('balance'), $h('complete')]];
+                      $h('cost'), $h('advances'), $h('extraAdvances'), $h('balance'), $h('complete'),
+                      $h('bonus'), $h('costWithoutBonus')]];
             foreach ($data['periods'] as $p) {
                 $rows[] = [
                     $p['from'], $p['until'], $h($p['source'] === 'bill' ? 'sourceBill' : 'sourceAnchor'), $p['days'],
                     $this->num($p[$qk] ?? null), $this->num($p['cost'] ?? null), $this->num($p['advances'] ?? null),
                     $this->num($p['special']['extra_advances'] ?? null), $this->num($p['balance'] ?? null),
                     $p['complete'] ? $this->d['yes'] : $this->d['no'],
+                    $this->num($p['bonus'] ?? 0.0), $this->num(round((float)($p['cost'] ?? 0) + (float)($p['bonus'] ?? 0), 2)),
                 ];
             }
             return $this->build($rows);
@@ -123,8 +127,11 @@ final class CsvExportService
                 $this->i18n->t($p . 'hdd'),
                 $this->i18n->t($p . 'co2'),
             ]];
+            // v3.7.0 (#33) — „local“: der Bonus des Monats als letzte Spalte (Kosten
+            // ohne Bonus = Kosten + Bonus); Format 1 bleibt Byte für Byte, wie es ist
+            if ($this->d['local']) $rows[0][] = $this->i18n->t('csvLocal.monthly.bonus');
             foreach ($data['monthly_total'] ?? [] as $m) {
-                $rows[] = [
+                $row = [
                     $m['ym'] ?? '',
                     $m['days'] ?? '',
                     $this->num($m[$valueField] ?? null),
@@ -136,6 +143,8 @@ final class CsvExportService
                     $this->num($m['hdd'] ?? null),
                     $this->num($m['co2_kg'] ?? null),
                 ];
+                if ($this->d['local']) $row[] = $this->num($m['bonus_eur'] ?? 0.0);
+                $rows[] = $row;
             }
             return $this->build($rows);
         });

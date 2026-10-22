@@ -129,7 +129,17 @@ Ohne Server laufen `tests/format.test.mjs`, `tests/ha-snippet.test.mjs`,
   welche Seite welche Stufe braucht, Navigation und CSS folgen ihr; das
   Geld-Bild rechnet mit dem Abrechnungszeitraum (`balance_path`), das
   Wetter-Bild braucht sechs Monate mit bereinigtem Wert und Vorjahr. Der
-  Demo-Klicktest geht jeden Beispielhaushalt in zwei Stufen durch.
+  Demo-Klicktest geht jeden Beispielhaushalt in zwei Stufen durch. Seit v3.7.0
+  verlangt der Test für jede Ansicht des Routers und jede Einstellungsseite
+  einen Eintrag in `VIEW_LEVEL` und liest die Funktionstabelle
+  ([Was kann ich auf welcher Stufe?](../referenz/stufen.md), DE und EN): Jede
+  Zeile mit Sprungmarke `<a id="level-…">` gibt die Mindeststufe (erste Spalte
+  ohne „–“), Seiten gegen `VIEW_LEVEL`, Teile von Seiten gegen die Marke im
+  Quelltext (`data-min-level` am selben Tag, `level:` in derselben Zeile,
+  `atLeast(…)`). Dazu die Anlässe des Vorschlags aus dem Haushalt
+  (`suggestReasons`) und „höchstens einmal je Anlass“. Der Render-Test prüft
+  die Navigation je Stufe über den echten Router und den Vorschlag „Erfahren“
+  für den Haushalt mit PV.
 - **`tests/explainer.test.mjs`** (v3.4.0) — Schaubilder, zweite Fassung, ohne
   Server: die Formel des Energieflusses gegen
   `tests/fixtures/energy-flows.json` (dieselbe Datei prüft
@@ -188,6 +198,45 @@ Ohne Server laufen `tests/format.test.mjs`, `tests/ha-snippet.test.mjs`,
   mit „N in Jahr · M gesamt“, „Alle Jahre“, Blättern und „nur auffällige“,
   Rechnung prüfen ohne Zeitraum und beim Wechsel von Art und Zähler. Port aus
   `ET_LISTS_PORT`, sonst ein freier.
+- **`tests/inbox-draft.test.mjs`** (v3.7.0) — Haushalt aus Dokumenten: Texte
+  und Anfrage des Entwurfs (`lib/inbox-draft.js`) ohne Server, dann ein
+  erfundener Stapel (Auslesungen wie gespeichert über
+  `tests/fixtures/draft-seed.php`, ohne Modell) in der echten `app.js`:
+  Knopf im Posteingang, Zusammenfassung, ein Haken je Feldgruppe, nur
+  Zweifelhaftes fragt, Belegstelle, „Fehlt noch“, Übernehmen mit „Rechnung
+  prüfen“; „Auslesen einrichten“ als Dialog; der Assistent mit drei Wegen; die
+  Anleitung DE/EN gegen den Katalog. Die Zusammenführung selbst prüfen
+  `HouseholdDraftTest` und `InboxDraftEndpointTest` (PHPUnit). Port aus
+  `ET_DRAFT_PORT`, sonst ein freier.
+- **`tests/a11y.test.mjs`** (v3.7.0) — Barrierefreiheit der Dialoge ohne
+  externe Pakete. Lädt die echte `app.js` mit einer Kopie der Beispieldaten in
+  JSDOM, geht jede Seite durch, die die Navigation erreicht, und klickt jeden
+  Knopf; im Dialog noch einmal jeden Knopf (Rückfragen, Fehlermeldungen beim
+  Speichern ohne Eingaben). Schreibende Anfragen und Abrufe ins Netz
+  beantwortet der Test selbst mit einem Fehler. Jeder Dialog, der über
+  `components/modal.js` aufgeht, wird geprüft — eine Liste der Dialoge gibt es
+  nicht, neue prüft er von selbst mit (rund 45 Arten, mindestens 25 verlangt):
+  `role="dialog"`/`"alertdialog"` mit `aria-modal`, Hintergrund `inert`, Titel
+  als Überschrift per `aria-labelledby`, Rückfrage mit Beschreibung, Fokus beim
+  Öffnen im Dialog und nicht auf „×“, Fokusfalle, Escape schließt, Fokus zurück
+  zum Auslöser, jedes Feld beschriftet (Platzhalter zählt nicht), jeder Knopf
+  mit Namen, `aria-*`-Verweise und IDs, Fehlermeldungen als Live-Region und —
+  sobald sichtbar — per `aria-describedby` am Feld mit `aria-invalid`, Kontrast
+  nach WCAG AA in hell und dunkel. Den Kontrast rechnet eine kleine Kaskade aus
+  den Stylesheets der App nach (Spezifität, `var()`, Vererbung, halbtransparente
+  Flächen, `color-mix`), weil JSDOM weder `var()` noch Vererbung kennt. Dazu die
+  Mechanik von `modal.js` an eigenen Dialogen (Startfokus, Touch, Optionsgruppen,
+  `<summary>`, verschachtelte Dialoge, Auslöser nach Neuaufbau). Port aus
+  `ET_A11Y_PORT`, sonst ein freier; `A11Y_DEBUG=1` listet alle Befunde, die
+  Auslöser je Seite und alle Dialoge.
+- **`tests/large-data.test.mjs`** (v3.7.0) — Grenzen mit großen Datenmengen:
+  baut mit `tools/large-household.mjs` den Haushalt aus der
+  [Messung](messung-grosse-daten.md) (zehn Jahre Tageswerte, zwei Jahre
+  Viertelstunden) und ruft die Endpunkte der Hauptansichten ab. Jede Anfrage
+  antwortet mit 200 und vollständigen Daten; die Antwortzeit liegt unter dem
+  Zehnfachen der Messung (CI, fängt einen Rückfall in quadratische Laufzeit),
+  mit `ET_PERF_STRICT=1` unter Messung + 50 % (lokal). Port aus
+  `ET_LARGE_PORT`, sonst ein freier.
 
 Hinzu kommt die **PHPUnit-Suite** für die Service-Schicht
 (`tests/unit/…`, Basisklasse `ServiceTestCase`, für Tests über HTTP seit
@@ -228,6 +277,25 @@ nichts ist. `TemperatureSyncTest` ersetzt Open-Meteo durch eine Attrappe
 darf. Jede neue Regel bekam eine **Gegenprobe**: Code gezielt zurückdrehen,
 der Test muss rot werden. Mehrere Tests waren zunächst auch ohne ihre Regel grün
 (zu glatte Testdaten) und wurden erst dadurch aussagekräftig.
+
+**Ein unordentlicher Haushalt (v3.7.0).** Die Fehler aus #37, #38 und #39 fand
+ein Nutzer mit echten Daten, nicht unsere Tests: Die Beispielhaushalte rechnen
+den Heizverbrauch nach dem Modell der App (Konstante × Heizgradtage zur
+Heizgrenze 15 °C) und werden regelmäßig abgelesen — ein Zirkelschluss, auf den
+das Modell immer passt. Unter `tests/fixtures/messy-household/` liegt deshalb
+ein Testhaushalt mit eigener Physik, erzeugt von `generate.mjs` (fester Seed,
+`node tests/fixtures/messy-household/generate.mjs` schreibt `household.json`,
+`--check` vergleicht nur): Heizen erst unter 12,5 °C, in der Übergangszeit nur
+einzelne Räume, Sonnengewinne, Speichermasse mit einem Tag Verzögerung, ein
+Kessel, der bei Kälte Wirkungsgrad verliert — eine konvexe Heizkurve wie in
+#38. Abgelesen wird wie im echten Leben: unregelmäßig, manchmal zweimal im
+Monat, über drei Monate nichts im Herbst, eine Sommerpause, eine geschätzte
+Ablesung, ein Zählertausch mitten im Monat, PV-Erzeugung nur zweimal in mehr
+als zwei Jahren, Strom einmal im Jahr. `MessyHouseholdTest` verlangt, dass die
+App Unsicherheit zeigt statt sicher wirkender Zahlen: verteilte Monate
+gekennzeichnet, keiner davon in der Abweichungstabelle, die Gütesperre greift,
+der PV-Hinweis erscheint, Prognose und Erwartung verschwinden nicht still — und
+Saldo und Kosten bleiben die Summe zwischen den Ablesungen.
 
 **Verträge tagesgenau (v2.9.0).** `ContractDayAccurateTest` prüft Monate mit
 Preisänderung, Vertragswechsel und Lücke, den weiterlaufenden und den
