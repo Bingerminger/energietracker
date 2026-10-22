@@ -1827,17 +1827,13 @@ final class HouseholdDraft
      * Versorger (oder dieselbe Vertragsnummer) mit Beginn bis START_NEAR_DAYS
      * daneben = vorhanden, der Beginn bleibt der des Bestands (Befund
      * `start_near`); sonst eine Überschneidung, wenn ein vorhandener zu der Zeit
-     * läuft. Zwei Kandidaten für denselben vorhandenen Vertrag sind einer.
-     * Verträge im Bestand ohne Nummer erkennt so der Versorger; eine Angabe, die
-     * vom Bestand abweicht, bleibt ein Widerspruch (contractItems).
+     * läuft. Verträge im Bestand ohne Nummer erkennt so der Versorger; eine
+     * Angabe, die vom Bestand abweicht, bleibt ein Widerspruch (contractItems).
      */
     private function matchExistingContracts(string $u): void
     {
-        $held = [];
-        foreach ($this->cands as $k => $c) if ($c['utility'] === $u && $c['existing'] !== null) $held[(string)$c['existing']['id']] = $k;
-        foreach (array_keys($this->cands) as $k) {
-            $c = $this->cands[$k] ?? null;
-            if ($c === null || $c['utility'] !== $u || $c['existing'] !== null) continue;
+        foreach ($this->cands as $k => $c) {
+            if ($c['utility'] !== $u || $c['existing'] !== null) continue;
             $mp = $this->mps[$c['mp']];
             if ($mp['meter_id'] === null || $mp['action'] === 'adopt') continue;
             $meter = $this->meters->get($u, $mp['meter_id']);
@@ -1859,14 +1855,6 @@ final class HouseholdDraft
                 if ($bestDays === null || $days < $bestDays) { $best = $ex; $bestDays = $days; }
             }
             if ($best !== null) {
-                $id = (string)$best['id'];
-                if (isset($held[$id]) && isset($this->cands[$held[$id]])) {
-                    // derselbe vorhandene Vertrag aus zwei Lieferverhältnissen (andere Schreibweise): einer
-                    $this->cands[$held[$id]]['docs'] = array_values(array_unique([...$this->cands[$held[$id]]['docs'], ...$c['docs']]));
-                    unset($this->cands[$k]);
-                    continue;
-                }
-                $held[$id] = $k;
                 $this->cands[$k]['existing'] = $best;
                 $this->cands[$k]['status'] = 'exists';
                 $this->cands[$k]['detail'] = null;

@@ -85,7 +85,7 @@ export async function settle(send, before, step, { onWait = () => {}, wait = WAI
  *
  * @returns {Promise<object>} Vorschau (wie GET /api/inbox/{id})
  */
-export async function readDocument(entry, { consent = false, fresh = false, onStep = () => {}, cancelled = () => false, pages = null, wait = WAIT, sleep } = {}) {
+export async function readDocument(entry, { consent = false, fresh = false, onStep = () => {}, cancelled = () => false, pages = null, wait = WAIT, sleep, now } = {}) {
   onStep('text');
   if (!pages) {
     const doc = await openPdf(api.inboxFileUrl(entry.attachment_id));
@@ -93,7 +93,7 @@ export async function readDocument(entry, { consent = false, fresh = false, onSt
     doc.destroy?.();
   }
   if (cancelled()) return null;
-  const opts = { onWait: () => onStep('wait'), wait, ...(sleep ? { sleep } : {}) };
+  const opts = { onWait: () => onStep('wait'), wait, ...(sleep ? { sleep } : {}), ...(now ? { now } : {}) };
   onStep('type');
   let pv = await settle(() => api.inboxClassify(entry.id, pages, { consent, fresh, timeoutMs: STEP_TIMEOUT_MS }), entry, 'type', opts);
   if (cancelled() || pv?.recognize_only) return pv;

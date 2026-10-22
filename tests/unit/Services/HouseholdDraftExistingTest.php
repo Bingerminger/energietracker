@@ -236,6 +236,117 @@ final class HouseholdDraftExistingTest extends ServiceTestCase
         self::assertSame(['strom', DraftFixture::MALO_A, '#/inbox/' . $letter], [$q[0]['utility'], $q[0]['params']['meter'], $q[0]['href']]);
         self::assertNotSame('', $q[0]['params']['meters'], 'nennt den Zähler, der in Frage kommt');
         self::assertSame('meter_choice', array_column($d['documents'], 'state', 'id')[$letter], 'das Dokument bleibt offen');
+
+        // im Posteingang dem Stromzähler zugeordnet: eine Messstelle mit ihm; der neue Vertrag überschneidet sich mit dem Bestand
+        $this->inbox->update($letter, ['assignment' => ['utility' => 'strom', 'meter_id' => self::STROM, 'contract_id' => null]]);
+        $d = $this->build();
+        self::assertSame([], array_filter($d['missing'], fn($x) => $x['kind'] === 'meter_choice'));
+        self::assertCount(1, self::items($d, 'meter', 'strom'));
+        $new = array_values(array_filter(self::items($d, 'contract', 'strom'), fn($x) => $x['contract_id'] === null));
+        self::assertSame([self::items($d, 'meter', 'strom')[0]['meter_key'], 'overlap', false, true],
+            [$new[0]['meter_key'] ?? null, $new[0]['status'] ?? null, $new[0]['checked'] ?? null, in_array('existing_overlap', $new[0]['reasons'] ?? [], true)],
+            'am Stromzähler; eine Überschneidung ist eine Frage');
+    }
+
+    public function testAMeterWithAnotherNumberIsAQuestion(): void
+    {
+        // das laufende Gerät trägt eine andere Nummer: vielleicht ein Tausch — kein stilles Übernehmen, kein neuer Zähler
+        $this->setMeterDevices('gas', [['id' => 'd1', 'serial' => 'GAS-ALT', 'installed_on' => '2020-01-01', 'initial_counter' => 0.0,
+            'removed_on' => null, 'final_counter' => null, 'reason' => null]], self::GAS);
+        $this->readings->create('gas', ['meter_id' => self::GAS, 'date' => '2024-12-31', 'counter' => 12000.0]);
+        $this->doc('g-i2', 'invoice', ['utility' => 'gas', 'supplier' => 'Nordlicht Energie GmbH', 'kind' => 'annual', 'meter_number' => 'GAS-NEU',
+            'period_from' => '01.01.2025', 'period_to' => '31.12.2025', 'reading_old' => '12000', 'reading_old_date' => '31.12.2024',
+            'reading_new' => '13900', 'reading_new_date' => '31.12.2025', 'total_amount' => '1400,00', 'result_kind' => 'due', 'result_amount' => '80,00']);
+        $d = $this->build();
+        self::assertSame([], self::items($d, 'meter', 'gas'));
+        self::assertContains('meter_choice', array_column(array_filter($d['missing'], fn($x) => $x['utility'] === 'gas'), 'kind'));
+    }
+
+    public function testAnotherMeterWithItsOwnNumberAndLocationIsCreated(): void
+    {
+        // eigene Nummer und andere Marktlokation als jeder Zähler mit Daten: ein anderer Zähler (etwa die Wärmepumpe)
+        $this->household();
+        $this->doc('s-wp', 'invoice', ['utility' => 'strom', 'supplier' => 'Südlicht Strom GmbH', 'kind' => 'annual', 'meter_number' => 'STR-WP',
+            'market_location' => DraftFixture::MALO_A, 'period_from' => '01.01.2025', 'period_to' => '31.12.2025', 'reading_old' => '100',
+            'reading_old_date' => '31.12.2024', 'reading_new' => '2100', 'reading_new_date' => '31.12.2025', 'total_amount' => '500,00',
+            'result_kind' => 'credit', 'result_amount' => '20,00']);
+        $m = self::items($this->build(), 'meter', 'strom');
+        self::assertSame([['create', 'STR-WP']], array_map(fn($x) => [$x['action'], self::field($x, 'serial')['value'] ?? null], $m));
+    }
+
+    public function testANearStartOfAnotherSupplierIsNotTheRecordedContract(): void
+    {
+        // zwei Tage nach dem Beginn im Bestand, aber ein anderer Versorger: kein „derselbe Vertrag“
+        $this->household();
+        $this->doc('g-c3', 'contract_confirmation', ['utility' => 'gas', 'supplier' => 'Südlicht Gas AG', 'supply_start' => '03.01.2025', 'tariff_name' => 'Süd 1',
+            'working_price' => '11,00', 'base_price' => '14,00', 'base_price_period' => 'month', 'advance' => '120,00', 'meter_number' => 'GAS-77']);
+        $d = $this->build();
+        $c = self::items($d, 'contract', 'gas');
+        self::assertSame([[null, 'overlap', false]], array_map(fn($x) => [$x['contract_id'], $x['status'], $x['checked']], $c), 'neu, als Frage');
+        self::assertNotContains('start_near', array_column($d['findings'], 'kind'));
+    }
+
+    public function testInvoicesOverSeveralYearsBelongToTheContractOfTheirTime(): void
+    {
+        // Tarifwechsel beim selben Versorger im Bestand, nur Rechnungen im Posteingang
+        $mk = fn(string $start, ?string $end) => $this->contracts->create('gas', ['meter_id' => self::GAS, 'provider' => 'Westlicht Gas GmbH', 'start' => $start,
+            'end' => $end, 'auto_renews' => false, 'working_prices' => [['from' => $start, 'ct_per_kwh' => 9.8]]]);
+        $mk('2023-01-01', '2023-12-31');
+        $a = $mk('2024-01-01', '2024-12-31');
+        $b = $mk('2025-01-01', null);
+        $this->readings->create('gas', ['meter_id' => self::GAS, 'date' => '2025-01-01', 'counter' => 12000.0]);
+        $base = ['utility' => 'gas', 'supplier' => 'Westlicht Gas GmbH', 'kind' => 'annual', 'meter_number' => 'GAS-77', 'result_kind' => 'due', 'result_amount' => '10,00'];
+        $this->doc('g-i1', 'invoice', $base + ['period_from' => '01.01.2024', 'period_to' => '31.12.2024', 'reading_old' => '10000', 'reading_old_date' => '31.12.2023',
+            'reading_new' => '12000', 'reading_new_date' => '31.12.2024', 'total_amount' => '1300,00']);
+        $this->doc('g-i2', 'invoice', $base + ['period_from' => '01.01.2025', 'period_to' => '31.12.2025', 'reading_old' => '12000', 'reading_old_date' => '31.12.2024',
+            'reading_new' => '13900', 'reading_new_date' => '31.12.2025', 'total_amount' => '1400,00', 'advance_new' => '120,00', 'advance_new_from' => '01.02.2026',
+            'working_prices' => [['from' => '01.07.2025', 'ct' => '11,00', 'basis' => 'gross', 'vat_pct' => '19 %']]]);
+        $d = $this->build();
+        $c = array_column(self::items($d, 'contract', 'gas'), 'contract_id', 'contract_key');
+        self::assertSame([(string)$a['id'], (string)$b['id']], array_values($c), 'zwei vorhandene Verträge, der von 2023 ohne Dokument erscheint nicht');
+        $bills = array_column(self::items($d, 'bill', 'gas'), 'contract_key', 'key');
+        self::assertSame([(string)$a['id'], (string)$b['id']], array_values(array_map(fn($k) => $c[$k] ?? null, $bills)), 'je Rechnung der Vertrag ihrer Zeit');
+        $r = self::items($d, 'readings', 'gas')[0];
+        self::assertSame('exists', self::field($r, 'r:2024-12-31')['status'], 'derselbe Stand einen Tag daneben im Bestand');
+        $ap = self::items($d, 'advances', 'gas')[0];
+        self::assertSame(['update', false], [$ap['status'], $ap['checked']], 'neuer Abschlag am vorhandenen Vertrag: eine Frage');
+        $wp = self::items($d, 'prices', 'gas')[0];
+        self::assertSame(['update', false, 'new'], [$wp['status'], $wp['checked'], self::field($wp, 'wp:2025-07-01')['status'] ?? null], 'neue Preiszeile am vorhandenen Vertrag: eine Frage');
+    }
+
+    public function testTheNumberGoesToTheDeviceThatRanAtTheTime(): void
+    {
+        // zwei Geräte ohne Nummer im Bestand (Tausch Mitte 2024), die Rechnung von 2025 nennt die Nummer des zweiten
+        $this->setMeterDevices('gas', [
+            ['id' => 'd1', 'serial' => null, 'installed_on' => '2020-01-01', 'initial_counter' => 0.0, 'removed_on' => '2024-06-30', 'final_counter' => 9000.0, 'reason' => null],
+            ['id' => 'd2', 'serial' => null, 'installed_on' => '2024-06-30', 'initial_counter' => 0.0, 'removed_on' => null, 'final_counter' => null, 'reason' => null],
+        ], self::GAS);
+        $this->readings->create('gas', ['meter_id' => self::GAS, 'date' => '2024-12-31', 'counter' => 1500.0]);
+        $this->doc('g-i2', 'invoice', ['utility' => 'gas', 'supplier' => 'Nordlicht Energie GmbH', 'kind' => 'annual', 'meter_number' => 'GAS-NEU',
+            'period_from' => '01.01.2025', 'period_to' => '31.12.2025', 'reading_old' => '1500', 'reading_old_date' => '31.12.2024',
+            'reading_new' => '3400', 'reading_new_date' => '31.12.2025', 'total_amount' => '1400,00', 'result_kind' => 'due', 'result_amount' => '80,00']);
+        $d = $this->build();
+        $m = self::items($d, 'meter', 'gas')[0];
+        self::assertSame(['existing', 'd2'], [$m['action'], self::field($m, 'serial')['device_id'] ?? null]);
+        $res = $this->draft->apply([$m['id']], [], [], null, self::TODAY);
+        self::assertSame([], $res['failed'], json_encode($res['failed']));
+        self::assertSame([null, 'GAS-NEU'], array_column($this->meters->get('gas', self::GAS)['devices'], 'serial'));
+    }
+
+    public function testAGroupContractIsTheRecordedContract(): void
+    {
+        // der Stromzähler gehört zu einer Gruppe, der Vertrag hängt an der Gruppe
+        $this->meters->update('strom', self::STROM, ['malo_id' => DraftFixture::MALO_B]);
+        $this->readings->create('strom', ['meter_id' => self::STROM, 'date' => '2025-04-01', 'counter' => 2000.0]);
+        $gid = (string)$this->meters->createGroup('strom', ['name' => 'Haus'])['id'];
+        $this->meters->update('strom', self::STROM, ['meter_group_id' => $gid]);
+        $g = $this->contracts->create('strom', ['meter_group_id' => $gid, 'provider' => 'Nordlicht Energie GmbH', 'start' => '2025-04-01',
+            'working_prices' => [['from' => '2025-04-01', 'ct_per_kwh' => 31.2]]]);
+        $this->doc('s-c1', 'contract_confirmation', ['utility' => 'strom', 'supplier' => 'Nordlicht Energie GmbH', 'supply_start' => '01.04.2025',
+            'tariff_name' => 'Nordlicht Basis 12', 'working_price' => '31,20', 'base_price' => '12,90', 'base_price_period' => 'month',
+            'market_location' => DraftFixture::MALO_B, 'contract_number' => 'NL-4401']);
+        $c = self::items($this->build(), 'contract', 'strom');
+        self::assertSame([[(string)$g['id'], 'update']], array_map(fn($x) => [$x['contract_id'], $x['status']], $c), 'der Gruppenvertrag, kein zweiter');
     }
 
     public function testSeveralCandidatesAreAQuestionUntilADocumentIsAssigned(): void

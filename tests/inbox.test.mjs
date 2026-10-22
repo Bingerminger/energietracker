@@ -261,7 +261,9 @@ console.log('Warten nach 504 oder Netzabbruch');
     return prevFetch(url, init);
   };
   const steps = [];
-  const fast = { wait: { intervalMs: 1, limitMs: 60000 }, sleep: () => Promise.resolve() };
+  // Uhr zum Vorspulen: 5 s je Abfrage, Obergrenze 660 s wie in der App
+  let tick = 0;
+  const fast = { wait: { intervalMs: 5000, limitMs: 660000 }, sleep: async (ms) => { tick += ms; }, now: () => tick };
   const pv = await Q.readDocument(entry, { pages: ['Rechnung'], onStep: (s) => steps.push(s), ...fast });
   t('504 beim Erkennen, Netzabbruch beim Auslesen: abgefragt, bis gespeichert', pv?.entry?.status === 'read' && pv.entry.type === 'invoice', JSON.stringify(pv?.entry));
   t('je Schritt einmal gesendet, nicht noch einmal ausgelesen', calls.filter(c => c !== 'poll').join() === 'classify,extract' && polls === 4, calls.join());
@@ -307,7 +309,23 @@ console.log('Warten nach 504 oder Netzabbruch');
     && Q.stepState(entry, { ...entry, updated_at: 'x', type: null }, 'type') === null
     && Q.stepState(entry, { ...entry, updated_at: 'x', type: 'invoice' }, 'fields') === null
     && Q.stepState(entry, { ...entry, updated_at: 'x', type: 'invoice', status: 'read' }, 'fields') === 'done');
+  // der Lauf: ohne Antwort nach dem Warten nicht noch einmal dasselbe Dokument (es bliebe vorgemerkt)
+  const queued = [{ id: 'q1', status: 'queued', queued_at: '1', attachment_id: 'x1' }, { id: 'q2', status: 'queued', queued_at: '2', attachment_id: 'x2' }];
+  global.fetch = async (url, init) => {
+    if (/\/api\/inbox$/.test(String(url)) && (init?.method || 'GET') === 'GET') return json({ entries: queued, queue: { queued: queued.filter(e => e.status === 'queued').length } });
+    return prevFetch(url, init);
+  };
+  const tries = [];
+  const prog = await Q.runQueue({ read: async (e) => {
+    tries.push(e.id);
+    if (e.id === 'q1' && tries.filter(x => x === 'q1').length > 1) queued[0].status = 'read';   // nur bei einem zweiten Versuch „fertig“
+    if (e.id === 'q1') throw Object.assign(new Error('keine Antwort'), { status: 504, code: 'waited' });
+    queued[1].status = 'read';
+    return {};
+  } });
+  t('Lauf: nach „keine Antwort“ weiter mit dem nächsten, nicht noch einmal', tries.join() === 'q1,q2' && prog.failed === 1 && prog.done === 1, tries.join());
   global.fetch = prevFetch;
+  t('Server rechnet nach einem Abbruch zu Ende (ignore_user_abort)', /@ignore_user_abort\(true\)/.test(readFileSync(resolve(ROOT, 'src/Controllers/InboxController.php'), 'utf8')));
 }
 
 console.log('Textebene (pdf.js)');
