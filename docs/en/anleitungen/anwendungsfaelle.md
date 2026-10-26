@@ -4,7 +4,7 @@
 
 [← Compendium index](../README.md)
 
-Seven worked-through practical cases that show how Energietracker is set up and
+Eight worked-through practical cases that show how Energietracker is set up and
 used in concrete living situations. Each case names the **meters**, the
 **settings** and a **typical workflow**. For the basic setup, see
 [Getting started](../einstieg/erste-schritte.md) first.
@@ -18,6 +18,7 @@ used in concrete living situations. Each case names the **meters**, the
 | [E — Wall box and company car](#e--wall-box-and-company-car) | Charging record, § 14a EnWG | v3.1.0 | Own house with heat pump and solar |
 | [F — District heating or heat?](#f--district-heating-or-heat) | the right utility | v3.1.0, F1018 | I rent my home · Owner-occupied flat with district heating · Own house with heat pump and solar |
 | [G — Control with evcc or Home Assistant](#g--control-with-evcc-or-home-assistant--check-the-numbers-in-energietracker) | check the numbers, not control | F1009, F1021, F1022 | Own house with heat pump and solar |
+| [H — Cascade with heat pump, HT/NT and solar](#h--cascade-with-heat-pump-htnt-and-solar-v390) | meters one behind the other, remainder billing | F1006, F1032 | — |
 
 ## Sample households to look at *(v3.2.0)*
 
@@ -522,6 +523,105 @@ your grid operator’s price sheets. The rules are German.
 
 ---
 
+<a id="case-cascade"></a>
+## H — Cascade with heat pump, HT/NT and solar *(v3.9.0)*
+
+**Situation.** An own house with a solar system and a heat pump. The heat pump
+has its own tariff; household and heat pump are billed by peak and off-peak
+rate (HT/NT). Three meters hang one behind the other
+([#40](https://github.com/Bingerminger/energietracker/issues/40)):
+
+```text
+            Grid
+              │
+   ┌──────────┴──────────┐
+   │ Z1  bidirectional   │  import HT (1.8.1) · import NT (1.8.2) · feed-in (2.8.0)
+   │     meter           │
+   └──────────┬──────────┘
+              ├────────────────── Heat pump    = Z1 − Z2 (per HT and NT), own tariff
+   ┌──────────┴──────────┐
+   │ Z2  household       │  HT (1.8.1) · NT (1.8.2), own tariff
+   └──────────┬──────────┘
+              ├────────────────── Household
+              │
+   ┌──────────┴──────────┐
+   │ Z3  solar output    │  self-consumption = Z3 − feed-in
+   └──────────┬──────────┘
+              Solar system
+```
+
+Three contracts: heat pump (HT/NT), household (HT/NT) and the feed-in tariff.
+Z1 measures everything that passes the grid connection. The heat pump has no
+meter of its own: its electricity is the **remainder** of Z1 after deducting Z2.
+
+**What it is called.** The names of metering concepts vary by grid operator.
+The Bavarian energy and water industry association (VBEW) calls this setup
+“MK C3: surplus feed-in with cascade metering”: Z1 for import and export, Z2
+for import, Z3 for the output of the generating plant, and in between only
+controllable consumers such as the heat pump (VBEW metering concepts, handout
+for choosing a metering concept, edition 09.2024,
+[PDF, German](https://www.swm-infrastruktur.de/dam/jcr:94f532d5-e88c-4339-b0c7-e91180681ed7/vbew-messkonzepte-erzeugungsanlagen.pdf)).
+Others describe the cascade the other way round, with the heat pump’s meter
+behind the main meter
+([Verbraucherzentrale Niedersachsen, German](https://www.verbraucherzentrale-niedersachsen.de/node/126144),
+as of 13 October 2026). What counts is the metering concept your grid operator
+confirms. The app calculates both variants: the rear meter with its own
+contract is deducted.
+
+**Setup.**
+
+1. Under **Settings → Utilities & billing → Active utilities** activate
+   electricity, solar feed-in and solar generation.
+2. Create one electricity meter per **register**:
+   - “Z1 import HT” and “Z1 import NT”, role “Heat pump (heating electricity)”,
+   - “Z2 household HT” with parent meter “Z1 import HT” and “Z2 household NT”
+     with parent meter “Z1 import NT”, role “Household”.
+
+   HT hangs behind HT, NT behind NT. Then two **groups**: “Z1 heat pump” with
+   Z1 HT and NT, “Z2 household” with Z2 HT and NT
+   ([meter topology](../verstehen/13-meter-topologie.md#2-meter-groups)).
+3. Under solar feed-in create the meter “Z1 feed-in”, under solar generation
+   “Z3 solar output”.
+4. Contracts: a **group contract** on “Z1 heat pump” with the unit price per
+   register (HT, NT), one on “Z2 household”, and the feed-in tariff on
+   “Z1 feed-in”.
+
+**What the app calculates** *(invented values for one month)*:
+
+<!-- doc-claim: cascade-example (CascadeMeteringTest) -->
+```text
+Z1 import HT 400 kWh, NT 300 kWh · Z2 household HT 150 kWh, NT 100 kWh
+Feed-in 250 kWh · solar output 600 kWh
+
+Heat pump   (400 − 150) × 30 ct + (300 − 100) × 20 ct + 10 € =  125.00 €
+Household    150 × 35 ct + 100 × 25 ct + 12 €              =   89.50 €
+Electricity total 700 kWh                                     214.50 €
+Feed-in tariff 250 × 8 ct                                      20.00 € revenue
+Self-consumption 600 − 250 = 350 kWh · self-sufficiency 350 / (350 + 700) = 33 %
+```
+
+- The heat pump contract only bills the **remainder**. The meter, the balance
+  card and the bill check say how: “450 kWh = 700 kWh measured − 150 kWh Z2
+  household HT − 100 kWh Z2 household NT”
+  ([remainder billing](../verstehen/13-meter-topologie.md#remainder-billing-v390)).
+- The electricity total is the grid import at Z1 (700 kWh, Z2 not on top),
+  the costs are those of both contracts.
+- Self-consumption and self-sufficiency use Z1 as grid import, the feed-in at
+  Z1 and the output at Z3 ([solar](../verstehen/12-pv.md)).
+- Seasonal performance factor, efficiency and “electricity by role” in the
+  annual report take the remainder for the heat pump, not all of Z1.
+
+**Limits.**
+
+- Z2 only measures import. If solar power flows back from the household to the
+  heat pump, no meter measures it. The annual report assigns self-consumed
+  solar power to the household.
+- Storage that mixes grid and solar power (MiSpeL) is not calculated by the
+  app yet. What the determination allows is under
+  [G → the legal situation in brief](#the-legal-situation-in-brief-as-of-9-october-2026).
+
+---
+
 ## Which use case fits me?
 
 | If you say … | Use case | To look at ([load](#sample-households-to-look-at-v320)) |
@@ -535,6 +635,7 @@ your grid operator’s price sheets. The rules are German.
 | “I have a district heating contract.” | F | “Owner-occupied flat with district heating” |
 | “I heat with gas, oil or pellets.” | [Getting started](../einstieg/erste-schritte.md) | “Own house with gas, oil or pellets” |
 | “evcc or Home Assistant control my car, battery or heat pump.” | G (+ B) | “Own house with heat pump and solar” |
+| “My meters hang one behind the other (cascade), with HT/NT and solar.” | H | — |
 | “I just want to see everything first.” | — | “Just look at everything first” (all nine utilities) |
 
 All cases can be combined — e.g. a landlord (D) with an HA push (B) per unit.

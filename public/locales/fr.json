@@ -4203,6 +4203,10 @@
       "wallbox": {
         "title": "Borne de recharge et véhicule de fonction",
         "text": "La borne comme sous-compteur du raccordement avec le rôle « Borne de recharge », relevée chaque mois – à la main, via Home Assistant ou avec les sessions de recharge d’evcc. Sa vue de consommation affiche le justificatif de recharge pour l’employeur : prix du contrat avec une part de l’abonnement ou forfait, en CSV ou PDF. Le total reste juste."
+      },
+      "cascade": {
+        "title": "Cascade avec pompe à chaleur, HP/HC et photovoltaïque",
+        "text": "Trois compteurs en série : celui de devant mesure tout, celui de derrière le ménage, la pompe à chaleur est le reste. Un compteur par registre (HP, HC), un contrat par compteur. Le contrat de la pompe à chaleur ne facture que le reste, le total des coûts est juste, et l’autoconsommation et l’autarcie utilisent le compteur de devant comme soutirage."
       }
     },
     "doc": {

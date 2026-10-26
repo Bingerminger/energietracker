@@ -4203,6 +4203,10 @@
       "wallbox": {
         "title": "Wallbox e auto aziendale",
         "text": "La wallbox come sottocontatore dell’allacciamento con il ruolo «Wallbox (ricarica auto)», letta ogni mese – a mano, tramite Home Assistant o con le ricariche da evcc. La sua vista dei consumi mostra il prospetto di ricarica per il datore di lavoro: prezzo del contratto con la parte proporzionale della quota fissa oppure forfait, in CSV o PDF. Il totale resta corretto."
+      },
+      "cascade": {
+        "title": "Cascata con pompa di calore, F1/F23 e fotovoltaico",
+        "text": "Tre contatori in serie: quello davanti misura tutto, quello dietro la casa, la pompa di calore è il resto. Un contatore per registro (F1, F23), un contratto per contatore. Il contratto della pompa di calore fattura solo il resto, il totale dei costi torna, e autoconsumo e autosufficienza usano il contatore davanti come prelievo dalla rete."
       }
     },
     "doc": {

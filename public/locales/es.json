@@ -4203,6 +4203,10 @@
       "wallbox": {
         "title": "Cargador y coche de empresa",
         "text": "El cargador como subcontador de la acometida con el rol «Cargador del coche eléctrico», leído cada mes – a mano, con Home Assistant o con las cargas de evcc. Su vista de consumo muestra el justificante de carga para la empresa: precio del contrato con la parte proporcional del término fijo o tarifa plana, en CSV o PDF. El total sigue siendo correcto."
+      },
+      "cascade": {
+        "title": "Cascada con bomba de calor, punta/valle y fotovoltaica",
+        "text": "Tres contadores en serie: el de delante mide todo, el de detrás el hogar, la bomba de calor es el resto. Un contador por registro (punta, valle), un contrato por contador. El contrato de la bomba de calor solo factura el resto, el total de costes cuadra, y el autoconsumo y la autosuficiencia usan el contador de delante como consumo de red."
       }
     },
     "doc": {

@@ -1578,19 +1578,30 @@ final class ReportModelService
     {
         $y = $this->year;
         $sum = fn(array $m): float => array_sum(array_map(fn($r) => (int)$r['year'] === $y ? (float)($r['kwh'] ?? 0) : 0.0, $this->rows('strom', $m)));
-        $household = 0.0; $hp = 0.0; $ev = 0.0; $evNames = [];
-        foreach ($this->meters->list('strom') as $m) {
+        // v3.9.0 (F1032, #40) — je Zähler der eigene Verbrauch nach seiner Rolle: ein Subzähler
+        // zählt bei seiner Rolle und fehlt dafür seinem Elternzähler. Bis v3.7 zählte nur die
+        // Wallbox als Subzähler; in der Kaskade (vorn Wärmepumpe, dahinter der Haushalt) stand
+        // sonst der ganze Strom bei der Wärmepumpe, und eine Wärmepumpe hinter dem
+        // Haushaltszähler (Modul 2) fehlte ganz
+        $household = 0.0; $hp = 0.0; $ev = 0.0;
+        $bucket = function (string $role, float $v) use (&$household, &$hp, &$ev): void {
+            if ($role === 'heat_pump') $hp += $v; elseif ($role === 'ev_charger') $ev += $v; else $household += $v;
+        };
+        $all = $this->meters->list('strom');
+        foreach ($all as $m) {
             $role = Utilities::roleOf('strom', $m);
             if (MeterService::countsInTotals($m)) {
-                if ($role === 'heat_pump') $hp += $sum($m); else $household += $sum($m);
-            } elseif ($role === 'ev_charger') {
-                $ev += $sum($m);
+                $subs = array_filter($all, fn($s) => (string)($s['parent_meter_id'] ?? '') === (string)$m['id']);
+                $bucket((string)$role, $sum($m) - array_sum(array_map($sum, $subs)));
+            } elseif (!empty($m['parent_meter_id'])) {
+                $bucket((string)$role, $sum($m));
             }
         }
         if ($hp <= 0 && $ev <= 0) return null;
         $self = $pvNow !== null ? (float)($pvNow['eigenverbrauch_kwh'] ?? 0) : 0.0;
-        $house = $household + $self;
-        $rest = max(0.0, $house - $ev);
+        // Sonnenstrom hinter dem Hauszähler: Haushalt = eigener Bezug + selbst genutzter Sonnenstrom
+        // (die Wallbox kann im Sommer mehr messen als der Bezug, deshalb erst hier begrenzt)
+        $rest = max(0.0, $household + $self);
         $total = $rest + $ev + $hp;
         $rows = [];
         foreach ([['household', $rest], ['heat_pump', $hp], ['ev_charger', $ev]] as [$role, $v]) {

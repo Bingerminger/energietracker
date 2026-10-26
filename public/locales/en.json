@@ -4203,6 +4203,10 @@
       "wallbox": {
         "title": "Wallbox and company car",
         "text": "The wallbox as a sub-meter of the grid connection with the role “Wallbox (EV charger)”, read monthly – by hand, via Home Assistant or with the charging sessions from evcc. Its consumption view shows the charging record for the employer: contract price with a share of the standing charge or a flat rate, as CSV or PDF. The total stays correct."
+      },
+      "cascade": {
+        "title": "Cascade with heat pump, HT/NT and solar",
+        "text": "Three meters one behind the other: the front one measures everything, the rear one the household, and the heat pump is the remainder. One meter per register (HT, NT), one contract per meter. The heat pump contract only bills the remainder, the cost total adds up, and self-consumption and self-sufficiency use the front meter as grid import."
       }
     },
     "doc": {

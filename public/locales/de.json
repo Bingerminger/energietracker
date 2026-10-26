@@ -4203,6 +4203,10 @@
       "wallbox": {
         "title": "Wallbox und Dienstwagen",
         "text": "Die Wallbox als Subzähler am Hausanschluss mit der Rolle „Wallbox“, monatlich abgelesen – von Hand, per Home Assistant oder mit den Ladevorgängen aus evcc. Ihre Verbrauchsansicht zeigt den Ladestrom-Nachweis für den Arbeitgeber: Vertragspreis mit anteiligem Grundpreis oder Pauschale, als CSV oder PDF. Die Gesamtsumme bleibt richtig."
+      },
+      "cascade": {
+        "title": "Kaskade mit Wärmepumpe, HT/NT und PV",
+        "text": "Drei Zähler hintereinander: Der vordere misst alles, der hintere den Haushalt, die Wärmepumpe ist der Rest. Je Zählwerk (HT, NT) ein Zähler, je Zähler ein Vertrag. Der Vertrag der Wärmepumpe rechnet nur den Rest, die Summe der Kosten stimmt, und Eigenverbrauch und Autarkie rechnen mit dem vorderen Zähler als Netzbezug."
       }
     },
     "doc": {

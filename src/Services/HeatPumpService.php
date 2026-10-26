@@ -40,7 +40,9 @@ final class HeatPumpService
             foreach ($ids as $id) {
                 $em = $this->meters->get('strom', $id);
                 if ($em === null) continue;
-                foreach ($this->consumption->forMeter('strom', $em) as $r) {
+                // v3.9.0 (F1032, #40) — der eigene Verbrauch: In der Kaskade misst der Zähler der
+                // Wärmepumpe auch den Haushalt dahinter (Subzähler); die Wärmepumpe ist der Rest
+                foreach ($this->consumption->ownMonthly('strom', $em) as $r) {
                     $ym = (string)$r['ym'];
                     $elec[$ym]['kwh'] = ($elec[$ym]['kwh'] ?? 0.0) + (float)($r['kwh'] ?? 0);
                     $elec[$ym]['n'] = ($elec[$ym]['n'] ?? 0) + ((int)($r['days'] ?? 0) > 0 ? 1 : 0);

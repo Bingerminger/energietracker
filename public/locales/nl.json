@@ -4203,6 +4203,10 @@
       "wallbox": {
         "title": "Laadpaal en leaseauto",
         "text": "De laadpaal als tussenmeter van de aansluiting met de rol ‘Laadpaal’, elke maand afgelezen – met de hand, via Home Assistant of met de laadsessies uit evcc. De verbruiksweergave ervan toont het laadstroomoverzicht voor de werkgever: contractprijs met een evenredig deel van het vastrecht of een vast tarief, als CSV of PDF. Het totaal blijft kloppen."
+      },
+      "cascade": {
+        "title": "Cascade met warmtepomp, piek/dal en zonnepanelen",
+        "text": "Drie meters achter elkaar: de voorste meet alles, de achterste het huishouden, de warmtepomp is de rest. Eén meter per telwerk (piek, dal), één contract per meter. Het contract van de warmtepomp rekent alleen de rest af, het totaal van de kosten klopt, en eigen verbruik en zelfvoorziening rekenen met de voorste meter als netafname."
       }
     },
     "doc": {

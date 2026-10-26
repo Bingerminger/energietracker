@@ -62,6 +62,7 @@ export const CASES = [
   { id: 'wallbox',       page: 'useCases', anchor: 'case-wallbox' },         // E
   { id: 'heat',          page: 'useCases', anchor: 'case-heat' },            // F
   { id: 'control',       page: 'useCases', anchor: 'case-control' },         // G
+  { id: 'cascade',       page: 'useCases', anchor: 'case-cascade' },         // H (v3.9.0, F1032)
   { id: 'levels',        page: 'setup',    anchor: 'case-levels' },          // Nutzungsstufen
 ];
 

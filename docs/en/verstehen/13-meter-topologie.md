@@ -132,6 +132,16 @@ both cases.
 > you will therefore see lower costs at the household meter and higher ones in
 > the utility total.
 
+Several meters one behind the other with HT/NT and solar (cascade) are
+described in
+[use case H](../anleitungen/anwendungsfaelle.md#h--cascade-with-heat-pump-htnt-and-solar-v390).
+There the front meter measures everything and the remainder is the heat pump:
+the rule works both ways, the front meter’s contract may also be the heat
+pump’s. Since v3.9.0 the seasonal performance factor, efficiency and
+“electricity by role” take each meter’s own consumption (measured minus
+submeters); a heat-pump submeter behind the household meter therefore also
+counts in the efficiency, as use case C describes.
+
 ---
 
 ## 2. Meter groups

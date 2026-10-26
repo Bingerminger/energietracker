@@ -4,7 +4,7 @@
 
 [← Kompendium-Index](../README.md)
 
-Sieben durchgerechnete Praxisfälle, die zeigen, wie Energietracker in konkreten
+Acht durchgerechnete Praxisfälle, die zeigen, wie Energietracker in konkreten
 Wohnsituationen eingerichtet und genutzt wird. Jeder Fall nennt die **Zähler**,
 die **Einstellungen** und einen **typischen Ablauf**. Für die Grundeinrichtung
 siehe zuerst [Erste Schritte](../einstieg/erste-schritte.md).
@@ -18,6 +18,7 @@ siehe zuerst [Erste Schritte](../einstieg/erste-schritte.md).
 | [E — Wallbox und Dienstwagen](#e--wallbox-und-dienstwagen) | Ladestrom-Nachweis, § 14a EnWG | v3.1.0 | Eigenheim mit Wärmepumpe und PV |
 | [F — Fernwärme oder Heizwärme?](#f--fernwärme-oder-heizwärme) | die passende Verbrauchsart | v3.1.0, F1018 | Ich wohne zur Miete · Eigentumswohnung mit Fernwärme · Eigenheim mit Wärmepumpe und PV |
 | [G — Steuern mit evcc oder Home Assistant](#g--steuern-mit-evcc-oder-home-assistant--nachrechnen-im-energietracker) | nachrechnen statt steuern | F1009, F1021, F1022 | Eigenheim mit Wärmepumpe und PV |
+| [H — Kaskade mit Wärmepumpe, HT/NT und PV](#h--kaskade-mit-wärmepumpe-htnt-und-pv-v390) | Zähler hintereinander, Rest-Abrechnung | F1006, F1032 | — |
 
 ## Beispielhaushalte zum Ansehen *(v3.2.0)*
 
@@ -520,6 +521,105 @@ deines Netzbetreibers.
 
 ---
 
+<a id="case-cascade"></a>
+## H — Kaskade mit Wärmepumpe, HT/NT und PV *(v3.9.0)*
+
+**Situation.** Eigenheim mit PV-Anlage und Wärmepumpe. Die Wärmepumpe hat einen
+eigenen Tarif, Haushalt und Wärmepumpe rechnen je Hoch- und Niedertarif (HT/NT).
+Drei Zähler hängen hintereinander
+([#40](https://github.com/Bingerminger/energietracker/issues/40)):
+
+```text
+            Netz
+              │
+   ┌──────────┴──────────┐
+   │ Z1  Zweirichtungs-  │  Bezug HT (1.8.1) · Bezug NT (1.8.2) · Einspeisung (2.8.0)
+   │     zähler          │
+   └──────────┬──────────┘
+              ├────────────────── Wärmepumpe   = Z1 − Z2 (je HT und NT), eigener Tarif
+   ┌──────────┴──────────┐
+   │ Z2  Haushalt        │  HT (1.8.1) · NT (1.8.2), eigener Tarif
+   └──────────┬──────────┘
+              ├────────────────── Haushalt
+              │
+   ┌──────────┴──────────┐
+   │ Z3  PV-Erzeugung    │  Eigenverbrauch = Z3 − Einspeisung
+   └──────────┬──────────┘
+              PV-Anlage
+```
+
+Drei Verträge: Wärmepumpe (HT/NT), Haushalt (HT/NT) und die Einspeisevergütung.
+Z1 misst alles, was durch den Netzanschluss geht. Die Wärmepumpe hat keinen
+eigenen Zähler: Ihr Strom ist der **Rest** von Z1 nach Abzug von Z2.
+
+**Wie das heißt.** Die Namen der Messkonzepte wechseln je Netzbetreiber. Der
+Verband der Bayerischen Energie- und Wasserwirtschaft nennt diesen Aufbau
+„MK C3: Überschusseinspeisung mit Kaskadenmessung“: Z1 für Bezug und Lieferung,
+Z2 für Bezug, Z3 für die Lieferung der Erzeugungsanlage, dazwischen nur
+steuerbare Verbrauchseinrichtungen wie die Wärmepumpe (VBEW-Messkonzepte,
+Handout zur Auswahl der Messkonzepte, Ausgabe 09.2024,
+[PDF](https://www.swm-infrastruktur.de/dam/jcr:94f532d5-e88c-4339-b0c7-e91180681ed7/vbew-messkonzepte-erzeugungsanlagen.pdf)).
+Andere beschreiben die Kaskade umgekehrt, mit dem Zähler der Wärmepumpe hinter
+dem Hauptzähler
+([Verbraucherzentrale Niedersachsen](https://www.verbraucherzentrale-niedersachsen.de/node/126144),
+Stand 13.10.2026). Maßgeblich ist das Messkonzept, das dein Netzbetreiber
+bestätigt. Die App rechnet beide Varianten: Der hintere Zähler mit eigenem
+Vertrag wird abgezogen.
+
+**Einrichtung.**
+
+1. Unter **Einstellungen → Verbrauchsarten & Abrechnung → Aktive
+   Verbrauchsarten** Strom, PV-Einspeisung und PV-Erzeugung aktivieren.
+2. Je **Zählwerk** einen Stromzähler anlegen:
+   - „Z1 Bezug HT“ und „Z1 Bezug NT“, Rolle „Wärmepumpe (Heizstrom)“,
+   - „Z2 Haushalt HT“ mit Elternzähler „Z1 Bezug HT“ und „Z2 Haushalt NT“ mit
+     Elternzähler „Z1 Bezug NT“, Rolle „Haushalt“.
+
+   HT hängt hinter HT, NT hinter NT. Dann zwei **Gruppen**: „Z1 Wärmepumpe“ mit
+   Z1 HT und NT, „Z2 Haushalt“ mit Z2 HT und NT
+   ([Meter-Topologie](../verstehen/13-meter-topologie.md#2-zählergruppen)).
+3. Unter PV-Einspeisung den Zähler „Z1 Einspeisung“, unter PV-Erzeugung
+   „Z3 PV-Erzeugung“ anlegen.
+4. Verträge: ein **Gruppenvertrag** an „Z1 Wärmepumpe“ mit dem Arbeitspreis je
+   Zählwerk (HT, NT), einer an „Z2 Haushalt“, und die Einspeisevergütung an
+   „Z1 Einspeisung“.
+
+**Was die App rechnet** *(erfundene Werte eines Monats)*:
+
+<!-- doc-claim: cascade-example (CascadeMeteringTest) -->
+```text
+Z1 Bezug HT 400 kWh, NT 300 kWh · Z2 Haushalt HT 150 kWh, NT 100 kWh
+Einspeisung 250 kWh · PV-Erzeugung 600 kWh
+
+Wärmepumpe  (400 − 150) × 30 ct + (300 − 100) × 20 ct + 10 € =  125,00 €
+Haushalt     150 × 35 ct + 100 × 25 ct + 12 €              =   89,50 €
+Strom gesamt 700 kWh                                          214,50 €
+Einspeisevergütung 250 × 8 ct                                 20,00 € Erlös
+Eigenverbrauch 600 − 250 = 350 kWh · Autarkie 350 / (350 + 700) = 33 %
+```
+
+- Der Vertrag der Wärmepumpe rechnet nur den **Rest**. Am Zähler, an der
+  Saldo-Karte und in „Rechnung prüfen“ steht, wie: „450 kWh = 700 kWh gemessen
+  − 150 kWh Z2 Haushalt HT − 100 kWh Z2 Haushalt NT“
+  ([Rest-Abrechnung](../verstehen/13-meter-topologie.md#rest-abrechnung-v390)).
+- Die Summe Strom ist der Netzbezug an Z1 (700 kWh, Z2 nicht zusätzlich), die
+  Kosten die beider Verträge.
+- Eigenverbrauch und Autarkie rechnen mit Z1 als Netzbezug, der Einspeisung an
+  Z1 und der Erzeugung an Z3 ([PV](../verstehen/12-pv.md)).
+- Jahresarbeitszahl, Effizienz und „Strom nach Rollen“ im Jahresbericht nehmen
+  für die Wärmepumpe den Rest, nicht die ganze Messung von Z1.
+
+**Grenzen.**
+
+- Z2 misst nur den Bezug. Fließt Sonnenstrom vom Haushalt zur Wärmepumpe
+  zurück, misst das kein Zähler. Die App ordnet den selbst genutzten
+  Sonnenstrom im Jahresbericht dem Haushalt zu.
+- Speicher, die Netz- und Solarstrom mischen (MiSpeL), rechnet die App noch
+  nicht. Was die Festlegung erlaubt, steht unter
+  [G → Rechtslage kurz](#rechtslage-kurz-stand-9-oktober-2026).
+
+---
+
 ## Welcher Use-Case passt zu mir?
 
 | Wenn du sagst … | Use-Case | Zum Ansehen ([laden](#beispielhaushalte-zum-ansehen-v320)) |
@@ -533,6 +633,7 @@ deines Netzbetreibers.
 | „Ich habe einen Fernwärmevertrag.“ | F | „Eigentumswohnung mit Fernwärme“ |
 | „Ich heize mit Gas, Öl oder Pellets.“ | [Erste Schritte](../einstieg/erste-schritte.md) | „Eigenheim mit Gas, Öl oder Pellets“ |
 | „evcc oder Home Assistant steuern bei mir Auto, Speicher oder Wärmepumpe.“ | G (+ B) | „Eigenheim mit Wärmepumpe und PV“ |
+| „Meine Zähler hängen hintereinander (Kaskade), mit HT/NT und PV.“ | H | — |
 | „Ich will erst einmal alles sehen.“ | — | „Erst einmal alles ansehen“ (alle neun Verbrauchsarten) |
 
 Alle Fälle lassen sich kombinieren — z. B. Vermieter (D) mit HA-Push (B) je

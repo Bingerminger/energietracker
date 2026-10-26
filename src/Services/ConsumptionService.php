@@ -4141,6 +4141,45 @@ final class ConsumptionService
     }
 
     /**
+     * v3.9.0 (F1032, #40) — Eigener Verbrauch eines Zählers je Monat: seine Messung minus die
+     * Messung seiner direkten Subzähler (mit oder ohne Vertrag), nie unter null. Für
+     * Auswertungen nach Rolle (Jahresarbeitszahl, Effizienz): In der Kaskade misst der
+     * vordere Zähler alles, die Wärmepumpe ist der Rest. Ein Subzähler, eine Gruppe und
+     * ein Zähler ohne Subzähler: wie forMeter(). `heat_adjusted` wird mit abgezogen, wo
+     * beide Seiten einen Wert haben, sonst null.
+     *
+     * @return list<array<string,mixed>>
+     */
+    public function ownMonthly(string $utility, array $meter): array
+    {
+        $rows = $this->forMeter($utility, $meter);
+        if (!empty($meter['parent_meter_id']) || !empty($meter['is_group']) || !Utilities::isCumulative($utility)) return $rows;
+        $id = (string)($meter['id'] ?? '');
+        $subs = array_values(array_filter($this->meters->list($utility), fn($m) => (string)($m['parent_meter_id'] ?? '') === $id && $id !== ''));
+        if ($subs === []) return $rows;
+        $vf = (Utilities::get($utility)['consumption_unit'] ?? 'kWh') === 'kWh' ? 'kwh' : 'm3';
+        $sub = [];
+        foreach ($subs as $s) {
+            foreach ($this->forMeter($utility, $s) as $r) {
+                $ym = (string)$r['ym'];
+                $sub[$ym]['v'] = ($sub[$ym]['v'] ?? 0.0) + (float)($r[$vf] ?? 0);
+                $sub[$ym]['adj'] = ($sub[$ym]['adj'] ?? 0.0) + (float)($r['heat_adjusted'] ?? 0);
+                if (($r['heat_adjusted'] ?? null) === null) $sub[$ym]['no_adj'] = true;
+            }
+        }
+        foreach ($rows as &$r) {
+            $s = $sub[(string)$r['ym']] ?? null;
+            if ($s === null) continue;
+            $r[$vf] = round(max(0.0, (float)($r[$vf] ?? 0) - $s['v']), 3);
+            $r['heat_adjusted'] = ($r['heat_adjusted'] ?? null) !== null && empty($s['no_adj'])
+                ? round(max(0.0, (float)$r['heat_adjusted'] - $s['adj']), 1) : null;
+            $r['own_of_submeters'] = round($s['v'], 1);   // abgezogen (Auskunft)
+        }
+        unset($r);
+        return $rows;
+    }
+
+    /**
      * Schätzung der Restmenge je Tag für Lücke und Rest des Saldos: die Schätzung
      * des Zählers minus die der Subzähler an den Tagen mit eigenem Vertrag (je
      * Subzähler sein eigenes Modell; ein Tag nie unter null).

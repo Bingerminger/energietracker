@@ -130,6 +130,15 @@ in beiden Fällen.
 > fest. Wer schon einen Vertrag am Subzähler hat, sieht deshalb am
 > Haushaltszähler niedrigere Kosten und in der Summe der Verbrauchsart höhere.
 
+Mehrere Zähler hintereinander mit HT/NT und PV (Kaskade) beschreibt der
+[Anwendungsfall H](../anleitungen/anwendungsfaelle.md#h--kaskade-mit-wärmepumpe-htnt-und-pv-v390).
+Dort misst der vordere Zähler alles, und der Rest ist die Wärmepumpe: Die Regel
+gilt in beide Richtungen, der Vertrag des vorderen Zählers kann auch der der
+Wärmepumpe sein. Jahresarbeitszahl, Effizienz und „Strom nach Rollen“ nehmen
+seit v3.9.0 je Zähler den eigenen Verbrauch (gemessen minus Subzähler); ein
+Wärmepumpen-Subzähler hinter dem Haushaltszähler zählt damit auch in der
+Effizienz, wie Anwendungsfall C es beschreibt.
+
 ---
 
 ## 2. Zählergruppen

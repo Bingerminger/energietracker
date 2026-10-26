@@ -422,9 +422,10 @@ final class BenchmarkService
             // enthalten), sonst Doppelzählung → zu hohe kWh/m²·a-Effizienzklasse.
             // v2.9.0 (CALC-15) — ein Zähler außer Betrieb zählt mit seiner
             // Historie: Das Jahr, in dem er noch lief, hatte diesen Verbrauch.
-            if (!MeterService::countsInTotals($meter)) continue;
-            if (!self::countsAsHeat($utility, $meter)) continue;
-            foreach ($this->consumption->forMeter($utility, $meter) as $m) {
+            // v3.9.0 (F1032) — Strom nach Rolle mit dem eigenen Verbrauch (heatRows)
+            $rows = $this->heatRows($utility, $meter);
+            if ($rows === null) continue;
+            foreach ($rows as $m) {
                 if ((int)($m['year'] ?? 0) !== $year) continue;
                 $k = (float)($m['kwh'] ?? 0);
                 $sum += $k;
@@ -472,14 +473,34 @@ final class BenchmarkService
         $first = $year - intdiv(max(36, ...array_column(self::CERT_RULES, 'months')), 12) + 1;   // 36: months_36
         $out = [];
         foreach ($this->meters->list($utility) as $meter) {
-            if (!MeterService::countsInTotals($meter)) continue;
-            if (!self::countsAsHeat($utility, $meter)) continue;
-            foreach ($this->consumption->forMeter($utility, $meter) as $m) {
+            $rows = $this->heatRows($utility, $meter);
+            if ($rows === null) continue;
+            foreach ($rows as $m) {
                 $y = (int)($m['year'] ?? 0);
                 if ($y >= $first && $y <= $year && (float)($m['kwh'] ?? 0) > 0) $out[(string)$m['ym']] = true;
             }
         }
         return $out;
+    }
+
+    /**
+     * v3.9.0 (F1032, #40) — Monatszeilen eines Zählers, die als Heizenergie zählen, oder null.
+     * Wie bisher Zähler, die in Summen zählen, mit der Heizrolle (countsAsHeat). Bei Strom
+     * nach Rolle mit dem eigenen Verbrauch (ConsumptionService::ownMonthly): ein
+     * Wärmepumpenzähler vorn in der Kaskade ohne den Haushalt dahinter, und ein
+     * Wärmepumpen-Subzähler hinter dem Haushaltszähler (Modul 2) zählt selbst. Bis v3.7
+     * fehlte er in der Effizienz, obwohl die Doku (Anwendungsfall C) ihn dort nannte.
+     *
+     * @return list<array<string,mixed>>|null
+     */
+    private function heatRows(string $utility, array $meter): ?array
+    {
+        if (!self::countsAsHeat($utility, $meter)) return null;
+        if ($utility === 'strom') {
+            if (MeterService::countsInTotals($meter)) return $this->consumption->ownMonthly('strom', $meter);
+            return !empty($meter['parent_meter_id']) ? $this->consumption->forMeter('strom', $meter) : null;
+        }
+        return MeterService::countsInTotals($meter) ? $this->consumption->forMeter($utility, $meter) : null;
     }
 
     /**
