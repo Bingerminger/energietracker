@@ -76,6 +76,9 @@ export function basisText(f) {
   // Preis aus einer Rechnung mit Nettopreis: Basis und Ergebnis (dieselbe Hilfe wie in der Vorschau)
   if (f.net) parts.push(priceBasisText({ vatPct: f.net.vat_pct, gross: f.value, kind: f.kind }));
   if (f.estimated) parts.push(t('inbox.reason.estimated'));
+  // v3.9.0 — Stand gegen deine Stände: gemeldeter Stand vom Versorger auf das Zeitraumende datiert, oder der Nachbar, zu dem er nicht passt
+  if (f.reported_on) parts.push(t('inbox.detail.readingReported', { date: fmt.date(f.reported_on), counter: fmt.dec(f.value, 3) }));
+  if (f.neighbor) parts.push(t(f.neighbor.side === 'prev' ? 'inbox.detail.readingBelow' : 'inbox.detail.readingAbove', { date: fmt.date(f.neighbor.date), counter: fmt.dec(f.neighbor.counter, 3) }));
   return parts.join(' · ');
 }
 

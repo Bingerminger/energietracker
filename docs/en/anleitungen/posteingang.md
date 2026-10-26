@@ -209,7 +209,13 @@ is not optional. The old reading of a bill is ticked in advance *(v3.7.0)* when
 there is no reading on that day yet and it fits between the known readings (not
 lower than the previous one, not higher than the next one or the closing
 reading of the same bill, no meter swap in between); otherwise it stays an
-offer. A proposal is flagged only when one
+offer. *(v3.9.0)* The same applies to every reading from a document: if it does
+not fit between your existing readings, it is not ticked in advance, and the
+neighbour is named below it (“Lies below your reading of … on …”). If the same
+value is already recorded on an earlier day of the billing period and the bill
+states it on the last day of the period, it is the reading you reported, which
+the supplier dates to the end of the period: “already there”, and “Check bill”
+counts the quantity up to the day you read the meter. A proposal is flagged only when one
 of **its** core fields is in doubt *(v3.7.0)*: a new contract needs start,
 supplier and prices, not the advance payment. If the advance is missing, the
 contract is created without it; if it was read with doubt, the contract does

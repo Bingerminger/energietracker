@@ -6183,7 +6183,8 @@
       "net_price": "Líquido na fatura – convertido em bruto com a taxa de IVA indicada",
       "vat_changed": "Mesmo preço, outra taxa de IVA",
       "invalid_format": "Formato inválido – um ponto de entrega tem 11 dígitos com dígito de controlo",
-      "rhythm_conflict": "O ritmo da fatura não corresponde aos vencimentos"
+      "rhythm_conflict": "O ritmo da fatura não corresponde aos vencimentos",
+      "not_monotonic": "Não encaixa entre as leituras registadas"
     },
     "option": {
       "gas": "Gás",
@@ -6267,7 +6268,10 @@
       "start": "O início registado é {date}.",
       "factor": "O valor registado é {factor} kWh/m³.",
       "malo": "No contador consta {malo}.",
-      "serial": "O contador instalado é {serial}."
+      "serial": "O contador instalado é {serial}.",
+      "readingReported": "A leitura de {date} ({counter}): o fornecedor data a leitura comunicada no fim do período.",
+      "readingBelow": "É inferior à leitura de {counter} de {date}.",
+      "readingAbove": "É superior à leitura de {counter} de {date}."
     },
     "pstatus": {
       "new": "novo",

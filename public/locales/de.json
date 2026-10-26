@@ -6183,7 +6183,8 @@
       "net_price": "Netto laut Rechnung – mit dem ausgewiesenen Steuersatz in brutto umgerechnet",
       "vat_changed": "Gleicher Preis, anderer Steuersatz",
       "invalid_format": "Form ungültig – eine Marktlokation hat 11 Ziffern mit Prüfziffer",
-      "rhythm_conflict": "Rhythmus laut Rechnung passt nicht zu den Terminen"
+      "rhythm_conflict": "Rhythmus laut Rechnung passt nicht zu den Terminen",
+      "not_monotonic": "Passt nicht zwischen deine Stände"
     },
     "option": {
       "gas": "Gas",
@@ -6267,7 +6268,10 @@
       "start": "Eingetragen ist der Beginn {date}.",
       "factor": "Eingetragen ist {factor} kWh/m³.",
       "malo": "Am Zähler steht {malo}.",
-      "serial": "Eingebaut ist Zähler {serial}."
+      "serial": "Eingebaut ist Zähler {serial}.",
+      "readingReported": "Dein Stand vom {date} ({counter}): Der Versorger datiert den gemeldeten Stand auf das Ende des Zeitraums.",
+      "readingBelow": "Liegt unter deinem Stand {counter} vom {date}.",
+      "readingAbove": "Liegt über deinem Stand {counter} vom {date}."
     },
     "pstatus": {
       "new": "neu",

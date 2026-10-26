@@ -6183,7 +6183,8 @@
       "net_price": "Netto in bolletta – convertito in lordo con l’aliquota IVA indicata",
       "vat_changed": "Stesso prezzo, aliquota IVA diversa",
       "invalid_format": "Formato non valido – un punto di prelievo ha 11 cifre con cifra di controllo",
-      "rhythm_conflict": "La cadenza in bolletta non corrisponde alle scadenze"
+      "rhythm_conflict": "La cadenza in bolletta non corrisponde alle scadenze",
+      "not_monotonic": "Non si colloca tra le tue letture"
     },
     "option": {
       "gas": "Gas",
@@ -6267,7 +6268,10 @@
       "start": "L’inizio registrato è il {date}.",
       "factor": "Il valore registrato è {factor} kWh/m³.",
       "malo": "Sul contatore c’è {malo}.",
-      "serial": "Il contatore installato è {serial}."
+      "serial": "Il contatore installato è {serial}.",
+      "readingReported": "La tua lettura del {date} ({counter}): il fornitore data la lettura comunicata alla fine del periodo.",
+      "readingBelow": "È inferiore alla tua lettura di {counter} del {date}.",
+      "readingAbove": "È superiore alla tua lettura di {counter} del {date}."
     },
     "pstatus": {
       "new": "nuovo",
