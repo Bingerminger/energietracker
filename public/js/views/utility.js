@@ -1062,8 +1062,9 @@ function renderWaterComponentRow(components) {
         </div>
         <div>
           <div class="num text-1" style="font-size:13px;font-weight:600;color:var(--text-1)">${t('utility.balance.sw')}</div>
-          <div class="balance-col__sub" style="margin-top:2px">${sw.current_ct_per_m3 != null ? t('utility.balance.ctPerM3', { value: fmt.num(sw.current_ct_per_m3, 2) }) : '–'} · ${t('utility.balance.basisLabel')} ${sw.basis === 'separater_zaehler' ? t('utility.balance.basisSep') : t('utility.balance.basisTw')}</div>
+          <div class="balance-col__sub" style="margin-top:2px">${sw.current_ct_per_m3 != null ? t('utility.balance.ctPerM3', { value: fmt.num(sw.current_ct_per_m3, 2) }) : '–'}${sw.current_eur_per_month != null ? ' · ' + t('utility.balance.gpMonth', { value: fmt.num(sw.current_eur_per_month, 2) }) : ''} · ${t('utility.balance.basisLabel')} ${sw.basis === 'separater_zaehler' ? t('utility.balance.basisSep') : t('utility.balance.basisTw')}</div>
           <div class="num" style="margin-top:6px;font-size:14px;color:var(--text-1)">${fmt.eur(sw.total)}</div>
+          ${sw.base_cost > 0 ? `<div class="balance-col__breakdown">${t('utility.balance.consShort', { value: fmt.eur(sw.total - sw.base_cost) })}${t('utility.balance.gpPlus', { value: fmt.eur(sw.base_cost) })}</div>` : ''}
         </div>
         <div>
           <div class="num text-1" style="font-size:13px;font-weight:600;color:var(--text-1)">${t('utility.balance.nw')}</div>
