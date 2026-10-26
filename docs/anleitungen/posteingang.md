@@ -218,7 +218,13 @@ trägt und nicht freiwillig ist. Die alte Ablesung einer Rechnung ist vorab
 angehakt *(v3.7.0)*, wenn an dem Tag noch kein Stand steht und sie zwischen die
 bekannten Stände passt (nicht kleiner als der vorige, nicht größer als der
 nächste oder der Endstand derselben Rechnung, kein Zählertausch dazwischen);
-sonst bleibt sie ein Angebot. Markiert ist ein
+sonst bleibt sie ein Angebot. *(v3.9.0)* Dasselbe gilt für jeden Stand aus einem
+Dokument: Passt er nicht zwischen deine vorhandenen Stände, ist er nicht vorab
+angehakt, und darunter steht der Nachbar („Liegt unter deinem Stand … vom …“).
+Steht derselbe Wert schon an einem früheren Tag im Abrechnungszeitraum und der
+Stand der Rechnung am letzten Tag des Zeitraums, ist das dein gemeldeter Stand,
+den der Versorger auf das Zeitraumende datiert: „schon vorhanden“, und „Rechnung
+prüfen“ rechnet die Menge bis zu deinem Ablesetag. Markiert ist ein
 Vorschlag nur, wenn eines **seiner** Kernfelder zweifelhaft ist *(v3.7.0)*:
 Ein neuer Vertrag braucht Beginn, Versorger und Preise, nicht den Abschlag.
 Fehlt der Abschlag, entsteht der Vertrag ohne ihn; ist er unsicher gelesen,

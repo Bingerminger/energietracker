@@ -6206,7 +6206,8 @@
       "net_price": "Net on the bill – converted to gross with the VAT rate shown",
       "vat_changed": "Same price, different VAT rate",
       "invalid_format": "Invalid format – a market location ID has 11 digits with a check digit",
-      "rhythm_conflict": "Rhythm stated on the bill does not match the due dates"
+      "rhythm_conflict": "Rhythm stated on the bill does not match the due dates",
+      "not_monotonic": "Does not fit between your readings"
     },
     "option": {
       "gas": "Gas",
@@ -6290,7 +6291,10 @@
       "start": "The start recorded is {date}.",
       "factor": "The value recorded is {factor} kWh/m³.",
       "malo": "The meter has {malo}.",
-      "serial": "The installed meter is {serial}."
+      "serial": "The installed meter is {serial}.",
+      "readingReported": "Your reading of {date} ({counter}): the supplier dates the reading you reported to the end of the period.",
+      "readingBelow": "Lies below your reading of {counter} on {date}.",
+      "readingAbove": "Lies above your reading of {counter} on {date}."
     },
     "pstatus": {
       "new": "new",

@@ -1342,12 +1342,60 @@ final class HouseholdDraft
                     $near = $existing[date('Y-m-d', (int)strtotime("$date $shift"))] ?? null;
                     if ($near !== null && self::same('number', (float)$near['counter'], $f['value'])) $f['status'] = 'exists';
                 }
+                if ($f['status'] === 'new' && $meter !== null) $f = $this->againstStock($f, $list, $existing, $meter, $mp);
             }
             $fields[] = $f;
         }
         if ($fields === []) return;
         $this->items[] = ['kind' => 'readings', 'utility' => $u, 'key' => $mp['key'] . '#r', 'meter_key' => $mp['key'],
             'label_key' => 'inboxDraft.item.readings', 'params' => ['count' => count($fields), 'serial' => $mp['devices'][0]['label'] ?? ''], 'fields' => $fields];
+    }
+
+    /**
+     * v3.9.0 — ein neuer Stand gegen die Stände im Bestand (wie Proposals::readingAt):
+     *   - steht er am letzten Tag des Zeitraums einer Rechnung und derselbe Wert schon an einem früheren
+     *     Tag dieses Zeitraums, ist das dein gemeldeter Stand, vom Versorger auf das Zeitraumende datiert:
+     *     schon vorhanden (`reported_on`);
+     *   - passt er nicht monoton zwischen den vorigen und den nächsten Stand (ohne Tausch dazwischen):
+     *     zu prüfen, Grund `not_monotonic`, mit dem Nachbarn (`neighbor`).
+     *
+     * @param array<string,mixed> $f Feld „r:Tag“
+     * @param list<array<string,mixed>> $list Beobachtungen des Tags
+     * @param array<string,array<string,mixed>> $existing Stände im Bestand je Tag
+     */
+    private function againstStock(array $f, array $list, array $existing, array $meter, array $mp): array
+    {
+        $date = (string)$f['date'];
+        $value = (float)$f['value'];
+        foreach (array_column($list, 'o') as $o) {
+            foreach ((array)($o['src'] ?? []) as $s) {
+                $doc = (string)($s['doc'] ?? '');
+                if (($this->docs[$doc]['type'] ?? '') !== 'invoice' || $this->date($doc, 'period_to') !== $date) continue;
+                $from = $this->date($doc, 'period_from') ?? $date;
+                $best = null;
+                foreach ($existing as $d => $r) {
+                    if ($d >= $from && $d < $date && self::same('number', (float)$r['counter'], $value) && ($best === null || $d > $best)) $best = (string)$d;
+                }
+                if ($best !== null) return ['status' => 'exists', 'reported_on' => $best] + $f;
+            }
+        }
+        $prev = null; $next = null;
+        foreach ($existing as $d => $r) {
+            if (!empty($r['is_future']) || !is_numeric($r['counter'] ?? null)) continue;
+            if ($d < $date && ($prev === null || $d > $prev['date'])) $prev = ['date' => (string)$d, 'counter' => (float)$r['counter']];
+            if ($d > $date && ($next === null || $d < $next['date'])) $next = ['date' => (string)$d, 'counter' => (float)$r['counter']];
+        }
+        $lo = $prev['date'] ?? $date;
+        $hi = $next['date'] ?? $date;
+        $bounds = array_column($mp['changes'], 'date');
+        foreach (array_values((array)($meter['devices'] ?? [])) as $i => $dev) $bounds = [...$bounds, $i > 0 ? ($dev['installed_on'] ?? null) : null, $dev['removed_on'] ?? null];
+        foreach ($bounds as $b) if (is_string($b) && $b !== '' && $b > $lo && $b <= $hi) return $f;
+        $side = $prev !== null && $value < $prev['counter'] - 0.0005 ? 'prev' : ($next !== null && $value > $next['counter'] + 0.0005 ? 'next' : null);
+        if ($side === null) return $f;
+        $f['check'] = true;
+        $f['reasons'][] = 'not_monotonic';
+        $f['neighbor'] = ['side' => $side] + ($side === 'prev' ? $prev : $next);
+        return $f;
     }
 
     // ── Verträge ─────────────────────────────────────────────────────────

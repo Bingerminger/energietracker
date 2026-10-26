@@ -142,7 +142,7 @@ final class Applier
             $old = $this->bills->get($u, (string)$p['detail']['bill_id']);
             $ids = array_values(array_unique([...(array)($old['attachment_ids'] ?? []), ...(array)$d['attachment_ids']]));
             $b = $this->bills->update($u, (string)$old['id'], ['invoice' => $d['invoice'], 'kind' => $d['kind'], 'attachment_ids' => $ids]
-                + (empty($old['contract_id']) ? $own : []));
+                + (empty($old['contract_id']) ? $own : []) + (isset($d['end_reading_on']) ? ['end_reading_on' => $d['end_reading_on']] : []));   // v3.9.0
         } else {
             $b = $this->bills->create($u, $own + $d);
         }

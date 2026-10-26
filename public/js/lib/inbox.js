@@ -183,7 +183,13 @@ export function detailText(p, { unit = '' } = {}) {
   const d = p.detail;
   if (!d) return '';
   switch (p.kind) {
-    case 'reading': return d.counter !== undefined ? t('inbox.detail.reading', { counter: `${fmt.dec(d.counter, 3)}${unit ? ` ${unit}` : ''}` }) : '';
+    case 'reading': {
+      const c = (v) => `${fmt.dec(v, 3)}${unit ? ` ${unit}` : ''}`;
+      // v3.9.0 — dein gemeldeter Stand, vom Versorger auf das Zeitraumende datiert; ein Stand, der nicht zwischen deine passt
+      if (d.reported_on) return t('inbox.detail.readingReported', { date: fmt.date(d.reported_on), counter: c(d.counter) });
+      if (d.neighbor) return t(d.neighbor.side === 'prev' ? 'inbox.detail.readingBelow' : 'inbox.detail.readingAbove', { date: fmt.date(d.neighbor.date), counter: c(d.neighbor.counter) });
+      return d.counter !== undefined ? t('inbox.detail.reading', { counter: c(d.counter) }) : '';
+    }
     case 'contract_price': case 'contract_base_price': case 'contract_advance': case 'contract_water_price':
       return d.value !== undefined ? t('inbox.detail.row', { value: rowValue(p.kind, d.value, p.data?.key) }) : '';
     case 'bill': return d.period_from ? t('inbox.detail.billOverlap', { from: fmt.date(d.period_from), to: fmt.date(d.period_to) })
