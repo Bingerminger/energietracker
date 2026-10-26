@@ -6128,7 +6128,8 @@
       "assumed": "Data presumida: primeiro dia do mês após a fatura",
       "net_price": "Líquido na fatura – convertido em bruto com a taxa de IVA indicada",
       "vat_changed": "Mesmo preço, outra taxa de IVA",
-      "invalid_format": "Formato inválido – um ponto de entrega tem 11 dígitos com dígito de controlo"
+      "invalid_format": "Formato inválido – um ponto de entrega tem 11 dígitos com dígito de controlo",
+      "rhythm_conflict": "O ritmo da fatura não corresponde aos vencimentos"
     },
     "option": {
       "gas": "Gás",
@@ -6392,7 +6393,8 @@
       "missing": "Não consta do documento, a completar depois: {fields}",
       "unsure": "Lido com dúvida, não adotado: {fields}",
       "netPrice": "Líquido na fatura, convertido em bruto com a taxa de IVA indicada (a app usa preços brutos).",
-      "vatChanged": "Mesmo preço que no contrato, só muda a taxa de IVA – a nova linha de preço vale a partir do dia que a fatura indica para ela."
+      "vatChanged": "Mesmo preço que no contrato, só muda a taxa de IVA – a nova linha de preço vale a partir do dia que a fatura indica para ela.",
+      "rhythmConflict": "O ritmo indicado na fatura não corresponde aos vencimentos indicados. São adotados os vencimentos; verifique."
     },
     "duplicate": {
       "text": "Provavelmente o mesmo documento que «{name}» (guardado em {date}). Adote apenas um; o outro pode ser eliminado.",

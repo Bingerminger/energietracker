@@ -6128,7 +6128,8 @@
       "assumed": "Datum aangenomen: eerste van de maand na de rekening",
       "net_price": "Netto op de factuur – omgerekend naar bruto met het vermelde btw-tarief",
       "vat_changed": "Zelfde prijs, ander btw-tarief",
-      "invalid_format": "Ongeldige vorm – een marktlocatie heeft 11 cijfers met controlecijfer"
+      "invalid_format": "Ongeldige vorm – een marktlocatie heeft 11 cijfers met controlecijfer",
+      "rhythm_conflict": "Ritme op de rekening past niet bij de vervaldata"
     },
     "option": {
       "gas": "Gas",
@@ -6392,7 +6393,8 @@
       "missing": "Niet in het document, later aanvullen: {fields}",
       "unsure": "Onzeker gelezen, niet overgenomen: {fields}",
       "netPrice": "Netto op de factuur, omgerekend naar bruto met het vermelde btw-tarief (de app werkt met brutoprijzen).",
-      "vatChanged": "Zelfde prijs als in het contract, alleen een ander btw-tarief – de nieuwe prijsregel geldt vanaf de dag die de factuur ervoor noemt."
+      "vatChanged": "Zelfde prijs als in het contract, alleen een ander btw-tarief – de nieuwe prijsregel geldt vanaf de dag die de factuur ervoor noemt.",
+      "rhythmConflict": "Het ritme op de rekening past niet bij de genoemde vervaldata. De vervaldata worden overgenomen, controleer dit."
     },
     "duplicate": {
       "text": "Waarschijnlijk hetzelfde document als ‘{name}’ (opgeborgen op {date}). Neem er maar één over; het andere kun je verwijderen.",

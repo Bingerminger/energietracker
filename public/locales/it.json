@@ -6128,7 +6128,8 @@
       "assumed": "Data presunta: primo del mese dopo la bolletta",
       "net_price": "Netto in bolletta – convertito in lordo con l’aliquota IVA indicata",
       "vat_changed": "Stesso prezzo, aliquota IVA diversa",
-      "invalid_format": "Formato non valido – un punto di prelievo ha 11 cifre con cifra di controllo"
+      "invalid_format": "Formato non valido – un punto di prelievo ha 11 cifre con cifra di controllo",
+      "rhythm_conflict": "La cadenza in bolletta non corrisponde alle scadenze"
     },
     "option": {
       "gas": "Gas",
@@ -6392,7 +6393,8 @@
       "missing": "Manca nel documento, da aggiungere dopo: {fields}",
       "unsure": "Letto con dubbio, non ripreso: {fields}",
       "netPrice": "Netto in bolletta, convertito in lordo con l’aliquota IVA indicata (l’app usa prezzi lordi).",
-      "vatChanged": "Stesso prezzo del contratto, cambia solo l’aliquota IVA – la nuova riga di prezzo vale dal giorno che la bolletta indica per essa."
+      "vatChanged": "Stesso prezzo del contratto, cambia solo l’aliquota IVA – la nuova riga di prezzo vale dal giorno che la bolletta indica per essa.",
+      "rhythmConflict": "La cadenza indicata in bolletta non corrisponde alle scadenze elencate. Vengono riprese le scadenze, controlla."
     },
     "duplicate": {
       "text": "Probabilmente lo stesso documento di «{name}» (archiviato il {date}). Riprendine solo uno; l’altro puoi eliminarlo.",

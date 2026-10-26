@@ -228,6 +228,9 @@ console.log('Vertrag aus der Rechnung (vertrag-aus-rechnung)');
   t('Feld Wasserpreise: netto, Satz und brutto mit allen Stellen', item === 'Schmutzwasser · Abwassermenge 01.04.2025 bis 30.09.2025: 1,80 € je m³ netto + 19 % USt = 2,142 € je m³', item);
   const adv = sp(I.proposalText({ kind: 'contract_advance', label_key: 'inbox.proposal.advance', params: { from: '2026-05-15', value: 165, every: 2, dates: ['2026-05-15'] } }));
   t('Abschlagsänderung mit Rhythmus', /, alle 2 Monate, am 15\.05\.2026$/.test(adv), adv);
+  const MK = await import(`${JS}/lib/inbox-marks.js`);
+  const rc = MK.proposalNotes({ hints: [{ field: 'advance_new_every', reason: 'rhythm_conflict' }] }).join(' | ');
+  t('Rhythmus gegen Termine: Hinweis unter dem Vorschlag', /^Der Rhythmus laut Rechnung passt nicht zu den genannten Terminen\./.test(rc), rc);
   const fig = sp(I.gistFigure({ kind: 'money_rate', value: -12, signed: true }));
   t('Kernaussage: Abweichung je Termin, nicht je Monat', fig === '−12,00 € je Termin', fig);
 }

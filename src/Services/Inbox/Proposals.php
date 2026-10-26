@@ -846,6 +846,11 @@ final class Proposals
     private function withRhythm(array $p, array $ct, ?array $plan): array
     {
         $row = array_intersect_key((array)$plan, array_flip(['every_months', 'due_dates']));
+        if (!empty($plan['rhythm_conflict'])) {
+            $p['check'] = true;
+            $p['reasons'] = [...(array)($p['reasons'] ?? []), ...self::RHYTHM_CONFLICT['reasons']];
+            $p['hints'] = [...(array)($p['hints'] ?? []), ...self::RHYTHM_CONFLICT['hints']];
+        }
         if ($row === []) return $p;
         $p['data']['row'] = $row;
         $p['params']['every'] = (int)($row['every_months'] ?? 1);
@@ -973,8 +978,11 @@ final class Proposals
         // ohne (sichere) Termine: nur ein sicherer Beginn; die Termine selbst prüft advancePlan
         if ($plan !== null && !isset($plan['due_dates'])) $plan['from'] = self::sure($e, 'advance_new_from', $withheld);
         $advFrom = $plan['from'] ?? null;
+        $rhythmConflict = false;
         if (!$final && $end === null && is_numeric($adv) && is_string($advFrom) && $advFrom >= $from && !Utilities::isFeedIn($u)) {
             $row = ['from' => $advFrom, 'amount_eur' => (float)$adv] + array_intersect_key((array)$plan, array_flip(['every_months', 'due_dates']));
+            // Rhythmus laut Rechnung gegen die Termine: die Termine gelten, der Vertrag ist dann nicht vorbelegt
+            $rhythmConflict = !empty($plan['rhythm_conflict']);
             $data['advance_payments'] = [$row];
             $lines[] = ['section' => null, 'kind' => 'advance', 'from' => $advFrom, 'value' => (float)$adv,
                 'every' => (int)($row['every_months'] ?? 1), 'dates' => $row['due_dates'] ?? []];
@@ -990,8 +998,13 @@ final class Proposals
         return self::p('contract_create', $end !== null && !$final ? 'contractSpanFromInvoice' : 'contractFromInvoice',
             ['provider' => $supplier, 'from' => $from] + ($end !== null ? ['to' => $end] : []) + ['lines' => $lines], $data,
             ['supplier', 'period_from', 'period_to', 'kind', ...$priceFields, 'base_price_period', 'advance_new', 'advance_new_from', 'advance_new_dates', 'contract_number', 'customer_number'],
-            $status, ['core' => ['supplier', 'period_from', 'period_to'], 'detail' => $detail, 'open' => $open] + ($offer ? ['optional' => true] : []));
+            $status, ['core' => ['supplier', 'period_from', 'period_to'], 'detail' => $detail, 'open' => $open] + ($offer ? ['optional' => true] : [])
+            + ($rhythmConflict ? self::RHYTHM_CONFLICT : []));
     }
+
+    /** v3.9.0 (F1034) — Rhythmus laut Rechnung passt nicht zu ihren Terminen: zu prüfen, mit Hinweis (nicht vorbelegt). */
+    private const RHYTHM_CONFLICT = ['check' => true, 'reasons' => [['field' => 'advance_new_every', 'reasons' => ['rhythm_conflict']]],
+        'hints' => [['field' => 'advance_new_every', 'reason' => 'rhythm_conflict']]];
 
     private function confirmation(array $c): array
     {

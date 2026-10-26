@@ -1445,6 +1445,11 @@ final class Evidence
                 return [in_array($s, ['true', '1', 'ja', 'yes'], true) ? true : (in_array($s, ['false', '0', 'nein', 'no'], true) ? false : null), true];
             case 'enum':
                 $v = is_string($raw) ? strtolower(trim($raw)) : null;
+                // v3.9.0 (F1034) — Rhythmus tolerant: „2“, „zweimonatlich“, „every 2 months“ … (InvoicePrices::everyOf)
+                if (!in_array($v, $def['options'], true) && ($def['normalize'] ?? null) === 'advance_every') {
+                    $n = InvoicePrices::everyOf($raw);
+                    $v = $n !== null ? InvoicePrices::EVERY_OPTION[$n] : null;
+                }
                 if (!in_array($v, $def['options'], true)) return [null, false];
                 $hints = $def['hints'][$v] ?? null;
                 if ($hints === null) return [$v, true];

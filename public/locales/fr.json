@@ -6128,7 +6128,8 @@
       "assumed": "Date supposée : premier du mois suivant la facture",
       "net_price": "Net selon la facture – converti en TTC avec le taux de TVA indiqué",
       "vat_changed": "Même prix, autre taux de TVA",
-      "invalid_format": "Format non valide – un point de livraison compte 11 chiffres avec clé de contrôle"
+      "invalid_format": "Format non valide – un point de livraison compte 11 chiffres avec clé de contrôle",
+      "rhythm_conflict": "Le rythme de la facture ne correspond pas aux échéances"
     },
     "option": {
       "gas": "Gaz",
@@ -6392,7 +6393,8 @@
       "missing": "Absent du document, à compléter plus tard : {fields}",
       "unsure": "Lu avec un doute, non repris : {fields}",
       "netPrice": "Net selon la facture, converti en TTC avec le taux de TVA indiqué (l’app gère des prix TTC).",
-      "vatChanged": "Même prix que dans le contrat, seul le taux de TVA change – la nouvelle ligne de prix s’applique à partir du jour que la facture indique pour elle."
+      "vatChanged": "Même prix que dans le contrat, seul le taux de TVA change – la nouvelle ligne de prix s’applique à partir du jour que la facture indique pour elle.",
+      "rhythmConflict": "Le rythme indiqué sur la facture ne correspond pas aux échéances. Ce sont les échéances qui sont reprises, veuillez vérifier."
     },
     "duplicate": {
       "text": "Probablement le même document que « {name} » (déposé le {date}). Ne reprenez qu’un seul des deux ; vous pouvez supprimer l’autre.",
