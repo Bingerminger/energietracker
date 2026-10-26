@@ -206,6 +206,19 @@ final class WaterBillContractTest extends ServiceTestCase
         self::assertTrue(empty($b[0]['contract_id']) && empty($b[0]['special_payment_id']), 'nicht gebucht, an keinem Vertrag');
     }
 
+    /** Erfasst, aber nicht gebucht: Die Rechnung hängt trotzdem am Vertrag aus ihr (im selben Durchgang angelegt). */
+    public function testTheBillBelongsToTheNewContractEvenWithoutBooking(): void
+    {
+        [$s, $p] = $this->read();
+        $ids = array_column(array_filter($p['proposals'], fn($x) => $x['checked'] && $x['kind'] !== 'bill_book'), 'id');
+        $res = $s->apply($p['entry']['id'], $ids);
+        self::assertSame([], $res['failed'], json_encode($res['failed']));
+        $c = $this->contracts->list('wasser');
+        $b = $this->bills->list('wasser');
+        self::assertCount(1, $c);
+        self::assertSame([$c[0]['id'], null], [$b[0]['contract_id'] ?? null, $b[0]['special_payment_id'] ?? null], 'am neuen Vertrag, nicht gebucht');
+    }
+
     /** Eine Abschlagsänderung nennt nur den Betrag: der Rhythmus des Vertrags bleibt (nicht still monatlich). */
     public function testAnAdvanceChangeKeepsTheRhythmOfTheContract(): void
     {

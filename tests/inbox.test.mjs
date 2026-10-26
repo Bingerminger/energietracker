@@ -195,6 +195,7 @@ console.log('Vertrag aus der Rechnung (vertrag-aus-rechnung)');
   const R = await import(`${JS}/lib/advance-rhythm.js`);
   const sp = (s) => s.replace(/ /g, ' ');
   t('monatlich: kein Zusatz, der Betrag wie bisher', R.advanceRhythm(1) === '' && sp(R.advanceAmountText(50, 1)) === '50,00 €');
+  t('alle 3 Monate ohne Termine', R.advanceRhythm(3) === 'alle 3 Monate', R.advanceRhythm(3));
   t('alle 2 Monate: der Betrag gilt je Termin', sp(R.advanceAmountText(165, 2)) === '165,00 € alle 2 Monate', R.advanceAmountText(165, 2));
   t('Termine laut Plan', R.advanceRhythm(2, ['2026-05-15', '2026-07-15']) === 'alle 2 Monate, am 15.05.2026, 15.07.2026'
     && R.advanceRhythm(1, ['2026-03-01']) === 'am 01.03.2026', R.advanceRhythm(2, ['2026-05-15', '2026-07-15']));
@@ -227,6 +228,8 @@ console.log('Vertrag aus der Rechnung (vertrag-aus-rechnung)');
   t('Feld Wasserpreise: netto, Satz und brutto mit allen Stellen', item === 'Schmutzwasser · Abwassermenge 01.04.2025 bis 30.09.2025: 1,80 € je m³ netto + 19 % USt = 2,142 € je m³', item);
   const adv = sp(I.proposalText({ kind: 'contract_advance', label_key: 'inbox.proposal.advance', params: { from: '2026-05-15', value: 165, every: 2, dates: ['2026-05-15'] } }));
   t('Abschlagsänderung mit Rhythmus', /, alle 2 Monate, am 15\.05\.2026$/.test(adv), adv);
+  const fig = sp(I.gistFigure({ kind: 'money_rate', value: -12, signed: true }));
+  t('Kernaussage: Abweichung je Termin, nicht je Monat', fig === '−12,00 € je Termin', fig);
 }
 
 console.log('Warteschlange');

@@ -4210,9 +4210,13 @@ final class ConsumptionService
             // Standardvertrag: eine Rück- oder Nachzahlung „mit Auswirkung“
             // setzt den Abschlag ab ihrem Stichtag (ohne Sonderzahlungen
             // derselbe Wert wie advance_payments)
-            // v3.9.0 (F1034) — mit Rhythmus: die Raten, die im Monat fällig sind (sonst 0), monatlich wie bisher
-            $ap = ContractService::advanceIn($this->contracts->effectiveAdvanceSchedule($c), $first, $first,
-                date('Y-m-d', (int)strtotime($first . ' +1 month')), 1.0, (int)date('t', (int)strtotime($first)));
+            $ap = $this->contracts->valueValidOn($this->contracts->effectiveAdvanceSchedule($c), 'amount_eur', $y, $mn);
+            // v3.9.0 (F1034) — mit Rhythmus: die Raten, die im Monat fällig sind (sonst 0); monatlich wie bisher
+            $apPlan = $this->contracts->effectiveAdvanceSchedule($c);
+            if (array_filter($apPlan, fn($r) => is_array($r) && ContractService::hasRhythm($r)) !== []) {
+                $ap = ContractService::advanceIn($apPlan, $first, $first,
+                    date('Y-m-d', (int)strtotime($first . ' +1 month')), 1.0, (int)date('t', (int)strtotime($first)));
+            }
             $bonusItems = ContractService::bonusesForMonth($c, $y, $mn);
             $bn = (float)array_sum(array_column($bonusItems, 'amount_eur'));
 

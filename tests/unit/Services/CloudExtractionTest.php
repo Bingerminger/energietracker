@@ -384,8 +384,9 @@ final class CloudExtractionTest extends ServiceTestCase
 
         $this->calls = [];
         $this->cfg->update(['timeout_s' => AnthropicProvider::RETRY_MIN_SECONDS - 1]);
-        $p = new AnthropicProvider($this->cfg, $this->i18n, $this->transport(), fn() => ['160.79.104.10']);
-        $e = $this->failure(fn() => $p->extract('invoice', self::SCHEMA, 'x', self::pdf()), 'sk-ant-test-maxtokens');
+        $p = $this->claude('sk-ant-test-maxonce');
+        self::assertSame(AnthropicProvider::RETRY_MIN_SECONDS - 1, $this->cfg->timeout(), 'Vorbedingung: kürzer als die Mindestrestzeit');
+        $e = $this->failure(fn() => $p->extract('invoice', self::SCHEMA, 'x', self::pdf()), 'sk-ant-test-maxonce');
         self::assertSame('errors.inboxCloud.truncated', $e->key);
         self::assertCount(1, $this->calls, 'ohne Restzeit keine Wiederholung');
     }

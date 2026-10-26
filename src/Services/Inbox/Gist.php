@@ -458,20 +458,20 @@ final class Gist
         if (!$billRhythm && !$planRhythm) {
             $rec = max(0.0, round($atFrom + (float)$row['projected_end_balance'] / $months));
             $balance = round(($rec - $new) * $months, 2);   // Buchhaltungssicht: positiv = Nachzahlung
-            $limit = max(ReportAdviceService::ADVANCE_MIN_EUR, $new);
-            $verdict = abs($balance) < $limit ? 'ok' : ($new > $rec ? 'high' : 'low');
-            return ['verdict' => $verdict, 'recommended' => $rec, 'diff' => round($new - $rec, 2), 'months' => $months, 'balance' => $balance];
+            $extra = [];
+        } else {
+            $lastYm = (string)(end($row['balance_path'])['ym'] ?? $ym);
+            $endExcl = date('Y-m-01', (int)strtotime("$lastYm-01 +1 month"));
+            $planned = $planRhythm ? array_sum(array_column(ContractService::installments($plan, $from, $endExcl), 'amount_eur')) : $atFrom * $months;
+            $rates = count(ContractService::installments($billRhythm ? [$bill] : $plan, $from, $endExcl));
+            if ($rates < 1) return null;
+            $rec = max(0.0, round(($planned + (float)$row['projected_end_balance']) / $rates));
+            $balance = round(($rec - $new) * $rates, 2);
+            $extra = ['rates' => $rates];
         }
-        $lastYm = (string)(end($row['balance_path'])['ym'] ?? $ym);
-        $endExcl = date('Y-m-01', (int)strtotime("$lastYm-01 +1 month"));
-        $planned = $planRhythm ? array_sum(array_column(ContractService::installments($plan, $from, $endExcl), 'amount_eur')) : $atFrom * $months;
-        $rates = count(ContractService::installments($billRhythm ? [$bill] : $plan, $from, $endExcl));
-        if ($rates < 1) return null;
-        $rec = max(0.0, round(($planned + (float)$row['projected_end_balance']) / $rates));
-        $balance = round(($rec - $new) * $rates, 2);
         $limit = max(ReportAdviceService::ADVANCE_MIN_EUR, $new);
         $verdict = abs($balance) < $limit ? 'ok' : ($new > $rec ? 'high' : 'low');
-        return ['verdict' => $verdict, 'recommended' => $rec, 'diff' => round($new - $rec, 2), 'months' => $months, 'balance' => $balance, 'rates' => $rates];
+        return ['verdict' => $verdict, 'recommended' => $rec, 'diff' => round($new - $rec, 2), 'months' => $months, 'balance' => $balance] + $extra;
     }
 
     /** Anschlussvertrag desselben Zählers bzw. seiner Gruppe (ContractService::successorOf). */

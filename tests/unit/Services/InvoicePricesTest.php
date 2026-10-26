@@ -37,6 +37,20 @@ final class InvoicePricesTest extends TestCase
         self::assertSame(['Arbeitspreis', 'Energiesteuer', 'CO2-Preis'], array_column($g[0]['parts'], 'label'), 'Aufschlüsselung im Vorschlag');
     }
 
+    /** Ein unsicher gelesener Termin zählt nicht; dann ist der Rest kein Rhythmus mehr (nur Termine). */
+    public function testAnUnsureDueDateDoesNotCount(): void
+    {
+        $date = fn(string $d, string $status) => ['value' => ['date' => $d], 'quote' => $d, 'status' => $status, 'reasons' => $status === 'check' ? ['quote_not_found'] : []];
+        $entry = ['extraction' => ['fields' => [
+            'advance_new' => ['value' => 165.0, 'quote' => '165,00', 'status' => 'ok', 'reasons' => []],
+            'advance_new_dates' => ['value' => null, 'status' => 'check', 'items' => [$date('2026-05-15', 'ok'), $date('2026-07-15', 'check'), $date('2026-09-15', 'ok')]],
+        ]]];
+        self::assertSame(['from' => '2026-05-15', 'amount_eur' => 165.0, 'due_dates' => ['2026-05-15', '2026-09-15']], InvoicePrices::advancePlan($entry));
+        $entry['extraction']['fields']['advance_new_dates']['items'][1]['status'] = 'ok';
+        self::assertSame(['from' => '2026-05-15', 'amount_eur' => 165.0, 'every_months' => 2, 'due_dates' => ['2026-05-15', '2026-07-15', '2026-09-15']],
+            InvoicePrices::advancePlan($entry), 'alle drei sicher: alle 2 Monate');
+    }
+
     public function testWithoutPartsOrWithTwoEnergyRowsNothingIsAddedUp(): void
     {
         $none = InvoicePrices::workingGroups(self::fields([

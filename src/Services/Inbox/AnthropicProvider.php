@@ -234,7 +234,8 @@ final class AnthropicProvider implements ExtractionProvider
         if (!is_array($json) || !is_array($json['content'] ?? null)) {
             throw new HttpStatusException(502, 'errors.inboxCloud.badAnswer', [], [], 'anthropic answer without content');
         }
-        if (($json['stop_reason'] ?? '') === 'refusal') throw new HttpStatusException(422, 'errors.inboxCloud.refusal', ['name' => self::LABEL], [], 'anthropic refused');
+        $stop = (string)($json['stop_reason'] ?? '');
+        if ($stop === 'refusal') throw new HttpStatusException(422, 'errors.inboxCloud.refusal', ['name' => self::LABEL], [], 'anthropic refused');
         return $json;
     }
 
