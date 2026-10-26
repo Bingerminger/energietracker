@@ -691,7 +691,8 @@ base load        = expectation / consumption of measured summer months
                    (no degree days at 18 °C, otherwise June to August; at least 2 months;
                    measured as the median of the daily rates)
 base load c      = c × days / consumption of the same months   (since v3.9.0, the lower bound)
-model_quality    = poor if ratio > 15 % or base load c < 0.5 or base load > 1.5
+model_quality    = poor if ratio > 15 % or base load outside 0.5 … 1.5
+                   (since v3.9.0 the lower bound uses base load c, the upper bound the base load)
 detect_floor     = anomaly_threshold × max(σ_robust, 10 % of the typical month)
 ```
 

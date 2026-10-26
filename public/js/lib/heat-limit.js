@@ -21,16 +21,17 @@ export const isGroupId = (id) => String(id || '').startsWith('g_');
 const memo = new Map();
 
 /**
- * Vorschlag eines Zählers oder einer Gruppe (`heat_limit` oder null). Je
- * Seitenaufbau einmal (Prognose und Werkstatt fragen beide); `fresh` nach dem
- * Übernehmen.
+ * Vorschlag eines Zählers oder einer Gruppe (`heat_limit` oder null). Nur
+ * gleichzeitige Anfragen teilen sich eine Antwort (Prognose und Werkstatt fragen
+ * beide); nach wenigen Sekunden fragt die nächste Ansicht neu, damit nach dem
+ * Speichern eines Zählers kein alter Stand stehen bleibt. `fresh` erzwingt es.
  */
 export function loadHeatLimit(utility, id, { fresh = false } = {}) {
   const key = `${utility}|${id}`;
   if (fresh) memo.delete(key);
   if (!memo.has(key)) {
     memo.set(key, api.heatLimit(utility, id, isGroupId(id)).then(r => r?.heat_limit ?? null).catch(() => null));
-    setTimeout(() => memo.delete(key), 60000);
+    setTimeout(() => memo.delete(key), 3000);
   }
   return memo.get(key);
 }
@@ -91,10 +92,11 @@ export function heatLimitEffect(h) {
 export function heatLimitHintHtml(h, { context = 'balance', unit = 'kWh', id = '' } = {}) {
   if (!h?.suggest || h.best == null) return '';
   const group = isGroupId(id);
-  const lines = [t(`heatLimit.hint.${context}`), t('heatLimit.title', { best: deg(h.best) }) + '.', ...heatLimitFacts(h, unit),
-    ...(context === 'balance' || context === 'workshop' ? heatLimitEffect(h) : []), t(group ? 'heatLimit.scopeGroup' : 'heatLimit.scope')];
+  const lines = [...heatLimitFacts(h, unit), ...(context === 'balance' || context === 'workshop' ? heatLimitEffect(h) : []),
+    t(group ? 'heatLimit.scopeGroup' : 'heatLimit.scope')];
   return `<div class="banner banner--info heat-limit-hint" data-role="heat-limit-hint" data-context="${escapeHtml(context)}">
-      <p>${lines.map(escapeHtml).join(' ')}</p>
+      <p>${escapeHtml(t(`heatLimit.hint.${context}`))} <strong>${escapeHtml(t('heatLimit.title', { best: deg(h.best) }))}.</strong></p>
+      <p class="small">${lines.map(escapeHtml).join(' ')}</p>
       <button type="button" class="btn btn--sm btn--util" data-role="heat-limit-hint-apply" data-value="${escapeHtml(String(h.best))}">${escapeHtml(t(group ? 'heatLimit.applyGroup' : 'heatLimit.apply'))}</button>
     </div>`;
 }

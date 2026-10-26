@@ -174,6 +174,34 @@ final class HeatLimitFollowUpTest extends ServiceTestCase
         self::assertSame([12.0, true], [$p['best'], $p['suggest']], 'aus 15 °C: das Ende des Plateaus, das am wenigsten ändert');
     }
 
+    /** Die heutige Grenze ist nie der Vorschlag, auch wenn sie geglättet am besten ist (ein Ausreißer im Raster). */
+    public function testTheCurrentLimitIsNeverSuggested(): void
+    {
+        // geglättet: 14 → 0,1; 14,5 → 0,0875; 15 → 0,08; 15,5 → 0,0875; 16 → 0,1 (von Hand)
+        $grid = [self::g(14.0, 0.05), self::g(14.5, 0.05), self::g(15.0, 0.20), self::g(15.5, 0.05), self::g(16.0, 0.05)];
+        $p = ConsumptionService::pickHeatLimit($grid, 15.0, 0.20);
+        self::assertEqualsWithDelta(0.08, $p['best_smoothed'], 1e-9);
+        self::assertSame([15.0, false, [14.5, 15.5]], [$p['best'], $p['suggest'], $p['range']], 'geglättet passt die heutige: kein Vorschlag');
+    }
+
+    /** Warme Monate von Hand: Mai und September 20 % unter der Erwartung, Juni bis August genau. */
+    public function testTheWarmMonthsAreMayToSeptember(): void
+    {
+        $rows = [];
+        foreach ([2024, 2025] as $y) {
+            for ($mo = 1; $mo <= 12; $mo++) {
+                $f = in_array($mo, [5, 9], true) ? 0.8 : 1.0 + 0.002 * ($mo % 3);
+                $rows[] = ['ym' => sprintf('%d-%02d', $y, $mo), 'year' => $y, 'month' => $mo, 'days' => 30, 'kwh' => 1000.0 * $f,
+                    'expected_heat' => 1000.0, 'expected_base' => 300.0, 'hdd' => 100.0, 'hdd_top' => 50.0, 'temp_days' => 30];
+            }
+        }
+        $q = $this->anomalies->quality('gas', $rows);
+        // Juni 1,000, Juli 1,002, August 1,004 (Monat mod 3), Mai und September 0,8
+        $act = 2 * (800 + 1000.0 + 1002.0 + 1004.0 + 800);
+        self::assertSame(10, $q['warm']['months']);
+        self::assertEqualsWithDelta(round(10000 / $act, 3), $q['warm']['ratio'], 1e-9, 'Erwartung ÷ Verbrauch Mai bis September');
+    }
+
     /** Die warmen Monate Mai bis September darf der Vorschlag nicht überschätzen. */
     public function testTheWarmMonthsMustNotBeOverestimated(): void
     {
@@ -297,9 +325,21 @@ final class HeatLimitFollowUpTest extends ServiceTestCase
         self::assertSame(0.0, (float)$may['hdd'], 'Mai (14 °C) hat bei 12 °C keine Gradtage');
         $apr = array_values(array_filter($rows, fn($r) => $r['ym'] === '2024-04'))[0];
         self::assertEqualsWithDelta(30 * (12.0 - 9.0), (float)$apr['hdd'], 0.01, 'April: 30 Tage × (12 − 9)');
-        $model = $this->deliveryConsumption->tankModel('heizoel', $tank);
-        self::assertEqualsWithDelta(0.0, array_sum(array_map(fn($d) => $d['draw'], array_filter($model['days'], fn($d, $k) => str_starts_with($k, '2024-05'), ARRAY_FILTER_USE_BOTH)))
-            - (int)date('t', strtotime('2024-05-01')) * $model['calibration']['base_per_day'], 0.01, 'im Mai nur die Grundlast');
+        // verteilt wird nach den Gradtagen der Grenze des Tanks: mit 12 °C bekommt der Mai (14 °C) keinen Heizanteil
+        $this->store->write('heizoel/deliveries.json', [
+            ['id' => 'del_1', 'meter_id' => $tank['id'], 'date' => '2024-09-01', 'quantity' => 1500.0, 'unit_price_cents' => 100.0,
+             'total_eur' => null, 'supplier' => '', 'note' => '', 'is_planned' => false, 'fill_to_full' => true],
+            ['id' => 'del_2', 'meter_id' => $tank['id'], 'date' => '2025-09-01', 'quantity' => 1800.0, 'unit_price_cents' => 100.0,
+             'total_eur' => null, 'supplier' => '', 'note' => '', 'is_planned' => false, 'fill_to_full' => true],
+        ]);
+        $mayDraw = function (?float $own) use ($tank): float {
+            $t = $tank;
+            if ($own === null) unset($t['hdd_base_temp']); else $t['hdd_base_temp'] = $own;
+            $model = $this->deliveryConsumption->tankModel('heizoel', $t, '2025-12-31');
+            return array_sum(array_map(fn($d) => $d['draw'], array_filter($model['days'], fn($k) => str_starts_with((string)$k, '2025-05'), ARRAY_FILTER_USE_KEY)));
+        };
+        self::assertGreaterThan(0.0, $mayDraw(12.0), 'Grundlast im Mai');
+        self::assertLessThan($mayDraw(null) * 0.9, $mayDraw(12.0), 'Mai mit eigener Grenze 12 °C deutlich weniger als mit dem Standard 15 °C');
         $this->meters->update('heizoel', (string)$tank['id'], ['hdd_base_temp' => '']);
         self::assertArrayNotHasKey('hdd_base_temp', $this->meters->get('heizoel', (string)$tank['id']));
     }
@@ -492,7 +532,9 @@ final class HeatLimitFollowUpTest extends ServiceTestCase
         self::assertCount(1, $ev);
         self::assertTrue($ev[0]['due_now']);
         self::assertFalse($ev[0]['can_mark_done'], 'eigene Knöpfe statt Haken');
-        self::assertSame([$rec['id'], $h['best'], '#/utility/gas'], [$ev[0]['ref']['recommendation_id'], $ev[0]['ref']['best'], $ev[0]['href']]);
+        self::assertSame([$rec['id'], $h['best'], '#/utility/gas?meter=m_gas_messy'], [$ev[0]['ref']['recommendation_id'], $ev[0]['ref']['best'], $ev[0]['href']]);
+        // stabile Kennung je Zähler und Grenze (Benachrichtigungen einmal je Vorschlag)
+        self::assertSame('heat_limit-gas-m_gas_messy-' . sprintf('%.1f', $h['best']), $ev[0]['uid']);
         self::assertSame($e, $ev[0]['ref']['effect']);
 
         // „Nicht jetzt“
@@ -507,6 +549,9 @@ final class HeatLimitFollowUpTest extends ServiceTestCase
         $again = array_values(array_filter($this->recs()->all(), fn($r) => $r['category'] === 'modell'));
         self::assertCount(1, $again);
         self::assertNotSame($rec['id'], $again[0]['id']);
+        $ev2 = array_values(array_filter($this->agenda($this->recs())->events(), fn($x) => $x['kind'] === 'heat_limit'));
+        self::assertSame('heat_limit-gas-m_gas_messy-' . sprintf('%.1f', $again[0]['evidence']['best']), $ev2[0]['uid'], 'Kennung ohne Datenstand, nur Zähler und Grenze');
+        self::assertNotSame($ev[0]['occurrence'], $ev2[0]['occurrence'], 'das Vorkommen trägt den Datenstand');
 
         // übernommen: kein Vorschlag mehr, keine Empfehlung
         $this->meters->update('gas', (string)$meter['id'], ['hdd_base_temp' => $again[0]['evidence']['best']]);

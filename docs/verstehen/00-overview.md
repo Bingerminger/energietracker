@@ -705,7 +705,8 @@ Grundlast        = Erwartung / Verbrauch gemessener Sommermonate
                    (ohne Heizgradtage zu 18 °C, sonst Juni bis August; mindestens 2 Monate;
                    gemessen als Median der Tagesraten)
 Grundlast c      = c × Tage / Verbrauch derselben Monate   (seit v3.9.0, die Untergrenze)
-model_quality    = poor, wenn Verhältnis > 15 % oder Grundlast c < 0,5 oder Grundlast > 1,5
+model_quality    = poor, wenn Verhältnis > 15 % oder Grundlast außerhalb 0,5 … 1,5
+                   (seit v3.9.0 zählt nach unten Grundlast c, nach oben die Grundlast)
 detect_floor     = anomaly_threshold × max(σ_robust, 10 % des typischen Monats)
 ```
 

@@ -699,7 +699,7 @@ function heatLimitFieldsetHtml(u, existing, defaultBase) {
           <div class="fgrid">
             <div class="field field--s">
               <label for="mf-hdd-base">${t('meters.heatLimit.label')}</label>
-              <input class="input input--short" id="mf-hdd-base" name="hdd_base_temp" type="text" inputmode="decimal" autocomplete="off"
+              <input class="input" id="mf-hdd-base" name="hdd_base_temp" type="text" inputmode="decimal" autocomplete="off"
                      value="${escapeHtml(own != null ? formatForInput(own) : '')}" placeholder="${escapeHtml(t('meters.heatLimit.placeholder', { value: fmt.num(defaultBase ?? 15, 1) }))}"
                      aria-describedby="mf-hdd-base-hint">
               <div class="field-error" id="mf-hdd-base-msg" role="alert" hidden></div>
@@ -714,7 +714,7 @@ function heatLimitFieldsetHtml(u, existing, defaultBase) {
 function wireHeatLimitField(modalEl, u, existing) {
   const box = modalEl.querySelector('[data-role="heat-limit-suggestion"]');
   if (!box || !existing || u.reading_kind === 'delivery') return;
-  loadHeatLimit(u.key, existing.id).then(h => {
+  loadHeatLimit(u.key, existing.id, { fresh: true }).then(h => {
     if (!h?.suggest || !box.isConnected) return;
     box.innerHTML = `${escapeHtml(t('meters.heatLimit.suggest', { best: fmt.num(h.best, 1), now: fmt.pct(h.before?.ratio ?? h.current_ratio, 0), then: fmt.pct(h.after?.ratio ?? h.best_ratio, 0) }))}
       <button type="button" class="btn btn--sm btn--ghost" data-role="heat-limit-use">${escapeHtml(t('meters.heatLimit.use', { value: fmt.num(h.best, 1) }))}</button>`;

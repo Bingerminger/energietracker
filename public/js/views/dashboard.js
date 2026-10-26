@@ -440,8 +440,10 @@ export function buildTodo(events, recs, keep = () => true) {
   for (const e of due.filter(x => x.kind === 'heat_limit')) {
     const r = e.ref || {};
     const h = { best: r.best, current: r.current, own: r.own, range: r.range, before: r.before, after: r.after, effect: r.effect };
+    // je Satz eine Zeile (am Handy sonst ein Block): Zähler, vorher/nachher, Wirkung
+    const lines = [`${e.params?.label ?? ''} · ${e.params?.meter ?? ''}`, ...heatLimitFacts(h, r.unit || 'kWh'), ...heatLimitEffect(h)];
     items.push({ icon: '🌡️', tone: 'warn', text: t('heatLimit.title', { best: fmt.num(Number(r.best), 1) }),
-      sub: [`${e.params?.label ?? ''} · ${e.params?.meter ?? ''}`, ...heatLimitFacts(h, r.unit || 'kWh'), ...heatLimitEffect(h)].join(' '),
+      sub: lines.join(' '), subLines: lines,
       href: e.href, ev: e, action: t('dashboard.todo.heatLimitAction'), heatLimit: { ...h, utility: r.utility, id: r.meter_id, recId: r.recommendation_id } });
   }
   // Überfälliges zuerst
@@ -459,7 +461,8 @@ function todoItemsHtml(items, { go = true } = {}) {
   return items.map((x, i) => `<li class="dash-todo__item dash-todo__item--${x.tone}${x.ev?.can_mark_done ? ' dash-todo__item--check' : ''}">
     <a class="dash-todo__link" href="${x.href}">
       <span class="dash-todo__icon" aria-hidden="true">${escapeHtml(x.icon)}</span>
-      <span class="dash-todo__text"><strong>${escapeHtml(x.text)}</strong>${x.sub ? `<span class="muted">${escapeHtml(x.sub)}</span>` : ''}${x.ev ? chipHtml(x.ev) : ''}</span>
+      <span class="dash-todo__text"><strong>${escapeHtml(x.text)}</strong>${x.subLines ? x.subLines.map(s => `<span class="muted">${escapeHtml(s)}</span>`).join('')
+        : x.sub ? `<span class="muted">${escapeHtml(x.sub)}</span>` : ''}${x.ev ? chipHtml(x.ev) : ''}</span>
       ${go ? `<span class="btn btn--sm btn--ghost dash-todo__go">${escapeHtml(x.action)}</span>` : ''}
       <span class="dash-todo__chev" aria-hidden="true">›</span>
     </a>

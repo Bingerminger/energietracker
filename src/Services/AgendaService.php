@@ -301,10 +301,12 @@ final class AgendaService
             $u = (string)($ev['utility'] ?? '');
             $m = (string)($ev['meter_id'] ?? '');
             if ($u === '' || !Utilities::exists($u)) continue;
-            $events[] = $this->event('heat_limit', self::uid('heat_limit', $u, $m), $today, 'calendar.event.heatLimit',
+            // stabile Kennung je Zähler und vorgeschlagener Grenze (`heat_limit-gas-m_gas_main-10.5`): eine
+            // Benachrichtigung (Home Assistant) kommt einmal je Vorschlag, nicht mit jedem neuen Monat
+            $events[] = $this->event('heat_limit', self::uid('heat_limit', $u, $m, sprintf('%.1f', (float)($ev['best'] ?? 0))), $today, 'calendar.event.heatLimit',
                 ['label' => $this->i18n->utilityLabel($u), 'meter' => (string)($ev['meter'] ?? $m), 'best' => $this->i18n->number((float)($ev['best'] ?? 0), 1)],
-                // zur Verbrauchsart (dort Saldo-Karte mit demselben Hinweis; die Analyse ist ab Erfahren)
-                'due', true, '#/utility/' . rawurlencode($u),
+                // zur Verbrauchsart mit diesem Zähler (dort Saldo-Karte mit demselben Hinweis; die Analyse ist ab Erfahren)
+                'due', true, '#/utility/' . rawurlencode($u) . (empty($ev['is_group']) ? '?meter=' . rawurlencode($m) : ''),
                 ['utility' => $u, 'meter_id' => $m, 'recommendation_id' => (string)$r['id'], 'is_group' => !empty($ev['is_group']),
                  'best' => (float)($ev['best'] ?? 0), 'current' => (float)($ev['current'] ?? 0), 'own' => !empty($ev['own']),
                  'range' => $ev['range'] ?? null, 'unit' => (string)($ev['unit'] ?? ''),
