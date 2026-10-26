@@ -1355,7 +1355,7 @@
     "loading": "Laden…",
     "saved": "Instellingen opgeslagen",
     "lang": {
-      "title": "🌐 Taal en land / Language",
+      "title": "Taal en land / Language",
       "hint": "De taal geldt voor dit apparaat; zonder eigen keuze volgt het de standaardtaal van de installatie, die ook het jaarrapport, CSV-bestanden en Home Assistant bepaalt. Het land bepaalt de notatie van getallen en datums, de valuta en de tijdzone; bij een wijziging stelt de app passende standaardwaarden voor.",
       "saved": "Taal gewijzigd",
       "deviceLabel": "Taal op dit apparaat",
@@ -1635,18 +1635,18 @@
     },
     "boolActive": "aan",
     "activeUtils": {
-      "title": "🧩 Actieve verbruikssoorten",
+      "title": "Actieve verbruikssoorten",
       "hint": "Alleen aangevinkte verbruikssoorten verschijnen in de zijbalk, het dashboard en het jaarrapport. Gegevens van inactieve verbruikssoorten blijven behouden."
     },
     "pdf": {
-      "title": "📄 PDF-jaarrapport",
+      "title": "PDF-jaarrapport",
       "hint": "Rapport van meerdere pagina’s met overzicht, efficiëntieklasse, verbruikstabellen per verbruikssoort en openstaande aanbevelingen.",
       "year": "Jaar",
       "download": "Jaarrapport downloaden",
       "moved": "Het jaarverslag heeft nu een eigen pagina onder “Inzichten”."
     },
     "export": {
-      "title": "📤 Gegevensexport (CSV)",
+      "title": "Gegevensexport (CSV)",
       "hint": "Tabelexport voor Excel, LibreOffice of Google Sheets (UTF-8 met BOM). Vult de volledige JSON-back-up hieronder aan.",
       "monthly": "Maandoverzicht",
       "monthlyHint": "Verbruik, kosten, voorschot en saldo per maand.",
@@ -1663,7 +1663,7 @@
       "formatHint": "De tabel gebruikt kolomnamen, decimaalteken en datum van de standaardtaal en opent zo direct in Excel of LibreOffice. Formaat 1 blijft zoals het sinds versie 1.1 is: puntkomma, decimale komma, datum JJJJ-MM-DD. Beide kunnen weer worden geïmporteerd."
     },
     "backup": {
-      "title": "💾 Back-up en herstel",
+      "title": "Back-up en herstel",
       "hint": "Volledige JSON-back-up (formaat v3.0) — bevat alle verbruikssoorten, meters, contracten, temperaturen en instellingen, opnieuw importeerbaar.",
       "download": "JSON-back-up downloaden",
       "snapshot": "Momentopname opslaan",
@@ -1808,7 +1808,7 @@
       "appAdd": "Repository aan Home Assistant toevoegen"
     },
     "diag": {
-      "title": "🩺 Systeemdiagnose",
+      "title": "Systeemdiagnose",
       "appVersion": "App-versie",
       "schemaVersion": "Schemaversie",
       "phpVersion": "PHP-versie",
@@ -1862,7 +1862,7 @@
     "invalidFields": "Niet opgeslagen: corrigeer de rood gemarkeerde velden.",
     "dayMonthInvalid": "Voer in als dag-maand, bijv. 01-10 voor 1 oktober.",
     "security": {
-      "title": "🔐 Inloggen en toegang",
+      "title": "Inloggen en toegang",
       "hint": "Zonder inloggen kan iedereen die het adres kent de Energietracker bereiken – bedoeld voor je thuisnetwerk. Is hij van buitenaf bereikbaar (port forwarding, reverse proxy) of deel je het netwerk met anderen, zet inloggen dan aan.",
       "modeOff": "🔓 Zonder inloggen",
       "modePassword": "🔒 Inloggen met wachtwoord",
@@ -2085,9 +2085,7 @@
         "other": "{count} openstaande herinneringen zijn nu van jou."
       },
       "noAccess": "zonder toegang",
-      "hintOff": "Zonder inloggen zijn er geen accounts. Deze personen komen uit een back-up of een voorbeeldhuishouden en zijn te kiezen onder ‘Verantwoordelijk’; wie het adres bereikt, kan ze verwijderen.",
-      "deleteHintOff": "Zonder inloggen neemt bij het verwijderen niemand over: openstaande herinneringen, meters en contracten van de persoon blijven met ‘(verwijderd)’ staan tot iemand ze opnieuw toewijst; wat klaar is, houdt de naam. Het nummer van een persoon wordt nooit opnieuw gebruikt.",
-      "noAccessHint": "‘zonder toegang’: een persoon uit een back-up of een voorbeeldhuishouden. ‘Toegang aanmaken’ zet de naam bij ‘Persoon toevoegen’; met een wachtwoord wordt het een toegang met hetzelfde nummer, en de herinneringen en items blijven van die persoon.",
+      "noAccessHint": "‘zonder toegang’: een persoon uit Huishouden en gebouw, een back-up of een voorbeeldhuishouden. ‘Toegang aanmaken’ zet de naam bij ‘Persoon toevoegen’; met een wachtwoord wordt het een toegang met hetzelfde nummer, en de herinneringen en items blijven van die persoon.",
       "grant": "Toegang aanmaken",
       "deleteConfirmNoAccess": "Deze persoon is daarna niet meer te kiezen. De gegevens van het huishouden blijven.",
       "handoverNobody": {
@@ -2193,6 +2191,22 @@
       "pickModel": "Opgeslagen. Kies nu een model uit de lijst en schakel daarna in.",
       "saved": "Documenten uitlezen opgeslagen.",
       "modelLoad": "Modellen van de dienst laden"
+    },
+    "people": {
+      "title": "Personen in het huishouden",
+      "hint": "Wie in het huishouden meehelpt. Personen kies je bij ‘Verantwoordelijk’ voor herinneringen, meters en contracten. Inloggen hoeven ze daarvoor niet.",
+      "empty": "Nog geen personen. Voeg de eerste toe, dan kun je die persoon herinneringen, meters en contracten toewijzen.",
+      "emptyMember": "Nog geen personen.",
+      "add": "Nieuwe persoon",
+      "namePlaceholder": "Naam, bijv. Anna",
+      "added": "{name} staat nu bij ‘Verantwoordelijk’.",
+      "account": "met toegang",
+      "deleteLabel": "{name} verwijderen",
+      "accessHint": "Wie moet inloggen, krijgt onder Toegang een toegang. Personen met toegang beheer je daar.",
+      "accessHintOff": "Inloggen kan hiermee niemand. Eigen toegang is er pas als inloggen onder Toegang aan staat.",
+      "accessLink": "Toegang openen",
+      "movedHint": "Personen in het huishouden voeg je toe onder Huishouden en gebouw, ook zonder inloggen.",
+      "goto": "Naar de personen"
     }
   },
   "reminders": {
@@ -5443,7 +5457,7 @@
     "none": "– niemand –",
     "hintMeter": "Meterstanden, herinneringen bij deze meter en de contracten ervan gaan naar deze persoon als ze geen eigen verantwoordelijke hebben. Niemand krijgt een melding.",
     "hintContract": "Opzegtermijn, einde van het contract en ‘Rekening verwacht’ gaan naar deze persoon. Leeg = de persoon van de meter. Niemand krijgt een melding.",
-    "noPeople": "Personen voeg je toe onder Instellingen → Toegang.",
+    "noPeople": "Personen voeg je toe onder Instellingen → Huishouden en gebouw.",
     "via": {
       "contract": "via het contract",
       "meter": "via de meter"

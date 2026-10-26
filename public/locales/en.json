@@ -1355,7 +1355,7 @@
     "loading": "Loading…",
     "saved": "Settings saved",
     "lang": {
-      "title": "🌐 Language & country / Sprache",
+      "title": "Language & country / Sprache",
       "hint": "The language applies to this device; without a choice of its own it follows the installation's default language, which also sets the annual report, CSV files and Home Assistant. The country sets number and date formats, currency and time zone; when you change it, the app suggests matching defaults.",
       "saved": "Language changed",
       "deviceLabel": "Language on this device",
@@ -1635,18 +1635,18 @@
     },
     "boolActive": "on",
     "activeUtils": {
-      "title": "🧩 Active utilities",
+      "title": "Active utilities",
       "hint": "Only checked utilities appear in the sidebar, dashboard and annual report. Data of inactive utilities is kept."
     },
     "pdf": {
-      "title": "📄 PDF annual report",
+      "title": "PDF annual report",
       "hint": "Multi-page report with overview, efficiency class, consumption tables per utility and open recommendations.",
       "year": "Year",
       "download": "Download annual report",
       "moved": "The annual report now has its own page under “Insights”."
     },
     "export": {
-      "title": "📤 Data export (CSV)",
+      "title": "Data export (CSV)",
       "hint": "Tabular export for Excel, LibreOffice or Google Sheets (UTF-8 with BOM). Complements the full JSON backup below.",
       "monthly": "Monthly overview",
       "monthlyHint": "Consumption, cost, advance and balance per month.",
@@ -1663,7 +1663,7 @@
       "formatHint": "The spreadsheet uses column names, decimal mark and date of the default language, so it opens directly in Excel or LibreOffice. Format 1 stays as it has been since version 1.1: semicolon, decimal comma, date YYYY-MM-DD. Both can be imported again."
     },
     "backup": {
-      "title": "💾 Backup & restore",
+      "title": "Backup & restore",
       "hint": "Full JSON backup (format v3.0) — contains all utilities, meters, contracts, temperatures and settings, re-importable.",
       "download": "Download JSON backup",
       "snapshot": "Save snapshot",
@@ -1808,7 +1808,7 @@
       "appAdd": "Add the repository to Home Assistant"
     },
     "diag": {
-      "title": "🩺 System diagnostics",
+      "title": "System diagnostics",
       "appVersion": "App version",
       "schemaVersion": "Schema version",
       "phpVersion": "PHP version",
@@ -1862,7 +1862,7 @@
     "invalidFields": "Not saved: please correct the fields marked in red.",
     "dayMonthInvalid": "Please enter as day-month, e.g. 01-10 for 1 October.",
     "security": {
-      "title": "🔐 Sign-in & access",
+      "title": "Sign-in & access",
       "hint": "Without sign-in, anyone who knows the address can reach Energietracker – meant for your own home network. If it is reachable from outside (port forwarding, reverse proxy) or you share the network with others, switch sign-in on.",
       "modeOff": "🔓 No sign-in",
       "modePassword": "🔒 Password sign-in",
@@ -2085,9 +2085,7 @@
         "other": "{count} open reminders are now yours."
       },
       "noAccess": "no sign-in",
-      "hintOff": "Without sign-in there are no accounts. These people come from a backup or a sample household and can be chosen under “Responsible”; anyone who reaches the address may delete them.",
-      "deleteHintOff": "Without sign-in nobody takes over when deleting: the person’s open reminders, meters and contracts stay with “(deleted)” until someone reassigns them; completed items keep their name. A person’s number is never reused.",
-      "noAccessHint": "“no sign-in”: a person from a backup or a sample household. “Create account” enters their name under “Add a person”; with a password it becomes an account with the same number, and their reminders and entries stay with them.",
+      "noAccessHint": "“no sign-in”: a person from Household & building, a backup or a sample household. “Create account” enters their name under “Add a person”; with a password it becomes an account with the same number, and their reminders and entries stay with them.",
       "grant": "Create account",
       "deleteConfirmNoAccess": "This person will no longer be offered for selection. The household’s data stays.",
       "handoverNobody": {
@@ -2193,6 +2191,22 @@
       "pickModel": "Saved. Now pick a model from the list, then switch it on.",
       "saved": "Reading settings saved.",
       "modelLoad": "Load the service’s models"
+    },
+    "people": {
+      "title": "People in the household",
+      "hint": "Who helps in the household. People can be chosen under “Responsible” for reminders, meters and contracts. They don’t need to sign in for that.",
+      "empty": "No people yet. Add the first one, then you can assign reminders, meters and contracts to them.",
+      "emptyMember": "No people yet.",
+      "add": "New person",
+      "namePlaceholder": "Name, e.g. Anna",
+      "added": "{name} can now be chosen under “Responsible”.",
+      "account": "with sign-in",
+      "deleteLabel": "Delete {name}",
+      "accessHint": "Anyone who should sign in gets an account under Access. People with an account are managed there.",
+      "accessHintOff": "Nobody can sign in with this. Personal accounts are only available once sign-in is switched on under Access.",
+      "accessLink": "Open Access",
+      "movedHint": "You add people in the household under Household & building, also without sign-in.",
+      "goto": "Go to people"
     }
   },
   "reminders": {
@@ -5443,7 +5457,7 @@
     "none": "– nobody –",
     "hintMeter": "Readings, reminders on this meter and its contracts go to this person unless they have their own. Nobody is notified.",
     "hintContract": "The notice deadline, the end of the contract and “bill expected” go to this person. If empty, the meter’s person applies. Nobody is notified.",
-    "noPeople": "Add people under Settings → Access.",
+    "noPeople": "Add people under Settings → Household & building.",
     "via": {
       "contract": "via the contract",
       "meter": "via the meter"

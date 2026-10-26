@@ -31,7 +31,8 @@ use Energietracker\Services\SettingsService;
  *   PATCH  /api/session/me           → eigene Einstellungen {ui_level?, language?}
  *   POST   /api/session/me/password  → eigenes Passwort {current, password}
  *   GET    /api/users                → Personen (nur Verwalter)
- *   POST   /api/users                → {name, password, role}
+ *   POST   /api/users                → {name, password, role}; v3.9.0: {name, role?,
+ *                                    has_account: false} legt eine Person ohne Zugang an
  *   PATCH  /api/users/{id}           → {name?, role?, password?}
  *   DELETE /api/users/{id}           v3.4.0 (F1024): `?anonymize_activity=1` ersetzt
  *                                    den Namen im Verlauf durch „ehemalige Person"
@@ -315,6 +316,14 @@ final class SessionController
 
     public function createUser(Request $req): never
     {
+        // v3.9.0 — `has_account: false`: eine Person ohne Zugang, nur ins Verzeichnis
+        // (Name, Rolle; kein Passwort). Sie steht unter „Zuständig“ zur Wahl, auch ohne
+        // Anmeldung. Rechte wie jede Route unter /api/users (App::adminOnly).
+        if (is_array($req->body) && ($req->body['has_account'] ?? null) === false && $this->people !== null) {
+            $p = $this->userCall(fn() => $this->people->add((string)$req->input('name', ''), (string)$req->input('role', 'member')));
+            Response::json(['id' => $p['id'], 'name' => $p['name'], 'role' => $p['role'], 'source' => 'none', 'prefs' => (object)[],
+                            'created_at' => $p['created_at'], 'no' => $p['no'], 'has_account' => false], 201);
+        }
         $user = $this->userCall(fn() => $this->auth->createUser((string)$req->input('name', ''),
             (string)$req->input('password', ''), (string)$req->input('role', 'member')));
         // v3.6.0 — gleich ins Personenverzeichnis (Nummer in der Antwort, additiv)

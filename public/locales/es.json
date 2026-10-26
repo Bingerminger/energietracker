@@ -1355,7 +1355,7 @@
     "loading": "Cargando…",
     "saved": "Ajustes guardados",
     "lang": {
-      "title": "🌐 Idioma y país / Language",
+      "title": "Idioma y país / Language",
       "hint": "El idioma se aplica a este dispositivo; sin una elección propia, sigue el idioma predeterminado de la instalación, que también determina el informe anual, los archivos CSV y Home Assistant. El país define el formato de números y fechas, la moneda y la zona horaria; al cambiarlo, la aplicación propone valores adecuados.",
       "saved": "Idioma cambiado",
       "deviceLabel": "Idioma en este dispositivo",
@@ -1635,18 +1635,18 @@
     },
     "boolActive": "activado",
     "activeUtils": {
-      "title": "🧩 Suministros activos",
+      "title": "Suministros activos",
       "hint": "Solo los suministros marcados aparecen en la barra lateral, el panel y el informe anual. Los datos de los suministros inactivos se conservan."
     },
     "pdf": {
-      "title": "📄 Informe anual PDF",
+      "title": "Informe anual PDF",
       "hint": "Informe de varias páginas con resumen, clase de eficiencia, tablas de consumo por suministro y recomendaciones en curso.",
       "year": "Año",
       "download": "Descargar el informe anual",
       "moved": "El informe anual tiene ahora su propia página en «Evaluaciones»."
     },
     "export": {
-      "title": "📤 Exportación de datos (CSV)",
+      "title": "Exportación de datos (CSV)",
       "hint": "Exportación en tabla para Excel, LibreOffice o Google Sheets (UTF-8 con BOM). Complementa la copia de seguridad JSON completa de más abajo.",
       "monthly": "Resumen mensual",
       "monthlyHint": "Consumo, coste, anticipo y saldo por mes.",
@@ -1663,7 +1663,7 @@
       "formatHint": "La tabla usa los nombres de columna, el separador decimal y la fecha del idioma predeterminado y se abre así directamente en Excel o LibreOffice. El formato 1 sigue como desde la versión 1.1: punto y coma, coma decimal, fecha AAAA-MM-DD. Ambos se pueden volver a importar."
     },
     "backup": {
-      "title": "💾 Copia de seguridad y restauración",
+      "title": "Copia de seguridad y restauración",
       "hint": "Copia de seguridad JSON completa (formato v3.0) — contiene todos los suministros, contadores, contratos, temperaturas y ajustes, reimportable.",
       "download": "Descargar copia de seguridad JSON",
       "snapshot": "Guardar instantánea",
@@ -1808,7 +1808,7 @@
       "appAdd": "Añadir el repositorio a Home Assistant"
     },
     "diag": {
-      "title": "🩺 Diagnóstico del sistema",
+      "title": "Diagnóstico del sistema",
       "appVersion": "Versión de la app",
       "schemaVersion": "Versión del esquema",
       "phpVersion": "Versión de PHP",
@@ -1862,7 +1862,7 @@
     "invalidFields": "No guardado: corrige los campos marcados en rojo.",
     "dayMonthInvalid": "Introduce día-mes, p. ej. 01-10 para el 1 de octubre.",
     "security": {
-      "title": "🔐 Inicio de sesión y acceso",
+      "title": "Inicio de sesión y acceso",
       "hint": "Sin inicio de sesión, cualquiera que conozca la dirección puede acceder a Energietracker – pensado para tu red doméstica. Si es accesible desde fuera (redirección de puertos, proxy inverso) o compartes la red con otros, activa el inicio de sesión.",
       "modeOff": "🔓 Sin inicio de sesión",
       "modePassword": "🔒 Inicio de sesión con contraseña",
@@ -2085,9 +2085,7 @@
         "other": "{count} recordatorios abiertos ahora son tuyos."
       },
       "noAccess": "sin acceso",
-      "hintOff": "Sin inicio de sesión no hay cuentas. Estas personas proceden de una copia de seguridad o de un hogar de ejemplo y se pueden elegir en «Responsable»; quien llega a la dirección puede eliminarlas.",
-      "deleteHintOff": "Sin inicio de sesión nadie se hace cargo al eliminar: los recordatorios abiertos, contadores y contratos de la persona quedan con «(perfil eliminado)» hasta que alguien los reasigne; lo hecho conserva su nombre. El número de una persona nunca se vuelve a asignar.",
-      "noAccessHint": "«sin acceso»: una persona de una copia de seguridad o de un hogar de ejemplo. «Crear acceso» pone su nombre en «Añadir una persona»; con una contraseña se convierte en un acceso con el mismo número, y sus recordatorios y entradas siguen siendo suyos.",
+      "noAccessHint": "«sin acceso»: una persona de Hogar y edificio, de una copia de seguridad o de un hogar de ejemplo. «Crear acceso» pone su nombre en «Añadir una persona»; con una contraseña se convierte en un acceso con el mismo número, y sus recordatorios y entradas siguen siendo suyos.",
       "grant": "Crear acceso",
       "deleteConfirmNoAccess": "Esta persona ya no se ofrecerá para elegir. Los datos del hogar se conservan.",
       "handoverNobody": {
@@ -2193,6 +2191,22 @@
       "pickModel": "Guardado. Elige ahora un modelo de la lista y actívalo después.",
       "saved": "Lectura de documentos guardada.",
       "modelLoad": "Cargar los modelos del servicio"
+    },
+    "people": {
+      "title": "Personas del hogar",
+      "hint": "Quién ayuda en el hogar. Las personas se pueden elegir en «Responsable» para recordatorios, contadores y contratos. No necesitan iniciar sesión para ello.",
+      "empty": "Todavía no hay personas. Añade la primera y luego podrás asignarle recordatorios, contadores y contratos.",
+      "emptyMember": "Todavía no hay personas.",
+      "add": "Nueva persona",
+      "namePlaceholder": "Nombre, p. ej. Anna",
+      "added": "{name} ya aparece en «Responsable».",
+      "account": "con acceso",
+      "deleteLabel": "Eliminar a {name}",
+      "accessHint": "Quien deba iniciar sesión recibe un acceso en Acceso. Las personas con acceso se gestionan allí.",
+      "accessHintOff": "Con esto nadie puede iniciar sesión. Los accesos propios solo existen cuando el inicio de sesión está activado en Acceso.",
+      "accessLink": "Abrir Acceso",
+      "movedHint": "Las personas del hogar se añaden en Hogar y edificio, también sin inicio de sesión.",
+      "goto": "Ir a las personas"
     }
   },
   "reminders": {
@@ -5443,7 +5457,7 @@
     "none": "– nadie –",
     "hintMeter": "Las lecturas, los recordatorios de este contador y sus contratos van a esta persona si no tienen responsable propio. No se avisa a nadie.",
     "hintContract": "El plazo de cancelación, el fin del contrato y «Factura esperada» van a esta persona. Si está vacío, se aplica la persona del contador. No se avisa a nadie.",
-    "noPeople": "Añade personas en Ajustes → Acceso.",
+    "noPeople": "Añade personas en Ajustes → Hogar y edificio.",
     "via": {
       "contract": "a través del contrato",
       "meter": "a través del contador"

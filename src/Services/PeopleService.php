@@ -138,6 +138,45 @@ final class PeopleService
     // ── Schreiben ────────────────────────────────────────────────────────
 
     /**
+     * v3.9.0 — Person ohne Zugang anlegen (Einstellungen → Haushalt & Gebäude,
+     * Karte „Personen im Haushalt“): Sie steht unter „Zuständig“ zur Wahl, auch
+     * ganz ohne Anmeldung. Anmelden kann sie sich nicht; ein späterer Zugang mit
+     * demselben Namen übernimmt ihre ID und Nummer (adoptableId). Dieselben
+     * Regeln wie beim Umbenennen: 1–40 Zeichen, eindeutig unter allen Personen.
+     *
+     * @return array{id:string, no:int, name:string, role:string, created_at:string}
+     * @throws \InvalidArgumentException name_invalid | name_taken (Zugang) |
+     *         name_taken_person (Person ohne Zugang) | role_invalid
+     */
+    public function add(string $name, string $role = 'member'): array
+    {
+        $name = trim(preg_replace('/\s+/u', ' ', $name) ?? '');
+        if ($name === '' || mb_strlen($name) > self::NAME_ACCOUNT_MAX || preg_match('/[\x00-\x1F\x7F]/u', $name)) {
+            throw new \InvalidArgumentException('name_invalid');
+        }
+        if (!in_array($role, self::ROLES, true)) throw new \InvalidArgumentException('role_invalid');
+        $this->all();   // Bestand erst ins Verzeichnis (Zugänge mit Nummer)
+        $this->store->lock();
+        $reg = self::normalize($this->store->read(self::FILE, []));
+        $accountIds = array_map(fn($a) => (string)($a['id'] ?? ''), $this->accounts === null ? [] : ($this->accounts)());
+        $key = mb_strtolower($name);
+        $ids = [];
+        foreach ($reg['people'] as $p) {
+            $ids[$p['id']] = true;
+            if ($p['deleted_at'] === null && mb_strtolower($p['name']) === $key) {
+                throw new \InvalidArgumentException(in_array($p['id'], $accountIds, true) ? 'name_taken' : 'name_taken_person');
+            }
+        }
+        // zufällig wie ein Zugang (AuthService::newUserId), nie eine schon vergebene — auch keine gelöschte
+        do { $id = 'u_' . bin2hex(random_bytes(4)); } while (isset($ids[$id]) || in_array($id, $accountIds, true));
+        $p = ['id' => $id, 'no' => ++$reg['last_no'], 'name' => $name, 'role' => $role,
+              'created_at' => date('c'), 'deleted_at' => null, 'deleted_by' => null];
+        $reg['people'][] = $p;
+        $this->store->write(self::FILE, $reg);
+        return ['id' => $p['id'], 'no' => $p['no'], 'name' => $p['name'], 'role' => $p['role'], 'created_at' => $p['created_at']];
+    }
+
+    /**
      * Person als gelöscht vermerken (der Eintrag bleibt, die Nummer auch).
      * Eine Person, die noch nicht im Verzeichnis stand, kommt als gelöschte
      * hinein (sie hat eine Nummer gehabt, nur nie eine gesehen).

@@ -121,6 +121,20 @@
   --sidebar-w:   220px;
   --content-max: 1400px;
   --transition:  150ms ease-out;
+
+  /* ── Illustrationen und Schaltbilder (v3.9.0) ───────────────────────
+     Eine Grundlage für Inline-SVG (lib/illustrations.js, Klassen .ill-* in
+     components.css): Strich in Textfarbe, Betonung im Akzent, Flächen leicht
+     getönt. Abgeleitet aus den Themen-Variablen, daher hell und dunkel ohne
+     eigene Werte. Strichstärken in CSS-Pixeln (vector-effect: non-scaling-stroke). */
+  --ill-line:    var(--text-2);                                      /* Kontur */
+  --ill-ink:     var(--text-1);                                      /* Betonung, Beschriftung */
+  --ill-accent:  var(--accent);                                      /* das, worum es geht */
+  --ill-fill:    color-mix(in srgb, var(--accent) 14%, transparent); /* getönte Fläche */
+  --ill-surface: var(--bg-2);                                        /* Gerät, Zähler, Blatt */
+  --ill-ground:  var(--border-2);                                    /* Boden, Leitung im Hintergrund */
+  --ill-stroke:  1.5px;
+  --ill-stroke-strong: 2px;
 }
 
 /* Die [data-utility="…"]-Bindungen erzeugt utility-theme.js zur Laufzeit für

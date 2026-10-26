@@ -2007,6 +2007,62 @@ a.icon-btn { display: inline-flex; align-items: center; justify-content: center;
 .settings-level-list { margin: var(--sp-2) 0 var(--sp-3); padding-left: var(--sp-4); display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-sm); }
 .settings-subtitle { font-size: var(--fs-md, 15px); margin: var(--sp-4) 0 var(--sp-2); }
 
+/* ── v3.9.0 (Paket oberflaeche) — Personen im Haushalt ─────────────────
+   Liste mit Name, Nummer und Aktionen; am Telefon rutschen die Aktionen unter
+   den Namen. Anlegen: ein Feld und ein Knopf in einer Zeile (gleich hoch über
+   --control-h). */
+.people-list { list-style: none; margin: 0 0 var(--sp-3); padding: 0; border-top: 1px solid var(--border-1); }
+.people-list__item {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-2) var(--sp-3);
+  padding: var(--sp-2) 0; border-bottom: 1px solid var(--border-1);
+}
+.people-list__who { min-width: 0; overflow-wrap: anywhere; }
+.people-list__name { font-weight: 600; }
+.people-list__actions { display: inline-flex; flex-wrap: wrap; gap: var(--sp-2); margin-left: auto; }
+.people-add { display: flex; align-items: flex-end; gap: var(--sp-2); margin: 0 0 var(--sp-2); }
+.people-add .field { flex: 1 1 12rem; margin-bottom: 0; }
+.people-add .btn { min-height: var(--control-h); flex: none; }
+/* Benutzer und Rechte: Rollenauswahl schrumpft nicht auf ihren Pfeil, Aktionen umbrechen */
+.users-table .select { min-width: 8.5rem; }
+.users-table .row-actions { flex-wrap: wrap; }
+
+/* ── v3.9.0 (Paket oberflaeche) — Illustrationen (lib/illustrations.js) ──
+   Gemeinsame Grundlage für Zeichnungen der Ersteinrichtung und die Schaltbilder
+   des Assistenten „Messkonzept“: Strichzeichnung wie die Piktogramme des
+   Energieflusses (.ef-ico), Farben aus den Tokens, hell und dunkel über die
+   Themen-Variablen. Die Variablen stehen in tokens.css (--ill-*). */
+.ill { display: block; width: 100%; height: auto; overflow: visible; color: var(--ill-line); }
+.ill * { vector-effect: non-scaling-stroke; }
+.ill .ill-line   { fill: none; stroke: var(--ill-line); stroke-width: var(--ill-stroke); stroke-linecap: round; stroke-linejoin: round; }
+.ill .ill-ink    { fill: none; stroke: var(--ill-ink); stroke-width: var(--ill-stroke-strong); stroke-linecap: round; stroke-linejoin: round; }
+.ill .ill-accent { fill: none; stroke: var(--ill-accent); stroke-width: var(--ill-stroke-strong); stroke-linecap: round; stroke-linejoin: round; }
+.ill .ill-fill   { fill: var(--ill-fill); stroke: none; }
+.ill .ill-face   { fill: var(--ill-surface); stroke: var(--ill-line); stroke-width: var(--ill-stroke); stroke-linejoin: round; }
+.ill .ill-ground { fill: none; stroke: var(--ill-ground); stroke-width: var(--ill-stroke); stroke-linecap: round; }
+.ill .ill-dot    { fill: var(--ill-accent); stroke: none; }
+.ill .ill-text   { fill: var(--ill-ink); font-family: var(--font-mono); font-size: 9px; stroke: none; }
+/* Farbe einer Verbrauchsart: --c am Element, Rückfall der Akzent (wie .ef-c-*) */
+.ill .ill-util   { fill: none; stroke: var(--c, var(--ill-accent)); stroke-width: var(--ill-stroke-strong); stroke-linecap: round; stroke-linejoin: round; }
+.ill .ill-util-fill { fill: color-mix(in srgb, var(--c, var(--ill-accent)) 16%, transparent); stroke: none; }
+.ill-c-strom   { --c: var(--util-strom, var(--info)); }
+.ill-c-gas     { --c: var(--util-gas, var(--warning)); }
+.ill-c-wasser  { --c: var(--util-wasser, var(--info)); }
+.ill-c-waerme  { --c: var(--util-waerme, var(--danger)); }
+.ill-c-pv      { --c: var(--util-pv_erzeugung, var(--warning)); }
+.ill-c-feed    { --c: var(--util-pv_einspeisung, var(--success)); }
+/* Ersteinrichtung: kleines Bild neben der Frage, am Telefon darüber */
+.setup__head { display: flex; align-items: center; gap: var(--sp-4); }
+.setup__art { flex: none; width: 112px; }
+.setup__lead { display: flex; flex-direction: column; gap: var(--sp-2); min-width: 0; }
+.setup__lead > p { margin: 0; }
+.setup-choice__art { flex: none; width: 40px; height: 40px; }
+.setup-choice__art .ill { width: 40px; height: 40px; }
+@media (max-width: 480px) {
+  .setup__head { gap: var(--sp-3); }
+  .setup__art { width: 76px; }
+}
+@media print { .setup__art { display: none; } }
+
 /* v3.4.0 (N1020) — Sicherheits-Check unter Einstellungen → Zugriff und System */
 .security-check { list-style: none; margin: var(--sp-2) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
 /* v3.5.1 — arbeitende Knöpfe (guardSubmit, Abrufe) zeigen ein drehendes Rad;
