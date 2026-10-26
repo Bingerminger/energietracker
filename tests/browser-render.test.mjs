@@ -1093,6 +1093,14 @@ async function renderView(modPath, params = [], ctx = {}) {
     // Methode übersetzt statt des API-Rohwerts blend(reg=…, seasonal=…)
     const tableText = view.textContent || '';
     t('forecast: Methode lesbar', /Mischung: \d+\s%\sHeizkurve/.test(tableText) && !/blend\(reg=/.test(tableText));
+    // v3.9.0 (L4) — „Anteil Heizkurve“ ist der wirksame Anteil (blend_effective), nicht das Gewicht nach Modellgüte
+    const fu8 = view.querySelector('#util-select')?.value || 'gas', fm8 = view.querySelector('#meter-select')?.value;
+    const fc8 = fm8 ? (await (await fetch(`${HOST}/api/utility/${fu8}/meters/${fm8}/forecast`)).json()).data : null;
+    const { fmt: fmt8 } = await import(`${ROOT}/lib/format.js`);
+    t('forecast: Anteil Heizkurve = wirksamer Anteil (L4)', !!fc8 && typeof fc8.blend_effective === 'number'
+      && info.includes(`Anteil Heizkurve: ${fmt8.num(fc8.blend_effective * 100, 1)}`)
+      && (fc8.blend_effective === fc8.blend_weight || !info.includes(`Anteil Heizkurve: ${fmt8.num(fc8.blend_weight * 100, 1)}`)),
+      `${fc8?.blend_effective} / ${fc8?.blend_weight} | ${info.slice(0, 160)}`);
   } catch (e) { t('forecast: render', false, e.message); }
 
   // ── 8b. v3.6.0 (F1031) — Prognose-Werkstatt ──
@@ -2950,8 +2958,8 @@ async function renderView(modPath, params = [], ctx = {}) {
     const futRow = [...fg.view.querySelectorAll('.contracts-table tr')].find(r => r.textContent.includes('Künftig Testgas'));
     const futText = futRow?.textContent.replace(/\s+/g, ' ') || '';
     t('L15: künftiger Vertrag mit Arbeitspreis und Abschlag seines Beginns, Saldo mit ≈ und Legende', !!futRow && /9,87/.test(futText) && /111/.test(futText)
-      && (!futRow.querySelector('[data-role="expected-future"]') || /≈/.test(futRow.querySelector('[data-role="expected-future"]').textContent))
-      && (!futRow.querySelector('[data-role="expected-future"]') || !!fg.view.querySelector('[data-role="future-legend"]')), futText.slice(0, 300));
+      && /≈/.test(futRow.querySelector('[data-role="expected-future"]')?.textContent || '')
+      && !!fg.view.querySelector('[data-role="future-legend"]'), futText.slice(0, 300));
     if (fut?.id) await fetch(`${HOST}/api/utility/gas/contracts/${fut.id}`, { method: 'DELETE' });
 
     // ── wirklichkeit-2 (Punkt 1) — Heizgrenze-Vorschlag: ein Zähler, der genau unter 10,5 °C heizt ──
