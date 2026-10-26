@@ -209,6 +209,9 @@ t('… ohne offene Termine', P.handoverText({ to: { name: 'Thomas' }, open: 0, d
   t('Zugriff (Verwalter): Nummer und Hinweis zum Löschen', [...view.querySelectorAll('[data-role="person-no"]')].map(e => e.textContent).join() === 'Nr. 1,Nr. 4'
     && !!view.querySelector('[data-role="users-delete-hint"]'));
   t('Zugriff mit Anmeldung: kein Hinweis „Anmeldung einschalten“', !view.querySelector('[data-role="users-login-needed"]'));
+  // v3.9.0 — am iPhone schob die Tabelle die Seite auf 415 px (kein Scrollrahmen)
+  t('Zugriff: Benutzertabelle im Scrollrahmen, Aktionsspalte benannt', view.querySelector('.users-table')?.parentElement?.classList.contains('table-wrap')
+    && view.querySelector('.users-table thead th:last-child .sr-only')?.textContent === 'Aktionen');
   root.innerHTML = '';
   view.querySelector('[data-user-delete="u_lukas"]').dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
   for (let i = 0; i < 20 && !root.querySelector('[data-role="handover"]'); i++) await new Promise(r => setTimeout(r, 20));
@@ -271,22 +274,67 @@ t('… ohne offene Termine', P.handoverText({ to: { name: 'Thomas' }, open: 0, d
   miaRow.querySelector('[data-user-grant]')?.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
   t('„Zugang anlegen“ trägt Name und Rolle unter „Person hinzufügen“ ein',
     view.querySelector('#user-new-name')?.value === 'Mia' && view.querySelector('#user-new-role')?.value === 'admin');
-  // ohne Anmeldung: Karte nur mit Personen, bedienbar wie jede Einstellung, Hinweis „niemand übernimmt“
+  // v3.9.0 — Personen im Haushalt (Haushalt & Gebäude): mit Anmeldung die Zugänge mit Vermerk und
+  // ohne Knöpfe (verwaltet unter Zugriff), Personen ohne Zugang mit „Umbenennen“ und „Person löschen“
+  await Settings.render(view, ['household']);
+  const card = view.querySelector('#people-card');
+  t('Haushalt: Karte „Personen im Haushalt“ mit allen Personen', !!card
+    && [...card.querySelectorAll('.people-list__name')].map(e => e.textContent).join() === 'admin,Lukas,Mia');
+  t('Haushalt: Zugänge mit Vermerk und ohne Knöpfe, Personen ohne Zugang bedienbar',
+    card.querySelectorAll('[data-role="has-account"]').length === 2 && !card.querySelector('[data-person-delete="u_admin"]')
+      && !!card.querySelector('[data-person-delete="u_mia"]') && !!card.querySelector('[data-person-rename="u_mia"]'));
+  t('Haushalt: Knöpfe mit Namen für den Bildschirmleser', card.querySelector('[data-person-delete="u_mia"]')?.getAttribute('aria-label') === 'Mia löschen'
+    && card.querySelector('[data-person-rename="u_mia"]')?.getAttribute('aria-label') === 'Mia umbenennen');
+  t('Haushalt: Anlegen mit beschriftetem Feld, Verweis auf Zugriff', card.querySelector('label[for="people-new-name"]')?.textContent === 'Neue Person'
+    && card.querySelector('[data-role="people-access-hint"] a')?.getAttribute('href') === '#/settings/access');
+  writes.length = 0;
+  card.querySelector('#people-new-name').value = '  Tim ';
+  card.querySelector('form[data-role="people-form"]').dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true }));
+  for (let i = 0; i < 20 && !writes.length; i++) await new Promise(r => setTimeout(r, 10));
+  t('Haushalt: „Hinzufügen“ legt eine Person ohne Zugang an', writes[0] === 'POST /api/users {"name":"Tim","has_account":false}', writes.join(' · '));
+  for (let i = 0; i < 30 && document.activeElement?.id !== 'people-new-name'; i++) await new Promise(r => setTimeout(r, 10));
+  t('Haushalt: danach steht der Fokus wieder im Namensfeld', document.activeElement?.id === 'people-new-name');
+  root.innerHTML = '';
+  view.querySelector('[data-person-rename="u_mia"]').dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  t('Haushalt: „Umbenennen“ öffnet denselben Dialog wie unter Zugriff', root.querySelector('#user-rename')?.value === 'Mia');
+  root.innerHTML = '';
+
+  // ohne Anmeldung: Zugriff zeigt nur den Hinweis zur Anmeldung und den Weg zu den Personen;
+  // die Personen selbst bedient die Karte unter Haushalt & Gebäude (wie jede Einstellung)
   session = { mode: 'off', authenticated: true, user: null, role: 'admin' };
   const withAccounts = users.splice(0, users.length, users.at(-1));
   await Settings.render(view, ['access']);
-  t('ohne Anmeldung: Personen ohne Zugang löschbar, ohne „Zugang anlegen“',
-    !!view.querySelector('[data-user-delete="u_mia"]') && !view.querySelector('[data-user-grant]')
-      && view.querySelector('[data-role="users-delete-hint"]')?.textContent.includes('übernimmt beim Löschen niemand'));
-  t('ohne Anmeldung: Hinweis, dass Zugänge erst mit der Anmeldung entstehen, mit Knopf',
-    view.querySelector('[data-role="users-login-needed"]')?.textContent.includes('sobald die Anmeldung eingeschaltet ist')
+  t('ohne Anmeldung: Zugriff ohne Personenliste, mit Hinweis und Knopf zur Anmeldung',
+    !view.querySelector('[data-user-delete]') && !view.querySelector('[data-user-grant]')
+      && view.querySelector('[data-role="users-login-needed"]')?.textContent.includes('sobald die Anmeldung eingeschaltet ist')
       && !!view.querySelector('[data-role="users-enable-login"]'));
+  t('ohne Anmeldung: Zugriff verweist auf die Personen unter Haushalt & Gebäude',
+    view.querySelector('[data-role="users-people-moved"] a')?.getAttribute('href') === '#/settings/household?field=person_name');
+  await Settings.render(view, ['household']);
+  t('ohne Anmeldung: Haushalt mit Person ohne Zugang, bedienbar, ohne Vermerk „mit Zugang“',
+    !!view.querySelector('[data-person-delete="u_mia"]') && !view.querySelector('[data-role="has-account"]')
+      && view.querySelector('[data-role="people-access-hint"]')?.textContent.includes('Anmelden kann sich damit niemand'));
   users.splice(0, users.length);
+  await Settings.render(view, ['household']);
+  t('ohne Anmeldung und ohne Personen: Leerzustand mit Einladung und Feld zum Anlegen',
+    view.querySelector('[data-role="people-empty"]')?.textContent.includes('Leg die erste an') && !!view.querySelector('#people-new-name'));
   await Settings.render(view, ['access']);
   t('ohne Anmeldung und ohne Personen: Karte nur mit dem Hinweis zur Anmeldung',
     !view.querySelector('[data-role="users-delete-hint"]')
       && !!view.querySelector('[data-role="users-login-needed"]') && !!view.querySelector('[data-role="users-enable-login"]'));
+  // Mitglied (mit Anmeldung): nur die Namen aus GET /api/people, kein Anlegen
   users.push(...withAccounts);
+  session = { mode: 'password', authenticated: true, user: { id: 'u_lukas', name: 'Lukas', role: 'member' }, role: 'member' };
+  const fetchAdmin = global.fetch;
+  global.fetch = async (url, init = {}) => String(url).includes('/api/people')
+    ? new Response(JSON.stringify({ success: true, data: [{ id: 'u_lukas', name: 'Lukas' }, { id: 'u_mia', name: 'Mia' }] }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+    : fetchAdmin(url, init);
+  await Settings.render(view, ['household']);
+  t('Mitglied: Namen ohne Knöpfe und ohne Feld, Hinweis „nur, wer verwaltet“',
+    [...view.querySelectorAll('.people-list__name')].map(e => e.textContent).join() === 'Lukas,Mia'
+      && !view.querySelector('[data-person-delete], #people-new-name')
+      && view.querySelector('[data-role="people-access-hint"]')?.textContent.includes('nur, wer verwaltet'));
+  global.fetch = fetchAdmin;
   t('Dialog ohne löschende Person: niemand übernimmt', P.handoverText({ to: null, open: 2, done: 0 })[0].includes('bleiben bei der Person'));
   global.fetch = async (url, init = {}) => {
     const u = String(url);
@@ -339,9 +387,10 @@ console.log('Zähler und Verträge (v3.7.0)');
     && JSON.stringify(S.personPayload(g, gone)) === '{}');
   box.innerHTML = S.personSelectHtml({ id: 'x', record: former, people: [] });
   const f = box.querySelector('select');
-  t('„ehemalige Person“ bleibt stehen; ohne Personen der Hinweis auf Zugriff',
+  // v3.9.0 — Personen legt man unter Haushalt & Gebäude an (auch ohne Anmeldung), nicht mehr unter Zugriff
+  t('„ehemalige Person“ bleibt stehen; ohne Personen der Hinweis auf Haushalt & Gebäude',
     f.selectedOptions[0].textContent === 'ehemalige Person' && JSON.stringify(S.personPayload(f, former)) === '{}'
-      && box.textContent.includes('Einstellungen → Zugriff'));
+      && box.textContent.includes('Einstellungen → Haushalt & Gebäude'));
 
   t('Termin: Zähler an den Server', JSON.stringify(R.meterPayload('strom|m_strom_haus')) === '{"utility":"strom","meter_id":"m_strom_haus"}'
     && JSON.stringify(R.meterPayload('')) === '{"meter_id":null}');

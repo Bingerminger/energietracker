@@ -95,7 +95,8 @@
       "tankLevel": "Peilstand {utility}",
       "reminder": "Termin anlegen",
       "inbox": "Versorgerpost ablegen",
-      "inboxHint": "PDF aus Dateien oder Mail"
+      "inboxHint": "PDF aus Dateien oder Mail",
+      "reminderHint": "Wartung, Eichfrist oder Ablesung"
     },
     "sectionNav": "Seiten dieses Bereichs",
     "menu": "Menü",
@@ -1355,7 +1356,7 @@
     "loading": "Lädt …",
     "saved": "Einstellungen gespeichert",
     "lang": {
-      "title": "🌐 Sprache & Land / Language",
+      "title": "Sprache & Land / Language",
       "hint": "Die Sprache gilt für dieses Gerät; ohne eigene Wahl folgt es der Standardsprache der Installation, die auch Jahresbericht, CSV-Dateien und Home Assistant bestimmt. Das Land legt Zahlen- und Datumsformat, Währung und Zeitzone fest; beim Wechsel schlägt die App passende Voreinstellungen vor.",
       "saved": "Sprache geändert",
       "deviceLabel": "Sprache auf diesem Gerät",
@@ -1454,7 +1455,7 @@
       "contract_remind_days_1": { "label": "Stufe 1 — Vorwarnung" },
       "contract_remind_days_2": { "label": "Stufe 2 — Erinnerung" },
       "contract_remind_days_3": { "label": "Stufe 3 — dringend" },
-      "wasser_personen_anzahl": { "label": "Personen im Haushalt", "hint": "Für den Wasser-Spar-Index: Liter je Person und Tag im Vergleich zur Referenz." },
+      "wasser_personen_anzahl": { "label": "Anzahl der Personen", "hint": "Für den Wasser-Spar-Index: Liter je Person und Tag im Vergleich zur Referenz." },
       "wasser_personen_referenz": { "label": "Referenz", "hint": "BDEW 2024: 122 L je Person und Tag." },
       "wasser_sparindex_gut": { "label": "Spar-Index — gut bis", "hint": "Index ≤ diesem Wert gilt als unauffällig." },
       "wasser_sparindex_warnung": { "label": "Spar-Index — Warnung ab", "hint": "Index ≥ diesem Wert zeigt Sparpotenzial an." },
@@ -1635,18 +1636,18 @@
     },
     "boolActive": "aktiv",
     "activeUtils": {
-      "title": "🧩 Aktive Verbrauchsarten",
+      "title": "Aktive Verbrauchsarten",
       "hint": "Nur angehakte Verbrauchsarten erscheinen in Sidebar, Dashboard und Jahresbericht. Daten inaktiver Arten bleiben erhalten."
     },
     "pdf": {
-      "title": "📄 PDF-Jahresbericht",
+      "title": "PDF-Jahresbericht",
       "hint": "Mehrseitiger Bericht mit Übersicht, Effizienzklasse, Verbrauchstabellen je Verbrauchsart und offenen Empfehlungen.",
       "year": "Jahr",
       "download": "Jahresbericht herunterladen",
       "moved": "Der Jahresbericht hat jetzt eine eigene Seite unter „Auswertungen“."
     },
     "export": {
-      "title": "📤 Datenexport (CSV)",
+      "title": "Datenexport (CSV)",
       "hint": "Tabellarischer Export für Excel, LibreOffice oder Google Sheets (UTF-8 mit BOM). Ergänzt das vollständige JSON-Backup weiter unten.",
       "monthly": "Monatsübersicht",
       "monthlyHint": "Verbrauch, Kosten, Abschlag und Saldo je Monat.",
@@ -1663,7 +1664,7 @@
       "formatHint": "Die Tabelle nutzt Spaltennamen, Dezimalzeichen und Datum der Standardsprache und öffnet sich so direkt in Excel oder LibreOffice. Format 1 bleibt, wie es seit Version 1.1 ist: Semikolon, Dezimalkomma, Datum JJJJ-MM-TT. Beide lassen sich wieder importieren."
     },
     "backup": {
-      "title": "💾 Backup & Wiederherstellung",
+      "title": "Backup & Wiederherstellung",
       "hint": "Vollständiges JSON-Backup (Format v3.0) — enthält alle Verbrauchsarten, Zähler, Verträge, Temperaturen und Einstellungen, wieder importierbar.",
       "download": "JSON-Backup herunterladen",
       "snapshot": "Snapshot speichern",
@@ -1808,7 +1809,7 @@
       "appAdd": "Repository zu Home Assistant hinzufügen"
     },
     "diag": {
-      "title": "🩺 System-Diagnose",
+      "title": "System-Diagnose",
       "appVersion": "App-Version",
       "schemaVersion": "Schema-Version",
       "phpVersion": "PHP-Version",
@@ -1862,7 +1863,7 @@
     "invalidFields": "Nicht gespeichert: Bitte die rot markierten Felder korrigieren.",
     "dayMonthInvalid": "Bitte als Tag-Monat eingeben, z. B. 01-10 für den 1. Oktober.",
     "security": {
-      "title": "🔐 Anmeldung & Zugriff",
+      "title": "Anmeldung & Zugriff",
       "hint": "Ohne Anmeldung ist der Energietracker für jeden erreichbar, der die Adresse kennt – gedacht fürs eigene Heimnetz. Ist er von außen erreichbar (Portfreigabe, Reverse-Proxy) oder teilst du das Netz mit anderen, schalte die Anmeldung ein.",
       "modeOff": "🔓 Ohne Anmeldung",
       "modePassword": "🔒 Anmeldung mit Passwort",
@@ -2085,9 +2086,7 @@
         "other": "{count} offene Termine gehören jetzt dir."
       },
       "noAccess": "ohne Zugang",
-      "hintOff": "Ohne Anmeldung gibt es keine Zugänge. Diese Personen stammen aus einem Backup oder einem Beispielhaushalt und stehen unter „Zuständig“ zur Wahl; löschen darf sie, wer die Adresse erreicht.",
-      "deleteHintOff": "Ohne Anmeldung übernimmt beim Löschen niemand: Offene Termine, Zähler und Verträge der Person bleiben mit dem Zusatz „(gelöscht)“ stehen, bis jemand sie neu zuweist; Erledigtes behält ihren Namen. Die Nummer einer Person wird nie wieder vergeben.",
-      "noAccessHint": "„ohne Zugang“: eine Person aus einem Backup oder einem Beispielhaushalt. „Zugang anlegen“ trägt ihren Namen unter „Person hinzufügen“ ein; mit Passwort wird daraus ein Zugang mit derselben Nummer, ihre Termine und Einträge bleiben bei ihr.",
+      "noAccessHint": "„ohne Zugang“: eine Person aus Haushalt & Gebäude, einem Backup oder einem Beispielhaushalt. „Zugang anlegen“ trägt ihren Namen unter „Person hinzufügen“ ein; mit Passwort wird daraus ein Zugang mit derselben Nummer, ihre Termine und Einträge bleiben bei ihr.",
       "grant": "Zugang anlegen",
       "deleteConfirmNoAccess": "Die Person steht danach nicht mehr zur Wahl. Die Daten des Haushalts bleiben.",
       "handoverNobody": {
@@ -2193,6 +2192,22 @@
       "pickModel": "Gespeichert. Wähle jetzt ein Modell aus der Liste und schalte dann ein.",
       "saved": "Auslesen gespeichert.",
       "modelLoad": "Modelle des Dienstes laden"
+    },
+    "people": {
+      "title": "Personen im Haushalt",
+      "hint": "Wer im Haushalt mithilft. Personen stehen unter „Zuständig“ an Terminen, Zählern und Verträgen zur Wahl. Anmelden müssen sie sich dafür nicht.",
+      "empty": "Noch keine Personen. Leg die erste an, dann kannst du ihr Termine, Zähler und Verträge zuweisen.",
+      "emptyMember": "Noch keine Personen.",
+      "add": "Neue Person",
+      "namePlaceholder": "Name, etwa Anna",
+      "added": "{name} steht jetzt unter „Zuständig“ zur Wahl.",
+      "account": "mit Zugang",
+      "deleteLabel": "{name} löschen",
+      "accessHint": "Wer sich anmelden soll, bekommt unter Zugriff einen Zugang. Personen mit Zugang verwaltest du dort.",
+      "accessHintOff": "Anmelden kann sich damit niemand. Eigene Zugänge gibt es erst, wenn die Anmeldung unter Zugriff eingeschaltet ist.",
+      "accessLink": "Zugriff öffnen",
+      "movedHint": "Personen im Haushalt legst du unter Haushalt & Gebäude an, auch ohne Anmeldung.",
+      "goto": "Zu den Personen"
     }
   },
   "reminders": {
@@ -2258,7 +2273,8 @@
       "one": "Jeden Monat",
       "other": "Alle {count} Monate"
     },
-    "lastDone": "Zuletzt erledigt {when}"
+    "lastDone": "Zuletzt erledigt {when}",
+    "emptyText": "Wartung, Eichfrist oder Ablesung: Die App erinnert dich rechtzeitig und zeigt Fälliges unter „Zu tun“ auf der Übersicht."
   },
   "temperatures": {
     "loading": "Lädt …",
@@ -5447,7 +5463,7 @@
     "none": "– niemand –",
     "hintMeter": "Ablesung, Termine an diesem Zähler und seine Verträge landen bei dieser Person, wenn sie keine eigene Zuständigkeit haben. Benachrichtigt wird niemand.",
     "hintContract": "Kündigungsfrist, Vertragsende und „Abrechnung erwartet“ landen bei dieser Person. Ohne Eintrag gilt die Person des Zählers. Benachrichtigt wird niemand.",
-    "noPeople": "Personen legst du unter Einstellungen → Zugriff an.",
+    "noPeople": "Personen legst du unter Einstellungen → Haushalt & Gebäude an.",
     "via": {
       "contract": "über den Vertrag",
       "meter": "über den Zähler"

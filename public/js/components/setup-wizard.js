@@ -37,6 +37,21 @@ import { regionFacts, saveRegion } from '../lib/region.js';
 import { switchLanguage } from '../lib/language.js';
 import { openReadingSetup } from './reading-setup.js';   // v3.7.0 — „Auslesen einrichten“ als Dialog
 import { docUrl } from '../lib/docs.js';   // v3.7.0 (Paket reifegrad) — Funktionstabelle nach Stufe
+// v3.9.0 (Paket oberflaeche) — kleine Strichzeichnungen je Schritt und Haushalt (Zier, aria-hidden)
+import { setupArt, personaArt } from '../lib/illustrations.js';
+
+/**
+ * v3.9.0 — Bild neben die Frage eines Schritts: das erste `.setup__question`
+ * (samt Einleitung im ersten Schritt) steht mit der Zeichnung in einer Zeile.
+ * Ein Schritt ohne Zeichnung bleibt, wie er ist.
+ */
+export function withArt(step, html, lead = '') {
+  const art = setupArt(step);
+  const m = art ? html.match(/<h3 class="setup__question">[\s\S]*?<\/h3>/) : null;
+  if (!m) return lead + html;
+  return `<div class="setup__head"><div class="setup__art">${art}</div><div class="setup__lead">${lead}${m[0]}</div></div>`
+    + html.slice(0, m.index) + html.slice(m.index + m[0].length);
+}
 
 /** Persona → Katalogname, Symbol und vorgeschlagene Verbrauchsarten. */
 export const PERSONAS = [
@@ -150,7 +165,7 @@ export async function openSetupWizard({ session = null, firstRun = false } = {})
       ${PERSONAS.map(p => `
         <label class="setup-choice${state.persona === p.id ? ' setup-choice--on' : ''}">
           <input type="radio" name="setup-persona" value="${p.id}" ${state.persona === p.id ? 'checked' : ''}>
-          <span class="setup-choice__icon" aria-hidden="true">${p.icon}</span>
+          ${personaArt(p.id) ? `<span class="setup-choice__art">${personaArt(p.id)}</span>` : `<span class="setup-choice__icon" aria-hidden="true">${p.icon}</span>`}
           <span class="setup-choice__body"><strong>${esc(t(`setup.persona.${p.key}.title`))}</strong>
             <span class="muted small">${esc(t(`setup.persona.${p.key}.text`))}</span></span>
         </label>`).join('')}
@@ -244,7 +259,7 @@ export async function openSetupWizard({ session = null, firstRun = false } = {})
       /** @param {string} [focusSel] Element, das den Fokus behält (sonst das erste Feld) */
       const draw = (focusSel) => {
         const name = steps[state.step];
-        body.innerHTML = (state.step === 0 ? `<p class="muted">${esc(t('setup.intro'))}</p>` : '') + html[name]();
+        body.innerHTML = withArt(name, html[name](), state.step === 0 ? `<p class="muted">${esc(t('setup.intro'))}</p>` : '');
         modalEl.querySelector('[data-role="progress"]').textContent = t('setup.progress', { n: state.step + 1, total: steps.length });
         back.hidden = state.step === 0;
         next.textContent = t(state.step === steps.length - 1 ? 'setup.done' : 'setup.next');

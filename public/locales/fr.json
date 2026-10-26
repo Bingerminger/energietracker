@@ -95,7 +95,8 @@
       "tankLevel": "Relevé de cuve — {utility}",
       "reminder": "Nouveau rappel",
       "inbox": "Déposer un courrier du fournisseur",
-      "inboxHint": "PDF depuis Fichiers ou un e-mail"
+      "inboxHint": "PDF depuis Fichiers ou un e-mail",
+      "reminderHint": "Entretien, étalonnage ou relevé"
     },
     "sectionNav": "Pages de cette rubrique",
     "menu": "Menu",
@@ -1355,7 +1356,7 @@
     "loading": "Chargement…",
     "saved": "Paramètres enregistrés",
     "lang": {
-      "title": "🌐 Langue et pays / Language",
+      "title": "Langue et pays / Language",
       "hint": "La langue s’applique à cet appareil ; sans choix propre, il suit la langue par défaut de l’installation, qui détermine aussi le rapport annuel, les fichiers CSV et Home Assistant. Le pays définit le format des nombres et des dates, la devise et le fuseau horaire ; lors d’un changement, l’application propose des préréglages adaptés.",
       "saved": "Langue modifiée",
       "deviceLabel": "Langue sur cet appareil",
@@ -1454,7 +1455,7 @@
       "contract_remind_days_1": { "label": "Niveau 1 — préavis précoce" },
       "contract_remind_days_2": { "label": "Niveau 2 — rappel" },
       "contract_remind_days_3": { "label": "Niveau 3 — urgent" },
-      "wasser_personen_anzahl": { "label": "Personnes dans le foyer", "hint": "Pour l’indice d’économie d’eau : litres par personne et par jour par rapport à la référence." },
+      "wasser_personen_anzahl": { "label": "Nombre de personnes", "hint": "Pour l’indice d’économie d’eau : litres par personne et par jour par rapport à la référence." },
       "wasser_personen_referenz": { "label": "Référence", "hint": "BDEW 2024 : 122 L par personne et par jour (Allemagne)." },
       "wasser_sparindex_gut": { "label": "Indice d’économie — bon jusqu’à", "hint": "Un indice ≤ à cette valeur est considéré comme normal." },
       "wasser_sparindex_warnung": { "label": "Indice d’économie — alerte à partir de", "hint": "Un indice ≥ à cette valeur indique un potentiel d’économie." },
@@ -1635,18 +1636,18 @@
     },
     "boolActive": "activé",
     "activeUtils": {
-      "title": "🧩 Types de consommation actifs",
+      "title": "Types de consommation actifs",
       "hint": "Seuls les types de consommation cochés apparaissent dans la barre latérale, le tableau de bord et le rapport annuel. Les données des types inactifs sont conservées."
     },
     "pdf": {
-      "title": "📄 Rapport annuel PDF",
+      "title": "Rapport annuel PDF",
       "hint": "Rapport multipage avec aperçu, classe d’efficacité, tableaux de consommation par type de consommation et recommandations en cours.",
       "year": "Année",
       "download": "Télécharger le rapport annuel",
       "moved": "Le rapport annuel a désormais sa propre page sous « Évaluations »."
     },
     "export": {
-      "title": "📤 Export des données (CSV)",
+      "title": "Export des données (CSV)",
       "hint": "Export tabulaire pour Excel, LibreOffice ou Google Sheets (UTF-8 avec BOM). Complète la sauvegarde JSON complète plus bas.",
       "monthly": "Aperçu mensuel",
       "monthlyHint": "Consommation, coût, acompte et solde par mois.",
@@ -1663,7 +1664,7 @@
       "formatHint": "Le tableau utilise les noms de colonnes, le séparateur décimal et la date de la langue par défaut et s’ouvre ainsi directement dans Excel ou LibreOffice. Le format 1 reste tel qu’il est depuis la version 1.1 : point-virgule, virgule décimale, date AAAA-MM-JJ. Les deux peuvent être réimportés."
     },
     "backup": {
-      "title": "💾 Sauvegarde et restauration",
+      "title": "Sauvegarde et restauration",
       "hint": "Sauvegarde JSON complète (format v3.0) — contient tous les types de consommation, compteurs, contrats, températures et paramètres, réimportable.",
       "download": "Télécharger la sauvegarde JSON",
       "snapshot": "Enregistrer un instantané",
@@ -1808,7 +1809,7 @@
       "appAdd": "Ajouter le dépôt à Home Assistant"
     },
     "diag": {
-      "title": "🩺 Diagnostic système",
+      "title": "Diagnostic système",
       "appVersion": "Version de l’app",
       "schemaVersion": "Version du schéma",
       "phpVersion": "Version de PHP",
@@ -1862,7 +1863,7 @@
     "invalidFields": "Non enregistré : veuillez corriger les champs signalés en rouge.",
     "dayMonthInvalid": "Veuillez saisir jour-mois, p. ex. 01-10 pour le 1er octobre.",
     "security": {
-      "title": "🔐 Connexion et accès",
+      "title": "Connexion et accès",
       "hint": "Sans connexion, toute personne qui connaît l’adresse peut accéder à Energietracker – prévu pour votre réseau domestique. S’il est accessible de l’extérieur (redirection de port, reverse proxy) ou si vous partagez le réseau, activez la connexion.",
       "modeOff": "🔓 Sans connexion",
       "modePassword": "🔒 Connexion par mot de passe",
@@ -2085,9 +2086,7 @@
         "other": "{count} rappels ouverts vous reviennent désormais."
       },
       "noAccess": "sans accès",
-      "hintOff": "Sans connexion, il n’y a pas de comptes. Ces personnes viennent d’une sauvegarde ou d’un foyer d’exemple et peuvent être choisies sous « Responsable » ; quiconque atteint l’adresse peut les supprimer.",
-      "deleteHintOff": "Sans connexion, personne ne reprend lors de la suppression : les rappels ouverts, compteurs et contrats de la personne restent avec « (profil supprimé) » jusqu’à ce que quelqu’un les réattribue ; ce qui est fait garde son nom. Le numéro d’une personne n’est jamais réattribué.",
-      "noAccessHint": "« sans accès » : une personne venant d’une sauvegarde ou d’un foyer d’exemple. « Créer un accès » reprend son nom dans « Ajouter une personne » ; avec un mot de passe, elle devient un accès avec le même numéro, ses rappels et entrées restent les siens.",
+      "noAccessHint": "« sans accès » : une personne venant de Foyer et bâtiment, d’une sauvegarde ou d’un foyer d’exemple. « Créer un accès » reprend son nom dans « Ajouter une personne » ; avec un mot de passe, elle devient un accès avec le même numéro, ses rappels et entrées restent les siens.",
       "grant": "Créer un accès",
       "deleteConfirmNoAccess": "Cette personne ne sera plus proposée. Les données du foyer restent.",
       "handoverNobody": {
@@ -2193,6 +2192,22 @@
       "pickModel": "Enregistré. Choisissez maintenant un modèle dans la liste, puis activez.",
       "saved": "Lecture des documents enregistrée.",
       "modelLoad": "Charger les modèles du service"
+    },
+    "people": {
+      "title": "Personnes du foyer",
+      "hint": "Qui participe dans le foyer. Les personnes peuvent être choisies sous « Responsable » pour les rappels, les compteurs et les contrats. Elles n’ont pas besoin de se connecter pour cela.",
+      "empty": "Aucune personne pour l’instant. Ajoutez la première, vous pourrez ensuite lui attribuer des rappels, des compteurs et des contrats.",
+      "emptyMember": "Aucune personne pour l’instant.",
+      "add": "Nouvelle personne",
+      "namePlaceholder": "Nom, par ex. Anna",
+      "added": "{name} apparaît maintenant sous « Responsable ».",
+      "account": "avec accès",
+      "deleteLabel": "Supprimer {name}",
+      "accessHint": "Une personne qui doit se connecter reçoit un accès sous Accès. Les personnes avec accès se gèrent là-bas.",
+      "accessHintOff": "Personne ne peut se connecter ainsi. Les accès personnels n’existent qu’une fois la connexion activée sous Accès.",
+      "accessLink": "Ouvrir Accès",
+      "movedHint": "Vous ajoutez les personnes du foyer sous Foyer et bâtiment, même sans connexion.",
+      "goto": "Aller aux personnes"
     }
   },
   "reminders": {
@@ -2258,7 +2273,8 @@
       "one": "Tous les mois",
       "other": "Tous les {count} mois"
     },
-    "lastDone": "Dernière exécution {when}"
+    "lastDone": "Dernière exécution {when}",
+    "emptyText": "Entretien, échéance d’étalonnage ou relevé : l’application vous le rappelle à temps et affiche ce qui est dû sous « À faire » dans l’aperçu."
   },
   "temperatures": {
     "loading": "Chargement…",
@@ -5447,7 +5463,7 @@
     "none": "– personne –",
     "hintMeter": "Les relevés, les rappels de ce compteur et ses contrats reviennent à cette personne s’ils n’ont pas leur propre responsable. Personne n’est averti.",
     "hintContract": "L’échéance de résiliation, la fin du contrat et « Facture attendue » reviennent à cette personne. Si le champ est vide, c’est la personne du compteur. Personne n’est averti.",
-    "noPeople": "Ajoutez des personnes dans Paramètres → Accès.",
+    "noPeople": "Ajoutez des personnes dans Paramètres → Foyer et bâtiment.",
     "via": {
       "contract": "via le contrat",
       "meter": "via le compteur"

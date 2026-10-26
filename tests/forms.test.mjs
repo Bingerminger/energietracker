@@ -205,5 +205,13 @@ t('ein Aufklappbereich für Prognose und CO₂-Faktoren (components/disclosure.j
   && /disclosureHtml\(\{ id: 'fc-classic'/.test(fcSrc) && /gkey: 'co2'[^\n]*collapse: 'et-settings-co2-open'/.test(settingsSrc)
   && !/<details class="card fc-classic"/.test(fcSrc));
 
+// ── v3.9.0 (Paket oberflaeche) — Touch-Größen und Dialog-Fußleiste ──────
+console.log('Touch und Dialoge (v3.9.0)');
+const touch = (C.match(/@media \(pointer: coarse\), \(max-width: 899\.98px\) \{ \.btn \{ min-height: 44px; \}([\s\S]*?)\}\s*\}/) || [])[1] || '';
+t('Stufenwahl in der Kopfzeile bei Touch 44 px (wie die Knöpfe daneben)', /\.topbar__select \{ height: 44px; \}/.test(touch));
+t('auch kleine Knöpfe bei Touch 44 px, ein reines Symbol 44 px breit', /\.btn--sm \{ min-height: 44px;/.test(touch)
+  && /\.btn--sm\[aria-label\]:not\(:has\(\*\)\) \{ min-width: 44px;/.test(touch));
+t('Text in der Dialog-Fußleiste mittig zu den Knöpfen', /\} \.modal__foot \{ padding: var\(--sp-4\) var\(--sp-5\);[^}]*align-items: center/.test(C));
+
 console.log(`\n  forms: ${pass} bestanden, ${fail} fehlgeschlagen`);
 process.exit(fail ? 1 : 0);

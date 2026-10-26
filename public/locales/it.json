@@ -95,7 +95,8 @@
       "tankLevel": "Lettura serbatoio — {utility}",
       "reminder": "Nuovo promemoria",
       "inbox": "Archivia la posta del fornitore",
-      "inboxHint": "PDF da File o dalla posta"
+      "inboxHint": "PDF da File o dalla posta",
+      "reminderHint": "Manutenzione, taratura o lettura"
     },
     "sectionNav": "Pagine di questa sezione",
     "menu": "Menu",
@@ -1355,7 +1356,7 @@
     "loading": "Caricamento…",
     "saved": "Impostazioni salvate",
     "lang": {
-      "title": "🌐 Lingua e paese / Language",
+      "title": "Lingua e paese / Language",
       "hint": "La lingua vale per questo dispositivo; senza una scelta propria segue la lingua predefinita dell’installazione, che determina anche il report annuale, i file CSV e Home Assistant. Il paese definisce il formato di numeri e date, la valuta e il fuso orario; quando lo cambi, l’app propone le impostazioni adatte.",
       "saved": "Lingua modificata",
       "deviceLabel": "Lingua su questo dispositivo",
@@ -1454,7 +1455,7 @@
       "contract_remind_days_1": { "label": "Livello 1 — preavviso anticipato" },
       "contract_remind_days_2": { "label": "Livello 2 — promemoria" },
       "contract_remind_days_3": { "label": "Livello 3 — urgente" },
-      "wasser_personen_anzahl": { "label": "Persone nel nucleo", "hint": "Per l’indice di risparmio idrico: litri per persona e giorno rispetto al riferimento." },
+      "wasser_personen_anzahl": { "label": "Numero di persone", "hint": "Per l’indice di risparmio idrico: litri per persona e giorno rispetto al riferimento." },
       "wasser_personen_referenz": { "label": "Riferimento", "hint": "BDEW 2024: 122 L per persona al giorno (Germania)." },
       "wasser_sparindex_gut": { "label": "Indice di risparmio — buono fino a", "hint": "Un indice ≤ a questo valore è considerato normale." },
       "wasser_sparindex_warnung": { "label": "Indice di risparmio — avviso da", "hint": "Un indice ≥ a questo valore indica un potenziale di risparmio." },
@@ -1635,18 +1636,18 @@
     },
     "boolActive": "attivo",
     "activeUtils": {
-      "title": "🧩 Utenze attive",
+      "title": "Utenze attive",
       "hint": "Solo le utenze selezionate compaiono nella barra laterale, nel cruscotto e nel rapporto annuale. I dati delle utenze inattive vengono mantenuti."
     },
     "pdf": {
-      "title": "📄 Rapporto annuale PDF",
+      "title": "Rapporto annuale PDF",
       "hint": "Rapporto multipagina con panoramica, classe di efficienza, tabelle di consumo per utenza e raccomandazioni in corso.",
       "year": "Anno",
       "download": "Scarica il rapporto annuale",
       "moved": "La relazione annuale ha ora una pagina propria in «Valutazioni»."
     },
     "export": {
-      "title": "📤 Esportazione dati (CSV)",
+      "title": "Esportazione dati (CSV)",
       "hint": "Esportazione tabellare per Excel, LibreOffice o Google Sheets (UTF-8 con BOM). Integra il backup JSON completo più sotto.",
       "monthly": "Panoramica mensile",
       "monthlyHint": "Consumo, costo, acconto e saldo per mese.",
@@ -1663,7 +1664,7 @@
       "formatHint": "La tabella usa nomi di colonna, separatore decimale e data della lingua predefinita e si apre così direttamente in Excel o LibreOffice. Il formato 1 resta com’è dalla versione 1.1: punto e virgola, virgola decimale, data AAAA-MM-GG. Entrambi si possono reimportare."
     },
     "backup": {
-      "title": "💾 Backup e ripristino",
+      "title": "Backup e ripristino",
       "hint": "Backup JSON completo (formato v3.0) — contiene tutte le utenze, contatori, contratti, temperature e impostazioni, reimportabile.",
       "download": "Scarica backup JSON",
       "snapshot": "Salva istantanea",
@@ -1808,7 +1809,7 @@
       "appAdd": "Aggiungi il repository a Home Assistant"
     },
     "diag": {
-      "title": "🩺 Diagnostica di sistema",
+      "title": "Diagnostica di sistema",
       "appVersion": "Versione dell’app",
       "schemaVersion": "Versione dello schema",
       "phpVersion": "Versione di PHP",
@@ -1862,7 +1863,7 @@
     "invalidFields": "Non salvato: correggi i campi evidenziati in rosso.",
     "dayMonthInvalid": "Inserisci giorno-mese, ad es. 01-10 per il 1° ottobre.",
     "security": {
-      "title": "🔐 Accesso e protezione",
+      "title": "Accesso e protezione",
       "hint": "Senza accesso protetto, chiunque conosca l’indirizzo può raggiungere Energietracker – pensato per la rete di casa. Se è raggiungibile dall’esterno (port forwarding, reverse proxy) o condividi la rete con altri, attiva l’accesso.",
       "modeOff": "🔓 Senza accesso",
       "modePassword": "🔒 Accesso con password",
@@ -2085,9 +2086,7 @@
         "other": "{count} promemoria aperti ora sono tuoi."
       },
       "noAccess": "senza accesso",
-      "hintOff": "Senza accesso non ci sono account. Queste persone provengono da un backup o da una famiglia di esempio e si possono scegliere in «Responsabile»; chi raggiunge l’indirizzo può eliminarle.",
-      "deleteHintOff": "Senza accesso nessuno subentra all’eliminazione: promemoria aperti, contatori e contratti della persona restano con «(profilo eliminato)» finché qualcuno non li riassegna; ciò che è fatto conserva il suo nome. Il numero di una persona non viene mai riassegnato.",
-      "noAccessHint": "«senza accesso»: una persona da un backup o da una famiglia di esempio. «Crea accesso» inserisce il suo nome in «Aggiungi una persona»; con una password diventa un accesso con lo stesso numero, i suoi promemoria e le sue voci restano suoi.",
+      "noAccessHint": "«senza accesso»: una persona da Nucleo e edificio, da un backup o da una famiglia di esempio. «Crea accesso» inserisce il suo nome in «Aggiungi una persona»; con una password diventa un accesso con lo stesso numero, i suoi promemoria e le sue voci restano suoi.",
       "grant": "Crea accesso",
       "deleteConfirmNoAccess": "Questa persona non sarà più proposta. I dati della famiglia restano.",
       "handoverNobody": {
@@ -2193,6 +2192,22 @@
       "pickModel": "Salvato. Ora scegli un modello dall’elenco, poi attiva.",
       "saved": "Lettura dei documenti salvata.",
       "modelLoad": "Carica i modelli del servizio"
+    },
+    "people": {
+      "title": "Persone del nucleo",
+      "hint": "Chi aiuta in casa. Le persone si possono scegliere in «Responsabile» per promemoria, contatori e contratti. Non serve che accedano.",
+      "empty": "Ancora nessuna persona. Aggiungi la prima, poi potrai assegnarle promemoria, contatori e contratti.",
+      "emptyMember": "Ancora nessuna persona.",
+      "add": "Nuova persona",
+      "namePlaceholder": "Nome, ad es. Anna",
+      "added": "{name} ora compare in «Responsabile».",
+      "account": "con accesso",
+      "deleteLabel": "Elimina {name}",
+      "accessHint": "Chi deve accedere riceve un accesso in Accesso. Le persone con accesso si gestiscono lì.",
+      "accessHintOff": "Così nessuno può accedere. Gli accessi personali ci sono solo dopo aver attivato l’accesso in Accesso.",
+      "accessLink": "Apri Accesso",
+      "movedHint": "Le persone del nucleo si aggiungono in Nucleo e edificio, anche senza accesso.",
+      "goto": "Vai alle persone"
     }
   },
   "reminders": {
@@ -2258,7 +2273,8 @@
       "one": "Ogni mese",
       "other": "Ogni {count} mesi"
     },
-    "lastDone": "Ultima esecuzione {when}"
+    "lastDone": "Ultima esecuzione {when}",
+    "emptyText": "Manutenzione, scadenza di taratura o lettura: l’app te lo ricorda in tempo e mostra ciò che scade in «Da fare» nella panoramica."
   },
   "temperatures": {
     "loading": "Caricamento…",
@@ -5447,7 +5463,7 @@
     "none": "– nessuno –",
     "hintMeter": "Letture, promemoria di questo contatore e i suoi contratti vanno a questa persona, se non hanno un proprio responsabile. Nessuno riceve avvisi.",
     "hintContract": "Termine di disdetta, fine del contratto e «Bolletta attesa» vanno a questa persona. Se vuoto, vale la persona del contatore. Nessuno riceve avvisi.",
-    "noPeople": "Aggiungi persone in Impostazioni → Accesso.",
+    "noPeople": "Aggiungi persone in Impostazioni → Nucleo e edificio.",
     "via": {
       "contract": "tramite il contratto",
       "meter": "tramite il contatore"

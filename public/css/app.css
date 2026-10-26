@@ -433,12 +433,20 @@ html[data-level="advanced"] [data-min-level="expert"] { display: none !important
 .danger-text  { color: var(--danger); }
 .warning-text { color: var(--warning); }
 
+/* v3.9.0 (Paket oberflaeche) — ein Leerzustand für alle Listen (lib/empty.js):
+   Symbol im ruhigen Kreis statt eines grau verblassten Emojis, Titel in
+   Textgröße statt einer zweiten Seitenüberschrift, Satz in Lesebreite. */
 .empty {
-  text-align: center; padding: 60px 20px; color: var(--text-2);
+  text-align: center; padding: var(--sp-8) var(--sp-5); color: var(--text-2);
 }
-.empty-icon { font-size: 36px; opacity: 0.4; margin-bottom: 12px; }
-.empty h3   { margin-bottom: 8px; color: var(--text-1); }
-.empty p    { font-size: 13px; }
+.empty-icon {
+  display: inline-grid; place-items: center; width: 52px; height: 52px; margin-bottom: var(--sp-3);
+  border-radius: 50%; background: var(--bg-2); border: 1px solid var(--border-1);
+  font-size: 24px; line-height: 1;
+}
+.empty h2, .empty h3 { margin: 0 0 var(--sp-2); font-size: var(--fs-md); font-weight: 600; color: var(--text-1); }
+.empty p    { font-size: var(--fs-sm); max-width: 56ch; margin: 0 auto var(--sp-3); }
+.empty p:last-child { margin-bottom: 0; }
 
 /* ── Bereichs-Tabs (v2.11.0, Review UI-12) ─────────────────────────
    Seiten eines Bereichs („Kosten & Verträge": Verträge · Wechsel prüfen ·

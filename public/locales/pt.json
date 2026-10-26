@@ -95,7 +95,8 @@
       "tankLevel": "Leitura do depósito — {utility}",
       "reminder": "Novo lembrete",
       "inbox": "Guardar correio do fornecedor",
-      "inboxHint": "PDF a partir de Ficheiros ou do e-mail"
+      "inboxHint": "PDF a partir de Ficheiros ou do e-mail",
+      "reminderHint": "Manutenção, verificação ou leitura"
     },
     "sectionNav": "Páginas desta secção",
     "menu": "Menu",
@@ -1355,7 +1356,7 @@
     "loading": "A carregar…",
     "saved": "Definições guardadas",
     "lang": {
-      "title": "🌐 Idioma e país / Language",
+      "title": "Idioma e país / Language",
       "hint": "O idioma aplica-se a este dispositivo; sem escolha própria, segue o idioma predefinido da instalação, que também determina o relatório anual, os ficheiros CSV e o Home Assistant. O país define o formato de números e datas, a moeda e o fuso horário; ao alterá-lo, a aplicação propõe predefinições adequadas.",
       "saved": "Idioma alterado",
       "deviceLabel": "Idioma neste dispositivo",
@@ -1454,7 +1455,7 @@
       "contract_remind_days_1": { "label": "Nível 1 — aviso antecipado" },
       "contract_remind_days_2": { "label": "Nível 2 — lembrete" },
       "contract_remind_days_3": { "label": "Nível 3 — urgente" },
-      "wasser_personen_anzahl": { "label": "Pessoas no agregado", "hint": "Para o índice de poupança de água: litros por pessoa e dia face à referência." },
+      "wasser_personen_anzahl": { "label": "Número de pessoas", "hint": "Para o índice de poupança de água: litros por pessoa e dia face à referência." },
       "wasser_personen_referenz": { "label": "Referência", "hint": "BDEW 2024: 122 L por pessoa e dia (Alemanha)." },
       "wasser_sparindex_gut": { "label": "Índice de poupança — bom até", "hint": "Um índice ≤ a este valor é considerado normal." },
       "wasser_sparindex_warnung": { "label": "Índice de poupança — aviso a partir de", "hint": "Um índice ≥ a este valor indica potencial de poupança." },
@@ -1635,18 +1636,18 @@
     },
     "boolActive": "ativado",
     "activeUtils": {
-      "title": "🧩 Serviços ativos",
+      "title": "Serviços ativos",
       "hint": "Apenas os serviços assinalados aparecem na barra lateral, no painel e no relatório anual. Os dados dos serviços inativos são mantidos."
     },
     "pdf": {
-      "title": "📄 Relatório anual PDF",
+      "title": "Relatório anual PDF",
       "hint": "Relatório de várias páginas com visão geral, classe de eficiência, tabelas de consumo por serviço e recomendações em curso.",
       "year": "Ano",
       "download": "Transferir o relatório anual",
       "moved": "O relatório anual tem agora uma página própria em «Avaliações»."
     },
     "export": {
-      "title": "📤 Exportação de dados (CSV)",
+      "title": "Exportação de dados (CSV)",
       "hint": "Exportação em tabela para Excel, LibreOffice ou Google Sheets (UTF-8 com BOM). Complementa a cópia de segurança JSON completa mais abaixo.",
       "monthly": "Visão geral mensal",
       "monthlyHint": "Consumo, custo, adiantamento e saldo por mês.",
@@ -1663,7 +1664,7 @@
       "formatHint": "A tabela usa os nomes de coluna, o separador decimal e a data do idioma predefinido e abre assim diretamente no Excel ou LibreOffice. O formato 1 mantém-se como desde a versão 1.1: ponto e vírgula, vírgula decimal, data AAAA-MM-DD. Ambos podem ser importados de novo."
     },
     "backup": {
-      "title": "💾 Cópia de segurança e restauro",
+      "title": "Cópia de segurança e restauro",
       "hint": "Cópia de segurança JSON completa (formato v3.0) — contém todos os serviços, contadores, contratos, temperaturas e definições, reimportável.",
       "download": "Transferir cópia de segurança JSON",
       "snapshot": "Guardar instantâneo",
@@ -1808,7 +1809,7 @@
       "appAdd": "Adicionar o repositório ao Home Assistant"
     },
     "diag": {
-      "title": "🩺 Diagnóstico do sistema",
+      "title": "Diagnóstico do sistema",
       "appVersion": "Versão da app",
       "schemaVersion": "Versão do esquema",
       "phpVersion": "Versão do PHP",
@@ -1862,7 +1863,7 @@
     "invalidFields": "Não guardado: corrija os campos assinalados a vermelho.",
     "dayMonthInvalid": "Introduza dia-mês, p. ex. 01-10 para 1 de outubro.",
     "security": {
-      "title": "🔐 Início de sessão e acesso",
+      "title": "Início de sessão e acesso",
       "hint": "Sem início de sessão, qualquer pessoa que conheça o endereço pode aceder ao Energietracker – pensado para a sua rede doméstica. Se estiver acessível a partir do exterior (reencaminhamento de portas, proxy inverso) ou partilhar a rede com outras pessoas, ative o início de sessão.",
       "modeOff": "🔓 Sem início de sessão",
       "modePassword": "🔒 Início de sessão com palavra-passe",
@@ -2085,9 +2086,7 @@
         "other": "{count} lembretes abertos são agora seus."
       },
       "noAccess": "sem acesso",
-      "hintOff": "Sem início de sessão não há contas. Estas pessoas vêm de uma cópia de segurança ou de um agregado de exemplo e podem ser escolhidas em «Responsável»; quem chega ao endereço pode eliminá-las.",
-      "deleteHintOff": "Sem início de sessão ninguém assume ao eliminar: os lembretes abertos, contadores e contratos da pessoa ficam com «(perfil eliminado)» até alguém os reatribuir; o que está feito mantém o nome. O número de uma pessoa nunca volta a ser atribuído.",
-      "noAccessHint": "«sem acesso»: uma pessoa de uma cópia de segurança ou de um agregado de exemplo. «Criar acesso» coloca o nome em «Adicionar uma pessoa»; com uma palavra-passe passa a ser um acesso com o mesmo número, e os lembretes e entradas continuam a ser dela.",
+      "noAccessHint": "«sem acesso»: uma pessoa de Agregado e edifício, de uma cópia de segurança ou de um agregado de exemplo. «Criar acesso» coloca o nome em «Adicionar uma pessoa»; com uma palavra-passe passa a ser um acesso com o mesmo número, e os lembretes e entradas continuam a ser dela.",
       "grant": "Criar acesso",
       "deleteConfirmNoAccess": "Esta pessoa deixa de estar disponível para escolha. Os dados do agregado mantêm-se.",
       "handoverNobody": {
@@ -2193,6 +2192,22 @@
       "pickModel": "Guardado. Escolha agora um modelo da lista e depois ligue.",
       "saved": "Leitura de documentos guardada.",
       "modelLoad": "Carregar os modelos do serviço"
+    },
+    "people": {
+      "title": "Pessoas do agregado",
+      "hint": "Quem ajuda no agregado. As pessoas podem ser escolhidas em «Responsável» para lembretes, contadores e contratos. Não precisam de iniciar sessão para isso.",
+      "empty": "Ainda não há pessoas. Adicione a primeira e depois poderá atribuir-lhe lembretes, contadores e contratos.",
+      "emptyMember": "Ainda não há pessoas.",
+      "add": "Nova pessoa",
+      "namePlaceholder": "Nome, p. ex. Anna",
+      "added": "{name} já aparece em «Responsável».",
+      "account": "com acesso",
+      "deleteLabel": "Eliminar {name}",
+      "accessHint": "Quem deva iniciar sessão recebe um acesso em Acesso. As pessoas com acesso gerem-se aí.",
+      "accessHintOff": "Assim ninguém pode iniciar sessão. Os acessos próprios só existem quando o início de sessão estiver ativado em Acesso.",
+      "accessLink": "Abrir Acesso",
+      "movedHint": "As pessoas do agregado adicionam-se em Agregado e edifício, também sem início de sessão.",
+      "goto": "Ir para as pessoas"
     }
   },
   "reminders": {
@@ -2258,7 +2273,8 @@
       "one": "Todos os meses",
       "other": "A cada {count} meses"
     },
-    "lastDone": "Última vez {when}"
+    "lastDone": "Última vez {when}",
+    "emptyText": "Manutenção, prazo de verificação ou leitura: a app lembra a tempo e mostra o que está pendente em «A fazer» na visão geral."
   },
   "temperatures": {
     "loading": "A carregar…",
@@ -5447,7 +5463,7 @@
     "none": "– ninguém –",
     "hintMeter": "As leituras, os lembretes deste contador e os seus contratos vão para esta pessoa, se não tiverem responsável próprio. Ninguém é avisado.",
     "hintContract": "O prazo de denúncia, o fim do contrato e «Fatura esperada» vão para esta pessoa. Se estiver vazio, aplica-se a pessoa do contador. Ninguém é avisado.",
-    "noPeople": "As pessoas adicionam-se em Definições → Acesso.",
+    "noPeople": "As pessoas adicionam-se em Definições → Agregado e edifício.",
     "via": {
       "contract": "através do contrato",
       "meter": "através do contador"
