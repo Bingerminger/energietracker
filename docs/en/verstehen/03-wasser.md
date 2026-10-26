@@ -23,12 +23,30 @@ Water has its own contract model with three components:
 
 1. **Drinking water** — working price (ct/m³) + base price (€/month).
 2. **Waste water** — basis either the *drinking-water quantity* or a *separate
-   waste-water meter*; working price (ct/m³).
+   waste-water meter*; working price (ct/m³) and *(v3.9.0)* a standing charge of
+   its own (€/month) if the supplier shows one (field
+   `schmutzwasser.base_prices`, optional).
 3. **Rainwater** — a flat rate per sealed area (€/m²·year) based on the
    maintained area.
 
 This model was introduced with schema 1.0.3; an auto-migrator transfers old
 simple water tariffs into the drinking-water component.
+
+Each component keeps its prices as **sections from a day on**: if the supplier
+changes its prices on 1 October, there are two rows, and every day is charged at
+the price valid on it. The app keeps **gross prices**. If the bill shows net
+prices, each component has its own tax rate (often 7 % for drinking water and
+19 % for waste water and rainwater). The app reads the rate from the bill; it
+never guesses it. Basic price and provision price of the same component together
+are its standing charge; a yearly price counts as one twelfth per month.
+
+Example (made up): a basic price of €50.00 and a provision price of €100.00 a
+year net, 7 % VAT, give gross (€53.50 + €107.00) ÷ 12 = €13.375 a month; a water
+price of €2.10 per m³ net becomes €2.247 = 224.7 ct per m³.
+
+*(v3.9.0)* From a **water annual bill** the inbox creates the contract with all
+three components, the price sections and the advance payment plan
+([Inbox → Contract from the bill](../anleitungen/posteingang.md#contract-from-the-bill-v390)).
 
 ## Advances, balance and special payments *(v3.5.0)*
 
@@ -62,6 +80,42 @@ expected at end   = balance today + (average cost per month − current advance)
 
 The overview, the page *Contracts & payments* and the water consumption view
 show both values.
+
+## Advance payments every two or three months *(v3.9.0)*
+
+Many water suppliers do not collect the advance payment monthly but every two
+months or on fixed dates. Each row of the advance payment plan therefore has a
+**rhythm** (contract form → “Rhythm”): monthly, every 2 months or every 3
+months. If the inbox took the plan over from a bill, the **due dates according
+to the bill** are shown below the row; they are kept when you save and dropped
+when you change the rhythm. This applies to every utility, not only to water.
+
+- The amount applies **per due date**. The app never silently turns it into a
+  monthly amount.
+- Every N months: from the day of the row, always on the same day (at the end of
+  a month on the month's last day).
+- With due dates: on the days listed, then yearly on the same days. A bill often
+  lists five dates because the sixth instalment falls into the next bill; without
+  a new plan it continues at the same pace.
+- A new row ends the rhythm of the old one.
+- Monthly stays exactly as before; no new field is stored.
+
+This is how the evaluations use it:
+
+- **Balance by calendar**: paid are the instalments whose day has been reached,
+  each in full in its month.
+- **Suggested advance payment**: what is left until the next bill is spread over
+  the instalments still to come; the suggestion applies per due date.
+- **Forecast** and month rows: each instalment in its month, the months in
+  between without an advance payment.
+- The **balance card** and the contracts overview name the rhythm (“€165.00
+  every 2 months”), the balance card also the next due date (API:
+  `current_advance_every_months`, `next_advance_dates`, only with a rhythm).
+
+Example (made up): €165.00 every two months from 15 May 2026. On 31 July 2026
+two instalments are paid (15 May and 15 July), €330.00, not three times a
+monthly amount. Until the next bill on 1 April 2027 three more instalments
+follow (15 Sep, 15 Nov, 15 Jan), €495.00 in total.
 
 ## Roles: cold, hot, garden *(v3.1.0)*
 
@@ -134,5 +188,8 @@ band limits (`wasser_sparindex_gut/_warnung`) are adjustable.
 - **Hot-water meter counted twice** *(v3.1.0)*: in a house it belongs under the
   main meter as a sub-meter, in a rented flat next to the cold-water meter —
   not both.
+- **An advance payment every two months entered as a monthly amount**
+  *(v3.9.0)*: the balance then counts twice the advance payment. Enter the
+  amount per due date and set the rhythm.
 
 [← Electricity](02-strom.md) · [District heating →](04-fernwaerme.md)

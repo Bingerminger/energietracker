@@ -164,7 +164,7 @@ final class AgendaServiceTest extends ServiceTestCase
         self::assertSame(['due', 'overdue', 'next'], array_keys($full['agenda']));
         $meterKeys = ['key', 'utility', 'meter_id', 'external_id', 'name', 'unit', 'consumption_unit', 'role', 'is_sub_meter',
             'last_reading_date', 'last_counter', 'days_since_reading', 'reading_due', 'month_to_date', 'year_to_date',
-            'contract', 'forecast_12m', 'tank', 'capture'];
+            'contract', 'forecast_12m', 'tank', 'capture', 'utility_label'];   // v3.9.0 — utility_label additiv
         foreach (array_merge($empty['meters'], $full['meters']) as $m) self::assertSame($meterKeys, array_keys($m), $m['key']);
 
         $strom = array_values(array_filter($full['meters'], fn($m) => $m['meter_id'] === $meterId))[0];

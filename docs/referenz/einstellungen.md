@@ -11,13 +11,15 @@ Schlüssel bleiben stabil: Entfernt wird erst mit einer neuen Hauptversion und
 nach Ankündigung — die veralteten stehen am Ende.
 
 Seit v3.2.0 kann ein Haushalt mehrere Personen mit Rollen haben
-([Benutzer im Haushalt](../anleitungen/benutzer.md)). Zehn Schlüssel ändern
+([Benutzer im Haushalt](../anleitungen/benutzer.md)). Vierzehn Schlüssel ändern
 dann nur Verwalter, weil die App mit ihnen andere Adressen anspricht, sich
 einbetten lässt, Namen sperrt, den Verlauf kürzt oder Dokumente in die Cloud
 schickt: `frame_ancestors`, `ocr_endpoint`, `evcc_endpoint`, (seit v3.4.0)
 `allowed_hosts` und `activity_keep_months` sowie (seit v3.7.0) `inbox_provider`,
 wohin Versorgerpost zum Auslesen geht, und `inbox_cloud_enabled`,
-`inbox_cloud_provider`, `inbox_cloud_endpoint` und `inbox_cloud_model`. Ein
+`inbox_cloud_provider`, `inbox_cloud_endpoint` und `inbox_cloud_model`, (seit
+v3.9.0) `ha_notify_enabled`, `ha_notify_target`, `ha_notify_url` und
+`ha_notify_service`, ob und wohin Benachrichtigungen an Home Assistant gehen. Ein
 Mitglied, das einen davon mitschickt, bekommt `403` `errors.auth.adminOnly`;
 alle anderen Schlüssel dürfen auch Mitglieder ändern. Ohne Anmeldung gilt die
 Einschränkung nicht.
@@ -139,7 +141,7 @@ mit dem Feld im Fokus.
 
 | Schlüssel | Standard | In der App | Wirkung |
 |---|---|---|---|
-| `wasser_personen_anzahl` | 2 | Personen im Haushalt | Für den Wasser-Spar-Index: Liter je Person und Tag im Vergleich zur Referenz. Seit v3.6.0 ordnet die Karte „Einordnung“ das Wasser erst ein, wenn die Zahl eingetragen ist (s. u.). |
+| `wasser_personen_anzahl` | 2 | Anzahl der Personen | Für den Wasser-Spar-Index: Liter je Person und Tag im Vergleich zur Referenz. Seit v3.6.0 ordnet die Karte „Einordnung“ das Wasser erst ein, wenn die Zahl eingetragen ist (s. u.). Bis v3.8 hieß das Feld „Personen im Haushalt“; so heißt seit v3.9.0 die Karte mit den Namen für „Zuständig“. |
 | `wasser_personen_referenz` | 122 | Referenz | BDEW 2024: 122 L je Person und Tag. Bestandsinstallationen behalten den früheren Standard 127, bis sie die neuen Werte übernehmen. |
 | `wasser_sparindex_gut` | 100 | Spar-Index — gut bis | Index ≤ diesem Wert gilt als unauffällig. |
 | `wasser_sparindex_warnung` | 150 | Spar-Index — Warnung ab | Index ≥ diesem Wert zeigt Sparpotenzial an. |
@@ -320,6 +322,22 @@ immer, auch ohne diesen Schlüssel. Einrichtung:
 | Schlüssel | Standard | In der App | Wirkung |
 |---|---|---|---|
 | `evcc_endpoint` | leer | Adresse von evcc | Basisadresse mit `http://` oder `https://`, unter der du evcc im Browser öffnest, etwa `http://192.168.178.30:7070` oder `http://evcc.local:7070`; die App hängt `/api/sessions` an. Leer = aus, die App baut keine Verbindung auf. Jede Adresse, auf die der Name zeigt, muss im eigenen Netz liegen, sonst lehnt der Abruf ab (wie bei der Texterkennung). Nur Verwalter. |
+
+### Benachrichtigungen an Home Assistant *(v3.9.0)*
+
+Einstellungen → Integrationen → 🔔 Benachrichtigungen an Home Assistant.
+Webhook-ID und Token stehen nicht hier, sondern in einer eigenen Datei auf dem
+Server (nicht im Backup, nie im Browser). Wann was gesendet wird:
+[Home Assistant, Schritt 6](../anleitungen/home-assistant.md#schritt-6--benachrichtigungen-an-home-assistant-v390).
+
+| Schlüssel | Standard | In der App | Wirkung |
+|---|---|---|---|
+| `ha_notify_enabled` | aus | Benachrichtigungen senden | Der Schalter. Aus = nichts geht an Home Assistant. Einschalten geht nur mit vollständigem Ziel. Nur Verwalter. |
+| `ha_notify_target` | `supervisor` | Wohin? | `supervisor` (App in Home Assistant, ohne Einrichtung), `webhook` oder `token` (Adresse und Token). Nur Verwalter. |
+| `ha_notify_url` | leer | Adresse von Home Assistant | Für Webhook und Token, ohne Pfad, etwa `http://192.168.178.10:8123`. Im Heimnetz `http://` oder `https://`, eine Adresse außerhalb nur mit `https://`. Nur Verwalter. |
+| `ha_notify_service` | `persistent_notification.create` | Aktion in Home Assistant | Für Supervisor und Token: `persistent_notification.create` oder `notify.<name>` (etwa `notify.mobile_app_…`). Nur Verwalter. |
+| `ha_notify_events` | alle | Was melden? | Teilmenge von `reminder` (Termine), `deadline` (Fristen und weitere Punkte aus „Zu tun“), `warning` (Warnungen), `document` (neue Dokumente im Posteingang). |
+| `ha_notify_hour` | `8` | Tägliche Prüfung ab | Stunde (0 bis 23), ab der die tägliche Prüfung läuft, mit der ersten Anfrage danach. |
 
 ### Posteingang: Auslesen in der Cloud *(v3.7.0)*
 

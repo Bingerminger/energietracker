@@ -105,11 +105,34 @@ final class HomeAssistantAppDocsTest extends TestCase
         self::assertMatchesRegularExpression('#HEALTHCHECK[\s\S]*?/api/health#', $dockerfile);
     }
 
+    /**
+     * v3.9.0 (F1033) — Benachrichtigungen über den Supervisor und der
+     * Posteingang-Ordner in /share: Die App braucht dafür genau diese
+     * Freigaben, der Ordner liegt in der eingebundenen Freigabe.
+     */
+    public function testTheAppMapsTheShareAndMayCallHomeAssistant(): void
+    {
+        $cfg = self::flat(self::excerpt('docs/anleitungen/home-assistant.md', self::PAGES['docs/anleitungen/home-assistant.md']));
+        self::assertSame('true', $cfg['homeassistant_api'] ?? null, 'Supervisor-API für die Benachrichtigungen');
+        self::assertSame('share', $cfg['map.- type'] ?? null, 'Freigabe /share eingebunden');
+        self::assertSame('false', $cfg['map.read_only'] ?? null, 'schreibbar: die App verschiebt eingelesene Dateien');
+        self::assertStringStartsWith('/share/', $cfg['environment.ET_INBOX_DIR'] ?? '', 'der Ordner liegt in der Freigabe');
+        self::assertSame(\Energietracker\Services\HomeAssistant\NotifyConfig::SUPERVISOR_API, 'http://supervisor/core/api');
+        // „die App legt ihn beim Start an“: das Standard-Image (root) legt den Ordner an und gibt ihn www-data
+        $entry = self::read('docker/entrypoint.sh');
+        self::assertStringContainsString('mkdir -p "$ET_INBOX_DIR"', $entry);
+        self::assertStringContainsString('chown www-data:www-data "$ET_INBOX_DIR"', $entry, 'nur der Ordner, nicht rekursiv');
+        self::assertStringNotContainsString('chown -R www-data:www-data "$ET_INBOX_DIR"', $entry);
+        // „der Gesundheitscheck fragt alle 30 Sekunden“ (Doku: tägliche Prüfung, Ordner nach spätestens fünf Minuten)
+        self::assertMatchesRegularExpression('#HEALTHCHECK --interval=30s[\s\S]*?/api/health#', self::read('Dockerfile'));
+    }
+
     public function testTheEnvironmentIsReadByTheApp(): void
     {
         $cfg = self::flat(self::excerpt('docs/en/anleitungen/home-assistant.md', self::PAGES['docs/en/anleitungen/home-assistant.md']));
         $code = '';
-        foreach (['src/bootstrap.php', 'src/Services/AuthService.php', 'index.php', 'api.php'] as $f) $code .= self::read($f);
+        // v3.9.0 (F1033) — ET_INBOX_DIR liest der überwachte Ordner
+        foreach (['src/bootstrap.php', 'src/Services/AuthService.php', 'index.php', 'api.php', 'src/Services/Inbox/FolderIntake.php'] as $f) $code .= self::read($f);
         foreach ($cfg as $k => $v) {
             if (!str_starts_with($k, 'environment.')) continue;
             $name = substr($k, strlen('environment.'));

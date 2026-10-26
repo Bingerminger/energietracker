@@ -367,6 +367,23 @@ Textebene je Seite für das Auslesen, `renderPages()` zeichnet die Seiten erst,
 wenn sie ins Bild kommen. Ohne `DOMMatrix`, Worker oder Canvas (ältere Browser,
 JSDOM in den Tests) zeigt die Vorschau den Link auf die Datei.
 
+**Illustrationen und Schaltbilder (seit v3.9.0).** Zeichnungen sind Inline-SVG
+aus `lib/illustrations.js`, ohne Bilddateien. Eine Grundlage für alle:
+Strichzeichnung wie die Piktogramme des Energieflusses, Farben nur über die
+Variablen `--ill-line`, `--ill-ink`, `--ill-accent`, `--ill-fill`,
+`--ill-surface` und `--ill-ground` (in `tokens.css`, abgeleitet aus den
+Themen-Farben, daher hell und dunkel ohne eigene Werte) und die Klassen
+`.ill-*` in `components.css`; Strichstärken `--ill-stroke` (1,5 px) und
+`--ill-stroke-strong` (2 px), unabhängig von der Größe. Eine Verbrauchsart
+färbt über `.ill-c-<art>` aus der Utilities-SSOT. `svg(body, {viewBox, title})`
+rahmt Bausteine aus `shapes` (Haus, Mehrfamilienhaus, Zähler mit Zählwerk-Text,
+Leitung, Pfeil, Sonne, Blitz, Flamme, Tropfen, PV-Modul, Blatt, Ablage, …).
+Ein Bild mit Aussage bekommt `title` (dann `role="img"` mit Namen aus den
+Katalogen), reine Zier bleibt `aria-hidden`. Die Ersteinrichtung zeigt je
+Schritt und je Beispielhaushalt eine Zeichnung (Zier), die leere Übersicht
+eine im Willkommen. Leerzustände von Listen baut `lib/empty.js` (Symbol im
+Kreis, Titel, ein Satz, höchstens eine Aktion).
+
 > ⚠️ **Architektur-kritisch:** Da alle Module über einen einzigen
 > ES-Modulgraphen geladen werden, bricht **ein einziger fehlerhafter
 > relativer Import** (404) die *gesamte* App — die Oberfläche bleibt bei

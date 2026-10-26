@@ -95,7 +95,8 @@
       "tankLevel": "Lectura del depósito — {utility}",
       "reminder": "Nuevo recordatorio",
       "inbox": "Guardar correo del suministrador",
-      "inboxHint": "PDF desde Archivos o el correo"
+      "inboxHint": "PDF desde Archivos o el correo",
+      "reminderHint": "Mantenimiento, verificación o lectura"
     },
     "sectionNav": "Páginas de esta sección",
     "menu": "Menú",
@@ -502,7 +503,9 @@
         "one": "{count} pago extraordinario",
         "other": "{count} pagos extraordinarios"
       },
-      "sinceBill": "Calculado desde el {date}: la factura anterior está registrada en el contrato y aquí ya no cuenta."
+      "sinceBill": "Calculado desde el {date}: la factura anterior está registrada en el contrato y aquí ya no cuenta.",
+      "nextDue": "próximo vencimiento: {date}",
+      "paidCurrentEvery": "actual: {value}"
     },
     "contractsTable": {
       "emptyTitle": "Sin contratos registrados",
@@ -803,13 +806,15 @@
       "advance": "Anticipo",
       "twWorking": "Precio unitario de agua potable",
       "twBase": "Término fijo de agua potable",
-      "swWorking": "Precio unitario de saneamiento"
+      "swWorking": "Precio unitario de saneamiento",
+      "swBase": "Término fijo de agua residual"
     },
     "unit": {
       "ctPerKwh": "{minor}/kWh",
       "eurPerMonth": "{cur}/mes",
       "eurPerKwYear": "{cur}/kW al año",
-      "eurPerYear": "{cur}/año"
+      "eurPerYear": "{cur}/año",
+      "eurPerDue": "{cur} por vencimiento"
     },
     "loading": "Cargando…",
     "unknown": "Suministro desconocido: {key}",
@@ -838,7 +843,8 @@
       "advanceValue": "Anticipo {value}/mes",
       "valuesOn": "a {date}",
       "noValues": "Aún no hay precios",
-      "since": "desde {year}"
+      "since": "desde {year}",
+      "advanceValueEvery": "Anticipo {value}"
     },
     "summary": {
       "twPrices": {
@@ -987,7 +993,6 @@
       "noMoreMeters": "(aún no hay más contadores disponibles)",
       "swWorking": "Precio por m³ aguas residuales ({minor}/m³)",
       "nwRates": "Fecha de efecto",
-      "apMonthly": "Anticipo mensual ({cur})",
       "colDate": "Fecha",
       "colCtM3": "{minor}/m³",
       "colEurMonth": "{cur}/mes",
@@ -1000,7 +1005,10 @@
       "startRequired": "El inicio del contrato es obligatorio.",
       "basisDeduct": "agua potable menos contadores de descuento (p. ej., jardín)",
       "deductMeters": "Contadores de descuento",
-      "deductHint": "El agua que pasa por estos contadores (p. ej., la del jardín) cuesta agua potable, pero no agua residual. Lo mejor es llevar el contador del jardín como subcontador del principal; así no cuenta dos veces en los totales."
+      "deductHint": "El agua que pasa por estos contadores (p. ej., la del jardín) cuesta agua potable, pero no agua residual. Lo mejor es llevar el contador del jardín como subcontador del principal; así no cuenta dos veces en los totales.",
+      "swBase": "Término fijo de agua residual ({cur}/mes)",
+      "apPlan": "Plan de anticipos",
+      "colEurDue": "{cur} por vencimiento"
     },
     "perM3": {
       "toggleTitle": "Convertir un precio por m³ a {minor}/kWh",
@@ -1087,6 +1095,10 @@
       "undated": "entrada sin fecha",
       "link": "Ir al ajuste",
       "why": "El coeficiente de corrección y el poder calorífico dependen del punto de suministro (altitud, presión) y del gas de la red, no del comercializador: no cambian al cambiar de compañía y cada factura de gas los indica. Por eso se introducen una vez en los ajustes y valen para todos los contratos."
+    },
+    "advance": {
+      "every": "Ritmo",
+      "dueDates": "Vencimientos según la factura: {dates}, después cada año en los mismos días"
     }
   },
   "meters": {
@@ -1366,7 +1378,7 @@
     "loading": "Cargando…",
     "saved": "Ajustes guardados",
     "lang": {
-      "title": "🌐 Idioma y país / Language",
+      "title": "Idioma y país / Language",
       "hint": "El idioma se aplica a este dispositivo; sin una elección propia, sigue el idioma predeterminado de la instalación, que también determina el informe anual, los archivos CSV y Home Assistant. El país define el formato de números y fechas, la moneda y la zona horaria; al cambiarlo, la aplicación propone valores adecuados.",
       "saved": "Idioma cambiado",
       "deviceLabel": "Idioma en este dispositivo",
@@ -1465,7 +1477,7 @@
       "contract_remind_days_1": { "label": "Nivel 1 — aviso temprano" },
       "contract_remind_days_2": { "label": "Nivel 2 — recordatorio" },
       "contract_remind_days_3": { "label": "Nivel 3 — urgente" },
-      "wasser_personen_anzahl": { "label": "Personas en el hogar", "hint": "Para el índice de ahorro de agua: litros por persona y día frente a la referencia." },
+      "wasser_personen_anzahl": { "label": "Número de personas", "hint": "Para el índice de ahorro de agua: litros por persona y día frente a la referencia." },
       "wasser_personen_referenz": { "label": "Referencia", "hint": "BDEW 2024: 122 L por persona y día (Alemania)." },
       "wasser_sparindex_gut": { "label": "Índice de ahorro — bueno hasta", "hint": "Un índice ≤ a este valor se considera normal." },
       "wasser_sparindex_warnung": { "label": "Índice de ahorro — aviso a partir de", "hint": "Un índice ≥ a este valor indica potencial de ahorro." },
@@ -1646,18 +1658,18 @@
     },
     "boolActive": "activado",
     "activeUtils": {
-      "title": "🧩 Suministros activos",
+      "title": "Suministros activos",
       "hint": "Solo los suministros marcados aparecen en la barra lateral, el panel y el informe anual. Los datos de los suministros inactivos se conservan."
     },
     "pdf": {
-      "title": "📄 Informe anual PDF",
+      "title": "Informe anual PDF",
       "hint": "Informe de varias páginas con resumen, clase de eficiencia, tablas de consumo por suministro y recomendaciones en curso.",
       "year": "Año",
       "download": "Descargar el informe anual",
       "moved": "El informe anual tiene ahora su propia página en «Evaluaciones»."
     },
     "export": {
-      "title": "📤 Exportación de datos (CSV)",
+      "title": "Exportación de datos (CSV)",
       "hint": "Exportación en tabla para Excel, LibreOffice o Google Sheets (UTF-8 con BOM). Complementa la copia de seguridad JSON completa de más abajo.",
       "monthly": "Resumen mensual",
       "monthlyHint": "Consumo, coste, anticipo y saldo por mes.",
@@ -1674,7 +1686,7 @@
       "formatHint": "La tabla usa los nombres de columna, el separador decimal y la fecha del idioma predeterminado y se abre así directamente en Excel o LibreOffice. El formato 1 sigue como desde la versión 1.1: punto y coma, coma decimal, fecha AAAA-MM-DD. Ambos se pueden volver a importar."
     },
     "backup": {
-      "title": "💾 Copia de seguridad y restauración",
+      "title": "Copia de seguridad y restauración",
       "hint": "Copia de seguridad JSON completa (formato v3.0) — contiene todos los suministros, contadores, contratos, temperaturas y ajustes, reimportable.",
       "download": "Descargar copia de seguridad JSON",
       "snapshot": "Guardar instantánea",
@@ -1799,7 +1811,14 @@
         "readKeyComment": "solo si el inicio de sesión está activado",
         "sensorBalance": "Saldo",
         "sensorForecast": "Previsión 12 meses",
-        "sensorDaysSince": "Días desde la lectura"
+        "sensorDaysSince": "Días desde la lectura",
+        "todoScanComment": "cada 15 minutos",
+        "todoName": "Energietracker pendiente",
+        "todoNextName": "Energietracker siguiente punto",
+        "todoDateName": "Energietracker vencimiento del siguiente punto",
+        "webhookAlias": "Energietracker: reenviar la notificación",
+        "webhookIdComment": "un ID propio que no se pueda adivinar",
+        "notifyComment": "o notify.mobile_app_… para el móvil"
       },
       "lastUsed": "Último uso: {when}",
       "neverUsed": "Todavía no ha llegado nada con este token.",
@@ -1816,10 +1835,14 @@
       },
       "setupTitle": "Contadores y plantillas para Home Assistant",
       "appHint": "¿Usas Home Assistant OS? Entonces Energietracker también funciona como app dentro de Home Assistant, con una entrada en la barra lateral.",
-      "appAdd": "Añadir el repositorio a Home Assistant"
+      "appAdd": "Añadir el repositorio a Home Assistant",
+      "todo": {
+        "title": "Sensor «Pendiente»",
+        "intro": "Número de puntos pendientes y el siguiente, para paneles y automatizaciones. Todos los puntos están en el atributo items."
+      }
     },
     "diag": {
-      "title": "🩺 Diagnóstico del sistema",
+      "title": "Diagnóstico del sistema",
       "appVersion": "Versión de la app",
       "schemaVersion": "Versión del esquema",
       "phpVersion": "Versión de PHP",
@@ -1873,7 +1896,7 @@
     "invalidFields": "No guardado: corrige los campos marcados en rojo.",
     "dayMonthInvalid": "Introduce día-mes, p. ej. 01-10 para el 1 de octubre.",
     "security": {
-      "title": "🔐 Inicio de sesión y acceso",
+      "title": "Inicio de sesión y acceso",
       "hint": "Sin inicio de sesión, cualquiera que conozca la dirección puede acceder a Energietracker – pensado para tu red doméstica. Si es accesible desde fuera (redirección de puertos, proxy inverso) o compartes la red con otros, activa el inicio de sesión.",
       "modeOff": "🔓 Sin inicio de sesión",
       "modePassword": "🔒 Inicio de sesión con contraseña",
@@ -2096,9 +2119,7 @@
         "other": "{count} recordatorios abiertos ahora son tuyos."
       },
       "noAccess": "sin acceso",
-      "hintOff": "Sin inicio de sesión no hay cuentas. Estas personas proceden de una copia de seguridad o de un hogar de ejemplo y se pueden elegir en «Responsable»; quien llega a la dirección puede eliminarlas.",
-      "deleteHintOff": "Sin inicio de sesión nadie se hace cargo al eliminar: los recordatorios abiertos, contadores y contratos de la persona quedan con «(perfil eliminado)» hasta que alguien los reasigne; lo hecho conserva su nombre. El número de una persona nunca se vuelve a asignar.",
-      "noAccessHint": "«sin acceso»: una persona de una copia de seguridad o de un hogar de ejemplo. «Crear acceso» pone su nombre en «Añadir una persona»; con una contraseña se convierte en un acceso con el mismo número, y sus recordatorios y entradas siguen siendo suyos.",
+      "noAccessHint": "«sin acceso»: una persona de Hogar y edificio, de una copia de seguridad o de un hogar de ejemplo. «Crear acceso» pone su nombre en «Añadir una persona»; con una contraseña se convierte en un acceso con el mismo número, y sus recordatorios y entradas siguen siendo suyos.",
       "grant": "Crear acceso",
       "deleteConfirmNoAccess": "Esta persona ya no se ofrecerá para elegir. Los datos del hogar se conservan.",
       "handoverNobody": {
@@ -2204,6 +2225,82 @@
       "pickModel": "Guardado. Elige ahora un modelo de la lista y actívalo después.",
       "saved": "Lectura de documentos guardada.",
       "modelLoad": "Cargar los modelos del servicio"
+    },
+    "people": {
+      "title": "Personas del hogar",
+      "hint": "Quién ayuda en el hogar. Las personas se pueden elegir en «Responsable» para recordatorios, contadores y contratos. No necesitan iniciar sesión para ello.",
+      "empty": "Todavía no hay personas. Añade la primera y luego podrás asignarle recordatorios, contadores y contratos.",
+      "emptyMember": "Todavía no hay personas.",
+      "add": "Nueva persona",
+      "namePlaceholder": "Nombre, p. ej. Anna",
+      "added": "{name} ya aparece en «Responsable».",
+      "account": "con acceso",
+      "deleteLabel": "Eliminar a {name}",
+      "accessHint": "Quien deba iniciar sesión recibe un acceso en Acceso. Las personas con acceso se gestionan allí.",
+      "accessHintOff": "Con esto nadie puede iniciar sesión. Los accesos propios solo existen cuando el inicio de sesión está activado en Acceso.",
+      "accessLink": "Abrir Acceso",
+      "movedHint": "Las personas del hogar se añaden en Hogar y edificio, también sin inicio de sesión.",
+      "goto": "Ir a las personas"
+    },
+    "haNotify": {
+      "title": "Notificaciones a Home Assistant",
+      "intro": "Energietracker avisa a Home Assistant por sí solo: cuando vence una cita o un plazo, ante avisos y cuando llega un documento a la bandeja de entrada. Cada mensaje llega una sola vez.",
+      "privacy": "Los mensajes solo van a tu Home Assistant. Nada sale de la red doméstica, salvo que tú mismo introduzcas una dirección exterior.",
+      "adminOnly": "Solo quien administra esta instalación puede cambiarlo.",
+      "enabled": "Enviar notificaciones",
+      "targetLabel": "¿Adónde?",
+      "target": {
+        "supervisor": "Mediante el Supervisor (app en Home Assistant, sin configuración)",
+        "webhook": "Webhook en Home Assistant",
+        "token": "Dirección y token"
+      },
+      "supervisorMissing": "La vía del Supervisor solo funciona en la app para Home Assistant.",
+      "url": "Dirección de Home Assistant",
+      "urlHint": "Por ejemplo http://192.168.178.10:8123, sin ruta. Un nombre .local a menudo no se resuelve dentro de un contenedor; entonces introduce la dirección IP.",
+      "webhook": "ID del webhook",
+      "webhookHint": "El mismo ID que en el desencadenante «Webhook» de tu automatización. Funciona como una contraseña: se queda en el servidor y aquí ya no aparece tras guardar.",
+      "newId": "Crear un ID nuevo",
+      "secretStored": "guardado, déjalo vacío para conservarlo",
+      "secretClear": "Eliminar",
+      "token": "Token (de larga duración)",
+      "tokenHint": "Créalo en Home Assistant, en tu perfil, en Seguridad (tokens de acceso de larga duración). Se queda en el servidor y aquí ya no aparece tras guardar.",
+      "service": "Acción en Home Assistant",
+      "serviceHint": "persistent_notification.create muestra el mensaje en las notificaciones de Home Assistant. Para el móvil: notify.mobile_app_ seguido del nombre de tu dispositivo.",
+      "events": "¿Qué avisar?",
+      "event": {
+        "reminder": "Las citas en cuanto vencen",
+        "deadline": "Los plazos y demás puntos de «Pendiente» (lecturas, plazos de cancelación, facturas)",
+        "warning": "Los avisos, por ejemplo un consumo inusualmente alto",
+        "document": "Los documentos nuevos en la bandeja de entrada"
+      },
+      "hour": "Comprobación diaria desde las",
+      "hourOption": "{hour}:00",
+      "hourHint": "Una vez al día, con la primera petición después de esta hora. Los documentos nuevos se avisan nada más llegar.",
+      "test": "Enviar un mensaje de prueba",
+      "testOk": "Mensaje de prueba enviado. Mira en Home Assistant.",
+      "testFailed": "El mensaje de prueba no ha llegado: {reason}",
+      "saved": "Guardado.",
+      "state": {
+        "on": "Activado. Destino: {target}",
+        "incomplete": "Activado, pero el destino está incompleto. No se envía nada.",
+        "off": "Desactivado. No se envía nada a Home Assistant."
+      },
+      "last": "Último envío: {when}",
+      "lastFailed": "El último intento del {when} falló: {reason}",
+      "yamlTitle": "Automatización para el webhook",
+      "yamlHint": "En Home Assistant crea una automatización nueva, elige «Editar en YAML» y pega esto. El ID del webhook tiene que ser el mismo que arriba.",
+      "error": {
+        "dns": "El nombre de la dirección no se puede resolver.",
+        "address": "Esta dirección está bloqueada.",
+        "insecure": "Una dirección fuera de la red doméstica solo funciona con https://.",
+        "timeout": "Home Assistant no ha respondido a tiempo.",
+        "network": "No se puede contactar con Home Assistant.",
+        "http": "Home Assistant responde con el estado {status}.",
+        "unauthorized": "Home Assistant lo rechaza (401). Comprueba el token.",
+        "incomplete": "El destino aún no está configurado del todo.",
+        "url": "La dirección no es válida.",
+        "noTransport": "En el servidor falta curl para PHP."
+      }
     }
   },
   "reminders": {
@@ -2269,7 +2366,8 @@
       "one": "Cada mes",
       "other": "Cada {count} meses"
     },
-    "lastDone": "Última vez {when}"
+    "lastDone": "Última vez {when}",
+    "emptyText": "Mantenimiento, plazo de verificación o lectura: la app te lo recuerda a tiempo y muestra lo que vence en «Pendiente» en el resumen."
   },
   "temperatures": {
     "loading": "Cargando…",
@@ -3527,7 +3625,9 @@
       "priceModelInvalid": "Modelo de precio desconocido «{value}»",
       "priceImportEmpty": "El archivo no contiene ninguna línea con el formato mes;precio",
       "priceImportUnsupported": "Los precios mensuales solo existen para contratos con precio unitario por kWh",
-      "gridTouInvalid": "Franjas del módulo 3 no válidas ({field}): trimestres 1–4, horas HH:MM con inicio antes del fin, precios 0–100 ct y una tarifa estándar."
+      "gridTouInvalid": "Franjas del módulo 3 no válidas ({field}): trimestres 1–4, horas HH:MM con inicio antes del fin, precios 0–100 ct y una tarifa estándar.",
+      "advanceEveryInvalid": "Anticipo n.º{n}: «{value}» no es un ritmo. Son posibles cada mes, cada 2 y cada 3 meses.",
+      "advanceDueBeforeStart": "Anticipo n.º{n}: el vencimiento del {date} es anterior al día desde el que rige la línea."
     },
     "delivery": {
       "notFound": "Entrega no encontrada: {id}",
@@ -3810,6 +3910,11 @@
         "contract": "Primero adopta el contrato, luego esto."
       },
       "nothingSelected": "No hay nada seleccionado."
+    },
+    "haNotify": {
+      "incomplete": "El destino está incompleto: el webhook necesita dirección e ID del webhook, el token dirección y token. El Supervisor solo funciona en la app para Home Assistant.",
+      "webhookFormat": "El ID del webhook tiene de 8 a 200 letras, cifras, guiones o guiones bajos.",
+      "tokenFormat": "El token tiene de 20 a 2000 caracteres visibles sin espacios."
     }
   },
   "login": {
@@ -3879,7 +3984,8 @@
     },
     "history": "Historial ({count})",
     "historyTitle": "Historial: {name}",
-    "anytime": "Cancelable en cualquier momento"
+    "anytime": "Cancelable en cualquier momento",
+    "advanceEvery": "Anticipo {amount}"
   },
   "billCheck": {
     "noMeter": "La revisión recalcula la factura anual de gas, electricidad, agua y calefacción urbana. Crea primero un contador.",
@@ -5468,7 +5574,7 @@
     "none": "– nadie –",
     "hintMeter": "Las lecturas, los recordatorios de este contador y sus contratos van a esta persona si no tienen responsable propio. No se avisa a nadie.",
     "hintContract": "El plazo de cancelación, el fin del contrato y «Factura esperada» van a esta persona. Si está vacío, se aplica la persona del contador. No se avisa a nadie.",
-    "noPeople": "Añade personas en Ajustes → Acceso.",
+    "noPeople": "Añade personas en Ajustes → Hogar y edificio.",
     "via": {
       "contract": "a través del contrato",
       "meter": "a través del contador"
@@ -5867,7 +5973,7 @@
       "elapsed": "{s} s",
       "wait": "El servidor sigue trabajando – comprobando el resultado …"
     },
-    "empty": "Aún no hay correo. Guarda en PDF tu primera factura o confirmación de contrato.",
+    "empty": "Aún no hay correo.",
     "col": {
       "document": "Documento",
       "type": "Tipo",
@@ -6025,7 +6131,10 @@
       "document_title": "Título del documento",
       "meter_readings": "Lecturas por contador",
       "reading_new_estimated": "Lectura final estimada",
-      "reading_old_estimated": "Lectura inicial estimada"
+      "reading_old_estimated": "Lectura inicial estimada",
+      "water_prices": "Precios del agua",
+      "advance_new_dates": "Vencimientos del nuevo anticipo",
+      "advance_new_every": "Ritmo del nuevo anticipo"
     },
     "reason": {
       "empty": "Falta, pero se necesita",
@@ -6061,14 +6170,28 @@
       "supplier": "Rescisión por el suministrador",
       "switch": "Fin por cambio de suministrador",
       "net": "neto",
-      "gross": "bruto"
+      "gross": "bruto",
+      "trinkwasser": "Agua potable",
+      "schmutzwasser": "Agua residual",
+      "niederschlagswasser": "Agua pluvial",
+      "m3": "por m³",
+      "m2_year": "por m² y año",
+      "monthly": "cada mes",
+      "bimonthly": "cada dos meses",
+      "quarterly": "cada tres meses",
+      "energy": "Precio unitario",
+      "energy_tax": "Impuesto sobre la energía",
+      "co2": "Precio del CO₂",
+      "other": "Recargo"
     },
     "item": {
       "gasFactor": "del {from} al {to}: coeficiente de corrección {z} × poder calorífico {hs} kWh/m³",
       "price": "desde el {from}: {value}",
       "priceNet": "desde el {from}: {value} neto + {vat} % de IVA = {gross}",
       "meterReading": "Contador {meter}: {from} → {to}",
-      "estimated": "estimada según la factura"
+      "estimated": "estimada según la factura",
+      "waterPrice": "{section} · {label} del {from} al {to}: {price}",
+      "waterPriceNet": "{section} · {label} del {from} al {to}: {price} neto + {vat} % de IVA = {gross}"
     },
     "result": {
       "due": "pago adicional de {amount}",
@@ -6097,7 +6220,12 @@
       "contractFromInvoice": "Crear el contrato {provider} desde el {from} a partir de esta factura",
       "contractFromSupplyStart": "Crear el contrato {provider} desde el {from}",
       "meterSwapInvoice": "Cambio de contador el {date}: lectura final {old_final} en el contador {old_serial}, contador nuevo {serial} con lectura inicial {new_initial}",
-      "readingEstimated": "Lectura del {date}: {counter} (estimada según la factura)"
+      "readingEstimated": "Lectura del {date}: {counter} (estimada según la factura)",
+      "requiresContract": "Solo junto con el contrato de esta factura.",
+      "contractSpanFromInvoice": "Crear el contrato {provider} del {from} al {to} a partir de esta factura",
+      "waterWorking": "{section} desde el {from}: {value} (de la factura)",
+      "waterBase": "Término fijo {section} desde el {from}: {value} al mes (de la factura)",
+      "waterRate": "{section} desde el {from}: {value} por m² y año para {area} m² (de la factura)"
     },
     "detail": {
       "reading": "Registrada: {counter}.",
@@ -6141,7 +6269,8 @@
       "remindDate": "Plazo",
       "figure": {
         "perYear": "{amount} al año",
-        "perMonth": "{amount} al mes"
+        "perMonth": "{amount} al mes",
+        "perRate": "{amount} por vencimiento"
       },
       "priceChange": {
         "more": "Desde el {date}, {provider} te costará unos {amount} más al año.",
@@ -6163,7 +6292,9 @@
         "ok": "El nuevo anticipo de {amount} encaja con tu consumo.",
         "high": "El nuevo anticipo de {amount} es unos {diff} al mes demasiado alto (encajarían {recommended}).",
         "low": "El nuevo anticipo de {amount} es unos {diff} al mes demasiado bajo (encajarían {recommended}).",
-        "unknown": "Nuevo anticipo de {amount} desde el {date}."
+        "unknown": "Nuevo anticipo de {amount} desde el {date}.",
+        "highRate": "El nuevo anticipo de {amount} es unos {diff} por vencimiento demasiado alto (encajarían {recommended}).",
+        "lowRate": "El nuevo anticipo de {amount} es unos {diff} por vencimiento demasiado bajo (encajarían {recommended})."
       },
       "cancellation": {
         "open": "El suministro termina el {date}: aún falta el siguiente contrato.",
@@ -6234,7 +6365,8 @@
         "serialConflict": "Atención: el contador tiene registrado el número {serial}.",
         "minTerm": "Permanencia mínima hasta el {date}.",
         "guarantee": "Garantía de precio hasta el {date}.",
-        "dunning": "La aplicación no lee las reclamaciones de pago; el recordatorio te avisa para aclarar el pago."
+        "dunning": "La aplicación no lee las reclamaciones de pago; el recordatorio te avisa para aclarar el pago.",
+        "advanceBasisRate": "Encajarían unos {recommended} por vencimiento; con el nuevo anticipo la factura acabaría con: {balance}."
       }
     },
     "channels": {
@@ -6245,7 +6377,8 @@
       },
       "shortcut": "Atajo",
       "folder": "Carpeta",
-      "email": "Correo"
+      "email": "Correo",
+      "textShare": "También sin navegador: con un atajo desde el iPhone o el iPad, mediante la carpeta «{dir}» o por correo a través de Home Assistant."
     },
     "folder": {
       "imported": {
@@ -6296,6 +6429,22 @@
     },
     "wait": {
       "gaveUp": "Sin respuesta, ni siquiera tras volver a consultar. Puede que el documento aún se complete – vuelve a abrirlo enseguida. Un límite de tiempo mayor en el servidor web lo soluciona de forma duradera."
+    },
+    "unit": {
+      "perM3": "por m³",
+      "perYear": "al año",
+      "perMonth": "al mes",
+      "perM2Year": "por m² y año"
+    },
+    "line": {
+      "working": "{what} desde el {from}: {value}",
+      "base": "Término fijo {what} desde el {from}: {value} al mes",
+      "baseOnly": "Término fijo desde el {from}: {value} al mes",
+      "rate": "{what} desde el {from}: {value} por m² y año para {area} m²",
+      "energy": "Precio unitario",
+      "parts": "a partir de {parts}",
+      "net": "{value} neto + {vat} % de IVA",
+      "advance": "Anticipo desde el {from}: {value} por vencimiento"
     }
   },
   "inboxCloud": {
@@ -6472,7 +6621,8 @@
       "meterChange": "Cambio de contador el {date}, contador nuevo {serial}",
       "contract": {
         "new": "Contrato {provider} del {from} al {to}",
-        "existing": "Contrato existente {provider} desde el {from}"
+        "existing": "Contrato existente {provider} desde el {from}",
+        "sameSupplier": "Contrato existente {existing} desde el {from}: ¿el mismo suministrador que {provider}?"
       },
       "contractEnd": "El contrato anterior {provider} termina el {date}",
       "prices": "Precios {provider}",
@@ -6529,7 +6679,8 @@
       "swap_open": "Tras un cambio de contador sin lectura final del contador antiguo – introduce primero el cambio",
       "swap_readings": "Las lecturas no encajan del todo con el cambio (otro aparato, en descenso o por debajo de una lectura conocida) – revísalo",
       "existing_update": "Completa lo que ya está registrado – revísalo",
-      "existing_overlap": "Se solapa con lo que ya está registrado – revísalo"
+      "existing_overlap": "Se solapa con lo que ya está registrado – revísalo",
+      "same_supplier": "En tus datos el suministrador tiene otro nombre. ¿Es el mismo, por ejemplo una marca y su empresa municipal?"
     },
     "result": {
       "title": "Adoptado",
@@ -6589,7 +6740,8 @@
       "memberHint": "Lo configura quien administra esta instalación. Aquí ves lo que está ajustado; guardar documentos ya puedes.",
       "ready": "Configurado: la app lee ahora con {service}, modelo {model}.",
       "unavailable": "Los ajustes de lectura no están disponibles ahora. Vuelve a intentarlo enseguida."
-    }
+    },
+    "requires": "Pertenece a «{contract}» y solo se adopta junto con este contrato."
   },
   "interpolation": {
     "leadYear": {
@@ -6648,6 +6800,43 @@
       "too_few_points": "demasiado pocos puntos ({n})",
       "poor_fit": "no se ajusta (R² {r2})",
       "degenerate": "no calculable (muy poca variación en los valores)"
+    }
+  },
+  "haNotify": {
+    "title": {
+      "reminder": "Energietracker: cita",
+      "deadline": "Energietracker: pendiente",
+      "more": "Energietracker: pendiente",
+      "warning": "Energietracker: aviso",
+      "document": "Energietracker: bandeja de entrada",
+      "test": "Energietracker: mensaje de prueba"
+    },
+    "test": "La conexión funciona. A partir de ahora llegan aquí las citas y plazos pendientes, los avisos y los documentos nuevos.",
+    "when": {
+      "today": "Para hoy.",
+      "on": "Para el {date}.",
+      "overdue": "Atrasado desde el {date}."
+    },
+    "document": {
+      "single": "Documento nuevo en la bandeja de entrada: {name}",
+      "many": {
+        "one": "{count} documento nuevo en la bandeja de entrada: {names}",
+        "other": "{count} documentos nuevos en la bandeja de entrada: {names}"
+      }
+    },
+    "more": {
+      "one": "Además, {count} punto más:",
+      "other": "Además, {count} puntos más:"
+    }
+  },
+  "advance": {
+    "rhythm": {
+      "every": {
+        "one": "cada mes",
+        "other": "cada {count} meses"
+      },
+      "everyDates": "{every}, el {dates}",
+      "dates": "el {dates}"
     }
   },
   "heatLimit": {

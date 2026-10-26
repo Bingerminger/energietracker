@@ -1001,14 +1001,15 @@ final class HouseholdDraftTest extends ServiceTestCase
         $byDate = array_column($this->readings->list('strom'), null, 'date');
         self::assertTrue(!empty($byDate['2025-12-31']['is_estimated']), 'geschätzt laut Rechnung');
         self::assertTrue(empty($byDate['2025-04-01']['is_estimated']), 'der Anfangsstand ist gemessen');
-        // je Eintrag von `meter_readings`: geschätzt gilt für beide Stände des Eintrags
+        // je Eintrag von `meter_readings`: v3.9.0 (F1034) geschätzt ist der Stand, hinter dem das Wort steht
+        // (bis v3.8 galt es für beide Stände des Eintrags)
         $this->resetInbox();
         $this->doc('a', 'invoice', ['utility' => 'gas', 'supplier' => 'Musterhausen-Energie GmbH', 'kind' => 'annual', 'period_from' => '01.01.2025',
             'period_to' => '31.12.2025', 'total_amount' => '700,00', 'result_kind' => 'due', 'result_amount' => '10,00', 'meter_number' => 'GAS-7',
             'meter_readings' => [['meter_number' => 'GAS-7', 'reading_old' => '100', 'reading_old_date' => '31.12.2024', 'reading_new' => '1300',
                 'reading_new_date' => '31.12.2025', 'estimated' => 'geschätzt']]]);
         $r = self::items($this->build(), 'readings', 'gas')[0];
-        self::assertSame([true, true], [!empty(self::field($r, 'r:2024-12-31')['is_estimated']), !empty(self::field($r, 'r:2025-12-31')['is_estimated'])]);
+        self::assertSame([false, true], [!empty(self::field($r, 'r:2024-12-31')['is_estimated']), !empty(self::field($r, 'r:2025-12-31')['is_estimated'])]);
     }
 
     public function testASwapFromTheMeterReadingsIsPreselectedOnlyWhenEverythingFits(): void

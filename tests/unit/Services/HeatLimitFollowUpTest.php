@@ -535,6 +535,9 @@ final class HeatLimitFollowUpTest extends ServiceTestCase
         self::assertSame([$rec['id'], $h['best'], '#/utility/gas?meter=m_gas_messy'], [$ev[0]['ref']['recommendation_id'], $ev[0]['ref']['best'], $ev[0]['href']]);
         // stabile Kennung je Zähler und Grenze (Benachrichtigungen einmal je Vorschlag)
         self::assertSame('heat_limit-gas-m_gas_messy-' . sprintf('%.1f', $h['best']), $ev[0]['uid']);
+        // derselbe Eintrag im Sensor „Zu tun“ für Home Assistant (GET /api/todo)
+        $todo = \Energietracker\Services\HomeAssistant\Todo::summary($agenda->events(), 'test');
+        self::assertContains($ev[0]['uid'], array_column(array_filter($todo['items'], fn($i) => $i['kind'] === 'heat_limit'), 'uid'));
         self::assertSame($e, $ev[0]['ref']['effect']);
 
         // „Nicht jetzt“

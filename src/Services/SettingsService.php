@@ -229,6 +229,15 @@ final class SettingsService
         'setup_persona'            => null,      // s. PERSONAS
         // ── v3.2.0 (F1022) — evcc im Heimnetz (leer = aus, nur lokale Adressen) ──
         'evcc_endpoint'            => '',
+        // ── v3.9.0 (F1033, #36) — Benachrichtigungen an Home Assistant (opt-in) ──
+        // Webhook-ID und Token stehen NICHT hier, sondern in ha_notify_secret.json
+        // (nie im Browser, nicht im Backup); Prüfung: HomeAssistant\NotifyConfig::normalizeSetting
+        'ha_notify_enabled'        => false,
+        'ha_notify_target'         => 'supervisor',   // supervisor (App in Home Assistant) | webhook | token
+        'ha_notify_url'            => '',             // Adresse von Home Assistant (webhook, token)
+        'ha_notify_service'        => 'persistent_notification.create',   // oder notify.<name>
+        'ha_notify_events'         => ['reminder', 'deadline', 'warning', 'document'],
+        'ha_notify_hour'           => 8,              // tägliche Prüfung ab dieser Stunde
         // ── v3.7.0 — Flexibilität: eigene Werte statt Beispielwerte (EXAMPLE_VALUES) ──
         // Defaults = FlexibilityInsightService::ASSUMPTIONS/APPLIANCES (Test hält es fest)
         'flex_heat_pump_share_pct'        => 30.0,  // % des Tagesverbrauchs der Wärmepumpe verschiebbar
@@ -503,6 +512,11 @@ final class SettingsService
         if (!is_array($current)) $current = [];
         foreach ($patch as $k => $v) {
             if (!array_key_exists($k, self::DEFAULTS)) continue;
+            // v3.9.0 (F1033) — Benachrichtigungen an Home Assistant: eine Prüfung für Karte und PATCH /api/settings
+            if (str_starts_with($k, 'ha_notify_')) {
+                $current[$k] = \Energietracker\Services\HomeAssistant\NotifyConfig::normalizeSetting($k, $v);
+                continue;
+            }
             // v3.6.0 — ein geleertes Feld nimmt die Angabe zurück (nicht eingetragen,
             // es gilt wieder der Default); bisher stand dann null in settings.json
             if (in_array($k, self::ENTERED_ONLY, true) && ($v === null || $v === '')) {

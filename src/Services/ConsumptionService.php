@@ -225,7 +225,7 @@ final class ConsumptionService
      * Future months past `today` are projected using the average kwh/HGT of the
      * actual months in this contract (linear with seasonality from HDD).
      */
-    public function contractStatus(string $utility, array $meter): array
+    public function contractStatus(string $utility, array $meter, ?string $today = null): array
     {
         $contracts = $this->contracts->list($utility, $meter['id']);
         // v1.3.0 — Schattenverträge tauchen im Vertragsstatus nicht auf
@@ -234,7 +234,8 @@ final class ConsumptionService
             $contracts, fn($c) => empty($c['is_shadow'])
         ));
         $monthly   = $this->forMeter($utility, $meter);
-        $today     = date('Y-m-d');
+        // v3.9.0 (F1034) — Stichtag optional (Tests rechnen den Saldo an einem festen Tag); sonst heute
+        $today     = $today ?? date('Y-m-d');
         // v3.6.0 (F1030) — Tag nach der letzten erfassten Versorgerrechnung
         // dieses Zählers (bzw. der Mitglieder einer Gruppe) und die
         // Sonderzahlungen, die Rechnungen ausgleichen
@@ -338,7 +339,7 @@ final class ConsumptionService
             $actualBase  = 0.0; $actualBonus = 0.0; $advancePaid = 0.0;
             // Water component aggregates (v1.0.3)
             $twWorking = 0.0; $twBase = 0.0; $twTotal = 0.0;
-            $swTotal   = 0.0;
+            $swTotal   = 0.0; $swBase = 0.0;   // v3.9.0 (F1034) — Grundpreis Schmutzwasser
             $nwTotal   = 0.0;
             $actualM3  = 0.0;
             foreach ($mList as $m) {
@@ -358,7 +359,7 @@ final class ConsumptionService
                         $twBase    += (float)($tw['base_cost']    ?? 0);
                         $twTotal   += (float)($tw['total']        ?? 0);
                     }
-                    if (is_array($sw)) $swTotal += (float)($sw['total'] ?? 0);
+                    if (is_array($sw)) { $swTotal += (float)($sw['total'] ?? 0); $swBase += (float)($sw['base_cost'] ?? 0); }
                     if (is_array($nw)) $nwTotal += (float)($nw['total'] ?? 0);
                 }
             }
@@ -375,7 +376,7 @@ final class ConsumptionService
             $currentBalance = round($actualCost - $advancePaid + $spSummary['net'], 2);
 
             // Current tariff values (those valid today, for the active contract).
-            [$y, $mn] = [(int)date('Y'), (int)date('n')];
+            [$y, $mn] = [(int)substr($today, 0, 4), (int)substr($today, 5, 2)];
             if ($utility === 'wasser') {
                 $tw = $c['trinkwasser']         ?? [];
                 $sw = $c['schmutzwasser']       ?? [];
@@ -383,12 +384,13 @@ final class ConsumptionService
                 $curWp = $this->contracts->valueValidOn($tw['working_prices'] ?? [], 'ct_per_m3', $y, $mn);
                 $curBp = $this->contracts->valueValidOn($tw['base_prices']    ?? [], 'eur_per_month', $y, $mn);
                 $curSwWp = $this->contracts->valueValidOn($sw['working_prices'] ?? [], 'ct_per_m3', $y, $mn);
+                $curSwBp = $this->contracts->valueValidOn($sw['base_prices'] ?? [], 'eur_per_month', $y, $mn);   // v3.9.0 (F1034)
                 $curNwRate = $this->valueValidOnGeneric($nw['rates'] ?? [], 'eur_per_m2_year',        $y, $mn);
                 $curNwArea = $this->valueValidOnGeneric($nw['rates'] ?? [], 'versiegelte_flaeche_m2', $y, $mn);
             } else {
                 $curWp = $this->contracts->valueValidOn($c['working_prices'] ?? [], 'ct_per_kwh', $y, $mn);
                 $curBp = $this->contracts->valueValidOn($c['base_prices']    ?? [], 'eur_per_month', $y, $mn);
-                $curSwWp = $curNwRate = $curNwArea = null;
+                $curSwWp = $curSwBp = $curNwRate = $curNwArea = null;
             }
             // F1003 — effektiver Abschlagsplan: „mit Auswirkung“ setzt den
             // Abschlag ab Stichtag (seit v3.5.0 auch bei Wasser); ohne
@@ -396,6 +398,14 @@ final class ConsumptionService
             $curAp = $this->contracts->valueValidOn(
                 $this->contracts->effectiveAdvanceSchedule($c), 'amount_eur', $y, $mn
             );
+            // v3.9.0 (F1034) — Rhythmus des laufenden Abschlags und seine nächsten Termine (Anzeige)
+            $plan = $this->contracts->effectiveAdvanceSchedule($c);
+            $apRow = ContractService::planRowOn($plan, $today);
+            $rhythm = $apRow !== null && ContractService::hasRhythm($apRow)
+                ? ['current_advance_every_months' => ContractService::everyMonths($apRow),
+                   'next_advance_dates' => array_column(array_slice(ContractService::installments($plan, $today,
+                       ContractService::addMonthsClamped($today, 12)), 0, 6), 'date')]
+                : [];
 
             // Project balance to contract end:
             //   project remaining months at the current avg cost / monthly advance.
@@ -550,7 +560,7 @@ final class ConsumptionService
                 // v2.8.0 — wie gerechnet wurde (additiv)
                 'balance_as_of'               => $projection['as_of'] ?? $today,
                 'projection_method'           => $projection !== null ? $projection['method'] : 'flat_average',
-            ];
+            ] + $rhythm;   // v3.9.0 (F1034) — {current_advance_every_months, next_advance_dates}, nur mit Rhythmus (additiv)
             if ($projection !== null) {
                 $row += [
                     'measured_until'           => $projection['measured_until'],
@@ -602,7 +612,8 @@ final class ConsumptionService
                         'total'                => round($swTotal, 2),
                         'current_ct_per_m3'    => $curSwWp,
                         'basis'                => $c['schmutzwasser']['basis'] ?? 'trinkwasser',
-                    ],
+                    ] + (!empty($c['schmutzwasser']['base_prices'])   // v3.9.0 (F1034) — additiv, nur mit Grundpreis
+                        ? ['base_cost' => round($swBase, 2), 'current_eur_per_month' => $curSwBp] : []),
                     'niederschlagswasser' => [
                         'total'                       => round($nwTotal, 2),
                         'current_eur_per_m2_year'     => $curNwRate,
@@ -735,7 +746,8 @@ final class ConsumptionService
      * liest: Arbeitspreis je m³ = Trinkwasser + Schmutzwasser (bei eigenem bzw.
      * Garten-Abzugszähler mit dem gemessenen Anteil Schmutzwasser an der
      * Trinkwassermenge), feste Kosten je Monat = Grundpreis Trinkwasser +
-     * Niederschlagswasser (Fläche × €/m²·a ÷ 12), je Stichtag einer der Listen.
+     * (v3.9.0) Grundpreis Schmutzwasser + Niederschlagswasser (Fläche × €/m²·a
+     * ÷ 12), je Stichtag einer der Listen.
      * Dieselben Bausteine wie applyWaterContracts().
      */
     private static function waterBalanceView(array $c, array $monthly): array
@@ -768,10 +780,13 @@ final class ConsumptionService
             if ($t !== null || $s !== null) $wp[] = ['from' => $d, 'ct_per_kwh' => round(($t ?? 0.0) + $share * ($s ?? 0.0), 4)];
         }
         $bp = [];
-        $bd = $dates((array)($tw['base_prices'] ?? []), (array)($nw['rates'] ?? []));
+        // v3.9.0 (F1034) — dazu der Grundpreis des Schmutzwassers (fehlt er, wie bisher)
+        $bd = $dates((array)($tw['base_prices'] ?? []), (array)($nw['rates'] ?? []), (array)($sw['base_prices'] ?? []));
         sort($bd);
         foreach ($bd as $d) {
             $base = $at((array)($tw['base_prices'] ?? []), 'eur_per_month', $d);
+            $swBase = $at((array)($sw['base_prices'] ?? []), 'eur_per_month', $d);
+            if ($swBase !== null) $base = ($base ?? 0.0) + $swBase;
             $rate = $at((array)($nw['rates'] ?? []), 'eur_per_m2_year', $d); $area = $at((array)($nw['rates'] ?? []), 'versiegelte_flaeche_m2', $d);
             if ($base !== null || ($rate !== null && $area !== null)) $bp[] = ['from' => $d, 'eur_per_month' => round(($base ?? 0.0) + ($rate !== null && $area !== null ? $rate * $area / 12 : 0.0), 4)];
         }
@@ -857,6 +872,13 @@ final class ConsumptionService
             $monthsLeft++;
         }
         $curAp = $this->contracts->valueValidOn($plan, 'amount_eur', (int)substr($today, 0, 4), (int)substr($today, 5, 2));
+        // v3.9.0 (F1034) — Plan mit Rhythmus: der Rest verteilt sich auf die Raten, die noch
+        // fällig werden, und der Vorschlag gilt je Rate (nicht je Monat)
+        $nowRow = ContractService::planRowOn($plan, $today);
+        if ($nowRow !== null && ContractService::hasRhythm($nowRow)) {
+            $monthsLeft = count(ContractService::installments($plan, date('Y-m-d', strtotime($asOf . ' +1 day')), $endExcl));
+            $curAp = (float)$nowRow['amount_eur'];
+        }
         if ($monthsLeft >= 1 && $curAp !== null && $asOf === $today) {
             $suggested = max(0.0, round((float)$curAp + $projected / $monthsLeft));
         }
@@ -927,9 +949,10 @@ final class ConsumptionService
                 }
                 $bonus  = $this->contracts->bonusForMonth($c, (int)date('Y', $t), (int)date('n', $t));
                 $apDate = $segments !== [] ? ContractService::priceDate($segments[0]) : $cFrom;
-                $ap     = $this->contracts->valueOnDate($plan, 'amount_eur', $apDate);
+                // v3.9.0 (F1034) — dieselben Abschläge wie calendarSums (Raten mit Rhythmus in ihrem Monat)
+                $ap     = ContractService::advanceIn($plan, $apDate, $cFrom, $cTo, min(1.0, $cDays / $dim), $dim);
                 $cumCost += ($measuredByMonth[$ym] ?? 0.0) + $estimated + $base - $bonus;
-                $cumPaid += ($ap !== null ? $ap * min(1.0, $cDays / $dim) : 0.0) - ($spByMonth[$ym] ?? 0.0);
+                $cumPaid += ($ap ?? 0.0) - ($spByMonth[$ym] ?? 0.0);
                 $path[] = [
                     'ym'        => $ym,
                     'cost'      => round($cumCost, 2),
@@ -1016,8 +1039,10 @@ final class ConsumptionService
             $out[$bucket]['bonus'] += $this->contracts->bonusForMonth($c, $y, $mo);
             // Abschlag: der Betrag am ersten Vertragstag des Monats, anteilig
             $apDate = $segments !== [] ? ContractService::priceDate($segments[0]) : $cFrom;
-            $ap = $this->contracts->valueOnDate($plan, 'amount_eur', $apDate);
-            if ($ap !== null) $out[$bucket]['advance'] += $ap * min(1.0, $cDays / $dim);
+            // v3.9.0 (F1034) — Raten eines Plans mit Rhythmus ganz an ihrem Tag: bis heute, wenn bis heute fällig
+            $adv = ContractService::advanceParts($plan, $apDate, $cFrom, $cTo, min(1.0, $cDays / $dim), $dim);
+            if ($adv['monthly'] !== null) $out[$bucket]['advance'] += $adv['monthly'];
+            foreach ($adv['rates'] as $r) $out[$started && $r['date'] <= $asOf ? 'to_date' : 'rest']['advance'] += $r['amount_eur'];
         }
         return $out;
     }
@@ -1706,7 +1731,7 @@ final class ConsumptionService
                 foreach (['kwh', 'm3', 'cost', 'kwh_cost', 'base_price_eur', 'bonus_eur', 'advance_eur'] as $k) {
                     if (isset($r[$k]) && is_numeric($r[$k])) $r[$k] = (float)$r[$k] * $s;
                 }
-                foreach (['trinkwasser' => ['working_cost', 'base_cost', 'total'], 'schmutzwasser' => ['total'], 'niederschlagswasser' => ['total']] as $part => $keys) {
+                foreach (['trinkwasser' => ['working_cost', 'base_cost', 'total'], 'schmutzwasser' => ['working_cost', 'base_cost', 'total'], 'niederschlagswasser' => ['total']] as $part => $keys) {
                     if (!is_array($r[$part] ?? null)) continue;
                     foreach ($keys as $k) if (isset($r[$part][$k]) && is_numeric($r[$part][$k])) $r[$part][$k] = (float)$r[$part][$k] * $s;
                 }
@@ -2812,6 +2837,7 @@ final class ConsumptionService
         $days = max(1, self::daysBetweenDates($a, $b));
         $tw = 0.0; $sw = 0.0; $nw = 0.0; $base = 0.0; $swKnown = true; $priced = $m3 !== null; $cid = null;
         $swM3 = 0.0;
+        $swBase = 0.0;   // v3.9.0 (F1034) — Grundpreis Schmutzwasser
         $other = [];   // Menge anderer Zähler in [a, b), einmal je Zähler
         $otherM3 = function (string $id) use (&$other, $a, $b): float {
             return $other[$id] ??= $this->waterVolumeBetween($id, $a, $b);
@@ -2848,6 +2874,9 @@ final class ConsumptionService
                     $swWp = $this->contracts->valueValidOn($sws['working_prices'] ?? [], 'ct_per_m3', $y, $mn);
                     if ($swWp !== null) $sw += $swPart * $swWp / 100;
                 }
+                // v3.9.0 (F1034) — Grundpreis Schmutzwasser nach Tagen wie der des Trinkwassers
+                $swBp = $this->contracts->valueValidOn($sws['base_prices'] ?? [], 'eur_per_month', $y, $mn);
+                if ($swBp !== null) $swBase += $swBp * $d / $dim;
                 $nws = $c['niederschlagswasser'] ?? [];
                 $nwP = $this->valueValidOnGeneric($nws['rates'] ?? [], 'eur_per_m2_year', $y, $mn);
                 $nwA = $this->valueValidOnGeneric($nws['rates'] ?? [], 'versiegelte_flaeche_m2', $y, $mn);
@@ -2861,11 +2890,11 @@ final class ConsumptionService
             'tw_m3'       => $m3 !== null ? round($m3, 2) : null,
             'tw_cost'     => $priced ? round($tw + $base, 2) : null,
             'sw_m3'       => $swKnown && $m3 !== null ? round($swM3, 2) : null,
-            'sw_cost'     => $swKnown && $priced ? round($sw, 2) : null,
+            'sw_cost'     => $swKnown && $priced ? round($sw + $swBase, 2) : null,
             'nw_cost'     => round($nw, 2),
             'energy_cost' => $priced ? round($tw + ($swKnown ? $sw : 0.0), 2) : null,
             'fixed_days'  => $days,
-            'fixed_cost'  => round($base + $nw, 2),
+            'fixed_cost'  => round($base + $swBase + $nw, 2),
             'contract_id' => $cid,
         ];
     }
@@ -4213,6 +4242,9 @@ final class ConsumptionService
                 }
                 $parts[$c['id']]['days'] += $seg['days'];
                 $parts[$c['id']]['advance_date'] ??= $date;
+                // v3.9.0 (F1034) — Tage des Vertrags im Monat, für die Raten eines Plans mit Rhythmus
+                $parts[$c['id']]['first_from'] ??= $seg['from'];
+                $parts[$c['id']]['last_to'] = $seg['to'];
                 $parts[$c['id']]['assumed'] = $parts[$c['id']]['assumed'] || $seg['assumed'];
             }
 
@@ -4231,11 +4263,13 @@ final class ConsumptionService
             foreach ($parts as $cid => &$p) {
                 $c = $p['contract'];
                 // F1003 — effektiver Abschlagsplan inkl. „mit Auswirkung"
+                // v3.9.0 (F1034) — mit Rhythmus: die Raten, die in den Vertragstagen des Monats fällig sind
                 $ap = $p['advance_date'] !== null
-                    ? $this->contracts->valueOnDate($this->contracts->effectiveAdvanceSchedule($c), 'amount_eur', $p['advance_date'])
+                    ? ContractService::advanceIn($this->contracts->effectiveAdvanceSchedule($c), $p['advance_date'],
+                        (string)($p['first_from'] ?? $monthStart), (string)($p['last_to'] ?? $nextMonth), min(1.0, $p['days'] / $dim), $dim)
                     : null;
                 $fixedShare = self::carriesFixed($c, $ctx);   // v3.1.0 (H6) — Gruppenvertrag: einmal
-                $p['advance'] = $ap !== null && $fixedShare ? $ap * min(1.0, $p['days'] / $dim) : null;
+                $p['advance'] = $ap !== null && $fixedShare ? $ap : null;
                 // v3.7.0 (#33) — die Boni einzeln (Datum, Art, Notiz) für „Bonus −X € am …“
                 $p['bonus_items'] = !$fixedShare || ($p['assumed'] && ($c['end'] ?? '') < $monthStart) ? [] : ContractService::bonusesForMonth($c, $y, $mn);
                 $p['bonus']   = (float)array_sum(array_column($p['bonus_items'], 'amount_eur'));
@@ -4302,7 +4336,7 @@ final class ConsumptionService
     private static function emptyContractPart(array $contract): array
     {
         return ['contract' => $contract, 'kwh' => 0.0, 'kwh_cost' => 0.0, 'base' => 0.0, 'has_base' => false,
-                'days' => 0, 'advance_date' => null, 'assumed' => false];
+                'days' => 0, 'advance_date' => null, 'first_from' => null, 'last_to' => null, 'assumed' => false];
     }
 
     /**
@@ -4398,7 +4432,11 @@ final class ConsumptionService
             } else {
                 $swM3 = $m3;
             }
-            $swTotal = ($swWp !== null && $swM3 > 0) ? round($swM3 * $swWp / 100.0, 2) : 0.0;
+            $swWorking = ($swWp !== null && $swM3 > 0) ? round($swM3 * $swWp / 100.0, 2) : 0.0;
+            // v3.9.0 (F1034) — Grundpreis Schmutzwasser (Basis- und Bereitstellungspreis), je Monat
+            $swBp = $this->contracts->valueValidOn($sw['base_prices'] ?? [], 'eur_per_month', $y, $mn);
+            $swBase = $swBp !== null ? (float)$swBp : 0.0;
+            $swTotal = round($swWorking + $swBase, 2);
 
             // ── Niederschlagswasser ────────────────────────────────
             $nwRate = $this->valueValidOnGeneric($nw['rates'] ?? [], 'eur_per_m2_year', $y, $mn);
@@ -4412,6 +4450,12 @@ final class ConsumptionService
             // setzt den Abschlag ab ihrem Stichtag (ohne Sonderzahlungen
             // derselbe Wert wie advance_payments)
             $ap = $this->contracts->valueValidOn($this->contracts->effectiveAdvanceSchedule($c), 'amount_eur', $y, $mn);
+            // v3.9.0 (F1034) — mit Rhythmus: die Raten, die im Monat fällig sind (sonst 0); monatlich wie bisher
+            $apPlan = $this->contracts->effectiveAdvanceSchedule($c);
+            if (array_filter($apPlan, fn($r) => is_array($r) && ContractService::hasRhythm($r)) !== []) {
+                $ap = ContractService::advanceIn($apPlan, $first, $first,
+                    date('Y-m-d', (int)strtotime($first . ' +1 month')), 1.0, (int)date('t', (int)strtotime($first)));
+            }
             $bonusItems = ContractService::bonusesForMonth($c, $y, $mn);
             $bn = (float)array_sum(array_column($bonusItems, 'amount_eur'));
 
@@ -4438,7 +4482,7 @@ final class ConsumptionService
                 'm3'                          => $swM3,
                 'ct_per_m3'                   => $swWp,
                 'total'                       => $swTotal,
-            ];
+            ] + ($swBp !== null ? ['working_cost' => $swWorking, 'base_price_eur' => $swBp, 'base_cost' => $swBase] : []);   // v3.9.0 (F1034) — additiv, nur mit Grundpreis
             $m['niederschlagswasser'] = [
                 'eur_per_m2_year'        => $nwRate,
                 'versiegelte_flaeche_m2' => $nwArea,
@@ -4450,8 +4494,8 @@ final class ConsumptionService
             // we keep working_price_ct = trinkwasser ct/m³ (the headline
             // tariff) and base_price_eur = trinkwasser base + niederschlag/month.
             $m['working_price_ct'] = $twWp;
-            $m['base_price_eur']   = round($twBase + $nwTotal, 2);
-            $m['kwh_cost']         = round($twWorking + $swTotal, 2); // Verbrauchsabhängig
+            $m['base_price_eur']   = round($twBase + $swBase + $nwTotal, 2);   // v3.9.0 (F1034) — mit Grundpreis Schmutzwasser
+            $m['kwh_cost']         = round($twWorking + $swWorking, 2); // Verbrauchsabhängig
 
             if ($ap !== null) {
                 $delta = $combined - (float)$ap;

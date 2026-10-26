@@ -353,6 +353,7 @@ docker run -e ET_LOG_LEVEL=debug …   # or in docker-compose.yml under environm
 | `ET_PROXY_USER_HEADER` | *(empty)* | *(v3.4.0)* the one header proxy mode reads the user from (e.g. `X-Forwarded-User`); recommended for every proxy except Home Assistant Ingress — [Security § 6](sicherheit.md#6-sign-in-via-an-upstream-proxy) |
 | `ET_ALLOWED_HOSTS` | *(empty = all)* | *(v2.6.0)* allowed host names, comma-separated, `*.domain` possible; others → 421. IP addresses and `localhost` always. Since v3.4.0 also in the settings (`allowed_hosts`); both lists apply |
 | `ET_LOCK_WAIT_S` | `15` | *(v3.4.0)* how long a writing request waits for the write lock (1–120 s), then `503` with `Retry-After` |
+| `ET_INBOX_DIR` | *(empty = `<dataDir>/posteingang`)* | *(v3.9.0)* your own [watched folder](../anleitungen/posteingang.md#watched-folder) for the inbox, absolute path, also outside the data directory (the Home Assistant app sets `/share/energietracker/posteingang`). The image creates it at start and hands it to `www-data`; without root (variant `rootless`) it must be writable for the container’s user |
 | `ET_FRAME_ANCESTORS` | *(empty)* | *(v2.6.0)* origins allowed to embed the app (e.g. the Home Assistant dashboard) |
 | `ET_DEBUG` | *(empty)* | *(v2.6.0)* `1` = file/line in error responses — only briefly for troubleshooting |
 

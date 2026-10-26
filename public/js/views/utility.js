@@ -36,6 +36,7 @@ import { lastClosedPeriod, periodToCheck, calendarYearOf, periodMode, billingApp
 import { periodModeHtml, wirePeriodMode, calendarOnlyNote } from '../components/period-mode.js';
 import { bonusOf, bonusItemsOf, bonusLineText } from '../lib/bonus.js';   // v3.7.0 (#33)
 import { fillHeatLimitSlot, poorFitIn } from '../lib/heat-limit.js';   // v3.9.0 (#38)
+import { advanceAmountText } from '../lib/advance-rhythm.js';   // v3.9.0 (F1034) — Abschlag mit Rhythmus
 
 let _chart = null;
 let _stockChart = null;   // v2.10.0 — Bestandsverlauf (Tankbuch)
@@ -780,7 +781,8 @@ function balanceCard(c, u, country = 'DE') {
     ? t('utility.balance.unitWorkingWater', { value: fmt.num(c.current_working_price_ct, 4) })
     : t('utility.balance.unitWorking', { value: fmt.num(c.current_working_price_ct, 4) }));
   if (c.current_base_price_eur   != null) tariffParts.push(t('utility.balance.unitBase', { value: fmt.num(c.current_base_price_eur, 2) }));
-  if (c.current_advance_amount   != null) tariffParts.push(t('utility.balance.unitAdvance', { value: fmt.eur(c.current_advance_amount) }));
+  // v3.9.0 (F1034) — Abschlag mit Rhythmus („165,00 € alle 2 Monate“), monatlich wie bisher
+  if (c.current_advance_amount   != null) tariffParts.push(t('utility.balance.unitAdvance', { value: advanceAmountText(c.current_advance_amount, c.current_advance_every_months) }));
   const tariffText = tariffParts.length ? tariffParts.join(' · ') : t('utility.balance.noTariff');
 
   const consumedSub = isWater
@@ -869,7 +871,10 @@ function balanceCard(c, u, country = 'DE') {
         <div>
           <div class="balance-col__label">${isFeedIn ? t('utility.balance.colPaidFeedIn') : t('utility.balance.colPaid')}</div>
           <div class="balance-col__value">${isFeedIn ? '–' : fmt.eur(c.advance_paid)}</div>
-          <div class="balance-col__sub">${isFeedIn ? t('utility.balance.paidViaGrid') : (c.current_advance_amount != null ? t('utility.balance.paidCurrent', { value: fmt.eur(c.current_advance_amount) }) : t('utility.balance.paidCurrentNone'))}</div>
+          <div class="balance-col__sub">${isFeedIn ? t('utility.balance.paidViaGrid') : (c.current_advance_amount != null ? (Number(c.current_advance_every_months) > 1
+            ? t('utility.balance.paidCurrentEvery', { value: advanceAmountText(c.current_advance_amount, c.current_advance_every_months) })
+            : t('utility.balance.paidCurrent', { value: fmt.eur(c.current_advance_amount) })) : t('utility.balance.paidCurrentNone'))}</div>
+          ${!isFeedIn && Array.isArray(c.next_advance_dates) && c.next_advance_dates.length ? `<div class="balance-col__sub" data-role="next-due">${escapeHtml(t('utility.balance.nextDue', { date: fmt.date(c.next_advance_dates[0]) }))}</div>` : ''}
           ${!isFeedIn && specialHtml ? `<div class="balance-col__sub" style="margin-top:6px">${tp('utility.balance.specialCount', spCount)}</div>${specialHtml}` : ''}
         </div>
         <div>
@@ -1066,8 +1071,9 @@ function renderWaterComponentRow(components) {
         </div>
         <div>
           <div class="num text-1" style="font-size:13px;font-weight:600;color:var(--text-1)">${t('utility.balance.sw')}</div>
-          <div class="balance-col__sub" style="margin-top:2px">${sw.current_ct_per_m3 != null ? t('utility.balance.ctPerM3', { value: fmt.num(sw.current_ct_per_m3, 2) }) : '–'} · ${t('utility.balance.basisLabel')} ${sw.basis === 'separater_zaehler' ? t('utility.balance.basisSep') : t('utility.balance.basisTw')}</div>
+          <div class="balance-col__sub" style="margin-top:2px">${sw.current_ct_per_m3 != null ? t('utility.balance.ctPerM3', { value: fmt.num(sw.current_ct_per_m3, 2) }) : '–'}${sw.current_eur_per_month != null ? ' · ' + t('utility.balance.gpMonth', { value: fmt.num(sw.current_eur_per_month, 2) }) : ''} · ${t('utility.balance.basisLabel')} ${sw.basis === 'separater_zaehler' ? t('utility.balance.basisSep') : t('utility.balance.basisTw')}</div>
           <div class="num" style="margin-top:6px;font-size:14px;color:var(--text-1)">${fmt.eur(sw.total)}</div>
+          ${sw.base_cost > 0 ? `<div class="balance-col__breakdown">${t('utility.balance.consShort', { value: fmt.eur(sw.total - sw.base_cost) })}${t('utility.balance.gpPlus', { value: fmt.eur(sw.base_cost) })}</div>` : ''}
         </div>
         <div>
           <div class="num text-1" style="font-size:13px;font-weight:600;color:var(--text-1)">${t('utility.balance.nw')}</div>
@@ -1132,7 +1138,7 @@ function contractsTable(contracts, u) {
         <td class="period-cell">${period}</td>
         <td>${phasePill(c)}</td>
         <td class="num muted" style="font-size:11px">${tariffStr}</td>
-        <td class="num">${c.current_advance_amount != null ? fmt.eur(c.current_advance_amount) : '–'}</td>
+        <td class="num">${c.current_advance_amount != null ? escapeHtml(advanceAmountText(c.current_advance_amount, c.current_advance_every_months)) : '–'}</td>
         <td class="num">${fmt.eur(c.cost_to_date ?? c.actual_cost)}</td>
         <td class="num">${fmt.eur(c.advance_paid)}</td>
         <td class="num success-text">${bonusStr}</td>

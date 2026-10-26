@@ -317,6 +317,10 @@ export const api = {
   authStatus:    ()                    => request('GET',    '/api/auth/token'),
   generateToken: ()                    => request('POST',   '/api/auth/token'),
   revokeToken:   ()                    => request('DELETE', '/api/auth/token'),
+  // v3.9.0 (F1033) — Benachrichtigungen an Home Assistant (ohne Webhook-ID und Token; ändern nur Verwalter)
+  haNotify:       ()                   => request('GET',   '/api/homeassistant/notify'),
+  updateHaNotify: (data)               => request('PATCH', '/api/homeassistant/notify', data),
+  testHaNotify:   ()                   => request('POST',  '/api/homeassistant/notify/test', {}),
 
   // ── CSV-Export (F-07) ──
   // These return a file download, not JSON — so they are plain URLs the

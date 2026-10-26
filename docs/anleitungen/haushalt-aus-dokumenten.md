@@ -110,6 +110,14 @@ Widerrufe und Werbung erkennt der Posteingang und legt sie nur ab.
     schätzt nicht, schon gar nicht über Verbrauchsarten hinweg.
   - **Zwei Bestätigungen** mit gleichem Beginn beim selben Versorger und am
     selben Zähler sind ein Vertrag, auch mit verschiedenen Nummern.
+    Bestätigungen derselben Vertragsnummer (etwa eine spätere
+    Tarifbestätigung) sind ein Vertrag mit dem frühesten Beginn, gleich in
+    welcher Reihenfolge du sie abgelegt hast *(3.9.0)*.
+  - **Wenige Tage auseinander** *(3.9.0)*: Nennen Bestätigung und
+    Lieferbeginn-Brief desselben Lieferverhältnisses am selben Zähler Tage bis
+    eine Woche auseinander (etwa die Marke den Vertragsbeginn, das abrechnende
+    Stadtwerk den ersten Liefertag), ist das ein Vertrag mit dem Beginn der
+    Bestätigung. Verschiedene Vertragsnummern bleiben zwei Verträge.
   - **Rechnungen vor dem Beginn:** Gehört die Rechnung zum selben Vertrag
     (keine andere Vertragsnummer), beginnt er mit ihr — „Aufgefallen“ sagt es.
     Mit anderer Vertragsnummer entsteht aus ihr ein Vorvertrag bis zum Tag vor
@@ -125,7 +133,16 @@ Widerrufe und Werbung erkennt der Posteingang und legt sie nur ab.
     Beginn). Fehlt dort eine Angabe — Vertragsnummer, Tarif, Preis, Abschlag —,
     heißt der Eintrag „ergänzen“; eine Angabe, die vom Bestand abweicht, ist
     ein Widerspruch. Rechnungen über mehrere Jahre gehören je an den Vertrag,
-    der damals lief.
+    der damals lief. Verglichen wird der endgültige Beginn: Rückt ein Vertrag
+    auf seine erste Rechnung vor, gleicht der Entwurf ihn mit diesem Beginn
+    noch einmal ab *(3.9.0)*.
+  - **Derselbe Versorger unter anderem Namen?** *(3.9.0)* Gleicher Beginn wie
+    ein Vertrag im Bestand, aber ein anderer Name (die Marke im Bestand, das
+    Stadtwerk oder der Konzern im Dokument), und der Bestand trägt keine andere
+    Vertragsnummer: Der Eintrag fragt „derselbe Versorger?“ und nennt beide
+    Namen. Er ist nicht vorbelegt. Hakst du ihn an, ergänzen die Angaben den
+    vorhandenen Vertrag, sein Name bleibt. Mit einer anderen Vertragsnummer im
+    Bestand bleibt es ein Widerspruch.
 - **Preiskette.** Bestätigung und Preisänderungen (gültig ab) bilden die Kette
   und sind vorbelegt. Ein Preis auf der Rechnung ist ein Beleg — verglichen
   wird brutto: Steht er netto mit gelesenem Steuersatz da, rechnet der Entwurf
@@ -203,6 +220,15 @@ Widerrufe und Werbung erkennt der Posteingang und legt sie nur ab.
 - **Ein Haken je Feldgruppe:** Zähler, Zählertausch, Vertrag, Preise,
   Abschläge, Ablesungen eines Zählers, Rechnung, Gas-Umrechnung, Termin.
   Vorbelegt ist, was neu ist, ohne Zweifel und ohne den Bestand zu berühren.
+- **Mit dem Vertrag gekoppelt** *(3.9.0)*: Preise, Abschläge und Rechnungen
+  eines Vertrags, der erst entsteht oder dessen Versorger eine Rückfrage ist,
+  gehen nur mit ihm. Ohne seinen Haken sind sie gesperrt und nicht vorbelegt.
+  Hakst du den Vertrag an, kommen sie mit, so wie sie vorbelegt wären; nimmst
+  du den Haken weg, gehen sie mit. An einem vorhandenen Vertrag, der
+  feststeht, gelten sie für sich. Ablesungen hängen am Zähler, nicht am
+  Vertrag. Fehlt der Vertrag beim Übernehmen, etwa weil er scheitert, entsteht
+  auch seine Rechnung nicht. Sie bucht ihr Ergebnis nie auf einen anderen
+  Vertrag.
 - **Zweifelhaft** ist ein Feld, das der [Posteingang](posteingang.md) markiert
   — mit denselben Marken nach dem heutigen Stand, die auch die Liste zählt —
   und das kein zweites Dokument bestätigt. Ein Preis auf der Rechnung, der zum

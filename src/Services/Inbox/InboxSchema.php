@@ -49,10 +49,19 @@ namespace Energietracker\Services\Inbox;
  * Fußnoten und Codegruppen bei der Ablese-Art. Felder unverändert; neu sind nur
  * Angaben der Prüfung (`between`, `merged`, `estimated_ends`, `number_from`,
  * `found_parts`, `quote_found`), die das Modell nicht liefert.
+ *
+ * v3.9.0 (F1034, vertrag-aus-rechnung) — VERSION 5: Wasserpreise je Sparte
+ * (`water_prices`: Trinkwasser, Schmutzwasser, Niederschlagswasser, je Zeile
+ * Zeitraum, Preis, Einheit, Fläche, netto/brutto und Satz), der Abschlagsplan
+ * der Rechnung mit Rhythmus (`advance_new_dates`, `advance_new_every`) und je
+ * Arbeitspreis sein Bestandteil (`working_prices.part`: Arbeitspreis,
+ * Energiesteuer, CO₂-Preis). Beschreibungen von `advance_new`,
+ * `advance_new_from`, `working_prices` und `base_price` geschärft. Der
+ * Zwischenspeicher der Version 4 trifft nicht mehr.
  */
 final class InboxSchema
 {
-    public const VERSION = 4;
+    public const VERSION = 5;
 
     public const TYPES = [
         'invoice', 'contract_confirmation', 'price_change', 'cancellation', 'supply_start',
@@ -198,6 +207,50 @@ final class InboxSchema
                     'estimated' => self::ESTIMATED]];
 
     /**
+     * v3.9.0 (F1034) — Bestandteil eines Arbeitspreises (Hilfsfeld): Weist die
+     * Rechnung Energiesteuer oder CO₂-Preis als eigene Zeile neben dem
+     * Arbeitspreis aus, rechnet der Posteingang sie zu einem Arbeitspreis
+     * zusammen (Proposals::workingPriceGroups).
+     */
+    private const PRICE_PART = ['kind' => 'enum', 'options' => ['energy', 'energy_tax', 'co2', 'other'], 'aux' => true,
+        'hints' => ['energy' => ['arbeitspreis', 'verbrauchspreis', 'energiepreis'], 'energy_tax' => ['energiesteuer', 'stromsteuer', 'erdgassteuer'],
+                    'co2' => ['co2', 'co₂', 'kohlendioxid', 'brennstoffemission']],
+        'desc' => 'what the line is: energy (Arbeitspreis, Energiepreis), energy_tax (Energiesteuer, Stromsteuer) or co2 (CO₂-Preis, CO₂-Kosten) when the bill lists them as separate lines next to the energy price, other for any other surcharge per kWh; null if not clear'];
+
+    /**
+     * v3.9.0 (F1034) — Wasserpreise je Sparte, wie die Rechnung sie führt: je
+     * Zeile ein Preis mit Zeitraum. Die Sparte steht oft nur in der Überschrift
+     * über den Zeilen („Verbrauchs- und Betragsermittlung Schmutzwasser“); die
+     * Prüfung liest sie dort (`heading`). Grund-, Basis- und Bereitstellungspreis
+     * einer Sparte rechnet der Posteingang zu einem Grundpreis zusammen.
+     */
+    private const WATER_PRICES = ['kind' => 'list', 'review' => true,
+        'desc' => 'water bills only: every price line per section with its period, as printed (Preisart, Zeitraum, Menge, Preis); one item per line and period',
+        'items' => [
+            'section' => ['kind' => 'enum', 'options' => ['trinkwasser', 'schmutzwasser', 'niederschlagswasser'], 'heading' => true,
+                'hints' => ['trinkwasser' => ['trinkwasser', 'frischwasser', 'wasserverbrauch'], 'schmutzwasser' => ['schmutzwasser', 'abwasser'],
+                            'niederschlagswasser' => ['niederschlag', 'regenwasser', 'oberflächenwasser']],
+                'desc' => 'section: trinkwasser (drinking water, Trinkwasser, Frischwasser), schmutzwasser (waste water, Schmutzwasser, Abwasser), niederschlagswasser (storm water, Niederschlagswasser); it may stand only in the heading above the lines'],
+            'label' => ['kind' => 'text', 'aux' => true, 'desc' => 'name of the price as printed, e.g. Wasserverbrauch, Basispreis, Bereitstellungspreis, Niederschlagswasserpreis'],
+            'from' => ['kind' => 'date', 'desc' => 'first day the price applies to on this line'],
+            'to' => ['kind' => 'date', 'desc' => 'last day on this line'],
+            'price' => ['kind' => 'number', 'desc' => 'unit price in EUR as printed (net or gross): per m³, per year, per month, or per m² and year'],
+            'unit' => ['kind' => 'enum', 'options' => ['m3', 'year', 'month', 'm2_year'],
+                'hints' => ['m3' => ['m³', 'm3', 'kubikmeter', 'cbm'], 'year' => ['jahr', '/a', 'p.a', 'jährl'], 'month' => ['monat', 'mtl'], 'm2_year' => ['m²', 'm2', 'qm']],
+                'desc' => 'unit of the price: m3 (€/m³), year (€/Jahr), month (€/Monat), m2_year (€ per m² and year, storm water by area)'],
+            'area_m2' => ['kind' => 'number', 'desc' => 'storm water only: billed area in m² (abrechenbare Fläche)'],
+            'vat_pct' => self::VAT_PCT,
+            'basis' => self::PRICE_BASIS]];
+
+    /**
+     * v3.9.0 (F1034) — Rhythmus des neuen Abschlags (Hilfsfeld, keine Marke):
+     * nennt die Rechnung Termine, leitet der Posteingang ihn aus ihnen ab.
+     */
+    private const ADVANCE_EVERY = ['kind' => 'enum', 'options' => ['monthly', 'bimonthly', 'quarterly'], 'aux' => true,
+        'hints' => ['monthly' => ['monat', 'mtl'], 'bimonthly' => ['zweimonat', 'zwei monate', '2 monate'], 'quarterly' => ['viertelj', 'quartal', 'drei monate', '3 monate']],
+        'desc' => 'how often the new advance payment is due, as printed: monthly (monatlich), bimonthly (alle zwei Monate), quarterly (vierteljährlich); null if not printed'];
+
+    /**
      * Felder einer Art (leer für die Arten, die nur erkannt werden).
      *
      * @return array<string,array<string,mixed>>
@@ -235,8 +288,11 @@ final class InboxSchema
                     'hints' => ['credit' => ['guthaben', 'gutschrift', 'erstatt', 'rückzahl'], 'due' => ['nachzahl', 'nachforderung', 'zu zahlen', 'forderung', 'offen']],
                     'desc' => 'credit (Guthaben) or amount due (Nachzahlung)'],
                 'result_amount'    => ['kind' => 'money', 'core' => true, 'desc' => 'amount of the credit or the amount due in EUR'],
-                'advance_new'      => ['kind' => 'money', 'core' => true, 'desc' => 'new monthly advance payment as stated (neuer Abschlag), not an average'],
-                'advance_new_from' => ['kind' => 'date', 'desc' => 'date from which the new advance payment applies (ab, fällig ab)'],
+                'advance_new'      => ['kind' => 'money', 'core' => true, 'desc' => 'new advance payment per due date as stated (neuer Abschlag, Abschlagsbetrag); if it is split into parts, the total; not an average and not converted to a month'],
+                'advance_new_from' => ['kind' => 'date', 'desc' => 'date from which the new advance payment applies, or its first due date (ab, fällig ab)'],
+                'advance_new_dates' => ['kind' => 'list', 'desc' => 'due dates of the new advance payments if the bill lists them (Fälligkeitstermine), one item per date',
+                    'items' => ['date' => ['kind' => 'date', 'desc' => 'due date']]],
+                'advance_new_every' => self::ADVANCE_EVERY,
                 'meter_number'     => self::METER_NUMBER,
                 'meter_readings'   => self::METER_READINGS,
                 'market_location'  => self::MALO,
@@ -245,15 +301,17 @@ final class InboxSchema
                 'gas_factors'      => ['kind' => 'list', 'desc' => 'gas only: conversion factors per period (Zustandszahl, Brennwert)',
                     'items' => ['from' => ['kind' => 'date', 'desc' => 'start of the period'], 'to' => ['kind' => 'date', 'desc' => 'end of the period'],
                                 'z' => ['kind' => 'number', 'desc' => 'Zustandszahl, e.g. 0,9512'], 'hs' => ['kind' => 'number', 'desc' => 'Brennwert in kWh/m³, e.g. 11,25']]],
-                'working_prices'   => ['kind' => 'list', 'review' => true, 'desc' => 'energy unit prices in ct/kWh with the date they apply from (Arbeitspreis), as printed',
+                'working_prices'   => ['kind' => 'list', 'review' => true, 'desc' => 'energy unit prices in ct/kWh with the date they apply from (Arbeitspreis), as printed; energy tax or CO₂ price printed as their own lines are items of their own; not for water (water_prices)',
                     'items' => ['from' => ['kind' => 'date', 'desc' => 'valid from'],
                                 'ct' => ['kind' => 'price_ct', 'desc' => 'price in ct/kWh as printed: gross if both are printed, otherwise the printed price, also a net one'],
                                 'basis' => self::PRICE_BASIS,
-                                'vat_pct' => self::VAT_PCT]],
-                'base_price'       => ['kind' => 'money', 'review' => true, 'desc' => 'standing charge in EUR (Grundpreis) as printed: gross if both are printed, otherwise the printed price, also a net one'],
+                                'vat_pct' => self::VAT_PCT,
+                                'part' => self::PRICE_PART]],
+                'base_price'       => ['kind' => 'money', 'review' => true, 'desc' => 'standing charge in EUR (Grundpreis) as printed: gross if both are printed, otherwise the printed price, also a net one; not for water (water_prices)'],
                 'base_price_period' => self::BASE_PERIOD,
                 'base_price_basis' => ['desc' => 'standing charge: ' . self::PRICE_BASIS['desc']] + self::PRICE_BASIS,
                 'base_price_vat_pct' => ['desc' => 'standing charge: ' . self::VAT_PCT['desc']] + self::VAT_PCT,
+                'water_prices'     => self::WATER_PRICES,   // v3.9.0 (F1034)
             ],
             'contract_confirmation' => [
                 'utility'          => self::UTILITY_FIELD,
@@ -328,7 +386,7 @@ final class InboxSchema
             'advance_change' => [
                 'utility'          => self::UTILITY_FIELD,
                 'supplier'         => self::SUPPLIER,
-                'advance_new'      => ['kind' => 'money', 'core' => true, 'desc' => 'new monthly advance payment as stated (neuer Abschlag)'],
+                'advance_new'      => ['kind' => 'money', 'core' => true, 'desc' => 'new advance payment as stated, the amount per due date (neuer Abschlag)'],
                 'valid_from'       => ['kind' => 'date', 'core' => true, 'desc' => 'date from which it applies (ab)'],
                 'contract_number'  => self::CONTRACT_NUMBER,
                 'customer_number'  => self::CUSTOMER_NUMBER,

@@ -95,7 +95,8 @@
       "tankLevel": "Tank reading — {utility}",
       "reminder": "New reminder",
       "inbox": "File supplier mail",
-      "inboxHint": "PDF from Files or mail"
+      "inboxHint": "PDF from Files or mail",
+      "reminderHint": "Maintenance, calibration or meter reading"
     },
     "sectionNav": "Pages in this section",
     "menu": "Menu",
@@ -502,7 +503,9 @@
         "one": "{count} special payment",
         "other": "{count} special payments"
       },
-      "sinceBill": "Counted from {date}: the bill before is booked in the contract and no longer counts here."
+      "sinceBill": "Counted from {date}: the bill before is booked in the contract and no longer counts here.",
+      "nextDue": "next due date: {date}",
+      "paidCurrentEvery": "current: {value}"
     },
     "contractsTable": {
       "emptyTitle": "No contracts recorded",
@@ -803,13 +806,15 @@
       "advance": "Advance payment",
       "twWorking": "Fresh water unit price",
       "twBase": "Fresh water standing charge",
-      "swWorking": "Waste water unit price"
+      "swWorking": "Waste water unit price",
+      "swBase": "Waste water standing charge"
     },
     "unit": {
       "ctPerKwh": "{minor}/kWh",
       "eurPerMonth": "{cur}/month",
       "eurPerKwYear": "{cur}/kW per year",
-      "eurPerYear": "{cur}/year"
+      "eurPerYear": "{cur}/year",
+      "eurPerDue": "{cur} per due date"
     },
     "loading": "Loading…",
     "unknown": "Unknown utility: {key}",
@@ -838,7 +843,8 @@
       "advanceValue": "Advance payment {value}/month",
       "valuesOn": "as of {date}",
       "noValues": "No prices entered yet",
-      "since": "since {year}"
+      "since": "since {year}",
+      "advanceValueEvery": "Advance payment {value}"
     },
     "summary": {
       "twPrices": {
@@ -987,7 +993,6 @@
       "noMoreMeters": "(no further meters available yet)",
       "swWorking": "Price per m³ waste water ({minor}/m³)",
       "nwRates": "Effective date",
-      "apMonthly": "Monthly advance ({cur})",
       "colDate": "Date",
       "colCtM3": "{minor}/m³",
       "colEurMonth": "{cur}/month",
@@ -1000,7 +1005,10 @@
       "startRequired": "Contract start is required.",
       "basisDeduct": "drinking water minus deduction meters (e.g. garden)",
       "deductMeters": "Deduction meters",
-      "deductHint": "Water that runs through these meters (e.g. garden water) costs drinking water but no waste water. Best keep the garden meter as a sub-meter of the main meter, so it is not counted twice in the totals."
+      "deductHint": "Water that runs through these meters (e.g. garden water) costs drinking water but no waste water. Best keep the garden meter as a sub-meter of the main meter, so it is not counted twice in the totals.",
+      "swBase": "Waste water standing charge ({cur}/month)",
+      "apPlan": "Advance payment plan",
+      "colEurDue": "{cur} per due date"
     },
     "perM3": {
       "toggleTitle": "Convert a price per m³ to {minor}/kWh",
@@ -1087,6 +1095,10 @@
       "undated": "entry without a date",
       "link": "Go to the setting",
       "why": "The correction factor and the calorific value depend on the supply point (altitude, pressure) and on the gas in the network, not on the supplier: they stay the same when you switch, and every gas bill states them. That is why they are set once in the settings and apply to every contract."
+    },
+    "advance": {
+      "every": "Rhythm",
+      "dueDates": "Due dates according to the bill: {dates}, then yearly on the same days"
     }
   },
   "meters": {
@@ -1366,7 +1378,7 @@
     "loading": "Loading…",
     "saved": "Settings saved",
     "lang": {
-      "title": "🌐 Language & country / Sprache",
+      "title": "Language & country / Sprache",
       "hint": "The language applies to this device; without a choice of its own it follows the installation's default language, which also sets the annual report, CSV files and Home Assistant. The country sets number and date formats, currency and time zone; when you change it, the app suggests matching defaults.",
       "saved": "Language changed",
       "deviceLabel": "Language on this device",
@@ -1465,7 +1477,7 @@
       "contract_remind_days_1": { "label": "Level 1 — early warning" },
       "contract_remind_days_2": { "label": "Level 2 — reminder" },
       "contract_remind_days_3": { "label": "Level 3 — urgent" },
-      "wasser_personen_anzahl": { "label": "People in household", "hint": "For the water saving index: litres per person and day compared with the reference." },
+      "wasser_personen_anzahl": { "label": "Number of people", "hint": "For the water saving index: litres per person and day compared with the reference." },
       "wasser_personen_referenz": { "label": "Reference", "hint": "BDEW 2024: 122 L per person and day (Germany)." },
       "wasser_sparindex_gut": { "label": "Saving index — good up to", "hint": "Index ≤ this value is considered unremarkable." },
       "wasser_sparindex_warnung": { "label": "Saving index — warning from", "hint": "Index ≥ this value indicates saving potential." },
@@ -1646,18 +1658,18 @@
     },
     "boolActive": "on",
     "activeUtils": {
-      "title": "🧩 Active utilities",
+      "title": "Active utilities",
       "hint": "Only checked utilities appear in the sidebar, dashboard and annual report. Data of inactive utilities is kept."
     },
     "pdf": {
-      "title": "📄 PDF annual report",
+      "title": "PDF annual report",
       "hint": "Multi-page report with overview, efficiency class, consumption tables per utility and open recommendations.",
       "year": "Year",
       "download": "Download annual report",
       "moved": "The annual report now has its own page under “Insights”."
     },
     "export": {
-      "title": "📤 Data export (CSV)",
+      "title": "Data export (CSV)",
       "hint": "Tabular export for Excel, LibreOffice or Google Sheets (UTF-8 with BOM). Complements the full JSON backup below.",
       "monthly": "Monthly overview",
       "monthlyHint": "Consumption, cost, advance and balance per month.",
@@ -1674,7 +1686,7 @@
       "formatHint": "The spreadsheet uses column names, decimal mark and date of the default language, so it opens directly in Excel or LibreOffice. Format 1 stays as it has been since version 1.1: semicolon, decimal comma, date YYYY-MM-DD. Both can be imported again."
     },
     "backup": {
-      "title": "💾 Backup & restore",
+      "title": "Backup & restore",
       "hint": "Full JSON backup (format v3.0) — contains all utilities, meters, contracts, temperatures and settings, re-importable.",
       "download": "Download JSON backup",
       "snapshot": "Save snapshot",
@@ -1799,7 +1811,14 @@
         "readKeyComment": "only needed if sign-in is enabled",
         "sensorBalance": "Balance",
         "sensorForecast": "Forecast 12 months",
-        "sensorDaysSince": "Days since reading"
+        "sensorDaysSince": "Days since reading",
+        "todoScanComment": "every 15 minutes",
+        "todoName": "Energietracker to do",
+        "todoNextName": "Energietracker next item",
+        "todoDateName": "Energietracker next item due",
+        "webhookAlias": "Energietracker: pass on the notification",
+        "webhookIdComment": "your own ID that cannot be guessed",
+        "notifyComment": "or notify.mobile_app_… for your phone"
       },
       "lastUsed": "Last used: {when}",
       "neverUsed": "Nothing has arrived with this token yet.",
@@ -1816,10 +1835,14 @@
       },
       "setupTitle": "Meters and templates for Home Assistant",
       "appHint": "Using Home Assistant OS? Then Energietracker also runs as an app right inside Home Assistant, with an entry in the sidebar.",
-      "appAdd": "Add the repository to Home Assistant"
+      "appAdd": "Add the repository to Home Assistant",
+      "todo": {
+        "title": "“To do” sensor",
+        "intro": "Number of due items and the next one, for dashboards and automations. All items are in the attribute items."
+      }
     },
     "diag": {
-      "title": "🩺 System diagnostics",
+      "title": "System diagnostics",
       "appVersion": "App version",
       "schemaVersion": "Schema version",
       "phpVersion": "PHP version",
@@ -1873,7 +1896,7 @@
     "invalidFields": "Not saved: please correct the fields marked in red.",
     "dayMonthInvalid": "Please enter as day-month, e.g. 01-10 for 1 October.",
     "security": {
-      "title": "🔐 Sign-in & access",
+      "title": "Sign-in & access",
       "hint": "Without sign-in, anyone who knows the address can reach Energietracker – meant for your own home network. If it is reachable from outside (port forwarding, reverse proxy) or you share the network with others, switch sign-in on.",
       "modeOff": "🔓 No sign-in",
       "modePassword": "🔒 Password sign-in",
@@ -2096,9 +2119,7 @@
         "other": "{count} open reminders are now yours."
       },
       "noAccess": "no sign-in",
-      "hintOff": "Without sign-in there are no accounts. These people come from a backup or a sample household and can be chosen under “Responsible”; anyone who reaches the address may delete them.",
-      "deleteHintOff": "Without sign-in nobody takes over when deleting: the person’s open reminders, meters and contracts stay with “(deleted)” until someone reassigns them; completed items keep their name. A person’s number is never reused.",
-      "noAccessHint": "“no sign-in”: a person from a backup or a sample household. “Create account” enters their name under “Add a person”; with a password it becomes an account with the same number, and their reminders and entries stay with them.",
+      "noAccessHint": "“no sign-in”: a person from Household & building, a backup or a sample household. “Create account” enters their name under “Add a person”; with a password it becomes an account with the same number, and their reminders and entries stay with them.",
       "grant": "Create account",
       "deleteConfirmNoAccess": "This person will no longer be offered for selection. The household’s data stays.",
       "handoverNobody": {
@@ -2204,6 +2225,82 @@
       "pickModel": "Saved. Now pick a model from the list, then switch it on.",
       "saved": "Reading settings saved.",
       "modelLoad": "Load the service’s models"
+    },
+    "people": {
+      "title": "People in the household",
+      "hint": "Who helps in the household. People can be chosen under “Responsible” for reminders, meters and contracts. They don’t need to sign in for that.",
+      "empty": "No people yet. Add the first one, then you can assign reminders, meters and contracts to them.",
+      "emptyMember": "No people yet.",
+      "add": "New person",
+      "namePlaceholder": "Name, e.g. Anna",
+      "added": "{name} can now be chosen under “Responsible”.",
+      "account": "with sign-in",
+      "deleteLabel": "Delete {name}",
+      "accessHint": "Anyone who should sign in gets an account under Access. People with an account are managed there.",
+      "accessHintOff": "Nobody can sign in with this. Personal accounts are only available once sign-in is switched on under Access.",
+      "accessLink": "Open Access",
+      "movedHint": "You add people in the household under Household & building, also without sign-in.",
+      "goto": "Go to people"
+    },
+    "haNotify": {
+      "title": "Notifications to Home Assistant",
+      "intro": "Energietracker reports to Home Assistant by itself: when an appointment or a deadline is due, on warnings and when a document arrives in the inbox. Each message comes only once.",
+      "privacy": "The messages only go to your Home Assistant. Nothing leaves your home network unless you enter an address outside it yourself.",
+      "adminOnly": "Only someone who manages this installation may change this.",
+      "enabled": "Send notifications",
+      "targetLabel": "Where to?",
+      "target": {
+        "supervisor": "Through the Supervisor (app in Home Assistant, no setup)",
+        "webhook": "Webhook in Home Assistant",
+        "token": "Address and token"
+      },
+      "supervisorMissing": "The Supervisor route only works in the Home Assistant app.",
+      "url": "Home Assistant address",
+      "urlHint": "For example http://192.168.178.10:8123, without a path. A name ending in .local often cannot be resolved inside a container; then enter the IP address.",
+      "webhook": "Webhook ID",
+      "webhookHint": "The same ID as in the “Webhook” trigger of your automation. It works like a password: it stays on the server and is not shown here again after saving.",
+      "newId": "Create a new ID",
+      "secretStored": "stored, leave empty to keep",
+      "secretClear": "Delete",
+      "token": "Token (long-lived)",
+      "tokenHint": "Create it in Home Assistant in your profile under Security (long-lived access tokens). It stays on the server and is not shown here again after saving.",
+      "service": "Action in Home Assistant",
+      "serviceHint": "persistent_notification.create shows the message under notifications in Home Assistant. For your phone: notify.mobile_app_ followed by the name of your device.",
+      "events": "What to report?",
+      "event": {
+        "reminder": "Appointments as soon as they are due",
+        "deadline": "Deadlines and other items from “To do” (readings, notice periods, bills)",
+        "warning": "Warnings, such as unusually high consumption",
+        "document": "New documents in the inbox"
+      },
+      "hour": "Daily check from",
+      "hourOption": "{hour}:00",
+      "hourHint": "Once a day, with the first request after this time. New documents are reported right after they arrive.",
+      "test": "Send a test message",
+      "testOk": "Test message sent. Have a look in Home Assistant.",
+      "testFailed": "The test message did not arrive: {reason}",
+      "saved": "Saved.",
+      "state": {
+        "on": "Switched on. Destination: {target}",
+        "incomplete": "Switched on, but the destination is incomplete. Nothing is sent.",
+        "off": "Switched off. Nothing is sent to Home Assistant."
+      },
+      "last": "Last sent: {when}",
+      "lastFailed": "Last attempt on {when} failed: {reason}",
+      "yamlTitle": "Automation for the webhook",
+      "yamlHint": "In Home Assistant, create a new automation, choose “Edit in YAML” and paste this. The webhook ID must be the same as above.",
+      "error": {
+        "dns": "The name in the address cannot be resolved.",
+        "address": "This address is blocked.",
+        "insecure": "An address outside the home network only works with https://.",
+        "timeout": "Home Assistant did not answer in time.",
+        "network": "Home Assistant cannot be reached.",
+        "http": "Home Assistant answers with status {status}.",
+        "unauthorized": "Home Assistant refuses (401). Check the token.",
+        "incomplete": "The destination is not fully set up yet.",
+        "url": "The address is invalid.",
+        "noTransport": "curl for PHP is missing on the server."
+      }
     }
   },
   "reminders": {
@@ -2269,7 +2366,8 @@
       "one": "Every month",
       "other": "Every {count} months"
     },
-    "lastDone": "Last done {when}"
+    "lastDone": "Last done {when}",
+    "emptyText": "Maintenance, calibration deadline or meter reading: the app reminds you in good time and shows what is due under “To do” on the overview."
   },
   "temperatures": {
     "loading": "Loading…",
@@ -3527,7 +3625,9 @@
       "priceModelInvalid": "Unknown price model “{value}”",
       "priceImportEmpty": "The file contains no line in the format month;price",
       "priceImportUnsupported": "Monthly prices are only available for contracts with a unit price per kWh",
-      "gridTouInvalid": "Module 3 time windows invalid ({field}): quarters 1–4, times HH:MM with from before until, prices 0–100 ct and a standard tariff."
+      "gridTouInvalid": "Module 3 time windows invalid ({field}): quarters 1–4, times HH:MM with from before until, prices 0–100 ct and a standard tariff.",
+      "advanceEveryInvalid": "Advance payment #{n}: “{value}” is not a rhythm. Possible are monthly, every 2 and every 3 months.",
+      "advanceDueBeforeStart": "Advance payment #{n}: the due date {date} is before the day the line applies from."
     },
     "delivery": {
       "notFound": "Delivery not found: {id}",
@@ -3810,6 +3910,11 @@
         "contract": "Take over the contract first, then this."
       },
       "nothingSelected": "Nothing selected."
+    },
+    "haNotify": {
+      "incomplete": "The destination is incomplete: the webhook needs an address and a webhook ID, the token an address and a token. The Supervisor only works in the Home Assistant app.",
+      "webhookFormat": "The webhook ID consists of 8 to 200 letters, digits, hyphens or underscores.",
+      "tokenFormat": "The token consists of 20 to 2000 visible characters without spaces."
     }
   },
   "login": {
@@ -3879,7 +3984,8 @@
     },
     "history": "History ({count})",
     "historyTitle": "History: {name}",
-    "anytime": "Can be cancelled any time"
+    "anytime": "Can be cancelled any time",
+    "advanceEvery": "Advance payment {amount}"
   },
   "billCheck": {
     "noMeter": "The bill check recalculates the annual bill for gas, electricity, water and district heating. Set up a meter first.",
@@ -5468,7 +5574,7 @@
     "none": "– nobody –",
     "hintMeter": "Readings, reminders on this meter and its contracts go to this person unless they have their own. Nobody is notified.",
     "hintContract": "The notice deadline, the end of the contract and “bill expected” go to this person. If empty, the meter’s person applies. Nobody is notified.",
-    "noPeople": "Add people under Settings → Access.",
+    "noPeople": "Add people under Settings → Household & building.",
     "via": {
       "contract": "via the contract",
       "meter": "via the meter"
@@ -5867,7 +5973,7 @@
       "elapsed": "{s} s",
       "wait": "Server still working – checking for the result …"
     },
-    "empty": "No mail in the inbox yet. File your first bill or contract confirmation as a PDF.",
+    "empty": "No mail in the inbox yet.",
     "col": {
       "document": "Document",
       "type": "Type",
@@ -6025,7 +6131,10 @@
       "document_title": "Title of the document",
       "meter_readings": "Readings per meter",
       "reading_new_estimated": "Final reading estimated",
-      "reading_old_estimated": "Initial reading estimated"
+      "reading_old_estimated": "Initial reading estimated",
+      "water_prices": "Water prices",
+      "advance_new_dates": "Due dates of the new advance payment",
+      "advance_new_every": "Rhythm of the new advance payment"
     },
     "reason": {
       "empty": "Missing, but needed",
@@ -6061,14 +6170,28 @@
       "supplier": "Cancellation by the supplier",
       "switch": "End due to switching supplier",
       "net": "net",
-      "gross": "gross"
+      "gross": "gross",
+      "trinkwasser": "Drinking water",
+      "schmutzwasser": "Waste water",
+      "niederschlagswasser": "Rainwater",
+      "m3": "per m³",
+      "m2_year": "per m² and year",
+      "monthly": "monthly",
+      "bimonthly": "every two months",
+      "quarterly": "every three months",
+      "energy": "Unit price",
+      "energy_tax": "Energy tax",
+      "co2": "CO₂ price",
+      "other": "Surcharge"
     },
     "item": {
       "gasFactor": "{from} to {to}: volume correction factor {z} × calorific value {hs} kWh/m³",
       "price": "from {from}: {value}",
       "priceNet": "from {from}: {value} net + {vat}% VAT = {gross}",
       "meterReading": "Meter {meter}: {from} → {to}",
-      "estimated": "estimated according to the bill"
+      "estimated": "estimated according to the bill",
+      "waterPrice": "{section} · {label} {from} to {to}: {price}",
+      "waterPriceNet": "{section} · {label} {from} to {to}: {price} net + {vat}% VAT = {gross}"
     },
     "result": {
       "due": "additional payment {amount}",
@@ -6097,7 +6220,12 @@
       "contractFromInvoice": "Create the contract {provider} from {from} from this bill",
       "contractFromSupplyStart": "Create the contract {provider} from {from}",
       "meterSwapInvoice": "Meter swap on {date}: final reading {old_final} on meter {old_serial}, new meter {serial} with initial reading {new_initial}",
-      "readingEstimated": "Meter reading on {date}: {counter} (estimated according to the bill)"
+      "readingEstimated": "Meter reading on {date}: {counter} (estimated according to the bill)",
+      "requiresContract": "Only together with the contract from this bill.",
+      "contractSpanFromInvoice": "Create the contract {provider} from {from} to {to} from this bill",
+      "waterWorking": "{section} from {from}: {value} (from the bill)",
+      "waterBase": "Standing charge {section} from {from}: {value} per month (from the bill)",
+      "waterRate": "{section} from {from}: {value} per m² and year for {area} m² (from the bill)"
     },
     "detail": {
       "reading": "Recorded: {counter}.",
@@ -6141,7 +6269,8 @@
       "remindDate": "Deadline",
       "figure": {
         "perYear": "{amount} a year",
-        "perMonth": "{amount} a month"
+        "perMonth": "{amount} a month",
+        "perRate": "{amount} per due date"
       },
       "priceChange": {
         "more": "From {date}, {provider} will cost you about {amount} more a year.",
@@ -6163,7 +6292,9 @@
         "ok": "The new advance payment of {amount} fits your consumption.",
         "high": "The new advance payment of {amount} is about {diff} a month too high ({recommended} would fit).",
         "low": "The new advance payment of {amount} is about {diff} a month too low ({recommended} would fit).",
-        "unknown": "New advance payment {amount} from {date}."
+        "unknown": "New advance payment {amount} from {date}.",
+        "highRate": "The new advance payment of {amount} is about {diff} per due date too high ({recommended} would fit).",
+        "lowRate": "The new advance payment of {amount} is about {diff} per due date too low ({recommended} would fit)."
       },
       "cancellation": {
         "open": "Supply ends on {date} – there is no follow-up contract yet.",
@@ -6234,7 +6365,8 @@
         "serialConflict": "Careful: the meter has the number {serial} on record.",
         "minTerm": "Minimum term until {date}.",
         "guarantee": "Price guarantee until {date}.",
-        "dunning": "The app does not read payment reminders; the reminder makes sure you sort out the payment."
+        "dunning": "The app does not read payment reminders; the reminder makes sure you sort out the payment.",
+        "advanceBasisRate": "About {recommended} per due date would fit; with the new advance payment the bill would end with: {balance}."
       }
     },
     "channels": {
@@ -6245,7 +6377,8 @@
       },
       "shortcut": "Shortcut",
       "folder": "Folder",
-      "email": "Email"
+      "email": "Email",
+      "textShare": "Also without a browser: with a shortcut from the iPhone or iPad, through the folder “{dir}” or by email via Home Assistant."
     },
     "folder": {
       "imported": {
@@ -6296,6 +6429,22 @@
     },
     "wait": {
       "gaveUp": "No answer, even after checking back. The document may still finish – open it again shortly. A longer time limit on the web server helps for good."
+    },
+    "unit": {
+      "perM3": "per m³",
+      "perYear": "per year",
+      "perMonth": "per month",
+      "perM2Year": "per m² and year"
+    },
+    "line": {
+      "working": "{what} from {from}: {value}",
+      "base": "Standing charge {what} from {from}: {value} per month",
+      "baseOnly": "Standing charge from {from}: {value} per month",
+      "rate": "{what} from {from}: {value} per m² and year for {area} m²",
+      "energy": "Unit price",
+      "parts": "from {parts}",
+      "net": "{value} net + {vat}% VAT",
+      "advance": "Advance payment from {from}: {value} per due date"
     }
   },
   "inboxCloud": {
@@ -6472,7 +6621,8 @@
       "meterChange": "Meter swap on {date}, new meter {serial}",
       "contract": {
         "new": "Contract {provider} {from} to {to}",
-        "existing": "Existing contract {provider} from {from}"
+        "existing": "Existing contract {provider} from {from}",
+        "sameSupplier": "Existing contract {existing} from {from}: the same supplier as {provider}?"
       },
       "contractEnd": "Previous contract {provider} ends on {date}",
       "prices": "Prices {provider}",
@@ -6529,7 +6679,8 @@
       "swap_open": "After a meter swap without the closing reading of the old meter – enter the swap first",
       "swap_readings": "The readings do not quite fit the swap (another device, falling or below a known reading) – please check",
       "existing_update": "Adds to what is already recorded – please check",
-      "existing_overlap": "Overlaps with what is already recorded – please check"
+      "existing_overlap": "Overlaps with what is already recorded – please check",
+      "same_supplier": "The supplier has a different name in your records. Is it the same one, such as a brand and its municipal utility?"
     },
     "result": {
       "title": "Taken over",
@@ -6589,7 +6740,8 @@
       "memberHint": "Someone who manages this installation sets this up. Here you see what is set; you can already file documents.",
       "ready": "Set up: the app now reads with {service}, model {model}.",
       "unavailable": "The reading settings cannot be reached right now. Please try again shortly."
-    }
+    },
+    "requires": "Belongs to “{contract}” and is only taken over together with this contract."
   },
   "interpolation": {
     "leadYear": {
@@ -6648,6 +6800,43 @@
       "too_few_points": "too few data points ({n})",
       "poor_fit": "does not fit (R² {r2})",
       "degenerate": "cannot be calculated (too little variation in the values)"
+    }
+  },
+  "haNotify": {
+    "title": {
+      "reminder": "Energietracker: appointment",
+      "deadline": "Energietracker: to do",
+      "more": "Energietracker: to do",
+      "warning": "Energietracker: warning",
+      "document": "Energietracker: inbox",
+      "test": "Energietracker: test message"
+    },
+    "test": "The connection works. From now on, due appointments, deadlines, warnings and new documents arrive here.",
+    "when": {
+      "today": "Due today.",
+      "on": "Due on {date}.",
+      "overdue": "Overdue since {date}."
+    },
+    "document": {
+      "single": "New document in the inbox: {name}",
+      "many": {
+        "one": "{count} new document in the inbox: {names}",
+        "other": "{count} new documents in the inbox: {names}"
+      }
+    },
+    "more": {
+      "one": "Plus {count} more item:",
+      "other": "Plus {count} more items:"
+    }
+  },
+  "advance": {
+    "rhythm": {
+      "every": {
+        "one": "every month",
+        "other": "every {count} months"
+      },
+      "everyDates": "{every}, on {dates}",
+      "dates": "on {dates}"
     }
   },
   "heatLimit": {
