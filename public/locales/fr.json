@@ -1789,7 +1789,14 @@
         "readKeyComment": "seulement si la connexion est activée",
         "sensorBalance": "Solde",
         "sensorForecast": "Prévision 12 mois",
-        "sensorDaysSince": "Jours depuis le relevé"
+        "sensorDaysSince": "Jours depuis le relevé",
+        "todoScanComment": "toutes les 15 minutes",
+        "todoName": "Energietracker à faire",
+        "todoNextName": "Energietracker prochain point",
+        "todoDateName": "Energietracker échéance du prochain point",
+        "webhookAlias": "Energietracker : transmettre la notification",
+        "webhookIdComment": "un ID propre, impossible à deviner",
+        "notifyComment": "ou notify.mobile_app_… pour le téléphone"
       },
       "lastUsed": "Dernière utilisation : {when}",
       "neverUsed": "Rien n’est encore arrivé avec ce jeton.",
@@ -1806,7 +1813,11 @@
       },
       "setupTitle": "Compteurs et modèles pour Home Assistant",
       "appHint": "Vous utilisez Home Assistant OS ? Energietracker fonctionne alors aussi comme application directement dans Home Assistant, avec une entrée dans la barre latérale.",
-      "appAdd": "Ajouter le dépôt à Home Assistant"
+      "appAdd": "Ajouter le dépôt à Home Assistant",
+      "todo": {
+        "title": "Capteur « À faire »",
+        "intro": "Nombre de points à faire et le prochain, pour le tableau de bord et les automatisations. Tous les points figurent dans l’attribut items."
+      }
     },
     "diag": {
       "title": "Diagnostic système",
@@ -2208,6 +2219,66 @@
       "accessLink": "Ouvrir Accès",
       "movedHint": "Vous ajoutez les personnes du foyer sous Foyer et bâtiment, même sans connexion.",
       "goto": "Aller aux personnes"
+    },
+    "haNotify": {
+      "title": "Notifications vers Home Assistant",
+      "intro": "Energietracker prévient Home Assistant de lui-même : quand un rendez-vous ou un délai arrive à échéance, en cas d’avertissement et quand un document arrive dans la boîte de réception. Chaque message n’arrive qu’une fois.",
+      "privacy": "Les messages ne vont qu’à votre Home Assistant. Rien ne quitte le réseau domestique, sauf si vous saisissez vous-même une adresse extérieure.",
+      "adminOnly": "Seule une personne qui administre cette installation peut le modifier.",
+      "enabled": "Envoyer des notifications",
+      "targetLabel": "Vers où ?",
+      "target": {
+        "supervisor": "Par le Supervisor (application dans Home Assistant, sans configuration)",
+        "webhook": "Webhook dans Home Assistant",
+        "token": "Adresse et jeton"
+      },
+      "supervisorMissing": "Le chemin par le Supervisor ne fonctionne que dans l’application pour Home Assistant.",
+      "url": "Adresse de Home Assistant",
+      "urlHint": "Par exemple http://192.168.178.10:8123, sans chemin. Un nom en .local ne se résout souvent pas dans un conteneur ; saisissez alors l’adresse IP.",
+      "webhook": "ID du webhook",
+      "webhookHint": "Le même ID que dans le déclencheur « Webhook » de votre automatisation. Il agit comme un mot de passe : il reste sur le serveur et n’apparaît plus ici après l’enregistrement.",
+      "newId": "Créer un nouvel ID",
+      "secretStored": "enregistré, laisser vide pour conserver",
+      "secretClear": "Supprimer",
+      "token": "Jeton (longue durée)",
+      "tokenHint": "À créer dans Home Assistant, dans votre profil sous Sécurité (jetons d’accès de longue durée). Il reste sur le serveur et n’apparaît plus ici après l’enregistrement.",
+      "service": "Action dans Home Assistant",
+      "serviceHint": "persistent_notification.create affiche le message dans les notifications de Home Assistant. Pour le téléphone : notify.mobile_app_ suivi du nom de votre appareil.",
+      "events": "Que signaler ?",
+      "event": {
+        "reminder": "Les rendez-vous dès leur échéance",
+        "deadline": "Les délais et autres points de « À faire » (relevés, délais de résiliation, factures)",
+        "warning": "Les avertissements, par exemple une consommation inhabituellement élevée",
+        "document": "Les nouveaux documents dans la boîte de réception"
+      },
+      "hour": "Vérification quotidienne à partir de",
+      "hourOption": "{hour} h 00",
+      "hourHint": "Une fois par jour, à la première requête après cette heure. Les nouveaux documents sont signalés dès leur arrivée.",
+      "test": "Envoyer un message de test",
+      "testOk": "Message de test envoyé. Regardez dans Home Assistant.",
+      "testFailed": "Le message de test n’est pas arrivé : {reason}",
+      "saved": "Enregistré.",
+      "state": {
+        "on": "Activé. Destination : {target}",
+        "incomplete": "Activé, mais la destination est incomplète. Rien n’est envoyé.",
+        "off": "Désactivé. Rien n’est envoyé à Home Assistant."
+      },
+      "last": "Dernier envoi : {when}",
+      "lastFailed": "Dernière tentative le {when} échouée : {reason}",
+      "yamlTitle": "Automatisation pour le webhook",
+      "yamlHint": "Dans Home Assistant, créez une nouvelle automatisation, choisissez « Modifier en YAML » et collez ceci. L’ID du webhook doit être le même que ci-dessus.",
+      "error": {
+        "dns": "Le nom de l’adresse ne peut pas être résolu.",
+        "address": "Cette adresse est bloquée.",
+        "insecure": "Une adresse hors du réseau domestique ne fonctionne qu’avec https://.",
+        "timeout": "Home Assistant n’a pas répondu à temps.",
+        "network": "Home Assistant est injoignable.",
+        "http": "Home Assistant répond avec le statut {status}.",
+        "unauthorized": "Home Assistant refuse (401). Vérifiez le jeton.",
+        "incomplete": "La destination n’est pas encore entièrement configurée.",
+        "url": "L’adresse n’est pas valide.",
+        "noTransport": "curl pour PHP manque sur le serveur."
+      }
     }
   },
   "reminders": {
@@ -3802,6 +3873,11 @@
         "contract": "Reprenez d’abord le contrat, puis ceci."
       },
       "nothingSelected": "Rien de sélectionné."
+    },
+    "haNotify": {
+      "incomplete": "La destination est incomplète : le webhook demande une adresse et un ID de webhook, le jeton une adresse et un jeton. Le Supervisor ne fonctionne que dans l’application pour Home Assistant.",
+      "webhookFormat": "L’ID du webhook comporte de 8 à 200 lettres, chiffres, traits d’union ou tirets bas.",
+      "tokenFormat": "Le jeton comporte de 20 à 2000 caractères visibles, sans espace."
     }
   },
   "login": {
@@ -6236,7 +6312,8 @@
       },
       "shortcut": "Raccourci",
       "folder": "Dossier",
-      "email": "E-mail"
+      "email": "E-mail",
+      "textShare": "Aussi sans navigateur : par un raccourci sur iPhone ou iPad, par le dossier « {dir} » ou par e-mail via Home Assistant."
     },
     "folder": {
       "imported": {
@@ -6642,6 +6719,33 @@
       "too_few_points": "trop peu de points ({n})",
       "poor_fit": "ne correspond pas (R² {r2})",
       "degenerate": "incalculable (trop peu de variation dans les valeurs)"
+    }
+  },
+  "haNotify": {
+    "title": {
+      "reminder": "Energietracker : rendez-vous",
+      "deadline": "Energietracker : à faire",
+      "more": "Energietracker : à faire",
+      "warning": "Energietracker : avertissement",
+      "document": "Energietracker : boîte de réception",
+      "test": "Energietracker : message de test"
+    },
+    "test": "La connexion fonctionne. Désormais, les rendez-vous et délais échus, les avertissements et les nouveaux documents arrivent ici.",
+    "when": {
+      "today": "À faire aujourd’hui.",
+      "on": "À faire pour le {date}.",
+      "overdue": "En retard depuis le {date}."
+    },
+    "document": {
+      "single": "Nouveau document dans la boîte de réception : {name}",
+      "many": {
+        "one": "{count} nouveau document dans la boîte de réception : {names}",
+        "other": "{count} nouveaux documents dans la boîte de réception : {names}"
+      }
+    },
+    "more": {
+      "one": "S’y ajoute {count} autre point :",
+      "other": "S’y ajoutent {count} autres points :"
     }
   }
 }

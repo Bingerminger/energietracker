@@ -11,7 +11,7 @@ import { fmt, escapeHtml, parseDecimal, formatForInput, todayIso, intlLocale } f
 import { toastOk, toastErr, toastAfterReload } from '../components/toast.js';
 import { confirmModal, openModal } from '../components/modal.js';
 import { logout } from '../components/login.js';
-import { haRestCommandYaml, haSecretsYaml, haAutomationYaml, haRestSensorYaml, haReadSecretYaml, haBaseUrl } from '../lib/ha-snippet.js';
+import { haRestCommandYaml, haSecretsYaml, haAutomationYaml, haRestSensorYaml, haReadSecretYaml, haBaseUrl, haTodoSensorYaml } from '../lib/ha-snippet.js';
 import { t, tp, getLocale, getLanguages, deviceLanguage, setDeviceLanguage, hasTranslation, getCurrencySymbol } from '../lib/i18n.js';
 import { loadDemo } from '../lib/demo.js';
 import { docUrl } from '../lib/docs.js';
@@ -28,6 +28,8 @@ import { confirmPersonDelete } from '../components/person-delete.js';   // v3.6.
 import { disclosureHtml, wireDisclosures, openDisclosureOf } from '../components/disclosure.js';
 // v3.7.0 — Karte „Auslesen“: Lokal | Cloud an einer Stelle (eigene Speichern-Taste und Schnittstelle)
 import { renderReadingCard, wireReadingCard } from '../components/inbox-cloud.js';
+// v3.9.0 (F1033) — Benachrichtigungen an Home Assistant (eigene Speichern-Taste, Geheimnisse nur zum Server)
+import { renderHaNotifyCard, wireHaNotifyCard } from '../components/ha-notify.js';
 
 // Each group renders as a settings card. `hint` is an optional explanatory
 // line under the card title; each field may carry its own `hint` too.
@@ -259,6 +261,8 @@ export async function render(container, params = [], ctx = {}) {
     ? await (isAdmin ? api.users() : api.people()).catch(() => []) : [];
   // v3.7.0 (Paket cloud) — Stand des Auslesens in der Cloud (ohne Schlüssel, nur has_key)
   const inboxCloud = page === 'expert' ? await api.inboxCloud().catch(() => null) : null;
+  // v3.9.0 (F1033) — Stand der Benachrichtigungen (ohne Webhook-ID und Token)
+  const haNotify = page === 'integrations' ? await api.haNotify().catch(() => null) : null;
 
   // F1009 — Zähler je (nicht-Delivery-)Utility für die Alias-Verwaltung laden.
   const haUtilities = (utilities || []).filter(u => u.reading_kind !== 'delivery');
@@ -344,7 +348,7 @@ export async function render(container, params = [], ctx = {}) {
         <a class="btn btn--ghost btn--sm" href="#/report">${escapeHtml(t('nav.report'))}</a>
       </div>`),
     // Home Assistant: Status und Token schmal, Aliase und Vorlagen breit
-    integrations: grid(renderHomeAssistantCards(authStatus, haUtilities, metersByUtility, session)),
+    integrations: grid(renderHomeAssistantCards(authStatus, haUtilities, metersByUtility, session, renderHaNotifyCard(haNotify, isAdmin))),
     // v3.2.0 (F1023) — Mitglieder sehen nur, wer den Zugriff verwaltet
     // v3.4.0 — Anmeldung schmal, API-Schlüssel und Personen breit am Ende
     // v3.9.0 — ohne Anmeldung ist „Benutzer und Rechte“ ein schmaler Hinweis (die
@@ -524,6 +528,7 @@ export async function render(container, params = [], ctx = {}) {
   if (page === 'access' || page === 'system') wireSecurityCheck(container, () => render(container, params, ctx));
   if (page === 'general') wireLevelCard(container, session);
   if (page === 'integrations') wireIntegrationsPage(container, () => render(container, params, ctx));
+  if (page === 'integrations') wireHaNotifyCard(container, haNotify, isAdmin, () => render(container, params, ctx));   // v3.9.0
   if (page === 'expert') wireReadingCard(container, inboxCloud, settings, isAdmin, () => render(container, params, ctx));   // v3.7.0
   wireDisclosures(container);   // v3.6.0
 
@@ -1068,7 +1073,7 @@ function copyText(text, okMsg) {
 // ── F1009 — Home-Assistant-Anbindung ─────────────────────────────────────
 // v3.4.0 (N1021) — zwei Karten statt einer von 3681 px Höhe: Status und Token
 // (schmal), Zähler-Aliase und Vorlagen (breit, Tabellen und YAML).
-function renderHomeAssistantCards(authStatus, haUtilities, metersByUtility, session = null) {
+function renderHomeAssistantCards(authStatus, haUtilities, metersByUtility, session = null, notifyCard = '') {
   const enabled = !!authStatus?.enabled;
   // v2.6.0 — Hilfe bei der Fehlersuche („kommt überhaupt etwas an?") und der
   // Hinweis, dass der Push mit eingeschalteter Anmeldung einen Token braucht.
@@ -1122,7 +1127,7 @@ function renderHomeAssistantCards(authStatus, haUtilities, metersByUtility, sess
       </div>
       ${usage}${loginWarning}
       <div id="ha-token-reveal"></div>
-    </div>`, `
+    </div>`, notifyCard, `
     <div class="card settings-card settings-card--wide" id="ha-setup-card">
       <h2 class="card__title">${t('settings.ha.setupTitle')}</h2>
 
@@ -1178,6 +1183,14 @@ function renderHomeAssistantCards(authStatus, haUtilities, metersByUtility, sess
       ${session && session.mode !== 'off' ? `
       <p class="muted" style="font-size:12px;margin:var(--sp-2) 0">${t('settings.ha.sensors.keyHint')}</p>
       <pre class="code-block" id="ha-read-secret"><code>${escapeHtml(haReadSecretYaml())}</code></pre>` : ''}
+
+      <!-- v3.9.0 (F1033) — Sensor „Zu tun“ auf GET /api/todo -->
+      <h4 class="settings-subhead">${escapeHtml(t('settings.ha.todo.title'))}</h4>
+      <p class="muted" style="font-size:12px;margin:0 0 var(--sp-2)">${escapeHtml(t('settings.ha.todo.intro'))}</p>
+      <pre class="code-block" id="ha-todo-sensor"><code>${escapeHtml(haTodoSensorYaml(haBaseUrl()))}</code></pre>
+      <div class="section-actions">
+        <button class="btn btn--sm" data-ha-copy="#ha-todo-sensor">${t('settings.ha.copyYaml')}</button>
+      </div>
     </div>
   `];
 }

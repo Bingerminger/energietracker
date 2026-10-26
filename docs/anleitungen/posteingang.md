@@ -358,10 +358,20 @@ Datei kommt danach nach `posteingang/übernommen/`, eine abgelehnte (kein PDF,
 größer als 10 MB) nach `posteingang/fehler/`. Ein Doppel gilt als übernommen.
 
 **Wann?** Die App liest den Ordner, wenn jemand mit Verwalterrechten sie öffnet
-oder den Posteingang aufruft (ohne Anmeldung ist jeder Verwalter). Einen eigenen
-Zeitplan hat sie nicht. Wer es regelmäßig will, ruft `POST /api/inbox/folder`
-per Cron oder aus Home Assistant auf (mit einem Schlüssel „Verwalten“, wenn die
-Anmeldung an ist; [API](../referenz/api.md#ordner--post-apiinboxfolder)).
+oder den Posteingang aufruft (ohne Anmeldung ist jeder Verwalter). *(v3.9.0)*
+Dazu höchstens alle fünf Minuten nach einer beliebigen Anfrage, wenn eine
+Datei wartet. Einen eigenen Zeitplan hat die App nicht; im Docker-Image und in
+der App für Home Assistant fragt der Gesundheitscheck alle 30 Sekunden, ein
+abgelegtes PDF ist dort also nach spätestens fünf Minuten im Posteingang. Wer
+es sofort will, ruft `POST /api/inbox/folder` per Cron oder aus Home Assistant
+auf (mit einem Schlüssel „Verwalten“, wenn die Anmeldung an ist;
+[API](../referenz/api.md#ordner--post-apiinboxfolder)). Ist die
+[Benachrichtigung an Home Assistant](home-assistant.md#schritt-6--benachrichtigungen-an-home-assistant-v390)
+für neue Dokumente an, meldet die App jedes eingelesene Dokument.
+
+**Eigener Ort *(v3.9.0)*:** Mit der Umgebungsvariablen `ET_INBOX_DIR`
+(absoluter Pfad) liegt der Ordner woanders, auch außerhalb des
+Datenverzeichnisses ([Docker](../betrieb/docker.md#konfiguration-über-umgebungsvariablen)).
 
 **Was die App nicht anfasst:** symbolische Links (auch nicht als Ordner selbst),
 Unterordner, versteckte Dateien (`.…`, auch die `._…`-Begleitdateien vom Mac)
@@ -373,7 +383,8 @@ Gelesen wird nach Inhalt, nicht nach Endung.
 |---|---|
 | NAS mit Webserver (etwa Synology) | `data/posteingang/` im Ordner der App, über die Freigabe des Webordners erreichbar (z. B. `\\nas.local\web\energietracker\data\posteingang`). Der Benutzer des Webservers (bei Synology `http`) muss darin lesen und schreiben dürfen, sonst bleiben die Dateien liegen. |
 | Docker | `/data/posteingang/` im Container — mit `-v "$PWD/data:/data"` also `./data/posteingang/` auf dem Host. Mit einem Named Volume einen Ordner des Hosts darüber legen, etwa `-v "$PWD/posteingang:/data/posteingang"`; er muss für den Benutzer des Containers beschreibbar sein ([Docker](../betrieb/docker.md#wo-liegen-meine-daten-das-wichtigste)). |
-| App für Home Assistant | nicht erreichbar: Die App bindet nur ihren eigenen Speicher (`/data`) ein, keine Freigabe wie `/share`. Dort den Kurzbefehl oder die E-Mail über Home Assistant nehmen. |
+| App für Home Assistant *(v3.9.0)* | `/share/energietracker/posteingang` (die App setzt `ET_INBOX_DIR` und legt den Ordner beim Start an). Mit der App „Samba share“ im Netz unter `\\<Adresse von Home Assistant>\share\energietracker\posteingang`. Bis v3.7 war der Ordner dort nicht erreichbar. |
+| Docker ohne root (`rootless`) | wie Docker; einen Ordner aus `ET_INBOX_DIR` legt das Image dort nicht an, er muss für den Benutzer des Containers (UID 10001 oder die eigene, Gruppe 0) beschreibbar sein. Sonst meldet das Protokoll beim Start eine Warnung. |
 
 <a id="inbox-email"></a>
 
@@ -450,7 +461,9 @@ In der App für Home Assistant lautet die Adresse
 Mail zweimal ergibt kein zweites Dokument (Prüfsumme). Die Ereignisse und die
 Aktion `imap.fetch_part` beschreibt die
 [Doku der IMAP-Integration](https://www.home-assistant.io/integrations/imap/)
-(nachgesehen am 21.10.2026).
+(nachgesehen am 21.10.2026). *(v3.9.0)* Dieser Weg ist in einem laufenden Home
+Assistant noch ungeprüft; geprüft ist die Seite des Energietrackers
+([Home Assistant → Versorgerpost per E-Mail](home-assistant.md#versorgerpost-per-e-mail)).
 
 ---
 

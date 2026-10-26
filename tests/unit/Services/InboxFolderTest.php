@@ -170,4 +170,53 @@ final class InboxFolderTest extends ServiceTestCase
         self::assertTrue($r['more']);
         self::assertCount(1, $this->folder->scan()['imported']);
     }
+
+    /**
+     * v3.9.0 (F1033) — nach einer beliebigen Anfrage höchstens alle fünf
+     * Minuten (App::afterResponse): ein abgelegtes PDF kommt ohne Öffnen der
+     * App in den Posteingang. Ohne Ordner kostet es nur ein `stat`.
+     */
+    public function testTheTickReadsTheFolderAtMostEveryFiveMinutes(): void
+    {
+        self::assertFalse($this->folder->tickDue(), 'ohne Ordner nichts zu tun');
+        self::assertNull($this->folder->tick());
+        $this->drop('a.pdf', InboxFixture::pdf('t1'));
+        $now = time();
+        self::assertTrue($this->folder->tickDue($now));
+        self::assertSame(['a.pdf'], array_column($this->folder->tick($now)['imported'], 'name'));
+        $this->drop('b.pdf', InboxFixture::pdf('t2'));
+        self::assertFalse($this->folder->tickDue($now + 60), 'erst nach fünf Minuten wieder');
+        self::assertNull($this->folder->tick($now + 60));
+        self::assertFileExists($this->dir . '/b.pdf');
+        $later = $now + FolderIntake::TICK_SECONDS + 1;
+        self::assertSame(['b.pdf'], array_column($this->folder->tick($later)['imported'], 'name'));
+        self::assertNull($this->folder->tick($later + FolderIntake::TICK_SECONDS + 1), 'nichts wartet: kein Lauf');
+    }
+
+    /**
+     * v3.9.0 (F1033) — eigener Ordner aus `ET_INBOX_DIR` (App für Home
+     * Assistant: `/share/energietracker/posteingang`), auch außerhalb des
+     * Datenverzeichnisses; die Oberfläche nennt den vollen Pfad.
+     */
+    public function testAFolderFromTheEnvironmentMayLieOutsideTheDataDirectory(): void
+    {
+        $share = $this->outside . '/energietracker/posteingang';
+        $folder = new FolderIntake($this->store, $this->inbox, fn() => $share . '/');
+        self::assertSame($share, $folder->folder());
+        $folder->scan();
+        self::assertDirectoryExists($share, 'auch mit Unterordnern angelegt');
+        file_put_contents("$share/brief.pdf", InboxFixture::pdf('share'));
+        touch("$share/brief.pdf", time() - 60);
+        self::assertSame(['dir' => $share, 'present' => true, 'pending' => 1], $folder->status());
+        $r = $folder->scan();
+        self::assertSame($share, $r['dir']);
+        self::assertSame(['brief.pdf'], array_column($r['imported'], 'name'));
+        self::assertFileExists("$share/übernommen/brief.pdf");
+        // ein relativer Pfad gilt nicht: dann der Ordner im Datenverzeichnis
+        self::assertSame($this->dir, (new FolderIntake($this->store, $this->inbox, fn() => 'share/posteingang'))->folder());
+        @unlink("$share/übernommen/brief.pdf");
+        @rmdir("$share/übernommen");
+        @rmdir($share);
+        @rmdir(dirname($share));
+    }
 }

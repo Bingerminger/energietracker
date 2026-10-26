@@ -34,6 +34,7 @@ final class SummaryService
         private StromSaldoService $stromSaldo,
         private AgendaService $agenda,
         private InstanceService $instance,
+        private ?I18nService $i18n = null,   // v3.9.0 (F1033) — `utility_label` in der Sprache der Anfrage
     ) {}
 
     /**
@@ -141,6 +142,8 @@ final class SummaryService
             'forecast_12m'       => $this->forecast($u, $m, $vf),
             'tank'               => Utilities::isDelivery($u) ? $this->tank($u, $m) : null,
             'capture'            => $isPeriod ? 'period' : 'counter',   // H3: Verbrauch je Zeitraum
+            // v3.9.0 (F1033) — Name der Verbrauchsart (HACS-Integration: „Strom Hauptzähler“ statt dreimal „Hauptzähler“)
+            'utility_label'      => $this->i18n?->utilityLabel($u) ?? (string)($def['label'] ?? $u),
         ];
     }
 

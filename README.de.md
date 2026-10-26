@@ -109,7 +109,8 @@ gerundete Standort, abschaltbar) und bei der Ortssuche, wenn du sie benutzt.
 Dazu kommen Wege, die du selbst einschaltest: dein eigener
 Texterkennungsdienst im Heimnetz, wenn du ihn einträgst (für Zählerfotos und
 zum Auslesen der Versorgerpost im Posteingang), dein evcc im
-Heimnetz, wenn du die Ladevorgänge abrufst, die
+Heimnetz, wenn du die Ladevorgänge abrufst, dein Home Assistant, wenn du
+Benachrichtigungen dorthin einschaltest, die
 Börsenstrompreise für den Dynamik-Check, wenn du auf „Von SMARD laden“ tippst
 (Bundesnetzagentur; dabei geht nichts von dir hinaus), und der Hinweis auf neue
 Versionen (einmal am Tag wird GitHub nach der neuesten Versionsnummer gefragt;

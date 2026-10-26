@@ -1789,7 +1789,14 @@
         "readKeyComment": "solo si el inicio de sesión está activado",
         "sensorBalance": "Saldo",
         "sensorForecast": "Previsión 12 meses",
-        "sensorDaysSince": "Días desde la lectura"
+        "sensorDaysSince": "Días desde la lectura",
+        "todoScanComment": "cada 15 minutos",
+        "todoName": "Energietracker pendiente",
+        "todoNextName": "Energietracker siguiente punto",
+        "todoDateName": "Energietracker vencimiento del siguiente punto",
+        "webhookAlias": "Energietracker: reenviar la notificación",
+        "webhookIdComment": "un ID propio que no se pueda adivinar",
+        "notifyComment": "o notify.mobile_app_… para el móvil"
       },
       "lastUsed": "Último uso: {when}",
       "neverUsed": "Todavía no ha llegado nada con este token.",
@@ -1806,7 +1813,11 @@
       },
       "setupTitle": "Contadores y plantillas para Home Assistant",
       "appHint": "¿Usas Home Assistant OS? Entonces Energietracker también funciona como app dentro de Home Assistant, con una entrada en la barra lateral.",
-      "appAdd": "Añadir el repositorio a Home Assistant"
+      "appAdd": "Añadir el repositorio a Home Assistant",
+      "todo": {
+        "title": "Sensor «Pendiente»",
+        "intro": "Número de puntos pendientes y el siguiente, para paneles y automatizaciones. Todos los puntos están en el atributo items."
+      }
     },
     "diag": {
       "title": "Diagnóstico del sistema",
@@ -2208,6 +2219,66 @@
       "accessLink": "Abrir Acceso",
       "movedHint": "Las personas del hogar se añaden en Hogar y edificio, también sin inicio de sesión.",
       "goto": "Ir a las personas"
+    },
+    "haNotify": {
+      "title": "Notificaciones a Home Assistant",
+      "intro": "Energietracker avisa a Home Assistant por sí solo: cuando vence una cita o un plazo, ante avisos y cuando llega un documento a la bandeja de entrada. Cada mensaje llega una sola vez.",
+      "privacy": "Los mensajes solo van a tu Home Assistant. Nada sale de la red doméstica, salvo que tú mismo introduzcas una dirección exterior.",
+      "adminOnly": "Solo quien administra esta instalación puede cambiarlo.",
+      "enabled": "Enviar notificaciones",
+      "targetLabel": "¿Adónde?",
+      "target": {
+        "supervisor": "Mediante el Supervisor (app en Home Assistant, sin configuración)",
+        "webhook": "Webhook en Home Assistant",
+        "token": "Dirección y token"
+      },
+      "supervisorMissing": "La vía del Supervisor solo funciona en la app para Home Assistant.",
+      "url": "Dirección de Home Assistant",
+      "urlHint": "Por ejemplo http://192.168.178.10:8123, sin ruta. Un nombre .local a menudo no se resuelve dentro de un contenedor; entonces introduce la dirección IP.",
+      "webhook": "ID del webhook",
+      "webhookHint": "El mismo ID que en el desencadenante «Webhook» de tu automatización. Funciona como una contraseña: se queda en el servidor y aquí ya no aparece tras guardar.",
+      "newId": "Crear un ID nuevo",
+      "secretStored": "guardado, déjalo vacío para conservarlo",
+      "secretClear": "Eliminar",
+      "token": "Token (de larga duración)",
+      "tokenHint": "Créalo en Home Assistant, en tu perfil, en Seguridad (tokens de acceso de larga duración). Se queda en el servidor y aquí ya no aparece tras guardar.",
+      "service": "Acción en Home Assistant",
+      "serviceHint": "persistent_notification.create muestra el mensaje en las notificaciones de Home Assistant. Para el móvil: notify.mobile_app_ seguido del nombre de tu dispositivo.",
+      "events": "¿Qué avisar?",
+      "event": {
+        "reminder": "Las citas en cuanto vencen",
+        "deadline": "Los plazos y demás puntos de «Pendiente» (lecturas, plazos de cancelación, facturas)",
+        "warning": "Los avisos, por ejemplo un consumo inusualmente alto",
+        "document": "Los documentos nuevos en la bandeja de entrada"
+      },
+      "hour": "Comprobación diaria desde las",
+      "hourOption": "{hour}:00",
+      "hourHint": "Una vez al día, con la primera petición después de esta hora. Los documentos nuevos se avisan nada más llegar.",
+      "test": "Enviar un mensaje de prueba",
+      "testOk": "Mensaje de prueba enviado. Mira en Home Assistant.",
+      "testFailed": "El mensaje de prueba no ha llegado: {reason}",
+      "saved": "Guardado.",
+      "state": {
+        "on": "Activado. Destino: {target}",
+        "incomplete": "Activado, pero el destino está incompleto. No se envía nada.",
+        "off": "Desactivado. No se envía nada a Home Assistant."
+      },
+      "last": "Último envío: {when}",
+      "lastFailed": "El último intento del {when} falló: {reason}",
+      "yamlTitle": "Automatización para el webhook",
+      "yamlHint": "En Home Assistant crea una automatización nueva, elige «Editar en YAML» y pega esto. El ID del webhook tiene que ser el mismo que arriba.",
+      "error": {
+        "dns": "El nombre de la dirección no se puede resolver.",
+        "address": "Esta dirección está bloqueada.",
+        "insecure": "Una dirección fuera de la red doméstica solo funciona con https://.",
+        "timeout": "Home Assistant no ha respondido a tiempo.",
+        "network": "No se puede contactar con Home Assistant.",
+        "http": "Home Assistant responde con el estado {status}.",
+        "unauthorized": "Home Assistant lo rechaza (401). Comprueba el token.",
+        "incomplete": "El destino aún no está configurado del todo.",
+        "url": "La dirección no es válida.",
+        "noTransport": "En el servidor falta curl para PHP."
+      }
     }
   },
   "reminders": {
@@ -3802,6 +3873,11 @@
         "contract": "Primero adopta el contrato, luego esto."
       },
       "nothingSelected": "No hay nada seleccionado."
+    },
+    "haNotify": {
+      "incomplete": "El destino está incompleto: el webhook necesita dirección e ID del webhook, el token dirección y token. El Supervisor solo funciona en la app para Home Assistant.",
+      "webhookFormat": "El ID del webhook tiene de 8 a 200 letras, cifras, guiones o guiones bajos.",
+      "tokenFormat": "El token tiene de 20 a 2000 caracteres visibles sin espacios."
     }
   },
   "login": {
@@ -6236,7 +6312,8 @@
       },
       "shortcut": "Atajo",
       "folder": "Carpeta",
-      "email": "Correo"
+      "email": "Correo",
+      "textShare": "También sin navegador: con un atajo desde el iPhone o el iPad, mediante la carpeta «{dir}» o por correo a través de Home Assistant."
     },
     "folder": {
       "imported": {
@@ -6642,6 +6719,33 @@
       "too_few_points": "demasiado pocos puntos ({n})",
       "poor_fit": "no se ajusta (R² {r2})",
       "degenerate": "no calculable (muy poca variación en los valores)"
+    }
+  },
+  "haNotify": {
+    "title": {
+      "reminder": "Energietracker: cita",
+      "deadline": "Energietracker: pendiente",
+      "more": "Energietracker: pendiente",
+      "warning": "Energietracker: aviso",
+      "document": "Energietracker: bandeja de entrada",
+      "test": "Energietracker: mensaje de prueba"
+    },
+    "test": "La conexión funciona. A partir de ahora llegan aquí las citas y plazos pendientes, los avisos y los documentos nuevos.",
+    "when": {
+      "today": "Para hoy.",
+      "on": "Para el {date}.",
+      "overdue": "Atrasado desde el {date}."
+    },
+    "document": {
+      "single": "Documento nuevo en la bandeja de entrada: {name}",
+      "many": {
+        "one": "{count} documento nuevo en la bandeja de entrada: {names}",
+        "other": "{count} documentos nuevos en la bandeja de entrada: {names}"
+      }
+    },
+    "more": {
+      "one": "Además, {count} punto más:",
+      "other": "Además, {count} puntos más:"
     }
   }
 }

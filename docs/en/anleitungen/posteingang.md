@@ -350,10 +350,19 @@ to `posteingang/fehler/`. A duplicate counts as taken over. The folder names
 are the same in every language.
 
 **When?** The app reads the folder when someone with admin rights opens it or
-opens the inbox (without sign-in everybody is an admin). It has no schedule of
-its own. If you want it regularly, call `POST /api/inbox/folder` from cron or
-Home Assistant (with a “Manage” key when sign-in is on;
-[API](../referenz/api.md#folder--post-apiinboxfolder)).
+opens the inbox (without sign-in everybody is an admin). *(v3.9.0)* In
+addition at most every five minutes after any request, if a file is waiting.
+The app has no schedule of its own; in the Docker image and in the app for
+Home Assistant the health check asks every 30 seconds, so a PDF placed there is
+in the inbox within five minutes at most. If you want it at once, call
+`POST /api/inbox/folder` from cron or Home Assistant (with a “Manage” key when
+sign-in is on; [API](../referenz/api.md#folder--post-apiinboxfolder)). If the
+[notification to Home Assistant](home-assistant.md#step-6--notifications-to-home-assistant-v390)
+for new documents is on, the app reports every document it reads in.
+
+**Your own location *(v3.9.0)*:** with the environment variable
+`ET_INBOX_DIR` (absolute path) the folder is somewhere else, also outside the
+data directory ([Docker](../betrieb/docker.md#configuration-via-environment-variables)).
 
 **What the app leaves alone:** symbolic links (also as the folder itself),
 sub-folders, hidden files (`.…`, including the `._…` companion files from the
@@ -365,7 +374,8 @@ recognised by content, not by extension.
 |---|---|
 | NAS with a web server (e.g. Synology) | `data/posteingang/` in the app folder, reachable through the share of the web folder (e.g. `\\nas.local\web\energietracker\data\posteingang`). The web server user (on Synology `http`) must be able to read and write there, otherwise the files stay. |
 | Docker | `/data/posteingang/` in the container — with `-v "$PWD/data:/data"` that is `./data/posteingang/` on the host. With a named volume, mount a host folder on top, e.g. `-v "$PWD/posteingang:/data/posteingang"`; it must be writable for the container user ([Docker](../betrieb/docker.md#where-is-my-data-the-most-important-part)). |
-| App for Home Assistant | not reachable: the app only mounts its own storage (`/data`), no share such as `/share`. Use the shortcut or email via Home Assistant there. |
+| App for Home Assistant *(v3.9.0)* | `/share/energietracker/posteingang` (the app sets `ET_INBOX_DIR` and creates the folder at start). With the “Samba share” app on the network at `\\<Home Assistant address>\share\energietracker\posteingang`. Up to v3.7 the folder was out of reach there. |
+| Docker without root (`rootless`) | as Docker; the image does not create a folder from `ET_INBOX_DIR` there, it must be writable for the container’s user (UID 10001 or your own, group 0). Otherwise the log shows a warning at start. |
 
 <a id="inbox-email"></a>
 
@@ -442,7 +452,9 @@ for [pushing meter readings](home-assistant.md#as-an-app-in-home-assistant-os).
 The same mail twice gives no second document (checksum). The events and the
 action `imap.fetch_part` are described in the
 [documentation of the IMAP integration](https://www.home-assistant.io/integrations/imap/)
-(looked up on 21 Oct 2026).
+(looked up on 21 Oct 2026). *(v3.9.0)* This way has not been tested in a
+running Home Assistant yet; Energietracker’s side is tested
+([Home Assistant → Supplier mail by email](home-assistant.md#supplier-mail-by-email)).
 
 ---
 

@@ -16,6 +16,8 @@ final class OutboundHostsTest extends TestCase
     /** Dienst → wohin er spricht */
     private const ALLOWED = [
         'WeatherService.php' => 'Open-Meteo',
+        // v3.9.0 (F1033) — Benachrichtigungen an das eigene Home Assistant, nur eingeschaltet
+        'NotifyTransport.php' => 'eigenes Home Assistant (Supervisor, Webhook oder Token), nur mit Opt-in',
         'OcrService.php'     => 'eigener Texterkennungsdienst im Heimnetz',
         'MarketPriceService.php' => 'SMARD (Bundesnetzagentur), nur auf Knopfdruck',   // v3.1.0 (H6)
         'EvccService.php'    => 'eigenes evcc im Heimnetz, nur auf Knopfdruck',         // v3.2.0 (F1022)
@@ -50,6 +52,11 @@ final class OutboundHostsTest extends TestCase
         self::assertStringContainsString('Open-Meteo', $de);
         self::assertStringContainsString('Texterkennungsdienst', $de, 'README.de.md nennt die Texterkennung im Heimnetz');
         self::assertStringContainsString('text recognition', $en, 'README.md names the text recognition in the home network');
+        // v3.9.0 (F1033) — Benachrichtigungen an das eigene Home Assistant
+        self::assertStringContainsString('dein Home Assistant, wenn du Benachrichtigungen dorthin einschaltest', (string)preg_replace('/\s+/u', ' ', $de),
+            'README.de.md nennt die Benachrichtigungen an Home Assistant');
+        self::assertStringContainsString('your Home Assistant, when you switch on notifications to it', (string)preg_replace('/\s+/u', ' ', $en),
+            'README.md names the notifications to Home Assistant');
         self::assertStringContainsString('SMARD', $de, 'README.de.md nennt den Abruf der Marktpreise');
         self::assertStringContainsString('SMARD', $en, 'README.md names the market price download');
         self::assertStringContainsString('evcc im', $de, 'README.de.md nennt den Abruf aus evcc');

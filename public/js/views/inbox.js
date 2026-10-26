@@ -93,7 +93,9 @@ function gistLineHtml(e) {
 function channelsHtml(folder) {
   if (DEMO) return '';
   const pending = folder?.pending ? ` ${esc(tp('inbox.channels.pending', folder.pending))}` : '';
-  return `<p class="muted small inbox-channels" id="inbox-channels">${esc(t('inbox.channels.text', { dir: folder?.dir || 'posteingang' }))}${pending}
+  // v3.9.0 (F1033) — ein eigener Ordner (ET_INBOX_DIR, etwa /share in der App für Home Assistant) liegt nicht im Datenverzeichnis
+  const dir = folder?.dir || 'posteingang';
+  return `<p class="muted small inbox-channels" id="inbox-channels">${esc(t(dir.startsWith('/') ? 'inbox.channels.textShare' : 'inbox.channels.text', { dir }))}${pending}
     <a href="${esc(docUrl('inbox', 'inbox-shortcut'))}">${esc(t('inbox.channels.shortcut'))}</a> ·
     <a href="${esc(docUrl('inbox', 'inbox-folder'))}">${esc(t('inbox.channels.folder'))}</a> ·
     <a href="${esc(docUrl('inbox', 'inbox-email'))}">${esc(t('inbox.channels.email'))}</a></p>`;

@@ -1789,7 +1789,14 @@
         "readKeyComment": "alleen nodig als inloggen aan staat",
         "sensorBalance": "Saldo",
         "sensorForecast": "Prognose 12 maanden",
-        "sensorDaysSince": "Dagen sinds meterstand"
+        "sensorDaysSince": "Dagen sinds meterstand",
+        "todoScanComment": "elke 15 minuten",
+        "todoName": "Energietracker te doen",
+        "todoNextName": "Energietracker volgend punt",
+        "todoDateName": "Energietracker volgend punt uiterlijk",
+        "webhookAlias": "Energietracker: melding doorgeven",
+        "webhookIdComment": "eigen ID die niet te raden is",
+        "notifyComment": "of notify.mobile_app_… voor je telefoon"
       },
       "lastUsed": "Laatst gebruikt: {when}",
       "neverUsed": "Met dit token is nog niets binnengekomen.",
@@ -1806,7 +1813,11 @@
       },
       "setupTitle": "Meters en sjablonen voor Home Assistant",
       "appHint": "Gebruik je Home Assistant OS? Dan draait Energietracker ook als app direct in Home Assistant, met een item in de zijbalk.",
-      "appAdd": "Repository aan Home Assistant toevoegen"
+      "appAdd": "Repository aan Home Assistant toevoegen",
+      "todo": {
+        "title": "Sensor ‘Te doen’",
+        "intro": "Aantal openstaande punten en het volgende, voor dashboard en automatiseringen. Alle punten staan in het attribuut items."
+      }
     },
     "diag": {
       "title": "Systeemdiagnose",
@@ -2208,6 +2219,66 @@
       "accessLink": "Toegang openen",
       "movedHint": "Personen in het huishouden voeg je toe onder Huishouden en gebouw, ook zonder inloggen.",
       "goto": "Naar de personen"
+    },
+    "haNotify": {
+      "title": "Meldingen naar Home Assistant",
+      "intro": "Energietracker meldt zich zelf bij Home Assistant: als een afspraak of termijn aan de beurt is, bij waarschuwingen en als er een document in het postvak binnenkomt. Elk bericht komt maar één keer.",
+      "privacy": "De berichten gaan alleen naar je eigen Home Assistant. Niets verlaat je thuisnetwerk, tenzij je zelf een adres daarbuiten invult.",
+      "adminOnly": "Alleen wie deze installatie beheert, mag dit wijzigen.",
+      "enabled": "Meldingen versturen",
+      "targetLabel": "Waarheen?",
+      "target": {
+        "supervisor": "Via de Supervisor (app in Home Assistant, zonder instellen)",
+        "webhook": "Webhook in Home Assistant",
+        "token": "Adres en token"
+      },
+      "supervisorMissing": "De weg via de Supervisor werkt alleen in de app voor Home Assistant.",
+      "url": "Adres van Home Assistant",
+      "urlHint": "Bijvoorbeeld http://192.168.178.10:8123, zonder pad. Een naam op .local is in een container vaak niet op te lossen; vul dan het IP-adres in.",
+      "webhook": "Webhook-ID",
+      "webhookHint": "Dezelfde ID als in de trigger ‘Webhook’ van je automatisering. Hij werkt als een wachtwoord: hij blijft op de server en verschijnt hier na het opslaan niet meer.",
+      "newId": "Nieuwe ID maken",
+      "secretStored": "opgeslagen, leeg laten om te houden",
+      "secretClear": "Verwijderen",
+      "token": "Token (langdurig)",
+      "tokenHint": "Maak hem in Home Assistant aan in je profiel onder Beveiliging (langdurige toegangstokens). Hij blijft op de server en verschijnt hier na het opslaan niet meer.",
+      "service": "Actie in Home Assistant",
+      "serviceHint": "persistent_notification.create toont het bericht bij de meldingen in Home Assistant. Voor je telefoon: notify.mobile_app_ met de naam van je apparaat erachter.",
+      "events": "Wat melden?",
+      "event": {
+        "reminder": "Afspraken zodra ze aan de beurt zijn",
+        "deadline": "Termijnen en andere punten uit ‘Te doen’ (meterstanden, opzegtermijnen, rekeningen)",
+        "warning": "Waarschuwingen, zoals een ongewoon hoog verbruik",
+        "document": "Nieuwe documenten in het postvak"
+      },
+      "hour": "Dagelijkse controle vanaf",
+      "hourOption": "{hour}:00 uur",
+      "hourHint": "Eén keer per dag, bij het eerste verzoek na dit tijdstip. Nieuwe documenten meldt de app direct na binnenkomst.",
+      "test": "Testbericht versturen",
+      "testOk": "Testbericht verstuurd. Kijk in Home Assistant.",
+      "testFailed": "Het testbericht is niet aangekomen: {reason}",
+      "saved": "Opgeslagen.",
+      "state": {
+        "on": "Aan. Bestemming: {target}",
+        "incomplete": "Aan, maar de bestemming is onvolledig. Er gaat niets weg.",
+        "off": "Uit. Er gaat niets naar Home Assistant."
+      },
+      "last": "Laatst verstuurd: {when}",
+      "lastFailed": "Laatste poging op {when} mislukt: {reason}",
+      "yamlTitle": "Automatisering voor de webhook",
+      "yamlHint": "Maak in Home Assistant een nieuwe automatisering, kies ‘Bewerken in YAML’ en plak dit erin. De webhook-ID moet dezelfde zijn als hierboven.",
+      "error": {
+        "dns": "De naam in het adres is niet op te lossen.",
+        "address": "Dit adres is geblokkeerd.",
+        "insecure": "Een adres buiten het thuisnetwerk werkt alleen met https://.",
+        "timeout": "Home Assistant heeft niet op tijd geantwoord.",
+        "network": "Home Assistant is niet bereikbaar.",
+        "http": "Home Assistant antwoordt met status {status}.",
+        "unauthorized": "Home Assistant weigert (401). Controleer de token.",
+        "incomplete": "De bestemming is nog niet helemaal ingesteld.",
+        "url": "Het adres is ongeldig.",
+        "noTransport": "Op de server ontbreekt curl voor PHP."
+      }
     }
   },
   "reminders": {
@@ -3802,6 +3873,11 @@
         "contract": "Neem eerst het contract over, daarna dit."
       },
       "nothingSelected": "Niets geselecteerd."
+    },
+    "haNotify": {
+      "incomplete": "De bestemming is onvolledig: de webhook heeft een adres en een webhook-ID nodig, de token een adres en een token. De Supervisor werkt alleen in de app voor Home Assistant.",
+      "webhookFormat": "De webhook-ID bestaat uit 8 tot 200 letters, cijfers, koppeltekens of liggende streepjes.",
+      "tokenFormat": "De token bestaat uit 20 tot 2000 zichtbare tekens zonder spaties."
     }
   },
   "login": {
@@ -6236,7 +6312,8 @@
       },
       "shortcut": "Opdracht",
       "folder": "Map",
-      "email": "E-mail"
+      "email": "E-mail",
+      "textShare": "Ook zonder browser: met een opdracht vanaf iPhone of iPad, via de map ‘{dir}’ of per e-mail via Home Assistant."
     },
     "folder": {
       "imported": {
@@ -6642,6 +6719,33 @@
       "too_few_points": "te weinig datapunten ({n})",
       "poor_fit": "past niet (R² {r2})",
       "degenerate": "niet te berekenen (te weinig verschil in de waarden)"
+    }
+  },
+  "haNotify": {
+    "title": {
+      "reminder": "Energietracker: afspraak",
+      "deadline": "Energietracker: te doen",
+      "more": "Energietracker: te doen",
+      "warning": "Energietracker: waarschuwing",
+      "document": "Energietracker: postvak",
+      "test": "Energietracker: testbericht"
+    },
+    "test": "De verbinding werkt. Vanaf nu komen hier afspraken en termijnen die aan de beurt zijn, waarschuwingen en nieuwe documenten binnen.",
+    "when": {
+      "today": "Vandaag aan de beurt.",
+      "on": "Uiterlijk op {date}.",
+      "overdue": "Te laat sinds {date}."
+    },
+    "document": {
+      "single": "Nieuw document in het postvak: {name}",
+      "many": {
+        "one": "{count} nieuw document in het postvak: {names}",
+        "other": "{count} nieuwe documenten in het postvak: {names}"
+      }
+    },
+    "more": {
+      "one": "Daarnaast nog {count} punt:",
+      "other": "Daarnaast nog {count} punten:"
     }
   }
 }
