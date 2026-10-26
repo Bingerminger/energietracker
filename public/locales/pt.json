@@ -476,7 +476,7 @@
       "consShort": "{value} consumo",
       "gpPlus": " + {value} termo fixo",
       "suggestAdvance": "Com um adiantamento de {suggested} em vez de {current}, o acerto ficaria em cerca de ±0.",
-      "measuredThenEstimated": "medido até {date} ({kwh} kWh), depois estimado: {value}",
+      "measuredThenEstimated": "medido até {date} ({amount}), depois estimado: {value}",
       "renewed": "O prazo terminou a {date}. Sem denúncia, o contrato continua aos últimos preços e pode ser denunciado a qualquer momento com um pré-aviso de no máximo um mês.",
       "cancelMissed": "Prazo de denúncia de {date} ultrapassado: o contrato não termina a {end}, continua — depois pode ser denunciado com um pré-aviso de no máximo um mês.",
       "priceIncrease": "Aumento de preços a partir de {date}: {what}.",

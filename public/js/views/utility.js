@@ -792,7 +792,9 @@ function balanceCard(c, u, country = 'DE') {
   const costToDate = c.cost_to_date ?? c.actual_cost;
   const estimated = (c.estimated_cost_to_date || 0) > 0.005 && c.measured_until;
   const measuredSub = estimated
-    ? t('utility.balance.measuredThenEstimated', { date: fmt.date(c.measured_until), kwh: fmt.int(c.actual_kwh), value: fmt.eur(c.estimated_cost_to_date) })
+    // v3.9.0 (auswertung, Nachtrag) — die Einheit aus der SSOT (Wasser m³, bis v3.8 „(0 kWh)“)
+    ? t('utility.balance.measuredThenEstimated', { date: fmt.date(c.measured_until), value: fmt.eur(c.estimated_cost_to_date),
+      amount: u.consumption_unit === 'kWh' ? fmt.unit(c.actual_kwh, u.consumption_unit, 0) : fmt.unit(c.actual_m3 || 0, u.consumption_unit, 1) })
     : consumedSub;
   // Die Teile der Summe (energy/base/bonus_to_date) — ältere Server liefern
   // nur die gemessenen Monate

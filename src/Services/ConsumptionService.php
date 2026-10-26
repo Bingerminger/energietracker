@@ -4030,6 +4030,18 @@ final class ConsumptionService
         $dim = $days($ms, $me);
         $part = $overlap($ms, $me);
         if ($part === 0) return 0.0;
+        // v3.9.0 (auswertung, Nachtrag) — Raten mit Rhythmus (alle 2 oder 3 Monate, Termine
+        // laut Rechnung) zählen ganz an ihrem Tag, wie im Saldo der Karte und in der Prognose;
+        // anteilig nach Tagen nur der monatliche Teil. Bis dahin verteilte „Rechnung prüfen“
+        // und das Abrechnungsjahr die Rate über die Tage ihres Monats.
+        $rateIn = 0.0; $rateBy = [];
+        foreach ((array)($row['advance_dates'] ?? []) as $r) {
+            $amt = (float)($r['amount_eur'] ?? 0.0);
+            $cid = (string)($r['contract_id'] ?? '');
+            $rateBy[$cid] = ($rateBy[$cid] ?? 0.0) + $amt;
+            $d = (string)($r['date'] ?? '');
+            if ($d >= $from && $d < $toExcl) $rateIn += $amt;
+        }
         $parts = (array)($row['contract_parts'] ?? []);
         if ($part < $dim && count($parts) > 1) {
             $spans = [];
@@ -4038,16 +4050,17 @@ final class ConsumptionService
                 $n = (int)($p['days'] ?? 0);
                 if ($start === null || $n <= 0) { $spans = null; break; }
                 $a = max($ms, $start);
-                $spans[] = [$a, date('Y-m-d', (int)strtotime("$a +$n days")), $n, ($p['advance_eur'] ?? null) === null ? 0.0 : (float)$p['advance_eur']];
+                $spans[] = [$a, date('Y-m-d', (int)strtotime("$a +$n days")), $n,
+                    (($p['advance_eur'] ?? null) === null ? 0.0 : (float)$p['advance_eur']) - ($rateBy[(string)($p['contract_id'] ?? '')] ?? 0.0)];
             }
             if ($spans !== null) {
                 usort($spans, fn($x, $y) => $x[0] <=> $y[0]);
                 $ok = true;
                 foreach ($spans as $i => $s) if ($s[1] > $me || ($i > 0 && $s[0] < $spans[$i - 1][1])) $ok = false;
-                if ($ok) return array_sum(array_map(fn($s) => $s[3] * $overlap($s[0], $s[1]) / $s[2], $spans));
+                if ($ok) return array_sum(array_map(fn($s) => $s[3] * $overlap($s[0], $s[1]) / $s[2], $spans)) + $rateIn;
             }
         }
-        return (float)$row['advance_eur'] * $part / $dim;
+        return ((float)$row['advance_eur'] - array_sum($rateBy)) * $part / $dim + $rateIn;
     }
 
     /**
@@ -4282,6 +4295,12 @@ final class ConsumptionService
                     : null;
                 $fixedShare = self::carriesFixed($c, $ctx);   // v3.1.0 (H6) — Gruppenvertrag: einmal
                 $p['advance'] = $ap !== null && $fixedShare ? $ap : null;
+                // v3.9.0 (auswertung, Nachtrag) — die Raten mit Rhythmus samt Tag: Teilzeiträume
+                // (Abrechnungsjahr, Rechnung prüfen, gemessene Tage) zählen sie nach Termin, nicht anteilig
+                $p['advance_dates'] = $p['advance'] !== null
+                    ? array_map(fn($r) => $r + ['contract_id' => (string)$cid], ContractService::installments($this->contracts->effectiveAdvanceSchedule($c),
+                        (string)($p['first_from'] ?? $monthStart), (string)($p['last_to'] ?? $nextMonth)))
+                    : [];
                 // v3.7.0 (#33) — die Boni einzeln (Datum, Art, Notiz) für „Bonus −X € am …“
                 $p['bonus_items'] = !$fixedShare || ($p['assumed'] && ($c['end'] ?? '') < $monthStart) ? [] : ContractService::bonusesForMonth($c, $y, $mn);
                 $p['bonus']   = (float)array_sum(array_column($p['bonus_items'], 'amount_eur'));
@@ -4310,6 +4329,8 @@ final class ConsumptionService
             $m['contract_id']      = $mainId;
             $m['contract_assumed'] = $main['assumed'];
             $m['advance_eur']      = $sum['advance'] !== null ? round($sum['advance'], 2) : null;
+            $dates = array_merge(...array_values(array_map(fn($p) => $p['advance_dates'] ?? [], $parts)));
+            if ($dates !== []) $m['advance_dates'] = $dates;   // v3.9.0 (auswertung, Nachtrag) — additiv, nur mit Rhythmus
             $m['base_price_eur']   = $hasBase ? round($sum['base'], 2) : null;
             $m['working_price_ct'] = $wpNow !== null ? round($wpNow, 4) : null;
             $m['bonus_eur']        = round($sum['bonus'], 2);
@@ -4467,6 +4488,10 @@ final class ConsumptionService
             if (array_filter($apPlan, fn($r) => is_array($r) && ContractService::hasRhythm($r)) !== []) {
                 $ap = ContractService::advanceIn($apPlan, $first, $first,
                     date('Y-m-d', (int)strtotime($first . ' +1 month')), 1.0, (int)date('t', (int)strtotime($first)));
+                // v3.9.0 (auswertung, Nachtrag) — die Raten samt Tag (advanceBetween zählt sie nach Termin)
+                $wDates = array_map(fn($r) => $r + ['contract_id' => (string)$c['id']],
+                    ContractService::installments($apPlan, $first, date('Y-m-d', (int)strtotime($first . ' +1 month'))));
+                if ($wDates !== []) $m['advance_dates'] = $wDates;
             }
             $bonusItems = ContractService::bonusesForMonth($c, $y, $mn);
             $bn = (float)array_sum(array_column($bonusItems, 'amount_eur'));

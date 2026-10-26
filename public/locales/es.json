@@ -476,7 +476,7 @@
       "consShort": "{value} consumo",
       "gpPlus": " + {value} término fijo",
       "suggestAdvance": "Con un anticipo de {suggested} en lugar de {current}, la liquidación quedaría en torno a ±0.",
-      "measuredThenEstimated": "medido hasta el {date} ({kwh} kWh), estimado desde entonces: {value}",
+      "measuredThenEstimated": "medido hasta el {date} ({amount}), estimado desde entonces: {value}",
       "renewed": "El plazo terminó el {date}. Sin cancelación, el contrato continúa con los últimos precios y se puede cancelar en cualquier momento con un preaviso de un mes como máximo.",
       "cancelMissed": "Plazo de cancelación del {date} vencido: el contrato no termina el {end}, sino que continúa; después se puede cancelar con un preaviso de un mes como máximo.",
       "priceIncrease": "Subida de precios a partir del {date}: {what}.",

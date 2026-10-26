@@ -1089,6 +1089,26 @@ async function renderView(modPath, params = [], ctx = {}) {
       && view.querySelectorAll('.contracts-table td.special-cell').length >= 1);
   } catch (e) { t('utility(wasser): render', false, e.message); }
 
+  // v3.9.0 (auswertung, Nachtrag) — Saldo-Karte Wasser: „gemessen bis … (128,4 m³)“, nicht „(0 kWh)“.
+  // Der Demo-Wasservertrag hat keinen geschätzten Teil; der Vertragsstatus wird hier um einen ergänzt.
+  {
+    const realFetch = global.fetch;
+    try {
+      global.fetch = async (input, init) => {
+        const res = await realFetch(input, init);
+        if (!/\/api\/utility\/wasser\/meters\/[^/?]+\/contract-status/.test(String(input))) return res;
+        const body = await res.json();
+        for (const c of body?.data?.contracts || []) if (c.is_current) Object.assign(c, { estimated_cost_to_date: 12.34, measured_until: '2026-03-15', actual_m3: 128.4, actual_kwh: 0 });
+        return new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      };
+      const { view } = await renderView(`${ROOT}/views/utility.js`, ['wasser']);
+      await new Promise(r => setTimeout(r, 500));
+      const sub = [...view.querySelectorAll('*')].map(e => e.childElementCount === 0 ? e.textContent : '').find(s => /gemessen bis/.test(s)) || view.textContent.match(/gemessen bis[^:]*:/)?.[0] || '';
+      t('utility(wasser): Saldo-Karte „gemessen bis … (m³)“ mit der Einheit aus der SSOT', /gemessen bis 15\.03\.2026 \(128,4\sm³\)/.test(sub) && !/kWh/.test(sub), sub.trim().slice(0, 140));
+    } catch (e) { t('utility(wasser): gemessen bis … m³', false, e.message); }
+    finally { global.fetch = realFetch; }
+  }
+
   // ── 7b. Utility-View Strom: Rechnungsprüfung seit v3.1.0 (H5) auch hier ──
   try {
     const { view } = await renderView(`${ROOT}/views/utility.js`, ['strom']);

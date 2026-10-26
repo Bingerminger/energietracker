@@ -476,7 +476,7 @@
       "consShort": "{value} consumo",
       "gpPlus": " + {value} quota fissa",
       "suggestAdvance": "Con un acconto di {suggested} invece di {current}, il conguaglio sarebbe di circa ±0.",
-      "measuredThenEstimated": "misurato fino al {date} ({kwh} kWh), poi stimato: {value}",
+      "measuredThenEstimated": "misurato fino al {date} ({amount}), poi stimato: {value}",
       "renewed": "La durata è terminata il {date}. Senza disdetta il contratto prosegue agli ultimi prezzi e si può disdire in qualsiasi momento con al massimo un mese di preavviso.",
       "cancelMissed": "Termine di disdetta del {date} superato: il contratto non termina il {end} ma prosegue — dopo si può disdire con al massimo un mese di preavviso.",
       "priceIncrease": "Aumento dei prezzi dal {date}: {what}.",

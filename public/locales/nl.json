@@ -476,7 +476,7 @@
       "consShort": "{value} verbruik",
       "gpPlus": " + {value} vastrecht",
       "suggestAdvance": "Met een voorschot van {suggested} in plaats van {current} zou de afrekening op ongeveer ±0 uitkomen.",
-      "measuredThenEstimated": "gemeten tot {date} ({kwh} kWh), daarna geschat: {value}",
+      "measuredThenEstimated": "gemeten tot {date} ({amount}), daarna geschat: {value}",
       "renewed": "De looptijd eindigde op {date}. Zonder opzegging loopt het contract tegen de laatste prijzen door en is het altijd met hoogstens één maand opzegbaar.",
       "cancelMissed": "Opzegdatum {date} gemist: het contract eindigt niet op {end} maar loopt door — daarna opzegbaar met hoogstens één maand.",
       "priceIncrease": "Prijsverhoging vanaf {date}: {what}.",

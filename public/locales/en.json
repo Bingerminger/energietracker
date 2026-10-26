@@ -476,7 +476,7 @@
       "consShort": "{value} usage",
       "gpPlus": " + {value} standing charge",
       "suggestAdvance": "With an advance of {suggested} instead of {current}, the bill would come out at about ±0.",
-      "measuredThenEstimated": "measured up to {date} ({kwh} kWh), estimated since: {value}",
+      "measuredThenEstimated": "measured up to {date} ({amount}), estimated since: {value}",
       "renewed": "The term ended on {date}. Without cancellation the contract runs on at its last prices and can be cancelled any time with at most one month’s notice.",
       "cancelMissed": "Cancellation deadline {date} missed: the contract does not end on {end} but runs on — after that it can be cancelled with at most one month’s notice.",
       "priceIncrease": "Price increase from {date}: {what}.",

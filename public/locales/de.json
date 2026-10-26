@@ -476,7 +476,7 @@
       "consShort": "{value} Verbr.",
       "gpPlus": " + {value} Grundpreis",
       "suggestAdvance": "Mit {suggested} statt {current} Abschlag läge die Abrechnung bei etwa ±0.",
-      "measuredThenEstimated": "gemessen bis {date} ({kwh} kWh), danach geschätzt: {value}",
+      "measuredThenEstimated": "gemessen bis {date} ({amount}), danach geschätzt: {value}",
       "renewed": "Die Laufzeit endete am {date}. Der Vertrag läuft ohne Kündigung zu den letzten Preisen weiter und ist jederzeit mit höchstens einem Monat Frist kündbar.",
       "cancelMissed": "Kündigungsstichtag {date} verpasst: Der Vertrag endet nicht zum {end}, sondern läuft weiter — danach mit höchstens einem Monat Frist kündbar.",
       "priceIncrease": "Preiserhöhung ab {date}: {what}.",

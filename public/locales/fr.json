@@ -476,7 +476,7 @@
       "consShort": "{value} consommation",
       "gpPlus": " + {value} abonnement",
       "suggestAdvance": "Avec un acompte de {suggested} au lieu de {current}, le décompte serait d’environ ±0.",
-      "measuredThenEstimated": "mesuré jusqu’au {date} ({kwh} kWh), estimé ensuite : {value}",
+      "measuredThenEstimated": "mesuré jusqu’au {date} ({amount}), estimé ensuite : {value}",
       "renewed": "La durée a pris fin le {date}. Sans résiliation, le contrat continue aux derniers prix et se résilie à tout moment avec un préavis d’un mois au plus.",
       "cancelMissed": "Date limite de résiliation du {date} dépassée : le contrat ne se termine pas le {end} mais continue — ensuite résiliable avec un préavis d’un mois au plus.",
       "priceIncrease": "Hausse de prix à partir du {date} : {what}.",

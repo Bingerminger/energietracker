@@ -975,7 +975,8 @@ final class ScenarioService
         $dim = (int)date('t', (int)strtotime($asOf));
         $energy = (float)($row['kwh_cost'] ?? 0.0) / (int)$row['days'] * $days;
         $base = (float)($row['base_price_eur'] ?? 0.0) * $days / $dim;
-        $adv = (float)($row['advance_eur'] ?? 0.0) * $days / $dim;
+        // v3.9.0 (auswertung, Nachtrag) — tagesanteilig, Raten mit Rhythmus aber an ihrem Tag (ConsumptionService::advanceBetween)
+        $adv = ConsumptionService::advanceBetween($row, date('Y-m-d', (int)strtotime($asOf . ' +1 day')), date('Y-m-d', (int)strtotime($end . ' +1 day')), []);
         return ['days' => $days, 'cost' => round($energy + $base, 2), 'advance' => round($adv, 2)];
     }
 
