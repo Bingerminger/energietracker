@@ -181,7 +181,11 @@ Leerzeichen zwischen den Ziffern („3 1 5,5 9 €“, „-8 0 0 , 0 0 €“, �
 Die Prüfung liest das als eine Zahl, aber nur, wenn jede Ziffer einzeln steht,
 jeweils durch genau ein Leerzeichen getrennt, und das Ergebnis eine gültige
 Zahl ist. Mehrstellige Zahlen nebeneinander (Spalten einer Tabelle wie
-„12 345“) bleiben getrennt.
+„12 345“) bleiben getrennt. Zeichnet ein PDF rechtsbündige Zahlen Zeichen für
+Zeichen von rechts, liest der Browser die Zeile seit v3.9.0 nach der Lage der
+Zeichen von links nach rechts; ohne das stand „6 5 , 4 3 2 . 1 €“ statt
+„1.234,56 €“ in der Textebene. Ein Dokument, das du davor ausgelesen hast,
+behält seine Auslesung, bis du es neu ausliest.
 
 Ein markiertes Feld **bestätigst** („Stimmt“) oder **korrigierst** du. Ein Tipp
 auf „S. 2“ neben dem Zitat blättert links zur Seite.

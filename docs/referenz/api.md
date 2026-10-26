@@ -4295,7 +4295,11 @@ oder `note`. Antwort wie die Vorschau.
 
 **Auslesen — `POST /api/inbox/{id}/classify`, dann `…/extract`** mit
 `{pages: [Text je Seite], consent?, fresh?}`. Die Textebene liest der Browser
-(pdf.js). `classify` erkennt die Art, `extract` liest die Felder dieser Art und
+(pdf.js), *(v3.9.0)* mit der Lage jedes Textstücks: Stücke einer Zeile (gleiche
+Grundlinie, innerhalb einer Zeile des Dokuments) stehen von links nach rechts,
+auch wenn das PDF eine rechtsbündige Zahl Zeichen für Zeichen von rechts zeichnet,
+und ein Leerzeichen steht nur, wo das Dokument eine Lücke hat. Zeilen, die das
+Dokument von links schreibt, bleiben wie bisher. `classify` erkennt die Art, `extract` liest die Felder dieser Art und
 prüft sie; ohne Art läuft `extract` beides. Zwischengespeichert je Anbieter,
 Modell und Schema-Version (`fresh: true` fragt neu). Gesperrt wird erst nach der
 Antwort des Diensts. Ein Anbieter außer `local` verlangt `consent: true`,

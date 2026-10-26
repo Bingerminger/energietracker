@@ -49,11 +49,11 @@ final class WaterBillContractTest extends ServiceTestCase
             'initial_counter' => 0.0, 'removed_on' => null, 'final_counter' => null, 'reason' => null]]);
     }
 
-    private function inbox(): InboxService
+    private function inbox(string $variant = ''): InboxService
     {
         $reminders = new ReminderService($this->store, $this->settings, $this->i18n);
         $att = new AttachmentService($this->store, $this->settings, $this->i18n);
-        $p = InboxFixture::provider('local', ['Rechnung Nr.' => 'invoice'], ['invoice' => WaterBillFixture::answer()]);
+        $p = InboxFixture::provider('local', ['Rechnung Nr.' => 'invoice'], ['invoice' => WaterBillFixture::answer($variant)]);
         $s = new InboxService($this->store, $this->i18n, $att, new ProviderRegistry($this->settings, $p),
             new Proposals($this->meters, $this->contracts, $this->readings, $this->bills, $reminders, $this->settings),
             new Applier($this->meters, $this->contracts, $this->readings, $this->bills, $reminders, $this->settings, $this->i18n));
@@ -120,6 +120,43 @@ final class WaterBillContractTest extends ServiceTestCase
             self::assertSame('heading', $f['water_prices']['items'][9]['section_from'] ?? null, 'Bereitstellungspreis Schmutzwasser');
             self::assertSame(['vat_pct' => 19.0, 'gross' => 47.6], $f['water_prices']['items'][9]['net'], '40,00 € netto + 19 %');
         }
+    }
+
+    /**
+     * Die Textebene, wie der Browser sie seit dem Lesen mit Lage liefert (lib/pdf.js: rechtsbündige Zahlen, die
+     * das PDF Zeichen für Zeichen von rechts zeichnet, stehen in der richtigen Reihenfolge, ohne Sperrung): Alle
+     * Werte sind belegt, und der ganze Weg führt zum Vertrag mit Preisen und Abschlagsplan und zur gebuchten Rechnung.
+     */
+    public function testTheTextAsTheBrowserReadsItWithPositionsGoesAllTheWayToContractPricesAndPlan(): void
+    {
+        $pages = WaterBillFixture::pages('browser');
+        foreach ($pages as $i => $page) self::assertSame($page, Evidence::despace($page), "Seite $i: keine Sperrung mehr");
+        self::assertStringContainsString('Rechnungsbetrag 848,30 €', $pages[0]);
+        self::assertStringContainsString('Wasserverbrauch 01.04.2025 - 30.09.2025 35 m³ 2,10 €/m³ 73,50 € 7%', $pages[1]);
+        $f = Evidence::check('invoice', WaterBillFixture::answer('browser'), $pages);
+        foreach (['total_amount' => 848.3, 'advances_total' => 800.0, 'result_amount' => 48.3, 'consumption' => 72.0, 'advance_new' => 165.0,
+                  'reading_old' => 1200.0, 'reading_new' => 1272.0] as $name => $value) {
+            self::assertSame([$value, 'ok', []], [(float)$f[$name]['value'], $f[$name]['status'], $f[$name]['reasons']], $name);
+        }
+        foreach ($f['water_prices']['items'] as $i => $it) self::assertSame(['price_from_invoice', 'net_price'], $it['reasons'], "Wasserpreis #$i");
+        self::assertSame(['2026-05-15', '2026-07-15', '2026-09-15', '2026-11-15', '2027-01-15'], array_column($f['advance_new_dates']['value'], 'date'));
+
+        $s = $this->inbox('browser');
+        $e = $s->upload(InboxFixture::pdf('wasserb'), 'Wasserrechnung.pdf');
+        $s->extract($e['id'], $pages);
+        $p = $s->preview($e['id']);
+        $c = self::byKind($p['proposals'], 'contract_create')[0];
+        self::assertSame([true, []], [$c['checked'], $c['open']], 'Vertrag mit Preisen und Abschlag, nichts offen');
+        $rows = fn(array $list, string $key) => array_column(array_map(fn($r) => [$r['from'], round((float)$r[$key], 4)], $list), 1, 0);
+        self::assertEqualsWithDelta(WaterBillFixture::GROSS['trinkwasser']['working'], $rows($c['data']['trinkwasser']['working_prices'], 'ct_per_m3'), 1e-9);
+        self::assertEqualsWithDelta(WaterBillFixture::GROSS['schmutzwasser']['base'], $rows($c['data']['schmutzwasser']['base_prices'], 'eur_per_month'), 1e-4);
+        self::assertSame([2, 165.0], [$c['data']['advance_payments'][0]['every_months'] ?? null, (float)$c['data']['advance_payments'][0]['amount_eur']]);
+        $res = $s->apply($e['id'], array_column(array_filter($p['proposals'], fn($x) => $x['checked']), 'id'));
+        self::assertSame([], $res['failed'], json_encode($res['failed']));
+        $ct = $this->contracts->list('wasser')[0];
+        $b = $this->bills->list('wasser')[0];
+        self::assertSame([$ct['id'], 2], [$b['contract_id'], $ct['advance_payments'][0]['every_months'] ?? null]);
+        self::assertNotEmpty($b['special_payment_id'], 'gebucht');
     }
 
     public function testASectionFromAnotherHeadingIsNotTaken(): void

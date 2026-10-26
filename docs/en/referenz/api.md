@@ -4222,7 +4222,11 @@ back) or `note`. Answer like the preview.
 
 **Read — `POST /api/inbox/{id}/classify`, then `…/extract`** with
 `{pages: [text per page], consent?, fresh?}`. The browser reads the text layer
-(pdf.js). `classify` recognises the type, `extract` reads the fields of that
+(pdf.js), *(v3.9.0)* with the position of every text piece: pieces of one line
+(same baseline, within one line of the document) stand from left to right, even
+if the PDF draws a right-aligned number character by character from the right,
+and a space stands only where the document has a gap. Lines the document writes
+from the left stay as before. `classify` recognises the type, `extract` reads the fields of that
 type and checks them; without a type `extract` does both. Cached per provider,
 model and schema version (`fresh: true` asks again). The write lock is taken
 only after the service answers. A provider other than `local` requires
