@@ -3814,6 +3814,13 @@
         "contract": "Take over the contract first, then this."
       },
       "nothingSelected": "Nothing selected."
+    },
+    "concept": {
+      "touCascade": "In a cascade the household meter sits behind the front meter register by register. So either both have HT/NT or neither.",
+      "meterUnknown": "The meter “{id}” does not exist.",
+      "meterTwice": "The meter “{id}” is assigned to two places. Each meter appears only once in the diagram.",
+      "chain": "“{name}” has sub-meters of its own and so cannot sit behind another meter.",
+      "field": "The setting “{field}” for the metering concept is missing or invalid."
     }
   },
   "login": {
@@ -6668,5 +6675,122 @@
     },
     "short": "In some months the sub-meter measures more than the meter in front of it ({kwh}). Please check the readings. A remainder below zero is not billed.",
     "contractHint": "“{parent}” also measures “{name}”. With its own contract, the contract of “{parent}” only bills the remainder from its start: measured there minus “{name}”."
+  },
+  "concept": {
+    "slotName": {
+      "main": "Main meter",
+      "mainCascade": {
+        "heat_pump": "Front meter (heat pump)",
+        "ev_charger": "Front meter (EV charger)"
+      },
+      "house": "Household",
+      "dev": {
+        "heat_pump": "Heat pump",
+        "ev_charger": "EV charger"
+      },
+      "feed": "Feed-in",
+      "gen": "Solar generation",
+      "bat_in": "Battery charging",
+      "bat_out": "Battery discharging"
+    },
+    "regShort": {
+      "ht": "HT",
+      "nt": "NT"
+    },
+    "title": "Set up metering concept",
+    "intro": "A few questions about your electricity connection. From them the assistant creates meters, registers, sub-meters and contracts. What already exists you assign instead of creating it twice.",
+    "setup": {
+      "title": "What is connected to your electricity supply?",
+      "pv": "Solar system that feeds into the grid",
+      "battery": "Home battery",
+      "device": "Device with its own tariff",
+      "deviceNone": "None, everything runs on one tariff",
+      "deviceHeatPump": "Heat pump with a heat pump tariff",
+      "deviceEv": "EV charger with its own tariff",
+      "deviceHint": "Its own tariff needs its own meter. Without one, heat pump and EV charger simply belong to the household.",
+      "tou": "Two time-of-use rates (HT/NT)?",
+      "touNone": "No, one price around the clock",
+      "touAll": "Yes, on every import meter",
+      "touDevice": "Yes, only on the device’s meter",
+      "touHint": "With HT/NT a meter has two registers (1.8.1 and 1.8.2), each with its own price. The app creates one meter per register and puts both in a group with one contract."
+    },
+    "layout": {
+      "title": "How are the meters connected?",
+      "hint": "Look into the meter cabinet or at the electrician’s plan. Names of metering concepts differ between grid operators, so the assistant asks about the layout.",
+      "single": {
+        "title": "One meter for everything",
+        "text": "One meter measures what the household draws from the grid.",
+        "textPv": "A bidirectional meter measures import (1.8.0) and feed-in (2.8.0). The solar system supplies the household first and feeds in the surplus."
+      },
+      "side_by_side": {
+        "title": "Two meters side by side",
+        "text": "Both meters sit directly at the grid connection: one measures the household, one {deviceThe}. Each contract bills what its meter measures."
+      },
+      "behind": {
+        "title": "Sub-meter behind",
+        "text": "The main meter measures everything. Behind it a sub-meter measures {deviceThe}. With its own contract on the sub-meter, the household contract bills only the remainder."
+      },
+      "cascade": {
+        "title": "Cascade",
+        "text": "The front meter measures everything, a second meter behind it measures the household. What is left is {deviceThe}: front minus household. Its tariff sits on the front meter."
+      },
+      "battery": "The app records the battery with two meters under solar generation: charging and discharging."
+    },
+    "deviceThe": {
+      "heat_pump": "the heat pump",
+      "ev_charger": "the EV charger"
+    },
+    "art": {
+      "title": "Diagram: {name}",
+      "own": "Diagram of your setup"
+    },
+    "meters": {
+      "title": "Which meters are there?",
+      "hint": "Name and meter number are on the rating plate, the register codes are prefilled. If you already created a meter, pick it: it is assigned, not created twice.",
+      "name": "Name",
+      "serial": "Meter number",
+      "existing": "Existing meter",
+      "new": "Create new",
+      "sameDevice": "The feed-in register of “{name}”: same meter number, own meter under feed-in.",
+      "genHint": "Generation meter of the solar system, often in the inverter.",
+      "batteryHint": "Battery charging and discharging, often from the inverter."
+    },
+    "contracts": {
+      "title": "Which contracts are there?",
+      "hint": "You can leave this empty and add contracts later. A running contract on an existing meter stays as it is.",
+      "start": "Start",
+      "ct": "Unit price ({minor}/kWh)",
+      "ctHt": "Unit price HT ({minor}/kWh)",
+      "ctNt": "Unit price NT ({minor}/kWh)",
+      "feedCt": "Feed-in tariff ({minor}/kWh)",
+      "base": "Standing charge ({cur}/month)",
+      "advance": "Advance ({cur}/month)",
+      "restNote": "Bills only the remainder: “{parent}” minus “{sub}”."
+    },
+    "summary": {
+      "title": "What the assistant will create",
+      "legend": "Meters in the diagram",
+      "op": {
+        "activate": "Turn on utilities: {list}",
+        "create_meter": "Create meter “{name}”",
+        "update_meter": "Assign existing meter “{name}”",
+        "create_group": "Create group “{name}” with both registers",
+        "reuse_group": "Keep using group “{name}”",
+        "create_contract": "Create contract for “{name}”",
+        "skip_contract": "Contract for “{name}”: the running contract “{existing}” stays."
+      },
+      "detailObis": "register {obis}",
+      "detailParent": "behind “{name}”",
+      "snapshot": "Before that the app saves the current state as a snapshot. You can restore it under Settings → Data.",
+      "apply": "Create"
+    },
+    "done": "Metering concept set up. Next: add the first reading for each meter.",
+    "entry": {
+      "title": "Metering concept",
+      "text": "Solar, heat pump or EV charger with its own tariff? The assistant asks about the layout in the meter cabinet and creates matching meters, registers and contracts."
+    },
+    "setupChoice": {
+      "hint": "For solar, heat pump or EV charger with its own meter: first the layout, then the readings."
+    }
   }
 }

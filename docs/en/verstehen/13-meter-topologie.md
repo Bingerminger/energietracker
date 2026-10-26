@@ -233,6 +233,13 @@ remainder. In the cascade (registers HT and NT each as a meter of its own) each
 register of the rear meter hangs on the matching register of the front one: HT
 behind HT, NT behind NT.
 
+The **Set up metering concept** assistant *(v3.9.0)* creates this by these
+rules: it asks about the layout (one meter for everything, two meters side by
+side, sub-meter behind, cascade) and creates sub-meters, groups for HT and NT,
+registers and contracts; existing meters are assigned
+([use case H](../anleitungen/anwendungsfaelle.md#case-cascade),
+[API](../referenz/api.md#set-up-a-metering-concept-v390-f1032)).
+
 The technical view (fields, `meter_groups.json`, validation, API endpoints) is in
 the [data model](../referenz/datenmodell.md) and the
 [API reference](../referenz/api.md). The aliases for the Home

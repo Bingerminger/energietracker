@@ -75,6 +75,8 @@ jobs:
           node tests/setup-wizard.test.mjs
           # v3.9.0 — Illustrationen (Grundlage, Bedeutung), Leerzustände, Kartentitel
           node tests/illustrations.test.mjs
+          # v3.9.0 (F1032) — Assistent „Messkonzept“: Aufbauten, Schaltbilder, Vorauswahl, Anfrage
+          node tests/metering-concepts.test.mjs
           node tests/nav-threshold.test.mjs
           node tests/report-dialog.test.mjs
           # v3.6.0 — „Was ist neu“ und Hinweis auf neue Versionen

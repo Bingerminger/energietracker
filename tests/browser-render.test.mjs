@@ -3042,6 +3042,69 @@ async function renderView(modPath, params = [], ctx = {}) {
     if (cid) await send('DELETE', `/utility/gas/contracts/${cid}`);
   } catch (e) { t('rest: Hinweise', false, e.stack || e.message); }
 
+  // ── 27. v3.9.0 (F1032, #40) — Assistent „Messkonzept“: Einstieg, Schaltbilder, Vorschau, Anlegen ──
+  try {
+    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+    const send = async (method, path, body) => (await fetch(`${HOST}/api${path}`, { method, headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined })).json();
+    // die Mieterin: ein Stromzähler mit laufendem Vertrag
+    await send('POST', '/demo/import', { force: true, persona: 'mieterin' });
+    (await import(`${ROOT}/state.js`)).invalidateSettings?.();
+    const before = (await send('GET', '/utility/strom/meters')).data || [];
+    const mv = await renderView(`${ROOT}/views/meters.js`, ['strom']);
+    await sleep(300);
+    const btn = mv.view.querySelector('[data-action="concept"]');
+    t('concept: Zähler „Strom“ bieten „Messkonzept einrichten“', !!btn && /Messkonzept einrichten/.test(btn.textContent));
+    btn?.click();
+    await sleep(400);
+    const q = (s) => global.document.querySelector(`#modal-root ${s}`);
+    const next = async (ms = 400) => { q('[data-act="next"]').click(); await sleep(ms); };
+    t('concept: Dialog mit Schritt 1 (Aufbau)', q('[data-role="concept-body"]')?.dataset.step === 'setup' && !!q('input[name="cw-pv"]'));
+    q('input[name="cw-device"][value="heat_pump"]').click(); await sleep(50);
+    q('input[name="cw-tou"][value="device"]').click(); await sleep(50);
+    await next();
+    const cards = [...global.document.querySelectorAll('#modal-root .concept-layout')];
+    const arts = cards.map(c => c.querySelector('svg.ill[role="img"]'));
+    t('concept: drei Aufbauten mit Schaltbild (role="img", Titel)', cards.length === 3 && arts.every(s => s && /^Schaltbild: /.test(s.querySelector('title')?.textContent || '')),
+      cards.map(c => c.dataset.concept).join());
+    const cascade = q('input[name="cw-concept"][value="cascade"]');
+    t('concept: Kaskade gesperrt bei HT/NT nur am Gerät, mit Grund', cascade?.disabled && /HT\/NT/.test(cascade.closest('label').textContent));
+    q('input[name="cw-concept"][value="behind"]').click(); await sleep(50);
+    await next(600);
+    const exMain = q('select[data-slot="main"][data-field="existing"]');
+    t('concept: vorhandener Stromzähler vorgewählt (keine Doppelten)', exMain?.value === before[0]?.id, `${exMain?.value} / ${before.map(m => m.id).join()}`);
+    const devObis = [...global.document.querySelectorAll('#modal-root input[data-slot="dev"][data-field="obis"]')].map(i => i.value);
+    t('concept: Wärmepumpe mit zwei Zählwerken, OBIS vorbelegt', devObis.join() === '1.8.1,1.8.2', devObis.join());
+    const serial = q('input[data-slot="dev"][data-field="serial"]');
+    serial.value = 'TEST-WP-1'; serial.dispatchEvent(new global.window.Event('input', { bubbles: true }));
+    await next();
+    t('concept: Verträge, am Hauszähler der Satz zur Rest-Abrechnung', q('[data-role="concept-body"]')?.dataset.step === 'contracts'
+      && /Rechnet nur den Rest/.test(q('[data-role="cw-rest-note"]')?.textContent || ''));
+    const fill = (sel, v) => { const el = q(sel); el.value = v; el.dispatchEvent(new global.window.Event('input', { bubbles: true })); };
+    fill('input[data-contract="dev"][data-field="provider"]', 'Testtarif');
+    fill('input[data-contract="dev"][data-field="ct"]', '24,5');
+    fill('input[data-contract="dev"][data-field="ct_nt"]', '19');
+    fill('input[data-contract="main"][data-field="provider"]', 'Doppelt');
+    fill('input[data-contract="main"][data-field="ct"]', '30');
+    await next(600);
+    const ops = [...global.document.querySelectorAll('#modal-root [data-role="cw-actions"] li')].map(li => li.dataset.op);
+    t('concept: Zusammenfassung mit eigenem Schaltbild und den Schritten', q('.concept-summary__art svg[role="img"] title')?.textContent === 'Schaltbild deiner Anlage'
+      && ops.includes('update_meter') && ops.filter(o => o === 'create_meter').length === 2 && ops.includes('create_group') && ops.includes('skip_contract') && ops.includes('create_contract'), ops.join());
+    t('concept: laufender Vertrag bleibt (Satz in der Zusammenfassung)', /laufende Vertrag/.test(q('[data-role="cw-actions"] [data-op="skip_contract"]')?.textContent || ''));
+    await next(900);
+    t('concept: nach „Anlegen“ ist der Dialog zu', !q('[data-role="concept-body"]'));
+    const after = (await send('GET', '/utility/strom/meters')).data || [];
+    const wp = after.filter(m => m.role === 'heat_pump');
+    t('concept: zwei Zählwerke der Wärmepumpe hinter dem vorhandenen Zähler, in einer Gruppe', after.length === before.length + 2 && wp.length === 2
+      && wp.every(m => m.parent_meter_id === before[0].id && m.meter_group_id && m.meter_group_id === wp[0].meter_group_id)
+      && wp.map(m => m.obis).sort().join() === '1.8.1,1.8.2' && wp.every(m => m.devices?.[0]?.serial === 'TEST-WP-1'), after.map(m => `${m.name}:${m.obis || ''}`).join(' | '));
+    const contracts = ((await send('GET', '/utility/strom/contracts')).data || []).filter(c => !c.is_shadow);
+    const gc = contracts.find(c => c.provider === 'Testtarif');
+    t('concept: Gruppenvertrag mit Preis je Zählwerk, kein zweiter Vertrag am Hauszähler', !!gc && gc.meter_group_id === wp[0].meter_group_id
+      && Object.keys(gc.working_prices_by_meter || {}).length === 1 && !contracts.some(c => c.provider === 'Doppelt'), JSON.stringify(gc || {}).slice(0, 200));
+    const snaps = (await send('GET', '/backup/snapshots')).data || [];
+    t('concept: vorher ein Snapshot', JSON.stringify(snaps).includes('concept_'), JSON.stringify(snaps).slice(0, 160));
+  } catch (e) { t('concept: Assistent', false, e.stack || e.message); }
+
   console.log(`\n  ERGEBNIS: ${pass} bestanden, ${fail} fehlgeschlagen`);
   process.exit(fail ? 1 : 0);
 })().catch(e => { console.error('  HARNESS-FEHLER:', e.stack || e.message); process.exit(2); });

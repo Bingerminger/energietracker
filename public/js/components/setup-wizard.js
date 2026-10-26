@@ -224,6 +224,7 @@ export async function openSetupWizard({ session = null, firstRun = false } = {})
       <div class="setup-choices" role="radiogroup" aria-label="${esc(t('setup.finish.title'))}">
         ${choice('docs', '📥', t('setup.finish.docs'), t('setup.finish.docsHint'), ` <span class="badge badge--info">${esc(t('setup.finish.recommended'))}</span>`)}
         ${choice('own', '📋', t('setup.finish.own'), t('setup.finish.ownHint'))}
+        ${state.utilities.includes('strom') ? choice('concept', '🔌', t('concept.title'), t('concept.setupChoice.hint')) : ''}
         ${canLoadDemo ? choice('demo', '🧪', t('setup.finish.demo'), t('setup.finish.demoHint', { persona: name })) : ''}
       </div>
       ${docsBox}
@@ -393,6 +394,8 @@ async function finish(state, { start, settings, countries, session }) {
   // v3.7.0 — aus Dokumenten: in den Posteingang zum Ablegen (ohne eingerichtetes
   // Auslesen bietet er dort „Auslesen einrichten“ als Dialog an)
   if (state.start === 'docs') return '#/inbox';
+  // v3.9.0 (F1032) — Messkonzept einrichten: die Zähler „Strom“ öffnen den Assistenten
+  if (state.start === 'concept' && state.utilities.includes('strom')) return '#/utility/strom/meters?concept=1';
   return '#/zaehlerstaende';
 }
 

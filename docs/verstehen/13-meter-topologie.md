@@ -230,6 +230,13 @@ den Rest. In der Kaskade (Zählwerke HT und NT je als eigener Zähler) hängt je
 Zählwerk des hinteren Zählers am gleichnamigen Zählwerk des vorderen: HT hinter
 HT, NT hinter NT.
 
+Der Assistent **Messkonzept einrichten** *(v3.9.0)* legt das nach diesen Regeln
+an: Er fragt nach dem Aufbau (ein Zähler für alles, zwei Zähler nebeneinander,
+Subzähler dahinter, Kaskade) und legt Subzähler, Gruppen für HT und NT,
+Zählwerke und Verträge an; vorhandene Zähler werden zugeordnet
+([Use-Case H](../anleitungen/anwendungsfaelle.md#case-cascade),
+[API](../referenz/api.md#messkonzept-einrichten-v390-f1032)).
+
 Die technische Sicht (Felder, `meter_groups.json`, Validierung, API-Endpoints)
 steht im [Datenmodell](../referenz/datenmodell.md) und in der
 [API-Referenz](../referenz/api.md). Die Aliase für die

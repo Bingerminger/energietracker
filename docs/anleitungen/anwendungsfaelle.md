@@ -568,6 +568,15 @@ Vertrag wird abgezogen.
 
 **Einrichtung.**
 
+<!-- doc-claim: concept-wizard (metering-concepts.test.mjs) -->
+Am schnellsten mit dem Assistenten **Messkonzept einrichten** *(v3.9.0)*: unter
+**Zähler** von Strom oder unter **Einstellungen → Verbrauchsarten & Abrechnung →
+Messkonzept**. Antworten: PV-Anlage, „Wärmepumpe mit Wärmepumpentarif“, HT/NT
+„Ja, an jedem Bezugszähler“, Aufbau **Kaskade**. Er legt die Zähler je Zählwerk
+mit OBIS-Kennzahl an, dazu beide Gruppen, die Einspeisung, die PV-Erzeugung und
+die drei Verträge; vorhandene Zähler ordnest du zu, statt sie doppelt
+anzulegen. Vorher sichert die App den Stand als Snapshot. Von Hand geht es so:
+
 1. Unter **Einstellungen → Verbrauchsarten & Abrechnung → Aktive
    Verbrauchsarten** Strom, PV-Einspeisung und PV-Erzeugung aktivieren.
 2. Je **Zählwerk** einen Stromzähler anlegen:

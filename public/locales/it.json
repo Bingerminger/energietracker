@@ -3814,6 +3814,13 @@
         "contract": "Prima riprendi il contratto, poi questo."
       },
       "nothingSelected": "Nulla di selezionato."
+    },
+    "concept": {
+      "touCascade": "In cascata il contatore di casa segue quello a monte registro per registro. Quindi F1/F23 su entrambi o su nessuno.",
+      "meterUnknown": "Il contatore «{id}» non esiste.",
+      "meterTwice": "Il contatore «{id}» è assegnato a due posizioni. Ogni contatore compare una sola volta nello schema.",
+      "chain": "«{name}» ha propri sottocontatori e quindi non può stare a valle di un altro contatore.",
+      "field": "Il dato «{field}» per lo schema di misura manca o non è valido."
     }
   },
   "login": {
@@ -6668,5 +6675,122 @@
     },
     "short": "In alcuni mesi il sottocontatore misura più del contatore a monte ({kwh}). Controlla le letture. Un resto sotto zero non viene fatturato.",
     "contractHint": "«{parent}» misura anche «{name}». Con un contratto proprio, il contratto di «{parent}» fattura solo il resto dal suo inizio: misurato lì meno «{name}»."
+  },
+  "concept": {
+    "slotName": {
+      "main": "Contatore principale",
+      "mainCascade": {
+        "heat_pump": "Contatore a monte (pompa di calore)",
+        "ev_charger": "Contatore a monte (wallbox)"
+      },
+      "house": "Casa",
+      "dev": {
+        "heat_pump": "Pompa di calore",
+        "ev_charger": "Wallbox"
+      },
+      "feed": "Immissione",
+      "gen": "Produzione FV",
+      "bat_in": "Batteria carica",
+      "bat_out": "Batteria scarica"
+    },
+    "regShort": {
+      "ht": "F1",
+      "nt": "F23"
+    },
+    "title": "Configura lo schema di misura",
+    "intro": "Qualche domanda sul tuo allacciamento elettrico. Da qui l’assistente crea contatori, registri, sottocontatori e contratti. Ciò che esiste già lo assegni invece di crearlo due volte.",
+    "setup": {
+      "title": "Cosa c’è sul tuo allacciamento elettrico?",
+      "pv": "Impianto fotovoltaico che immette in rete",
+      "battery": "Batteria di accumulo",
+      "device": "Apparecchio con tariffa propria",
+      "deviceNone": "Nessuno, tutto su un’unica tariffa",
+      "deviceHeatPump": "Pompa di calore con tariffa dedicata",
+      "deviceEv": "Wallbox con tariffa dedicata",
+      "deviceHint": "Una tariffa propria richiede un contatore proprio. Senza, pompa di calore e wallbox fanno semplicemente parte della casa.",
+      "tou": "Due fasce orarie (F1/F23)?",
+      "touNone": "No, un unico prezzo a ogni ora",
+      "touAll": "Sì, su ogni contatore di prelievo",
+      "touDevice": "Sì, solo sul contatore dell’apparecchio",
+      "touHint": "Con F1/F23 un contatore ha due registri (1.8.1 e 1.8.2), ognuno con il suo prezzo. L’app crea un contatore per registro e li riunisce in un gruppo con un solo contratto."
+    },
+    "layout": {
+      "title": "Come sono collegati i contatori?",
+      "hint": "Guarda nel quadro contatori o sullo schema dell’elettricista. I nomi degli schemi di misura cambiano da un distributore all’altro, per questo l’assistente chiede la disposizione.",
+      "single": {
+        "title": "Un contatore per tutto",
+        "text": "Un contatore misura ciò che la casa preleva dalla rete.",
+        "textPv": "Un contatore bidirezionale misura prelievo (1.8.0) e immissione (2.8.0). L’impianto alimenta prima la casa e immette l’eccedenza."
+      },
+      "side_by_side": {
+        "title": "Due contatori affiancati",
+        "text": "Entrambi i contatori sono collegati direttamente alla rete: uno misura la casa, l’altro {deviceThe}. Ogni contratto fattura ciò che misura il suo contatore."
+      },
+      "behind": {
+        "title": "Sottocontatore a valle",
+        "text": "Il contatore principale misura tutto. A valle un sottocontatore misura {deviceThe}. Con un contratto proprio sul sottocontatore, il contratto della casa fattura solo il resto."
+      },
+      "cascade": {
+        "title": "Cascata",
+        "text": "Il contatore a monte misura tutto, un secondo contatore a valle misura la casa. Il resto è {deviceThe}: monte meno casa. La sua tariffa è sul contatore a monte."
+      },
+      "battery": "L’app registra la batteria con due contatori sotto la produzione FV: carica e scarica."
+    },
+    "deviceThe": {
+      "heat_pump": "la pompa di calore",
+      "ev_charger": "la wallbox"
+    },
+    "art": {
+      "title": "Schema: {name}",
+      "own": "Schema del tuo impianto"
+    },
+    "meters": {
+      "title": "Quali contatori ci sono?",
+      "hint": "Nome e matricola sono sulla targhetta, i codici dei registri sono precompilati. Se hai già creato un contatore, sceglilo: viene assegnato, non creato due volte.",
+      "name": "Nome",
+      "serial": "Matricola del contatore",
+      "existing": "Contatore esistente",
+      "new": "Crea nuovo",
+      "sameDevice": "Il registro di immissione di «{name}»: stessa matricola, contatore proprio sotto l’immissione.",
+      "genHint": "Contatore di produzione dell’impianto, spesso nell’inverter.",
+      "batteryHint": "Carica e scarica della batteria, spesso dall’inverter."
+    },
+    "contracts": {
+      "title": "Quali contratti ci sono?",
+      "hint": "Puoi lasciare vuoto e creare i contratti più tardi. Un contratto in corso su un contatore esistente resta com’è.",
+      "start": "Inizio",
+      "ct": "Prezzo unitario ({minor}/kWh)",
+      "ctHt": "Prezzo unitario F1 ({minor}/kWh)",
+      "ctNt": "Prezzo unitario F23 ({minor}/kWh)",
+      "feedCt": "Remunerazione ({minor}/kWh)",
+      "base": "Quota fissa ({cur}/mese)",
+      "advance": "Acconto ({cur}/mese)",
+      "restNote": "Fattura solo il resto: «{parent}» meno «{sub}»."
+    },
+    "summary": {
+      "title": "Cosa crea l’assistente",
+      "legend": "Contatori nello schema",
+      "op": {
+        "activate": "Attivare le utenze: {list}",
+        "create_meter": "Creare il contatore «{name}»",
+        "update_meter": "Assegnare il contatore esistente «{name}»",
+        "create_group": "Creare il gruppo «{name}» con entrambi i registri",
+        "reuse_group": "Continuare a usare il gruppo «{name}»",
+        "create_contract": "Creare il contratto per «{name}»",
+        "skip_contract": "Contratto per «{name}»: resta il contratto in corso «{existing}»."
+      },
+      "detailObis": "registro {obis}",
+      "detailParent": "a valle di «{name}»",
+      "snapshot": "Prima l’app salva lo stato attuale come istantanea. Puoi ripristinarla in Impostazioni → Dati.",
+      "apply": "Crea"
+    },
+    "done": "Schema di misura configurato. Poi: inserisci la prima lettura di ogni contatore.",
+    "entry": {
+      "title": "Schema di misura",
+      "text": "Fotovoltaico, pompa di calore o wallbox con tariffa propria? L’assistente chiede la disposizione nel quadro contatori e crea contatori, registri e contratti adatti."
+    },
+    "setupChoice": {
+      "hint": "Per fotovoltaico, pompa di calore o wallbox con contatore proprio: prima la disposizione, poi le letture."
+    }
   }
 }

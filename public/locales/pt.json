@@ -3814,6 +3814,13 @@
         "contract": "Adote primeiro o contrato, depois isto."
       },
       "nothingSelected": "Nada selecionado."
+    },
+    "concept": {
+      "touCascade": "Em cascata, o contador da casa fica atrás do contador a montante, registo a registo. Por isso, cheias/vazio nos dois ou em nenhum.",
+      "meterUnknown": "O contador «{id}» não existe.",
+      "meterTwice": "O contador «{id}» está atribuído a duas posições. Cada contador aparece só uma vez no esquema.",
+      "chain": "«{name}» tem subcontadores próprios e por isso não pode ficar a jusante de outro contador.",
+      "field": "O dado «{field}» do esquema de medição falta ou não é válido."
     }
   },
   "login": {
@@ -6668,5 +6675,122 @@
     },
     "short": "Em alguns meses o subcontador mede mais do que o contador a montante ({kwh}). Convém verificar as leituras. Um resto abaixo de zero não é faturado.",
     "contractHint": "«{parent}» também mede «{name}». Com um contrato próprio, o contrato de «{parent}» só fatura o resto a partir do seu início: o medido aí menos «{name}»."
+  },
+  "concept": {
+    "slotName": {
+      "main": "Contador principal",
+      "mainCascade": {
+        "heat_pump": "Contador a montante (bomba de calor)",
+        "ev_charger": "Contador a montante (carregador)"
+      },
+      "house": "Casa",
+      "dev": {
+        "heat_pump": "Bomba de calor",
+        "ev_charger": "Carregador do carro"
+      },
+      "feed": "Injeção",
+      "gen": "Produção FV",
+      "bat_in": "Bateria carga",
+      "bat_out": "Bateria descarga"
+    },
+    "regShort": {
+      "ht": "cheias",
+      "nt": "vazio"
+    },
+    "title": "Configurar o esquema de medição",
+    "intro": "Algumas perguntas sobre a ligação elétrica. Com elas o assistente cria contadores, registos, subcontadores e contratos. O que já existe é atribuído em vez de ser criado duas vezes.",
+    "setup": {
+      "title": "O que está ligado à instalação elétrica?",
+      "pv": "Instalação fotovoltaica que injeta na rede",
+      "battery": "Bateria de armazenamento",
+      "device": "Aparelho com tarifa própria",
+      "deviceNone": "Nenhum, tudo numa só tarifa",
+      "deviceHeatPump": "Bomba de calor com tarifa própria",
+      "deviceEv": "Carregador do carro com tarifa própria",
+      "deviceHint": "Uma tarifa própria precisa de um contador próprio. Sem ela, a bomba de calor e o carregador fazem simplesmente parte da casa.",
+      "tou": "Dois períodos tarifários (cheias/vazio)?",
+      "touNone": "Não, um só preço a qualquer hora",
+      "touAll": "Sim, em cada contador de consumo",
+      "touDevice": "Sim, só no contador do aparelho",
+      "touHint": "Com cheias/vazio, um contador tem dois registos (1.8.1 e 1.8.2), cada um com o seu preço. A aplicação cria um contador por registo e junta ambos num grupo com um só contrato."
+    },
+    "layout": {
+      "title": "Como estão ligados os contadores?",
+      "hint": "Convém ver o quadro de contadores ou o esquema do eletricista. Os nomes dos esquemas de medição variam conforme o operador de rede, por isso o assistente pergunta pela disposição.",
+      "single": {
+        "title": "Um contador para tudo",
+        "text": "Um contador mede o que a casa consome da rede.",
+        "textPv": "Um contador bidirecional mede consumo (1.8.0) e injeção (2.8.0). A instalação abastece primeiro a casa e injeta o excedente."
+      },
+      "side_by_side": {
+        "title": "Dois contadores lado a lado",
+        "text": "Os dois contadores estão ligados diretamente à rede: um mede a casa, o outro {deviceThe}. Cada contrato fatura o que o seu contador mede."
+      },
+      "behind": {
+        "title": "Subcontador a jusante",
+        "text": "O contador principal mede tudo. A jusante, um subcontador mede {deviceThe}. Com contrato próprio no subcontador, o contrato da casa só fatura o resto."
+      },
+      "cascade": {
+        "title": "Cascata",
+        "text": "O contador a montante mede tudo, um segundo contador a jusante mede a casa. O resto é {deviceThe}: montante menos casa. A sua tarifa fica no contador a montante."
+      },
+      "battery": "A aplicação regista a bateria com dois contadores na produção FV: carga e descarga."
+    },
+    "deviceThe": {
+      "heat_pump": "a bomba de calor",
+      "ev_charger": "o carregador do carro"
+    },
+    "art": {
+      "title": "Esquema: {name}",
+      "own": "Esquema da instalação"
+    },
+    "meters": {
+      "title": "Que contadores existem?",
+      "hint": "O nome e o número do contador estão na placa, os códigos dos registos vêm preenchidos. Se um contador já foi criado, basta escolhê-lo: é atribuído, não criado duas vezes.",
+      "name": "Nome",
+      "serial": "Número do contador",
+      "existing": "Contador existente",
+      "new": "Criar novo",
+      "sameDevice": "O registo de injeção de «{name}»: mesmo número, contador próprio na injeção.",
+      "genHint": "Contador de produção da instalação, muitas vezes no inversor.",
+      "batteryHint": "Carga e descarga da bateria, muitas vezes do inversor."
+    },
+    "contracts": {
+      "title": "Que contratos existem?",
+      "hint": "Pode ficar vazio, os contratos podem ser criados mais tarde. Um contrato em curso num contador existente fica como está.",
+      "start": "Início",
+      "ct": "Preço unitário ({minor}/kWh)",
+      "ctHt": "Preço unitário cheias ({minor}/kWh)",
+      "ctNt": "Preço unitário vazio ({minor}/kWh)",
+      "feedCt": "Remuneração ({minor}/kWh)",
+      "base": "Termo fixo ({cur}/mês)",
+      "advance": "Adiantamento ({cur}/mês)",
+      "restNote": "Só fatura o resto: «{parent}» menos «{sub}»."
+    },
+    "summary": {
+      "title": "O que o assistente vai criar",
+      "legend": "Contadores do esquema",
+      "op": {
+        "activate": "Ativar os serviços: {list}",
+        "create_meter": "Criar o contador «{name}»",
+        "update_meter": "Atribuir o contador existente «{name}»",
+        "create_group": "Criar o grupo «{name}» com ambos os registos",
+        "reuse_group": "Continuar a usar o grupo «{name}»",
+        "create_contract": "Criar o contrato para «{name}»",
+        "skip_contract": "Contrato para «{name}»: mantém-se o contrato em curso «{existing}»."
+      },
+      "detailObis": "registo {obis}",
+      "detailParent": "a jusante de «{name}»",
+      "snapshot": "Antes, a aplicação guarda o estado atual como instantâneo. Pode ser restaurado em Definições → Dados.",
+      "apply": "Criar"
+    },
+    "done": "Esquema de medição configurado. A seguir: registar a primeira leitura de cada contador.",
+    "entry": {
+      "title": "Esquema de medição",
+      "text": "Fotovoltaico, bomba de calor ou carregador com tarifa própria? O assistente pergunta pela disposição no quadro de contadores e cria os contadores, registos e contratos adequados."
+    },
+    "setupChoice": {
+      "hint": "Para fotovoltaico, bomba de calor ou carregador com contador próprio: primeiro a disposição, depois as leituras."
+    }
   }
 }

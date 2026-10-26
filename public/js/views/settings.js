@@ -28,6 +28,8 @@ import { confirmPersonDelete } from '../components/person-delete.js';   // v3.6.
 import { disclosureHtml, wireDisclosures, openDisclosureOf } from '../components/disclosure.js';
 // v3.7.0 — Karte „Auslesen“: Lokal | Cloud an einer Stelle (eigene Speichern-Taste und Schnittstelle)
 import { renderReadingCard, wireReadingCard } from '../components/inbox-cloud.js';
+// v3.9.0 (F1032) — Assistent „Messkonzept“ (Karte unter Verbrauchsarten & Abrechnung)
+import { openConceptWizard, conceptOffered } from '../components/concept-wizard.js';
 
 // Each group renders as a settings card. `hint` is an optional explanatory
 // line under the card title; each field may carry its own `hint` too.
@@ -334,6 +336,12 @@ export async function render(container, params = [], ctx = {}) {
           }).join('')}
         </div>
       </div>`,
+      // v3.9.0 (F1032) — Assistent „Messkonzept“ (nicht in der öffentlichen Demo)
+      !conceptOffered() ? '' : `<div class="card settings-card" id="concept-card">
+        <h2 class="card__title"><span aria-hidden="true">🔌</span> ${escapeHtml(t('concept.entry.title'))}</h2>
+        <p class="settings-card__hint">${escapeHtml(t('concept.entry.text'))}</p>
+        <button type="button" class="btn btn--ghost" id="btn-concept-wizard">${escapeHtml(t('concept.title'))}</button>
+      </div>`,
       pageGroups),
     data: grid(
       renderExportCard(settings, utilities),
@@ -523,6 +531,9 @@ export async function render(container, params = [], ctx = {}) {
   if (page === 'household') wirePeopleCard(container, () => render(container, params, ctx));   // v3.9.0
   if (page === 'access' || page === 'system') wireSecurityCheck(container, () => render(container, params, ctx));
   if (page === 'general') wireLevelCard(container, session);
+  if (page === 'utilities') container.querySelector('#btn-concept-wizard')?.addEventListener('click', () => {
+    openConceptWizard().then(done => { if (done && container.isConnected) render(container, params, ctx); }).catch(e => toastErr(e.message));
+  });
   if (page === 'integrations') wireIntegrationsPage(container, () => render(container, params, ctx));
   if (page === 'expert') wireReadingCard(container, inboxCloud, settings, isAdmin, () => render(container, params, ctx));   // v3.7.0
   wireDisclosures(container);   // v3.6.0

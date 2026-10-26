@@ -184,6 +184,33 @@ export const shapes = {
     const wave = (dx) => `M${n(x + dx)},${n(y)} c${n(-3 * s)},${n(-3 * s)} ${n(3 * s)},${n(-5 * s)} 0,${n(-8 * s)} c${n(-3 * s)},${n(-3 * s)} ${n(3 * s)},${n(-5 * s)} 0,${n(-8 * s)}`;
     return `<g class="ill-c-waerme"><path class="ill-util" d="${wave(0)} ${wave(6 * s)} ${wave(12 * s)}"/></g>`;
   },
+  // v3.9.0 (Paket messkonzepte) — Bausteine der Schaltbilder des Assistenten „Messkonzept“
+  /** Knoten: hier zweigt eine Leitung ab (gefüllter Punkt in der Farbe der Beschriftung). */
+  node(x, y, r = 2.2) {
+    return `<circle class="ill-node" cx="${n(x)}" cy="${n(y)}" r="${n(r)}"/>`;
+  },
+  /**
+   * Sammelleitung mit Abzweigen: senkrecht bei x von y1 bis y2, ein Knoten an
+   * jedem Abzweig in `nodes` (y-Werte). Die Abzweige selbst zeichnet `wire`.
+   */
+  bus(x, y1, y2 = y1, { nodes = [] } = {}) {
+    return `<polyline class="ill-line" points="${pts([[x, y1], [x, y2]])}"/>${nodes.map(y => shapes.node(x, y)).join('')}`;
+  },
+  /**
+   * Zählwerk-Anzeige: die Kennzahlen eines Zählers (etwa 1.8.1, 1.8.2, 2.8.0)
+   * als kleine Schilder untereinander; (x, y) = linke obere Ecke.
+   */
+  registers(x, y, labels = [], { w = 30, h = 10, gap = 2 } = {}) {
+    return labels.map((label, i) => {
+      const top = y + i * (h + gap);
+      return `<g><rect class="ill-line" x="${n(x)}" y="${n(top)}" width="${n(w)}" height="${n(h)}" rx="2"/>
+        <text class="ill-small" x="${n(x + w / 2)}" y="${n(top + h - 2.6)}" text-anchor="middle">${esc(label)}</text></g>`;
+    }).join('');
+  },
+  /** Kleine Beschriftung (gedämpft), etwa „Z1 − Z2“ unter einem Gerät. */
+  caption(x, y, text = '', { anchor = 'middle' } = {}) {
+    return text ? `<text class="ill-small" x="${n(x)}" y="${n(y)}" text-anchor="${anchor === 'start' || anchor === 'end' ? anchor : 'middle'}">${esc(text)}</text>` : '';
+  },
 };
 
 // ── Bilder der Ersteinrichtung (Zier: die Frage daneben sagt alles) ──────

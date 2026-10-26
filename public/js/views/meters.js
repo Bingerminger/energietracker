@@ -20,6 +20,8 @@ import { renderError } from '../components/error.js';
 import { chipHtml, personSelectHtml, personPayload } from '../lib/assignee.js';
 // v3.7.0 (Paket betrieb) — Akte je Zähler
 import { dossierHtml, wireDossiers } from '../components/dossier.js';
+// v3.9.0 (F1032) — Assistent „Messkonzept“ (nicht in der öffentlichen Demo: dort schreibt nichts)
+import { openConceptWizard, conceptOffered } from '../components/concept-wizard.js';
 
 export async function render(container, params, ctx = {}) {
   const utilityKey = params[0];
@@ -36,6 +38,11 @@ export async function render(container, params, ctx = {}) {
   const q = ctx.query;
   const wanted = q?.get('replace');
   const m = wanted ? (meters || []).find(x => x.id === wanted) : null;
+  // v3.9.0 (F1032) — aus der Ersteinrichtung: #/utility/strom/meters?concept=1 öffnet den Assistenten „Messkonzept“
+  if (q?.get('concept') && conceptOffered(u.key)) {
+    try { history.replaceState(history.state, '', `#/utility/${u.key}/meters`); } catch { /* egal */ }
+    openConceptWizard().then(done => { if (done && container.isConnected) refresh(container, u); }).catch(() => {});
+  }
   if (m && m.capture !== 'period') {
     // nicht abwarten: Der Dialog bleibt offen, bis man ihn schließt — die Ansicht ist fertig
     openReplaceDeviceModal(u, m, swapPrefill(q)).then((changed) => {
@@ -89,6 +96,7 @@ async function refresh(container, u) {
         <div class="section-actions">
           <a class="btn btn--ghost" href="#/utility/${u.key}">${t('meters.toOverview')}</a>
           ${meters.length >= 2 ? `<button type="button" class="btn btn--ghost" data-action="merge-meters">${t('meters.merge')}</button>` : ''}
+          ${conceptOffered(u.key) ? `<button type="button" class="btn btn--ghost" data-action="concept">${escapeHtml(t('concept.title'))}</button>` : ''}
           <button type="button" class="btn btn--util" data-action="new-meter">${t('meters.newMeter')}</button>
         </div>
       </div>
@@ -113,6 +121,11 @@ async function refresh(container, u) {
     btn.addEventListener('click', () => {
       openMeterModal(u, null, meters, groups).then(changed => { if (changed) refresh(container, u); });
     });
+  });
+
+  // v3.9.0 (F1032) — Assistent „Messkonzept“: Zähler, Zählwerke, Subzähler und Verträge aus dem Aufbau
+  container.querySelector('[data-action="concept"]')?.addEventListener('click', () => {
+    openConceptWizard().then(done => { if (done && container.isConnected) refresh(container, u); }).catch(e => toastErr(e.message));
   });
 
   container.querySelector('[data-action="merge-meters"]')?.addEventListener('click', () => {

@@ -570,6 +570,15 @@ contract is deducted.
 
 **Setup.**
 
+<!-- doc-claim: concept-wizard (metering-concepts.test.mjs) -->
+Fastest with the **Set up metering concept** assistant *(v3.9.0)*: under
+**Meters** of electricity or under **Settings → Utilities & billing → Metering
+concept**. Answers: solar system, “Heat pump with a heat pump tariff”, HT/NT
+“Yes, on every import meter”, layout **Cascade**. It creates the meters per
+register with OBIS code, both groups, feed-in, solar generation and the three
+contracts; existing meters you assign instead of creating them twice. Before
+that the app saves a snapshot. By hand it goes like this:
+
 1. Under **Settings → Utilities & billing → Active utilities** activate
    electricity, solar feed-in and solar generation.
 2. Create one electricity meter per **register**:
