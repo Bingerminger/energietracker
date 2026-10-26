@@ -34,8 +34,20 @@ import { savedScenarios } from '../lib/scenario.js';   // v3.6.0 — Szenario an
 export const REPORT_OPTIONS_KEY = 'et-report-options';
 
 /** Jahre zur Auswahl: dieses und die sechs davor (wie bisher). */
-export function reportYears(now = new Date().getFullYear()) {
-  return Array.from({ length: 7 }, (_, i) => now - i);
+export function reportYears(now = new Date().getFullYear(), first = null) {
+  // v3.9.0 (L18) — nur Jahre mit Daten: ab dem Jahr der ersten Ablesung (bis v3.8 immer
+  // sieben Jahre zurück, auch 2020 bei Daten ab 11/2022); mindestens das laufende Jahr
+  const from = Number.isFinite(first) && first <= now ? Math.max(first, now - 6) : now - 6;
+  return Array.from({ length: now - from + 1 }, (_, i) => now - i);
+}
+
+/** v3.9.0 (L18) — Jahr der ersten Daten über alle Zähler (Zählerstand-Übersicht), sonst null. */
+export async function dataFirstYear() {
+  try {
+    const rows = await api.readingsOverview();
+    const years = (Array.isArray(rows) ? rows : rows?.rows || []).map(r => Number(String(r.first_date || '').slice(0, 4))).filter(y => y > 1900);
+    return years.length ? Math.min(...years) : null;
+  } catch { return null; }
 }
 
 /** Gemerkte Auswahl dieses Geräts — oder {} (Speicher gesperrt, kaputt, leer). */
@@ -110,7 +122,7 @@ export async function openReportDialog({ mode = 'print', initial = null } = {}) 
   let active = [];
   try { active = await activeUtilities(); } catch { active = []; }
   const languages = Object.keys(getLanguages());
-  const years = reportYears();
+  const years = reportYears(new Date().getFullYear(), await dataFirstYear());   // v3.9.0 (L18)
   const limits = demoLimits(mode);
   const pdf = mode !== 'print';
   const c = resolveChoice(initial || loadReportChoice(), { active, languages, locale: getLocale(), years });

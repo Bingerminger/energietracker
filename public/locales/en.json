@@ -476,7 +476,7 @@
       "consShort": "{value} usage",
       "gpPlus": " + {value} standing charge",
       "suggestAdvance": "With an advance of {suggested} instead of {current}, the bill would come out at about ±0.",
-      "measuredThenEstimated": "measured up to {date} ({kwh} kWh), estimated since: {value}",
+      "measuredThenEstimated": "measured up to {date} ({amount}), estimated since: {value}",
       "renewed": "The term ended on {date}. Without cancellation the contract runs on at its last prices and can be cancelled any time with at most one month’s notice.",
       "cancelMissed": "Cancellation deadline {date} missed: the contract does not end on {end} but runs on — after that it can be cancelled with at most one month’s notice.",
       "priceIncrease": "Price increase from {date}: {what}.",
@@ -504,7 +504,13 @@
       },
       "sinceBill": "Counted from {date}: the bill before is booked in the contract and no longer counts here.",
       "nextDue": "next due date: {date}",
-      "paidCurrentEvery": "current: {value}"
+      "paidCurrentEvery": "current: {value}",
+      "suggestShort": {
+        "one": "Only {count} advance payment is left before the bill on {date}. The bill settles the rest, so there is no need to raise the advance now.",
+        "other": "Only {count} advance payments are left before the bill on {date}. The bill settles the rest, so there is no need to raise the advance now."
+      },
+      "suggestOngoing": "After that, about {amount} instead of {current} a month would be right.",
+      "sincePeriod": "Counted from {date}, the start of the current billing period up to {until}. Earlier periods are listed under billing year."
     },
     "contractsTable": {
       "emptyTitle": "No contracts recorded",
@@ -525,7 +531,8 @@
       "colSpecial": "Special payments",
       "hint": "Bonus = credits from the contract (instant, switching, new-customer bonus). Special payments = refunds (+), back-payments and extra advance payments (−) outside the advance schedule; both feed into the balance. Tap to see the individual items; they are maintained in the contract management.",
       "colEarned": "Earned",
-      "colReceived": "Received"
+      "colReceived": "Received",
+      "futureLegend": "≈ Future contract: the expected balance is estimated from the start of the contract with its prices, its advance and your consumption so far."
     },
     "monthlyTable": {
       "noData": "No data for this year.",
@@ -753,6 +760,14 @@
       "alt": {
         "one": "Bar chart: energy flow {year} — in {months} month with data from all three meters generated {generation}, of which self-consumed {self} and fed in {feedIn}; from the grid {grid}.",
         "other": "Bar chart: energy flow {year} — in {months} months with data from all three meters generated {generation}, of which self-consumed {self} and fed in {feedIn}; from the grid {grid}."
+      },
+      "feedAbove": {
+        "one": "! {months}: the measured feed-in is above the interpolated generation. Self-consumed and fed in add up to more than the generation there, because it is spread too low for the month.",
+        "other": "! {months}: the measured feed-in is above the interpolated generation. Self-consumed and fed in add up to more than the generation there, because it is spread too low for these months."
+      },
+      "partial": {
+        "one": "* {months}: one meter covers only part of the month. Without the same period, self-consumption is left out there.",
+        "other": "* {months}: one meter covers only part of the month. Without the same period, self-consumption is left out there."
       }
     },
     "photo": {
@@ -2832,7 +2847,8 @@
       "poorFit": "The heating model fits this meter poorly (± {pct} a month): the forecast uses the measured months and shows no band.",
       "regressionInvalid": "The chosen heating curve ({model}) does not hold — {why}. The forecast works without it.",
       "climateNormalGrid": "There is no climate normal yet for the heating limit {base} °C (precomputed for {min} to {max} °C; the app fetches an older normal again at the next weather sync). Until then, the degree days of the own temperature history count.",
-      "fewMeasured": "Too few measured months to check the heating model: the forecast shows no band, and balance and advance payment appear only as a range."
+      "fewMeasured": "Too few measured months to check the heating model: the forecast shows no band, and balance and advance payment appear only as a range.",
+      "levelLastYear": "The annual amount follows the consumption of the last 365 days ({amount}, {from} to {to}). Not every calendar month has been measured, so the forecast only spreads this amount across the months."
     },
     "assumedNote": "No contract for this month — the last contract continues at its prices (assumption; contracts renew).",
     "method": {
@@ -2852,7 +2868,8 @@
     "annualNoBand": "Year: {value} {unit} — without a band, because the heating model fits poorly.",
     "annualNoBandFew": "Year: {value} {unit} — without a band, because too few months are measured to check the heating model.",
     "annualNoBandYears": "Year: {value} {unit} — without a band: how much a month varies from year to year only shows with measurements from more than one year.",
-    "annualBandSpread": "Year: {value} {unit}, in {level}% of years between {low} and {high} {unit} — from how the months varied over the years."
+    "annualBandSpread": "Year: {value} {unit}, in {level}% of years between {low} and {high} {unit} — from how the months varied over the years.",
+    "blendPoorFit": "the heating model fits poorly, so every month uses the seasonal profile"
   },
   "report": {
     "createdOn": "Created on {date}",
@@ -2976,7 +2993,9 @@
       "cheapShare": "Share in cheap hours",
       "errors": "Note: some sections are missing because their data could not be read.",
       "billing": "Billing years",
-      "flexPage": "Flexibility"
+      "flexPage": "Flexibility",
+      "successesNoneUnadjusted": "In {year} you used {pct} less than in {prev}. That cannot be shown as a saving: the comparison is not weather-adjusted, and a milder winter has the same effect. The section “Good to know” shows the comparison with the previous year.",
+      "successesNoneUnproven": "In {year} you used {pct} less than in {prev}. That cannot be shown as a saving: some months are interpolated, not measured. The section “Good to know” shows the comparison with the previous year."
     },
     "tile": {
       "cost": "Energy costs",
@@ -3006,7 +3025,8 @@
         "ok": "No more used",
         "warn": "Slightly more used",
         "alert": "Clearly more used",
-        "none": "No comparison"
+        "none": "No comparison",
+        "less": "Used less"
       },
       "billing": {
         "ok": "Advance payments fit",
@@ -3056,7 +3076,8 @@
       "basis": {
         "measured": "measured",
         "projected": "projected",
-        "example": "worked example"
+        "example": "worked example",
+        "estimated": "estimated"
       }
     },
     "agenda": {
@@ -3206,7 +3227,9 @@
       },
       "readings": {
         "title": "Meter readings due",
-        "reason": "Last reading on {date}: {meters}."
+        "reason": "Last reading on {date}: {meters}.",
+        "reasonEach": "Last reading per meter: {meters}.",
+        "none": "none yet"
       },
       "bill": {
         "title": "Bill check: {label}",
@@ -3231,6 +3254,10 @@
       "advanceUncertain": {
         "title": "{label}: check the advance payment after the next reading",
         "reason": "{text}"
+      },
+      "cancelConfirm": {
+        "title": "Cancellation confirmed? {label}",
+        "reason": "A contract with {next} is entered from {start}. Check that “{provider}” has confirmed the cancellation; it has to reach them by {date}."
       }
     },
     "money": {
@@ -3264,7 +3291,14 @@
         "paybackOpen": "Recovered so far: {paid} of {investment} (as of today).",
         "batteryTitle": "Battery",
         "battery": "Charged {charged} kWh, discharged {discharged} kWh, about {cycles} full cycles, efficiency {eff}.",
-        "co2Avoided": "CO₂ avoided: {kg}, calculated with the CO₂ factor for electricity from the settings."
+        "co2Avoided": "CO₂ avoided: {kg}, calculated with the CO₂ factor for electricity from the settings.",
+        "span": "Calculated over the months in which all three meters have data: {from} to {to} ({span}).",
+        "estimated": "≈ Some monthly values are interpolated, not measured{readings}. Self-consumption, self-sufficiency and benefit are therefore estimates.",
+        "feedAbove": {
+          "one": "In {months} the measured feed-in is above the interpolated generation. There the feed-in counts as generation and nothing as self-consumed.",
+          "other": "In {count} months ({months}) the measured feed-in is above the interpolated generation. There the feed-in counts as generation and nothing as self-consumed."
+        },
+        "noCompare": "No comparison with {prev}: that needs two whole years with data from all three meters and a generation reading at both turns of the year."
       },
       "heatPump": {
         "sentence": "The heat pump turned {elec} kWh of electricity into {heat} kWh of heat: seasonal performance factor {jaz}.",
@@ -3961,7 +3995,9 @@
     "history": "History ({count})",
     "historyTitle": "History: {name}",
     "anytime": "Can be cancelled any time",
-    "advanceEvery": "Advance payment {amount}"
+    "advanceEvery": "Advance payment {amount}",
+    "noNotice": "No notice period entered",
+    "earliestEnd": "Can end on {date} at the earliest"
   },
   "billCheck": {
     "noMeter": "The bill check recalculates the annual bill for gas, electricity, water and district heating. Set up a meter first.",
@@ -4470,7 +4506,8 @@
       "billExpected": "Bill expected: {label} ({provider}) for {from} – {until}",
       "billOverdue": "Bill overdue: {label} ({provider}) for {from} – {until} — statutory deadline passed, ask the supplier",
       "finalBillExpected": "Final bill expected: {label} ({provider}) for {from} – {until}",
-      "finalBillOverdue": "Final bill overdue: {label} ({provider}) for {from} – {until} — statutory deadline passed, ask the supplier"
+      "finalBillOverdue": "Final bill overdue: {label} ({provider}) for {from} – {until} — statutory deadline passed, ask the supplier",
+      "cancelConfirm": "{label}: cancellation confirmed? ({provider}, switching to {next})"
     },
     "subscribe": "Subscribe in your calendar",
     "intro": "Dates, cancellation deadlines, contract ends, price guarantees and due readings as a calendar subscription. The calendar refreshes them every 12 hours.",
@@ -4809,8 +4846,8 @@
     "waterBasis": "{m3} m³ in the year · people in household: {persons}",
     "rating": {
       "good": "Good",
-      "near": "Above",
-      "high": "Well above"
+      "near": "A bit high",
+      "high": "High"
     },
     "invite": {
       "reference": "How does your consumption compare? Enter a reference value, for example from a consumption benchmark — this tile then shows a traffic light.",
@@ -4973,6 +5010,22 @@
         "calcNote": "Dashed: calculated per quarter hour, not measured.",
         "powerNote": "In the nodes: the power in this quarter hour (kW). Below: the amounts since midnight (kWh).",
         "gapsOption": "{date} (with gaps)"
+      },
+      "yearRange": "{year} ({from} to {to}, {span})",
+      "series": {
+        "erzeugung_kwh": "generation",
+        "einspeisung_kwh": "feed-in",
+        "bezug_kwh": "grid import"
+      },
+      "interpolatedNote": "≈ Interpolated, not measured: {series} in these months{readings}. How the solar power splits up is therefore estimated.",
+      "feedAboveMonth": "Contradictory: the measured feed-in ({feed}) is above the generation ({gen}). The figure counts the whole feed-in, so nothing is self-consumed. The solar node shows at least the feed-in here.",
+      "feedAboveYear": {
+        "one": "Contradictory in {months}: the measured feed-in is above the interpolated generation. There the figure counts the whole feed-in and nothing as self-consumed.",
+        "other": "Contradictory in {count} months ({months}): the measured feed-in is above the interpolated generation. There the figure counts the whole feed-in and nothing as self-consumed."
+      },
+      "partialNote": {
+        "one": "Without {months}: there one meter covers only part of the month.",
+        "other": "Without {count} months ({months}): there one meter covers only part of the month."
       }
     },
     "weather": {
@@ -5751,7 +5804,8 @@
       "co2": "CO₂",
       "co2Year": "CO₂ per year",
       "advanceRange": "{low} to {high}",
-      "advanceUncertain": "uncertain: the heating model fits poorly"
+      "advanceUncertain": "uncertain: the heating model fits poorly",
+      "advanceShort": "after the bill on {date}"
     },
     "chart": {
       "cumTitle": "Cumulative cost",
@@ -6749,7 +6803,15 @@
     "legendPv": "≈ interpolated, not measured: how these months’ solar power splits up is estimated.",
     "chartNote": "Hatched bars: interpolated, not measured.",
     "markTitleEstimated": "Interpolated, not measured: from {gap} days between two readings, with an estimated reading as a support point",
-    "whyEstimated": "Where an estimated reading lies in between, each side of it has its own daily rate."
+    "whyEstimated": "Where an estimated reading lies in between, each side of it has its own daily rate.",
+    "readingsYearEst": {
+      "one": "{count} reading and {estimates} in {year}",
+      "other": "{count} readings and {estimates} in {year}"
+    },
+    "estimates": {
+      "one": "{count} estimate",
+      "other": "{count} estimates"
+    }
   },
   "balanceUncertain": {
     "range": "Bill on {date} uncertain: between {low} and {high}, because {why}.",
@@ -6759,11 +6821,12 @@
     "credit": "{amount} credit",
     "light": "{label}: uncertain, between {low} and {high}",
     "why": {
-      "factor_clamped": "the latest measured months lie far from the expectation (factor {raw}, calculated with {used})",
+      "factor_clamped": "the latest measured months used about {raw} times the expected amount; the estimate follows that only up to {used} times",
       "poor_fit": "the heating model fits this meter poorly (± {pct} a month)",
       "both": "{a} and {b}",
       "few_measured": "too few months are measured to check the heating model",
-      "three": "{a}, {b} and {c}"
+      "three": "{a}, {b} and {c}",
+      "factorLow": "the latest measured months used only about {raw} of the expected amount; the estimate follows that only down to {used}"
     },
     "short": "{low} to {high}",
     "verdict": "uncertain"

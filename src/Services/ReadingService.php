@@ -414,6 +414,9 @@ final class ReadingService
                     'capture'           => (string)($m['capture'] ?? 'counter'),
                     'last_period'       => $this->lastPeriod($key, (string)$m['id']),
                     'role'              => Utilities::roleOf($key, $m),
+                    // v3.9.0 (L18, additiv) — Beginn der Daten: erste echte Ablesung, sonst der
+                    // Einbau des ersten Geräts (Tanks, Zeiträume); für die Jahreswahl des Berichts
+                    'first_date'        => !empty($real) ? (string)($real[0]['date'] ?? '') : ((string)($m['devices'][0]['installed_on'] ?? $m['created_at'] ?? '') ?: null),
                 ];
             }
         }

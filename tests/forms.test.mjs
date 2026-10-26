@@ -205,6 +205,26 @@ t('ein Aufklappbereich für Prognose und CO₂-Faktoren (components/disclosure.j
   && /disclosureHtml\(\{ id: 'fc-classic'/.test(fcSrc) && /gkey: 'co2'[^\n]*collapse: 'et-settings-co2-open'/.test(settingsSrc)
   && !/<details class="card fc-classic"/.test(fcSrc));
 
+// ── v3.9.0 (Paket auswertung, A1, A2, A4, A5 aus dem Paket oberflaeche) ──
+console.log('Schaubilder, Saldo-Karte, Werkstatt, Vertragskarten (components.css)');
+{
+  const decl = (sel, src = C) => rule(src, sel).replace(/\s+/g, ' ').trim();
+  const card = decl('.card__title', css('public/css/app.css'));
+  const ex = decl('.explainer__title');
+  // A1 — der Titel eines Schaubilds sieht aus wie ein Kartentitel (Größe, Gewicht, Farbe, Versalien, Sperrung)
+  const props = (d) => Object.fromEntries(d.split(';').map(x => x.split(':').map(y => y.trim())).filter(([k, v]) => k && v));
+  const same = ['font-size', 'font-weight', 'color', 'text-transform', 'letter-spacing'].every(k => props(ex)[k] && props(ex)[k] === props(card)[k]);
+  t('A1: .explainer__title wie .card__title', same, `${ex} | ${card}`);
+  // A2 — die Spanne der unsicheren Schätzung in Fließschrift und kleiner, nicht 22 px Mono über fünf Zeilen
+  const range = decl('.balance-verdict__value[data-role="verdict-range"]');
+  t('A2: Spanne der Saldo-Karte kompakt (Fließschrift, 13 px)', /font-family: var\(--font-sans/.test(range) && /font-size: var\(--fs-sm, 13px\)/.test(range), range);
+  // A4 — Werkstatt am Touchgerät: Felder, Auswahl, Regler und Chips 44 px
+  const coarse = (C.match(/@media \(pointer: coarse\) \{ ([^{}]*)\{ min-height: 44px; \} \}/g) || []).join(' ');
+  t('A4: Werkstatt bei Touch 44 px (Chips, Zahlenfelder, Auswahl, Regler)', ['.ws-chip', '.ws__controls input[type="number"]', '.ws__controls select', '.ws-range input[type="range"]']
+    .every(sel => coarse.includes(sel)), coarse.slice(0, 200));
+  // A5 — leere Vertragskarte: unten nicht mehr Abstand als oben
+  t('A5: Vertragskarte ohne Absatzrand unten', /margin-bottom: 0/.test(decl('.contract-overview__row > p:last-child')));
+}
 // ── v3.9.0 (Paket oberflaeche) — Touch-Größen und Dialog-Fußleiste ──────
 console.log('Touch und Dialoge (v3.9.0)');
 const touch = (C.match(/@media \(pointer: coarse\), \(max-width: 899\.98px\) \{ \.btn \{ min-height: 44px; \}([\s\S]*?)\}\s*\}/) || [])[1] || '';

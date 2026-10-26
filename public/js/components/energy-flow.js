@@ -49,12 +49,14 @@ const r1 = (v) => Math.round(v * 10) / 10;
  *   Speicher→Haus = entladen · Netz→Haus = max(0, Bezug − Netz→Speicher)
  *   Haus = Summe der Zuflüsse · Netzstrom im Haus = min(Bezug, Netz→Haus + min(Netz→Speicher, Speicher→Haus))
  *   Autarkie = 1 − Netzstrom im Haus / Haus
+ * v3.9.0 (V4) — die gemessene Einspeisung wird nie gekappt (mehr eingespeist als
+ * erzeugt: alles ins Netz, nichts ins Haus; die Sonne zeigt mindestens die Einspeisung)
  */
 export function flowsFromTotals({ gen = 0, feed = 0, grid = 0, charged = 0, discharged = 0 } = {}) {
   const n = (v) => Math.max(0, Number(v) || 0);
   gen = n(gen); grid = n(grid); charged = n(charged); discharged = n(discharged);
-  feed = Math.min(n(feed), gen);
-  const pvAvail = gen - feed, pvBat = Math.min(charged, pvAvail), gridBat = charged - pvBat;
+  feed = n(feed);
+  const pvAvail = Math.max(0, gen - feed), pvBat = Math.min(charged, pvAvail), gridBat = charged - pvBat;
   const f = {
     pv_house: pvAvail - pvBat, pv_battery: pvBat, pv_grid: feed,
     grid_house: Math.max(0, grid - gridBat), grid_battery: gridBat, battery_house: discharged,
@@ -318,7 +320,61 @@ function prepare(input, opts) {
   // Knoten je Jahr: der Speicher erscheint in Jahren mit Speicherdaten
   const sets = new Map(years.map(y => [y.row.year, nodeSet(y.flow, !!y.row.battery)]));
   const pick = years.find(y => y.row.year === opts.year) || years[years.length - 1];
-  return { years, months, sets, interactive: months.length > 0, scope: 'year', year: pick.row.year, ym: null, focus: null, day: null };
+  return { years, months, sets, interactive: months.length > 0, scope: 'year', year: pick.row.year, ym: null, focus: null, day: null,
+    info: isSummary ? input.interpolation || null : null };
+}
+
+const SERIES = ['erzeugung_kwh', 'einspeisung_kwh', 'bezug_kwh'];
+
+/**
+ * v3.9.0 (V4) — Was an einem Zeitraum geschätzt ist: verteilte Reihen (Monat:
+ * `interpolated_series`, Jahr: `flow_period.interpolated_series`), Monate mit
+ * mehr Einspeisung als Erzeugung und Monate, die eine Reihe nur zum Teil
+ * erfasst. Daraus ≈ an den Werten und die Hinweise unter dem Bild.
+ */
+export function flowEstimate(row, scope) {
+  const p = scope === 'month' ? null : row?.flow_period || null;
+  const series = (scope === 'month' ? row?.interpolated_series : p?.interpolated_series) || [];
+  const s = new Set(series.filter(x => SERIES.includes(x)));
+  const gen = s.has('erzeugung_kwh');
+  const feed = s.has('einspeisung_kwh');
+  const grid = s.has('bezug_kwh');
+  return {
+    series: SERIES.filter(x => s.has(x)),
+    gen, feed, grid, house: gen || feed || grid,
+    above: scope === 'month' ? (row?.feed_above_generation ? [row.ym] : []) : (p?.feed_above_generation || []),
+    partial: scope === 'month' ? [] : (p?.partial || []),
+  };
+}
+
+const monthName = (ym) => {
+  const [y, mo] = String(ym).split('-').map(Number);
+  return new Intl.DateTimeFormat(intlLocale(), { month: 'long' }).format(new Date(y, mo - 1, 1, 12));
+};
+const monthList = (yms) => yms.map(monthLong).join(', ');
+
+/** v3.9.0 (V4) — Hinweise zu Schätzung, Widerspruch und Teilmonaten (Klartext). */
+function estimateNotes(st, e, est, m) {
+  const out = [];
+  if (est.series.length) {
+    const list = est.series.map(x => t(`explainer.energy.series.${x}`));
+    let names = list.join(', ');
+    try { names = new Intl.ListFormat(intlLocale(), { type: 'conjunction' }).format(list); } catch { /* ältere Umgebung */ }
+    let readings = '';
+    const inf = st.info;
+    if (inf && est.series.some(x => x === ({ pv_erzeugung: 'erzeugung_kwh', pv_einspeisung: 'einspeisung_kwh', strom: 'bezug_kwh' })[inf.utility])
+        && inf.readings != null && inf.from && inf.to) {
+      readings = ` (${tp('interpolation.readingsRange', inf.readings, { count: inf.readings, from: fmt.month(inf.from), to: fmt.month(inf.to) })})`;
+    }
+    out.push(t('explainer.energy.interpolatedNote', { series: names, readings }));
+  }
+  if (est.above.length) {
+    out.push(st.scope === 'month'
+      ? t('explainer.energy.feedAboveMonth', { feed: unitText(Number(e.row.einspeisung_kwh) || 0), gen: unitText(Number(e.row.erzeugung_kwh) || 0) })
+      : tp('explainer.energy.feedAboveYear', est.above.length, { months: monthList(est.above) }));
+  }
+  if (est.partial.length) out.push(tp('explainer.energy.partialNote', est.partial.length, { months: monthList(est.partial) }));
+  return out;
 }
 
 function currentEntry(st) {
@@ -326,10 +382,16 @@ function currentEntry(st) {
   return st.years.find(y => y.row.year === st.year) || null;
 }
 
-function periodLabel(st, e) {
-  if (st.scope === 'month') return monthLong(e.row.ym);
+function periodLabel(st, e, est = null) {
+  const approx = est && (est.house || est.above.length) ? '≈ ' : '';
+  if (st.scope === 'month') return approx + monthLong(e.row.ym);
   const n = Number(e.row.flow?.months ?? e.row.months_covered ?? 12);
-  return n > 0 && n < 12 ? t('explainer.energy.yearPart', { year: e.row.year, span: tp('explainer.energy.months', n) }) : String(e.row.year);
+  const p = e.row.flow_period;
+  // v3.9.0 (V4) — der erfasste Zeitraum: „2025 (Januar bis Juli, 7 Monate)“
+  if (n > 0 && n < 12 && p?.from && p?.to) {
+    return approx + t('explainer.energy.yearRange', { year: e.row.year, from: monthName(p.from), to: monthName(p.to), span: tp('explainer.energy.months', n) });
+  }
+  return approx + (n > 0 && n < 12 ? t('explainer.energy.yearPart', { year: e.row.year, span: tp('explainer.energy.months', n) }) : String(e.row.year));
 }
 
 /** Inhalt für den gewählten Zeitraum: SVG, Knöpfe, Liste, Hinweise, Text. */
@@ -340,7 +402,10 @@ function renderView(st, uid) {
   const m = flowModel(e.flow, set);
   const L = flowLayout(set);
   const { svg } = flowSvg(m, L, uid);
-  const label = periodLabel(st, e);
+  // v3.9.0 (V4) — verteilte Reihen: ≈ an den Werten, die an ihnen hängen
+  const est = flowEstimate(e.row, st.scope);
+  m.approx = { gen: est.gen || est.above.length > 0, feed: est.feed, grid: est.grid, house: est.house || est.above.length > 0 };
+  const label = periodLabel(st, e, est);
 
   // Flüsse als Text: Liste für Screenreader und Detailzeile
   const items = L.P.map(p => {
@@ -355,24 +420,31 @@ function renderView(st, uid) {
   const notes = [];
   if (m.calc) notes.push(t('explainer.energy.calcNote'));
   if (e.row.self_consumption_assumed) notes.push(t('explainer.energy.assumedNote'));
+  notes.push(...estimateNotes(st, e, est, m));   // v3.9.0 (V4)
   return { svg, chips: chipsHtml(st.focus, m, set), items, label, caption: captionText(m, label), note: notes.join(' ') };
 }
+
+/** v3.9.0 (V4) — „≈ “ vor einem Wert, der an einer verteilten Reihe hängt. */
+const ap = (flag, text) => (flag ? `≈ ${text}` : text);
 
 /** Knöpfe je Knoten mit den Mengen des Modells (Zeitraum oder aufgelaufen). */
 function chipsHtml(focus, m, set, u = unitText) {
   const chip = (key, text) => `<button type="button" class="ef-chip ef-c-${key}" data-node="${key}" aria-pressed="${focus === key}">${esc(text)}</button>`;
+  const a = m.approx || {};
   return [
-    chip('pv', t('explainer.energy.chip.pv', { value: u(m.gen), share: pct(m.selfShare) })),
-    chip('house', t('explainer.energy.chip.house', { value: u(m.house), autarky: pct(m.autarky) })),
+    chip('pv', t('explainer.energy.chip.pv', { value: ap(a.gen, u(m.gen)), share: ap(a.house, pct(m.selfShare)) })),
+    chip('house', t('explainer.energy.chip.house', { value: ap(a.house, u(m.house)), autarky: ap(a.house, pct(m.autarky)) })),
     set.bat ? chip('bat', t('explainer.energy.chip.battery', { in: u(m.charged), out: u(m.discharged) })) : '',
-    chip('grid', t('explainer.energy.chip.grid', { in: u(m.grid), out: u(m.feed) })),
+    chip('grid', t('explainer.energy.chip.grid', { in: ap(a.grid, u(m.grid)), out: ap(a.feed, u(m.feed)) })),
   ].join('');
 }
 
 /** Aussage des Bildes als Satz; `min` = kleinste Menge, die erwähnt wird. */
 function captionText(m, label, u = unitText, min = 0.5) {
+  const a = m.approx || {};
   const parts = [t('explainer.energy.text', {
-    period: label, gen: u(m.gen), feed: u(m.feed), house: u(m.house), grid: u(m.gridIn), autarky: pct(m.autarky),
+    period: label, gen: ap(a.gen, u(m.gen)), feed: ap(a.feed, u(m.feed)), house: ap(a.house, u(m.house)),
+    grid: ap(a.grid, u(m.gridIn)), autarky: ap(a.house, pct(m.autarky)),
   })];
   if (m.charged > min || m.discharged > min) parts.push(t('explainer.energy.textBattery', { in: u(m.charged), out: u(m.discharged) }));
   if (m.f.grid_battery > min) parts.push(t('explainer.energy.textGridCharge', { kwh: u(m.f.grid_battery) }));

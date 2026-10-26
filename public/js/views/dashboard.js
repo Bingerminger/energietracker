@@ -850,7 +850,7 @@ export function comparisonCardHtml(c, utilities = []) {
   // Ampelzeile: Punkt (Farbe) + Wort (dasselbe in Text) + Satz
   const row = (rating, text, sub = '') => `<li class="cmp-row${rating ? ` cmp-row--${rating}` : ''}" data-rating="${rating || 'none'}">
           <span class="cmp-row__dot" aria-hidden="true"></span>
-          <span class="cmp-row__body">${rating ? `<strong class="cmp-row__label">${escapeHtml(t('comparison.rating.' + rating))}</strong> ` : ''}${escapeHtml(text)}${sub ? `<span class="cmp-row__sub">${sub}</span>` : ''}</span>
+          <span class="cmp-row__body">${escapeHtml(text)}${rating ? ` <strong class="cmp-row__label">${escapeHtml(t('comparison.rating.' + rating))}</strong>` : ''}${sub ? `<span class="cmp-row__sub">${sub}</span>` : ''}</span>
         </li>`;
   const sentence = (kind, d, vars) => t(`comparison.line.${kind}${d > 0 ? 'Above' : 'Below'}`, { ...vars, pct: pct(d) });
   const rows = [];
@@ -892,25 +892,45 @@ export function comparisonCardHtml(c, utilities = []) {
 // Vorauszahlung? Ein Schaubild erklärt die erste Antwort. Gerechnet wird
 // dasselbe wie in den anderen Stufen (contract-status, /api/summary).
 
+/** Hauptzähler mit laufendem Vertrag und erwartetem Saldo (ohne PV). */
+const moneyMeters = (meters, byKey) => (meters || []).filter(m => m.contract && !m.is_sub_meter && byKey.has(m.utility)
+  && m.contract.projected_end_balance != null && !isPv(byKey.get(m.utility)));
+
+/**
+ * Zeilen der Antwort „Muss ich nachzahlen?“ (Einsteiger) aus `/api/summary`.
+ * Rein, ohne DOM — geprüft in tests/browser-render.test.mjs.
+ * @param {Array<object>} meters  `summary.meters`
+ * @param {Map<string, object>} byKey  Verbrauchsarten nach Schlüssel
+ * @returns {string[]} `<li>` je Zähler mit laufendem Vertrag
+ */
+export function beginnerMoneyLines(meters, byKey) {
+  const withContract = moneyMeters(meters, byKey);
+  // v3.9.0 (A3) — mehrere Zähler einer Art (etwa Haushalt und Wärmepumpe): mit Zählername
+  const perUtility = withContract.reduce((acc, m) => acc.set(m.utility, (acc.get(m.utility) || 0) + 1), new Map());
+  return withContract.map(m => {
+    const u0 = byKey.get(m.utility);
+    const u = perUtility.get(m.utility) > 1 && m.name ? { ...u0, label: `${u0.label} (${m.name})` } : u0;
+    const v = Number(m.contract.projected_end_balance);
+    const credit = v < 0, even = Math.abs(v) < 1;
+    const text = even ? t('dashboard.beginner.money.even')
+      // v3.9.0 (L2) — „rund“ nur mit gerundeter Zahl
+      : t(credit ? 'dashboard.beginner.money.credit' : 'dashboard.beginner.money.due', { amount: fmt.eur0(Math.abs(v)) });
+    // v3.9.0 (L1) — der letzte Tag des Abrechnungszeitraums, wie überall
+    const until = m.contract.period_last_day || m.contract.period_end;
+    return `<li class="dash-answer__row"><span aria-hidden="true">${escapeHtml(u.icon)}</span>
+      <span><strong>${escapeHtml(u.label)}:</strong> <span class="${even ? '' : credit ? 'success-text' : 'danger-text'}">${escapeHtml(text)}</span>
+      ${until ? `<span class="muted small"> · ${escapeHtml(t('dashboard.beginner.money.until', { date: fmt.date(until) }))}</span>` : ''}</span></li>`;
+  });
+}
+
 async function renderBeginner(container, { utilities, datasets, todo, settings }) {
   const byKey = new Map(utilities.map(u => [u.key, u]));
   const [summary, budget] = await Promise.all([
     api.summary().catch(() => null),
     settings.wohnverhaeltnis === 'miete' ? tenancyBudget().catch(() => null) : Promise.resolve(null),
   ]);
-  const withContract = (summary?.meters || []).filter(m => m.contract && !m.is_sub_meter && byKey.has(m.utility)
-    && m.contract.projected_end_balance != null && !isPv(byKey.get(m.utility)));
-
-  const moneyLines = withContract.map(m => {
-    const u = byKey.get(m.utility);
-    const v = Number(m.contract.projected_end_balance);
-    const credit = v < 0, even = Math.abs(v) < 1;
-    const text = even ? t('dashboard.beginner.money.even')
-      : t(credit ? 'dashboard.beginner.money.credit' : 'dashboard.beginner.money.due', { amount: fmt.eur(Math.abs(v)) });
-    return `<li class="dash-answer__row"><span aria-hidden="true">${escapeHtml(u.icon)}</span>
-      <span><strong>${escapeHtml(u.label)}:</strong> <span class="${even ? '' : credit ? 'success-text' : 'danger-text'}">${escapeHtml(text)}</span>
-      ${m.contract.period_end ? `<span class="muted small"> · ${escapeHtml(t('dashboard.beginner.money.until', { date: fmt.date(m.contract.period_end) }))}</span>` : ''}</span></li>`;
-  });
+  const withContract = moneyMeters(summary?.meters || [], byKey);
+  const moneyLines = beginnerMoneyLines(summary?.meters || [], byKey);
 
   const trendLines = datasets.filter(d => (d.consumption?.monthly_total || []).length).map(({ utility: u, consumption }) => {
     const monthly = consumption.monthly_total;
@@ -986,7 +1006,7 @@ function tenancyAnswerHtml(b) {
   const r = Number(b.projected_result_eur);
   if (!Number.isFinite(r)) return '';
   const credit = r <= 0;
-  const text = t(credit ? 'dashboard.beginner.rent.enough' : 'dashboard.beginner.rent.short', { amount: fmt.eur(Math.abs(r)) });
+  const text = t(credit ? 'dashboard.beginner.rent.enough' : 'dashboard.beginner.rent.short', { amount: fmt.eur0(Math.abs(r)) });   // v3.9.0 (L2)
   return `<section class="card dash-answer" aria-labelledby="dash-a-rent">
     <h2 class="card__title" id="dash-a-rent"><span aria-hidden="true">🏢</span> ${escapeHtml(t('dashboard.beginner.rent.title'))}</h2>
     <p class="${credit ? 'success-text' : 'danger-text'}">${escapeHtml(text)}</p>

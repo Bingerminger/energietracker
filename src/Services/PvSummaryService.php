@@ -25,6 +25,25 @@ namespace Energietracker\Services;
  */
 final class PvSummaryService
 {
+    /**
+     * v3.9.0 (V4) — Derselbe Zeitraum: Eine Reihe, die in einem Monat weniger
+     * als 90 % der Tage der längsten Reihe erfasst, ist mit ihr nicht
+     * vergleichbar (Erzeugung bis zum 15., Einspeisung der ganze Monat: der
+     * Eigenverbrauch wäre ein halber Monat Sonne gegen einen ganzen Monat
+     * Einspeisung). 90 %: Ein Zähler, der am 3. eines Monats beginnt, fehlt zwei
+     * Tage (29 von 31) und zählt noch; ab vier fehlenden Tagen nicht mehr.
+     */
+    public const SAME_SPAN_SHARE = 0.9;
+
+    /**
+     * v3.9.0 (V4) — Gemessene Einspeisung über der Erzeugung um mehr als
+     * diese Menge (kWh, Rundung der Monatswerte auf eine Stelle): Der Monat
+     * ist widersprüchlich. Meist ist die Erzeugung aus einem langen
+     * Ablesungsabstand verteilt (im Juni weniger, als die Anlage wirklich
+     * erzeugt hat), sonst ein Ablesefehler.
+     */
+    public const FEED_ABOVE_GEN_KWH = 0.5;
+
     public function __construct(
         private ConsumptionService $consumption,
         private ?SettingsService $settings = null,   // v3.1.0 (H7)
@@ -49,13 +68,14 @@ final class PvSummaryService
         $seen = [];
         $byYm = [];
         $interp = [];   // v3.7.0 (#39) — ym → Reihen, deren Monatswert verteilt ist
-        $collect = function (array $util, string $field) use (&$byYm, &$seen, &$interp): void {
+        $spanDays = []; // v3.9.0 (V4) — ym → Reihe → erfasste Tage
+        $collect = function (array $util, string $field) use (&$byYm, &$seen, &$interp, &$spanDays): void {
             foreach ($util['monthly_total'] ?? [] as $m) {
                 $ym = (string)($m['ym'] ?? '');
                 if ($ym === '') continue;
                 if (!isset($byYm[$ym])) $byYm[$ym] = $this->emptyRow($ym);
                 $byYm[$ym][$field] = (float)($m['kwh'] ?? 0);
-                if ((int)($m['days'] ?? 0) > 0) $seen[$ym][$field] = true;
+                if ((int)($m['days'] ?? 0) > 0) { $seen[$ym][$field] = true; $spanDays[$ym][$field] = (int)$m['days']; }
                 if (!empty($m['interpolated'])) $interp[$ym][$field] = true;
                 if ($field === 'einspeisung_kwh') $byYm[$ym]['_revenue'] = (float)($m['cost'] ?? 0);
             }
@@ -79,8 +99,16 @@ final class PvSummaryService
             // Quoten nur, wo alle drei Zähler Daten haben: Ein Erzeugungszähler
             // ab Juli ergab bis v2.9 für das Jahr „Eigenverbrauch 0, Autarkie 0"
             $assumed = $plugInPct !== null && !empty($seen[$ym]['erzeugung_kwh']) && !empty($seen[$ym]['bezug_kwh']);
-            $row['covered'] = $assumed || count($seen[$ym] ?? []) === 3;
+            // v3.9.0 (V4) — und über denselben Zeitraum: Erfasst eine Reihe den
+            // Monat nur zum Teil (Erzeugung bis zum 15.), fehlen ihm Eigenverbrauch
+            // und Autarkie; bisher stand dort „0 % selbst genutzt“
+            $row['partial_series'] = self::partialSeries($spanDays[$ym] ?? []);
+            $row['covered'] = ($assumed || count($seen[$ym] ?? []) === 3) && $row['partial_series'] === [];
             $this->enrichRow($row);
+            // v3.9.0 (V4) — mehr eingespeist als erzeugt: widersprüchlich, gekennzeichnet
+            // statt die gemessene Einspeisung auf die (meist verteilte) Erzeugung zu kappen
+            $row['feed_above_generation'] = $row['covered'] && !$assumed
+                && $row['einspeisung_kwh'] > $row['erzeugung_kwh'] + self::FEED_ABOVE_GEN_KWH;
             if ($assumed) {
                 $eigen = round($row['erzeugung_kwh'] * $plugInPct / 100, 1);
                 $row['eigenverbrauch_kwh'] = $eigen;
@@ -97,11 +125,13 @@ final class PvSummaryService
             }
             $row['flow'] = null;
             if ($row['covered']) {
-                // Eingespeist ist, was nicht selbst genutzt wurde — beim
-                // Balkonkraftwerk ohne Einspeisezähler die Annahme
+                // Eingespeist ist die gemessene Einspeisung — beim Balkonkraftwerk
+                // ohne Einspeisezähler die Annahme (was nicht selbst genutzt wurde).
+                // v3.9.0 (V4): bis v3.7 „Erzeugung − Eigenverbrauch“, das kappte die
+                // gemessene Einspeisung an der Erzeugung (Juni 196 → 172 kWh)
                 $row['flow'] = $this->withDevices(self::flows(
                     (float)$row['erzeugung_kwh'],
-                    (float)$row['erzeugung_kwh'] - (float)$row['eigenverbrauch_kwh'],
+                    $assumed ? (float)$row['erzeugung_kwh'] - (float)$row['eigenverbrauch_kwh'] : (float)$row['einspeisung_kwh'],
                     (float)$row['bezug_kwh'],
                     (float)($row['battery']['charged_kwh'] ?? 0.0),
                     (float)($row['battery']['discharged_kwh'] ?? 0.0),
@@ -140,10 +170,26 @@ final class PvSummaryService
                     'savings_eur' => null, 'feed_in_revenue_eur' => 0.0,
                     'heat_pump_kwh' => null, 'ev_charger_kwh' => null,
                     'months_interpolated' => 0,   // v3.7.0 (#39)
+                    '_period' => ['from' => null, 'to' => null, 'interpolated_months' => 0, 'interpolated_series' => [],
+                                  'feed_above_generation' => [], 'partial' => [], 'generation_kwh' => 0.0],
                 ];
             }
             $y = &$yearly[$yr];
             if ($row['interpolated']) $y['months_interpolated']++;
+            // v3.9.0 (V4) — Zeitraum des Energieflusses: die Monate mit Daten aller Reihen
+            if ($row['partial_series'] !== []) $y['_period']['partial'][] = $row['ym'];
+            if ($row['covered']) {
+                $p = &$y['_period'];
+                $p['from'] ??= $row['ym'];
+                $p['to'] = $row['ym'];
+                $p['generation_kwh'] += (float)$row['erzeugung_kwh'];
+                if ($row['interpolated']) {
+                    $p['interpolated_months']++;
+                    $p['interpolated_series'] = array_values(array_unique(array_merge($p['interpolated_series'], $row['interpolated_series'])));
+                }
+                if ($row['feed_above_generation']) $p['feed_above_generation'][] = $row['ym'];
+                unset($p);
+            }
             $y['bezug_kwh']        += $row['bezug_kwh'];
             $y['einspeisung_kwh']  += $row['einspeisung_kwh'];
             $y['erzeugung_kwh']    += $row['erzeugung_kwh'];
@@ -170,17 +216,32 @@ final class PvSummaryService
             $y['battery'] = $battery[$y['year']] ?? null;   // v3.1.0 (H7) — Speicher, nur mit Speicherrollen
             $covered = $y['months_covered'] > 0;
             $y['eigenverbrauch_kwh']   = $covered ? round($y['_ev'], 1) : null;
-            $y['eigenverbrauchsquote'] = $covered && $y['_erz'] > 0.1 ? round($y['_ev'] / $y['_erz'], 4) : null;
             // v3.4.0 (F1026) — Autarkie aus dem Energiefluss derselben Monate wie
             // das Schaubild; Speicherverluste zählen nicht als selbst genutzt
             $y['flow'] = $covered && $y['_flow'] !== null ? self::finishFlow($y['_flow'], $y['months_covered']) : null;
+            // v3.9.0 (V4) — Eigenverbrauchsquote gegen die Sonne des Bildes (selbst
+            // genutzt + eingespeist): ohne Widerspruch dieselbe Erzeugung wie bisher, in
+            // einem Monat mit mehr Einspeisung als Erzeugung mindestens die Einspeisung
+            $genFlow = $y['flow'] !== null ? (float)$y['flow']['pv_house'] + (float)$y['flow']['pv_battery'] + (float)$y['flow']['pv_grid'] : $y['_erz'];
+            $y['eigenverbrauchsquote'] = $covered && $genFlow > 0.1 ? round($y['_ev'] / $genFlow, 4) : null;
             $y['autarkiequote'] = $y['flow']['autarky'] ?? null;
             foreach (['bezug_kwh', 'einspeisung_kwh', 'erzeugung_kwh'] as $k) $y[$k] = round($y[$k], 1);
             foreach (['heat_pump_kwh', 'ev_charger_kwh'] as $k) $y[$k] = $y[$k] !== null ? round($y[$k], 1) : null;
             $y['feed_in_revenue_eur'] = round($y['feed_in_revenue_eur'], 2);
             $y['savings_eur'] = $y['savings_eur'] !== null ? round($y['savings_eur'], 2) : null;
             $y['pv_benefit_eur'] = $y['savings_eur'] !== null ? round($y['savings_eur'] + $y['feed_in_revenue_eur'], 2) : null;
-            unset($y['_ev'], $y['_erz'], $y['_bez'], $y['_flow']);
+            // v3.9.0 (V4, V5) — worüber der Energiefluss des Jahres rechnet (additiv):
+            // erster und letzter Monat mit Daten aller Reihen, davon verteilt (mit
+            // den Reihen), Monate mit mehr Einspeisung als Erzeugung und Monate, die
+            // eine Reihe nur zum Teil erfasst; die (verteilte) Erzeugung dieser Monate
+            $p = $y['_period'];
+            $y['flow_period'] = $covered ? [
+                'from' => $p['from'], 'to' => $p['to'], 'months' => $y['months_covered'],
+                'interpolated_months' => $p['interpolated_months'], 'interpolated_series' => $p['interpolated_series'],
+                'feed_above_generation' => $p['feed_above_generation'], 'partial' => $p['partial'],
+                'generation_kwh' => round($p['generation_kwh'], 1),
+            ] : null;
+            unset($y['_ev'], $y['_erz'], $y['_bez'], $y['_flow'], $y['_period']);
         }
         unset($y);
         ksort($yearly);
@@ -273,6 +334,12 @@ final class PvSummaryService
      * nach dem Umweg über den Speicher als Netzstrom. Ohne Speicher ergibt das
      * die bisherige Formel Eigenverbrauch / (Eigenverbrauch + Bezug).
      *
+     * v3.9.0 (V4) — Die gemessene Einspeisung wird nie gekappt: Liegt sie über
+     * der Erzeugung (widersprüchlich, meist eine verteilte Erzeugung), fließt
+     * sie ganz ins Netz und nichts ins Haus; die Sonne im Bild zeigt dann
+     * mindestens die Einspeisung. Bis v3.7 galt PV→Netz = min(Einspeisung,
+     * Erzeugung), und die Jahressumme im Bild lag unter der gemessenen.
+     *
      * v3.5.0 (F1027) — `$decimals`: Der Tagesfilm rechnet je Viertelstunde mit
      * Mengen unter 0,1 kWh und rundet deshalb feiner; Monat und Jahr bleiben bei
      * einer Stelle.
@@ -282,8 +349,7 @@ final class PvSummaryService
     public static function flows(float $gen, float $feed, float $grid, float $charged = 0.0, float $discharged = 0.0, int $decimals = 1): array
     {
         [$gen, $feed, $grid, $charged, $discharged] = array_map(fn($v) => max(0.0, $v), [$gen, $feed, $grid, $charged, $discharged]);
-        $feed = min($feed, $gen);
-        $pvAvail = $gen - $feed;
+        $pvAvail = max(0.0, $gen - $feed);
         $pvBat = min($charged, $pvAvail);
         $gridBat = $charged - $pvBat;
         $f = [
@@ -318,6 +384,20 @@ final class PvSummaryService
             $acc[$k] = ($acc[$k] ?? 0.0) + $v;
         }
         return $acc;
+    }
+
+    /**
+     * v3.9.0 (V4) — Reihen, die einen Monat nur zum Teil erfassen: weniger als
+     * SAME_SPAN_SHARE der Tage der längsten Reihe.
+     *
+     * @param array<string,int> $days Reihe → erfasste Tage
+     * @return list<string>
+     */
+    public static function partialSeries(array $days): array
+    {
+        if (count($days) < 2) return [];
+        $max = max($days);
+        return array_values(array_keys(array_filter($days, fn($d) => $d < self::SAME_SPAN_SHARE * $max)));
     }
 
     /** Wärmepumpe und Wallbox eines Monats am Fluss (null ohne Zähler dieser Rolle). */

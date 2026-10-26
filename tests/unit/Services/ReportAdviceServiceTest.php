@@ -330,7 +330,8 @@ final class ReportAdviceServiceTest extends ServiceTestCase
         self::assertCount(1, $this->successes(self::facts(['co2_claim' => ['landlord_amount_eur' => 27.0, 'case' => 'central', 'stage' => 4, 'deadline' => null]]), 'co2Split'));
     }
 
-    public function testAgendaTasksReadingsGroupedAndOverdueMarked(): void
+    /** v3.9.0 (L11) — bis 3.8 „Letzte Ablesung am {ältestes Datum}: A, B“: das Datum galt nur für einen Zähler. */
+    public function testAgendaTasksReadingsGroupedEachMeterWithItsDateAndOverdueMarked(): void
     {
         $f = self::facts(['agenda' => [
             ['kind' => 'reminder', 'uid' => 'r1', 'date' => self::days(-5), 'title' => 'Wartung'],
@@ -346,7 +347,18 @@ final class ReportAdviceServiceTest extends ServiceTestCase
         self::assertSame(1, $wartung['priority']);
         $read = array_values(array_filter($t, fn($x) => $x['rule'] === 'readings'));
         self::assertCount(1, $read, 'eine Aufgabe für alle fälligen Ablesungen');
-        self::assertStringContainsString('Zähler A, Zähler B', $read[0]['reason']);
+        // der älteste Stand zuerst, je Zähler sein eigenes Datum
+        self::assertSame('Letzte Ablesung je Zähler: Zähler B (20.05.2026), Zähler A (31.05.2026).', $read[0]['reason']);
+    }
+
+    public function testReadingsOnTheSameDayKeepOneDateAndAMeterWithoutReadingSaysSo(): void
+    {
+        $due = fn(string $uid, string $meter, ?string $last) => ['kind' => 'reading_due', 'uid' => $uid, 'date' => self::TODAY, 'title' => $uid,
+            'due_now' => true, 'params' => ['meter' => $meter], 'ref' => ['last_reading' => $last]];
+        $same = $this->tasks(self::facts(['agenda' => [$due('a', 'Gaszähler', '2026-05-31'), $due('b', 'Stromzähler', '2026-05-31')]]), 'readings');
+        self::assertSame('Letzte Ablesung am 31.05.2026: Gaszähler, Stromzähler.', $same[0]['reason']);
+        $never = $this->tasks(self::facts(['agenda' => [$due('a', 'Gaszähler', '2026-05-31'), $due('b', 'Wasserzähler', null)]]), 'readings');
+        self::assertSame('Letzte Ablesung je Zähler: Wasserzähler (noch keine), Gaszähler (31.05.2026).', $never[0]['reason']);
     }
 
     public function testNeutralComparisonWhenNothingPaidOff(): void

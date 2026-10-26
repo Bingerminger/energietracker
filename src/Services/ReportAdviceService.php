@@ -29,6 +29,8 @@ final class ReportAdviceService
     // ── Ampeln ──
     /** Verbrauch (witterungsbereinigt gegen Vorjahr, %): grün ≤ ok, gelb ≤ warn, sonst rot. */
     public const LIGHT_CONSUMPTION = ['ok' => 0.0, 'warn' => 5.0];
+    /** v3.9.0 (L17) — ab so viel Prozent weniger heißt die Ampel „Weniger verbraucht“ (wie „etwa wie im Vorjahr“ unter 2 %). */
+    public const LIGHT_LESS_PCT = 2.0;
     /** Kosten gegen Vorjahr (%). */
     public const LIGHT_COST = ['ok' => 3.0, 'warn' => 10.0];
     /** Abrechnung: erwartete Nachzahlung in Monatsabschlägen. */
@@ -195,8 +197,10 @@ final class ReportAdviceService
         // Verbrauch — witterungsbereinigt, wenn möglich
         $cPct = $t['consumption_pct'] ?? null;
         $lv = self::consumptionLevel($cPct);
+        // v3.9.0 (L17) — deutlich weniger: „Weniger verbraucht“ statt „Nicht mehr verbraucht −18 %“
+        $cWord = $lv === 'ok' && $cPct !== null && (float)$cPct <= -self::LIGHT_LESS_PCT ? 'report.light.consumption.less' : "report.light.consumption.$lv";
         $out[] = ['key' => 'consumption', 'level' => $lv, 'as_of_today' => false,
-            'word' => $this->i18n->t("report.light.consumption.$lv"),
+            'word' => $this->i18n->t($cWord),
             'detail' => $cPct === null ? $this->i18n->t('report.light.noPrevious', ['prev' => $year - 1])
                 : $this->i18n->t(!empty($t['consumption_adjusted']) ? 'report.light.consumptionAdjusted' : 'report.light.consumptionRaw',
                     ['pct' => $this->pct((float)$cPct), 'prev' => $year - 1])];
@@ -237,6 +241,7 @@ final class ReportAdviceService
         $next = null; $nextE = null;
         foreach ((array)($f['agenda'] ?? []) as $e) {
             if (!in_array($e['kind'] ?? '', self::DEADLINE_KINDS, true)) continue;
+            if (!empty($e['ref']['confirm'])) continue;   // v3.9.0 (L14) — nur noch die Bestätigung prüfen, keine Frist, die eilt
             $d = self::days((string)$f['today'], (string)$e['date']);
             if ($next === null || $d < $next) { $next = $d; $nextE = $e; }
         }
@@ -299,7 +304,18 @@ final class ReportAdviceService
         }
         // Kündigen oder wechseln — nicht, wo es nichts zu wechseln gibt (Wasser)
         $cancel = $c['cancel_by'] ?? null;
-        if (!empty($c['switchable']) && is_string($cancel) && $cancel >= $today && self::days($today, $cancel) <= self::CANCEL_WINDOW_DAYS) {
+        $succ = is_array($c['successor'] ?? null) ? $c['successor'] : null;
+        if (!empty($c['switchable']) && !empty($c['successor_switch']) && $succ !== null && is_string($cancel) && $cancel >= $today
+            && self::days($today, $cancel) <= self::CANCEL_WINDOW_DAYS) {
+            // v3.9.0 (L14) — ein Folgevertrag bei einem anderen Versorger ist eingetragen: Der
+            // Wechsel ist entschieden, offen ist nur die Bestätigung der Kündigung. Kein
+            // „Kündigung oder Wechsel bis …“ mit Priorität 1 mehr, sondern ein Hinweis.
+            $out[] = $this->info('cancelConfirm', $c['utility'] ?? null, 'report.advice.cancelConfirm.title', ['label' => $label],
+                'report.advice.cancelConfirm.reason', [
+                    'provider' => $provider, 'next' => (string)(($succ['provider'] ?? '') ?: '—'),
+                    'start' => $this->i18n->date((string)$succ['start']), 'date' => $this->i18n->date($cancel),
+                ], true);
+        } elseif (!empty($c['switchable']) && is_string($cancel) && $cancel >= $today && self::days($today, $cancel) <= self::CANCEL_WINDOW_DAYS) {
             $steps = [];
             $euro = null;
             $offer = $c['offer'] ?? null;
@@ -317,12 +333,15 @@ final class ReportAdviceService
                 'report.advice.cancel.title', ['label' => $label],
                 'report.advice.cancel.reason', [
                     'provider' => $provider, 'date' => $this->i18n->date($cancel),
-                    'end' => $this->i18n->date((string)($c['switch_date'] ?? $c['end'] ?? $cancel)),
+                    // v3.9.0 (L1) — „endet zum“ ist der letzte Tag, nicht der Wechseltag (switch_date = Tag danach)
+                    'end' => $this->i18n->date(!empty($c['switch_date']) ? date('Y-m-d', (int)strtotime($c['switch_date'] . ' -1 day')) : (string)($c['end'] ?? $cancel)),
                 ], $euro, $cancel, $steps, true);
         } elseif (!empty($c['switchable']) && !empty($c['cancel_missed']) && !empty($c['is_current'])) {
             $out[] = $this->info('cancelMissed', $c['utility'] ?? null, 'report.advice.cancelMissed.title', ['label' => $label],
                 'report.advice.cancelMissed.reason', ['provider' => $provider,
-                    'end' => $this->i18n->date((string)($c['effective_end'] ?? $c['end'] ?? $today))], true);
+                    // das Vertragsende (wie bisher `effective_end` eines befristeten Vertrags; die
+                    // Abrechnungsperiode kann seit v3.9.0 früher enden)
+                    'end' => $this->i18n->date((string)($c['end'] ?? $c['effective_end'] ?? $today))], true);
         }
         // Preiserhöhung
         $pi = $c['price_increase'] ?? null;
@@ -437,7 +456,8 @@ final class ReportAdviceService
         if (($pv['benefit_eur'] ?? null) !== null && (float)$pv['benefit_eur'] > 0) {
             $out[] = $this->success('pvBenefit', 'pv_erzeugung', 'report.advice.pvBenefit.title', [], 'report.advice.pvBenefit.reason', [
                 'savings' => $this->approx((float)($pv['savings_eur'] ?? 0)), 'feed' => $this->approx((float)($pv['feed_in_revenue_eur'] ?? 0)),
-            ], $this->euro((float)$pv['benefit_eur'], 'year', 'measured', 'earned'));
+            // v3.9.0 (V5) — aus verteilter Erzeugung ist der Eigenverbrauch geschätzt, nicht gemessen
+            ], $this->euro((float)$pv['benefit_eur'], 'year', !empty($pv['estimated']) ? 'estimated' : 'measured', 'earned'));
         }
         $rate = $pv['self_rate'] ?? null;
         if ($rate !== null && (float)$rate < self::SELF_RATE_LOW && $grid !== null && $feed !== null && (float)$grid > (float)$feed) {
@@ -544,12 +564,25 @@ final class ReportAdviceService
                 null, $date, [], true);
         }
         if ($readings !== []) {
-            $names = array_values(array_unique(array_map(fn($e) => (string)($e['params']['meter'] ?? $e['title']), $readings)));
-            $last = array_filter(array_map(fn($e) => $e['ref']['last_reading'] ?? null, $readings));
+            // v3.9.0 (L11) — je Zähler sein Datum: ein gemeinsames „am …“ galt nur für den ältesten
+            $byMeter = [];
+            foreach ($readings as $e) {
+                $name = (string)($e['params']['meter'] ?? $e['title']);
+                $last = $e['ref']['last_reading'] ?? null;
+                if (!array_key_exists($name, $byMeter) || ($last !== null && ($byMeter[$name] === null || $last < $byMeter[$name]))) $byMeter[$name] = $last;
+            }
+            uksort($byMeter, fn($a, $b) => [$byMeter[$a] ?? '', $a] <=> [$byMeter[$b] ?? '', $b]);
+            $dates = array_unique(array_map(fn($d) => (string)$d, $byMeter));
+            if (count($dates) === 1 && $byMeter[array_key_first($byMeter)] !== null) {
+                $reason = 'report.advice.readings.reason';
+                $params = ['meters' => implode(', ', array_keys($byMeter)), 'date' => $this->i18n->date((string)reset($byMeter))];
+            } else {
+                $reason = 'report.advice.readings.reasonEach';
+                $params = ['meters' => implode(', ', array_map(fn($n, $d) => $n . ' (' . ($d !== null ? $this->i18n->date((string)$d)
+                    : $this->i18n->t('report.advice.readings.none')) . ')', array_keys($byMeter), $byMeter))];
+            }
             $out[] = $this->task('readings', null, 'readings', 'report.advice.readings.title', [],
-                'report.advice.readings.reason', ['meters' => implode(', ', $names),
-                    'date' => $last !== [] ? $this->i18n->date((string)min($last)) : '–'],
-                null, $today, [], true);
+                $reason, $params, null, $today, [], true);
         }
         return $out;
     }
@@ -604,7 +637,7 @@ final class ReportAdviceService
 
     /**
      * @param 'year'|'once'|'per100' $per
-     * @param 'measured'|'projected'|'example' $basis
+     * @param 'measured'|'estimated'|'projected'|'example' $basis  v3.9.0 (V5): `estimated` — aus verteilten Monaten
      * @param 'saves'|'avoids'|'costs'|'earned'|'refund' $effect
      */
     private function euro(float $value, string $per, string $basis, string $effect): array
@@ -687,8 +720,13 @@ final class ReportAdviceService
         $parts = [];
         foreach ((array)($unc['reasons'] ?? []) as $r) {
             $parts[] = match ($r) {
-                'factor_clamped' => $this->i18n->t('balanceUncertain.why.factor_clamped', ['raw' => $this->i18n->number((float)($unc['factor_raw'] ?? 0), 2),
-                    'used' => $this->i18n->number((float)($unc['factor'] ?? 0), 2)]),
+                // v3.9.0 (L3) — in Worten: wie viel die letzten Monate gegen die Erwartung
+                // brauchten und wie weit die Schätzung dem folgt (bis v3.8 „Faktor 9,81, gerechnet mit 1,50“)
+                'factor_clamped' => (float)($unc['factor_raw'] ?? 0) >= (float)($unc['factor'] ?? 0)
+                    ? $this->i18n->t('balanceUncertain.why.factor_clamped', ['raw' => $this->i18n->number((float)($unc['factor_raw'] ?? 0), 1),
+                        'used' => $this->i18n->number((float)($unc['factor'] ?? 0), 1)])
+                    : $this->i18n->t('balanceUncertain.why.factorLow', ['raw' => $this->share((float)($unc['factor_raw'] ?? 0) * 100),
+                        'used' => $this->share((float)($unc['factor'] ?? 0) * 100)]),
                 'few_measured' => $this->i18n->t('balanceUncertain.why.few_measured'),
                 default => $this->i18n->t('balanceUncertain.why.poor_fit', ['pct' => $this->share((float)($unc['fit_ratio'] ?? 0) * 100)]),
             };

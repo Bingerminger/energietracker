@@ -104,22 +104,6 @@ final class BillingWindowTest extends ServiceTestCase
                 'is_shadow' => false, 'shadow_label' => null];
     }
 
-    /** Ein zweites Datenverzeichnis mit eigenen Diensten — für den Vergleich „als hätte der Vertrag erst dann begonnen“. */
-    private function twin(): array
-    {
-        $dir = sys_get_temp_dir() . '/et-twin-' . bin2hex(random_bytes(5));
-        mkdir($dir, 0755, true);
-        $store = new JsonStore((string)realpath($dir));
-        (new Migrator($store))->initFresh();
-        $settings = new SettingsService($store);
-        $i18n = new I18nService(dirname(__DIR__, 3) . '/public/locales', $settings);
-        $meters = new MeterService($store, $i18n);
-        $readings = new ReadingService($store, $meters, $i18n);
-        $contracts = new ContractService($store, $meters, $i18n);
-        $cons = new ConsumptionService($store, $meters, $readings, $contracts, $settings, $i18n, new RegressionService(), new DeliveryConsumptionService($store, $settings));
-        return [$store, $meters, $cons, $dir];
-    }
-
     private function seedStrom(\Energietracker\Storage\JsonStore $store, string $start, array $payments): void
     {
         $store->write('strom/meters.json', [self::meter('m_strom_default')]);
@@ -127,9 +111,12 @@ final class BillingWindowTest extends ServiceTestCase
         $store->write('strom/contracts.json', [self::stromContract($start, $payments)]);
     }
 
+    /** v3.9.0 — ein fester Tag „heute“ (die Ablesungen enden am 01.10.2026), sonst wandert die Abrechnungsperiode mit dem Kalender */
+    private const TODAY = '2026-10-15';
+
     private function contractRow(ConsumptionService $c, MeterService $m): array
     {
-        return $c->contractStatus('strom', $m->get('strom', 'm_strom_default'))['contracts'][0];
+        return $c->contractStatus('strom', $m->get('strom', 'm_strom_default'), self::TODAY)['contracts'][0];
     }
 
     public function testRunningContractBalanceStartsTheDayAfterTheLastBookedBill(): void
@@ -145,33 +132,62 @@ final class BillingWindowTest extends ServiceTestCase
         $s = $this->contractRow($this->consumption, $this->meters);
         self::assertSame('2025-08-15', $s['balance_from'], 'Saldo ab dem Tag nach der gebuchten Rechnung');
         self::assertSame(['2026-02-01'], array_column($s['special_payments'], 'date'), 'zählt nur die Abschlagszahlung danach');
+        // v3.9.0 (V1) — der Stichtag (01.01.) passt nicht zur Rechnung: Die angeschnittene
+        // Periode 15.08.–31.12.2025 ist noch nicht abgerechnet und zählt mit (offen seit)
+        self::assertSame(['from' => '2026-01-01', 'open_from' => '2025-08-15'], array_intersect_key($s['billing_period'], ['from' => 1, 'open_from' => 1]));
 
-        // dieselben Daten, als hätte der Vertrag am 15.08. begonnen (ohne Rechnung, nur die Zahlung danach)
-        [$store, $meters, $cons, $dir] = $this->twin();
-        try {
-            $this->seedStrom($store, '2025-08-15', [$extra]);
-            $t = $this->contractRow($cons, $meters);
-            self::assertSame('2025-08-15', $t['balance_from']);
-            foreach (['current_balance', 'projected_end_balance', 'cost_to_date', 'advance_paid', 'energy_cost_to_date', 'base_to_date'] as $k) {
-                self::assertEqualsWithDelta((float)$t[$k], (float)$s[$k], 0.02, $k);
-            }
-            self::assertEquals(array_column($t['balance_path'], 'balance'), array_column($s['balance_path'], 'balance'), 'Saldo-Verlauf ab dem Saldobeginn');
-            self::assertEqualsWithDelta((float)$s['projected_end_balance'], (float)end($s['balance_path'])['balance'], 0.01, 'endet beim erwarteten Saldo');
-        } finally {
-            exec('rm -rf ' . escapeshellarg($dir));
-        }
+        // v3.9.0 (V1) — bis v3.8 verglich der Test hier mit einem Vertrag, der am 15.08.
+        // beginnt. Ohne Rechnung schneidet der Stichtag jetzt auch ihn (laufende Periode ab
+        // 01.01.); die Gleichheit gilt deshalb gegen das Abrechnungsjahr: Die gemessenen
+        // Arbeitskosten der Karte sind die der beiden offenen Perioden (15.08.–31.12.2025 und
+        // 2026 bis zur letzten Ablesung). Von Hand: 250 kWh × 30 ct = 75 € je Monat, 4,5 Monate
+        // 2025 (17 von 31 Tagen im August) und 9 Monate 2026.
+        $bp = (new BillingPeriodService($this->settings, $this->meters, $this->readings, $this->consumption, $bills))
+            ->forTarget('strom', $this->meters->get('strom', 'm_strom_default'), false, self::TODAY);
+        $open = array_values(array_filter($bp['periods'], fn($p) => $p['from'] >= '2025-08-15'));
+        self::assertSame(['2025-08-15', '2026-01-01'], array_column($open, 'from'));
+        $measured = (float)$s['energy_cost_to_date'] - (float)$s['estimated_cost_to_date'];
+        self::assertEqualsWithDelta(array_sum(array_column($open, 'energy_cost')), $measured, 0.05, 'eine Quelle: Karte = offene Perioden');
+        self::assertEqualsWithDelta(75.0 * (17 / 31 + 4) + 75.0 * 9, $measured, 0.05);
+        self::assertEqualsWithDelta((float)$s['projected_end_balance'], (float)end($s['balance_path'])['balance'], 0.01, 'endet beim erwarteten Saldo');
+        self::assertSame('2026-12-31', $s['settle_on'], 'abgerechnet zum letzten Tag der Periode');
     }
 
-    public function testARecordedButUnbookedBillLeavesTheBalanceAsBefore(): void
+    /**
+     * v3.9.0 (V1) — bis v3.8 „testARecordedButUnbookedBillLeavesTheBalanceAsBefore“: Eine
+     * erfasste, nicht gebuchte Rechnung ließ den Saldo ab Vertragsbeginn stehen. Jetzt ist
+     * jede erfasste Rechnung eine Abrechnungsperiode (wie im Abrechnungsjahr); gebucht oder
+     * nicht, beginnt der Saldo danach. Das Ergebnis der Rechnung steht in „Rechnung prüfen“.
+     */
+    /**
+     * v3.9.0 (auswertung, V1) — ohne erfasste Rechnung rechnet die Karte über die laufende
+     * Periode (2026); von den Sonderzahlungen darin zählt nur die zusätzliche Abschlagszahlung.
+     * Die Rückzahlung vom 01.03.2026 gleicht die Abrechnung 2025 aus (wie im Abrechnungsjahr).
+     */
+    public function testWithoutABillTheRunningPeriodCountsOnlyTheExtraAdvance(): void
+    {
+        $refund = ['id' => 'sp_refund', 'date' => '2026-03-01', 'kind' => 'rueckzahlung_ohne', 'amount_eur' => 40.0, 'note' => ''];
+        $extra = ['id' => 'sp_extra', 'date' => '2026-04-01', 'kind' => 'abschlagszahlung', 'amount_eur' => 50.0, 'note' => ''];
+        $this->seedStrom($this->store, '2025-01-01', [$refund, $extra]);
+        $s = $this->contractRow($this->consumption, $this->meters);
+        self::assertSame('2026-01-01', $s['billing_period']['from']);
+        self::assertSame(['2026-04-01'], array_column($s['special_payments'], 'date'), 'die Rückzahlung gehört zur Abrechnung 2025');
+        // Kundensicht: 50 € mehr bezahlt senken den Saldo um 50 (die Rückzahlung bliebe draußen)
+        self::assertEqualsWithDelta(round($s['cost_to_date'] - $s['advance_paid'] - 50.0, 2), $s['current_balance'], 0.02);
+    }
+
+    public function testARecordedBillStartsTheOpenBalanceBookedOrNot(): void
     {
         $this->seedStrom($this->store, '2025-01-01', []);
         $before = $this->contractRow($this->consumption, $this->meters);
+        self::assertSame('2026-01-01', $before['balance_from'], 'ohne Rechnung: die laufende Periode (Stichtag 01.01.)');
         $bills = new BillService($this->store, $this->meters, $this->contracts, $this->consumption, $this->i18n);
         $bills->create('strom', ['meter_id' => 'm_strom_default', 'period_from' => '2025-01-01', 'period_to' => '2025-08-14', 'issued_on' => '2025-09-10',
             'invoice' => ['amount_eur' => 640.0, 'advances_paid_eur' => 680.0]]);
         $after = $this->contractRow($this->consumption, $this->meters);
-        self::assertSame('2025-01-01', $after['balance_from'], 'ohne Buchung bleibt das Ergebnis im Saldo');
-        self::assertSame($before['current_balance'], $after['current_balance']);
+        self::assertSame('2025-08-15', $after['balance_from'], 'erfasst, nicht gebucht: offen seit dem Tag danach');
+        // die 4,5 Monate nach der Rechnung kommen dazu: 75 € Arbeit + 10 € Grundpreis − 90 € Abschlag je Monat
+        self::assertEqualsWithDelta((17 / 31 + 4) * (75.0 + 10.0 - 90.0), $after['current_balance'] - $before['current_balance'], 0.6);
     }
 
     // ── 3. Zählergruppen ohne doppelten Subzähler ──

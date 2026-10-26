@@ -35,6 +35,7 @@ final class MessyHouseholdTest extends ServiceTestCase
         '2023-07', '2023-08',              // 3.7. → 29.8. (57 Tage)
         '2024-01', '2024-02',              // 30.12. → 2.3., dazwischen nur die geschätzte am 10.2.
         '2024-09', '2024-10', '2024-11',   // Herbst: 7.9. → 19.12. (103 Tage)
+        '2024-12',                         // v3.9.0 (L8) — 18 von 31 Tagen aus demselben Abstand
         '2025-06', '2025-07', '2025-08',   // Sommerpause: 3.6. → 2.9.
     ];
 
@@ -113,6 +114,12 @@ final class MessyHouseholdTest extends ServiceTestCase
         self::assertSame(self::GAS_INTERPOLATED, self::interpolatedYms($gas));
         $by = array_column($gas, null, 'ym');
         self::assertFalse($by['2023-11']['interpolated'], 'zwei Ablesungen im Monat: gemessen');
+        // v3.9.0 (L8) — Dezember 2024: 1.–18.12. aus dem 103-Tage-Abstand, 19.–31.12. gemessen (13 von 31 Tagen).
+        // Nach Verbrauch zählte der gemessene Teil mehr (die verteilte Tagesrate nimmt den milden Herbst mit),
+        // nach Tagen stammt der Monat überwiegend aus dem langen Abstand: verteilt
+        self::assertEqualsWithDelta(13 / 31, $by['2024-12']['measured_day_share'], 0.001);
+        self::assertGreaterThan(0.5, $by['2024-12']['measured_share'], 'nach Verbrauch allein wäre er „gemessen“ (bis v3.8)');
+        self::assertTrue($by['2024-12']['interpolated']);
         self::assertTrue($by['2025-02']['device_swap'] && !$by['2025-02']['interpolated'], 'Tausch-Monat: gemessen, eigene Kennung');
         // Strom einmal im Jahr, PV-Erzeugung zweimal: jeder Monat verteilt; Einspeisung monatlich: keiner
         foreach (['strom', 'pv_erzeugung'] as $u) {
@@ -189,6 +196,9 @@ final class MessyHouseholdTest extends ServiceTestCase
         }
         $info = $this->consumption->interpolationInfo('strom', $this->meter('strom'), $this->monthly('strom'));
         self::assertSame(count($this->h['utilities']['strom']['readings']), $info['readings']);
+        // v3.9.0 (L10) — 2024: 8 Ablesungen und 1 Schätzung (10.02.) = die 9 Einträge der Liste
+        $g = $this->consumption->interpolationInfo('gas', $this->meter('gas'), $gas);
+        self::assertSame([8, 1], [$g['readings_by_year']->{'2024'}, $g['estimated_by_year']->{'2024'}]);
     }
 
     /** Saldo und Kosten: gleich der Summe zwischen den Ablesungen, verteilt oder nicht. */
@@ -203,8 +213,15 @@ final class MessyHouseholdTest extends ServiceTestCase
         self::assertEqualsWithDelta($m3, array_sum(array_column($gas, 'm3')), 0.05 * $n, 'm³ über alle Monate = Summe zwischen den Ablesungen');
         self::assertEqualsWithDelta($kwh, array_sum(array_column($gas, 'kwh')), 0.05 * $n);
         self::assertEqualsWithDelta($kwh * 0.112, array_sum(array_column($gas, 'kwh_cost')), 0.01 * $n, 'Arbeitspreis × Menge');
+        // v3.9.0 (V1) — die Karte rechnet über die laufende Abrechnungsperiode, das
+        // Abrechnungsjahr über alle: zusammen wieder die Summe zwischen den Ablesungen
+        $bills = new \Energietracker\Services\BillService($this->store, $this->meters, $this->contracts, $this->consumption, $this->i18n);
+        $bp = (new \Energietracker\Services\BillingPeriodService($this->settings, $this->meters, $this->readings, $this->consumption, $bills))
+            ->forTarget('gas', $this->meter('gas'));
+        self::assertEqualsWithDelta($kwh, array_sum(array_column($bp['periods'], 'kwh')), 0.05 * $n, 'Abrechnungsjahre zusammen = Summe zwischen den Ablesungen');
         $c = $this->consumption->contractStatus('gas', $this->meter('gas'))['contracts'][0];
-        self::assertEqualsWithDelta($kwh, $c['actual_kwh'], 0.05 * $n);
+        $inWindow = array_sum(array_map(fn($m) => (float)$m['kwh'], array_filter($gas, fn($m) => $m['ym'] >= substr((string)$c['balance_from'], 0, 7))));
+        self::assertEqualsWithDelta($inWindow, $c['actual_kwh'], 0.05, 'Karte = Monate der laufenden Periode');
         self::assertEqualsWithDelta($c['cost_to_date'] - $c['advance_paid'], $c['current_balance'], 0.02);
 
         $s = array_column($this->h['utilities']['strom']['readings'], 'counter');
@@ -227,10 +244,14 @@ final class MessyHouseholdTest extends ServiceTestCase
         $monthly = [$at('2025-09-30'), $at('2025-10-31')];
         $this->contracts->update('gas', 'c_gas_messy', ['advance_payments' => [['from' => '2022-11-01', 'amount_eur' => 450, 'every_months' => 3]]]);
         $quarterly = [$at('2025-09-30'), $at('2025-10-31')];
-        self::assertEqualsWithDelta(5250.0, $monthly[0]['advance_paid'], 0.01);
-        self::assertEqualsWithDelta(5400.0, $monthly[1]['advance_paid'], 0.01);
-        self::assertEqualsWithDelta(5400.0, $quarterly[0]['advance_paid'], 0.01);
-        self::assertEqualsWithDelta(5400.0, $quarterly[1]['advance_paid'], 0.01);
+        // v3.9.0 (auswertung, V1) — der Saldo rechnet über die laufende Abrechnungsperiode (ohne
+        // Stichtag das Kalenderjahr 2025), nicht mehr ab Vertragsbeginn 11/2022 (bis v3.8: 5.250,
+        // 5.400, 5.400, 5.400). Monatlich: Januar bis September 9 × 150, bis Oktober 10 × 150.
+        // Vierteljährlich ab 01.11.2022: in 2025 am 01.02., 01.05., 01.08. je 450 (der nächste am 01.11.)
+        self::assertEqualsWithDelta(1350.0, $monthly[0]['advance_paid'], 0.01);
+        self::assertEqualsWithDelta(1500.0, $monthly[1]['advance_paid'], 0.01);
+        self::assertEqualsWithDelta(1350.0, $quarterly[0]['advance_paid'], 0.01);
+        self::assertEqualsWithDelta(1350.0, $quarterly[1]['advance_paid'], 0.01);
         foreach ([0, 1] as $i) {
             self::assertSame($monthly[$i]['cost_to_date'], $quarterly[$i]['cost_to_date'], 'die Kosten hängen nicht am Rhythmus');
             self::assertEqualsWithDelta($quarterly[$i]['cost_to_date'] - $quarterly[$i]['advance_paid'], $quarterly[$i]['current_balance'], 0.02);

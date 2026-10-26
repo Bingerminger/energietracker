@@ -82,6 +82,8 @@ final class WaterCalendarBalanceTest extends ServiceTestCase
     public function testTheRunningContractSuggestsAnAdvanceAndDrawsThePath(): void
     {
         $this->contract(null);
+        // v3.9.0 (L12) — Stichtag ein halbes Jahr voraus: genug Abschläge bis zur Abrechnung für einen Vorschlag
+        $this->settings->set(['billing_cycle_anchor_wasser' => date('m-01', strtotime(date('Y-m-01') . ' +6 months'))]);
         $c = $this->contractRow();
         self::assertTrue($c['is_current']);
         self::assertNotNull($c['suggested_advance']);
@@ -90,7 +92,8 @@ final class WaterCalendarBalanceTest extends ServiceTestCase
         self::assertEqualsWithDelta((float)$c['projected_end_balance'], (float)end($c['balance_path'])['balance'], 0.02, 'Verlauf endet beim erwarteten Saldo');
         // die geschätzten Tage seit der letzten Ablesung: Trink- UND Schmutzwasser je m³
         // (10 m³ im Monat ≈ 0,33 m³ am Tag × 5,50 €), nicht nur der Trinkwasserpreis
-        $gapDays = (int)round((strtotime((string)$c['balance_as_of']) - strtotime((string)$c['measured_until'])) / 86400);
+        // v3.9.0 (V1) — geschätzt wird ab der letzten Ablesung, frühestens ab dem Beginn der Abrechnungsperiode
+        $gapDays = (int)round((strtotime((string)$c['balance_as_of']) - strtotime(max((string)$c['measured_until'], (string)$c['balance_from']))) / 86400);
         self::assertGreaterThan(30, $gapDays);
         self::assertEqualsWithDelta(120 / 365 * 5.5, (float)$c['estimated_cost_to_date'] / $gapDays, 0.25);
         // Jahresbericht: Saldo und Abschlags-Rat auch für Wasser

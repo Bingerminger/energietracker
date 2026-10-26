@@ -168,8 +168,11 @@ export function scenarioHtml({ cur, r, u, meters = [], contracts = [], cardId = 
               // v3.7.0 (wirklichkeit-2) — Gütesperre: Spannen statt Beträge
               ? row(t('scenario.kpi.advance'), ...['base_range', 'scen_range'].map(k => r.advance.uncertain[k]
                   ? t('scenario.kpi.advanceRange', { low: fmt.eur0(r.advance.uncertain[k][0]), high: fmt.eur0(r.advance.uncertain[k][1]) }) : '–'), t('scenario.kpi.advanceUncertain'))
+              // v3.9.0 (L12) — kurz vor der Abrechnung: der laufende Bedarf danach
+              : r.advance.withheld === 'short' && r.advance.base_ongoing != null
+              ? row(t('scenario.kpi.advance'), fmt.eur(r.advance.base_ongoing), fmt.eur(r.advance.scen_ongoing), t('scenario.kpi.advanceShort', { date: fmt.date(r.billing?.settle_on || r.billing?.until) }))
               : row(t('scenario.kpi.advance'), fmt.eur(r.advance.base_recommended), fmt.eur(r.advance.scen_recommended), signed(r.advance.scen_recommended - r.advance.base_recommended, fmt.eur))}
-            ${r.billing ? row(t('scenario.kpi.balance', { date: fmt.date(r.billing.until) }), bal(r.billing.base_end_balance), bal(r.billing.scen_end_balance), '') : ''}
+            ${r.billing ? row(t('scenario.kpi.balance', { date: fmt.date(r.billing.settle_on || r.billing.until) }), bal(r.billing.base_end_balance), bal(r.billing.scen_end_balance), '') : ''}
           </tbody></table></div>
       </section>
       <section class="print-section">

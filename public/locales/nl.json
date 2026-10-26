@@ -476,7 +476,7 @@
       "consShort": "{value} verbruik",
       "gpPlus": " + {value} vastrecht",
       "suggestAdvance": "Met een voorschot van {suggested} in plaats van {current} zou de afrekening op ongeveer ±0 uitkomen.",
-      "measuredThenEstimated": "gemeten tot {date} ({kwh} kWh), daarna geschat: {value}",
+      "measuredThenEstimated": "gemeten tot {date} ({amount}), daarna geschat: {value}",
       "renewed": "De looptijd eindigde op {date}. Zonder opzegging loopt het contract tegen de laatste prijzen door en is het altijd met hoogstens één maand opzegbaar.",
       "cancelMissed": "Opzegdatum {date} gemist: het contract eindigt niet op {end} maar loopt door — daarna opzegbaar met hoogstens één maand.",
       "priceIncrease": "Prijsverhoging vanaf {date}: {what}.",
@@ -504,7 +504,13 @@
       },
       "sinceBill": "Gerekend vanaf {date}: de afrekening daarvoor is in het contract geboekt en telt hier niet meer mee.",
       "nextDue": "volgende vervaldatum: {date}",
-      "paidCurrentEvery": "nu: {value}"
+      "paidCurrentEvery": "nu: {value}",
+      "suggestShort": {
+        "one": "Tot de afrekening op {date} rest nog maar {count} voorschot. De afrekening verrekent de rest, dus het voorschot hoeft nu niet omhoog.",
+        "other": "Tot de afrekening op {date} resten nog maar {count} voorschotten. De afrekening verrekent de rest, dus het voorschot hoeft nu niet omhoog."
+      },
+      "suggestOngoing": "Daarna zou ongeveer {amount} in plaats van {current} per maand passend zijn.",
+      "sincePeriod": "Gerekend vanaf {date}, het begin van de lopende afrekenperiode tot {until}. Eerdere periodes staan onder afrekenjaar."
     },
     "contractsTable": {
       "emptyTitle": "Geen contracten geregistreerd",
@@ -525,7 +531,8 @@
       "colSpecial": "Bijzondere betalingen",
       "hint": "Bonus = tegoeden uit het contract (direct-, overstap-, nieuwe-klantbonus). Bijzondere betalingen = terugbetalingen (+), bijbetalingen en extra voorschotten (−) buiten het voorschotschema; beide tellen mee in het saldo. Tik voor de afzonderlijke posten; ze worden in het contractbeheer bijgehouden.",
       "colEarned": "Vergoeding",
-      "colReceived": "Ontvangen"
+      "colReceived": "Ontvangen",
+      "futureLegend": "≈ Toekomstig contract: het verwachte saldo is geschat vanaf het begin van het contract met zijn prijzen, zijn voorschot en je verbruik tot nu toe."
     },
     "monthlyTable": {
       "noData": "Geen gegevens voor dit jaar.",
@@ -753,6 +760,14 @@
       "alt": {
         "one": "Staafdiagram: energiestroom {year} — in {months} maand met gegevens van alle drie de meters opgewekt {generation}, waarvan zelf gebruikt {self} en teruggeleverd {feedIn}; van het net {grid}.",
         "other": "Staafdiagram: energiestroom {year} — in {months} maanden met gegevens van alle drie de meters opgewekt {generation}, waarvan zelf gebruikt {self} en teruggeleverd {feedIn}; van het net {grid}."
+      },
+      "feedAbove": {
+        "one": "! {months}: de gemeten teruglevering ligt boven de verdeelde opwekking. Zelf verbruikt en teruggeleverd zijn daar samen meer dan de opwekking, omdat die voor de maand te laag verdeeld is.",
+        "other": "! {months}: de gemeten teruglevering ligt boven de verdeelde opwekking. Zelf verbruikt en teruggeleverd zijn daar samen meer dan de opwekking, omdat die voor deze maanden te laag verdeeld is."
+      },
+      "partial": {
+        "one": "* {months}: één meter dekt maar een deel van de maand. Zonder dezelfde periode ontbreekt daar het eigen verbruik.",
+        "other": "* {months}: één meter dekt maar een deel van de maand. Zonder dezelfde periode ontbreekt daar het eigen verbruik."
       }
     },
     "photo": {
@@ -2832,7 +2847,8 @@
       "poorFit": "Het verwarmingsmodel past slecht bij deze meter (± {pct} per maand): de prognose rekent met de gemeten maanden en toont geen bandbreedte.",
       "regressionInvalid": "De gekozen stooklijn ({model}) geldt niet — {why}. De prognose rekent zonder.",
       "climateNormalGrid": "Voor de graaddagen-basistemperatuur {base} °C is er nog geen klimaatnormaal (vooraf berekend voor {min} tot {max} °C; een ouder normaal haalt de app bij de volgende weerafstemming opnieuw op). Tot dan tellen de graaddagen uit de eigen temperatuurgeschiedenis.",
-      "fewMeasured": "Te weinig gemeten maanden om het verwarmingsmodel te controleren: de prognose toont geen bandbreedte, saldo en voorschot staan er alleen als marge."
+      "fewMeasured": "Te weinig gemeten maanden om het verwarmingsmodel te controleren: de prognose toont geen bandbreedte, saldo en voorschot staan er alleen als marge.",
+      "levelLastYear": "De jaarhoeveelheid volgt het verbruik van de laatste 365 dagen ({amount}, {from} tot {to}). Niet elke kalendermaand is gemeten, daarom verdeelt de prognose alleen deze hoeveelheid over de maanden."
     },
     "assumedNote": "Geen contract voor deze maand — het laatste contract loopt tegen zijn prijzen door (aanname; contracten verlengen zich).",
     "method": {
@@ -2852,7 +2868,8 @@
     "annualNoBand": "Jaar: {value} {unit} — zonder bandbreedte, omdat het verwarmingsmodel slecht past.",
     "annualNoBandFew": "Jaar: {value} {unit} — zonder bandbreedte, omdat er te weinig maanden gemeten zijn om het verwarmingsmodel te controleren.",
     "annualNoBandYears": "Jaar: {value} {unit} — zonder bandbreedte: hoe sterk een maand van jaar tot jaar schommelt, blijkt pas uit metingen van meer dan één jaar.",
-    "annualBandSpread": "Jaar: {value} {unit}, in {level}% van de jaren tussen {low} en {high} {unit} — naar de spreiding van de maanden over de jaren."
+    "annualBandSpread": "Jaar: {value} {unit}, in {level}% van de jaren tussen {low} en {high} {unit} — naar de spreiding van de maanden over de jaren.",
+    "blendPoorFit": "het verwarmingsmodel past slecht, daarom rekent elke maand met het seizoensprofiel"
   },
   "report": {
     "createdOn": "Gemaakt op {date}",
@@ -2976,7 +2993,9 @@
       "cheapShare": "Aandeel in goedkope uren",
       "errors": "Let op: enkele onderdelen ontbreken, omdat hun gegevens niet gelezen konden worden.",
       "billing": "Afrekenjaren",
-      "flexPage": "Flexibiliteit"
+      "flexPage": "Flexibiliteit",
+      "successesNoneUnadjusted": "In {year} verbruikte je {pct} minder dan in {prev}. Als besparing is dat niet aan te tonen: de vergelijking is niet weersgecorrigeerd en een zachtere winter heeft hetzelfde effect. Het onderdeel ‘Goed om te weten’ toont de vergelijking met het vorige jaar.",
+      "successesNoneUnproven": "In {year} verbruikte je {pct} minder dan in {prev}. Als besparing is dat niet aan te tonen: een deel van de maanden is verdeeld, niet gemeten. Het onderdeel ‘Goed om te weten’ toont de vergelijking met het vorige jaar."
     },
     "tile": {
       "cost": "Energiekosten",
@@ -3006,7 +3025,8 @@
         "ok": "Niet meer verbruikt",
         "warn": "Iets meer verbruikt",
         "alert": "Duidelijk meer verbruikt",
-        "none": "Geen vergelijking"
+        "none": "Geen vergelijking",
+        "less": "Minder verbruikt"
       },
       "billing": {
         "ok": "Voorschotten kloppen",
@@ -3056,7 +3076,8 @@
       "basis": {
         "measured": "gemeten",
         "projected": "geëxtrapoleerd",
-        "example": "rekenvoorbeeld"
+        "example": "rekenvoorbeeld",
+        "estimated": "geschat"
       }
     },
     "agenda": {
@@ -3206,7 +3227,9 @@
       },
       "readings": {
         "title": "Meterstanden opnemen",
-        "reason": "Laatste meterstand op {date}: {meters}."
+        "reason": "Laatste meterstand op {date}: {meters}.",
+        "reasonEach": "Laatste meterstand per meter: {meters}.",
+        "none": "nog geen"
       },
       "bill": {
         "title": "Rekening controleren: {label}",
@@ -3231,6 +3254,10 @@
       "advanceUncertain": {
         "title": "{label}: voorschot na de volgende meterstand controleren",
         "reason": "{text}"
+      },
+      "cancelConfirm": {
+        "title": "Opzegging bevestigd? {label}",
+        "reason": "Vanaf {start} staat een contract bij {next} ingevoerd. Controleer of ‘{provider}’ de opzegging heeft bevestigd; die moet uiterlijk {date} binnen zijn."
       }
     },
     "money": {
@@ -3264,7 +3291,14 @@
         "paybackOpen": "Tot nu toe terugverdiend: {paid} van {investment} (stand van vandaag).",
         "batteryTitle": "Accu",
         "battery": "Geladen {charged} kWh, ontladen {discharged} kWh, ongeveer {cycles} volledige cycli, rendement {eff}.",
-        "co2Avoided": "Vermeden CO₂: {kg}, berekend met de CO₂-factor voor stroom uit de instellingen."
+        "co2Avoided": "Vermeden CO₂: {kg}, berekend met de CO₂-factor voor stroom uit de instellingen.",
+        "span": "Berekend over de maanden waarin alle drie de meters gegevens hebben: {from} tot {to} ({span}).",
+        "estimated": "≈ Een deel van de maandwaarden is verdeeld, niet gemeten{readings}. Eigen verbruik, zelfvoorziening en opbrengst zijn daarom schattingen.",
+        "feedAbove": {
+          "one": "In {months} ligt de gemeten teruglevering boven de verdeelde opwekking. Daar telt de teruglevering als opwekking en is niets zelf verbruikt.",
+          "other": "In {count} maanden ({months}) ligt de gemeten teruglevering boven de verdeelde opwekking. Daar telt de teruglevering als opwekking en is niets zelf verbruikt."
+        },
+        "noCompare": "Geen vergelijking met {prev}: daarvoor zijn twee hele jaren met gegevens van alle drie de meters nodig en een meterstand van de opwekking bij beide jaarwisselingen."
       },
       "heatPump": {
         "sentence": "De warmtepomp maakte van {elec} kWh stroom {heat} kWh warmte: seizoensprestatiefactor {jaz}.",
@@ -3961,7 +3995,9 @@
     "history": "Geschiedenis ({count})",
     "historyTitle": "Geschiedenis: {name}",
     "anytime": "Altijd opzegbaar",
-    "advanceEvery": "Voorschot {amount}"
+    "advanceEvery": "Voorschot {amount}",
+    "noNotice": "Opzegtermijn niet ingevoerd",
+    "earliestEnd": "Op zijn vroegst opzegbaar per {date}"
   },
   "billCheck": {
     "noMeter": "De controle rekent de jaarafrekening na voor gas, stroom, water en stadsverwarming. Maak eerst een meter aan.",
@@ -4470,7 +4506,8 @@
       "billExpected": "Rekening verwacht: {label} ({provider}) voor {from} – {until}",
       "billOverdue": "Rekening te laat: {label} ({provider}) voor {from} – {until} — wettelijke termijn verstreken, vraag het na bij de leverancier",
       "finalBillExpected": "Eindafrekening verwacht: {label} ({provider}) voor {from} – {until}",
-      "finalBillOverdue": "Eindafrekening te laat: {label} ({provider}) voor {from} – {until} — wettelijke termijn verstreken, vraag het na bij de leverancier"
+      "finalBillOverdue": "Eindafrekening te laat: {label} ({provider}) voor {from} – {until} — wettelijke termijn verstreken, vraag het na bij de leverancier",
+      "cancelConfirm": "{label}: opzegging bevestigd? ({provider}, overstap naar {next})"
     },
     "subscribe": "Abonneren in je agenda",
     "intro": "Afspraken, opzegtermijnen, contracteinden, prijsgaranties en verschuldigde meterstanden als agenda-abonnement. De agenda haalt ze elke 12 uur opnieuw op.",
@@ -4809,8 +4846,8 @@
     "waterBasis": "{m3} m³ in het jaar · personen in het huishouden: {persons}",
     "rating": {
       "good": "Goed",
-      "near": "Erboven",
-      "high": "Ruim erboven"
+      "near": "Wat hoog",
+      "high": "Hoog"
     },
     "invite": {
       "reference": "Hoe staat je verbruik ervoor? Vul een vergelijkingswaarde in, bijvoorbeeld uit een verbruiksvergelijking — deze tegel toont dan een stoplicht.",
@@ -4973,6 +5010,22 @@
         "calcNote": "Gestreept: per kwartier berekend, niet gemeten.",
         "powerNote": "In de knooppunten: het vermogen in dit kwartier (kW). Daaronder: de hoeveelheden sinds middernacht (kWh).",
         "gapsOption": "{date} (met gaten)"
+      },
+      "yearRange": "{year} ({from} tot {to}, {span})",
+      "series": {
+        "erzeugung_kwh": "opwekking",
+        "einspeisung_kwh": "teruglevering",
+        "bezug_kwh": "netafname"
+      },
+      "interpolatedNote": "≈ Verdeeld, niet gemeten: {series} van deze maanden{readings}. Hoe de zonnestroom zich verdeelt, is daarom geschat.",
+      "feedAboveMonth": "Tegenstrijdig: de gemeten teruglevering ({feed}) ligt boven de opwekking ({gen}). De figuur telt de hele teruglevering, dus er is niets zelf verbruikt. De zon toont hier minstens de teruglevering.",
+      "feedAboveYear": {
+        "one": "Tegenstrijdig in {months}: de gemeten teruglevering ligt boven de verdeelde opwekking. Daar telt de figuur de hele teruglevering en niets als zelf verbruikt.",
+        "other": "Tegenstrijdig in {count} maanden ({months}): de gemeten teruglevering ligt boven de verdeelde opwekking. Daar telt de figuur de hele teruglevering en niets als zelf verbruikt."
+      },
+      "partialNote": {
+        "one": "Zonder {months}: daar dekt één meter maar een deel van de maand.",
+        "other": "Zonder {count} maanden ({months}): daar dekt één meter maar een deel van de maand."
       }
     },
     "weather": {
@@ -5751,7 +5804,8 @@
       "co2": "CO₂",
       "co2Year": "CO₂ per jaar",
       "advanceRange": "{low} tot {high}",
-      "advanceUncertain": "onzeker: het verwarmingsmodel past slecht"
+      "advanceUncertain": "onzeker: het verwarmingsmodel past slecht",
+      "advanceShort": "na de afrekening op {date}"
     },
     "chart": {
       "cumTitle": "Cumulatieve kosten",
@@ -6749,7 +6803,15 @@
     "legendPv": "≈ verdeeld, niet gemeten: hoe de zonnestroom van deze maanden zich verdeelt, is geschat.",
     "chartNote": "Gearceerde balken: verdeeld, niet gemeten.",
     "markTitleEstimated": "Verdeeld, niet gemeten: uit {gap} dagen tussen twee meterstanden, met een geschatte meterstand als steunpunt",
-    "whyEstimated": "Ligt er een geschatte meterstand tussen, dan geldt aan elke kant een eigen dagwaarde."
+    "whyEstimated": "Ligt er een geschatte meterstand tussen, dan geldt aan elke kant een eigen dagwaarde.",
+    "readingsYearEst": {
+      "one": "{count} meterstand en {estimates} in {year}",
+      "other": "{count} meterstanden en {estimates} in {year}"
+    },
+    "estimates": {
+      "one": "{count} schatting",
+      "other": "{count} schattingen"
+    }
   },
   "balanceUncertain": {
     "range": "Afrekening op {date} onzeker: tussen {low} en {high}, omdat {why}.",
@@ -6759,11 +6821,12 @@
     "credit": "{amount} tegoed",
     "light": "{label}: onzeker, tussen {low} en {high}",
     "why": {
-      "factor_clamped": "de laatste gemeten maanden ver van de verwachting liggen (factor {raw}, gerekend met {used})",
+      "factor_clamped": "de laatst gemeten maanden verbruikten ongeveer {raw} keer zoveel als verwacht; de schatting volgt dat maar tot {used} keer",
       "poor_fit": "het verwarmingsmodel slecht bij deze meter past (± {pct} per maand)",
       "both": "{a} en {b}",
       "few_measured": "er te weinig maanden gemeten zijn om het verwarmingsmodel te controleren",
-      "three": "{a}, {b} en {c}"
+      "three": "{a}, {b} en {c}",
+      "factorLow": "de laatst gemeten maanden verbruikten maar ongeveer {raw} van het verwachte; de schatting gaat maar tot {used} omlaag"
     },
     "short": "{low} tot {high}",
     "verdict": "onzeker"

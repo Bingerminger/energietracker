@@ -622,13 +622,17 @@ final class PdfReportService
         ], fn(float $v) => $this->i18n->number($v, 0) . ' kWh');
         $this->y += $gh + 8;
         $this->para((string)$t['sentence']);
+        // v3.9.0 (V5) — Zeitraum, Schätzung, Widerspruch, fehlender Vergleich
+        foreach ((array)($t['notes'] ?? []) as $n) $this->para((string)$n, self::SMALL, self::MUTE);
         if (!empty($t['co2_text'])) $this->para((string)$t['co2_text'], self::SMALL);
         if (array_filter(array_column($t['months'], 'value')) !== []) {
             $this->h2($this->i18n->t('report.topic.pv.monthsTitle'));
             $this->ensure(170);
+            $legend = [[(string)$m['year'], 'now'], [(string)($m['year'] - 1), 'prev']];
+            if (array_filter(array_column($t['months'], 'estimated')) !== []) $legend[] = [$this->i18n->t('interpolation.markTitleOpen'), 'estimated'];
             $this->y = Chart::monthBars($pdf, self::M, $this->y, $cw, 130, $t['months'], [
                 'color' => $pv, 'fmt' => fn(float $v) => $this->i18n->number($v, 0),
-                'legend' => [[(string)$m['year'], 'now'], [(string)($m['year'] - 1), 'prev']],
+                'legend' => $legend,
             ]) + 8;
         }
         if (!empty($t['payback'])) {
