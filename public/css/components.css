@@ -1760,6 +1760,10 @@ a.icon-btn { display: inline-flex; align-items: center; justify-content: center;
 .demo-chip--env { cursor: default; white-space: nowrap; flex-shrink: 0; }
 @media (max-width: 420px) {
   .topbar__brand:has(.demo-chip--env) .topbar__title { display: none; }
+  /* v3.9.0 — mit „Abmelden“ und zwölf Zeichen ragte die Kopfzeile am iPhone 5 px über:
+     engere Abstände, und ein sehr langer Name endet mit „…“ statt die Zeile zu sprengen */
+  .topbar__brand:has(.demo-chip--env), .topbar:has(.demo-chip--env) .topbar__actions { gap: var(--sp-2); }
+  .demo-chip--env { margin-left: 0; max-width: 34vw; overflow: hidden; text-overflow: ellipsis; flex-shrink: 1; min-width: 0; }
 }
 .demo-bar {
   position: fixed; z-index: 55; left: 50%; transform: translateX(-50%);
@@ -2035,6 +2039,17 @@ a.icon-btn { display: inline-flex; align-items: center; justify-content: center;
 /* Benutzer und Rechte: Rollenauswahl schrumpft nicht auf ihren Pfeil, Aktionen umbrechen */
 .users-table .select { min-width: 8.5rem; }
 .users-table .row-actions { flex-wrap: wrap; }
+/* am Telefon je Person ein Block: Name und Rolle oben, Aktionen darunter in voller Breite
+   (in der Tabelle waren sie am rechten Rand abgeschnitten) */
+@media (max-width: 600px) {
+  .users-table, .users-table tbody { display: block; }
+  .users-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }
+  .users-table tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--sp-2);
+    padding: var(--sp-3); border-bottom: 1px solid var(--border-1); }
+  .users-table tr:last-child { border-bottom: 0; }
+  .users-table td { padding: 0; border: 0; }
+  .users-table td.row-actions { grid-column: 1 / -1; justify-content: flex-start; }
+}
 
 /* ── v3.9.0 (Paket oberflaeche) — Illustrationen (lib/illustrations.js) ──
    Gemeinsame Grundlage für Zeichnungen der Ersteinrichtung und die Schaltbilder

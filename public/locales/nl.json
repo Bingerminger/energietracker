@@ -95,7 +95,8 @@
       "tankLevel": "Peilstand — {utility}",
       "reminder": "Nieuwe herinnering",
       "inbox": "Post van de leverancier opbergen",
-      "inboxHint": "Pdf uit Bestanden of de mail"
+      "inboxHint": "Pdf uit Bestanden of de mail",
+      "reminderHint": "Onderhoud, ijking of meterstand"
     },
     "sectionNav": "Pagina’s in dit onderdeel",
     "menu": "Menu",

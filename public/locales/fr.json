@@ -95,7 +95,8 @@
       "tankLevel": "Relevé de cuve — {utility}",
       "reminder": "Nouveau rappel",
       "inbox": "Déposer un courrier du fournisseur",
-      "inboxHint": "PDF depuis Fichiers ou un e-mail"
+      "inboxHint": "PDF depuis Fichiers ou un e-mail",
+      "reminderHint": "Entretien, étalonnage ou relevé"
     },
     "sectionNav": "Pages de cette rubrique",
     "menu": "Menu",

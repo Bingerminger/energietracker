@@ -95,7 +95,8 @@
       "tankLevel": "Peilstand {utility}",
       "reminder": "Termin anlegen",
       "inbox": "Versorgerpost ablegen",
-      "inboxHint": "PDF aus Dateien oder Mail"
+      "inboxHint": "PDF aus Dateien oder Mail",
+      "reminderHint": "Wartung, Eichfrist oder Ablesung"
     },
     "sectionNav": "Seiten dieses Bereichs",
     "menu": "Menü",

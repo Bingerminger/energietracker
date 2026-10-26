@@ -95,7 +95,8 @@
       "tankLevel": "Leitura do depósito — {utility}",
       "reminder": "Novo lembrete",
       "inbox": "Guardar correio do fornecedor",
-      "inboxHint": "PDF a partir de Ficheiros ou do e-mail"
+      "inboxHint": "PDF a partir de Ficheiros ou do e-mail",
+      "reminderHint": "Manutenção, verificação ou leitura"
     },
     "sectionNav": "Páginas desta secção",
     "menu": "Menu",

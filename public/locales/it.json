@@ -95,7 +95,8 @@
       "tankLevel": "Lettura serbatoio — {utility}",
       "reminder": "Nuovo promemoria",
       "inbox": "Archivia la posta del fornitore",
-      "inboxHint": "PDF da File o dalla posta"
+      "inboxHint": "PDF da File o dalla posta",
+      "reminderHint": "Manutenzione, taratura o lettura"
     },
     "sectionNav": "Pagine di questa sezione",
     "menu": "Menu",

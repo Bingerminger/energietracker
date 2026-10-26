@@ -95,7 +95,8 @@
       "tankLevel": "Tank reading — {utility}",
       "reminder": "New reminder",
       "inbox": "File supplier mail",
-      "inboxHint": "PDF from Files or mail"
+      "inboxHint": "PDF from Files or mail",
+      "reminderHint": "Maintenance, calibration or meter reading"
     },
     "sectionNav": "Pages in this section",
     "menu": "Menu",
