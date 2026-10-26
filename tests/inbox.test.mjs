@@ -188,6 +188,50 @@ console.log('Akte (Paket betrieb)');
   t('Titel wird escaped', !/<img/.test(D.dossierItemHtml({ ...items[2], title: '<img src=x onerror=alert(1)>' })));
 }
 
+// v3.9.0 (F1034) — Vertrag aus der Rechnung: Aufschlüsselung je Sparte, Abschlag mit Rhythmus.
+// Form der Parameter wie Proposals::contractFromInvoice (WaterBillContractTest).
+console.log('Vertrag aus der Rechnung (vertrag-aus-rechnung)');
+{
+  const R = await import(`${JS}/lib/advance-rhythm.js`);
+  const sp = (s) => s.replace(/ /g, ' ');
+  t('monatlich: kein Zusatz, der Betrag wie bisher', R.advanceRhythm(1) === '' && sp(R.advanceAmountText(50, 1)) === '50,00 €');
+  t('alle 3 Monate ohne Termine', R.advanceRhythm(3) === 'alle 3 Monate', R.advanceRhythm(3));
+  t('alle 2 Monate: der Betrag gilt je Termin', sp(R.advanceAmountText(165, 2)) === '165,00 € alle 2 Monate', R.advanceAmountText(165, 2));
+  t('Termine laut Plan', R.advanceRhythm(2, ['2026-05-15', '2026-07-15']) === 'alle 2 Monate, am 15.05.2026, 15.07.2026'
+    && R.advanceRhythm(1, ['2026-03-01']) === 'am 01.03.2026', R.advanceRhythm(2, ['2026-05-15', '2026-07-15']));
+  t('Rhythmus wie der Server (ContractService::ADVANCE_EVERY)', R.ADVANCE_EVERY.join() === (readFileSync(resolve(ROOT, 'src/Services/ContractService.php'), 'utf8')
+    .match(/public const ADVANCE_EVERY = \[([^\]]*)\]/) || [])[1]?.replace(/\s/g, ''));
+  const net = (label, price, unit, vat) => ({ label, price, unit, net: true, vat_pct: vat });
+  const lines = I.proposalLines({ kind: 'contract_create', params: { lines: [
+    { section: 'trinkwasser', kind: 'working', from: '2025-04-01', value: 224.7, parts: [net('Wasserverbrauch', 2.1, 'm3', 7)] },
+    { section: 'trinkwasser', kind: 'base', from: '2025-04-01', value: 13.375, parts: [net('Basispreis', 50, 'year', 7), net('Bereitstellungspreis', 100, 'year', 7)] },
+    { section: 'schmutzwasser', kind: 'base', from: '2025-10-01', value: 8.7267, parts: [net('Basispreis', 44, 'year', 19), net('Bereitstellungspreis', 44, 'year', 19)] },
+    { section: 'niederschlagswasser', kind: 'rate', from: '2025-04-01', value: 1.19, area: 200, parts: [net('Niederschlagswasserpreis', 1, 'm2_year', 19)] },
+    { section: null, kind: 'advance', from: '2026-05-15', value: 165, every: 2, dates: ['2026-05-15', '2026-07-15', '2026-09-15'] },
+  ] } }).map(sp);
+  t('Trinkwasser je m³ brutto, aus dem Nettopreis mit Satz', lines[0] === 'Trinkwasser ab 01.04.2025: 224,7 ct/m³ (aus Wasserverbrauch 2,10 € je m³ netto + 7 % USt)', lines[0]);
+  t('Grundpreis aus Basis- und Bereitstellungspreis, je Monat mit allen Stellen', lines[1] === 'Grundpreis Trinkwasser ab 01.04.2025: 13,375 € pro Monat (aus Basispreis 50,00 € je Jahr netto + 7 % USt + Bereitstellungspreis 100,00 € je Jahr netto + 7 % USt)', lines[1]);
+  t('Schmutzwasser hat einen eigenen Grundpreis', /^Grundpreis Schmutzwasser ab 01\.10\.2025: 8,7267 € pro Monat/.test(lines[2]), lines[2]);
+  t('Niederschlagswasser je m² und Jahr mit Fläche', lines[3] === 'Niederschlagswasser ab 01.04.2025: 1,19 € je m² und Jahr für 200 m² (aus Niederschlagswasserpreis 1,00 € je m² und Jahr netto + 19 % USt)', lines[3]);
+  t('Abschlagsplan: je Termin, alle 2 Monate, mit den Terminen', lines[4] === 'Abschlag ab 15.05.2026: 165,00 € je Termin, alle 2 Monate, am 15.05.2026, 15.07.2026, 15.09.2026', lines[4]);
+  const gas = I.proposalLines({ kind: 'contract_create', params: { lines: [{ section: null, kind: 'working', from: '2025-01-01', value: 11.9,
+    parts: [{ label: 'Arbeitspreis', price: 8.5, unit: 'kwh', net: false }, { label: 'Energiesteuer', price: 0.55, unit: 'kwh', net: false }] }] } }).map(sp);
+  t('Gas: Arbeitspreis aus Bestandteilen (Energiesteuer)', gas[0] === 'Arbeitspreis ab 01.01.2025: 11,9 ct/kWh (aus Arbeitspreis 8,5 ct/kWh + Energiesteuer 0,55 ct/kWh)', gas[0]);
+  const wp = sp(I.proposalText({ kind: 'contract_water_price', label_key: 'inbox.proposal.waterBase', data: { key: 'eur_per_month' },
+    params: { section: 'schmutzwasser', from: '2025-10-01', value: 8.7267 } }));
+  t('Preiszeile am Bestand: Sparte und Grundpreis je Monat', wp === 'Grundpreis Schmutzwasser ab 01.10.2025: 8,7267 € pro Monat (aus der Rechnung)', wp);
+  const ww = sp(I.proposalText({ kind: 'contract_water_price', label_key: 'inbox.proposal.waterWorking', data: { key: 'ct_per_m3' },
+    params: { section: 'trinkwasser', from: '2025-10-01', value: 246.1 } }));
+  t('Preiszeile am Bestand: Wasser in ct/m³ wie im Vertrag', ww === 'Trinkwasser ab 01.10.2025: 246,1 ct/m³ (aus der Rechnung)', ww);
+  const item = sp(I.itemText('water_prices', { section: 'schmutzwasser', label: 'Abwassermenge', from: '2025-04-01', to: '2025-09-30', price: 1.8, unit: 'm3' },
+    { net: { vat_pct: 19, gross: 2.142 } }));
+  t('Feld Wasserpreise: netto, Satz und brutto mit allen Stellen', item === 'Schmutzwasser · Abwassermenge 01.04.2025 bis 30.09.2025: 1,80 € je m³ netto + 19 % USt = 2,142 € je m³', item);
+  const adv = sp(I.proposalText({ kind: 'contract_advance', label_key: 'inbox.proposal.advance', params: { from: '2026-05-15', value: 165, every: 2, dates: ['2026-05-15'] } }));
+  t('Abschlagsänderung mit Rhythmus', /, alle 2 Monate, am 15\.05\.2026$/.test(adv), adv);
+  const fig = sp(I.gistFigure({ kind: 'money_rate', value: -12, signed: true }));
+  t('Kernaussage: Abweichung je Termin, nicht je Monat', fig === '−12,00 € je Termin', fig);
+}
+
 console.log('Warteschlange');
 const next = Q.nextQueued([{ id: 'b', status: 'queued', queued_at: '2026-01-01T10:00:00#00001' }, { id: 'a', status: 'queued', queued_at: '2026-01-01T10:00:00#00000' },
   { id: 'c', status: 'new' }]);

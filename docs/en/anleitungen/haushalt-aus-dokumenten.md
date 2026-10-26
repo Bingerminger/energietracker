@@ -109,7 +109,16 @@ advertising are recognised by the inbox and only filed.
     that is ambiguous, there is no contract and no meter, only “Still
     missing” — the draft does not guess, least of all across utilities.
   - **Two confirmations** with the same start from the same supplier at the
-    same meter are one contract, even with different numbers.
+    same meter are one contract, even with different numbers. Confirmations
+    with the same contract number (a later tariff confirmation, for example)
+    are one contract with the earliest start, whatever order you filed them in
+    *(3.9.0)*.
+  - **A few days apart** *(3.9.0)*: if a confirmation and a supply start
+    letter of the same supply relationship name days up to a week apart at the
+    same meter (the brand names the contract start, the billing municipal
+    utility the first day of supply, for example), that is one contract with
+    the start of the confirmation. Different contract numbers stay two
+    contracts.
   - **Bills before the start:** if the bill belongs to the same contract (no
     other contract number), the contract starts with it — “Noticed” says so.
     With another contract number it becomes a previous contract up to the day
@@ -124,7 +133,16 @@ advertising are recognised by the inbox and only filed.
     lies within a week of the previous start). If a value is missing there —
     contract number, tariff, price, advance payment —, the entry says “add to
     it”; a value that differs from the recorded one is a conflict. Bills over
-    several years each belong to the contract that ran at the time.
+    several years each belong to the contract that ran at the time. The final
+    start is compared: if a contract moves forward to its first bill, the
+    draft compares it again with that start *(3.9.0)*.
+  - **The same supplier under another name?** *(3.9.0)* Same start as a
+    recorded contract, but another name (the brand in your records, the
+    municipal utility or the group in the document), and the recorded contract
+    carries no other contract number: the entry asks “the same supplier?” and
+    names both. It is not pre-selected. If you tick it, the values add to the
+    recorded contract and its name stays. With another contract number in your
+    records it stays a conflict.
 - **Price chain.** Confirmation and price changes (valid from) form the chain
   and are pre-selected. A price on a bill is evidence — compared gross: if it
   is printed net with a VAT rate that was read, the draft converts it as the
@@ -201,6 +219,14 @@ advertising are recognised by the inbox and only filed.
   advance payments, the readings of one meter, bill, gas conversion, reminder.
   Pre-selected is what is new, without doubt and without touching the
   recorded data.
+- **Coupled to the contract** *(3.9.0)*: prices, advance payments and bills of
+  a contract that does not exist yet, or whose supplier is a question, only go
+  with it. Without its tick they are locked and not pre-selected. If you tick
+  the contract, they come along as they would be pre-selected; if you untick
+  it, they go too. At a recorded contract that is settled they stand on their
+  own. Meter readings belong to the meter, not to the contract. If the contract
+  is missing while taking over, because it fails for example, its bill is not
+  created either. It never books its result on another contract.
 - **Doubtful** is a field the [Inbox](posteingang.md) flags — with the same
   marks by today’s data that the list counts — and that no second document
   confirms. A price on the bill that matches the contract is “already there”.

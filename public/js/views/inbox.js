@@ -33,7 +33,8 @@ import {
   openCount, TYPES, typeLabel, statusLabel, fieldLabel, reasonText, valueText, itemText,
   proposalText, detailText, orderedFields, manualTargets,
   gistText, gistFigure, gistActionLabel, gistDetails,
-} from '../lib/inbox.js';
+  proposalLines,
+} from '../lib/inbox.js';   // v3.9.0 (F1034) — proposalLines: Aufschlüsselung der Preise im Vorschlag
 import { openDocDock } from '../components/doc-dock.js';
 import { draftEntryHtml } from '../lib/inbox-draft.js';   // v3.7.0 (Haushalt aus Dokumenten)
 import { readingSetupButtonHtml, openReadingSetup } from '../components/reading-setup.js';   // v3.7.0 — „Auslesen einrichten“ als Dialog
@@ -93,7 +94,9 @@ function gistLineHtml(e) {
 function channelsHtml(folder) {
   if (DEMO) return '';
   const pending = folder?.pending ? ` ${esc(tp('inbox.channels.pending', folder.pending))}` : '';
-  return `<p class="muted small inbox-channels" id="inbox-channels">${esc(t('inbox.channels.text', { dir: folder?.dir || 'posteingang' }))}${pending}
+  // v3.9.0 (F1033) — ein eigener Ordner (ET_INBOX_DIR, etwa /share in der App für Home Assistant) liegt nicht im Datenverzeichnis
+  const dir = folder?.dir || 'posteingang';
+  return `<p class="muted small inbox-channels" id="inbox-channels">${esc(t(dir.startsWith('/') ? 'inbox.channels.textShare' : 'inbox.channels.text', { dir }))}${pending}
     <a href="${esc(docUrl('inbox', 'inbox-shortcut'))}">${esc(t('inbox.channels.shortcut'))}</a> ·
     <a href="${esc(docUrl('inbox', 'inbox-folder'))}">${esc(t('inbox.channels.folder'))}</a> ·
     <a href="${esc(docUrl('inbox', 'inbox-email'))}">${esc(t('inbox.channels.email'))}</a></p>`;
@@ -526,7 +529,14 @@ async function renderDetail(container, rawId, ctx = {}) {
       const n = side.querySelectorAll('input[data-proposal]:checked').length;
       if (applyBtn) { applyBtn.disabled = n === 0 || DEMO; applyBtn.textContent = tp('inbox.applyButton', n); }
     };
-    side.querySelectorAll('input[data-proposal]').forEach(c => c.addEventListener('change', sync));
+    // v3.9.0 (F1034) — ein Vertrag nimmt, was an ihm hängt, mit; ohne ihn bleibt es gesperrt
+    const follow = (c) => {
+      [...side.querySelectorAll('input[data-requires]')].filter(d => d.dataset.requires === c.dataset.proposal).forEach(d => {
+        d.disabled = !c.checked || DEMO;
+        d.checked = c.checked && d.dataset.checkedWith === '1';
+      });
+    };
+    side.querySelectorAll('input[data-proposal]').forEach(c => c.addEventListener('change', () => { follow(c); sync(); }));
     sync();
     applyBtn?.addEventListener('click', async () => {
       const ids = [...side.querySelectorAll('input[data-proposal]:checked')].map(c => c.dataset.proposal);
@@ -652,12 +662,18 @@ function proposalsHtml(pv, unit) {
     ? `<ul class="inbox-proposals" id="inbox-proposals">${list.map(p => {
         const exists = p.status === 'exists';
         const detail = detailText(p, { unit });
+        // v3.9.0 (F1034) — „Rechnung buchen“ am Vertrag aus dieser Rechnung: nur mit ihm (`requires`)
+        const parent = p.requires ? list.find(x => x.id === p.requires) : null;
+        const blocked = !!parent && !parent.checked;
+        const dep = parent ? ` data-requires="${esc(parent.id)}"${p.checked_with ? ' data-checked-with="1"' : ''}` : '';
         return `<li class="inbox-proposal inbox-proposal--${esc(p.status)}${p.check ? ' inbox-proposal--check' : ''}">
-          <label><input type="checkbox" data-proposal="${esc(p.id)}"${p.checked ? ' checked' : ''}${exists || DEMO ? ' disabled' : ''}>
+          <label><input type="checkbox" data-proposal="${esc(p.id)}"${dep}${p.checked && !blocked ? ' checked' : ''}${exists || DEMO || blocked ? ' disabled' : ''}>
             <span class="inbox-proposal__text">${esc(proposalText(p, { unit }))}</span></label>
+          ${parent ? `<p class="inbox-proposal__detail" data-role="requires">${esc(t('inbox.proposal.requiresContract'))}</p>` : ''}
           <span class="badge ${{ new: 'badge--info', exists: 'badge--success', conflict: 'badge--danger', overlap: 'badge--warning' }[p.status] || ''}">${esc(t('inbox.pstatus.' + p.status))}</span>
           ${p.check ? `<span class="badge badge--warning">${esc(t('inbox.pstatus.check'))}</span>` : ''}
           ${detail ? `<p class="inbox-proposal__detail">${esc(detail)}</p>` : ''}
+          ${proposalLines(p).length ? `<ul class="inbox-proposal__lines" data-role="lines">${proposalLines(p).map(l => `<li>${esc(l)}</li>`).join('')}</ul>` : ''}
           ${proposalNotes(p).map(n => `<p class="inbox-proposal__detail" data-role="note">${esc(n)}</p>`).join('')}
         </li>`;
       }).join('')}</ul>

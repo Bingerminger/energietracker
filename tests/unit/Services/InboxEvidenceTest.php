@@ -419,8 +419,10 @@ final class InboxEvidenceTest extends TestCase
         self::assertCount(1, $mr['items']);
         self::assertSame([12345.0, '2024-12-31', 13580.0, '2025-12-31', true], [$mr['value'][0]['reading_old'], $mr['value'][0]['reading_old_date'],
             $mr['value'][0]['reading_new'], $mr['value'][0]['reading_new_date'], $mr['value'][0]['estimated']]);
-        self::assertSame([[false, true], [['date' => '2025-06-30', 'counter' => 12900.0, 'estimated' => true]]],
-            [$mr['items'][0]['estimated_ends'], $mr['items'][0]['between']], 'Ende des ersten = Anfang des zweiten: der geschätzte Teil zählt');
+        // v3.9.0 (F1034) — geschätzt ist nur der Stand hinter dem Code („13.580 m³ S“), nicht auch der
+        // Anfangsstand desselben Zeitraums (bis v3.8: „der geschätzte Teil zählt“ für beide Stände)
+        self::assertSame([[false, true], [['date' => '2025-06-30', 'counter' => 12900.0, 'estimated' => false]]],
+            [$mr['items'][0]['estimated_ends'], $mr['items'][0]['between']], 'Ende des ersten = Anfang des zweiten: geschätzt ist nur der Stand mit dem Code');
         // fällt der Stand mit dem Tag: zusammengefasst, aber markiert
         $page2 = "TEST-4711-01 31.12.2024 12.345 m³ 30.06.2025 12.900 m³\nTEST-4711-01 30.06.2025 12.900 m³ 31.12.2025 12.800 m³";
         $mr = $check([$row('TEST-4711-01', '31.12.2024', '12.345', '30.06.2025', '12.900'), $row('TEST-4711-01', '30.06.2025', '12.900', '31.12.2025', '12.800')], $page2);
@@ -493,9 +495,9 @@ final class InboxEvidenceTest extends TestCase
             self::assertSame(['date', 'text'], [$f['document_date']['kind'] ?? null, $f['document_title']['kind'] ?? null], "$t: Datum und Titel");
             self::assertSame($t === 'invoice', isset($f['meter_readings']), "$t: Stände je Zähler nur an der Rechnung");
         }
-        // v3.9.0 (F1032) — dazu das Zählwerk je Stand (`obis`, `register`), Version 5
+        // v3.9.0 (F1032) — dazu das Zählwerk je Stand (`obis`, `register`); Version 5 für das ganze Release
         self::assertSame(['meter_number', 'reading_old', 'reading_old_date', 'reading_new', 'reading_new_date', 'estimated', 'obis', 'register'], array_keys(InboxSchema::fields('invoice')['meter_readings']['items']));
-        self::assertSame(5, InboxSchema::forProvider('invoice')['version'], 'Nachbesserung 5: Beschreibungen geändert; v3.9.0: Zählwerk je Stand');
+        self::assertSame(5, InboxSchema::forProvider('invoice')['version'], 'v3.9.0 (F1034): Wasserpreise, Abschlagstermine, Bestandteile des Arbeitspreises; (F1032) Zählwerk je Stand');
         // erfundene Rechnungskorrektur: Titel nur im Seitenkopf, Briefdatum
         $pages = ["Rechnungskorrektur · Seite 1 von 2\nStadtwerke Musterstadt GmbH · Musterstadt, den 20.03.2026\nAbrechnungszeitraum: 01.01.2025 bis 31.12.2025\n"
             . "Zähler TEST-4711-01        Anfangsstand 12.345 m³ am 31.12.2024        Endstand 12.910 m³ am 14.05.2025\n"

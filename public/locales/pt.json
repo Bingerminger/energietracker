@@ -502,7 +502,9 @@
         "one": "{count} pagamento extraordinário",
         "other": "{count} pagamentos extraordinários"
       },
-      "sinceBill": "Calculado a partir de {date}: a fatura anterior está registada no contrato e já não conta aqui."
+      "sinceBill": "Calculado a partir de {date}: a fatura anterior está registada no contrato e já não conta aqui.",
+      "nextDue": "próximo vencimento: {date}",
+      "paidCurrentEvery": "atual: {value}"
     },
     "contractsTable": {
       "emptyTitle": "Sem contratos registados",
@@ -803,13 +805,15 @@
       "advance": "Adiantamento",
       "twWorking": "Preço unitário de água potável",
       "twBase": "Termo fixo de água potável",
-      "swWorking": "Preço unitário de saneamento"
+      "swWorking": "Preço unitário de saneamento",
+      "swBase": "Termo fixo de água residual"
     },
     "unit": {
       "ctPerKwh": "{minor}/kWh",
       "eurPerMonth": "{cur}/mês",
       "eurPerKwYear": "{cur}/kW por ano",
-      "eurPerYear": "{cur}/ano"
+      "eurPerYear": "{cur}/ano",
+      "eurPerDue": "{cur} por vencimento"
     },
     "loading": "A carregar…",
     "unknown": "Serviço desconhecido: {key}",
@@ -838,7 +842,8 @@
       "advanceValue": "Adiantamento {value}/mês",
       "valuesOn": "em {date}",
       "noValues": "Ainda sem preços",
-      "since": "desde {year}"
+      "since": "desde {year}",
+      "advanceValueEvery": "Adiantamento {value}"
     },
     "summary": {
       "twPrices": {
@@ -987,7 +992,6 @@
       "noMoreMeters": "(ainda sem mais contadores disponíveis)",
       "swWorking": "Preço por m³ águas residuais ({minor}/m³)",
       "nwRates": "Data de efeito",
-      "apMonthly": "Adiantamento mensal ({cur})",
       "colDate": "Data",
       "colCtM3": "{minor}/m³",
       "colEurMonth": "{cur}/mês",
@@ -1000,7 +1004,10 @@
       "startRequired": "O início do contrato é obrigatório.",
       "basisDeduct": "água potável menos contadores de dedução (p. ex. jardim)",
       "deductMeters": "Contadores de dedução",
-      "deductHint": "A água que passa por estes contadores (p. ex. a do jardim) custa água potável, mas não água residual. O ideal é manter o contador do jardim como subcontador do contador principal, para não contar duas vezes nos totais."
+      "deductHint": "A água que passa por estes contadores (p. ex. a do jardim) custa água potável, mas não água residual. O ideal é manter o contador do jardim como subcontador do contador principal, para não contar duas vezes nos totais.",
+      "swBase": "Termo fixo de água residual ({cur}/mês)",
+      "apPlan": "Plano de adiantamentos",
+      "colEurDue": "{cur} por vencimento"
     },
     "perM3": {
       "toggleTitle": "Converter um preço por m³ em {minor}/kWh",
@@ -1087,6 +1094,10 @@
       "undated": "entrada sem data",
       "link": "Ir para a definição",
       "why": "O coeficiente de correção e o poder calorífico dependem do ponto de entrega (altitude, pressão) e do gás da rede, não do fornecedor: mantêm-se numa mudança e cada fatura de gás indica-os. Por isso definem-se uma vez nas definições e valem para todos os contratos."
+    },
+    "advance": {
+      "every": "Ritmo",
+      "dueDates": "Vencimentos segundo a fatura: {dates}, depois todos os anos nos mesmos dias"
     }
   },
   "meters": {
@@ -1800,7 +1811,14 @@
         "readKeyComment": "só se o início de sessão estiver ativo",
         "sensorBalance": "Saldo",
         "sensorForecast": "Previsão 12 meses",
-        "sensorDaysSince": "Dias desde a leitura"
+        "sensorDaysSince": "Dias desde a leitura",
+        "todoScanComment": "a cada 15 minutos",
+        "todoName": "Energietracker a fazer",
+        "todoNextName": "Energietracker próximo ponto",
+        "todoDateName": "Energietracker prazo do próximo ponto",
+        "webhookAlias": "Energietracker: reencaminhar a notificação",
+        "webhookIdComment": "um ID próprio que não se possa adivinhar",
+        "notifyComment": "ou notify.mobile_app_… para o telemóvel"
       },
       "lastUsed": "Última utilização: {when}",
       "neverUsed": "Ainda não chegou nada com este token.",
@@ -1817,7 +1835,11 @@
       },
       "setupTitle": "Contadores e modelos para o Home Assistant",
       "appHint": "Usa o Home Assistant OS? Então o Energietracker também funciona como app diretamente no Home Assistant, com uma entrada na barra lateral.",
-      "appAdd": "Adicionar o repositório ao Home Assistant"
+      "appAdd": "Adicionar o repositório ao Home Assistant",
+      "todo": {
+        "title": "Sensor «A fazer»",
+        "intro": "Número de pontos devidos e o próximo, para painéis e automações. Todos os pontos estão no atributo items."
+      }
     },
     "diag": {
       "title": "Diagnóstico do sistema",
@@ -2219,6 +2241,66 @@
       "accessLink": "Abrir Acesso",
       "movedHint": "As pessoas do agregado adicionam-se em Agregado e edifício, também sem início de sessão.",
       "goto": "Ir para as pessoas"
+    },
+    "haNotify": {
+      "title": "Notificações para o Home Assistant",
+      "intro": "O Energietracker avisa o Home Assistant por si: quando um compromisso ou um prazo fica devido, em caso de avisos e quando chega um documento à caixa de entrada. Cada mensagem chega uma só vez.",
+      "privacy": "As mensagens só vão para o Home Assistant desta casa. Nada sai da rede doméstica, a não ser que seja indicado de propósito um endereço exterior.",
+      "adminOnly": "Só quem administra esta instalação o pode alterar.",
+      "enabled": "Enviar notificações",
+      "targetLabel": "Para onde?",
+      "target": {
+        "supervisor": "Através do Supervisor (app no Home Assistant, sem configuração)",
+        "webhook": "Webhook no Home Assistant",
+        "token": "Endereço e token"
+      },
+      "supervisorMissing": "A via do Supervisor só funciona na app para o Home Assistant.",
+      "url": "Endereço do Home Assistant",
+      "urlHint": "Por exemplo http://192.168.178.10:8123, sem caminho. Um nome .local muitas vezes não se resolve dentro de um contentor; nesse caso, indique o endereço IP.",
+      "webhook": "ID do webhook",
+      "webhookHint": "O mesmo ID do acionador «Webhook» da automação. Funciona como uma palavra-passe: fica no servidor e deixa de aparecer aqui depois de guardar.",
+      "newId": "Criar um ID novo",
+      "secretStored": "guardado, deixar vazio para manter",
+      "secretClear": "Eliminar",
+      "token": "Token (de longa duração)",
+      "tokenHint": "Criar no Home Assistant, no perfil, em Segurança (tokens de acesso de longa duração). Fica no servidor e deixa de aparecer aqui depois de guardar.",
+      "service": "Ação no Home Assistant",
+      "serviceHint": "persistent_notification.create mostra a mensagem nas notificações do Home Assistant. Para o telemóvel: notify.mobile_app_ seguido do nome do dispositivo.",
+      "events": "O que avisar?",
+      "event": {
+        "reminder": "Os compromissos assim que ficam devidos",
+        "deadline": "Os prazos e outros pontos de «A fazer» (leituras, prazos de denúncia, faturas)",
+        "warning": "Os avisos, por exemplo um consumo invulgarmente alto",
+        "document": "Os documentos novos na caixa de entrada"
+      },
+      "hour": "Verificação diária a partir das",
+      "hourOption": "{hour}h00",
+      "hourHint": "Uma vez por dia, no primeiro pedido depois desta hora. Os documentos novos são avisados logo que chegam.",
+      "test": "Enviar uma mensagem de teste",
+      "testOk": "Mensagem de teste enviada. Veja no Home Assistant.",
+      "testFailed": "A mensagem de teste não chegou: {reason}",
+      "saved": "Guardado.",
+      "state": {
+        "on": "Ativo. Destino: {target}",
+        "incomplete": "Ativo, mas o destino está incompleto. Não é enviado nada.",
+        "off": "Desativado. Não é enviado nada ao Home Assistant."
+      },
+      "last": "Último envio: {when}",
+      "lastFailed": "A última tentativa de {when} falhou: {reason}",
+      "yamlTitle": "Automação para o webhook",
+      "yamlHint": "No Home Assistant, criar uma automação nova, escolher «Editar em YAML» e colar isto. O ID do webhook tem de ser o mesmo que acima.",
+      "error": {
+        "dns": "O nome do endereço não se resolve.",
+        "address": "Este endereço está bloqueado.",
+        "insecure": "Um endereço fora da rede doméstica só funciona com https://.",
+        "timeout": "O Home Assistant não respondeu a tempo.",
+        "network": "O Home Assistant não está acessível.",
+        "http": "O Home Assistant responde com o estado {status}.",
+        "unauthorized": "O Home Assistant recusa (401). Verifique o token.",
+        "incomplete": "O destino ainda não está totalmente configurado.",
+        "url": "O endereço não é válido.",
+        "noTransport": "No servidor falta o curl para PHP."
+      }
     }
   },
   "reminders": {
@@ -3531,7 +3613,9 @@
       "priceModelInvalid": "Modelo de preço desconhecido «{value}»",
       "priceImportEmpty": "O ficheiro não contém nenhuma linha no formato mês;preço",
       "priceImportUnsupported": "Os preços mensais só existem para contratos com preço unitário por kWh",
-      "gridTouInvalid": "Janelas do módulo 3 inválidas ({field}): trimestres 1–4, horas HH:MM com início antes do fim, preços 0–100 ct e uma tarifa padrão."
+      "gridTouInvalid": "Janelas do módulo 3 inválidas ({field}): trimestres 1–4, horas HH:MM com início antes do fim, preços 0–100 ct e uma tarifa padrão.",
+      "advanceEveryInvalid": "Adiantamento n.º{n}: «{value}» não é um ritmo. São possíveis todos os meses, a cada 2 e a cada 3 meses.",
+      "advanceDueBeforeStart": "Adiantamento n.º{n}: o vencimento de {date} é anterior ao dia a partir do qual a linha se aplica."
     },
     "delivery": {
       "notFound": "Entrega não encontrada: {id}",
@@ -3815,12 +3899,17 @@
       },
       "nothingSelected": "Nada selecionado."
     },
+    "haNotify": {
+      "incomplete": "O destino está incompleto: o webhook precisa de endereço e ID do webhook, o token de endereço e token. O Supervisor só funciona na app para o Home Assistant.",
+      "webhookFormat": "O ID do webhook tem de 8 a 200 letras, algarismos, hífenes ou sublinhados.",
+      "tokenFormat": "O token tem de 20 a 2000 caracteres visíveis sem espaços."
+    },
     "concept": {
+      "field": "O dado «{field}» do esquema de medição falta ou não é válido.",
       "touCascade": "Em cascata, o contador da casa fica atrás do contador a montante, registo a registo. Por isso, cheias/vazio nos dois ou em nenhum.",
       "meterUnknown": "O contador «{id}» não existe.",
       "meterTwice": "O contador «{id}» está atribuído a duas posições. Cada contador aparece só uma vez no esquema.",
-      "chain": "«{name}» tem subcontadores próprios e por isso não pode ficar a jusante de outro contador.",
-      "field": "O dado «{field}» do esquema de medição falta ou não é válido."
+      "chain": "«{name}» tem subcontadores próprios e por isso não pode ficar a jusante de outro contador."
     }
   },
   "login": {
@@ -3890,7 +3979,8 @@
     },
     "history": "Histórico ({count})",
     "historyTitle": "Histórico: {name}",
-    "anytime": "Rescindível a qualquer momento"
+    "anytime": "Rescindível a qualquer momento",
+    "advanceEvery": "Adiantamento {amount}"
   },
   "billCheck": {
     "noMeter": "A verificação recalcula a fatura anual de gás, eletricidade, água e aquecimento urbano. Crie primeiro um contador.",
@@ -5881,7 +5971,7 @@
       "elapsed": "{s} s",
       "wait": "O servidor ainda está a processar – a verificar o resultado …"
     },
-    "empty": "Ainda não há correio. Guarde em PDF a primeira fatura ou confirmação de contrato.",
+    "empty": "Ainda não há correio.",
     "col": {
       "document": "Documento",
       "type": "Tipo",
@@ -6039,7 +6129,10 @@
       "document_title": "Título do documento",
       "meter_readings": "Leituras por contador",
       "reading_new_estimated": "Leitura final estimada",
-      "reading_old_estimated": "Leitura inicial estimada"
+      "reading_old_estimated": "Leitura inicial estimada",
+      "water_prices": "Preços da água",
+      "advance_new_dates": "Vencimentos do novo adiantamento",
+      "advance_new_every": "Ritmo do novo adiantamento"
     },
     "reason": {
       "empty": "Em falta, mas necessário",
@@ -6075,14 +6168,28 @@
       "supplier": "Rescisão pelo fornecedor",
       "switch": "Fim por mudança de fornecedor",
       "net": "líquido",
-      "gross": "bruto"
+      "gross": "bruto",
+      "trinkwasser": "Água potável",
+      "schmutzwasser": "Água residual",
+      "niederschlagswasser": "Água pluvial",
+      "m3": "por m³",
+      "m2_year": "por m² e ano",
+      "monthly": "todos os meses",
+      "bimonthly": "a cada dois meses",
+      "quarterly": "a cada três meses",
+      "energy": "Preço unitário",
+      "energy_tax": "Imposto sobre a energia",
+      "co2": "Preço do CO₂",
+      "other": "Sobretaxa"
     },
     "item": {
       "gasFactor": "de {from} a {to}: coeficiente de correção {z} × poder calorífico {hs} kWh/m³",
       "price": "a partir de {from}: {value}",
       "priceNet": "a partir de {from}: {value} líquido + {vat}% de IVA = {gross}",
       "meterReading": "Contador {meter}: {from} → {to}",
-      "estimated": "estimada segundo a fatura"
+      "estimated": "estimada segundo a fatura",
+      "waterPrice": "{section} · {label} de {from} a {to}: {price}",
+      "waterPriceNet": "{section} · {label} de {from} a {to}: {price} líquido + {vat}% de IVA = {gross}"
     },
     "result": {
       "due": "acerto de {amount}",
@@ -6111,7 +6218,12 @@
       "contractFromInvoice": "Criar o contrato {provider} a partir de {from} com base nesta fatura",
       "contractFromSupplyStart": "Criar o contrato {provider} a partir de {from}",
       "meterSwapInvoice": "Troca de contador em {date}: leitura final {old_final} no contador {old_serial}, contador novo {serial} com leitura inicial {new_initial}",
-      "readingEstimated": "Leitura de {date}: {counter} (estimada segundo a fatura)"
+      "readingEstimated": "Leitura de {date}: {counter} (estimada segundo a fatura)",
+      "requiresContract": "Só em conjunto com o contrato desta fatura.",
+      "contractSpanFromInvoice": "Criar o contrato {provider} de {from} a {to} com base nesta fatura",
+      "waterWorking": "{section} a partir de {from}: {value} (da fatura)",
+      "waterBase": "Termo fixo {section} a partir de {from}: {value} por mês (da fatura)",
+      "waterRate": "{section} a partir de {from}: {value} por m² e ano para {area} m² (da fatura)"
     },
     "detail": {
       "reading": "Registada: {counter}.",
@@ -6155,7 +6267,8 @@
       "remindDate": "Prazo",
       "figure": {
         "perYear": "{amount} por ano",
-        "perMonth": "{amount} por mês"
+        "perMonth": "{amount} por mês",
+        "perRate": "{amount} por vencimento"
       },
       "priceChange": {
         "more": "A partir de {date}, {provider} custa cerca de {amount} a mais por ano.",
@@ -6177,7 +6290,9 @@
         "ok": "O novo adiantamento de {amount} corresponde ao consumo.",
         "high": "O novo adiantamento de {amount} é cerca de {diff} por mês alto demais (o adequado seria {recommended}).",
         "low": "O novo adiantamento de {amount} é cerca de {diff} por mês baixo demais (o adequado seria {recommended}).",
-        "unknown": "Novo adiantamento de {amount} a partir de {date}."
+        "unknown": "Novo adiantamento de {amount} a partir de {date}.",
+        "highRate": "O novo adiantamento de {amount} é cerca de {diff} por vencimento alto demais (o adequado seria {recommended}).",
+        "lowRate": "O novo adiantamento de {amount} é cerca de {diff} por vencimento baixo demais (o adequado seria {recommended})."
       },
       "cancellation": {
         "open": "O fornecimento termina em {date} – ainda falta o contrato seguinte.",
@@ -6248,7 +6363,8 @@
         "serialConflict": "Atenção: o contador tem registado o número {serial}.",
         "minTerm": "Duração mínima até {date}.",
         "guarantee": "Garantia de preço até {date}.",
-        "dunning": "A aplicação não lê avisos de pagamento; o lembrete serve para esclarecer o pagamento."
+        "dunning": "A aplicação não lê avisos de pagamento; o lembrete serve para esclarecer o pagamento.",
+        "advanceBasisRate": "O adequado seria cerca de {recommended} por vencimento; com o novo adiantamento a fatura terminaria com: {balance}."
       }
     },
     "channels": {
@@ -6259,7 +6375,8 @@
       },
       "shortcut": "Atalho",
       "folder": "Pasta",
-      "email": "E-mail"
+      "email": "E-mail",
+      "textShare": "Também sem navegador: com um atalho no iPhone ou iPad, pela pasta «{dir}» ou por e-mail através do Home Assistant."
     },
     "folder": {
       "imported": {
@@ -6310,6 +6427,22 @@
     },
     "wait": {
       "gaveUp": "Sem resposta, mesmo depois de voltar a verificar. O documento pode ainda ficar concluído – abra-o novamente daqui a pouco. Um limite de tempo maior no servidor web resolve de forma duradoura."
+    },
+    "unit": {
+      "perM3": "por m³",
+      "perYear": "por ano",
+      "perMonth": "por mês",
+      "perM2Year": "por m² e ano"
+    },
+    "line": {
+      "working": "{what} a partir de {from}: {value}",
+      "base": "Termo fixo {what} a partir de {from}: {value} por mês",
+      "baseOnly": "Termo fixo a partir de {from}: {value} por mês",
+      "rate": "{what} a partir de {from}: {value} por m² e ano para {area} m²",
+      "energy": "Preço unitário",
+      "parts": "a partir de {parts}",
+      "net": "{value} líquido + {vat}% de IVA",
+      "advance": "Adiantamento a partir de {from}: {value} por vencimento"
     }
   },
   "inboxCloud": {
@@ -6486,7 +6619,8 @@
       "meterChange": "Troca de contador em {date}, contador novo {serial}",
       "contract": {
         "new": "Contrato {provider} de {from} a {to}",
-        "existing": "Contrato existente {provider} a partir de {from}"
+        "existing": "Contrato existente {provider} a partir de {from}",
+        "sameSupplier": "Contrato existente {existing} a partir de {from}: o mesmo fornecedor que {provider}?"
       },
       "contractEnd": "O contrato anterior {provider} termina em {date}",
       "prices": "Preços {provider}",
@@ -6543,7 +6677,8 @@
       "swap_open": "Após uma troca de contador sem leitura final do contador antigo – introduza primeiro a troca",
       "swap_readings": "As leituras não correspondem bem à troca (outro aparelho, a descer ou abaixo de uma leitura conhecida) – verifique",
       "existing_update": "Completa o que já está registado – verifique",
-      "existing_overlap": "Sobrepõe-se ao que já está registado – verifique"
+      "existing_overlap": "Sobrepõe-se ao que já está registado – verifique",
+      "same_supplier": "Nos dados registados o fornecedor tem outro nome. É o mesmo, por exemplo uma marca e a sua empresa municipal?"
     },
     "result": {
       "title": "Adotado",
@@ -6603,7 +6738,8 @@
       "memberHint": "A configuração cabe a quem administra esta instalação. Aqui vê-se o que está definido; guardar documentos já é possível.",
       "ready": "Configurado: a aplicação lê agora com {service}, modelo {model}.",
       "unavailable": "As definições de leitura não estão acessíveis agora. Tente novamente daqui a pouco."
-    }
+    },
+    "requires": "Pertence a «{contract}» e só é adotado juntamente com este contrato."
   },
   "interpolation": {
     "leadYear": {
@@ -6662,6 +6798,43 @@
       "too_few_points": "poucos pontos ({n})",
       "poor_fit": "não se ajusta (R² {r2})",
       "degenerate": "não calculável (pouca variação nos valores)"
+    }
+  },
+  "haNotify": {
+    "title": {
+      "reminder": "Energietracker: compromisso",
+      "deadline": "Energietracker: a fazer",
+      "more": "Energietracker: a fazer",
+      "warning": "Energietracker: aviso",
+      "document": "Energietracker: caixa de entrada",
+      "test": "Energietracker: mensagem de teste"
+    },
+    "test": "A ligação funciona. A partir de agora chegam aqui compromissos e prazos devidos, avisos e documentos novos.",
+    "when": {
+      "today": "Para hoje.",
+      "on": "Para {date}.",
+      "overdue": "Em atraso desde {date}."
+    },
+    "document": {
+      "single": "Documento novo na caixa de entrada: {name}",
+      "many": {
+        "one": "{count} documento novo na caixa de entrada: {names}",
+        "other": "{count} documentos novos na caixa de entrada: {names}"
+      }
+    },
+    "more": {
+      "one": "Mais {count} ponto:",
+      "other": "Mais {count} pontos:"
+    }
+  },
+  "advance": {
+    "rhythm": {
+      "every": {
+        "one": "todos os meses",
+        "other": "a cada {count} meses"
+      },
+      "everyDates": "{every}, a {dates}",
+      "dates": "a {dates}"
     }
   },
   "restBilling": {

@@ -19,6 +19,15 @@ use Energietracker\Support\LocalizedException;
  * Verwalterrechten (`POST /api/inbox/folder` ist adminOnly). Einen eigenen
  * Zeitplan hat die App nicht (kein Cron im Image); Home Assistant oder ein
  * Cron mit curl können die Route regelmäßig aufrufen.
+ * v3.9.0 (F1033) — dazu nach einer beliebigen Anfrage höchstens alle
+ * TICK_SECONDS (tick(), App::afterResponse): Im Docker-Image und in der App
+ * für Home Assistant ruft der Gesundheitscheck die App alle 30 Sekunden auf,
+ * ein abgelegtes PDF ist so nach spätestens fünf Minuten im Posteingang.
+ *
+ * Ort: `<Datenverzeichnis>/posteingang/`, oder seit v3.9.0 ein eigener Ordner
+ * aus der Umgebung `ET_INBOX_DIR` (absoluter Pfad; die App für Home Assistant
+ * setzt `/share/energietracker/posteingang`). Den legt der Betreiber fest, er
+ * darf deshalb außerhalb des Datenverzeichnisses liegen.
  *
  * Sicherheit:
  *   - nur PDF nach Inhalt (`%PDF-`, AttachmentService::sniff), nie nach Endung
@@ -39,13 +48,64 @@ final class FolderIntake
     public const FAILED = 'fehler';
     public const MAX_PER_RUN = 20;
     public const SETTLE_SECONDS = 10;
+    /** v3.9.0 — höchstens so oft liest tick() den Ordner (Marke TICK_MARK im Datenverzeichnis). */
+    public const TICK_SECONDS = 300;
+    public const TICK_MARK = '.inbox-folder.tick';
 
-    public function __construct(private JsonStore $store, private InboxService $inbox) {}
+    /** @var callable(): (string|false) liefert ET_INBOX_DIR (Tests setzen eigene) */
+    private $env;
+
+    public function __construct(private JsonStore $store, private InboxService $inbox, ?callable $env = null)
+    {
+        $this->env = $env ?? static fn(): string|false => getenv('ET_INBOX_DIR');
+    }
+
+    /** v3.9.0 — eigener Ordner aus `ET_INBOX_DIR` (absolut), sonst null. */
+    private function custom(): ?string
+    {
+        $v = ($this->env)();
+        $v = is_string($v) ? rtrim(trim($v), '/') : '';
+        return $v !== '' && str_starts_with($v, '/') && !str_contains($v, "\0") ? $v : null;
+    }
 
     /** Absoluter Pfad des Ordners (er muss nicht existieren). */
     public function folder(): string
     {
-        return rtrim($this->store->rootDir(), '/') . '/' . self::DIR;
+        return $this->custom() ?? rtrim($this->store->rootDir(), '/') . '/' . self::DIR;
+    }
+
+    /** Name für Oberfläche und Antwort: relativ zum Datenverzeichnis, bei `ET_INBOX_DIR` der volle Pfad. */
+    private function label(): string
+    {
+        return $this->custom() ?? self::DIR;
+    }
+
+    /**
+     * v3.9.0 (F1033) — Ist ein Lauf nach der Antwort fällig? Nur ein `stat`:
+     * Der Ordner existiert und die Marke ist älter als TICK_SECONDS.
+     */
+    public function tickDue(?int $now = null): bool
+    {
+        $root = $this->folder();
+        if (!is_dir($root) || is_link($root)) return false;
+        $mark = rtrim($this->store->rootDir(), '/') . '/' . self::TICK_MARK;
+        clearstatcache(true, $mark);
+        return !is_file($mark) || (int)@filemtime($mark) <= ($now ?? time()) - self::TICK_SECONDS;
+    }
+
+    /**
+     * v3.9.0 (F1033) — Lauf nach der Antwort: Marke setzen, dann einlesen,
+     * wenn etwas wartet. Lässt sich die Marke nicht setzen, bleibt es beim
+     * Einlesen beim Öffnen (sonst liefe der Ordner bei jeder Anfrage).
+     *
+     * @return array<string,mixed>|null Ergebnis von scan(), null ohne Lauf
+     */
+    public function tick(?int $now = null): ?array
+    {
+        $now ??= time();
+        if (!$this->tickDue($now)) return null;
+        if (!@touch(rtrim($this->store->rootDir(), '/') . '/' . self::TICK_MARK, $now)) return null;
+        return $this->status()['pending'] > 0 ? $this->scan($now) : null;
     }
 
     /**
@@ -65,7 +125,7 @@ final class FolderIntake
                 if (is_file("$root/$name") && !is_link("$root/$name")) $pending++;
             }
         }
-        return ['dir' => self::DIR, 'present' => $present, 'pending' => $pending];
+        return ['dir' => $this->label(), 'present' => $present, 'pending' => $pending];
     }
 
     /**
@@ -77,20 +137,21 @@ final class FolderIntake
     public function scan(?int $now = null): array
     {
         $now ??= time();
-        $out = ['dir' => self::DIR, 'imported' => [], 'duplicates' => [], 'failed' => [], 'skipped' => [], 'waiting' => 0, 'more' => false];
+        $out = ['dir' => $this->label(), 'imported' => [], 'duplicates' => [], 'failed' => [], 'skipped' => [], 'waiting' => 0, 'more' => false];
         $base = realpath($this->store->rootDir());
         $root = $this->folder();
         if ($base === false) return $out;
         if (is_link($root)) {
-            $out['skipped'][] = ['name' => self::DIR, 'reason' => 'symlink'];
+            $out['skipped'][] = ['name' => $this->label(), 'reason' => 'symlink'];
             return $out;
         }
         if (!is_dir($root)) {
-            @mkdir($root, 0775);
+            @mkdir($root, 0775, $this->custom() !== null);
             return $out;
         }
         $real = realpath($root);
-        if ($real === false || !str_starts_with($real . '/', $base . '/')) return $out;
+        // im Datenverzeichnis, außer der Betreiber hat einen eigenen Ordner gesetzt (ET_INBOX_DIR)
+        if ($real === false || ($this->custom() === null && !str_starts_with($real . '/', $base . '/'))) return $out;
         $names = @scandir($real) ?: [];
         sort($names, SORT_STRING);
         $n = 0;

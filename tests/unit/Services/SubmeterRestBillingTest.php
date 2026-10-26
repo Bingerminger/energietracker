@@ -340,6 +340,34 @@ final class SubmeterRestBillingTest extends ServiceTestCase
      * 35 / 25 ct, 12 €). Wärmepumpe (400−150)×0,30 + (300−100)×0,20 + 10 = 125 €,
      * Haushalt 150×0,35 + 100×0,25 + 12 = 89,50 €; Summe 214,50 € bei 700 kWh.
      */
+    /**
+     * Nach dem Merge mit vertrag-aus-rechnung: Abschläge alle zwei Monate (`every_months`)
+     * am Elternvertrag, Saldo an einem festen Stichtag. Die Rest-Abrechnung ändert Menge
+     * und Kosten, nicht die Abschläge: gezahlt wie ohne Subzählervertrag, Rhythmus bleibt.
+     */
+    public function testRestBillingWithAdvanceRhythm(): void
+    {
+        $this->monthlyReadings([$this->parent => 500.0, $this->sub => 200.0]);
+        $pc = $this->contract($this->parent, 20.0, '2024-01-01', ['advance_payments' => [['from' => '2024-01-01', 'amount_eur' => 200.0, 'every_months' => 2]]]);
+        $find = function () use ($pc): array {
+            $st = $this->consumption->contractStatus('strom', $this->meters->get('strom', $this->parent), '2024-12-31');
+            return array_values(array_filter($st['contracts'], fn($c) => $c['contract_id'] === $pc['id']))[0];
+        };
+        $gross = $find();
+        $this->contract($this->sub, 40.0);
+        $rest = $find();
+        self::assertSame(2, $rest['current_advance_every_months'] ?? null, 'Rhythmus bleibt');
+        self::assertGreaterThan(0.0, $gross['advance_paid']);
+        self::assertEqualsWithDelta($gross['advance_paid'], $rest['advance_paid'], 0.01, 'Abschläge unabhängig vom Rest');
+        self::assertEqualsWithDelta($gross['actual_kwh'] * 0.6, $rest['actual_kwh'], 0.5, '300 von 500 kWh je Monat');
+        self::assertEqualsWithDelta($gross['actual_cost'] - ($gross['actual_kwh'] - $rest['actual_kwh']) * 0.20, $rest['actual_cost'], 0.05);
+        self::assertEqualsWithDelta($rest['actual_kwh'], $rest['rest_of']['rest'], 0.5);
+        // Saldo = Kosten − Abschläge: 2.400 € − 1.200 € = 1.200 € offen, mit Rest 1.440 € − 1.200 € = 240 €
+        self::assertEqualsWithDelta(1200.0, $rest['advance_paid'], 0.01, 'sechs Abschläge zu 200 € im Jahr 2024');
+        self::assertEqualsWithDelta($gross['current_balance'] - ($gross['actual_cost'] - $rest['actual_cost']), $rest['current_balance'], 0.05,
+            'der Saldo um genau den Teil des Subzählers besser');
+    }
+
     public function testGroupContractsWithPricePerRegister(): void
     {
         $this->store->write('strom/meters.json', []);

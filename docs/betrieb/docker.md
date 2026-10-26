@@ -359,6 +359,7 @@ docker run -e ET_LOG_LEVEL=debug …   # bzw. in docker-compose.yml unter enviro
 | `ET_PROXY_USER_HEADER` | *(leer)* | *(v3.4.0)* die eine Kopfzeile, aus der der Proxy-Modus den Benutzer liest (z. B. `X-Forwarded-User`); empfohlen für jeden Proxy außer Home-Assistant-Ingress — [Sicherheit § 6](sicherheit.md#6-anmeldung-über-einen-vorgeschalteten-proxy) |
 | `ET_ALLOWED_HOSTS` | *(leer = alle)* | *(v2.6.0)* erlaubte Hostnamen, kommagetrennt, `*.domain` möglich; andere → 421. IP-Adressen und `localhost` immer. Seit v3.4.0 auch in den Einstellungen (`allowed_hosts`); beide Listen gelten |
 | `ET_LOCK_WAIT_S` | `15` | *(v3.4.0)* wie lange eine schreibende Anfrage auf die Schreibsperre wartet (1–120 s), danach `503` mit `Retry-After` |
+| `ET_INBOX_DIR` | *(leer = `<dataDir>/posteingang`)* | *(v3.9.0)* eigener [überwachter Ordner](../anleitungen/posteingang.md#überwachter-ordner) für den Posteingang, absoluter Pfad, auch außerhalb des Datenverzeichnisses (die App für Home Assistant setzt `/share/energietracker/posteingang`). Das Image legt ihn beim Start an und gibt ihn `www-data`; ohne root (Variante `rootless`) muss er für den Benutzer des Containers beschreibbar sein |
 | `ET_FRAME_ANCESTORS` | *(leer)* | *(v2.6.0)* Ursprünge, die die App einbetten dürfen (z. B. das Home-Assistant-Dashboard) |
 | `ET_DEBUG` | *(leer)* | *(v2.6.0)* `1` = Datei/Zeile in Fehlerantworten — nur kurz zur Fehlersuche |
 

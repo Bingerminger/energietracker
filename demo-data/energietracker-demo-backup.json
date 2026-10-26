@@ -10999,7 +10999,7 @@
             "extraction": {
                 "provider": "local",
                 "model": "qwen3.8",
-                "schema_version": 4,
+                "schema_version": 5,
                 "type": "invoice",
                 "fields": {
                     "utility": {
@@ -11188,6 +11188,27 @@
                         "status": "ok",
                         "reasons": []
                     },
+                    "advance_new_dates": {
+                        "value": [],
+                        "raw": null,
+                        "quote": null,
+                        "page": null,
+                        "status": "empty",
+                        "reasons": [
+                            "missing"
+                        ],
+                        "items": []
+                    },
+                    "advance_new_every": {
+                        "value": null,
+                        "raw": null,
+                        "quote": null,
+                        "page": null,
+                        "status": "empty",
+                        "reasons": [
+                            "missing"
+                        ]
+                    },
                     "meter_number": {
                         "value": "G-2024-998",
                         "raw": "G-2024-998",
@@ -11284,7 +11305,8 @@
                                 "from": "2025-01-01",
                                 "ct": 7.9,
                                 "basis": null,
-                                "vat_pct": null
+                                "vat_pct": null,
+                                "part": null
                             }
                         ],
                         "raw": null,
@@ -11300,7 +11322,8 @@
                                     "from": "2025-01-01",
                                     "ct": 7.9,
                                     "basis": null,
-                                    "vat_pct": null
+                                    "vat_pct": null,
+                                    "part": null
                                 },
                                 "quote": "Arbeitspreis ab 01.01.2025: 7,90 ct/kWh",
                                 "page": 2,
@@ -11356,6 +11379,17 @@
                         "reasons": [
                             "missing"
                         ]
+                    },
+                    "water_prices": {
+                        "value": [],
+                        "raw": null,
+                        "quote": null,
+                        "page": null,
+                        "status": "empty",
+                        "reasons": [
+                            "missing"
+                        ],
+                        "items": []
                     },
                     "document_date": {
                         "value": null,

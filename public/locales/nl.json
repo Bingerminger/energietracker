@@ -502,7 +502,9 @@
         "one": "{count} bijzondere betaling",
         "other": "{count} bijzondere betalingen"
       },
-      "sinceBill": "Gerekend vanaf {date}: de afrekening daarvoor is in het contract geboekt en telt hier niet meer mee."
+      "sinceBill": "Gerekend vanaf {date}: de afrekening daarvoor is in het contract geboekt en telt hier niet meer mee.",
+      "nextDue": "volgende vervaldatum: {date}",
+      "paidCurrentEvery": "nu: {value}"
     },
     "contractsTable": {
       "emptyTitle": "Geen contracten geregistreerd",
@@ -803,13 +805,15 @@
       "advance": "Voorschot",
       "twWorking": "Eenheidsprijs drinkwater",
       "twBase": "Vastrecht drinkwater",
-      "swWorking": "Eenheidsprijs afvalwater"
+      "swWorking": "Eenheidsprijs afvalwater",
+      "swBase": "Vastrecht afvalwater"
     },
     "unit": {
       "ctPerKwh": "{minor}/kWh",
       "eurPerMonth": "{cur}/maand",
       "eurPerKwYear": "{cur}/kW per jaar",
-      "eurPerYear": "{cur}/jaar"
+      "eurPerYear": "{cur}/jaar",
+      "eurPerDue": "{cur} per vervaldatum"
     },
     "loading": "Laden…",
     "unknown": "Onbekende verbruikssoort: {key}",
@@ -838,7 +842,8 @@
       "advanceValue": "Voorschot {value}/maand",
       "valuesOn": "per {date}",
       "noValues": "Nog geen prijzen ingevuld",
-      "since": "sinds {year}"
+      "since": "sinds {year}",
+      "advanceValueEvery": "Voorschot {value}"
     },
     "summary": {
       "twPrices": {
@@ -987,7 +992,6 @@
       "noMoreMeters": "(nog geen andere meters beschikbaar)",
       "swWorking": "Prijs per m³ afvalwater ({minor}/m³)",
       "nwRates": "Ingangsdatum",
-      "apMonthly": "Maandvoorschot ({cur})",
       "colDate": "Datum",
       "colCtM3": "{minor}/m³",
       "colEurMonth": "{cur}/maand",
@@ -1000,7 +1004,10 @@
       "startRequired": "Het begin van het contract is verplicht.",
       "basisDeduct": "drinkwater min aftrekmeters (bijv. tuin)",
       "deductMeters": "Aftrekmeters",
-      "deductHint": "Water dat via deze meters loopt (bijv. tuinwater) kost drinkwater, maar geen afvalwater. Houd de tuinmeter bij voorkeur bij als tussenmeter van de hoofdmeter, dan telt hij niet dubbel mee in de totalen."
+      "deductHint": "Water dat via deze meters loopt (bijv. tuinwater) kost drinkwater, maar geen afvalwater. Houd de tuinmeter bij voorkeur bij als tussenmeter van de hoofdmeter, dan telt hij niet dubbel mee in de totalen.",
+      "swBase": "Vastrecht afvalwater ({cur}/maand)",
+      "apPlan": "Voorschotplan",
+      "colEurDue": "{cur} per vervaldatum"
     },
     "perM3": {
       "toggleTitle": "Prijs per m³ omrekenen naar {minor}/kWh",
@@ -1087,6 +1094,10 @@
       "undated": "invoer zonder datum",
       "link": "Naar de instelling",
       "why": "De volumeherleidingsfactor en de calorische waarde hangen af van het afnamepunt (hoogte, druk) en van het gas in het net, niet van de leverancier: bij een overstap blijven ze gelijk, en elke gasafrekening noemt ze. Daarom staan ze één keer in de instellingen en gelden ze voor elk contract."
+    },
+    "advance": {
+      "every": "Ritme",
+      "dueDates": "Vervaldata volgens de rekening: {dates}, daarna elk jaar op dezelfde dagen"
     }
   },
   "meters": {
@@ -1800,7 +1811,14 @@
         "readKeyComment": "alleen nodig als inloggen aan staat",
         "sensorBalance": "Saldo",
         "sensorForecast": "Prognose 12 maanden",
-        "sensorDaysSince": "Dagen sinds meterstand"
+        "sensorDaysSince": "Dagen sinds meterstand",
+        "todoScanComment": "elke 15 minuten",
+        "todoName": "Energietracker te doen",
+        "todoNextName": "Energietracker volgend punt",
+        "todoDateName": "Energietracker volgend punt uiterlijk",
+        "webhookAlias": "Energietracker: melding doorgeven",
+        "webhookIdComment": "eigen ID die niet te raden is",
+        "notifyComment": "of notify.mobile_app_… voor je telefoon"
       },
       "lastUsed": "Laatst gebruikt: {when}",
       "neverUsed": "Met dit token is nog niets binnengekomen.",
@@ -1817,7 +1835,11 @@
       },
       "setupTitle": "Meters en sjablonen voor Home Assistant",
       "appHint": "Gebruik je Home Assistant OS? Dan draait Energietracker ook als app direct in Home Assistant, met een item in de zijbalk.",
-      "appAdd": "Repository aan Home Assistant toevoegen"
+      "appAdd": "Repository aan Home Assistant toevoegen",
+      "todo": {
+        "title": "Sensor ‘Te doen’",
+        "intro": "Aantal openstaande punten en het volgende, voor dashboard en automatiseringen. Alle punten staan in het attribuut items."
+      }
     },
     "diag": {
       "title": "Systeemdiagnose",
@@ -2219,6 +2241,66 @@
       "accessLink": "Toegang openen",
       "movedHint": "Personen in het huishouden voeg je toe onder Huishouden en gebouw, ook zonder inloggen.",
       "goto": "Naar de personen"
+    },
+    "haNotify": {
+      "title": "Meldingen naar Home Assistant",
+      "intro": "Energietracker meldt zich zelf bij Home Assistant: als een afspraak of termijn aan de beurt is, bij waarschuwingen en als er een document in het postvak binnenkomt. Elk bericht komt maar één keer.",
+      "privacy": "De berichten gaan alleen naar je eigen Home Assistant. Niets verlaat je thuisnetwerk, tenzij je zelf een adres daarbuiten invult.",
+      "adminOnly": "Alleen wie deze installatie beheert, mag dit wijzigen.",
+      "enabled": "Meldingen versturen",
+      "targetLabel": "Waarheen?",
+      "target": {
+        "supervisor": "Via de Supervisor (app in Home Assistant, zonder instellen)",
+        "webhook": "Webhook in Home Assistant",
+        "token": "Adres en token"
+      },
+      "supervisorMissing": "De weg via de Supervisor werkt alleen in de app voor Home Assistant.",
+      "url": "Adres van Home Assistant",
+      "urlHint": "Bijvoorbeeld http://192.168.178.10:8123, zonder pad. Een naam op .local is in een container vaak niet op te lossen; vul dan het IP-adres in.",
+      "webhook": "Webhook-ID",
+      "webhookHint": "Dezelfde ID als in de trigger ‘Webhook’ van je automatisering. Hij werkt als een wachtwoord: hij blijft op de server en verschijnt hier na het opslaan niet meer.",
+      "newId": "Nieuwe ID maken",
+      "secretStored": "opgeslagen, leeg laten om te houden",
+      "secretClear": "Verwijderen",
+      "token": "Token (langdurig)",
+      "tokenHint": "Maak hem in Home Assistant aan in je profiel onder Beveiliging (langdurige toegangstokens). Hij blijft op de server en verschijnt hier na het opslaan niet meer.",
+      "service": "Actie in Home Assistant",
+      "serviceHint": "persistent_notification.create toont het bericht bij de meldingen in Home Assistant. Voor je telefoon: notify.mobile_app_ met de naam van je apparaat erachter.",
+      "events": "Wat melden?",
+      "event": {
+        "reminder": "Afspraken zodra ze aan de beurt zijn",
+        "deadline": "Termijnen en andere punten uit ‘Te doen’ (meterstanden, opzegtermijnen, rekeningen)",
+        "warning": "Waarschuwingen, zoals een ongewoon hoog verbruik",
+        "document": "Nieuwe documenten in het postvak"
+      },
+      "hour": "Dagelijkse controle vanaf",
+      "hourOption": "{hour}:00 uur",
+      "hourHint": "Eén keer per dag, bij het eerste verzoek na dit tijdstip. Nieuwe documenten meldt de app direct na binnenkomst.",
+      "test": "Testbericht versturen",
+      "testOk": "Testbericht verstuurd. Kijk in Home Assistant.",
+      "testFailed": "Het testbericht is niet aangekomen: {reason}",
+      "saved": "Opgeslagen.",
+      "state": {
+        "on": "Aan. Bestemming: {target}",
+        "incomplete": "Aan, maar de bestemming is onvolledig. Er gaat niets weg.",
+        "off": "Uit. Er gaat niets naar Home Assistant."
+      },
+      "last": "Laatst verstuurd: {when}",
+      "lastFailed": "Laatste poging op {when} mislukt: {reason}",
+      "yamlTitle": "Automatisering voor de webhook",
+      "yamlHint": "Maak in Home Assistant een nieuwe automatisering, kies ‘Bewerken in YAML’ en plak dit erin. De webhook-ID moet dezelfde zijn als hierboven.",
+      "error": {
+        "dns": "De naam in het adres is niet op te lossen.",
+        "address": "Dit adres is geblokkeerd.",
+        "insecure": "Een adres buiten het thuisnetwerk werkt alleen met https://.",
+        "timeout": "Home Assistant heeft niet op tijd geantwoord.",
+        "network": "Home Assistant is niet bereikbaar.",
+        "http": "Home Assistant antwoordt met status {status}.",
+        "unauthorized": "Home Assistant weigert (401). Controleer de token.",
+        "incomplete": "De bestemming is nog niet helemaal ingesteld.",
+        "url": "Het adres is ongeldig.",
+        "noTransport": "Op de server ontbreekt curl voor PHP."
+      }
     }
   },
   "reminders": {
@@ -3531,7 +3613,9 @@
       "priceModelInvalid": "Onbekend prijsmodel ‘{value}’",
       "priceImportEmpty": "Het bestand bevat geen regel in het formaat maand;prijs",
       "priceImportUnsupported": "Maandprijzen bestaan alleen voor contracten met een eenheidsprijs per kWh",
-      "gridTouInvalid": "Tijdvensters module 3 ongeldig ({field}): kwartalen 1–4, tijden HH:MM met van vóór tot, prijzen 0–100 ct en een standaardtarief."
+      "gridTouInvalid": "Tijdvensters module 3 ongeldig ({field}): kwartalen 1–4, tijden HH:MM met van vóór tot, prijzen 0–100 ct en een standaardtarief.",
+      "advanceEveryInvalid": "Voorschot nr. {n}: ‘{value}’ is geen ritme. Mogelijk zijn elke maand, elke 2 en elke 3 maanden.",
+      "advanceDueBeforeStart": "Voorschot nr. {n}: de vervaldatum {date} ligt vóór de dag waarop de regel ingaat."
     },
     "delivery": {
       "notFound": "Levering niet gevonden: {id}",
@@ -3815,12 +3899,17 @@
       },
       "nothingSelected": "Niets geselecteerd."
     },
+    "haNotify": {
+      "incomplete": "De bestemming is onvolledig: de webhook heeft een adres en een webhook-ID nodig, de token een adres en een token. De Supervisor werkt alleen in de app voor Home Assistant.",
+      "webhookFormat": "De webhook-ID bestaat uit 8 tot 200 letters, cijfers, koppeltekens of liggende streepjes.",
+      "tokenFormat": "De token bestaat uit 20 tot 2000 zichtbare tekens zonder spaties."
+    },
     "concept": {
+      "field": "Het gegeven ‘{field}’ voor de meetopstelling ontbreekt of klopt niet.",
       "touCascade": "In een cascade hangt de huishoudmeter per telwerk achter de voorste meter. Dus piek/dal op beide of op geen van beide.",
       "meterUnknown": "De meter ‘{id}’ bestaat niet.",
       "meterTwice": "De meter ‘{id}’ is aan twee plaatsen toegewezen. Elke meter staat maar één keer in het schema.",
-      "chain": "‘{name}’ heeft zelf tussenmeters en kan daarom niet achter een andere meter hangen.",
-      "field": "Het gegeven ‘{field}’ voor de meetopstelling ontbreekt of klopt niet."
+      "chain": "‘{name}’ heeft zelf tussenmeters en kan daarom niet achter een andere meter hangen."
     }
   },
   "login": {
@@ -3890,7 +3979,8 @@
     },
     "history": "Geschiedenis ({count})",
     "historyTitle": "Geschiedenis: {name}",
-    "anytime": "Altijd opzegbaar"
+    "anytime": "Altijd opzegbaar",
+    "advanceEvery": "Voorschot {amount}"
   },
   "billCheck": {
     "noMeter": "De controle rekent de jaarafrekening na voor gas, stroom, water en stadsverwarming. Maak eerst een meter aan.",
@@ -5881,7 +5971,7 @@
       "elapsed": "{s} s",
       "wait": "Server is nog bezig – resultaat opvragen …"
     },
-    "empty": "Nog geen post in de postbak. Berg je eerste rekening of contractbevestiging op als pdf.",
+    "empty": "Nog geen post in de postbak.",
     "col": {
       "document": "Document",
       "type": "Soort",
@@ -6039,7 +6129,10 @@
       "document_title": "Titel van het document",
       "meter_readings": "Meterstanden per meter",
       "reading_new_estimated": "Eindstand geschat",
-      "reading_old_estimated": "Beginstand geschat"
+      "reading_old_estimated": "Beginstand geschat",
+      "water_prices": "Waterprijzen",
+      "advance_new_dates": "Vervaldata van het nieuwe voorschot",
+      "advance_new_every": "Ritme van het nieuwe voorschot"
     },
     "reason": {
       "empty": "Ontbreekt, maar is nodig",
@@ -6075,14 +6168,28 @@
       "supplier": "Opzegging door de leverancier",
       "switch": "Einde door overstap",
       "net": "netto",
-      "gross": "bruto"
+      "gross": "bruto",
+      "trinkwasser": "Drinkwater",
+      "schmutzwasser": "Afvalwater",
+      "niederschlagswasser": "Regenwater",
+      "m3": "per m³",
+      "m2_year": "per m² per jaar",
+      "monthly": "elke maand",
+      "bimonthly": "elke twee maanden",
+      "quarterly": "elke drie maanden",
+      "energy": "Eenheidsprijs",
+      "energy_tax": "Energiebelasting",
+      "co2": "CO₂-prijs",
+      "other": "Toeslag"
     },
     "item": {
       "gasFactor": "{from} t/m {to}: volumeherleidingsfactor {z} × calorische waarde {hs} kWh/m³",
       "price": "vanaf {from}: {value}",
       "priceNet": "vanaf {from}: {value} netto + {vat}% btw = {gross}",
       "meterReading": "Meter {meter}: {from} → {to}",
-      "estimated": "geschat volgens de factuur"
+      "estimated": "geschat volgens de factuur",
+      "waterPrice": "{section} · {label} van {from} tot {to}: {price}",
+      "waterPriceNet": "{section} · {label} van {from} tot {to}: {price} netto + {vat}% btw = {gross}"
     },
     "result": {
       "due": "bijbetaling {amount}",
@@ -6111,7 +6218,12 @@
       "contractFromInvoice": "Contract {provider} vanaf {from} uit deze rekening aanmaken",
       "contractFromSupplyStart": "Contract {provider} vanaf {from} aanmaken",
       "meterSwapInvoice": "Meterwissel op {date}: eindstand {old_final} op meter {old_serial}, nieuwe meter {serial} met beginstand {new_initial}",
-      "readingEstimated": "Meterstand op {date}: {counter} (geschat volgens de factuur)"
+      "readingEstimated": "Meterstand op {date}: {counter} (geschat volgens de factuur)",
+      "requiresContract": "Alleen samen met het contract uit deze rekening.",
+      "contractSpanFromInvoice": "Contract {provider} van {from} tot {to} uit deze rekening aanmaken",
+      "waterWorking": "{section} vanaf {from}: {value} (uit de rekening)",
+      "waterBase": "Vastrecht {section} vanaf {from}: {value} per maand (uit de rekening)",
+      "waterRate": "{section} vanaf {from}: {value} per m² per jaar voor {area} m² (uit de rekening)"
     },
     "detail": {
       "reading": "Vastgelegd: {counter}.",
@@ -6155,7 +6267,8 @@
       "remindDate": "Termijn",
       "figure": {
         "perYear": "{amount} per jaar",
-        "perMonth": "{amount} per maand"
+        "perMonth": "{amount} per maand",
+        "perRate": "{amount} per vervaldatum"
       },
       "priceChange": {
         "more": "Vanaf {date} kost {provider} je ongeveer {amount} meer per jaar.",
@@ -6177,7 +6290,9 @@
         "ok": "Het nieuwe voorschot van {amount} past bij je verbruik.",
         "high": "Het nieuwe voorschot van {amount} is ongeveer {diff} per maand te hoog ({recommended} zou passen).",
         "low": "Het nieuwe voorschot van {amount} is ongeveer {diff} per maand te laag ({recommended} zou passen).",
-        "unknown": "Nieuw voorschot {amount} vanaf {date}."
+        "unknown": "Nieuw voorschot {amount} vanaf {date}.",
+        "highRate": "Het nieuwe voorschot van {amount} is ongeveer {diff} per vervaldatum te hoog ({recommended} zou passen).",
+        "lowRate": "Het nieuwe voorschot van {amount} is ongeveer {diff} per vervaldatum te laag ({recommended} zou passen)."
       },
       "cancellation": {
         "open": "De levering eindigt op {date} – er is nog geen vervolgcontract.",
@@ -6248,7 +6363,8 @@
         "serialConflict": "Let op: bij de meter staat het nummer {serial}.",
         "minTerm": "Minimale looptijd tot {date}.",
         "guarantee": "Prijsgarantie tot {date}.",
-        "dunning": "Een aanmaning leest de app niet uit; de herinnering zorgt dat je de betaling regelt."
+        "dunning": "Een aanmaning leest de app niet uit; de herinnering zorgt dat je de betaling regelt.",
+        "advanceBasisRate": "Ongeveer {recommended} per vervaldatum zou passen; met het nieuwe voorschot eindigt de rekening met: {balance}."
       }
     },
     "channels": {
@@ -6259,7 +6375,8 @@
       },
       "shortcut": "Opdracht",
       "folder": "Map",
-      "email": "E-mail"
+      "email": "E-mail",
+      "textShare": "Ook zonder browser: met een opdracht vanaf iPhone of iPad, via de map ‘{dir}’ of per e-mail via Home Assistant."
     },
     "folder": {
       "imported": {
@@ -6310,6 +6427,22 @@
     },
     "wait": {
       "gaveUp": "Geen antwoord, ook niet na navragen. Het document wordt misschien nog klaar – open het zo opnieuw. Een langere tijdslimiet op de webserver helpt blijvend."
+    },
+    "unit": {
+      "perM3": "per m³",
+      "perYear": "per jaar",
+      "perMonth": "per maand",
+      "perM2Year": "per m² per jaar"
+    },
+    "line": {
+      "working": "{what} vanaf {from}: {value}",
+      "base": "Vastrecht {what} vanaf {from}: {value} per maand",
+      "baseOnly": "Vastrecht vanaf {from}: {value} per maand",
+      "rate": "{what} vanaf {from}: {value} per m² per jaar voor {area} m²",
+      "energy": "Eenheidsprijs",
+      "parts": "uit {parts}",
+      "net": "{value} netto + {vat}% btw",
+      "advance": "Voorschot vanaf {from}: {value} per vervaldatum"
     }
   },
   "inboxCloud": {
@@ -6486,7 +6619,8 @@
       "meterChange": "Meterwissel op {date}, nieuwe meter {serial}",
       "contract": {
         "new": "Contract {provider} {from} tot {to}",
-        "existing": "Bestaand contract {provider} vanaf {from}"
+        "existing": "Bestaand contract {provider} vanaf {from}",
+        "sameSupplier": "Bestaand contract {existing} vanaf {from}: dezelfde leverancier als {provider}?"
       },
       "contractEnd": "Vorig contract {provider} eindigt op {date}",
       "prices": "Prijzen {provider}",
@@ -6543,7 +6677,8 @@
       "swap_open": "Na een meterwissel zonder eindstand van de oude meter – voer eerst de wissel in",
       "swap_readings": "De standen passen niet helemaal bij de wissel (ander apparaat, dalend of onder een bekende stand) – controleer",
       "existing_update": "Vult aan wat er al is – controleer",
-      "existing_overlap": "Overlapt met wat er al is – controleer"
+      "existing_overlap": "Overlapt met wat er al is – controleer",
+      "same_supplier": "In je gegevens heeft de leverancier een andere naam. Is het dezelfde, bijvoorbeeld een merk en het gemeentelijke energiebedrijf?"
     },
     "result": {
       "title": "Overgenomen",
@@ -6603,7 +6738,8 @@
       "memberHint": "Instellen doet wie deze installatie beheert. Hier zie je wat er ingesteld is; opbergen kan nu al.",
       "ready": "Ingesteld: de app leest nu uit met {service}, model {model}.",
       "unavailable": "De instellingen voor uitlezen zijn nu niet bereikbaar. Probeer het zo meteen opnieuw."
-    }
+    },
+    "requires": "Hoort bij ‘{contract}’ en wordt alleen samen met dit contract overgenomen."
   },
   "interpolation": {
     "leadYear": {
@@ -6662,6 +6798,43 @@
       "too_few_points": "te weinig datapunten ({n})",
       "poor_fit": "past niet (R² {r2})",
       "degenerate": "niet te berekenen (te weinig verschil in de waarden)"
+    }
+  },
+  "haNotify": {
+    "title": {
+      "reminder": "Energietracker: afspraak",
+      "deadline": "Energietracker: te doen",
+      "more": "Energietracker: te doen",
+      "warning": "Energietracker: waarschuwing",
+      "document": "Energietracker: postvak",
+      "test": "Energietracker: testbericht"
+    },
+    "test": "De verbinding werkt. Vanaf nu komen hier afspraken en termijnen die aan de beurt zijn, waarschuwingen en nieuwe documenten binnen.",
+    "when": {
+      "today": "Vandaag aan de beurt.",
+      "on": "Uiterlijk op {date}.",
+      "overdue": "Te laat sinds {date}."
+    },
+    "document": {
+      "single": "Nieuw document in het postvak: {name}",
+      "many": {
+        "one": "{count} nieuw document in het postvak: {names}",
+        "other": "{count} nieuwe documenten in het postvak: {names}"
+      }
+    },
+    "more": {
+      "one": "Daarnaast nog {count} punt:",
+      "other": "Daarnaast nog {count} punten:"
+    }
+  },
+  "advance": {
+    "rhythm": {
+      "every": {
+        "one": "elke maand",
+        "other": "elke {count} maanden"
+      },
+      "everyDates": "{every}, op {dates}",
+      "dates": "op {dates}"
     }
   },
   "restBilling": {

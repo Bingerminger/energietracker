@@ -618,6 +618,16 @@ Gesamtbetrag gesetzt ist, wird `unit_price_cents` genutzt.
 `is_shadow: true` = hypothetischer Tarif für den Vergleich; beeinflusst
 **weder** Saldo **noch** Prognose.
 
+*(v3.9.0)* **Abschlag mit Rhythmus** — eine Zeile von `advance_payments` trägt
+optional `every_months` (`2` oder `3`, monatlich fehlt das Feld) und
+`due_dates` (Termine laut Rechnung, aufsteigend, keiner vor `from`):
+`{ "from": "2026-05-15", "amount_eur": 165, "every_months": 2, "due_dates":
+["2026-05-15", "2026-07-15", "2026-09-15"] }`. `amount_eur` gilt dann je Termin;
+nach dem letzten Termin geht es jährlich zu denselben Tagen weiter. Bei Wasser
+liegt der Plan wie bisher in `advance_payments`; `schmutzwasser.base_prices`
+(`[{from, eur_per_month}]`, optional) ist der Grundpreis des Schmutzwassers.
+Beides kommt mit den Verträgen ins Backup.
+
 *(v3.7.0)* Optional `assignee_id`: die zuständige Person — Kündigungsfrist,
 Vertragsende und „Abrechnung erwartet“ landen bei ihr
 ([Zuständig an Zählern und Verträgen](#zuständig-an-zählern-und-verträgen-v370)).

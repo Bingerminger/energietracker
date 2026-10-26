@@ -95,6 +95,14 @@ final class InboxService
         $this->gist = $gist;
     }
 
+    /** v3.9.0 (F1033) — wer erfährt, dass ein Dokument abgelegt wurde (Benachrichtigung an Home Assistant). */
+    private ?\Closure $onUpload = null;
+
+    public function onUpload(callable $fn): void
+    {
+        $this->onUpload = $fn(...);
+    }
+
     public function providers(): ProviderRegistry
     {
         return $this->providers;
@@ -229,6 +237,7 @@ final class InboxService
         $all[] = $entry;
         $this->store->write('inbox.json', $all);
         AttachmentService::link($this->store, (string)$att['id'], 'inbox_pdf', ['type' => 'inbox', 'id' => $id]);
+        if ($this->onUpload !== null) ($this->onUpload)($entry);
         return $entry;
     }
 

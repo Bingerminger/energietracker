@@ -208,6 +208,41 @@ final class InboxRegisterTest extends ServiceTestCase
         self::assertSame([], array_values(array_filter($p['proposals'], fn($x) => $x['kind'] === 'reading' && in_array('meter_readings', (array)$x['sources'], true))));
     }
 
+    /**
+     * Nach dem Merge mit vertrag-aus-rechnung (gesperrte Ziffern): Steht der gesperrte
+     * Stand direkt hinter der Kennzahl („1.8.1 1 0.0 0 0 kWh“), bleibt die Kennzahl
+     * getrennt und der Stand wird zusammengezogen; jeder Stand landet an seinem Zählwerk.
+     */
+    public function testLockedDigitsRightAfterTheObisCode(): void
+    {
+        self::assertSame('zählwerk 1.8.1 10.000 kwh', Evidence::normalizeText('Zählwerk 1.8.1 1 0.0 0 0 kWh'));
+        self::assertSame('1-0:1.8.2 12345 kwh', Evidence::normalizeText('1-0:1.8.2 1 2 3 4 5 kWh'));
+        self::assertSame('1 1.8.0', Evidence::normalizeText('1 1.8.0'), 'keine Sperrung: bleibt');
+        [$ht, $nt] = $this->registerMeters();
+        $a = self::answer();
+        $row = fn(string $reg, string $label, string $old, string $new, string $q) => ['meter_number' => self::SERIAL, 'obis' => $reg, 'register' => $label,
+            'reading_old' => $old, 'reading_old_date' => '31.12.2024', 'reading_new' => $new, 'reading_new_date' => '31.12.2025', 'page' => 1, 'quote' => $q];
+        $a['meter_readings'] = ['value' => [
+            $row('1.8.1', 'HT', '10.000', '12.400', 'Bezug HT 1.8.1 1 0.0 0 0 kWh am 31.12.2024 1 2.4 0 0 kWh am 31.12.2025'),
+            $row('1.8.2', 'NT', '5.000', '6.100', 'Bezug NT 1.8.2 5.0 0 0 kWh am 31.12.2024 6.1 0 0 kWh am 31.12.2025'),
+        ]];
+        $pages = self::pages();
+        $pages[0] = str_replace("Zählwerk 1.8.1 (HT)   Anfangsstand 10.000 kWh am 31.12.2024   Endstand 12.400 kWh am 31.12.2025\n"
+            . "Zählwerk 1.8.2 (NT)   Anfangsstand 5.000 kWh am 31.12.2024   Endstand 6.100 kWh am 31.12.2025\n",
+            "Bezug HT 1.8.1 1 0.0 0 0 kWh am 31.12.2024   1 2.4 0 0 kWh am 31.12.2025\n"
+            . "Bezug NT 1.8.2 5.0 0 0 kWh am 31.12.2024   6.1 0 0 kWh am 31.12.2025\n", $pages[0]);
+        $s = $this->inbox($a);
+        $e = $s->upload(InboxFixture::pdf('zw4'), 'zw4.pdf');
+        $s->extract($e['id'], $pages);
+        $p = $s->preview($e['id']);
+        $by = [];
+        foreach (array_filter($p['proposals'], fn($x) => $x['kind'] === 'reading' && in_array('meter_readings', (array)$x['sources'], true)) as $r) {
+            $by[$r['data']['meter_id']][$r['data']['date']] = $r['data']['counter'];
+        }
+        self::assertSame(['2024-12-31' => 10000.0, '2025-12-31' => 12400.0], $by[$ht] ?? null, 'HT: gesperrte Stände hinter der Kennzahl');
+        self::assertSame(['2024-12-31' => 5000.0, '2025-12-31' => 6100.0], $by[$nt] ?? null);
+    }
+
     public function testWithoutRegistersNothingIsGuessed(): void
     {
         $this->registerMeters();

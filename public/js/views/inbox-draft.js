@@ -28,6 +28,7 @@ import { typeLabel } from '../lib/inbox.js';
 import {
   statusText, reasonText, fieldLabel, valueText, basisText, itemText, itemCount, summaryText, summaryNote,
   findingText, missingText, docStateText, initialSelection, needsConfirm, applyPayload, resultLines, billCheckHref,
+  blockedBy, dependentsOf, pickItem, dropBlocked,
 } from '../lib/inbox-draft.js';
 
 const BADGE = { new: 'badge--info', exists: 'badge--success', conflict: 'badge--danger', overlap: 'badge--warning', update: 'badge--info' };
@@ -55,6 +56,7 @@ export async function render(container) {
       sel.touched = new Set([...prev.touched].filter(id => ids.has(id)));
     }
     sel.touched ??= new Set();
+    dropBlocked(draft, sel);
   };
 
   try {
@@ -92,11 +94,25 @@ export async function render(container) {
     btn.disabled = DEMO || busy || sel.items.size === 0;
   };
 
+  // Preise, Abschläge und Rechnungen eines Vertrags, der erst entsteht: mit seinem Haken gekoppelt
+  const syncDependents = (id) => {
+    const lis = [...container.querySelectorAll('li[data-item]')];
+    for (const d of dependentsOf(draft, id)) {
+      const li = lis.find(x => x.dataset.item === d.id);
+      if (!li) continue;
+      const blocked = !!blockedBy(d, sel);
+      li.classList.toggle('draft-item--blocked', blocked);
+      const pick = li.querySelector('input[data-pick]');
+      if (pick) { pick.checked = sel.items.has(d.id); pick.disabled = blocked || !d.actionable || DEMO; }
+      li.querySelectorAll('input[data-confirm]').forEach(x => { x.disabled = blocked || DEMO; });
+    }
+  };
+
   const wire = () => {
     container.querySelectorAll('input[data-pick]').forEach(c => c.addEventListener('change', () => {
       const id = c.dataset.pick;
-      sel.touched.add(id);
-      if (c.checked) sel.items.add(id); else sel.items.delete(id);
+      pickItem(draft, sel, id, c.checked);
+      syncDependents(id);
       syncBar();
     }));
     container.querySelectorAll('input[data-confirm]').forEach(c => c.addEventListener('change', () => {
@@ -188,25 +204,29 @@ function utilityHtml(u, items, draft, sel) {
   return `<section class="card draft-utility" data-utility="${esc(u.key)}" aria-labelledby="draft-u-${esc(u.key)}">
     <h2 class="card__title" id="draft-u-${esc(u.key)}"><span aria-hidden="true">${esc(u.icon || '')}</span> ${esc(u.label)}</h2>
     ${findings.length ? `<ul class="draft-findings" aria-label="${esc(t('inboxDraft.findings.title'))}">${findings.map(f => `<li>⚠ ${esc(findingText(f))}</li>`).join('')}</ul>` : ''}
-    <ul class="draft-items">${items.map(i => itemHtml(i, u, sel)).join('')}</ul>
+    <ul class="draft-items">${items.map(i => itemHtml(i, u, sel, draft)).join('')}</ul>
   </section>`;
 }
 
-function itemHtml(item, u, sel) {
+function itemHtml(item, u, sel, draft) {
   const on = sel.items.has(item.id);
   const count = itemCount(item);
   const fields = item.fields || [];
   // vorhandene Zeilen langer Listen gesammelt, damit das Neue oben steht
   const shown = fields.filter(f => f.status !== 'exists' || fields.length <= 4);
   const hidden = fields.filter(f => !shown.includes(f));
-  return `<li class="draft-item draft-item--${esc(item.status)}${item.check ? ' draft-item--check' : ''}" data-item="${esc(item.id)}" data-kind="${esc(item.kind)}">
+  // v3.9.0 — hängt an einem Vertrag, der erst entsteht: nur mit ihm (ohne seinen Haken gesperrt)
+  const parent = item.requires ? (draft?.items || []).find(i => i.id === item.requires) : null;
+  const blocked = !!blockedBy(item, sel);
+  return `<li class="draft-item draft-item--${esc(item.status)}${item.check ? ' draft-item--check' : ''}${blocked ? ' draft-item--blocked' : ''}" data-item="${esc(item.id)}" data-kind="${esc(item.kind)}">
     <div class="draft-item__head">
-      <label class="draft-item__pick"><input type="checkbox" data-pick="${esc(item.id)}"${on ? ' checked' : ''}${!item.actionable || DEMO ? ' disabled' : ''}>
+      <label class="draft-item__pick"><input type="checkbox" data-pick="${esc(item.id)}"${on ? ' checked' : ''}${!item.actionable || DEMO || blocked ? ' disabled' : ''}>
         <span class="draft-item__title">${esc(itemText(item))}</span></label>
       <span class="badge ${BADGE[item.status] || ''}">${esc(statusText(item.status))}</span>
       ${item.check && item.actionable ? `<span class="badge badge--warning">${esc(t('inbox.pstatus.check'))}</span>` : ''}
     </div>
     ${item.check && item.actionable ? `<p class="draft-item__reason">${esc(reasonText(item.reasons))} ${esc(t('inboxDraft.tickToConfirm'))}</p>` : ''}
+    ${parent && item.actionable ? `<p class="draft-item__requires muted small">${esc(t('inboxDraft.requires', { contract: itemText(parent) }))}</p>` : ''}
     ${item.optional ? `<p class="muted small">${esc(t('inboxDraft.optional'))}</p>` : ''}
     ${count ? `<p class="muted small">${esc(count)}</p>` : ''}
     ${shown.length ? `<ul class="draft-fields">${shown.map(f => fieldHtml(item, f, u, sel)).join('')}</ul>` : ''}
@@ -218,6 +238,7 @@ function itemHtml(item, u, sel) {
 function fieldHtml(item, f, u, sel) {
   const exists = f.status === 'exists';
   const confirm = needsConfirm(f) && item.actionable;
+  const blocked = !!blockedBy(item, sel);
   const confirmed = sel.confirm.get(item.id)?.has(f.name);
   const chosen = sel.choose.get(item.id)?.get(f.name) ?? 0;
   const basis = basisText(f);
@@ -231,7 +252,7 @@ function fieldHtml(item, f, u, sel) {
     ${f.status === 'conflict' ? `<p class="draft-field__hint small">${esc(t('inboxDraft.existing', { value: valueText(f, f.existing, { unit: u.unit }) }))}</p>` : ''}
     ${f.options && item.actionable ? choiceHtml(item, f, u, chosen) : ''}
     ${confirm ? `<p class="draft-field__confirm"><span class="draft-field__reason">${esc(reasonText(f.reasons))}</span>
-      <label><input type="checkbox" data-confirm="${esc(item.id)}" data-name="${esc(f.name)}"${confirmed ? ' checked' : ''}${DEMO ? ' disabled' : ''}> ${esc(t('inboxDraft.confirm'))}</label></p>` : ''}
+      <label><input type="checkbox" data-confirm="${esc(item.id)}" data-name="${esc(f.name)}"${confirmed ? ' checked' : ''}${DEMO || blocked ? ' disabled' : ''}> ${esc(t('inboxDraft.confirm'))}</label></p>` : ''}
     ${!f.options ? sourcesHtml(f.sources) : ''}
   </li>`;
 }
