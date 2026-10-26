@@ -990,7 +990,6 @@
       "noMoreMeters": "(no further meters available yet)",
       "swWorking": "Price per m³ waste water ({minor}/m³)",
       "nwRates": "Effective date",
-      "apMonthly": "Monthly advance ({cur})",
       "colDate": "Date",
       "colCtM3": "{minor}/m³",
       "colEurMonth": "{cur}/month",
@@ -6107,7 +6106,8 @@
       "contractSpanFromInvoice": "Create the contract {provider} from {from} to {to} from this bill",
       "waterWorking": "{section} from {from}: {value} (from the bill)",
       "waterBase": "Standing charge {section} from {from}: {value} per month (from the bill)",
-      "waterRate": "{section} from {from}: {value} per m² and year for {area} m² (from the bill)"
+      "waterRate": "{section} from {from}: {value} per m² and year for {area} m² (from the bill)",
+      "requiresContract": "Only together with the contract from this bill."
     },
     "detail": {
       "reading": "Recorded: {counter}.",

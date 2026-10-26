@@ -185,6 +185,26 @@ final class WaterBillContractTest extends ServiceTestCase
         self::assertTrue(self::byKind($p['proposals'], 'bill')[0]['data']['contract_new'] ?? false);
     }
 
+    /**
+     * „Rechnung buchen“ am Vertrag aus dieser Rechnung geht nur mit ihm (`requires`, wie der
+     * Entwurf): ohne den Vertrag abgelehnt, die Rechnung selbst wird trotzdem erfasst, ohne Vertrag.
+     */
+    public function testBookingOnTheNewContractNeedsTheContract(): void
+    {
+        [$s, $p] = $this->read();
+        $c = self::byKind($p['proposals'], 'contract_create')[0];
+        $book = self::byKind($p['proposals'], 'bill_book')[0];
+        self::assertSame([$c['id'], true], [$book['requires'] ?? null, $book['checked_with'] ?? null]);
+        self::assertArrayNotHasKey('requires', self::byKind($p['proposals'], 'bill')[0], 'erfassen geht auch ohne Vertrag');
+        $ids = array_column(array_filter($p['proposals'], fn($x) => $x['checked'] && $x['kind'] !== 'contract_create'), 'id');
+        $res = $s->apply($p['entry']['id'], $ids);
+        self::assertSame([['bill_book', 'errors.inboxDraft.needs.contract']], array_map(fn($f) => [$f['kind'], $f['code']], $res['failed']));
+        self::assertSame([], $this->contracts->list('wasser'));
+        $b = $this->bills->list('wasser');
+        self::assertCount(1, $b);
+        self::assertTrue(empty($b[0]['contract_id']) && empty($b[0]['special_payment_id']), 'nicht gebucht, an keinem Vertrag');
+    }
+
     public function testWithAContractOfAnotherSupplierItIsOnlyAnOffer(): void
     {
         $this->contracts->create('wasser', ['meter_id' => 'm_wasser_default', 'provider' => 'Wasserwerk Beispielstadt', 'start' => '2024-01-01',

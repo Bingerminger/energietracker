@@ -568,6 +568,17 @@ final class Proposals
             $p['id'] = 'p_' . substr(sha1($p['kind'] . '|' . json_encode($p['data'], JSON_UNESCAPED_UNICODE)), 0, 12);
         }
         unset($p);
+        // v3.9.0 (F1034) — „Rechnung buchen“ am Vertrag aus dieser Rechnung geht nur mit ihm (`requires`,
+        // wie der Entwurf): ohne seinen Haken gesperrt, mit ihm wieder wie vorbelegt (`checked_with`).
+        // Seine Preise und sein Abschlagsplan stehen im Vorschlag selbst, nie ohne ihn.
+        $forBill = array_values(array_filter($out, fn($x) => $x['kind'] === 'contract_create' && !empty($x['data']['for_bill'])))[0]['id'] ?? null;
+        foreach ($out as &$p) {
+            if ($p['kind'] === 'bill_book' && !empty($p['data']['contract_new']) && $forBill !== null) {
+                $p['requires'] = $forBill;
+                $p['checked_with'] = $p['checked'];
+            }
+        }
+        unset($p);
         return $out;
     }
 

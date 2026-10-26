@@ -990,7 +990,6 @@
       "noMoreMeters": "(ainda sem mais contadores disponíveis)",
       "swWorking": "Preço por m³ águas residuais ({minor}/m³)",
       "nwRates": "Data de efeito",
-      "apMonthly": "Adiantamento mensal ({cur})",
       "colDate": "Data",
       "colCtM3": "{minor}/m³",
       "colEurMonth": "{cur}/mês",
@@ -6107,7 +6106,8 @@
       "contractSpanFromInvoice": "Criar o contrato {provider} de {from} a {to} com base nesta fatura",
       "waterWorking": "{section} a partir de {from}: {value} (da fatura)",
       "waterBase": "Termo fixo {section} a partir de {from}: {value} por mês (da fatura)",
-      "waterRate": "{section} a partir de {from}: {value} por m² e ano para {area} m² (da fatura)"
+      "waterRate": "{section} a partir de {from}: {value} por m² e ano para {area} m² (da fatura)",
+      "requiresContract": "Só em conjunto com o contrato desta fatura."
     },
     "detail": {
       "reading": "Registada: {counter}.",

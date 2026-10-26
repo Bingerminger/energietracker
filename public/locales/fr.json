@@ -990,7 +990,6 @@
       "noMoreMeters": "(aucun autre compteur disponible pour l’instant)",
       "swWorking": "Prix du m³ eaux usées ({minor}/m³)",
       "nwRates": "Date d’effet",
-      "apMonthly": "Acompte mensuel ({cur})",
       "colDate": "Date",
       "colCtM3": "{minor}/m³",
       "colEurMonth": "{cur}/mois",
@@ -6107,7 +6106,8 @@
       "contractSpanFromInvoice": "Créer le contrat {provider} du {from} au {to} d’après cette facture",
       "waterWorking": "{section} à partir du {from} : {value} (d’après la facture)",
       "waterBase": "Abonnement {section} à partir du {from} : {value} par mois (d’après la facture)",
-      "waterRate": "{section} à partir du {from} : {value} par m² et par an pour {area} m² (d’après la facture)"
+      "waterRate": "{section} à partir du {from} : {value} par m² et par an pour {area} m² (d’après la facture)",
+      "requiresContract": "Uniquement avec le contrat issu de cette facture."
     },
     "detail": {
       "reading": "Enregistré : {counter}.",

@@ -990,7 +990,6 @@
       "noMoreMeters": "(nog geen andere meters beschikbaar)",
       "swWorking": "Prijs per m³ afvalwater ({minor}/m³)",
       "nwRates": "Ingangsdatum",
-      "apMonthly": "Maandvoorschot ({cur})",
       "colDate": "Datum",
       "colCtM3": "{minor}/m³",
       "colEurMonth": "{cur}/maand",
@@ -6107,7 +6106,8 @@
       "contractSpanFromInvoice": "Contract {provider} van {from} tot {to} uit deze rekening aanmaken",
       "waterWorking": "{section} vanaf {from}: {value} (uit de rekening)",
       "waterBase": "Vastrecht {section} vanaf {from}: {value} per maand (uit de rekening)",
-      "waterRate": "{section} vanaf {from}: {value} per m² per jaar voor {area} m² (uit de rekening)"
+      "waterRate": "{section} vanaf {from}: {value} per m² per jaar voor {area} m² (uit de rekening)",
+      "requiresContract": "Alleen samen met het contract uit deze rekening."
     },
     "detail": {
       "reading": "Vastgelegd: {counter}.",

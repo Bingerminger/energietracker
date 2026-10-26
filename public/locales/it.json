@@ -990,7 +990,6 @@
       "noMoreMeters": "(ancora nessun altro contatore disponibile)",
       "swWorking": "Prezzo al m³ acque reflue ({minor}/m³)",
       "nwRates": "Data di decorrenza",
-      "apMonthly": "Acconto mensile ({cur})",
       "colDate": "Data",
       "colCtM3": "{minor}/m³",
       "colEurMonth": "{cur}/mese",
@@ -6107,7 +6106,8 @@
       "contractSpanFromInvoice": "Crea il contratto {provider} dal {from} al {to} da questa bolletta",
       "waterWorking": "{section} dal {from}: {value} (dalla bolletta)",
       "waterBase": "Quota fissa {section} dal {from}: {value} al mese (dalla bolletta)",
-      "waterRate": "{section} dal {from}: {value} al m² all’anno per {area} m² (dalla bolletta)"
+      "waterRate": "{section} dal {from}: {value} al m² all’anno per {area} m² (dalla bolletta)",
+      "requiresContract": "Solo insieme al contratto ricavato da questa bolletta."
     },
     "detail": {
       "reading": "Registrata: {counter}.",

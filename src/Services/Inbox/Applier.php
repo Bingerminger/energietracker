@@ -61,8 +61,15 @@ final class Applier
         $note = $this->i18n->t('inbox.applied.note', ['name' => (string)($entry['name'] ?? '')]);
         $billId = null;
         $forBill = null;   // v3.9.0 (F1034) — der Vertrag aus dieser Rechnung, in diesem Durchgang angelegt
+        $picked = array_flip(array_column($proposals, 'id'));
         foreach ($proposals as $p) {
             if ($p['status'] === 'exists') { $res['skipped'][] = ['id' => $p['id'], 'kind' => $p['kind'], 'reason' => 'exists']; continue; }
+            // v3.9.0 (F1034) — was am neuen Vertrag hängt (`requires`), nur mit ihm; nie an einem anderen
+            if (is_string($p['requires'] ?? null) && !isset($picked[$p['requires']])) {
+                $res['failed'][] = ['id' => $p['id'], 'kind' => $p['kind'], 'error' => $this->i18n->t('errors.inboxDraft.needs.contract'),
+                    'code' => 'errors.inboxDraft.needs.contract'];
+                continue;
+            }
             try {
                 $d = $p['data'];
                 $ref = match ($p['kind']) {

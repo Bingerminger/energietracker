@@ -990,7 +990,6 @@
       "noMoreMeters": "(noch keine weiteren Zähler vorhanden)",
       "swWorking": "Arbeitspreis Schmutzwasser ({minor}/m³)",
       "nwRates": "Stichtag",
-      "apMonthly": "Monatsabschlag ({cur})",
       "colDate": "Datum",
       "colCtM3": "{minor}/m³",
       "colEurMonth": "{cur}/Monat",
@@ -6107,7 +6106,8 @@
       "contractSpanFromInvoice": "Vertrag {provider} vom {from} bis {to} aus dieser Rechnung anlegen",
       "waterWorking": "{section} ab {from}: {value} (aus der Rechnung)",
       "waterBase": "Grundpreis {section} ab {from}: {value} pro Monat (aus der Rechnung)",
-      "waterRate": "{section} ab {from}: {value} je m² und Jahr für {area} m² (aus der Rechnung)"
+      "waterRate": "{section} ab {from}: {value} je m² und Jahr für {area} m² (aus der Rechnung)",
+      "requiresContract": "Nur zusammen mit dem Vertrag aus dieser Rechnung."
     },
     "detail": {
       "reading": "Erfasst ist {counter}.",
