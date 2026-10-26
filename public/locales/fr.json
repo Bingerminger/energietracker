@@ -1141,7 +1141,8 @@
         "one": "{count} appareil",
         "other": "{count} appareils"
       },
-      "periodTag": "par période"
+      "periodTag": "par période",
+      "obis": "Registre {obis}"
     },
     "modal": {
       "titleEdit": "Modifier le compteur",
@@ -1186,7 +1187,9 @@
         "device": "Appareil",
         "topology": "Structure",
         "market": "Point de livraison"
-      }
+      },
+      "obis": "Registre (code OBIS)",
+      "obisHint": "Indiqué sur le compteur et à côté de l’index sur la facture, p. ex. 1.8.1 pour le soutirage HP. Si un compteur a plusieurs registres, créez un compteur par registre avec le même numéro de compteur. La boîte de réception attribue alors les index d’une facture au bon registre."
     },
     "replace": {
       "title": "Changement de compteur : {name}",
@@ -1339,6 +1342,14 @@
       "hint": "Pour le coefficient de performance annuel (chaleur ÷ électricité). Seuls les compteurs d’électricité au rôle pompe à chaleur sont proposés.",
       "loading": "Chargement …",
       "none": "Aucun compteur d’électricité avec le rôle pompe à chaleur."
+    },
+    "obis": {
+      "import": "soutirage",
+      "importHt": "soutirage HP",
+      "importNt": "soutirage HC",
+      "export": "injection",
+      "exportHt": "injection HP",
+      "exportNt": "injection HC"
     }
   },
   "settings": {
@@ -3459,7 +3470,8 @@
       "heatPumpLinkInvalid": "Le compteur « {id} » n’est pas un compteur d’électricité avec le rôle pompe à chaleur",
       "valueInvalid": "{field} : « {value} » n’est pas une valeur valide",
       "idInvalid": "Identifiant « {id} » invalide – lettres, chiffres, _ et - autorisés (64 caractères au plus).",
-      "serialSet": "L’appareil a déjà le numéro {serial}. Un autre compteur est un changement de compteur."
+      "serialSet": "L’appareil a déjà le numéro {serial}. Un autre compteur est un changement de compteur.",
+      "obisInvalid": "Le registre « {value} » n’est pas un code OBIS. Exemples : 1.8.0, 1.8.1, 2.8.0 ou 1-0:1.8.0."
     },
     "common": {
       "unknownUtility": "Type de consommation inconnu : {utility}",

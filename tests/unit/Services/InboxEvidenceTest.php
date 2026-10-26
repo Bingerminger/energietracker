@@ -493,8 +493,9 @@ final class InboxEvidenceTest extends TestCase
             self::assertSame(['date', 'text'], [$f['document_date']['kind'] ?? null, $f['document_title']['kind'] ?? null], "$t: Datum und Titel");
             self::assertSame($t === 'invoice', isset($f['meter_readings']), "$t: Stände je Zähler nur an der Rechnung");
         }
-        self::assertSame(['meter_number', 'reading_old', 'reading_old_date', 'reading_new', 'reading_new_date', 'estimated'], array_keys(InboxSchema::fields('invoice')['meter_readings']['items']));
-        self::assertSame(4, InboxSchema::forProvider('invoice')['version'], 'Nachbesserung 5: Beschreibungen geändert');
+        // v3.9.0 (F1032) — dazu das Zählwerk je Stand (`obis`, `register`), Version 5
+        self::assertSame(['meter_number', 'reading_old', 'reading_old_date', 'reading_new', 'reading_new_date', 'estimated', 'obis', 'register'], array_keys(InboxSchema::fields('invoice')['meter_readings']['items']));
+        self::assertSame(5, InboxSchema::forProvider('invoice')['version'], 'Nachbesserung 5: Beschreibungen geändert; v3.9.0: Zählwerk je Stand');
         // erfundene Rechnungskorrektur: Titel nur im Seitenkopf, Briefdatum
         $pages = ["Rechnungskorrektur · Seite 1 von 2\nStadtwerke Musterstadt GmbH · Musterstadt, den 20.03.2026\nAbrechnungszeitraum: 01.01.2025 bis 31.12.2025\n"
             . "Zähler TEST-4711-01        Anfangsstand 12.345 m³ am 31.12.2024        Endstand 12.910 m³ am 14.05.2025\n"

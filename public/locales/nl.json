@@ -1141,7 +1141,8 @@
         "one": "{count} apparaat",
         "other": "{count} apparaten"
       },
-      "periodTag": "per periode"
+      "periodTag": "per periode",
+      "obis": "Telwerk {obis}"
     },
     "modal": {
       "titleEdit": "Meter bewerken",
@@ -1186,7 +1187,9 @@
         "device": "Apparaat",
         "topology": "Opbouw",
         "market": "Marktlocatie"
-      }
+      },
+      "obis": "Telwerk (OBIS-code)",
+      "obisHint": "Staat op de meter en bij de stand op de rekening, bijv. 1.8.1 voor afname piek. Heeft een meter meerdere telwerken, maak dan per telwerk een meter met hetzelfde meternummer. De postbak koppelt de standen van een rekening dan aan het juiste telwerk."
     },
     "replace": {
       "title": "Meterwissel: {name}",
@@ -1339,6 +1342,14 @@
       "hint": "Voor de seizoensprestatiefactor (warmte ÷ stroom). Je kunt kiezen uit stroommeters met de rol warmtepomp.",
       "loading": "Laden …",
       "none": "Geen stroommeter met de rol warmtepomp aangemaakt."
+    },
+    "obis": {
+      "import": "afname",
+      "importHt": "afname piek",
+      "importNt": "afname dal",
+      "export": "teruglevering",
+      "exportHt": "teruglevering piek",
+      "exportNt": "teruglevering dal"
     }
   },
   "settings": {
@@ -3459,7 +3470,8 @@
       "heatPumpLinkInvalid": "Meter ‘{id}’ is geen stroommeter met de rol warmtepomp",
       "valueInvalid": "{field}: ‘{value}’ is geen geldige waarde",
       "idInvalid": "Ongeldige id ‘{id}’ – toegestaan zijn letters, cijfers, _ en - (hoogstens 64 tekens).",
-      "serialSet": "Het apparaat heeft al nummer {serial}. Een andere meter is een meterwissel."
+      "serialSet": "Het apparaat heeft al nummer {serial}. Een andere meter is een meterwissel.",
+      "obisInvalid": "Telwerk ‘{value}’ is geen OBIS-code. Voorbeelden: 1.8.0, 1.8.1, 2.8.0 of 1-0:1.8.0."
     },
     "common": {
       "unknownUtility": "Onbekende verbruikssoort: {utility}",

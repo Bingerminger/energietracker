@@ -1141,7 +1141,8 @@
         "one": "{count} device",
         "other": "{count} devices"
       },
-      "periodTag": "per period"
+      "periodTag": "per period",
+      "obis": "Register {obis}"
     },
     "modal": {
       "titleEdit": "Edit meter",
@@ -1186,7 +1187,9 @@
         "device": "Device",
         "topology": "Structure",
         "market": "Market location"
-      }
+      },
+      "obis": "Register (OBIS code)",
+      "obisHint": "Shown on the meter and next to the reading on the bill, e.g. 1.8.1 for import HT. If a meter has several registers, create one meter per register with the same meter number. The inbox then assigns the readings of a bill to the matching register."
     },
     "replace": {
       "title": "Meter swap: {name}",
@@ -1339,6 +1342,14 @@
       "hint": "For the seasonal performance factor (heat ÷ electricity). Electricity meters with the heat pump role are offered.",
       "loading": "Loading …",
       "none": "No electricity meter with the heat pump role set up."
+    },
+    "obis": {
+      "import": "import",
+      "importHt": "import HT",
+      "importNt": "import NT",
+      "export": "feed-in",
+      "exportHt": "feed-in HT",
+      "exportNt": "feed-in NT"
     }
   },
   "settings": {
@@ -3459,7 +3470,8 @@
       "heatPumpLinkInvalid": "Meter “{id}” is not an electricity meter with the heat pump role",
       "valueInvalid": "{field}: “{value}” is not a valid value",
       "idInvalid": "Invalid identifier “{id}” – letters, digits, _ and - are allowed (at most 64 characters).",
-      "serialSet": "The device already has the number {serial}. Another meter is a meter swap."
+      "serialSet": "The device already has the number {serial}. Another meter is a meter swap.",
+      "obisInvalid": "Register “{value}” is not an OBIS code. Examples: 1.8.0, 1.8.1, 2.8.0 or 1-0:1.8.0."
     },
     "common": {
       "unknownUtility": "Unknown utility: {utility}",

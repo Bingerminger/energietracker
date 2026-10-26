@@ -1141,7 +1141,8 @@
         "one": "{count} dispositivo",
         "other": "{count} dispositivi"
       },
-      "periodTag": "per periodo"
+      "periodTag": "per periodo",
+      "obis": "Registro {obis}"
     },
     "modal": {
       "titleEdit": "Modifica contatore",
@@ -1186,7 +1187,9 @@
         "device": "Dispositivo",
         "topology": "Struttura",
         "market": "Punto di prelievo"
-      }
+      },
+      "obis": "Registro (codice OBIS)",
+      "obisHint": "È indicato sul contatore e accanto alla lettura in bolletta, ad es. 1.8.1 per il prelievo F1. Se un contatore ha più registri, crea un contatore per registro con lo stesso numero di contatore. La posta in arrivo assegna poi le letture di una bolletta al registro giusto."
     },
     "replace": {
       "title": "Sostituzione contatore: {name}",
@@ -1339,6 +1342,14 @@
       "hint": "Per il fattore di prestazione stagionale (calore ÷ elettricità). Si possono scegliere i contatori elettrici con il ruolo pompa di calore.",
       "loading": "Caricamento …",
       "none": "Nessun contatore elettrico con il ruolo pompa di calore."
+    },
+    "obis": {
+      "import": "prelievo",
+      "importHt": "prelievo F1",
+      "importNt": "prelievo F23",
+      "export": "immissione",
+      "exportHt": "immissione F1",
+      "exportNt": "immissione F23"
     }
   },
   "settings": {
@@ -3459,7 +3470,8 @@
       "heatPumpLinkInvalid": "Il contatore «{id}» non è un contatore elettrico con il ruolo pompa di calore",
       "valueInvalid": "{field}: «{value}» non è un valore valido",
       "idInvalid": "Identificativo «{id}» non valido – sono ammessi lettere, cifre, _ e - (al massimo 64 caratteri).",
-      "serialSet": "Il dispositivo ha già il numero {serial}. Un altro contatore è una sostituzione."
+      "serialSet": "Il dispositivo ha già il numero {serial}. Un altro contatore è una sostituzione.",
+      "obisInvalid": "Il registro «{value}» non è un codice OBIS. Esempi: 1.8.0, 1.8.1, 2.8.0 o 1-0:1.8.0."
     },
     "common": {
       "unknownUtility": "Utenza sconosciuta: {utility}",

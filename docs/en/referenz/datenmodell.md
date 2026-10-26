@@ -196,6 +196,9 @@ same identifier.
   "malo_id": "51234567895",              // market location ID (synthetic example)
   "melo_id": "DE…",                      // metering location ID, 33 characters
 
+  // v3.9.0, optional — register as an OBIS code (not for heating oil/pellets):
+  "obis": "1.8.1",                       // e.g. 1.8.0, 1.8.2, 2.8.0, also 1-0:1.8.1
+
   // v3.1.0, PV generation only, optional:
   "plug_in": true,                       // plug-in solar device without a feed-in meter
   "investment_eur": 800,                 // investment incl. VAT (payback)
@@ -230,6 +233,13 @@ the metering location ID has 33 characters, “DE” and 31 digits or capital
 letters. The app removes spaces, an empty value deletes the field; it rejects
 anything else (`errors.meter.maloInvalid`, `…meloInvalid`). The switching
 decision shows the market location ID under “Have ready for switching”.
+
+**Register (`obis`, v3.9.0).** OBIS code `[A-B:]C.D.E[*F]`, such as `1.8.1` for
+import at the peak rate. The app removes spaces, empty deletes the field, and
+it rejects anything else (`errors.meter.obisInvalid`). A meter with several
+registers (HT/NT, import/feed-in) becomes one meter per register with the same
+device number; the inbox and the Home Assistant input assign readings with it
+([API](api.md#meters-obis-v390-additive)).
 
 **Role (`role`, v3.1.0).** What a meter measures, for the utilities that know
 roles. The first is the default and is **not** stored — a meter without `role`
@@ -1050,7 +1060,7 @@ file is created with the first document, no schema step.
   "queued_at": null,           // only when queued: order of the queue
   "type": "invoice",           // document type, see below; type_confidence 0–1 or null
   "extraction": {              // the checked result, null before reading
-    "provider": "local", "model": "qwen3.8", "schema_version": 4, "type": "invoice",
+    "provider": "local", "model": "qwen3.8", "schema_version": 5, "type": "invoice",
     "fields": {
       "consumption": { "value": 10450, "raw": "10.450", "quote": "Verbrauch: 945,6 m³ = 10.540 kWh",
                        "page": 1, "status": "check", "reasons": ["value_not_in_quote"] }
@@ -1059,7 +1069,7 @@ file is created with the first document, no schema step.
     "flags": 3, "seconds": 74.2, "extracted_at": "…",
     "text": { "chars": 1180, "kept": [1, 2], "dropped": [3], "truncated": false }   // terms pages not sent
   },
-  "cache": { "local|qwen3.8|4": { … } },   // raw answers per provider, model and schema version (at most three)
+  "cache": { "local|qwen3.8|5": { … } },   // raw answers per provider, model and schema version (at most three)
   "assignment": null,          // {utility, meter_id, contract_id} — set by the user, otherwise the prefill applies
   "edits": {},                 // confirmed or corrected field values, {field: value}
   "applied": [],               // [{id, kind, key, ref, at}] — what was taken over

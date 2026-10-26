@@ -1031,7 +1031,7 @@ final class InboxMarksTest extends ServiceTestCase
         self::assertCount(2, $mr['items'], 'drei Zeiträume des neuen Zählers: ein Eintrag');
         self::assertSame(['TEST-9999-02', 0.5, '2025-05-14', 702.3, '2025-12-31'], [$mr['items'][1]['value']['meter_number'], $mr['items'][1]['value']['reading_old'],
             $mr['items'][1]['value']['reading_old_date'], $mr['items'][1]['value']['reading_new'], $mr['items'][1]['value']['reading_new_date']]);
-        self::assertSame(['meter_number', 'reading_old', 'reading_old_date', 'reading_new', 'reading_new_date', 'estimated'], array_keys($mr['items'][1]['value']), 'Form des Eintrags bleibt');
+        self::assertSame(['meter_number', 'reading_old', 'reading_old_date', 'reading_new', 'reading_new_date', 'estimated', 'obis', 'register'], array_keys($mr['items'][1]['value']), 'Form des Eintrags bleibt (v3.9.0: mit Zählwerk)');
         self::assertSame([['2025-06-30', 150.2], ['2025-09-30', 400.4]], array_map(fn($b) => [$b['date'], $b['counter']], $mr['items'][1]['between']));
         self::assertSame([3, 'ok', 'ok', 'header', 'header'], [$mr['items'][1]['merged'], $mr['items'][0]['status'], $mr['items'][1]['status'],
             $mr['items'][0]['number_from'] ?? null, $mr['items'][1]['number_from'] ?? null], 'die Nummer in der Kopfzeile darüber belegt den Eintrag');

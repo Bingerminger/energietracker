@@ -873,6 +873,11 @@ async function renderView(modPath, params = [], ctx = {}) {
     const notes = form?.querySelector('[name="notes"]');
     t('N1021 Zähler: Notizen am Ende, ohne Kasten', !!notes && !notes.closest('fieldset') && !!(form.querySelector('[data-section="baseline"]').compareDocumentPosition(notes) & global.window.Node.DOCUMENT_POSITION_FOLLOWING));
     t('N1021 Zähler: Zäsur-Knopf im Raster statt flex-end', !!form?.querySelector('.fgrid > .field > #bl-add:first-child') && noOldGrid(form));
+    // v3.9.0 (F1032) — Zählwerk (OBIS-Kennzahl) im Block „Aufbau“ mit Vorschlägen HT/NT
+    const obis = form?.querySelector('[data-section="topology"] #mf-obis');
+    const opts = [...(form?.querySelectorAll('#mf-obis-list option') || [])].map(o => o.value);
+    t('F1032 Zähler: Zählwerk im Aufbau, Vorschläge 1.8.0/1.8.1/1.8.2', !!obis && opts.join(',') === '1.8.0,1.8.1,1.8.2'
+      && obis.getAttribute('aria-describedby') === 'mf-obis-hint', opts.join(','));
   } catch (e) { t('N1021 Zähler', false, e.message); }
 
   try {

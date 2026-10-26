@@ -198,6 +198,9 @@ Kennung.
   "malo_id": "51234567895",              // Marktlokations-ID (synthetisches Beispiel)
   "melo_id": "DE…",                      // Messlokations-ID, 33 Zeichen
 
+  // v3.9.0, optional — Zählwerk als OBIS-Kennzahl (nicht bei Heizöl/Pellets):
+  "obis": "1.8.1",                       // etwa 1.8.0, 1.8.2, 2.8.0, auch 1-0:1.8.1
+
   // v3.1.0, nur bei PV-Erzeugung, optional:
   "plug_in": true,                       // Balkonkraftwerk ohne Einspeisezähler
   "investment_eur": 800,                 // Investition brutto (Amortisation)
@@ -232,6 +235,13 @@ Prüfziffer nach BDEW; die Messlokations-ID hat 33 Zeichen, „DE“ und 31 Ziff
 oder Großbuchstaben. Leerzeichen entfernt die App, ein leerer Wert löscht das
 Feld; Falsches lehnt sie ab (`errors.meter.maloInvalid`, `…meloInvalid`). Die
 Wechselentscheidung zeigt die MaLo-ID unter „Für den Wechsel bereithalten“.
+
+**Zählwerk (`obis`, v3.9.0).** OBIS-Kennzahl `[A-B:]C.D.E[*F]`, etwa `1.8.1` für
+den Bezug im Hochtarif. Leerzeichen entfernt die App, leer löscht das Feld,
+Falsches lehnt sie ab (`errors.meter.obisInvalid`). Ein Zähler mit mehreren
+Zählwerken (HT/NT, Bezug/Einspeisung) wird je Zählwerk ein Zähler mit derselben
+Gerätenummer; Posteingang und Home-Assistant-Eingang ordnen damit Stände zu
+([API](api.md#zähler-obis-v390-additiv)).
 
 **Rolle (`role`, v3.1.0).** Was ein Zähler misst, bei den Arten, die Rollen
 kennen. Die erste ist der Standard und wird **nicht** gespeichert — ein Zähler
@@ -1061,7 +1071,7 @@ Eine Liste; die Datei entsteht mit dem ersten Dokument, kein Schema-Schritt.
   "queued_at": null,           // nur vorgemerkt: Reihenfolge der Warteschlange
   "type": "invoice",           // Dokumentart, s. u.; type_confidence 0–1 oder null
   "extraction": {              // das geprüfte Ergebnis, null vor dem Auslesen
-    "provider": "local", "model": "qwen3.8", "schema_version": 4, "type": "invoice",
+    "provider": "local", "model": "qwen3.8", "schema_version": 5, "type": "invoice",
     "fields": {
       "consumption": { "value": 10450, "raw": "10.450", "quote": "Verbrauch: 945,6 m³ = 10.540 kWh",
                        "page": 1, "status": "check", "reasons": ["value_not_in_quote"] }
@@ -1070,7 +1080,7 @@ Eine Liste; die Datei entsteht mit dem ersten Dokument, kein Schema-Schritt.
     "flags": 3, "seconds": 74.2, "extracted_at": "…",
     "text": { "chars": 1180, "kept": [1, 2], "dropped": [3], "truncated": false }   // AGB-Seiten nicht gesendet
   },
-  "cache": { "local|qwen3.8|4": { … } },   // Rohantworten je Anbieter, Modell und Schema-Version (höchstens drei)
+  "cache": { "local|qwen3.8|5": { … } },   // Rohantworten je Anbieter, Modell und Schema-Version (höchstens drei)
   "assignment": null,          // {utility, meter_id, contract_id} — vom Nutzer gesetzt, sonst gilt die Vorbelegung
   "edits": {},                 // bestätigte oder korrigierte Feldwerte, {feld: wert}
   "applied": [],               // [{id, kind, key, ref, at}] — was übernommen wurde

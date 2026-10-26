@@ -1609,6 +1609,27 @@ on a meter swap `removed_on`, `final_counter` and
 `new_device {serial, installed_on, initial_counter}`. The current names take
 precedence.
 
+### Meters: `obis` *(v3.9.0, additive)*
+
+The meter’s register as an OBIS code, such as `1.8.0` (import), `1.8.1`
+(import HT), `1.8.2` (import NT), `2.8.0` (feed-in), also with prefix
+(`1-0:1.8.1`) and suffix (`*255`). Optional, on creation and with
+`PATCH …/meters/{id}`; empty removes the field. The input is stored without
+spaces; comparison uses the form `C.D.E` (`1-0:1.8.1*255` is `1.8.1`).
+Invalid → 400 `errors.meter.obisInvalid`. A meter with several registers is
+one meter per register with the same device number (`serial`).
+
+- **Home Assistant** (`POST /api/ingest`): if `meter` matches neither alias nor
+  ID, it counts together with `obis` as a device number: exactly the meter of
+  the utility whose installed device carries this number and whose register
+  matches.
+- **Inbox:** entries of `meter_readings` also carry `obis` and `register`
+  (label such as “HT”, “Einspeisung”; helper fields, `schema_version` 5). If the
+  same meter number appears with several registers on the bill, each reading
+  goes to the meter with that register (code on the meter, otherwise its name);
+  a feed-in register on the electricity bill goes to solar feed-in (proposal
+  with `utility`). Without a unique assignment these entries make no proposal.
+
 ### Consumption per period *(v3.1.0)*
 
 The third way of recording next to meter readings and deliveries: each period
@@ -3982,7 +4003,7 @@ rate” needs the rate of the contract price: from a document on the contract
 the price or in the field `vat_pct`) or from the same bill. Balance and
 forecast keep calculating with the contract’s gross prices. Helper fields
 (`basis`, `vat_pct`, `base_price_basis`, `base_price_vat_pct`, `vat_pct` of
-the confirmation) never flag. A reading carries `schema_version` **4**; the
+the confirmation) never flag. A reading carries `schema_version` **5**; the
 cache depends on this version. A document read with an older version keeps its
 reading until you read it again: the app recognises net there from the quote,
 only reading again asks the model for the new fields. Reading again without

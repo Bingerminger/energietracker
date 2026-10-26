@@ -1141,7 +1141,8 @@
         "one": "{count} dispositivo",
         "other": "{count} dispositivos"
       },
-      "periodTag": "por período"
+      "periodTag": "por período",
+      "obis": "Registo {obis}"
     },
     "modal": {
       "titleEdit": "Editar contador",
@@ -1186,7 +1187,9 @@
         "device": "Dispositivo",
         "topology": "Estrutura",
         "market": "Ponto de entrega"
-      }
+      },
+      "obis": "Registo (código OBIS)",
+      "obisHint": "Consta no contador e junto à leitura na fatura, p. ex. 1.8.1 para o consumo em cheias. Se um contador tiver vários registos, cria-se um contador por registo com o mesmo número de contador. A caixa de entrada atribui então as leituras de uma fatura ao registo certo."
     },
     "replace": {
       "title": "Substituição de contador: {name}",
@@ -1339,6 +1342,14 @@
       "hint": "Para o fator de desempenho sazonal (calor ÷ eletricidade). São propostos os contadores de eletricidade com a função bomba de calor.",
       "loading": "A carregar …",
       "none": "Não há nenhum contador de eletricidade com a função bomba de calor."
+    },
+    "obis": {
+      "import": "consumo",
+      "importHt": "consumo cheias",
+      "importNt": "consumo vazio",
+      "export": "injeção",
+      "exportHt": "injeção cheias",
+      "exportNt": "injeção vazio"
     }
   },
   "settings": {
@@ -3459,7 +3470,8 @@
       "heatPumpLinkInvalid": "O contador «{id}» não é um contador de eletricidade com a função bomba de calor",
       "valueInvalid": "{field}: «{value}» não é um valor válido",
       "idInvalid": "Identificador «{id}» inválido – são permitidos letras, algarismos, _ e - (no máximo 64 caracteres).",
-      "serialSet": "O aparelho já tem o número {serial}. Outro contador é uma troca de contador."
+      "serialSet": "O aparelho já tem o número {serial}. Outro contador é uma troca de contador.",
+      "obisInvalid": "O registo «{value}» não é um código OBIS. Exemplos: 1.8.0, 1.8.1, 2.8.0 ou 1-0:1.8.0."
     },
     "common": {
       "unknownUtility": "Serviço desconhecido: {utility}",

@@ -784,10 +784,13 @@ final class Evidence
         $items = array_values((array)($out['meter_readings']['items'] ?? []));
         if (count($items) < 2) return;
         $groups = [];
+        // v3.9.0 (F1032) — nur Einträge desselben Zählwerks (HT und NT derselben Nummer bleiben getrennt)
+        $reg = fn(array $it): ?string => \Energietracker\Services\MeterService::obisKey(is_string($it['value']['obis'] ?? null) ? $it['value']['obis'] : null)
+            ?? \Energietracker\Services\MeterService::registerKey(is_string($it['value']['register'] ?? null) ? $it['value']['register'] : null);
         foreach ($items as $it) {
             $n = (string)($it['value']['meter_number'] ?? '');
             $k = null;
-            foreach (array_keys($groups) as $g) if ($n !== '' && Proposals::sameId((string)$groups[$g][0]['value']['meter_number'], $n)) $k = $g;
+            foreach (array_keys($groups) as $g) if ($n !== '' && Proposals::sameId((string)$groups[$g][0]['value']['meter_number'], $n) && $reg($groups[$g][0]) === $reg($it)) $k = $g;
             if ($k === null) $groups[] = [$it]; else $groups[$k][] = $it;
         }
         if (count($groups) === count($items)) return;
@@ -818,7 +821,8 @@ final class Evidence
             $value = ['meter_number' => $parts[0]['value']['meter_number'],
                 'reading_old' => $first['counter'] ?? null, 'reading_old_date' => $first['date'] ?? null,
                 'reading_new' => $last['counter'] ?? null, 'reading_new_date' => $last['date'] ?? null,
-                'estimated' => array_filter($parts, fn($p) => !empty($p['value']['estimated'])) !== []];
+                'estimated' => array_filter($parts, fn($p) => !empty($p['value']['estimated'])) !== [],
+                'obis' => $parts[0]['value']['obis'] ?? null, 'register' => $parts[0]['value']['register'] ?? null];
             $one = ['value' => $value,
                 'quote' => mb_substr(implode(' | ', array_filter(array_map(fn($p) => $p['quote'] ?? null, $parts), 'is_string')), 0, 800),
                 'page' => $parts[0]['page'] ?? null,

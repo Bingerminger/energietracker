@@ -1141,7 +1141,8 @@
         "one": "{count} Gerät",
         "other": "{count} Geräte"
       },
-      "periodTag": "je Zeitraum"
+      "periodTag": "je Zeitraum",
+      "obis": "Zählwerk {obis}"
     },
     "modal": {
       "titleEdit": "Zähler bearbeiten",
@@ -1186,7 +1187,9 @@
         "device": "Gerät",
         "topology": "Aufbau",
         "market": "Marktlokation"
-      }
+      },
+      "obis": "Zählwerk (OBIS-Kennzahl)",
+      "obisHint": "Steht auf dem Zähler und auf der Rechnung beim Stand, z. B. 1.8.1 für Bezug HT. Zählt ein Zähler mehrere Zählwerke, lege je Zählwerk einen Zähler mit derselben Zählernummer an. Der Posteingang ordnet die Stände einer Rechnung dann dem passenden Zählwerk zu."
     },
     "replace": {
       "title": "Zählertausch: {name}",
@@ -1339,6 +1342,14 @@
       "hint": "Für die Jahresarbeitszahl (Wärme ÷ Strom). Zur Auswahl stehen Stromzähler mit der Rolle Wärmepumpe.",
       "loading": "Lädt …",
       "none": "Kein Stromzähler mit der Rolle Wärmepumpe angelegt."
+    },
+    "obis": {
+      "import": "Bezug",
+      "importHt": "Bezug HT",
+      "importNt": "Bezug NT",
+      "export": "Einspeisung",
+      "exportHt": "Einspeisung HT",
+      "exportNt": "Einspeisung NT"
     }
   },
   "settings": {
@@ -3459,7 +3470,8 @@
       "heatPumpLinkInvalid": "Zähler „{id}“ ist kein Stromzähler mit der Rolle Wärmepumpe",
       "valueInvalid": "{field}: „{value}“ ist kein gültiger Wert",
       "idInvalid": "Ungültige Kennung „{id}“ – erlaubt sind Buchstaben, Ziffern, _ und - (höchstens 64 Zeichen).",
-      "serialSet": "Das Gerät hat schon die Nummer {serial}. Ein anderer Zähler ist ein Zählertausch."
+      "serialSet": "Das Gerät hat schon die Nummer {serial}. Ein anderer Zähler ist ein Zählertausch.",
+      "obisInvalid": "Zählwerk „{value}“ ist keine OBIS-Kennzahl. Beispiele: 1.8.0, 1.8.1, 2.8.0 oder 1-0:1.8.0."
     },
     "common": {
       "unknownUtility": "Unbekannte Verbrauchsart: {utility}",

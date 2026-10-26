@@ -244,6 +244,7 @@ final class MeterService
         $this->applyRole($utility, $meter, $input);
         // v3.1.0 (H5, MKT-24) — Marktlokation und Messlokation für den Lieferantenwechsel
         $this->applyLocationIds($meter, $input);
+        $this->applyObis($meter, $input);   // v3.9.0 (F1032) — Zählwerk (OBIS-Kennzahl)
         // v3.1.0 (H7) — PV-Anlage und Wärmepumpe
         $this->applyEnergyFields($utility, $meter, $input);
         // v3.7.0 — zuständige Person (Ablesung, Eichfrist, Termine am Zähler)
@@ -287,6 +288,7 @@ final class MeterService
             // Daten der anderen Art da sind
             $this->applyRole($utility, $m, $input);
             $this->applyLocationIds($m, $input);
+            $this->applyObis($m, $input);   // v3.9.0 (F1032)
             $this->applyEnergyFields($utility, $m, $input);
             $this->applyHeatLimit($utility, $m, $input);   // v3.7.0 (wirklichkeit-2)
             $this->applyAssignee($m, $input);   // v3.7.0
@@ -896,6 +898,70 @@ final class MeterService
             elseif (!preg_match('/^DE[0-9A-Z]{31}$/', $v)) throw new LocalizedException('errors.meter.meloInvalid', ['value' => $v], 'melo');
             else $meter['melo_id'] = $v;
         }
+    }
+
+    /**
+     * v3.9.0 (F1032, #40) — Zählwerk eines Zählers als OBIS-Kennzahl (`obis`), etwa
+     * `1.8.0` (Bezug), `1.8.1` (Bezug HT), `1.8.2` (Bezug NT), `2.8.0` (Einspeisung),
+     * auch mit Präfix `1-0:` und Rest `*255`. Optional; leer entfernt das Feld.
+     * Gespeichert wird, wie eingegeben (ohne Leerzeichen); verglichen wird über
+     * obisKey(). Wozu: Steht auf einer Rechnung dieselbe Zählernummer mit
+     * mehreren Zählwerken, ordnet der Posteingang jeden Stand dem Zähler mit
+     * diesem Zählwerk zu; der Home-Assistant-Eingang findet einen Zähler über
+     * Zählernummer und Kennzahl.
+     */
+    private function applyObis(array &$meter, array $input): void
+    {
+        if (!array_key_exists('obis', $input)) return;
+        $v = preg_replace('/\s+/', '', (string)($input['obis'] ?? '')) ?? '';
+        if ($v === '') { unset($meter['obis']); return; }
+        if (self::obisKey($v) === null) throw new LocalizedException('errors.meter.obisInvalid', ['value' => mb_substr($v, 0, 24)], 'obis');
+        $meter['obis'] = $v;
+    }
+
+    /** Muster einer OBIS-Kennzahl: [A-B:]C.D.E[*F] (A, B, F optional), je Teil höchstens drei Ziffern. */
+    public const OBIS_PATTERN = '/^(?:(\d{1,3})-(\d{1,3}):)?(\d{1,3})\.(\d{1,3})\.(\d{1,3})(?:\*(\d{1,3}))?$/';
+
+    /**
+     * Vergleichsform einer OBIS-Kennzahl: `C.D.E` ohne führende Nullen („1-0:1.8.1*255“ →
+     * „1.8.1“), oder null, wenn es keine ist. Gruppe A (Medium) nur, wenn sie nicht Strom (1) ist,
+     * vorangestellt: „7-0:3.0.0“ → „7:3.0.0“.
+     */
+    public static function obisKey(?string $obis): ?string
+    {
+        $v = preg_replace('/\s+/', '', (string)$obis) ?? '';
+        if ($v === '' || !preg_match(self::OBIS_PATTERN, $v, $m)) return null;
+        $core = (int)$m[3] . '.' . (int)$m[4] . '.' . (int)$m[5];
+        return ($m[1] ?? '') !== '' && (int)$m[1] !== 1 ? (int)$m[1] . ':' . $core : $core;
+    }
+
+    /**
+     * Zählwerk aus einer Bezeichnung, wie sie auf Rechnungen steht: HT/Hochtarif/Tag → 1.8.1,
+     * NT/Niedertarif/Nacht → 1.8.2, Einspeisung/Rücklieferung → 2.8.0, Bezug/Verbrauch → 1.8.0.
+     * Eine OBIS-Kennzahl im Text gewinnt. „Lieferung“ allein bleibt offen: Auf Rechnungen heißt
+     * auch der Bezug „Stromlieferung“. Unbekannt: null.
+     */
+    public static function registerKey(?string $label): ?string
+    {
+        $s = trim((string)$label);
+        if ($s === '') return null;
+        if (preg_match('/(?:\d{1,3}-\d{1,3}:)?\d{1,3}\.\d{1,3}\.\d{1,3}(?:\*\d{1,3})?/', $s, $m) && ($k = self::obisKey($m[0])) !== null) return $k;
+        $l = mb_strtolower($s);
+        $einsp = preg_match('/einspeis|rückliefer|ruecklief|export|feed/u', $l) === 1;
+        $ht = preg_match('/(?<![a-z])(ht|t1|hochtarif|tagstrom|tarif\s*1|peak)(?![a-z])/u', $l) === 1;
+        $nt = preg_match('/(?<![a-z])(nt|t2|niedertarif|nachtstrom|schwachlast|tarif\s*2|off-?peak)(?![a-z])/u', $l) === 1;
+        $base = $einsp ? '2.8.' : '1.8.';
+        if ($ht && !$nt) return $base . '1';
+        if ($nt && !$ht) return $base . '2';
+        if ($einsp) return '2.8.0';
+        if (preg_match('/bezug|verbrauch|import/u', $l) === 1) return '1.8.0';
+        return null;
+    }
+
+    /** Zählwerk eines Zählers: seine OBIS-Kennzahl, sonst aus dem Namen (registerKey). */
+    public static function meterRegister(array $meter): ?string
+    {
+        return self::obisKey($meter['obis'] ?? null) ?? self::registerKey((string)($meter['name'] ?? ''));
     }
 
     /**

@@ -1651,6 +1651,27 @@ initial_counter}`, beim Zählertausch `removed_on`, `final_counter` und
 `new_device {serial, installed_on, initial_counter}`. Die aktuellen Namen
 haben Vorrang.
 
+### Zähler: `obis` *(v3.9.0, additiv)*
+
+Zählwerk des Zählers als OBIS-Kennzahl, etwa `1.8.0` (Bezug), `1.8.1` (Bezug
+HT), `1.8.2` (Bezug NT), `2.8.0` (Einspeisung), auch mit Präfix (`1-0:1.8.1`)
+und Rest (`*255`). Optional, beim Anlegen und mit `PATCH …/meters/{id}`; leer
+entfernt das Feld. Gespeichert wird die Eingabe ohne Leerzeichen; verglichen
+wird die Form `C.D.E` (`1-0:1.8.1*255` ist `1.8.1`). Ungültig → 400
+`errors.meter.obisInvalid`. Ein Zähler mit mehreren Zählwerken ist je Zählwerk
+ein Zähler mit derselben Gerätenummer (`serial`).
+
+- **Home Assistant** (`POST /api/ingest`): Findet `meter` weder Alias noch ID,
+  gilt es zusammen mit `obis` als Gerätenummer: genau der Zähler der Art,
+  dessen eingebautes Gerät diese Nummer trägt und dessen Zählwerk passt.
+- **Posteingang:** Einträge von `meter_readings` tragen dazu `obis` und
+  `register` (Bezeichnung wie „HT“, „Einspeisung“; Hilfsfelder, `schema_version`
+  5). Steht dieselbe Zählernummer mit mehreren Zählwerken auf der Rechnung,
+  landet jeder Stand am Zähler mit diesem Zählwerk (Kennzahl am Zähler, sonst
+  sein Name); ein Einspeise-Zählwerk auf der Stromrechnung bei der
+  PV-Einspeisung (Vorschlag mit `utility`). Ohne eindeutige Zuordnung kommt kein
+  Vorschlag aus diesen Einträgen.
+
 ### Verbrauch je Zeitraum *(v3.1.0)*
 
 Die dritte Erfassungsart neben Zählerständen und Lieferungen: Je Zeitraum
@@ -4052,7 +4073,7 @@ braucht den Satz des Vertragspreises: aus einem Dokument am Vertrag
 Preises oder im Feld `vat_pct`) oder aus derselben Rechnung. Saldo und Prognose
 rechnen weiter mit den Bruttopreisen des Vertrags. Hilfsfelder (`basis`,
 `vat_pct`, `base_price_basis`, `base_price_vat_pct`, `vat_pct` der Bestätigung)
-markieren nie. Die Auslesung trägt `schema_version` **4**; an dieser Version
+markieren nie. Die Auslesung trägt `schema_version` **5**; an dieser Version
 hängt der Zwischenspeicher. Ein Dokument, das mit einer älteren Version
 ausgelesen ist, behält seine Auslesung, bis du es neu ausliest: Netto erkennt
 die App dort aus dem Zitat, nach den neuen Feldern fragt erst das neue Auslesen

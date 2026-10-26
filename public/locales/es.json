@@ -1141,7 +1141,8 @@
         "one": "{count} dispositivo",
         "other": "{count} dispositivos"
       },
-      "periodTag": "por periodo"
+      "periodTag": "por periodo",
+      "obis": "Registro {obis}"
     },
     "modal": {
       "titleEdit": "Editar contador",
@@ -1186,7 +1187,9 @@
         "device": "Dispositivo",
         "topology": "Estructura",
         "market": "Punto de suministro"
-      }
+      },
+      "obis": "Registro (código OBIS)",
+      "obisHint": "Figura en el contador y junto a la lectura en la factura, p. ej. 1.8.1 para el consumo en punta. Si un contador tiene varios registros, crea un contador por registro con el mismo número de contador. El buzón de entrada asigna entonces las lecturas de una factura al registro correspondiente."
     },
     "replace": {
       "title": "Cambio de contador: {name}",
@@ -1339,6 +1342,14 @@
       "hint": "Para el factor de rendimiento estacional (calor ÷ electricidad). Se ofrecen los contadores de electricidad con el rol bomba de calor.",
       "loading": "Cargando …",
       "none": "No hay ningún contador de electricidad con el rol bomba de calor."
+    },
+    "obis": {
+      "import": "consumo",
+      "importHt": "consumo punta",
+      "importNt": "consumo valle",
+      "export": "vertido",
+      "exportHt": "vertido punta",
+      "exportNt": "vertido valle"
     }
   },
   "settings": {
@@ -3459,7 +3470,8 @@
       "heatPumpLinkInvalid": "El contador «{id}» no es un contador de electricidad con el rol bomba de calor",
       "valueInvalid": "{field}: «{value}» no es un valor válido",
       "idInvalid": "Identificador «{id}» no válido: se permiten letras, cifras, _ y - (como máximo 64 caracteres).",
-      "serialSet": "El aparato ya tiene el número {serial}. Otro contador es un cambio de contador."
+      "serialSet": "El aparato ya tiene el número {serial}. Otro contador es un cambio de contador.",
+      "obisInvalid": "El registro «{value}» no es un código OBIS. Ejemplos: 1.8.0, 1.8.1, 2.8.0 o 1-0:1.8.0."
     },
     "common": {
       "unknownUtility": "Suministro desconocido: {utility}",

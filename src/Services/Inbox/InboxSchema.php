@@ -49,10 +49,15 @@ namespace Energietracker\Services\Inbox;
  * Fußnoten und Codegruppen bei der Ablese-Art. Felder unverändert; neu sind nur
  * Angaben der Prüfung (`between`, `merged`, `estimated_ends`, `number_from`,
  * `found_parts`, `quote_found`), die das Modell nicht liefert.
+ *
+ * v3.9.0 (F1032, GitHub #40) — VERSION 5: je Eintrag von `meter_readings` das
+ * Zählwerk (`obis`, `register`; Hilfsfelder). Steht dieselbe Zählernummer mit
+ * mehreren Zählwerken auf der Rechnung (HT/NT, Bezug/Einspeisung), ordnet
+ * Proposals jeden Stand dem Zähler mit diesem Zählwerk zu.
  */
 final class InboxSchema
 {
-    public const VERSION = 4;
+    public const VERSION = 5;
 
     public const TYPES = [
         'invoice', 'contract_confirmation', 'price_change', 'cancellation', 'supply_start',
@@ -195,7 +200,10 @@ final class InboxSchema
                     'reading_old_date' => ['kind' => 'date', 'desc' => 'date of that reading'],
                     'reading_new' => ['kind' => 'number', 'desc' => 'reading at the end of the period or at removal (Endstand, Ausbaustand)'],
                     'reading_new_date' => ['kind' => 'date', 'desc' => 'date of that reading'],
-                    'estimated' => self::ESTIMATED]];
+                    'estimated' => self::ESTIMATED,
+                    // v3.9.0 (F1032, #40) — Zählwerk: eine Nummer, mehrere Stände (HT/NT, Bezug/Einspeisung)
+                    'obis' => ['kind' => 'text', 'aux' => true, 'desc' => 'register code (OBIS-Kennzahl) of this reading if printed, e.g. 1.8.0, 1.8.1, 1.8.2, 2.8.0 or 1-0:1.8.1; empty if none is printed'],
+                    'register' => ['kind' => 'text', 'aux' => true, 'desc' => 'register label of this reading if the meter has several (Zählwerk, Tarifzone), as printed, e.g. HT, NT, Hochtarif, Niedertarif, Bezug, Einspeisung; empty if the meter has only one']]];
 
     /**
      * Felder einer Art (leer für die Arten, die nur erkannt werden).
