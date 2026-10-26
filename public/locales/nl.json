@@ -6498,7 +6498,8 @@
       "meterChange": "Meterwissel op {date}, nieuwe meter {serial}",
       "contract": {
         "new": "Contract {provider} {from} tot {to}",
-        "existing": "Bestaand contract {provider} vanaf {from}"
+        "existing": "Bestaand contract {provider} vanaf {from}",
+        "sameSupplier": "Bestaand contract {existing} vanaf {from}: dezelfde leverancier als {provider}?"
       },
       "contractEnd": "Vorig contract {provider} eindigt op {date}",
       "prices": "Prijzen {provider}",
@@ -6555,7 +6556,8 @@
       "swap_open": "Na een meterwissel zonder eindstand van de oude meter – voer eerst de wissel in",
       "swap_readings": "De standen passen niet helemaal bij de wissel (ander apparaat, dalend of onder een bekende stand) – controleer",
       "existing_update": "Vult aan wat er al is – controleer",
-      "existing_overlap": "Overlapt met wat er al is – controleer"
+      "existing_overlap": "Overlapt met wat er al is – controleer",
+      "same_supplier": "In je gegevens heeft de leverancier een andere naam. Is het dezelfde, bijvoorbeeld een merk en het gemeentelijke energiebedrijf?"
     },
     "result": {
       "title": "Overgenomen",
@@ -6615,7 +6617,8 @@
       "memberHint": "Instellen doet wie deze installatie beheert. Hier zie je wat er ingesteld is; opbergen kan nu al.",
       "ready": "Ingesteld: de app leest nu uit met {service}, model {model}.",
       "unavailable": "De instellingen voor uitlezen zijn nu niet bereikbaar. Probeer het zo meteen opnieuw."
-    }
+    },
+    "requires": "Hoort bij ‘{contract}’ en wordt alleen samen met dit contract overgenomen."
   },
   "interpolation": {
     "leadYear": {

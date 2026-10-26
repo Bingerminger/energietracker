@@ -6498,7 +6498,8 @@
       "meterChange": "Zählertausch am {date}, neuer Zähler {serial}",
       "contract": {
         "new": "Vertrag {provider} {from} bis {to}",
-        "existing": "Vorhandener Vertrag {provider} ab {from}"
+        "existing": "Vorhandener Vertrag {provider} ab {from}",
+        "sameSupplier": "Vorhandener Vertrag {existing} ab {from}: derselbe Versorger wie {provider}?"
       },
       "contractEnd": "Bisheriger Vertrag {provider} endet am {date}",
       "prices": "Preise {provider}",
@@ -6555,7 +6556,8 @@
       "swap_open": "Nach einem Zählertausch ohne Endstand des alten Zählers – erst den Tausch eintragen",
       "swap_readings": "Die Stände passen nicht ganz zum Tausch (anderes Gerät, fallend oder unter einem bekannten Stand) – bitte prüfen",
       "existing_update": "Ergänzt, was schon da ist – bitte prüfen",
-      "existing_overlap": "Überschneidet sich mit dem Bestand – bitte prüfen"
+      "existing_overlap": "Überschneidet sich mit dem Bestand – bitte prüfen",
+      "same_supplier": "Im Bestand heißt der Versorger anders. Ist es derselbe, etwa Marke und Stadtwerk?"
     },
     "result": {
       "title": "Übernommen",
@@ -6615,7 +6617,8 @@
       "memberHint": "Einrichten kann, wer die Installation verwaltet. Hier siehst du, was eingestellt ist; ablegen kannst du schon jetzt.",
       "ready": "Eingerichtet: Die App liest jetzt aus mit {service}, Modell {model}.",
       "unavailable": "Die Einstellungen zum Auslesen sind gerade nicht erreichbar. Versuch es gleich noch einmal."
-    }
+    },
+    "requires": "Gehört zu „{contract}“ und wird nur zusammen mit diesem Vertrag übernommen."
   },
   "interpolation": {
     "leadYear": {

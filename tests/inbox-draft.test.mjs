@@ -268,6 +268,61 @@ try {
   const acts = await call('GET', '/api/activity');
   t('Verlauf: „Haushalt aus Dokumenten übernommen“', (acts || []).some(a => /Haushalt aus Dokumenten übernommen/.test(a.title || '')));
 
+  // ── v3.9.0 (entwurf-bestand): Einträge eines Vertrags, der erst entsteht, gehen nur mit ihm ──
+  console.log('Entwurf auf dem Bestand: gekoppelt an den Vertrag');
+  t('Text: gehört zum Vertrag', L.reasonText(['same_supplier']) === 'Im Bestand heißt der Versorger anders. Ist es derselbe, etwa Marke und Stadtwerk?', L.reasonText(['same_supplier']));
+  const dsel = { items: new Set(['p']), touched: new Set() };
+  const ddraft = { items: [{ id: 'c', kind: 'contract', actionable: true }, { id: 'p', kind: 'prices', requires: 'c', checked_with: true, actionable: true },
+    { id: 'a', kind: 'advances', requires: 'c', checked_with: false, actionable: true }] };
+  L.dropBlocked(ddraft, dsel);
+  t('Auswahl: ohne seinen Vertrag kein Eintrag', !dsel.items.has('p') && L.blockedBy(ddraft.items[1], dsel) === 'c');
+  L.pickItem(ddraft, dsel, 'c', true);
+  t('Auswahl: der Vertrag nimmt mit, was mit ihm vorbelegt ist', dsel.items.has('c') && dsel.items.has('p') && !dsel.items.has('a') && !L.blockedBy(ddraft.items[1], dsel));
+  L.pickItem(ddraft, dsel, 'c', false);
+  t('Auswahl: ohne Vertrag gehen seine Einträge mit', dsel.items.size === 0);
+  for (const name of ['suedlicht', 'nordstern']) {
+    await nativeFetch(`${BASE}api/inbox?name=${name}.pdf`, { method: 'POST', headers: { 'Content-Type': 'application/pdf' }, body: pdf(name) });
+  }
+  writeFileSync(specFile, JSON.stringify([
+    // zwei Tage nach dem Beginn im Bestand, ein anderer Versorger: neu, überschneidet den Bestand
+    { name: 'suedlicht.pdf', type: 'contract_confirmation', values: { utility: 'strom', supplier: 'Südlicht Strom GmbH', supply_start: '03.04.2025', tariff_name: 'Süd 1',
+      working_price: '29,00', base_price: '9,00', base_price_period: 'month', advance: '65,00', meter_number: 'STR-1001' } },
+    // gleicher Beginn wie im Bestand, anderer Name, ohne Vertragsnummer: „derselbe Versorger?“
+    { name: 'nordstern.pdf', type: 'contract_confirmation', values: { utility: 'strom', supplier: 'Nordstern Holding AG', supply_start: '01.04.2025', tariff_name: 'Nordlicht Basis 12',
+      working_price: '31,20', base_price: '12,90', base_price_period: 'month', meter_number: 'STR-1001' } },
+  ]));
+  const seed2 = spawnSync('php', [join(ROOT, 'tests/fixtures/draft-seed.php'), dataDir, specFile], { encoding: 'utf8' });
+  t('Bestand: zwei weitere Bestätigungen ausgelesen', seed2.status === 0, (seed2.stderr || seed2.stdout || '').trim());
+  await go('#/inbox/draft?r=3');
+  const dv = view();
+  const byTitle = (re) => [...dv.querySelectorAll('.draft-item')].find(i => re.test(text(i.querySelector('.draft-item__title'))));
+  const sued = byTitle(/^Vertrag Südlicht Strom GmbH 03\.04\.2025/);
+  const suedPrices = [...dv.querySelectorAll('.draft-item[data-kind="prices"]')].find(i => /Südlicht/.test(text(i)));
+  const pickOf = (li) => li?.querySelector('input[data-pick]');
+  t('Überschneidung: Vertrag nicht vorbelegt', !!sued && !pickOf(sued).checked && sued.classList.contains('draft-item--overlap'), text(sued).slice(0, 80));
+  t('… seine Preise gesperrt, nicht vorbelegt, mit Hinweis auf den Vertrag', !!suedPrices && !pickOf(suedPrices).checked && pickOf(suedPrices).disabled
+    && suedPrices.classList.contains('draft-item--blocked') && /Gehört zu „Vertrag Südlicht Strom GmbH 03\.04\.2025 bis …“/.test(text(suedPrices.querySelector('.draft-item__requires'))),
+    text(suedPrices?.querySelector('.draft-item__requires')));
+  const countBefore = text(dv.querySelector('#draft-apply'));
+  pickOf(sued).checked = true; pickOf(sued).dispatchEvent(new w.Event('change', { bubbles: true }));
+  t('Vertrag angehakt: die Preise mit, wieder frei', pickOf(suedPrices).checked && !pickOf(suedPrices).disabled && !suedPrices.classList.contains('draft-item--blocked')
+    && text(dv.querySelector('#draft-apply')) !== countBefore, `${countBefore} → ${text(dv.querySelector('#draft-apply'))}`);
+  pickOf(sued).checked = false; pickOf(sued).dispatchEvent(new w.Event('change', { bubbles: true }));
+  t('Vertrag abgehakt: die Preise gehen mit', !pickOf(suedPrices).checked && pickOf(suedPrices).disabled && text(dv.querySelector('#draft-apply')) === countBefore);
+  const ask = byTitle(/derselbe Versorger wie Nordstern Holding AG\?$/);
+  t('Rückfrage mit beiden Namen: Bestand und Dokument', !!ask && /^Vorhandener Vertrag Nordlicht Energie GmbH ab 01\.04\.2025: derselbe Versorger wie Nordstern Holding AG\?$/.test(text(ask.querySelector('.draft-item__title')))
+    && /Ist es derselbe, etwa Marke und Stadtwerk\?/.test(text(ask.querySelector('.draft-item__reason'))) && !pickOf(ask).checked
+    && /Im Bestand steht Nordlicht Energie GmbH\./.test(text(ask.querySelector('.draft-field[data-field="provider"]'))), text(ask).slice(0, 160));
+  const dd = await call('GET', '/api/inbox/draft');
+  const pricesItem = dd.items.find(i => i.kind === 'prices' && i.requires);
+  const lone = await nativeFetch(BASE + 'api/inbox/draft/apply', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: [pricesItem?.id] }) });
+  const loneBody = await lone.json();
+  t('API: Preise ohne ihren Vertrag abgelehnt, bevor etwas geschrieben wird', lone.status === 400 && loneBody?.code === 'errors.inboxDraft.needs.contract'
+    && (await call('GET', '/api/utility/strom/contracts')).length === 1, `${lone.status} ${loneBody?.code}`);
+  for (const e of (await call('GET', '/api/inbox')).entries.filter(x => ['suedlicht.pdf', 'nordstern.pdf'].includes(x.name))) {
+    await nativeFetch(`${BASE}api/inbox/${e.id}`, { method: 'DELETE' });
+  }
+
   // ── Einrichtungsassistent: drei Wege ──
   console.log('Einrichtungsassistent');
   const state = await import(JS('state.js'));

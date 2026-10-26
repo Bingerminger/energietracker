@@ -6498,7 +6498,8 @@
       "meterChange": "Sostituzione del contatore il {date}, nuovo contatore {serial}",
       "contract": {
         "new": "Contratto {provider} dal {from} al {to}",
-        "existing": "Contratto esistente {provider} dal {from}"
+        "existing": "Contratto esistente {provider} dal {from}",
+        "sameSupplier": "Contratto esistente {existing} dal {from}: lo stesso fornitore di {provider}?"
       },
       "contractEnd": "Il contratto precedente {provider} termina il {date}",
       "prices": "Prezzi {provider}",
@@ -6555,7 +6556,8 @@
       "swap_open": "Dopo una sostituzione del contatore senza lettura finale del vecchio contatore – inserisci prima la sostituzione",
       "swap_readings": "Le letture non corrispondono del tutto alla sostituzione (altro apparecchio, in calo o sotto una lettura nota) – da controllare",
       "existing_update": "Completa ciò che è già registrato – da controllare",
-      "existing_overlap": "Si sovrappone a ciò che è già registrato – da controllare"
+      "existing_overlap": "Si sovrappone a ciò che è già registrato – da controllare",
+      "same_supplier": "Nei tuoi dati il fornitore ha un altro nome. È lo stesso, per esempio un marchio e la sua azienda municipale?"
     },
     "result": {
       "title": "Ripreso",
@@ -6615,7 +6617,8 @@
       "memberHint": "Lo configura chi amministra questa installazione. Qui vedi cosa è impostato; archiviare puoi già ora.",
       "ready": "Configurato: ora l’app legge con {service}, modello {model}.",
       "unavailable": "Le impostazioni di lettura non sono raggiungibili adesso. Riprova tra poco."
-    }
+    },
+    "requires": "Fa parte di «{contract}» e viene ripreso solo insieme a questo contratto."
   },
   "interpolation": {
     "leadYear": {

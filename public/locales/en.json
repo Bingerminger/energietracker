@@ -6498,7 +6498,8 @@
       "meterChange": "Meter swap on {date}, new meter {serial}",
       "contract": {
         "new": "Contract {provider} {from} to {to}",
-        "existing": "Existing contract {provider} from {from}"
+        "existing": "Existing contract {provider} from {from}",
+        "sameSupplier": "Existing contract {existing} from {from}: the same supplier as {provider}?"
       },
       "contractEnd": "Previous contract {provider} ends on {date}",
       "prices": "Prices {provider}",
@@ -6555,7 +6556,8 @@
       "swap_open": "After a meter swap without the closing reading of the old meter – enter the swap first",
       "swap_readings": "The readings do not quite fit the swap (another device, falling or below a known reading) – please check",
       "existing_update": "Adds to what is already recorded – please check",
-      "existing_overlap": "Overlaps with what is already recorded – please check"
+      "existing_overlap": "Overlaps with what is already recorded – please check",
+      "same_supplier": "The supplier has a different name in your records. Is it the same one, such as a brand and its municipal utility?"
     },
     "result": {
       "title": "Taken over",
@@ -6615,7 +6617,8 @@
       "memberHint": "Someone who manages this installation sets this up. Here you see what is set; you can already file documents.",
       "ready": "Set up: the app now reads with {service}, model {model}.",
       "unavailable": "The reading settings cannot be reached right now. Please try again shortly."
-    }
+    },
+    "requires": "Belongs to “{contract}” and is only taken over together with this contract."
   },
   "interpolation": {
     "leadYear": {

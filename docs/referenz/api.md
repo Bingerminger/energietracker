@@ -4255,7 +4255,24 @@ nie `checked` (vorbelegt ist nur, was den Bestand nicht berührt); ein Vertrag
 am vorhandenen Zähler gilt als vorhanden bei gleichem Beginn oder — gleicher
 Versorger oder gleiche Vertragsnummer — bei einem Beginn bis 7 Tage daneben
 (`start_near`, der Beginn des Bestands bleibt); Verträge der Gruppe des
-Zählers zählen mit. Je Feld `new`, `exists`,
+Zählers zählen mit. *(3.9.0)* Abgeglichen wird der endgültige Beginn, auch
+nach dem Vorziehen auf die erste Rechnung (`invoice_earlier`) und für einen
+Vorvertrag aus Rechnungen. Bestätigungen derselben Vertragsnummer geben den
+frühesten Beginn, gleich in welcher Reihenfolge sie abgelegt sind. Im selben
+Lieferverhältnis ist ein Beginn bis 7 Tage daneben am selben Zähler derselbe
+Vertrag (etwa Bestätigung der Marke und Lieferbeginn-Brief des abrechnenden
+Stadtwerks), verschiedene Vertragsnummern bleiben zwei. Gleicher Beginn mit
+anderem Versorgernamen, und der Bestand trägt keine andere Vertragsnummer: der
+vorhandene Vertrag als Rückfrage „derselbe Versorger?“ (`label_key`
+`inboxDraft.item.contract.sameSupplier`, `params.existing` = Name im Bestand,
+Grund `same_supplier`, `detail` `{provider, start, end, document}`, Feld
+`provider` mit `status: conflict`, `existing` und `check: false`; den Namen im
+Bestand schreibt das Übernehmen nie). `requires` *(3.9.0)*: an `prices`,
+`advances` und `bill` die `id` des Vertragseintrags, ohne den der Eintrag
+nicht übernommen wird (der Vertrag entsteht erst, oder sein Versorger ist eine
+Rückfrage), sonst `null`; dann ist der Eintrag nur `checked`, wenn sein Vertrag
+es ist, und `checked_with` ist seine Vorbelegung, sobald der Vertrag angehakt
+ist. Ablesungen hängen am Zähler, nicht am Vertrag. Je Feld `new`, `exists`,
 `conflict` (mit `existing`; ein Rechnungspreis mit `price_matches` ist
 `exists`). `check` am Feld: zweifelhaft (Belegstelle markiert — die Marken
 nach dem heutigen Bestand wie in Liste und Vorschau, `Proposals::marks` — und
@@ -4289,7 +4306,12 @@ Ein ausgewählter Eintrag schreibt seine Felder, die neu und nicht zweifelhaft
 sind, dazu die Kernfelder (anhaken bestätigt sie), die in `confirm` genannten
 und die in `choose` gewählte Option. Eine unbekannte ID, ein unbekanntes Feld
 oder eine Option außerhalb der Liste → `400 errors.inbox.proposalStale`, bevor
-etwas geschrieben wird; ohne Auswahl `400 errors.inboxDraft.nothingSelected`.
+etwas geschrieben wird; ohne Auswahl `400 errors.inboxDraft.nothingSelected`;
+*(3.9.0)* ein Eintrag ohne den Vertragseintrag aus seinem `requires` →
+`400 errors.inboxDraft.needs.contract`, ebenfalls bevor etwas geschrieben
+wird. Fehlt einer Rechnung beim Übernehmen ihr Vertrag (gescheitert), steht
+sie in `failed` mit diesem Code und entsteht nicht; bis 3.8 entstand sie ohne
+Vertrag und buchte ihr Ergebnis auf den Vertrag, der damals lief.
 Vorher legt der Server eine Sicherung `pre-inbox-…` an (Einstellungen → Daten,
 Anlass „vor Haushalt aus Dokumenten“). Antwort: `applied` (je Eintrag `ref`),
 `failed` (je Eintrag oder Feld mit `error`, `code`), `created` (`meters`,

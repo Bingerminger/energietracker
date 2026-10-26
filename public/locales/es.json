@@ -6498,7 +6498,8 @@
       "meterChange": "Cambio de contador el {date}, contador nuevo {serial}",
       "contract": {
         "new": "Contrato {provider} del {from} al {to}",
-        "existing": "Contrato existente {provider} desde el {from}"
+        "existing": "Contrato existente {provider} desde el {from}",
+        "sameSupplier": "Contrato existente {existing} desde el {from}: ¿el mismo suministrador que {provider}?"
       },
       "contractEnd": "El contrato anterior {provider} termina el {date}",
       "prices": "Precios {provider}",
@@ -6555,7 +6556,8 @@
       "swap_open": "Tras un cambio de contador sin lectura final del contador antiguo – introduce primero el cambio",
       "swap_readings": "Las lecturas no encajan del todo con el cambio (otro aparato, en descenso o por debajo de una lectura conocida) – revísalo",
       "existing_update": "Completa lo que ya está registrado – revísalo",
-      "existing_overlap": "Se solapa con lo que ya está registrado – revísalo"
+      "existing_overlap": "Se solapa con lo que ya está registrado – revísalo",
+      "same_supplier": "En tus datos el suministrador tiene otro nombre. ¿Es el mismo, por ejemplo una marca y su empresa municipal?"
     },
     "result": {
       "title": "Adoptado",
@@ -6615,7 +6617,8 @@
       "memberHint": "Lo configura quien administra esta instalación. Aquí ves lo que está ajustado; guardar documentos ya puedes.",
       "ready": "Configurado: la app lee ahora con {service}, modelo {model}.",
       "unavailable": "Los ajustes de lectura no están disponibles ahora. Vuelve a intentarlo enseguida."
-    }
+    },
+    "requires": "Pertenece a «{contract}» y solo se adopta junto con este contrato."
   },
   "interpolation": {
     "leadYear": {
