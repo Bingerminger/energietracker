@@ -255,6 +255,15 @@ final class HouseholdDraftExistingContractsTest extends ServiceTestCase
         self::assertSame(['2025-04-01', '2025-04-04'], array_map(fn($x) => $x['params']['from'], self::items($this->build(), 'contract')));
     }
 
+    /** Ein Tarifwechsel beim selben Versorger ein Jahr später (ohne Nummern) bleibt zwei Verträge: Die Woche gilt nur für wenige Tage. */
+    public function testATariffChangeOfTheSameSupplierStaysTwoContracts(): void
+    {
+        $base = ['utility' => 'strom', 'supplier' => 'Nordlicht Energie GmbH', 'meter_number' => 'STR-1', 'base_price' => '12,90', 'base_price_period' => 'month'];
+        $this->doc('c-a', 'contract_confirmation', $base + ['supply_start' => '01.01.2024', 'tariff_name' => 'Basis', 'working_price' => '31,20']);
+        $this->doc('c-b', 'contract_confirmation', $base + ['supply_start' => '01.01.2025', 'tariff_name' => 'Fix 24', 'working_price' => '29,90']);
+        self::assertSame([['2024-01-01', '2024-12-31'], ['2025-01-01', null]], array_map(fn($x) => [$x['params']['from'], $x['params']['to']], self::items($this->build(), 'contract')));
+    }
+
     /** Wenige Tage auseinander an zwei Zählern (Haus und Wärmepumpe): zwei Verträge. */
     public function testNearStartsAtTwoMetersStayTwoContracts(): void
     {
@@ -313,6 +322,8 @@ final class HouseholdDraftExistingContractsTest extends ServiceTestCase
         self::assertSame([$c['id'], false, true], [$bill['requires'], $bill['checked'], $bill['checked_with']], 'die Rechnung geht nur mit dem Vertrag');
         $adv = self::items($d, 'advances')[0];
         self::assertSame([$c['id'], false], [$adv['requires'], $adv['checked']]);
+        $prices = self::items($d, 'prices')[0];
+        self::assertSame(['exists', null], [$prices['status'], $prices['requires']], 'schon vorhanden: hängt an nichts (nicht ausgegraut)');
 
         // allein abgelehnt, bevor etwas geschrieben wird
         try {

@@ -2838,7 +2838,8 @@ final class HouseholdDraft
         foreach ($items as $i => $it) {
             $items[$i]['requires'] = null;
             $key = (string)($it['contract_key'] ?? '');
-            if (!in_array($it['kind'], self::CONTRACT_CHILDREN, true) || $key === '' || !isset($parent[$key])) continue;
+            // (was schon vorhanden ist, hat nichts zu übernehmen und hängt an nichts)
+            if (!in_array($it['kind'], self::CONTRACT_CHILDREN, true) || $key === '' || !isset($parent[$key]) || !$it['actionable']) continue;
             $p = $parent[$key];
             $settled = ($contractIds[$key] ?? null) !== null && !in_array('same_supplier', $p['reasons'], true);
             if ($settled) continue;
