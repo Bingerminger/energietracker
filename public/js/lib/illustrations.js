@@ -167,10 +167,10 @@ const SETUP = {
   region: () => shapes.globe(44, 44, 24) + shapes.bubble(64, 10, 34, 20),
   /** Wer bist du: Mehrfamilienhaus und Einfamilienhaus. */
   persona: () => shapes.ground(6, 114, 72) + shapes.block(14, 26, 34, 46) + shapes.house(60, 30, 44, 42, { chimney: true }),
-  /** Energieträger: drei Zähler mit Blitz, Flamme und Tropfen. */
-  utilities: () => [['strom', 'bolt'], ['gas', 'flame'], ['wasser', 'drop']].map(([u, icon], i) => {
-    const x = 8 + i * 37;
-    return shapes.meter(x, 36, { w: 30, h: 34, util: u }) + shapes[icon](x + 15, 18, 0.9);
+  /** Energieträger: drei ruhige Zähler, darüber Blitz, Flamme und Tropfen in der Farbe der Art. */
+  utilities: () => shapes.ground(6, 114, 72) + ['bolt', 'flame', 'drop'].map((icon, i) => {
+    const x = 9 + i * 37;
+    return shapes.meter(x, 40, { w: 28, h: 32 }) + shapes[icon](x + 14, 20, 1);
   }).join(''),
   /** Erfahrung: Stufen mit einem Keimling oben. */
   level: () => shapes.ground(6, 114, 72) + shapes.steps(22, 36, 72, 36) + shapes.sprout(83, 34, 1.1),
@@ -196,6 +196,19 @@ const PERSONA = {
 export function personaArt(id) {
   const draw = PERSONA[id];
   return draw ? svg(draw(), { viewBox: '0 0 40 40', className: 'ill--persona' }) : '';
+}
+
+/**
+ * Willkommen (leere Übersicht): Haus mit Zähler, daneben ein Blatt mit Haken,
+ * das, was die App aus den Ständen macht (aria-hidden, der Text sagt es).
+ */
+export function welcomeArt() {
+  return svg(shapes.ground(4, 156, 86)
+    + shapes.house(10, 30, 58, 56, { chimney: true })
+    + shapes.meter(80, 52, { w: 24, h: 30 })
+    + shapes.arrow(108, 66, 122, 56)
+    + shapes.doc(124, 22, { w: 28, h: 36, check: true })
+    + shapes.sun(140, 8, 4), { viewBox: '0 0 160 92', className: 'ill--welcome' });
 }
 
 /** Für Tests: welche Schritte und Haushalte ein Bild haben. */

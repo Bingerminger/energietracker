@@ -1454,7 +1454,7 @@
       "contract_remind_days_1": { "label": "Livello 1 — preavviso anticipato" },
       "contract_remind_days_2": { "label": "Livello 2 — promemoria" },
       "contract_remind_days_3": { "label": "Livello 3 — urgente" },
-      "wasser_personen_anzahl": { "label": "Persone nel nucleo", "hint": "Per l’indice di risparmio idrico: litri per persona e giorno rispetto al riferimento." },
+      "wasser_personen_anzahl": { "label": "Numero di persone", "hint": "Per l’indice di risparmio idrico: litri per persona e giorno rispetto al riferimento." },
       "wasser_personen_referenz": { "label": "Riferimento", "hint": "BDEW 2024: 122 L per persona al giorno (Germania)." },
       "wasser_sparindex_gut": { "label": "Indice di risparmio — buono fino a", "hint": "Un indice ≤ a questo valore è considerato normale." },
       "wasser_sparindex_warnung": { "label": "Indice di risparmio — avviso da", "hint": "Un indice ≥ a questo valore indica un potenziale di risparmio." },
@@ -2272,7 +2272,8 @@
       "one": "Ogni mese",
       "other": "Ogni {count} mesi"
     },
-    "lastDone": "Ultima esecuzione {when}"
+    "lastDone": "Ultima esecuzione {when}",
+    "emptyText": "Manutenzione, scadenza di taratura o lettura: l’app te lo ricorda in tempo e mostra ciò che scade in «Da fare» nella panoramica."
   },
   "temperatures": {
     "loading": "Caricamento…",

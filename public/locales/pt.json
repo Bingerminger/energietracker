@@ -1454,7 +1454,7 @@
       "contract_remind_days_1": { "label": "Nível 1 — aviso antecipado" },
       "contract_remind_days_2": { "label": "Nível 2 — lembrete" },
       "contract_remind_days_3": { "label": "Nível 3 — urgente" },
-      "wasser_personen_anzahl": { "label": "Pessoas no agregado", "hint": "Para o índice de poupança de água: litros por pessoa e dia face à referência." },
+      "wasser_personen_anzahl": { "label": "Número de pessoas", "hint": "Para o índice de poupança de água: litros por pessoa e dia face à referência." },
       "wasser_personen_referenz": { "label": "Referência", "hint": "BDEW 2024: 122 L por pessoa e dia (Alemanha)." },
       "wasser_sparindex_gut": { "label": "Índice de poupança — bom até", "hint": "Um índice ≤ a este valor é considerado normal." },
       "wasser_sparindex_warnung": { "label": "Índice de poupança — aviso a partir de", "hint": "Um índice ≥ a este valor indica potencial de poupança." },
@@ -2272,7 +2272,8 @@
       "one": "Todos os meses",
       "other": "A cada {count} meses"
     },
-    "lastDone": "Última vez {when}"
+    "lastDone": "Última vez {when}",
+    "emptyText": "Manutenção, prazo de verificação ou leitura: a app lembra a tempo e mostra o que está pendente em «A fazer» na visão geral."
   },
   "temperatures": {
     "loading": "A carregar…",

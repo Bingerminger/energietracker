@@ -1454,7 +1454,7 @@
       "contract_remind_days_1": { "label": "Stufe 1 — Vorwarnung" },
       "contract_remind_days_2": { "label": "Stufe 2 — Erinnerung" },
       "contract_remind_days_3": { "label": "Stufe 3 — dringend" },
-      "wasser_personen_anzahl": { "label": "Personen im Haushalt", "hint": "Für den Wasser-Spar-Index: Liter je Person und Tag im Vergleich zur Referenz." },
+      "wasser_personen_anzahl": { "label": "Anzahl der Personen", "hint": "Für den Wasser-Spar-Index: Liter je Person und Tag im Vergleich zur Referenz." },
       "wasser_personen_referenz": { "label": "Referenz", "hint": "BDEW 2024: 122 L je Person und Tag." },
       "wasser_sparindex_gut": { "label": "Spar-Index — gut bis", "hint": "Index ≤ diesem Wert gilt als unauffällig." },
       "wasser_sparindex_warnung": { "label": "Spar-Index — Warnung ab", "hint": "Index ≥ diesem Wert zeigt Sparpotenzial an." },
@@ -2272,7 +2272,8 @@
       "one": "Jeden Monat",
       "other": "Alle {count} Monate"
     },
-    "lastDone": "Zuletzt erledigt {when}"
+    "lastDone": "Zuletzt erledigt {when}",
+    "emptyText": "Wartung, Eichfrist oder Ablesung: Die App erinnert dich rechtzeitig und zeigt Fälliges unter „Zu tun“ auf der Übersicht."
   },
   "temperatures": {
     "loading": "Lädt …",

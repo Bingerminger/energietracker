@@ -9,6 +9,7 @@ import { showFieldError } from '../lib/form.js';
 import { t, tp } from '../lib/i18n.js';
 import { escapeHtml as esc, todayIso, fmt } from '../lib/format.js';
 import { copyText } from '../lib/clipboard.js';
+import { emptyHtml } from '../lib/empty.js';   // v3.9.0 — einheitlicher Leerzustand
 import { ingressHost, haUrl } from '../lib/ha-snippet.js';
 // v3.4.0 (F1024) — Erledigt mit Verlauf
 import { openDoneDialog } from '../components/done-dialog.js';
@@ -84,8 +85,9 @@ async function draw(container) {
     </div>
 
     ${sorted.length === 0
-      ? `<div class="banner banner--info">${t('reminders.empty')}</div>
-         <div style="margin-top:var(--sp-3)"><button class="btn btn--primary" data-rem-add>${t('reminders.emptyCta')}</button></div>`
+      // v3.9.0 — derselbe Leerzustand wie auf den anderen Seiten (lib/empty.js), statt Hinweisbalken und Knopf
+      ? emptyHtml({ icon: '📌', title: t('reminders.empty'), text: t('reminders.emptyText'), role: 'reminders-empty',
+          action: `<button type="button" class="btn btn--primary" data-rem-add>${esc(t('reminders.emptyCta'))}</button>` })
       // v2.12.0 (Review UI-20) — die Tabelle in einer Karte wie auf den anderen Seiten
       : `${withFilter ? filterHtml({ id: 'rem-assignee', value: filter, names: assigneeNames(list) }) : ''}
         ${shown.length ? `<div class="card"><div class="table-wrap"><table class="data-table">

@@ -1454,7 +1454,7 @@
       "contract_remind_days_1": { "label": "Niveau 1 — vroege waarschuwing" },
       "contract_remind_days_2": { "label": "Niveau 2 — herinnering" },
       "contract_remind_days_3": { "label": "Niveau 3 — urgent" },
-      "wasser_personen_anzahl": { "label": "Personen in het huishouden", "hint": "Voor de waterbesparingsindex: liters per persoon per dag ten opzichte van de referentie." },
+      "wasser_personen_anzahl": { "label": "Aantal personen", "hint": "Voor de waterbesparingsindex: liters per persoon per dag ten opzichte van de referentie." },
       "wasser_personen_referenz": { "label": "Referentie", "hint": "BDEW 2024: 122 L per persoon per dag (Duitsland)." },
       "wasser_sparindex_gut": { "label": "Besparingsindex — goed tot", "hint": "Een index ≤ deze waarde geldt als normaal." },
       "wasser_sparindex_warnung": { "label": "Besparingsindex — waarschuwing vanaf", "hint": "Een index ≥ deze waarde duidt op besparingspotentieel." },
@@ -2272,7 +2272,8 @@
       "one": "Elke maand",
       "other": "Elke {count} maanden"
     },
-    "lastDone": "Laatst afgerond {when}"
+    "lastDone": "Laatst afgerond {when}",
+    "emptyText": "Onderhoud, ijktermijn of meterstand: de app herinnert je op tijd en toont wat aan de beurt is bij ‘Te doen’ op het overzicht."
   },
   "temperatures": {
     "loading": "Laden…",

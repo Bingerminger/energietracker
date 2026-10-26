@@ -1454,7 +1454,7 @@
       "contract_remind_days_1": { "label": "Niveau 1 — préavis précoce" },
       "contract_remind_days_2": { "label": "Niveau 2 — rappel" },
       "contract_remind_days_3": { "label": "Niveau 3 — urgent" },
-      "wasser_personen_anzahl": { "label": "Personnes dans le foyer", "hint": "Pour l’indice d’économie d’eau : litres par personne et par jour par rapport à la référence." },
+      "wasser_personen_anzahl": { "label": "Nombre de personnes", "hint": "Pour l’indice d’économie d’eau : litres par personne et par jour par rapport à la référence." },
       "wasser_personen_referenz": { "label": "Référence", "hint": "BDEW 2024 : 122 L par personne et par jour (Allemagne)." },
       "wasser_sparindex_gut": { "label": "Indice d’économie — bon jusqu’à", "hint": "Un indice ≤ à cette valeur est considéré comme normal." },
       "wasser_sparindex_warnung": { "label": "Indice d’économie — alerte à partir de", "hint": "Un indice ≥ à cette valeur indique un potentiel d’économie." },
@@ -2272,7 +2272,8 @@
       "one": "Tous les mois",
       "other": "Tous les {count} mois"
     },
-    "lastDone": "Dernière exécution {when}"
+    "lastDone": "Dernière exécution {when}",
+    "emptyText": "Entretien, échéance d’étalonnage ou relevé : l’application vous le rappelle à temps et affiche ce qui est dû sous « À faire » dans l’aperçu."
   },
   "temperatures": {
     "loading": "Chargement…",
