@@ -118,6 +118,13 @@ final class HomeAssistantAppDocsTest extends TestCase
         self::assertSame('false', $cfg['map.read_only'] ?? null, 'schreibbar: die App verschiebt eingelesene Dateien');
         self::assertStringStartsWith('/share/', $cfg['environment.ET_INBOX_DIR'] ?? '', 'der Ordner liegt in der Freigabe');
         self::assertSame(\Energietracker\Services\HomeAssistant\NotifyConfig::SUPERVISOR_API, 'http://supervisor/core/api');
+        // „die App legt ihn beim Start an“: das Standard-Image (root) legt den Ordner an und gibt ihn www-data
+        $entry = self::read('docker/entrypoint.sh');
+        self::assertStringContainsString('mkdir -p "$ET_INBOX_DIR"', $entry);
+        self::assertStringContainsString('chown www-data:www-data "$ET_INBOX_DIR"', $entry, 'nur der Ordner, nicht rekursiv');
+        self::assertStringNotContainsString('chown -R www-data:www-data "$ET_INBOX_DIR"', $entry);
+        // „der Gesundheitscheck fragt alle 30 Sekunden“ (Doku: tägliche Prüfung, Ordner nach spätestens fünf Minuten)
+        self::assertMatchesRegularExpression('#HEALTHCHECK --interval=30s[\s\S]*?/api/health#', self::read('Dockerfile'));
     }
 
     public function testTheEnvironmentIsReadByTheApp(): void
