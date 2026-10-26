@@ -154,6 +154,13 @@ Zählers nur vorab angehakt, wenn der Tausch es ist; stehen mehrere
 Zählernummern auf der Rechnung, ist ein einzelner Stand nur vorab angehakt,
 wenn er sicher zum zugeordneten Gerät gehört.
 
+**Ablesecodes je Stand** *(v3.9.0)*: Erklärt die Rechnung Codes wie
+„S=Schätzung I=Internetablesung“, gilt ein Code für den Stand direkt davor. In
+„Altstand 1.234 I · Neustand 1.300 S“ ist nur der Neustand geschätzt, nicht
+jeder Stand der Zeile. Datum und Zählernummer zählen dabei nicht als Stand.
+Stehen zwei Zeiträume hintereinander (Endstand am 30.09., Anfangsstand am 01.10.
+mit demselben Wert), wird daraus eine Ablesung.
+
 Zu jedem Dokument liest die App *(v3.7.0)* auch **Datum und Titel** (Brief- bzw.
 Rechnungsdatum, Überschrift wie „Rechnungskorrektur“, auch aus dem Seitenkopf):
 Sie ordnen die Post zeitlich und zeigen eine Korrektur als solche. Fehlen sie,
@@ -168,6 +175,13 @@ Deutsche Zahlen liest die Prüfung deutsch: „12.345“ ist zwölftausend, nich
 zwölf Komma drei — Modelle hielten den Tausenderpunkt gern für ein Komma. Mit
 diesen Regeln rutschte in der Machbarkeitsprobe (61 echte Dokumente) kein
 falscher Kernwert ungeprüft durch.
+
+**Gesperrte Ziffern** *(v3.9.0)*: Manche Rechnungen setzen Beträge mit
+Leerzeichen zwischen den Ziffern („3 1 5,5 9 €“, „-8 0 0 , 0 0 €“, „1 8 3 Tage“).
+Die Prüfung liest das als eine Zahl, aber nur, wenn jede Ziffer einzeln steht,
+jeweils durch genau ein Leerzeichen getrennt, und das Ergebnis eine gültige
+Zahl ist. Mehrstellige Zahlen nebeneinander (Spalten einer Tabelle wie
+„12 345“) bleiben getrennt.
 
 Ein markiertes Feld **bestätigst** („Stimmt“) oder **korrigierst** du. Ein Tipp
 auf „S. 2“ neben dem Zitat blättert links zur Seite.
@@ -211,14 +225,14 @@ bestätigst oder korrigierst. **„Übernehmen“** schreibt genau das Angehakte
 
 | Dokument | Vorschläge |
 |---|---|
-| Rechnung | Ablesung neu (und alt) — *(v3.7.0)* weist die Rechnung einen Stand als geschätzt aus (Wort wie „geschätzt“ oder ein Ablesecode, den sie selbst erklärt, etwa „S = geschätzt“), wird er als geschätzt angelegt — ebenso „hochgerechnet“, eine Fußnote wie „5)“ mit der Erklärung „5) hochgerechnet“, ein Code in einer Gruppe wie „10/12/26“ und ein Code in der Spalte „Ableseart“ oder „Ablesegrund“, wenn das Dokument ihn als Schätzung erklärt; auch aus den Ständen je Zähler, zugeordnet nach Zählernummer; stehen zwei Zähler auf der Rechnung (der zugeordnete und ein neuer), ein **Zählertausch** mit Endstand des alten und Anfangsstand des neuen Zählers, vorab angehakt, wenn Nummern, Tag und Stände zusammenpassen —, Rechnung erfassen (bei Gas mit Zustandszahl und Brennwert laut Rechnung für „Rechnung prüfen“), Ergebnis als Sonderzahlung buchen, neuer Abschlag am Vertrag desselben Versorgers, der dann gilt; bei Gas Zustandszahl und Brennwert je Zeitraum als Stichtag der [Gas-Umrechnung](../verstehen/01-gas.md); Arbeitspreise und Grundpreis: wie im Vertrag „schon vorhanden“, sonst als Vorschlag zum Prüfen; Marktlokation am Zähler, Vertrags- und Kundennummer am Vertrag. Ohne Vertrag dieses Versorgers *(v3.7.0)*: „Vertrag … aus dieser Rechnung anlegen“ als Angebot (Beginn = Beginn des Zeitraums, eine Schlussrechnung endet mit ihm), und gebucht wird nur an einen Vertrag des Versorgers — sonst lehnt die App ab, statt an einen fremden zu buchen |
+| Rechnung | Ablesung neu (und alt) — *(v3.7.0)* weist die Rechnung einen Stand als geschätzt aus (Wort wie „geschätzt“ oder ein Ablesecode, den sie selbst erklärt, etwa „S = geschätzt“), wird er als geschätzt angelegt — ebenso „hochgerechnet“, eine Fußnote wie „5)“ mit der Erklärung „5) hochgerechnet“, ein Code in einer Gruppe wie „10/12/26“ und ein Code in der Spalte „Ableseart“ oder „Ablesegrund“, wenn das Dokument ihn als Schätzung erklärt; auch aus den Ständen je Zähler, zugeordnet nach Zählernummer; stehen zwei Zähler auf der Rechnung (der zugeordnete und ein neuer), ein **Zählertausch** mit Endstand des alten und Anfangsstand des neuen Zählers, vorab angehakt, wenn Nummern, Tag und Stände zusammenpassen —, Rechnung erfassen (bei Gas mit Zustandszahl und Brennwert laut Rechnung für „Rechnung prüfen“), Ergebnis als Sonderzahlung buchen, neuer Abschlag am Vertrag desselben Versorgers, der dann gilt; bei Gas Zustandszahl und Brennwert je Zeitraum als Stichtag der [Gas-Umrechnung](../verstehen/01-gas.md); Arbeitspreise und Grundpreis: wie im Vertrag „schon vorhanden“, sonst als Vorschlag zum Prüfen; Marktlokation am Zähler, Vertrags- und Kundennummer am Vertrag. Ohne Vertrag dieses Versorgers *(v3.7.0)*: „Vertrag … aus dieser Rechnung anlegen“ als Angebot (Beginn = Beginn des Zeitraums, eine Schlussrechnung endet mit ihm), und gebucht wird nur an einen Vertrag des Versorgers — sonst lehnt die App ab, statt an einen fremden zu buchen. *(v3.9.0)* Gilt am Zähler gar kein Vertrag, ist dieser Vorschlag vorab angehakt, mit Preisen je Abschnitt und Abschlagsplan ([Vertrag aus der Rechnung](#vertrag-aus-der-rechnung-v390)) |
 | Vertragsbestätigung | neuer Vertrag mit Arbeitspreis, Grundpreis (je Jahr umgerechnet in je Monat), Abschlag, Mindestlaufzeit, Kündigungsfrist, Bonus, Preisgarantie, Vertrags- und Kundennummer — unsichere Nebenangaben bleiben offene Punkte; der bisherige Vertrag endet am Vortag — vorab angehakt *(v3.7.0)* bei einem Wechsel (anderer Versorger) oder Tarifwechsel (anderer Tarif oder andere Vertragsnummer) am selben Zähler, als Angebot bei einem Gruppenvertrag, an einem Unterzähler, bei offenbar demselben Vertrag und bei älteren Vorgängern; hat der bisherige ein späteres Ende, das eine Kündigung belegt, ist das ein Widerspruch |
 | Preisänderung | Arbeitspreis und Grundpreis ab dem Stichtag, Termin für das Sonderkündigungsrecht |
 | Kündigung | Vertragsende, ohne Verlängerung; fehlt ein Anschlussvertrag, ein Termin „Anschlussvertrag abschließen“ 14 Tage vor dem Lieferende (näher am Lieferende: heute) |
 | Lieferbeginn | Zählerstand bei Beginn, Beginn des Vertrags; ohne Vertrag dieses Versorgers *(v3.7.0)* „Vertrag … anlegen“ als Angebot (die Preise bleiben offen) |
 | Zählerwechsel | Zählertausch mit Endstand und Anfangsstand (alles zu prüfen) |
 | Zählerstandsanforderung | Termin „Zählerstand melden“ am Zähler, bei der zuständigen Person |
-| Abschlagsänderung | neuer Abschlag ab dem Stichtag |
+| Abschlagsänderung | neuer Abschlag ab dem Stichtag; *(v3.9.0)* im Rhythmus des laufenden Abschlags (alle zwei oder drei Monate bleibt so) |
 
 **Termine aus Dokumenten** hängen am zugeordneten Zähler und landen bei der
 Person, die zuständig ist: Hat der Vertrag eine, steht sie am Termin; sonst erbt
@@ -231,9 +245,57 @@ der Verlauf (Hinweise → Erledigt) vermerkt „Aus Dokument übernommen“. Wer
 dasselbe Dokument noch einmal übernimmt, sieht alles als „schon vorhanden“ —
 nichts kommt doppelt.
 
-Wasser-Verträge haben drei Bestandteile; einen neuen Wasservertrag legst du
-von Hand an. Ablesung, Rechnung und Abschlag schlägt der Posteingang auch bei
-Wasser vor.
+### Vertrag aus der Rechnung *(v3.9.0)*
+
+Gilt am Zähler im Zeitraum einer Rechnung **kein Vertrag**, schlägt die App
+„Vertrag … ab … aus dieser Rechnung anlegen“ vor, für jede Verbrauchsart und
+auch für Wasser, und hakt ihn vorab an. Er übernimmt:
+
+- Versorger, Vertragskonto (Vertragsnummer) und den Beginn des Zeitraums; nach
+  einer Jahresrechnung läuft der Vertrag weiter, eine Schlussrechnung beendet ihn,
+- die **Preise je Abschnitt** ab ihrem Tag (ein Preiswechsel zum 01.10. ergibt
+  zwei Preiszeilen), brutto: Nettopreise mit dem Steuersatz, den die Rechnung
+  für die Sparte ausweist; ein Satz wird gelesen, nie vermutet,
+- **Bestandteile als ein Preis**: Basis- und Bereitstellungspreis einer Sparte
+  ergeben zusammen den Grundpreis je Monat (ein Jahrespreis geteilt durch 12),
+  Arbeitspreis, Energiesteuer und CO₂-Preis desselben Tags zusammen den
+  Arbeitspreis. Unter dem Vorschlag steht, woraus jeder Preis entsteht,
+- bei Wasser **alle drei Sparten**: Trinkwasser und Schmutzwasser je m³ und mit
+  ihrem Grundpreis, Niederschlagswasser je m² und Jahr mit der Fläche laut
+  Rechnung,
+- den **neuen Abschlagsplan** mit seinem Rhythmus (siehe unten).
+
+Die Rechnung hängt dann am neuen Vertrag, und
+„Ergebnis als Sonderzahlung buchen“ geht im selben Durchgang: Die App legt erst
+den Vertrag an, dann die Rechnung, dann bucht sie das Ergebnis. Nimmst du den Haken am Vertrag weg, ist
+das Buchen gesperrt („Nur zusammen mit dem Vertrag aus dieser Rechnung.“);
+erfassen kannst du die Rechnung trotzdem.
+
+Gilt im Zeitraum schon ein Vertrag, überschreibt die App nichts:
+
+- Ein Vertrag eines **anderen Versorgers** oder einer, der sich überschneidet:
+  Der Vorschlag ist nur ein Angebot (nicht angehakt), und an den fremden Vertrag
+  wird nicht gebucht.
+- Ein Vertrag **desselben Versorgers**, der vor dem Ende des Zeitraums endet:
+  Für die Tage danach bietet die App einen **Folgevertrag** an (ab dem Tag nach
+  dem Ende), für Tage davor einen Vorvertrag. Beide sind Angebote.
+- **Preise der Rechnung am bestehenden Vertrag**: je Sparte und Abschnitt eine
+  eigene Zeile, „schon vorhanden“, wenn der Vertrag sie an dem Tag schon hat,
+  sonst neu, aber nie vorab angehakt.
+
+### Abschläge alle zwei oder drei Monate *(v3.9.0)*
+
+Nennt die Rechnung den neuen Abschlag mit Terminen („165,00 € am 15.05.2026,
+15.07.2026, …“) oder einem Rhythmus („zweimonatlich“, „vierteljährlich“),
+übernimmt die App ihn so: Der Betrag gilt **je Termin**, alle zwei oder drei
+Monate oder an den genannten Terminen; nach dem letzten genannten Termin geht
+es jährlich zu denselben Tagen weiter. Ohne „ab“ beginnt der Plan am ersten
+Termin. Unsicher gelesene Termine zählen nicht. Eine Abschlagsänderung nennt
+meist nur den Betrag: Dann bleibt der Rhythmus des laufenden Abschlags. Auch
+die Kernaussage beurteilt den neuen Abschlag dann je Termin, nicht je Monat. Wie
+Saldo, Vorschlag und Prognose damit rechnen, steht unter
+[Wasser](../verstehen/03-wasser.md#abschläge-alle-zwei-oder-drei-monate-v390);
+das gilt für jede Verbrauchsart.
 
 ---
 
@@ -249,7 +311,7 @@ rechnen — nichts wird geschätzt, was die App nicht schon weiß.
 |---|---|---|
 | Preisänderung | Mehr- oder Minderkosten **im Jahr**: Unterschied im Arbeitspreis × erwarteter Verbrauch der nächsten zwölf Monate (dieselbe Prognose wie im [Tarifvergleich](../referenz/ansichten.md)) + Unterschied im Grundpreis × 12. Der alte Preis kommt aus dem Brief, sonst aus dem Vertrag am Tag davor. Darunter die Frist des Sonderkündigungsrechts, wenn der Brief sie nennt. | Spart ein gespeichertes Angebot laut Wechselentscheidung: **„Wechsel spart rund … – Tarife vergleichen“**; sonst „Neue Preise übernehmen“ |
 | Rechnung | vor der Übernahme Nachzahlung oder Guthaben laut Rechnung; **nach der Übernahme läuft „Rechnung prüfen“ von selbst**: „passt zu deinen Daten“, „liegt … über/unter deiner eigenen Rechnung“ oder *(v3.7.0)* „im Vertrag fehlen Preise“ mit den Abschnitten ohne Preis, dazu die Gründe (etwa geschätzter Zählerstand an der Grenze) | „Übernehmen und prüfen“, danach bei einer Abweichung „Rechnung prüfen“, ohne Preise „Preise im Vertrag eintragen“ |
-| Abschlagsänderung | neuer Abschlag gegen den Abschlag, mit dem die laufende Abrechnung bei null endet (Abschlag laut Plan + erwarteter Endsaldo ÷ Monate bis zur Abrechnung): **passt**, **zu hoch** oder **zu niedrig** um rund … im Monat. „Passt“ heißt: Der Rest am Ende bliebe unter 50 € bzw. einem Abschlag — dieselbe Schwelle wie im [Jahresbericht](jahresbericht-lesen.md). | „Abschlag übernehmen“ |
+| Abschlagsänderung | neuer Abschlag gegen den Abschlag, mit dem die laufende Abrechnung bei null endet (Abschlag laut Plan + erwarteter Endsaldo ÷ Monate bis zur Abrechnung): **passt**, **zu hoch** oder **zu niedrig** um rund … im Monat. „Passt“ heißt: Der Rest am Ende bliebe unter 50 € bzw. einem Abschlag — dieselbe Schwelle wie im [Jahresbericht](jahresbericht-lesen.md). *(v3.9.0)* Mit Rhythmus zählen die Raten bis zur Abrechnung statt der Monate, und das Urteil gilt je Termin. | „Abschlag übernehmen“ |
 | Kündigung | Lieferende; ohne Anschlussvertrag „ein Anschlussvertrag fehlt noch“ und der Termin aus den Vorschlägen | „Anschlussvertrag finden“ (Tarifvergleich) |
 | Zählerstandsanforderung | Frist und wer zuständig ist; liegt schon ein Zählerstand vor, der höchstens 30 Tage vor der Frist abgelesen wurde, ist es erledigt | „Zählerstand erfassen“ — direkt zum Zähler |
 | Zählerwechsel | Tag, Endstand, neuer Zähler und Anfangsstand | „Zählertausch eintragen“ öffnet den Dialog mit allen Werten vorbelegt |

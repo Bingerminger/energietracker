@@ -604,6 +604,16 @@ is set is `unit_price_cents` used.
 `is_shadow: true` = a hypothetical tariff for the comparison; affects **neither**
 the balance **nor** the forecast.
 
+*(v3.9.0)* **Advance payment with a rhythm** — a row of `advance_payments`
+optionally carries `every_months` (`2` or `3`; monthly has no field) and
+`due_dates` (due dates according to the bill, ascending, none before `from`):
+`{ "from": "2026-05-15", "amount_eur": 165, "every_months": 2, "due_dates":
+["2026-05-15", "2026-07-15", "2026-09-15"] }`. `amount_eur` then applies per due
+date; after the last date it continues yearly on the same days. For water the
+plan stays in `advance_payments`; `schmutzwasser.base_prices`
+(`[{from, eur_per_month}]`, optional) is the standing charge of the waste water.
+Both go into the backup with the contracts.
+
 *(v3.7.0)* Optionally `assignee_id`: the person responsible — the notice
 deadline, the end of the contract and “bill expected” go to them
 ([Responsible for meters and contracts](#responsible-for-meters-and-contracts-v370)).

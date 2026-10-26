@@ -866,6 +866,7 @@ function balanceCard(c, u, country = 'DE') {
           <div class="balance-col__sub">${isFeedIn ? t('utility.balance.paidViaGrid') : (c.current_advance_amount != null ? (Number(c.current_advance_every_months) > 1
             ? t('utility.balance.paidCurrentEvery', { value: advanceAmountText(c.current_advance_amount, c.current_advance_every_months) })
             : t('utility.balance.paidCurrent', { value: fmt.eur(c.current_advance_amount) })) : t('utility.balance.paidCurrentNone'))}</div>
+          ${!isFeedIn && Array.isArray(c.next_advance_dates) && c.next_advance_dates.length ? `<div class="balance-col__sub" data-role="next-due">${escapeHtml(t('utility.balance.nextDue', { date: fmt.date(c.next_advance_dates[0]) }))}</div>` : ''}
           ${!isFeedIn && specialHtml ? `<div class="balance-col__sub" style="margin-top:6px">${tp('utility.balance.specialCount', spCount)}</div>${specialHtml}` : ''}
         </div>
         <div>

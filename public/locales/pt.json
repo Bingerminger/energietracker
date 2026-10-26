@@ -502,7 +502,8 @@
         "other": "{count} pagamentos extraordinários"
       },
       "sinceBill": "Calculado a partir de {date}: a fatura anterior está registada no contrato e já não conta aqui.",
-      "paidCurrentEvery": "atual: {value}"
+      "paidCurrentEvery": "atual: {value}",
+      "nextDue": "próximo vencimento: {date}"
     },
     "contractsTable": {
       "emptyTitle": "Sem contratos registados",

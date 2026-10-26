@@ -502,7 +502,8 @@
         "other": "{count} Sonderzahlungen"
       },
       "sinceBill": "Gerechnet ab {date}: Die Rechnung davor ist im Vertrag gebucht und zählt hier nicht mehr mit.",
-      "paidCurrentEvery": "aktuell: {value}"
+      "paidCurrentEvery": "aktuell: {value}",
+      "nextDue": "nächster Termin: {date}"
     },
     "contractsTable": {
       "emptyTitle": "Keine Verträge erfasst",

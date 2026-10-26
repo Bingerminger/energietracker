@@ -502,7 +502,8 @@
         "other": "{count} pagamenti straordinari"
       },
       "sinceBill": "Calcolato dal {date}: la bolletta precedente è registrata nel contratto e qui non conta più.",
-      "paidCurrentEvery": "attuale: {value}"
+      "paidCurrentEvery": "attuale: {value}",
+      "nextDue": "prossima scadenza: {date}"
     },
     "contractsTable": {
       "emptyTitle": "Nessun contratto registrato",

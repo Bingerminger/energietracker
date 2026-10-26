@@ -502,7 +502,8 @@
         "other": "{count} special payments"
       },
       "sinceBill": "Counted from {date}: the bill before is booked in the contract and no longer counts here.",
-      "paidCurrentEvery": "current: {value}"
+      "paidCurrentEvery": "current: {value}",
+      "nextDue": "next due date: {date}"
     },
     "contractsTable": {
       "emptyTitle": "No contracts recorded",

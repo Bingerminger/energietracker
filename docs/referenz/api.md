@@ -690,6 +690,27 @@ Ohne gebuchte Rechnung nach Vertragsbeginn bleibt alles wie bisher. Bis v3.5
 begann der Saldo immer am Vertragsbeginn; bei einem Vertrag über mehrere
 Jahre blieb jedes Jahr ohne gebuchten Ausgleich im Saldo stehen.
 
+**Abschlag mit Rhythmus *(v3.9.0)*:** Eine Zeile von `advance_payments` (jede
+Verbrauchsart, auch Wasser) trägt optional `every_months` (`2` oder `3`; `1`
+heißt monatlich und wird nicht gespeichert) und `due_dates` (Termine,
+aufsteigend, keiner vor `from`; regelmäßige Termine ergeben `every_months`).
+Anderes → 400 `errors.contract.advanceEveryInvalid` bzw.
+`errors.contract.advanceDueBeforeStart`. Der Betrag gilt je Termin: alle N
+Monate ab `from` (Tag am Monatsende geklemmt) bzw. an den Terminen und danach
+jährlich zu denselben Tagen, bis zur nächsten Zeile. `advance_paid`,
+`advance_remaining`, `balance_path` und die Prognose zählen jede Rate ganz an
+ihrem Tag; `suggested_advance` gilt dann je Termin (Rest ÷ noch fällige Raten).
+Neue Felder je Vertrag, nur mit Rhythmus (additiv):
+
+| Feld | Bedeutung |
+|---|---|
+| `current_advance_every_months` | Rhythmus des laufenden Abschlags in Monaten |
+| `next_advance_dates` | die nächsten Termine ab heute (höchstens sechs, ein Jahr) |
+
+Ohne Rhythmus bleiben alle Werte wie bisher. Wasser: `schmutzwasser.base_prices`
+*(v3.9.0, optional)* ist der Grundpreis des Schmutzwassers (`eur_per_month`); er
+zählt in Kosten, Saldo und Prognose wie der des Trinkwassers.
+
 ### Verträge tagesgenau, Kündigungsstichtag *(v2.9.0)*
 
 **Vertragsfelder (additiv, optional):** `notice_period_days` (0–730, Vorrang
@@ -4144,6 +4165,43 @@ Vertrag dieses Versorgers ist `bill_book` nur ein Angebot (`open` nennt
 `contract`); übernommen bucht es nur an einen Vertrag des Versorgers, der den
 Zeitraum abrechnet, sonst `errors.bill.noContract`. Der neue Abschlag einer
 Rechnung geht nur an einen Folgevertrag desselben Versorgers.
+
+*(v3.9.0, `schema_version` 5)* **Vertrag aus der Rechnung.** Gilt am Zähler im
+Zeitraum gar kein Vertrag, ist `contract_create`
+(`inbox.proposal.contractFromInvoice`) vorbelegt und trägt die Preise je
+Abschnitt (brutto), bei Wasser alle drei Sparten, und den neuen Abschlagsplan;
+`data.for_bill: true` heißt, die Rechnung dieses Durchgangs hängt an ihm
+(`bill` und `bill_book` tragen dann `data.contract_new: true`). `params.lines`
+schlüsselt auf: `{section, kind: working|base|rate|advance, from, value, parts:
+[{label, price, unit, net, vat_pct, gross}], area?, every?, dates?}`. Gilt im
+Zeitraum ein Vertrag, bleibt es ein Angebot; endet einer desselben Versorgers
+vorher, gibt es einen Folge- bzw. Vorvertrag als Angebot (`label_key`
+`inbox.proposal.contractSpanFromInvoice`, wenn er endet). `bill_book` am neuen
+Vertrag trägt `requires` (die `id` des Vertragsvorschlags) und `checked_with`
+(seine Vorbelegung, sobald der Vertrag angehakt ist); ohne den Vertrag in der
+Auswahl lehnt das Übernehmen ihn ab (`failed`, `code`
+`errors.inboxDraft.needs.contract`). Neue Art `contract_water_price`
+(`inbox.proposal.waterWorking`, `waterBase`, `waterRate`): eine Preiszeile der
+Rechnung an einem bestehenden Wasservertrag, `data.list` wie
+`trinkwasser.working_prices`, `params.section`, nie vorbelegt; „schon
+vorhanden“, wenn der Vertrag sie an dem Tag hat.
+
+Neue Felder der Rechnung: `water_prices` (Liste: `section`
+`trinkwasser`/`schmutzwasser`/`niederschlagswasser`, `label`, `from`, `to`,
+`price`, `unit` `m3`/`year`/`month`/`m2_year`, `area_m2`, `vat_pct`, `basis`;
+die Sparte gilt auch aus der Überschrift über der Zeile, `section_from:
+heading`; eine andere Sparte als die der Überschrift ist markiert),
+`advance_new_dates` (Liste von `date`) und `advance_new_every`
+(`monthly`/`bimonthly`/`quarterly`); `working_prices` trägt `part`
+(`energy`/`energy_tax`/`co2`/`other`): Zeilen desselben Tags mit genau einem
+`energy` ergeben einen Arbeitspreis. Der neue Abschlag (`contract_advance`,
+im Plan von `contract_create`) trägt `every_months`/`due_dates` in `data.row`,
+`params.every` und `params.dates`; eine Abschlagsänderung behält den Rhythmus
+der laufenden Zeile. Ziffern mit Leerzeichen („3 1 5,5 9 €“) liest die Prüfung
+als eine Zahl, wenn jede Ziffer einzeln steht. Ein Ablesecode gilt für den
+Stand direkt davor: `estimated_ends` je Eintrag von `meter_readings` ist
+`[alt, neu]` und sagt, welcher Stand geschätzt ist (`estimated` heißt weiter:
+mindestens einer); angelegt wird nur dieser als geschätzt.
 
 **Ändern — `PATCH /api/inbox/{id}`** mit `assignment`, `edits`
 (`{feld: wert}` bestätigt oder korrigiert; `null` nimmt zurück), `type`

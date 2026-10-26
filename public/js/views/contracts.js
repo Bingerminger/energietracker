@@ -1012,6 +1012,8 @@ function bindRowHandlers(modalEl, row) {
   everySel?.addEventListener('change', () => {
     const label = row.querySelector('[data-role="amount-label"]');
     if (label) label.textContent = t(Number(everySel.value) > 1 ? 'contracts.unit.eurPerDue' : 'contracts.unit.eurPerMonth');
+    // ein anderer Rhythmus: die Termine laut Rechnung gehörten zum alten, sie entfallen
+    row.querySelector('[data-role="due-note"]')?.remove();
   });
 }
 
@@ -1685,6 +1687,11 @@ function renderWaterBonusGroup(bonuses) {
 }
 
 function bindWaterEntryHandlers(modalEl) {
+  // v3.9.0 (F1034) — ein anderer Rhythmus: die Termine laut Rechnung gehörten zum alten, sie entfallen
+  modalEl.addEventListener('change', (ev) => {
+    if (!ev.target.matches?.('[data-field="every_months"]')) return;
+    ev.target.closest('td')?.querySelectorAll('[data-field="due_dates"], [data-role="due-note"]').forEach(n => n.remove());
+  });
   modalEl.addEventListener('click', (ev) => {
     const btn = ev.target.closest('[data-act]');
     if (!btn) return;

@@ -502,7 +502,8 @@
         "other": "{count} paiements exceptionnels"
       },
       "sinceBill": "Calculé à partir du {date} : la facture précédente est comptabilisée dans le contrat et n’entre plus en compte ici.",
-      "paidCurrentEvery": "actuel : {value}"
+      "paidCurrentEvery": "actuel : {value}",
+      "nextDue": "prochaine échéance : {date}"
     },
     "contractsTable": {
       "emptyTitle": "Aucun contrat enregistré",

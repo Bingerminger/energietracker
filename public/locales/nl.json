@@ -502,7 +502,8 @@
         "other": "{count} bijzondere betalingen"
       },
       "sinceBill": "Gerekend vanaf {date}: de afrekening daarvoor is in het contract geboekt en telt hier niet meer mee.",
-      "paidCurrentEvery": "nu: {value}"
+      "paidCurrentEvery": "nu: {value}",
+      "nextDue": "volgende vervaldatum: {date}"
     },
     "contractsTable": {
       "emptyTitle": "Geen contracten geregistreerd",
