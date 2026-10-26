@@ -683,6 +683,28 @@ Without a booked bill after the contract start nothing changes. Up to v3.5 the
 balance always started at the contract start; on a contract over several years
 every year without a booked settlement stayed in the balance.
 
+**Advance payment with a rhythm *(v3.9.0)*:** a row of `advance_payments`
+(every utility, water too) optionally carries `every_months` (`2` or `3`; `1`
+means monthly and is not stored) and `due_dates` (dates, ascending, none before
+`from`; regular dates give `every_months`). Anything else → 400
+`errors.contract.advanceEveryInvalid` or `errors.contract.advanceDueBeforeStart`.
+The amount applies per due date: every N months from `from` (day clamped at the
+end of a month) or on the dates and then yearly on the same days, until the
+next row. `advance_paid`, `advance_remaining`, `balance_path` and the forecast
+count each instalment in full on its day; `suggested_advance` then applies per
+due date (rest ÷ instalments still due). New fields per contract, only with a
+rhythm (additive):
+
+| Field | Meaning |
+|---|---|
+| `current_advance_every_months` | rhythm of the current advance payment in months |
+| `next_advance_dates` | the next due dates from today (at most six, one year) |
+
+Without a rhythm all values stay as before. Water: `schmutzwasser.base_prices`
+*(v3.9.0, optional)* is the standing charge of the waste water
+(`eur_per_month`); it counts in costs, balance and forecast like the one of the
+drinking water.
+
 ### Contracts day-exact, cancellation deadline *(v2.9.0)*
 
 **Contract fields (additive, optional):** `notice_period_days` (0–730, takes
@@ -4044,7 +4066,7 @@ rate” needs the rate of the contract price: from a document on the contract
 the price or in the field `vat_pct`) or from the same bill. Balance and
 forecast keep calculating with the contract’s gross prices. Helper fields
 (`basis`, `vat_pct`, `base_price_basis`, `base_price_vat_pct`, `vat_pct` of
-the confirmation) never flag. A reading carries `schema_version` **4**; the
+the confirmation) never flag. A reading carries `schema_version` **5**; the
 cache depends on this version. A document read with an older version keeps its
 reading until you read it again: the app recognises net there from the quote,
 only reading again asks the model for the new fields. Reading again without
@@ -4156,6 +4178,42 @@ Without a contract of that supplier `bill_book` is only an offer (`open` names
 `contract`); taken over it books only to a contract of the supplier that bills
 the period, otherwise `errors.bill.noContract`. The new advance of a bill only
 goes to a follow-up contract of the same supplier.
+
+*(v3.9.0, `schema_version` 5)* **Contract from the bill.** If no contract at all
+applies at the meter during the period, `contract_create`
+(`inbox.proposal.contractFromInvoice`) is prefilled and carries the prices per
+section (gross), for water all three components, and the new advance payment
+plan; `data.for_bill: true` means the bill of this run belongs to it (`bill` and
+`bill_book` then carry `data.contract_new: true`). `params.lines` breaks it
+down: `{section, kind: working|base|rate|advance, from, value, parts: [{label,
+price, unit, net, vat_pct, gross}], area?, every?, dates?}`. If a contract
+applies in the period, it stays an offer; if one of the same supplier ends
+earlier, a follow-up or preceding contract is offered (`label_key`
+`inbox.proposal.contractSpanFromInvoice` when it ends). `bill_book` at the new
+contract carries `requires` (the `id` of the contract proposal) and
+`checked_with` (its prefill once the contract is ticked); without the contract
+in the selection, taking over refuses it (`failed`, `code`
+`errors.inboxDraft.needs.contract`). New kind `contract_water_price`
+(`inbox.proposal.waterWorking`, `waterBase`, `waterRate`): a price row of the
+bill at an existing water contract, `data.list` like
+`trinkwasser.working_prices`, `params.section`, never prefilled; “already
+there” when the contract has it on that day.
+
+New fields of the bill: `water_prices` (list: `section`
+`trinkwasser`/`schmutzwasser`/`niederschlagswasser`, `label`, `from`, `to`,
+`price`, `unit` `m3`/`year`/`month`/`m2_year`, `area_m2`, `vat_pct`, `basis`;
+the component also counts from the heading above the line, `section_from:
+heading`; a component other than the heading's is flagged), `advance_new_dates`
+(list of `date`) and `advance_new_every` (`monthly`/`bimonthly`/`quarterly`);
+`working_prices` carries `part` (`energy`/`energy_tax`/`co2`/`other`): rows of
+the same day with exactly one `energy` give one working price. The new advance
+payment (`contract_advance`, in the plan of `contract_create`) carries
+`every_months`/`due_dates` in `data.row`, `params.every` and `params.dates`; an
+advance payment change keeps the rhythm of the current row. Digits with spaces
+(“3 1 5,5 9 €”) are read as one number when every digit stands alone. A reading
+code applies to the reading right before it: `estimated_ends` per entry of
+`meter_readings` is `[old, new]` and says which reading is estimated
+(`estimated` still means: at least one); only that one is created as estimated.
 
 **Change — `PATCH /api/inbox/{id}`** with `assignment`, `edits`
 (`{field: value}` confirmed or corrected; `null` takes it back), `type`

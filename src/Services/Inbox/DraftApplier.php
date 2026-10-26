@@ -258,7 +258,8 @@ final class DraftApplier
             $list = (string)$f['list'];
             $rows = $patch[$list] ?? (array)($c[$list] ?? []);
             $rows = array_values(array_filter($rows, fn($r) => (string)($r['from'] ?? '') !== $f['from']));
-            $rows[] = ['from' => $f['from'], $f['key'] => (float)$v];
+            // v3.9.0 (F1034) — Abschlag mit Rhythmus laut Rechnung (every_months, due_dates)
+            $rows[] = ['from' => $f['from'], $f['key'] => (float)$v] + array_intersect_key((array)($f['row'] ?? []), ['every_months' => 1, 'due_dates' => 1]);
             usort($rows, fn($a, $b) => strcmp((string)$a['from'], (string)$b['from']));
             $patch[$list] = $rows;
         }

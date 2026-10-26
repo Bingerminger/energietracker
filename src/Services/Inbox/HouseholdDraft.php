@@ -2305,13 +2305,18 @@ final class HouseholdDraft
                 }
                 if ($t === 'invoice') {
                     if (($v = $this->num($id, 'advance_new')) !== null) {
-                        $f = $this->date($id, 'advance_new_from');
+                        // v3.9.0 (F1034) — mit Rhythmus der Rechnung (alle 2 Monate, Termine): Betrag je Termin,
+                        // ab dem ersten Termin, wenn kein Beginn genannt ist (wie Proposals über InvoicePrices::advancePlan)
+                        $plan = InvoicePrices::advancePlan($this->docs[$id]['entry']);
+                        $rhythm = $plan !== null ? array_intersect_key($plan, ['every_months' => 1, 'due_dates' => 1]) : [];
+                        $f = $this->date($id, 'advance_new_from') ?? ($rhythm !== [] ? $plan['from'] : null);
                         $assumed = $f === null;
                         $to = $this->date($id, 'period_to');
                         if ($assumed && $to !== null) $f = date('Y-m-01', (int)strtotime($to . ' +1 day +1 month'));
                         if ($f !== null && $f >= $c['start'] && $f <= $end) {
                             $o = self::obs($v, array_filter([$this->src($id, 'advance_new'), $assumed ? null : $this->src($id, 'advance_new_from')]), 5);
                             if ($assumed) { $o['flagged'] = true; $o['reasons'][] = 'assumed_date'; }
+                            if ($rhythm !== []) $o['row'] = $rhythm;
                             $rows['ap'][$f][] = $o;
                         }
                     }
@@ -2389,6 +2394,8 @@ final class HouseholdDraft
                     if (array_filter($obs, fn($o) => !empty($o['vat_changed'])) !== []) $f['basis'] = 'vat_changed';
                     // nur aus Nettopreisen der Rechnung: am Feld Basis und Ergebnis zeigen
                     if (array_filter($obs, fn($o) => empty($o['net'])) === []) $f['net'] = $obs[0]['net'];
+                    // v3.9.0 (F1034) — Abschlag mit Rhythmus: der Rhythmus geht mit der Zeile in den Vertrag
+                    foreach ($obs as $o) if (!empty($o['row']) && !isset($f['row'])) $f['row'] = $o['row'];
                     if ($ex !== null) {
                         foreach ((array)($ex[$list] ?? []) as $row) {
                             if ((string)($row['from'] ?? '') !== (string)$from) continue;

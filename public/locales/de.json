@@ -502,7 +502,9 @@
         "one": "{count} Sonderzahlung",
         "other": "{count} Sonderzahlungen"
       },
-      "sinceBill": "Gerechnet ab {date}: Die Rechnung davor ist im Vertrag gebucht und zählt hier nicht mehr mit."
+      "sinceBill": "Gerechnet ab {date}: Die Rechnung davor ist im Vertrag gebucht und zählt hier nicht mehr mit.",
+      "nextDue": "nächster Termin: {date}",
+      "paidCurrentEvery": "aktuell: {value}"
     },
     "contractsTable": {
       "emptyTitle": "Keine Verträge erfasst",
@@ -803,13 +805,15 @@
       "advance": "Abschlag",
       "twWorking": "Trinkwasser-Arbeitspreis",
       "twBase": "Trinkwasser-Grundpreis",
-      "swWorking": "Schmutzwasser-Arbeitspreis"
+      "swWorking": "Schmutzwasser-Arbeitspreis",
+      "swBase": "Schmutzwasser-Grundpreis"
     },
     "unit": {
       "ctPerKwh": "{minor}/kWh",
       "eurPerMonth": "{cur}/Monat",
       "eurPerKwYear": "{cur}/kW und Jahr",
-      "eurPerYear": "{cur}/Jahr"
+      "eurPerYear": "{cur}/Jahr",
+      "eurPerDue": "{cur} je Termin"
     },
     "loading": "Lädt …",
     "unknown": "Unbekannte Verbrauchsart: {key}",
@@ -838,7 +842,8 @@
       "advanceValue": "Abschlag {value}/Monat",
       "valuesOn": "Stand {date}",
       "noValues": "Noch keine Preise eingetragen",
-      "since": "seit {year}"
+      "since": "seit {year}",
+      "advanceValueEvery": "Abschlag {value}"
     },
     "summary": {
       "twPrices": {
@@ -987,7 +992,6 @@
       "noMoreMeters": "(noch keine weiteren Zähler vorhanden)",
       "swWorking": "Arbeitspreis Schmutzwasser ({minor}/m³)",
       "nwRates": "Stichtag",
-      "apMonthly": "Monatsabschlag ({cur})",
       "colDate": "Datum",
       "colCtM3": "{minor}/m³",
       "colEurMonth": "{cur}/Monat",
@@ -1000,7 +1004,10 @@
       "startRequired": "Vertragsbeginn ist Pflicht.",
       "basisDeduct": "aus Trinkwasser minus Abzugszähler (z. B. Garten)",
       "deductMeters": "Abzugszähler",
-      "deductHint": "Wasser, das über diese Zähler läuft (z. B. Gartenwasser), kostet Trinkwasser, aber kein Schmutzwasser. Den Gartenzähler am besten als Subzähler des Hauptzählers führen, dann zählt er in den Summen nicht doppelt."
+      "deductHint": "Wasser, das über diese Zähler läuft (z. B. Gartenwasser), kostet Trinkwasser, aber kein Schmutzwasser. Den Gartenzähler am besten als Subzähler des Hauptzählers führen, dann zählt er in den Summen nicht doppelt.",
+      "swBase": "Grundpreis Schmutzwasser ({cur}/Monat)",
+      "apPlan": "Abschlagsplan",
+      "colEurDue": "{cur} je Termin"
     },
     "perM3": {
       "toggleTitle": "Preis je m³ in {minor}/kWh umrechnen",
@@ -1087,6 +1094,10 @@
       "undated": "Eintrag ohne Datum",
       "link": "Zur Einstellung",
       "why": "Zustandszahl und Brennwert hängen an der Entnahmestelle (Höhe, Druck) und am Gas im Netz, nicht am Lieferanten: Bei einem Wechsel bleiben sie gleich, und jede Gasrechnung nennt sie. Deshalb stehen sie einmal in den Einstellungen und gelten für jeden Vertrag."
+    },
+    "advance": {
+      "every": "Rhythmus",
+      "dueDates": "Termine laut Rechnung: {dates}, danach jährlich zu denselben Tagen"
     }
   },
   "meters": {
@@ -3590,7 +3601,9 @@
       "priceModelInvalid": "Unbekanntes Preismodell „{value}“",
       "priceImportEmpty": "Die Datei enthält keine Zeile im Format Monat;Preis",
       "priceImportUnsupported": "Monatspreise gibt es nur für Verträge mit Arbeitspreis je kWh",
-      "gridTouInvalid": "Zeitfenster für Modul 3 ungültig ({field}): Quartale 1–4, Zeiten HH:MM mit Von vor Bis, Preise 0–100 ct und ein Standardtarif."
+      "gridTouInvalid": "Zeitfenster für Modul 3 ungültig ({field}): Quartale 1–4, Zeiten HH:MM mit Von vor Bis, Preise 0–100 ct und ein Standardtarif.",
+      "advanceEveryInvalid": "Abschlag #{n}: „{value}“ ist kein Rhythmus. Möglich sind monatlich, alle 2 und alle 3 Monate.",
+      "advanceDueBeforeStart": "Abschlag #{n}: Der Termin {date} liegt vor dem Tag, ab dem die Zeile gilt."
     },
     "delivery": {
       "notFound": "Lieferung nicht gefunden: {id}",
@@ -3947,7 +3960,8 @@
     },
     "history": "Verlauf ({count})",
     "historyTitle": "Verlauf: {name}",
-    "anytime": "Jederzeit kündbar"
+    "anytime": "Jederzeit kündbar",
+    "advanceEvery": "Abschlag {amount}"
   },
   "billCheck": {
     "noMeter": "Die Rechnungsprüfung rechnet die Jahresabrechnung für Gas, Strom, Wasser und Fernwärme nach. Lege zuerst einen Zähler an.",
@@ -5934,7 +5948,7 @@
       "elapsed": "{s} s",
       "wait": "Server rechnet noch – frage nach dem Ergebnis …"
     },
-    "empty": "Noch keine Post im Posteingang. Leg die erste Rechnung oder Vertragsbestätigung als PDF ab.",
+    "empty": "Noch keine Post im Posteingang.",
     "col": {
       "document": "Dokument",
       "type": "Art",
@@ -6092,7 +6106,10 @@
       "document_title": "Titel des Dokuments",
       "meter_readings": "Zählerstände je Zähler",
       "reading_new_estimated": "Endstand geschätzt",
-      "reading_old_estimated": "Anfangsstand geschätzt"
+      "reading_old_estimated": "Anfangsstand geschätzt",
+      "water_prices": "Wasserpreise",
+      "advance_new_dates": "Termine des neuen Abschlags",
+      "advance_new_every": "Rhythmus des neuen Abschlags"
     },
     "reason": {
       "empty": "Fehlt, wird aber gebraucht",
@@ -6128,14 +6145,28 @@
       "supplier": "Kündigung durch den Versorger",
       "switch": "Ende durch Anbieterwechsel",
       "net": "netto",
-      "gross": "brutto"
+      "gross": "brutto",
+      "trinkwasser": "Trinkwasser",
+      "schmutzwasser": "Schmutzwasser",
+      "niederschlagswasser": "Niederschlagswasser",
+      "m3": "je m³",
+      "m2_year": "je m² und Jahr",
+      "monthly": "monatlich",
+      "bimonthly": "alle zwei Monate",
+      "quarterly": "alle drei Monate",
+      "energy": "Arbeitspreis",
+      "energy_tax": "Energiesteuer",
+      "co2": "CO₂-Preis",
+      "other": "Aufschlag"
     },
     "item": {
       "gasFactor": "{from} bis {to}: Zustandszahl {z} × Brennwert {hs} kWh/m³",
       "price": "ab {from}: {value}",
       "priceNet": "ab {from}: {value} netto + {vat} % USt = {gross}",
       "meterReading": "Zähler {meter}: {from} → {to}",
-      "estimated": "geschätzt laut Rechnung"
+      "estimated": "geschätzt laut Rechnung",
+      "waterPrice": "{section} · {label} {from} bis {to}: {price}",
+      "waterPriceNet": "{section} · {label} {from} bis {to}: {price} netto + {vat} % USt = {gross}"
     },
     "result": {
       "due": "Nachzahlung {amount}",
@@ -6164,7 +6195,12 @@
       "contractFromInvoice": "Vertrag {provider} ab {from} aus dieser Rechnung anlegen",
       "contractFromSupplyStart": "Vertrag {provider} ab {from} anlegen",
       "meterSwapInvoice": "Zählertausch am {date}: Endstand {old_final} am Zähler {old_serial}, neuer Zähler {serial} mit Anfangsstand {new_initial}",
-      "readingEstimated": "Ablesung am {date}: {counter} (geschätzt laut Rechnung)"
+      "readingEstimated": "Ablesung am {date}: {counter} (geschätzt laut Rechnung)",
+      "requiresContract": "Nur zusammen mit dem Vertrag aus dieser Rechnung.",
+      "contractSpanFromInvoice": "Vertrag {provider} vom {from} bis {to} aus dieser Rechnung anlegen",
+      "waterWorking": "{section} ab {from}: {value} (aus der Rechnung)",
+      "waterBase": "Grundpreis {section} ab {from}: {value} pro Monat (aus der Rechnung)",
+      "waterRate": "{section} ab {from}: {value} je m² und Jahr für {area} m² (aus der Rechnung)"
     },
     "detail": {
       "reading": "Erfasst ist {counter}.",
@@ -6208,7 +6244,8 @@
       "remindDate": "Frist",
       "figure": {
         "perYear": "{amount} im Jahr",
-        "perMonth": "{amount} im Monat"
+        "perMonth": "{amount} im Monat",
+        "perRate": "{amount} je Termin"
       },
       "priceChange": {
         "more": "Ab {date} kostet dich {provider} rund {amount} mehr im Jahr.",
@@ -6230,7 +6267,9 @@
         "ok": "Der neue Abschlag von {amount} passt zu deinem Verbrauch.",
         "high": "Der neue Abschlag von {amount} ist rund {diff} im Monat zu hoch (passend wären {recommended}).",
         "low": "Der neue Abschlag von {amount} ist rund {diff} im Monat zu niedrig (passend wären {recommended}).",
-        "unknown": "Neuer Abschlag {amount} ab {date}."
+        "unknown": "Neuer Abschlag {amount} ab {date}.",
+        "highRate": "Der neue Abschlag von {amount} ist rund {diff} je Termin zu hoch (passend wären {recommended}).",
+        "lowRate": "Der neue Abschlag von {amount} ist rund {diff} je Termin zu niedrig (passend wären {recommended})."
       },
       "cancellation": {
         "open": "Die Lieferung endet am {date} – ein Anschlussvertrag fehlt noch.",
@@ -6301,7 +6340,8 @@
         "serialConflict": "Achtung: Am Zähler ist die Nummer {serial} eingetragen.",
         "minTerm": "Mindestlaufzeit bis {date}.",
         "guarantee": "Preisgarantie bis {date}.",
-        "dunning": "Eine Mahnung liest die App nicht aus; der Termin erinnert dich, die Zahlung zu klären."
+        "dunning": "Eine Mahnung liest die App nicht aus; der Termin erinnert dich, die Zahlung zu klären.",
+        "advanceBasisRate": "Passend wären rund {recommended} je Termin; mit dem neuen Abschlag stünde am Ende der Abrechnung: {balance}."
       }
     },
     "channels": {
@@ -6364,6 +6404,22 @@
     },
     "wait": {
       "gaveUp": "Keine Antwort, auch nach dem Nachfragen. Vielleicht wird das Dokument noch fertig – öffne es gleich noch einmal. Dauerhaft hilft eine längere Zeitgrenze am Webserver."
+    },
+    "unit": {
+      "perM3": "je m³",
+      "perYear": "je Jahr",
+      "perMonth": "je Monat",
+      "perM2Year": "je m² und Jahr"
+    },
+    "line": {
+      "working": "{what} ab {from}: {value}",
+      "base": "Grundpreis {what} ab {from}: {value} pro Monat",
+      "baseOnly": "Grundpreis ab {from}: {value} pro Monat",
+      "rate": "{what} ab {from}: {value} je m² und Jahr für {area} m²",
+      "energy": "Arbeitspreis",
+      "parts": "aus {parts}",
+      "net": "{value} netto + {vat} % USt",
+      "advance": "Abschlag ab {from}: {value} je Termin"
     }
   },
   "inboxCloud": {
@@ -6746,6 +6802,16 @@
     "more": {
       "one": "Dazu {count} weiterer Punkt:",
       "other": "Dazu {count} weitere Punkte:"
+    }
+  },
+  "advance": {
+    "rhythm": {
+      "every": {
+        "one": "jeden Monat",
+        "other": "alle {count} Monate"
+      },
+      "everyDates": "{every}, am {dates}",
+      "dates": "am {dates}"
     }
   }
 }

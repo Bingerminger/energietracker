@@ -502,7 +502,9 @@
         "one": "{count} pagamento straordinario",
         "other": "{count} pagamenti straordinari"
       },
-      "sinceBill": "Calcolato dal {date}: la bolletta precedente è registrata nel contratto e qui non conta più."
+      "sinceBill": "Calcolato dal {date}: la bolletta precedente è registrata nel contratto e qui non conta più.",
+      "nextDue": "prossima scadenza: {date}",
+      "paidCurrentEvery": "attuale: {value}"
     },
     "contractsTable": {
       "emptyTitle": "Nessun contratto registrato",
@@ -803,13 +805,15 @@
       "advance": "Acconto",
       "twWorking": "Prezzo unitario acqua potabile",
       "twBase": "Quota fissa acqua potabile",
-      "swWorking": "Prezzo unitario acque reflue"
+      "swWorking": "Prezzo unitario acque reflue",
+      "swBase": "Quota fissa acqua reflua"
     },
     "unit": {
       "ctPerKwh": "{minor}/kWh",
       "eurPerMonth": "{cur}/mese",
       "eurPerKwYear": "{cur}/kW all’anno",
-      "eurPerYear": "{cur}/anno"
+      "eurPerYear": "{cur}/anno",
+      "eurPerDue": "{cur} per scadenza"
     },
     "loading": "Caricamento…",
     "unknown": "Utenza sconosciuta: {key}",
@@ -838,7 +842,8 @@
       "advanceValue": "Acconto {value}/mese",
       "valuesOn": "al {date}",
       "noValues": "Nessun prezzo ancora inserito",
-      "since": "dal {year}"
+      "since": "dal {year}",
+      "advanceValueEvery": "Acconto {value}"
     },
     "summary": {
       "twPrices": {
@@ -987,7 +992,6 @@
       "noMoreMeters": "(ancora nessun altro contatore disponibile)",
       "swWorking": "Prezzo al m³ acque reflue ({minor}/m³)",
       "nwRates": "Data di decorrenza",
-      "apMonthly": "Acconto mensile ({cur})",
       "colDate": "Data",
       "colCtM3": "{minor}/m³",
       "colEurMonth": "{cur}/mese",
@@ -1000,7 +1004,10 @@
       "startRequired": "L’inizio del contratto è obbligatorio.",
       "basisDeduct": "acqua potabile meno contatori di detrazione (ad es. giardino)",
       "deductMeters": "Contatori di detrazione",
-      "deductHint": "L’acqua che passa per questi contatori (ad es. quella del giardino) costa acqua potabile ma non acqua reflua. Meglio gestire il contatore del giardino come sottocontatore di quello principale, così non viene contato due volte nei totali."
+      "deductHint": "L’acqua che passa per questi contatori (ad es. quella del giardino) costa acqua potabile ma non acqua reflua. Meglio gestire il contatore del giardino come sottocontatore di quello principale, così non viene contato due volte nei totali.",
+      "swBase": "Quota fissa acqua reflua ({cur}/mese)",
+      "apPlan": "Piano degli acconti",
+      "colEurDue": "{cur} per scadenza"
     },
     "perM3": {
       "toggleTitle": "Converti un prezzo al m³ in {minor}/kWh",
@@ -1087,6 +1094,10 @@
       "undated": "voce senza data",
       "link": "Vai all’impostazione",
       "why": "Il coefficiente di correzione e il potere calorifico dipendono dal punto di prelievo (altitudine, pressione) e dal gas nella rete, non dal fornitore: restano uguali quando cambi e ogni bolletta del gas li riporta. Per questo si impostano una volta nelle impostazioni e valgono per ogni contratto."
+    },
+    "advance": {
+      "every": "Ritmo",
+      "dueDates": "Scadenze secondo la bolletta: {dates}, poi ogni anno negli stessi giorni"
     }
   },
   "meters": {
@@ -3590,7 +3601,9 @@
       "priceModelInvalid": "Modello di prezzo sconosciuto «{value}»",
       "priceImportEmpty": "Il file non contiene righe nel formato mese;prezzo",
       "priceImportUnsupported": "I prezzi mensili esistono solo per contratti con prezzo unitario per kWh",
-      "gridTouInvalid": "Fasce del modulo 3 non valide ({field}): trimestri 1–4, orari HH:MM con inizio prima della fine, prezzi 0–100 ct e una tariffa standard."
+      "gridTouInvalid": "Fasce del modulo 3 non valide ({field}): trimestri 1–4, orari HH:MM con inizio prima della fine, prezzi 0–100 ct e una tariffa standard.",
+      "advanceEveryInvalid": "Acconto n°{n}: «{value}» non è un ritmo. Sono possibili ogni mese, ogni 2 e ogni 3 mesi.",
+      "advanceDueBeforeStart": "Acconto n°{n}: la scadenza del {date} è precedente al giorno da cui vale la riga."
     },
     "delivery": {
       "notFound": "Consegna non trovata: {id}",
@@ -3947,7 +3960,8 @@
     },
     "history": "Cronologia ({count})",
     "historyTitle": "Cronologia: {name}",
-    "anytime": "Disdicibile in qualsiasi momento"
+    "anytime": "Disdicibile in qualsiasi momento",
+    "advanceEvery": "Acconto {amount}"
   },
   "billCheck": {
     "noMeter": "La verifica ricalcola la bolletta annuale di gas, elettricità, acqua e teleriscaldamento. Crea prima un contatore.",
@@ -5934,7 +5948,7 @@
       "elapsed": "{s} s",
       "wait": "Il server sta ancora elaborando – controllo del risultato …"
     },
-    "empty": "Ancora nessuna posta. Archivia in PDF la prima bolletta o conferma del contratto.",
+    "empty": "Ancora nessuna posta.",
     "col": {
       "document": "Documento",
       "type": "Tipo",
@@ -6092,7 +6106,10 @@
       "document_title": "Titolo del documento",
       "meter_readings": "Letture per contatore",
       "reading_new_estimated": "Lettura finale stimata",
-      "reading_old_estimated": "Lettura iniziale stimata"
+      "reading_old_estimated": "Lettura iniziale stimata",
+      "water_prices": "Prezzi dell’acqua",
+      "advance_new_dates": "Scadenze del nuovo acconto",
+      "advance_new_every": "Ritmo del nuovo acconto"
     },
     "reason": {
       "empty": "Mancante, ma necessario",
@@ -6128,14 +6145,28 @@
       "supplier": "Disdetta da parte del fornitore",
       "switch": "Fine per cambio di fornitore",
       "net": "netto",
-      "gross": "lordo"
+      "gross": "lordo",
+      "trinkwasser": "Acqua potabile",
+      "schmutzwasser": "Acqua reflua",
+      "niederschlagswasser": "Acqua meteorica",
+      "m3": "al m³",
+      "m2_year": "al m² all’anno",
+      "monthly": "ogni mese",
+      "bimonthly": "ogni due mesi",
+      "quarterly": "ogni tre mesi",
+      "energy": "Prezzo unitario",
+      "energy_tax": "Accisa",
+      "co2": "Prezzo della CO₂",
+      "other": "Supplemento"
     },
     "item": {
       "gasFactor": "dal {from} al {to}: coefficiente di correzione {z} × potere calorifico {hs} kWh/m³",
       "price": "dal {from}: {value}",
       "priceNet": "dal {from}: {value} netto + IVA {vat}% = {gross}",
       "meterReading": "Contatore {meter}: {from} → {to}",
-      "estimated": "stimata secondo la bolletta"
+      "estimated": "stimata secondo la bolletta",
+      "waterPrice": "{section} · {label} dal {from} al {to}: {price}",
+      "waterPriceNet": "{section} · {label} dal {from} al {to}: {price} netto + IVA {vat}% = {gross}"
     },
     "result": {
       "due": "conguaglio di {amount}",
@@ -6164,7 +6195,12 @@
       "contractFromInvoice": "Crea il contratto {provider} dal {from} da questa bolletta",
       "contractFromSupplyStart": "Crea il contratto {provider} dal {from}",
       "meterSwapInvoice": "Sostituzione del contatore il {date}: lettura finale {old_final} sul contatore {old_serial}, nuovo contatore {serial} con lettura iniziale {new_initial}",
-      "readingEstimated": "Lettura del {date}: {counter} (stimata secondo la bolletta)"
+      "readingEstimated": "Lettura del {date}: {counter} (stimata secondo la bolletta)",
+      "requiresContract": "Solo insieme al contratto ricavato da questa bolletta.",
+      "contractSpanFromInvoice": "Crea il contratto {provider} dal {from} al {to} da questa bolletta",
+      "waterWorking": "{section} dal {from}: {value} (dalla bolletta)",
+      "waterBase": "Quota fissa {section} dal {from}: {value} al mese (dalla bolletta)",
+      "waterRate": "{section} dal {from}: {value} al m² all’anno per {area} m² (dalla bolletta)"
     },
     "detail": {
       "reading": "Registrata: {counter}.",
@@ -6208,7 +6244,8 @@
       "remindDate": "Scadenza",
       "figure": {
         "perYear": "{amount} all’anno",
-        "perMonth": "{amount} al mese"
+        "perMonth": "{amount} al mese",
+        "perRate": "{amount} per scadenza"
       },
       "priceChange": {
         "more": "Dal {date} {provider} ti costerà circa {amount} in più all’anno.",
@@ -6230,7 +6267,9 @@
         "ok": "Il nuovo acconto di {amount} è adatto al tuo consumo.",
         "high": "Il nuovo acconto di {amount} è troppo alto di circa {diff} al mese (sarebbero adatti {recommended}).",
         "low": "Il nuovo acconto di {amount} è troppo basso di circa {diff} al mese (sarebbero adatti {recommended}).",
-        "unknown": "Nuovo acconto di {amount} dal {date}."
+        "unknown": "Nuovo acconto di {amount} dal {date}.",
+        "highRate": "Il nuovo acconto di {amount} è troppo alto di circa {diff} per scadenza (sarebbero adatti {recommended}).",
+        "lowRate": "Il nuovo acconto di {amount} è troppo basso di circa {diff} per scadenza (sarebbero adatti {recommended})."
       },
       "cancellation": {
         "open": "La fornitura termina il {date} – manca ancora un contratto successivo.",
@@ -6301,7 +6340,8 @@
         "serialConflict": "Attenzione: sul contatore è registrato il numero {serial}.",
         "minTerm": "Durata minima fino al {date}.",
         "guarantee": "Garanzia di prezzo fino al {date}.",
-        "dunning": "L’app non legge i solleciti; il promemoria ti ricorda di chiarire il pagamento."
+        "dunning": "L’app non legge i solleciti; il promemoria ti ricorda di chiarire il pagamento.",
+        "advanceBasisRate": "Sarebbero adatti circa {recommended} per scadenza; con il nuovo acconto la bolletta finirebbe con: {balance}."
       }
     },
     "channels": {
@@ -6364,6 +6404,22 @@
     },
     "wait": {
       "gaveUp": "Nessuna risposta, anche dopo aver ricontrollato. Il documento potrebbe ancora essere completato – riaprilo tra poco. Un limite di tempo più lungo sul server web risolve in modo duraturo."
+    },
+    "unit": {
+      "perM3": "al m³",
+      "perYear": "all’anno",
+      "perMonth": "al mese",
+      "perM2Year": "al m² all’anno"
+    },
+    "line": {
+      "working": "{what} dal {from}: {value}",
+      "base": "Quota fissa {what} dal {from}: {value} al mese",
+      "baseOnly": "Quota fissa dal {from}: {value} al mese",
+      "rate": "{what} dal {from}: {value} al m² all’anno per {area} m²",
+      "energy": "Prezzo unitario",
+      "parts": "da {parts}",
+      "net": "{value} netto + IVA {vat}%",
+      "advance": "Acconto dal {from}: {value} per scadenza"
     }
   },
   "inboxCloud": {
@@ -6746,6 +6802,16 @@
     "more": {
       "one": "Più {count} altro punto:",
       "other": "Più {count} altri punti:"
+    }
+  },
+  "advance": {
+    "rhythm": {
+      "every": {
+        "one": "ogni mese",
+        "other": "ogni {count} mesi"
+      },
+      "everyDates": "{every}, il {dates}",
+      "dates": "il {dates}"
     }
   }
 }

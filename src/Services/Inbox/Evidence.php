@@ -65,8 +65,37 @@ final class Evidence
             "\u{201E}" => '"', "\u{201C}" => '"', "\u{201D}" => '"', "\u{00BB}" => '"', "\u{00AB}" => '"',
             "\u{201A}" => "'", "\u{2018}" => "'", "\u{2019}" => "'",
         ]);
+        $s = self::despace($s);   // v3.9.0 (F1034) — gesperrte Ziffern, vor dem Zusammenfassen des Leerraums
         $s = mb_strtolower($s, 'UTF-8');
         return trim(preg_replace('/\s+/u', ' ', $s) ?? $s);
+    }
+
+    /**
+     * v3.9.0 (F1034) — gesperrte Ziffern: Manche Textebenen führen Beträge mit
+     * Sperrung, eine Ziffer, ein Leerzeichen, die nächste („3 1 5,5 9 €“,
+     * „-8 0 0 , 0 0 €“, „1.0 5 0,2 8 €“, „1 8 3 Tage“). Zitat und Wert fanden
+     * so nicht zueinander: „4 8,3 0“ zerfiel in vier Zahlen. Zusammengezogen
+     * wird nur, was sicher gesperrt ist:
+     *   - eine Folge **einstelliger** Ziffern (vor und hinter jeder Ziffer keine
+     *     weitere), dazwischen genau ein Leerzeichen oder ein Komma bzw. Punkt
+     *     mit höchstens einem Leerzeichen davor und dahinter,
+     *   - mindestens eine Lücke ist ein einfaches Leerzeichen zwischen zwei
+     *     Ziffern (sonst ist es eine gewöhnliche Zahl wie „5,5“ oder „1.8.0“),
+     *   - zusammengezogen ergibt sie eine gültige Zahl (Evidence::readings):
+     *     „1 1.8.0“ bleibt, wie es ist.
+     * Zahlen in Tabellenspalten („35 m³   2,10“, „1200  1235 S  35“) haben
+     * mehrstellige Gruppen oder mehrere Leerzeichen und bleiben getrennt; ein
+     * mehrstelliger Nachbar gehört nie dazu („2026 4 8,3 0“ → „2026 48,30“).
+     */
+    public static function despace(string $s): string
+    {
+        if (!preg_match('/(?<!\d)\d \d(?!\d)/u', $s)) return $s;
+        return (string)preg_replace_callback('/(?<![\d.,])\d(?!\d)(?:(?: ?[.,] ?| )\d(?!\d))+(?! ?[.,] ?\d)/u', function (array $m): string {
+            $run = $m[0];
+            if (!preg_match('/\d \d/u', $run)) return $run;   // keine einfache Lücke: keine Sperrung
+            $joined = str_replace(' ', '', $run);
+            return self::readings($joined) !== [] ? $joined : $run;
+        }, $s);
     }
 
     private static function squeeze(string $normalized): string
@@ -294,6 +323,9 @@ final class Evidence
      */
     public static function numberTokens(string $quote): array
     {
+        // v3.9.0 (F1034) — gesperrte Ziffern („4 8,3 0 €“) zusammengezogen (despace). Ihre
+        // Bruchstücke („8,3“) zählen nicht mehr als Zahl; mehrstellige Zahlen bleiben, wie sie sind
+        $quote = self::despace(strtr($quote, ["\u{00A0}" => ' ', "\u{202F}" => ' ']));
         preg_match_all("/\\d[\\d.,'\u{00A0}\u{202F} ]*\\d|\\d/u", $quote, $m);
         $out = [];
         foreach ($m[0] as $tok) {
@@ -376,6 +408,9 @@ final class Evidence
     }
 
     // ── Netto und Steuersatz (v3.7.0, treffsicher, Nachbesserung 2) ──────
+
+    /** v3.9.0 (F1034) — Listen mit Preisen je Eintrag und das Unterfeld des Preises (netto/brutto und Satz je Eintrag). */
+    public const PRICE_ITEM_KEY = ['working_prices' => 'ct', 'water_prices' => 'price'];
 
     /** Wörter, mit denen ein Dokument einen Preis ohne Umsatzsteuer ausweist (normalisiert). */
     private const NET_WORDS = ['netto', 'zzgl', 'zuzügl', 'exkl', 'ohne ust', 'ohne mwst', 'ohne umsatzsteuer', 'ohne mehrwertsteuer'];
@@ -615,10 +650,13 @@ final class Evidence
             elseif ($col !== null) $f['vat_read'] = ['vat_pct' => $col, 'from' => 'column'];
             elseif ($line !== null) $f['vat_read'] = ['vat_pct' => $line, 'from' => 'line'];
         };
-        foreach (array_keys((array)($out['working_prices']['items'] ?? [])) as $i) {
-            $it = &$out['working_prices']['items'][$i];
-            $set($it, $it['value']['ct'] ?? null, (string)($it['quote'] ?? ''), $it['value']['basis'] ?? null, $it['value']['vat_pct'] ?? null);
-            unset($it);
+        // v3.9.0 (F1034) — auch die Wasserpreise (PRICE_ITEM_KEY)
+        foreach (self::PRICE_ITEM_KEY as $list => $pk) {
+            foreach (array_keys((array)($out[$list]['items'] ?? [])) as $i) {
+                $it = &$out[$list]['items'][$i];
+                $set($it, $it['value'][$pk] ?? null, (string)($it['quote'] ?? ''), $it['value']['basis'] ?? null, $it['value']['vat_pct'] ?? null);
+                unset($it);
+            }
         }
         if (isset($out['base_price']) && ($out['base_price']['status'] ?? '') !== 'empty') {
             $set($out['base_price'], $out['base_price']['value'] ?? null,
@@ -750,19 +788,69 @@ final class Evidence
             if (!isset($out[$flag]) || ($out[$r]['value'] ?? null) === null) continue;
             // Nachbesserung 5 — auch was in der Zeile direkt hinter dem Zitat des Stands steht
             $ctx = self::estimateContext((string)($out[$r]['quote'] ?? ''), $page($out[$r]), $pages);
-            $by = self::estimatedIn(implode(' | ', array_filter([$ctx, $out[$flag]['quote'] ?? null], 'is_string')), $codes);
+            // v3.9.0 (F1034) — je Stand: ein Code hinter einem anderen Stand derselben Zeile gilt nicht für diesen
+            $by = self::estimateAt(implode(' | ', array_filter([$ctx, $out[$flag]['quote'] ?? null], 'is_string')),
+                is_numeric($out[$r]['value'] ?? null) ? (float)$out[$r]['value'] : null, $codes);
             unset($out[$flag]['estimated_by']);
             $out[$flag] = ['value' => $by !== null, 'status' => 'ok', 'reasons' => []] + ($by !== null ? ['estimated_by' => $by] : []) + $out[$flag];
         }
         foreach (array_keys((array)($out['meter_readings']['items'] ?? [])) as $i) {
             $it = &$out['meter_readings']['items'][$i];
-            $by = self::estimatedIn(self::estimateContext((string)($it['quote'] ?? ''), $page($it), $pages), $codes);
+            $ctx = self::estimateContext((string)($it['quote'] ?? ''), $page($it), $pages);
+            // v3.9.0 (F1034) — je Stand des Eintrags („1200 1235 S“: geschätzt ist 1235, nicht 1200)
+            $num = fn(string $k): ?float => is_numeric($it['value'][$k] ?? null) ? (float)$it['value'][$k] : null;
+            $ends = [self::estimateAt($ctx, $num('reading_old'), $codes), self::estimateAt($ctx, $num('reading_new'), $codes)];
+            $by = $ends[1] ?? $ends[0];
             $it['value']['estimated'] = $by !== null;
+            $it['estimated_ends'] = [$ends[0] !== null, $ends[1] !== null];
             unset($it['estimated_by']);
             if ($by !== null) $it['estimated_by'] = $by;
             if (isset($out['meter_readings']['value'][$i]) && is_array($out['meter_readings']['value'][$i])) $out['meter_readings']['value'][$i]['estimated'] = $by !== null;
             unset($it);
         }
+    }
+
+    /**
+     * v3.9.0 (F1034) — Ablese-Art eines Stands in seiner Zeile. In einer
+     * Standzeile steht der Code hinter dem Stand, den er erklärt: „1200 1235 S
+     * 35“ — S gehört zu 1235, der Anfangsstand 1200 ist der Endstand des
+     * Zeitraums davor. Bis v3.8 galt ein Code für beide Stände des Zitats; eine
+     * Kundenablesung („I“) neben einer Schätzung („S“) wurde so auch geschätzt.
+     *   - steht ein Wort, Code oder Fußnotenzeichen direkt hinter diesem Stand
+     *     (bis zur nächsten Zahl), ist er geschätzt;
+     *   - gehört jedes Zeichen der Zeile zu einem anderen Stand, nicht;
+     *   - steht ein Zeichen, das zu keinem Stand gehört (etwa vor den Ständen),
+     *     oder ist es ein Zahlencode (Codegruppe, Spalte „Ableseart“), bleibt es
+     *     wie bisher: geschätzt (lieber kein Messwert als ein falscher).
+     * Ohne Wert ($value null) wie estimatedIn().
+     *
+     * @param array{letters: list<string>, digits: list<string>, marks: list<string>, column: bool} $codes
+     */
+    private static function estimateAt(string $text, ?float $value, array $codes): ?string
+    {
+        $all = self::estimatedIn($text, $codes);
+        if ($all === null || $value === null) return $all;
+        $noDigits = ['digits' => [], 'column' => false] + $codes;
+        if (self::estimatedIn($text, $noDigits) === null) return $all;   // nur ein Zahlencode: nicht zuzuordnen
+        $t = self::normalizeText($text);
+        preg_match_all('/\d[\d.,]*\d|\d/u', $t, $m, PREG_OFFSET_CAPTURE);
+        // Daten und Kennungen sind keine Stände: Der Code hinter „13.580 m³ am 31.12.2025 R“ gehört zum
+        // Stand, einer hinter „Zähler TEST-9999-02 R“ zu keinem (dann gilt er wie bisher für den Eintrag)
+        $nums = array_values(array_filter($m[0], fn($x) => !preg_match('/^\d{1,2}\.\d{1,2}\.(\d{4}|\d{2})$|^\d{4}-\d{2}-\d{2}$/', $x[0])
+            && !preg_match('/[\p{L}\-\/]$/u', substr($t, 0, (int)$x[1])) && !preg_match('/^[\p{L}\-\/]/u', substr($t, (int)$x[1] + strlen($x[0])))));
+        $rest = $t; $cut = 0;
+        foreach ($nums as $k => [$tok, $at]) {
+            $end = $at + strlen($tok);
+            $next = isset($nums[$k + 1]) ? (int)$nums[$k + 1][1] : strlen($t);
+            $tail = substr($t, $end, min($next - $end, 60));
+            if (self::estimatedIn($tail, $noDigits) === null) continue;
+            $mine = array_filter(self::readings($tok), fn(float $v) => self::sameNumber($v, $value)) !== [];
+            if ($mine) return self::estimatedIn($tail, $noDigits);
+            // dieses Zeichen gehört zu einem anderen Stand: aus dem Rest nehmen
+            $rest = substr($rest, 0, $end - $cut) . substr($rest, $end - $cut + strlen($tail));
+            $cut += strlen($tail);
+        }
+        return self::estimatedIn($rest, $noDigits) !== null ? $all : null;
     }
 
     /**
@@ -797,9 +885,11 @@ final class Evidence
             $stands = [];
             foreach ($parts as $p) {
                 $v = (array)$p['value'];
-                foreach ([['reading_old', 'reading_old_date'], ['reading_new', 'reading_new_date']] as [$vf, $df]) {
+                // v3.9.0 (F1034) — Ablese-Art je Stand des Teils (estimated_ends), sonst die des Teils
+                $ends = (array)($p['estimated_ends'] ?? [!empty($v['estimated']), !empty($v['estimated'])]);
+                foreach ([['reading_old', 'reading_old_date', 0], ['reading_new', 'reading_new_date', 1]] as [$vf, $df, $e]) {
                     if (!is_numeric($v[$vf] ?? null) || !is_string($v[$df] ?? null)) continue;
-                    $stands[] = ['date' => (string)$v[$df], 'counter' => (float)$v[$vf], 'estimated' => !empty($v['estimated'])];
+                    $stands[] = ['date' => (string)$v[$df], 'counter' => (float)$v[$vf], 'estimated' => !empty($ends[$e]), 'start' => $e === 0];
                 }
             }
             usort($stands, fn($a, $b) => [$a['date'], $a['counter']] <=> [$b['date'], $b['counter']]);
@@ -809,9 +899,23 @@ final class Evidence
                 if (isset($byDate[$s['date']]) && abs($byDate[$s['date']]['counter'] - $s['counter']) > 0.0005) $clash = true;
                 $byDate[$s['date']] ??= $s;
                 $byDate[$s['date']]['estimated'] = $byDate[$s['date']]['estimated'] || $s['estimated'];
+                $byDate[$s['date']]['start'] = $byDate[$s['date']]['start'] && $s['start'];
             }
             if ($clash) { array_push($merged, ...$parts); continue; }
-            $list = array_values($byDate);
+            // v3.9.0 (F1034) — der Anfangsstand eines Zeitraums am Tag nach dem Endstand des vorigen, mit
+            // demselben Stand, ist derselbe Stand (Grenze der Zeiträume, „bis 30.09. … von 01.10.“): einmal,
+            // am Endstand — sonst entstünden zwei Ablesungen, eine davon ohne die Ablese-Art des Endstands
+            $list = [];
+            foreach (array_values($byDate) as $s) {
+                $prev = $list === [] ? null : $list[count($list) - 1];
+                if ($prev !== null && $s['start'] && empty($prev['start']) && abs($prev['counter'] - $s['counter']) < 0.0005
+                    && date('Y-m-d', (int)strtotime($prev['date'] . ' +1 day')) === $s['date']) {
+                    $list[count($list) - 1]['estimated'] = $prev['estimated'] || $s['estimated'];
+                    continue;
+                }
+                $list[] = $s;
+            }
+            $list = array_map(fn($s) => array_diff_key($s, ['start' => 1]), $list);
             $falls = false;
             for ($i = 1; $i < count($list); $i++) if ($list[$i]['counter'] < $list[$i - 1]['counter'] - 0.0005) $falls = true;
             $first = $list[0] ?? null; $last = count($list) > 1 ? $list[count($list) - 1] : null;
@@ -878,6 +982,52 @@ final class Evidence
                 return str_contains(self::squeeze($lines[$k]), $n);
             }
             return false;
+        }
+        return false;
+    }
+
+    /**
+     * v3.9.0 (F1034) — Auswahl aus der Überschrift: Eine Preiszeile der
+     * Wasserrechnung („Basispreis 01.04.2025 - 30.09.2025 …“) nennt ihre Sparte
+     * nicht; sie steht darüber („Verbrauchs- und Betragsermittlung
+     * Schmutzwasser“) oder in einer Zeile davor („Abwassermenge …“). Belegt ist
+     * die Wahl, wenn die nächste Zeile über der Zeile des Zitats, die überhaupt
+     * eine der Optionen nennt, genau diese nennt — höchstens 40 Zeilen weit,
+     * nur auf derselben Seite. Steht dieselbe Zeile mehrfach auf der Seite,
+     * genügt eine Fundstelle; eine Zeile, die zwei Optionen nennt, belegt
+     * nichts.
+     *
+     * @param array<string,list<string>> $hints Option → Stichwörter
+     */
+    private static function headingAbove(string $page, string $quote, array $hints, string $value): bool
+    {
+        $lines = array_values(array_filter(array_map([self::class, 'normalizeText'], preg_split('/\R/u', $page) ?: []), fn($l) => $l !== ''));
+        $q = (self::quoteParts(self::normalizeText($quote)) ?? [self::normalizeText($quote)])[0];
+        if ($q === '' || $lines === []) return false;
+        $opts = function (string $line) use ($hints): array {
+            $hit = [];
+            foreach ($hints as $o => $hs) foreach ((array)$hs as $h) if (str_contains($line, (string)$h)) { $hit[(string)$o] = true; break; }
+            return array_keys($hit);
+        };
+        // die Zeile des Zitats — wie gedruckt, sonst ohne Leerraum (das Modell schreibt Leerzeichen anders)
+        foreach ([false, true] as $squeeze) {
+            $ls = $squeeze ? array_map([self::class, 'squeeze'], $lines) : $lines;
+            $needle = $squeeze ? self::squeeze($q) : $q;
+            $joined = implode($squeeze ? '' : ' ', $ls);
+            $starts = []; $pos = 0;
+            foreach ($ls as $l) { $starts[] = $pos; $pos += mb_strlen($l) + ($squeeze ? 0 : 1); }
+            $seen = false;
+            for ($p = mb_strpos($joined, $needle); $p !== false; $p = mb_strpos($joined, $needle, $p + 1)) {
+                $seen = true;
+                $i = self::lineAt($starts, $p);
+                for ($k = $i - 1; $k >= 0 && $i - $k <= 40; $k--) {
+                    $hit = $opts($lines[$k]);
+                    if ($hit === []) continue;
+                    if ($hit === [$value]) return true;
+                    break;   // die nächste Zeile mit einer Sparte nennt eine andere (oder zwei)
+                }
+            }
+            if ($seen) return false;
         }
         return false;
     }
@@ -1014,11 +1164,13 @@ final class Evidence
                 // ctx `prices`: true = wie im Vertrag, 'vat_changed' = gleicher Nettopreis, anderer Satz
                 $mark = fn(mixed $p): ?string => $p === true ? 'price_matches' : ($p === 'vat_changed' ? 'vat_changed' : null);
                 if ($def['kind'] === 'list') {
+                    // v3.9.0 (F1034) — auch die Wasserpreise (Preis in `price`) tragen netto und Satz
+                    $pk = self::PRICE_ITEM_KEY[$name] ?? null;
                     foreach ((array)($f['items'] ?? []) as $i => $it) {
                         unset($f['items'][$i]['net']);
-                        $tax = $name === 'working_prices' ? self::itemTax($it) : null;
-                        if ($tax !== null && $tax['net'] && is_numeric($it['value']['ct'] ?? null)) {
-                            $f['items'][$i]['net'] = ['vat_pct' => $tax['vat_pct'], 'gross' => self::grossOf((float)$it['value']['ct'], $tax)];
+                        $tax = $pk !== null ? self::itemTax($it) : null;
+                        if ($tax !== null && $tax['net'] && is_numeric($it['value'][$pk] ?? null)) {
+                            $f['items'][$i]['net'] = ['vat_pct' => $tax['vat_pct'], 'gross' => self::grossOf((float)$it['value'][$pk], $tax)];
                             $f['items'][$i]['reasons'][] = 'net_price';
                         }
                         $r = $mark($ctx['prices'][$name][$i] ?? null);
@@ -1246,6 +1398,9 @@ final class Evidence
                 // Nachbesserung 5 — eine Zählernummer aus der Kopfzeile direkt über den Ständen gilt als belegt
                 if ($v !== null && !$in && ($subDef['format'] ?? null) === 'meter' && $found !== null && $found > 0
                     && self::headerAbove((string)($pages[$found - 1] ?? ''), $quote, (string)$v)) { $in = true; $one['number_from'] = 'header'; }
+                // v3.9.0 (F1034) — eine Auswahl aus der Überschrift über den Zeilen (Sparte der Wasserrechnung)
+                if ($v !== null && !$in && !empty($subDef['heading']) && $found !== null && $found > 0
+                    && self::headingAbove((string)($pages[$found - 1] ?? ''), $quote, (array)($subDef['hints'] ?? []), (string)$v)) { $in = true; $one[$sub . '_from'] = 'heading'; }
                 if ($v === null) self::flag($one, 'unreadable');
                 elseif ($quote !== '' && !$in) self::flag($one, 'value_not_in_quote');
                 elseif (!self::formatOk($subDef, $v)) self::flag($one, 'invalid_format');   // im Eintrag nur der Wert (ein „*“ der Zeile kann eine Fußnote sein)

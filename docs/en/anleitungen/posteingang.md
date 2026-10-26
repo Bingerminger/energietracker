@@ -149,6 +149,13 @@ the new meter are only ticked in advance when the swap is; if several meter
 numbers stand on the bill, a single reading is only ticked in advance when it
 surely belongs to the assigned device.
 
+**Reading codes per reading** *(v3.9.0)*: if the bill explains codes such as
+“S=Schätzung I=Internetablesung”, a code applies to the reading right before
+it. In “Altstand 1.234 I · Neustand 1.300 S” only the new reading is
+estimated, not every reading of the line. Dates and meter numbers do not count
+as readings here. If two periods follow each other (closing reading on 30 Sep,
+opening reading on 1 Oct with the same value), they become one reading.
+
 For every document the app *(v3.7.0)* also reads **date and title** (date of
 the letter or bill, a heading like “Rechnungskorrektur”, also from the page
 header): they put the post in order and show a correction as such. If they are
@@ -162,6 +169,12 @@ The check reads German numbers the German way: “12.345” is twelve thousand,
 not twelve point three — models liked to take the thousands separator for a
 decimal point. With these rules no wrong core value slipped through unchecked
 in the feasibility trial (61 real documents).
+
+**Spaced digits** *(v3.9.0)*: some bills set amounts with spaces between the
+digits (“3 1 5,5 9 €”, “-8 0 0 , 0 0 €”, “1 8 3 Tage”). The check reads that as
+one number, but only when every digit stands alone, each separated by exactly
+one space, and the result is a valid number. Numbers of several digits next to
+each other (columns of a table like “12 345”) stay apart.
 
 You **confirm** a flagged field (“Correct”) or **change** it. Tapping “p. 2”
 next to the quote turns the document on the left to that page.
@@ -203,14 +216,14 @@ checks as manual entry. What there is:
 
 | Document | Proposals |
 |---|---|
-| Bill | new reading (and old one) — *(v3.7.0)* if the bill marks a reading as estimated (a word like “geschätzt” or a reading code it explains itself, such as “S = geschätzt”), it is created as estimated — likewise “hochgerechnet”, a footnote like “5)” with the explanation “5) hochgerechnet”, a code in a group like “10/12/26” and a code in the column “Ableseart” or “Ablesegrund” when the document explains it as an estimate; also from the readings per meter, assigned by meter number; if two meters stand on the bill (the assigned one and a new one), a **meter swap** with the final reading of the old and the initial reading of the new meter, ticked in advance when numbers, day and readings fit together —, enter the bill (for gas with correction factor and calorific value as on the bill, for “Check bill”), book the result as a special payment, new advance payment on the contract of the same supplier that applies then; for gas the conversion factor and calorific value per period as a key date of the [gas conversion](../verstehen/01-gas.md); working prices and standing charge: “already there” when as in the contract, otherwise as a proposal to check; market location on the meter, contract and customer number on the contract. Without a contract of this supplier *(v3.7.0)*: “Create the contract … from this bill” as an offer (start = start of the period, a final bill ends with it), and booking only goes to a contract of the supplier — otherwise the app refuses instead of booking to someone else’s |
+| Bill | new reading (and old one) — *(v3.7.0)* if the bill marks a reading as estimated (a word like “geschätzt” or a reading code it explains itself, such as “S = geschätzt”), it is created as estimated — likewise “hochgerechnet”, a footnote like “5)” with the explanation “5) hochgerechnet”, a code in a group like “10/12/26” and a code in the column “Ableseart” or “Ablesegrund” when the document explains it as an estimate; also from the readings per meter, assigned by meter number; if two meters stand on the bill (the assigned one and a new one), a **meter swap** with the final reading of the old and the initial reading of the new meter, ticked in advance when numbers, day and readings fit together —, enter the bill (for gas with correction factor and calorific value as on the bill, for “Check bill”), book the result as a special payment, new advance payment on the contract of the same supplier that applies then; for gas the conversion factor and calorific value per period as a key date of the [gas conversion](../verstehen/01-gas.md); working prices and standing charge: “already there” when as in the contract, otherwise as a proposal to check; market location on the meter, contract and customer number on the contract. Without a contract of this supplier *(v3.7.0)*: “Create the contract … from this bill” as an offer (start = start of the period, a final bill ends with it), and booking only goes to a contract of the supplier — otherwise the app refuses instead of booking to someone else’s. *(v3.9.0)* If no contract at all applies at the meter, this proposal is ticked in advance, with prices per section and the advance payment plan ([Contract from the bill](#contract-from-the-bill-v390)) |
 | Contract confirmation | new contract with working price, standing charge (per year converted to per month), advance payment, minimum term, notice period, bonus, price guarantee, contract and customer number — uncertain side details stay open points; the previous contract ends the day before — ticked in advance *(v3.7.0)* for a switch (other supplier) or a tariff change (other tariff or other contract number) at the same meter, as an offer for a group contract, at a sub-meter, for apparently the same contract and for older predecessors; if the previous contract has a later end backed by a cancellation, that is a conflict |
 | Price change | working price and standing charge from the key date, a date for the special right of termination |
 | Cancellation | end of contract, without renewal; without a follow-up contract a reminder “Arrange a follow-up contract” 14 days before the end of supply (closer to the end: today) |
 | Start of supply | meter reading at the start, start of the contract; without a contract of this supplier *(v3.7.0)* “Create the contract …” as an offer (prices stay open) |
 | Meter swap | meter swap with final and initial reading (all to check) |
 | Meter reading request | “Report meter reading” reminder at the meter, with the person responsible |
-| Advance payment change | new advance payment from the key date |
+| Advance payment change | new advance payment from the key date; *(v3.9.0)* in the rhythm of the current advance payment (every two or three months stays so) |
 
 **Reminders from documents** hang at the assigned meter and go to the person
 responsible: if the contract has one, they are on the reminder; otherwise the
@@ -223,8 +236,56 @@ and the history (Reminders & tips → Done) notes “Taken over from a document�
 over the same document again shows everything as “already there” — nothing
 comes in twice.
 
-Water contracts have three components; you create a new water contract by
-hand. Reading, bill and advance payment are proposed for water too.
+### Contract from the bill *(v3.9.0)*
+
+If **no contract** applies at the meter during the period of a bill, the app
+proposes “Create the contract … from … from this bill”, for every utility and
+for water too, and ticks it in advance. It takes over:
+
+- supplier, contract account (contract number) and the start of the period;
+  after an annual bill the contract keeps running, a final bill ends it,
+- the **prices per section** from their day on (a price change on 1 October
+  gives two price rows), gross: net prices with the tax rate the bill shows for
+  the component; a rate is read, never guessed,
+- **components as one price**: basic and provision price of a component
+  together give its standing charge per month (a yearly price divided by 12),
+  working price, energy tax and CO₂ price of the same day together the working
+  price. Below the proposal it says what each price is made of,
+- for water **all three components**: drinking water and waste water per m³
+  and with their standing charge, rainwater per m² and year with the area
+  according to the bill,
+- the **new advance payment plan** with its rhythm (see below).
+
+The bill then belongs to the new contract, and
+“Book the result as a special payment” works in the same run: the app first
+creates the contract, then the bill, then books the result. If you untick the contract, booking is locked
+(“Only together with the contract from this bill.”); you can still enter the
+bill.
+
+If a contract already applies in the period, the app overwrites nothing:
+
+- A contract of **another supplier**, or one that overlaps: the proposal is only
+  an offer (not ticked), and nothing is booked to the other contract.
+- A contract of **the same supplier** that ends before the end of the period:
+  for the days after it the app offers a **follow-up contract** (from the day
+  after the end), for days before it a preceding contract. Both are offers.
+- **Prices of the bill at the existing contract**: one row per component and
+  section, “already there” when the contract has them on that day, otherwise
+  new, but never ticked in advance.
+
+### Advance payments every two or three months *(v3.9.0)*
+
+If the bill names the new advance payment with due dates (“165,00 € am
+15.05.2026, 15.07.2026, …”) or a rhythm (“zweimonatlich”, “vierteljährlich”),
+the app takes it over like that: the amount applies **per due date**, every two
+or three months or on the dates listed; after the last date listed it continues
+yearly on the same days. Without “from” the plan starts on the first due date.
+Due dates read with doubt do not count. An advance payment change usually names
+only the amount: then the rhythm of the current advance payment stays. The key
+statement then also judges the new advance payment per due date, not per month.
+How balance, suggestion and forecast use it is under
+[Water](../verstehen/03-wasser.md#advance-payments-every-two-or-three-months-v390);
+it applies to every utility.
 
 ---
 
@@ -240,7 +301,7 @@ nothing is guessed that the app does not already know.
 |---|---|---|
 | Price change | extra or lower cost **per year**: difference in unit price × expected consumption of the next twelve months (the same forecast as in the [tariff comparison](../referenz/ansichten.md)) + difference in standing charge × 12. The old price comes from the letter, otherwise from the contract on the day before. Below it the deadline of the special right to cancel, if the letter names it. | If a saved offer saves money according to the switching decision: **“Switching saves about … – compare tariffs”**; otherwise “Take over the new prices” |
 | Bill | before taking over, the additional payment or credit according to the bill; **after taking over, “Check bill” runs by itself**: “matches your data”, “is … higher/lower than your own calculation” or *(v3.7.0)* “the contract lacks prices” with the sections without a price, plus the reasons (for example an estimated reading at the boundary) | “Take over and check”, afterwards “Check bill” when it differs, without prices “Add prices to the contract” |
-| Advance payment change | new advance payment against the advance payment that brings the current billing period to zero (advance payment as planned + expected final balance ÷ months until the bill): **fits**, **too high** or **too low** by about … a month. “Fits” means the rest at the end would stay below €50 or one advance payment — the same threshold as in the [annual report](jahresbericht-lesen.md). | “Take over the advance payment” |
+| Advance payment change | new advance payment against the advance payment that brings the current billing period to zero (advance payment as planned + expected final balance ÷ months until the bill): **fits**, **too high** or **too low** by about … a month. “Fits” means the rest at the end would stay below €50 or one advance payment — the same threshold as in the [annual report](jahresbericht-lesen.md). *(v3.9.0)* With a rhythm the instalments until the bill count instead of the months, and the verdict applies per due date. | “Take over the advance payment” |
 | Cancellation | end of supply; without a follow-up contract “there is no follow-up contract yet” and the reminder from the proposals | “Find a follow-up contract” (tariff comparison) |
 | Meter reading request | deadline and who is responsible; if there is already a reading taken at most 30 days before the deadline, it is done | “Enter reading” — straight to the meter |
 | Meter swap | date, final reading, new meter and initial reading | “Record meter swap” opens the dialog with all values prefilled |
