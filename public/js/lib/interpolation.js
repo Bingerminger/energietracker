@@ -52,7 +52,11 @@ export function interpolationNote({ rows = [], info = null, year = null, heat = 
   let readings = '';
   if (info && year != null && info.readings_by_year) {
     const n = Number(info.readings_by_year[year] ?? info.readings_by_year[String(year)] ?? 0);
-    readings = n > 0 ? tp('interpolation.readingsYear', n, { count: n, year }) : t('interpolation.noReadingYear', { year });
+    // v3.9.0 (L10) — geschätzte Stände nennen: sonst „8 Ablesungen“ neben 9 Einträgen in der Liste
+    const est = Number(info.estimated_by_year?.[year] ?? info.estimated_by_year?.[String(year)] ?? 0);
+    readings = n > 0 && est > 0
+      ? tp('interpolation.readingsYearEst', n, { count: n, year, estimates: tp('interpolation.estimates', est, { count: est }) })
+      : n > 0 ? tp('interpolation.readingsYear', n, { count: n, year }) : t('interpolation.noReadingYear', { year });
   } else if (info && info.readings != null && info.from && info.to) {
     readings = tp('interpolation.readingsRange', info.readings, { count: info.readings, from: fmt.month(info.from), to: fmt.month(info.to) });
   }

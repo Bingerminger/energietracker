@@ -2769,7 +2769,8 @@
     "annualNoBand": "Anno: {value} {unit} — senza fascia, perché il modello di riscaldamento si adatta male.",
     "annualNoBandFew": "Anno: {value} {unit} — senza fascia, perché sono misurati troppo pochi mesi per verificare il modello di riscaldamento.",
     "annualNoBandYears": "Anno: {value} {unit} — senza fascia: quanto un mese varia da un anno all’altro si vede solo con misure di più di un anno.",
-    "annualBandSpread": "Anno: {value} {unit}, nel {level}% degli anni tra {low} e {high} {unit} — secondo la dispersione dei mesi negli anni."
+    "annualBandSpread": "Anno: {value} {unit}, nel {level}% degli anni tra {low} e {high} {unit} — secondo la dispersione dei mesi negli anni.",
+    "blendPoorFit": "il modello di riscaldamento si adatta male, quindi ogni mese usa il profilo stagionale"
   },
   "report": {
     "createdOn": "Creato il {date}",
@@ -3127,7 +3128,9 @@
       },
       "readings": {
         "title": "Leggere i contatori",
-        "reason": "Ultima lettura il {date}: {meters}."
+        "reason": "Ultima lettura il {date}: {meters}.",
+        "reasonEach": "Ultima lettura per contatore: {meters}.",
+        "none": "ancora nessuna"
       },
       "bill": {
         "title": "Controllare la fattura: {label}",
@@ -6645,7 +6648,15 @@
     "legendPv": "≈ ripartito, non misurato: la ripartizione dell’energia solare di questi mesi è stimata.",
     "chartNote": "Barre tratteggiate: ripartite, non misurate.",
     "markTitleEstimated": "Ripartito, non misurato: da {gap} giorni tra due letture, con una lettura stimata come punto d’appoggio",
-    "whyEstimated": "Se in mezzo c’è una lettura stimata, ogni lato ha il proprio consumo giornaliero."
+    "whyEstimated": "Se in mezzo c’è una lettura stimata, ogni lato ha il proprio consumo giornaliero.",
+    "readingsYearEst": {
+      "one": "{count} lettura e {estimates} nel {year}",
+      "other": "{count} letture e {estimates} nel {year}"
+    },
+    "estimates": {
+      "one": "{count} stima",
+      "other": "{count} stime"
+    }
   },
   "balanceUncertain": {
     "range": "Conguaglio del {date} incerto: tra {low} e {high}, perché {why}.",
@@ -6655,11 +6666,12 @@
     "credit": "{amount} di credito",
     "light": "{label}: incerto, tra {low} e {high}",
     "why": {
-      "factor_clamped": "gli ultimi mesi misurati si discostano molto dall’atteso (fattore {raw}, calcolato con {used})",
+      "factor_clamped": "gli ultimi mesi misurati hanno consumato circa {raw} volte il previsto; la stima lo segue solo fino a {used} volte",
       "poor_fit": "il modello di riscaldamento si adatta male a questo contatore (± {pct} al mese)",
       "both": "{a} e {b}",
       "few_measured": "sono misurati troppo pochi mesi per verificare il modello di riscaldamento",
-      "three": "{a}, {b} e {c}"
+      "three": "{a}, {b} e {c}",
+      "factorLow": "gli ultimi mesi misurati hanno consumato solo circa il {raw} del previsto; la stima scende solo fino al {used}"
     },
     "short": "da {low} a {high}",
     "verdict": "incerto"

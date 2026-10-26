@@ -2095,9 +2095,16 @@ final class ConsumptionService
             $share = abs($kwh) > 1e-9 ? (float)($m['_measured_kwh'] ?? 0.0) / $kwh
                 : ($days > 0 ? (int)($m['_measured_days'] ?? 0) / $days : 1.0);
             $share = max(0.0, min(1.0, $share));
+            // v3.9.0 (L8) — zusätzlich nach Tagen: Stammen die meisten Tage aus einem langen
+            // Abstand, ist der Monat verteilt, auch wenn die wenigen gemessenen Tage mehr
+            // Verbrauch tragen. Im Testhaushalt kam der Dezember 2024 zu 18 von 31 Tagen aus
+            // einem Abstand von 103 Tagen und galt nur deshalb als gemessen, weil der
+            // verteilte Teil die milderen Herbstmonate mitnimmt (Tagesrate zu niedrig).
+            $dayShare = $days > 0 ? max(0.0, min(1.0, (int)($m['_measured_days'] ?? 0) / $days)) : 1.0;
             $gap = (int)($m['_gap_days'] ?? 0);
             $m['measured_share'] = round($share, 3);
-            $m['interpolated'] = $share < self::MEASURED_SHARE_MIN;
+            $m['measured_day_share'] = round($dayShare, 3);   // v3.9.0 (L8, additiv)
+            $m['interpolated'] = $share < self::MEASURED_SHARE_MIN || $dayShare < self::MEASURED_SHARE_MIN;
             $m['reading_gap_days'] = $gap === PHP_INT_MAX ? null : $gap;
             // v3.7.0 (Nachlauf) — eine geschätzte Ablesung im Abstand: nicht „gleichmäßig verteilt“
             $m['reading_gap_estimated'] = !empty($m['_gap_est']);
@@ -3376,6 +3383,9 @@ final class ConsumptionService
             'interpolated'        => $yms,
             'readings'            => array_sum($byYear),
             'readings_by_year'    => (object)$byYear,
+            // v3.9.0 (L10, additiv) — geschätzte Stände je Jahr: Sie messen nicht, stehen aber
+            // in der Liste („8 Ablesungen und 1 Schätzung“ statt „8“ neben 9 Einträgen)
+            'estimated_by_year'   => (object)$this->estimatedReadingsByYear($utility, $meter),
             'from'                => (string)$monthly[0]['ym'],
             'to'                  => (string)$monthly[count($monthly) - 1]['ym'],
             'heat_basis'          => $heat['basis'] ?? null,
@@ -3420,6 +3430,37 @@ final class ConsumptionService
             }
         }
         return false;
+    }
+
+    /**
+     * v3.9.0 (L10) — Geschätzte Stände (bzw. Zeiträume) je Jahr: die Gegenstücke zu
+     * measuringReadingsByYear(), damit die Zahl im Hinweis zur Liste passt.
+     *
+     * @return array<string,int>
+     */
+    private function estimatedReadingsByYear(string $utility, array $meter): array
+    {
+        $out = [];
+        if (!empty($meter['is_group'])) {
+            foreach ($this->meters->groupSumMembers($utility, (string)$meter['id']) as $member) {
+                foreach ($this->estimatedReadingsByYear($utility, $member) as $y => $n) $out[$y] = ($out[$y] ?? 0) + $n;
+            }
+        } elseif (($meter['capture'] ?? 'counter') === 'period') {
+            foreach ((array)$this->store->read("$utility/periods.json", []) as $p) {
+                if (!is_array($p) || ($p['meter_id'] ?? null) !== ($meter['id'] ?? null) || empty($p['is_estimated']) || !Dates::isIsoDate($p['to'] ?? null)) continue;
+                $y = substr((string)$p['to'], 0, 4);
+                $out[$y] = ($out[$y] ?? 0) + 1;
+            }
+        } else {
+            [$actual] = $this->plausibleReadings($this->readings->list($utility, (string)($meter['id'] ?? '')), $meter);
+            foreach ($actual as $r) {
+                if (empty($r['is_estimated'])) continue;
+                $y = substr((string)$r['date'], 0, 4);
+                $out[$y] = ($out[$y] ?? 0) + 1;
+            }
+        }
+        ksort($out);
+        return $out;
     }
 
     /**

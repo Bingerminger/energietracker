@@ -2769,7 +2769,8 @@
     "annualNoBand": "Jaar: {value} {unit} — zonder bandbreedte, omdat het verwarmingsmodel slecht past.",
     "annualNoBandFew": "Jaar: {value} {unit} — zonder bandbreedte, omdat er te weinig maanden gemeten zijn om het verwarmingsmodel te controleren.",
     "annualNoBandYears": "Jaar: {value} {unit} — zonder bandbreedte: hoe sterk een maand van jaar tot jaar schommelt, blijkt pas uit metingen van meer dan één jaar.",
-    "annualBandSpread": "Jaar: {value} {unit}, in {level}% van de jaren tussen {low} en {high} {unit} — naar de spreiding van de maanden over de jaren."
+    "annualBandSpread": "Jaar: {value} {unit}, in {level}% van de jaren tussen {low} en {high} {unit} — naar de spreiding van de maanden over de jaren.",
+    "blendPoorFit": "het verwarmingsmodel past slecht, daarom rekent elke maand met het seizoensprofiel"
   },
   "report": {
     "createdOn": "Gemaakt op {date}",
@@ -3127,7 +3128,9 @@
       },
       "readings": {
         "title": "Meterstanden opnemen",
-        "reason": "Laatste meterstand op {date}: {meters}."
+        "reason": "Laatste meterstand op {date}: {meters}.",
+        "reasonEach": "Laatste meterstand per meter: {meters}.",
+        "none": "nog geen"
       },
       "bill": {
         "title": "Rekening controleren: {label}",
@@ -6645,7 +6648,15 @@
     "legendPv": "≈ verdeeld, niet gemeten: hoe de zonnestroom van deze maanden zich verdeelt, is geschat.",
     "chartNote": "Gearceerde balken: verdeeld, niet gemeten.",
     "markTitleEstimated": "Verdeeld, niet gemeten: uit {gap} dagen tussen twee meterstanden, met een geschatte meterstand als steunpunt",
-    "whyEstimated": "Ligt er een geschatte meterstand tussen, dan geldt aan elke kant een eigen dagwaarde."
+    "whyEstimated": "Ligt er een geschatte meterstand tussen, dan geldt aan elke kant een eigen dagwaarde.",
+    "readingsYearEst": {
+      "one": "{count} meterstand en {estimates} in {year}",
+      "other": "{count} meterstanden en {estimates} in {year}"
+    },
+    "estimates": {
+      "one": "{count} schatting",
+      "other": "{count} schattingen"
+    }
   },
   "balanceUncertain": {
     "range": "Afrekening op {date} onzeker: tussen {low} en {high}, omdat {why}.",
@@ -6655,11 +6666,12 @@
     "credit": "{amount} tegoed",
     "light": "{label}: onzeker, tussen {low} en {high}",
     "why": {
-      "factor_clamped": "de laatste gemeten maanden ver van de verwachting liggen (factor {raw}, gerekend met {used})",
+      "factor_clamped": "de laatst gemeten maanden verbruikten ongeveer {raw} keer zoveel als verwacht; de schatting volgt dat maar tot {used} keer",
       "poor_fit": "het verwarmingsmodel slecht bij deze meter past (± {pct} per maand)",
       "both": "{a} en {b}",
       "few_measured": "er te weinig maanden gemeten zijn om het verwarmingsmodel te controleren",
-      "three": "{a}, {b} en {c}"
+      "three": "{a}, {b} en {c}",
+      "factorLow": "de laatst gemeten maanden verbruikten maar ongeveer {raw} van het verwachte; de schatting gaat maar tot {used} omlaag"
     },
     "short": "{low} tot {high}",
     "verdict": "onzeker"

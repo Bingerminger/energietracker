@@ -2769,7 +2769,8 @@
     "annualNoBand": "Ano: {value} {unit} — sem faixa, porque o modelo de aquecimento se ajusta mal.",
     "annualNoBandFew": "Ano: {value} {unit} — sem faixa, porque há poucos meses medidos para verificar o modelo de aquecimento.",
     "annualNoBandYears": "Ano: {value} {unit} — sem faixa: quanto um mês varia de ano para ano só se vê com medições de mais de um ano.",
-    "annualBandSpread": "Ano: {value} {unit}, em {level}% dos anos entre {low} e {high} {unit} — conforme a dispersão dos meses ao longo dos anos."
+    "annualBandSpread": "Ano: {value} {unit}, em {level}% dos anos entre {low} e {high} {unit} — conforme a dispersão dos meses ao longo dos anos.",
+    "blendPoorFit": "o modelo de aquecimento ajusta-se mal, por isso cada mês usa o perfil sazonal"
   },
   "report": {
     "createdOn": "Criado a {date}",
@@ -3127,7 +3128,9 @@
       },
       "readings": {
         "title": "Ler os contadores",
-        "reason": "Última leitura a {date}: {meters}."
+        "reason": "Última leitura a {date}: {meters}.",
+        "reasonEach": "Última leitura por contador: {meters}.",
+        "none": "nenhuma ainda"
       },
       "bill": {
         "title": "Verificar a fatura: {label}",
@@ -6645,7 +6648,15 @@
     "legendPv": "≈ repartido, não medido: a repartição da eletricidade solar destes meses é estimada.",
     "chartNote": "Barras tracejadas: repartidas, não medidas.",
     "markTitleEstimated": "Repartido, não medido: de {gap} dias entre duas leituras, com uma leitura estimada como ponto de apoio",
-    "whyEstimated": "Se houver uma leitura estimada pelo meio, cada lado tem a sua própria taxa diária."
+    "whyEstimated": "Se houver uma leitura estimada pelo meio, cada lado tem a sua própria taxa diária.",
+    "readingsYearEst": {
+      "one": "{count} leitura e {estimates} em {year}",
+      "other": "{count} leituras e {estimates} em {year}"
+    },
+    "estimates": {
+      "one": "{count} estimativa",
+      "other": "{count} estimativas"
+    }
   },
   "balanceUncertain": {
     "range": "Acerto de {date} incerto: entre {low} e {high}, porque {why}.",
@@ -6655,11 +6666,12 @@
     "credit": "{amount} de crédito",
     "light": "{label}: incerto, entre {low} e {high}",
     "why": {
-      "factor_clamped": "os últimos meses medidos se afastam muito do esperado (fator {raw}, calculado com {used})",
+      "factor_clamped": "os últimos meses medidos consumiram cerca de {raw} vezes o previsto; a estimativa só acompanha até {used} vezes",
       "poor_fit": "o modelo de aquecimento se ajusta mal a este contador (± {pct} por mês)",
       "both": "{a} e {b}",
       "few_measured": "há poucos meses medidos para verificar o modelo de aquecimento",
-      "three": "{a}, {b} e {c}"
+      "three": "{a}, {b} e {c}",
+      "factorLow": "os últimos meses medidos só consumiram cerca de {raw} do previsto; a estimativa só desce até {used}"
     },
     "short": "de {low} a {high}",
     "verdict": "incerto"

@@ -234,7 +234,7 @@ final class ForecastService
         $runningBalance = 0.0;
         $hddSource = null;
         $missing = [];
-        $weatherVar = 0.0; $noiseVar = 0.0; $annualValue = 0.0; $bandMonths = 0; $bandOk = true;
+        $weatherVar = 0.0; $noiseVar = 0.0; $annualValue = 0.0; $bandMonths = 0; $bandOk = true; $regPart = 0.0;
         for ($i = 0; $i < $fcMonths; $i++) {
             $ym = $start->format('Y-m');
             $mn = (int)$start->format('n');
@@ -311,6 +311,8 @@ final class ForecastService
             }
             if ($i < 12) {
                 $annualValue += $blended;
+                // v3.9.0 (L4) — wie viel der Jahresmenge wirklich aus der Heizkurve kommt
+                $regPart += str_starts_with($method, 'blend(') ? $blendW * (float)$regressionVal : ($method === 'regression_only' ? $blended : 0.0);
                 $bandMonths++;
                 if ($wSd === null && $nSd === null) $bandOk = false;
                 $weatherVar += ($wSd ?? 0.0) ** 2;
@@ -450,6 +452,11 @@ final class ForecastService
             'forecast'     => $forecast,
             'regression'   => $reg,
             'blend_weight' => round($blendW, 4),
+            // v3.9.0 (L4, additiv) — wirksamer Anteil der Heizkurve an den ersten zwölf
+            // Prognosemonaten: Bei nicht bestandener Gütesperre oder im Sommer unter den Punkten
+            // rechnet der Monat mit dem Saisonprofil; dann stand „Anteil Heizkurve 80 %“ neben
+            // „Saisonprofil“ in jedem Monat
+            'blend_effective' => $annualValue > 0 ? round($regPart / $annualValue, 4) : 0.0,
             'last_price_ct'=> round($fallbackPrice, 4),
             'hdd_source'   => $hddSource,
             'annual'       => $annual,

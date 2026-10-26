@@ -2769,7 +2769,8 @@
     "annualNoBand": "Jahr: {value} {unit} — ohne Band, weil das Heizmodell schlecht passt.",
     "annualNoBandFew": "Jahr: {value} {unit} — ohne Band, weil zu wenige Monate gemessen sind, um das Heizmodell zu prüfen.",
     "annualNoBandYears": "Jahr: {value} {unit} — ohne Band: Wie stark ein Monat von Jahr zu Jahr schwankt, zeigt sich erst mit Messwerten aus mehr als einem Jahr.",
-    "annualBandSpread": "Jahr: {value} {unit}, in {level} % der Jahre zwischen {low} und {high} {unit} — nach der Streuung der Monate über die Jahre."
+    "annualBandSpread": "Jahr: {value} {unit}, in {level} % der Jahre zwischen {low} und {high} {unit} — nach der Streuung der Monate über die Jahre.",
+    "blendPoorFit": "das Heizmodell passt schlecht, deshalb rechnet jeder Monat mit dem Saisonprofil"
   },
   "report": {
     "createdOn": "Erstellt am {date}",
@@ -3127,7 +3128,9 @@
       },
       "readings": {
         "title": "Zählerstände ablesen",
-        "reason": "Letzte Ablesung am {date}: {meters}."
+        "reason": "Letzte Ablesung am {date}: {meters}.",
+        "reasonEach": "Letzte Ablesung je Zähler: {meters}.",
+        "none": "noch keine"
       },
       "bill": {
         "title": "Rechnung prüfen: {label}",
@@ -6645,7 +6648,15 @@
     "legendPv": "≈ verteilt, nicht gemessen: Wie sich der Sonnenstrom dieser Monate aufteilt, ist geschätzt.",
     "chartNote": "Schraffierte Säulen: verteilt, nicht gemessen.",
     "markTitleEstimated": "Verteilt, nicht gemessen: aus {gap} Tagen zwischen zwei Ablesungen, mit einer geschätzten Ablesung als Stütze",
-    "whyEstimated": "Liegt eine geschätzte Ablesung dazwischen, gilt auf jeder Seite von ihr eine eigene Tagesrate."
+    "whyEstimated": "Liegt eine geschätzte Ablesung dazwischen, gilt auf jeder Seite von ihr eine eigene Tagesrate.",
+    "readingsYearEst": {
+      "one": "{count} Ablesung und {estimates} in {year}",
+      "other": "{count} Ablesungen und {estimates} in {year}"
+    },
+    "estimates": {
+      "one": "{count} Schätzung",
+      "other": "{count} Schätzungen"
+    }
   },
   "balanceUncertain": {
     "range": "Zur Abrechnung am {date} unsicher: zwischen {low} und {high}, weil {why}.",
@@ -6655,11 +6666,12 @@
     "credit": "{amount} Guthaben",
     "light": "{label}: unsicher, zwischen {low} und {high}",
     "why": {
-      "factor_clamped": "die letzten gemessenen Monate weit neben der Erwartung liegen (Faktor {raw}, gerechnet mit {used})",
+      "factor_clamped": "die letzten gemessenen Monate rund {raw}-mal so viel brauchten wie erwartet; die Schätzung folgt dem nur bis zum {used}-Fachen",
       "poor_fit": "das Heizmodell schlecht zu diesem Zähler passt (± {pct} je Monat)",
       "both": "{a} und {b}",
       "few_measured": "zu wenige Monate gemessen sind, um das Heizmodell zu prüfen",
-      "three": "{a}, {b} und {c}"
+      "three": "{a}, {b} und {c}",
+      "factorLow": "die letzten gemessenen Monate nur rund {raw} der Erwartung brauchten; die Schätzung folgt dem nur bis {used}"
     },
     "short": "{low} bis {high}",
     "verdict": "unsicher"

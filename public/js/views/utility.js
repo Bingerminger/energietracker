@@ -738,7 +738,10 @@ function uncertainBalanceText(unc, date) {
   const word = (v) => Math.abs(v) < 1 ? t('balanceUncertain.even')
     : t(v > 0 ? 'balanceUncertain.due' : 'balanceUncertain.credit', { amount: t('report.fmt.approx', { amount: fmt.eur0(Math.abs(v)) }) });
   const parts = (unc.reasons || []).map(r => r === 'factor_clamped'
-    ? t('balanceUncertain.why.factor_clamped', { raw: fmt.num(unc.factor_raw ?? 0, 2), used: fmt.num(unc.factor ?? 0, 2) })
+    // v3.9.0 (L3) — in Worten statt „Faktor 9,81, gerechnet mit 1,50“
+    ? ((unc.factor_raw ?? 0) >= (unc.factor ?? 0)
+      ? t('balanceUncertain.why.factor_clamped', { raw: fmt.num(unc.factor_raw ?? 0, 1), used: fmt.num(unc.factor ?? 0, 1) })
+      : t('balanceUncertain.why.factorLow', { raw: fmt.pct(unc.factor_raw ?? 0, 0), used: fmt.pct(unc.factor ?? 0, 0) }))
     : r === 'few_measured' ? t('balanceUncertain.why.few_measured')   // v3.7.0 (Schritt 3, N3)
       : t('balanceUncertain.why.poor_fit', { pct: fmt.pct(unc.fit_ratio ?? 0, 0) }));
   const why = parts.length > 2 ? t('balanceUncertain.why.three', { a: parts[0], b: parts[1], c: parts[2] })
@@ -2129,6 +2132,10 @@ function drawMonthChart(canvasId, monthly, u, year, prevRows = [], mode = 'measu
   const withTemp = !isPv(u) && !adjusted;
   const barColor = (full, part) => (ctx) => withAlpha(chartColor(u), partial[ctx.dataIndex] ? part : full);
   const barFill = (ctx) => (interp[ctx.dataIndex] ? hatchFill(chartColor(u)) : barColor(0.35, 0.12)(ctx));
+  // v3.9.0 (L9) — auch die Vorjahressäulen zeigen ihre verteilten Monate (schraffiert statt leer)
+  const prevInterp = monthly.map(m => isInterpolated(prevByMonth.get(m.slot ?? m.month)));
+  const prevFill = (ctx) => (prevInterp[ctx.dataIndex] ? hatchFill(chartColor(u)) : 'transparent');
+  const mainIdx = hasPrev ? 1 : 0;
   const unit = u.consumption_unit;
 
   _chart = makeChart(canvas, {
@@ -2140,7 +2147,7 @@ function drawMonthChart(canvasId, monthly, u, year, prevRows = [], mode = 'measu
           type: 'bar',
           label: names ? t('billing.chart.prev', { name: names.prev }) : t('utility.chart.prevYear', { year: year - 1 }),
           data: prev,
-          backgroundColor: 'transparent',
+          backgroundColor: prevFill,
           borderColor: utilColor(u, 0.6),
           borderWidth: 1.5,
           yAxisID: 'y',
@@ -2174,6 +2181,15 @@ function drawMonthChart(canvasId, monthly, u, year, prevRows = [], mode = 'measu
       responsive: true, maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
       plugins: {
+        // v3.9.0 (L9) — die Legende zeigt die Fläche eines gemessenen Monats (bis v3.8 trug sie
+        // die Schraffur des ersten, oft verteilten Monats, als wären alle Säulen verteilt), das
+        // Vorjahr als Rahmen; die Schraffur erklärt der Satz unter dem Diagramm
+        legend: { labels: { generateLabels: (chart) => {
+          const base = window.Chart?.defaults?.plugins?.legend?.labels?.generateLabels;
+          const items = base ? base(chart) : (chart?.data?.datasets || []).map((d, i) => ({ text: d.label, datasetIndex: i }));
+          return items.map(it => (it.datasetIndex === mainIdx ? { ...it, fillStyle: withAlpha(chartColor(u), 0.35) }
+            : hasPrev && it.datasetIndex === 0 ? { ...it, fillStyle: 'transparent' } : it));
+        } } },
         tooltip: { callbacks: { footer: (items) => {
           const i = items[0]?.dataIndex;
           if (i == null) return '';

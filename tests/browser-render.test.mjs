@@ -2743,6 +2743,14 @@ async function renderView(modPath, params = [], ctx = {}) {
     const cur = (mc?.config?.data?.datasets || []).find(d => typeof d.backgroundColor === 'function');
     t('interpolation: Monatschart schraffiert (Farbe aus u.color) mit Satz darunter', /0\.2\)$/.test(cur?.backgroundColor?.({ dataIndex: 3 }) || '')
       && /Schraffierte Säulen/.test(view.querySelector('[data-role="month-chart-note"]')?.textContent || ''), cur?.backgroundColor?.({ dataIndex: 3 }));
+    // v3.9.0 (L9) — Legende mit der Fläche eines gemessenen Monats, Vorjahr mit seinen verteilten Monaten schraffiert
+    const dsets = mc?.config?.data?.datasets || [];
+    const legend = mc?.config?.options?.plugins?.legend?.labels?.generateLabels?.({ data: mc.config.data }) || [];
+    const mainItem = legend.find(it => it.datasetIndex === dsets.indexOf(cur));
+    t('interpolation: Legende ohne Schraffur (Fläche wie ein gemessener Monat)', /0\.35\)$/.test(mainItem?.fillStyle || ''), mainItem?.fillStyle);
+    const prevDs = dsets.find(d => d !== cur && d.type === 'bar');
+    t('interpolation: Vorjahr zeigt verteilte Monate schraffiert', !prevDs || /0\.2\)$/.test(prevDs.backgroundColor?.({ dataIndex: 3 }) || ''),
+      prevDs ? String(prevDs.backgroundColor?.({ dataIndex: 3 })) : 'ohne Vorjahr');
     const main = await renderView(`${ROOT}/views/utility.js`, ['gas'], { query: new URLSearchParams('meter=m_gas_main&year=2025') });
     await sleep(500);
     t('interpolation: Hauptzähler monatlich abgelesen — kein Hinweis', !main.view.querySelector('[data-role="interpolation-note"]'));

@@ -668,7 +668,13 @@ final class RealDataFollowUpTest extends ServiceTestCase
         self::assertSame($this->i18n->t('balanceUncertain.why.few_measured'), $advice->uncertainWhy(['reasons' => ['few_measured']]));
         $three = $advice->uncertainWhy(['reasons' => ['factor_clamped', 'few_measured', 'poor_fit'], 'factor' => 1.5, 'factor_raw' => 2.1, 'fit_ratio' => 0.2]);
         self::assertStringContainsString('zu wenige Monate gemessen sind', $three);
-        self::assertStringContainsString('Faktor 2,1', $three);
+        // v3.9.0 (L3) — in Worten statt „Faktor 2,1, gerechnet mit 1,5“
+        self::assertStringContainsString('rund 2,1-mal so viel', $three);
+        self::assertStringContainsString('1,5-Fachen', $three);
+        self::assertStringNotContainsString('Faktor', $three);
+        $low = $advice->uncertainWhy(['reasons' => ['factor_clamped'], 'factor' => 0.5, 'factor_raw' => 0.32]);
+        self::assertStringContainsString('nur rund ' . $advice->share(32) . ' der Erwartung', $low);
+        self::assertStringContainsString('bis ' . $advice->share(50), $low);
         self::assertStringContainsString('das Heizmodell schlecht zu diesem Zähler passt', $three);
     }
 

@@ -2769,7 +2769,8 @@
     "annualNoBand": "Year: {value} {unit} — without a band, because the heating model fits poorly.",
     "annualNoBandFew": "Year: {value} {unit} — without a band, because too few months are measured to check the heating model.",
     "annualNoBandYears": "Year: {value} {unit} — without a band: how much a month varies from year to year only shows with measurements from more than one year.",
-    "annualBandSpread": "Year: {value} {unit}, in {level}% of years between {low} and {high} {unit} — from how the months varied over the years."
+    "annualBandSpread": "Year: {value} {unit}, in {level}% of years between {low} and {high} {unit} — from how the months varied over the years.",
+    "blendPoorFit": "the heating model fits poorly, so every month uses the seasonal profile"
   },
   "report": {
     "createdOn": "Created on {date}",
@@ -3127,7 +3128,9 @@
       },
       "readings": {
         "title": "Meter readings due",
-        "reason": "Last reading on {date}: {meters}."
+        "reason": "Last reading on {date}: {meters}.",
+        "reasonEach": "Last reading per meter: {meters}.",
+        "none": "none yet"
       },
       "bill": {
         "title": "Bill check: {label}",
@@ -6645,7 +6648,15 @@
     "legendPv": "≈ interpolated, not measured: how these months’ solar power splits up is estimated.",
     "chartNote": "Hatched bars: interpolated, not measured.",
     "markTitleEstimated": "Interpolated, not measured: from {gap} days between two readings, with an estimated reading as a support point",
-    "whyEstimated": "Where an estimated reading lies in between, each side of it has its own daily rate."
+    "whyEstimated": "Where an estimated reading lies in between, each side of it has its own daily rate.",
+    "readingsYearEst": {
+      "one": "{count} reading and {estimates} in {year}",
+      "other": "{count} readings and {estimates} in {year}"
+    },
+    "estimates": {
+      "one": "{count} estimate",
+      "other": "{count} estimates"
+    }
   },
   "balanceUncertain": {
     "range": "Bill on {date} uncertain: between {low} and {high}, because {why}.",
@@ -6655,11 +6666,12 @@
     "credit": "{amount} credit",
     "light": "{label}: uncertain, between {low} and {high}",
     "why": {
-      "factor_clamped": "the latest measured months lie far from the expectation (factor {raw}, calculated with {used})",
+      "factor_clamped": "the latest measured months used about {raw} times the expected amount; the estimate follows that only up to {used} times",
       "poor_fit": "the heating model fits this meter poorly (± {pct} a month)",
       "both": "{a} and {b}",
       "few_measured": "too few months are measured to check the heating model",
-      "three": "{a}, {b} and {c}"
+      "three": "{a}, {b} and {c}",
+      "factorLow": "the latest measured months used only about {raw} of the expected amount; the estimate follows that only down to {used}"
     },
     "short": "{low} to {high}",
     "verdict": "uncertain"

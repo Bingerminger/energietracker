@@ -2769,7 +2769,8 @@
     "annualNoBand": "Année : {value} {unit} — sans fourchette, car le modèle de chauffage correspond mal.",
     "annualNoBandFew": "Année : {value} {unit} — sans fourchette, car trop peu de mois sont mesurés pour vérifier le modèle de chauffage.",
     "annualNoBandYears": "Année : {value} {unit} — sans fourchette : l’écart d’un mois d’une année à l’autre n’apparaît qu’avec des mesures sur plus d’une année.",
-    "annualBandSpread": "Année : {value} {unit}, dans {level} % des années entre {low} et {high} {unit} — d’après la dispersion des mois au fil des années."
+    "annualBandSpread": "Année : {value} {unit}, dans {level} % des années entre {low} et {high} {unit} — d’après la dispersion des mois au fil des années.",
+    "blendPoorFit": "le modèle de chauffage est peu adapté, chaque mois utilise donc le profil saisonnier"
   },
   "report": {
     "createdOn": "Créé le {date}",
@@ -3127,7 +3128,9 @@
       },
       "readings": {
         "title": "Relever les compteurs",
-        "reason": "Dernier relevé le {date} : {meters}."
+        "reason": "Dernier relevé le {date} : {meters}.",
+        "reasonEach": "Dernier relevé par compteur : {meters}.",
+        "none": "aucun pour l’instant"
       },
       "bill": {
         "title": "Vérifier la facture : {label}",
@@ -6645,7 +6648,15 @@
     "legendPv": "≈ réparti, pas mesuré : la répartition de l’électricité solaire de ces mois est estimée.",
     "chartNote": "Barres hachurées : réparties, pas mesurées.",
     "markTitleEstimated": "Réparti, pas mesuré : issu de {gap} jours entre deux relevés, avec un relevé estimé comme point d’appui",
-    "whyEstimated": "Lorsqu’un relevé estimé se trouve entre les deux, chaque côté a son propre taux journalier."
+    "whyEstimated": "Lorsqu’un relevé estimé se trouve entre les deux, chaque côté a son propre taux journalier.",
+    "readingsYearEst": {
+      "one": "{count} relevé et {estimates} en {year}",
+      "other": "{count} relevés et {estimates} en {year}"
+    },
+    "estimates": {
+      "one": "{count} estimation",
+      "other": "{count} estimations"
+    }
   },
   "balanceUncertain": {
     "range": "Décompte du {date} incertain : entre {low} et {high}, parce que {why}.",
@@ -6655,11 +6666,12 @@
     "credit": "avoir d’{amount}",
     "light": "{label} : incertain, entre {low} et {high}",
     "why": {
-      "factor_clamped": "les derniers mois mesurés s’écartent fortement de l’attendu (facteur {raw}, calculé avec {used})",
+      "factor_clamped": "les derniers mois mesurés ont consommé environ {raw} fois la valeur attendue ; l’estimation ne suit que jusqu’à {used} fois",
       "poor_fit": "le modèle de chauffage correspond mal à ce compteur (± {pct} par mois)",
       "both": "{a} et {b}",
       "few_measured": "trop peu de mois sont mesurés pour vérifier le modèle de chauffage",
-      "three": "{a}, {b} et {c}"
+      "three": "{a}, {b} et {c}",
+      "factorLow": "les derniers mois mesurés n’ont consommé qu’environ {raw} de la valeur attendue ; l’estimation ne descend que jusqu’à {used}"
     },
     "short": "{low} à {high}",
     "verdict": "incertain"

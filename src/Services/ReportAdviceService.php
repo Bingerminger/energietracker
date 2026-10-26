@@ -564,12 +564,25 @@ final class ReportAdviceService
                 null, $date, [], true);
         }
         if ($readings !== []) {
-            $names = array_values(array_unique(array_map(fn($e) => (string)($e['params']['meter'] ?? $e['title']), $readings)));
-            $last = array_filter(array_map(fn($e) => $e['ref']['last_reading'] ?? null, $readings));
+            // v3.9.0 (L11) — je Zähler sein Datum: ein gemeinsames „am …“ galt nur für den ältesten
+            $byMeter = [];
+            foreach ($readings as $e) {
+                $name = (string)($e['params']['meter'] ?? $e['title']);
+                $last = $e['ref']['last_reading'] ?? null;
+                if (!array_key_exists($name, $byMeter) || ($last !== null && ($byMeter[$name] === null || $last < $byMeter[$name]))) $byMeter[$name] = $last;
+            }
+            uksort($byMeter, fn($a, $b) => [$byMeter[$a] ?? '', $a] <=> [$byMeter[$b] ?? '', $b]);
+            $dates = array_unique(array_map(fn($d) => (string)$d, $byMeter));
+            if (count($dates) === 1 && $byMeter[array_key_first($byMeter)] !== null) {
+                $reason = 'report.advice.readings.reason';
+                $params = ['meters' => implode(', ', array_keys($byMeter)), 'date' => $this->i18n->date((string)reset($byMeter))];
+            } else {
+                $reason = 'report.advice.readings.reasonEach';
+                $params = ['meters' => implode(', ', array_map(fn($n, $d) => $n . ' (' . ($d !== null ? $this->i18n->date((string)$d)
+                    : $this->i18n->t('report.advice.readings.none')) . ')', array_keys($byMeter), $byMeter))];
+            }
             $out[] = $this->task('readings', null, 'readings', 'report.advice.readings.title', [],
-                'report.advice.readings.reason', ['meters' => implode(', ', $names),
-                    'date' => $last !== [] ? $this->i18n->date((string)min($last)) : '–'],
-                null, $today, [], true);
+                $reason, $params, null, $today, [], true);
         }
         return $out;
     }
@@ -707,8 +720,13 @@ final class ReportAdviceService
         $parts = [];
         foreach ((array)($unc['reasons'] ?? []) as $r) {
             $parts[] = match ($r) {
-                'factor_clamped' => $this->i18n->t('balanceUncertain.why.factor_clamped', ['raw' => $this->i18n->number((float)($unc['factor_raw'] ?? 0), 2),
-                    'used' => $this->i18n->number((float)($unc['factor'] ?? 0), 2)]),
+                // v3.9.0 (L3) — in Worten: wie viel die letzten Monate gegen die Erwartung
+                // brauchten und wie weit die Schätzung dem folgt (bis v3.8 „Faktor 9,81, gerechnet mit 1,50“)
+                'factor_clamped' => (float)($unc['factor_raw'] ?? 0) >= (float)($unc['factor'] ?? 0)
+                    ? $this->i18n->t('balanceUncertain.why.factor_clamped', ['raw' => $this->i18n->number((float)($unc['factor_raw'] ?? 0), 1),
+                        'used' => $this->i18n->number((float)($unc['factor'] ?? 0), 1)])
+                    : $this->i18n->t('balanceUncertain.why.factorLow', ['raw' => $this->share((float)($unc['factor_raw'] ?? 0) * 100),
+                        'used' => $this->share((float)($unc['factor'] ?? 0) * 100)]),
                 'few_measured' => $this->i18n->t('balanceUncertain.why.few_measured'),
                 default => $this->i18n->t('balanceUncertain.why.poor_fit', ['pct' => $this->share((float)($unc['fit_ratio'] ?? 0) * 100)]),
             };

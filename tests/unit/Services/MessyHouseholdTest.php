@@ -35,6 +35,7 @@ final class MessyHouseholdTest extends ServiceTestCase
         '2023-07', '2023-08',              // 3.7. → 29.8. (57 Tage)
         '2024-01', '2024-02',              // 30.12. → 2.3., dazwischen nur die geschätzte am 10.2.
         '2024-09', '2024-10', '2024-11',   // Herbst: 7.9. → 19.12. (103 Tage)
+        '2024-12',                         // v3.9.0 (L8) — 18 von 31 Tagen aus demselben Abstand
         '2025-06', '2025-07', '2025-08',   // Sommerpause: 3.6. → 2.9.
     ];
 
@@ -113,6 +114,12 @@ final class MessyHouseholdTest extends ServiceTestCase
         self::assertSame(self::GAS_INTERPOLATED, self::interpolatedYms($gas));
         $by = array_column($gas, null, 'ym');
         self::assertFalse($by['2023-11']['interpolated'], 'zwei Ablesungen im Monat: gemessen');
+        // v3.9.0 (L8) — Dezember 2024: 1.–18.12. aus dem 103-Tage-Abstand, 19.–31.12. gemessen (13 von 31 Tagen).
+        // Nach Verbrauch zählte der gemessene Teil mehr (die verteilte Tagesrate nimmt den milden Herbst mit),
+        // nach Tagen stammt der Monat überwiegend aus dem langen Abstand: verteilt
+        self::assertEqualsWithDelta(13 / 31, $by['2024-12']['measured_day_share'], 0.001);
+        self::assertGreaterThan(0.5, $by['2024-12']['measured_share'], 'nach Verbrauch allein wäre er „gemessen“ (bis v3.8)');
+        self::assertTrue($by['2024-12']['interpolated']);
         self::assertTrue($by['2025-02']['device_swap'] && !$by['2025-02']['interpolated'], 'Tausch-Monat: gemessen, eigene Kennung');
         // Strom einmal im Jahr, PV-Erzeugung zweimal: jeder Monat verteilt; Einspeisung monatlich: keiner
         foreach (['strom', 'pv_erzeugung'] as $u) {
@@ -189,6 +196,9 @@ final class MessyHouseholdTest extends ServiceTestCase
         }
         $info = $this->consumption->interpolationInfo('strom', $this->meter('strom'), $this->monthly('strom'));
         self::assertSame(count($this->h['utilities']['strom']['readings']), $info['readings']);
+        // v3.9.0 (L10) — 2024: 8 Ablesungen und 1 Schätzung (10.02.) = die 9 Einträge der Liste
+        $g = $this->consumption->interpolationInfo('gas', $this->meter('gas'), $gas);
+        self::assertSame([8, 1], [$g['readings_by_year']->{'2024'}, $g['estimated_by_year']->{'2024'}]);
     }
 
     /** Saldo und Kosten: gleich der Summe zwischen den Ablesungen, verteilt oder nicht. */

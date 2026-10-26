@@ -897,10 +897,14 @@ function renderResult(u, result, container) {
   // v2.13.0 (Review UI-17) — Modellname übersetzt statt Schlüssel („linear", „seasonal_only")
   const modelKey = u.hgt_relevant ? (reg?.model || 'linear') : 'seasonal_only';
   const modelName = modelKey === 'seasonal_only' ? t('forecast.models.seasonalOnly') : t(`forecast.models.${modelKey}`);
+  // v3.9.0 (L4) — der wirksame Anteil der Heizkurve (Server `blend_effective`); rechnet kein
+  // Monat mit ihr (Gütesperre, Sommer), kein R² daneben, sondern der Grund
+  const blendEff = result.blend_effective ?? result.blend_weight;
+  const poorFit = result.fit_quality?.model_quality === 'poor';
   const lines = [t('forecast.info', {
     model: escapeHtml(modelName === `forecast.models.${modelKey}` ? modelKey : modelName),
-    blend: fmt.num(result.blend_weight * 100, 1),
-    r2: reg ? ` (${t('forecast.r2Label')} ${fmt.num(reg.r2, 3)})` : '',
+    blend: fmt.num(blendEff * 100, 1),
+    r2: reg && blendEff > 0 ? ` (${t('forecast.r2Label')} ${fmt.num(reg.r2, 3)})` : (reg && poorFit ? ` (${t('forecast.blendPoorFit')})` : ''),
     price: fmt.num(result.last_price_ct, 3),
     unit: u.consumption_unit,
   })];
