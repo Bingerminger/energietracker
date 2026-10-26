@@ -4029,7 +4029,7 @@ braucht den Satz des Vertragspreises: aus einem Dokument am Vertrag
 Preises oder im Feld `vat_pct`) oder aus derselben Rechnung. Saldo und Prognose
 rechnen weiter mit den Bruttopreisen des Vertrags. Hilfsfelder (`basis`,
 `vat_pct`, `base_price_basis`, `base_price_vat_pct`, `vat_pct` der Bestätigung)
-markieren nie. Die Auslesung trägt `schema_version` **4**; an dieser Version
+markieren nie. Die Auslesung trägt `schema_version` **5**; an dieser Version
 hängt der Zwischenspeicher. Ein Dokument, das mit einer älteren Version
 ausgelesen ist, behält seine Auslesung, bis du es neu ausliest: Netto erkennt
 die App dort aus dem Zitat, nach den neuen Feldern fragt erst das neue Auslesen

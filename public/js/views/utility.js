@@ -35,6 +35,7 @@ import { paginate, pagerHtml, wirePager, pageSize, PAGER_THRESHOLD } from '../co
 import { lastClosedPeriod, periodToCheck, calendarYearOf, periodMode, billingApplies, periodName, periodsWithData, pickPeriod, periodRows, refMonth } from '../lib/billing-period.js';
 import { periodModeHtml, wirePeriodMode, calendarOnlyNote } from '../components/period-mode.js';
 import { bonusOf, bonusItemsOf, bonusLineText } from '../lib/bonus.js';   // v3.7.0 (#33)
+import { advanceAmountText } from '../lib/advance-rhythm.js';   // v3.9.0 (F1034) — Abschlag mit Rhythmus
 
 let _chart = null;
 let _stockChart = null;   // v2.10.0 — Bestandsverlauf (Tankbuch)
@@ -772,7 +773,8 @@ function balanceCard(c, u, country = 'DE') {
     ? t('utility.balance.unitWorkingWater', { value: fmt.num(c.current_working_price_ct, 4) })
     : t('utility.balance.unitWorking', { value: fmt.num(c.current_working_price_ct, 4) }));
   if (c.current_base_price_eur   != null) tariffParts.push(t('utility.balance.unitBase', { value: fmt.num(c.current_base_price_eur, 2) }));
-  if (c.current_advance_amount   != null) tariffParts.push(t('utility.balance.unitAdvance', { value: fmt.eur(c.current_advance_amount) }));
+  // v3.9.0 (F1034) — Abschlag mit Rhythmus („165,00 € alle 2 Monate“), monatlich wie bisher
+  if (c.current_advance_amount   != null) tariffParts.push(t('utility.balance.unitAdvance', { value: advanceAmountText(c.current_advance_amount, c.current_advance_every_months) }));
   const tariffText = tariffParts.length ? tariffParts.join(' · ') : t('utility.balance.noTariff');
 
   const consumedSub = isWater
@@ -861,7 +863,9 @@ function balanceCard(c, u, country = 'DE') {
         <div>
           <div class="balance-col__label">${isFeedIn ? t('utility.balance.colPaidFeedIn') : t('utility.balance.colPaid')}</div>
           <div class="balance-col__value">${isFeedIn ? '–' : fmt.eur(c.advance_paid)}</div>
-          <div class="balance-col__sub">${isFeedIn ? t('utility.balance.paidViaGrid') : (c.current_advance_amount != null ? t('utility.balance.paidCurrent', { value: fmt.eur(c.current_advance_amount) }) : t('utility.balance.paidCurrentNone'))}</div>
+          <div class="balance-col__sub">${isFeedIn ? t('utility.balance.paidViaGrid') : (c.current_advance_amount != null ? (Number(c.current_advance_every_months) > 1
+            ? t('utility.balance.paidCurrentEvery', { value: advanceAmountText(c.current_advance_amount, c.current_advance_every_months) })
+            : t('utility.balance.paidCurrent', { value: fmt.eur(c.current_advance_amount) })) : t('utility.balance.paidCurrentNone'))}</div>
           ${!isFeedIn && specialHtml ? `<div class="balance-col__sub" style="margin-top:6px">${tp('utility.balance.specialCount', spCount)}</div>${specialHtml}` : ''}
         </div>
         <div>
@@ -1123,7 +1127,7 @@ function contractsTable(contracts, u) {
         <td class="period-cell">${period}</td>
         <td>${phasePill(c)}</td>
         <td class="num muted" style="font-size:11px">${tariffStr}</td>
-        <td class="num">${c.current_advance_amount != null ? fmt.eur(c.current_advance_amount) : '–'}</td>
+        <td class="num">${c.current_advance_amount != null ? escapeHtml(advanceAmountText(c.current_advance_amount, c.current_advance_every_months)) : '–'}</td>
         <td class="num">${fmt.eur(c.cost_to_date ?? c.actual_cost)}</td>
         <td class="num">${fmt.eur(c.advance_paid)}</td>
         <td class="num success-text">${bonusStr}</td>

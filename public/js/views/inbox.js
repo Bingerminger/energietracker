@@ -33,6 +33,7 @@ import {
   openCount, TYPES, typeLabel, statusLabel, fieldLabel, reasonText, valueText, itemText,
   proposalText, detailText, orderedFields, manualTargets,
   gistText, gistFigure, gistActionLabel, gistDetails,
+  proposalLines,   // v3.9.0 (F1034) — Aufschlüsselung der Preise im Vorschlag
 } from '../lib/inbox.js';
 import { openDocDock } from '../components/doc-dock.js';
 import { draftEntryHtml } from '../lib/inbox-draft.js';   // v3.7.0 (Haushalt aus Dokumenten)
@@ -658,6 +659,7 @@ function proposalsHtml(pv, unit) {
           <span class="badge ${{ new: 'badge--info', exists: 'badge--success', conflict: 'badge--danger', overlap: 'badge--warning' }[p.status] || ''}">${esc(t('inbox.pstatus.' + p.status))}</span>
           ${p.check ? `<span class="badge badge--warning">${esc(t('inbox.pstatus.check'))}</span>` : ''}
           ${detail ? `<p class="inbox-proposal__detail">${esc(detail)}</p>` : ''}
+          ${proposalLines(p).length ? `<ul class="inbox-proposal__lines" data-role="lines">${proposalLines(p).map(l => `<li>${esc(l)}</li>`).join('')}</ul>` : ''}
           ${proposalNotes(p).map(n => `<p class="inbox-proposal__detail" data-role="note">${esc(n)}</p>`).join('')}
         </li>`;
       }).join('')}</ul>

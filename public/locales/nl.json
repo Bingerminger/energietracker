@@ -501,7 +501,8 @@
         "one": "{count} bijzondere betaling",
         "other": "{count} bijzondere betalingen"
       },
-      "sinceBill": "Gerekend vanaf {date}: de afrekening daarvoor is in het contract geboekt en telt hier niet meer mee."
+      "sinceBill": "Gerekend vanaf {date}: de afrekening daarvoor is in het contract geboekt en telt hier niet meer mee.",
+      "paidCurrentEvery": "nu: {value}"
     },
     "contractsTable": {
       "emptyTitle": "Geen contracten geregistreerd",
@@ -802,13 +803,15 @@
       "advance": "Voorschot",
       "twWorking": "Eenheidsprijs drinkwater",
       "twBase": "Vastrecht drinkwater",
-      "swWorking": "Eenheidsprijs afvalwater"
+      "swWorking": "Eenheidsprijs afvalwater",
+      "swBase": "Vastrecht afvalwater"
     },
     "unit": {
       "ctPerKwh": "{minor}/kWh",
       "eurPerMonth": "{cur}/maand",
       "eurPerKwYear": "{cur}/kW per jaar",
-      "eurPerYear": "{cur}/jaar"
+      "eurPerYear": "{cur}/jaar",
+      "eurPerDue": "{cur} per vervaldatum"
     },
     "loading": "Laden…",
     "unknown": "Onbekende verbruikssoort: {key}",
@@ -837,7 +840,8 @@
       "advanceValue": "Voorschot {value}/maand",
       "valuesOn": "per {date}",
       "noValues": "Nog geen prijzen ingevuld",
-      "since": "sinds {year}"
+      "since": "sinds {year}",
+      "advanceValueEvery": "Voorschot {value}"
     },
     "summary": {
       "twPrices": {
@@ -999,7 +1003,10 @@
       "startRequired": "Het begin van het contract is verplicht.",
       "basisDeduct": "drinkwater min aftrekmeters (bijv. tuin)",
       "deductMeters": "Aftrekmeters",
-      "deductHint": "Water dat via deze meters loopt (bijv. tuinwater) kost drinkwater, maar geen afvalwater. Houd de tuinmeter bij voorkeur bij als tussenmeter van de hoofdmeter, dan telt hij niet dubbel mee in de totalen."
+      "deductHint": "Water dat via deze meters loopt (bijv. tuinwater) kost drinkwater, maar geen afvalwater. Houd de tuinmeter bij voorkeur bij als tussenmeter van de hoofdmeter, dan telt hij niet dubbel mee in de totalen.",
+      "swBase": "Vastrecht afvalwater ({cur}/maand)",
+      "apPlan": "Voorschotplan",
+      "colEurDue": "{cur} per vervaldatum"
     },
     "perM3": {
       "toggleTitle": "Prijs per m³ omrekenen naar {minor}/kWh",
@@ -1086,6 +1093,11 @@
       "undated": "invoer zonder datum",
       "link": "Naar de instelling",
       "why": "De volumeherleidingsfactor en de calorische waarde hangen af van het afnamepunt (hoogte, druk) en van het gas in het net, niet van de leverancier: bij een overstap blijven ze gelijk, en elke gasafrekening noemt ze. Daarom staan ze één keer in de instellingen en gelden ze voor elk contract."
+    },
+    "advance": {
+      "every": "Ritme",
+      "monthly": "elke maand",
+      "dueDates": "Vervaldata volgens de rekening: {dates}, daarna elk jaar op dezelfde dagen"
     }
   },
   "meters": {
@@ -3503,7 +3515,9 @@
       "priceModelInvalid": "Onbekend prijsmodel ‘{value}’",
       "priceImportEmpty": "Het bestand bevat geen regel in het formaat maand;prijs",
       "priceImportUnsupported": "Maandprijzen bestaan alleen voor contracten met een eenheidsprijs per kWh",
-      "gridTouInvalid": "Tijdvensters module 3 ongeldig ({field}): kwartalen 1–4, tijden HH:MM met van vóór tot, prijzen 0–100 ct en een standaardtarief."
+      "gridTouInvalid": "Tijdvensters module 3 ongeldig ({field}): kwartalen 1–4, tijden HH:MM met van vóór tot, prijzen 0–100 ct en een standaardtarief.",
+      "advanceEveryInvalid": "Voorschot nr. {n}: ‘{value}’ is geen ritme. Mogelijk zijn elke maand, elke 2 en elke 3 maanden.",
+      "advanceDueBeforeStart": "Voorschot nr. {n}: de vervaldatum {date} ligt vóór de dag waarop de regel ingaat."
     },
     "delivery": {
       "notFound": "Levering niet gevonden: {id}",
@@ -3855,7 +3869,8 @@
     },
     "history": "Geschiedenis ({count})",
     "historyTitle": "Geschiedenis: {name}",
-    "anytime": "Altijd opzegbaar"
+    "anytime": "Altijd opzegbaar",
+    "advanceEvery": "Voorschot {amount}"
   },
   "billCheck": {
     "noMeter": "De controle rekent de jaarafrekening na voor gas, stroom, water en stadsverwarming. Maak eerst een meter aan.",
@@ -6000,7 +6015,10 @@
       "document_title": "Titel van het document",
       "meter_readings": "Meterstanden per meter",
       "reading_new_estimated": "Eindstand geschat",
-      "reading_old_estimated": "Beginstand geschat"
+      "reading_old_estimated": "Beginstand geschat",
+      "water_prices": "Waterprijzen",
+      "advance_new_dates": "Vervaldata van het nieuwe voorschot",
+      "advance_new_every": "Ritme van het nieuwe voorschot"
     },
     "reason": {
       "empty": "Ontbreekt, maar is nodig",
@@ -6036,14 +6054,28 @@
       "supplier": "Opzegging door de leverancier",
       "switch": "Einde door overstap",
       "net": "netto",
-      "gross": "bruto"
+      "gross": "bruto",
+      "trinkwasser": "Drinkwater",
+      "schmutzwasser": "Afvalwater",
+      "niederschlagswasser": "Regenwater",
+      "m3": "per m³",
+      "m2_year": "per m² per jaar",
+      "monthly": "elke maand",
+      "bimonthly": "elke twee maanden",
+      "quarterly": "elke drie maanden",
+      "energy": "Eenheidsprijs",
+      "energy_tax": "Energiebelasting",
+      "co2": "CO₂-prijs",
+      "other": "Toeslag"
     },
     "item": {
       "gasFactor": "{from} t/m {to}: volumeherleidingsfactor {z} × calorische waarde {hs} kWh/m³",
       "price": "vanaf {from}: {value}",
       "priceNet": "vanaf {from}: {value} netto + {vat}% btw = {gross}",
       "meterReading": "Meter {meter}: {from} → {to}",
-      "estimated": "geschat volgens de factuur"
+      "estimated": "geschat volgens de factuur",
+      "waterPrice": "{section} · {label} van {from} tot {to}: {price}",
+      "waterPriceNet": "{section} · {label} van {from} tot {to}: {price} netto + {vat}% btw = {gross}"
     },
     "result": {
       "due": "bijbetaling {amount}",
@@ -6072,7 +6104,11 @@
       "contractFromInvoice": "Contract {provider} vanaf {from} uit deze rekening aanmaken",
       "contractFromSupplyStart": "Contract {provider} vanaf {from} aanmaken",
       "meterSwapInvoice": "Meterwissel op {date}: eindstand {old_final} op meter {old_serial}, nieuwe meter {serial} met beginstand {new_initial}",
-      "readingEstimated": "Meterstand op {date}: {counter} (geschat volgens de factuur)"
+      "readingEstimated": "Meterstand op {date}: {counter} (geschat volgens de factuur)",
+      "contractSpanFromInvoice": "Contract {provider} van {from} tot {to} uit deze rekening aanmaken",
+      "waterWorking": "{section} vanaf {from}: {value} (uit de rekening)",
+      "waterBase": "Vastrecht {section} vanaf {from}: {value} per maand (uit de rekening)",
+      "waterRate": "{section} vanaf {from}: {value} per m² per jaar voor {area} m² (uit de rekening)"
     },
     "detail": {
       "reading": "Vastgelegd: {counter}.",
@@ -6271,6 +6307,22 @@
     },
     "wait": {
       "gaveUp": "Geen antwoord, ook niet na navragen. Het document wordt misschien nog klaar – open het zo opnieuw. Een langere tijdslimiet op de webserver helpt blijvend."
+    },
+    "unit": {
+      "perM3": "per m³",
+      "perYear": "per jaar",
+      "perMonth": "per maand",
+      "perM2Year": "per m² per jaar"
+    },
+    "line": {
+      "working": "{what} vanaf {from}: {value}",
+      "base": "Vastrecht {what} vanaf {from}: {value} per maand",
+      "baseOnly": "Vastrecht vanaf {from}: {value} per maand",
+      "rate": "{what} vanaf {from}: {value} per m² per jaar voor {area} m²",
+      "energy": "Eenheidsprijs",
+      "parts": "uit {parts}",
+      "net": "{value} netto + {vat}% btw",
+      "advance": "Voorschot vanaf {from}: {value} per vervaldatum"
     }
   },
   "inboxCloud": {
@@ -6623,6 +6675,16 @@
       "too_few_points": "te weinig datapunten ({n})",
       "poor_fit": "past niet (R² {r2})",
       "degenerate": "niet te berekenen (te weinig verschil in de waarden)"
+    }
+  },
+  "advance": {
+    "rhythm": {
+      "every": {
+        "one": "elke maand",
+        "other": "elke {count} maanden"
+      },
+      "everyDates": "{every}, op {dates}",
+      "dates": "op {dates}"
     }
   }
 }

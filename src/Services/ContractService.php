@@ -29,7 +29,8 @@ use Energietracker\Support\LocalizedException;
  *          basis: 'trinkwasser' | 'separater_zaehler' | 'trinkwasser_minus_abzug',
  *          separater_zaehler_meter_id: ?string,
  *          abzug_meter_ids: string[],   // v3.1.0 — Abzugszähler (Garten), nur bei trinkwasser_minus_abzug
- *          working_prices[{from,ct_per_m3}]
+ *          working_prices[{from,ct_per_m3}],
+ *          base_prices[{from,eur_per_month}]   // v3.9.0 (F1034) — Grundpreis Schmutzwasser, optional
  *      }
  *      niederschlagswasser: {
  *          rates[{from, eur_per_m2_year, versiegelte_flaeche_m2}]
@@ -39,6 +40,14 @@ use Energietracker\Support\LocalizedException;
  * or all empty (in which case they are dropped silently).
  *
  * Bonuses have credit_date (when the bonus hits the bank), not a "from".
+ *
+ * v3.9.0 (F1034) — Abschlagsplan mit Rhythmus, für jede Art mit Abschlägen:
+ * eine Zeile von `advance_payments` trägt optional `every_months` (2 oder 3:
+ * alle zwei bzw. drei Monate ab `from`; fehlt = monatlich wie bisher) oder
+ * `due_dates` (die Termine, die die Rechnung nennt; danach jährlich zu
+ * denselben Tagen). `amount_eur` ist dann der Betrag je Termin, nicht je
+ * Monat — er wird nie still in einen Monatsbetrag umgerechnet
+ * ({@see installments()}, {@see advanceParts()}).
  */
 final class ContractService
 {
@@ -415,7 +424,10 @@ final class ContractService
     {
         $this->validateMeta($c);
         foreach (self::FIELD_GROUPS_STANDARD as $group => [$dateKey, $amountKey]) {
-            $c[$group] = $this->normalizePriceList($c[$group] ?? [], $dateKey, $amountKey, $this->groupLabel($group));
+            // v3.9.0 (F1034) — Abschläge mit Rhythmus (every_months, due_dates)
+            $c[$group] = $group === 'advance_payments'
+                ? $this->normalizeAdvancePayments($c[$group] ?? [], $this->groupLabel($group))
+                : $this->normalizePriceList($c[$group] ?? [], $dateKey, $amountKey, $this->groupLabel($group));
         }
         $c['bonuses'] = $this->normalizeBonuses($c['bonuses'] ?? []);
         // F1003 — Sonderzahlungen
@@ -545,6 +557,15 @@ final class ContractService
         $sw['working_prices'] = $this->normalizePriceList(
             $sw['working_prices'] ?? [], 'from', 'ct_per_m3', $this->i18n->t('contracts.priceGroup.swWorking')
         );
+        // v3.9.0 (F1034) — Grundpreis auch für Schmutzwasser (Basis- und Bereitstellungspreis der
+        // Abwasserrechnung). Optional: Ein Vertrag ohne das Feld bleibt ohne (gelesen mit `?? []`),
+        // so rechnet der Bestand byte-gleich weiter
+        if (array_key_exists('base_prices', $sw)) {
+            $sw['base_prices'] = $this->normalizePriceList(
+                (array)($sw['base_prices'] ?? []), 'from', 'eur_per_month', $this->i18n->t('contracts.priceGroup.swBase')
+            );
+            if ($sw['base_prices'] === []) unset($sw['base_prices']);
+        }
         $c['schmutzwasser'] = $sw;
 
         // ── Niederschlagswasser ────────────────────────────────────
@@ -579,8 +600,9 @@ final class ContractService
         $c['niederschlagswasser'] = ['rates' => $cleanedRates];
 
         // ── Advance payments + bonuses (gleiche Logik wie Standard) ─
-        $c['advance_payments'] = $this->normalizePriceList(
-            $c['advance_payments'] ?? [], 'from', 'amount_eur', $this->i18n->t('contracts.priceGroup.advance')
+        // v3.9.0 (F1034) — mit Rhythmus (every_months, due_dates), wie beim Standardvertrag
+        $c['advance_payments'] = $this->normalizeAdvancePayments(
+            $c['advance_payments'] ?? [], $this->i18n->t('contracts.priceGroup.advance')
         );
         $c['bonuses'] = $this->normalizeBonuses($c['bonuses'] ?? []);
         // v3.5.0 (GitHub #34) — Sonderzahlungen wie beim Standardvertrag. Ein
@@ -1019,6 +1041,211 @@ final class ContractService
         return $cleaned;
     }
 
+    /** v3.9.0 (F1034) — erlaubter Rhythmus eines Abschlags in Monaten (1 = monatlich, wird nicht gespeichert). */
+    public const ADVANCE_EVERY = [1, 2, 3];
+
+    /**
+     * v3.9.0 (F1034) — Abschläge wie normalizePriceList (Datum und Betrag beide
+     * oder keins), dazu der Rhythmus der Zeile:
+     *   every_months  2 oder 3 (alle zwei bzw. drei Monate ab `from`); 1 heißt
+     *                 monatlich und fehlt dann, wie bei jedem Bestandsvertrag
+     *   due_dates     die genannten Termine, aufsteigend, keiner vor `from`;
+     *                 ohne every_months aus regelmäßigen Terminen abgeleitet
+     *                 (nur zur Anzeige, gerechnet wird mit den Terminen)
+     * Ein anderer Rhythmus oder ein ungültiger Termin ist ein Fehler, kein
+     * stiller Rückfall auf „monatlich“ (Lektion 4).
+     */
+    private function normalizeAdvancePayments(array $entries, string $label): array
+    {
+        $cleaned = [];
+        foreach ($entries as $i => $e) {
+            if (!is_array($e)) continue;
+            $n = $i + 1;
+            $date   = isset($e['from']) ? trim((string)$e['from']) : '';
+            $amount = $e['amount_eur'] ?? null;
+            $amountFilled = $amount !== null && $amount !== '' && $amount !== false;
+            if ($date === '' && !$amountFilled) continue; // silent drop
+            if (($date !== '') !== $amountFilled) {
+                $missing = $this->i18n->t($date !== '' ? 'errors.contract.fields.amount' : 'errors.contract.fields.date');
+                throw new \InvalidArgumentException(
+                    $this->i18n->t('errors.contract.entryMissing', ['label' => $label, 'n' => $n, 'field' => $missing])
+                );
+            }
+            $this->assertDate($date, $label . ' #' . $n);
+            $row = ['from' => $date, 'amount_eur' => $this->parseAmount($amount, $label, $n)];
+            $every = $e['every_months'] ?? null;
+            if ($every !== null && $every !== '' && $every !== false) {
+                if (!is_numeric($every) || (float)$every != (int)$every || !in_array((int)$every, self::ADVANCE_EVERY, true)) {
+                    throw new LocalizedException('errors.contract.advanceEveryInvalid', ['n' => $n, 'value' => is_scalar($every) ? (string)$every : ''], 'advance every');
+                }
+                if ((int)$every > 1) $row['every_months'] = (int)$every;
+            }
+            $dates = [];
+            foreach ((array)($e['due_dates'] ?? []) as $d) {
+                $d = trim((string)$d);
+                if ($d === '') continue;
+                $this->assertDate($d, $label . ' #' . $n);
+                if ($d < $date) throw new LocalizedException('errors.contract.advanceDueBeforeStart', ['n' => $n, 'date' => $d], 'advance due date');
+                $dates[$d] = true;
+            }
+            if ($dates !== []) {
+                $dates = array_map('strval', array_keys($dates));
+                sort($dates);
+                $row['due_dates'] = $dates;
+                $derived = self::rhythmOf($dates);
+                if (!isset($row['every_months']) && $derived !== null && $derived > 1) $row['every_months'] = $derived;
+            }
+            $cleaned[] = $row;
+        }
+        usort($cleaned, fn($a, $b) => strcmp($a['from'], $b['from']));
+        return $cleaned;
+    }
+
+    /**
+     * v3.9.0 (F1034) — Rhythmus regelmäßiger Termine in Monaten (gleicher Tag,
+     * am Monatsende geklemmt, gleicher Abstand), sonst null. Zwei Termine
+     * genügen; nur Abstände von einem bis zwölf Monaten.
+     *
+     * @param list<string> $dates aufsteigend
+     */
+    public static function rhythmOf(array $dates): ?int
+    {
+        if (count($dates) < 2) return null;
+        $months = fn(string $a, string $b): int => ((int)substr($b, 0, 4) - (int)substr($a, 0, 4)) * 12 + (int)substr($b, 5, 2) - (int)substr($a, 5, 2);
+        $n = $months($dates[0], $dates[1]);
+        if ($n < 1 || $n > 12) return null;
+        for ($i = 1; $i < count($dates); $i++) {
+            if ($months($dates[$i - 1], $dates[$i]) !== $n || self::addMonthsClamped($dates[$i - 1], $n) !== $dates[$i]) return null;
+        }
+        return $n;
+    }
+
+    /** Tag plus N Monate über den Monatsersten, Tag auf das Monatsende geklemmt (Lektion 26). */
+    public static function addMonthsClamped(string $date, int $months): string
+    {
+        $d = new \DateTimeImmutable($date);
+        $target = $d->modify('first day of this month')->modify(($months >= 0 ? '+' : '') . $months . ' months');
+        $day = min((int)$d->format('j'), (int)$target->format('t'));
+        return $target->setDate((int)$target->format('Y'), (int)$target->format('n'), $day)->format('Y-m-d');
+    }
+
+    /** v3.9.0 (F1034) — Hat die Zeile eines Abschlagsplans einen Rhythmus (nicht monatlich)? */
+    public static function hasRhythm(array $row): bool
+    {
+        return (int)($row['every_months'] ?? 1) > 1 || !empty($row['due_dates']);
+    }
+
+    /** Rhythmus einer Zeile zur Anzeige: every_months, sonst 1. */
+    public static function everyMonths(?array $row): int
+    {
+        return $row === null ? 1 : max(1, (int)($row['every_months'] ?? 1));
+    }
+
+    /**
+     * Die Zeile eines Plans, die an einem Tag gilt — dieselbe Wahl wie
+     * valueOnDate(): der letzte Eintrag mit `from` ≤ Tag, bei gleichem Tag der
+     * spätere in der Liste.
+     */
+    public static function planRowOn(array $plan, string $date): ?array
+    {
+        $row = null; $best = '';
+        foreach ($plan as $e) {
+            $from = (string)($e['from'] ?? '');
+            if ($from === '' || $from > $date || !isset($e['amount_eur']) || !is_numeric($e['amount_eur'])) continue;
+            if ($from >= $best) { $best = $from; $row = $e; }
+        }
+        return $row;
+    }
+
+    /**
+     * v3.9.0 (F1034) — Termine der Zeilen mit Rhythmus in [von, bis): je Zeile
+     * ab ihrem `from` bis vor die nächste Zeile, alle N Monate (`every_months`,
+     * Tag wie `from`, am Monatsende geklemmt) bzw. an ihren `due_dates` und
+     * danach jährlich zu denselben Tagen: Die Rechnung nennt die Termine eines
+     * Abrechnungsjahrs (etwa fünf, weil die sechste Rate die nächste Rechnung
+     * ist); ohne neuen Plan geht es im selben Takt weiter.
+     *
+     * @param array<int,array<string,mixed>> $plan Abschlagsplan (effectiveAdvanceSchedule)
+     * @return list<array{date:string, amount_eur:float}>
+     */
+    public static function installments(array $plan, string $from, string $toExcl): array
+    {
+        $rows = array_values(array_filter($plan, fn($r) => is_array($r) && isset($r['from'], $r['amount_eur']) && is_numeric($r['amount_eur'])));
+        usort($rows, fn($a, $b) => strcmp((string)$a['from'], (string)$b['from']));
+        $out = [];
+        foreach ($rows as $i => $r) {
+            if (!self::hasRhythm($r)) continue;
+            $start = (string)$r['from'];
+            $until = isset($rows[$i + 1]) ? (string)$rows[$i + 1]['from'] : '9999-12-31';
+            $lo = max($start, $from);
+            $hi = min($until, $toExcl);
+            if ($lo >= $hi) continue;
+            $dates = [];
+            $listed = array_values(array_filter(array_map('strval', (array)($r['due_dates'] ?? [])), fn($d) => $d >= $start));
+            if ($listed !== []) {
+                $last = max($listed);
+                foreach ($listed as $d) {
+                    for ($k = 0; $k <= 100; $k++) {
+                        $x = $k === 0 ? $d : self::addMonthsClamped($d, 12 * $k);
+                        if ($x >= $hi) break;
+                        if ($k > 0 && $x <= $last) continue;
+                        if ($x >= $lo) $dates[$x] = true;
+                    }
+                }
+            } else {
+                $every = self::everyMonths($r);
+                for ($k = 0; $k <= 1200; $k++) {
+                    $x = self::addMonthsClamped($start, $k * $every);
+                    if ($x >= $hi) break;
+                    if ($x >= $lo) $dates[$x] = true;
+                }
+            }
+            foreach (array_keys($dates) as $d) $out[] = ['date' => (string)$d, 'amount_eur' => (float)$r['amount_eur']];
+        }
+        usort($out, fn($a, $b) => strcmp($a['date'], $b['date']));
+        return $out;
+    }
+
+    /**
+     * v3.9.0 (F1034) — Abschlag eines Abschnitts [von, bis) eines Monats, eine
+     * Rechnung für Saldo, Monatszeilen und Prognose:
+     *   monthly  der Monatsbetrag der Zeile, die am ersten Tag `$apDate` gilt,
+     *            mal `$share` (der Anteil, den der Aufrufer wie bisher rechnet)
+     *            — nur, wenn diese Zeile monatlich ist; beginnt im Abschnitt
+     *            eine Zeile mit Rhythmus, nur bis zu deren Beginn
+     *   rates    die Raten der Zeilen mit Rhythmus, die im Abschnitt fällig
+     *            sind, ganz an ihrem Tag (installments())
+     *   planned  gilt überhaupt ein Plan (sonst ist der Abschlag null, nicht 0)
+     * Ohne Zeilen mit Rhythmus ist `monthly` genau der bisherige Wert.
+     *
+     * @param array<int,array<string,mixed>> $plan
+     * @return array{monthly: ?float, rates: list<array{date:string, amount_eur:float}>, planned: bool}
+     */
+    public static function advanceParts(array $plan, string $apDate, string $from, string $toExcl, float $share, int $dim): array
+    {
+        $row = self::planRowOn($plan, $apDate);
+        $monthly = null;
+        if ($row !== null && !self::hasRhythm($row)) {
+            $cut = null;
+            foreach ($plan as $r) {
+                $f = (string)($r['from'] ?? '');
+                if (is_array($r) && self::hasRhythm($r) && $f > $apDate && $f < $toExcl && ($cut === null || $f < $cut)) $cut = $f;
+            }
+            if ($cut !== null) $share = min($share, max(0, (int)round((strtotime($cut) - strtotime(max($from, $apDate))) / 86400)) / max(1, $dim));
+            $monthly = (float)$row['amount_eur'] * $share;
+        }
+        $rates = self::installments($plan, $from, $toExcl);
+        return ['monthly' => $monthly, 'rates' => $rates, 'planned' => $row !== null || $rates !== []];
+    }
+
+    /** advanceParts() als Betrag: Monatsanteil plus Raten, null ohne Plan. */
+    public static function advanceIn(array $plan, string $apDate, string $from, string $toExcl, float $share, int $dim): ?float
+    {
+        $p = self::advanceParts($plan, $apDate, $from, $toExcl, $share, $dim);
+        if (!$p['planned']) return null;
+        return ($p['monthly'] ?? 0.0) + array_sum(array_column($p['rates'], 'amount_eur'));
+    }
+
     private function normalizeBonuses(array $bonuses): array
     {
         $cleaned = [];
@@ -1195,9 +1422,10 @@ final class ContractService
                 $schedule[] = [
                     'from'       => (string)$e['from'],
                     'amount_eur' => (float)$e['amount_eur'],
-                ];
+                ] + self::rhythmFields($e);   // v3.9.0 (F1034) — Rhythmus der Zeile, nur wenn gesetzt
             }
         }
+        $base = $schedule;
         foreach ($contract['special_payments'] ?? [] as $sp) {
             if (!in_array($sp['kind'] ?? '', self::SPECIAL_KINDS_AFFECTING_ADVANCE, true)) {
                 continue;
@@ -1205,13 +1433,24 @@ final class ContractService
             $from = $sp['advance_from']    ?? null;
             $amt  = $sp['new_advance_eur'] ?? null;
             if ($from === null || $from === '' || $amt === null) continue;
+            // v3.9.0 (F1034) — der neue Betrag gilt im Takt des Plans, der dann läuft
+            // (alle zwei Monate bleibt alle zwei Monate), nicht still monatlich
             $schedule[] = [
                 'from'       => (string)$from,
                 'amount_eur' => (float)$amt,
-            ];
+            ] + self::rhythmFields(self::planRowOn($base, (string)$from) ?? []);
         }
         usort($schedule, fn($a, $b) => strcmp($a['from'], $b['from']));
         return $schedule;
+    }
+
+    /** v3.9.0 (F1034) — die Rhythmusfelder einer Abschlagszeile (leer = monatlich). */
+    private static function rhythmFields(array $row): array
+    {
+        $out = [];
+        if ((int)($row['every_months'] ?? 1) > 1) $out['every_months'] = (int)$row['every_months'];
+        if (!empty($row['due_dates']) && is_array($row['due_dates'])) $out['due_dates'] = array_values(array_map('strval', $row['due_dates']));
+        return $out;
     }
 
     /**
@@ -1492,13 +1731,19 @@ final class ContractService
         if ($start !== '' && $date < $start) $date = $start;
         if ($end !== '' && $date > $end) $date = $end;
         $water = is_array($c['trinkwasser'] ?? null);
+        $base = $this->valueOnDate((array)($water ? ($c['trinkwasser']['base_prices'] ?? []) : ($c['base_prices'] ?? [])), 'eur_per_month', $date);
+        // v3.9.0 (F1034) — Wasser: der Grundpreis des Schmutzwassers kommt dazu (fehlt er, wie bisher)
+        $swBase = $water ? $this->valueOnDate((array)($c['schmutzwasser']['base_prices'] ?? []), 'eur_per_month', $date) : null;
+        if ($swBase !== null) $base = ($base ?? 0.0) + $swBase;
+        $plan = $this->effectiveAdvanceSchedule($c);
+        $every = self::everyMonths(self::planRowOn($plan, $date));
         return [
             'date'             => $date,
             'working_price_ct' => $water ? $this->valueOnDate((array)($c['trinkwasser']['working_prices'] ?? []), 'ct_per_m3', $date)
                                          : $this->valueOnDate((array)($c['working_prices'] ?? []), 'ct_per_kwh', $date),
-            'base_price_eur'   => $this->valueOnDate((array)($water ? ($c['trinkwasser']['base_prices'] ?? []) : ($c['base_prices'] ?? [])), 'eur_per_month', $date),
-            'advance_eur'      => $this->valueOnDate($this->effectiveAdvanceSchedule($c), 'amount_eur', $date),
-        ];
+            'base_price_eur'   => $base,
+            'advance_eur'      => $this->valueOnDate($plan, 'amount_eur', $date),
+        ] + ($every > 1 ? ['advance_every_months' => $every] : []);   // v3.9.0 (F1034) — Rhythmus, nur wenn nicht monatlich (additiv)
     }
 
     /**

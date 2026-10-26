@@ -501,7 +501,8 @@
         "one": "{count} paiement exceptionnel",
         "other": "{count} paiements exceptionnels"
       },
-      "sinceBill": "Calculé à partir du {date} : la facture précédente est comptabilisée dans le contrat et n’entre plus en compte ici."
+      "sinceBill": "Calculé à partir du {date} : la facture précédente est comptabilisée dans le contrat et n’entre plus en compte ici.",
+      "paidCurrentEvery": "actuel : {value}"
     },
     "contractsTable": {
       "emptyTitle": "Aucun contrat enregistré",
@@ -802,13 +803,15 @@
       "advance": "Acompte",
       "twWorking": "Prix unitaire eau potable",
       "twBase": "Abonnement eau potable",
-      "swWorking": "Prix unitaire assainissement"
+      "swWorking": "Prix unitaire assainissement",
+      "swBase": "Abonnement eau usée"
     },
     "unit": {
       "ctPerKwh": "{minor}/kWh",
       "eurPerMonth": "{cur}/mois",
       "eurPerKwYear": "{cur}/kW par an",
-      "eurPerYear": "{cur}/an"
+      "eurPerYear": "{cur}/an",
+      "eurPerDue": "{cur} par échéance"
     },
     "loading": "Chargement…",
     "unknown": "Type de consommation inconnu : {key}",
@@ -837,7 +840,8 @@
       "advanceValue": "Acompte {value}/mois",
       "valuesOn": "au {date}",
       "noValues": "Aucun prix saisi pour l’instant",
-      "since": "depuis {year}"
+      "since": "depuis {year}",
+      "advanceValueEvery": "Acompte {value}"
     },
     "summary": {
       "twPrices": {
@@ -999,7 +1003,10 @@
       "startRequired": "Le début du contrat est obligatoire.",
       "basisDeduct": "eau potable moins compteurs de déduction (p. ex. jardin)",
       "deductMeters": "Compteurs de déduction",
-      "deductHint": "L’eau qui passe par ces compteurs (p. ex. l’eau du jardin) coûte de l’eau potable, mais pas d’eau usée. Idéalement, gérez le compteur du jardin comme sous-compteur du compteur principal : il n’est alors pas compté deux fois dans les totaux."
+      "deductHint": "L’eau qui passe par ces compteurs (p. ex. l’eau du jardin) coûte de l’eau potable, mais pas d’eau usée. Idéalement, gérez le compteur du jardin comme sous-compteur du compteur principal : il n’est alors pas compté deux fois dans les totaux.",
+      "swBase": "Abonnement eau usée ({cur}/mois)",
+      "apPlan": "Plan d’acomptes",
+      "colEurDue": "{cur} par échéance"
     },
     "perM3": {
       "toggleTitle": "Convertir un prix au m³ en {minor}/kWh",
@@ -1086,6 +1093,11 @@
       "undated": "entrée sans date",
       "link": "Vers le paramètre",
       "why": "Le coefficient de correction et le pouvoir calorifique dépendent du point de livraison (altitude, pression) et du gaz du réseau, pas du fournisseur : ils restent les mêmes lors d’un changement, et chaque facture de gaz les indique. C’est pourquoi ils se saisissent une fois dans les paramètres et valent pour chaque contrat."
+    },
+    "advance": {
+      "every": "Rythme",
+      "monthly": "chaque mois",
+      "dueDates": "Échéances selon la facture : {dates}, puis chaque année aux mêmes jours"
     }
   },
   "meters": {
@@ -3503,7 +3515,9 @@
       "priceModelInvalid": "Modèle de prix inconnu « {value} »",
       "priceImportEmpty": "Le fichier ne contient aucune ligne au format mois;prix",
       "priceImportUnsupported": "Les prix mensuels n’existent que pour les contrats avec un prix unitaire par kWh",
-      "gridTouInvalid": "Plages du module 3 non valides ({field}) : trimestres 1–4, heures HH:MM avec début avant fin, prix 0–100 ct et un tarif standard."
+      "gridTouInvalid": "Plages du module 3 non valides ({field}) : trimestres 1–4, heures HH:MM avec début avant fin, prix 0–100 ct et un tarif standard.",
+      "advanceEveryInvalid": "Acompte n°{n} : « {value} » n’est pas un rythme. Possible : chaque mois, tous les 2 ou tous les 3 mois.",
+      "advanceDueBeforeStart": "Acompte n°{n} : l’échéance du {date} est antérieure au jour à partir duquel la ligne s’applique."
     },
     "delivery": {
       "notFound": "Livraison introuvable : {id}",
@@ -3855,7 +3869,8 @@
     },
     "history": "Historique ({count})",
     "historyTitle": "Historique : {name}",
-    "anytime": "Résiliable à tout moment"
+    "anytime": "Résiliable à tout moment",
+    "advanceEvery": "Acompte {amount}"
   },
   "billCheck": {
     "noMeter": "La vérification recalcule la facture annuelle du gaz, de l’électricité, de l’eau et du réseau de chaleur. Créez d’abord un compteur.",
@@ -6000,7 +6015,10 @@
       "document_title": "Titre du document",
       "meter_readings": "Relevés par compteur",
       "reading_new_estimated": "Relevé final estimé",
-      "reading_old_estimated": "Relevé initial estimé"
+      "reading_old_estimated": "Relevé initial estimé",
+      "water_prices": "Prix de l’eau",
+      "advance_new_dates": "Échéances du nouvel acompte",
+      "advance_new_every": "Rythme du nouvel acompte"
     },
     "reason": {
       "empty": "Manquant, mais nécessaire",
@@ -6036,14 +6054,28 @@
       "supplier": "Résiliation par le fournisseur",
       "switch": "Fin due au changement de fournisseur",
       "net": "HT",
-      "gross": "TTC"
+      "gross": "TTC",
+      "trinkwasser": "Eau potable",
+      "schmutzwasser": "Eau usée",
+      "niederschlagswasser": "Eau pluviale",
+      "m3": "par m³",
+      "m2_year": "par m² et par an",
+      "monthly": "chaque mois",
+      "bimonthly": "tous les deux mois",
+      "quarterly": "tous les trois mois",
+      "energy": "Prix unitaire",
+      "energy_tax": "Taxe sur l’énergie",
+      "co2": "Prix du CO₂",
+      "other": "Supplément"
     },
     "item": {
       "gasFactor": "du {from} au {to} : coefficient de correction {z} × pouvoir calorifique {hs} kWh/m³",
       "price": "à partir du {from} : {value}",
       "priceNet": "à partir du {from} : {value} HT + {vat} % de TVA = {gross}",
       "meterReading": "Compteur {meter} : {from} → {to}",
-      "estimated": "estimé selon la facture"
+      "estimated": "estimé selon la facture",
+      "waterPrice": "{section} · {label} du {from} au {to} : {price}",
+      "waterPriceNet": "{section} · {label} du {from} au {to} : {price} HT + {vat} % de TVA = {gross}"
     },
     "result": {
       "due": "complément de {amount}",
@@ -6072,7 +6104,11 @@
       "contractFromInvoice": "Créer le contrat {provider} à partir du {from} d’après cette facture",
       "contractFromSupplyStart": "Créer le contrat {provider} à partir du {from}",
       "meterSwapInvoice": "Changement de compteur le {date} : relevé final {old_final} au compteur {old_serial}, nouveau compteur {serial} avec relevé initial {new_initial}",
-      "readingEstimated": "Relevé du {date} : {counter} (estimé selon la facture)"
+      "readingEstimated": "Relevé du {date} : {counter} (estimé selon la facture)",
+      "contractSpanFromInvoice": "Créer le contrat {provider} du {from} au {to} d’après cette facture",
+      "waterWorking": "{section} à partir du {from} : {value} (d’après la facture)",
+      "waterBase": "Abonnement {section} à partir du {from} : {value} par mois (d’après la facture)",
+      "waterRate": "{section} à partir du {from} : {value} par m² et par an pour {area} m² (d’après la facture)"
     },
     "detail": {
       "reading": "Enregistré : {counter}.",
@@ -6271,6 +6307,22 @@
     },
     "wait": {
       "gaveUp": "Pas de réponse, même après vérification. Le document sera peut-être encore terminé – rouvrez-le dans un instant. Un délai plus long sur le serveur web règle le problème durablement."
+    },
+    "unit": {
+      "perM3": "par m³",
+      "perYear": "par an",
+      "perMonth": "par mois",
+      "perM2Year": "par m² et par an"
+    },
+    "line": {
+      "working": "{what} à partir du {from} : {value}",
+      "base": "Abonnement {what} à partir du {from} : {value} par mois",
+      "baseOnly": "Abonnement à partir du {from} : {value} par mois",
+      "rate": "{what} à partir du {from} : {value} par m² et par an pour {area} m²",
+      "energy": "Prix unitaire",
+      "parts": "à partir de {parts}",
+      "net": "{value} HT + {vat} % de TVA",
+      "advance": "Acompte à partir du {from} : {value} par échéance"
     }
   },
   "inboxCloud": {
@@ -6623,6 +6675,16 @@
       "too_few_points": "trop peu de points ({n})",
       "poor_fit": "ne correspond pas (R² {r2})",
       "degenerate": "incalculable (trop peu de variation dans les valeurs)"
+    }
+  },
+  "advance": {
+    "rhythm": {
+      "every": {
+        "one": "chaque mois",
+        "other": "tous les {count} mois"
+      },
+      "everyDates": "{every}, le {dates}",
+      "dates": "le {dates}"
     }
   }
 }

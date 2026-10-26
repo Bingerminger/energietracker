@@ -501,7 +501,8 @@
         "one": "{count} pago extraordinario",
         "other": "{count} pagos extraordinarios"
       },
-      "sinceBill": "Calculado desde el {date}: la factura anterior está registrada en el contrato y aquí ya no cuenta."
+      "sinceBill": "Calculado desde el {date}: la factura anterior está registrada en el contrato y aquí ya no cuenta.",
+      "paidCurrentEvery": "actual: {value}"
     },
     "contractsTable": {
       "emptyTitle": "Sin contratos registrados",
@@ -802,13 +803,15 @@
       "advance": "Anticipo",
       "twWorking": "Precio unitario de agua potable",
       "twBase": "Término fijo de agua potable",
-      "swWorking": "Precio unitario de saneamiento"
+      "swWorking": "Precio unitario de saneamiento",
+      "swBase": "Término fijo de agua residual"
     },
     "unit": {
       "ctPerKwh": "{minor}/kWh",
       "eurPerMonth": "{cur}/mes",
       "eurPerKwYear": "{cur}/kW al año",
-      "eurPerYear": "{cur}/año"
+      "eurPerYear": "{cur}/año",
+      "eurPerDue": "{cur} por vencimiento"
     },
     "loading": "Cargando…",
     "unknown": "Suministro desconocido: {key}",
@@ -837,7 +840,8 @@
       "advanceValue": "Anticipo {value}/mes",
       "valuesOn": "a {date}",
       "noValues": "Aún no hay precios",
-      "since": "desde {year}"
+      "since": "desde {year}",
+      "advanceValueEvery": "Anticipo {value}"
     },
     "summary": {
       "twPrices": {
@@ -999,7 +1003,10 @@
       "startRequired": "El inicio del contrato es obligatorio.",
       "basisDeduct": "agua potable menos contadores de descuento (p. ej., jardín)",
       "deductMeters": "Contadores de descuento",
-      "deductHint": "El agua que pasa por estos contadores (p. ej., la del jardín) cuesta agua potable, pero no agua residual. Lo mejor es llevar el contador del jardín como subcontador del principal; así no cuenta dos veces en los totales."
+      "deductHint": "El agua que pasa por estos contadores (p. ej., la del jardín) cuesta agua potable, pero no agua residual. Lo mejor es llevar el contador del jardín como subcontador del principal; así no cuenta dos veces en los totales.",
+      "swBase": "Término fijo de agua residual ({cur}/mes)",
+      "apPlan": "Plan de anticipos",
+      "colEurDue": "{cur} por vencimiento"
     },
     "perM3": {
       "toggleTitle": "Convertir un precio por m³ a {minor}/kWh",
@@ -1086,6 +1093,11 @@
       "undated": "entrada sin fecha",
       "link": "Ir al ajuste",
       "why": "El coeficiente de corrección y el poder calorífico dependen del punto de suministro (altitud, presión) y del gas de la red, no del comercializador: no cambian al cambiar de compañía y cada factura de gas los indica. Por eso se introducen una vez en los ajustes y valen para todos los contratos."
+    },
+    "advance": {
+      "every": "Ritmo",
+      "monthly": "cada mes",
+      "dueDates": "Vencimientos según la factura: {dates}, después cada año en los mismos días"
     }
   },
   "meters": {
@@ -3503,7 +3515,9 @@
       "priceModelInvalid": "Modelo de precio desconocido «{value}»",
       "priceImportEmpty": "El archivo no contiene ninguna línea con el formato mes;precio",
       "priceImportUnsupported": "Los precios mensuales solo existen para contratos con precio unitario por kWh",
-      "gridTouInvalid": "Franjas del módulo 3 no válidas ({field}): trimestres 1–4, horas HH:MM con inicio antes del fin, precios 0–100 ct y una tarifa estándar."
+      "gridTouInvalid": "Franjas del módulo 3 no válidas ({field}): trimestres 1–4, horas HH:MM con inicio antes del fin, precios 0–100 ct y una tarifa estándar.",
+      "advanceEveryInvalid": "Anticipo n.º{n}: «{value}» no es un ritmo. Son posibles cada mes, cada 2 y cada 3 meses.",
+      "advanceDueBeforeStart": "Anticipo n.º{n}: el vencimiento del {date} es anterior al día desde el que rige la línea."
     },
     "delivery": {
       "notFound": "Entrega no encontrada: {id}",
@@ -3855,7 +3869,8 @@
     },
     "history": "Historial ({count})",
     "historyTitle": "Historial: {name}",
-    "anytime": "Cancelable en cualquier momento"
+    "anytime": "Cancelable en cualquier momento",
+    "advanceEvery": "Anticipo {amount}"
   },
   "billCheck": {
     "noMeter": "La revisión recalcula la factura anual de gas, electricidad, agua y calefacción urbana. Crea primero un contador.",
@@ -6000,7 +6015,10 @@
       "document_title": "Título del documento",
       "meter_readings": "Lecturas por contador",
       "reading_new_estimated": "Lectura final estimada",
-      "reading_old_estimated": "Lectura inicial estimada"
+      "reading_old_estimated": "Lectura inicial estimada",
+      "water_prices": "Precios del agua",
+      "advance_new_dates": "Vencimientos del nuevo anticipo",
+      "advance_new_every": "Ritmo del nuevo anticipo"
     },
     "reason": {
       "empty": "Falta, pero se necesita",
@@ -6036,14 +6054,28 @@
       "supplier": "Rescisión por el suministrador",
       "switch": "Fin por cambio de suministrador",
       "net": "neto",
-      "gross": "bruto"
+      "gross": "bruto",
+      "trinkwasser": "Agua potable",
+      "schmutzwasser": "Agua residual",
+      "niederschlagswasser": "Agua pluvial",
+      "m3": "por m³",
+      "m2_year": "por m² y año",
+      "monthly": "cada mes",
+      "bimonthly": "cada dos meses",
+      "quarterly": "cada tres meses",
+      "energy": "Precio unitario",
+      "energy_tax": "Impuesto sobre la energía",
+      "co2": "Precio del CO₂",
+      "other": "Recargo"
     },
     "item": {
       "gasFactor": "del {from} al {to}: coeficiente de corrección {z} × poder calorífico {hs} kWh/m³",
       "price": "desde el {from}: {value}",
       "priceNet": "desde el {from}: {value} neto + {vat} % de IVA = {gross}",
       "meterReading": "Contador {meter}: {from} → {to}",
-      "estimated": "estimada según la factura"
+      "estimated": "estimada según la factura",
+      "waterPrice": "{section} · {label} del {from} al {to}: {price}",
+      "waterPriceNet": "{section} · {label} del {from} al {to}: {price} neto + {vat} % de IVA = {gross}"
     },
     "result": {
       "due": "pago adicional de {amount}",
@@ -6072,7 +6104,11 @@
       "contractFromInvoice": "Crear el contrato {provider} desde el {from} a partir de esta factura",
       "contractFromSupplyStart": "Crear el contrato {provider} desde el {from}",
       "meterSwapInvoice": "Cambio de contador el {date}: lectura final {old_final} en el contador {old_serial}, contador nuevo {serial} con lectura inicial {new_initial}",
-      "readingEstimated": "Lectura del {date}: {counter} (estimada según la factura)"
+      "readingEstimated": "Lectura del {date}: {counter} (estimada según la factura)",
+      "contractSpanFromInvoice": "Crear el contrato {provider} del {from} al {to} a partir de esta factura",
+      "waterWorking": "{section} desde el {from}: {value} (de la factura)",
+      "waterBase": "Término fijo {section} desde el {from}: {value} al mes (de la factura)",
+      "waterRate": "{section} desde el {from}: {value} por m² y año para {area} m² (de la factura)"
     },
     "detail": {
       "reading": "Registrada: {counter}.",
@@ -6271,6 +6307,22 @@
     },
     "wait": {
       "gaveUp": "Sin respuesta, ni siquiera tras volver a consultar. Puede que el documento aún se complete – vuelve a abrirlo enseguida. Un límite de tiempo mayor en el servidor web lo soluciona de forma duradera."
+    },
+    "unit": {
+      "perM3": "por m³",
+      "perYear": "al año",
+      "perMonth": "al mes",
+      "perM2Year": "por m² y año"
+    },
+    "line": {
+      "working": "{what} desde el {from}: {value}",
+      "base": "Término fijo {what} desde el {from}: {value} al mes",
+      "baseOnly": "Término fijo desde el {from}: {value} al mes",
+      "rate": "{what} desde el {from}: {value} por m² y año para {area} m²",
+      "energy": "Precio unitario",
+      "parts": "a partir de {parts}",
+      "net": "{value} neto + {vat} % de IVA",
+      "advance": "Anticipo desde el {from}: {value} por vencimiento"
     }
   },
   "inboxCloud": {
@@ -6623,6 +6675,16 @@
       "too_few_points": "demasiado pocos puntos ({n})",
       "poor_fit": "no se ajusta (R² {r2})",
       "degenerate": "no calculable (muy poca variación en los valores)"
+    }
+  },
+  "advance": {
+    "rhythm": {
+      "every": {
+        "one": "cada mes",
+        "other": "cada {count} meses"
+      },
+      "everyDates": "{every}, el {dates}",
+      "dates": "el {dates}"
     }
   }
 }

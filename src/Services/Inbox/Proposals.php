@@ -387,6 +387,28 @@ final class Proposals
                 }
                 $ctx['prices']['base_price'] = $ok;
             }
+            // v3.9.0 (F1034) — Bestandteile eines Arbeitspreises zählen zusammen gegen den Vertrag
+            foreach (InvoicePrices::workingGroups($fields) as $g) {
+                if (!$g['merged']) continue;
+                $known = $this->contracts->valueOnDate($wp, 'ct_per_kwh', $g['from']);
+                foreach ($g['items'] as $i) $ctx['prices']['working_prices'][$i] = $known !== null && abs($known - $g['value']) <= self::PRICE_TOL;
+            }
+            // v3.9.0 (F1034) — Wasser: je Sparte und Abschnitt gegen die Zeile des Vertrags an dem Tag
+            if (is_array($contract['trinkwasser'] ?? null)) {
+                $map = ['working' => ['working_prices', 'ct_per_m3'], 'base' => ['base_prices', 'eur_per_month'], 'rate' => ['rates', 'eur_per_m2_year']];
+                foreach (InvoicePrices::water($fields) as $section => $kinds) {
+                    foreach ($kinds as $kind => $rows) {
+                        [$list, $key] = $map[$kind];
+                        foreach ($rows as $row) {
+                            $known = $this->contracts->valueOnDate((array)($contract[$section][$list] ?? []), $key, $row['from']);
+                            $area = $kind === 'rate' ? $this->contracts->valueOnDate((array)($contract[$section][$list] ?? []), 'versiegelte_flaeche_m2', $row['from']) : null;
+                            $ok = $known !== null && abs($known - (float)$row['value']) <= self::PRICE_TOL
+                                && ($kind !== 'rate' || ($area !== null && $row['area'] !== null && abs($area - (float)$row['area']) < 0.0005));
+                            foreach ($row['items'] as $i) $ctx['prices']['water_prices'][$i] = $ok;
+                        }
+                    }
+                }
+            }
         }
         return $ctx;
     }
@@ -572,6 +594,24 @@ final class Proposals
         $from = self::value($e, 'period_from'); $to = self::value($e, 'period_to');
         $bill = null;
         $fields = $e['extraction']['fields'];
+        // v3.9.0 (F1034) — Vertrag aus der Rechnung, für jede Art mit Verträgen (auch Wasser): vor der
+        // Rechnung und ihrer Buchung bestimmt, denn beide beziehen sich auf ihn, auch im selben Durchgang
+        $created = [];
+        if ($m !== null && Utilities::hasContracts($u) && is_string($from) && is_string($to) && $from <= $to) {
+            if ($c['contract'] === null) {
+                $p = $this->contractFromInvoice($c, $from, $to);
+                if ($p !== null) $created[] = $p;
+            } else {
+                // ein Vertrag des Versorgers rechnet den Zeitraum ab, deckt ihn aber nicht ganz: Vor- bzw.
+                // Folgevertrag für die Tage ohne Vertrag, nur als Angebot (den Bestand ändert das nicht)
+                foreach ($this->periodGaps($u, (string)$m['id'], $from, $to) as [$gFrom, $gTo, $open]) {
+                    $p = $this->contractFromInvoice($c, $gFrom, $gTo, ['end' => $open ? null : $gTo, 'offer' => true]);
+                    if ($p !== null) $created[] = $p;
+                }
+            }
+        }
+        // der neue Vertrag, an dem die Rechnung hängt und gebucht wird (vorbelegt, nicht nur angeboten)
+        $forBill = array_values(array_filter($created, fn($p) => !empty($p['data']['for_bill']) && empty($p['optional'])))[0] ?? null;
         if ($m !== null && Utilities::supportsBillCheck($u) && is_string($from) && is_string($to) && $from <= $to) {
             $advances = self::value($e, 'advances_total') ?? ($fields['advances_paid']['sum'] ?? null);
             $result = self::value($e, 'result_amount');
@@ -587,7 +627,9 @@ final class Proposals
             $data = ['meter_id' => (string)$m['id'], 'contract_id' => $c['contract']['id'] ?? null,
                      'kind' => $billKind === 'final' ? 'final' : 'annual',
                      'period_from' => $from, 'period_to' => $to, 'invoice' => $inv,
-                     'note' => '', 'attachment_ids' => $c['att'] !== '' ? [$c['att']] : []];
+                     'note' => '', 'attachment_ids' => $c['att'] !== '' ? [$c['att']] : []]
+                // v3.9.0 (F1034) — an den Vertrag aus dieser Rechnung, wenn er im selben Durchgang entsteht (Applier)
+                + ($c['contract'] === null && $created !== [] ? ['contract_new' => true] : []);
             // Gas: Zustandszahl und Brennwert laut Rechnung an der Rechnung, für „Rechnung prüfen“
             $factors = [];
             foreach ($u === 'gas' ? (array)($fields['gas_factors']['items'] ?? []) : [] as $item) {
@@ -609,15 +651,19 @@ final class Proposals
                 // Buchen setzt die Rechnung voraus: dieselben Quellen, also dieselbe Marke
                 // v3.7.0 (treffsicher) — ohne Vertrag dieses Versorgers nur als Angebot: Gebucht
                 // wird dann am Vertrag aus dem Dokument (anhaken) oder gar nicht (Applier::book)
-                $out[] = self::p('bill_book', 'billBook', ['result' => $inv['result_eur']], ['period_from' => $from, 'period_to' => $to],
+                // v3.9.0 (F1034) — mit dem vorbelegten Vertrag aus dieser Rechnung gebucht dort (nicht mehr nur Angebot)
+                $out[] = self::p('bill_book', 'billBook', ['result' => $inv['result_eur']], ['period_from' => $from, 'period_to' => $to]
+                    + ($forBill !== null && !$booked ? ['contract_new' => true] : []),
                     $bill['sources'], $booked ? 'exists' : 'new', ['core' => $core]
-                    + ($c['contract'] === null && !$booked ? ['optional' => true, 'open' => [['field' => 'contract', 'reason' => 'missing']]] : []));
+                    + ($c['contract'] === null && !$booked ? ($forBill !== null ? [] : ['optional' => true, 'open' => [['field' => 'contract', 'reason' => 'missing']]]) : []));
             }
         }
         $ct = $c['contract'];
         $adv = self::value($e, 'advance_new');
         if ($ct !== null && is_numeric($adv)) {
-            $advFrom = self::value($e, 'advance_new_from');
+            // v3.9.0 (F1034) — der neue Abschlagsplan mit Rhythmus: ab dem ersten genannten Termin, je Termin
+            $plan = InvoicePrices::advancePlan($e);
+            $advFrom = $plan['from'] ?? self::value($e, 'advance_new_from');
             $assumed = !is_string($advFrom) || $advFrom === '';
             if ($assumed && is_string($to)) $advFrom = date('Y-m-01', (int)strtotime($to . ' +1 day +1 month'));
             if (is_string($advFrom) && $advFrom !== '') {
@@ -625,9 +671,9 @@ final class Proposals
                 // Folgevertrag, v3.7.0 (treffsicher) aber nur beim selben Versorger
                 $target = $this->advanceTarget($u, $m, $ct, $advFrom);
                 if ($target !== null) {
-                    $out[] = $this->priceEntry('contract_advance', 'advance', $target, 'advance_payments', 'amount_eur', $advFrom, (float)$adv,
+                    $out[] = $this->withRhythm($this->priceEntry('contract_advance', 'advance', $target, 'advance_payments', 'amount_eur', $advFrom, (float)$adv,
                         ['advance_new', 'advance_new_from'], $assumed ? ['check' => true, 'assumed' => 'date',
-                            'reasons' => [['field' => 'advance_new_from', 'reasons' => ['assumed']]]] : []);
+                            'reasons' => [['field' => 'advance_new_from', 'reasons' => ['assumed']]]] : []), $target, $plan);
                 }
             }
         }
@@ -647,15 +693,29 @@ final class Proposals
             // neue Preiszeile ab dem Tag der Rechnung, ohne Marke (Hinweis vat_changed)
             $taxHints = fn(array $reasons, string $field): array => array_values(array_map(fn($r) => ['field' => $field, 'reason' => $r],
                 array_intersect(['net_price', 'vat_changed'], $reasons)));
-            foreach ($fields['working_prices']['items'] ?? [] as $item) {
+            // v3.9.0 (F1034) — Bestandteile eines Arbeitspreises (Energiesteuer, CO₂-Preis) als ein Preis
+            $groups = array_values(array_filter(InvoicePrices::workingGroups($fields), fn($g) => $g['merged']));
+            $inGroup = array_fill_keys(array_merge([], ...array_column($groups, 'items')), true);
+            foreach ($fields['working_prices']['items'] ?? [] as $idx => $item) {
                 $v = $item['value'] ?? [];
-                if (!is_numeric($v['ct'] ?? null) || !is_string($v['from'] ?? null)) continue;
+                if (!is_numeric($v['ct'] ?? null) || !is_string($v['from'] ?? null) || isset($inGroup[$idx])) continue;
                 $p = $this->priceEntry('contract_price', 'workingPrice', $ct, 'working_prices', 'ct_per_kwh', (string)$v['from'],
                     Evidence::grossOf((float)$v['ct'], Evidence::itemTax($item)),
                     ['working_prices'], ['core' => [], 'check' => ($item['status'] ?? '') === 'check',
                         'reasons' => ($item['status'] ?? '') === 'check' ? [['field' => 'working_prices', 'reasons' => array_values((array)($item['reasons'] ?? []))]] : [],
                         'hints' => $taxHints((array)($item['reasons'] ?? []), 'working_prices')]);
                 if (in_array('price_matches', (array)($item['reasons'] ?? []), true)) { $p['status'] = 'exists'; $p['detail'] = null; }
+                $out[] = $p;
+            }
+            foreach ($groups as $g) {
+                $items = array_map(fn($i) => (array)($fields['working_prices']['items'][$i] ?? []), $g['items']);
+                $flagged = array_values(array_filter($items, fn($it) => ($it['status'] ?? '') === 'check'));
+                $p = $this->priceEntry('contract_price', 'workingPrice', $ct, 'working_prices', 'ct_per_kwh', $g['from'], $g['value'],
+                    ['working_prices'], ['core' => [], 'check' => $flagged !== [],
+                        'reasons' => $flagged !== [] ? [['field' => 'working_prices', 'reasons' => array_values(array_unique(array_merge(...array_map(fn($it) => (array)($it['reasons'] ?? []), $flagged))))]] : [],
+                        'hints' => $taxHints(array_merge(...array_map(fn($it) => (array)($it['reasons'] ?? []), $items)), 'working_prices')],
+                    ['parts' => $g['parts']]);
+                if (array_filter($items, fn($it) => !in_array('price_matches', (array)($it['reasons'] ?? []), true)) === []) { $p['status'] = 'exists'; $p['detail'] = null; }
                 $out[] = $p;
             }
             $bp = self::value($e, 'base_price');
@@ -668,13 +728,123 @@ final class Proposals
                 $out[] = $p;
             }
         }
-        // v3.7.0 (treffsicher) — kein Vertrag dieses Versorgers: aus der Rechnung anlegen (Angebot)
-        if ($ct === null && $m !== null && self::standardContract($u) && is_string($from) && is_string($to) && $from <= $to) {
-            $p = $this->contractFromInvoice($c, $from, $to);
-            if ($p !== null) $out[] = $p;
-        }
+        // v3.9.0 (F1034) — Wasser: Preise je Sparte und Abschnitt am Vertrag des Versorgers, brutto,
+        // Bestandteile zusammengezählt; wie im Vertrag „schon vorhanden“, sonst zu prüfen
+        if ($ct !== null && $u === 'wasser') array_push($out, ...$this->waterPriceEntries($ct, $fields, $e));
+        // v3.7.0 (treffsicher) — kein Vertrag dieses Versorgers: aus der Rechnung anlegen; v3.9.0 (F1034)
+        // für jede Art und vorbelegt, wenn am Zähler im Zeitraum kein Vertrag gilt (oben bestimmt)
+        array_push($out, ...$created);
         array_push($out, ...$this->identifiers($c));
         return $out;
+    }
+
+    /**
+     * v3.9.0 (F1034) — Wasserpreise der Rechnung als Preiszeilen am Wasservertrag:
+     * je Sparte Arbeitspreis (ct/m³), Grundpreis (€ je Monat) und
+     * Niederschlagswasser (€ je m² und Jahr mit Fläche), ab dem Tag des
+     * Abschnitts. Gleiche Zeile → vorhanden, gleicher Tag mit anderem Wert →
+     * Widerspruch (nie still überschrieben), sonst neu und — wie jeder Preis aus
+     * einer Rechnung — zu prüfen.
+     *
+     * @return list<array<string,mixed>>
+     */
+    private function waterPriceEntries(array $ct, array $fields, array $e): array
+    {
+        $out = [];
+        $water = InvoicePrices::water($fields, array_key_exists('water_prices', (array)($e['edits'] ?? [])));
+        $map = ['working' => ['working_prices', 'ct_per_m3', 'waterWorking'], 'base' => ['base_prices', 'eur_per_month', 'waterBase'],
+                'rate' => ['rates', 'eur_per_m2_year', 'waterRate']];
+        foreach ($water as $section => $kinds) {
+            foreach ($kinds as $kind => $rows) {
+                [$list, $key, $label] = $map[$kind];
+                foreach ($rows as $row) {
+                    $items = array_map(fn($i) => (array)($fields['water_prices']['items'][$i] ?? []), $row['items']);
+                    $flagged = array_values(array_filter($items, fn($it) => ($it['status'] ?? '') === 'check'));
+                    $extra = $kind === 'rate' ? ['versiegelte_flaeche_m2' => $row['area']] : [];
+                    $p = $this->priceEntry('contract_water_price', $label, $ct, "$section.$list", $key, $row['from'], (float)$row['value'],
+                        ['water_prices'], ['core' => [], 'check' => $flagged !== [] || ($kind === 'rate' && $row['area'] === null),
+                            'reasons' => $flagged !== [] ? [['field' => 'water_prices', 'reasons' => array_values(array_unique(array_merge(...array_map(fn($it) => (array)($it['reasons'] ?? []), $flagged))))]] : []],
+                        ['section' => $section, 'parts' => $row['parts']] + ($kind === 'rate' ? ['area' => $row['area']] : []));
+                    // wie im Vertrag an dem Tag (auch aus einer älteren Zeile): schon vorhanden, keine neue Zeile
+                    if (array_filter($items, fn($it) => !in_array('price_matches', (array)($it['reasons'] ?? []), true)) === []) { $p['status'] = 'exists'; $p['detail'] = null; }
+                    if ($extra !== []) {
+                        $p['data']['row'] = $extra;
+                        // gleicher Preis, andere Fläche: ein Widerspruch, kein „vorhanden“
+                        foreach ((array)($ct[$section][$list] ?? []) as $r) {
+                            if ((string)($r['from'] ?? '') === $row['from'] && $p['status'] === 'exists'
+                                && abs((float)($r['versiegelte_flaeche_m2'] ?? 0) - (float)$row['area']) > 0.0005) {
+                                $p['status'] = 'conflict'; $p['detail'] = ['value' => (float)($r[$key] ?? 0), 'area' => (float)($r['versiegelte_flaeche_m2'] ?? 0)];
+                            }
+                        }
+                    }
+                    $out[] = $p;
+                }
+            }
+        }
+        return $out;
+    }
+
+    /**
+     * v3.9.0 (F1034) — Tage eines Zeitraums [von, bis], an denen am Zähler (und
+     * seiner Gruppe) kein Vertrag gilt — wie der Saldo es sieht
+     * (ContractService::segmentsBetween, ein weiterlaufender Vertrag gilt).
+     * Je Lücke [von, bis, offen]: offen, wenn danach im Zeitraum kein Vertrag
+     * mehr beginnt (Folgevertrag ohne Ende), sonst endet sie am Tag vor dem
+     * nächsten (Vorvertrag bzw. Zwischenvertrag).
+     *
+     * @return list<array{0: string, 1: string, 2: bool}>
+     */
+    private function periodGaps(string $u, string $meterId, string $from, string $to): array
+    {
+        $list = array_values(array_filter($this->contractsOf($u, $meterId), fn($c) => empty($c['is_shadow'])));
+        $toExcl = date('Y-m-d', (int)strtotime("$to +1 day"));
+        $gaps = []; $cur = null;
+        foreach ($this->contracts->segmentsBetween($list, $from, $toExcl) as $seg) {
+            if ($seg['contract'] === null) {
+                if ($cur === null) $cur = [$seg['from'], $seg['to']]; else $cur[1] = $seg['to'];
+                continue;
+            }
+            if ($cur !== null) { $gaps[] = [$cur[0], date('Y-m-d', (int)strtotime($cur[1] . ' -1 day')), false]; $cur = null; }
+        }
+        if ($cur !== null) $gaps[] = [$cur[0], date('Y-m-d', (int)strtotime($cur[1] . ' -1 day')), true];
+        return $gaps;
+    }
+
+    /**
+     * v3.9.0 (F1034) — Gilt am Zähler (oder seiner Gruppe) an irgendeinem Tag
+     * des Zeitraums ein Vertrag, gleich welchen Versorgers? Dann ist ein neuer
+     * Vertrag aus der Rechnung nur ein Angebot (er überschnitte sich).
+     */
+    private function contractTouches(string $u, string $meterId, string $from, string $to): bool
+    {
+        $list = array_values(array_filter($this->contractsOf($u, $meterId), fn($c) => empty($c['is_shadow'])));
+        foreach ($this->contracts->segmentsBetween($list, $from, date('Y-m-d', (int)strtotime("$to +1 day"))) as $seg) {
+            if ($seg['contract'] !== null) return true;
+        }
+        return false;
+    }
+
+    /**
+     * v3.9.0 (F1034) — Rhythmus des neuen Abschlags an der Preiszeile
+     * (every_months, due_dates): in `data.row` für den Applier und in den
+     * Parametern für den Text. Ein anderer Rhythmus am selben Tag ist ein
+     * Widerspruch, kein „vorhanden“.
+     *
+     * @param array<string,mixed>|null $plan InvoicePrices::advancePlan
+     */
+    private function withRhythm(array $p, array $ct, ?array $plan): array
+    {
+        $row = array_intersect_key((array)$plan, array_flip(['every_months', 'due_dates']));
+        if ($row === []) return $p;
+        $p['data']['row'] = $row;
+        $p['params']['every'] = (int)($row['every_months'] ?? 1);
+        if (!empty($row['due_dates'])) $p['params']['dates'] = $row['due_dates'];
+        foreach ((array)($ct['advance_payments'] ?? []) as $r) {
+            if ((string)($r['from'] ?? '') !== (string)$p['data']['from'] || $p['status'] !== 'exists') continue;
+            $same = (int)($r['every_months'] ?? 1) === (int)($row['every_months'] ?? 1) && array_values((array)($r['due_dates'] ?? [])) === array_values((array)($row['due_dates'] ?? []));
+            if (!$same) { $p['status'] = 'conflict'; $p['detail'] = ['value' => (float)($r['amount_eur'] ?? 0)]; }
+        }
+        return $p;
     }
 
     /**
@@ -700,39 +870,116 @@ final class Proposals
      * Rechnung nur, wenn sicher; sonst bleiben sie offene Punkte. Nur als
      * Angebot (nicht vorbelegt), das Dokument hängt an der Rechnung.
      */
-    private function contractFromInvoice(array $c, string $from, string $to): ?array
+    /**
+     * v3.9.0 (F1034) — „Vertrag aus der Rechnung“ für jede Art mit Verträgen.
+     * Daten: Versorger, Vertragskonto bzw. Kundennummer, Beginn (Beginn des
+     * Zeitraums oder der Lücke), Ende (Schlussrechnung bzw. Tag vor dem
+     * nächsten Vertrag), je Preisabschnitt die Preise brutto — Wasser je Sparte
+     * (Arbeits- und Grundpreis, Niederschlagswasser mit Fläche), sonst
+     * Arbeitspreis (Bestandteile zusammengezählt) und Grundpreis — und der neue
+     * Abschlagsplan mit Rhythmus. Ein Rechnungspreis kommt ohne Rückfrage
+     * hinein, wenn netto oder brutto belegt erkannt ist (InvoicePrices::sure,
+     * wie im Entwurf des Haushalts); sonst bleibt er ein offener Punkt.
+     * Vorbelegt ist der Vertrag nur, wenn am Zähler im Zeitraum kein Vertrag
+     * gilt (`$opt['offer']` erzwingt ein Angebot); `params.lines` schlüsselt die
+     * Preise für die Oberfläche auf.
+     *
+     * @param array{end?: ?string, offer?: bool} $opt
+     */
+    private function contractFromInvoice(array $c, string $from, string $to, array $opt = []): ?array
     {
         $e = $c['entry']; $u = $c['u']; $m = $c['meter'];
         $supplier = trim((string)(self::value($e, 'supplier') ?? ''));
         if ($supplier === '') return null;
         $withheld = [];
         $final = self::sure($e, 'kind', $withheld) === 'final';
-        $wp = [];
-        foreach ((array)($e['extraction']['fields']['working_prices']['items'] ?? []) as $item) {
-            $v = $item['value'] ?? [];
-            if (!is_numeric($v['ct'] ?? null) || !is_string($v['from'] ?? null)) continue;
-            if (($item['status'] ?? '') === 'check') { $withheld[] = 'working_prices'; continue; }
-            $wp[] = ['from' => max($from, (string)$v['from']), 'ct_per_kwh' => Evidence::grossOf((float)$v['ct'], Evidence::itemTax($item))];
+        $end = array_key_exists('end', $opt) ? $opt['end'] : ($final ? $to : null);
+        $fields = (array)$e['extraction']['fields'];
+        $edited = fn(string $f): bool => array_key_exists($f, (array)($e['edits'] ?? []));
+        $lines = [];
+        // die Abschnitte, die im Vertrag gelten: der am Beginn gültige ab dem Beginn, spätere ab ihrem Tag
+        $clip = function (array $rows) use ($from, $end): array {
+            usort($rows, fn($a, $b) => strcmp((string)$a['from'], (string)$b['from']));
+            $out = [];
+            foreach ($rows as $r) {
+                if ($end !== null && (string)$r['from'] > $end) continue;
+                if ((string)$r['from'] <= $from) $out = [];
+                $out[] = ['from' => max($from, (string)$r['from'])] + $r;
+            }
+            return $out;
+        };
+        $data = ['meter_id' => (string)$m['id'], 'provider' => $supplier, 'start' => $from, 'end' => $end, 'auto_renews' => $final ? false : null];
+        if ($u === 'wasser') {
+            $water = InvoicePrices::water($fields, $edited('water_prices'));
+            $comp = [];
+            foreach ([['trinkwasser', 'working', 'working_prices', 'ct_per_m3'], ['trinkwasser', 'base', 'base_prices', 'eur_per_month'],
+                      ['schmutzwasser', 'working', 'working_prices', 'ct_per_m3'], ['schmutzwasser', 'base', 'base_prices', 'eur_per_month'],
+                      ['niederschlagswasser', 'rate', 'rates', 'eur_per_m2_year']] as [$section, $kind, $list, $key]) {
+                $rows = $clip(array_values(array_filter($water[$section][$kind], function ($r) use (&$withheld) {
+                    if (!$r['sure']) $withheld[] = 'water_prices';
+                    return $r['sure'];
+                })));
+                foreach ($rows as $r) {
+                    $comp[$section][$list][] = ['from' => $r['from'], $key => (float)$r['value']] + ($kind === 'rate' ? ['versiegelte_flaeche_m2' => (float)$r['area']] : []);
+                    $lines[] = ['section' => $section, 'kind' => $kind, 'from' => $r['from'], 'value' => (float)$r['value'], 'parts' => $r['parts']]
+                        + ($kind === 'rate' ? ['area' => $r['area']] : []);
+                }
+            }
+            $data += ['trinkwasser' => $comp['trinkwasser'] ?? [], 'schmutzwasser' => ['basis' => 'trinkwasser'] + ($comp['schmutzwasser'] ?? []),
+                      'niederschlagswasser' => $comp['niederschlagswasser'] ?? []];
+        } else {
+            $wp = [];
+            foreach (InvoicePrices::workingGroups($fields) as $g) {
+                $items = array_map(fn($i) => (array)($fields['working_prices']['items'][$i] ?? []), $g['items']);
+                $sure = $edited('working_prices') || array_filter($items, fn($it) => !InvoicePrices::sure($it, Evidence::itemTax($it))) === [];
+                if (!$sure) { $withheld[] = 'working_prices'; continue; }
+                $wp[] = ['from' => $g['from'], 'ct_per_kwh' => $g['value'], 'parts' => $g['parts']];
+            }
+            foreach ($clip($wp) as $r) {
+                $data['working_prices'][] = ['from' => $r['from'], 'ct_per_kwh' => $r['ct_per_kwh']];
+                $lines[] = ['section' => null, 'kind' => 'working', 'from' => $r['from'], 'value' => $r['ct_per_kwh'], 'parts' => $r['parts']];
+            }
+            // der Grundpreis gilt ab dem Beginn des Zeitraums; sicher wie die Arbeitspreise
+            $bp = self::value($e, 'base_price');
+            if (is_numeric($bp) && !$edited('base_price') && !InvoicePrices::sure((array)($fields['base_price'] ?? []), Evidence::fieldTax($fields, 'base_price'))) {
+                $withheld[] = 'base_price';
+                $bp = null;
+            }
+            $raw = $bp;
+            if (is_numeric($bp)) $bp = Evidence::grossOf((float)$bp, Evidence::fieldTax((array)$e['extraction']['fields'], 'base_price'));   // Nachbesserung 2 — brutto
+            $per = self::sure($e, 'base_price_period', $withheld);
+            if (is_numeric($bp) && !Utilities::isFeedIn($u)) {
+                $month = $per === 'year' ? round((float)$bp / 12, 4) : (float)$bp;
+                $data['base_prices'] = [['from' => $from, 'eur_per_month' => $month]];
+                $tax = Evidence::fieldTax($fields, 'base_price');
+                $lines[] = ['section' => null, 'kind' => 'base', 'from' => $from, 'value' => $month, 'parts' => [['label' => '', 'price' => (float)$raw,
+                    'unit' => $per === 'year' ? 'year' : 'month', 'net' => $tax !== null && $tax['net'], 'vat_pct' => $tax['vat_pct'] ?? null, 'gross' => (float)$bp]]];
+            }
         }
-        $bp = self::sure($e, 'base_price', $withheld);
-        if (is_numeric($bp)) $bp = Evidence::grossOf((float)$bp, Evidence::fieldTax((array)$e['extraction']['fields'], 'base_price'));   // Nachbesserung 2 — brutto
-        $per = self::sure($e, 'base_price_period', $withheld);
+        // der neue Abschlagsplan: am Vertrag, der nach der Rechnung weiterläuft (nicht am Vorvertrag)
         $adv = self::sure($e, 'advance_new', $withheld);
-        $advFrom = self::sure($e, 'advance_new_from', $withheld);
-        $data = array_filter([
-            'meter_id' => (string)$m['id'], 'provider' => $supplier, 'start' => $from,
-            'end' => $final ? $to : null, 'auto_renews' => $final ? false : null,
-            'working_prices' => $wp,
-            'base_prices' => is_numeric($bp) && !Utilities::isFeedIn($u) ? [['from' => $from, 'eur_per_month' => $per === 'year' ? round((float)$bp / 12, 4) : (float)$bp]] : [],
-            'advance_payments' => !$final && is_numeric($adv) && is_string($advFrom) && !Utilities::isFeedIn($u) ? [['from' => $advFrom, 'amount_eur' => (float)$adv]] : [],
-            'contract_number' => self::sure($e, 'contract_number', $withheld),
-            'customer_number' => self::sure($e, 'customer_number', $withheld),
-        ], fn($v) => $v !== null && $v !== '');
+        $plan = is_numeric($adv) ? InvoicePrices::advancePlan($e) : null;
+        // ohne (sichere) Termine: nur ein sicherer Beginn; die Termine selbst prüft advancePlan
+        if ($plan !== null && !isset($plan['due_dates'])) $plan['from'] = self::sure($e, 'advance_new_from', $withheld);
+        $advFrom = $plan['from'] ?? null;
+        if (!$final && $end === null && is_numeric($adv) && is_string($advFrom) && $advFrom >= $from && !Utilities::isFeedIn($u)) {
+            $row = ['from' => $advFrom, 'amount_eur' => (float)$adv] + array_intersect_key((array)$plan, array_flip(['every_months', 'due_dates']));
+            $data['advance_payments'] = [$row];
+            $lines[] = ['section' => null, 'kind' => 'advance', 'from' => $advFrom, 'value' => (float)$adv,
+                'every' => (int)($row['every_months'] ?? 1), 'dates' => $row['due_dates'] ?? []];
+        }
+        $data += ['contract_number' => self::sure($e, 'contract_number', $withheld), 'customer_number' => self::sure($e, 'customer_number', $withheld)];
+        // die Rechnung hängt an diesem Vertrag (nicht an einem Vor- oder Zwischenvertrag aus einer Lücke)
+        if (empty($opt['offer'])) $data['for_bill'] = true;
+        $data = array_filter($data, fn($v) => $v !== null && $v !== '' && $v !== []);
         [$status, $detail] = $this->compareContract($u, (string)$m['id'], $from, $supplier);
-        $open = self::openPoints($e, array_merge(['working_prices', 'base_price'], $final ? [] : ['advance_new']), array_values(array_unique($withheld)));
-        return self::p('contract_create', 'contractFromInvoice', ['provider' => $supplier, 'from' => $from], $data,
-            ['supplier', 'period_from', 'period_to', 'kind', 'working_prices', 'base_price', 'base_price_period', 'advance_new', 'advance_new_from', 'contract_number', 'customer_number'],
-            $status, ['core' => ['supplier', 'period_from', 'period_to'], 'optional' => true, 'detail' => $detail, 'open' => $open]);
+        $priceFields = $u === 'wasser' ? ['water_prices'] : ['working_prices', 'base_price'];
+        $open = self::openPoints($e, array_merge($priceFields, $final || $end !== null ? [] : ['advance_new']), array_values(array_unique($withheld)));
+        $offer = !empty($opt['offer']) || $this->contractTouches($u, (string)$m['id'], $from, $to);
+        return self::p('contract_create', $end !== null && !$final ? 'contractSpanFromInvoice' : 'contractFromInvoice',
+            ['provider' => $supplier, 'from' => $from] + ($end !== null ? ['to' => $end] : []) + ['lines' => $lines], $data,
+            ['supplier', 'period_from', 'period_to', 'kind', ...$priceFields, 'base_price_period', 'advance_new', 'advance_new_from', 'advance_new_dates', 'contract_number', 'customer_number'],
+            $status, ['core' => ['supplier', 'period_from', 'period_to'], 'detail' => $detail, 'open' => $open] + ($offer ? ['optional' => true] : []));
     }
 
     private function confirmation(array $c): array
@@ -1198,7 +1445,9 @@ final class Proposals
                                 array $extra = [], array $params = []): array
     {
         $status = 'new'; $detail = null;
-        foreach ((array)($ct[$list] ?? []) as $row) {
+        // v3.9.0 (F1034) — auch eine Liste eines Bestandteils (Wasser: „trinkwasser.working_prices“)
+        $rows = str_contains($list, '.') ? (($ct[explode('.', $list, 2)[0]] ?? [])[explode('.', $list, 2)[1]] ?? []) : ($ct[$list] ?? []);
+        foreach ((array)$rows as $row) {
             if ((string)($row['from'] ?? '') !== $from) continue;
             if (abs((float)($row[$key] ?? 0) - $value) < 0.00005) { $status = 'exists'; break; }
             $status = 'conflict'; $detail = ['value' => (float)($row[$key] ?? 0)];

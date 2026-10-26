@@ -9,6 +9,7 @@
 
 import { t, tp } from './i18n.js';
 import { fmt } from './format.js';
+import { advanceRhythm } from './advance-rhythm.js';   // v3.9.0 (F1034)
 
 /** Was noch Arbeit macht (Badge in der Navigation). */
 export const OPEN_STATUSES = ['new', 'queued', 'read', 'failed'];
@@ -57,9 +58,31 @@ export function itemText(field, item, entry = null) {
       const text = t('inbox.item.meterReading', { meter: v.meter_number || '–', from: st(v.reading_old, v.reading_old_date), to: st(v.reading_new, v.reading_new_date) });
       return v.estimated === true ? `${text} · ${t('inbox.item.estimated')}` : text;
     }
+    // v3.9.0 (F1034) — Wasserpreise je Sparte und Abschnitt, netto mit Satz und brutto
+    case 'water_prices': {
+      const price = waterPrice(v.price, v.unit);
+      const p = { section: sectionName(v.section), label: v.label || '–', from: fmt.date(v.from), to: fmt.date(v.to),
+        price: v.unit === 'm2_year' && v.area_m2 ? `${price} × ${fmt.dec(v.area_m2, 2)} m²` : price };
+      return entry?.net
+        ? t('inbox.item.waterPriceNet', { ...p, vat: fmt.dec(entry.net.vat_pct, 2), gross: waterPrice(entry.net.gross, v.unit) })
+        : t('inbox.item.waterPrice', p);
+    }
+    case 'advance_new_dates': return fmt.date(v.date);
     default: return Object.values(v).filter(x => x !== null && x !== undefined).join(' · ');
   }
 }
+
+/** v3.9.0 (F1034) — Name einer Sparte der Wasserrechnung (ohne Zeichen davor). */
+export const sectionName = (s) => (s ? t(`inbox.option.${s}`) : '–');
+
+/** v3.9.0 (F1034) — Wasserpreis wie gedruckt: € je m³, Jahr, Monat oder m² und Jahr. */
+function waterPrice(v, unit) {
+  if (v === null || v === undefined || v === '') return '–';
+  const per = { m3: t('inbox.unit.perM3'), year: t('inbox.unit.perYear'), month: t('inbox.unit.perMonth'), m2_year: t('inbox.unit.perM2Year') }[unit] || '';
+  return `${fmt.money(v)}${per ? ` ${per}` : ''}`;
+}
+
+export { advanceRhythm };
 
 /** Nachzahlung (positiv) oder Guthaben (negativ) als Satzteil. */
 export function resultText(result) {
@@ -68,11 +91,54 @@ export function resultText(result) {
   return t(n > 0 ? 'inbox.result.due' : 'inbox.result.credit', { amount: fmt.money(Math.abs(n)) });
 }
 
-/** Wert einer Preiszeile je Art des Vorschlags. */
-function rowValue(kind, v) {
+/** Wert einer Preiszeile je Art des Vorschlags (v3.9.0: Wasser je m³ in ct). */
+function rowValue(kind, v, key = '') {
   if (v === null || v === undefined || v === '') return '–';
   if (kind === 'contract_price') return `${fmt.dec(v, 4)} ct/kWh`;
+  if (kind === 'contract_water_price' && key === 'ct_per_m3') return `${fmt.dec(v, 4)} ct/m³`;
   return fmt.money(v);
+}
+
+/** v3.9.0 (F1034) — ein Bestandteil eines Preises: „Basispreis 50,00 € je Jahr netto + 7 % USt“. */
+function partText(part) {
+  const price = part.unit === 'kwh' ? `${fmt.dec(part.price, 4)} ct/kWh` : waterPrice(part.price, part.unit);
+  const text = part.label ? `${part.label} ${price}` : price;
+  return part.net && part.vat_pct !== null && part.vat_pct !== undefined ? t('inbox.line.net', { value: text, vat: fmt.dec(part.vat_pct, 2) }) : text;
+}
+
+/**
+ * v3.9.0 (F1034) — Aufschlüsselung eines Vorschlags in Zeilen: beim Vertrag aus
+ * der Rechnung je Sparte und Abschnitt der Preis und woraus er entsteht (Basis-
+ * und Bereitstellungspreis, netto mit Satz), dazu der Abschlagsplan; bei einer
+ * Preiszeile aus mehreren Bestandteilen (Energiesteuer, CO₂-Preis) diese.
+ * @returns {string[]}
+ */
+export function proposalLines(p) {
+  const parts = (list) => (list || []).map(partText);
+  const from = (list) => {
+    const xs = parts(list);
+    if (!xs.length) return '';
+    return t('inbox.line.parts', { parts: xs.join(' + ') });
+  };
+  if (p.kind === 'contract_create') {
+    return (p.params?.lines || []).map((l) => {
+      const what = l.section ? sectionName(l.section) : t('inbox.line.energy');
+      const base = { what, from: fmt.date(l.from) };
+      let text;
+      if (l.kind === 'working') text = t('inbox.line.working', { ...base, value: l.section ? `${fmt.dec(l.value, 4)} ct/m³` : `${fmt.dec(l.value, 4)} ct/kWh` });
+      else if (l.kind === 'base') text = t(l.section ? 'inbox.line.base' : 'inbox.line.baseOnly', { ...base, value: fmt.money(l.value) });
+      else if (l.kind === 'rate') text = t('inbox.line.rate', { ...base, value: fmt.money(l.value), area: fmt.dec(l.area, 2) });
+      else if (l.kind === 'advance') {
+        const rhythm = advanceRhythm(l.every, l.dates);
+        return t('inbox.line.advance', { from: fmt.date(l.from), value: fmt.money(l.value) }) + (rhythm ? `, ${rhythm}` : '');
+      } else return '';
+      const how = from(l.parts);
+      return how ? `${text} (${how})` : text;
+    }).filter(Boolean);
+  }
+  if ((p.kind === 'contract_price' || p.kind === 'contract_water_price') && (p.params?.parts || []).length > 1) return [from(p.params.parts)];
+  if (p.kind === 'contract_water_price' && (p.params?.parts || []).some(x => x.net)) return [from(p.params.parts)];
+  return [];
 }
 
 /**
@@ -87,9 +153,18 @@ export function proposalText(p, { unit = '' } = {}) {
   if (p.kind === 'reading') a.counter = `${fmt.dec(a.counter, 3)}${unit ? ` ${unit}` : ''}`;
   // v3.7.0 (treffsicher, Nachbesserung 4) — Zählertausch aus der Rechnung mit beiden Ständen
   if (p.kind === 'meter_change') for (const k of ['old_final', 'new_initial']) if (typeof a[k] === 'number') a[k] = `${fmt.dec(a[k], 3)}${unit ? ` ${unit}` : ''}`;
-  if (['contract_price', 'contract_base_price', 'contract_advance'].includes(p.kind)) {
-    a.value = rowValue(p.kind, p.params?.value);
-    if (p.params?.old !== undefined && p.params?.old !== null) a.old = rowValue(p.kind, p.params.old);
+  if (['contract_price', 'contract_base_price', 'contract_advance', 'contract_water_price'].includes(p.kind)) {
+    a.value = rowValue(p.kind, p.params?.value, p.data?.key);
+    if (p.params?.old !== undefined && p.params?.old !== null) a.old = rowValue(p.kind, p.params.old, p.data?.key);
+  }
+  // v3.9.0 (F1034) — Wasser: Sparte und Fläche; Abschlag mit Rhythmus („alle 2 Monate, am …“)
+  if (p.kind === 'contract_water_price') {
+    a.section = sectionName(p.params?.section);
+    if (p.params?.area !== undefined && p.params?.area !== null) a.area = fmt.dec(p.params.area, 2);
+  }
+  if (p.kind === 'contract_advance') {
+    const rhythm = advanceRhythm(p.params?.every, p.params?.dates);
+    if (rhythm) return `${t(p.label_key, a)}, ${rhythm}`;
   }
   if (p.kind === 'bill' || p.kind === 'bill_book') a.result = resultText(p.params?.result) || '–';
   if (p.kind === 'gas_factor') { a.z = fmt.dec(a.z, 4); a.hs = fmt.dec(a.hs, 3); a.factor = fmt.dec(a.factor, 4); }
@@ -104,8 +179,8 @@ export function detailText(p, { unit = '' } = {}) {
   if (!d) return '';
   switch (p.kind) {
     case 'reading': return d.counter !== undefined ? t('inbox.detail.reading', { counter: `${fmt.dec(d.counter, 3)}${unit ? ` ${unit}` : ''}` }) : '';
-    case 'contract_price': case 'contract_base_price': case 'contract_advance':
-      return d.value !== undefined ? t('inbox.detail.row', { value: rowValue(p.kind, d.value) }) : '';
+    case 'contract_price': case 'contract_base_price': case 'contract_advance': case 'contract_water_price':
+      return d.value !== undefined ? t('inbox.detail.row', { value: rowValue(p.kind, d.value, p.data?.key) }) : '';
     case 'bill': return d.period_from ? t('inbox.detail.billOverlap', { from: fmt.date(d.period_from), to: fmt.date(d.period_to) })
       : t('inbox.detail.bill', { amount: fmt.money(d.invoice?.amount_eur) });
     case 'contract_create': return d.start ? t('inbox.detail.contract', { provider: d.provider || '–', from: fmt.date(d.start), to: d.end ? fmt.date(d.end) : '…' }) : '';

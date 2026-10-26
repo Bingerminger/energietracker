@@ -66,6 +66,9 @@
 .inbox-proposal--check { border-color: var(--warning); }
 .inbox-proposal--conflict { border-color: var(--danger); }
 .inbox-proposal__detail { margin: var(--sp-1) 0 0 calc(var(--sp-2) + 16px); font-size: var(--fs-sm); color: var(--text-2); }
+/* v3.9.0 (F1034) — Aufschlüsselung der Preise eines Vorschlags (Vertrag aus der Rechnung) */
+.inbox-proposal__lines { margin: var(--sp-1) 0 0 calc(var(--sp-2) + 16px); padding-left: var(--sp-3); font-size: var(--fs-sm); color: var(--text-2); overflow-wrap: anywhere; }
+.inbox-proposal__lines li + li { margin-top: 2px; }
 .inbox-manual__list { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
 .inbox-actions { display: flex; flex-wrap: wrap; gap: var(--sp-2); justify-content: flex-end; }
 

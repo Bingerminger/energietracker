@@ -501,7 +501,8 @@
         "one": "{count} special payment",
         "other": "{count} special payments"
       },
-      "sinceBill": "Counted from {date}: the bill before is booked in the contract and no longer counts here."
+      "sinceBill": "Counted from {date}: the bill before is booked in the contract and no longer counts here.",
+      "paidCurrentEvery": "current: {value}"
     },
     "contractsTable": {
       "emptyTitle": "No contracts recorded",
@@ -802,13 +803,15 @@
       "advance": "Advance payment",
       "twWorking": "Fresh water unit price",
       "twBase": "Fresh water standing charge",
-      "swWorking": "Waste water unit price"
+      "swWorking": "Waste water unit price",
+      "swBase": "Waste water standing charge"
     },
     "unit": {
       "ctPerKwh": "{minor}/kWh",
       "eurPerMonth": "{cur}/month",
       "eurPerKwYear": "{cur}/kW per year",
-      "eurPerYear": "{cur}/year"
+      "eurPerYear": "{cur}/year",
+      "eurPerDue": "{cur} per due date"
     },
     "loading": "Loading…",
     "unknown": "Unknown utility: {key}",
@@ -837,7 +840,8 @@
       "advanceValue": "Advance payment {value}/month",
       "valuesOn": "as of {date}",
       "noValues": "No prices entered yet",
-      "since": "since {year}"
+      "since": "since {year}",
+      "advanceValueEvery": "Advance payment {value}"
     },
     "summary": {
       "twPrices": {
@@ -999,7 +1003,10 @@
       "startRequired": "Contract start is required.",
       "basisDeduct": "drinking water minus deduction meters (e.g. garden)",
       "deductMeters": "Deduction meters",
-      "deductHint": "Water that runs through these meters (e.g. garden water) costs drinking water but no waste water. Best keep the garden meter as a sub-meter of the main meter, so it is not counted twice in the totals."
+      "deductHint": "Water that runs through these meters (e.g. garden water) costs drinking water but no waste water. Best keep the garden meter as a sub-meter of the main meter, so it is not counted twice in the totals.",
+      "swBase": "Waste water standing charge ({cur}/month)",
+      "apPlan": "Advance payment plan",
+      "colEurDue": "{cur} per due date"
     },
     "perM3": {
       "toggleTitle": "Convert a price per m³ to {minor}/kWh",
@@ -1086,6 +1093,11 @@
       "undated": "entry without a date",
       "link": "Go to the setting",
       "why": "The correction factor and the calorific value depend on the supply point (altitude, pressure) and on the gas in the network, not on the supplier: they stay the same when you switch, and every gas bill states them. That is why they are set once in the settings and apply to every contract."
+    },
+    "advance": {
+      "every": "Rhythm",
+      "monthly": "monthly",
+      "dueDates": "Due dates according to the bill: {dates}, then yearly on the same days"
     }
   },
   "meters": {
@@ -3503,7 +3515,9 @@
       "priceModelInvalid": "Unknown price model “{value}”",
       "priceImportEmpty": "The file contains no line in the format month;price",
       "priceImportUnsupported": "Monthly prices are only available for contracts with a unit price per kWh",
-      "gridTouInvalid": "Module 3 time windows invalid ({field}): quarters 1–4, times HH:MM with from before until, prices 0–100 ct and a standard tariff."
+      "gridTouInvalid": "Module 3 time windows invalid ({field}): quarters 1–4, times HH:MM with from before until, prices 0–100 ct and a standard tariff.",
+      "advanceEveryInvalid": "Advance payment #{n}: “{value}” is not a rhythm. Possible are monthly, every 2 and every 3 months.",
+      "advanceDueBeforeStart": "Advance payment #{n}: the due date {date} is before the day the line applies from."
     },
     "delivery": {
       "notFound": "Delivery not found: {id}",
@@ -3855,7 +3869,8 @@
     },
     "history": "History ({count})",
     "historyTitle": "History: {name}",
-    "anytime": "Can be cancelled any time"
+    "anytime": "Can be cancelled any time",
+    "advanceEvery": "Advance payment {amount}"
   },
   "billCheck": {
     "noMeter": "The bill check recalculates the annual bill for gas, electricity, water and district heating. Set up a meter first.",
@@ -6000,7 +6015,10 @@
       "document_title": "Title of the document",
       "meter_readings": "Readings per meter",
       "reading_new_estimated": "Final reading estimated",
-      "reading_old_estimated": "Initial reading estimated"
+      "reading_old_estimated": "Initial reading estimated",
+      "water_prices": "Water prices",
+      "advance_new_dates": "Due dates of the new advance payment",
+      "advance_new_every": "Rhythm of the new advance payment"
     },
     "reason": {
       "empty": "Missing, but needed",
@@ -6036,14 +6054,28 @@
       "supplier": "Cancellation by the supplier",
       "switch": "End due to switching supplier",
       "net": "net",
-      "gross": "gross"
+      "gross": "gross",
+      "trinkwasser": "Drinking water",
+      "schmutzwasser": "Waste water",
+      "niederschlagswasser": "Rainwater",
+      "m3": "per m³",
+      "m2_year": "per m² and year",
+      "monthly": "monthly",
+      "bimonthly": "every two months",
+      "quarterly": "every three months",
+      "energy": "Unit price",
+      "energy_tax": "Energy tax",
+      "co2": "CO₂ price",
+      "other": "Surcharge"
     },
     "item": {
       "gasFactor": "{from} to {to}: volume correction factor {z} × calorific value {hs} kWh/m³",
       "price": "from {from}: {value}",
       "priceNet": "from {from}: {value} net + {vat}% VAT = {gross}",
       "meterReading": "Meter {meter}: {from} → {to}",
-      "estimated": "estimated according to the bill"
+      "estimated": "estimated according to the bill",
+      "waterPrice": "{section} · {label} {from} to {to}: {price}",
+      "waterPriceNet": "{section} · {label} {from} to {to}: {price} net + {vat}% VAT = {gross}"
     },
     "result": {
       "due": "additional payment {amount}",
@@ -6072,7 +6104,11 @@
       "contractFromInvoice": "Create the contract {provider} from {from} from this bill",
       "contractFromSupplyStart": "Create the contract {provider} from {from}",
       "meterSwapInvoice": "Meter swap on {date}: final reading {old_final} on meter {old_serial}, new meter {serial} with initial reading {new_initial}",
-      "readingEstimated": "Meter reading on {date}: {counter} (estimated according to the bill)"
+      "readingEstimated": "Meter reading on {date}: {counter} (estimated according to the bill)",
+      "contractSpanFromInvoice": "Create the contract {provider} from {from} to {to} from this bill",
+      "waterWorking": "{section} from {from}: {value} (from the bill)",
+      "waterBase": "Standing charge {section} from {from}: {value} per month (from the bill)",
+      "waterRate": "{section} from {from}: {value} per m² and year for {area} m² (from the bill)"
     },
     "detail": {
       "reading": "Recorded: {counter}.",
@@ -6271,6 +6307,22 @@
     },
     "wait": {
       "gaveUp": "No answer, even after checking back. The document may still finish – open it again shortly. A longer time limit on the web server helps for good."
+    },
+    "unit": {
+      "perM3": "per m³",
+      "perYear": "per year",
+      "perMonth": "per month",
+      "perM2Year": "per m² and year"
+    },
+    "line": {
+      "working": "{what} from {from}: {value}",
+      "base": "Standing charge {what} from {from}: {value} per month",
+      "baseOnly": "Standing charge from {from}: {value} per month",
+      "rate": "{what} from {from}: {value} per m² and year for {area} m²",
+      "energy": "Unit price",
+      "parts": "from {parts}",
+      "net": "{value} net + {vat}% VAT",
+      "advance": "Advance payment from {from}: {value} per due date"
     }
   },
   "inboxCloud": {
@@ -6623,6 +6675,16 @@
       "too_few_points": "too few data points ({n})",
       "poor_fit": "does not fit (R² {r2})",
       "degenerate": "cannot be calculated (too little variation in the values)"
+    }
+  },
+  "advance": {
+    "rhythm": {
+      "every": {
+        "one": "every month",
+        "other": "every {count} months"
+      },
+      "everyDates": "{every}, on {dates}",
+      "dates": "on {dates}"
     }
   }
 }

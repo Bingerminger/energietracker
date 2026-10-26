@@ -1050,7 +1050,7 @@ file is created with the first document, no schema step.
   "queued_at": null,           // only when queued: order of the queue
   "type": "invoice",           // document type, see below; type_confidence 0–1 or null
   "extraction": {              // the checked result, null before reading
-    "provider": "local", "model": "qwen3.8", "schema_version": 4, "type": "invoice",
+    "provider": "local", "model": "qwen3.8", "schema_version": 5, "type": "invoice",
     "fields": {
       "consumption": { "value": 10450, "raw": "10.450", "quote": "Verbrauch: 945,6 m³ = 10.540 kWh",
                        "page": 1, "status": "check", "reasons": ["value_not_in_quote"] }
@@ -1059,7 +1059,7 @@ file is created with the first document, no schema step.
     "flags": 3, "seconds": 74.2, "extracted_at": "…",
     "text": { "chars": 1180, "kept": [1, 2], "dropped": [3], "truncated": false }   // terms pages not sent
   },
-  "cache": { "local|qwen3.8|4": { … } },   // raw answers per provider, model and schema version (at most three)
+  "cache": { "local|qwen3.8|5": { … } },   // raw answers per provider, model and schema version (at most three)
   "assignment": null,          // {utility, meter_id, contract_id} — set by the user, otherwise the prefill applies
   "edits": {},                 // confirmed or corrected field values, {field: value}
   "applied": [],               // [{id, kind, key, ref, at}] — what was taken over

@@ -3959,7 +3959,7 @@ rate” needs the rate of the contract price: from a document on the contract
 the price or in the field `vat_pct`) or from the same bill. Balance and
 forecast keep calculating with the contract’s gross prices. Helper fields
 (`basis`, `vat_pct`, `base_price_basis`, `base_price_vat_pct`, `vat_pct` of
-the confirmation) never flag. A reading carries `schema_version` **4**; the
+the confirmation) never flag. A reading carries `schema_version` **5**; the
 cache depends on this version. A document read with an older version keeps its
 reading until you read it again: the app recognises net there from the quote,
 only reading again asks the model for the new fields. Reading again without

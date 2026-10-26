@@ -1061,7 +1061,7 @@ Eine Liste; die Datei entsteht mit dem ersten Dokument, kein Schema-Schritt.
   "queued_at": null,           // nur vorgemerkt: Reihenfolge der Warteschlange
   "type": "invoice",           // Dokumentart, s. u.; type_confidence 0–1 oder null
   "extraction": {              // das geprüfte Ergebnis, null vor dem Auslesen
-    "provider": "local", "model": "qwen3.8", "schema_version": 4, "type": "invoice",
+    "provider": "local", "model": "qwen3.8", "schema_version": 5, "type": "invoice",
     "fields": {
       "consumption": { "value": 10450, "raw": "10.450", "quote": "Verbrauch: 945,6 m³ = 10.540 kWh",
                        "page": 1, "status": "check", "reasons": ["value_not_in_quote"] }
@@ -1070,7 +1070,7 @@ Eine Liste; die Datei entsteht mit dem ersten Dokument, kein Schema-Schritt.
     "flags": 3, "seconds": 74.2, "extracted_at": "…",
     "text": { "chars": 1180, "kept": [1, 2], "dropped": [3], "truncated": false }   // AGB-Seiten nicht gesendet
   },
-  "cache": { "local|qwen3.8|4": { … } },   // Rohantworten je Anbieter, Modell und Schema-Version (höchstens drei)
+  "cache": { "local|qwen3.8|5": { … } },   // Rohantworten je Anbieter, Modell und Schema-Version (höchstens drei)
   "assignment": null,          // {utility, meter_id, contract_id} — vom Nutzer gesetzt, sonst gilt die Vorbelegung
   "edits": {},                 // bestätigte oder korrigierte Feldwerte, {feld: wert}
   "applied": [],               // [{id, kind, key, ref, at}] — was übernommen wurde
