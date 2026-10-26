@@ -4184,7 +4184,24 @@ number), `meter_change`, `contract`,
 contract at an existing meter counts as recorded with the same start or — same
 supplier or same contract number — with a start up to 7 days off
 (`start_near`, the recorded start stays); contracts of the meter's group count
-too. Per field `new`, `exists`, `conflict` (with
+too. *(3.9.0)* The final start is compared, also after moving it forward to the
+first bill (`invoice_earlier`) and for a predecessor contract made from bills.
+Confirmations with the same contract number give the earliest start, whatever
+order they were filed in. Within the same supply relationship, a start up to
+7 days off at the same meter is the same contract (for example the brand's
+confirmation and the supply start letter of the billing municipal utility);
+different contract numbers stay two. Same start with another supplier name,
+and the recorded contract carries no other contract number: the recorded
+contract as a question “the same supplier?” (`label_key`
+`inboxDraft.item.contract.sameSupplier`, `params.existing` = the recorded
+name, reason `same_supplier`, `detail` `{provider, start, end, document}`, field
+`provider` with `status: conflict`, `existing` and `check: false`; taking over
+never writes the recorded name). `requires` *(3.9.0)*: on `prices`, `advances`
+and `bill` the `id` of the contract entry without which the entry is not taken
+over (the contract does not exist yet, or its supplier is a question),
+otherwise `null`; such an entry is only `checked` when its contract is, and
+`checked_with` is its default once the contract is ticked. Meter readings
+belong to the meter, not to the contract. Per field `new`, `exists`, `conflict` (with
 `existing`; a bill price with `price_matches` is `exists`). `check` on a field:
 doubtful (flagged quote — the marks by today’s data as in the list and the
 preview, `Proposals::marks` — and no second document that confirms it; bill
@@ -4218,7 +4235,12 @@ A selected entry writes its fields that are new and not doubtful, plus the core
 fields (ticking confirms them), the ones named in `confirm` and the option
 picked in `choose`. An unknown ID, an unknown field or an option outside the
 list → `400 errors.inbox.proposalStale` before anything is written; nothing
-selected → `400 errors.inboxDraft.nothingSelected`. First the server makes a
+selected → `400 errors.inboxDraft.nothingSelected`; *(3.9.0)* an entry without
+the contract entry named in its `requires` → `400 errors.inboxDraft.needs.contract`,
+also before anything is written. If a bill's contract is missing while taking
+over (it failed), the bill is listed in `failed` with this code and is not
+created; up to 3.8 it was created without a contract and booked its result on
+the contract that ran at the time. First the server makes a
 backup `pre-inbox-…` (Settings → Data, reason “before household from
 documents”). Answer: `applied` (per entry `ref`), `failed` (per entry or field
 with `error`, `code`), `created` (`meters`, `meter_changes`, `contracts`,

@@ -29,6 +29,11 @@
 .draft-item__pick input { flex: none; width: 1.15rem; height: 1.15rem; }
 .draft-item__title { font-weight: 600; color: var(--text-1); overflow-wrap: anywhere; }
 .draft-item__reason { margin: var(--sp-2) 0 0; font-size: var(--fs-sm); color: var(--text-1); }
+/* v3.9.0 — hängt an einem Vertrag, der nicht angehakt ist: gesperrt, bis er es ist */
+.draft-item--blocked { border-style: dashed; }
+.draft-item--blocked .draft-item__pick { cursor: not-allowed; }
+.draft-item--blocked .draft-item__title { color: var(--text-2); }
+.draft-item__requires { margin: var(--sp-1) 0 0; }
 
 .draft-fields { list-style: none; margin: var(--sp-2) 0 0; padding: 0; display: grid; gap: var(--sp-1); }
 .draft-field { padding: var(--sp-1) var(--sp-2); border-radius: var(--r-sm); min-width: 0; }

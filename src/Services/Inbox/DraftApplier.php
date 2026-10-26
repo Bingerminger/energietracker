@@ -76,6 +76,14 @@ final class DraftApplier
                 if (!is_int($i) || !isset($f['options'][$i])) throw new LocalizedException('errors.inbox.proposalStale', [], "stale draft option $id/$name");
             }
         }
+        // v3.9.0 (entwurf-bestand) — Preise, Abschläge und Rechnungen eines Vertrags, der erst entsteht
+        // (oder dessen Versorger eine Rückfrage ist), nur mit ihm (`requires`): sonst abgelehnt, bevor
+        // etwas geschrieben wird — kein stilles Verwerfen, keine Rechnung am Vertrag, der damals lief
+        $picked = array_flip(array_column($out, 'id'));
+        foreach ($out as $it) {
+            $req = $it['requires'] ?? null;
+            if (is_string($req) && !isset($picked[$req])) throw new LocalizedException('errors.inboxDraft.needs.contract', [], "draft item {$it['id']} needs contract item $req");
+        }
         $order = array_flip(HouseholdDraft::ORDER);
         $pos = array_flip(array_column($draft['items'], 'id'));
         usort($out, fn($a, $b) => [$order[$a['kind']] ?? 99, $pos[$a['id']]] <=> [$order[$b['kind']] ?? 99, $pos[$b['id']]]);
@@ -294,7 +302,10 @@ final class DraftApplier
             'advances_paid_eur' => $vals['advances_paid'] ?? null,
             'result_eur' => $vals['result'] ?? null,
         ], fn($v) => $v !== null);
-        $cid = $it['contract_key'] !== null ? ($contractIds[$it['contract_key']] ?? null) : null;
+        // v3.9.0 (entwurf-bestand) — die Rechnung eines Vertrags gehört an ihn: Ist er nicht da (nicht
+        // übernommen oder gescheitert), entsteht sie nicht — sonst stünde sie ohne Vertrag da und buchte
+        // ihr Ergebnis auf den Vertrag, der damals lief (BillService::contractFor), auch einen fremden
+        $cid = $it['contract_key'] !== null ? self::need($contractIds[$it['contract_key']] ?? null, 'contract') : null;
         $billId = $it['bill_id'] ?? null;
         if ($billId !== null) {
             $old = $this->bills->get($u, (string)$billId);
