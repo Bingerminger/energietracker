@@ -3148,6 +3148,10 @@
       "advanceUncertain": {
         "title": "{label}: check the advance payment after the next reading",
         "reason": "{text}"
+      },
+      "cancelConfirm": {
+        "title": "Cancellation confirmed? {label}",
+        "reason": "A contract with {next} is entered from {start}. Check that “{provider}” has confirmed the cancellation; it has to reach them by {date}."
       }
     },
     "money": {
@@ -4386,7 +4390,8 @@
       "billExpected": "Bill expected: {label} ({provider}) for {from} – {until}",
       "billOverdue": "Bill overdue: {label} ({provider}) for {from} – {until} — statutory deadline passed, ask the supplier",
       "finalBillExpected": "Final bill expected: {label} ({provider}) for {from} – {until}",
-      "finalBillOverdue": "Final bill overdue: {label} ({provider}) for {from} – {until} — statutory deadline passed, ask the supplier"
+      "finalBillOverdue": "Final bill overdue: {label} ({provider}) for {from} – {until} — statutory deadline passed, ask the supplier",
+      "cancelConfirm": "{label}: cancellation confirmed? ({provider}, switching to {next})"
     },
     "subscribe": "Subscribe in your calendar",
     "intro": "Dates, cancellation deadlines, contract ends, price guarantees and due readings as a calendar subscription. The calendar refreshes them every 12 hours.",

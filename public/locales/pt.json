@@ -3148,6 +3148,10 @@
       "advanceUncertain": {
         "title": "{label}: verificar o adiantamento após a próxima leitura",
         "reason": "{text}"
+      },
+      "cancelConfirm": {
+        "title": "Denúncia confirmada? {label}",
+        "reason": "A partir de {start} está registado um contrato com {next}. Verifique se «{provider}» confirmou a denúncia; ela tem de chegar até {date}."
       }
     },
     "money": {
@@ -4386,7 +4390,8 @@
       "billExpected": "Fatura esperada: {label} ({provider}) para {from} – {until}",
       "billOverdue": "Fatura em atraso: {label} ({provider}) para {from} – {until} — prazo legal ultrapassado, contacte o fornecedor",
       "finalBillExpected": "Fatura de fecho esperada: {label} ({provider}) para {from} – {until}",
-      "finalBillOverdue": "Fatura de fecho em atraso: {label} ({provider}) para {from} – {until} — prazo legal ultrapassado, contacte o fornecedor"
+      "finalBillOverdue": "Fatura de fecho em atraso: {label} ({provider}) para {from} – {until} — prazo legal ultrapassado, contacte o fornecedor",
+      "cancelConfirm": "{label}: denúncia confirmada? ({provider}, mudança para {next})"
     },
     "subscribe": "Subscrever no calendário",
     "intro": "Compromissos, prazos de denúncia, fim de contratos, garantias de preço e leituras pendentes como subscrição de calendário. O calendário atualiza-os a cada 12 horas.",

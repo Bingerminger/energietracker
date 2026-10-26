@@ -3148,6 +3148,10 @@
       "advanceUncertain": {
         "title": "{label}: Abschlag nach der nächsten Ablesung prüfen",
         "reason": "{text}"
+      },
+      "cancelConfirm": {
+        "title": "Kündigung bestätigt? {label}",
+        "reason": "Ab {start} ist ein Vertrag bei {next} eingetragen. Prüfe, ob „{provider}“ die Kündigung bestätigt hat; sie muss bis {date} dort sein."
       }
     },
     "money": {
@@ -4386,7 +4390,8 @@
       "billExpected": "Abrechnung erwartet: {label} ({provider}) für {from} – {until}",
       "billOverdue": "Abrechnung überfällig: {label} ({provider}) für {from} – {until} — gesetzliche Frist verstrichen, beim Versorger nachfragen",
       "finalBillExpected": "Schlussrechnung erwartet: {label} ({provider}) für {from} – {until}",
-      "finalBillOverdue": "Schlussrechnung überfällig: {label} ({provider}) für {from} – {until} — gesetzliche Frist verstrichen, beim Versorger nachfragen"
+      "finalBillOverdue": "Schlussrechnung überfällig: {label} ({provider}) für {from} – {until} — gesetzliche Frist verstrichen, beim Versorger nachfragen",
+      "cancelConfirm": "{label}: Kündigung bestätigt? ({provider}, Wechsel zu {next})"
     },
     "subscribe": "Im Kalender abonnieren",
     "intro": "Termine, Kündigungsstichtage, Vertragsenden, Preisgarantien und fällige Ablesungen als Kalender-Abo. Der Kalender holt sie alle 12 Stunden neu.",

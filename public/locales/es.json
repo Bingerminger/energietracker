@@ -3148,6 +3148,10 @@
       "advanceUncertain": {
         "title": "{label}: revisar el anticipo tras la próxima lectura",
         "reason": "{text}"
+      },
+      "cancelConfirm": {
+        "title": "¿Baja confirmada? {label}",
+        "reason": "Desde el {start} hay un contrato con {next}. Comprueba que «{provider}» ha confirmado la baja; debe llegar antes del {date}."
       }
     },
     "money": {
@@ -4386,7 +4390,8 @@
       "billExpected": "Factura esperada: {label} ({provider}) para {from} – {until}",
       "billOverdue": "Factura con retraso: {label} ({provider}) para {from} – {until} — plazo legal vencido, pregunta al proveedor",
       "finalBillExpected": "Factura de cierre esperada: {label} ({provider}) para {from} – {until}",
-      "finalBillOverdue": "Factura de cierre con retraso: {label} ({provider}) para {from} – {until} — plazo legal vencido, pregunta al proveedor"
+      "finalBillOverdue": "Factura de cierre con retraso: {label} ({provider}) para {from} – {until} — plazo legal vencido, pregunta al proveedor",
+      "cancelConfirm": "{label}: ¿baja confirmada? ({provider}, cambio a {next})"
     },
     "subscribe": "Suscribirse en el calendario",
     "intro": "Citas, plazos de cancelación, fin de contratos, garantías de precio y lecturas pendientes como suscripción de calendario. El calendario los actualiza cada 12 horas.",

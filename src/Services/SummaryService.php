@@ -165,6 +165,9 @@ final class SummaryService
                 'base_price_month'          => $c['current_base_price_eur'] ?? null,
                 'advance_month'             => $c['current_advance_amount'] ?? null,
                 'suggested_advance'         => $c['suggested_advance'] ?? null,
+                // v3.9.0 (L12, additiv) — kurz vor der Abrechnung kein Nachholbetrag, dafür der laufende Bedarf
+                'advance_ongoing'           => $c['advance_ongoing'] ?? null,
+                'suggestion_withheld'       => $c['suggestion_withheld'] ?? null,
                 // v3.7.0 (wirklichkeit-2) — Spanne statt Vorschlag, wenn die Schätzung unsicher ist
                 'projection_uncertain'      => $c['projection_uncertain'] ?? null,
                 'balance'                   => $c['current_balance'] ?? null,

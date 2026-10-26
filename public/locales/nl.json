@@ -3148,6 +3148,10 @@
       "advanceUncertain": {
         "title": "{label}: voorschot na de volgende meterstand controleren",
         "reason": "{text}"
+      },
+      "cancelConfirm": {
+        "title": "Opzegging bevestigd? {label}",
+        "reason": "Vanaf {start} staat een contract bij {next} ingevoerd. Controleer of ‘{provider}’ de opzegging heeft bevestigd; die moet uiterlijk {date} binnen zijn."
       }
     },
     "money": {
@@ -4386,7 +4390,8 @@
       "billExpected": "Rekening verwacht: {label} ({provider}) voor {from} – {until}",
       "billOverdue": "Rekening te laat: {label} ({provider}) voor {from} – {until} — wettelijke termijn verstreken, vraag het na bij de leverancier",
       "finalBillExpected": "Eindafrekening verwacht: {label} ({provider}) voor {from} – {until}",
-      "finalBillOverdue": "Eindafrekening te laat: {label} ({provider}) voor {from} – {until} — wettelijke termijn verstreken, vraag het na bij de leverancier"
+      "finalBillOverdue": "Eindafrekening te laat: {label} ({provider}) voor {from} – {until} — wettelijke termijn verstreken, vraag het na bij de leverancier",
+      "cancelConfirm": "{label}: opzegging bevestigd? ({provider}, overstap naar {next})"
     },
     "subscribe": "Abonneren in je agenda",
     "intro": "Afspraken, opzegtermijnen, contracteinden, prijsgaranties en verschuldigde meterstanden als agenda-abonnement. De agenda haalt ze elke 12 uur opnieuw op.",

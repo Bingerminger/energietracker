@@ -237,6 +237,7 @@ final class ReportAdviceService
         $next = null; $nextE = null;
         foreach ((array)($f['agenda'] ?? []) as $e) {
             if (!in_array($e['kind'] ?? '', self::DEADLINE_KINDS, true)) continue;
+            if (!empty($e['ref']['confirm'])) continue;   // v3.9.0 (L14) — nur noch die Bestätigung prüfen, keine Frist, die eilt
             $d = self::days((string)$f['today'], (string)$e['date']);
             if ($next === null || $d < $next) { $next = $d; $nextE = $e; }
         }
@@ -299,7 +300,18 @@ final class ReportAdviceService
         }
         // Kündigen oder wechseln — nicht, wo es nichts zu wechseln gibt (Wasser)
         $cancel = $c['cancel_by'] ?? null;
-        if (!empty($c['switchable']) && is_string($cancel) && $cancel >= $today && self::days($today, $cancel) <= self::CANCEL_WINDOW_DAYS) {
+        $succ = is_array($c['successor'] ?? null) ? $c['successor'] : null;
+        if (!empty($c['switchable']) && !empty($c['successor_switch']) && $succ !== null && is_string($cancel) && $cancel >= $today
+            && self::days($today, $cancel) <= self::CANCEL_WINDOW_DAYS) {
+            // v3.9.0 (L14) — ein Folgevertrag bei einem anderen Versorger ist eingetragen: Der
+            // Wechsel ist entschieden, offen ist nur die Bestätigung der Kündigung. Kein
+            // „Kündigung oder Wechsel bis …“ mit Priorität 1 mehr, sondern ein Hinweis.
+            $out[] = $this->info('cancelConfirm', $c['utility'] ?? null, 'report.advice.cancelConfirm.title', ['label' => $label],
+                'report.advice.cancelConfirm.reason', [
+                    'provider' => $provider, 'next' => (string)(($succ['provider'] ?? '') ?: '—'),
+                    'start' => $this->i18n->date((string)$succ['start']), 'date' => $this->i18n->date($cancel),
+                ], true);
+        } elseif (!empty($c['switchable']) && is_string($cancel) && $cancel >= $today && self::days($today, $cancel) <= self::CANCEL_WINDOW_DAYS) {
             $steps = [];
             $euro = null;
             $offer = $c['offer'] ?? null;
@@ -323,7 +335,9 @@ final class ReportAdviceService
         } elseif (!empty($c['switchable']) && !empty($c['cancel_missed']) && !empty($c['is_current'])) {
             $out[] = $this->info('cancelMissed', $c['utility'] ?? null, 'report.advice.cancelMissed.title', ['label' => $label],
                 'report.advice.cancelMissed.reason', ['provider' => $provider,
-                    'end' => $this->i18n->date((string)($c['settle_date'] ?? $c['effective_end'] ?? $c['end'] ?? $today))], true);
+                    // das Vertragsende (wie bisher `effective_end` eines befristeten Vertrags; die
+                    // Abrechnungsperiode kann seit v3.9.0 früher enden)
+                    'end' => $this->i18n->date((string)($c['end'] ?? $c['effective_end'] ?? $today))], true);
         }
         // Preiserhöhung
         $pi = $c['price_increase'] ?? null;

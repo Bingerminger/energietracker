@@ -601,6 +601,10 @@ final class ConsumptionService
                 'auto_renews'                 => ContractService::renews($c),
                 // v3.4.0 (F1024) — {contract_id, provider, start, gap_days} oder null (additiv)
                 'successor'                   => $successor,
+                // v3.9.0 (L14) — der Folgevertrag ist bei einem anderen Versorger: Der Wechsel ist
+                // eingetragen, offen ist nur, ob die Kündigung bestätigt ist (additiv)
+                'successor_switch'            => $successor !== null && ($sc = array_values(array_filter($contracts, fn($o) => ($o['id'] ?? null) === $successor['contract_id']))[0] ?? null) !== null
+                    && !ContractService::sameSupplier($c, $sc),
                 // v3.6.0 (F1030) — ab wann Saldo, Kosten und Abschläge zählen:
                 // Vertragsbeginn oder Tag nach der letzten erfassten Rechnung (additiv)
                 'balance_from'                => $balanceFrom !== '' ? $balanceFrom : null,

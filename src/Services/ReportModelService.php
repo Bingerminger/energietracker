@@ -584,6 +584,8 @@ final class ReportModelService
                         'is_open_ended' => !empty($c['is_open_ended']), 'renewed' => !empty($c['renewed']),
                         'cancel_by' => $c['cancel_by'] ?? null, 'days_to_cancel' => $c['days_to_cancel'] ?? null,
                         'cancel_missed' => !empty($c['cancel_missed']), 'switch_date' => $c['switch_date'] ?? null,
+                        // v3.9.0 (L14) — Folgevertrag bei einem anderen Versorger
+                        'successor' => $c['successor'] ?? null, 'successor_switch' => !empty($c['successor_switch']),
                         'price_increase' => $c['price_increase'] ?? null,
                         'projected_end_balance' => $c['projected_end_balance'] ?? null,
                         'current_advance' => $c['current_advance_amount'] ?? null,
@@ -1324,8 +1326,11 @@ final class ReportModelService
                 'projected_end_balance' => round($bal, 2), 'current_advance' => $adv, 'suggested_advance' => $show ? (float)$sugg : null,
                 'uncertain' => is_array($unc) ? $unc : null,
                 'text' => $text, 'advance_text' => $advText, 'path' => $path, 'color' => (string)Utilities::get($c['utility'])['color'],
+                // v3.9.0 (L1) — der Abrechnungstag (letzter Tag des Zeitraums), wie Karte und Werkstatt
+                'settle_on' => $c['settle_date'] ?? null,
                 'explainer' => ['balance_path' => $c['balance_path'], 'energy_cost_to_date' => $c['energy_cost_to_date'],
                     'base_to_date' => $c['base_to_date'], 'bonus_to_date' => $c['bonus_to_date'], 'projected_end_balance' => $c['projected_end_balance'],
+                    'settle_on' => $c['settle_date'] ?? null,
                     // v3.7.0 (Schritt 3) — „Wohin geht mein Geld?“ zeigt dann die Spanne
                     'projection_uncertain' => is_array($unc) ? $unc : null],
             ];

@@ -3148,6 +3148,10 @@
       "advanceUncertain": {
         "title": "{label} : vérifier l’acompte après le prochain relevé",
         "reason": "{text}"
+      },
+      "cancelConfirm": {
+        "title": "Résiliation confirmée ? {label}",
+        "reason": "Un contrat chez {next} est enregistré à partir du {start}. Vérifiez que « {provider} » a confirmé la résiliation ; elle doit lui parvenir au plus tard le {date}."
       }
     },
     "money": {
@@ -4386,7 +4390,8 @@
       "billExpected": "Facture attendue : {label} ({provider}) pour {from} – {until}",
       "billOverdue": "Facture en retard : {label} ({provider}) pour {from} – {until} — délai légal dépassé, contactez le fournisseur",
       "finalBillExpected": "Facture de clôture attendue : {label} ({provider}) pour {from} – {until}",
-      "finalBillOverdue": "Facture de clôture en retard : {label} ({provider}) pour {from} – {until} — délai légal dépassé, contactez le fournisseur"
+      "finalBillOverdue": "Facture de clôture en retard : {label} ({provider}) pour {from} – {until} — délai légal dépassé, contactez le fournisseur",
+      "cancelConfirm": "{label} : résiliation confirmée ? ({provider}, passage à {next})"
     },
     "subscribe": "S’abonner dans votre agenda",
     "intro": "Rendez-vous, échéances de résiliation, fins de contrat, garanties de prix et relevés dus sous forme d’abonnement d’agenda. L’agenda les actualise toutes les 12 heures.",
