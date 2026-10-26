@@ -204,15 +204,22 @@ final class BillService
         $isWater = $utility === 'wasser';
         $qtyKey = $isWater ? 'm3' : 'kwh';
         $items = array_sum(array_map(fn($x) => (float)($x['amount_eur'] ?? 0), (array)($b['items'] ?? [])));
+        // v3.9.0 — Endstand der Rechnung ist dein gemeldeter Stand eines früheren Tags (`end_reading_on`, aus dem
+        // Posteingang): Menge und Arbeitspreis bis zu diesem Tag, feste Kosten über den ganzen Zeitraum — wie der
+        // Versorger rechnet; der Rest folgt in seiner nächsten Rechnung
+        $endOn = (string)($b['end_reading_on'] ?? '');
+        $cut = $endOn !== '' && $endOn >= (string)$b['period_from'] && $endOn < (string)$b['period_to'];
+        // (bis zur Ablesung selbst: ihr Stand ist der Endstand der Rechnung)
+        $bdQty = $cut ? $this->consumption->billBreakdown($utility, $meter, (string)$b['period_from'], $endOn) : $bd;
         $ours = [
-            $qtyKey        => $bd['totals'][$qtyKey] ?? null,
-            'energy_cost'  => $bd['totals']['energy_cost'],
+            $qtyKey        => $bdQty['totals'][$qtyKey] ?? null,
+            'energy_cost'  => $bdQty['totals']['energy_cost'],
             'fixed_cost'   => $bd['totals']['fixed_cost'],
             'bonus'        => $bd['totals']['bonus'],
             'items_total'  => round($items, 2),
-            'total'        => round($bd['totals']['total'] + $items, 2),
+            'total'        => round($bd['totals']['total'] - $bd['totals']['energy_cost'] + $bdQty['totals']['energy_cost'] + $items, 2),
             'advances'     => $this->advancesBetween($utility, $meter, (string)$b['period_from'], (string)$b['period_to']),
-        ];
+        ] + ($cut ? ['quantity_until' => $endOn] : []);
         $inv = (array)($b['invoice'] ?? []);
         $invQty = $isWater ? ($inv['volume_m3'] ?? null) : ($inv['energy_kwh'] ?? null);
         $delta = [
@@ -232,7 +239,7 @@ final class BillService
         //  - Eine Ablesung am letzten Tag (bzw. am Tag vor dem ersten) ist ein
         //    Grenzstand wie auf der Rechnung, keine Schätzung; der eine Tag danach
         //    ohne Ablesung ist dann auch keine Lücke.
-        $bounds = $this->boundaries($utility, $meter, (string)$b['period_from'], (string)$b['period_to'], $bd['rows']);
+        $bounds = $this->boundaries($utility, $meter, (string)$b['period_from'], $cut ? date('Y-m-d', (int)strtotime("$endOn -1 day")) : (string)$b['period_to'], $bdQty['rows']);
         if ($bounds['estimated']) $reasons['estimated_reading_at_boundary'] = true;
         foreach ($bd['rows'] as $r) {
             if (str_contains((string)($r['reason'] ?? ''), 'price')) $reasons['price_change_inside'] = true;
@@ -246,7 +253,7 @@ final class BillService
         elseif ($factors['inside'] && !$factors['known']) $reasons['factor_change_inside'] = true;
         if ($items != 0) $reasons['items_not_modelled'] = true;
         if (!empty($bd['totals']['price_missing'])) $reasons['price_missing'] = true;
-        if ((int)($bd['totals']['gaps'] ?? 0) - $bounds['trailing_gap'] > 0) $reasons['gaps'] = true;
+        if ((int)($bdQty['totals']['gaps'] ?? 0) - $bounds['trailing_gap'] > 0) $reasons['gaps'] = true;
         //  - Ohne Preise ist der Betrag nicht nachzurechnen: eigenes Urteil
         //    `no_prices` mit den Abschnitten, in denen sie fehlen (Sprung zum
         //    Vertrag). Eine abweichende Menge bleibt „prüfen“.
@@ -586,6 +593,15 @@ final class BillService
             }
             usort($fs, fn($a, $b) => strcmp($a['from'], $b['from']));
             $out['factors'] = $fs === [] ? null : $fs;
+        }
+        // v3.9.0 — der Endstand der Rechnung ist dein gemeldeter Stand dieses Tags (der Versorger datiert ihn auf
+        // das Zeitraumende); compare() rechnet die Menge bis dahin. Optional, im Zeitraum.
+        if (array_key_exists('end_reading_on', $in)) {
+            $v = (string)($in['end_reading_on'] ?? '');
+            if ($v !== '' && (!Dates::isIsoDate($v) || $v < (string)($out['period_from'] ?? $old['period_from'] ?? '') || $v > (string)($out['period_to'] ?? $old['period_to'] ?? ''))) {
+                throw new LocalizedException('errors.bill.periodInvalid', ['from' => $v, 'to' => (string)($out['period_to'] ?? $old['period_to'] ?? '')], 'bill end reading date');
+            }
+            $out['end_reading_on'] = $v === '' ? null : $v;
         }
         if ($isNew || array_key_exists('note', $in)) $out['note'] = mb_substr((string)($in['note'] ?? ''), 0, 2000);
         return $out;

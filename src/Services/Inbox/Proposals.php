@@ -650,6 +650,11 @@ final class Proposals
                               'zustandszahl' => (float)$v['z'], 'brennwert' => (float)$v['hs']];
             }
             if ($factors !== []) $data['factors'] = $factors;
+            // v3.9.0 — der Endstand ist dein gemeldeter Stand eines früheren Tags (reportedEarlier): „Rechnung prüfen“
+            // rechnet die Menge bis zu diesem Tag
+            foreach ($out as $x) {
+                if ($x['kind'] === 'reading' && ($x['data']['date'] ?? null) === $to && !empty($x['detail']['reported_on'])) $data['end_reading_on'] = (string)$x['detail']['reported_on'];
+            }
             [$status, $detail] = $this->compareBill($u, (string)$m['id'], $from, $to, $inv);
             $core = ['period_from', 'period_to', 'consumption', 'total_amount', 'result_amount', 'result_kind', 'advances_total', 'advances_paid'];
             $bill = self::p('bill', 'bill', ['from' => $from, 'to' => $to, 'result' => $inv['result_eur'] ?? null],
@@ -1267,6 +1272,18 @@ final class Proposals
             $status = 'conflict'; $detail = ['reading_id' => (string)$r['id'], 'counter' => (float)$r['counter']];
         }
         if ($optional && $status === 'new' && $this->fitsBetween($c['u'], $m, $date, $value, $extra)) $optional = false;
+        // v3.9.0 — dein gemeldeter Stand, vom Versorger auf das Zeitraumende datiert: schon vorhanden (vom Tag
+        // deiner Ablesung); sonst ein Stand, der nicht zwischen deine Stände passt: nicht vorbelegt, mit dem Nachbarn
+        if ($status === 'new' && ($rep = $this->reportedEarlier($c, $date, $value)) !== null) {
+            $status = 'exists';
+            $detail = ['reported_on' => $rep, 'counter' => $value];
+        } elseif ($status === 'new' && ($break = $this->monotonicBreak($c['u'], $m, $date, $value, $extra)) !== null) {
+            $field = (string)($sources[0] ?? 'reading_new');
+            $more['check'] = true;
+            $more['reasons'] = [...(array)($more['reasons'] ?? []), ['field' => $field, 'reasons' => ['not_monotonic']]];
+            $more['hints'] = [...(array)($more['hints'] ?? []), ['field' => $field, 'reason' => 'not_monotonic']];
+            $detail = ['neighbor' => $break];
+        }
         return self::p('reading', $estimated ? 'readingEstimated' : 'reading', ['date' => $date, 'counter' => $value, 'meter' => (string)($m['name'] ?? '')],
             ['meter_id' => (string)$m['id'], 'date' => $date, 'counter' => $value] + ($estimated ? ['is_estimated' => true] : []), $sources, $status,
             $more + ['detail' => $detail] + ($optional ? ['optional' => true] : []));
@@ -1464,6 +1481,55 @@ final class Proposals
         }
         if ($prev !== null && $value < $prev['counter'] - 0.0005) return false;
         return $next === null || $value <= $next['counter'] + 0.0005;
+    }
+
+    /**
+     * v3.9.0 — Der Nachbarstand, zwischen den ein neuer Stand nicht monoton passt
+     * (`side` prev: liegt darunter, next: liegt darüber), sonst null. Liegt ein
+     * Zählertausch zwischen den Nachbarn, ist das nicht zu entscheiden: null (wie
+     * fitsBetween, dort „nein“).
+     *
+     * @param list<array{date: string, counter: float}> $extra
+     * @return array{side: string, date: string, counter: float}|null
+     */
+    private function monotonicBreak(string $u, array $meter, string $date, float $value, array $extra = []): ?array
+    {
+        $prev = null; $next = null;
+        foreach ([...$this->readings->list($u, (string)$meter['id']), ...$extra] as $r) {
+            if (!empty($r['is_future']) || !is_numeric($r['counter'] ?? null)) continue;
+            $d = (string)($r['date'] ?? '');
+            if ($d < $date && ($prev === null || $d > $prev['date'])) $prev = ['date' => $d, 'counter' => (float)$r['counter']];
+            if ($d > $date && ($next === null || $d < $next['date'])) $next = ['date' => $d, 'counter' => (float)$r['counter']];
+        }
+        $lo = $prev['date'] ?? $date;
+        $hi = $next['date'] ?? $date;
+        foreach (array_values((array)($meter['devices'] ?? [])) as $i => $dev) {
+            foreach ([$i > 0 ? ($dev['installed_on'] ?? null) : null, $dev['removed_on'] ?? null] as $b) {
+                if (is_string($b) && $b !== '' && $b > $lo && $b <= $hi) return null;
+            }
+        }
+        if ($prev !== null && $value < $prev['counter'] - 0.0005) return ['side' => 'prev'] + $prev;
+        if ($next !== null && $value > $next['counter'] + 0.0005) return ['side' => 'next'] + $next;
+        return null;
+    }
+
+    /**
+     * v3.9.0 — Der Versorger datiert einen gemeldeten Stand auf das Ende des
+     * Abrechnungszeitraums: Steht der Stand des Dokuments am letzten Tag des
+     * Zeitraums und derselbe Wert schon an einem früheren Tag im Zeitraum am
+     * Zähler, ist das dein Stand von damals (der jüngste solche Tag), sonst null.
+     */
+    private function reportedEarlier(array $c, string $date, float $value): ?string
+    {
+        $from = self::value($c['entry'], 'period_from');
+        $to = self::value($c['entry'], 'period_to');
+        if (!is_string($from) || !is_string($to) || $date !== $to) return null;
+        $best = null;
+        foreach ($this->readings->list($c['u'], (string)$c['meter']['id']) as $r) {
+            $d = (string)($r['date'] ?? '');
+            if ($d >= $from && $d < $date && is_numeric($r['counter'] ?? null) && abs((float)$r['counter'] - $value) < 0.0005 && ($best === null || $d > $best)) $best = $d;
+        }
+        return $best;
     }
 
     /**

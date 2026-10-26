@@ -6129,7 +6129,8 @@
       "net_price": "Net selon la facture – converti en TTC avec le taux de TVA indiqué",
       "vat_changed": "Même prix, autre taux de TVA",
       "invalid_format": "Format non valide – un point de livraison compte 11 chiffres avec clé de contrôle",
-      "rhythm_conflict": "Le rythme de la facture ne correspond pas aux échéances"
+      "rhythm_conflict": "Le rythme de la facture ne correspond pas aux échéances",
+      "not_monotonic": "Ne s’insère pas entre vos relevés"
     },
     "option": {
       "gas": "Gaz",
@@ -6213,7 +6214,10 @@
       "start": "Le début enregistré est le {date}.",
       "factor": "La valeur enregistrée est {factor} kWh/m³.",
       "malo": "Le compteur indique {malo}.",
-      "serial": "Le compteur installé est {serial}."
+      "serial": "Le compteur installé est {serial}.",
+      "readingReported": "Votre relevé du {date} ({counter}) : le fournisseur date le relevé transmis à la fin de la période.",
+      "readingBelow": "Inférieur à votre relevé de {counter} du {date}.",
+      "readingAbove": "Supérieur à votre relevé de {counter} du {date}."
     },
     "pstatus": {
       "new": "nouveau",

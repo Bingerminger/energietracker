@@ -6129,7 +6129,8 @@
       "net_price": "Netto op de factuur – omgerekend naar bruto met het vermelde btw-tarief",
       "vat_changed": "Zelfde prijs, ander btw-tarief",
       "invalid_format": "Ongeldige vorm – een marktlocatie heeft 11 cijfers met controlecijfer",
-      "rhythm_conflict": "Ritme op de rekening past niet bij de vervaldata"
+      "rhythm_conflict": "Ritme op de rekening past niet bij de vervaldata",
+      "not_monotonic": "Past niet tussen je standen"
     },
     "option": {
       "gas": "Gas",
@@ -6213,7 +6214,10 @@
       "start": "Het vastgelegde begin is {date}.",
       "factor": "Vastgelegd is {factor} kWh/m³.",
       "malo": "Bij de meter staat {malo}.",
-      "serial": "Geplaatst is meter {serial}."
+      "serial": "Geplaatst is meter {serial}.",
+      "readingReported": "Je stand van {date} ({counter}): de leverancier dateert de doorgegeven stand op het einde van de periode.",
+      "readingBelow": "Ligt onder je stand van {counter} op {date}.",
+      "readingAbove": "Ligt boven je stand van {counter} op {date}."
     },
     "pstatus": {
       "new": "nieuw",

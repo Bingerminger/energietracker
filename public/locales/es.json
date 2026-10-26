@@ -6129,7 +6129,8 @@
       "net_price": "Neto según la factura – convertido a bruto con el tipo de IVA indicado",
       "vat_changed": "Mismo precio, otro tipo de IVA",
       "invalid_format": "Formato no válido – un punto de suministro tiene 11 dígitos con dígito de control",
-      "rhythm_conflict": "El ritmo de la factura no coincide con los vencimientos"
+      "rhythm_conflict": "El ritmo de la factura no coincide con los vencimientos",
+      "not_monotonic": "No encaja entre tus lecturas"
     },
     "option": {
       "gas": "Gas",
@@ -6213,7 +6214,10 @@
       "start": "El inicio registrado es el {date}.",
       "factor": "El valor registrado es {factor} kWh/m³.",
       "malo": "En el contador figura {malo}.",
-      "serial": "El contador instalado es {serial}."
+      "serial": "El contador instalado es {serial}.",
+      "readingReported": "Tu lectura del {date} ({counter}): el suministrador fecha la lectura comunicada al final del período.",
+      "readingBelow": "Es inferior a tu lectura de {counter} del {date}.",
+      "readingAbove": "Es superior a tu lectura de {counter} del {date}."
     },
     "pstatus": {
       "new": "nuevo",
