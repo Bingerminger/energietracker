@@ -143,7 +143,11 @@ final class TankModelTest extends ServiceTestCase
         // ersten Lieferung leer (seit 2026-10-07), und die Bilanz unten gilt
         // nur, solange er nicht leer ist. Großer Tank, hoher Anfangsbestand:
         // weder leer noch übervoll, egal in welcher Jahreszeit der Test läuft.
-        $tank = $this->tank($start, 2800.0, 6000.0);
+        // v3.9.0 — 2800 L reichten nicht mehr, seit die 150 Tage vor der ersten
+        // Lieferung einen ganzen Winter umfassen (leer ab 2026-10-26); 4000 L
+        // tragen einen Winter, und auch im Sommer bleibt der Tank unter 6000 L.
+        $initial = 4000.0;
+        $tank = $this->tank($start, $initial, 6000.0);
         $this->deliver($tank, self::day(-250), 1500.0);
         $this->deliver($tank, self::day(-60), 1400.0);
         $meter = $this->meters->get('heizoel', $tank['id']);
@@ -162,7 +166,7 @@ final class TankModelTest extends ServiceTestCase
         foreach ($hist['days'] as $row) {
             self::assertGreaterThan(0.0, $row['stock'], 'Vorbedingung: an keinem Tag leer (' . $row['date'] . ')');
         }
-        self::assertEqualsWithDelta(2800.0 + 1500.0 + 1400.0 - $sumDraw, $end, 0.5);
+        self::assertEqualsWithDelta($initial + 1500.0 + 1400.0 - $sumDraw, $end, 0.5);
     }
 
     public function testInitialStockIsPricedAndTheTankMixesPrices(): void
