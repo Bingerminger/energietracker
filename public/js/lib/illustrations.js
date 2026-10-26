@@ -113,6 +113,33 @@ export const shapes = {
     return `<g class="ill-c-pv"><path class="ill-util-fill" d="M${n(x)},${n(y)} L${n(x + w * 0.25)},${n(y - h)} H${n(x + w * 1.25)} L${n(x + w)},${n(y)} Z"/>
       <path class="ill-util" d="M${n(x)},${n(y)} L${n(x + w * 0.25)},${n(y - h)} H${n(x + w * 1.25)} L${n(x + w)},${n(y)} Z M${n(x + w * 0.5)},${n(y)} L${n(x + w * 0.75)},${n(y - h)} M${n(x + w * 0.12)},${n(y - h / 2)} H${n(x + w * 1.12)}"/></g>`;
   },
+  /** Batteriespeicher: Gehäuse mit Pol, Füllstand getönt. */
+  battery(x, y, { w = 16, h = 26 } = {}) {
+    return `<g><rect class="ill-face" x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${n(h)}" rx="2.5"/>
+      <rect class="ill-line" x="${n(x + w * 0.3)}" y="${n(y - 3)}" width="${n(w * 0.4)}" height="3" rx="1"/>
+      <rect class="ill-fill" x="${n(x + 3)}" y="${n(y + h * 0.4)}" width="${n(w - 6)}" height="${n(h * 0.6 - 3)}" rx="1"/>
+      <path class="ill-accent" d="M${n(x + w / 2 + 1)},${n(y + h * 0.18)} L${n(x + w / 2 - 2)},${n(y + h * 0.36)} H${n(x + w / 2 + 2)} L${n(x + w / 2 - 1)},${n(y + h * 0.54)}"/></g>`;
+  },
+  /** Wallbox: Kasten mit Anzeige, Kabel nach rechts unten mit Stecker. */
+  wallbox(x, y, { w = 16, h = 22 } = {}) {
+    return `<g><rect class="ill-face" x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${n(h)}" rx="3"/>
+      <rect class="ill-line" x="${n(x + 4)}" y="${n(y + 4)}" width="${n(w - 8)}" height="${n(h * 0.25)}" rx="1"/>
+      <circle class="ill-dot" cx="${n(x + w / 2)}" cy="${n(y + h * 0.68)}" r="1.8"/>
+      <path class="ill-line" d="M${n(x + w / 2)},${n(y + h)} C${n(x + w / 2)},${n(y + h + 8)} ${n(x + w + 6)},${n(y + h + 8)} ${n(x + w + 6)},${n(y + h)}"/>
+      <rect class="ill-line" x="${n(x + w + 3.5)}" y="${n(y + h - 6)}" width="5" height="6" rx="1"/></g>`;
+  },
+  /** Wärmepumpe (Außengerät): Gehäuse mit Lüftungsschlitzen und Lüfter. */
+  heatpump(x, y, { w = 30, h = 22 } = {}) {
+    const r = Math.min(h * 0.32, w * 0.2), cx = x + w * 0.66, cy = y + h / 2;
+    return `<g class="ill-c-waerme"><rect class="ill-face" x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${n(h)}" rx="2.5"/>
+      <path class="ill-line" d="M${n(x + 4)},${n(y + h * 0.3)} H${n(x + w * 0.38)} M${n(x + 4)},${n(y + h * 0.5)} H${n(x + w * 0.38)} M${n(x + 4)},${n(y + h * 0.7)} H${n(x + w * 0.38)}"/>
+      <circle class="ill-util" cx="${n(cx)}" cy="${n(cy)}" r="${n(r)}"/>
+      <path class="ill-util" d="M${n(cx)},${n(cy - r * 0.7)} V${n(cy + r * 0.7)} M${n(cx - r * 0.7)},${n(cy)} H${n(cx + r * 0.7)}"/></g>`;
+  },
+  /** Netzanschluss: Strommast, Fuß bei (cx, y). */
+  grid(cx, y, s = 1) {
+    return `<path class="ill-ink" d="M${n(cx - 7 * s)},${n(y)} L${n(cx - 2.5 * s)},${n(y - 22 * s)} H${n(cx + 2.5 * s)} L${n(cx + 7 * s)},${n(y)} M${n(cx - 5 * s)},${n(y - 9 * s)} H${n(cx + 5 * s)} M${n(cx - 8 * s)},${n(y - 17 * s)} H${n(cx + 8 * s)} M${n(cx - 6 * s)},${n(y - 4 * s)} L${n(cx + 4 * s)},${n(y - 13 * s)}"/>`;
+  },
   /** Blatt Papier mit Textzeilen; `check` mit Haken. */
   doc(x, y, { w = 26, h = 32, check = false } = {}) {
     const fold = 7;
