@@ -159,6 +159,23 @@ final class BillingWindowTest extends ServiceTestCase
      * jede erfasste Rechnung eine Abrechnungsperiode (wie im Abrechnungsjahr); gebucht oder
      * nicht, beginnt der Saldo danach. Das Ergebnis der Rechnung steht in „Rechnung prüfen“.
      */
+    /**
+     * v3.9.0 (auswertung, V1) — ohne erfasste Rechnung rechnet die Karte über die laufende
+     * Periode (2026); von den Sonderzahlungen darin zählt nur die zusätzliche Abschlagszahlung.
+     * Die Rückzahlung vom 01.03.2026 gleicht die Abrechnung 2025 aus (wie im Abrechnungsjahr).
+     */
+    public function testWithoutABillTheRunningPeriodCountsOnlyTheExtraAdvance(): void
+    {
+        $refund = ['id' => 'sp_refund', 'date' => '2026-03-01', 'kind' => 'rueckzahlung_ohne', 'amount_eur' => 40.0, 'note' => ''];
+        $extra = ['id' => 'sp_extra', 'date' => '2026-04-01', 'kind' => 'abschlagszahlung', 'amount_eur' => 50.0, 'note' => ''];
+        $this->seedStrom($this->store, '2025-01-01', [$refund, $extra]);
+        $s = $this->contractRow($this->consumption, $this->meters);
+        self::assertSame('2026-01-01', $s['billing_period']['from']);
+        self::assertSame(['2026-04-01'], array_column($s['special_payments'], 'date'), 'die Rückzahlung gehört zur Abrechnung 2025');
+        // Kundensicht: 50 € mehr bezahlt senken den Saldo um 50 (die Rückzahlung bliebe draußen)
+        self::assertEqualsWithDelta(round($s['cost_to_date'] - $s['advance_paid'] - 50.0, 2), $s['current_balance'], 0.02);
+    }
+
     public function testARecordedBillStartsTheOpenBalanceBookedOrNot(): void
     {
         $this->seedStrom($this->store, '2025-01-01', []);
