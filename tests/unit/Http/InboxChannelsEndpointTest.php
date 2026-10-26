@@ -79,6 +79,9 @@ final class InboxChannelsEndpointTest extends HttpServerTestCase
     public function testOnlyAdminsReadTheWatchedFolder(): void
     {
         $this->startServer();
+        // v3.9.0 — der Lauf nach der Antwort (alle fünf Minuten) hat gerade gelesen;
+        // geprüft wird hier die Route, die nur Verwalter aufrufen
+        touch($this->dataDir . '/' . FolderIntake::TICK_MARK);
         mkdir($this->dataDir . '/' . FolderIntake::DIR);
         file_put_contents($this->dataDir . '/' . FolderIntake::DIR . '/brief.pdf', InboxFixture::pdf('folder'));
         touch($this->dataDir . '/' . FolderIntake::DIR . '/brief.pdf', time() - 60);

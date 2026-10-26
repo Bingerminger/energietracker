@@ -133,6 +133,64 @@ export function haRestSensorYaml(baseUrl, meters) {
   return lines.join('\n');
 }
 
+/**
+ * v3.9.0 (F1033) — Sensor „Zu tun“ auf `GET /api/todo`: Anzahl (mit den
+ * Punkten als Attribut), nächster Punkt und sein Datum. Ohne fälligen Punkt
+ * zeigt der zweite „-“, der dritte „unbekannt“.
+ *
+ * @param {string} baseUrl
+ */
+export function haTodoSensorYaml(baseUrl) {
+  return [
+    'rest:',
+    `  - resource: ${q(`${baseUrl}/api.php/api/todo`)}`,
+    `    scan_interval: 900   # ${t('settings.ha.yaml.todoScanComment')}`,
+    '    headers:',
+    `      Authorization: !secret energietracker_read   # ${t('settings.ha.yaml.readKeyComment')}`,
+    '    sensor:',
+    `      - name: ${q(t('settings.ha.yaml.todoName'))}`,
+    '        unique_id: energietracker_todo_count',
+    '        value_template: "{{ value_json.data.count }}"',
+    '        json_attributes_path: "$.data"',
+    '        json_attributes:',
+    '          - overdue',
+    '          - items',
+    `      - name: ${q(t('settings.ha.yaml.todoNextName'))}`,
+    '        unique_id: energietracker_todo_next',
+    `        value_template: "{{ value_json.data.next.title if value_json.data.next else '-' }}"`,
+    `      - name: ${q(t('settings.ha.yaml.todoDateName'))}`,
+    '        unique_id: energietracker_todo_next_date',
+    '        value_template: "{{ value_json.data.next.date if value_json.data.next else none }}"',
+    '        device_class: date',
+  ].join('\n');
+}
+
+/**
+ * v3.9.0 (F1033) — Automation für das Ziel „Webhook“: Home Assistant nimmt
+ * die Nachricht an und gibt Titel und Text weiter. `mode: queued`, weil
+ * mehrere Nachrichten kurz nacheinander kommen können (eine Automation im
+ * Modus `single` ließe die übrigen fallen).
+ *
+ * @param {string} webhookId eine eigene, nicht erratbare ID
+ */
+export function haWebhookAutomationYaml(webhookId) {
+  return [
+    `alias: ${q(t('settings.ha.yaml.webhookAlias'))}`,
+    'triggers:',
+    '  - trigger: webhook',
+    `    webhook_id: ${q(key(webhookId) || 'energietracker_…')}   # ${t('settings.ha.yaml.webhookIdComment')}`,
+    '    allowed_methods:',
+    '      - POST',
+    '    local_only: true',
+    'actions:',
+    `  - action: notify.notify   # ${t('settings.ha.yaml.notifyComment')}`,
+    '    data:',
+    '      title: "{{ trigger.json.title }}"',
+    '      message: "{{ trigger.json.message }}"',
+    'mode: queued',
+  ].join('\n');
+}
+
 /** Lese-Schlüssel für die Sensoren (secrets.yaml), nur bei eingeschalteter Anmeldung nötig. */
 export function haReadSecretYaml() {
   return 'energietracker_read: "Bearer etk_…"';

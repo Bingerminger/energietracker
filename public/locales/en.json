@@ -1788,7 +1788,14 @@
         "readKeyComment": "only needed if sign-in is enabled",
         "sensorBalance": "Balance",
         "sensorForecast": "Forecast 12 months",
-        "sensorDaysSince": "Days since reading"
+        "sensorDaysSince": "Days since reading",
+        "todoScanComment": "every 15 minutes",
+        "todoName": "Energietracker to do",
+        "todoNextName": "Energietracker next item",
+        "todoDateName": "Energietracker next item due",
+        "webhookAlias": "Energietracker: pass on the notification",
+        "webhookIdComment": "your own ID that cannot be guessed",
+        "notifyComment": "or notify.mobile_app_… for your phone"
       },
       "lastUsed": "Last used: {when}",
       "neverUsed": "Nothing has arrived with this token yet.",
@@ -1805,7 +1812,11 @@
       },
       "setupTitle": "Meters and templates for Home Assistant",
       "appHint": "Using Home Assistant OS? Then Energietracker also runs as an app right inside Home Assistant, with an entry in the sidebar.",
-      "appAdd": "Add the repository to Home Assistant"
+      "appAdd": "Add the repository to Home Assistant",
+      "todo": {
+        "title": "“To do” sensor",
+        "intro": "Number of due items and the next one, for dashboards and automations. All items are in the attribute items."
+      }
     },
     "diag": {
       "title": "🩺 System diagnostics",
@@ -2193,6 +2204,66 @@
       "pickModel": "Saved. Now pick a model from the list, then switch it on.",
       "saved": "Reading settings saved.",
       "modelLoad": "Load the service’s models"
+    },
+    "haNotify": {
+      "title": "Notifications to Home Assistant",
+      "intro": "Energietracker reports to Home Assistant by itself: when an appointment or a deadline is due, on warnings and when a document arrives in the inbox. Each message comes only once.",
+      "privacy": "The messages only go to your Home Assistant. Nothing leaves your home network unless you enter an address outside it yourself.",
+      "adminOnly": "Only someone who manages this installation may change this.",
+      "enabled": "Send notifications",
+      "targetLabel": "Where to?",
+      "target": {
+        "supervisor": "Through the Supervisor (app in Home Assistant, no setup)",
+        "webhook": "Webhook in Home Assistant",
+        "token": "Address and token"
+      },
+      "supervisorMissing": "The Supervisor route only works in the Home Assistant app.",
+      "url": "Home Assistant address",
+      "urlHint": "For example http://192.168.178.10:8123, without a path. A name ending in .local often cannot be resolved inside a container; then enter the IP address.",
+      "webhook": "Webhook ID",
+      "webhookHint": "The same ID as in the “Webhook” trigger of your automation. It works like a password: it stays on the server and is not shown here again after saving.",
+      "newId": "Create a new ID",
+      "secretStored": "stored, leave empty to keep",
+      "secretClear": "Delete",
+      "token": "Token (long-lived)",
+      "tokenHint": "Create it in Home Assistant in your profile under Security (long-lived access tokens). It stays on the server and is not shown here again after saving.",
+      "service": "Action in Home Assistant",
+      "serviceHint": "persistent_notification.create shows the message under notifications in Home Assistant. For your phone: notify.mobile_app_ followed by the name of your device.",
+      "events": "What to report?",
+      "event": {
+        "reminder": "Appointments as soon as they are due",
+        "deadline": "Deadlines and other items from “To do” (readings, notice periods, bills)",
+        "warning": "Warnings, such as unusually high consumption",
+        "document": "New documents in the inbox"
+      },
+      "hour": "Daily check from",
+      "hourOption": "{hour}:00",
+      "hourHint": "Once a day, with the first request after this time. New documents are reported right after they arrive.",
+      "test": "Send a test message",
+      "testOk": "Test message sent. Have a look in Home Assistant.",
+      "testFailed": "The test message did not arrive: {reason}",
+      "saved": "Saved.",
+      "state": {
+        "on": "Switched on. Destination: {target}",
+        "incomplete": "Switched on, but the destination is incomplete. Nothing is sent.",
+        "off": "Switched off. Nothing is sent to Home Assistant."
+      },
+      "last": "Last sent: {when}",
+      "lastFailed": "Last attempt on {when} failed: {reason}",
+      "yamlTitle": "Automation for the webhook",
+      "yamlHint": "In Home Assistant, create a new automation, choose “Edit in YAML” and paste this. The webhook ID must be the same as above.",
+      "error": {
+        "dns": "The name in the address cannot be resolved.",
+        "address": "This address is blocked.",
+        "insecure": "An address outside the home network only works with https://.",
+        "timeout": "Home Assistant did not answer in time.",
+        "network": "Home Assistant cannot be reached.",
+        "http": "Home Assistant answers with status {status}.",
+        "unauthorized": "Home Assistant refuses (401). Check the token.",
+        "incomplete": "The destination is not fully set up yet.",
+        "url": "The address is invalid.",
+        "noTransport": "curl for PHP is missing on the server."
+      }
     }
   },
   "reminders": {
@@ -3786,6 +3857,11 @@
         "contract": "Take over the contract first, then this."
       },
       "nothingSelected": "Nothing selected."
+    },
+    "haNotify": {
+      "incomplete": "The destination is incomplete: the webhook needs an address and a webhook ID, the token an address and a token. The Supervisor only works in the Home Assistant app.",
+      "webhookFormat": "The webhook ID consists of 8 to 200 letters, digits, hyphens or underscores.",
+      "tokenFormat": "The token consists of 20 to 2000 visible characters without spaces."
     }
   },
   "login": {
@@ -6220,7 +6296,8 @@
       },
       "shortcut": "Shortcut",
       "folder": "Folder",
-      "email": "Email"
+      "email": "Email",
+      "textShare": "Also without a browser: with a shortcut from the iPhone or iPad, through the folder “{dir}” or by email via Home Assistant."
     },
     "folder": {
       "imported": {
@@ -6623,6 +6700,33 @@
       "too_few_points": "too few data points ({n})",
       "poor_fit": "does not fit (R² {r2})",
       "degenerate": "cannot be calculated (too little variation in the values)"
+    }
+  },
+  "haNotify": {
+    "title": {
+      "reminder": "Energietracker: appointment",
+      "deadline": "Energietracker: to do",
+      "more": "Energietracker: to do",
+      "warning": "Energietracker: warning",
+      "document": "Energietracker: inbox",
+      "test": "Energietracker: test message"
+    },
+    "test": "The connection works. From now on, due appointments, deadlines, warnings and new documents arrive here.",
+    "when": {
+      "today": "Due today.",
+      "on": "Due on {date}.",
+      "overdue": "Overdue since {date}."
+    },
+    "document": {
+      "many": {
+        "one": "{count} new document in the inbox: {names}",
+        "other": "{count} new documents in the inbox: {names}"
+      },
+      "single": "New document in the inbox: {name}"
+    },
+    "more": {
+      "one": "Plus {count} more item:",
+      "other": "Plus {count} more items:"
     }
   }
 }
