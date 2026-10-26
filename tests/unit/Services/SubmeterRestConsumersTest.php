@@ -181,6 +181,8 @@ final class SubmeterRestConsumersTest extends ServiceTestCase
         $perDay = fn(int $mo) => (60.0 / (int)date('t', mktime(0, 0, 0, $mo, 1, 2024)) + 60.0 / (int)date('t', mktime(0, 0, 0, $mo, 1, 2025))) / 2;
         for ($t = strtotime('2026-01-01 12:00'); date('Y-m-d', $t) < $today; $t += 86400) $expected += $perDay((int)date('n', $t));
         self::assertEqualsWithDelta($expected, $row['estimated_cost_to_date'], 0.5);
-        self::assertEqualsWithDelta(1440.0 + $expected, $row['energy_cost_to_date'], 0.6);
+        // seit dem Paket auswertung über die laufende Abrechnungsperiode 2026: gemessen ist dort nichts (Stände bis 01.01.2026)
+        self::assertSame('2026-01-01', $row['balance_from']);
+        self::assertEqualsWithDelta($expected, $row['energy_cost_to_date'], 0.6);
     }
 }

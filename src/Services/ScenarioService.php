@@ -238,7 +238,7 @@ final class ScenarioService
         // v3.7.0 (Nachlauf vor dem Release) — eine Quelle: die Gründe des laufenden Vertrags
         // (Vertragsstatus, Saldo-Karte, Übersicht, Jahresbericht) gelten auch hier, samt
         // klemmendem Faktor; dessen Breite ist der Abstand zwischen ungeklemmt und geklemmt
-        $csUnc = self::currentUncertainty($this->consumption, $utility, $meter);
+        $csUnc = self::currentUncertainty($this->consumption, $utility, $meter, $today);
         if ($csUnc !== null) {
             $uncReasons = array_values(array_unique(array_merge((array)$csUnc['reasons'], $uncReasons)));
             if (in_array('factor_clamped', $uncReasons, true) && (float)($csUnc['factor'] ?? 0) > 0) {
@@ -420,6 +420,7 @@ final class ScenarioService
         $billing = $this->billing($utility, $meter, $months, $baseCost, $scenCost, $today, $fc['historical'] ?? []);
         $advance = self::advance($months, $baseCost, $scenCost, $billing);
         if ($uncRatio !== null) $advance = self::uncertainAdvance($advance, $months, $baseQty, $scenQty, $uncRatio, $uncReasons, $fitRatio);
+        unset($advance['status_base_range'], $advance['status_scen_range']);
 
         // ── Rangliste und Optimierung (gegen den Ausgangsfall) ──────────
         $zero = ['winter_pct' => 0.0, 'saving_pct' => 0.0, 'baseload_pct' => 0.0, 'heat_a' => $levers['heat_a'],
@@ -708,6 +709,33 @@ final class ScenarioService
     public static function advance(array $months, array $baseCost, array $scenCost, ?array $billing): array
     {
         $current = $months[0]['advance'] ?? null;
+        // v3.9.0 (V1, L12) — aus dem Vertragsstatus: der Ausgangsfall ist der Vorschlag der
+        // Karte, das Szenario dieselbe Formel (Abschlag + Endsaldo ÷ Abschläge bis zur
+        // Abrechnung), beide erst ab SUGGEST_MIN_MONTHS; darunter der laufende Bedarf
+        if ($billing !== null && ($billing['source'] ?? null) === 'contract_status') {
+            $current = $billing['current_advance'] ?? $current;
+            $left = (int)$billing['months_left'];
+            $short = $left < ConsumptionService::SUGGEST_MIN_MONTHS;
+            $ongoing = $billing['advance_ongoing'] ?? null;
+            $n = min(12, count($months));
+            $shift = $n > 0 ? (array_sum(array_slice($scenCost, 0, $n)) - array_sum(array_slice($baseCost, 0, $n))) / $n : 0.0;
+            $scenRec = $current !== null && $left >= 1 && !$short
+                ? max(0.0, round((float)$current + (float)$billing['scen_end_balance'] / $left)) : null;
+            $out = ['current' => $current !== null ? round((float)$current, 2) : null, 'method' => 'billing_period', 'months_left' => $left,
+                'base_recommended' => $billing['suggested_advance'] !== null ? (float)$billing['suggested_advance'] : null,
+                'scen_recommended' => $billing['suggested_advance'] !== null ? $scenRec : null,
+                // laufend angemessen nach der Abrechnung (Karte: advance_ongoing), im Szenario um die Monatskosten verschoben
+                'base_ongoing' => $ongoing !== null ? (float)$ongoing : null,
+                'scen_ongoing' => $ongoing !== null ? max(0.0, round((float)$ongoing + $shift)) : null,
+                'withheld' => $billing['suggestion_withheld'] ?? null];
+            // die Spanne der Karte, wenn ihre Schätzung unsicher ist; das Szenario verschiebt sie
+            if (is_array($billing['suggested_range'] ?? null) && $left >= 1) {
+                $d = ((float)$billing['scen_end_balance'] - (float)$billing['base_end_balance']) / $left;
+                $out['status_base_range'] = array_map('floatval', $billing['suggested_range']);
+                $out['status_scen_range'] = [max(0.0, round($billing['suggested_range'][0] + $d)), max(0.0, round($billing['suggested_range'][1] + $d))];
+            }
+            return $out;
+        }
         if ($billing !== null && $current !== null && (int)$billing['months_left'] >= 1) {
             $left = (int)$billing['months_left'];
             return ['current' => round((float)$current, 2), 'method' => 'billing_period', 'months_left' => $left,
@@ -741,10 +769,10 @@ final class ScenarioService
      * @return array<string,mixed>
      */
     /** v3.7.0 (Nachlauf) — `projection_uncertain` des laufenden Vertrags (dieselbe Quelle wie Karte und Übersicht), sonst null. */
-    public static function currentUncertainty(ConsumptionService $consumption, string $utility, array $meter): ?array
+    public static function currentUncertainty(ConsumptionService $consumption, string $utility, array $meter, ?string $today = null): ?array
     {
         try {
-            foreach ($consumption->contractStatus($utility, $meter)['contracts'] ?? [] as $c) {
+            foreach ($consumption->contractStatus($utility, $meter, $today)['contracts'] ?? [] as $c) {
                 if (!empty($c['is_current'])) return is_array($c['projection_uncertain'] ?? null) ? $c['projection_uncertain'] : null;
             }
         } catch (\Throwable) { /* ohne Vertragsstatus: nur die Gründe der Prognose */ }
@@ -768,10 +796,19 @@ final class ScenarioService
             $r = [max(0.0, (float)round($rec - $d)), (float)round($rec + $d)];
             return $r[0] === $r[1] ? null : $r;   // v3.7.0 (Schritt 3) — keine Spanne der Breite null
         };
+        // v3.9.0 (V1) — aus dem Vertragsstatus: die Spanne der Karte (und für das Szenario verschoben)
+        $baseRange = $advance['status_base_range'] ?? $range($advance['base_recommended'], $eb);
+        $scenRange = $advance['status_scen_range'] ?? $range($advance['scen_recommended'], $es);
+        if ($baseRange !== null && $baseRange[0] === $baseRange[1]) $baseRange = null;
+        if ($scenRange !== null && $scenRange[0] === $scenRange[1]) $scenRange = null;
+        unset($advance['status_base_range'], $advance['status_scen_range']);
         return array_merge($advance, [
             // `fit_ratio` ist die Streuung der Gütesperre (null ohne sie), `spread` die ganze Breite
             'uncertain'        => ['reasons' => $reasons, 'fit_ratio' => $fitRatio !== null ? round($fitRatio, 3) : null, 'spread' => round($ratio, 3),
-                                   'base_range' => $range($advance['base_recommended'], $eb), 'scen_range' => $range($advance['scen_recommended'], $es)],
+                                   'base_range' => $baseRange, 'scen_range' => $scenRange],
+            // unsicher: auch kein laufender Betrag
+            'base_ongoing'     => null,
+            'scen_ongoing'     => null,
             'base_recommended' => null,
             'scen_recommended' => null,
         ]);
@@ -830,10 +867,79 @@ final class ScenarioService
 
     // ══ Intern ════════════════════════════════════════════════════════════
 
+    /**
+     * v3.9.0 (V1) — Saldo zur Abrechnung aus derselben Projektion wie die
+     * Saldo-Karte: Der Ausgangsfall ist der erwartete Endsaldo der Verträge in
+     * der laufenden Abrechnungsperiode (ConsumptionService::contractStatus,
+     * Summe ihrer Teile), das Szenario ändert davon nur, was ab heute noch
+     * kommt: die Kosten der Prognosemonate, anteilig nach Tagen in [heute,
+     * Abrechnungstag]. Bis v3.7 rechnete die Werkstatt eigenständig ab der
+     * letzten Ablesung (im Testhaushalt −356,55 € gegen die Karte −1.163,40 €,
+     * dazu ein anderer Abrechnungstag und andere Abschlagsspannen).
+     *
+     * @param list<array<string,mixed>> $rows  Zeilen des Vertragsstatus mit `billing_period`
+     * @param list<array<string,mixed>> $months Prognosemonate (ym, days)
+     * @param list<float> $baseCost
+     * @param list<float> $scenCost
+     * @return array<string,mixed>|null
+     */
+    public static function billingFromStatus(array $rows, array $months, array $baseCost, array $scenCost, string $today): ?array
+    {
+        $rows = array_values(array_filter($rows, fn($r) => is_array($r['billing_period'] ?? null)));
+        if ($rows === []) return null;
+        $cur = array_values(array_filter($rows, fn($r) => !empty($r['is_current'])))[0] ?? $rows[count($rows) - 1];
+        $p = $cur['billing_period'];
+        $settle = max(array_map(fn($r) => (string)($r['settle_on'] ?? $p['until']), $rows));
+        $base = 0.0; $soFar = 0.0;
+        foreach ($rows as $r) { $base += (float)($r['projected_end_balance'] ?? 0.0); $soFar += (float)($r['current_balance'] ?? 0.0); }
+        $delta = 0.0;
+        $day = static fn(string $d): int => (int)floor((new \DateTimeImmutable($d . ' 12:00'))->getTimestamp() / 86400);
+        foreach ($months as $i => $m) {
+            $ms = $m['ym'] . '-01';
+            $me = date('Y-m-t', (int)strtotime($ms));
+            $a = max($ms, $today); $b = min($me, $settle);
+            if ($a > $b) continue;
+            $frac = ($day($b) - $day($a) + 1) / max(1, (int)$m['days']);
+            $delta += ((float)$scenCost[$i] - (float)$baseCost[$i]) * $frac;
+        }
+        $last = end($months);
+        $unc = is_array($cur['projection_uncertain'] ?? null) ? $cur['projection_uncertain'] : null;
+        return [
+            'from' => $p['from'], 'until' => $p['until'],
+            // der letzte Tag, zu dem abgerechnet wird (wie `settle_on` der Karte)
+            'settle_on' => $settle,
+            'as_of' => $today,
+            'balance_so_far'   => round($soFar, 2),
+            'rest_days'        => 0,
+            'base_end_balance' => round($base, 2),
+            'scen_end_balance' => round($base + $delta, 2),
+            'months_left'      => (int)($cur['months_left'] ?? 0),
+            'beyond_horizon'   => $last !== false && substr($settle, 0, 7) > $last['ym'],
+            'source'           => 'contract_status',
+            // die Abschläge der Karte (eine Quelle für Vorschlag, Spanne und laufenden Bedarf)
+            'current_advance'     => $cur['current_advance_amount'] ?? null,
+            'suggested_advance'   => $cur['suggested_advance'] ?? null,
+            'suggested_range'     => $unc['suggested_range'] ?? null,
+            'advance_ongoing'     => $cur['advance_ongoing'] ?? null,
+            'suggestion_withheld' => $cur['suggestion_withheld'] ?? null,
+        ];
+    }
+
     /** @return array<string,mixed>|null */
     private function billing(string $utility, array $meter, array $months, array $baseCost, array $scenCost, ?string $today, array $history = []): ?array
     {
-        if ($this->billing === null || !Utilities::supportsBillCheck($utility) || ($meter['capture'] ?? null) === 'period') return null;
+        if (!Utilities::supportsBillCheck($utility) || ($meter['capture'] ?? null) === 'period') return null;
+        // v3.9.0 (V1) — zuerst die Projektion des Vertragsstatus (Saldo-Karte); er kennt
+        // die laufende Periode selbst (ConsumptionService::runningPeriod)
+        try {
+            $status = $this->consumption->contractStatus($utility, $meter, $today ?? date('Y-m-d'))['contracts'] ?? [];
+        } catch (\Throwable) {
+            $status = [];
+        }
+        $fromStatus = self::billingFromStatus($status, $months, $baseCost, $scenCost, $today ?? date('Y-m-d'));
+        if ($fromStatus !== null) return $fromStatus;
+        // ohne Vertrag in der Periode: wie bisher aus dem Abrechnungsjahr und der Prognose
+        if ($this->billing === null) return null;
         try {
             $bp = $this->billing->forTarget($utility, $meter, false, $today);
         } catch (\InvalidArgumentException) {
@@ -873,7 +979,8 @@ final class ScenarioService
         $dim = (int)date('t', (int)strtotime($asOf));
         $energy = (float)($row['kwh_cost'] ?? 0.0) / (int)$row['days'] * $days;
         $base = (float)($row['base_price_eur'] ?? 0.0) * $days / $dim;
-        $adv = (float)($row['advance_eur'] ?? 0.0) * $days / $dim;
+        // v3.9.0 (auswertung, Nachtrag) — tagesanteilig, Raten mit Rhythmus aber an ihrem Tag (ConsumptionService::advanceBetween)
+        $adv = ConsumptionService::advanceBetween($row, date('Y-m-d', (int)strtotime($asOf . ' +1 day')), date('Y-m-d', (int)strtotime($end . ' +1 day')), []);
         return ['days' => $days, 'cost' => round($energy + $base, 2), 'advance' => round($adv, 2)];
     }
 

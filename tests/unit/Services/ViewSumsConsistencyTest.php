@@ -336,7 +336,10 @@ final class ViewSumsConsistencyTest extends ServiceTestCase
                     self::assertClose((float)$o['total'] - (float)$o['items_total'] - (float)$o['advances'] - (float)$p['special']['extra_advances'], (float)$p['balance'], 0.021, "$ctx: Saldo");
                 }
             }
-            // (5) Prognose-Werkstatt: Saldo bisher = laufende Periode des Zählers
+            // (5) Prognose-Werkstatt: in der laufenden Periode des Zählers, und (v3.9.0, V1) aus
+            // derselben Projektion wie die Saldo-Karte — Saldo bisher und erwarteter Endsaldo
+            // sind die Summe der Verträge in dieser Periode (bis v3.8: eigene Rechnung ab der
+            // letzten Ablesung, ein anderer Endsaldo als die Karte)
             foreach ($roots as $m) {
                 if (!ScenarioService::supports($u)) continue;
                 $r = $sc->compute(['utility' => $u, 'meter_id' => $m['id']], $today);
@@ -345,7 +348,12 @@ final class ViewSumsConsistencyTest extends ServiceTestCase
                 $last = end($running);
                 self::assertNotFalse($last, "$id $today $u {$m['id']}: laufende Periode");
                 self::assertSame([$last['from'], $last['until']], [$r['billing']['from'], $r['billing']['until']], "$id $today $u {$m['id']}: Werkstatt in der laufenden Periode");
-                self::assertClose((float)$last['balance'], (float)$r['billing']['balance_so_far'], 0.001, "$id $today $u {$m['id']}: Werkstatt Saldo bisher");
+                $cards = array_values(array_filter($this->consumption->contractStatus($u, $m, $today)['contracts'], fn($c) => is_array($c['billing_period'] ?? null)));
+                if ($cards === []) continue;
+                self::assertSame('contract_status', $r['billing']['source'], "$id $today $u {$m['id']}: Werkstatt aus dem Vertragsstatus");
+                self::assertClose(array_sum(array_column($cards, 'current_balance')), (float)$r['billing']['balance_so_far'], 0.011, "$id $today $u {$m['id']}: Werkstatt Saldo bisher = Karte");
+                self::assertClose(array_sum(array_column($cards, 'projected_end_balance')), (float)$r['billing']['base_end_balance'], 0.011, "$id $today $u {$m['id']}: Werkstatt Endsaldo = Karte");
+                self::assertSame(max(array_column($cards, 'settle_on')), $r['billing']['settle_on'], "$id $today $u {$m['id']}: derselbe Abrechnungstag");
             }
         }
         self::assertGreaterThan(0, $checked, 'Perioden geprüft');
@@ -429,15 +437,20 @@ final class ViewSumsConsistencyTest extends ServiceTestCase
             $byMeter = [];
             foreach ($bills->list($u) as $b) if (!empty($b['special_payment_id'])) $byMeter[$b['meter_id']][] = $b;
             foreach ($this->meters->list($u) as $m) {
-                foreach ($this->consumption->contractStatus($u, $m)['contracts'] as $c) {
+                // v3.9.0 (V1) — derselbe Tag wie der importierte Haushalt
+                foreach ($this->consumption->contractStatus($u, $m, $today)['contracts'] as $c) {
                     if (empty($c['is_current']) || ($c['balance_from'] ?? null) === null || $c['balance_from'] <= $c['start']) continue;
                     $ends = array_map(fn($b) => date('Y-m-d', (int)strtotime($b['period_to'] . ' +1 day')), $byMeter[$m['id']] ?? []);
-                    self::assertContains($c['balance_from'], $ends, "$id $today $u {$c['contract_id']}: Saldo ab dem Tag nach einer gebuchten Rechnung");
+                    // v3.9.0 (V1) — oder der Beginn der laufenden Abrechnungsperiode (Stichtag, Wechsel)
+                    if (is_array($c['billing_period'] ?? null)) $ends[] = (string)$c['billing_period']['open_from'];
+                    self::assertContains($c['balance_from'], $ends, "$id $today $u {$c['contract_id']}: Saldo ab dem Tag nach einer gebuchten Rechnung bzw. ab der laufenden Periode");
                     // gezählt werden nur Zahlungen ab dem Saldobeginn, keine gebuchten Rechnungsergebnisse
                     $bookedOn = array_map(fn($b) => (string)($b['issued_on'] ?? ''), $byMeter[$m['id']] ?? []);
                     foreach ($c['special_payments'] ?? [] as $sp) {
                         self::assertGreaterThanOrEqual($c['balance_from'], $sp['date'], "$id $today $u: nur Zahlungen ab dem Saldobeginn");
                         self::assertFalse(in_array($sp['date'], $bookedOn, true) && $sp['kind'] !== 'abschlagszahlung', "$id $today $u: gebuchtes Rechnungsergebnis zählt nicht");
+                        // v3.9.0 (V1) — in der Periode gleichen Rück- und Nachzahlungen frühere Abrechnungen aus
+                        if (is_array($c['billing_period'] ?? null)) self::assertSame('abschlagszahlung', $sp['kind'], "$id $today $u: in der laufenden Periode nur Abschlagszahlungen");
                     }
                     $windowed++;
                 }

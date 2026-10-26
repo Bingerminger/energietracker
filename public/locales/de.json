@@ -476,7 +476,7 @@
       "consShort": "{value} Verbr.",
       "gpPlus": " + {value} Grundpreis",
       "suggestAdvance": "Mit {suggested} statt {current} Abschlag läge die Abrechnung bei etwa ±0.",
-      "measuredThenEstimated": "gemessen bis {date} ({kwh} kWh), danach geschätzt: {value}",
+      "measuredThenEstimated": "gemessen bis {date} ({amount}), danach geschätzt: {value}",
       "renewed": "Die Laufzeit endete am {date}. Der Vertrag läuft ohne Kündigung zu den letzten Preisen weiter und ist jederzeit mit höchstens einem Monat Frist kündbar.",
       "cancelMissed": "Kündigungsstichtag {date} verpasst: Der Vertrag endet nicht zum {end}, sondern läuft weiter — danach mit höchstens einem Monat Frist kündbar.",
       "priceIncrease": "Preiserhöhung ab {date}: {what}.",
@@ -504,7 +504,13 @@
       },
       "sinceBill": "Gerechnet ab {date}: Die Rechnung davor ist im Vertrag gebucht und zählt hier nicht mehr mit.",
       "nextDue": "nächster Termin: {date}",
-      "paidCurrentEvery": "aktuell: {value}"
+      "paidCurrentEvery": "aktuell: {value}",
+      "suggestShort": {
+        "one": "Bis zur Abrechnung am {date} bleibt nur noch {count} Abschlag. Den Rest gleicht die Abrechnung aus; dafür musst du den Abschlag jetzt nicht erhöhen.",
+        "other": "Bis zur Abrechnung am {date} bleiben nur noch {count} Abschläge. Den Rest gleicht die Abrechnung aus; dafür musst du den Abschlag jetzt nicht erhöhen."
+      },
+      "suggestOngoing": "Danach wären rund {amount} statt {current} im Monat angemessen.",
+      "sincePeriod": "Gerechnet ab {date}, dem Beginn der laufenden Abrechnungsperiode bis {until}. Frühere Perioden stehen im Abrechnungsjahr."
     },
     "contractsTable": {
       "emptyTitle": "Keine Verträge erfasst",
@@ -525,7 +531,8 @@
       "colSpecial": "Sonderzahlungen",
       "hint": "Bonus = Gutschriften aus dem Vertrag (Sofort-, Wechsel-, Neukundenbonus). Sonderzahlungen = Rückzahlungen (+), Nach- und Abschlagszahlungen (−) außerhalb des Abschlagsplans; beide gehen in den Saldo ein. Antippen zeigt die Einzelposten; gepflegt werden sie in der Vertragsverwaltung.",
       "colEarned": "Vergütung",
-      "colReceived": "Erhalten"
+      "colReceived": "Erhalten",
+      "futureLegend": "≈ Künftiger Vertrag: Der erwartete Saldo ist geschätzt, ab Vertragsbeginn mit seinen Preisen, seinem Abschlag und deinem bisherigen Verbrauch."
     },
     "monthlyTable": {
       "noData": "Keine Daten für dieses Jahr.",
@@ -753,6 +760,14 @@
       "alt": {
         "one": "Balkendiagramm: Energiefluss {year} — in {months} Monat mit Daten aller drei Zähler erzeugt {generation}, davon selbst genutzt {self} und eingespeist {feedIn}; aus dem Netz {grid}.",
         "other": "Balkendiagramm: Energiefluss {year} — in {months} Monaten mit Daten aller drei Zähler erzeugt {generation}, davon selbst genutzt {self} und eingespeist {feedIn}; aus dem Netz {grid}."
+      },
+      "feedAbove": {
+        "one": "! {months}: Die gemessene Einspeisung liegt über der verteilten Erzeugung. Selbst genutzt und eingespeist ergeben dort mehr als die Erzeugung, weil diese für den Monat zu niedrig verteilt ist.",
+        "other": "! {months}: Die gemessene Einspeisung liegt über der verteilten Erzeugung. Selbst genutzt und eingespeist ergeben dort mehr als die Erzeugung, weil diese für die Monate zu niedrig verteilt ist."
+      },
+      "partial": {
+        "one": "* {months}: Ein Zähler erfasst nur einen Teil des Monats. Ohne gleichen Zeitraum fehlt dort der Eigenverbrauch.",
+        "other": "* {months}: Ein Zähler erfasst nur einen Teil des Monats. Ohne gleichen Zeitraum fehlt dort der Eigenverbrauch."
       }
     },
     "photo": {
@@ -2843,7 +2858,8 @@
       "poorFit": "Das Heizmodell passt schlecht zu diesem Zähler (± {pct} je Monat): Die Prognose rechnet mit den gemessenen Monaten und zeigt kein Band.",
       "regressionInvalid": "Die gewählte Heizkurve ({model}) gilt nicht — {why}. Die Prognose rechnet ohne sie.",
       "climateNormalGrid": "Für die Heizgrenze {base} °C gibt es noch kein Klimanormal (vorberechnet für {min} bis {max} °C; ein älteres Normal holt die App beim nächsten Wetterabgleich neu). Bis dahin zählen die Heizgradtage der eigenen Temperaturhistorie.",
-      "fewMeasured": "Zu wenige gemessene Monate, um das Heizmodell zu prüfen: Die Prognose zeigt kein Band, Saldo und Abschlag stehen nur als Spanne da."
+      "fewMeasured": "Zu wenige gemessene Monate, um das Heizmodell zu prüfen: Die Prognose zeigt kein Band, Saldo und Abschlag stehen nur als Spanne da.",
+      "levelLastYear": "Die Jahresmenge folgt dem Verbrauch der letzten 365 Tage ({amount}, {from} bis {to}). Nicht jeder Kalendermonat ist gemessen, deshalb verteilt die Prognose nur diese Menge auf die Monate."
     },
     "assumedNote": "Kein Vertrag für diesen Monat — der letzte Vertrag läuft zu seinen Preisen weiter (Annahme; Verträge verlängern sich).",
     "method": {
@@ -2863,7 +2879,8 @@
     "annualNoBand": "Jahr: {value} {unit} — ohne Band, weil das Heizmodell schlecht passt.",
     "annualNoBandFew": "Jahr: {value} {unit} — ohne Band, weil zu wenige Monate gemessen sind, um das Heizmodell zu prüfen.",
     "annualNoBandYears": "Jahr: {value} {unit} — ohne Band: Wie stark ein Monat von Jahr zu Jahr schwankt, zeigt sich erst mit Messwerten aus mehr als einem Jahr.",
-    "annualBandSpread": "Jahr: {value} {unit}, in {level} % der Jahre zwischen {low} und {high} {unit} — nach der Streuung der Monate über die Jahre."
+    "annualBandSpread": "Jahr: {value} {unit}, in {level} % der Jahre zwischen {low} und {high} {unit} — nach der Streuung der Monate über die Jahre.",
+    "blendPoorFit": "das Heizmodell passt schlecht, deshalb rechnet jeder Monat mit dem Saisonprofil"
   },
   "report": {
     "createdOn": "Erstellt am {date}",
@@ -2987,7 +3004,9 @@
       "cheapShare": "Anteil in günstigen Stunden",
       "errors": "Hinweis: Einzelne Abschnitte fehlen, weil ihre Daten nicht gelesen werden konnten.",
       "billing": "Abrechnungsjahre",
-      "flexPage": "Flexibilität"
+      "flexPage": "Flexibilität",
+      "successesNoneUnadjusted": "{year} wurde {pct} weniger verbraucht als {prev}. Als Einsparung belegen lässt sich das nicht: Der Vergleich ist nicht witterungsbereinigt, ein milderer Winter wirkt genauso. Den Vergleich mit dem Vorjahr zeigt der Abschnitt „Gut zu wissen“.",
+      "successesNoneUnproven": "{year} wurde {pct} weniger verbraucht als {prev}. Als Einsparung belegen lässt sich das nicht: Ein Teil der Monate ist verteilt, nicht gemessen. Den Vergleich mit dem Vorjahr zeigt der Abschnitt „Gut zu wissen“."
     },
     "tile": {
       "cost": "Energiekosten",
@@ -3017,7 +3036,8 @@
         "ok": "Nicht mehr verbraucht",
         "warn": "Etwas mehr verbraucht",
         "alert": "Deutlich mehr verbraucht",
-        "none": "Kein Vergleich"
+        "none": "Kein Vergleich",
+        "less": "Weniger verbraucht"
       },
       "billing": {
         "ok": "Abschläge passen",
@@ -3067,7 +3087,8 @@
       "basis": {
         "measured": "gemessen",
         "projected": "hochgerechnet",
-        "example": "Rechenbeispiel"
+        "example": "Rechenbeispiel",
+        "estimated": "geschätzt"
       }
     },
     "agenda": {
@@ -3217,7 +3238,9 @@
       },
       "readings": {
         "title": "Zählerstände ablesen",
-        "reason": "Letzte Ablesung am {date}: {meters}."
+        "reason": "Letzte Ablesung am {date}: {meters}.",
+        "reasonEach": "Letzte Ablesung je Zähler: {meters}.",
+        "none": "noch keine"
       },
       "bill": {
         "title": "Rechnung prüfen: {label}",
@@ -3242,6 +3265,10 @@
       "advanceUncertain": {
         "title": "{label}: Abschlag nach der nächsten Ablesung prüfen",
         "reason": "{text}"
+      },
+      "cancelConfirm": {
+        "title": "Kündigung bestätigt? {label}",
+        "reason": "Ab {start} ist ein Vertrag bei {next} eingetragen. Prüfe, ob „{provider}“ die Kündigung bestätigt hat; sie muss bis {date} dort sein."
       }
     },
     "money": {
@@ -3275,7 +3302,14 @@
         "paybackOpen": "Bisher eingespielt: {paid} von {investment} (Stand heute).",
         "batteryTitle": "Speicher",
         "battery": "Geladen {charged} kWh, entladen {discharged} kWh, rund {cycles} volle Zyklen, Wirkungsgrad {eff}.",
-        "co2Avoided": "Vermiedenes CO₂: {kg}, gerechnet mit dem CO₂-Faktor für Strom aus den Einstellungen."
+        "co2Avoided": "Vermiedenes CO₂: {kg}, gerechnet mit dem CO₂-Faktor für Strom aus den Einstellungen.",
+        "span": "Gerechnet über die Monate, in denen alle drei Zähler Daten haben: {from} bis {to} ({span}).",
+        "estimated": "≈ Monatswerte sind teils verteilt, nicht gemessen{readings}. Eigenverbrauch, Autarkie und Nutzen sind deshalb Schätzungen.",
+        "feedAbove": {
+          "one": "In {months} liegt die gemessene Einspeisung über der verteilten Erzeugung. Dort zählt die Einspeisung als Erzeugung, selbst genutzt ist nichts.",
+          "other": "In {count} Monaten ({months}) liegt die gemessene Einspeisung über der verteilten Erzeugung. Dort zählt die Einspeisung als Erzeugung, selbst genutzt ist nichts."
+        },
+        "noCompare": "Kein Vergleich mit {prev}: Dafür braucht es zwei ganze Jahre mit Daten aller drei Zähler und eine Ablesung der Erzeugung an beiden Jahreswechseln."
       },
       "heatPump": {
         "sentence": "Die Wärmepumpe machte aus {elec} kWh Strom {heat} kWh Wärme: Jahresarbeitszahl {jaz}.",
@@ -3980,7 +4014,9 @@
     "history": "Verlauf ({count})",
     "historyTitle": "Verlauf: {name}",
     "anytime": "Jederzeit kündbar",
-    "advanceEvery": "Abschlag {amount}"
+    "advanceEvery": "Abschlag {amount}",
+    "noNotice": "Kündigungsfrist nicht eingetragen",
+    "earliestEnd": "Frühestens zum {date} kündbar"
   },
   "billCheck": {
     "noMeter": "Die Rechnungsprüfung rechnet die Jahresabrechnung für Gas, Strom, Wasser und Fernwärme nach. Lege zuerst einen Zähler an.",
@@ -4493,7 +4529,8 @@
       "billExpected": "Abrechnung erwartet: {label} ({provider}) für {from} – {until}",
       "billOverdue": "Abrechnung überfällig: {label} ({provider}) für {from} – {until} — gesetzliche Frist verstrichen, beim Versorger nachfragen",
       "finalBillExpected": "Schlussrechnung erwartet: {label} ({provider}) für {from} – {until}",
-      "finalBillOverdue": "Schlussrechnung überfällig: {label} ({provider}) für {from} – {until} — gesetzliche Frist verstrichen, beim Versorger nachfragen"
+      "finalBillOverdue": "Schlussrechnung überfällig: {label} ({provider}) für {from} – {until} — gesetzliche Frist verstrichen, beim Versorger nachfragen",
+      "cancelConfirm": "{label}: Kündigung bestätigt? ({provider}, Wechsel zu {next})"
     },
     "subscribe": "Im Kalender abonnieren",
     "intro": "Termine, Kündigungsstichtage, Vertragsenden, Preisgarantien und fällige Ablesungen als Kalender-Abo. Der Kalender holt sie alle 12 Stunden neu.",
@@ -4832,8 +4869,8 @@
     "waterBasis": "{m3} m³ im Jahr · Personen im Haushalt: {persons}",
     "rating": {
       "good": "Gut",
-      "near": "Darüber",
-      "high": "Deutlich darüber"
+      "near": "Etwas hoch",
+      "high": "Hoch"
     },
     "invite": {
       "reference": "Wie steht dein Verbrauch da? Trag einen Vergleichswert ein, etwa aus dem Strom- oder Heizspiegel — dann zeigt diese Kachel eine Ampel.",
@@ -4996,6 +5033,22 @@
         "calcNote": "Gestrichelt: je Viertelstunde gerechnet, nicht gemessen.",
         "powerNote": "In den Knoten: die Leistung in dieser Viertelstunde (kW). Darunter: die Mengen seit Mitternacht (kWh).",
         "gapsOption": "{date} (mit Lücken)"
+      },
+      "yearRange": "{year} ({from} bis {to}, {span})",
+      "series": {
+        "erzeugung_kwh": "Erzeugung",
+        "einspeisung_kwh": "Einspeisung",
+        "bezug_kwh": "Netzbezug"
+      },
+      "interpolatedNote": "≈ Verteilt, nicht gemessen: {series} dieser Monate{readings}. Wie sich der Sonnenstrom aufteilt, ist deshalb geschätzt.",
+      "feedAboveMonth": "Widersprüchlich: Die gemessene Einspeisung ({feed}) liegt über der Erzeugung ({gen}). Das Bild zählt die ganze Einspeisung, selbst genutzt ist dann nichts. Die Sonne zeigt hier mindestens die Einspeisung.",
+      "feedAboveYear": {
+        "one": "Widersprüchlich in {months}: Die gemessene Einspeisung liegt über der verteilten Erzeugung. Das Bild zählt dort die ganze Einspeisung und nichts als selbst genutzt.",
+        "other": "Widersprüchlich in {count} Monaten ({months}): Die gemessene Einspeisung liegt über der verteilten Erzeugung. Das Bild zählt dort die ganze Einspeisung und nichts als selbst genutzt."
+      },
+      "partialNote": {
+        "one": "Ohne {months}: Dort erfasst ein Zähler nur einen Teil des Monats.",
+        "other": "Ohne {count} Monate ({months}): Dort erfasst ein Zähler nur einen Teil des Monats."
       }
     },
     "weather": {
@@ -5774,7 +5827,8 @@
       "co2": "CO₂",
       "co2Year": "CO₂ im Jahr",
       "advanceRange": "{low} bis {high}",
-      "advanceUncertain": "unsicher: das Heizmodell passt schlecht"
+      "advanceUncertain": "unsicher: das Heizmodell passt schlecht",
+      "advanceShort": "nach der Abrechnung am {date}"
     },
     "chart": {
       "cumTitle": "Kosten kumuliert",
@@ -6151,7 +6205,8 @@
       "assumed": "Datum angenommen: Monatserster nach der Rechnung",
       "net_price": "Netto laut Rechnung – mit dem ausgewiesenen Steuersatz in brutto umgerechnet",
       "vat_changed": "Gleicher Preis, anderer Steuersatz",
-      "invalid_format": "Form ungültig – eine Marktlokation hat 11 Ziffern mit Prüfziffer"
+      "invalid_format": "Form ungültig – eine Marktlokation hat 11 Ziffern mit Prüfziffer",
+      "rhythm_conflict": "Rhythmus laut Rechnung passt nicht zu den Terminen"
     },
     "option": {
       "gas": "Gas",
@@ -6415,7 +6470,8 @@
       "missing": "Fehlt im Dokument, später nachtragen: {fields}",
       "unsure": "Unsicher gelesen, nicht übernommen: {fields}",
       "netPrice": "Netto laut Rechnung, mit dem ausgewiesenen Steuersatz in brutto umgerechnet (die App führt Bruttopreise).",
-      "vatChanged": "Gleicher Preis wie im Vertrag, nur ein anderer Steuersatz – die neue Preiszeile gilt ab dem Tag, den die Rechnung für sie nennt."
+      "vatChanged": "Gleicher Preis wie im Vertrag, nur ein anderer Steuersatz – die neue Preiszeile gilt ab dem Tag, den die Rechnung für sie nennt.",
+      "rhythmConflict": "Der Rhythmus laut Rechnung passt nicht zu den genannten Terminen. Übernommen sind die Termine, bitte prüfen."
     },
     "duplicate": {
       "text": "Wohl dasselbe Dokument wie „{name}“ (abgelegt am {date}). Übernimm nur eines; das andere kannst du löschen.",
@@ -6770,7 +6826,15 @@
     "legendPv": "≈ verteilt, nicht gemessen: Wie sich der Sonnenstrom dieser Monate aufteilt, ist geschätzt.",
     "chartNote": "Schraffierte Säulen: verteilt, nicht gemessen.",
     "markTitleEstimated": "Verteilt, nicht gemessen: aus {gap} Tagen zwischen zwei Ablesungen, mit einer geschätzten Ablesung als Stütze",
-    "whyEstimated": "Liegt eine geschätzte Ablesung dazwischen, gilt auf jeder Seite von ihr eine eigene Tagesrate."
+    "whyEstimated": "Liegt eine geschätzte Ablesung dazwischen, gilt auf jeder Seite von ihr eine eigene Tagesrate.",
+    "readingsYearEst": {
+      "one": "{count} Ablesung und {estimates} in {year}",
+      "other": "{count} Ablesungen und {estimates} in {year}"
+    },
+    "estimates": {
+      "one": "{count} Schätzung",
+      "other": "{count} Schätzungen"
+    }
   },
   "balanceUncertain": {
     "range": "Zur Abrechnung am {date} unsicher: zwischen {low} und {high}, weil {why}.",
@@ -6780,11 +6844,12 @@
     "credit": "{amount} Guthaben",
     "light": "{label}: unsicher, zwischen {low} und {high}",
     "why": {
-      "factor_clamped": "die letzten gemessenen Monate weit neben der Erwartung liegen (Faktor {raw}, gerechnet mit {used})",
+      "factor_clamped": "die letzten gemessenen Monate rund {raw}-mal so viel brauchten wie erwartet; die Schätzung folgt dem nur bis zum {used}-Fachen",
       "poor_fit": "das Heizmodell schlecht zu diesem Zähler passt (± {pct} je Monat)",
       "both": "{a} und {b}",
       "few_measured": "zu wenige Monate gemessen sind, um das Heizmodell zu prüfen",
-      "three": "{a}, {b} und {c}"
+      "three": "{a}, {b} und {c}",
+      "factorLow": "die letzten gemessenen Monate nur rund {raw} der Erwartung brauchten; die Schätzung folgt dem nur bis {used}"
     },
     "short": "{low} bis {high}",
     "verdict": "unsicher"

@@ -673,6 +673,11 @@ body:has(.modal-backdrop) .toast-stack { bottom: auto; top: 20px; }
 .balance-verdict__value {
   font-family: var(--font-mono); font-size: 22px; font-weight: 600;
 }
+/* v3.9.0 (A2) — unsichere Schätzung: die Spanne ist ein Satz, kein Betrag — kleiner
+   und in Fließschrift, damit sie am Telefon nicht über fünf Zeilen läuft */
+.balance-verdict__value[data-role="verdict-range"] {
+  font-family: var(--font-sans, inherit); font-size: var(--fs-sm, 13px); font-weight: 600; line-height: 1.35;
+}
 .balance-verdict__verdict {
   font-size: 11px; font-weight: 600;
   margin-top: 4px;
@@ -1370,6 +1375,8 @@ a.icon-btn { display: inline-flex; align-items: center; justify-content: center;
 .contract-overview__name { font-weight: 600; font-size: var(--fs-md); }
 .contract-overview__facts { margin-top: var(--sp-2); font-size: var(--fs-sm); }
 .contract-overview__expected { margin-top: var(--sp-2); font-size: var(--fs-sm); }
+/* v3.9.0 (A5) — Karte ohne Vertrag: unten nicht mehr Abstand als oben (Absatzrand) */
+.contract-overview__row > p:last-child { margin-bottom: 0; }
 
 /* Verweis-Karte (Rechnungsprüfung auf der Gas-Seite, Jahresbericht in den Einstellungen) */
 .card--link p { margin: 0 0 var(--sp-3); }
@@ -1797,7 +1804,8 @@ a.icon-btn { display: inline-flex; align-items: center; justify-content: center;
    und beim Drucken steht das Endbild. Bei „Bewegung reduzieren“ gibt es keine
    Animation, nur das Endbild. */
 .explainer { margin: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
-.explainer__title { font-weight: 600; font-size: var(--fs-md, 15px); }
+/* v3.9.0 (A1) — Titel der Schaubilder im Stil der Kartentitel (.card__title) */
+.explainer__title { font-size: 11px; font-weight: 500; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.07em; }
 .explainer__svg { width: 100%; max-width: 560px; height: auto; overflow: visible; }
 .explainer__text { margin: 0; color: var(--text-2); font-size: var(--fs-sm); }
 .explainer .ex-label { fill: var(--text-1); font-size: 11px; font-family: var(--font-sans, inherit); }
@@ -2229,3 +2237,8 @@ a.icon-btn { display: inline-flex; align-items: center; justify-content: center;
 .dash-lever__upto { margin-top: var(--sp-1); }
 .dash-lever__action { margin: var(--sp-3) 0 0; }
 @media (prefers-reduced-motion: reduce) { .ws-chip, .ws-card { transition: none; } }
+/* v3.9.0 (A4) — Werkstatt am Touchgerät: Felder, Auswahl, Regler und Chips 44 px hoch */
+@media (pointer: coarse) {
+  .ws-chip, .ws__controls .input, .ws__controls select, .ws__controls input[type="text"],
+  .ws__controls input[type="number"], .ws-range input[type="range"] { min-height: 44px; }
+}

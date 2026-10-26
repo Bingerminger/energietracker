@@ -254,7 +254,7 @@ final class InboxSchema
      * v3.9.0 (F1034) — Rhythmus des neuen Abschlags (Hilfsfeld, keine Marke):
      * nennt die Rechnung Termine, leitet der Posteingang ihn aus ihnen ab.
      */
-    private const ADVANCE_EVERY = ['kind' => 'enum', 'options' => ['monthly', 'bimonthly', 'quarterly'], 'aux' => true,
+    private const ADVANCE_EVERY = ['kind' => 'enum', 'options' => ['monthly', 'bimonthly', 'quarterly'], 'aux' => true, 'normalize' => 'advance_every',
         'hints' => ['monthly' => ['monat', 'mtl'], 'bimonthly' => ['zweimonat', 'zwei monate', '2 monate'], 'quarterly' => ['viertelj', 'quartal', 'drei monate', '3 monate']],
         'desc' => 'how often the new advance payment is due, as printed: monthly (monatlich), bimonthly (alle zwei Monate), quarterly (vierteljährlich); null if not printed'];
 

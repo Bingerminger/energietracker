@@ -55,30 +55,118 @@ export async function openPdf(url, { signal } = {}) {
 }
 
 /**
+ * v3.9.0 — Leerzeichen zwischen zwei Stücken ohne eigenes Leerzeichen ab
+ * diesem Anteil der Schrifthöhe Abstand (eine Wortlücke ist rund ein Viertel).
+ * In einer Folge einzelner Zeichen (gesperrt, oder Zeichen für Zeichen
+ * gezeichnet) gilt das Doppelte des üblichen Abstands der Folge, mindestens
+ * ein Zehntel der Höhe: „1 . 2 3 4 , 5 6 €“ mit 0,4 pt zwischen den Ziffern und
+ * 1,4 pt vor dem Euro wird „1.234,56 €“.
+ */
+export const SPACE_GAP = 0.25;
+const LETTER_GAP_FACTOR = 2;
+const LETTER_GAP_MIN = 0.1;
+
+/** Lage eines Stücks aus pdf.js (`transform`, `width`, `height`), sonst null. */
+function placeOf(it) {
+  const tr = it?.transform;
+  if (!Array.isArray(tr) || tr.length < 6 || !tr.every(n => typeof n === 'number' && Number.isFinite(n))) return null;
+  if (typeof it.width !== 'number' || !Number.isFinite(it.width)) return null;
+  const h = typeof it.height === 'number' && it.height > 0 ? it.height : Math.abs(tr[3]) || Math.hypot(tr[2], tr[3]);
+  return { x: tr[4], y: tr[5], w: it.width, h };
+}
+
+const blank = (it) => it.str.trim() === '';
+
+/**
+ * Eine Folge von Stücken (in Ausgabe-Reihenfolge) zu Text. Leerzeichen
+ * zwischen zwei Stücken, wenn keines dasteht: mit Lage nach dem Abstand, ohne
+ * Lage immer (so las die App bis v3.8 jede Zeile).
+ */
+function joinRun(seq) {
+  const one = (it) => [...it.str].length === 1 && !blank(it);
+  const single = [];
+  for (let i = 0; i + 1 < seq.length; i++) {
+    const a = seq[i], b = seq[i + 1];
+    if (a.p && b.p && one(a) && one(b)) single.push(Math.max(0, b.p.x - (a.p.x + a.p.w)));
+  }
+  single.sort((x, y) => x - y);
+  const letterGap = single.length >= 2 ? single[Math.floor((single.length - 1) / 2)] : null;
+  let out = '';
+  seq.forEach((it, i) => {
+    out += it.str;
+    const next = seq[i + 1];
+    if (!next || it.str === '' || next.str === '' || /\s$/.test(it.str) || /^\s/.test(next.str)) return;
+    if (!it.p || !next.p || it.p.w <= 0) { out += ' '; return; }
+    const h = Math.max(it.p.h, next.p.h);
+    if (!(h > 0)) { out += ' '; return; }
+    let thr = SPACE_GAP * h;
+    if (letterGap !== null && one(it) && one(next)) thr = Math.min(thr, Math.max(LETTER_GAP_MIN * h, LETTER_GAP_FACTOR * letterGap));
+    if (next.p.x - (it.p.x + it.p.w) >= thr) out += ' ';
+  });
+  return out;
+}
+
+/**
+ * Eine Stromzeile (bis zum Stück mit `hasEOL`). Mit Lage: in Läufen gleicher
+ * Grundlinie (benachbarte Stücke, y innerhalb der halben Höhe); ein Lauf, der
+ * nicht von links nach rechts geschrieben ist (das PDF zeichnet rechtsbündige
+ * Zahlen Zeichen für Zeichen von rechts), wird nach x sortiert, reine
+ * Leerzeichen-Stücke fallen dann heraus (ihre Lage passt nicht zur Reihenfolge).
+ * Läufe nacheinander, nie über die Stromzeile hinaus: Spalten verschränken sich
+ * nicht. Ohne Lage (Tests, ältere Aufrufer): wie bis v3.8.
+ */
+function joinLine(line) {
+  const items = line.map(it => ({ str: it.str, p: placeOf(it) }));
+  if (items.some(it => !blank(it) && it.p === null)) return joinRun(items.map(it => ({ str: it.str, p: null })));
+  const runs = [];
+  let run = null;
+  for (const it of items) {
+    if (blank(it)) { (run ??= (runs.push({ y: null, h: 0, items: [] }), runs[runs.length - 1])).items.push(it); continue; }
+    const fits = run && run.y !== null && Math.abs(it.p.y - run.y) <= 0.5 * Math.max(it.p.h, run.h);
+    if (run && (run.y === null || fits)) {
+      if (run.y === null) { run.y = it.p.y; run.h = it.p.h; }
+      run.items.push(it);
+      run.h = Math.max(run.h, it.p.h);
+      continue;
+    }
+    run = { y: it.p.y, h: it.p.h, items: [it] };
+    runs.push(run);
+  }
+  return runs.map((r) => {
+    const solid = r.items.filter(it => !blank(it));
+    const ordered = solid.every((it, i) => i === 0 || it.p.x >= solid[i - 1].p.x);
+    return joinRun(ordered ? r.items : solid.map((it, i) => [it, i]).sort((a, b) => a[0].p.x - b[0].p.x || a[1] - b[1]).map(a => a[0]));
+  }).reduce((acc, s) => (acc === '' || s === '' || /\s$/.test(acc) || /^\s/.test(s) ? acc + s : `${acc} ${s}`), '');
+}
+
+/**
  * Textstücke einer Seite (pdf.js `getTextContent().items`) zu Text: Zeilenende
  * → Umbruch, sonst ein Leerzeichen zwischen zwei Stücken, wenn keines dasteht.
+ * v3.9.0 — mit Lage (`transform`, `width`, `height`) nach der Lage: Stücke
+ * einer Zeile von links nach rechts, Leerzeichen nach dem Abstand (joinLine).
  * Rein, ohne pdf.js — für Tests.
  *
- * @param {Array<{str: string, hasEOL?: boolean}>} items
+ * @param {Array<{str: string, hasEOL?: boolean, transform?: number[], width?: number, height?: number}>} items
  */
 export function joinTextItems(items) {
-  let out = '';
   const list = (items || []).filter(it => typeof it?.str === 'string');
-  list.forEach((it, i) => {
-    out += it.str;
-    if (it.hasEOL) { out += '\n'; return; }
-    const next = list[i + 1];
-    if (next && it.str !== '' && next.str !== '' && !/\s$/.test(it.str) && !/^\s/.test(next.str)) out += ' ';
-  });
+  let out = '';
+  let line = [];
+  for (const it of list) {
+    line.push(it);
+    if (it.hasEOL) { out += `${joinLine(line)}\n`; line = []; }
+  }
+  if (line.length) out += joinLine(line);
   return out.replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
 }
 
-/** Textebene aller Seiten (eine Zeichenkette je Seite). */
+/** Textebene aller Seiten (eine Zeichenkette je Seite), mit der Lage jedes Stücks gelesen (joinTextItems). */
 export async function textPages(doc) {
   const pages = [];
   for (let i = 1; i <= doc.numPages; i++) {
     const page = await doc.getPage(i);
-    pages.push(joinTextItems((await page.getTextContent()).items));
+    const items = (await page.getTextContent()).items.map(it => ({ str: it.str, hasEOL: !!it.hasEOL, transform: it.transform, width: it.width, height: it.height }));
+    pages.push(joinTextItems(items));
   }
   return pages;
 }

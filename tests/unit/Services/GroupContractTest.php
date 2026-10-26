@@ -89,7 +89,8 @@ final class GroupContractTest extends ServiceTestCase
         $c = $this->groupContract();
         $group = $this->meters->target('strom', $this->gid);
         self::assertTrue($group['is_group']);
-        $row = $this->consumption->contractStatus('strom', $group)['contracts'][0];
+        // v3.9.0 (V1) — Stand Ende 2025: der Saldo rechnet über die laufende Abrechnungsperiode (2025)
+        $row = $this->consumption->contractStatus('strom', $group, '2025-12-15')['contracts'][0];
         self::assertSame($c['id'], $row['contract_id']);
         self::assertEqualsWithDelta(3000, $row['actual_kwh'], 0.5);
         // Mischpreis für Hochrechnungen: 2/3 × 30 + 1/3 × 22 = 27,33 ct

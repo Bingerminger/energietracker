@@ -174,7 +174,11 @@ in the feasibility trial (61 real documents).
 digits (“3 1 5,5 9 €”, “-8 0 0 , 0 0 €”, “1 8 3 Tage”). The check reads that as
 one number, but only when every digit stands alone, each separated by exactly
 one space, and the result is a valid number. Numbers of several digits next to
-each other (columns of a table like “12 345”) stay apart.
+each other (columns of a table like “12 345”) stay apart. If a PDF draws
+right-aligned numbers character by character from the right, the browser has
+read the line from left to right by the position of the characters since
+v3.9.0; before, the text layer said “6 5 , 4 3 2 . 1 €” instead of “1.234,56 €”.
+A document you read before keeps its reading until you read it again.
 
 You **confirm** a flagged field (“Correct”) or **change** it. Tapping “p. 2”
 next to the quote turns the document on the left to that page.
@@ -280,7 +284,12 @@ If the bill names the new advance payment with due dates (“165,00 € am
 the app takes it over like that: the amount applies **per due date**, every two
 or three months or on the dates listed; after the last date listed it continues
 yearly on the same days. Without “from” the plan starts on the first due date.
-Due dates read with doubt do not count. An advance payment change usually names
+Due dates read with doubt do not count. The app takes the rhythm from the due
+dates when at least two are evenly spaced (one, two or three months; a date may
+be shifted by up to three days, for example because of a weekend); otherwise
+from what the bill states, read in every language of the app (“zweimonatlich”,
+“alle 2 Monate”, “bimonthly” …). If the statement does not match the due dates,
+the due dates apply and the proposal is not ticked in advance. An advance payment change usually names
 only the amount: then the rhythm of the current advance payment stays. The key
 statement then also judges the new advance payment per due date, not per month.
 How balance, suggestion and forecast use it is under

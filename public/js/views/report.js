@@ -27,14 +27,16 @@ import { escapeHtml } from '../lib/format.js';
 import { t, getLanguages, getLocale } from '../lib/i18n.js';
 import { docUrl } from '../lib/docs.js';
 import { activeUtilities } from '../state.js';
-import { openReportDialog, reportHref, resolveChoice, loadReportChoice, reportYears, demoLimits } from '../components/report-dialog.js';
+import { openReportDialog, reportHref, resolveChoice, loadReportChoice, reportYears, demoLimits, dataFirstYear } from '../components/report-dialog.js';
 
 export async function render(container) {
   const pdf = t('format.pdfCharset') !== 'none';
   let active = [];
   try { active = await activeUtilities(); } catch { active = []; }
+  // v3.9.0 (L18) — nur Jahre mit Daten
+  const years = reportYears(new Date().getFullYear(), await dataFirstYear());
   const choice = (mode) => {
-    const c = resolveChoice(loadReportChoice(), { active, languages: Object.keys(getLanguages()), locale: getLocale(), years: reportYears() });
+    const c = resolveChoice(loadReportChoice(), { active, languages: Object.keys(getLanguages()), locale: getLocale(), years });
     const limits = demoLimits(mode);
     return { ...c, utilities: limits.subset ? c.utilities : null, detail: limits.detail && c.detail, billing: limits.billing && c.billing, flex: limits.flex && c.flex };
   };

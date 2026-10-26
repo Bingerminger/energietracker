@@ -77,7 +77,9 @@ Utility total                        500 kWh                                140 
   costs & contracts, bill check, billing year, forecast and forecast workshop,
   suggested advance, annual report (“Where does my money go?”), tariff
   comparison (review and switch: expected annual consumption = remainder), CSV
-  and PDF calculate this way.
+  and PDF calculate this way. Balance card, workshop and annual report read the
+  same projection over the running billing period and so show the same balance
+  of the parent contract, calculated on the remainder.
 - **Note:** the parent meter, its contract and the bill check say how it is
   calculated, for example “300 kWh = 500 kWh measured − 200 kWh Heat pump”. The
   API adds `rest_of` (`measured`, `submeters`, `rest`). When you create a

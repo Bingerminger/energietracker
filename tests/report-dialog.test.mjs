@@ -72,6 +72,10 @@ const ctx = { active, languages: Object.keys(getLanguages()), locale: 'de', year
 // ── Auswahl → Parameter ─────────────────────────────────────────────────
 console.log('Auswahl → Parameter');
 t('Jahre: dieses und sechs davor, vorgewählt das Vorjahr', years.length === 7 && years[0] === now && R.resolveChoice({}, ctx).year === now - 1);
+// v3.9.0 (L18) — nur Jahre mit Daten (Daten ab 11/2022: 2026 bis 2022, nicht 2020)
+t('Jahre ab den ersten Daten', R.reportYears(2026, 2022).join() === '2026,2025,2024,2023,2022', R.reportYears(2026, 2022).join());
+t('… höchstens sieben, ohne Daten wie bisher, Daten erst dieses Jahr: nur dieses',
+  R.reportYears(2026, 2010).length === 7 && R.reportYears(2026, null).length === 7 && R.reportYears(2026, 2026).join() === '2026');
 t('alle angehakt = ganzer Bericht (kein utilities)', R.resolveChoice({ utilities: ['gas', 'strom', 'wasser'] }, ctx).utilities === null);
 t('keine gemerkt = ganzer Bericht', R.resolveChoice({ utilities: [] }, ctx).utilities === null);
 t('nur aktive, in der Reihenfolge der Verbrauchsarten', R.resolveChoice({ utilities: ['wasser', 'heizoel', 'gas'] }, ctx).utilities?.join() === 'gas,wasser');

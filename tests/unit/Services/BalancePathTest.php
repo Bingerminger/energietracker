@@ -30,6 +30,9 @@ final class BalancePathTest extends ServiceTestCase
         ]]);
         // Vertrag über zwölf Monate, begonnen vor acht — heute liegt mittendrin
         $this->start = date('Y-m-01', strtotime(date('Y-m-01') . ' -8 months'));
+        // v3.9.0 (V1) — der Saldo rechnet über die laufende Abrechnungsperiode; der
+        // Stichtag am Vertragsbeginn macht sie zum Vertragsjahr (wie die Rechnung)
+        $this->settings->set(['billing_cycle_anchor_strom' => substr($this->start, 5)]);
     }
 
     private function ym(string $date, int $months): string

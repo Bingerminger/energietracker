@@ -160,15 +160,17 @@ final class InvoicePrices
     /**
      * Der neue Abschlag einer Rechnung als Zeile eines Abschlagsplans: Betrag je
      * Termin; ab `advance_new_from`, sonst ab dem ersten genannten Termin (der
-     * frühere gilt); mit den genannten Terminen, deren Rhythmus aus ihnen folgt
-     * (regelmäßig: every_months), sonst mit dem Rhythmus laut Rechnung
-     * (`advance_new_every`), sonst monatlich wie bisher. Unsichere Termine
-     * (markiert, nicht bestätigt) zählen nicht. Ohne Betrag null; ohne Beginn
-     * `from` null (der Aufrufer nimmt dann wie bisher den Monat nach dem
-     * Zeitraum an).
+     * frühere gilt); mit den genannten Terminen. Der Rhythmus folgt aus den
+     * Terminen (rhythmOfDates, mit Spielraum für Monatsende und Wochenende),
+     * sonst aus dem Rhythmus laut Rechnung (`advance_new_every`, tolerant
+     * gelesen: everyOf), sonst monatlich wie bisher. Widersprechen sich Feld und
+     * Termine, gelten die Termine, und `rhythm_conflict` sagt es (der Aufrufer
+     * belegt dann nicht vor). Unsichere Termine (markiert, nicht bestätigt) zählen
+     * nicht. Ohne Betrag null; ohne Beginn `from` null (der Aufrufer nimmt dann
+     * wie bisher den Monat nach dem Zeitraum an).
      *
      * @param array<string,mixed> $entry Eintrag des Posteingangs
-     * @return array{from: ?string, amount_eur: float, every_months?: int, due_dates?: list<string>}|null
+     * @return array{from: ?string, amount_eur: float, every_months?: int, due_dates?: list<string>, rhythm_conflict?: true}|null
      */
     public static function advancePlan(array $entry): ?array
     {
@@ -187,17 +189,78 @@ final class InvoicePrices
         }
         $dates = array_map('strval', array_keys($dates));
         sort($dates);
+        $every = self::everyOf(Proposals::value($entry, 'advance_new_every'));
         $row = ['from' => $from, 'amount_eur' => (float)$amount];
+        $conflict = false;
         if ($dates !== []) {
             $row['from'] = $from === null ? $dates[0] : min($from, $dates[0]);
             $due = array_values(array_filter($dates, fn($d) => $d >= $row['from']));
-            $n = ContractService::rhythmOf($due);
-            if ($n !== null && $n > 1 && $n <= 3) $row['every_months'] = $n;
+            $n = self::rhythmOfDates($due);
+            // ein Termin allein sagt keinen Rhythmus: dann der laut Rechnung
+            $rhythm = count($due) >= 2 ? $n : $every;
+            if ($rhythm !== null && $rhythm > 1) $row['every_months'] = $rhythm;
             $row['due_dates'] = $due;
-        } else {
-            $every = ['bimonthly' => 2, 'quarterly' => 3][(string)Proposals::value($entry, 'advance_new_every')] ?? null;
-            if ($every !== null) $row['every_months'] = $every;
+            $conflict = $every !== null && count($due) >= 2 && $n !== $every;
+        } elseif ($every !== null && $every > 1) {
+            $row['every_months'] = $every;
         }
-        return $row;
+        return $row + ($conflict ? ['rhythm_conflict' => true] : []);
+    }
+
+    /** Auswahl des Felds `advance_new_every` je Rhythmus in Monaten. */
+    public const EVERY_OPTION = [1 => 'monthly', 2 => 'bimonthly', 3 => 'quarterly'];
+
+    /** Wörter für einen Rhythmus, in den Sprachen der App (kleingeschrieben, Leerraum zusammengefasst). */
+    private const EVERY_WORDS = [
+        1 => ['monthly', 'every month', 'monatlich', 'jeden monat', 'mtl.', 'mtl', 'mensuel', 'mensuelle', 'tous les mois', 'chaque mois',
+              'mensile', 'ogni mese', 'mensual', 'cada mes', 'mensal', 'todos os meses', 'maandelijks', 'elke maand', 'iedere maand'],
+        2 => ['bimonthly', 'bi-monthly', 'every other month', 'every second month', 'zweimonatlich', 'zweimonatig', 'zwei-monatlich',
+              'bimestriel', 'bimestrielle', 'bimestrale', 'bimestral', 'tweemaandelijks'],
+        3 => ['quarterly', 'three-monthly', 'vierteljährlich', 'vierteljaehrlich', 'quartalsweise', 'dreimonatlich', 'trimestriel',
+              'trimestrielle', 'trimestrale', 'trimestral', 'per kwartaal', 'elk kwartaal', 'ieder kwartaal', 'driemaandelijks'],
+    ];
+
+    /**
+     * Rhythmus eines Abschlags aus einer Angabe, tolerant: 1, 2, 3 als Zahl oder
+     * Text, die Auswahl des Felds und Wörter wie „zweimonatlich“, „alle 2
+     * Monate“, „every two months“, „tous les trois mois“, „ogni 2 mesi“, „cada
+     * dos meses“, „de 2 em 2 meses“, „om de 2 maanden“. Unbekanntes: null (nicht
+     * raten; „bimensuel“ oder „bimensal“ heißen zweimal im Monat).
+     */
+    public static function everyOf(mixed $v): ?int
+    {
+        if (is_int($v) || is_float($v)) return in_array((float)$v, [1.0, 2.0, 3.0], true) ? (int)$v : null;
+        if (!is_string($v)) return null;
+        $s = mb_strtolower(trim((string)preg_replace('/\s+/u', ' ', $v)));
+        if ($s === '') return null;
+        if (preg_match('/^([123])(?:[.,]0+)?$/', $s, $m)) return (int)$m[1];
+        foreach (self::EVERY_WORDS as $n => $words) if (in_array($s, $words, true)) return $n;
+        $num = ['1' => 1, '2' => 2, '3' => 3, 'zwei' => 2, 'two' => 2, 'deux' => 2, 'due' => 2, 'dos' => 2, 'dois' => 2, 'twee' => 2,
+                'drei' => 3, 'three' => 3, 'trois' => 3, 'tre' => 3, 'tres' => 3, 'três' => 3, 'drie' => 3];
+        if (preg_match('/^(?:alle|every|tous les|ogni|cada|a cada|om de|elke|iedere) (\S+) (?:monate|months|mois|mesi|meses|maanden)$/u', $s, $m)) return $num[$m[1]] ?? null;
+        if (preg_match('/^de (\S+) em (\S+) meses$/u', $s, $m) && $m[1] === $m[2]) return $num[$m[1]] ?? null;
+        return null;
+    }
+
+    /**
+     * Rhythmus genannter Termine in Monaten (1, 2 oder 3), sonst null: jeder Termin
+     * höchstens drei Tage neben dem Tag, den der erste Termin plus N Monate ergibt
+     * (am Monatsende geklemmt) — so zählen Termine, die ein Wochenende verschiebt
+     * („16.12. → 15.02.“), und Monatsletzte. Mindestens zwei Termine.
+     *
+     * @param list<string> $dates aufsteigend
+     */
+    public static function rhythmOfDates(array $dates): ?int
+    {
+        if (count($dates) < 2) return null;
+        foreach ([1, 2, 3] as $n) {
+            $fits = true;
+            foreach ($dates as $i => $d) {
+                $want = ContractService::addMonthsClamped($dates[0], $n * $i);
+                if (abs((int)round((strtotime($d) - strtotime($want)) / 86400)) > 3) { $fits = false; break; }
+            }
+            if ($fits) return $n;
+        }
+        return null;
     }
 }

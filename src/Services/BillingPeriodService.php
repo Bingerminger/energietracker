@@ -131,14 +131,50 @@ final class BillingPeriodService
     }
 
     /**
-     * @param list<array<string,mixed>> $meters
-     * @param list<array<string,mixed>> $money    v3.9.0 — Zähler, von denen nur das Geld zählt (Subzähler mit eigenem Vertrag)
-     * @param bool $measured  v3.9.0 — Menge = Messung (Summe der Art) statt Menge der Verträge
-     * @return array<string,mixed>
+     * v3.9.0 (V1) — Die laufende Abrechnungsperiode eines Zählers oder einer
+     * Gruppe (die Periode, in der heute liegt), ohne Summen: dieselben Grenzen
+     * wie forTarget() (Rechnungen, Stichtag, Lieferantenwechsel, Kurzreste).
+     * Der Vertragsstatus rechnet seinen Saldo über genau diese Periode — eine
+     * Quelle für Saldo-Karte, Kosten & Verträge, Übersicht, Jahresbericht und
+     * Werkstatt, auch ohne erfasste Rechnung. Null für Arten ohne
+     * Abrechnungsjahr und ohne Ablesung.
+     *
+     * @return array{from:string,until:string,source:string,bill_id:?string,complete:bool,running:bool,label:?string,ends_at_switch:bool}|null
      */
-    private function compute(string $utility, array $meters, bool $withMonths, ?string $today, array $money = [], bool $measured = false): array
+    public function runningPeriodFor(string $utility, array $target, ?string $today = null): ?array
     {
+        if (!Utilities::supportsBillCheck($utility) || ($target['capture'] ?? null) === 'period') return null;
         $today ??= date('Y-m-d');
+        $meters = !empty($target['is_group']) ? $this->meters->groupSumMembers($utility, (string)$target['id']) : [$target];
+        if ($meters === []) return null;
+        $periods = $this->structure($utility, $meters, $today)['periods'];
+        foreach ($periods as $i => $p) {
+            if ($p['from'] <= $today && $today <= $p['until']) {
+                // offen seit: Eine angeschnittene Stichtag-Periode direkt nach einer
+                // Rechnung (der Stichtag passt nicht zu ihr, die App schlägt dann
+                // einen anderen vor) ist noch nicht abgerechnet — die nächste Rechnung
+                // umfasst sie mit. Ganze Stichtag-Perioden ohne Rechnung gelten als
+                // abgerechnet.
+                $prev = $periods[$i - 1] ?? null;
+                $before = $periods[$i - 2] ?? null;
+                $p['open_from'] = $prev !== null && $prev['source'] === 'anchor' && !$prev['complete'] && $before !== null
+                    && $before['source'] === 'bill' && self::addDays($before['until'], 1) === $prev['from'] && $p['source'] === 'anchor'
+                    ? $prev['from'] : $p['from'];
+                return $p;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * v3.9.0 (V1) — Grundlagen der Perioden (Stichtag, Rechnungen, Daten von–bis,
+     * Vertragsbeginne, Wechsel) und die Perioden selbst, ohne Summen.
+     *
+     * @param list<array<string,mixed>> $meters
+     * @return array{anchor:string,bills:list<array>,start:?string,end:?string,starts:array<string,string>,switches:list<array>,periods:list<array>}
+     */
+    private function structure(string $utility, array $meters, string $today): array
+    {
         $anchor = $this->anchor($utility);
         $ids = array_map(fn($m) => (string)($m['id'] ?? ''), $meters);
         $bills = self::billSpans(array_values(array_filter($this->bills->list($utility),
@@ -150,6 +186,22 @@ final class BillingPeriodService
         foreach ($meters as $m) $scope[(string)$m['id']] = $this->consumption->contractScope($utility, $m)[0];
         $starts = $scope === [] ? [] : ConsumptionService::contractStarts(array_merge(...array_values($scope)));
         $switches = self::switches($scope);
+        $periods = $start === null || $meters === [] ? [] : self::build($bills, $anchor, $start, $today, $switches);
+        return ['anchor' => $anchor, 'bills' => $bills, 'start' => $start, 'end' => $end, 'starts' => $starts,
+                'switches' => $switches, 'periods' => $periods];
+    }
+
+    /**
+     * @param list<array<string,mixed>> $meters
+     * @param list<array<string,mixed>> $money    v3.9.0 (F1032) — Zähler, von denen nur das Geld zählt (Subzähler mit eigenem Vertrag)
+     * @param bool $measured  v3.9.0 (F1032) — Menge = Messung (Summe der Art) statt Menge der Verträge
+     * @return array<string,mixed>
+     */
+    private function compute(string $utility, array $meters, bool $withMonths, ?string $today, array $money = [], bool $measured = false): array
+    {
+        $today ??= date('Y-m-d');
+        ['anchor' => $anchor, 'bills' => $bills, 'start' => $start, 'end' => $end, 'starts' => $starts,
+         'switches' => $switches, 'periods' => $periods] = $this->structure($utility, $meters, $today);
         // v3.9.0 (F1032) — die Verträge der Subzähler mit eigenem Vertrag ordnen nur ihre Abschläge zu
         foreach ($money as $m) $starts += ConsumptionService::contractStarts($this->consumption->contractScope($utility, $m)[0]);
         // v3.7.0 (#33) — ohne Rechnung ein Vorschlag aus den Vertragsbeginnen
@@ -172,7 +224,6 @@ final class BillingPeriodService
         $billById = [];
         foreach ($this->bills->list($utility) as $b) $billById[(string)($b['id'] ?? '')] = $b;
 
-        $periods = self::build($bills, $anchor, $start, $today, $switches);
         foreach ($periods as &$p) {
             // gerechnet bis zur letzten Ablesung (der Stand gehört zum Folgetag,
             // wie die Abschnitte von bill-check) — Kosten und Abschläge auf

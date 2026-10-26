@@ -363,12 +363,15 @@ async function rerender(container) {
   // v3.6.0 — im Abrechnungsjahr die Summen der Periode vom Server (Saldo mit
   // zusätzlichen Abschlagszahlungen), nicht die Summe gerundeter Teilmonate
   const sum = (k) => (billing ? Number(sel[k]) || 0 : monthlyYear.reduce((s, m) => s + (m[k] || 0), 0));
+  // v3.9.0 (L7) — Kosten und Abschlag der gemessenen Tage am Rand der Ablesungen
+  // (sonst stand ein voller Januarabschlag gegen vier Tage Kosten); gleich der Periode im Abrechnungsjahr
+  const sumMeasured = (k, fallback) => monthlyYear.reduce((s, m) => s + (Number(m[k] !== undefined && m[k] !== null ? m[k] : m[fallback]) || 0), 0);
   const totUnit = sum(consKey);
-  const totCost = sum('cost');
+  const totCost = billing ? sum('cost') : sumMeasured('cost_measured', 'cost');
   const totDays = sum('days');
   const totCO2  = sum('co2_kg');
   const totM3   = sum('m3');
-  const totAdv  = billing ? Number(sel.advances) || 0 : sum('advance_eur');
+  const totAdv  = billing ? Number(sel.advances) || 0 : sumMeasured('advance_measured_eur', 'advance_eur');
   const yearBalance = billing ? Number(sel.balance) || 0 : totCost - totAdv;
   const yearBalanceView = balanceView(yearBalance, u);
   // v3.7.0 (GitHub #33) — die Kachel „Kosten“ ohne Bonus, der Bonus als eigene
@@ -739,7 +742,10 @@ function uncertainBalanceText(unc, date) {
   const word = (v) => Math.abs(v) < 1 ? t('balanceUncertain.even')
     : t(v > 0 ? 'balanceUncertain.due' : 'balanceUncertain.credit', { amount: t('report.fmt.approx', { amount: fmt.eur0(Math.abs(v)) }) });
   const parts = (unc.reasons || []).map(r => r === 'factor_clamped'
-    ? t('balanceUncertain.why.factor_clamped', { raw: fmt.num(unc.factor_raw ?? 0, 2), used: fmt.num(unc.factor ?? 0, 2) })
+    // v3.9.0 (L3) — in Worten statt „Faktor 9,81, gerechnet mit 1,50“
+    ? ((unc.factor_raw ?? 0) >= (unc.factor ?? 0)
+      ? t('balanceUncertain.why.factor_clamped', { raw: fmt.num(unc.factor_raw ?? 0, 1), used: fmt.num(unc.factor ?? 0, 1) })
+      : t('balanceUncertain.why.factorLow', { raw: fmt.pct(unc.factor_raw ?? 0, 0), used: fmt.pct(unc.factor ?? 0, 0) }))
     : r === 'few_measured' ? t('balanceUncertain.why.few_measured')   // v3.7.0 (Schritt 3, N3)
       : t('balanceUncertain.why.poor_fit', { pct: fmt.pct(unc.fit_ratio ?? 0, 0) }));
   const why = parts.length > 2 ? t('balanceUncertain.why.three', { a: parts[0], b: parts[1], c: parts[2] })
@@ -764,11 +770,12 @@ function balanceCard(c, u, country = 'DE') {
   const verdictCls = { refund: 'refund', payout: 'refund', surcharge: 'surcharge', reclaim: 'surcharge', balanced: 'balanced' }[verdict] || 'balanced';
   const arrow = { refund: '↓', payout: '↓', surcharge: '↑', reclaim: '↑', balanced: '→' }[verdict] || '→';
   const curView = balanceView(cur, u);
-  const dateLabel = isFeedIn
-    ? t('utility.balance.dateNext', { date: fmt.date(c.effective_end) })
-    : (c.is_open_ended || c.renewed   // v2.9.0 — weiterlaufend: nächste Abrechnung, kein Vertragsende
-        ? t('utility.balance.dateNext', { date: fmt.date(c.effective_end) })
-        : t('utility.balance.dateEnd', { date: fmt.date(c.effective_end) }));
+  // v3.9.0 (V1, L1) — der Abrechnungstag ist der letzte Tag des Zeitraums (`settle_on`);
+  // „Vertragsende“ nur, wenn er das gepflegte Ende ist, sonst die nächste Abrechnung
+  const settle = c.settle_on || c.effective_end;
+  const dateLabel = !isFeedIn && !c.is_open_ended && !c.renewed && settle === c.end
+    ? t('utility.balance.dateEnd', { date: fmt.date(settle) })
+    : t('utility.balance.dateNext', { date: fmt.date(settle) });
 
   const tariffParts = [];
   const isWater = u.key === 'wasser';
@@ -788,7 +795,9 @@ function balanceCard(c, u, country = 'DE') {
   const costToDate = c.cost_to_date ?? c.actual_cost;
   const estimated = (c.estimated_cost_to_date || 0) > 0.005 && c.measured_until;
   const measuredSub = estimated
-    ? t('utility.balance.measuredThenEstimated', { date: fmt.date(c.measured_until), kwh: fmt.int(c.actual_kwh), value: fmt.eur(c.estimated_cost_to_date) })
+    // v3.9.0 (auswertung, Nachtrag) — die Einheit aus der SSOT (Wasser m³, bis v3.8 „(0 kWh)“)
+    ? t('utility.balance.measuredThenEstimated', { date: fmt.date(c.measured_until), value: fmt.eur(c.estimated_cost_to_date),
+      amount: u.consumption_unit === 'kWh' ? fmt.unit(c.actual_kwh, u.consumption_unit, 0) : fmt.unit(c.actual_m3 || 0, u.consumption_unit, 1) })
     : consumedSub;
   // Die Teile der Summe (energy/base/bonus_to_date) — ältere Server liefern
   // nur die gemessenen Monate
@@ -798,19 +807,31 @@ function balanceCard(c, u, country = 'DE') {
       && c.suggested_advance > 0 && Math.abs(proj) > 5
       && Math.abs(c.suggested_advance - c.current_advance_amount) >= 5
     ? `<p class="balance-suggest">${t('utility.balance.suggestAdvance', { suggested: fmt.eur(c.suggested_advance), current: fmt.eur(c.current_advance_amount) })}</p>`
+    // v3.9.0 (L12) — kurz vor der Abrechnung kein Nachholbetrag: den Rest gleicht
+    // die Abrechnung aus, danach gilt der laufende Bedarf
+    : !isFeedIn && c.suggestion_withheld === 'short' && Math.abs(proj) > 5
+    ? `<p class="balance-suggest" data-role="balance-short">${escapeHtml(tp('utility.balance.suggestShort', c.months_left, {
+        count: c.months_left, date: fmt.date(settle) }) + (c.advance_ongoing != null && c.current_advance_amount != null
+        && Math.abs(c.advance_ongoing - c.current_advance_amount) >= 5
+        ? ' ' + t('utility.balance.suggestOngoing', { amount: fmt.eur0(c.advance_ongoing), current: fmt.eur(c.current_advance_amount) }) : ''))}</p>`
     : '';
   // v3.7.0 (wirklichkeit-2) — unsichere Schätzung (Kalibrierfaktor klemmt,
   // Heizmodell schlecht): Spanne und Grund statt eines Vorschlags; der Server
   // liefert dann keinen `suggested_advance`
   const unc = !isFeedIn ? c.projection_uncertain : null;
   const uncertainHtml = unc
-    ? `<p class="balance-suggest" data-role="balance-uncertain">${escapeHtml(uncertainBalanceText(unc, fmt.date(c.effective_end)))}</p>`
+    ? `<p class="balance-suggest" data-role="balance-uncertain">${escapeHtml(uncertainBalanceText(unc, fmt.date(settle)))}</p>`
     : '';
   // v2.9.0 (CALC-10, CALC-11) — weiterlaufender Vertrag, verpasste Frist,
   // angekündigte Preiserhöhung
   const notes = [];
-  // v3.6.0 (Paket abrechnung) — Saldo erst nach der letzten gebuchten Rechnung
-  if (c.balance_from && c.start && c.balance_from > c.start) notes.push(t('utility.balance.sinceBill', { date: fmt.date(c.balance_from) }));
+  // v3.6.0 (Paket abrechnung) — Saldo erst nach der letzten gebuchten Rechnung;
+  // v3.9.0 (V1) — sonst ab dem Beginn der laufenden Abrechnungsperiode (Stichtag)
+  if (c.balance_from && c.start && c.balance_from > c.start) {
+    notes.push(c.billing_period && c.billing_period.source !== 'bill'
+      ? t('utility.balance.sincePeriod', { date: fmt.date(c.balance_from), until: fmt.date(settle) })
+      : t('utility.balance.sinceBill', { date: fmt.date(c.balance_from) }));
+  }
   if (c.renewed) notes.push(t('utility.balance.renewed', { date: fmt.date(c.end) }));
   // v3.7.0 (wirklichkeit-2) — ohne Arbeitspreis: dieselbe Aussage wie im Abrechnungsjahr
   if (c.price_missing) notes.push(t('priceMissing.contract'));
@@ -906,6 +927,13 @@ function pvFlowHtml(rows, year) {
   const k = (v) => (v == null ? null : fmt.int(v));
   // v3.7.0 (#39) — verteilte Monate: geschätzt (≈ in der Tabelle, schraffiert im Diagramm)
   const anyInterp = rows.some(isInterpolated);
+  // v3.9.0 (V4) — mehr eingespeist als (verteilt) erzeugt: „!“; ein Zähler erfasst
+  // den Monat nur zum Teil: „*“ (ohne Eigenverbrauch). Der Satz „ergeben zusammen
+  // die Erzeugung“ gilt dort nicht, deshalb sagt es die Legende.
+  const above = rows.filter(m => m.feed_above_generation).map(m => m.ym);
+  const partial = rows.filter(m => (m.partial_series || []).length).map(m => m.ym);
+  const months = (yms) => yms.map(ym => fmt.month(ym)).join(', ');
+  const mark = (m) => (isInterpolated(m) ? ` ${MARK}` : '') + (m.feed_above_generation ? ' !' : '') + ((m.partial_series || []).length ? ' *' : '');
   return `
     <div class="card">
       <div class="card__title">☀️ ${escapeHtml(t('utility.pvFlow.title', { year }))}${info('selfConsumption')}</div>
@@ -914,9 +942,11 @@ function pvFlowHtml(rows, year) {
       ${chartTableHtml({
         caption: t('utility.pvFlow.title', { year }),
         columns: [t('utility.monthlyTable.colMonth'), t('utility.pvFlow.generation'), t('utility.pvFlow.self'), t('utility.pvFlow.feedIn'), t('utility.pvFlow.grid')],
-        rows: rows.map(m => [fmt.month(m.ym) + (isInterpolated(m) ? ` ${MARK}` : ''), k(m.erzeugung_kwh), k(m.eigenverbrauch_kwh), k(m.einspeisung_kwh), k(m.bezug_kwh)]),
+        rows: rows.map(m => [fmt.month(m.ym) + mark(m), k(m.erzeugung_kwh), k(m.eigenverbrauch_kwh), k(m.einspeisung_kwh), k(m.bezug_kwh)]),
       })}
       ${anyInterp ? `<p class="muted small" data-role="pv-interpolated-legend">${escapeHtml(t('interpolation.legendPv'))}</p>` : ''}
+      ${above.length ? `<p class="muted small" data-role="pv-feed-above">${escapeHtml(tp('utility.pvFlow.feedAbove', above.length, { months: months(above) }))}</p>` : ''}
+      ${partial.length ? `<p class="muted small" data-role="pv-partial">${escapeHtml(tp('utility.pvFlow.partial', partial.length, { months: months(partial) }))}</p>` : ''}
     </div>`;
 }
 
@@ -1140,9 +1170,12 @@ function contractsTable(contracts, u) {
         <td class="num success-text">${bonusStr}</td>
         ${showSpecial ? specialCell(c) : ''}
         ${balCell(cur)}
-        ${c.projection_uncertain ? `<td class="num muted" data-role="expected-range">${escapeHtml(uncertainRangeText(c.projection_uncertain))}</td>` : balCell(proj, true)}
+        ${c.projection_uncertain ? `<td class="num muted" data-role="expected-range">${escapeHtml(uncertainRangeText(c.projection_uncertain))}</td>`
+          // v3.9.0 (L15) — künftiger Vertrag: der erwartete Saldo ist eine Schätzung (≈, Legende)
+          : c.is_future ? balCell(proj, true).replace(/^<td([^>]*)>/, '<td$1 data-role="expected-future"><span aria-hidden="true">≈ </span>') : balCell(proj, true)}
       </tr>`;
   };
+  const anyFuture = contracts.some(c => c.is_future && c.projected_end_balance != null && !c.projection_uncertain);
   return `<div class="table-wrap"><table class="table contracts-table">
     <thead><tr>
       <th scope="col">${t('utility.contractsTable.colProvider')}</th>
@@ -1161,7 +1194,8 @@ function contractsTable(contracts, u) {
     ${groupContracts(contracts).map(groupBody).join('')}
   </table></div>
   <p class="muted" style="font-size:11px;margin:8px 4px 0">${t(feedInKind(u) ? 'saldo.tableLegendFeedIn' : 'saldo.tableLegend')}${showSpecial ? ' ' + t('utility.contractsTable.hint') : ''}</p>
-  ${contracts.filter(c => c.rest_of).map(c => `<p class="muted small" data-role="rest-contract-note" style="margin:4px 4px 0">${escapeHtml((c.provider || c.tariff_name || '–') + ': ' + restNoteText(c.rest_of, u.consumption_unit))}</p>`).join('')}`;
+  ${contracts.filter(c => c.rest_of).map(c => `<p class="muted small" data-role="rest-contract-note" style="margin:4px 4px 0">${escapeHtml((c.provider || c.tariff_name || '–') + ': ' + restNoteText(c.rest_of, u.consumption_unit))}</p>`).join('')}
+  ${anyFuture ? `<p class="muted" style="font-size:11px;margin:4px 4px 0" data-role="future-legend">${escapeHtml(t('utility.contractsTable.futureLegend'))}</p>` : ''}`;
 }
 
 // v2.5.1 — Zelle „Sonderzahlungen": Netto aus Kundensicht. Erhalten (Rück-
@@ -1213,16 +1247,32 @@ function monthlyTable(monthly, u, hasContracts) {
   // fälschlich `m.kwh` → komplette Wasser-Monatstabelle zeigte 0.
   const consKey = u.consumption_unit === 'kWh' ? 'kwh' : 'm3';
   const sign = v => v > 0 ? '+' : '';
+  // v3.9.0 (L6, L7) — Kosten und Abschlag der gemessenen Tage (Rand der Ablesungen,
+  // `cost_measured`/`advance_measured_eur`) und der Saldo aufsummiert über den
+  // gezeigten Zeitraum: Er beginnt mit dem Jahr bzw. der Abrechnungsperiode, wie
+  // Kachel und Abrechnungsjahr; die letzte Zeile ist der Saldo in der Gesamtzeile.
+  // Bis v3.8 summierte die Spalte ab Vertragsbeginn über alle Jahre, und die
+  // Gesamtzeile zeigte einen anderen Wert als die letzte Zeile.
+  const costOf = (m) => (m.cost_measured != null ? m.cost_measured : m.cost);
+  const advOf = (m) => (m.advance_measured_eur !== undefined ? m.advance_measured_eur : m.advance_eur);
+  let cum = null;
+  const cumByYm = new Map();
+  for (const m of monthly) {
+    const a = advOf(m);
+    if (a == null) continue;
+    cum = (cum ?? 0) + (Number(costOf(m)) || 0) - (Number(a) || 0);
+    cumByYm.set(m.ym, cum);
+  }
 
   const tot = monthly.reduce((s, m) => ({
     days: s.days + (m.days || 0),
     kwh:  s.kwh  + (m.kwh  || 0),
     m3:   s.m3   + (m.m3   || 0),
-    cost: s.cost + (m.cost || 0),
+    cost: s.cost + (costOf(m) || 0),
     co2:  s.co2  + (m.co2_kg || 0),
-    adv:  s.adv  + (m.advance_eur || 0),
+    adv:  s.adv  + (advOf(m) || 0),
   }), { days: 0, kwh: 0, m3: 0, cost: 0, co2: 0, adv: 0 });
-  const yearBal = tot.cost - tot.adv;
+  const yearBal = cum ?? (tot.cost - tot.adv);
 
   return `<div class="table-wrap"><table class="table">
     <thead><tr>
@@ -1244,7 +1294,7 @@ function monthlyTable(monthly, u, hasContracts) {
     </tr></thead>
     <tbody>
     ${monthly.map(m => {
-      const cumView = balanceView(m.cumulative_balance, u, (n) => fmt.num(n, 2));
+      const cumView = balanceView(cumByYm.has(m.ym) ? cumByYm.get(m.ym) : null, u, (n) => fmt.num(n, 2));
       // v2.10.0 — Tankbuch: Monate mit geschätzten Tagen (nach dem letzten bekannten Bestand)
       const est = m.estimated_days > 0
         ? ` <span class="muted" title="${escapeHtml(tp('utility.monthlyTable.estimatedTitle', m.estimated_days, { days: m.estimated_days }))}">≈</span>`
@@ -1262,8 +1312,8 @@ function monthlyTable(monthly, u, hasContracts) {
         ${pv ? '' : `<td class="num">${m.avg_temp != null ? fmt.num(m.avg_temp, 1) : '–'}</td>`}
         ${pv ? '' : `<td class="num">${m.hdd != null ? fmt.int(m.hdd) : '–'}</td>`}
         ${showCost ? `<td class="num">${m.working_price_ct != null ? fmt.num(m.working_price_ct, 4) : '–'}</td>` : ''}
-        ${showCost ? `<td class="num"><strong>${fmt.num(m.cost, 2)}</strong></td>` : ''}
-        ${showBalance ? `<td class="num col-yellow">${m.advance_eur != null ? fmt.num(m.advance_eur, 2) : '–'}</td>` : ''}
+        ${showCost ? `<td class="num"><strong>${fmt.num(costOf(m), 2)}</strong></td>` : ''}
+        ${showBalance ? `<td class="num col-yellow">${advOf(m) != null ? fmt.num(advOf(m), 2) : '–'}</td>` : ''}
         ${showBalance ? `<td class="num ${cumView ? cumView.cls : 'muted'}" style="font-weight:500">${cumView ? cumView.signed : '–'}</td>` : ''}
         <td class="num col-violet">${fmt.int(m.co2_kg)}</td>
         <td class="num col-blue">${m.ma3 != null ? fmt.int(m.ma3) : '–'}</td>
@@ -2096,6 +2146,10 @@ function drawMonthChart(canvasId, monthly, u, year, prevRows = [], mode = 'measu
   const withTemp = !isPv(u) && !adjusted;
   const barColor = (full, part) => (ctx) => withAlpha(chartColor(u), partial[ctx.dataIndex] ? part : full);
   const barFill = (ctx) => (interp[ctx.dataIndex] ? hatchFill(chartColor(u)) : barColor(0.35, 0.12)(ctx));
+  // v3.9.0 (L9) — auch die Vorjahressäulen zeigen ihre verteilten Monate (schraffiert statt leer)
+  const prevInterp = monthly.map(m => isInterpolated(prevByMonth.get(m.slot ?? m.month)));
+  const prevFill = (ctx) => (prevInterp[ctx.dataIndex] ? hatchFill(chartColor(u)) : 'transparent');
+  const mainIdx = hasPrev ? 1 : 0;
   const unit = u.consumption_unit;
 
   _chart = makeChart(canvas, {
@@ -2107,7 +2161,7 @@ function drawMonthChart(canvasId, monthly, u, year, prevRows = [], mode = 'measu
           type: 'bar',
           label: names ? t('billing.chart.prev', { name: names.prev }) : t('utility.chart.prevYear', { year: year - 1 }),
           data: prev,
-          backgroundColor: 'transparent',
+          backgroundColor: prevFill,
           borderColor: utilColor(u, 0.6),
           borderWidth: 1.5,
           yAxisID: 'y',
@@ -2141,6 +2195,15 @@ function drawMonthChart(canvasId, monthly, u, year, prevRows = [], mode = 'measu
       responsive: true, maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
       plugins: {
+        // v3.9.0 (L9) — die Legende zeigt die Fläche eines gemessenen Monats (bis v3.8 trug sie
+        // die Schraffur des ersten, oft verteilten Monats, als wären alle Säulen verteilt), das
+        // Vorjahr als Rahmen; die Schraffur erklärt der Satz unter dem Diagramm
+        legend: { labels: { generateLabels: (chart) => {
+          const base = window.Chart?.defaults?.plugins?.legend?.labels?.generateLabels;
+          const items = base ? base(chart) : (chart?.data?.datasets || []).map((d, i) => ({ text: d.label, datasetIndex: i }));
+          return items.map(it => (it.datasetIndex === mainIdx ? { ...it, fillStyle: withAlpha(chartColor(u), 0.35) }
+            : hasPrev && it.datasetIndex === 0 ? { ...it, fillStyle: 'transparent' } : it));
+        } } },
         tooltip: { callbacks: { footer: (items) => {
           const i = items[0]?.dataIndex;
           if (i == null) return '';

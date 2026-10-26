@@ -207,7 +207,7 @@ final class ReportModelService
             'created_on'    => date('Y-m-d'),
             'location_name' => (string)$this->settings->get('location_name', ''),
             'options'       => ['utilities' => $opts['utilities'] ?? null, 'detail' => !empty($opts['detail'])],
-            'texts'         => $this->texts($year),
+            'texts'         => $this->noSuccessText($this->texts($year), $advice, $totals, $year),
             'utilities'     => array_map(fn($u) => $this->utilityInfo($u), $utilities),
             'headline'      => [
                 'tiles'     => $this->tiles($totals, $pvYear, $years),
@@ -562,9 +562,12 @@ final class ReportModelService
         if ($pv !== null && ($pv['pv_benefit_eur'] ?? null) !== null) {
             $spark = array_map(fn($y) => isset($pvYear[$y]['pv_benefit_eur']) ? (float)$pvYear[$y]['pv_benefit_eur'] : null, $years);
             $pp = $pvYear[$prev]['pv_benefit_eur'] ?? null;
-            $pct = $pp !== null && (float)$pp > 0 ? round(((float)$pv['pv_benefit_eur'] / (float)$pp - 1) * 100, 1) : null;
+            // v3.9.0 (V5) — nur zwei ganze, vergleichbare Jahre (pvComparable)
+            $pct = $pp !== null && (float)$pp > 0 && $this->pvComparable($this->year, $pvYear) && $this->pvComparable($prev, $pvYear)
+                ? round(((float)$pv['pv_benefit_eur'] / (float)$pp - 1) * 100, 1) : null;
+            $approx = (int)($pv['flow_period']['interpolated_months'] ?? 0) > 0 ? '≈ ' : '';
             $tiles[] = ['key' => 'pv', 'label' => $this->i18n->t('report.tile.pv'), 'value' => (float)$pv['pv_benefit_eur'],
-                'value_text' => $this->i18n->money(round((float)$pv['pv_benefit_eur']), 0), 'pct' => $pct, 'sub' => $vs($pct),
+                'value_text' => $approx . $this->i18n->money(round((float)$pv['pv_benefit_eur']), 0), 'pct' => $pct, 'sub' => $vs($pct),
                 'spark' => $spark, 'better' => 'higher'];
         }
         return $tiles;
@@ -588,7 +591,7 @@ final class ReportModelService
                 if (empty($target['is_group']) && !MeterService::inService($target)) continue;
                 // mehrere Zähler einer Art: der Name gehört in die Überschrift („Strom · Wärmepumpe“)
                 $label = $this->i18n->utilityLabel($u) . (count($targets) > 1 ? ' · ' . (string)($target['name'] ?? '') : '');
-                $status = $this->consumption->contractStatus($u, $target);
+                $status = $this->consumption->contractStatus($u, $target, $this->today);   // v3.9.0 (V1) — Stand des Berichts
                 foreach ($status['contracts'] ?? [] as $c) {
                     if (empty($c['is_current']) && empty($c['is_future'])) continue;
                     $cid = (string)($c['contract_id'] ?? '');
@@ -605,13 +608,16 @@ final class ReportModelService
                         'is_open_ended' => !empty($c['is_open_ended']), 'renewed' => !empty($c['renewed']),
                         'cancel_by' => $c['cancel_by'] ?? null, 'days_to_cancel' => $c['days_to_cancel'] ?? null,
                         'cancel_missed' => !empty($c['cancel_missed']), 'switch_date' => $c['switch_date'] ?? null,
+                        // v3.9.0 (L14) — Folgevertrag bei einem anderen Versorger
+                        'successor' => $c['successor'] ?? null, 'successor_switch' => !empty($c['successor_switch']),
                         'price_increase' => $c['price_increase'] ?? null,
                         'projected_end_balance' => $c['projected_end_balance'] ?? null,
                         'current_advance' => $c['current_advance_amount'] ?? null,
                         'suggested_advance' => $c['suggested_advance'] ?? null,
                         // v3.7.0 (wirklichkeit-2) — Saldo-Schätzung unsicher: Spanne statt Vorschlag
                         'projection_uncertain' => $c['projection_uncertain'] ?? null,
-                        'settle_date' => $c['effective_end'] ?? null,
+                        // v3.9.0 (L1) — der letzte Tag des Abrechnungszeitraums, wie überall
+                        'settle_date' => $c['settle_on'] ?? ConsumptionService::periodLastDay($c),
                         'balance_path' => $c['balance_path'] ?? null,
                         'energy_cost_to_date' => $c['energy_cost_to_date'] ?? null,
                         'base_to_date' => $c['base_to_date'] ?? null,
@@ -781,7 +787,45 @@ final class ReportModelService
         foreach ($c['yearly'] ?? [] as $y) $out[(int)$y['year']] = $y;
         $out['_payback'] = $c['payback'] ?? null;
         $out['_has_generation'] = !empty($c['has_generation_meter']);
+        $out['_interpolation'] = $c['interpolation'] ?? null;   // v3.9.0 (V5)
         return $out;
+    }
+
+    /**
+     * v3.9.0 (V5) — Lässt sich die Solaranlage eines Jahres mit einem anderen
+     * vergleichen? Nur ein ganzes Jahr: zwölf volle Monate Erzeugung, eine
+     * gemessene Jahressumme (ohne verteilte Monate oder mit Ablesungen an
+     * beiden Jahreswechseln, yearExact) und ein Energiefluss über alle zwölf
+     * Monate. Sonst sagt eine Notiz, warum der Vergleich fehlt. Bis v3.7
+     * verglich der Bericht ein Teiljahr (Erzeugung bis August) mit einem
+     * ganzen Jahr („Erzeugt −38 % gegenüber 2024“).
+     */
+    private function pvComparable(int $y, array $pvYear): bool
+    {
+        if (!Utilities::exists('pv_erzeugung') || (int)($pvYear[$y]['flow_period']['months'] ?? 0) !== 12) return false;
+        $g = $this->yearData('pv_erzeugung', $y);
+        if ($g['coverage'] < 12 || $g['full_months'] < 12 || !self::yearExact($g)) return false;
+        if (Utilities::exists('pv_einspeisung') && $this->rootMeters('pv_einspeisung') !== []) {
+            $f = $this->yearData('pv_einspeisung', $y);
+            if (!self::yearExact($f)) return false;
+        }
+        return true;
+    }
+
+    /**
+     * v3.9.0 (V5) — Der Energiefluss eines PV-Jahres als Mengen über die Monate
+     * mit Daten aller Reihen (dieselben Monate wie das Schaubild): Sonne
+     * (selbst genutzt + eingespeist, mindestens die Einspeisung), direkt
+     * genutzt, eingespeist, aus dem Netz, Speicher.
+     *
+     * @return array{gen:float,direct:float,feed:float,grid:float,charged:float,discharged:float}
+     */
+    private static function pvFlowTotals(array $pv): array
+    {
+        $f = (array)($pv['flow'] ?? []);
+        $v = fn(string $k): float => (float)($f[$k] ?? 0.0);
+        return ['gen' => $v('pv_house') + $v('pv_battery') + $v('pv_grid'), 'direct' => $v('pv_house'), 'feed' => $v('pv_grid'),
+                'grid' => $v('grid_house') + $v('grid_battery'), 'charged' => $v('pv_battery') + $v('grid_battery'), 'discharged' => $v('battery_house')];
     }
 
     /** Bezugspreis (Haushalt) und Einspeisevergütung aus den eigenen Verträgen des Berichtsjahres. */
@@ -810,6 +854,8 @@ final class ReportModelService
         [$grid, $feed] = $this->gridAndFeedCt();
         return [
             'benefit_eur' => $pv['pv_benefit_eur'] ?? null, 'savings_eur' => $pv['savings_eur'] ?? null,
+            // v3.9.0 (V5) — „(gemessen)“ nur, wenn kein Monat des Energieflusses verteilt ist
+            'estimated' => (int)($pv['flow_period']['interpolated_months'] ?? 0) > 0,
             'feed_in_revenue_eur' => $pv['feed_in_revenue_eur'] ?? null,
             'self_rate' => $pv['eigenverbrauchsquote'] ?? null, 'autarky' => $pv['autarkiequote'] ?? null,
             'battery' => $pv['battery'] ?? null, 'grid_ct' => $grid, 'feed_ct' => $feed,
@@ -1205,7 +1251,10 @@ final class ReportModelService
         $timelines = [];
         foreach ($contracts as $c) {
             if (empty($c['is_current']) || empty($c['start'])) continue;
-            $end = $c['is_open_ended'] ? ($c['cancel_by'] !== null ? $c['switch_date'] : null) : ($c['end'] ?? $c['effective_end']);
+            // v3.9.0 (L1) — „endet zum“: der letzte Tag (switch_date ist der Tag danach; bis v3.7 „zum 01.12.“ bei Ende 30.11.)
+            $end = $c['is_open_ended']
+                ? ($c['cancel_by'] !== null && !empty($c['switch_date']) ? date('Y-m-d', (int)strtotime($c['switch_date'] . ' -1 day')) : null)
+                : ($c['end'] ?? $c['effective_end']);
             $points = [['date' => (string)$c['start'], 'label' => $this->i18n->t('report.timeline.start'), 'text' => $this->i18n->date((string)$c['start'])]];
             if ($c['cancel_by'] !== null && $c['switchable']) {
                 $points[] = ['date' => (string)$c['cancel_by'], 'label' => $this->i18n->t('report.timeline.cancel'), 'text' => $this->i18n->date((string)$c['cancel_by'])];
@@ -1301,8 +1350,11 @@ final class ReportModelService
                 'projected_end_balance' => round($bal, 2), 'current_advance' => $adv, 'suggested_advance' => $show ? (float)$sugg : null,
                 'uncertain' => is_array($unc) ? $unc : null,
                 'text' => $text, 'advance_text' => $advText, 'path' => $path, 'color' => (string)Utilities::get($c['utility'])['color'],
+                // v3.9.0 (L1) — der Abrechnungstag (letzter Tag des Zeitraums), wie Karte und Werkstatt
+                'settle_on' => $c['settle_date'] ?? null,
                 'explainer' => ['balance_path' => $c['balance_path'], 'energy_cost_to_date' => $c['energy_cost_to_date'],
                     'base_to_date' => $c['base_to_date'], 'bonus_to_date' => $c['bonus_to_date'], 'projected_end_balance' => $c['projected_end_balance'],
+                    'settle_on' => $c['settle_date'] ?? null,
                     // v3.7.0 (Schritt 3) — „Wohin geht mein Geld?“ zeigt dann die Spanne
                     'projection_uncertain' => is_array($unc) ? $unc : null],
             ];
@@ -1662,19 +1714,50 @@ final class ReportModelService
         if ($pv === null || (float)($pv['erzeugung_kwh'] ?? 0) <= 0) return null;
         $prev = $pvYear[$this->year - 1] ?? null;
         $bat = $pv['battery'] ?? null;
-        $discharged = (float)($bat['discharged_kwh'] ?? 0);
         $self = (float)($pv['eigenverbrauch_kwh'] ?? 0);
-        $flow = ['gen' => (float)$pv['erzeugung_kwh'], 'direct' => max(0.0, $self - $discharged), 'feed' => (float)($pv['einspeisung_kwh'] ?? 0),
-                 'grid' => (float)($pv['bezug_kwh'] ?? 0), 'charged' => (float)($bat['charged_kwh'] ?? 0), 'discharged' => $discharged];
+        // v3.9.0 (V5) — alle Mengen aus einem Zeitraum: den Monaten des
+        // Energieflusses (Daten aller Reihen). Bis v3.7 stand die Erzeugung von
+        // acht Monaten neben der Einspeisung und dem Netzbezug von zwölf
+        // („1.296 kWh: 435 selbst genutzt, 1.211 eingespeist“).
+        $flow = self::pvFlowTotals($pv);
+        $period = (array)($pv['flow_period'] ?? []);
+        $approx = (int)($period['interpolated_months'] ?? 0) > 0 || ($period['feed_above_generation'] ?? []) !== [];
+        $ap = fn(string $text): string => ($approx ? '≈ ' : '') . $text;
         $this->term('selfConsumption', 'autarky', 'feedIn');
+        $comparable = $prev !== null && (float)($prev['erzeugung_kwh'] ?? 0) > 0
+            && $this->pvComparable($this->year, $pvYear) && $this->pvComparable($this->year - 1, $pvYear);
+        $prevGen = $comparable ? self::pvFlowTotals($prev)['gen'] : 0.0;
         $tiles = [
-            ['label' => $this->i18n->t('report.topic.pv.generated'), 'text' => $this->i18n->number($flow['gen'], 0) . ' kWh',
-             'sub' => $prev !== null && (float)($prev['erzeugung_kwh'] ?? 0) > 0
-                ? $this->i18n->t('report.tile.vsPrevious', ['pct' => $this->advice->pct(($flow['gen'] / (float)$prev['erzeugung_kwh'] - 1) * 100), 'prev' => $this->year - 1]) : ''],
-            ['label' => $this->i18n->t('report.topic.pv.autarky'), 'text' => $pv['autarkiequote'] !== null ? $this->advice->share((float)$pv['autarkiequote'] * 100) : '–', 'sub' => ''],
-            ['label' => $this->i18n->t('report.topic.pv.selfRate'), 'text' => $pv['eigenverbrauchsquote'] !== null ? $this->advice->share((float)$pv['eigenverbrauchsquote'] * 100) : '–', 'sub' => ''],
-            ['label' => $this->i18n->t('report.topic.pv.benefit'), 'text' => ($pv['pv_benefit_eur'] ?? null) !== null ? $this->i18n->money(round((float)$pv['pv_benefit_eur']), 0) : '–', 'sub' => ''],
+            ['label' => $this->i18n->t('report.topic.pv.generated'), 'text' => $ap($this->i18n->number($flow['gen'], 0) . ' kWh'),
+             'sub' => $comparable && $prevGen > 0
+                ? $this->i18n->t('report.tile.vsPrevious', ['pct' => $this->advice->pct(($flow['gen'] / $prevGen - 1) * 100), 'prev' => $this->year - 1])
+                : ($prev !== null && (float)($prev['erzeugung_kwh'] ?? 0) > 0 ? $this->i18n->t('report.tile.noPrevious', ['prev' => $this->year - 1]) : '')],
+            ['label' => $this->i18n->t('report.topic.pv.autarky'), 'text' => $pv['autarkiequote'] !== null ? $ap($this->advice->share((float)$pv['autarkiequote'] * 100)) : '–', 'sub' => ''],
+            ['label' => $this->i18n->t('report.topic.pv.selfRate'), 'text' => $pv['eigenverbrauchsquote'] !== null ? $ap($this->advice->share((float)$pv['eigenverbrauchsquote'] * 100)) : '–', 'sub' => ''],
+            ['label' => $this->i18n->t('report.topic.pv.benefit'), 'text' => ($pv['pv_benefit_eur'] ?? null) !== null ? $ap($this->i18n->money(round((float)$pv['pv_benefit_eur']), 0)) : '–', 'sub' => ''],
         ];
+        // v3.9.0 (V5) — Notizen: Zeitraum, Schätzung, Widerspruch, warum kein Vergleich
+        $notes = [];
+        $nMonths = (int)($period['months'] ?? 0);
+        if ($nMonths > 0 && $nMonths < 12 && !empty($period['from'])) {
+            $notes[] = $this->i18n->t('report.topic.pv.span', ['from' => $this->i18n->month((string)$period['from']), 'to' => $this->i18n->month((string)$period['to']),
+                'span' => $this->i18n->tp('explainer.energy.months', $nMonths, ['count' => $nMonths])]);
+        }
+        if ((int)($period['interpolated_months'] ?? 0) > 0) {
+            $inf = $pvYear['_interpolation'] ?? null;
+            $readings = is_array($inf) && !empty($inf['from']) && !empty($inf['to'])
+                ? ' (' . $this->i18n->tp('interpolation.readingsRange', (int)$inf['readings'], ['count' => (int)$inf['readings'],
+                    'from' => $this->i18n->month((string)$inf['from']), 'to' => $this->i18n->month((string)$inf['to'])]) . ')' : '';
+            $notes[] = $this->i18n->t('report.topic.pv.estimated', ['readings' => $readings]);
+        }
+        $above = (array)($period['feed_above_generation'] ?? []);
+        if ($above !== []) {
+            $notes[] = $this->i18n->tp('report.topic.pv.feedAbove', count($above), ['count' => count($above),
+                'months' => implode(', ', array_map(fn($ym) => $this->i18n->month((string)$ym), $above))]);
+        }
+        if ($prev !== null && (float)($prev['erzeugung_kwh'] ?? 0) > 0 && !$comparable) {
+            $notes[] = $this->i18n->t('report.topic.pv.noCompare', ['prev' => $this->year - 1]);
+        }
         $payback = $pvYear['_payback'] ?? null;
         $pb = null;
         if (is_array($payback) && (float)($payback['investment_eur'] ?? 0) > 0) {
@@ -1689,7 +1772,7 @@ final class ReportModelService
         $battery = null;
         if (is_array($bat) && (float)($bat['charged_kwh'] ?? 0) > 0) {
             $battery = ['text' => $this->i18n->t('report.topic.pv.battery', [
-                'charged' => $this->i18n->number((float)$bat['charged_kwh'], 0), 'discharged' => $this->i18n->number($discharged, 0),
+                'charged' => $this->i18n->number((float)$bat['charged_kwh'], 0), 'discharged' => $this->i18n->number((float)($bat['discharged_kwh'] ?? 0), 0),
                 'cycles' => $this->i18n->number((float)($bat['full_cycles'] ?? 0), 0),
                 'eff' => $bat['efficiency_pct'] !== null ? $this->advice->share((float)$bat['efficiency_pct']) : '–',
             ])];
@@ -1703,9 +1786,12 @@ final class ReportModelService
             'flow' => $flow, 'tiles' => $tiles, 'payback' => $pb, 'battery' => $battery, 'months' => $gen,
             'co2_text' => $co2 > 0 ? $this->i18n->t('report.topic.pv.co2Avoided', ['kg' => $this->co2Text($co2)]) : null,
             'sentence' => $this->i18n->t('report.topic.pv.sentence', [
-                'gen' => $this->i18n->number($flow['gen'], 0), 'self' => $this->i18n->number($self, 0), 'feed' => $this->i18n->number($flow['feed'], 0),
+                'gen' => $ap($this->i18n->number($flow['gen'], 0)), 'self' => $ap($this->i18n->number($self, 0)), 'feed' => $this->i18n->number($flow['feed'], 0),
                 'grid' => $this->i18n->number($flow['grid'], 0), 'autarky' => $pv['autarkiequote'] !== null ? $this->advice->share((float)$pv['autarkiequote'] * 100) : '–',
             ]),
+            // v3.9.0 (V5) — Zeitraum, Schätzung, Widerspruch, fehlender Vergleich (additiv)
+            'notes' => $notes,
+            'estimated' => $approx,
             'year_row' => $pv,   // für explainer.js energyHtml()
             'labels' => ['pv' => $this->i18n->t('report.topic.pv.nodePv'), 'grid' => $this->i18n->t('report.topic.pv.nodeGrid'),
                          'house' => $this->i18n->t('report.topic.pv.nodeHouse'), 'battery' => $this->i18n->t('report.topic.pv.nodeBattery')],
@@ -1716,17 +1802,20 @@ final class ReportModelService
     private function monthlyOf(string $u, bool $generationOnly = false): array
     {
         $names = array_map('trim', explode(',', $this->i18n->t('format.monthsShort')));
-        $now = array_fill(1, 12, null); $prev = array_fill(1, 12, null);
+        $now = array_fill(1, 12, null); $prev = array_fill(1, 12, null); $interp = [];
         foreach ($this->rootMeters($u) as $m) {
             if ($generationOnly && Utilities::roleOf($u, $m) !== 'generation' && Utilities::roleOf($u, $m) !== null) continue;
             foreach ($this->rows($u, $m) as $r) {
                 $mo = (int)$r['month'];
-                if ((int)$r['year'] === $this->year) $now[$mo] = ($now[$mo] ?? 0.0) + (float)($r['kwh'] ?? 0);
+                if ((int)$r['year'] === $this->year) {
+                    $now[$mo] = ($now[$mo] ?? 0.0) + (float)($r['kwh'] ?? 0);
+                    if (!empty($r['interpolated'])) $interp[$mo] = true;   // v3.9.0 (V5) — verteilt: schraffiert
+                }
                 if ((int)$r['year'] === $this->year - 1) $prev[$mo] = ($prev[$mo] ?? 0.0) + (float)($r['kwh'] ?? 0);
             }
         }
         $out = [];
-        for ($mo = 1; $mo <= 12; $mo++) $out[] = ['label' => $names[$mo - 1] ?? (string)$mo, 'value' => $now[$mo], 'prev' => $prev[$mo], 'estimated' => false];
+        for ($mo = 1; $mo <= 12; $mo++) $out[] = ['label' => $names[$mo - 1] ?? (string)$mo, 'value' => $now[$mo], 'prev' => $prev[$mo], 'estimated' => !empty($interp[$mo])];
         return $out;
     }
 
@@ -1847,6 +1936,24 @@ final class ReportModelService
         if (isset($this->sources['market'])) $out[] = $this->i18n->t('report.sources.market');
         $out[] = $this->i18n->t('report.sources.own');
         return $out;
+    }
+
+    /**
+     * v3.9.0 (L17) — Ohne Erfolg, obwohl weniger verbraucht wurde: Die Ampel sagt
+     * „Weniger verbraucht −18 %“, der Abschnitt bisher „lässt sich keine Einsparung
+     * belegen“. Gemeint ist: als Einsparung nicht belegbar, weil der Vergleich nicht
+     * witterungsbereinigt ist (oder Monate verteilt sind). Das sagt der Satz jetzt.
+     */
+    private function noSuccessText(array $texts, array $advice, array $totals, int $year): array
+    {
+        $pct = $totals['consumption_pct'] ?? null;
+        if (($advice['successes'] ?? []) !== [] || $pct === null || (float)$pct >= -ReportAdviceService::LIGHT_LESS_PCT) return $texts;
+        // bereinigt und ohne verteilte Monate: Der Grund liegt anderswo (Schwelle der Regel), der Satz bleibt
+        $key = empty($totals['consumption_adjusted']) ? 'report.section.successesNoneUnadjusted'
+            : (!empty($totals['interpolated']) ? 'report.section.successesNoneUnproven' : null);
+        // „18 % weniger“, nicht „-18 % weniger“
+        if ($key !== null) $texts['successesNone'] = $this->i18n->t($key, ['year' => $year, 'prev' => $year - 1, 'pct' => $this->advice->share(abs((float)$pct))]);
+        return $texts;
     }
 
     /** Überschriften und feste Sätze, die beide Ausgaben brauchen. */

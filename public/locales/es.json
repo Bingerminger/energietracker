@@ -476,7 +476,7 @@
       "consShort": "{value} consumo",
       "gpPlus": " + {value} término fijo",
       "suggestAdvance": "Con un anticipo de {suggested} en lugar de {current}, la liquidación quedaría en torno a ±0.",
-      "measuredThenEstimated": "medido hasta el {date} ({kwh} kWh), estimado desde entonces: {value}",
+      "measuredThenEstimated": "medido hasta el {date} ({amount}), estimado desde entonces: {value}",
       "renewed": "El plazo terminó el {date}. Sin cancelación, el contrato continúa con los últimos precios y se puede cancelar en cualquier momento con un preaviso de un mes como máximo.",
       "cancelMissed": "Plazo de cancelación del {date} vencido: el contrato no termina el {end}, sino que continúa; después se puede cancelar con un preaviso de un mes como máximo.",
       "priceIncrease": "Subida de precios a partir del {date}: {what}.",
@@ -504,7 +504,13 @@
       },
       "sinceBill": "Calculado desde el {date}: la factura anterior está registrada en el contrato y aquí ya no cuenta.",
       "nextDue": "próximo vencimiento: {date}",
-      "paidCurrentEvery": "actual: {value}"
+      "paidCurrentEvery": "actual: {value}",
+      "suggestShort": {
+        "one": "Antes de la liquidación del {date} solo queda {count} anticipo. La liquidación salda el resto: no hace falta subir el anticipo ahora.",
+        "other": "Antes de la liquidación del {date} solo quedan {count} anticipos. La liquidación salda el resto: no hace falta subir el anticipo ahora."
+      },
+      "suggestOngoing": "Después, unos {amount} en lugar de {current} al mes serían adecuados.",
+      "sincePeriod": "Calculado desde el {date}, inicio del periodo de facturación en curso hasta el {until}. Los periodos anteriores están en el año de facturación."
     },
     "contractsTable": {
       "emptyTitle": "Sin contratos registrados",
@@ -525,7 +531,8 @@
       "colSpecial": "Pagos extraordinarios",
       "hint": "Bono = abonos del contrato (bono inmediato, de cambio, de nuevo cliente). Pagos extraordinarios = devoluciones (+), pagos adicionales y anticipos extra (−) fuera del plan de anticipos; ambos entran en el saldo. Toca para ver las partidas; se gestionan en la administración de contratos.",
       "colEarned": "Remuneración",
-      "colReceived": "Recibido"
+      "colReceived": "Recibido",
+      "futureLegend": "≈ Contrato futuro: el saldo previsto es una estimación desde el inicio del contrato con sus precios, su anticipo y tu consumo hasta ahora."
     },
     "monthlyTable": {
       "noData": "Sin datos para este año.",
@@ -753,6 +760,14 @@
       "alt": {
         "one": "Gráfico de barras: flujo de energía {year}: en {months} mes con datos de los tres contadores, producido {generation}, del que autoconsumido {self} y vertido {feedIn}; de la red {grid}.",
         "other": "Gráfico de barras: flujo de energía {year}: en {months} meses con datos de los tres contadores, producido {generation}, del que autoconsumido {self} y vertido {feedIn}; de la red {grid}."
+      },
+      "feedAbove": {
+        "one": "! {months}: el vertido medido supera la producción repartida. Allí autoconsumo y vertido suman más que la producción, porque para ese mes está repartida demasiado baja.",
+        "other": "! {months}: el vertido medido supera la producción repartida. Allí autoconsumo y vertido suman más que la producción, porque para esos meses está repartida demasiado baja."
+      },
+      "partial": {
+        "one": "* {months}: un contador solo cubre parte del mes. Sin el mismo periodo, allí falta el autoconsumo.",
+        "other": "* {months}: un contador solo cubre parte del mes. Sin el mismo periodo, allí falta el autoconsumo."
       }
     },
     "photo": {
@@ -2843,7 +2858,8 @@
       "poorFit": "El modelo de calefacción se ajusta mal a este contador (± {pct} al mes): la previsión usa los meses medidos y no muestra una banda.",
       "regressionInvalid": "La curva de calefacción elegida ({model}) no es válida: {why}. La previsión calcula sin ella.",
       "climateNormalGrid": "Aún no hay normal climática para la temperatura base GD {base} °C (precalculada de {min} a {max} °C; la aplicación vuelve a obtener una normal antigua en la próxima sincronización meteorológica). Hasta entonces cuentan los GD del propio historial de temperaturas.",
-      "fewMeasured": "Muy pocos meses medidos para comprobar el modelo de calefacción: la previsión no muestra una banda, y saldo y anticipo solo aparecen como intervalo."
+      "fewMeasured": "Muy pocos meses medidos para comprobar el modelo de calefacción: la previsión no muestra una banda, y saldo y anticipo solo aparecen como intervalo.",
+      "levelLastYear": "La cantidad anual sigue el consumo de los últimos 365 días ({amount}, de {from} a {to}). No todos los meses están medidos, por eso la previsión solo reparte esta cantidad entre los meses."
     },
     "assumedNote": "No hay contrato para este mes: el último continúa con sus precios (supuesto; los contratos se prorrogan).",
     "method": {
@@ -2863,7 +2879,8 @@
     "annualNoBand": "Año: {value} {unit}, sin banda, porque el modelo de calefacción se ajusta mal.",
     "annualNoBandFew": "Año: {value} {unit}, sin banda, porque hay muy pocos meses medidos para comprobar el modelo de calefacción.",
     "annualNoBandYears": "Año: {value} {unit}, sin banda: cuánto varía un mes de un año a otro solo se ve con mediciones de más de un año.",
-    "annualBandSpread": "Año: {value} {unit}; en el {level} % de los años entre {low} y {high} {unit}, según la dispersión de los meses a lo largo de los años."
+    "annualBandSpread": "Año: {value} {unit}; en el {level} % de los años entre {low} y {high} {unit}, según la dispersión de los meses a lo largo de los años.",
+    "blendPoorFit": "el modelo de calefacción encaja mal, por eso cada mes usa el perfil estacional"
   },
   "report": {
     "createdOn": "Creado el {date}",
@@ -2987,7 +3004,9 @@
       "cheapShare": "Proporción en horas baratas",
       "errors": "Nota: faltan algunos apartados porque no se pudieron leer sus datos.",
       "billing": "Años de facturación",
-      "flexPage": "Flexibilidad"
+      "flexPage": "Flexibilidad",
+      "successesNoneUnadjusted": "En {year} consumiste {pct} menos que en {prev}. No se puede demostrar como ahorro: la comparación no está corregida por el clima y un invierno más suave tiene el mismo efecto. La sección «Conviene saber» muestra la comparación con el año anterior.",
+      "successesNoneUnproven": "En {year} consumiste {pct} menos que en {prev}. No se puede demostrar como ahorro: una parte de los meses está repartida, no medida. La sección «Conviene saber» muestra la comparación con el año anterior."
     },
     "tile": {
       "cost": "Costes de energía",
@@ -3017,7 +3036,8 @@
         "ok": "No más consumo",
         "warn": "Algo más de consumo",
         "alert": "Bastante más consumo",
-        "none": "Sin comparación"
+        "none": "Sin comparación",
+        "less": "Menos consumo"
       },
       "billing": {
         "ok": "Anticipos adecuados",
@@ -3067,7 +3087,8 @@
       "basis": {
         "measured": "medido",
         "projected": "proyectado",
-        "example": "ejemplo de cálculo"
+        "example": "ejemplo de cálculo",
+        "estimated": "estimado"
       }
     },
     "agenda": {
@@ -3217,7 +3238,9 @@
       },
       "readings": {
         "title": "Leer los contadores",
-        "reason": "Última lectura el {date}: {meters}."
+        "reason": "Última lectura el {date}: {meters}.",
+        "reasonEach": "Última lectura por contador: {meters}.",
+        "none": "ninguna todavía"
       },
       "bill": {
         "title": "Revisar la factura: {label}",
@@ -3242,6 +3265,10 @@
       "advanceUncertain": {
         "title": "{label}: revisar el anticipo tras la próxima lectura",
         "reason": "{text}"
+      },
+      "cancelConfirm": {
+        "title": "¿Baja confirmada? {label}",
+        "reason": "Desde el {start} hay un contrato con {next}. Comprueba que «{provider}» ha confirmado la baja; debe llegar antes del {date}."
       }
     },
     "money": {
@@ -3275,7 +3302,14 @@
         "paybackOpen": "Recuperado hasta ahora: {paid} de {investment} (situación a hoy).",
         "batteryTitle": "Batería",
         "battery": "Cargados {charged} kWh, descargados {discharged} kWh, unos {cycles} ciclos completos, rendimiento {eff}.",
-        "co2Avoided": "CO₂ evitado: {kg}, calculado con el factor de CO₂ de la electricidad de los ajustes."
+        "co2Avoided": "CO₂ evitado: {kg}, calculado con el factor de CO₂ de la electricidad de los ajustes.",
+        "span": "Calculado sobre los meses en los que los tres contadores tienen datos: de {from} a {to} ({span}).",
+        "estimated": "≈ Algunos valores mensuales están repartidos, no medidos{readings}. Por eso autoconsumo, autosuficiencia y beneficio son estimaciones.",
+        "feedAbove": {
+          "one": "En {months} el vertido medido supera la producción repartida. Allí el vertido cuenta como producción y no hay autoconsumo.",
+          "other": "En {count} meses ({months}) el vertido medido supera la producción repartida. Allí el vertido cuenta como producción y no hay autoconsumo."
+        },
+        "noCompare": "Sin comparación con {prev}: hacen falta dos años completos con datos de los tres contadores y una lectura de la producción en ambos cambios de año."
       },
       "heatPump": {
         "sentence": "La bomba de calor convirtió {elec} kWh de electricidad en {heat} kWh de calor: factor de rendimiento estacional {jaz}.",
@@ -3980,7 +4014,9 @@
     "history": "Historial ({count})",
     "historyTitle": "Historial: {name}",
     "anytime": "Cancelable en cualquier momento",
-    "advanceEvery": "Anticipo {amount}"
+    "advanceEvery": "Anticipo {amount}",
+    "noNotice": "Plazo de baja no registrado",
+    "earliestEnd": "Se puede dar de baja como pronto el {date}"
   },
   "billCheck": {
     "noMeter": "La revisión recalcula la factura anual de gas, electricidad, agua y calefacción urbana. Crea primero un contador.",
@@ -4493,7 +4529,8 @@
       "billExpected": "Factura esperada: {label} ({provider}) para {from} – {until}",
       "billOverdue": "Factura con retraso: {label} ({provider}) para {from} – {until} — plazo legal vencido, pregunta al proveedor",
       "finalBillExpected": "Factura de cierre esperada: {label} ({provider}) para {from} – {until}",
-      "finalBillOverdue": "Factura de cierre con retraso: {label} ({provider}) para {from} – {until} — plazo legal vencido, pregunta al proveedor"
+      "finalBillOverdue": "Factura de cierre con retraso: {label} ({provider}) para {from} – {until} — plazo legal vencido, pregunta al proveedor",
+      "cancelConfirm": "{label}: ¿baja confirmada? ({provider}, cambio a {next})"
     },
     "subscribe": "Suscribirse en el calendario",
     "intro": "Citas, plazos de cancelación, fin de contratos, garantías de precio y lecturas pendientes como suscripción de calendario. El calendario los actualiza cada 12 horas.",
@@ -4832,8 +4869,8 @@
     "waterBasis": "{m3} m³ en el año · personas en el hogar: {persons}",
     "rating": {
       "good": "Bien",
-      "near": "Por encima",
-      "high": "Muy por encima"
+      "near": "Algo alto",
+      "high": "Alto"
     },
     "invite": {
       "reference": "¿Cómo está tu consumo? Introduce un valor de referencia, por ejemplo de una comparativa de consumo: este recuadro mostrará un semáforo.",
@@ -4996,6 +5033,22 @@
         "calcNote": "Discontinuo: calculado por cuarto de hora, no medido.",
         "powerNote": "En los nodos: la potencia en este cuarto de hora (kW). Debajo: las cantidades desde medianoche (kWh).",
         "gapsOption": "{date} (con huecos)"
+      },
+      "yearRange": "{year} (de {from} a {to}, {span})",
+      "series": {
+        "erzeugung_kwh": "producción",
+        "einspeisung_kwh": "vertido",
+        "bezug_kwh": "consumo de la red"
+      },
+      "interpolatedNote": "≈ Repartido, no medido: {series} de estos meses{readings}. Por eso el reparto de la electricidad solar es una estimación.",
+      "feedAboveMonth": "Contradictorio: el vertido medido ({feed}) supera la producción ({gen}). La figura cuenta todo el vertido, así que no hay autoconsumo. El sol muestra aquí al menos el vertido.",
+      "feedAboveYear": {
+        "one": "Contradictorio en {months}: el vertido medido supera la producción repartida. Allí la figura cuenta todo el vertido y nada como autoconsumo.",
+        "other": "Contradictorio en {count} meses ({months}): el vertido medido supera la producción repartida. Allí la figura cuenta todo el vertido y nada como autoconsumo."
+      },
+      "partialNote": {
+        "one": "Sin {months}: allí un contador solo cubre parte del mes.",
+        "other": "Sin {count} meses ({months}): allí un contador solo cubre parte del mes."
       }
     },
     "weather": {
@@ -5774,7 +5827,8 @@
       "co2": "CO₂",
       "co2Year": "CO₂ al año",
       "advanceRange": "de {low} a {high}",
-      "advanceUncertain": "incierto: el modelo de calefacción se ajusta mal"
+      "advanceUncertain": "incierto: el modelo de calefacción se ajusta mal",
+      "advanceShort": "después de la liquidación del {date}"
     },
     "chart": {
       "cumTitle": "Coste acumulado",
@@ -6151,7 +6205,8 @@
       "assumed": "Fecha supuesta: primero del mes tras la factura",
       "net_price": "Neto según la factura – convertido a bruto con el tipo de IVA indicado",
       "vat_changed": "Mismo precio, otro tipo de IVA",
-      "invalid_format": "Formato no válido – un punto de suministro tiene 11 dígitos con dígito de control"
+      "invalid_format": "Formato no válido – un punto de suministro tiene 11 dígitos con dígito de control",
+      "rhythm_conflict": "El ritmo de la factura no coincide con los vencimientos"
     },
     "option": {
       "gas": "Gas",
@@ -6415,7 +6470,8 @@
       "missing": "No figura en el documento, añádelo después: {fields}",
       "unsure": "Leído con dudas, no se adopta: {fields}",
       "netPrice": "Neto según la factura, convertido a bruto con el tipo de IVA indicado (la app usa precios brutos).",
-      "vatChanged": "Mismo precio que en el contrato, solo cambia el tipo de IVA – la nueva línea de precio rige desde el día que la factura indica para ella."
+      "vatChanged": "Mismo precio que en el contrato, solo cambia el tipo de IVA – la nueva línea de precio rige desde el día que la factura indica para ella.",
+      "rhythmConflict": "El ritmo indicado en la factura no coincide con los vencimientos. Se adoptan los vencimientos, compruébalo."
     },
     "duplicate": {
       "text": "Probablemente el mismo documento que «{name}» (guardado el {date}). Adopta solo uno; el otro puedes borrarlo.",
@@ -6770,7 +6826,15 @@
     "legendPv": "≈ repartido, no medido: el reparto de la electricidad solar de estos meses es estimado.",
     "chartNote": "Barras rayadas: repartidas, no medidas.",
     "markTitleEstimated": "Repartido, no medido: de {gap} días entre dos lecturas, con una lectura estimada como punto de apoyo",
-    "whyEstimated": "Si hay una lectura estimada en medio, cada lado tiene su propia tasa diaria."
+    "whyEstimated": "Si hay una lectura estimada en medio, cada lado tiene su propia tasa diaria.",
+    "readingsYearEst": {
+      "one": "{count} lectura y {estimates} en {year}",
+      "other": "{count} lecturas y {estimates} en {year}"
+    },
+    "estimates": {
+      "one": "{count} estimación",
+      "other": "{count} estimaciones"
+    }
   },
   "balanceUncertain": {
     "range": "Liquidación del {date} incierta: entre {low} y {high}, porque {why}.",
@@ -6780,11 +6844,12 @@
     "credit": "{amount} de crédito",
     "light": "{label}: incierto, entre {low} y {high}",
     "why": {
-      "factor_clamped": "los últimos meses medidos se alejan mucho de lo esperado (factor {raw}, calculado con {used})",
+      "factor_clamped": "los últimos meses medidos consumieron unas {raw} veces lo previsto; la estimación solo lo sigue hasta {used} veces",
       "poor_fit": "el modelo de calefacción se ajusta mal a este contador (± {pct} al mes)",
       "both": "{a} y {b}",
       "few_measured": "hay muy pocos meses medidos para comprobar el modelo de calefacción",
-      "three": "{a}, {b} y {c}"
+      "three": "{a}, {b} y {c}",
+      "factorLow": "los últimos meses medidos solo consumieron un {raw} de lo previsto; la estimación solo baja hasta el {used}"
     },
     "short": "de {low} a {high}",
     "verdict": "incierto"

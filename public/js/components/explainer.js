@@ -99,7 +99,7 @@ export function moneyHtml(row, { color } = {}) {
   // positiv = Nachzahlung (Kosten über dem Bezahlten), negativ = Guthaben
   const credit = balance < 0;
   const word = (v) => Math.abs(v) < 1 ? t('explainer.money.even')
-    : t(v < 0 ? 'explainer.money.credit' : 'explainer.money.due', { amount: fmt.eur(Math.abs(v)) });
+    : t(v < 0 ? 'explainer.money.credit' : 'explainer.money.due', { amount: fmt.eur0(Math.abs(v)) });   // v3.9.0 (L2) — „rund“ ohne Cent
   // v3.7.0 (wirklichkeit-2, Schritt 3) — unsichere Schätzung (projection_uncertain):
   // Kosten und Ergebnis als Spanne, keine Lücke, die einen Punktwert behauptet
   const range = Array.isArray(row.projection_uncertain?.projected_range) ? row.projection_uncertain.projected_range.map(Number) : null;
@@ -124,8 +124,9 @@ export function moneyHtml(row, { color } = {}) {
     <rect class="ex-grow ex-bar--estimate" style="--d:.65s; fill:${c}" x="${(x0 + w(energy) + w(base)).toFixed(1)}" y="62" width="${w(rest).toFixed(1)}" height="18"/>
     ${gapW > 2 ? `<rect class="ex-fade ${credit ? 'ex-gap--credit' : 'ex-gap--due'}" style="--d:1s" x="${gapX.toFixed(1)}" y="${credit ? 38 : 82}" width="${gapW.toFixed(1)}" height="5" rx="2.5"/>` : ''}
     ${leg.svg}`;
+  // v3.9.0 (L1) — der Abrechnungstag des Vertragsstatus (letzter Tag des Zeitraums), sonst das Ende des letzten Monats
   const caption = t('explainer.money.text', {
-    date: fmt.date(`${end.ym}-${String(daysInMonth(end.ym)).padStart(2, '0')}`), paid: fmt.eur(paid), cost: costText, result,
+    date: fmt.date(row.settle_on || `${end.ym}-${String(daysInMonth(end.ym)).padStart(2, '0')}`), paid: fmt.eur(paid), cost: costText, result,
   });
   return figure('ex-money', t('explainer.money.title'), { h: 96 + leg.h + 4, body }, caption);
 }
@@ -378,4 +379,13 @@ export function playExplainers(root) {
     });
   }, { threshold: 0.3 });
   figs.forEach(f => { f.classList.add('ex--ready'); io.observe(f); });
+  // v3.9.0 (A1) — spätestens nach zwei Sekunden das Endbild: Meldet der Beobachter
+  // eine Abbildung nie als sichtbar (ganze Seite als Bild, eingebettete Ansicht,
+  // eingeklappter Bereich), standen bisher nur die Beschriftungen da, die Balken
+  // blieben auf Breite 0
+  setTimeout(() => figs.forEach(f => {
+    if (!f.isConnected || f.classList.contains('ex--play')) return;
+    io.unobserve(f);
+    play(f);
+  }), 2000);
 }

@@ -82,7 +82,8 @@ final class ContractEdgeCasesTest extends ServiceTestCase
         self::assertSame($a['id'], $byYm['2024-02']['contract_id']);
 
         // Der Vertragsstatus summiert die Teile je Vertrag
-        $status = array_column($this->consumption->contractStatus('strom', $meter)['contracts'], null, 'contract_id');
+        // v3.9.0 (V1) — Stand Mai 2024: beide Verträge liegen in der laufenden Abrechnungsperiode
+        $status = array_column($this->consumption->contractStatus('strom', $meter, '2024-05-15')['contracts'], null, 'contract_id');
         self::assertEqualsWithDelta(100 + 100 * 14 / 31, $status[$a['id']]['actual_kwh'], 0.2);
         self::assertEqualsWithDelta(100 * 17 / 31 + 100, $status[$b['id']]['actual_kwh'], 0.2);
     }

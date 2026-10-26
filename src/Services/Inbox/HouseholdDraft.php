@@ -2317,6 +2317,8 @@ final class HouseholdDraft
                             $o = self::obs($v, array_filter([$this->src($id, 'advance_new'), $assumed ? null : $this->src($id, 'advance_new_from')]), 5);
                             if ($assumed) { $o['flagged'] = true; $o['reasons'][] = 'assumed_date'; }
                             if ($rhythm !== []) $o['row'] = $rhythm;
+                            // Rhythmus laut Rechnung gegen ihre Termine: die Termine gelten, zu prüfen
+                            if (!empty($plan['rhythm_conflict'])) { $o['flagged'] = true; $o['reasons'][] = 'rhythm_conflict'; }
                             $rows['ap'][$f][] = $o;
                         }
                     }

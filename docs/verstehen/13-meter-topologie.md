@@ -77,7 +77,9 @@ Summe der Verbrauchsart             500 kWh                               140 �
   Verträge, Rechnung prüfen, Abrechnungsjahr, Prognose und Prognose-Werkstatt,
   Abschlagsvorschlag, Jahresbericht („Wohin geht mein Geld?“), Tarifvergleich
   (Rückblick und Wechsel: erwarteter Jahresverbrauch = Rest), CSV und PDF
-  rechnen so.
+  rechnen so. Saldo-Karte, Werkstatt und Jahresbericht lesen dieselbe
+  Projektion über die laufende Abrechnungsperiode und zeigen damit denselben
+  Saldo des Elternvertrags, gerechnet auf den Rest.
 - **Hinweis:** Am Elternzähler, an seinem Vertrag und in „Rechnung prüfen“ steht,
   wie gerechnet wird, etwa „300 kWh = 500 kWh gemessen − 200 kWh Wärmepumpe“.
   Die Schnittstelle liefert dazu `rest_of` (`measured`, `submeters`, `rest`).

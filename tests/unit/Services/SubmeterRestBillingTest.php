@@ -65,9 +65,13 @@ final class SubmeterRestBillingTest extends ServiceTestCase
         self::fail("Monat $ym fehlt");
     }
 
-    private function contractRow(string $meterId, string $contractId): array
+    /**
+     * Zeile des Vertragsstatus. Seit dem Paket auswertung (v3.9.0) rechnet der Status über die
+     * laufende Abrechnungsperiode (Stichtag 01.01.); `$today` wählt sie: 2025-12-31 = Periode 2025.
+     */
+    private function contractRow(string $meterId, string $contractId, string $today = '2025-12-31'): array
     {
-        foreach ($this->consumption->contractStatus('strom', $this->meters->get('strom', $meterId))['contracts'] as $c) {
+        foreach ($this->consumption->contractStatus('strom', $this->meters->get('strom', $meterId), $today)['contracts'] as $c) {
             if ($c['contract_id'] === $contractId) return $c;
         }
         self::fail("Vertrag $contractId fehlt");
@@ -91,13 +95,14 @@ final class SubmeterRestBillingTest extends ServiceTestCase
         self::assertSame(['measured' => 500.0, 'submeters' => [['meter_id' => $this->sub, 'name' => 'Wärmepumpe', 'kwh' => 200.0]], 'rest' => 300.0],
             $p['rest_of']);
 
-        self::assertEqualsWithDelta(7200.0, $this->contractRow($this->parent, $pc['id'])['actual_kwh'], 0.5);
-        self::assertEqualsWithDelta(1440.0, $this->contractRow($this->parent, $pc['id'])['actual_cost'], 0.05);
-        self::assertEqualsWithDelta(4800.0, $this->contractRow($this->sub, $sc['id'])['actual_kwh'], 0.5);
+        // Vertragsstatus in der laufenden Abrechnungsperiode 2025 (zwölf Monate)
+        self::assertEqualsWithDelta(3600.0, $this->contractRow($this->parent, $pc['id'])['actual_kwh'], 0.5);
+        self::assertEqualsWithDelta(720.0, $this->contractRow($this->parent, $pc['id'])['actual_cost'], 0.05);
+        self::assertEqualsWithDelta(2400.0, $this->contractRow($this->sub, $sc['id'])['actual_kwh'], 0.5);
         $hint = $this->contractRow($this->parent, $pc['id'])['rest_of'];
-        self::assertEqualsWithDelta(12000.0, $hint['measured'], 0.5);
-        self::assertEqualsWithDelta(4800.0, $hint['submeters'][0]['kwh'], 0.5);
-        self::assertEqualsWithDelta(7200.0, $hint['rest'], 0.5);
+        self::assertEqualsWithDelta(6000.0, $hint['measured'], 0.5);
+        self::assertEqualsWithDelta(2400.0, $hint['submeters'][0]['kwh'], 0.5);
+        self::assertEqualsWithDelta(3600.0, $hint['rest'], 0.5);
 
         $total = $this->row($this->consumption->forUtility('strom')['monthly_total'], '2024-06');
         self::assertEqualsWithDelta(500.0, $total['kwh'], 0.05, 'keine Doppelzählung');
@@ -114,7 +119,7 @@ final class SubmeterRestBillingTest extends ServiceTestCase
         self::assertArrayNotHasKey('rest_of', $p);
         self::assertArrayNotHasKey('billed_kwh', $p);
         self::assertArrayNotHasKey('rest_of', $this->contractRow($this->parent, $pc['id']));
-        self::assertEqualsWithDelta(12000.0, $this->contractRow($this->parent, $pc['id'])['actual_kwh'], 0.5);
+        self::assertEqualsWithDelta(6000.0, $this->contractRow($this->parent, $pc['id'])['actual_kwh'], 0.5, 'Periode 2025 brutto');
         self::assertEqualsWithDelta(100.0, $this->row($this->consumption->forUtility('strom')['monthly_total'], '2024-06')['cost'], 0.01);
         self::assertFalse($this->consumption->isDeductingSubmeter('strom', $this->meters->get('strom', $this->sub)));
     }
@@ -267,26 +272,26 @@ final class SubmeterRestBillingTest extends ServiceTestCase
     }
 
     /**
-     * Rest unter null (Subzähler im Mai 2024 600 statt 200 kWh, mehr als der Elternzähler): nicht
+     * Rest unter null (Subzähler im Mai 2025 600 statt 200 kWh, mehr als der Elternzähler): nicht
      * negativ abrechnen, sondern ausweisen. Elternvertrag 0 €, `short_kwh` 100; Subzähler 600 × 40 ct.
      */
     public function testNegativeRestIsNotBilledButReported(): void
     {
-        $this->monthlyReadings([$this->parent => 500.0, $this->sub => 200.0], [$this->sub => ['2024-05-01' => 600.0]]);
+        $this->monthlyReadings([$this->parent => 500.0, $this->sub => 200.0], [$this->sub => ['2025-05-01' => 600.0]]);
         $this->contract($this->parent, 20.0);
         $this->contract($this->sub, 40.0);
-        $may = $this->row($this->consumption->forMeter('strom', $this->meters->get('strom', $this->parent)), '2024-05');
+        $may = $this->row($this->consumption->forMeter('strom', $this->meters->get('strom', $this->parent)), '2025-05');
         self::assertEqualsWithDelta(0.0, $may['cost'], 0.001);
         self::assertEqualsWithDelta(0.0, $may['billed_kwh'], 0.001);
         self::assertEqualsWithDelta(-100.0, $may['rest_of']['rest'], 0.05);
         self::assertEqualsWithDelta(100.0, $may['rest_of']['short_kwh'], 0.05);
-        $total = $this->row($this->consumption->forUtility('strom')['monthly_total'], '2024-05');
+        $total = $this->row($this->consumption->forUtility('strom')['monthly_total'], '2025-05');
         self::assertEqualsWithDelta(500.0, $total['kwh'], 0.05);
         self::assertEqualsWithDelta(240.0, $total['cost'], 0.01);
-        // am Vertrag: 23 Monate × 300 kWh berechnet; Rest −100 im Mai ausgewiesen
-        $row = $this->consumption->contractStatus('strom', $this->meters->get('strom', $this->parent))['contracts'][0];
-        self::assertEqualsWithDelta(6900.0, $row['actual_kwh'], 0.5);
-        self::assertEqualsWithDelta(6800.0, $row['rest_of']['rest'], 0.5);
+        // am Vertrag, laufende Periode 2025: 11 Monate × 300 kWh berechnet; Rest −100 im Mai ausgewiesen
+        $row = $this->consumption->contractStatus('strom', $this->meters->get('strom', $this->parent), '2025-12-31')['contracts'][0];
+        self::assertEqualsWithDelta(3300.0, $row['actual_kwh'], 0.5);
+        self::assertEqualsWithDelta(3200.0, $row['rest_of']['rest'], 0.5);
         self::assertEqualsWithDelta(100.0, $row['rest_of']['short_kwh'], 0.5);
     }
 
@@ -322,16 +327,27 @@ final class SubmeterRestBillingTest extends ServiceTestCase
         $extrapolated = 450.0 / $days('2025-06-05', '2025-11-30') * $days('2025-11-30', '2026-01-12');
         $parentMeasured = 29310.2 - 21877.0;
 
-        $pRow = null;
-        foreach ($this->consumption->contractStatus('strom', $parent)['contracts'] as $c) if ($c['contract_id'] === 'c_strom_messy') $pRow = $c;
-        self::assertNotNull($pRow);
-        self::assertEqualsWithDelta($parentMeasured - $measuredSub - $extrapolated, $pRow['actual_kwh'], 0.5);
-        self::assertEqualsWithDelta($parentMeasured, $pRow['rest_of']['measured'], 0.5);
-        self::assertEqualsWithDelta($measuredSub + $extrapolated, $pRow['rest_of']['submeters'][0]['kwh'], 0.5);
-        self::assertEqualsWithDelta($extrapolated, $pRow['rest_of']['estimated_kwh'], 0.5, 'fortgeschrieben, nicht still');
-        $energy = array_sum(array_map(fn($r) => (float)($r['kwh_cost'] ?? 0), $this->consumption->forMeter('strom', $parent)));
+        // über die ganze Vertragszeit (der Vertragsstatus rechnet seit v3.9.0 je Abrechnungsperiode):
+        // Vertragsmenge der Monate und der Hinweis rest_of seit Vertragsbeginn
+        $rows = $this->consumption->forMeter('strom', $parent);
+        $billed = array_sum(array_map(fn($r) => ConsumptionService::billedQuantity($r), $rows));
+        self::assertEqualsWithDelta($parentMeasured - $measuredSub - $extrapolated, $billed, 0.5);
+        $hint = $this->consumption->restBreakdown('strom', $parent, '2023-01-01', '9999-12-31');
+        self::assertEqualsWithDelta($parentMeasured, $hint['measured'], 0.5);
+        self::assertEqualsWithDelta($measuredSub + $extrapolated, $hint['submeters'][0]['kwh'], 0.5);
+        self::assertEqualsWithDelta($extrapolated, $hint['estimated_kwh'], 0.5, 'fortgeschrieben, nicht still');
+        // die Karte der Periode 2025 rechnet mit demselben Rest wie ihr Hinweis
+        $card = $this->consumption->contractStatus('strom', $parent, '2025-12-31')['contracts'][0];
+        self::assertEqualsWithDelta($card['rest_of']['rest'], $card['actual_kwh'], 0.5);
+        $energy = array_sum(array_map(fn($r) => (float)($r['kwh_cost'] ?? 0), $rows));
         self::assertEqualsWithDelta(($parentMeasured - $measuredSub - $extrapolated) * 0.34, $energy, 0.5);
-        self::assertEqualsWithDelta($measuredSub, $this->contractRow((string)$sub['id'], $wp['id'])['actual_kwh'], 0.5);
+        // der Vertrag des Subzählers rechnet ab seinem Beginn (Monatsteile mit seiner ID)
+        $onContract = 0.0;
+        foreach ($this->consumption->forMeter('strom', $this->meters->get('strom', (string)$sub['id'])) as $r) {
+            if (!empty($r['contract_parts'])) { foreach ($r['contract_parts'] as $p) if ($p['contract_id'] === $wp['id']) $onContract += (float)$p['kwh']; }
+            elseif (($r['contract_id'] ?? null) === $wp['id']) $onContract += (float)$r['kwh'];
+        }
+        self::assertEqualsWithDelta($measuredSub, $onContract, 0.5);
     }
 
     /**
@@ -397,14 +413,15 @@ final class SubmeterRestBillingTest extends ServiceTestCase
         self::assertEqualsWithDelta(450.0, $r1['rest_of']['rest'], 0.05);
         $r2 = $this->row($this->consumption->forMeter('strom', $this->meters->groupTarget('strom', $g2)), '2024-06');
         self::assertEqualsWithDelta(89.5, $r2['cost'], 0.01);
-        $s1 = $this->consumption->contractStatus('strom', $grp1)['contracts'][0];
+        // Vertragsstatus in der laufenden Abrechnungsperiode 2025 (zwölf Monate)
+        $s1 = $this->consumption->contractStatus('strom', $grp1, '2025-12-31')['contracts'][0];
         self::assertSame($wp['id'], $s1['contract_id']);
-        self::assertEqualsWithDelta(450.0 * 24, $s1['actual_kwh'], 1.0);
-        self::assertEqualsWithDelta(125.0 * 24, $s1['actual_cost'], 0.5);
-        self::assertEqualsWithDelta(250.0 * 24, $s1['rest_of']['submeters'][0]['kwh'] + $s1['rest_of']['submeters'][1]['kwh'], 1.0);
-        $s2 = $this->consumption->contractStatus('strom', $this->meters->groupTarget('strom', $g2))['contracts'][0];
+        self::assertEqualsWithDelta(450.0 * 12, $s1['actual_kwh'], 1.0);
+        self::assertEqualsWithDelta(125.0 * 12, $s1['actual_cost'], 0.5);
+        self::assertEqualsWithDelta(250.0 * 12, $s1['rest_of']['submeters'][0]['kwh'] + $s1['rest_of']['submeters'][1]['kwh'], 1.0);
+        $s2 = $this->consumption->contractStatus('strom', $this->meters->groupTarget('strom', $g2), '2025-12-31')['contracts'][0];
         self::assertSame($hh['id'], $s2['contract_id']);
-        self::assertEqualsWithDelta(250.0 * 24, $s2['actual_kwh'], 1.0);
+        self::assertEqualsWithDelta(250.0 * 12, $s2['actual_kwh'], 1.0);
         $total = $this->row($this->consumption->forUtility('strom')['monthly_total'], '2024-06');
         self::assertEqualsWithDelta(700.0, $total['kwh'], 0.05);
         self::assertEqualsWithDelta(214.5, $total['cost'], 0.01);
