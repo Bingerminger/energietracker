@@ -1196,7 +1196,12 @@ final class Proposals
         $e = $c['entry']; $ct = $c['contract'];
         $adv = self::value($e, 'advance_new'); $from = self::value($e, 'valid_from');
         if ($ct === null || !is_numeric($adv) || !is_string($from)) return [];
-        return [$this->priceEntry('contract_advance', 'advance', $ct, 'advance_payments', 'amount_eur', $from, (float)$adv, ['advance_new', 'valid_from'])];
+        // v3.9.0 (F1034) — die Mitteilung nennt nur den Betrag: der Rhythmus des laufenden Abschlags bleibt
+        // (alle 2 oder 3 Monate ab dem neuen Tag), statt still monatlich zu werden
+        $cur = ContractService::planRowOn($this->contracts->effectiveAdvanceSchedule($ct), $from);
+        $every = ContractService::everyMonths($cur);
+        return [$this->withRhythm($this->priceEntry('contract_advance', 'advance', $ct, 'advance_payments', 'amount_eur', $from, (float)$adv, ['advance_new', 'valid_from']),
+            $ct, $every > 1 ? ['every_months' => $every] : null)];
     }
 
     // ── Bausteine ────────────────────────────────────────────────────────

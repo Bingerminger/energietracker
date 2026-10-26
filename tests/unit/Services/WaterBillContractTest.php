@@ -10,6 +10,7 @@ use Energietracker\Services\ContractService;
 use Energietracker\Services\ConsumptionService;
 use Energietracker\Services\Inbox\Applier;
 use Energietracker\Services\Inbox\Evidence;
+use Energietracker\Services\Inbox\Gist;
 use Energietracker\Services\Inbox\InvoicePrices;
 use Energietracker\Services\Inbox\Proposals;
 use Energietracker\Services\Inbox\ProviderRegistry;
@@ -205,6 +206,25 @@ final class WaterBillContractTest extends ServiceTestCase
         self::assertTrue(empty($b[0]['contract_id']) && empty($b[0]['special_payment_id']), 'nicht gebucht, an keinem Vertrag');
     }
 
+    /** Eine Abschlagsänderung nennt nur den Betrag: der Rhythmus des Vertrags bleibt (nicht still monatlich). */
+    public function testAnAdvanceChangeKeepsTheRhythmOfTheContract(): void
+    {
+        $this->contracts->create('wasser', ['meter_id' => 'm_wasser_default', 'provider' => WaterBillFixture::SUPPLIER, 'start' => '2025-04-01',
+            'contract_number' => WaterBillFixture::ACCOUNT, 'trinkwasser' => ['working_prices' => [['from' => '2025-04-01', 'ct_per_m3' => 224.7]]],
+            'advance_payments' => [['from' => '2026-05-15', 'amount_eur' => 165, 'every_months' => 2]]]);
+        $s = $this->inbox();
+        $id = \Energietracker\Tests\Support\DraftFixture::add($this->store, fn($b, $n) => $s->upload($b, $n), 'ac1', 'advance_change', [
+            'utility' => 'wasser', 'supplier' => WaterBillFixture::SUPPLIER, 'advance_new' => '180,00', 'valid_from' => '15.09.2026',
+            'contract_number' => WaterBillFixture::ACCOUNT]);
+        $pv = $s->preview($id);
+        $a = self::byKind($pv['proposals'], 'contract_advance');
+        self::assertCount(1, $a, json_encode(array_column($pv['proposals'], 'kind')));
+        self::assertSame(['2026-09-15', 180.0, ['every_months' => 2], 2], [$a[0]['data']['from'], (float)$a[0]['data']['value'], $a[0]['data']['row'] ?? null, $a[0]['params']['every'] ?? null]);
+        $s->apply($id, [$a[0]['id']]);
+        $plan = $this->contracts->list('wasser')[0]['advance_payments'];
+        self::assertEquals([['from' => '2026-05-15', 'amount_eur' => 165, 'every_months' => 2], ['from' => '2026-09-15', 'amount_eur' => 180, 'every_months' => 2]], $plan);
+    }
+
     public function testWithAContractOfAnotherSupplierItIsOnlyAnOffer(): void
     {
         $this->contracts->create('wasser', ['meter_id' => 'm_wasser_default', 'provider' => 'Wasserwerk Beispielstadt', 'start' => '2024-01-01',
@@ -306,5 +326,19 @@ final class WaterBillContractTest extends ServiceTestCase
         self::assertEqualsWithDelta(165 + (float)$row['projected_end_balance'] / 3, (float)$row['suggested_advance'], 0.51);
         // der Saldo-Verlauf endet beim erwarteten Saldo (wie bei monatlichen Abschlägen)
         self::assertEqualsWithDelta((float)$row['projected_end_balance'], (float)end($row['balance_path'])['balance'], 0.02);
+
+        // Kernaussage: der neue Abschlag wird je Termin beurteilt. Raten ab 15.05.2026 bis zur nächsten
+        // Abrechnung (01.04.2027): fünf (15.05., 15.07., 15.09., 15.11., 15.01.) = 825 € laut Plan; passend
+        // wäre (825 € + Endsaldo) ÷ 5 je Termin — nicht je Monat (das wären elf Monate ab Mai)
+        $gist = new Gist($this->meters, $this->contracts, $this->consumption, $this->bills, $this->readings);
+        $pv = $s->preview($p['entry']['id']);
+        $v = $gist->advanceVerdict(['entry' => $pv['entry'], 'u' => 'wasser', 'meter' => $this->meters->get('wasser', 'm_wasser_default'),
+            'contract' => $c, 'proposals' => [], 'today' => '2026-07-31'], 165.0, '2026-05-15');
+        $rec = max(0.0, round((825 + (float)$row['projected_end_balance']) / 5));
+        self::assertSame([5, 11, $rec], [$v['rates'] ?? null, $v['months'], $v['recommended']]);
+        $g = $gist->describe($pv['entry'], ['utility' => 'wasser', 'meter_id' => 'm_wasser_default', 'contract_id' => $c['id']], [], '2026-07-31');
+        $keys = array_column($g['details'] ?? [], 'key');
+        self::assertNotEmpty(array_intersect(['inbox.gist.advance.ok', 'inbox.gist.advance.highRate', 'inbox.gist.advance.lowRate'], $keys), json_encode($keys));
+        self::assertEmpty(array_intersect(['inbox.gist.advance.high', 'inbox.gist.advance.low'], $keys), 'nicht „im Monat“');
     }
 }

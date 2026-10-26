@@ -6151,7 +6151,8 @@
       "remindDate": "Deadline",
       "figure": {
         "perYear": "{amount} a year",
-        "perMonth": "{amount} a month"
+        "perMonth": "{amount} a month",
+        "perRate": "{amount} per due date"
       },
       "priceChange": {
         "more": "From {date}, {provider} will cost you about {amount} more a year.",
@@ -6173,7 +6174,9 @@
         "ok": "The new advance payment of {amount} fits your consumption.",
         "high": "The new advance payment of {amount} is about {diff} a month too high ({recommended} would fit).",
         "low": "The new advance payment of {amount} is about {diff} a month too low ({recommended} would fit).",
-        "unknown": "New advance payment {amount} from {date}."
+        "unknown": "New advance payment {amount} from {date}.",
+        "highRate": "The new advance payment of {amount} is about {diff} per due date too high ({recommended} would fit).",
+        "lowRate": "The new advance payment of {amount} is about {diff} per due date too low ({recommended} would fit)."
       },
       "cancellation": {
         "open": "Supply ends on {date} – there is no follow-up contract yet.",
@@ -6244,7 +6247,8 @@
         "serialConflict": "Careful: the meter has the number {serial} on record.",
         "minTerm": "Minimum term until {date}.",
         "guarantee": "Price guarantee until {date}.",
-        "dunning": "The app does not read payment reminders; the reminder makes sure you sort out the payment."
+        "dunning": "The app does not read payment reminders; the reminder makes sure you sort out the payment.",
+        "advanceBasisRate": "About {recommended} per due date would fit; with the new advance payment the bill would end with: {balance}."
       }
     },
     "channels": {

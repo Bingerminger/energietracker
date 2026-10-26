@@ -12,6 +12,7 @@ import { fmt, escapeHtml } from './format.js';
 import { resultText } from './inbox.js';
 import { proposalNotes } from './inbox-marks.js';
 import { priceBasisText } from './price-basis.js';
+import { advanceRhythm } from './advance-rhythm.js';   // v3.9.0 (F1034)
 
 /** Gründe, die der Entwurf selbst vergibt (die übrigen kommen aus der Belegprüfung, `inbox.reason.*`). */
 export const DRAFT_REASONS = ['differs', 'conflict_existing', 'invoice_differs', 'chain_mismatch', 'inferred', 'falling_reading', 'assumed_date', 'number_change', 'swap_open', 'swap_readings', 'same_supplier',
@@ -48,7 +49,12 @@ export function valueText(f, v = f.value, { unit = '' } = {}) {
   if (v === null || v === undefined || v === '') return '–';
   switch (f.kind) {
     case 'date': return fmt.date(v);
-    case 'money': return f.name === 'result' ? (resultText(v) || '–') : fmt.money(v);
+    case 'money': {
+      if (f.name === 'result') return resultText(v) || '–';
+      // v3.9.0 (F1034) — Abschlag mit Rhythmus laut Rechnung: je Termin, mit den Terminen
+      const rhythm = f.row ? advanceRhythm(f.row.every_months, f.row.due_dates) : '';
+      return rhythm ? `${fmt.money(v)}, ${rhythm}` : fmt.money(v);
+    }
     case 'price_ct': return `${fmt.dec(v, 4)} ct/kWh`;
     case 'factor': return t('inboxDraft.value.factor', { z: fmt.dec(v.z, 4), hs: fmt.dec(v.hs, 3), factor: fmt.dec(v.z * v.hs, 4) });
     case 'enum': return t(`inbox.option.${v}`);

@@ -6151,7 +6151,8 @@
       "remindDate": "Prazo",
       "figure": {
         "perYear": "{amount} por ano",
-        "perMonth": "{amount} por mês"
+        "perMonth": "{amount} por mês",
+        "perRate": "{amount} por vencimento"
       },
       "priceChange": {
         "more": "A partir de {date}, {provider} custa cerca de {amount} a mais por ano.",
@@ -6173,7 +6174,9 @@
         "ok": "O novo adiantamento de {amount} corresponde ao consumo.",
         "high": "O novo adiantamento de {amount} é cerca de {diff} por mês alto demais (o adequado seria {recommended}).",
         "low": "O novo adiantamento de {amount} é cerca de {diff} por mês baixo demais (o adequado seria {recommended}).",
-        "unknown": "Novo adiantamento de {amount} a partir de {date}."
+        "unknown": "Novo adiantamento de {amount} a partir de {date}.",
+        "highRate": "O novo adiantamento de {amount} é cerca de {diff} por vencimento alto demais (o adequado seria {recommended}).",
+        "lowRate": "O novo adiantamento de {amount} é cerca de {diff} por vencimento baixo demais (o adequado seria {recommended})."
       },
       "cancellation": {
         "open": "O fornecimento termina em {date} – ainda falta o contrato seguinte.",
@@ -6244,7 +6247,8 @@
         "serialConflict": "Atenção: o contador tem registado o número {serial}.",
         "minTerm": "Duração mínima até {date}.",
         "guarantee": "Garantia de preço até {date}.",
-        "dunning": "A aplicação não lê avisos de pagamento; o lembrete serve para esclarecer o pagamento."
+        "dunning": "A aplicação não lê avisos de pagamento; o lembrete serve para esclarecer o pagamento.",
+        "advanceBasisRate": "O adequado seria cerca de {recommended} por vencimento; com o novo adiantamento a fatura terminaria com: {balance}."
       }
     },
     "channels": {

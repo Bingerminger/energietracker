@@ -6151,7 +6151,8 @@
       "remindDate": "Plazo",
       "figure": {
         "perYear": "{amount} al año",
-        "perMonth": "{amount} al mes"
+        "perMonth": "{amount} al mes",
+        "perRate": "{amount} por vencimiento"
       },
       "priceChange": {
         "more": "Desde el {date}, {provider} te costará unos {amount} más al año.",
@@ -6173,7 +6174,9 @@
         "ok": "El nuevo anticipo de {amount} encaja con tu consumo.",
         "high": "El nuevo anticipo de {amount} es unos {diff} al mes demasiado alto (encajarían {recommended}).",
         "low": "El nuevo anticipo de {amount} es unos {diff} al mes demasiado bajo (encajarían {recommended}).",
-        "unknown": "Nuevo anticipo de {amount} desde el {date}."
+        "unknown": "Nuevo anticipo de {amount} desde el {date}.",
+        "highRate": "El nuevo anticipo de {amount} es unos {diff} por vencimiento demasiado alto (encajarían {recommended}).",
+        "lowRate": "El nuevo anticipo de {amount} es unos {diff} por vencimiento demasiado bajo (encajarían {recommended})."
       },
       "cancellation": {
         "open": "El suministro termina el {date}: aún falta el siguiente contrato.",
@@ -6244,7 +6247,8 @@
         "serialConflict": "Atención: el contador tiene registrado el número {serial}.",
         "minTerm": "Permanencia mínima hasta el {date}.",
         "guarantee": "Garantía de precio hasta el {date}.",
-        "dunning": "La aplicación no lee las reclamaciones de pago; el recordatorio te avisa para aclarar el pago."
+        "dunning": "La aplicación no lee las reclamaciones de pago; el recordatorio te avisa para aclarar el pago.",
+        "advanceBasisRate": "Encajarían unos {recommended} por vencimiento; con el nuevo anticipo la factura acabaría con: {balance}."
       }
     },
     "channels": {

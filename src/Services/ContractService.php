@@ -1091,9 +1091,9 @@ final class ContractService
             if ($dates !== []) {
                 $dates = array_map('strval', array_keys($dates));
                 sort($dates);
-                $row['due_dates'] = $dates;
                 $derived = self::rhythmOf($dates);
                 if (!isset($row['every_months']) && $derived !== null && $derived > 1) $row['every_months'] = $derived;
+                $row['due_dates'] = $dates;   // nach every_months: eine Form, ob abgeleitet oder angegeben
             }
             $cleaned[] = $row;
         }
@@ -1114,8 +1114,9 @@ final class ContractService
         $months = fn(string $a, string $b): int => ((int)substr($b, 0, 4) - (int)substr($a, 0, 4)) * 12 + (int)substr($b, 5, 2) - (int)substr($a, 5, 2);
         $n = $months($dates[0], $dates[1]);
         if ($n < 1 || $n > 12) return null;
+        // vom ersten Termin aus gezählt wie installments(): 31.01., 28.02., 31.03. ist monatlich
         for ($i = 1; $i < count($dates); $i++) {
-            if ($months($dates[$i - 1], $dates[$i]) !== $n || self::addMonthsClamped($dates[$i - 1], $n) !== $dates[$i]) return null;
+            if (self::addMonthsClamped($dates[0], $n * $i) !== $dates[$i]) return null;
         }
         return $n;
     }

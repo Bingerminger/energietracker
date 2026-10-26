@@ -386,7 +386,7 @@ final class InboxSchema
             'advance_change' => [
                 'utility'          => self::UTILITY_FIELD,
                 'supplier'         => self::SUPPLIER,
-                'advance_new'      => ['kind' => 'money', 'core' => true, 'desc' => 'new monthly advance payment as stated (neuer Abschlag)'],
+                'advance_new'      => ['kind' => 'money', 'core' => true, 'desc' => 'new advance payment as stated, the amount per due date (neuer Abschlag)'],
                 'valid_from'       => ['kind' => 'date', 'core' => true, 'desc' => 'date from which it applies (ab)'],
                 'contract_number'  => self::CONTRACT_NUMBER,
                 'customer_number'  => self::CUSTOMER_NUMBER,

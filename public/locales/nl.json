@@ -6151,7 +6151,8 @@
       "remindDate": "Termijn",
       "figure": {
         "perYear": "{amount} per jaar",
-        "perMonth": "{amount} per maand"
+        "perMonth": "{amount} per maand",
+        "perRate": "{amount} per vervaldatum"
       },
       "priceChange": {
         "more": "Vanaf {date} kost {provider} je ongeveer {amount} meer per jaar.",
@@ -6173,7 +6174,9 @@
         "ok": "Het nieuwe voorschot van {amount} past bij je verbruik.",
         "high": "Het nieuwe voorschot van {amount} is ongeveer {diff} per maand te hoog ({recommended} zou passen).",
         "low": "Het nieuwe voorschot van {amount} is ongeveer {diff} per maand te laag ({recommended} zou passen).",
-        "unknown": "Nieuw voorschot {amount} vanaf {date}."
+        "unknown": "Nieuw voorschot {amount} vanaf {date}.",
+        "highRate": "Het nieuwe voorschot van {amount} is ongeveer {diff} per vervaldatum te hoog ({recommended} zou passen).",
+        "lowRate": "Het nieuwe voorschot van {amount} is ongeveer {diff} per vervaldatum te laag ({recommended} zou passen)."
       },
       "cancellation": {
         "open": "De levering eindigt op {date} – er is nog geen vervolgcontract.",
@@ -6244,7 +6247,8 @@
         "serialConflict": "Let op: bij de meter staat het nummer {serial}.",
         "minTerm": "Minimale looptijd tot {date}.",
         "guarantee": "Prijsgarantie tot {date}.",
-        "dunning": "Een aanmaning leest de app niet uit; de herinnering zorgt dat je de betaling regelt."
+        "dunning": "Een aanmaning leest de app niet uit; de herinnering zorgt dat je de betaling regelt.",
+        "advanceBasisRate": "Ongeveer {recommended} per vervaldatum zou passen; met het nieuwe voorschot eindigt de rekening met: {balance}."
       }
     },
     "channels": {

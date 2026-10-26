@@ -231,11 +231,12 @@ final class Gist
         }
         $adv = self::num(Proposals::value($e, 'advance_new'));
         if ($adv !== null) {
-            $advFrom = self::str(Proposals::value($e, 'advance_new_from'));
+            // v3.9.0 (F1034) — ohne „ab“ beginnt ein Plan mit Terminen am ersten Termin
+            $advFrom = self::str(Proposals::value($e, 'advance_new_from')) ?? self::str(InvoicePrices::advancePlan($e)['from'] ?? null);
             $details[] = ['key' => 'inbox.gist.detail.newAdvance', 'params' => ['amount' => $adv, 'date' => $advFrom]];
             if ($advFrom !== null) {
                 $v = $this->advanceVerdict($c, $adv, $advFrom);
-                if ($v !== null) $details[] = ['key' => 'inbox.gist.advance.' . $v['verdict'], 'params' => ['amount' => $adv, 'diff' => $v['diff'], 'recommended' => $v['recommended']]];
+                if ($v !== null) $details[] = ['key' => 'inbox.gist.advance.' . self::perRate($v), 'params' => ['amount' => $adv, 'diff' => $v['diff'], 'recommended' => $v['recommended']]];
             }
         }
         $figure = is_numeric($result) && (float)$result != 0.0
@@ -263,11 +264,14 @@ final class Gist
             $figure = $new !== null ? ['kind' => 'money_month', 'value' => $new, 'tone' => 'neutral'] : null;
             $details[] = ['key' => $c['contract'] === null ? 'inbox.gist.detail.noContract' : 'inbox.gist.detail.noProjection', 'params' => []];
         } else {
-            $key = 'inbox.gist.advance.' . $v['verdict'];
+            $key = 'inbox.gist.advance.' . self::perRate($v);
+            // v3.9.0 (F1034) — mit Rhythmus je Termin statt je Monat
+            $per = isset($v['rates']) ? 'money_rate' : 'money_month';
             $figure = $v['verdict'] === 'ok'
-                ? ['kind' => 'money_month', 'value' => $new, 'tone' => 'good']
-                : ['kind' => 'money_month', 'value' => $v['diff'], 'tone' => $v['verdict'] === 'low' ? 'bad' : 'warn', 'signed' => true];
-            $details[] = ['key' => 'inbox.gist.detail.advanceBasis', 'params' => ['recommended' => $v['recommended'], 'months' => $v['months'], 'balance' => $v['balance']]];
+                ? ['kind' => $per, 'value' => $new, 'tone' => 'good']
+                : ['kind' => $per, 'value' => $v['diff'], 'tone' => $v['verdict'] === 'low' ? 'bad' : 'warn', 'signed' => true];
+            $details[] = ['key' => isset($v['rates']) ? 'inbox.gist.detail.advanceBasisRate' : 'inbox.gist.detail.advanceBasis',
+                'params' => ['recommended' => $v['recommended'], 'months' => $v['months'], 'balance' => $v['balance']]];
         }
         $action = $this->applyAction($c, 'inbox.gist.action.applyAdvance');
         return ['key' => $key, 'params' => ['amount' => $new, 'date' => $from, 'diff' => $v !== null ? abs($v['diff']) : null,
@@ -417,6 +421,12 @@ final class Gist
      *
      * @return array{verdict: string, recommended: float, diff: float, months: int, balance: float}|null
      */
+    /** v3.9.0 (F1034) — Urteil als Schlüsselteil: zu hoch/niedrig je Termin, wenn der Abschlag einen Rhythmus hat. */
+    private static function perRate(array $v): string
+    {
+        return isset($v['rates']) && in_array($v['verdict'], ['high', 'low'], true) ? $v['verdict'] . 'Rate' : $v['verdict'];
+    }
+
     public function advanceVerdict(array $c, float $new, string $from): ?array
     {
         $u = $c['u']; $ct = $c['contract'];
@@ -426,7 +436,7 @@ final class Gist
         $target = $targetId !== '' ? $this->meters->target($u, $targetId) : null;
         if ($target === null) return null;
         try {
-            $status = $this->consumption->contractStatus($u, $target);
+            $status = $this->consumption->contractStatus($u, $target, $c['today'] ?? null);   // v3.9.0 — am Stichtag der Kernaussage
         } catch (\Throwable) {
             return null;
         }
@@ -438,11 +448,30 @@ final class Gist
         if ($months < 1) return null;
         $plan = $this->contracts->effectiveAdvanceSchedule($ct);
         $atFrom = $this->contracts->valueOnDate($plan, 'amount_eur', $from) ?? 0.0;
-        $rec = max(0.0, round($atFrom + (float)$row['projected_end_balance'] / $months));
-        $balance = round(($rec - $new) * $months, 2);   // Buchhaltungssicht: positiv = Nachzahlung
+        // v3.9.0 (F1034) — Abschlag mit Rhythmus (neuer Plan der Rechnung oder Plan des Vertrags ab
+        // `$from`): Bezahltes laut Plan plus Endsaldo, verteilt auf die Raten bis zum Ende der Abrechnung;
+        // der Vorschlag gilt je Rate (`rates`), nicht je Monat. Ohne Rhythmus wie bisher.
+        $bill = ($c['entry']['type'] ?? '') === 'invoice' ? InvoicePrices::advancePlan((array)$c['entry']) : null;
+        $billRhythm = $bill !== null && is_string($bill['from'] ?? null) && ContractService::hasRhythm($bill);
+        $cur = ContractService::planRowOn($plan, $from);
+        $planRhythm = $cur !== null && ContractService::hasRhythm($cur);
+        if (!$billRhythm && !$planRhythm) {
+            $rec = max(0.0, round($atFrom + (float)$row['projected_end_balance'] / $months));
+            $balance = round(($rec - $new) * $months, 2);   // Buchhaltungssicht: positiv = Nachzahlung
+            $limit = max(ReportAdviceService::ADVANCE_MIN_EUR, $new);
+            $verdict = abs($balance) < $limit ? 'ok' : ($new > $rec ? 'high' : 'low');
+            return ['verdict' => $verdict, 'recommended' => $rec, 'diff' => round($new - $rec, 2), 'months' => $months, 'balance' => $balance];
+        }
+        $lastYm = (string)(end($row['balance_path'])['ym'] ?? $ym);
+        $endExcl = date('Y-m-01', (int)strtotime("$lastYm-01 +1 month"));
+        $planned = $planRhythm ? array_sum(array_column(ContractService::installments($plan, $from, $endExcl), 'amount_eur')) : $atFrom * $months;
+        $rates = count(ContractService::installments($billRhythm ? [$bill] : $plan, $from, $endExcl));
+        if ($rates < 1) return null;
+        $rec = max(0.0, round(($planned + (float)$row['projected_end_balance']) / $rates));
+        $balance = round(($rec - $new) * $rates, 2);
         $limit = max(ReportAdviceService::ADVANCE_MIN_EUR, $new);
         $verdict = abs($balance) < $limit ? 'ok' : ($new > $rec ? 'high' : 'low');
-        return ['verdict' => $verdict, 'recommended' => $rec, 'diff' => round($new - $rec, 2), 'months' => $months, 'balance' => $balance];
+        return ['verdict' => $verdict, 'recommended' => $rec, 'diff' => round($new - $rec, 2), 'months' => $months, 'balance' => $balance, 'rates' => $rates];
     }
 
     /** Anschlussvertrag desselben Zählers bzw. seiner Gruppe (ContractService::successorOf). */

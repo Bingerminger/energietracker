@@ -6151,7 +6151,8 @@
       "remindDate": "Scadenza",
       "figure": {
         "perYear": "{amount} all’anno",
-        "perMonth": "{amount} al mese"
+        "perMonth": "{amount} al mese",
+        "perRate": "{amount} per scadenza"
       },
       "priceChange": {
         "more": "Dal {date} {provider} ti costerà circa {amount} in più all’anno.",
@@ -6173,7 +6174,9 @@
         "ok": "Il nuovo acconto di {amount} è adatto al tuo consumo.",
         "high": "Il nuovo acconto di {amount} è troppo alto di circa {diff} al mese (sarebbero adatti {recommended}).",
         "low": "Il nuovo acconto di {amount} è troppo basso di circa {diff} al mese (sarebbero adatti {recommended}).",
-        "unknown": "Nuovo acconto di {amount} dal {date}."
+        "unknown": "Nuovo acconto di {amount} dal {date}.",
+        "highRate": "Il nuovo acconto di {amount} è troppo alto di circa {diff} per scadenza (sarebbero adatti {recommended}).",
+        "lowRate": "Il nuovo acconto di {amount} è troppo basso di circa {diff} per scadenza (sarebbero adatti {recommended})."
       },
       "cancellation": {
         "open": "La fornitura termina il {date} – manca ancora un contratto successivo.",
@@ -6244,7 +6247,8 @@
         "serialConflict": "Attenzione: sul contatore è registrato il numero {serial}.",
         "minTerm": "Durata minima fino al {date}.",
         "guarantee": "Garanzia di prezzo fino al {date}.",
-        "dunning": "L’app non legge i solleciti; il promemoria ti ricorda di chiarire il pagamento."
+        "dunning": "L’app non legge i solleciti; il promemoria ti ricorda di chiarire il pagamento.",
+        "advanceBasisRate": "Sarebbero adatti circa {recommended} per scadenza; con il nuovo acconto la bolletta finirebbe con: {balance}."
       }
     },
     "channels": {

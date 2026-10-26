@@ -258,6 +258,7 @@ export function gistFigure(f) {
   switch (f.kind) {
     case 'money_year': return t('inbox.gist.figure.perYear', { amount: signed(v) });
     case 'money_month': return t('inbox.gist.figure.perMonth', { amount: signed(v) });
+    case 'money_rate': return t('inbox.gist.figure.perRate', { amount: signed(v) });   // v3.9.0 (F1034) — Abschlag mit Rhythmus
     case 'money': return fmt.money(v);
     case 'result': return resultText(v);
     case 'date': return fmt.date(f.value);

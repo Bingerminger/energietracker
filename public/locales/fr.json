@@ -6151,7 +6151,8 @@
       "remindDate": "Échéance",
       "figure": {
         "perYear": "{amount} par an",
-        "perMonth": "{amount} par mois"
+        "perMonth": "{amount} par mois",
+        "perRate": "{amount} par échéance"
       },
       "priceChange": {
         "more": "À partir du {date}, {provider} vous coûtera environ {amount} de plus par an.",
@@ -6173,7 +6174,9 @@
         "ok": "Le nouvel acompte de {amount} correspond à votre consommation.",
         "high": "Le nouvel acompte de {amount} est trop élevé d’environ {diff} par mois ({recommended} conviendrait).",
         "low": "Le nouvel acompte de {amount} est trop bas d’environ {diff} par mois ({recommended} conviendrait).",
-        "unknown": "Nouvel acompte de {amount} à partir du {date}."
+        "unknown": "Nouvel acompte de {amount} à partir du {date}.",
+        "highRate": "Le nouvel acompte de {amount} est trop élevé d’environ {diff} par échéance ({recommended} conviendrait).",
+        "lowRate": "Le nouvel acompte de {amount} est trop bas d’environ {diff} par échéance ({recommended} conviendrait)."
       },
       "cancellation": {
         "open": "La fourniture se termine le {date} – il manque encore un contrat de suite.",
@@ -6244,7 +6247,8 @@
         "serialConflict": "Attention : le compteur porte le numéro {serial}.",
         "minTerm": "Durée minimale jusqu’au {date}.",
         "guarantee": "Garantie de prix jusqu’au {date}.",
-        "dunning": "L’application ne lit pas les relances ; le rappel vous aide à régler le paiement."
+        "dunning": "L’application ne lit pas les relances ; le rappel vous aide à régler le paiement.",
+        "advanceBasisRate": "Environ {recommended} par échéance conviendrait ; avec le nouvel acompte, la facture finirait par : {balance}."
       }
     },
     "channels": {

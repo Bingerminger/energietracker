@@ -6151,7 +6151,8 @@
       "remindDate": "Frist",
       "figure": {
         "perYear": "{amount} im Jahr",
-        "perMonth": "{amount} im Monat"
+        "perMonth": "{amount} im Monat",
+        "perRate": "{amount} je Termin"
       },
       "priceChange": {
         "more": "Ab {date} kostet dich {provider} rund {amount} mehr im Jahr.",
@@ -6173,7 +6174,9 @@
         "ok": "Der neue Abschlag von {amount} passt zu deinem Verbrauch.",
         "high": "Der neue Abschlag von {amount} ist rund {diff} im Monat zu hoch (passend wären {recommended}).",
         "low": "Der neue Abschlag von {amount} ist rund {diff} im Monat zu niedrig (passend wären {recommended}).",
-        "unknown": "Neuer Abschlag {amount} ab {date}."
+        "unknown": "Neuer Abschlag {amount} ab {date}.",
+        "highRate": "Der neue Abschlag von {amount} ist rund {diff} je Termin zu hoch (passend wären {recommended}).",
+        "lowRate": "Der neue Abschlag von {amount} ist rund {diff} je Termin zu niedrig (passend wären {recommended})."
       },
       "cancellation": {
         "open": "Die Lieferung endet am {date} – ein Anschlussvertrag fehlt noch.",
@@ -6244,7 +6247,8 @@
         "serialConflict": "Achtung: Am Zähler ist die Nummer {serial} eingetragen.",
         "minTerm": "Mindestlaufzeit bis {date}.",
         "guarantee": "Preisgarantie bis {date}.",
-        "dunning": "Eine Mahnung liest die App nicht aus; der Termin erinnert dich, die Zahlung zu klären."
+        "dunning": "Eine Mahnung liest die App nicht aus; der Termin erinnert dich, die Zahlung zu klären.",
+        "advanceBasisRate": "Passend wären rund {recommended} je Termin; mit dem neuen Abschlag stünde am Ende der Abrechnung: {balance}."
       }
     },
     "channels": {
