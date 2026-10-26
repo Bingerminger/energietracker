@@ -126,8 +126,12 @@ final class ForecastLevelTest extends ServiceTestCase
     public function testHeatingKeepsItsModel(): void
     {
         $this->loadMessy();
+        // Gas nur jede vierte Ablesung: kaum ein Kalendermonat gemessen, wie beim Strom (history_short)
+        $rows = array_values(array_filter($this->store->read('gas/readings.json'), fn($r, $i) => $i % 4 === 0, ARRAY_FILTER_USE_BOTH));
+        $this->store->write('gas/readings.json', $rows);
         $fc = (new ForecastService($this->consumption, $this->regression, $this->settings, $this->contracts, $this->i18n))
             ->forMeter('gas', $this->meters->list('gas')[0]);
+        self::assertContains('history_short', array_column($fc['warnings'], 'code'), 'die Regel hätte hier gegriffen');
         self::assertNull(self::level($fc), 'Heizarten rechnen mit Wetter und Heizmodell, nicht mit dem Vorjahr');
     }
 }
