@@ -6128,7 +6128,8 @@
       "assumed": "Datum angenommen: Monatserster nach der Rechnung",
       "net_price": "Netto laut Rechnung – mit dem ausgewiesenen Steuersatz in brutto umgerechnet",
       "vat_changed": "Gleicher Preis, anderer Steuersatz",
-      "invalid_format": "Form ungültig – eine Marktlokation hat 11 Ziffern mit Prüfziffer"
+      "invalid_format": "Form ungültig – eine Marktlokation hat 11 Ziffern mit Prüfziffer",
+      "rhythm_conflict": "Rhythmus laut Rechnung passt nicht zu den Terminen"
     },
     "option": {
       "gas": "Gas",
@@ -6392,7 +6393,8 @@
       "missing": "Fehlt im Dokument, später nachtragen: {fields}",
       "unsure": "Unsicher gelesen, nicht übernommen: {fields}",
       "netPrice": "Netto laut Rechnung, mit dem ausgewiesenen Steuersatz in brutto umgerechnet (die App führt Bruttopreise).",
-      "vatChanged": "Gleicher Preis wie im Vertrag, nur ein anderer Steuersatz – die neue Preiszeile gilt ab dem Tag, den die Rechnung für sie nennt."
+      "vatChanged": "Gleicher Preis wie im Vertrag, nur ein anderer Steuersatz – die neue Preiszeile gilt ab dem Tag, den die Rechnung für sie nennt.",
+      "rhythmConflict": "Der Rhythmus laut Rechnung passt nicht zu den genannten Terminen. Übernommen sind die Termine, bitte prüfen."
     },
     "duplicate": {
       "text": "Wohl dasselbe Dokument wie „{name}“ (abgelegt am {date}). Übernimm nur eines; das andere kannst du löschen.",

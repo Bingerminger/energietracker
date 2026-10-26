@@ -51,6 +51,34 @@ final class InvoicePricesTest extends TestCase
             InvoicePrices::advancePlan($entry), 'alle drei sicher: alle 2 Monate');
     }
 
+    /** Rhythmus tolerant in den sieben Sprachen der App; Unbekanntes wird nicht geraten. */
+    public function testTheRhythmIsReadTolerantlyAndNeverGuessed(): void
+    {
+        $cases = [
+            1 => [1, '1', 'monthly', 'Monatlich', 'jeden Monat', 'mensuel', 'tous les mois', 'mensile', 'ogni mese', 'mensual', 'cada mes', 'mensal', 'maandelijks'],
+            2 => [2, 2.0, '2', 'bimonthly', 'every 2 months', 'every two months', 'every other month', 'zweimonatlich', 'alle 2 Monate', 'alle  zwei Monate',
+                  'bimestriel', 'tous les deux mois', 'bimestrale', 'ogni 2 mesi', 'bimestral', 'cada dos meses', 'a cada 2 meses', 'de 2 em 2 meses',
+                  'tweemaandelijks', 'om de 2 maanden'],
+            3 => [3, 'quarterly', 'every 3 months', 'vierteljährlich', 'quartalsweise', 'alle drei Monate', 'trimestriel', 'tous les 3 mois', 'trimestrale',
+                  'ogni tre mesi', 'trimestral', 'cada 3 meses', 'per kwartaal', 'driemaandelijks'],
+        ];
+        foreach ($cases as $n => $list) foreach ($list as $v) self::assertSame($n, InvoicePrices::everyOf($v), json_encode($v));
+        foreach ([null, '', 'weekly', 'jährlich', 'alle 4 Monate', 'bimensuel', 'bimensal', 4, 1.5, 'zwei', ['bimonthly'], true] as $v) {
+            self::assertNull(InvoicePrices::everyOf($v), json_encode($v));
+        }
+    }
+
+    public function testTheRhythmOfDatesAllowsWeekendsAndMonthEnds(): void
+    {
+        self::assertSame(2, InvoicePrices::rhythmOfDates(['2026-10-16', '2026-12-16', '2027-02-15', '2027-04-16', '2027-06-16']), 'Wochenende');
+        self::assertSame(1, InvoicePrices::rhythmOfDates(['2027-01-31', '2027-02-28', '2027-03-31']), 'Monatsletzte');
+        self::assertSame(3, InvoicePrices::rhythmOfDates(['2026-01-15', '2026-04-15']), 'zwei Termine genügen');
+        self::assertNull(InvoicePrices::rhythmOfDates(['2026-10-16']), 'einer sagt keinen Rhythmus');
+        self::assertNull(InvoicePrices::rhythmOfDates(['2026-10-16', '2026-11-16', '2027-02-16']), 'ungleichmäßig');
+        self::assertNull(InvoicePrices::rhythmOfDates(['2026-10-16', '2026-12-25']), 'mehr als drei Tage daneben');
+        self::assertNull(InvoicePrices::rhythmOfDates(['2026-01-15', '2026-07-15']), 'halbjährlich: nicht 1, 2 oder 3');
+    }
+
     public function testWithoutPartsOrWithTwoEnergyRowsNothingIsAddedUp(): void
     {
         $none = InvoicePrices::workingGroups(self::fields([

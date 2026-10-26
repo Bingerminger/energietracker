@@ -284,7 +284,12 @@ If the bill names the new advance payment with due dates (“165,00 € am
 the app takes it over like that: the amount applies **per due date**, every two
 or three months or on the dates listed; after the last date listed it continues
 yearly on the same days. Without “from” the plan starts on the first due date.
-Due dates read with doubt do not count. An advance payment change usually names
+Due dates read with doubt do not count. The app takes the rhythm from the due
+dates when at least two are evenly spaced (one, two or three months; a date may
+be shifted by up to three days, for example because of a weekend); otherwise
+from what the bill states, read in every language of the app (“zweimonatlich”,
+“alle 2 Monate”, “bimonthly” …). If the statement does not match the due dates,
+the due dates apply and the proposal is not ticked in advance. An advance payment change usually names
 only the amount: then the rhythm of the current advance payment stays. The key
 statement then also judges the new advance payment per due date, not per month.
 How balance, suggestion and forecast use it is under

@@ -50,5 +50,7 @@ export function proposalNotes(p) {
   // v3.7.0 (treffsicher, Nachbesserung 2) — Preis aus der Rechnung: netto umgerechnet, nur ein anderer Steuersatz
   if (group(p?.hints, 'vat_changed').length) out.push(t('inbox.note.vatChanged'));
   else if (group(p?.hints, 'net_price').length) out.push(t('inbox.note.netPrice'));
+  // v3.9.0 (F1034) — Rhythmus laut Rechnung gegen ihre Termine
+  if (group(p?.hints, 'rhythm_conflict').length) out.push(t('inbox.note.rhythmConflict'));
   return out;
 }

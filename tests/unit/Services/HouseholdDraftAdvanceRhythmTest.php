@@ -87,6 +87,21 @@ final class HouseholdDraftAdvanceRhythmTest extends ServiceTestCase
             $c['advance_payments'], 'je Termin, alle zwei Monate');
     }
 
+    /** „monatlich“ laut Feld, die Termine aber alle zwei Monate (eins am Wochenende verschoben): die Termine gelten, zu prüfen. */
+    public function testARhythmThatContradictsTheDatesIsTakenFromTheDatesAndChecked(): void
+    {
+        $this->invoice(['advance_new' => '110,00', 'advance_new_every' => 'monthly',
+            'advance_new_dates' => [['date' => '16.10.2026'], ['date' => '16.12.2026'], ['date' => '15.02.2027']]]);
+        $f = $this->advances($this->draft->draft(null, self::TODAY))['fields'][0];
+        self::assertSame([2, true], [$f['row']['every_months'] ?? null, $f['check']]);
+        self::assertContains('rhythm_conflict', $f['reasons']);
+        // ohne Feld: aus den Terminen, vorbelegt
+        $this->store->write('inbox.json', []);
+        $this->invoice(['advance_new' => '110,00', 'advance_new_dates' => [['date' => '16.10.2026'], ['date' => '16.12.2026'], ['date' => '15.02.2027']]]);
+        $g = $this->advances($this->draft->draft(null, self::TODAY))['fields'][0];
+        self::assertSame([2, false], [$g['row']['every_months'] ?? null, $g['check']]);
+    }
+
     public function testWithoutRhythmTheRowStaysMonthly(): void
     {
         $this->invoice(['advance_new' => '55,00', 'advance_new_from' => '01.02.2026']);
