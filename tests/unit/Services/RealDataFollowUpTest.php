@@ -82,6 +82,16 @@ final class RealDataFollowUpTest extends ServiceTestCase
         return $this->meters->list('gas')[0];
     }
 
+    /**
+     * v3.9.0 (V1, L12) — Stichtag ein halbes Jahr voraus: Die laufende Periode
+     * endet dann in fünf bis sechs Monaten, ein Abschlagsvorschlag ist möglich
+     * (ab drei Abschlägen bis zur Abrechnung), in jedem Monat des Jahres gleich.
+     */
+    private function anchorAhead(string $utility): void
+    {
+        $this->settings->set(['billing_cycle_anchor_' . $utility => date('m-01', strtotime(date('Y-m-01') . ' +6 months'))]);
+    }
+
     private function forecastService(): ForecastService
     {
         return new ForecastService($this->consumption, $this->regression, $this->settings, $this->contracts, $this->i18n);
@@ -416,6 +426,7 @@ final class RealDataFollowUpTest extends ServiceTestCase
         $meter = $this->formulaHousehold(fn($d, $h) => 5.0 + 0.3 * $h, $first, date('Y-m-d'));
         $this->contracts->create('gas', ['meter_id' => $meter['id'], 'provider' => 'Testgas', 'start' => $first,
             'working_prices' => [['from' => $first, 'ct_per_kwh' => 10]], 'advance_payments' => [['from' => $first, 'amount_eur' => 80]]]);
+        $this->anchorAhead('gas');
         $c = $this->consumption->contractStatus('gas', $meter)['contracts'][0];
         self::assertNull($c['projection_uncertain']);
         self::assertIsFloat($c['suggested_advance']);
@@ -426,6 +437,7 @@ final class RealDataFollowUpTest extends ServiceTestCase
     public function testTheWorkshopWithholdsAdvanceBandAndHeatShareOnAPoorFit(): void
     {
         $this->loadMessy();
+        $this->anchorAhead('gas');   // v3.9.0 — mit Abschlägen bis zur Abrechnung (L12)
         $r = $this->scenario()->compute(['utility' => 'gas', 'meter_id' => $this->meters->list('gas')[0]['id']]);
         self::assertTrue($r['valid']);
         self::assertContains('poor_fit', array_column($r['warnings'], 'code'));
@@ -528,8 +540,10 @@ final class RealDataFollowUpTest extends ServiceTestCase
         self::assertNull(ConsumptionService::supersededOn($alone, $this->contracts->list('gas')));
         $s = $this->consumption->contractStatus('gas', $meter)['contracts'][0];
         self::assertNull($s['superseded_on']);
+        // v3.9.0 (V1) — gezählt ab dem Beginn der laufenden Abrechnungsperiode (Stichtag 01.01.)
+        self::assertSame(date('Y') . '-01-01', $s['balance_from']);
         $months = 0;
-        for ($t = strtotime($first); date('Y-m', $t) <= date('Y-m'); $t = strtotime('+1 month', $t)) $months++;
+        for ($t = strtotime($s['balance_from']); date('Y-m', $t) <= date('Y-m'); $t = strtotime('+1 month', $t)) $months++;
         self::assertEqualsWithDelta($months * 100.0, $s['advance_paid'], 0.01, 'Abschläge bis einschließlich des laufenden Monats');
         self::assertTrue($s['is_current']);
 
@@ -669,6 +683,7 @@ final class RealDataFollowUpTest extends ServiceTestCase
         $rows = $this->consumption->forMeter('gas', $meter);
         self::assertSame('intervals', $this->consumption->heatModel('gas', $rows, $meter)['basis']);
         self::assertNull($this->anomalies->quality('gas', $rows), 'die Gütesperre kann nicht prüfen');
+        $this->anchorAhead('gas');
         $c = $this->consumption->contractStatus('gas', $meter)['contracts'][0];
         $u = $c['projection_uncertain'];
         self::assertSame(['few_measured'], $u['reasons'] ?? null);

@@ -209,7 +209,7 @@ final class AgendaService
             foreach ($this->contracts->targets($u) as $meter) {
                 if (!MeterService::inService($meter)) continue;
                 try {
-                    $status = $this->consumption->contractStatus($u, $meter);
+                    $status = $this->consumption->contractStatus($u, $meter, $today);   // v3.9.0 (V1) — derselbe Tag
                 } catch (\Throwable) {
                     continue;
                 }

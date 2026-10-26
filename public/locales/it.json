@@ -501,7 +501,13 @@
         "one": "{count} pagamento straordinario",
         "other": "{count} pagamenti straordinari"
       },
-      "sinceBill": "Calcolato dal {date}: la bolletta precedente è registrata nel contratto e qui non conta più."
+      "sinceBill": "Calcolato dal {date}: la bolletta precedente è registrata nel contratto e qui non conta più.",
+      "suggestShort": {
+        "one": "Prima del conguaglio del {date} resta solo {count} acconto. Il conguaglio salda il resto: non serve aumentare l’acconto adesso.",
+        "other": "Prima del conguaglio del {date} restano solo {count} acconti. Il conguaglio salda il resto: non serve aumentare l’acconto adesso."
+      },
+      "suggestOngoing": "Dopo, circa {amount} invece di {current} al mese sarebbero adeguati.",
+      "sincePeriod": "Calcolato dal {date}, inizio del periodo di fatturazione in corso fino al {until}. I periodi precedenti sono nell’anno di fatturazione."
     },
     "contractsTable": {
       "emptyTitle": "Nessun contratto registrato",
@@ -5677,7 +5683,8 @@
       "co2": "CO₂",
       "co2Year": "CO₂ all’anno",
       "advanceRange": "da {low} a {high}",
-      "advanceUncertain": "incerto: il modello di riscaldamento si adatta male"
+      "advanceUncertain": "incerto: il modello di riscaldamento si adatta male",
+      "advanceShort": "dopo il conguaglio del {date}"
     },
     "chart": {
       "cumTitle": "Costo cumulato",

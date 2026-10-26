@@ -203,8 +203,15 @@ final class MessyHouseholdTest extends ServiceTestCase
         self::assertEqualsWithDelta($m3, array_sum(array_column($gas, 'm3')), 0.05 * $n, 'm³ über alle Monate = Summe zwischen den Ablesungen');
         self::assertEqualsWithDelta($kwh, array_sum(array_column($gas, 'kwh')), 0.05 * $n);
         self::assertEqualsWithDelta($kwh * 0.112, array_sum(array_column($gas, 'kwh_cost')), 0.01 * $n, 'Arbeitspreis × Menge');
+        // v3.9.0 (V1) — die Karte rechnet über die laufende Abrechnungsperiode, das
+        // Abrechnungsjahr über alle: zusammen wieder die Summe zwischen den Ablesungen
+        $bills = new \Energietracker\Services\BillService($this->store, $this->meters, $this->contracts, $this->consumption, $this->i18n);
+        $bp = (new \Energietracker\Services\BillingPeriodService($this->settings, $this->meters, $this->readings, $this->consumption, $bills))
+            ->forTarget('gas', $this->meter('gas'));
+        self::assertEqualsWithDelta($kwh, array_sum(array_column($bp['periods'], 'kwh')), 0.05 * $n, 'Abrechnungsjahre zusammen = Summe zwischen den Ablesungen');
         $c = $this->consumption->contractStatus('gas', $this->meter('gas'))['contracts'][0];
-        self::assertEqualsWithDelta($kwh, $c['actual_kwh'], 0.05 * $n);
+        $inWindow = array_sum(array_map(fn($m) => (float)$m['kwh'], array_filter($gas, fn($m) => $m['ym'] >= substr((string)$c['balance_from'], 0, 7))));
+        self::assertEqualsWithDelta($inWindow, $c['actual_kwh'], 0.05, 'Karte = Monate der laufenden Periode');
         self::assertEqualsWithDelta($c['cost_to_date'] - $c['advance_paid'], $c['current_balance'], 0.02);
 
         $s = array_column($this->h['utilities']['strom']['readings'], 'counter');

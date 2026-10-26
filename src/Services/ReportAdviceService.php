@@ -317,12 +317,13 @@ final class ReportAdviceService
                 'report.advice.cancel.title', ['label' => $label],
                 'report.advice.cancel.reason', [
                     'provider' => $provider, 'date' => $this->i18n->date($cancel),
-                    'end' => $this->i18n->date((string)($c['switch_date'] ?? $c['end'] ?? $cancel)),
+                    // v3.9.0 (L1) — „endet zum“ ist der letzte Tag, nicht der Wechseltag (switch_date = Tag danach)
+                    'end' => $this->i18n->date(!empty($c['switch_date']) ? date('Y-m-d', (int)strtotime($c['switch_date'] . ' -1 day')) : (string)($c['end'] ?? $cancel)),
                 ], $euro, $cancel, $steps, true);
         } elseif (!empty($c['switchable']) && !empty($c['cancel_missed']) && !empty($c['is_current'])) {
             $out[] = $this->info('cancelMissed', $c['utility'] ?? null, 'report.advice.cancelMissed.title', ['label' => $label],
                 'report.advice.cancelMissed.reason', ['provider' => $provider,
-                    'end' => $this->i18n->date((string)($c['effective_end'] ?? $c['end'] ?? $today))], true);
+                    'end' => $this->i18n->date((string)($c['settle_date'] ?? $c['effective_end'] ?? $c['end'] ?? $today))], true);
         }
         // Preiserhöhung
         $pi = $c['price_increase'] ?? null;

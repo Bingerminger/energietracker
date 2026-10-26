@@ -501,7 +501,13 @@
         "one": "{count} pagamento extraordinário",
         "other": "{count} pagamentos extraordinários"
       },
-      "sinceBill": "Calculado a partir de {date}: a fatura anterior está registada no contrato e já não conta aqui."
+      "sinceBill": "Calculado a partir de {date}: a fatura anterior está registada no contrato e já não conta aqui.",
+      "suggestShort": {
+        "one": "Até ao acerto de {date} falta apenas {count} adiantamento. O acerto trata do resto: não é preciso aumentar o adiantamento agora.",
+        "other": "Até ao acerto de {date} faltam apenas {count} adiantamentos. O acerto trata do resto: não é preciso aumentar o adiantamento agora."
+      },
+      "suggestOngoing": "Depois, cerca de {amount} em vez de {current} por mês seriam adequados.",
+      "sincePeriod": "Calculado a partir de {date}, início do período de faturação em curso até {until}. Os períodos anteriores estão no ano de faturação."
     },
     "contractsTable": {
       "emptyTitle": "Sem contratos registados",
@@ -5677,7 +5683,8 @@
       "co2": "CO₂",
       "co2Year": "CO₂ por ano",
       "advanceRange": "de {low} a {high}",
-      "advanceUncertain": "incerto: o modelo de aquecimento se ajusta mal"
+      "advanceUncertain": "incerto: o modelo de aquecimento se ajusta mal",
+      "advanceShort": "depois do acerto de {date}"
     },
     "chart": {
       "cumTitle": "Custo acumulado",

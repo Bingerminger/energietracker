@@ -137,7 +137,7 @@ final class SummaryService
             'reading_due'        => Utilities::isCumulative($u) ? ($since === null || $since > $alertDays) : false,
             'month_to_date'      => $mtd ?? ($hasYear ? ['value' => 0.0, 'estimated' => false] : null),
             'year_to_date'       => $hasYear ? ['value' => round($ytd, 3), 'estimated' => $ytdEst] : null,
-            'contract'           => Utilities::hasContracts($u) ? $this->contract($u, $m) : null,
+            'contract'           => Utilities::hasContracts($u) ? $this->contract($u, $m, $today) : null,
             'forecast_12m'       => $this->forecast($u, $m, $vf),
             'tank'               => Utilities::isDelivery($u) ? $this->tank($u, $m) : null,
             'capture'            => $isPeriod ? 'period' : 'counter',   // H3: Verbrauch je Zeitraum
@@ -145,10 +145,10 @@ final class SummaryService
     }
 
     /** @return array<string,mixed>|null laufender Vertrag (ohne Schattenverträge) */
-    private function contract(string $u, array $m): ?array
+    private function contract(string $u, array $m, ?string $today = null): ?array
     {
         try {
-            $status = $this->consumption->contractStatus($u, $m);
+            $status = $this->consumption->contractStatus($u, $m, $today);   // v3.9.0 (V1) — derselbe Tag wie die Übersicht
         } catch (\Throwable) {
             return null;
         }

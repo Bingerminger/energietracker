@@ -254,26 +254,42 @@ final class ScenarioServiceTest extends ServiceTestCase
 
     // ── Abschlag und Saldo zur nächsten Abrechnung (F1030) ──────────────
 
+    /**
+     * v3.9.0 (V1) — eine Projektion: Der Ausgangsfall der Werkstatt ist die Saldo-Karte
+     * (Vertragsstatus, laufende Abrechnungsperiode), das Szenario ändert nur, was ab heute
+     * noch kommt. Bis v3.8 rechnete die Werkstatt ab der letzten Ablesung selbst und legte
+     * das Szenario auch auf schon vergangene, nicht abgelesene Monate.
+     */
     public function testAdvanceAndBalanceAtTheNextBill(): void
     {
+        // Stichtag ein halbes Jahr voraus: genug Abschläge bis zur Abrechnung (L12), in jedem Monat gleich
+        $anchor = date('m-01', strtotime(date('Y-m-01') . ' +6 months'));
+        $this->settings->set(['billing_cycle_anchor_gas' => $anchor]);
         $base = $this->scenario();
         $r = $this->scenario(['saving_pct' => 25]);
-        self::assertNotNull($r['billing'], 'laufende Abrechnungsperiode (Stichtag 01.01.)');
-        self::assertSame(date('Y') . '-12-31', $r['billing']['until']);
-        $diff = 0.0; $left = 0;
+        self::assertNotNull($r['billing'], 'laufende Abrechnungsperiode');
+        $until = date('Y-m-d', strtotime(date('Y-m-01') . ' +6 months -1 day'));
+        self::assertSame([$until, $until], [$r['billing']['until'], $r['billing']['settle_on']]);
+        $card = $this->consumption->contractStatus('gas', $this->meters->get('gas', $this->meterId))['contracts'][0];
+        self::assertSame($card['projected_end_balance'], $r['billing']['base_end_balance'], 'Ausgangsfall = Saldo-Karte');
+        self::assertSame($card['current_balance'], $r['billing']['balance_so_far']);
+        self::assertSame($card['months_left'], $r['billing']['months_left']);
+        self::assertSame(5, $r['billing']['months_left'], 'Abschläge nach dem laufenden Monat bis zur Abrechnung');
+        // das Szenario wirkt ab heute: je Prognosemonat der Anteil seiner Tage in [heute, Abrechnungstag]
+        $today = date('Y-m-d');
+        $diff = 0.0;
         foreach ($r['months'] as $m) {
-            if ($m['ym'] > date('Y') . '-12') break;
-            $diff += $m['scen_cost'] - $m['base_cost'];
-            $left++;
+            $ms = $m['ym'] . '-01'; $me = date('Y-m-t', strtotime($ms));
+            $a = max($ms, $today); $b = min($me, $until);
+            if ($a > $b) continue;
+            $diff += ($m['scen_cost'] - $m['base_cost']) * ((strtotime("$b 12:00") - strtotime("$a 12:00")) / 86400 + 1) / (int)date('t', strtotime($ms));
         }
-        self::assertSame($left, $r['billing']['months_left']);
         self::assertEqualsWithDelta($diff, $r['billing']['scen_end_balance'] - $r['billing']['base_end_balance'], 0.05);
         self::assertSame($base['billing']['base_end_balance'], $r['billing']['base_end_balance']);
-        if ($left >= 1) {
-            self::assertSame('billing_period', $r['advance']['method']);
-            self::assertEqualsWithDelta(max(0, round(100 + $r['billing']['scen_end_balance'] / $left)), $r['advance']['scen_recommended'], 0.01);
-            self::assertLessThanOrEqual($r['advance']['base_recommended'], $r['advance']['scen_recommended'], 'sparen senkt den Vorschlag');
-        }
+        self::assertSame('billing_period', $r['advance']['method']);
+        self::assertSame($card['suggested_advance'], $r['advance']['base_recommended'], 'Vorschlag wie die Karte');
+        self::assertEqualsWithDelta(max(0, round(100 + $r['billing']['scen_end_balance'] / 5)), $r['advance']['scen_recommended'], 0.01);
+        self::assertLessThanOrEqual($r['advance']['base_recommended'], $r['advance']['scen_recommended'], 'sparen senkt den Vorschlag');
         // mit Periode wie der Vorschlag im Vertragsstatus: Abschlag + Endsaldo ÷ verbleibende Monate
         $byPeriod = ScenarioService::advance([['advance' => 100.0]], [0.0], [0.0],
             ['months_left' => 3, 'base_end_balance' => 60.0, 'scen_end_balance' => 120.0]);

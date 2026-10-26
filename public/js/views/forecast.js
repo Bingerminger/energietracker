@@ -484,12 +484,16 @@ export async function render(container, params = [], ctx = {}) {
       kpi(t('scenario.kpi.qtyYear'), esc(fmt.unit(tot.scenario.qty, unit)),
         esc(tot.delta.qty_pct != null ? pctSigned(tot.delta.qty_pct) : ''), tot.delta.qty > 0 ? 'negative' : tot.delta.qty < 0 ? 'positive' : ''),
       // v3.7.0 (wirklichkeit-2) — Gütesperre: Spanne statt Betrag
+      // v3.9.0 (L12) — kurz vor der Abrechnung kein Nachholbetrag, sondern der laufende Bedarf danach
       kpi(t('scenario.kpi.advance'), esc(result.advance.uncertain?.scen_range
           ? t('scenario.kpi.advanceRange', { low: fmt.eur0(result.advance.uncertain.scen_range[0]), high: fmt.eur0(result.advance.uncertain.scen_range[1]) })
+          : result.advance.withheld === 'short' && result.advance.scen_ongoing != null ? fmt.eur(result.advance.scen_ongoing)
           : fmt.eur(result.advance.scen_recommended)),
         esc([result.advance.current != null ? t('scenario.kpi.advanceNow', { amount: fmt.eur(result.advance.current) }) : '',
-          result.advance.uncertain ? t('scenario.kpi.advanceUncertain') : ''].filter(Boolean).join(' · '))),
-      ...(balScen ? [kpi(t('scenario.kpi.balance', { date: fmt.date(billing.until) }), `<span class="${balScen.cls}">${esc(balScen.word)} ${esc(fmt.eur(balScen.amount))}</span>`,
+          result.advance.uncertain ? t('scenario.kpi.advanceUncertain') : '',
+          result.advance.withheld === 'short' && !result.advance.uncertain ? t('scenario.kpi.advanceShort', { date: fmt.date(billing?.settle_on || billing?.until) }) : ''].filter(Boolean).join(' · '))),
+      // v3.9.0 (L1) — derselbe Abrechnungstag wie die Saldo-Karte
+      ...(balScen ? [kpi(t('scenario.kpi.balance', { date: fmt.date(billing.settle_on || billing.until) }), `<span class="${balScen.cls}">${esc(balScen.word)} ${esc(fmt.eur(balScen.amount))}</span>`,
         esc(t('scenario.kpi.balanceBase', { amount: balanceView(billing.base_end_balance, u)?.signed ?? '–' })), '', 'advanced')] : []),
       ...(tot.delta.co2_kg != null ? [kpi(t('scenario.kpi.co2Year'), esc(`${fmt.int(tot.scenario.co2_kg)} kg`),
         esc(`${signed(tot.delta.co2_kg, fmt.int)} kg`), tot.delta.co2_kg > 0 ? 'negative' : tot.delta.co2_kg < 0 ? 'positive' : '', 'advanced')] : []),

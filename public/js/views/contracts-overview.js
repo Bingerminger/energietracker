@@ -193,12 +193,12 @@ function meterBlock(u, meter, contracts, showMeter, who = {}) {
   // v3.7.0 (Nachlauf vor dem Release) — unsichere Schätzung: die Spanne der Saldo-Karte statt eines Betrags
   const expected = c.projected_end_balance != null && c.projection_uncertain
     ? `<div class="contract-overview__expected" data-role="expected-range">
-        ${escapeHtml(t('contractsOverview.expected', { date: fmt.date(c.effective_end) }))}
+        ${escapeHtml(t('contractsOverview.expected', { date: fmt.date(c.settle_on || c.effective_end) }))}
         <strong>${escapeHtml(uncertainRangeText(c.projection_uncertain))}</strong> <span class="muted">(${escapeHtml(t('balanceUncertain.verdict'))})</span>
       </div>`
     : c.projected_end_balance != null && verdict
     ? `<div class="contract-overview__expected">
-        ${escapeHtml(t('contractsOverview.expected', { date: fmt.date(c.effective_end) }))}
+        ${escapeHtml(t('contractsOverview.expected', { date: fmt.date(c.settle_on || c.effective_end) }))}
         <strong class="${good ? 'success-text' : bad ? 'danger-text' : ''}">${escapeHtml(t('utility.verdict.' + verdict))} ${
           verdict === 'balanced' ? '' : fmt.eur(Math.abs(c.projected_end_balance))}</strong>
       </div>`

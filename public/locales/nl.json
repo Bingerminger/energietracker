@@ -501,7 +501,13 @@
         "one": "{count} bijzondere betaling",
         "other": "{count} bijzondere betalingen"
       },
-      "sinceBill": "Gerekend vanaf {date}: de afrekening daarvoor is in het contract geboekt en telt hier niet meer mee."
+      "sinceBill": "Gerekend vanaf {date}: de afrekening daarvoor is in het contract geboekt en telt hier niet meer mee.",
+      "suggestShort": {
+        "one": "Tot de afrekening op {date} rest nog maar {count} voorschot. De afrekening verrekent de rest, dus het voorschot hoeft nu niet omhoog.",
+        "other": "Tot de afrekening op {date} resten nog maar {count} voorschotten. De afrekening verrekent de rest, dus het voorschot hoeft nu niet omhoog."
+      },
+      "suggestOngoing": "Daarna zou ongeveer {amount} in plaats van {current} per maand passend zijn.",
+      "sincePeriod": "Gerekend vanaf {date}, het begin van de lopende afrekenperiode tot {until}. Eerdere periodes staan onder afrekenjaar."
     },
     "contractsTable": {
       "emptyTitle": "Geen contracten geregistreerd",
@@ -5677,7 +5683,8 @@
       "co2": "CO₂",
       "co2Year": "CO₂ per jaar",
       "advanceRange": "{low} tot {high}",
-      "advanceUncertain": "onzeker: het verwarmingsmodel past slecht"
+      "advanceUncertain": "onzeker: het verwarmingsmodel past slecht",
+      "advanceShort": "na de afrekening op {date}"
     },
     "chart": {
       "cumTitle": "Cumulatieve kosten",

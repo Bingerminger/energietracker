@@ -904,10 +904,13 @@ async function renderBeginner(container, { utilities, datasets, todo, settings }
     const v = Number(m.contract.projected_end_balance);
     const credit = v < 0, even = Math.abs(v) < 1;
     const text = even ? t('dashboard.beginner.money.even')
-      : t(credit ? 'dashboard.beginner.money.credit' : 'dashboard.beginner.money.due', { amount: fmt.eur(Math.abs(v)) });
+      // v3.9.0 (L2) — „rund“ nur mit gerundeter Zahl
+      : t(credit ? 'dashboard.beginner.money.credit' : 'dashboard.beginner.money.due', { amount: fmt.eur0(Math.abs(v)) });
+    // v3.9.0 (L1) — der letzte Tag des Abrechnungszeitraums, wie überall
+    const until = m.contract.period_last_day || m.contract.period_end;
     return `<li class="dash-answer__row"><span aria-hidden="true">${escapeHtml(u.icon)}</span>
       <span><strong>${escapeHtml(u.label)}:</strong> <span class="${even ? '' : credit ? 'success-text' : 'danger-text'}">${escapeHtml(text)}</span>
-      ${m.contract.period_end ? `<span class="muted small"> · ${escapeHtml(t('dashboard.beginner.money.until', { date: fmt.date(m.contract.period_end) }))}</span>` : ''}</span></li>`;
+      ${until ? `<span class="muted small"> · ${escapeHtml(t('dashboard.beginner.money.until', { date: fmt.date(until) }))}</span>` : ''}</span></li>`;
   });
 
   const trendLines = datasets.filter(d => (d.consumption?.monthly_total || []).length).map(({ utility: u, consumption }) => {
@@ -984,7 +987,7 @@ function tenancyAnswerHtml(b) {
   const r = Number(b.projected_result_eur);
   if (!Number.isFinite(r)) return '';
   const credit = r <= 0;
-  const text = t(credit ? 'dashboard.beginner.rent.enough' : 'dashboard.beginner.rent.short', { amount: fmt.eur(Math.abs(r)) });
+  const text = t(credit ? 'dashboard.beginner.rent.enough' : 'dashboard.beginner.rent.short', { amount: fmt.eur0(Math.abs(r)) });   // v3.9.0 (L2)
   return `<section class="card dash-answer" aria-labelledby="dash-a-rent">
     <h2 class="card__title" id="dash-a-rent"><span aria-hidden="true">🏢</span> ${escapeHtml(t('dashboard.beginner.rent.title'))}</h2>
     <p class="${credit ? 'success-text' : 'danger-text'}">${escapeHtml(text)}</p>

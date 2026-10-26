@@ -501,7 +501,13 @@
         "one": "{count} Sonderzahlung",
         "other": "{count} Sonderzahlungen"
       },
-      "sinceBill": "Gerechnet ab {date}: Die Rechnung davor ist im Vertrag gebucht und zählt hier nicht mehr mit."
+      "sinceBill": "Gerechnet ab {date}: Die Rechnung davor ist im Vertrag gebucht und zählt hier nicht mehr mit.",
+      "suggestShort": {
+        "one": "Bis zur Abrechnung am {date} bleibt nur noch {count} Abschlag. Den Rest gleicht die Abrechnung aus; dafür musst du den Abschlag jetzt nicht erhöhen.",
+        "other": "Bis zur Abrechnung am {date} bleiben nur noch {count} Abschläge. Den Rest gleicht die Abrechnung aus; dafür musst du den Abschlag jetzt nicht erhöhen."
+      },
+      "suggestOngoing": "Danach wären rund {amount} statt {current} im Monat angemessen.",
+      "sincePeriod": "Gerechnet ab {date}, dem Beginn der laufenden Abrechnungsperiode bis {until}. Frühere Perioden stehen im Abrechnungsjahr."
     },
     "contractsTable": {
       "emptyTitle": "Keine Verträge erfasst",
@@ -5677,7 +5683,8 @@
       "co2": "CO₂",
       "co2Year": "CO₂ im Jahr",
       "advanceRange": "{low} bis {high}",
-      "advanceUncertain": "unsicher: das Heizmodell passt schlecht"
+      "advanceUncertain": "unsicher: das Heizmodell passt schlecht",
+      "advanceShort": "nach der Abrechnung am {date}"
     },
     "chart": {
       "cumTitle": "Kosten kumuliert",

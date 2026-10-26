@@ -501,7 +501,13 @@
         "one": "{count} pago extraordinario",
         "other": "{count} pagos extraordinarios"
       },
-      "sinceBill": "Calculado desde el {date}: la factura anterior está registrada en el contrato y aquí ya no cuenta."
+      "sinceBill": "Calculado desde el {date}: la factura anterior está registrada en el contrato y aquí ya no cuenta.",
+      "suggestShort": {
+        "one": "Antes de la liquidación del {date} solo queda {count} anticipo. La liquidación salda el resto: no hace falta subir el anticipo ahora.",
+        "other": "Antes de la liquidación del {date} solo quedan {count} anticipos. La liquidación salda el resto: no hace falta subir el anticipo ahora."
+      },
+      "suggestOngoing": "Después, unos {amount} en lugar de {current} al mes serían adecuados.",
+      "sincePeriod": "Calculado desde el {date}, inicio del periodo de facturación en curso hasta el {until}. Los periodos anteriores están en el año de facturación."
     },
     "contractsTable": {
       "emptyTitle": "Sin contratos registrados",
@@ -5677,7 +5683,8 @@
       "co2": "CO₂",
       "co2Year": "CO₂ al año",
       "advanceRange": "de {low} a {high}",
-      "advanceUncertain": "incierto: el modelo de calefacción se ajusta mal"
+      "advanceUncertain": "incierto: el modelo de calefacción se ajusta mal",
+      "advanceShort": "después de la liquidación del {date}"
     },
     "chart": {
       "cumTitle": "Coste acumulado",

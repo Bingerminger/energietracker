@@ -19,6 +19,13 @@ use PHPUnit\Framework\Attributes\CoversClass;
 #[CoversClass(ConsumptionService::class)]
 final class ContractStatusSpecialPaymentsTest extends ServiceTestCase
 {
+    /**
+     * v3.9.0 (V1) — Stand während des Vertragsjahres 2024: Der Saldo rechnet über
+     * die laufende Abrechnungsperiode; danach (der Vertrag liefe als Verlängerung
+     * weiter) gälte die Periode des neuen Jahres ohne diese Zahlungen.
+     */
+    private const TODAY = '2024-12-20';
+
     private function seedGasContract(array $specialPayments): array
     {
         $meter = $this->meters->create('gas', [
@@ -49,7 +56,7 @@ final class ContractStatusSpecialPaymentsTest extends ServiceTestCase
             ['date' => '2024-09-01', 'kind' => 'nachzahlung_ohne',  'amount_eur' => 30.0],
             ['date' => '2024-11-01', 'kind' => 'abschlagszahlung',  'amount_eur' => 25.0],
         ]);
-        $c = $this->consumption->contractStatus('gas', $meter)['contracts'][0];
+        $c = $this->consumption->contractStatus('gas', $meter, self::TODAY)['contracts'][0];
 
         self::assertArrayHasKey('special_payments', $c);
         self::assertCount(3, $c['special_payments']);
@@ -72,7 +79,7 @@ final class ContractStatusSpecialPaymentsTest extends ServiceTestCase
         $meter = $this->seedGasContract([
             ['date' => '2024-06-01', 'kind' => 'nachzahlung_ohne', 'amount_eur' => -40.0],
         ]);
-        $c = $this->consumption->contractStatus('gas', $meter)['contracts'][0];
+        $c = $this->consumption->contractStatus('gas', $meter, self::TODAY)['contracts'][0];
         self::assertEqualsWithDelta(40.0, $c['special_payments'][0]['amount_eur'], 1e-9);
         self::assertEqualsWithDelta(-40.0, $c['special_payment_net'], 1e-9, 'gezahlt zählt negativ');
     }
@@ -80,7 +87,7 @@ final class ContractStatusSpecialPaymentsTest extends ServiceTestCase
     public function testContractWithoutSpecialPaymentsHasAnEmptyList(): void
     {
         $meter = $this->seedGasContract([]);
-        $c = $this->consumption->contractStatus('gas', $meter)['contracts'][0];
+        $c = $this->consumption->contractStatus('gas', $meter, self::TODAY)['contracts'][0];
         self::assertSame([], $c['special_payments']);
         self::assertEqualsWithDelta(0.0, $c['special_payment_net'], 1e-9);
     }

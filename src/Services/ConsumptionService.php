@@ -66,6 +66,15 @@ final class ConsumptionService
     private const MONTH_DAYS = 365.25 / 12;
 
     /**
+     * v3.9.0 (L12) — Ein Abschlagsvorschlag, der den erwarteten Rest bis zur
+     * Abrechnung nachholt, erst ab so vielen verbleibenden Abschlägen. Darunter
+     * vervielfacht er den Abschlag für ein, zwei Monate (Testhaushalt: 208 €
+     * statt 75 €), obwohl die Abrechnung den Rest ohnehin ausgleicht und danach
+     * wieder der laufende Bedarf gilt; die Karte nennt dann diesen.
+     */
+    public const SUGGEST_MIN_MONTHS = 3;
+
+    /**
      * Meter ids currently being computed — recursion guard for the
      * Schmutzwasser `separater_zaehler` lookup (a meter referencing another
      * meter as its waste-water measurement basis). Prevents infinite
@@ -225,7 +234,7 @@ final class ConsumptionService
      * Future months past `today` are projected using the average kwh/HGT of the
      * actual months in this contract (linear with seasonality from HDD).
      */
-    public function contractStatus(string $utility, array $meter): array
+    public function contractStatus(string $utility, array $meter, ?string $today = null): array
     {
         $contracts = $this->contracts->list($utility, $meter['id']);
         // v1.3.0 — Schattenverträge tauchen im Vertragsstatus nicht auf
@@ -234,7 +243,15 @@ final class ConsumptionService
             $contracts, fn($c) => empty($c['is_shadow'])
         ));
         $monthly   = $this->forMeter($utility, $meter);
-        $today     = date('Y-m-d');
+        // v3.9.0 (V1) — `$today` von außen (Werkstatt, Bericht, Tests mit festem Tag), sonst heute
+        $today   ??= date('Y-m-d');
+        // v3.9.0 (V1) — die laufende Abrechnungsperiode der Abrechnungsjahre
+        // (BillingPeriodService): Saldo, Abrechnungstag und Abschlagsvorschlag
+        // jedes Vertrags, der in sie fällt, rechnen über genau diese Periode —
+        // auch ohne erfasste Rechnung. Bis v3.7 zählte die Karte ohne Rechnung
+        // ab Vertragsbeginn (im Testhaushalt drei Jahre Guthaben seit 11/2022),
+        // die Werkstatt das laufende Abrechnungsjahr.
+        $running = Utilities::isFeedIn($utility) ? null : $this->runningPeriod($utility, $meter, $today);
         // v3.6.0 (F1030) — Tag nach der letzten erfassten Versorgerrechnung
         // dieses Zählers (bzw. der Mitglieder einer Gruppe) und die
         // Sonderzahlungen, die Rechnungen ausgleichen
@@ -324,13 +341,46 @@ final class ConsumptionService
             // BillingPeriodService). Ohne gebuchte Rechnung nach Vertragsbeginn
             // bleibt alles wie bisher.
             $balanceFrom = (string)($c['start'] ?? '');
-            $windowed = $isCur && $settledFrom !== null && $settledFrom > $balanceFrom && $settledFrom <= $today;
+            // v3.9.0 (V1) — der Teil des Vertrags in der laufenden Abrechnungsperiode:
+            // [max(Beginn, Periodenbeginn), min(Ende, Periodenende)]. Ein weiterlaufender
+            // Vertrag hat kein Ende mehr; ein abgelöster endet am Tag vor dem Folgevertrag.
+            $period = null; $settleOn = null; $ownEnd = null;
+            $cEnd = $renewed ? null : ((string)($c['end'] ?? '') ?: null);
+            // offen seit (BillingPeriodService::runningPeriodFor): Periodenbeginn, oder der Tag
+            // nach der letzten Rechnung, wenn der Stichtag nicht zu ihr passt
+            $openFrom = $running !== null ? (string)($running['open_from'] ?? $running['from']) : null;
+            if ($running !== null && $balanceFrom !== '' && $balanceFrom <= $running['until'] && ($cEnd === null || $cEnd >= $openFrom)) {
+                $period = $running;
+                // eigener Teil bis zum Ende des Vertrags, höchstens bis zum Ende der Periode
+                $ownEnd = $cEnd !== null && $cEnd < $running['until'] ? $cEnd : $running['until'];
+                // Abrechnungstag: das Periodenende; endet der Vertrag vorher ohne Folgevertrag
+                // desselben Versorgers in der Periode, sein Ende (Schlussrechnung). Ein
+                // Folgevertrag eines anderen Versorgers teilt die Periode ohnehin dort.
+                $settleOn = $running['until'];
+                if ($ownEnd === $cEnd) {
+                    $succ = ContractService::successorOf($c, $contracts, $renewed);
+                    $succC = $succ !== null ? (array_values(array_filter($contracts, fn($o) => ($o['id'] ?? null) === $succ['contract_id']))[0] ?? null) : null;
+                    $continues = $succC !== null && (string)$succC['start'] <= $running['until'] && ContractService::sameSupplier($c, $succC);
+                    if (!$continues) $settleOn = $cEnd;
+                }
+                // Abrechnungstag exklusiv wie bisher (`effective_end`): das gepflegte Ende selbst, sonst der Tag nach der Periode
+                $effEnd = $settleOn === $cEnd ? $cEnd : (new \DateTimeImmutable($settleOn))->modify('+1 day')->format('Y-m-d');
+            }
+            $windowed = $period !== null
+                ? $openFrom > $balanceFrom
+                : $isCur && $settledFrom !== null && $settledFrom > $balanceFrom && $settledFrom <= $today;
             if ($windowed) {
-                $balanceFrom = $settledFrom;
+                $balanceFrom = $period !== null ? $openFrom : $settledFrom;
                 $mList = self::rowsFrom($mList, $balanceFrom);
             }
+            // v3.9.0 (V1) — in einer angeschnittenen Abrechnungsperiode zählt von den
+            // Sonderzahlungen nur die zusätzliche Abschlagszahlung: Rück- und
+            // Nachzahlungen gleichen eine frühere Abrechnung aus (wie im
+            // Abrechnungsjahr, BillingPeriodService::specialPayments)
             $cBalance = $windowed
-                ? ['special_payments' => self::paymentsFrom($c['special_payments'] ?? [], $balanceFrom, $billPayments)] + $c
+                ? ['special_payments' => $period !== null
+                    ? self::periodPayments($c['special_payments'] ?? [], $balanceFrom, $ownEnd, $billPayments)
+                    : self::paymentsFrom($c['special_payments'] ?? [], $balanceFrom, $billPayments)] + $c
                 : $c;
 
             // Aggregate over the months we actually have for this contract
@@ -375,7 +425,7 @@ final class ConsumptionService
             $currentBalance = round($actualCost - $advancePaid + $spSummary['net'], 2);
 
             // Current tariff values (those valid today, for the active contract).
-            [$y, $mn] = [(int)date('Y'), (int)date('n')];
+            [$y, $mn] = [(int)substr($today, 0, 4), (int)substr($today, 5, 2)];
             if ($utility === 'wasser') {
                 $tw = $c['trinkwasser']         ?? [];
                 $sw = $c['schmutzwasser']       ?? [];
@@ -408,7 +458,8 @@ final class ConsumptionService
                 // v2.8.0 (Review CALC-02) — Saldo nach Kalender statt nach
                 // Ablesemonaten, Hochrechnung mit Wetter statt Durchschnitt.
                 $projection = $this->balanceProjection($utility, $meter, $c, $monthly, $today, $effEnd, $spSummary['net'], $renewed, $isCur,
-                    $windowed ? $balanceFrom : null, $windowed ? $cBalance['special_payments'] : null);
+                    $windowed ? $balanceFrom : null, $windowed ? $cBalance['special_payments'] : null,
+                    $ownEnd !== null ? (new \DateTimeImmutable($ownEnd))->modify('+1 day')->format('Y-m-d') : null);
                 $currentBalance = $projection['current_balance'];
                 $projected      = $projection['projected_end_balance'];
                 $advancePaid    = $projection['advance_paid'];
@@ -499,6 +550,12 @@ final class ConsumptionService
                 // v3.7.0 (wirklichkeit-2) — kein Arbeitspreis: Kosten ohne Verbrauch (additiv)
                 'price_missing'               => self::lacksWorkingPrice($utility, $c),
                 'effective_end'               => $effEnd,
+                // v3.9.0 (V1, L1) — eine Regel für alle Ansichten: der letzte Tag des
+                // Abrechnungszeitraums (einschließlich), dazu die Periode, über die der
+                // Saldo rechnet (laufende Abrechnungsperiode; null außerhalb von ihr)
+                'settle_on'                   => $settleOn ?? self::lastDayOf($effEnd, $hasEnd ? (string)$c['end'] : null),
+                'billing_period'              => $period !== null
+                    ? ['from' => $period['from'], 'until' => $period['until'], 'open_from' => $openFrom, 'source' => $period['source'], 'bill_id' => $period['bill_id']] : null,
                 'is_current'                  => $isCur,
                 'is_past'                     => $isPast,
                 'is_future'                   => $isFut,
@@ -562,6 +619,11 @@ final class ConsumptionService
                     'estimated_cost_remaining' => $projection['estimated_cost_remaining'],
                     'advance_remaining'        => $projection['advance_remaining'],
                     'suggested_advance'        => $projection['suggested_advance'],
+                    // v3.9.0 (L12) — additiv: Abschläge bis zur Abrechnung, laufend angemessener
+                    // Abschlag (12 Monate danach ÷ 12), `short` = kein Nachholbetrag kurz vorher
+                    'months_left'              => $projection['months_left'],
+                    'advance_ongoing'          => $projection['advance_ongoing'],
+                    'suggestion_withheld'      => $projection['suggestion_withheld'],
                     // v3.7.0 (wirklichkeit-2) — {reasons, factor, factor_raw, factor_part, factor_limits,
                     // fit_ratio, base_load_per_day, projected_range, suggested_range} oder null (additiv)
                     'projection_uncertain'     => $projection['uncertain'],
@@ -779,7 +841,7 @@ final class ConsumptionService
     }
 
     private function balanceProjection(string $utility, array $meter, array $c, array $monthly, string $today, string $effEnd, float $specialNet, bool $renewed = false, bool $withPath = false,
-        ?string $from = null, ?array $payments = null): array
+        ?string $from = null, ?array $payments = null, ?string $endExclOverride = null): array
     {
         if ($utility === 'wasser') $c = self::waterBalanceView($c, $monthly);   // v3.7.0 (#34-Nachzug)
         // v3.6.0 (F1030) — `$from`: Saldo ab dem Tag nach der letzten Rechnung
@@ -788,7 +850,10 @@ final class ConsumptionService
         $payments ??= $c['special_payments'] ?? [];
         // Ende exklusiv: ein gepflegtes Vertragsende gehört noch dazu, der
         // Abrechnungstag eines offenen oder weiterlaufenden Vertrags nicht mehr.
-        $endExcl = !empty($c['end']) && !$renewed ? date('Y-m-d', strtotime($c['end'] . ' +1 day')) : $effEnd;
+        // v3.9.0 (V1) — in der laufenden Abrechnungsperiode der Tag nach ihrem
+        // letzten Tag (bzw. nach dem Vertragsende, wenn es vorher kommt)
+        $endExcl = $endExclOverride
+            ?? (!empty($c['end']) && !$renewed ? date('Y-m-d', strtotime($c['end'] . ' +1 day')) : $effEnd);
         if ($endExcl <= $start) $endExcl = date('Y-m-d', strtotime($start . ' +1 day'));
         $asOf = min(max($today, $start), $endExcl);   // heute, eingeklemmt in den Vertrag
 
@@ -873,6 +938,29 @@ final class ConsumptionService
                 $curAp !== null ? (float)$curAp : null, $monthsLeft, $asOf === $today)
             : null;
         if ($uncertain !== null) $suggested = null;
+        // v3.9.0 (L12) — kurz vor der Abrechnung (weniger als SUGGEST_MIN_MONTHS
+        // Abschläge bis dahin) kein Nachholbetrag: Den Fehlbetrag auf ein, zwei
+        // Abschläge zu legen, vervielfacht sie („208 € statt 75 €“), und nach der
+        // Abrechnung gilt wieder der laufende Bedarf. Den Rest gleicht die
+        // Abrechnung aus; dazu der laufend angemessene Abschlag.
+        $withheld = null;
+        if ($monthsLeft >= 1 && $monthsLeft < self::SUGGEST_MIN_MONTHS && $asOf === $today && $curAp !== null) {
+            if ($suggested !== null) $withheld = 'short';
+            $suggested = null;
+            if ($uncertain !== null) $uncertain['suggested_range'] = null;
+        }
+        // v3.9.0 (L12) — laufend angemessener Abschlag: geschätzte Kosten der zwölf
+        // Monate nach diesem Abrechnungszeitraum (Arbeitspreis wie die Schätzung,
+        // Grundpreis zum letzten Preis) ÷ 12, auf ganze Euro. Nur, wenn die
+        // Schätzung sicher ist.
+        $ongoing = null;
+        if ($est !== null && $uncertain === null && $curAp !== null && $asOf === $today) {
+            $next = date('Y-m-d', strtotime($endExcl . ' +1 year'));
+            $priceDay = $end !== '' && $endExcl > $end ? $end : $endExcl;
+            $fixed = (float)($this->contracts->fixedPerMonthOn($c, $priceDay) ?? 0.0);
+            $yearCost = $energy($endExcl, $next) + 12 * $fixed;
+            if ($yearCost > 0) $ongoing = (float)round($yearCost / 12);
+        }
 
         // v2.16.0 (Review FE-31) — dieselbe Rechnung als Monatsreihe für den
         // Saldo-Verlauf: je Monat die Kosten (gemessen, geschätzt, Grundpreis,
@@ -961,6 +1049,11 @@ final class ConsumptionService
             'current_balance'          => $current,
             'projected_end_balance'    => $projected,
             'suggested_advance'        => $suggested,
+            // v3.9.0 (L12) — Abschläge bis zur Abrechnung, laufend angemessener Abschlag,
+            // warum kein Vorschlag (`short`: weniger als SUGGEST_MIN_MONTHS Monate)
+            'months_left'              => $monthsLeft,
+            'advance_ongoing'          => $ongoing,
+            'suggestion_withheld'      => $withheld,
             'uncertain'                => $uncertain,
             'path'                     => $path,
         ];
@@ -1536,6 +1629,66 @@ final class ConsumptionService
     }
 
     /**
+     * v3.9.0 (V1) — Die laufende Abrechnungsperiode eines Zählers bzw. einer
+     * Gruppe (BillingPeriodService::runningPeriodFor), je Anfrage einmal.
+     *
+     * @return array<string,mixed>|null
+     */
+    public function runningPeriod(string $utility, array $meter, string $today): ?array
+    {
+        $key = $utility . '|' . ($meter['id'] ?? '') . '|' . $today . '|' . $this->store->generation();
+        if (array_key_exists($key, $this->runningMemo)) return $this->runningMemo[$key];
+        try {
+            $p = $this->billingPeriods()->runningPeriodFor($utility, $meter, $today);
+        } catch (\InvalidArgumentException) {
+            $p = null;
+        }
+        return $this->runningMemo[$key] = $p;
+    }
+
+    /** @var array<string,?array> v3.9.0 — runningPeriod() je Anfrage */
+    private array $runningMemo = [];
+
+    private ?BillingPeriodService $billingPeriods = null;
+
+    /** v3.9.0 (V1) — Abrechnungsjahre für den Vertragsstatus (lazy, ohne Verdrahtung: dieselben Bausteine). */
+    private function billingPeriods(): BillingPeriodService
+    {
+        return $this->billingPeriods ??= new BillingPeriodService($this->settings, $this->meters, $this->readings, $this,
+            new BillService($this->store, $this->meters, $this->contracts, $this, $this->i18n));
+    }
+
+    /**
+     * v3.9.0 (L1) — letzter Tag eines Abrechnungszeitraums aus `effective_end`:
+     * das gepflegte (bzw. wirksame) Vertragsende selbst, sonst der Tag vor dem
+     * Stichtag der nächsten Abrechnung.
+     */
+    private static function lastDayOf(string $effEnd, ?string $contractEnd): string
+    {
+        if ($contractEnd !== null && $contractEnd === $effEnd) return $effEnd;
+        return (new \DateTimeImmutable($effEnd))->modify('-1 day')->format('Y-m-d');
+    }
+
+    /**
+     * v3.9.0 (V1) — Sonderzahlungen, die im Saldo einer angeschnittenen
+     * Abrechnungsperiode zählen: nur zusätzliche Abschlagszahlungen, datiert in
+     * [von, bis] (bis = Abrechnungstag; ohne ihn alle ab von), kein Ausgleich
+     * einer erfassten Rechnung. Rück- und Nachzahlungen gleichen eine frühere
+     * Abrechnung aus — dieselbe Regel wie im Abrechnungsjahr.
+     *
+     * @param list<array<string,mixed>> $payments
+     * @param array<string,true> $billPayments
+     * @return list<array<string,mixed>>
+     */
+    private static function periodPayments(array $payments, string $from, ?string $until, array $billPayments): array
+    {
+        return array_values(array_filter($payments, fn($sp) => is_array($sp)
+            && (string)($sp['kind'] ?? '') === 'abschlagszahlung'
+            && (string)($sp['date'] ?? '') >= $from && ($until === null || (string)($sp['date'] ?? '') <= $until)
+            && !isset($billPayments[(string)($sp['id'] ?? '')])));
+    }
+
+    /**
      * v3.6.0 (F1030) — Sonderzahlungen, die im Saldo ab einem Tag zählen: ab
      * dem Tag datiert und kein Ausgleich einer erfassten Rechnung (der gehört
      * zu deren Zeitraum).
@@ -1570,6 +1723,9 @@ final class ConsumptionService
      */
     public static function periodLastDay(array $status): ?string
     {
+        // v3.9.0 (L1) — der Vertragsstatus sagt es selbst (auch beim abgelösten Vertrag,
+        // dessen wirksames Ende nicht das gespeicherte ist)
+        if (is_string($status['settle_on'] ?? null) && $status['settle_on'] !== '') return $status['settle_on'];
         $eff = $status['effective_end'] ?? null;
         if (!is_string($eff) || $eff === '') return null;
         if ($eff === (string)($status['end'] ?? '')) return $eff;

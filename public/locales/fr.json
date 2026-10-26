@@ -501,7 +501,13 @@
         "one": "{count} paiement exceptionnel",
         "other": "{count} paiements exceptionnels"
       },
-      "sinceBill": "Calculé à partir du {date} : la facture précédente est comptabilisée dans le contrat et n’entre plus en compte ici."
+      "sinceBill": "Calculé à partir du {date} : la facture précédente est comptabilisée dans le contrat et n’entre plus en compte ici.",
+      "suggestShort": {
+        "one": "Il ne reste que {count} acompte avant le décompte du {date}. Le décompte règle le reste : inutile d’augmenter l’acompte maintenant.",
+        "other": "Il ne reste que {count} acomptes avant le décompte du {date}. Le décompte règle le reste : inutile d’augmenter l’acompte maintenant."
+      },
+      "suggestOngoing": "Ensuite, environ {amount} au lieu de {current} par mois seraient adaptés.",
+      "sincePeriod": "Calculé à partir du {date}, début de la période de facturation en cours jusqu’au {until}. Les périodes précédentes figurent dans l’année de facturation."
     },
     "contractsTable": {
       "emptyTitle": "Aucun contrat enregistré",
@@ -5677,7 +5683,8 @@
       "co2": "CO₂",
       "co2Year": "CO₂ par an",
       "advanceRange": "{low} à {high}",
-      "advanceUncertain": "incertain : le modèle de chauffage correspond mal"
+      "advanceUncertain": "incertain : le modèle de chauffage correspond mal",
+      "advanceShort": "après le décompte du {date}"
     },
     "chart": {
       "cumTitle": "Coût cumulé",

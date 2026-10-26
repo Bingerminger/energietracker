@@ -760,11 +760,12 @@ function balanceCard(c, u, country = 'DE') {
   const verdictCls = { refund: 'refund', payout: 'refund', surcharge: 'surcharge', reclaim: 'surcharge', balanced: 'balanced' }[verdict] || 'balanced';
   const arrow = { refund: '↓', payout: '↓', surcharge: '↑', reclaim: '↑', balanced: '→' }[verdict] || '→';
   const curView = balanceView(cur, u);
-  const dateLabel = isFeedIn
-    ? t('utility.balance.dateNext', { date: fmt.date(c.effective_end) })
-    : (c.is_open_ended || c.renewed   // v2.9.0 — weiterlaufend: nächste Abrechnung, kein Vertragsende
-        ? t('utility.balance.dateNext', { date: fmt.date(c.effective_end) })
-        : t('utility.balance.dateEnd', { date: fmt.date(c.effective_end) }));
+  // v3.9.0 (V1, L1) — der Abrechnungstag ist der letzte Tag des Zeitraums (`settle_on`);
+  // „Vertragsende“ nur, wenn er das gepflegte Ende ist, sonst die nächste Abrechnung
+  const settle = c.settle_on || c.effective_end;
+  const dateLabel = !isFeedIn && !c.is_open_ended && !c.renewed && settle === c.end
+    ? t('utility.balance.dateEnd', { date: fmt.date(settle) })
+    : t('utility.balance.dateNext', { date: fmt.date(settle) });
 
   const tariffParts = [];
   const isWater = u.key === 'wasser';
@@ -793,19 +794,31 @@ function balanceCard(c, u, country = 'DE') {
       && c.suggested_advance > 0 && Math.abs(proj) > 5
       && Math.abs(c.suggested_advance - c.current_advance_amount) >= 5
     ? `<p class="balance-suggest">${t('utility.balance.suggestAdvance', { suggested: fmt.eur(c.suggested_advance), current: fmt.eur(c.current_advance_amount) })}</p>`
+    // v3.9.0 (L12) — kurz vor der Abrechnung kein Nachholbetrag: den Rest gleicht
+    // die Abrechnung aus, danach gilt der laufende Bedarf
+    : !isFeedIn && c.suggestion_withheld === 'short' && Math.abs(proj) > 5
+    ? `<p class="balance-suggest" data-role="balance-short">${escapeHtml(tp('utility.balance.suggestShort', c.months_left, {
+        count: c.months_left, date: fmt.date(settle) }) + (c.advance_ongoing != null && c.current_advance_amount != null
+        && Math.abs(c.advance_ongoing - c.current_advance_amount) >= 5
+        ? ' ' + t('utility.balance.suggestOngoing', { amount: fmt.eur0(c.advance_ongoing), current: fmt.eur(c.current_advance_amount) }) : ''))}</p>`
     : '';
   // v3.7.0 (wirklichkeit-2) — unsichere Schätzung (Kalibrierfaktor klemmt,
   // Heizmodell schlecht): Spanne und Grund statt eines Vorschlags; der Server
   // liefert dann keinen `suggested_advance`
   const unc = !isFeedIn ? c.projection_uncertain : null;
   const uncertainHtml = unc
-    ? `<p class="balance-suggest" data-role="balance-uncertain">${escapeHtml(uncertainBalanceText(unc, fmt.date(c.effective_end)))}</p>`
+    ? `<p class="balance-suggest" data-role="balance-uncertain">${escapeHtml(uncertainBalanceText(unc, fmt.date(settle)))}</p>`
     : '';
   // v2.9.0 (CALC-10, CALC-11) — weiterlaufender Vertrag, verpasste Frist,
   // angekündigte Preiserhöhung
   const notes = [];
-  // v3.6.0 (Paket abrechnung) — Saldo erst nach der letzten gebuchten Rechnung
-  if (c.balance_from && c.start && c.balance_from > c.start) notes.push(t('utility.balance.sinceBill', { date: fmt.date(c.balance_from) }));
+  // v3.6.0 (Paket abrechnung) — Saldo erst nach der letzten gebuchten Rechnung;
+  // v3.9.0 (V1) — sonst ab dem Beginn der laufenden Abrechnungsperiode (Stichtag)
+  if (c.balance_from && c.start && c.balance_from > c.start) {
+    notes.push(c.billing_period && c.billing_period.source !== 'bill'
+      ? t('utility.balance.sincePeriod', { date: fmt.date(c.balance_from), until: fmt.date(settle) })
+      : t('utility.balance.sinceBill', { date: fmt.date(c.balance_from) }));
+  }
   if (c.renewed) notes.push(t('utility.balance.renewed', { date: fmt.date(c.end) }));
   // v3.7.0 (wirklichkeit-2) — ohne Arbeitspreis: dieselbe Aussage wie im Abrechnungsjahr
   if (c.price_missing) notes.push(t('priceMissing.contract'));

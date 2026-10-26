@@ -567,7 +567,7 @@ final class ReportModelService
                 if (empty($target['is_group']) && !MeterService::inService($target)) continue;
                 // mehrere Zähler einer Art: der Name gehört in die Überschrift („Strom · Wärmepumpe“)
                 $label = $this->i18n->utilityLabel($u) . (count($targets) > 1 ? ' · ' . (string)($target['name'] ?? '') : '');
-                $status = $this->consumption->contractStatus($u, $target);
+                $status = $this->consumption->contractStatus($u, $target, $this->today);   // v3.9.0 (V1) — Stand des Berichts
                 foreach ($status['contracts'] ?? [] as $c) {
                     if (empty($c['is_current']) && empty($c['is_future'])) continue;
                     $cid = (string)($c['contract_id'] ?? '');
@@ -590,7 +590,8 @@ final class ReportModelService
                         'suggested_advance' => $c['suggested_advance'] ?? null,
                         // v3.7.0 (wirklichkeit-2) — Saldo-Schätzung unsicher: Spanne statt Vorschlag
                         'projection_uncertain' => $c['projection_uncertain'] ?? null,
-                        'settle_date' => $c['effective_end'] ?? null,
+                        // v3.9.0 (L1) — der letzte Tag des Abrechnungszeitraums, wie überall
+                        'settle_date' => $c['settle_on'] ?? ConsumptionService::periodLastDay($c),
                         'balance_path' => $c['balance_path'] ?? null,
                         'energy_cost_to_date' => $c['energy_cost_to_date'] ?? null,
                         'base_to_date' => $c['base_to_date'] ?? null,
@@ -1224,7 +1225,10 @@ final class ReportModelService
         $timelines = [];
         foreach ($contracts as $c) {
             if (empty($c['is_current']) || empty($c['start'])) continue;
-            $end = $c['is_open_ended'] ? ($c['cancel_by'] !== null ? $c['switch_date'] : null) : ($c['end'] ?? $c['effective_end']);
+            // v3.9.0 (L1) — „endet zum“: der letzte Tag (switch_date ist der Tag danach; bis v3.7 „zum 01.12.“ bei Ende 30.11.)
+            $end = $c['is_open_ended']
+                ? ($c['cancel_by'] !== null && !empty($c['switch_date']) ? date('Y-m-d', (int)strtotime($c['switch_date'] . ' -1 day')) : null)
+                : ($c['end'] ?? $c['effective_end']);
             $points = [['date' => (string)$c['start'], 'label' => $this->i18n->t('report.timeline.start'), 'text' => $this->i18n->date((string)$c['start'])]];
             if ($c['cancel_by'] !== null && $c['switchable']) {
                 $points[] = ['date' => (string)$c['cancel_by'], 'label' => $this->i18n->t('report.timeline.cancel'), 'text' => $this->i18n->date((string)$c['cancel_by'])];

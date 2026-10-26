@@ -501,7 +501,13 @@
         "one": "{count} special payment",
         "other": "{count} special payments"
       },
-      "sinceBill": "Counted from {date}: the bill before is booked in the contract and no longer counts here."
+      "sinceBill": "Counted from {date}: the bill before is booked in the contract and no longer counts here.",
+      "suggestShort": {
+        "one": "Only {count} advance payment is left before the bill on {date}. The bill settles the rest, so there is no need to raise the advance now.",
+        "other": "Only {count} advance payments are left before the bill on {date}. The bill settles the rest, so there is no need to raise the advance now."
+      },
+      "suggestOngoing": "After that, about {amount} instead of {current} a month would be right.",
+      "sincePeriod": "Counted from {date}, the start of the current billing period up to {until}. Earlier periods are listed under billing year."
     },
     "contractsTable": {
       "emptyTitle": "No contracts recorded",
@@ -5677,7 +5683,8 @@
       "co2": "CO₂",
       "co2Year": "CO₂ per year",
       "advanceRange": "{low} to {high}",
-      "advanceUncertain": "uncertain: the heating model fits poorly"
+      "advanceUncertain": "uncertain: the heating model fits poorly",
+      "advanceShort": "after the bill on {date}"
     },
     "chart": {
       "cumTitle": "Cumulative cost",
