@@ -1505,6 +1505,8 @@ final class HouseholdDraft
         foreach ($groups as $g) {
             $hit = null;
             if ($g['start'] !== null) foreach ($out as $i => $m) {
+                // gleicher Tag: führt der Schritt davor zusammen (dort auch mit verschiedenen Nummern)
+                if ($m['start'] === $g['start']) continue;
                 if ($m['start'] === null || abs(self::daysBetween($m['start'], $g['start'])) > self::START_NEAR_DAYS) continue;
                 if (array_filter($g['docs'], fn($o) => $this->otherMeter($o, $m['docs']))) continue;
                 [$a, $b] = [$nos($m), $nos($g)];
