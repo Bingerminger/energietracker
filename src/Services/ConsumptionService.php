@@ -1294,9 +1294,11 @@ final class ConsumptionService
         if ($now === null || (int)$now['months'] < self::HEAT_LIMIT_MIN_MONTHS) return null;
         [$from, $to, $step] = self::HEAT_LIMIT_GRID;
         $grid = []; $qs = [];
+        // v3.9.0 (#38) — die Gradtage jeder Grenze aus demselben Durchlauf (forMeter merkt sie sich)
+        $hddGrid = $this->hddGridMemo[$utility . '|' . md5(serialize($meter)) . '||' . $this->store->generation()] ?? null;
         for ($b = $from; $b <= $to + 1e-9; $b += $step) {
             $b = round($b, 1);
-            $rows = abs($b - $current) < 1e-9 ? $nowRows : $this->forMeter($utility, $meter, $b);
+            $rows = abs($b - $current) < 1e-9 ? $nowRows : ($this->rowsAtBase($utility, $meter, $nowRows, $hddGrid, $b) ?? $this->forMeter($utility, $meter, $b));
             $q = abs($b - $current) < 1e-9 ? $now : $this->anomalyQuality($utility, $rows);
             if ($q === null) continue;
             // v3.7.1 (#38) — dazu: überschätzt das Modell die gemessenen Sommer (dieselben
@@ -1339,6 +1341,67 @@ final class ConsumptionService
             'before'     => $facts($now),
             'after'      => $pick['best'] !== null ? $facts($qs[sprintf('%.1f', $pick['best'])] ?? null) : null,
             'grid'       => $grid,
+        ];
+    }
+
+    /**
+     * v3.9.0 (#38) — Die Monatszeilen eines Zählers mit einer anderen Heizgrenze, ohne den
+     * Zähler neu zu rechnen: Verbrauch, Tage und Abdeckung hängen nicht an der Grenze, nur
+     * die Gradtage (aus dem Raster von enrichWithWeather, gerundet wie dort) und was das
+     * Heizmodell daraus macht (applyHeatModel mit derselben Grenze). Dasselbe Ergebnis wie
+     * forMeter($utility, $meter, $base) für alles, was Gütesperre und Vorschlag lesen.
+     * Null, wenn eine Zeile ihr Raster nicht hat (Gruppe, Liefertank): dann der lange Weg.
+     *
+     * @param array<string,array<string,float>>|null $hddGrid Monat → Grenze → Gradtage
+     */
+    private function rowsAtBase(string $utility, array $meter, array $rows, ?array $hddGrid, float $base): ?array
+    {
+        if ($hddGrid === null || $rows === []) return null;
+        $k = sprintf('%.1f', $base);
+        foreach ($rows as &$r) {
+            $h = $hddGrid[(string)($r['ym'] ?? '')][$k] ?? null;
+            if ($h === null) return null;
+            $r['hdd'] = $h;
+        }
+        unset($r);
+        $vf = (Utilities::get($utility)['consumption_unit'] ?? 'kWh') === 'kWh' ? 'kwh' : 'm3';
+        return $this->applyHeatModel($rows, $utility, $vf, $meter, $base);
+    }
+
+    /**
+     * v3.9.0 (#38) — Was eine andere Heizgrenze am laufenden Vertrag ändert: erwarteter
+     * Saldo und Abschlagsvorschlag heute und mit `$base` (dieselbe Rechnung wie der
+     * Vertragsstatus, der Zähler nur mit der anderen Grenze). Ist eine Schätzung
+     * unsicher, steht ihre Spanne statt des Betrags da (`balance_range`,
+     * `advance_range`). Null ohne laufenden Vertrag (oder für Einspeisung).
+     *
+     * @return array{contract_id:string,until:?string,current_advance:?float,before:array,after:array}|null
+     */
+    public function heatLimitEffect(string $utility, array $meter, float $base): ?array
+    {
+        if (!Utilities::hasContracts($utility) || Utilities::isFeedIn($utility)) return null;
+        $cur = function (array $m) use ($utility): ?array {
+            foreach ($this->contractStatus($utility, $m)['contracts'] ?? [] as $c) if (!empty($c['is_current'])) return $c;
+            return null;
+        };
+        $other = $meter;
+        $other['hdd_base_temp'] = round($base, 1);
+        $now = $cur($meter);
+        $then = $cur($other);
+        if ($now === null || $then === null) return null;
+        $facts = fn(array $c) => [
+            'balance'       => isset($c['projected_end_balance']) ? round((float)$c['projected_end_balance'], 2) : null,
+            'balance_range' => $c['projection_uncertain']['projected_range'] ?? null,
+            'advance'       => isset($c['suggested_advance']) ? (float)$c['suggested_advance'] : null,
+            'advance_range' => $c['projection_uncertain']['suggested_range'] ?? null,
+            'uncertain'     => isset($c['projection_uncertain']) ? (array)($c['projection_uncertain']['reasons'] ?? []) : [],
+        ];
+        return [
+            'contract_id'     => (string)$now['contract_id'],
+            'until'           => $now['effective_end'] ?? null,
+            'current_advance' => isset($now['current_advance_amount']) ? (float)$now['current_advance_amount'] : null,
+            'before'          => $facts($now),
+            'after'           => $facts($then),
         ];
     }
 
@@ -1739,15 +1802,29 @@ final class ConsumptionService
         try {
             // v1.3.0 — bei Delivery-Utilities (Heizöl, Pellets) Lieferungs-basierten Pfad
             // v3.1.0 (H6, #17) — eine Zählergruppe als Summe ihrer Mitglieder
-            return $this->forMeterMemo[$memoKey] = !empty($meter['is_group'])
+            $rows = !empty($meter['is_group'])
                 ? $this->computeForGroup($utility, $meter, $hddBaseOverride)
                 : (Utilities::isDelivery($utility)
                     ? $this->computeForDeliveryMeter($utility, $meter, $hddBaseOverride)
                     : $this->computeForMeter($utility, $meter, $hddBaseOverride));
+            // v3.9.0 (#38) — die Gradtage des Heizgrenze-Rasters je Monat (enrichWithWeather) gehören
+            // nicht in die Antwort; gemerkt für heatLimitSuggestion()
+            $grid = [];
+            foreach ($rows as &$r) {
+                if (!is_array($r) || !array_key_exists('_hdd_grid', $r)) continue;
+                $grid[(string)($r['ym'] ?? '')] = $r['_hdd_grid'];
+                unset($r['_hdd_grid']);
+            }
+            unset($r);
+            $this->hddGridMemo[$memoKey] = $grid;
+            return $this->forMeterMemo[$memoKey] = $rows;
         } finally {
             array_pop($this->meterComputeStack);
         }
     }
+
+    /** @var array<string,array<string,array<string,float>>> v3.9.0 (#38) — je forMeter-Aufruf: Monat → Grenze → Gradtage */
+    private array $hddGridMemo = [];
 
     /**
      * v2.6.0 — Welche Ablesungen die Rechnung übergangen hat und warum.
@@ -3741,10 +3818,18 @@ final class ConsumptionService
      */
     private function enrichWithWeather(array $monthly, array $temps, float $hddBase, array $coverage = []): array
     {
+        // v3.9.0 (#38) — dazu die Gradtage jeder Grenze des Heizgrenze-Rasters über dieselben Tage
+        // (`_hdd_grid`, intern: forMeter() nimmt das Feld heraus und merkt es sich). Der Vorschlag
+        // rechnet so nicht 25-mal den ganzen Zähler; bei zehn Jahren Tageswerten dauerte „Zu tun“
+        // sonst Sekunden
+        [$gFrom, $gTo, $gStep] = self::HEAT_LIMIT_GRID;
+        $bases = [];
+        for ($b = $gFrom; $b <= $gTo + 1e-9; $b += $gStep) $bases[sprintf('%.1f', round($b, 1))] = round($b, 1);
         foreach ($monthly as $ym => &$data) {
             [$yr, $mn] = array_map('intval', explode('-', $ym));
             $dim = (int)date('t', mktime(0, 0, 0, $mn, 1, $yr));
             $sum = 0.0; $min = PHP_FLOAT_MAX; $max = -PHP_FLOAT_MAX; $cnt = 0; $hdd = 0.0; $hddTop = 0.0;
+            $grid = array_fill_keys(array_keys($bases), 0.0);
             $covered = null;
             if (isset($coverage[$ym])) {
                 $covered = [];
@@ -3765,6 +3850,7 @@ final class ConsumptionService
                 $max = max($max, (float)$temps[$k]['max']);
                 $hdd += max(0.0, $hddBase - $avg);
                 $hddTop += max(0.0, AnomalyService::SUMMER_REF_BASE - $avg);
+                foreach ($bases as $k => $b) $grid[$k] += max(0.0, $b - $avg);
             }
             $data['ym']        = $ym;
             $data['year']      = $yr;
@@ -3779,6 +3865,7 @@ final class ConsumptionService
             // v3.7.1 (#38) — Heizgradtage zur obersten Rastergrenze, unabhängig von der Heizgrenze:
             // die Sommer-Referenz der Grundlast-Prüfung (AnomalyService::summerReference)
             $data['hdd_top']   = round($hddTop, 1);
+            $data['_hdd_grid'] = array_map(fn($v) => round($v, 1), $grid);   // v3.9.0 (#38), intern
             $data['temp_days'] = $cnt;
             $data['kwh_per_hdd'] = $data['hdd'] > 5 ? round($data['kwh'] / $data['hdd'], 2) : null;
         }

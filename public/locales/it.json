@@ -209,7 +209,8 @@
       "billDeadline": "termine di legge per il fornitore: {date}",
       "billOverdueSince": "termine di legge scaduto il {date}",
       "billNoDeadline": "nessun termine di legge",
-      "billAction": "Registra bolletta"
+      "billAction": "Registra bolletta",
+      "heatLimitAction": "Vedi"
     },
     "welcome": {
       "title": "Benvenuto in Energietracker",
@@ -1338,6 +1339,16 @@
       "hint": "Per il fattore di prestazione stagionale (calore ÷ elettricità). Si possono scegliere i contatori elettrici con il ruolo pompa di calore.",
       "loading": "Caricamento …",
       "none": "Nessun contatore elettrico con il ruolo pompa di calore."
+    },
+    "heatLimit": {
+      "title": "Temperatura base GG",
+      "label": "Temperatura base GG di questo contatore (°C)",
+      "placeholder": "{value} (predefinita)",
+      "hint": "Un giorno con temperatura media inferiore conta come giorno di riscaldamento. Atteso, correzione, previsione e saldo di questo contatore la usano. Vuoto significa il valore predefinito delle impostazioni ({value} °C).",
+      "hintTank": "Un giorno con temperatura media inferiore conta come giorno di riscaldamento. L’app ripartisce le consegne di questo serbatoio sui mesi in base a questi giorni. Vuoto significa il valore predefinito delle impostazioni ({value} °C).",
+      "suggest": "Proposta dai mesi misurati: {best} °C. Un mese si discosta allora in genere del {then} di un mese medio invece del {now}.",
+      "use": "Inserisci {value} °C",
+      "invalid": "Temperatura base GG tra {min} e {max} °C, oppure lasciare vuoto"
     }
   },
   "settings": {
@@ -2318,7 +2329,7 @@
     "filterAll": "Tutte ({count})",
     "filterGroupLabel": "Filtra per urgenza",
     "sev": { "urgent": "Urgente", "warning": "Attenzione", "info": "Nota" },
-    "cat": { "effizienz": "Efficienza", "vertrag": "Contratto", "bestand": "Scorta", "anomalie": "Anomalia", "trend": "Tendenza" },
+    "cat": { "effizienz": "Efficienza", "vertrag": "Contratto", "bestand": "Scorta", "anomalie": "Anomalia", "trend": "Tendenza", "modell": "Modello di riscaldamento" },
     "emptyAll": "Nessuna raccomandazione — tutto a posto.",
     "dismiss": "Nascondi per 30 giorni",
     "error": "Errore: {msg}",
@@ -2374,6 +2385,13 @@
       "rPriceIncrease": {
         "title": "{label}: aumento di prezzo dal {date}",
         "detail": "{provider} aumenta i prezzi dal {date}. Hai quindi un diritto di recesso straordinario a quella data (§ 41 c. 5 EnWG). Confronta subito e recedi in tempo se un’altra tariffa costa meno."
+      },
+      "heatLimit": {
+        "title": "Regolare la temperatura base GG: con {best} °C il modello di riscaldamento si adatta molto meglio",
+        "detail": "Previsione, saldo e acconto dipendono dal modello di riscaldamento. Con {current} °C un mese si discosta in genere del {now} di un mese medio, con {best} °C del {then}.",
+        "baseLoad": "Oggi stima il carico di base estivo in {now} {unit} al giorno, con {best} °C in {then}; ne sono stati misurati {measured}.",
+        "scope": "La temperatura vale solo per questo contatore e viene applicata solo con un tuo clic.",
+        "scopeGroup": "La temperatura vale solo per questo gruppo di contatori e viene applicata solo con un tuo clic."
       }
     },
     "dismissedNamed": "«{title}» nascosto per 30 giorni",
@@ -2688,6 +2706,12 @@
       "own": "Questo contatore usa una propria temperatura base GG di {value} °C (predefinita {default} °C).",
       "reset": "Tornare a {value} °C",
       "resetDone": "Temperatura base GG di questo contatore ripristinata"
+    },
+    "pattern": {
+      "low": "{month}: ogni anno sotto l’atteso nel {years} ({pcts})",
+      "high": "{month}: ogni anno sopra l’atteso nel {years} ({pcts})",
+      "whyHeat": "Questi mesi si discostano dall’atteso allo stesso modo ogni anno. È uno schema del modello di riscaldamento, non un evento isolato: una retta non coglie i mesi di transizione di una curva di riscaldamento curva. Un’altra temperatura base GG può aiutare.",
+      "why": "Questi mesi si discostano dall’atteso allo stesso modo ogni anno. È uno schema ricorrente, non un evento isolato."
     }
   },
   "forecast": {
@@ -4364,7 +4388,8 @@
       "billExpected": "Bolletta attesa: {label} ({provider}) per {from} – {until}",
       "billOverdue": "Bolletta in ritardo: {label} ({provider}) per {from} – {until} — termine di legge scaduto, chiedi al fornitore",
       "finalBillExpected": "Bolletta di chiusura attesa: {label} ({provider}) per {from} – {until}",
-      "finalBillOverdue": "Bolletta di chiusura in ritardo: {label} ({provider}) per {from} – {until} — termine di legge scaduto, chiedi al fornitore"
+      "finalBillOverdue": "Bolletta di chiusura in ritardo: {label} ({provider}) per {from} – {until} — termine di legge scaduto, chiedi al fornitore",
+      "heatLimit": "{label}: regolare la temperatura base GG a {best} °C ({meter})"
     },
     "subscribe": "Iscriviti nel calendario",
     "intro": "Appuntamenti, termini di disdetta, fine dei contratti, garanzie di prezzo e letture dovute come abbonamento al calendario. Il calendario li aggiorna ogni 12 ore.",
@@ -6624,5 +6649,34 @@
       "poor_fit": "non si adatta (R² {r2})",
       "degenerate": "non calcolabile (troppo poca variazione nei valori)"
     }
+  },
+  "heatLimit": {
+    "title": "Regolare la temperatura base GG: con {best} °C il modello di riscaldamento si adatta molto meglio",
+    "fit": "Oggi un mese si discosta in genere dall’atteso del {now} di un mese medio, con {best} °C del {then}.",
+    "baseLoad": "Carico di base in estate (acqua calda, cucina): oggi {now} {unit} al giorno secondo il modello, con {best} °C {then}, misurati {measured}.",
+    "range": "Tra {from} e {to} °C il modello si adatta più o meno allo stesso modo; la proposta è la temperatura che cambia meno.",
+    "effect": {
+      "balance": "Saldo atteso al {date}: oggi {before}, con {best} °C {after}.",
+      "between": "tra {low} e {high}",
+      "advance": "Acconto (oggi {current} al mese): proposta oggi {before}, con {best} °C {after}.",
+      "advanceValue": "{amount} al mese",
+      "advanceRange": "tra {low} e {high} al mese",
+      "noAdvance": "nessuna"
+    },
+    "hint": {
+      "balance": "L’intervallo è così ampio perché il modello di riscaldamento si adatta male a questo contatore.",
+      "forecast": "Questa previsione è incerta perché il modello di riscaldamento si adatta male a questo contatore.",
+      "workshop": "Acconto e quota di riscaldamento mancano qui perché il modello di riscaldamento si adatta male a questo contatore."
+    },
+    "scope": "La temperatura vale solo per questo contatore; previsione, saldo e acconto la usano poi.",
+    "scopeGroup": "La temperatura vale solo per questo gruppo di contatori; previsione, saldo e acconto del contratto di gruppo la usano poi.",
+    "apply": "Applica (solo questo contatore)",
+    "applyGroup": "Applica (solo questo gruppo)",
+    "applied": "Temperatura base GG di questo contatore impostata a {value} °C. Previsione, saldo e acconto ora la usano.",
+    "appliedGroup": "Temperatura base GG di questo gruppo di contatori impostata a {value} °C. Previsione, saldo e acconto ora la usano.",
+    "undone": "Temperatura base GG di nuovo come prima",
+    "notNow": "Non ora",
+    "notNowHint": "Ricompare quando vengono misurati nuovi mesi o la proposta cambia.",
+    "dismissed": "Nascosto finché non vengono misurati nuovi mesi o la proposta cambia."
   }
 }

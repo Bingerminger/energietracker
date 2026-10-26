@@ -35,6 +35,7 @@ import { paginate, pagerHtml, wirePager, pageSize, PAGER_THRESHOLD } from '../co
 import { lastClosedPeriod, periodToCheck, calendarYearOf, periodMode, billingApplies, periodName, periodsWithData, pickPeriod, periodRows, refMonth } from '../lib/billing-period.js';
 import { periodModeHtml, wirePeriodMode, calendarOnlyNote } from '../components/period-mode.js';
 import { bonusOf, bonusItemsOf, bonusLineText } from '../lib/bonus.js';   // v3.7.0 (#33)
+import { fillHeatLimitSlot, poorFitIn } from '../lib/heat-limit.js';   // v3.9.0 (#38)
 
 let _chart = null;
 let _stockChart = null;   // v2.10.0 — Bestandsverlauf (Tankbuch)
@@ -568,6 +569,13 @@ async function rerender(container) {
     }).catch(() => {});
   }
 
+  // v3.9.0 (#38) — unsicher, weil das Heizmodell schlecht passt: der Heizgrenze-Vorschlag mit Knopf
+  // (Zähler, bei einem Gruppenvertrag die Gruppe)
+  fillHeatLimitSlot(container.querySelector('[data-role="heat-limit-slot"]'), {
+    utility: u.key, id: gcRef?.contract_id && currentContract?.contract_id === gcRef.contract_id ? gcRef.group_id : meter.id,
+    context: 'balance', unit: u.consumption_unit, onChange: () => rerender(container),
+  });
+
   // v3.2.0 (F1020) — Schaubilder: Geld und Vertrag, Wetter, Energiefluss
   fillExplainers(container, { u, contract: isDelivery ? null : currentContract, monthly, yr, pvSummary, feedIn: isFeedIn, quality: consumptionData.anomaly_quality });
 
@@ -881,6 +889,7 @@ function balanceCard(c, u, country = 'DE') {
       </div>
       ${suggestHtml}
       ${uncertainHtml}
+      ${unc && poorFitIn(unc.reasons) ? '<div data-role="heat-limit-slot"></div>' /* v3.9.0 (#38) — Heizgrenze-Vorschlag, nachgeladen */ : ''}
       ${notesHtml}
       ${isWater && c.components ? renderWaterComponentRow(c.components) : ''}
       ${balancePathHtml(c, u, isFeedIn)}
