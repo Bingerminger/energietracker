@@ -65,8 +65,7 @@ export const shapes = {
    * der Anzeige; `util` färbt den Rand nach der Verbrauchsart (strom, gas …).
    */
   meter(x, y, { w = 26, h = 30, label = '', util = '' } = {}) {
-    const cls = util ? ` ill-c-${esc(util)}` : '';
-    return `<g class="${cls.trim()}"><rect class="ill-face" x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${n(h)}" rx="3"/>
+    return `<g${util ? ` class="ill-c-${esc(util)}"` : ''}><rect class="ill-face" x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${n(h)}" rx="3"/>
       ${util ? `<rect class="ill-util" x="${n(x)}" y="${n(y)}" width="${n(w)}" height="${n(h)}" rx="3"/>` : ''}
       <rect class="ill-line" x="${n(x + 4)}" y="${n(y + 5)}" width="${n(w - 8)}" height="${n(h * 0.3)}" rx="1.5"/>
       ${label ? `<text class="ill-text" x="${n(x + w / 2)}" y="${n(y + 5 + h * 0.3 - 2.5)}" text-anchor="middle">${esc(label)}</text>` : ''}

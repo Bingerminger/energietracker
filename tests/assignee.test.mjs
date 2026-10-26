@@ -209,6 +209,9 @@ t('… ohne offene Termine', P.handoverText({ to: { name: 'Thomas' }, open: 0, d
   t('Zugriff (Verwalter): Nummer und Hinweis zum Löschen', [...view.querySelectorAll('[data-role="person-no"]')].map(e => e.textContent).join() === 'Nr. 1,Nr. 4'
     && !!view.querySelector('[data-role="users-delete-hint"]'));
   t('Zugriff mit Anmeldung: kein Hinweis „Anmeldung einschalten“', !view.querySelector('[data-role="users-login-needed"]'));
+  // v3.9.0 — am iPhone schob die Tabelle die Seite auf 415 px (kein Scrollrahmen)
+  t('Zugriff: Benutzertabelle im Scrollrahmen, Aktionsspalte benannt', view.querySelector('.users-table')?.parentElement?.classList.contains('table-wrap')
+    && view.querySelector('.users-table thead th:last-child .sr-only')?.textContent === 'Aktionen');
   root.innerHTML = '';
   view.querySelector('[data-user-delete="u_lukas"]').dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
   for (let i = 0; i < 20 && !root.querySelector('[data-role="handover"]'); i++) await new Promise(r => setTimeout(r, 20));
