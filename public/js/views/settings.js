@@ -233,7 +233,8 @@ export async function render(container, params = [], ctx = {}) {
     needs('utilities', 'data', 'integrations') ? api.listUtilities().catch(() => []) : [],
     needs('integrations') ? api.authStatus().catch(() => ({ enabled: false, created_at: null })) : null,
     // v2.6.0 — Anmeldung, API-Schlüssel, gespeicherte Snapshots
-    needs('general', 'access', 'integrations') ? api.session().catch(() => ({ mode: 'off', authenticated: true })) : null,
+    // v3.9.0 — auch Haushalt & Gebäude (Personen: Verwalter oder Mitglied, Anmeldung an oder aus)
+    needs('general', 'household', 'access', 'integrations') ? api.session().catch(() => ({ mode: 'off', authenticated: true })) : null,
     needs('access') ? api.apiKeys().catch(() => []) : [],
     needs('data') ? api.snapshots().catch(() => []) : [],
     // v2.7.0 — Länderprofile für die Karte „Sprache & Land"
@@ -252,6 +253,10 @@ export async function render(container, params = [], ctx = {}) {
   // v3.6.0 — auch ohne Anmeldung: dann die Personen ohne Zugang aus dem Personenverzeichnis
   const users = page === 'access' && isAdmin
     ? await api.users().catch(() => []) : [];
+  // v3.9.0 — Personen im Haushalt (Karte unter Haushalt & Gebäude, jede Stufe, auch ohne
+  // Anmeldung): Verwalter die volle Liste (mit Zugang ja/nein), Mitglieder nur die Namen
+  const people = page === 'household'
+    ? await (isAdmin ? api.users() : api.people()).catch(() => []) : [];
   // v3.7.0 (Paket cloud) — Stand des Auslesens in der Cloud (ohne Schlüssel, nur has_key)
   const inboxCloud = page === 'expert' ? await api.inboxCloud().catch(() => null) : null;
 
@@ -288,7 +293,7 @@ export async function render(container, params = [], ctx = {}) {
       renderLevelCard(session),
       renderMyAccountCard(session),
       `<div class="card settings-card">
-        <h2 class="card__title">${t('settings.lang.title')}</h2>
+        <h2 class="card__title"><span aria-hidden="true">🌐</span> ${t('settings.lang.title')}</h2>
         <p class="settings-card__hint">${t('settings.lang.hint')}</p>
         <div class="settings-fields">
           <div class="field settings-field">
@@ -310,12 +315,12 @@ export async function render(container, params = [], ctx = {}) {
       narrowGroups,
       renderDefaultUpdates(defaultUpdates),
       wideGroups),
-    household: grid(pageGroups),
+    household: grid(pageGroups, renderPeopleCard(people, session, isAdmin)),
     // „Aktive Verbrauchsarten" schmal, die Kästchen in Spalten (bis v3.3 neun
     // Zeilen untereinander über die ganze Breite)
     utilities: grid(
       `<div class="card settings-card" id="active-utils-card">
-        <h2 class="card__title">${t('settings.activeUtils.title')}</h2>
+        <h2 class="card__title"><span aria-hidden="true">🧩</span> ${t('settings.activeUtils.title')}</h2>
         <p class="settings-card__hint">${t('settings.activeUtils.hint')}</p>
         <div class="settings-fields check-grid" id="active-utils">
           ${(utilities || []).map(u => {
@@ -334,7 +339,7 @@ export async function render(container, params = [], ctx = {}) {
       renderExportCard(settings, utilities),
       renderBackupCard(snapshots, attachments),
       `<div class="card card--link settings-card" id="pdf-card">
-        <h2 class="card__title">${t('settings.pdf.title')}</h2>
+        <h2 class="card__title"><span aria-hidden="true">📄</span> ${t('settings.pdf.title')}</h2>
         <p class="muted">${escapeHtml(t('settings.pdf.moved'))}</p>
         <a class="btn btn--ghost btn--sm" href="#/report">${escapeHtml(t('nav.report'))}</a>
       </div>`),
@@ -342,9 +347,12 @@ export async function render(container, params = [], ctx = {}) {
     integrations: grid(renderHomeAssistantCards(authStatus, haUtilities, metersByUtility, session)),
     // v3.2.0 (F1023) — Mitglieder sehen nur, wer den Zugriff verwaltet
     // v3.4.0 — Anmeldung schmal, API-Schlüssel und Personen breit am Ende
+    // v3.9.0 — ohne Anmeldung ist „Benutzer und Rechte“ ein schmaler Hinweis (die
+    // Personen stehen unter Haushalt & Gebäude), daher vor den breiten Karten
     access: isAdmin
       ? grid(renderSecurityCheck(diag, isAdmin), renderSecurityCard(session), narrowGroups,
-          renderKeysCard(apiKeys), renderUsersCard(users, session), wideGroups)
+          loginOff(session) ? renderUsersCard(users, session) : '',
+          renderKeysCard(apiKeys), loginOff(session) ? '' : renderUsersCard(users, session), wideGroups)
       : grid(`<div class="card settings-card"><p class="muted">${escapeHtml(t('settings.users.memberHint'))}</p>
           <p class="muted" data-role="member-delete-hint">${escapeHtml(t('settings.users.memberDeleteHint'))}</p></div>`),
     expert: `
@@ -512,6 +520,7 @@ export async function render(container, params = [], ctx = {}) {
   if (page === 'data') wireDataPage(container, utilities, () => render(container, params, ctx));
   if (page === 'access') wireAccessPage(container, () => render(container, params, ctx));
   if (page === 'access') wireUsersCard(container, session, () => render(container, params, ctx));
+  if (page === 'household') wirePeopleCard(container, () => render(container, params, ctx));   // v3.9.0
   if (page === 'access' || page === 'system') wireSecurityCheck(container, () => render(container, params, ctx));
   if (page === 'general') wireLevelCard(container, session);
   if (page === 'integrations') wireIntegrationsPage(container, () => render(container, params, ctx));
@@ -560,7 +569,7 @@ function renderExportCard(settings, utilities) {
   const langName = getLanguages()[settings.language] || getLanguages()[getLocale()] || '';
   return `
     <div class="card settings-card settings-card--wide" id="export-card">
-      <h2 class="card__title">${t('settings.export.title')}</h2>
+      <h2 class="card__title"><span aria-hidden="true">📤</span> ${t('settings.export.title')}</h2>
       <p class="muted" style="margin-bottom: var(--sp-4)">
         ${t('settings.export.hint')}
       </p>
@@ -622,7 +631,7 @@ function renderExportCard(settings, utilities) {
 function renderBackupCard(snapshots, attachments = null) {
   return `
     <div class="card settings-card settings-card--wide" id="backup-card">
-      <h2 class="card__title">${t('settings.backup.title')}</h2>
+      <h2 class="card__title"><span aria-hidden="true">💾</span> ${t('settings.backup.title')}</h2>
       <p class="muted" style="margin-bottom: var(--sp-3)">
         ${t('settings.backup.hint')}
       </p>
@@ -951,7 +960,7 @@ function renderAbout(diag) {
   const source = /^\d+\.\d+\.\d+$/.test(version) ? `${repo}/tree/v${version}` : repo;
   return `
     <div class="card settings-card" id="about-card">
-      <h2 class="card__title">${escapeHtml(t('settings.system.aboutTitle'))}</h2>
+      <h2 class="card__title"><span aria-hidden="true">ℹ️</span> ${escapeHtml(t('settings.system.aboutTitle'))}</h2>
       <p>${escapeHtml(t('settings.system.about', { version }))}</p>
       <p class="muted">${escapeHtml(t('settings.system.license'))}
         · <a href="${escapeHtml(source)}" target="_blank" rel="noopener" data-source-link>${escapeHtml(t('settings.system.source'))}</a>
@@ -1281,20 +1290,25 @@ function wireMyAccount(container) {
   });
 }
 
+/** v3.9.0 — Anmeldung aus (oder unbekannt): Zugänge gibt es dann keine. */
+const loginOff = (session) => !session?.mode || session.mode === 'off';
+
 function renderUsersCard(users, session) {
-  // v3.6.0 — ohne Anmeldung bedient die Personen aus dem Verzeichnis (Backup,
-  // Beispielhaushalt) jede:r, wie die übrigen Einstellungen. Die Karte sagt dann
-  // immer, auch ganz ohne Personen, dass Zugänge erst mit der Anmeldung entstehen,
-  // und springt zu „Anmeldung einschalten“ (Karte „Anmeldung & Zugriff“)
-  const off = !session?.mode || session.mode === 'off';
+  // v3.6.0 — ohne Anmeldung sagt die Karte, dass Zugänge erst mit der Anmeldung
+  // entstehen, und springt zu „Anmeldung einschalten“ (Karte „Anmeldung & Zugriff“).
+  // v3.9.0 — die Personen selbst (bis v3.8 hier, nur ohne Anmeldung als Tabelle)
+  // stehen unter Haushalt & Gebäude, Karte „Personen im Haushalt“
+  const off = loginOff(session);
   const loginNeeded = off ? `
       <p class="settings-field__hint" data-role="users-login-needed">${escapeHtml(t('settings.users.loginNeeded'))}</p>
       <button type="button" class="btn btn--ghost btn--sm" data-role="users-enable-login">${escapeHtml(t('settings.security.enable'))}</button>` : '';
-  if (off && !(users || []).length) {
+  if (off) {
     return `
-    <div class="card settings-card settings-card--wide">
+    <div class="card settings-card" id="users-card">
       <h2 class="card__title"><span aria-hidden="true">👥</span> ${escapeHtml(t('settings.users.title'))}</h2>
       ${loginNeeded}
+      <p class="settings-field__hint" data-role="users-people-moved">${escapeHtml(t('settings.people.movedHint'))}
+        <a href="#/settings/household?field=person_name">${escapeHtml(t('settings.people.goto'))}</a></p>
     </div>`;
   }
   const meId = session.user?.id;
@@ -1309,10 +1323,12 @@ function renderUsersCard(users, session) {
   return `
     <div class="card settings-card settings-card--wide">
       <h2 class="card__title"><span aria-hidden="true">👥</span> ${escapeHtml(t('settings.users.title'))}</h2>
-      <p class="settings-card__hint">${escapeHtml(t(off ? 'settings.users.hintOff' : session.mode === 'proxy' ? 'settings.users.hintProxy' : 'settings.users.hint'))}
+      <p class="settings-card__hint">${escapeHtml(t(session.mode === 'proxy' ? 'settings.users.hintProxy' : 'settings.users.hint'))}
         <a href="${escapeHtml(docUrl('users'))}">${escapeHtml(t('common.guide'))}</a></p>
-      <table class="table">
-        <thead><tr><th>${escapeHtml(t('settings.users.name'))}</th><th>${escapeHtml(t('settings.users.roleHead'))}</th><th></th></tr></thead>
+      <!-- v3.9.0 — im Scrollrahmen wie jede Tabelle: am iPhone schob die Tabelle die Seite
+           auf 415 px, und die Rollenauswahl schrumpfte auf ihren Pfeil -->
+      <div class="table-wrap"><table class="table users-table">
+        <thead><tr><th>${escapeHtml(t('settings.users.name'))}</th><th>${escapeHtml(t('settings.users.roleHead'))}</th><th><span class="sr-only">${escapeHtml(t('common.actions'))}</span></th></tr></thead>
         <tbody>
           ${(users || []).map(u => `<tr>
             <td>${escapeHtml(u.name)}${u.id === meId ? ` <span class="muted small">(${escapeHtml(t('settings.users.you'))})</span>` : ''}${u.no ? ` <span class="muted small" data-role="person-no">${escapeHtml(t('settings.users.no', { no: u.no }))}</span>` : ''}${noAccess(u) ? ` <span class="badge" data-role="no-access">${escapeHtml(t('settings.users.noAccess'))}</span>` : ''}</td>
@@ -1325,10 +1341,9 @@ function renderUsersCard(users, session) {
             </td>
           </tr>`).join('')}
         </tbody>
-      </table>
+      </table></div>
       ${anyNoAccess && session.mode === 'password' ? `<p class="settings-field__hint" data-role="no-access-hint">${escapeHtml(t('settings.users.noAccessHint'))}</p>` : ''}
-      <p class="settings-field__hint" data-role="users-delete-hint">${escapeHtml(t(off ? 'settings.users.deleteHintOff' : 'settings.users.deleteHint'))}</p>
-      ${loginNeeded}
+      <p class="settings-field__hint" data-role="users-delete-hint">${escapeHtml(t('settings.users.deleteHint'))}</p>
       ${session.mode === 'password' ? `
       <h3 class="settings-subtitle">${escapeHtml(t('settings.users.add'))}</h3>
       <!-- v3.4.0 (N1021) — Person anlegen im Formularraster; v3.6.0 als Formular
@@ -1400,30 +1415,7 @@ function wireUsersCard(container, session, rerender) {
   // und der Verlauf behalten den vom Erledigen; mit Passwort meldet sie sich danach
   // mit dem neuen Namen an
   container.querySelectorAll('[data-user-rename]').forEach(btn => btn.addEventListener('click', () => {
-    const old = btn.getAttribute('data-user-name') || '';
-    const login = btn.hasAttribute('data-user-login');
-    openModal({
-      title: t('settings.users.renameTitle', { name: old }),
-      body: `<form data-role="rename-form" autocomplete="off"><div class="field"><label for="user-rename">${escapeHtml(t('settings.users.name'))}</label>
-        <input class="input input--text" id="user-rename" maxlength="40" autocomplete="off" value="${escapeHtml(old)}"></div>
-        <p class="settings-field__hint">${escapeHtml(t('settings.users.renameHint'))}${login ? ' ' + escapeHtml(t('settings.users.renameHintLogin')) : ''}</p></form>`,
-      footer: `<button type="button" class="btn btn--ghost" data-act="cancel">${escapeHtml(t('common.cancel'))}</button>
-        <button type="button" class="btn btn--primary" data-act="ok">${escapeHtml(t('common.save'))}</button>`,
-      onMount({ modalEl, close }) {
-        modalEl.querySelector('[data-act="cancel"]')?.addEventListener('click', () => close(null));
-        modalEl.querySelector('form[data-role="rename-form"]')?.addEventListener('submit', (e) => { e.preventDefault(); modalEl.querySelector('[data-act="ok"]')?.click(); });
-        modalEl.querySelector('[data-act="ok"]')?.addEventListener('click', async () => {
-          const name = modalEl.querySelector('#user-rename')?.value.trim() || '';
-          if (name === old) { close(null); return; }
-          try {
-            await api.updateUser(btn.getAttribute('data-user-rename'), { name });
-            close(true);
-            toastOk(t('settings.users.renamed', { name }));
-            rerender();
-          } catch (e) { toastErr(e.message); }
-        });
-      },
-    });
+    openRenameDialog(btn.getAttribute('data-user-rename'), btn.getAttribute('data-user-name') || '', btn.hasAttribute('data-user-login'), rerender);
   }));
   // v3.6.0 — Zugang für eine Person ohne Zugang: Name und Rolle in „Person hinzufügen“;
   // der neue Zugang übernimmt ihre ID und Nummer (PeopleService::adoptableId)
@@ -1434,6 +1426,109 @@ function wireUsersCard(container, session, rerender) {
     const role = container.querySelector('#user-new-role');
     if (role) role.value = btn.getAttribute('data-user-grant-role') || 'member';
     container.querySelector('#user-new-password')?.focus();
+  }));
+}
+
+/**
+ * Dialog „Umbenennen“ (v3.6.0, unter Zugriff; v3.9.0 auch unter Haushalt & Gebäude):
+ * offene Termine zeigen danach den neuen Namen, Erledigtes und der Verlauf behalten
+ * den vom Erledigen; mit Passwort (`login`) meldet sich die Person danach so an.
+ */
+function openRenameDialog(id, old, login, rerender) {
+  openModal({
+    title: t('settings.users.renameTitle', { name: old }),
+    body: `<form data-role="rename-form" autocomplete="off"><div class="field"><label for="user-rename">${escapeHtml(t('settings.users.name'))}</label>
+      <input class="input input--text" id="user-rename" maxlength="40" autocomplete="off" value="${escapeHtml(old)}"></div>
+      <p class="settings-field__hint">${escapeHtml(t('settings.users.renameHint'))}${login ? ' ' + escapeHtml(t('settings.users.renameHintLogin')) : ''}</p></form>`,
+    footer: `<button type="button" class="btn btn--ghost" data-act="cancel">${escapeHtml(t('common.cancel'))}</button>
+      <button type="button" class="btn btn--primary" data-act="ok">${escapeHtml(t('common.save'))}</button>`,
+    onMount({ modalEl, close }) {
+      modalEl.querySelector('[data-act="cancel"]')?.addEventListener('click', () => close(null));
+      modalEl.querySelector('form[data-role="rename-form"]')?.addEventListener('submit', (e) => { e.preventDefault(); modalEl.querySelector('[data-act="ok"]')?.click(); });
+      modalEl.querySelector('[data-act="ok"]')?.addEventListener('click', async () => {
+        const name = modalEl.querySelector('#user-rename')?.value.trim() || '';
+        if (name === old) { close(null); return; }
+        try {
+          await api.updateUser(id, { name });
+          close(true);
+          toastOk(t('settings.users.renamed', { name }));
+          rerender();
+        } catch (e) { toastErr(e.message); }
+      });
+    },
+  });
+}
+
+// ── v3.9.0 — Personen im Haushalt (Haushalt & Gebäude, jede Stufe) ───────
+// „Zuständig“ an Terminen, Zählern und Verträgen und die Ablesetermine aus dem
+// Posteingang nutzen Personen in allen Stufen; bis v3.8 entstanden sie nur mit
+// eingeschalteter Anmeldung (Zugriff) oder aus einem Backup. Hier legt, wer
+// verwaltet (ohne Anmeldung: jede:r), Personen ohne Zugang an, benennt sie um
+// und löscht sie (POST /api/users mit `has_account: false`). Personen mit Zugang
+// stehen mit Vermerk in der Liste, verwaltet werden sie unter Zugriff.
+// Mitglieder sehen nur die Namen (GET /api/people).
+
+function renderPeopleCard(people, session, isAdmin) {
+  const off = loginOff(session);
+  const list = (people || []).filter(p => p?.id && p.name);
+  const item = (p) => {
+    const account = isAdmin && p.has_account !== false;
+    const actions = isAdmin && !account ? `<span class="people-list__actions">
+        <button type="button" class="btn btn--sm btn--ghost" data-person-rename="${escapeHtml(p.id)}" data-person-name="${escapeHtml(p.name)}"
+          aria-label="${escapeHtml(t('settings.users.renameTitle', { name: p.name }))}">${escapeHtml(t('settings.users.rename'))}</button>
+        <button type="button" class="btn btn--sm btn--danger btn--quiet" data-person-delete="${escapeHtml(p.id)}"
+          aria-label="${escapeHtml(t('settings.people.deleteLabel', { name: p.name }))}">${escapeHtml(t('settings.users.delete'))}</button>
+      </span>` : '';
+    return `<li class="people-list__item">
+        <span class="people-list__who"><span class="people-list__name">${escapeHtml(p.name)}</span>${p.no ? ` <span class="muted small">${escapeHtml(t('settings.users.no', { no: p.no }))}</span>` : ''}${account ? ` <span class="badge" data-role="has-account">${escapeHtml(t('settings.people.account'))}</span>` : ''}</span>
+        ${actions}
+      </li>`;
+  };
+  const accessHint = !isAdmin ? t('settings.users.memberDeleteHint')
+    : off ? t('settings.people.accessHintOff') : t('settings.people.accessHint');
+  return `
+    <div class="card settings-card" id="people-card">
+      <h2 class="card__title"><span aria-hidden="true">👥</span> ${escapeHtml(t('settings.people.title'))}</h2>
+      <p class="settings-card__hint">${escapeHtml(t('settings.people.hint'))}</p>
+      ${list.length
+        ? `<ul class="people-list" aria-label="${escapeHtml(t('settings.people.title'))}">${list.map(item).join('')}</ul>`
+        : `<p class="muted small" data-role="people-empty">${escapeHtml(t(isAdmin ? 'settings.people.empty' : 'settings.people.emptyMember'))}</p>`}
+      ${isAdmin ? `
+      <form class="people-add" data-role="people-form" autocomplete="off">
+        <div class="field">
+          <label for="people-new-name">${escapeHtml(t('settings.people.add'))}</label>
+          <input class="input input--text" id="people-new-name" data-field="person_name" maxlength="40" autocomplete="off" enterkeyhint="done"
+            placeholder="${escapeHtml(t('settings.people.namePlaceholder'))}">
+        </div>
+        <button type="submit" class="btn btn--primary" id="btn-person-add">${escapeHtml(t('settings.users.addButton'))}</button>
+      </form>` : ''}
+      <p class="settings-field__hint" data-role="people-access-hint">${escapeHtml(accessHint)}${isAdmin ? `
+        <a href="#/settings/access">${escapeHtml(t('settings.people.accessLink'))}</a>` : ''}</p>
+    </div>`;
+}
+
+function wirePeopleCard(container, rerender) {
+  const again = async () => {
+    await rerender();
+    container.querySelector('#people-new-name')?.focus();
+  };
+  container.querySelector('form[data-role="people-form"]')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const input = container.querySelector('#people-new-name');
+    const name = input?.value.trim() || '';
+    if (!name) { input?.focus(); return; }
+    try {
+      await api.createUser({ name, has_account: false });
+      toastOk(t('settings.people.added', { name }));
+      await again();
+    } catch (err) { toastErr(err.message); input?.focus(); }
+  });
+  container.querySelectorAll('[data-person-rename]').forEach(btn => btn.addEventListener('click', () => {
+    openRenameDialog(btn.getAttribute('data-person-rename'), btn.getAttribute('data-person-name') || '', false, rerender);
+  }));
+  // derselbe Dialog wie unter Zugriff: sagt vorher, was mit Terminen, Zählern und Verträgen geschieht
+  container.querySelectorAll('[data-person-delete]').forEach(btn => btn.addEventListener('click', () => {
+    confirmPersonDelete(btn.getAttribute('data-person-delete'), rerender);
   }));
 }
 
@@ -1494,7 +1589,7 @@ function renderSecurityCard(session) {
 
   return `
     <div class="card settings-card" id="security-card">
-      <h2 class="card__title">${t('settings.security.title')}</h2>
+      <h2 class="card__title"><span aria-hidden="true">🔐</span> ${t('settings.security.title')}</h2>
       <p class="settings-card__hint">${t('settings.security.hint')}</p>
       <div class="section-actions" style="align-items:center;margin-bottom:var(--sp-3)">
         <span class="tag ${mode === 'off' ? 'tag--warning' : 'tag--success'}" id="sec-mode">${t('settings.security.' + label)}</span>
@@ -1507,7 +1602,7 @@ function renderSecurityCard(session) {
 function renderKeysCard(keys) {
   return `
     <div class="card settings-card settings-card--wide" id="keys-card">
-      <h2 class="card__title">${t('settings.security.keysTitle')}</h2>
+      <h2 class="card__title"><span aria-hidden="true">🗝️</span> ${t('settings.security.keysTitle')}</h2>
       <p class="settings-card__hint">${t('settings.security.keysHint')}</p>
       <div id="sec-keys">${renderKeyTable(keys)}</div>
       <div class="fgrid" style="margin-top:var(--sp-3)">
@@ -2150,7 +2245,7 @@ function collectSettings(container) {
 function renderDiagnostics(d) {
   return `
     <div class="card settings-card settings-card--wide" id="diag-card">
-      <h2 class="card__title">${t('settings.diag.title')}</h2>
+      <h2 class="card__title"><span aria-hidden="true">🩺</span> ${t('settings.diag.title')}</h2>
       <dl class="diag-grid">
         ${renderDiagRow(t('settings.diag.appVersion'),    d.app_version,    'mono')}
         ${renderDiagRow(t('settings.diag.schemaVersion'), d.schema_version, 'mono')}
@@ -2239,7 +2334,7 @@ function renderSecurityCheck(diag, isAdmin) {
   }).join('');
   return `
     <div class="card settings-card" id="security-check">
-      <h2 class="card__title">${escapeHtml(t('settings.securityCheck.title'))}</h2>
+      <h2 class="card__title"><span aria-hidden="true">🛡️</span> ${escapeHtml(t('settings.securityCheck.title'))}</h2>
       <p class="settings-card__hint">${escapeHtml(t('settings.securityCheck.hint'))}</p>
       <ul class="security-check">
         <li class="security-check__item" id="security-data-probe" data-state="pending">${escapeHtml(t('settings.securityCheck.dataPending'))}</li>

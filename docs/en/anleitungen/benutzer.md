@@ -9,7 +9,7 @@ their own name, their own experience level and their own language. Everyone
 shares the household’s data: meters, readings, contracts and insights exist
 only once. Two roles decide who manages access and who “just” records.
 
-People only exist **with sign-in switched on**. Without sign-in everything
+Accounts (name and password) only exist **with sign-in switched on**. Without sign-in everything
 stays as before: whoever reaches the address may do everything, and the
 experience level applies to the whole installation. Since v3.6.0 the “Users
 and roles” card says so in the app too and jumps to the “Sign-in & access”
@@ -17,8 +17,11 @@ card with “Switch sign-in on”. When sign-in is worth it
 is explained in
 [Security & network operation](../betrieb/sicherheit.md#1-the-operating-model-in-one-sentence).
 Since **v3.6.0** the app also keeps every person in a **register of people**
-with a running number, which is part of the backup (§ 7) — so the people of a
-sample household can be chosen under “Responsible” even without sign-in.
+with a running number, which is part of the backup (§ 7). Since **v3.9.0** you
+also add people **without sign-in**, under Settings → Household & building →
+“People in the household” ([People in the household](#people-in-the-household-v390)):
+they can be chosen under “Responsible” for reminders, meters and contracts, at
+every level.
 
 ---
 
@@ -129,11 +132,34 @@ out is the proxy’s job. If an API key deletes, nobody takes over: open
 reminders, meters and contracts then stay with “(deleted)” until someone
 reassigns them.
 
+### People in the household *(v3.9.0)*
+
+Assigning reminders, meters or contracts to a person needs no sign-in. The card
+**Settings → Household & building → “People in the household”** is there at
+every level:
+
+1. Enter the name under **“New person”** (up to 40 characters, not twice, as
+   for an account).
+2. **“Add”.** The app reports “… can now be chosen under “Responsible”.” The
+   person gets the next number.
+
+The list shows everyone with their number. **“Rename”** and **“Delete person”**
+apply to people without sign-in, with the same rules and the same dialog as
+under Access (below). People with an account are listed with the note
+**“with sign-in”**; their name, role and password stay under Settings → Access.
+Admins add, rename and delete people; without sign-in anyone who reaches the
+address may. Members only see the names.
+
+A person added this way cannot sign in. If they later get an account with the
+same name under Access, the account takes over their id and number, and their
+reminders and responsibilities stay with them.
+
 ### People without sign-in
 
-People from a backup or a sample household have no account — they are in the
-register of people but not in `auth.json`. The table shows them with their
-number and the note **“no sign-in”**. Deleting works as above, with the same
+People from Household & building *(v3.9.0)*, a backup or a sample household
+have no account. They are in the register of people but not in `auth.json`.
+The table under Access shows them with their number and the note
+**“no sign-in”**. Deleting works as above, with the same
 handover and the same dialog (“This person will no longer be offered for
 selection”).
 
@@ -150,12 +176,13 @@ it over. A member gets `403`, as with deleting.
 person’s id and number — their reminders and history entries then belong to
 it.
 
-**Without sign-in** (for example after loading a sample household), Settings →
-Access shows the card “Users and roles” as soon as the register knows people.
-Anyone who reaches the address may use it then — like every setting without
-sign-in. Because nobody is signed in, nobody takes over when deleting: open
-reminders stay with “(deleted)” until someone reassigns them; the dialog says
-so beforehand.
+**Without sign-in** the people are listed only under Household & building
+since v3.9.0. The card “Users and roles” under Access then says that accounts
+only exist once sign-in is switched on, and “Go to people” leads to the card
+“People in the household”. Anyone who reaches the address may use it, like
+every setting without sign-in. Because nobody is signed in, nobody takes over
+when deleting: open reminders stay with “(deleted)” until someone reassigns
+them; the dialog says so beforehand.
 
 ---
 
@@ -296,7 +323,8 @@ PATCH  /api/session/me            own settings {ui_level?, language?} — null =
 POST   /api/session/me/password   own password {current, password}
 GET    /api/users                 people (admins only), since v3.6.0 with number `no` and
                                   `has_account` (people without sign-in: `false`, `source: "none"`)
-POST   /api/users                 {name, password, role: admin|member}
+POST   /api/users                 {name, password, role: admin|member}; v3.9.0: {name, role?,
+                                  has_account: false} adds a person without sign-in (201)
 PATCH  /api/users/{id}            {name?, role?, password?}; v3.6.0 also for people without sign-in
                                   ({name?, role?}; a password: 400 errors.users.noAccountPassword)
 GET    /api/users/{id}/handover   (v3.6.0) before deleting: {person, to, open, done};

@@ -657,6 +657,19 @@ async function renderView(modPath, params = [], ctx = {}) {
     t('settings/haushalt: beheizter Keller und dezentrales Warmwasser',
       !!view.querySelector('[data-key="beheizter_keller"]') && !!view.querySelector('[data-key="warmwasser_dezentral"]'));
     t('settings/haushalt: Personen im Haushalt', !!view.querySelector('[data-key="wasser_personen_anzahl"]'));
+    // v3.9.0 (Paket oberflaeche) — Karte „Personen im Haushalt“ in jeder Stufe, ohne Anmeldung bedienbar
+    const people = view.querySelector('#people-card');
+    t('settings/haushalt: Karte „Personen im Haushalt“ mit den Personen des Beispielhaushalts',
+      !!people && [...people.querySelectorAll('.people-list__name')].map(e => e.textContent).sort().join() === 'Anna,Paul',
+      people?.textContent.replace(/\s+/g, ' ').slice(0, 160));
+    t('settings/haushalt: ohne Anmeldung umbenennen und löschen, Feld mit Beschriftung',
+      people?.querySelectorAll('[data-person-rename]').length === 2 && people?.querySelectorAll('[data-person-delete]').length === 2
+        && !!people?.querySelector('label[for="people-new-name"]') && people?.querySelector('#people-new-name')?.getAttribute('maxlength') === '40');
+    const nameIn = people?.querySelector('#people-new-name');
+    if (nameIn) { nameIn.value = 'Tim'; nameIn.dispatchEvent(new global.window.Event('input', { bubbles: true })); }
+    t('settings/haushalt: ein Name im Feld ist keine ungespeicherte Einstellung', view.querySelector('[data-role="savebar"]')?.hidden === true);
+    t('settings/haushalt: Wasser-Feld heißt „Anzahl der Personen“ (nicht wie die Karte)',
+      view.querySelector('[data-key="wasser_personen_anzahl"]')?.closest('.settings-field')?.querySelector('label')?.textContent.trim().startsWith('Anzahl der Personen'));
   } catch (e) { t('settings/haushalt: render', false, e.message); }
 
   try {

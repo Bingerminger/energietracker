@@ -226,6 +226,33 @@ t('Überspringen nimmt die Sprache zurück', i18n.getLocale() === 'de');
 t('… und schreibt weder Land noch Sprache', !writes().some(c => c.path === '/api/settings/country' || 'language' in (c.body || {})), JSON.stringify(writes()));
 
 // ── Speichern: nur, was sich geändert hat ───────────────────────────────
+// ── v3.9.0 (Paket oberflaeche) — Bilder je Schritt und je Haushalt ────────
+console.log('Bilder (v3.9.0)');
+{
+  settings = { ...DEFAULTS };
+  await open({ firstRun: true });
+  const art = () => q('.setup__head .setup__art svg.ill');
+  const seen = [];
+  for (let i = 0; i < 5 && modal(); i++) {
+    const svg = art();
+    seen.push(svg && svg.getAttribute('aria-hidden') === 'true' && svg.getAttribute('focusable') === 'false'
+      && !svg.hasAttribute('role') && !!q('.setup__head .setup__lead .setup__question'));
+    if (i === 1) {
+      const arts = [...modal().querySelectorAll('.setup-choice .setup-choice__art svg.ill')];
+      t('Haushalte: jede Karte mit Zeichnung statt Emoji, als Zier', arts.length === W.PERSONAS.length
+        && arts.every(s => s.getAttribute('aria-hidden') === 'true') && !modal().querySelector('.setup-choice .setup-choice__icon'),
+        `${arts.length} von ${W.PERSONAS.length}`);
+      q('input[name="setup-persona"][value="eigenheim-modern"]').click(); await tick();
+    }
+    if (i < 4) { next(); await tick(); }
+  }
+  t('jeder der fünf Schritte: Zeichnung neben der Frage, aria-hidden (die Frage sagt alles)', seen.length === 5 && seen.every(Boolean), JSON.stringify(seen));
+  t('Einleitung steht im ersten Schritt neben dem Bild', W.withArt('region', '<h3 class="setup__question">F</h3><p>x</p>', '<p class="muted">E</p>')
+    .startsWith('<div class="setup__head"><div class="setup__art"><svg class="ill'));
+  t('Schritt ohne Zeichnung bleibt unverändert', W.withArt('unbekannt', '<h3 class="setup__question">F</h3>', '<p>E</p>') === '<p>E</p><h3 class="setup__question">F</h3>');
+  q('[data-act="skip"]')?.click(); await tick(60);
+}
+
 console.log('Speichern');
 settings = { ...DEFAULTS };
 location.hash = '#/settings';
