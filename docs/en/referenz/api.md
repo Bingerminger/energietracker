@@ -520,6 +520,46 @@ intervals between real readings ([Basics §5](../verstehen/00-overview.md#heatin
 | `…/forecast` | `warnings[]` | new `poor_fit {ratio, reasons}`, `few_measured {heat_basis}`, `regression_invalid {model, reason, n, r2}`, `climate_normal_grid {base, min, max, hdd_source}` |
 | `POST /api/forecast/scenario` | `advance.uncertain` | with a failed quality gate or too little measured `{reasons: [few_measured \| poor_fit], fit_ratio, spread, base_range, scen_range}`, then `base_/scen_recommended: null`; `warnings[]` new `poor_fit`, `few_measured`, `basis.heat_share_year: null` |
 
+**Since v3.9.0 (evaluation), additive** — every number is right or says why it
+is uncertain ([Basics §1](../verstehen/00-overview.md#measured-or-interpolated-since-v370),
+[§10](../verstehen/00-overview.md#one-projection-for-balance-and-workshop-since-v390)):
+
+| Where | Field | Meaning |
+|---|---|---|
+| `…/consumption`, `monthly[]` | `measured_day_share` | share of the month's **days** from reading intervals of up to 45 days (0 … 1). Since v3.9.0 `interpolated` is `true` when `measured_share` **or** `measured_day_share` is below 0.5 |
+| `…/consumption`, `monthly[]` | `advance_measured_eur`, `cost_measured` | advance payment and cost of the **measured days**: pro rata in the first and last month of a reading series, otherwise equal to `advance_eur` and `cost`. Basis of the “Balance” tile and the monthly table |
+| `…/consumption`, `interpolation` | `estimated_by_year` | estimated readings per year, next to `readings_by_year` (they measure nothing but appear in the list) |
+| `…/contract-status` | `settle_on` | **last day** of the billing period (inclusive): one rule for balance card, Costs & contracts, annual report, “Where does my money go?” and workshop |
+| `…/contract-status` | `billing_period` | `{from, until, open_from, source, bill_id}`: the running one of the [billing periods](#billing-periods-v360) the balance is calculated over; `open_from` is the day after the last bill when the cut-off date does not match it. `null` for contracts outside the running period and for feed-in |
+| `…/contract-status` | `months_left`, `advance_ongoing`, `suggestion_withheld` | advance payments left until the bill; advance that fits going forward (estimated cost of the twelve months after it ÷ 12, whole euros, `null` when the estimate is uncertain); `"short"` when with fewer than 3 payments left no catch-up amount is suggested (`suggested_advance` is then `null`) |
+| `…/contract-status` | `successor_switch` | the recorded successor contract is with another supplier: instead of “Cancel or switch by …” the app asks “Cancellation confirmed?” |
+| `…/forecast` | `blend_effective` | effective share of the heating curve in the first twelve forecast months (0 … 1); `blend_weight` stays the weight by model quality |
+| `…/forecast` | `warnings[]` | new `level_last_year {value, from, to, factor}`: without a weather link and without twelve measured calendar months the annual amount follows the consumption of the last 365 days |
+| `GET /api/pv-summary` | `monthly[].partial_series`, `monthly[].feed_above_generation` | series that cover the month only in part (below 90 % of the days of the longest series; the month then does not count as covered); measured feed-in above generation (contradictory) |
+| `GET /api/pv-summary` | `yearly[].flow_period` | period of the energy flow: `{from, to, months, interpolated_months, interpolated_series, feed_above_generation, partial, generation_kwh}` or `null` |
+| `GET /api/readings-overview` | `first_date` | first real reading of the meter (year choice of the report) |
+| `GET /api/reports/yearly` | `model.topics.pv.notes`, `.estimated` | notes on the solar block (period, interpolated, contradictory, no comparison); `estimated`: the block rests on interpolated months (≈, “estimated” instead of “measured”) |
+| `POST /api/forecast/scenario` | `advance.base_ongoing`, `.scen_ongoing`, `.withheld` | like the card's `advance_ongoing` and `suggestion_withheld`; the scenario shifts the ongoing advance by its monthly costs |
+
+**Changed values (v3.9.0):**
+
+- **Balance over the running billing period.** A contract that falls into the
+  running billing period calculates balance, costs, advance payments and
+  suggestion over exactly that period, also without a captured bill. Up to v3.8
+  the card counted from the contract start without a bill (several years), the
+  workshop the running billing year. `effective_end` is then the day after the
+  end of the period (or the maintained contract end when it comes first); in a
+  period covered only in part, only additional advance payments count among the
+  special payments. The workshop (`billing`, `advance`) takes balance, date and
+  suggestion from the contract status.
+- **Energy flow without capping.** `flows.pv_grid` is the measured feed-in, also
+  when it is above the (interpolated) generation; up to v3.8 it was
+  `min(feed-in, generation)`. `eigenverbrauchsquote` refers to the sun in the
+  figure.
+- **Future contracts** show the working price and advance payment of their start (up to v3.8 `null`).
+- **Forecast:** without a weather link and without twelve measured calendar
+  months the annual total is that of the last 365 days (warning `level_last_year`).
+
 **Since v2.8.0** `hdd` only counts the days with consumption; `temp_days` says for
 how many of them temperatures are available. For HDD-relevant utilities with meter
 readings (gas, district heating, since v3.1.0 heat), the fields of the heating model are added
