@@ -443,11 +443,13 @@ final class PvSummaryService
     {
         $acc = [];
         foreach ($strom['meters'] ?? [] as $pm) {
-            if (!MeterService::countsInTotals($pm['meter'] ?? [])) continue;
+            // v3.9.0 (F1032) — mit Rest-Abrechnung je Vertrag gewichtet mit seiner Menge, Subzähler
+            // mit eigenem Vertrag eingeschlossen (sonst stünde der Restpreis für die ganze Messung)
+            if (!MeterService::countsInTotals($pm['meter'] ?? []) && !$this->consumption->isDeductingSubmeter('strom', $pm['meter'] ?? [])) continue;
             foreach ($pm['monthly'] ?? [] as $m) {
                 $wp = $m['working_price_ct'] ?? null;
                 if ($wp === null) continue;
-                $k = max(0.0, (float)($m['kwh'] ?? 0));
+                $k = max(0.0, ConsumptionService::billedQuantity($m));
                 $ym = (string)$m['ym'];
                 $acc[$ym][0] = ($acc[$ym][0] ?? 0.0) + (float)$wp * ($k > 0 ? $k : 1.0);
                 $acc[$ym][1] = ($acc[$ym][1] ?? 0.0) + ($k > 0 ? $k : 1.0);

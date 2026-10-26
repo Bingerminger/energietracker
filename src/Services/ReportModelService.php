@@ -377,6 +377,30 @@ final class ReportModelService
                 if ((int)($r['days'] ?? 0) >= (int)date('t', mktime(0, 0, 0, $mo, 1, $y))) $out['full_months']++;
             }
         }
+        // v3.9.0 (F1032, #40) — Subzähler mit eigenem Vertrag: ihr Geld zählt (der Elternvertrag
+        // rechnet nur den Rest), ihre Menge steckt im Elternzähler
+        foreach ($this->meters->list($u) as $m) {
+            if (MeterService::countsInTotals($m) || !$this->consumption->isDeductingSubmeter($u, $m)) continue;
+            foreach ($this->rows($u, $m) as $r) {
+                if ((int)($r['year'] ?? 0) !== $y || empty($r['contract_id'])) continue;
+                $mo = (int)$r['month'];
+                // nur das Geld seiner Verträge (Tage ohne Vertrag rechnet der Elternzähler brutto)
+                $loose = (float)($r['uncontracted_cost'] ?? 0);
+                $c = (float)($r['cost'] ?? 0) - $loose; $b = (float)($r['bonus_eur'] ?? 0);
+                $out['cost'] += $c;
+                $out['kwh_cost'] += (float)($r['kwh_cost'] ?? 0) - $loose;
+                $out['cost_months'][$mo] = ($out['cost_months'][$mo] ?? 0.0) + $c;
+                $out['cost_gross'] += $c + $b;
+                $out['cost_months_gross'][$mo] = ($out['cost_months_gross'][$mo] ?? 0.0) + $c + $b;
+                if ($b > 0) {
+                    $out['bonus'] += $b;
+                    $out['bonus_months'][$mo] = ($out['bonus_months'][$mo] ?? 0.0) + $b;
+                    foreach ((array)($r['bonus_items'] ?? []) as $bi) $out['bonus_items'][] = $bi;
+                }
+                $out['has_contract'] = true;
+                $out['priced'] = true;
+            }
+        }
         $out['coverage'] = count(array_filter($out['months'], fn($v) => $v !== null));
         $out['interpolated'] = count($out['interp_months']);
         // v3.7.0 (wirklichkeit-2) — mit verteilten Monaten: Liegen beide Jahresgrenzen

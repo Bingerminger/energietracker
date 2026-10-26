@@ -21,6 +21,7 @@ import { t, tp, getCurrencyMinor } from '../lib/i18n.js';
 import { info } from '../components/info.js';
 import { periodToCheck, exclusiveEnd, addDays } from '../lib/billing-period.js';
 import { attachmentNames, attachmentLinksHtml } from '../lib/attachments.js';   // v3.7.0
+import { restNoteHtml } from '../lib/rest-billing.js';   // v3.9.0 (F1032, #40) — Menge = Rest
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -260,6 +261,7 @@ export function renderBillCheck(bill, u = { key: 'gas' }) {
       </tr></tfoot>
     </table></div>
     <p class="bill-check-total"><strong>${escapeHtml(tot.bonus ? t('billCheck.ownTotal', { total: eur(tot.total), rebate: eur(tot.bonus) }) : t('billCheck.ownTotalOnly', { total: eur(tot.total) }))}</strong></p>
+    ${restNoteHtml(tot.rest_of, qtyUnit)}
     <p class="muted bill-check-legend" style="margin-top:8px">${t('utility.billCheck.legend', { est: t('utility.billCheck.mark.estimated'), int: t('utility.billCheck.mark.interpolated') })}</p>
     ${tot.gaps ? `<p class="muted" style="margin-top:8px">${tp('utility.billCheck.gapsN', tot.gaps)}</p>` : ''}
     ${tot.price_missing ? `<p class="muted">${escapeHtml(t('billCheck.reason.price_missing'))}</p>` : ''}

@@ -35,6 +35,7 @@ import { paginate, pagerHtml, wirePager, pageSize, PAGER_THRESHOLD } from '../co
 import { lastClosedPeriod, periodToCheck, calendarYearOf, periodMode, billingApplies, periodName, periodsWithData, pickPeriod, periodRows, refMonth } from '../lib/billing-period.js';
 import { periodModeHtml, wirePeriodMode, calendarOnlyNote } from '../components/period-mode.js';
 import { bonusOf, bonusItemsOf, bonusLineText } from '../lib/bonus.js';   // v3.7.0 (#33)
+import { mergeRestOf, restNoteHtml, restNoteText, subContractHint } from '../lib/rest-billing.js';   // v3.9.0 (F1032, #40)
 
 let _chart = null;
 let _stockChart = null;   // v2.10.0 — Bestandsverlauf (Tankbuch)
@@ -457,6 +458,8 @@ async function rerender(container) {
       </div>`}
     </div>`}
 
+    ${noValues ? '' : restNoteHtml(mergeRestOf(monthlyYear.map(m => m.rest_of)), u.consumption_unit)}
+    ${meter.parent_meter_id && contracts.some(c => !c.is_shadow) ? `<p class="banner banner--info small" data-role="sub-rest-note">${escapeHtml(subContractHint(meter, state.meters))}</p>` : ''}
     ${!isDelivery && currentContract ? groupNote + balanceCard(currentContract, u, country) : ''}
     <div class="card" data-role="explainers" hidden></div>
 
@@ -809,6 +812,8 @@ function balanceCard(c, u, country = 'DE') {
   if (c.renewed) notes.push(t('utility.balance.renewed', { date: fmt.date(c.end) }));
   // v3.7.0 (wirklichkeit-2) — ohne Arbeitspreis: dieselbe Aussage wie im Abrechnungsjahr
   if (c.price_missing) notes.push(t('priceMissing.contract'));
+  // v3.9.0 (F1032, #40) — Rest-Abrechnung: wie der Vertrag rechnet (gemessen − Subzähler)
+  if (c.rest_of) notes.push(restNoteText(c.rest_of, u.consumption_unit));
   if (c.cancel_missed) notes.push(t('utility.balance.cancelMissed', { date: fmt.date(c.cancel_by), end: fmt.date(c.end) }));
   if (c.price_increase) {
     const pi = c.price_increase;
@@ -1149,7 +1154,8 @@ function contractsTable(contracts, u) {
     </tr></thead>
     ${groupContracts(contracts).map(groupBody).join('')}
   </table></div>
-  <p class="muted" style="font-size:11px;margin:8px 4px 0">${t(feedInKind(u) ? 'saldo.tableLegendFeedIn' : 'saldo.tableLegend')}${showSpecial ? ' ' + t('utility.contractsTable.hint') : ''}</p>`;
+  <p class="muted" style="font-size:11px;margin:8px 4px 0">${t(feedInKind(u) ? 'saldo.tableLegendFeedIn' : 'saldo.tableLegend')}${showSpecial ? ' ' + t('utility.contractsTable.hint') : ''}</p>
+  ${contracts.filter(c => c.rest_of).map(c => `<p class="muted small" data-role="rest-contract-note" style="margin:4px 4px 0">${escapeHtml((c.provider || c.tariff_name || '–') + ': ' + restNoteText(c.rest_of, u.consumption_unit))}</p>`).join('')}`;
 }
 
 // v2.5.1 — Zelle „Sonderzahlungen": Netto aus Kundensicht. Erhalten (Rück-

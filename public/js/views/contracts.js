@@ -23,6 +23,7 @@ import { BONUS_TYPES, bonusTypeLabel, bonusDetailLines } from '../lib/bonus.js';
 import { infoNote } from '../components/info.js';   // v3.7.0 (#35)
 import { attachmentNames, attachmentLinksHtml, attachmentIdsOf } from '../lib/attachments.js';   // v3.7.0 — Belege am Vertrag
 import { dossierHtml, wireDossiers } from '../components/dossier.js';   // v3.7.0 (Paket betrieb) — Akte je Vertrag
+import { subContractHint } from '../lib/rest-billing.js';   // v3.9.0 (F1032, #40)
 
 // Titel/Labels werden zur Render-Zeit über t() aufgelöst (nicht beim Modul-
 // Laden, da der Sprachkatalog dann ggf. noch nicht steht).
@@ -495,6 +496,8 @@ async function openContractModal(u, meters, existing, contracts = [], groups = [
                   `<option value="g:${escapeHtml(g.id)}" ${g.id === initial.meter_group_id ? 'selected' : ''}>${escapeHtml(g.name)}</option>`).join('')}</optgroup>` : ''}
               </select>
             </div>
+            <!-- v3.9.0 (F1032, #40) — Vertrag an einem Subzähler: Was sich am Elternzähler ändert -->
+            <p class="fgroup__hint field--full" data-role="sub-contract-hint" hidden></p>
             ${personSelectHtml({ id: 'cf-assignee', record: existing, people, hintKey: 'assignee.hintContract' })}
           </div>
         </fieldset>
@@ -665,6 +668,19 @@ async function openContractModal(u, meters, existing, contracts = [], groups = [
         catch (e) { console.warn('contract modal: entry-group binding failed:', e); }
         // v3.1.0 (H6, #17) — Gruppe gewählt: Arbeitspreise je Mitglied anbieten
         const targetSel = modalEl.querySelector('[name="meter_id"]');
+        // v3.9.0 (F1032, #40) — Subzähler (oder Gruppe aus Subzählern) gewählt: ein Satz zur Rest-Abrechnung
+        const subHint = modalEl.querySelector('[data-role="sub-contract-hint"]');
+        const showSubHint = () => {
+          if (!subHint || !targetSel) return;
+          const v = targetSel.value;
+          const subs = v.startsWith('g:') ? meters.filter(m => m.meter_group_id === v.slice(2) && m.parent_meter_id)
+            : meters.filter(m => m.id === v && m.parent_meter_id);
+          const text = subs.map(m => subContractHint(m, meters)).filter(Boolean).join(' ');
+          subHint.textContent = text;
+          subHint.hidden = !text;
+        };
+        targetSel?.addEventListener('change', showSubHint);
+        showSubHint();
         targetSel?.addEventListener('change', () => {
           const box = modalEl.querySelector('[data-role="member-prices"]');
           if (!box) return;

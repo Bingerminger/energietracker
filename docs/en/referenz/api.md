@@ -844,6 +844,29 @@ Agenda, calendar and recommendations (cancellation deadline, contract end,
 price increase) also run for group contracts. Background:
 [Meter topology](../verstehen/13-meter-topologie.md#group-contract-v310).
 
+### Remainder billing at the parent meter *(v3.9.0, additive)*
+
+If a submeter (`parent_meter_id`) has a contract of its own or is billed through
+the group contract of its group, the parent meter’s contracts only bill the
+remainder: measured minus submeter, on the days with its own contract
+([meter topology](../verstehen/13-meter-topologie.md#remainder-billing-v390)).
+Gas, electricity, district heating and feed-in; not water. New fields, only
+where the rule applies:
+
+| Where | Field | Meaning |
+|---|---|---|
+| monthly row of the parent meter (`…/consumption`, also of a group) | `billed_kwh` | amount of its contracts (remainder, never below zero); `kwh` stays the measurement |
+| there, `…/contract-status` (per contract), `…/bill-check` (`totals`) | `rest_of` | `{measured, submeters: [{meter_id, name, kwh}], rest}`, plus only where present `estimated_kwh` (the submeter’s latest daily rate carried forward, at most 92 days), `open_days` (days without a submeter reading), `short_kwh` (remainder below zero, not billed) |
+| `…/bill-check`, rows and `totals` | `measured_kwh`, `submeter_kwh` | measurement and deduction per section; there `kwh` is the contract’s amount |
+| `…/forecast`, forecast months | `billed_kwh`, `deducted_kwh`, `rest_of` | costs and advance use `billed_kwh`; `kwh` stays the forecast of the measurement |
+
+Totals across meters (`…/consumption` of the utility `monthly_total`, billing
+year of the utility, annual report, PDF, CSV) keep counting the **amount** only
+from meters without a parent and add the **money** of submeters with their own
+contract (costs, advances, balance, bonuses). `contract-status`, bill check,
+tariff comparison (`actual_kwh`, `consumption`, `expected_consumption`) and the
+forecast workshop calculate with the remainder.
+
 ### Contracts: reduced grid fee, price model, credit notes *(v3.1.0, additive)*
 
 **§ 14a EnWG, module 1** — electricity only: `grid_reduction: [{from,

@@ -262,6 +262,8 @@ final class ScenarioService
                 'fixed' => (float)$r['fixed_eur'], 'unit' => (float)$r['unit_eur'],
                 'advance' => $r['advance_estimated'] !== null ? (float)$r['advance_estimated'] : null,
                 'band_low' => $r['band_low'], 'band_high' => $r['band_high'], 'hdd_delta' => 0.0,
+                // v3.9.0 (F1032) — Subzähler mit eigenem Vertrag: diese Menge rechnet der Vertrag nicht
+                'deduct' => (float)($r['deducted_kwh'] ?? 0.0),
             ];
         }
 
@@ -551,9 +553,11 @@ final class ScenarioService
     {
         $out = [];
         foreach ($months as $i => $m) {
+            // v3.9.0 (F1032) — Rest-Abrechnung: bezahlt wird die Menge ohne die Subzähler mit eigenem Vertrag
+            $q = max(0.0, (float)$qty[$i] - (float)($m['deduct'] ?? 0.0));
             $out[] = $prices === null
-                ? (float)$m['fixed'] + (float)$m['unit'] * (float)$qty[$i]
-                : (float)$qty[$i] * (float)$prices[$i]['wp'] / 100.0 + (float)$prices[$i]['bp'];
+                ? (float)$m['fixed'] + (float)$m['unit'] * $q
+                : $q * (float)$prices[$i]['wp'] / 100.0 + (float)$prices[$i]['bp'];
         }
         return $out;
     }

@@ -1150,7 +1150,7 @@
       "icon": "Icono",
       "parent": "Contador principal (subcontador en serie)",
       "parentNone": "— ninguno (independiente) —",
-      "parentHint": "El consumo de este contador se resta del contador principal.",
+      "parentHint": "El contador principal también mide este contador. Si este contador tiene contrato propio, el contrato del contador principal solo factura el resto. Sin contrato propio es un desglose.",
       "group": "Grupo (resumen del panel)",
       "groupNone": "— ninguno —",
       "deviceSerial": "Número de serie del dispositivo (opcional)",
@@ -6624,5 +6624,17 @@
       "poor_fit": "no se ajusta (R² {r2})",
       "degenerate": "no calculable (muy poca variación en los valores)"
     }
+  },
+  "restBilling": {
+    "part": "{kwh} {name}",
+    "formula": "{rest} = {measured} medidos − {parts}",
+    "note": "Aquí solo se factura el resto: {formula}. Lo que mide un subcontador con contrato propio lo factura ese contrato.",
+    "estimated": "De ellos, {kwh} están estimados con el último consumo diario hasta que se vuelva a leer el subcontador.",
+    "openDays": {
+      "one": "Durante {days} día falta una lectura del subcontador. Ahí este contrato factura todo.",
+      "other": "Durante {days} días falta una lectura del subcontador. Ahí este contrato factura todo."
+    },
+    "short": "En algunos meses el subcontador mide más que el contador anterior ({kwh}). Revisa las lecturas. Un resto por debajo de cero no se factura.",
+    "contractHint": "«{parent}» también mide «{name}». Con un contrato propio, el contrato de «{parent}» solo factura el resto desde su inicio: lo medido allí menos «{name}»."
   }
 }

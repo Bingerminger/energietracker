@@ -1150,7 +1150,7 @@
       "icon": "Icon",
       "parent": "Elternzähler (Subzähler-Reihenschaltung)",
       "parentNone": "— keiner (eigenständig) —",
-      "parentHint": "Der Verbrauch dieses Zählers wird vom Elternzähler abgezogen.",
+      "parentHint": "Der Elternzähler misst diesen Zähler mit. Hat dieser Zähler einen eigenen Vertrag, rechnet der Vertrag des Elternzählers nur den Rest. Ohne eigenen Vertrag ist er eine Aufschlüsselung.",
       "group": "Gruppe (Dashboard-Zusammenfassung)",
       "groupNone": "— keine —",
       "deviceSerial": "Geräte-Seriennummer (optional)",
@@ -6624,5 +6624,17 @@
       "poor_fit": "passt nicht (R² {r2})",
       "degenerate": "nicht berechenbar (zu wenig Unterschied in den Werten)"
     }
+  },
+  "restBilling": {
+    "part": "{kwh} {name}",
+    "formula": "{rest} = {measured} gemessen − {parts}",
+    "note": "Abgerechnet wird hier nur der Rest: {formula}. Was ein Subzähler mit eigenem Vertrag misst, rechnet sein Vertrag.",
+    "estimated": "Davon sind {kwh} mit der letzten Tagesrate geschätzt, bis der Subzähler wieder abgelesen ist.",
+    "openDays": {
+      "one": "An {days} Tag fehlt ein Stand des Subzählers. Dort rechnet dieser Vertrag alles.",
+      "other": "An {days} Tagen fehlt ein Stand des Subzählers. Dort rechnet dieser Vertrag alles."
+    },
+    "short": "In einzelnen Monaten misst der Subzähler mehr als der Zähler davor ({kwh}). Bitte die Ablesungen prüfen. Ein Rest unter null wird nicht berechnet.",
+    "contractHint": "„{parent}“ misst „{name}“ mit. Mit einem eigenen Vertrag rechnet der Vertrag von „{parent}“ ab dessen Beginn nur noch den Rest: gemessen dort minus „{name}“."
   }
 }

@@ -230,6 +230,10 @@ final class ForecastService
         $start->modify('first day of next month');
         $blendW = $reg && ($reg['valid'] ?? false) ? min($blendMax, (float)$reg['r2']) : 0.0;
 
+        // v3.9.0 (F1032, #40) — Subzähler mit eigenem Vertrag: Ihre Prognose rechnet der
+        // Vertrag dieses Zählers nicht; Kosten und Abschlag nur auf den Rest
+        $deduct = $this->deductionForecast($utility, $meter, $opts, $valueField, clone $start, $fcMonths);
+
         $forecast = [];
         $runningBalance = 0.0;
         $hddSource = null;
@@ -318,8 +322,11 @@ final class ForecastService
             }
 
             // F-02: full contract-aware monthly finance projection.
+            // v3.9.0 (F1032) — mit Rest-Abrechnung auf die Restmenge (nie unter null)
+            $ded = $deduct[$ym] ?? null;
+            $billedVol = $ded !== null ? max(0.0, $blended - $ded['kwh']) : $blended;
             $fin = $this->projectMonthFinances(
-                $utility, $contracts, $yr, $mn, $blended, $fallbackPrice, $priceFactor, $sewageShare[$mn] ?? 1.0
+                $utility, $contracts, $yr, $mn, $billedVol, $fallbackPrice, $priceFactor, $sewageShare[$mn] ?? 1.0
             );
             $runningBalance += $fin['cost'] - ($fin['advance'] ?? 0.0);
             // v3.6.0 (F1031) — die Kosten eines Monats sind linear in der Menge
@@ -351,6 +358,13 @@ final class ForecastService
                 'fixed_eur'         => round($fixed, 4),                                       // v3.6.0 (F1031)
                 'unit_eur'          => round($unit, 6),                                        // v3.6.0 (F1031)
             ];
+            // v3.9.0 (F1032) — Rest-Abrechnung (additiv): Menge des Vertrags, Abzug der Subzähler, Hinweis
+            if ($ded !== null) {
+                $last = array_key_last($forecast);
+                $forecast[$last]['billed_kwh'] = round($billedVol, 1);
+                $forecast[$last]['deducted_kwh'] = round($ded['kwh'], 1);
+                $forecast[$last]['rest_of'] = SubmeterRest::restOf($blended, $ded['by'], $ded['names']);
+            }
             $start->modify('first day of next month');
         }
 
@@ -468,6 +482,53 @@ final class ForecastService
                 'forecast_months' => $fcMonths,
             ],
         ];
+    }
+
+    /**
+     * v3.9.0 (F1032, GitHub #40) — Was Subzähler mit eigenem Vertrag in den
+     * Prognosemonaten verbrauchen, je Monat nur an den Tagen mit eigenem
+     * Vertrag: Diese Menge rechnet der Vertrag dieses Zählers nicht. Je
+     * Subzähler seine eigene Prognose mit denselben Optionen; fehlt sie (zu
+     * wenig Monate) oder ein Monat, seine mittlere Tagesrate der letzten zwölf
+     * Monate.
+     *
+     * @return array<string,array{kwh:float,by:array<string,float>,names:array<string,string>}> ym → Abzug
+     */
+    private function deductionForecast(string $utility, array $meter, array $opts, string $vf, \DateTime $start, int $months): array
+    {
+        $subs = $this->consumption->deductingSubmeters($utility, $meter);
+        if ($subs === [] || $months <= 0) return [];
+        $out = [];
+        foreach ($subs as $s) {
+            $sub = $s['meter'];
+            $id = (string)$sub['id'];
+            $fc = $this->forMeter($utility, $sub, $opts);
+            $byYm = [];
+            if (!empty($fc['valid'])) foreach ((array)$fc['forecast'] as $f) $byYm[(string)$f['ym']] = (float)($f[$vf] ?? 0.0);
+            $recent = array_slice($this->consumption->forMeter($utility, $sub), -12);
+            $days = array_sum(array_map(fn($r) => (int)($r['days'] ?? 0), $recent));
+            $rate = $days > 0 ? array_sum(array_map(fn($r) => (float)($r[$vf] ?? 0.0), $recent)) / $days : 0.0;
+            $t = clone $start;
+            for ($i = 0; $i < $months; $i++) {
+                $ym = $t->format('Y-m');
+                $from = $t->format('Y-m-01');
+                $next = (clone $t)->modify('first day of next month')->format('Y-m-d');
+                $dim = (int)$t->format('t');
+                $withContract = 0;
+                foreach ($this->contracts->segmentsWithin($s['contracts'], $s['cuts'], $from, $next) as $seg) {
+                    if ($seg['contract'] !== null) $withContract += (int)$seg['days'];
+                }
+                if ($withContract > 0) {
+                    $value = ($byYm[$ym] ?? $rate * $dim) * $withContract / $dim;
+                    $out[$ym] ??= ['kwh' => 0.0, 'by' => [], 'names' => []];
+                    $out[$ym]['kwh'] += $value;
+                    $out[$ym]['by'][$id] = ($out[$ym]['by'][$id] ?? 0.0) + $value;
+                    $out[$ym]['names'][$id] = (string)($sub['name'] ?? $id);
+                }
+                $t->modify('first day of next month');
+            }
+        }
+        return $out;
     }
 
     /**

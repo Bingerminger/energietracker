@@ -190,6 +190,13 @@ final class ConsumptionService
                 }
             }
         }
+        // v3.9.0 (F1032, #40) — Subzähler mit eigenem Vertrag: Ihre Menge steckt im Elternzähler,
+        // ihr Geld nicht mehr (der Elternvertrag rechnet nur den Rest). Kosten = Rest × Elternpreis
+        // + Subzähler × eigener Preis; die Menge bleibt die Messung des Elternzählers.
+        foreach ($perMeter as $entry) {
+            if (MeterService::countsInTotals($entry['meter']) || !$this->isDeductingSubmeter($utility, $entry['meter'])) continue;
+            self::addSubmeterMoney($totals, $entry['monthly']);
+        }
         foreach ($totals as $ym => &$t) $t = array_merge($t, self::sharedMarker($markers[$ym]));
         unset($t);
         ksort($totals);
@@ -206,6 +213,31 @@ final class ConsumptionService
             // Darstellung im Frontend (Mitgliedschaft steckt an den Metern).
             'meter_groups' => $this->meters->listGroups($utility),
         ];
+    }
+
+    /**
+     * v3.9.0 (F1032) — Das Geld eines Subzählers mit eigenem Vertrag in Monatssummen
+     * (nur Monate mit Vertrag, nur Geldfelder; die Menge steckt im Elternzähler).
+     *
+     * @param array<string,array<string,mixed>> $totals ym → Summe (wird ergänzt)
+     * @param list<array<string,mixed>> $rows Monatszeilen des Subzählers
+     */
+    public static function addSubmeterMoney(array &$totals, array $rows): void
+    {
+        foreach ($rows as $m) {
+            $ym = (string)($m['ym'] ?? '');
+            if (!isset($totals[$ym]) || empty($m['contract_id'])) continue;
+            // Tage ohne eigenen Vertrag rechnet der Elternzähler brutto — ihr Ablesepreis zählt dort
+            $own = (float)($m['cost'] ?? 0.0) - (float)($m['uncontracted_cost'] ?? 0.0);
+            $totals[$ym]['cost'] = round((float)($totals[$ym]['cost'] ?? 0.0) + $own, 2);
+            foreach (['advance_eur', 'monthly_balance', 'cumulative_balance'] as $f) {
+                if (($m[$f] ?? null) !== null) $totals[$ym][$f] = round((float)($totals[$ym][$f] ?? 0.0) + (float)$m[$f], 2);
+            }
+            if ((float)($m['bonus_eur'] ?? 0) != 0.0) {
+                $totals[$ym]['bonus_eur'] = round((float)($totals[$ym]['bonus_eur'] ?? 0.0) + (float)$m['bonus_eur'], 2);
+                $totals[$ym]['bonus_items'] = array_merge($totals[$ym]['bonus_items'] ?? [], (array)($m['bonus_items'] ?? []));
+            }
+        }
     }
 
     /**
@@ -342,7 +374,8 @@ final class ConsumptionService
             $nwTotal   = 0.0;
             $actualM3  = 0.0;
             foreach ($mList as $m) {
-                $actualKwh     += (float)($m['kwh'] ?? 0);
+                // v3.9.0 (F1032) — bei Rest-Abrechnung die Menge des Vertrags, nicht die Messung
+                $actualKwh     += self::billedQuantity($m);
                 $actualM3      += (float)($m['m3']  ?? 0);
                 $actualCost    += (float)($m['cost'] ?? 0);
                 $actualKwhCost += (float)($m['kwh_cost'] ?? 0);
@@ -574,6 +607,11 @@ final class ConsumptionService
                     'balance_path'             => $projection['path'],
                 ];
             }
+            // v3.9.0 (F1032, #40) — wie gerechnet wird, wenn ein Subzähler einen eigenen Vertrag hat:
+            // gemessen − Subzähler = Rest, über den Zeitraum, den dieser Saldo zählt (additiv)
+            $restOf = $this->restBreakdown($utility, $meter, $balanceFrom,
+                $hasEnd ? date('Y-m-d', (int)strtotime($c['end'] . ' +1 day')) : '9999-12-31');
+            if ($restOf !== null) $row['rest_of'] = $restOf;
             // v2.5.1 — die Einzelposten für die Tabelle „Verträge & Abschläge"
             // (Spalte Sonderzahlungen mit Tooltip). Nur dort, wo es
             // Sonderzahlungen überhaupt gibt (Gas/Strom/Fernwärme, seit v3.5.0
@@ -812,6 +850,8 @@ final class ConsumptionService
         $u   = Utilities::get($utility);
         $vf  = ($u['consumption_unit'] ?? '') === 'kWh' ? 'kwh' : 'm3';
         $est = $this->volumeEstimator($utility, $monthly, $vf, $meter);
+        // v3.9.0 (F1032) — Rest-Abrechnung: geschätzt wird die Restmenge (Zähler minus Subzähler mit eigenem Vertrag)
+        $est = $this->restEstimator($utility, $meter, $est, $vf);
         $fallbackWp = null;
         foreach ($monthly as $m) if (!empty($m['working_price_ct'])) $fallbackWp = (float)$m['working_price_ct'];
 
@@ -1522,7 +1562,7 @@ final class ConsumptionService
             $s = self::shareFrom((string)($r['ym'] ?? ''), $from);
             if ($s <= 0.0) continue;
             if ($s < 1.0) {
-                foreach (['kwh', 'm3', 'cost', 'kwh_cost', 'base_price_eur', 'bonus_eur', 'advance_eur'] as $k) {
+                foreach (['kwh', 'billed_kwh', 'm3', 'cost', 'kwh_cost', 'base_price_eur', 'bonus_eur', 'advance_eur'] as $k) {
                     if (isset($r[$k]) && is_numeric($r[$k])) $r[$k] = (float)$r[$k] * $s;
                 }
                 foreach (['trinkwasser' => ['working_cost', 'base_cost', 'total'], 'schmutzwasser' => ['total'], 'niederschlagswasser' => ['total']] as $part => $keys) {
@@ -1988,9 +2028,19 @@ final class ConsumptionService
         $markers = []; // v3.7.0 (#37) — ym → Kennung „gemessen“ der Summe
         $vfG = (Utilities::get($utility)['consumption_unit'] ?? 'kWh') === 'kWh' ? 'kwh' : 'm3';
         // v3.6.0 — ohne Subzähler, deren Elternzähler Mitglied ist (sonst doppelt)
-        foreach ($this->meters->groupSumMembers($utility, (string)$group['id']) as $member) {
+        $sumMembers = $this->meters->groupSumMembers($utility, (string)$group['id']);
+        $sumIds = array_map(fn($m) => (string)($m['id'] ?? ''), $sumMembers);
+        // v3.9.0 (F1032) — … außer ihrem Geld, wenn sie nach dem Gruppenvertrag rechnen: Dann
+        // rechnet der Elternzähler nur den Rest, und der Subzähler trägt seinen Teil selbst
+        $moneyOnly = array_values(array_filter($this->meters->groupMembers($utility, (string)$group['id']),
+            fn($m) => !in_array((string)($m['id'] ?? ''), $sumIds, true) && $this->isDeductingSubmeter($utility, $m)));
+        $billed = [];   // v3.9.0 (F1032) — ym → Menge der Verträge (nur mit Rest-Abrechnung)
+        $restOf = [];   // ym → zusammengezählter Hinweis
+        foreach ($sumMembers as $member) {
             foreach ($this->forMeter($utility, $member, $hddBaseOverride) as $r) {
                 $ym = (string)$r['ym'];
+                if (array_key_exists('billed_kwh', $r)) $billed[$ym] = true;
+                if (isset($r['rest_of'])) $restOf[$ym] = SubmeterRest::mergeRestOf($restOf[$ym] ?? null, $r['rest_of']);
                 $markers[$ym] = self::accumulateMarker($markers[$ym] ?? null, $r, $vfG);
                 if (!isset($rows[$ym])) {
                     $rows[$ym] = $r;
@@ -2007,21 +2057,29 @@ final class ConsumptionService
                 $rows[$ym]['pre_baseline'] = !empty($rows[$ym]['pre_baseline']) || !empty($r['pre_baseline']);
                 $list = !empty($r['contract_parts']) ? $r['contract_parts']
                     : (!empty($r['contract_id']) ? [[
-                        'contract_id' => $r['contract_id'], 'days' => (int)($r['days'] ?? 0), 'kwh' => (float)($r['kwh'] ?? 0),
+                        'contract_id' => $r['contract_id'], 'days' => (int)($r['days'] ?? 0), 'kwh' => self::billedQuantity($r),
                         'kwh_cost' => (float)($r['kwh_cost'] ?? 0), 'base_price_eur' => $r['base_price_eur'] ?? null,
                         'advance_eur' => $r['advance_eur'] ?? null, 'bonus_eur' => (float)($r['bonus_eur'] ?? 0),
                         'cost' => (float)($r['cost'] ?? 0), 'assumed' => !empty($r['contract_assumed']),
                     ]] : []);
-                foreach ($list as $p) {
-                    $cid = (string)$p['contract_id'];
-                    $q = $parts[$ym][$cid] ?? ['contract_id' => $cid, 'days' => 0, 'kwh' => 0.0, 'kwh_cost' => 0.0,
-                        'base_price_eur' => null, 'advance_eur' => null, 'bonus_eur' => 0.0, 'cost' => 0.0, 'assumed' => false];
-                    $q['days'] = max($q['days'], (int)($p['days'] ?? 0));
-                    foreach (['kwh', 'kwh_cost', 'bonus_eur', 'cost'] as $k) $q[$k] += (float)($p[$k] ?? 0);
-                    foreach (['base_price_eur', 'advance_eur'] as $k) if (($p[$k] ?? null) !== null) $q[$k] = (float)($q[$k] ?? 0.0) + (float)$p[$k];
-                    $q['assumed'] = $q['assumed'] || !empty($p['assumed']);
-                    $parts[$ym][$cid] = $q;
-                }
+                self::addGroupParts($parts, $ym, $list);
+            }
+        }
+        // v3.9.0 (F1032) — Subzähler eines Mitglieds mit eigenem Vertrag: Geld und Vertragsteile, keine Menge
+        foreach ($moneyOnly as $member) {
+            foreach ($this->forMeter($utility, $member, $hddBaseOverride) as $r) {
+                $ym = (string)$r['ym'];
+                if (!isset($rows[$ym]) || empty($r['contract_id'])) continue;
+                foreach (['cost', 'kwh_cost', 'grid_reduction_eur'] as $k) if (isset($r[$k]) && is_numeric($r[$k])) $rows[$ym][$k] = (float)($rows[$ym][$k] ?? 0.0) + (float)$r[$k];
+                foreach (['cost', 'kwh_cost'] as $k) $rows[$ym][$k] = (float)($rows[$ym][$k] ?? 0.0) - (float)($r['uncontracted_cost'] ?? 0.0);
+                foreach ($nullable as $k) if (isset($r[$k]) && $r[$k] !== null) $rows[$ym][$k] = (float)($rows[$ym][$k] ?? 0.0) + (float)$r[$k];
+                $billed[$ym] = true;
+                self::addGroupParts($parts, $ym, !empty($r['contract_parts']) ? $r['contract_parts'] : [[
+                    'contract_id' => $r['contract_id'], 'days' => (int)($r['days'] ?? 0), 'kwh' => (float)($r['kwh'] ?? 0),
+                    'kwh_cost' => (float)($r['kwh_cost'] ?? 0), 'base_price_eur' => $r['base_price_eur'] ?? null,
+                    'advance_eur' => $r['advance_eur'] ?? null, 'bonus_eur' => (float)($r['bonus_eur'] ?? 0),
+                    'cost' => (float)($r['cost'] ?? 0), 'assumed' => !empty($r['contract_assumed']),
+                ]]);
             }
         }
         ksort($rows);
@@ -2047,13 +2105,42 @@ final class ConsumptionService
                 if (isset($row[$k])) $row[$k] = round((float)$row[$k], 2);
             }
             $row = array_merge($row, self::sharedMarker($markers[$ym]));
-            $row['working_price_ct'] = !empty($row['kwh']) && isset($row['kwh_cost']) ? round((float)$row['kwh_cost'] / (float)$row['kwh'] * 100, 4) : null;
+            // v3.9.0 (F1032) — Rest-Abrechnung: Menge der Verträge und Hinweis der Mitglieder
+            unset($row['billed_kwh'], $row['rest_of']);
+            if (isset($billed[$ym])) {
+                $row['billed_kwh'] = round(array_sum(array_map(fn($p) => (float)$p['kwh'], $ps)), 1);
+                if (isset($restOf[$ym])) $row['rest_of'] = $restOf[$ym];
+            }
+            $qty = isset($row['billed_kwh']) ? (float)$row['billed_kwh'] : (float)($row['kwh'] ?? 0);
+            $row['working_price_ct'] = $qty > 0 && isset($row['kwh_cost']) ? round((float)$row['kwh_cost'] / $qty * 100, 4) : null;
             $row['monthly_balance'] = isset($row['advance_eur']) ? round((float)$row['cost'] - (float)$row['advance_eur'], 2) : null;
             $row['cumulative_balance'] = $main !== null && isset($running[$main]) && isset($row['advance_eur']) ? round($running[$main], 2) : null;
         }
         unset($row);
         $vf = (Utilities::get($utility)['consumption_unit'] ?? 'kWh') === 'kWh' ? 'kwh' : 'm3';
         return $this->addMovingAverages(array_values($rows), $vf);
+    }
+
+    /**
+     * Vertragsteile eines Mitglieds in die Teile der Gruppe aufnehmen
+     * (computeForGroup; v3.9.0 herausgelöst, damit auch Subzähler mit
+     * eigenem Vertrag ihren Teil beitragen).
+     *
+     * @param array<string,array<string,array<string,mixed>>> $parts ym → Vertrag → Teil
+     * @param list<array<string,mixed>> $list
+     */
+    private static function addGroupParts(array &$parts, string $ym, array $list): void
+    {
+        foreach ($list as $p) {
+            $cid = (string)$p['contract_id'];
+            $q = $parts[$ym][$cid] ?? ['contract_id' => $cid, 'days' => 0, 'kwh' => 0.0, 'kwh_cost' => 0.0,
+                'base_price_eur' => null, 'advance_eur' => null, 'bonus_eur' => 0.0, 'cost' => 0.0, 'assumed' => false];
+            $q['days'] = max($q['days'], (int)($p['days'] ?? 0));
+            foreach (['kwh', 'kwh_cost', 'bonus_eur', 'cost'] as $k) $q[$k] += (float)($p[$k] ?? 0);
+            foreach (['base_price_eur', 'advance_eur'] as $k) if (($p[$k] ?? null) !== null) $q[$k] = (float)($q[$k] ?? 0.0) + (float)$p[$k];
+            $q['assumed'] = $q['assumed'] || !empty($p['assumed']);
+            $parts[$ym][$cid] = $q;
+        }
     }
 
     /**
@@ -2064,6 +2151,9 @@ final class ConsumptionService
     private function finishMonthly(array $monthly, array $coverage, string $utility, array $meter, array $temps, float $hddBase): array
     {
         $u = Utilities::get($utility);
+        // v3.9.0 (F1032) — die Tagesabschnitte merken: Ein Elternzähler zieht damit die Menge
+        // eines Subzählers mit eigenem Vertrag tagesgenau ab (deductingSubmeters)
+        $this->coverageMemo[$this->coverageKey($utility, $meter)] = $coverage;
         // v3.7.0 (#37) — vor dem Runden: gemessen oder verteilt
         $monthly = self::markMeasured($monthly);
         $monthly = $this->enrichWithWeather($monthly, $temps, $hddBase, $coverage);
@@ -2331,6 +2421,9 @@ final class ConsumptionService
         $out = $utility === 'gas'
             ? $this->gasBillBreakdown($meter, $from, $to)
             : $this->genericBillRows($utility, $meter, $from, $to, $contracts);
+        // v3.9.0 (F1032, #40) — Subzähler mit eigenem Vertrag: Je Abschnitt rechnet der Vertrag nur
+        // den Rest (`kwh`); daneben die Messung (`measured_kwh`) und der Abzug (`submeter_kwh`)
+        $out = $this->restBillRows($utility, $meter, $out);
         $energy = 0.0; $fixed = 0.0; $missingPrice = false;
         $cuts = $this->contracts->cutDates($contracts);
         foreach ($out['rows'] as &$row) {
@@ -2369,15 +2462,62 @@ final class ConsumptionService
         return $out;
     }
 
+    /**
+     * v3.9.0 (F1032, #40) — Abschnitte der Rechnungsprüfung mit Rest-Abrechnung: Je
+     * Abschnitt zieht die Menge der Subzähler mit eigenem Vertrag ab (tagesgenau wie
+     * die Monatsrechnung). `kwh` ist danach die Menge des Vertrags (nie unter null),
+     * `measured_kwh` die Messung, `submeter_kwh` der Abzug; die Summen ebenso, dazu
+     * der Hinweis `rest_of`. Ohne solche Subzähler unverändert.
+     *
+     * @param array<string,mixed> $out Ergebnis von gasBillBreakdown()/genericBillRows()
+     * @return array<string,mixed>
+     */
+    private function restBillRows(string $utility, array $meter, array $out): array
+    {
+        $subs = $this->deductingSubmeters($utility, $meter);
+        if ($subs === []) return $out;
+        $names = [];
+        foreach ($subs as $s) $names[(string)$s['meter']['id']] = (string)($s['meter']['name'] ?? $s['meter']['id']);
+        $acc = null; $billed = 0.0; $measured = 0.0;
+        foreach ($out['rows'] as &$row) {
+            $q = $row['kwh'] ?? null;
+            if ($q === null) continue;
+            $measured += (float)$q;
+            $d = $this->submeterDeduction($subs, (string)$row['from'], (string)$row['to']);
+            if ($d['by'] === []) { $billed += (float)$q; continue; }
+            $rest = (float)$q - $d['total'];
+            $row['measured_kwh'] = $q;
+            $row['submeter_kwh'] = round($d['total'], 1);
+            $row['kwh'] = round(max(0.0, $rest), 1);
+            $billed += max(0.0, $rest);
+            $acc = SubmeterRest::mergeRestOf($acc, SubmeterRest::restOf((float)$q, $d['by'], $names, $d['estimated'],
+                $d['open'] === [] ? 0 : max($d['open']), $rest < 0 ? -$rest : 0.0));
+        }
+        unset($row);
+        if ($acc === null) return $out;
+        $out['totals']['measured_kwh'] = round($measured, 1);
+        $out['totals']['kwh'] = round($billed, 1);
+        $out['totals']['rest_of'] = $acc;
+        return $out;
+    }
+
     /** v3.1.0 (H6) — Rechnungsprüfung einer Gruppe: die Mitglieder nacheinander, Summen zusammen. */
     private function groupBillBreakdown(string $utility, array $group, string $from, string $to): array
     {
         $rows = []; $warnings = [];
         $tot = ['days' => 0, 'kwh' => 0.0, 'm3' => 0.0, 'gaps' => 0, 'energy_cost' => 0.0, 'fixed_cost' => 0.0,
                 'bonus' => 0.0, 'total' => 0.0, 'price_missing' => false, 'bonus_items' => []];
+        $restOf = null;
         // v3.6.0 — ohne Subzähler, deren Elternzähler Mitglied ist (wie computeForGroup)
-        foreach ($this->meters->groupSumMembers($utility, (string)$group['id']) as $m) {
+        // v3.9.0 (F1032) — außer sie rechnen nach dem Gruppenvertrag: Dann rechnet der Elternzähler
+        // nur den Rest, und ihr Teil gehört dazu
+        $sumMembers = $this->meters->groupSumMembers($utility, (string)$group['id']);
+        $sumIds = array_map(fn($m) => (string)($m['id'] ?? ''), $sumMembers);
+        $members = array_merge($sumMembers, array_values(array_filter($this->meters->groupMembers($utility, (string)$group['id']),
+            fn($m) => !in_array((string)($m['id'] ?? ''), $sumIds, true) && $this->isDeductingSubmeter($utility, $m))));
+        foreach ($members as $m) {
             $b = $this->billBreakdown($utility, $m, $from, $to);
+            if (isset($b['totals']['rest_of'])) $restOf = SubmeterRest::mergeRestOf($restOf, $b['totals']['rest_of']);
             foreach ($b['rows'] as $r) $rows[] = $r + ['meter_id' => (string)$m['id'], 'meter_name' => (string)($m['name'] ?? $m['id'])];
             $t = $b['totals'];
             $tot['days'] = max($tot['days'], (int)($t['days'] ?? 0));
@@ -2391,6 +2531,7 @@ final class ConsumptionService
         $tot['m3'] = round($tot['m3'], 2);
         foreach (['energy_cost', 'fixed_cost', 'bonus', 'total'] as $k) $tot[$k] = round($tot[$k], 2);
         if ($utility !== 'gas') unset($tot['m3']);
+        if ($restOf !== null) $tot['rest_of'] = $restOf;   // v3.9.0 (F1032) — additiv
         return ['from' => $from, 'to' => $to, 'rows' => $rows, 'totals' => $tot, 'warnings' => $warnings,
                 'utility' => $utility, 'group_id' => (string)$group['id']];
     }
@@ -3705,6 +3846,10 @@ final class ConsumptionService
         // v1.3.0 — Schattenverträge fließen NICHT in den Saldo ein.
         // v3.1.0 (H6, #17) — dazu der Gruppenvertrag, wenn der Zähler Mitglied ist
         [$contracts, $ctx] = $this->contractScope($utility, $meter);
+        // v3.9.0 (F1032, #40) — Subzähler mit eigenem Vertrag: Der Vertrag dieses Zählers rechnet
+        // nur den Rest. Die Abschnitte tragen danach die Restmenge, die Zeile `rest_of`.
+        $subs = $this->deductingSubmeters($utility, $meter);
+        if ($subs !== []) [$monthly, $coverage] = $this->deductSubmeters($monthly, $coverage, $subs);
         if (empty($contracts)) {
             return $this->applyEmptyContractFields($monthly, $utility);
         }
@@ -3771,6 +3916,262 @@ final class ConsumptionService
         if ($group === []) return [$own, null];
         $members = $this->meters->groupMembers($utility, $gid);
         return [array_merge($own, $group), ['member' => (string)$meter['id'], 'primary' => (string)($members[0]['id'] ?? '') === (string)$meter['id']]];
+    }
+
+    // ── v3.9.0 (F1032, GitHub #40) — Rest-Abrechnung am Elternzähler ─────────
+    //
+    // Hat ein Subzähler einen eigenen Vertrag (eigener oder Gruppenvertrag, kein
+    // Angebot), rechnet der Vertrag des Elternzählers nur den Rest: gemessen
+    // minus Subzähler, tagesgenau an den Tagen, an denen der Subzähler nach
+    // seinem Vertrag rechnet. Ohne eigenen Vertrag bleibt der Subzähler eine
+    // Aufschlüsselung (der Elternvertrag rechnet alles). Die Monatszeile des
+    // Elternzählers behält `kwh` = Messung und trägt `billed_kwh` (Menge seiner
+    // Verträge) und den Hinweis `rest_of`. Summen über Zähler zählen die Menge
+    // weiter nur aus Zählern ohne Elternzähler, das Geld zusätzlich aus
+    // Subzählern mit eigenem Vertrag (isDeductingSubmeter). Seit v3.1.0
+    // versprach die Doku (Modul 2) genau das; umgesetzt war es nie.
+
+    /** @var array<string,array<string,list<array>>> Tagesabschnitte je Zähler und Anfrage (finishMonthly) */
+    private array $coverageMemo = [];
+    /** @var array<string,list<array<string,mixed>>> deductingSubmeters() je Zähler und Anfrage */
+    private array $deductingMemo = [];
+
+    /**
+     * So lange nach seiner letzten Ablesung wird ein Subzähler mit seiner
+     * letzten Tagesrate fortgeschrieben, wenn der Elternzähler schon weiter
+     * abgelesen ist (ein Quartal). Danach zieht nichts mehr ab, der Hinweis
+     * nennt die Tage (`open_days`).
+     */
+    public const REST_EXTRAPOLATE_DAYS = 92;
+
+    private function coverageKey(string $utility, array $meter): string
+    {
+        return $utility . '|' . ($meter['id'] ?? '') . '|' . md5(serialize($meter)) . '|' . $this->store->generation();
+    }
+
+    /**
+     * Arten mit Rest-Abrechnung: Zählerstände mit Verträgen, außer Wasser — dort
+     * zieht seit v3.1.0 der Schmutzwasser-Abzug (`trinkwasser_minus_abzug`) ab.
+     */
+    public static function restBillingApplies(string $utility): bool
+    {
+        return Utilities::exists($utility) && Utilities::isCumulative($utility) && Utilities::hasContracts($utility) && $utility !== 'wasser';
+    }
+
+    /**
+     * Ein Subzähler, der nach einem eigenen Vertrag rechnet: Seine Menge steckt im
+     * Elternzähler, sein Geld nicht mehr. Summen über Zähler zählen sein Geld
+     * (Kosten, Abschläge, Saldo), nicht seine Menge.
+     */
+    public function isDeductingSubmeter(string $utility, array $meter): bool
+    {
+        if (!self::restBillingApplies($utility) || empty($meter['parent_meter_id']) || !empty($meter['is_group'])) return false;
+        return $this->contractScope($utility, $meter)[0] !== [];
+    }
+
+    /** Menge, die die Verträge einer Monatszeile rechnen: `billed_kwh` (Rest) oder die Messung. */
+    public static function billedQuantity(array $row, string $vf = 'kwh'): float
+    {
+        return $vf === 'kwh' && array_key_exists('billed_kwh', $row) && $row['billed_kwh'] !== null
+            ? (float)$row['billed_kwh'] : (float)($row[$vf] ?? 0.0);
+    }
+
+    /**
+     * Die Subzähler, deren Menge der Vertrag dieses Zählers nicht rechnet — mit
+     * Verträgen, Schnitttagen und Tagesabschnitten. Für eine Gruppe die
+     * Subzähler ihrer Mitglieder, die nicht selbst Mitglied sind (Mitglieder
+     * rechnet derselbe Gruppenvertrag).
+     *
+     * @return list<array{meter:array<string,mixed>,contracts:list<array<string,mixed>>,cuts:list<string>,spans:list<array{0:int,1:int,2:float}>}>
+     */
+    public function deductingSubmeters(string $utility, array $meter): array
+    {
+        if (!self::restBillingApplies($utility) || !empty($meter['parent_meter_id'])) return [];
+        if (!empty($meter['is_group'])) {
+            $memberIds = array_map(fn($m) => (string)($m['id'] ?? ''), $this->meters->groupMembers($utility, (string)$meter['id']));
+            $out = [];
+            foreach ($this->meters->groupSumMembers($utility, (string)$meter['id']) as $m) {
+                foreach ($this->deductingSubmeters($utility, $m) as $s) {
+                    if (!in_array((string)$s['meter']['id'], $memberIds, true)) $out[] = $s;
+                }
+            }
+            return $out;
+        }
+        $id = (string)($meter['id'] ?? '');
+        if ($id === '') return [];
+        $key = $utility . '|' . $id . '|' . $this->store->generation();
+        if (isset($this->deductingMemo[$key])) return $this->deductingMemo[$key];
+        $this->deductingMemo[$key] = [];   // Schutz gegen Rekursion (max. eine Ebene ist ohnehin Regel)
+        $out = [];
+        foreach ($this->meters->list($utility) as $sub) {
+            if ((string)($sub['parent_meter_id'] ?? '') !== $id) continue;
+            [$contracts] = $this->contractScope($utility, $sub);
+            if ($contracts === []) continue;
+            $out[] = [
+                'meter'     => $sub,
+                'contracts' => $contracts,
+                'cuts'      => $this->contracts->cutDates($contracts),
+                'spans'     => SubmeterRest::prepare($this->meterCoverage($utility, $sub)),
+            ];
+        }
+        return $this->deductingMemo[$key] = $out;
+    }
+
+    /** Tagesabschnitte eines Zählers aus seiner Monatsrechnung (einmal je Anfrage). */
+    private function meterCoverage(string $utility, array $meter): array
+    {
+        $key = $this->coverageKey($utility, $meter);
+        if (!isset($this->coverageMemo[$key])) $this->forMeter($utility, $meter);
+        return $this->coverageMemo[$key] ?? [];
+    }
+
+    /**
+     * Abzug der Subzähler in [a, b): je Subzähler seine Menge an den Tagen mit
+     * eigenem Vertrag (auch einem, der ohne Kündigung weiterläuft).
+     *
+     * @param list<array<string,mixed>> $subs deductingSubmeters()
+     * @return array{total:float,by:array<string,float>,estimated:float,open:array<string,int>}
+     */
+    private function submeterDeduction(array $subs, string $a, string $b): array
+    {
+        $out = ['total' => 0.0, 'by' => [], 'estimated' => 0.0, 'open' => []];
+        foreach ($subs as $s) {
+            $id = (string)$s['meter']['id'];
+            $hit = false; $kwh = 0.0;
+            $maxEst = MeterService::inService($s['meter']) ? self::REST_EXTRAPOLATE_DAYS : 0;
+            foreach ($this->contracts->segmentsWithin($s['contracts'], $s['cuts'], $a, $b) as $seg) {
+                if ($seg['contract'] === null) continue;
+                $hit = true;
+                [$m, $e, $open] = SubmeterRest::between($s['spans'], SubmeterRest::day($seg['from']), SubmeterRest::day($seg['to']), $maxEst);
+                $kwh += $m + $e;
+                $out['estimated'] += $e;
+                if ($open > 0) $out['open'][$id] = ($out['open'][$id] ?? 0) + $open;
+            }
+            if (!$hit) continue;
+            $out['by'][$id] = ($out['by'][$id] ?? 0.0) + $kwh;
+            $out['total'] += $kwh;
+        }
+        return $out;
+    }
+
+    /**
+     * Zieht die Subzähler von den Tagesabschnitten eines Elternzählers ab
+     * (Monatszeilen nach Monat geschlüsselt) und setzt je betroffenem Monat
+     * den Hinweis `rest_of`. Ein Rest unter null bleibt hier stehen; die
+     * Vertragsrechnung rechnet ihn nicht negativ ab (applyStandardContracts).
+     *
+     * @param list<array<string,mixed>> $subs
+     * @return array{0:array<string,array<string,mixed>>,1:array<string,list<array>>}
+     */
+    private function deductSubmeters(array $monthly, array $coverage, array $subs): array
+    {
+        $names = [];
+        foreach ($subs as $s) $names[(string)$s['meter']['id']] = (string)($s['meter']['name'] ?? $s['meter']['id']);
+        foreach ($coverage as $ym => $list) {
+            if (!isset($monthly[$ym])) continue;
+            $measured = 0.0; $by = []; $est = 0.0; $open = []; $hit = false;
+            foreach ($list as $i => $span) {
+                $q = (float)($span[2] ?? 0.0);
+                $measured += $q;
+                $d = $this->submeterDeduction($subs, (string)$span[0], (string)$span[1]);
+                if ($d['by'] === []) continue;
+                $hit = true;
+                foreach ($d['by'] as $id => $k) $by[$id] = ($by[$id] ?? 0.0) + $k;
+                foreach ($d['open'] as $id => $n) $open[$id] = ($open[$id] ?? 0) + $n;
+                $est += $d['estimated'];
+                $coverage[$ym][$i][2] = $q - $d['total'];
+            }
+            if ($hit) $monthly[$ym]['rest_of'] = SubmeterRest::restOf($measured, $by, $names, $est, $open === [] ? 0 : max($open));
+        }
+        return [$monthly, $coverage];
+    }
+
+    /**
+     * Der Hinweis „wie gerechnet wird“ für einen Zeitraum [from, toExcl):
+     * gemessen am Zähler (bzw. an den Mitgliedern einer Gruppe), abgezogen je
+     * Subzähler, Rest. Null, wenn im Zeitraum kein Subzähler nach einem eigenen
+     * Vertrag rechnet. Für die Vertragskarte (contractStatus) und die
+     * Rechnungsprüfung.
+     *
+     * @return array<string,mixed>|null
+     */
+    public function restBreakdown(string $utility, array $meter, string $from, string $toExcl): ?array
+    {
+        if ($toExcl <= $from || !self::restBillingApplies($utility)) return null;
+        if (!empty($meter['is_group'])) {
+            $memberIds = array_map(fn($m) => (string)($m['id'] ?? ''), $this->meters->groupMembers($utility, (string)$meter['id']));
+            $acc = null;
+            foreach ($this->meters->groupSumMembers($utility, (string)$meter['id']) as $m) {
+                $subs = array_values(array_filter($this->deductingSubmeters($utility, $m), fn($s) => !in_array((string)$s['meter']['id'], $memberIds, true)));
+                $r = $this->restBreakdownWith($utility, $m, $subs, $from, $toExcl);
+                if ($r !== null) $acc = SubmeterRest::mergeRestOf($acc, $r);
+            }
+            return $acc;
+        }
+        return $this->restBreakdownWith($utility, $meter, $this->deductingSubmeters($utility, $meter), $from, $toExcl);
+    }
+
+    /** @param list<array<string,mixed>> $subs */
+    private function restBreakdownWith(string $utility, array $meter, array $subs, string $from, string $toExcl): ?array
+    {
+        if ($subs === []) return null;
+        $names = [];
+        foreach ($subs as $s) $names[(string)$s['meter']['id']] = (string)($s['meter']['name'] ?? $s['meter']['id']);
+        $f = SubmeterRest::day($from); $t = SubmeterRest::day($toExcl);
+        $measured = 0.0; $by = []; $est = 0.0; $open = []; $hit = false;
+        $restYm = [];   // Rest je Monat: ein Monat unter null wird nicht abgerechnet (wie applyStandardContracts)
+        foreach (SubmeterRest::prepare($this->meterCoverage($utility, $meter)) as [$a, $b, $rate]) {
+            $x = max($a, $f); $y = min($b, $t);
+            if ($y <= $x) continue;
+            $q = ($y - $x) * $rate;
+            $measured += $q;
+            $ym = substr(SubmeterRest::date($x), 0, 7);
+            $restYm[$ym] = ($restYm[$ym] ?? 0.0) + $q;
+            $d = $this->submeterDeduction($subs, SubmeterRest::date($x), SubmeterRest::date($y));
+            if ($d['by'] === []) continue;
+            $hit = true;
+            foreach ($d['by'] as $id => $k) $by[$id] = ($by[$id] ?? 0.0) + $k;
+            foreach ($d['open'] as $id => $n) $open[$id] = ($open[$id] ?? 0) + $n;
+            $est += $d['estimated'];
+            $restYm[$ym] -= $d['total'];
+        }
+        if (!$hit) return null;
+        $short = array_sum(array_map(fn($r) => $r < 0 ? -$r : 0.0, $restYm));
+        return SubmeterRest::restOf($measured, $by, $names, $est, $open === [] ? 0 : max($open), $short);
+    }
+
+    /**
+     * Schätzung der Restmenge je Tag für Lücke und Rest des Saldos: die Schätzung
+     * des Zählers minus die der Subzähler an den Tagen mit eigenem Vertrag (je
+     * Subzähler sein eigenes Modell; ein Tag nie unter null).
+     */
+    private function restEstimator(string $utility, array $meter, ?callable $est, string $vf): ?callable
+    {
+        if ($est === null) return null;
+        $subs = $this->deductingSubmeters($utility, $meter);
+        if ($subs === []) return $est;
+        $saved = $this->lastProjection;   // volumeEstimator() merkt sich die Faktoren des Elternzählers
+        $parts = [];
+        foreach ($subs as $s) {
+            $e = $this->volumeEstimator($utility, $this->forMeter($utility, $s['meter']), $vf, $s['meter']);
+            if ($e !== null) $parts[] = [$s, $e];
+        }
+        $this->lastProjection = $saved;
+        if ($parts === []) return $est;
+        return function (string $from, string $to, ?array $opt = null) use ($est, $parts): array {
+            $out = $est($from, $to, $opt);
+            foreach ($parts as [$s, $e]) {
+                $segs = array_values(array_filter($this->contracts->segmentsWithin($s['contracts'], $s['cuts'], $from, $to), fn($g) => $g['contract'] !== null));
+                if ($segs === []) continue;
+                $sub = $e($from, $to);
+                foreach ($out as $d => $v) {
+                    foreach ($segs as $g) {
+                        if ($d >= $g['from'] && $d < $g['to']) { $out[$d] = $v - (float)($sub[$d] ?? 0.0); break; }
+                    }
+                }
+            }
+            return array_map(fn($v) => max(0.0, (float)$v), $out);
+        };
     }
 
     /**
@@ -3873,6 +4274,7 @@ final class ConsumptionService
     private function applyEmptyContractFields(array $monthly, string $utility): array
     {
         foreach ($monthly as &$m) {
+            if (isset($m['rest_of'])) $m['billed_kwh'] = max(0.0, (float)$m['rest_of']['rest']);   // v3.9.0 (F1032)
             $m['contract_id']        = null;
             $m['advance_eur']        = null;
             $m['bonus_eur']          = null;
@@ -3956,6 +4358,17 @@ final class ConsumptionService
                     $parts[$c['id']]['assumed']  = $parts[$c['id']]['assumed'] || $seg['assumed'];
                 }
             }
+            // v3.9.0 (F1032) — Rest unter null: Der Subzähler misst in diesem Monat mehr als der
+            // Elternzähler (Ablesungen prüfen). Nicht negativ abrechnen, aber ausweisen (`short_kwh`)
+            $short = 0.0;
+            foreach ($parts as &$p) {
+                if ($p['kwh'] >= 0) continue;
+                $short -= $p['kwh'];
+                $p['kwh'] = 0.0;
+                $p['kwh_cost'] = 0.0;
+            }
+            unset($p);
+            if ($looseCost < 0) $looseCost = 0.0;
             // Grundpreis und Abschlag nach Kalendertagen des Monats
             foreach ($this->contracts->segmentsWithin($contracts, $cuts, $monthStart, $nextMonth) as $seg) {
                 $c = $seg['contract'];
@@ -3984,6 +4397,7 @@ final class ConsumptionService
                 $m['kwh_cost'] = $m['cost'] ?? null;
                 $m['monthly_balance'] = null; $m['cumulative_balance'] = null;
                 $m['contract_assumed'] = false;
+                if (isset($m['rest_of'])) $m['billed_kwh'] = max(0.0, (float)$m['rest_of']['rest']);   // v3.9.0 (F1032)
                 continue;
             }
 
@@ -4034,6 +4448,15 @@ final class ConsumptionService
             if ($red > 0) $m['grid_reduction_eur'] = round($red, 2);   // v3.1.0 (H6) — additiv, nur mit § 14a Modul 1
             $m['kwh_cost']         = round($sum['kwh_cost'], 2);
             $m['cost']             = $combined;
+            // v3.9.0 (F1032) — Rest-Abrechnung: die Menge, die die Verträge dieses Zählers rechnen
+            // (`kwh` bleibt die Messung). Nur an Zeilen mit Hinweis `rest_of`, sonst unverändert.
+            if (isset($m['rest_of'])) {
+                $m['billed_kwh'] = round($sum['kwh'], 1);
+                if ($short > 0.05) $m['rest_of']['short_kwh'] = round($short, 1);
+            }
+            // v3.9.0 (F1032) — Kosten an Tagen ohne Vertrag (aus dem Ablesepreis), additiv: Summen
+            // über Zähler zählen beim Subzähler nur das Geld seiner Verträge (addSubmeterMoney)
+            if ($looseCost > 0.005) $m['uncontracted_cost'] = round($looseCost, 2);
             if (count($parts) > 1) {
                 $m['contract_parts'] = array_values(array_map(fn($id, $p) => [
                     'contract_id'    => $id,

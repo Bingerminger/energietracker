@@ -1150,7 +1150,7 @@
       "icon": "Icon",
       "parent": "Parent meter (sub-meter in series)",
       "parentNone": "— none (standalone) —",
-      "parentHint": "This meter's consumption is subtracted from the parent meter.",
+      "parentHint": "The parent meter also measures this meter. If this meter has its own contract, the parent meter’s contract only bills the remainder. Without its own contract it is a breakdown.",
       "group": "Group (dashboard summary)",
       "groupNone": "— none —",
       "deviceSerial": "Device serial number (optional)",
@@ -6624,5 +6624,17 @@
       "poor_fit": "does not fit (R² {r2})",
       "degenerate": "cannot be calculated (too little variation in the values)"
     }
+  },
+  "restBilling": {
+    "part": "{kwh} {name}",
+    "formula": "{rest} = {measured} measured − {parts}",
+    "note": "Only the remainder is billed here: {formula}. What a sub-meter with its own contract measures is billed by that contract.",
+    "estimated": "{kwh} of this are estimated from the latest daily rate until the sub-meter is read again.",
+    "openDays": {
+      "one": "On {days} day there is no sub-meter reading. There this contract bills everything.",
+      "other": "On {days} days there is no sub-meter reading. There this contract bills everything."
+    },
+    "short": "In some months the sub-meter measures more than the meter in front of it ({kwh}). Please check the readings. A remainder below zero is not billed.",
+    "contractHint": "“{parent}” also measures “{name}”. With its own contract, the contract of “{parent}” only bills the remainder from its start: measured there minus “{name}”."
   }
 }

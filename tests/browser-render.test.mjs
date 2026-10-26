@@ -2982,6 +2982,48 @@ async function renderView(modPath, params = [], ctx = {}) {
     t('#38: /forecast mit Heizgrenze außerhalb 6–22 °C: 400', bad.status === 400, String(bad.status));
   } catch (e) { t('#38: /forecast hdd_base', false, e.stack || e.message); }
 
+  // ── 26. v3.9.0 (F1032, #40) — Rest-Abrechnung: Hinweis am Elternzähler, an seinem Vertrag, im Vertragsdialog ──
+  try {
+    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+    const send = async (method, path, body) => (await fetch(`${HOST}/api${path}`, { method, headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined })).json();
+    // im Schaufenster hängt die Werkstatt (Gas) hinter dem Hauptzähler, bisher ohne eigenen Vertrag
+    const created = await send('POST', '/utility/gas/contracts', { meter_id: 'm_gas_werkstatt', provider: 'Testversorger', start: '2023-01-01',
+      working_prices: [{ from: '2023-01-01', ct_per_kwh: 9.5 }] });
+    const cid = created?.data?.id;
+    t('rest: Vertrag am Subzähler angelegt', !!cid, JSON.stringify(created).slice(0, 200));
+    const st = (await send('GET', '/utility/gas/meters/m_gas_main/contract-status')).data;
+    const withRest = (st?.contracts || []).find(c => c.rest_of);
+    t('rest: contract-status des Elternzählers trägt rest_of', !!withRest && withRest.rest_of.submeters[0]?.meter_id === 'm_gas_werkstatt'
+      && Math.abs(withRest.rest_of.measured - withRest.rest_of.submeters[0].kwh - withRest.rest_of.rest) < 0.2, JSON.stringify(withRest?.rest_of));
+    (await import(`${ROOT}/state.js`)).invalidateSettings?.();
+    const uv = await renderView(`${ROOT}/views/utility.js`, ['gas'], { query: new URLSearchParams('meter=m_gas_main') });
+    await sleep(600);
+    const note = uv.view.querySelector('[data-role="rest-note"]');
+    t('rest: Hinweis am Elternzähler „… = … gemessen − … Werkstatt“', !!note && /gemessen − /.test(note.textContent) && /Werkstatt/.test(note.textContent)
+      && /Abgerechnet wird hier nur der Rest/.test(note.textContent), note?.textContent.trim().slice(0, 200));
+    const card = [...uv.view.querySelectorAll('.balance-note')].map(n => n.textContent).join(' | ');
+    t('rest: Hinweis an der Saldo-Karte des Vertrags', /Abgerechnet wird hier nur der Rest/.test(card), card.slice(0, 200));
+    const sub = await renderView(`${ROOT}/views/utility.js`, ['gas'], { query: new URLSearchParams('meter=m_gas_werkstatt') });
+    await sleep(600);
+    const subNote = sub.view.querySelector('[data-role="sub-rest-note"]');
+    t('rest: am Subzähler der Satz, was sich am Elternzähler ändert', !!subNote && /nur noch den Rest/.test(subNote.textContent), subNote?.textContent.trim());
+    const rb = await import(`${ROOT}/lib/rest-billing.js`);
+    const hint = rb.subContractHint({ id: 's', name: 'Wärmepumpe', parent_meter_id: 'p' }, [{ id: 'p', name: 'Hausanschluss' }]);
+    t('rest: Satz im Vertragsdialog nennt beide Zähler', /„Hausanschluss“ misst „Wärmepumpe“ mit/.test(hint) && /nur noch den Rest/.test(hint), hint);
+    const formula = rb.restFormula({ measured: 500, rest: 300, submeters: [{ meter_id: 's', name: 'Wärmepumpe', kwh: 200 }] }).replace(/[  ]/g, ' ');
+    t('rest: Formel aus rest_of', formula === '300 kWh = 500 kWh gemessen − 200 kWh Wärmepumpe', JSON.stringify(formula));
+    // Vertragsdialog: Subzähler gewählt → der Satz steht da
+    const cv = await renderView(`${ROOT}/views/contracts.js`, ['gas']);
+    await sleep(400);
+    cv.view.querySelector('[data-action="new-contract"], #btn-new-contract, [data-new-contract]')?.click();
+    await sleep(300);
+    const sel = global.document.querySelector('#contract-form [name="meter_id"]');
+    if (sel) { sel.value = 'm_gas_werkstatt'; sel.dispatchEvent(new global.window.Event('change', { bubbles: true })); }
+    const dh = global.document.querySelector('[data-role="sub-contract-hint"]');
+    t('rest: Vertragsdialog mit Subzähler zeigt den Satz', !!dh && !dh.hidden && /Hauptzähler|misst/.test(dh.textContent), dh ? `${dh.hidden} ${dh.textContent}` : 'kein Dialog');
+    if (cid) await send('DELETE', `/utility/gas/contracts/${cid}`);
+  } catch (e) { t('rest: Hinweise', false, e.stack || e.message); }
+
   console.log(`\n  ERGEBNIS: ${pass} bestanden, ${fail} fehlgeschlagen`);
   process.exit(fail ? 1 : 0);
 })().catch(e => { console.error('  HARNESS-FEHLER:', e.stack || e.message); process.exit(2); });

@@ -1150,7 +1150,7 @@
       "icon": "Icône",
       "parent": "Compteur parent (sous-compteur en série)",
       "parentNone": "— aucun (autonome) —",
-      "parentHint": "La consommation de ce compteur est déduite du compteur parent.",
+      "parentHint": "Le compteur parent mesure aussi ce compteur. Si ce compteur a son propre contrat, le contrat du compteur parent ne facture que le reste. Sans contrat propre, c’est une ventilation.",
       "group": "Groupe (résumé du tableau de bord)",
       "groupNone": "— aucun —",
       "deviceSerial": "Numéro de série de l’appareil (facultatif)",
@@ -6624,5 +6624,17 @@
       "poor_fit": "ne correspond pas (R² {r2})",
       "degenerate": "incalculable (trop peu de variation dans les valeurs)"
     }
+  },
+  "restBilling": {
+    "part": "{kwh} {name}",
+    "formula": "{rest} = {measured} mesurés − {parts}",
+    "note": "Seul le reste est facturé ici : {formula}. Ce que mesure un sous-compteur avec son propre contrat est facturé par ce contrat.",
+    "estimated": "Dont {kwh} estimés avec le dernier débit journalier, jusqu’au prochain relevé du sous-compteur.",
+    "openDays": {
+      "one": "Pendant {days} jour, il manque un relevé du sous-compteur. Ce contrat y facture tout.",
+      "other": "Pendant {days} jours, il manque un relevé du sous-compteur. Ce contrat y facture tout."
+    },
+    "short": "Certains mois, le sous-compteur mesure plus que le compteur en amont ({kwh}). Vérifiez les relevés. Un reste négatif n’est pas facturé.",
+    "contractHint": "« {parent} » mesure aussi « {name} ». Avec un contrat propre, le contrat de « {parent} » ne facture plus que le reste à partir de son début : mesuré là moins « {name} »."
   }
 }

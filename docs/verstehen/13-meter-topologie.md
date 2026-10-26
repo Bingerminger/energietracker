@@ -10,7 +10,7 @@ hinter einem anderen"** und **„mehrere Zähler gehören eigentlich zusammen"**
 
 | Beziehung | Feld am Zähler | Wirkung |
 |---|---|---|
-| **Subzähler** (Reihenschaltung) | `parent_meter_id` | Verbrauch wird vom Elternzähler **abgezogen** |
+| **Subzähler** (Reihenschaltung) | `parent_meter_id` | zählt **nicht zusätzlich** in die Summe; mit eigenem Vertrag rechnet der Elternvertrag nur den **Rest** (seit v3.9.0) |
 | **Gruppe** | `meter_group_id` | Verbräuche werden im Dashboard **zusammengefasst**; seit v3.1.0 auch ein **gemeinsamer Vertrag** |
 
 Beide Felder sind optional (Default `null`) und additiv — bestehende Daten
@@ -30,20 +30,70 @@ diesem mitgemessen. Klassiker:
 Der Hauptzähler misst hier **brutto** — also inklusive des Subzählers. Würde
 man beide einfach addieren, wäre der Subzähler-Anteil doppelt gezählt.
 
-**Lösung:** Setze beim Subzähler den Elternzähler (`parent_meter_id`). Dann gilt:
+**Lösung:** Setze beim Subzähler den Elternzähler (`parent_meter_id`). Die
+Menge der Verbrauchsart zählt dann nur Zähler ohne Elternzähler:
 
 ```
-Eigenverbrauch Elternzähler (netto) = Brutto-Stand − Σ Subzähler-Verbräuche
-Utility-Gesamtsumme                 = nur Zähler OHNE parent_meter_id
+Summe der Verbrauchsart (Menge) = nur Zähler OHNE parent_meter_id
 ```
 
 Im Dashboard erscheint der Subzähler eingerückt unter seinem Elternzähler; in
-der Verbrauchsart-Summe taucht er **nicht** zusätzlich auf.
+der Verbrauchsart-Summe taucht er **nicht** zusätzlich auf. Was der Vertrag des
+Elternzählers rechnet, hängt davon ab, ob der Subzähler einen eigenen Vertrag hat:
 
-> **Beispiel.** Haushaltsstrom misst im Januar 300 kWh (brutto). Davon entfallen
-> laut Wärmepumpen-Subzähler 120 kWh auf die Wärmepumpe. Die Strom-Gesamtsumme
-> für Januar bleibt **300 kWh** (nicht 420) — die 120 kWh sind nur die
+| Subzähler | Vertrag des Elternzählers rechnet | Beispiel |
+|---|---|---|
+| **ohne eigenen Vertrag** | alles, was er misst (brutto); der Subzähler ist eine **Aufschlüsselung** | private Messung an der Wallbox |
+| **mit eigenem Vertrag** *(seit v3.9.0)* | nur den **Rest**: gemessen minus Subzähler | Wärmepumpe mit eigenem Tarif (Modul 2), Kaskade |
+
+> **Beispiel ohne eigenen Vertrag.** Haushaltsstrom misst im Januar 300 kWh
+> (brutto). Davon entfallen laut Wärmepumpen-Subzähler 120 kWh auf die
+> Wärmepumpe. Die Strom-Gesamtsumme für Januar bleibt **300 kWh** (nicht 420),
+> und der Haushaltsvertrag rechnet die 300 kWh. Die 120 kWh sind nur die
 > Aufschlüsselung, wie viel davon die Wärmepumpe war.
+
+### Rest-Abrechnung *(v3.9.0)*
+
+Hat der Subzähler einen **eigenen Vertrag** (auch einen Gruppenvertrag seiner
+Gruppe, kein Angebot), rechnet der Vertrag des Elternzählers nur noch den Rest.
+Das gilt tagesgenau: abgezogen wird nur an Tagen, an denen der Vertrag des
+Subzählers läuft. Beginnt er am 16. März, rechnet der Elternvertrag bis zum
+15. März alles.
+
+<!-- doc-claim: rest-billing-example (SubmeterRestDocsTest) -->
+```text
+Elternzähler 500 kWh im Monat, Vertrag 20 ct/kWh
+Subzähler    200 kWh im Monat, eigener Vertrag 40 ct/kWh
+
+Elternvertrag   300 kWh = 500 kWh gemessen − 200 kWh Subzähler   × 20 ct =  60 €
+Subzählervertrag                        200 kWh                  × 40 ct =  80 €
+Summe der Verbrauchsart             500 kWh                               140 €
+```
+
+- **Menge:** Die Summe der Verbrauchsart bleibt die Messung des Elternzählers
+  (500 kWh, keine Doppelzählung). Die Monatszeile des Elternzählers behält
+  `kwh` = Messung und trägt dazu `billed_kwh` (die Menge seiner Verträge).
+- **Kosten:** Rest × Elternpreis + Subzähler × eigener Preis. Saldo, Kosten &
+  Verträge, Rechnung prüfen, Abrechnungsjahr, Prognose und Prognose-Werkstatt,
+  Abschlagsvorschlag, Jahresbericht („Wohin geht mein Geld?“), Tarifvergleich
+  (Rückblick und Wechsel: erwarteter Jahresverbrauch = Rest), CSV und PDF
+  rechnen so.
+- **Hinweis:** Am Elternzähler, an seinem Vertrag und in „Rechnung prüfen“ steht,
+  wie gerechnet wird, etwa „300 kWh = 500 kWh gemessen − 200 kWh Wärmepumpe“.
+  Die Schnittstelle liefert dazu `rest_of` (`measured`, `submeters`, `rest`).
+  Beim Anlegen eines Vertrags an einem Subzähler sagt ein Satz, dass der
+  Elternvertrag ab dessen Beginn nur den Rest rechnet.
+- **Verschiedene Ablesetage:** Beide Zähler werden über die Tagesverteilung
+  angeglichen (zwischen zwei Ablesungen gleichmäßig je Tag). Ist der
+  Elternzähler schon weiter abgelesen als der Subzähler, schreibt die App die
+  letzte Tagesrate des Subzählers bis zu 92 Tage fort und sagt es
+  (`estimated_kwh`). Fehlt ein Stand ganz, zieht nichts ab (`open_days`).
+- **Rest unter null:** Misst der Subzähler in einem Monat mehr als der
+  Elternzähler, stimmt meist eine Ablesung nicht. Der Elternvertrag rechnet
+  diesen Monat nicht negativ ab (0 kWh, 0 € Arbeitspreis), der Hinweis nennt die
+  Menge (`short_kwh`) und bittet, die Ablesungen zu prüfen.
+- **Nicht bei Wasser:** Dort zieht der Gartenzähler seit v3.1.0 über das
+  Schmutzwasser ab (Basis „Trinkwasser minus Abzugszähler“).
 
 ### Regeln
 
@@ -62,13 +112,23 @@ Abgerechnet werden dann zwei Mengen zu zwei Preisen. So bildest du das ab:
 1. Den Zähler der Wärmepumpe bzw. Wallbox als eigenen Stromzähler anlegen, mit
    der Rolle „Wärmepumpe (Heizstrom)“ bzw. „Wallbox“.
 2. **Hängt er hinter dem Haushaltszähler** (der Haushaltszähler misst alles),
-   den Haushaltszähler als Elternzähler setzen: Die App zieht die Menge dort
-   ab, der Haushaltsvertrag rechnet nur den Rest. **Sitzen beide Zähler
+   den Haushaltszähler als Elternzähler setzen. **Sitzen beide Zähler
    nebeneinander**, bleibt das Feld leer.
 3. Dem Zähler einen **eigenen Vertrag** mit dem niedrigeren Arbeitspreis geben.
+   Hängt er hinter dem Haushaltszähler, rechnet der Haushaltsvertrag ab dessen
+   Beginn nur noch den Rest ([Rest-Abrechnung](#rest-abrechnung-v390)).
 
 Saldo und Kosten stehen dann je Zähler da; die Summe der Verbrauchsart stimmt
 in beiden Fällen.
+
+> **Korrektur v3.9.0.** Seit v3.1.0 stand hier, die App ziehe die Menge des
+> Subzählers am Haushaltszähler ab und der Haushaltsvertrag rechne nur den Rest.
+> Gerechnet hat sie das nicht: Der Haushaltsvertrag rechnete alles, was sein
+> Zähler misst, die Menge des Subzählers wurde über beide Verträge bezahlt, und
+> die Monatssumme der Kosten enthielt den Subzähler nicht. Seit v3.9.0 rechnet
+> die App so, wie es hier steht; ein Test hält die Zahlen des Beispiels oben
+> fest. Wer schon einen Vertrag am Subzähler hat, sieht deshalb am
+> Haushaltszähler niedrigere Kosten und in der Summe der Verbrauchsart höhere.
 
 ---
 
@@ -154,8 +214,12 @@ Beispiel: HT 2.000 kWh × 30 ct + NT 1.000 kWh × 22 ct + 12 × 12 € Grundprei
 ## 3. Zusammenspiel & Datenmodell
 
 Ein Zähler darf **gleichzeitig** Subzähler *und* Gruppenmitglied sein. Die
-Aggregation rechnet immer erst die Subzähler-Netto-Werte, dann die
-Gruppensumme — so kann nichts doppelt einfließen.
+Gruppensumme zählt Subzähler nicht, deren Elternzähler selbst Mitglied ist —
+so kann nichts doppelt einfließen. Rechnet ein solcher Subzähler nach dem
+Gruppenvertrag, zählt sein Geld trotzdem mit, und der Elternzähler rechnet nur
+den Rest. In der Kaskade (Zählwerke HT und NT je als eigener Zähler) hängt jedes
+Zählwerk des hinteren Zählers am gleichnamigen Zählwerk des vorderen: HT hinter
+HT, NT hinter NT.
 
 Die technische Sicht (Felder, `meter_groups.json`, Validierung, API-Endpoints)
 steht im [Datenmodell](../referenz/datenmodell.md) und in der

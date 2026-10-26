@@ -10,7 +10,7 @@ solves two very common everyday situations: **"one meter sits behind another"** 
 
 | Relationship | Field on the meter | Effect |
 |---|---|---|
-| **Submeter** (series connection) | `parent_meter_id` | consumption is **subtracted** from the parent meter |
+| **Submeter** (series connection) | `parent_meter_id` | does **not** count again in the total; with its own contract the parent contract bills only the **remainder** (since v3.9.0) |
 | **Group** | `meter_group_id` | consumptions are **combined** in the dashboard; since v3.1.0 also a **shared contract** |
 
 Both fields are optional (default `null`) and additive — existing data stays
@@ -30,20 +30,70 @@ classics:
 Here the main meter measures **gross** — i.e. including the submeter. If you simply
 added both, the submeter share would be double-counted.
 
-**Solution:** on the submeter, set the parent meter (`parent_meter_id`). Then:
+**Solution:** on the submeter, set the parent meter (`parent_meter_id`). The
+amount of the utility then only counts meters without a parent:
 
 ```
-own consumption of the parent meter (net) = gross reading − Σ submeter consumptions
-utility total                             = only meters WITHOUT parent_meter_id
+utility total (amount) = only meters WITHOUT parent_meter_id
 ```
 
 In the dashboard the submeter appears indented under its parent meter; in the
-utility total it does **not** additionally appear.
+utility total it does **not** additionally appear. What the parent meter’s
+contract bills depends on whether the submeter has a contract of its own:
 
-> **Example.** Household electricity measures 300 kWh in January (gross). According
-> to the heat-pump submeter, 120 kWh of it is for the heat pump. The electricity
-> total for January stays **300 kWh** (not 420) — the 120 kWh are only the
+| Submeter | The parent meter’s contract bills | Example |
+|---|---|---|
+| **without its own contract** | everything it measures (gross); the submeter is a **breakdown** | private measurement at the wall box |
+| **with its own contract** *(since v3.9.0)* | only the **remainder**: measured minus submeter | heat pump with its own tariff (module 2), cascade |
+
+> **Example without its own contract.** Household electricity measures 300 kWh
+> in January (gross). According to the heat-pump submeter, 120 kWh of it is for
+> the heat pump. The electricity total for January stays **300 kWh** (not 420),
+> and the household contract bills the 300 kWh. The 120 kWh are only the
 > breakdown of how much of it was the heat pump.
+
+### Remainder billing *(v3.9.0)*
+
+If the submeter has a **contract of its own** (also a group contract of its
+group, not an offer), the parent meter’s contract only bills the remainder.
+This applies day by day: the amount is subtracted only on days on which the
+submeter’s contract runs. If it starts on 16 March, the parent contract bills
+everything up to 15 March.
+
+<!-- doc-claim: rest-billing-example (SubmeterRestDocsTest) -->
+```text
+Parent meter 500 kWh a month, contract 20 ct/kWh
+Submeter     200 kWh a month, own contract 40 ct/kWh
+
+Parent contract   300 kWh = 500 kWh measured − 200 kWh submeter   × 20 ct =  60 €
+Submeter contract                        200 kWh                  × 40 ct =  80 €
+Utility total                        500 kWh                                140 €
+```
+
+- **Amount:** the utility total stays the parent meter’s measurement (500 kWh,
+  no double counting). The parent meter’s monthly row keeps `kwh` =
+  measurement and adds `billed_kwh` (the amount of its contracts).
+- **Costs:** remainder × parent price + submeter × its own price. Balance,
+  costs & contracts, bill check, billing year, forecast and forecast workshop,
+  suggested advance, annual report (“Where does my money go?”), tariff
+  comparison (review and switch: expected annual consumption = remainder), CSV
+  and PDF calculate this way.
+- **Note:** the parent meter, its contract and the bill check say how it is
+  calculated, for example “300 kWh = 500 kWh measured − 200 kWh Heat pump”. The
+  API adds `rest_of` (`measured`, `submeters`, `rest`). When you create a
+  contract for a submeter, one sentence says that from its start the parent
+  contract only bills the remainder.
+- **Different reading days:** both meters are aligned through the daily
+  distribution (evenly per day between two readings). If the parent meter has
+  been read more recently than the submeter, the app carries the submeter’s
+  latest daily rate forward for up to 92 days and says so (`estimated_kwh`). If
+  a reading is missing altogether, nothing is subtracted (`open_days`).
+- **Remainder below zero:** if the submeter measures more than the parent meter
+  in a month, a reading is usually wrong. The parent contract does not bill that
+  month negatively (0 kWh, 0 € unit price); the note gives the amount
+  (`short_kwh`) and asks you to check the readings.
+- **Not for water:** there the garden meter has been deducted through the waste
+  water since v3.1.0 (basis “drinking water minus deduction meters”).
 
 ### Rules
 
@@ -63,13 +113,24 @@ Two amounts are then billed at two prices. This is how you model it:
    own, with the role “Heat pump (heating electricity)” or “Wallbox (EV
    charger)”.
 2. **If it sits behind the household meter** (the household meter measures
-   everything), set the household meter as its parent: the app subtracts the
-   amount there, and the household contract only calculates the rest. **If the
-   two meters sit side by side**, leave the field empty.
-3. Give the meter a **contract of its own** with the lower unit price.
+   everything), set the household meter as its parent. **If the two meters sit
+   side by side**, leave the field empty.
+3. Give the meter a **contract of its own** with the lower unit price. If it
+   sits behind the household meter, the household contract only bills the
+   remainder from that contract’s start ([remainder billing](#remainder-billing-v390)).
 
 Balance and costs then appear per meter; the sum of the utility is right in
 both cases.
+
+> **Correction v3.9.0.** Since v3.1.0 this section said that the app subtracts
+> the submeter’s amount at the household meter and that the household contract
+> only bills the rest. The app did not calculate it: the household contract
+> billed everything its meter measures, the submeter’s amount was paid through
+> both contracts, and the monthly cost total did not contain the submeter.
+> Since v3.9.0 the app calculates as described here; a test pins down the
+> numbers of the example above. If you already have a contract on a submeter,
+> you will therefore see lower costs at the household meter and higher ones in
+> the utility total.
 
 ---
 
@@ -154,9 +215,13 @@ Example: peak 2,000 kWh × 30 ct + off-peak 1,000 kWh × 22 ct + 12 × €12 sta
 
 ## 3. Interaction & data model
 
-A meter may **simultaneously** be a submeter *and* a group member. The aggregation
-always computes the submeter net values first, then the group sum — so nothing can
-flow in twice.
+A meter may **simultaneously** be a submeter *and* a group member. The group
+total does not count submeters whose parent meter is itself a member, so
+nothing can flow in twice. If such a submeter is billed through the group
+contract, its money still counts, and the parent meter only bills the
+remainder. In the cascade (registers HT and NT each as a meter of its own) each
+register of the rear meter hangs on the matching register of the front one: HT
+behind HT, NT behind NT.
 
 The technical view (fields, `meter_groups.json`, validation, API endpoints) is in
 the [data model](../referenz/datenmodell.md) and the

@@ -856,6 +856,29 @@ Agenda, Kalender und Empfehlungen (Kündigungsstichtag, Vertragsende,
 Preiserhöhung) laufen auch für Gruppenverträge. Hintergrund:
 [Meter-Topologie](../verstehen/13-meter-topologie.md#gruppenvertrag-v310).
 
+### Rest-Abrechnung am Elternzähler *(v3.9.0, additiv)*
+
+Hat ein Subzähler (`parent_meter_id`) einen eigenen Vertrag oder rechnet er über
+den Gruppenvertrag seiner Gruppe, rechnen die Verträge des Elternzählers nur den
+Rest: gemessen minus Subzähler, an den Tagen mit eigenem Vertrag
+([Meter-Topologie](../verstehen/13-meter-topologie.md#rest-abrechnung-v390)).
+Gas, Strom, Fernwärme und Einspeisung; nicht Wasser. Neue Felder, nur wo die
+Regel greift:
+
+| Wo | Feld | Bedeutung |
+|---|---|---|
+| Monatszeile des Elternzählers (`…/consumption`, auch einer Gruppe) | `billed_kwh` | Menge seiner Verträge (Rest, nie unter null); `kwh` bleibt die Messung |
+| ebenda, `…/contract-status` (je Vertrag), `…/bill-check` (`totals`) | `rest_of` | `{measured, submeters: [{meter_id, name, kwh}], rest}`, dazu nur wenn es sie gibt `estimated_kwh` (letzte Tagesrate des Subzählers fortgeschrieben, höchstens 92 Tage), `open_days` (Tage ohne Stand des Subzählers), `short_kwh` (Rest unter null, nicht berechnet) |
+| `…/bill-check`, Zeilen und `totals` | `measured_kwh`, `submeter_kwh` | Messung und Abzug je Abschnitt; `kwh` ist dort die Menge des Vertrags |
+| `…/forecast`, Prognosemonate | `billed_kwh`, `deducted_kwh`, `rest_of` | Kosten und Abschlag rechnen mit `billed_kwh`; `kwh` bleibt die Prognose der Messung |
+
+Summen über Zähler (`…/consumption` der Art `monthly_total`, Abrechnungsjahr
+der Art, Jahresbericht, PDF, CSV) zählen die **Menge** weiter nur aus Zählern
+ohne Elternzähler und das **Geld** zusätzlich aus Subzählern mit eigenem
+Vertrag (Kosten, Abschläge, Saldo, Boni). `contract-status`, Rechnungsprüfung,
+Tarifvergleich (`actual_kwh`, `consumption`, `expected_consumption`) und
+Prognose-Werkstatt rechnen mit dem Rest.
+
 ### Verträge: reduziertes Netzentgelt, Preismodell, Gutschriften *(v3.1.0, additiv)*
 
 **§ 14a EnWG, Modul 1** — nur Strom: `grid_reduction: [{from, eur_per_year,

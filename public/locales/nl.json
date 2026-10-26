@@ -1150,7 +1150,7 @@
       "icon": "Pictogram",
       "parent": "Hoofdmeter (tussenmeter in serie)",
       "parentNone": "— geen (zelfstandig) —",
-      "parentHint": "Het verbruik van deze meter wordt van de hoofdmeter afgetrokken.",
+      "parentHint": "De hoofdmeter meet deze meter mee. Heeft deze meter een eigen contract, dan rekent het contract van de hoofdmeter alleen de rest af. Zonder eigen contract is het een uitsplitsing.",
       "group": "Groep (dashboardsamenvatting)",
       "groupNone": "— geen —",
       "deviceSerial": "Serienummer apparaat (optioneel)",
@@ -6624,5 +6624,17 @@
       "poor_fit": "past niet (R² {r2})",
       "degenerate": "niet te berekenen (te weinig verschil in de waarden)"
     }
+  },
+  "restBilling": {
+    "part": "{kwh} {name}",
+    "formula": "{rest} = {measured} gemeten − {parts}",
+    "note": "Hier wordt alleen de rest afgerekend: {formula}. Wat een tussenmeter met een eigen contract meet, rekent dat contract af.",
+    "estimated": "Daarvan is {kwh} geschat met het laatste dagverbruik, tot de tussenmeter weer wordt afgelezen.",
+    "openDays": {
+      "one": "Op {days} dag ontbreekt een stand van de tussenmeter. Daar rekent dit contract alles af.",
+      "other": "Op {days} dagen ontbreekt een stand van de tussenmeter. Daar rekent dit contract alles af."
+    },
+    "short": "In sommige maanden meet de tussenmeter meer dan de meter ervoor ({kwh}). Controleer de standen. Een rest onder nul wordt niet afgerekend.",
+    "contractHint": "‘{parent}’ meet ‘{name}’ mee. Met een eigen contract rekent het contract van ‘{parent}’ vanaf het begin alleen nog de rest af: daar gemeten min ‘{name}’."
   }
 }

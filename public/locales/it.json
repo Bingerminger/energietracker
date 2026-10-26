@@ -1150,7 +1150,7 @@
       "icon": "Icona",
       "parent": "Contatore principale (sottocontatore in serie)",
       "parentNone": "— nessuno (autonomo) —",
-      "parentHint": "Il consumo di questo contatore viene sottratto dal contatore principale.",
+      "parentHint": "Il contatore principale misura anche questo contatore. Se questo contatore ha un proprio contratto, il contratto del contatore principale fattura solo il resto. Senza contratto proprio è una ripartizione.",
       "group": "Gruppo (riepilogo cruscotto)",
       "groupNone": "— nessuno —",
       "deviceSerial": "Numero di serie del dispositivo (facoltativo)",
@@ -6624,5 +6624,17 @@
       "poor_fit": "non si adatta (R² {r2})",
       "degenerate": "non calcolabile (troppo poca variazione nei valori)"
     }
+  },
+  "restBilling": {
+    "part": "{kwh} {name}",
+    "formula": "{rest} = {measured} misurati − {parts}",
+    "note": "Qui viene fatturato solo il resto: {formula}. Ciò che misura un sottocontatore con un proprio contratto lo fattura quel contratto.",
+    "estimated": "Di questi, {kwh} sono stimati con l’ultimo consumo giornaliero, finché il sottocontatore non viene letto di nuovo.",
+    "openDays": {
+      "one": "Per {days} giorno manca una lettura del sottocontatore. Lì questo contratto fattura tutto.",
+      "other": "Per {days} giorni manca una lettura del sottocontatore. Lì questo contratto fattura tutto."
+    },
+    "short": "In alcuni mesi il sottocontatore misura più del contatore a monte ({kwh}). Controlla le letture. Un resto sotto zero non viene fatturato.",
+    "contractHint": "«{parent}» misura anche «{name}». Con un contratto proprio, il contratto di «{parent}» fattura solo il resto dal suo inizio: misurato lì meno «{name}»."
   }
 }
