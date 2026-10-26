@@ -272,6 +272,15 @@ export function suggestAssignments(slots, meters) {
 }
 
 /**
+ * Kennung der Stellen einer Vorschau: Art, Rolle, Elternstelle und Zählwerke je
+ * Stelle. Ändert sie sich (anderes Gerät, HT/NT, anderer Aufbau), belegt der
+ * Assistent Namen, Zuordnung und Zählwerke neu, statt alte Eingaben zu behalten.
+ */
+export function slotSignature(slots) {
+  return JSON.stringify(Object.entries(slots || {}).map(([k, s]) => [k, s.utility, s.role || null, s.parent || null, Object.keys(s.registers || {})]));
+}
+
+/**
  * Körper für Vorschau und Anlegen aus den Eingaben des Assistenten. Leere
  * Felder fallen weg; die Einspeisung bekommt ohne eigene die Nummer von Z1.
  */

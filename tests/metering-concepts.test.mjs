@@ -138,6 +138,14 @@ const side = C.suggestAssignments({ main: { utility: 'strom', role: 'household',
 { strom: [{ id: 'h', name: 'Haushalt' }, { id: 'w', name: 'WP', role: 'heat_pump' }, { id: 'old', name: 'Alt', active: false }] });
 t('nebeneinander: Hauszähler und Zähler mit der Rolle des Geräts (inaktive zählen nicht)', side.main?.meter_id === 'h' && side.dev?.meter_id === 'w', JSON.stringify(side));
 
+const sig = (concept, setup) => C.slotSignature(Object.fromEntries(Object.entries(C.defaultRegisters(concept, setup)).map(([k, r]) => [k,
+  { utility: k === 'feed' ? 'pv_einspeisung' : k === 'gen' || k.startsWith('bat_') ? 'pv_erzeugung' : 'strom', role: k === 'dev' ? setup.device : null, parent: concept === 'behind' && k === 'dev' ? 'main' : null, registers: r }])));
+t('Eingaben bleiben nur bei gleichen Stellen (anderes Gerät, HT/NT oder Aufbau: neu vorbelegt)',
+  sig('behind', { device: 'heat_pump' }) === sig('behind', { device: 'heat_pump' })
+  && sig('behind', { device: 'heat_pump' }) !== sig('behind', { device: 'ev_charger' })
+  && sig('behind', { device: 'heat_pump' }) !== sig('behind', { device: 'heat_pump', tou: 'device' })
+  && sig('behind', { device: 'heat_pump' }) !== sig('side_by_side', { device: 'heat_pump' }));
+
 console.log('Körper für POST /api/metering-concept');
 const body = C.conceptPayload('cascade', { device: 'heat_pump', pv: true, tou: 'all' },
   { main: { name: ' Z1 ', serial: 'TEST-1', obis: { ht: '1.8.1', nt: ' ' } }, feed: { name: 'Einspeisung', serial: '' }, house: { meter_ids: { ht: 'c', nt: '' } } },

@@ -27,7 +27,7 @@ import { getUtilities, getSettings, invalidateSettings } from '../state.js';
 import { DEMO } from '../lib/demo-mode.js';
 import {
   normalizeSetup, conceptsFor, conceptAllowed, layoutTitle, layoutText, schematic, slotTags,
-  registerLabel, suggestAssignments, conceptPayload,
+  registerLabel, suggestAssignments, conceptPayload, slotSignature,
 } from '../lib/metering-concepts.js';
 
 export const CONCEPT_STEPS = ['setup', 'layout', 'meters', 'contracts', 'summary'];
@@ -253,7 +253,8 @@ export async function openConceptWizard() {
   /** Vorschau holen; die Stellen kommen vom Server (Namen, Zählwerke, Verträge). */
   const loadSlots = async () => {
     const p = await api.conceptPreview(conceptPayload(state.concept, state.setup, {}, {}));
-    const keep = state.slots && Object.keys(p.slots).join() === Object.keys(state.slots).join();
+    // Eingaben behalten nur bei gleichen Stellen (Art, Rolle, Eltern, Zählwerke); sonst neu vorbelegen
+    const keep = state.slots && slotSignature(p.slots) === slotSignature(state.slots);
     state.slots = p.slots;
     if (!keep) {
       const suggested = suggestAssignments(p.slots, meters);
