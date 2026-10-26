@@ -1371,7 +1371,12 @@ final class HouseholdDraft
             $byType = [];
             foreach ($rel as $id) $byType[$this->docs[$id]['type']][] = $id;
             $groups = [];
-            foreach ($byType['contract_confirmation'] ?? [] as $id) {
+            // v3.9.0 (entwurf-bestand) — der früheste Beginn zuerst: Bestätigungen derselben Nummer
+            // (etwa eine spätere Tarifbestätigung) sind ein Vertrag mit dem frühesten Beginn, gleich
+            // welche zuerst abgelegt wurde (bis dahin galt der Beginn der zuerst abgelegten)
+            $confs = $byType['contract_confirmation'] ?? [];
+            usort($confs, fn($a, $b) => strcmp($this->date($a, 'supply_start') ?? '9999-12-31', $this->date($b, 'supply_start') ?? '9999-12-31'));
+            foreach ($confs as $id) {
                 $start = $this->date($id, 'supply_start');
                 $tariff = self::norm((string)($this->val($id, 'tariff_name') ?? ''));
                 $hit = null;
@@ -1419,7 +1424,7 @@ final class HouseholdDraft
                 if ($hit === null) { $merged[] = $g; continue; }
                 $merged[$hit]['docs'] = [...$merged[$hit]['docs'], ...$g['docs']];
             }
-            $groups = $merged;
+            $groups = $this->mergeNearStarts($merged);
             foreach ($groups as $g) {
                 if ($g['start'] === null) {
                     foreach ($g['docs'] as $id) $this->docs[$id]['note'] ??= 'no_start';
@@ -1478,6 +1483,41 @@ final class HouseholdDraft
         if ($mine === null) return false;
         foreach ($group as $o) if ($this->docs[$o]['nodes'] !== [] && $this->docs[$o]['mp'] !== null && $this->docs[$o]['mp'] !== $mine) return true;
         return false;
+    }
+
+    /**
+     * v3.9.0 (entwurf-bestand) — Beginn bis START_NEAR_DAYS daneben am selben
+     * Zähler im selben Lieferverhältnis: derselbe Vertrag, wie gegen den Bestand
+     * (matchExistingContracts). Bestätigung der Marke, Lieferbeginn-Brief des
+     * abrechnenden Stadtwerks und erster Liefertag nennen oft verschiedene Tage;
+     * zwei Verträge eines Lieferverhältnisses am selben Zähler liegen nie eine
+     * Woche auseinander. Es bleibt der Beginn der vorderen Gruppe (Bestätigungen
+     * stehen vor den Briefen, je nach Beginn sortiert). Verschiedene
+     * Vertragsnummern bleiben zwei Verträge.
+     *
+     * @param list<array<string,mixed>> $groups
+     * @return list<array<string,mixed>>
+     */
+    private function mergeNearStarts(array $groups): array
+    {
+        $nos = fn(array $g) => array_values(array_filter(array_map(fn($o) => $this->docs[$o]['contract_no'], $g['docs']), fn($x) => $x !== ''));
+        $out = [];
+        foreach ($groups as $g) {
+            $hit = null;
+            if ($g['start'] !== null) foreach ($out as $i => $m) {
+                // gleicher Tag: führt der Schritt davor zusammen (dort auch mit verschiedenen Nummern)
+                if ($m['start'] === $g['start']) continue;
+                if ($m['start'] === null || abs(self::daysBetween($m['start'], $g['start'])) > self::START_NEAR_DAYS) continue;
+                if (array_filter($g['docs'], fn($o) => $this->otherMeter($o, $m['docs']))) continue;
+                [$a, $b] = [$nos($m), $nos($g)];
+                if ($a !== [] && $b !== [] && array_filter($b, fn($x) => array_filter($a, fn($y) => Proposals::sameId($x, $y)) !== []) === []) continue;
+                $hit = $i;
+                break;
+            }
+            if ($hit === null) { $out[] = $g; continue; }
+            $out[$hit]['docs'] = [...$out[$hit]['docs'], ...$g['docs']];
+        }
+        return $out;
     }
 
     /**
@@ -1663,6 +1703,7 @@ final class HouseholdDraft
             }
             if ($next !== null) $byCand[$next][] = $id;
         }
+        $moved = [];
         foreach ($byCand as $k => $ids) {
             $c = $this->cands[$k];
             if ($c['existing'] !== null) continue;   // ein Vertrag im Bestand wird nicht verschoben
@@ -1682,13 +1723,21 @@ final class HouseholdDraft
                 $this->cands[$k]['start'] = $start;
                 $this->cands[$k]['basis'] = 'invoice_earlier';
                 foreach ($same as $id) $this->docs[$id]['cand'] = $k;
+                $moved[] = $k;
             }
             if ($other !== []) {
                 $start = min(array_map(fn($id) => (string)$this->date($id, 'period_from'), $other));
                 $pk = $this->addCandidate($u, $c['rel'], ['docs' => [], 'start' => $start, 'tariff' => '', 'basis' => 'invoice'], $this->mpOfDocs($other));
                 if ($pk !== null) foreach ($other as $id) $this->docs[$id]['cand'] = $pk;
+                if ($pk !== null) $moved[] = $pk;
             }
         }
+        // v3.9.0 (entwurf-bestand) — der Abgleich mit dem Bestand gilt dem endgültigen Beginn: Ein
+        // Kandidat, der hier auf die erste Rechnung vorrückt (oder als Vorvertrag entsteht), wird mit
+        // diesem Beginn noch einmal abgeglichen. Bis dahin blieb das Ergebnis des späteren Beginns
+        // stehen — etwa „überschneidet den Bestand“ bei genau dem Beginn des vorhandenen Vertrags.
+        foreach ($moved as $k) { $this->cands[$k]['status'] = 'new'; $this->cands[$k]['detail'] = null; }
+        if ($moved !== []) $this->matchExistingContracts($u, $moved);
     }
 
     /** @param array{docs: list<string>, start: string, tariff: string, basis: string, existing?: array<string,mixed>} $g */
@@ -1829,11 +1878,22 @@ final class HouseholdDraft
      * `start_near`); sonst eine Überschneidung, wenn ein vorhandener zu der Zeit
      * läuft. Verträge im Bestand ohne Nummer erkennt so der Versorger; eine
      * Angabe, die vom Bestand abweicht, bleibt ein Widerspruch (contractItems).
+     *
+     * v3.9.0 (entwurf-bestand) — gleicher Beginn, anderer Versorgername, und der
+     * Bestand trägt keine andere Vertragsnummer: vielleicht derselbe Versorger
+     * unter anderem Namen (Marke im Bestand, Konzern oder abrechnendes Stadtwerk
+     * im Dokument). Dann eine Rückfrage „derselbe Versorger?“ mit beiden Namen
+     * (`supplier_question`): der vorhandene Vertrag, ergänzt nur, wer anhakt —
+     * statt eines Widerspruchs, der angehakt einen zweiten Vertrag mit demselben
+     * Beginn anlegte. Mit `$only` nur diese Kandidaten (nach invoicesBeforeStart:
+     * der Abgleich gilt dem endgültigen Beginn).
+     *
+     * @param list<string>|null $only
      */
-    private function matchExistingContracts(string $u): void
+    private function matchExistingContracts(string $u, ?array $only = null): void
     {
         foreach ($this->cands as $k => $c) {
-            if ($c['utility'] !== $u || $c['existing'] !== null) continue;
+            if ($c['utility'] !== $u || $c['existing'] !== null || ($only !== null && !in_array($k, $only, true))) continue;
             $mp = $this->mps[$c['mp']];
             if ($mp['meter_id'] === null || $mp['action'] === 'adopt') continue;
             $meter = $this->meters->get($u, $mp['meter_id']);
@@ -1841,18 +1901,28 @@ final class HouseholdDraft
             $provider = $this->supplierOf($c['docs']);
             $nos = array_values(array_filter(array_map(fn($id) => $this->docs[$id]['contract_no'], $c['docs']), fn($x) => $x !== ''));
             $list = $this->existingContracts($u, $meter);
-            $best = null; $bestDays = null;
+            $best = null; $bestDays = null; $ask = null;
             foreach ($list as $ex) {
                 $days = abs(self::daysBetween((string)($ex['start'] ?? ''), $c['start']));
                 if ($days > self::START_NEAR_DAYS) continue;
                 $sameNo = array_filter($nos, fn($n) => Proposals::sameId((string)($ex['contract_number'] ?? ''), $n)) !== [];
                 $sameSupplier = $provider !== '' && self::sameSupplier(self::providerOf($ex), $provider);
                 if (!($sameNo || $sameSupplier || ($days === 0 && $provider === ''))) {
-                    // gleicher Beginn, anderer Versorger: ein Widerspruch zum Bestand
-                    if ($days === 0) { $this->cands[$k]['status'] = 'conflict'; $this->cands[$k]['detail'] = ['provider' => (string)($ex['provider'] ?? ''), 'start' => $ex['start'], 'end' => $ex['end'] ?? null]; }
+                    if ($days !== 0) continue;
+                    // gleicher Beginn, anderer Versorgername: eine andere Vertragsnummer im Bestand ist ein
+                    // Widerspruch; ohne sie die Rückfrage, ob es derselbe Versorger ist
+                    if ($nos === [] || trim((string)($ex['contract_number'] ?? '')) === '') $ask ??= $ex;
+                    else { $this->cands[$k]['status'] = 'conflict'; $this->cands[$k]['detail'] = ['provider' => (string)($ex['provider'] ?? ''), 'start' => $ex['start'], 'end' => $ex['end'] ?? null]; }
                     continue;
                 }
                 if ($bestDays === null || $days < $bestDays) { $best = $ex; $bestDays = $days; }
+            }
+            if ($best === null && $ask !== null) {
+                $this->cands[$k]['existing'] = $ask;
+                $this->cands[$k]['status'] = 'exists';
+                $this->cands[$k]['supplier_question'] = self::providerOf($ask);
+                $this->cands[$k]['detail'] = ['provider' => self::providerOf($ask), 'start' => $ask['start'], 'end' => $ask['end'] ?? null, 'document' => $provider];
+                continue;
             }
             if ($best !== null) {
                 $this->cands[$k]['existing'] = $best;
@@ -2053,6 +2123,9 @@ final class HouseholdDraft
                     'price_guarantee_until' => 'price_guarantee_until', 'signup_bonus_eur' => 'signup_bonus_eur', 'contract_number' => 'contract_number', 'customer_number' => 'customer_number'];
                 foreach ($fields as $i => $f) {
                     $cur = $f['name'] === 'notice' ? (($ex['notice_period_months'] ?? null) !== null || ($ex['notice_period_days'] ?? null) !== null ? 'set' : null) : ($ex[$map[$f['name']] ?? ''] ?? null);
+                    // v3.9.0 — Rückfrage „derselbe Versorger?“: beide Namen am Feld (der des Bestands als
+                    // `existing`); die Antwort ist der Haken am Eintrag, der Name im Bestand bleibt
+                    if ($f['name'] === 'provider' && isset($c['supplier_question'])) { $fields[$i] = ['status' => 'conflict', 'existing' => $c['supplier_question'], 'check' => false] + $f; continue; }
                     if ($f['name'] === 'provider' || $f['name'] === 'start') { $fields[$i]['status'] = 'exists'; continue; }
                     if ($cur === null || $cur === '') continue;
                     if ($f['name'] === 'notice' || self::same($f['kind'], $cur, $f['value']) || ($f['kind'] === 'text' && Proposals::sameId((string)$cur, (string)$f['value']))) $fields[$i]['status'] = 'exists';
@@ -2063,13 +2136,15 @@ final class HouseholdDraft
             $this->cands[$k]['provider'] = $provider;
             $atts = array_values(array_unique(array_filter(array_map(fn($id) => in_array($this->docs[$id]['type'], ['invoice'], true) ? null : ($this->docs[$id]['att'] ?: null),
                 array_keys(array_filter($this->docs, fn($d) => $d['cand'] === $k && $d['dup'] === null))))));
+            $ask = isset($c['supplier_question']);
             $this->items[] = [
                 'kind' => 'contract', 'utility' => $u, 'key' => $k, 'meter_key' => $c['mp'], 'contract_key' => $k,
                 'contract_id' => $c['existing']['id'] ?? null, 'status' => $status, 'detail' => $c['detail'],
-                'label_key' => 'inboxDraft.item.contract.' . ($c['existing'] !== null ? 'existing' : 'new'),
-                'params' => ['provider' => $provider, 'from' => $c['start'], 'to' => $c['end'], 'tariff' => self::fieldValue($fields, 'tariff_name') ?? ''],
+                'label_key' => 'inboxDraft.item.contract.' . ($ask ? 'sameSupplier' : ($c['existing'] !== null ? 'existing' : 'new')),
+                'params' => ['provider' => $provider, 'from' => $c['start'], 'to' => $c['end'], 'tariff' => self::fieldValue($fields, 'tariff_name') ?? '']
+                    + ($ask ? ['existing' => $c['supplier_question']] : []),
                 'fields' => $fields, 'attachments' => $atts, 'docs' => array_values(array_unique([...$c['docs'], ...array_keys(array_filter($this->docs, fn($d) => $d['cand'] === $k && $d['dup'] === null && $d['type'] !== 'invoice'))])),
-            ];
+            ] + ($ask ? ['check' => true, 'reasons' => ['same_supplier']] : []);
         }
         // bisheriger Vertrag am vorhandenen Zähler ohne Ende: endet am Tag vor dem ersten neuen (nur als Angebot)
         foreach ($firstByMp as $mpKey => $k) {
@@ -2230,13 +2305,18 @@ final class HouseholdDraft
                 }
                 if ($t === 'invoice') {
                     if (($v = $this->num($id, 'advance_new')) !== null) {
-                        $f = $this->date($id, 'advance_new_from');
+                        // v3.9.0 (F1034) — mit Rhythmus der Rechnung (alle 2 Monate, Termine): Betrag je Termin,
+                        // ab dem ersten Termin, wenn kein Beginn genannt ist (wie Proposals über InvoicePrices::advancePlan)
+                        $plan = InvoicePrices::advancePlan($this->docs[$id]['entry']);
+                        $rhythm = $plan !== null ? array_intersect_key($plan, ['every_months' => 1, 'due_dates' => 1]) : [];
+                        $f = $this->date($id, 'advance_new_from') ?? ($rhythm !== [] ? $plan['from'] : null);
                         $assumed = $f === null;
                         $to = $this->date($id, 'period_to');
                         if ($assumed && $to !== null) $f = date('Y-m-01', (int)strtotime($to . ' +1 day +1 month'));
                         if ($f !== null && $f >= $c['start'] && $f <= $end) {
                             $o = self::obs($v, array_filter([$this->src($id, 'advance_new'), $assumed ? null : $this->src($id, 'advance_new_from')]), 5);
                             if ($assumed) { $o['flagged'] = true; $o['reasons'][] = 'assumed_date'; }
+                            if ($rhythm !== []) $o['row'] = $rhythm;
                             $rows['ap'][$f][] = $o;
                         }
                     }
@@ -2314,6 +2394,8 @@ final class HouseholdDraft
                     if (array_filter($obs, fn($o) => !empty($o['vat_changed'])) !== []) $f['basis'] = 'vat_changed';
                     // nur aus Nettopreisen der Rechnung: am Feld Basis und Ergebnis zeigen
                     if (array_filter($obs, fn($o) => empty($o['net'])) === []) $f['net'] = $obs[0]['net'];
+                    // v3.9.0 (F1034) — Abschlag mit Rhythmus: der Rhythmus geht mit der Zeile in den Vertrag
+                    foreach ($obs as $o) if (!empty($o['row']) && !isset($f['row'])) $f['row'] = $o['row'];
                     if ($ex !== null) {
                         foreach ((array)($ex[$list] ?? []) as $row) {
                             if ((string)($row['from'] ?? '') !== (string)$from) continue;
@@ -2739,6 +2821,44 @@ final class HouseholdDraft
 
     // ── Ergebnis ─────────────────────────────────────────────────────────
 
+    /** Einträge, die an einem Vertrag hängen (Preise, Abschläge, Rechnungen). */
+    private const CONTRACT_CHILDREN = ['prices', 'advances', 'bill'];
+
+    /**
+     * v3.9.0 (entwurf-bestand) — Preise, Abschläge und Rechnungen eines
+     * Vertrags, der erst entsteht (neu, Überschneidung, Widerspruch) oder dessen
+     * Versorger eine Rückfrage ist, gehen nur mit ihm: `requires` nennt den
+     * Eintrag des Vertrags, vorbelegt sind sie nur, wenn er es ist
+     * (`checked_with`: die Vorbelegung, sobald er angehakt ist). Hängen sie an
+     * einem vorhandenen Vertrag, der feststeht, gelten sie für sich. Bis dahin
+     * waren die Preise eines nicht vorbelegten Vertrags vorbelegt; übernommen
+     * scheiterten sie („erst den Vertrag“), eine Rechnung landete ohne Vertrag
+     * und buchte ihr Ergebnis auf den Vertrag, der damals lief.
+     * Ablesungen hängen am Zähler, nicht am Vertrag.
+     *
+     * @param list<array<string,mixed>> $items
+     * @param array<string,?string> $contractIds Kandidat → Vertrag im Bestand
+     * @return list<array<string,mixed>>
+     */
+    private function coupleToContracts(array $items, array $contractIds): array
+    {
+        $parent = [];
+        foreach ($items as $it) if ($it['kind'] === 'contract') $parent[(string)$it['contract_key']] = $it;
+        foreach ($items as $i => $it) {
+            $items[$i]['requires'] = null;
+            $key = (string)($it['contract_key'] ?? '');
+            // (was schon vorhanden ist, hat nichts zu übernehmen und hängt an nichts)
+            if (!in_array($it['kind'], self::CONTRACT_CHILDREN, true) || $key === '' || !isset($parent[$key]) || !$it['actionable']) continue;
+            $p = $parent[$key];
+            $settled = ($contractIds[$key] ?? null) !== null && !in_array('same_supplier', $p['reasons'], true);
+            if ($settled) continue;
+            $items[$i]['requires'] = $p['id'];
+            $items[$i]['checked_with'] = $it['checked'];
+            $items[$i]['checked'] = $it['checked'] && $p['checked'];
+        }
+        return $items;
+    }
+
     /** @return array<string,mixed> */
     private function result(): array
     {
@@ -2782,6 +2902,7 @@ final class HouseholdDraft
             foreach ($it['docs'] as $d) $byDoc[$d][] = $it['id'];
             $items[] = $it;
         }
+        $items = $this->coupleToContracts($items, $targets['contracts']);
         $docs = [];
         foreach ($this->docs as $id => $d) {
             $state = match (true) {

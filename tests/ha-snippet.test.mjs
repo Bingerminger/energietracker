@@ -15,7 +15,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { haRestCommandYaml, haSecretsYaml, haAutomationYaml, haRestSensorYaml, haReadSecretYaml,
-  ingressHost, haBaseUrl, haUrl } from '../public/js/lib/ha-snippet.js';
+  ingressHost, haBaseUrl, haUrl, haTodoSensorYaml, haWebhookAutomationYaml } from '../public/js/lib/ha-snippet.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DOCS = ['docs/anleitungen/home-assistant.md', 'docs/en/anleitungen/home-assistant.md'];
@@ -102,6 +102,32 @@ for (const file of DOCS) {
   if (sensors) sameLines(sensorNorm(sensors), appSensors, `${file}: Sensoren wie in der App`);
 }
 ok(haRestSensorYaml('x', []).includes("selectattr('key', 'eq', 'strom.m_strom_default')"), 'App: Sensor-Vorlage ohne Zähler zeigt ein Beispiel');
+
+// v3.9.0 (F1033) — Sensor „Zu tun“ und Automation für den Webhook: Doku wie App.
+// Namen, Alias und Webhook-ID sind übersetzt bzw. eigene und werden neutralisiert.
+const ownNorm = (yaml) => sensorNorm(yaml).map(l => l.replace(/^alias: ".*"/, 'alias: "<ALIAS>"').replace(/webhook_id: ".*"/, 'webhook_id: "<ID>"'));
+const appTodo = ownNorm(haTodoSensorYaml('http://example.invalid'));
+const appHook = ownNorm(haWebhookAutomationYaml('energietracker_abc'));
+for (const file of DOCS) {
+  const blocks = yamlBlocks(readFileSync(join(ROOT, file), 'utf8'));
+  const todo = blocks.find(b => b.trimStart().startsWith('rest:') && b.includes('/api/todo'));
+  ok(!!todo, `${file}: Sensor „Zu tun“ (rest: … /api/todo) vorhanden`);
+  if (todo) sameLines(ownNorm(todo), appTodo, `${file}: Sensor „Zu tun“ wie in der App`);
+  const hook = blocks.find(b => b.includes('trigger: webhook'));
+  ok(!!hook, `${file}: Automation für den Webhook vorhanden`);
+  if (hook) sameLines(ownNorm(hook), appHook, `${file}: Webhook-Automation wie in der App`);
+}
+{
+  const hook = haWebhookAutomationYaml('energietracker_abc');
+  ok(hook.includes('mode: queued'), 'Webhook: queued, sonst gehen Nachrichten kurz nacheinander verloren');
+  ok(hook.includes('local_only: true'), 'Webhook: nur aus dem eigenen Netz');
+  ok(hook.includes('title: "{{ trigger.json.title }}"') && hook.includes('message: "{{ trigger.json.message }}"'), 'Webhook: Titel und Text aus der Nachricht');
+  ok(!haWebhookAutomationYaml("x\"\nevil: 1").split('\n').some(l => /^evil:/.test(l)), 'Webhook: eine präparierte ID erzeugt keine neue Zeile');
+  const todo = haTodoSensorYaml('http://x');
+  ok(todo.includes('{{ value_json.data.count }}'), 'Zu tun: Anzahl aus data.count');
+  ok(todo.includes("value_json.data.next.title if value_json.data.next else '-'"), 'Zu tun: ohne nächsten Punkt kein Template-Fehler');
+  ok(todo.includes('device_class: date'), 'Zu tun: Fälligkeit als Datum');
+}
 ok(haReadSecretYaml().startsWith('energietracker_read: "Bearer etk_'), 'App: Lese-Schlüssel als ganzer Header-Wert');
 
 // v3.4.0 (N1020) — Werte aus den Daten ändern die Struktur nicht: Namen und

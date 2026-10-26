@@ -657,6 +657,19 @@ async function renderView(modPath, params = [], ctx = {}) {
     t('settings/haushalt: beheizter Keller und dezentrales Warmwasser',
       !!view.querySelector('[data-key="beheizter_keller"]') && !!view.querySelector('[data-key="warmwasser_dezentral"]'));
     t('settings/haushalt: Personen im Haushalt', !!view.querySelector('[data-key="wasser_personen_anzahl"]'));
+    // v3.9.0 (Paket oberflaeche) — Karte „Personen im Haushalt“ in jeder Stufe, ohne Anmeldung bedienbar
+    const people = view.querySelector('#people-card');
+    t('settings/haushalt: Karte „Personen im Haushalt“ mit den Personen des Beispielhaushalts',
+      !!people && [...people.querySelectorAll('.people-list__name')].map(e => e.textContent).sort().join() === 'Anna,Paul',
+      people?.textContent.replace(/\s+/g, ' ').slice(0, 160));
+    t('settings/haushalt: ohne Anmeldung umbenennen und löschen, Feld mit Beschriftung',
+      people?.querySelectorAll('[data-person-rename]').length === 2 && people?.querySelectorAll('[data-person-delete]').length === 2
+        && !!people?.querySelector('label[for="people-new-name"]') && people?.querySelector('#people-new-name')?.getAttribute('maxlength') === '40');
+    const nameIn = people?.querySelector('#people-new-name');
+    if (nameIn) { nameIn.value = 'Tim'; nameIn.dispatchEvent(new global.window.Event('input', { bubbles: true })); }
+    t('settings/haushalt: ein Name im Feld ist keine ungespeicherte Einstellung', view.querySelector('[data-role="savebar"]')?.hidden === true);
+    t('settings/haushalt: Wasser-Feld heißt „Anzahl der Personen“ (nicht wie die Karte)',
+      view.querySelector('[data-key="wasser_personen_anzahl"]')?.closest('.settings-field')?.querySelector('label')?.textContent.trim().startsWith('Anzahl der Personen'));
   } catch (e) { t('settings/haushalt: render', false, e.message); }
 
   try {
@@ -754,6 +767,39 @@ async function renderView(modPath, params = [], ctx = {}) {
     const sensors = view.querySelector('#ha-sensors')?.textContent || '';
     t('settings/integrationen: REST-Sensoren auf /api/summary', /^rest:\n  - resource: ".*\/api\.php\/api\/summary"/.test(sensors)
       && /selectattr\('key', 'eq', 'gas\.[^']+'\)/.test(sensors) && sensors.includes('device_class: monetary'), sensors.slice(0, 80));
+    // v3.9.0 (F1033) — Sensor „Zu tun“ und Karte „Benachrichtigungen an Home Assistant“
+    const todoYaml = view.querySelector('#ha-todo-sensor')?.textContent || '';
+    t('settings/integrationen: Sensor „Zu tun“ auf /api/todo', /^rest:\n  - resource: ".*\/api\.php\/api\/todo"/.test(todoYaml)
+      && todoYaml.includes('value_json.data.count'), todoYaml.slice(0, 80));
+    const han = view.querySelector('#ha-notify-card');
+    t('settings/integrationen: Karte Benachrichtigungen, aus, mit dem Satz zum Heimnetz', !!han
+      && !han.querySelector('#han-enabled')?.checked && /Ausgeschaltet/.test(han.querySelector('[data-role="han-state"]')?.textContent || '')
+      && /Heimnetz/.test(han.querySelector('[data-role="han-privacy"]')?.textContent || ''));
+    const sup = han?.querySelector('input[name="han-target"][value="supervisor"]');
+    t('settings/integrationen: ohne App für Home Assistant kein Supervisor, Webhook vorgewählt',
+      sup?.disabled === true && han?.querySelector('input[name="han-target"]:checked')?.value === 'webhook'
+      && !!han?.querySelector('[data-role="han-no-supervisor"]'));
+    const hook = han?.querySelector('#han-webhook');
+    const tok = han?.querySelector('#han-token');
+    t('settings/integrationen: Webhook-ID und Token leer, Token verdeckt, keine Felder in der Speicherleiste',
+      hook?.value === '' && tok?.value === '' && tok?.type === 'password' && !han?.querySelector('[data-key]'));
+    han?.querySelector('[data-role="han-new-id"]')?.click();
+    t('settings/integrationen: „Neue ID erzeugen“ füllt eine zufällige ID ein und die Vorlage folgt',
+      /^energietracker_[a-z0-9]{18}$/.test(hook?.value || '') && (han?.querySelector('#han-yaml')?.textContent || '').includes(`webhook_id: "${hook?.value}"`),
+      hook?.value);
+    // Speichern schickt kein leeres Geheimnis (leer = das gespeicherte behalten)
+    const sent = [];
+    const realFetch = global.fetch;
+    global.fetch = (u, o = {}) => { if ((o.method || 'GET') === 'PATCH') sent.push(JSON.parse(o.body || '{}')); return realFetch(u, o); };
+    try {
+      if (hook) hook.value = '';
+      han?.querySelector('form[data-role="han-form"]')?.dispatchEvent(new global.window.Event('submit', { bubbles: true, cancelable: true }));
+      await new Promise(r => setTimeout(r, 60));
+    } finally { global.fetch = realFetch; }
+    const body = sent[0] || {};
+    t('settings/integrationen: Speichern ohne leere Geheimnisse, mit Ziel und Auswahl',
+      !('webhook_id' in body) && !('token' in body) && body.target === 'webhook' && Array.isArray(body.events) && body.events.length === 4,
+      JSON.stringify(body));
   } catch (e) { t('settings/integrationen: render', false, e.message); }
 
   // ── 5b. v3.4.0 (N1021) — ein Formularraster, Einstellungen im Raster ──

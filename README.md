@@ -108,6 +108,7 @@ off) and the place search, if you use it. More paths are yours to switch
 on: your own text recognition service in your home network, if you set one up
 (for meter photos and for reading supplier mail in the inbox),
 your evcc in your home network, when you fetch its charging sessions,
+your Home Assistant, when you switch on notifications to it,
 wholesale electricity prices for the dynamic tariff check, when you tap
 “Load from SMARD” (Federal Network Agency; nothing of yours is sent), and the
 note about new versions (once a day GitHub is asked for the newest version

@@ -232,6 +232,34 @@ final class MessyHouseholdTest extends ServiceTestCase
         self::assertEqualsWithDelta($p[1] - $p[0], array_sum(array_column($this->monthly('pv_erzeugung'), 'kwh')), 0.05 * 30);
     }
 
+    /**
+     * v3.9.0 (F1034) — derselbe Abschlag vierteljährlich (3 × 150 € am Ersten von Nov., Feb., Mai, Aug.):
+     * Die Kosten bleiben, nur das Bezahlte folgt den Raten. Mit der Hand: bis 31.10.2025 zwölf Raten
+     * = 5.400 € wie 36 Monate × 150 €; bis 30.09.2025 ebenfalls zwölf Raten (die vom 01.08. ist bezahlt),
+     * monatlich aber erst 35 × 150 = 5.250 €.
+     */
+    public function testAQuarterlyAdvanceChangesOnlyWhatIsPaid(): void
+    {
+        $at = fn(string $day) => $this->consumption->contractStatus('gas', $this->meter('gas'), $day)['contracts'][0];
+        $monthly = [$at('2025-09-30'), $at('2025-10-31')];
+        $this->contracts->update('gas', 'c_gas_messy', ['advance_payments' => [['from' => '2022-11-01', 'amount_eur' => 450, 'every_months' => 3]]]);
+        $quarterly = [$at('2025-09-30'), $at('2025-10-31')];
+        // v3.9.0 (auswertung, V1) — der Saldo rechnet über die laufende Abrechnungsperiode (ohne
+        // Stichtag das Kalenderjahr 2025), nicht mehr ab Vertragsbeginn 11/2022 (bis v3.8: 5.250,
+        // 5.400, 5.400, 5.400). Monatlich: Januar bis September 9 × 150, bis Oktober 10 × 150.
+        // Vierteljährlich ab 01.11.2022: in 2025 am 01.02., 01.05., 01.08. je 450 (der nächste am 01.11.)
+        self::assertEqualsWithDelta(1350.0, $monthly[0]['advance_paid'], 0.01);
+        self::assertEqualsWithDelta(1500.0, $monthly[1]['advance_paid'], 0.01);
+        self::assertEqualsWithDelta(1350.0, $quarterly[0]['advance_paid'], 0.01);
+        self::assertEqualsWithDelta(1350.0, $quarterly[1]['advance_paid'], 0.01);
+        foreach ([0, 1] as $i) {
+            self::assertSame($monthly[$i]['cost_to_date'], $quarterly[$i]['cost_to_date'], 'die Kosten hängen nicht am Rhythmus');
+            self::assertEqualsWithDelta($quarterly[$i]['cost_to_date'] - $quarterly[$i]['advance_paid'], $quarterly[$i]['current_balance'], 0.02);
+        }
+        self::assertSame(3, $quarterly[1]['current_advance_every_months']);
+        self::assertSame('2025-11-01', $quarterly[1]['next_advance_dates'][0]);
+    }
+
     /** Doku-Behauptung (docs/entwicklung/tests.md DE/EN): Zweck, Ort und Heizgrenze des Generators. */
     public function testTheTestsDocDescribesTheHousehold(): void
     {

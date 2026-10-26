@@ -107,6 +107,7 @@ final class App
     public IngestService $ingest;
     public I18nService $i18n;
     public InstanceService $instance;   // v3.1.0
+    public \Energietracker\Services\HomeAssistantNotifyService $haNotify;   // v3.9.0 (F1033) — Benachrichtigungen an Home Assistant
     public AgendaService $agenda;       // v3.1.0 (H1, B5)
     public CalendarService $calendar;   // v3.1.0 (H1, MKT-09)
     public SummaryService $summary;     // v3.1.0 (H1, API-33)
@@ -243,7 +244,7 @@ final class App
             $this->consumption, $this->reminders, $this->recommendations, $this->i18n, $this->tenancies, $this->co2Split);
         $this->calendar     = new CalendarService($this->agenda, $this->settings, $this->instance, $this->i18n);
         $this->summary      = new SummaryService($this->settings, $this->meters, $this->readings, $this->consumption,
-            $this->forecasts, $this->deliveries, $this->pvSummary, $this->stromSaldo, $this->agenda, $this->instance);
+            $this->forecasts, $this->deliveries, $this->pvSummary, $this->stromSaldo, $this->agenda, $this->instance, $this->i18n);
         // v3.1.0 (Paket H2) — Belege und Texterkennung im Heimnetz
         $this->attachments  = new AttachmentService($this->store, $this->settings, $this->i18n);
         $this->ocr          = new OcrService($this->settings, $this->attachments);
@@ -374,6 +375,18 @@ final class App
                 $this->writeLock->release();
             }
         }
+
+        // ── v3.9.0 (F1033, #36) — Benachrichtigungen an Home Assistant (Opt-in) ──
+        // Webhook-ID und Token in ha_notify_secret.json (nicht im Backup, nie im
+        // Browser); gesendet wird nach der Antwort (afterResponse)
+        $this->haNotify = new \Energietracker\Services\HomeAssistantNotifyService(
+            new \Energietracker\Services\HomeAssistant\NotifyConfig($this->settings, $this->store),
+            new \Energietracker\Services\HomeAssistant\NotifyTransport(),
+            $this->store, $this->i18n, $this->instance,
+            fn(int $days, string $today): array => $this->agenda->events($days, $today),
+            fn(): array => $this->recommendations->all(),
+            fn(): array => $this->inbox->all());
+        $this->inbox->onUpload(fn(array $e) => $this->haNotify->documentArrived($e));
 
         $this->router = new Router();
         $this->registerRoutes();
@@ -609,7 +622,40 @@ final class App
         if (in_array($req->method, ['POST', 'PUT', 'PATCH', 'DELETE'], true) && !self::locksLate($req)) {
             $this->lockOrFail();   // endet mit dem Prozess der Anfrage
         }
+        // v3.9.0 (F1033) — nach der Antwort: überwachter Ordner, Benachrichtigungen an Home Assistant
+        register_shutdown_function(fn() => $this->afterResponse());
         $this->router->dispatch($req);
+    }
+
+    /**
+     * v3.9.0 (F1033) — Arbeit nach der Antwort: der überwachte Ordner
+     * (höchstens alle fünf Minuten, FolderIntake::tick) und die
+     * Benachrichtigungen an Home Assistant (neue Dokumente; einmal am Tag die
+     * Prüfung). Einen Zeitplan hat die App nicht; jede Anfrage stößt es an, im
+     * Image alle 30 Sekunden der Gesundheitscheck. Unter PHP-FPM ist die
+     * Antwort dann schon beim Aufrufer (fastcgi_finish_request). Die
+     * Schreibsperre der Anfrage wird vorher freigegeben: Das Warten auf Home
+     * Assistant hält keinen anderen Schreibzugriff auf.
+     */
+    public function afterResponse(): void
+    {
+        $err = error_get_last();
+        if ($err !== null && in_array($err['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR], true)) return;
+        try {
+            $folder = $this->inboxFolder->tickDue();
+            if (!$folder && !$this->haNotify->due()) return;
+            if (function_exists('fastcgi_finish_request')) fastcgi_finish_request();
+            ignore_user_abort(true);
+            @set_time_limit(120);
+            $this->writeLock->release();
+            if ($folder) {
+                $this->inboxFolder->tick();
+                $this->writeLock->release();
+            }
+            $this->haNotify->tick();
+        } catch (\Throwable $e) {
+            $this->logger->warning('Arbeit nach der Antwort fehlgeschlagen', ['error' => $e->getMessage()]);
+        }
     }
 
     /** v2.6.0 — Stand der Anmeldung dieser Anfrage (für Health und /api/session). */
@@ -647,6 +693,8 @@ final class App
         if ($p === '/api/inbox/cloud/models' || $p === '/api/inbox/local/check') return true;
         // v3.7.0 (Paket betrieb) — den überwachten Ordner liest nur ein Verwalter ein (Dateien des Servers)
         if ($p === '/api/inbox/folder') return true;
+        // v3.9.0 (F1033) — Benachrichtigungen an Home Assistant: Ziel, Geheimnisse, Testnachricht
+        if (str_starts_with($p, '/api/homeassistant/notify') && !in_array($req->method, ['GET', 'HEAD'], true)) return true;
         if (in_array($req->method, ['PATCH', 'PUT', 'POST'], true) && $p === '/api/settings' && is_array($req->body)) {
             foreach (self::ADMIN_SETTINGS as $k) {
                 if (!array_key_exists($k, $req->body)) continue;
@@ -667,7 +715,9 @@ final class App
      */
     private const ADMIN_SETTINGS = ['frame_ancestors', 'ocr_endpoint', 'evcc_endpoint', 'allowed_hosts', 'activity_keep_months',
         // v3.7.0 — `inbox_provider`: wohin Versorgerpost zum Auslesen geht; (Paket cloud) ob Dokumente in die Cloud gehen
-        'inbox_provider', 'inbox_cloud_enabled', 'inbox_cloud_provider', 'inbox_cloud_endpoint', 'inbox_cloud_model'];
+        'inbox_provider', 'inbox_cloud_enabled', 'inbox_cloud_provider', 'inbox_cloud_endpoint', 'inbox_cloud_model',
+        // v3.9.0 (F1033) — ob und wohin Benachrichtigungen an Home Assistant gehen
+        'ha_notify_enabled', 'ha_notify_target', 'ha_notify_url', 'ha_notify_service'];
 
     /** v3.2.0 — Person dieser Anfrage (öffentlich, mit Einstellungen), sonst null. */
     public function currentUser(): ?array
@@ -1049,6 +1099,13 @@ final class App
         $r->get('/api/agenda',        fn($req) => $agCtrl->agenda($req));
         $r->get('/api/calendar.ics',  fn($req) => $agCtrl->calendar($req));
         $r->get('/api/summary',       fn($req) => $agCtrl->summary($req));
+        // v3.9.0 (F1033, #36) — Sensor „Zu tun“ und Benachrichtigungen an Home Assistant
+        // (PATCH und Test nur Verwalter, adminOnly)
+        $haCtrl = new \Energietracker\Controllers\HomeAssistantController($this->haNotify, $this->agenda, $this->instance);
+        $r->get('/api/todo',                         fn($req) => $haCtrl->todo($req));
+        $r->get('/api/homeassistant/notify',         fn($req) => $haCtrl->show($req));
+        $r->patch('/api/homeassistant/notify',       fn($req) => $haCtrl->update($req));
+        $r->post('/api/homeassistant/notify/test',   fn($req) => $haCtrl->test($req));
 
         // v3.4.0 (F1024) — Erledigt mit Verlauf: abhaken, Verlauf, Rückgängig, Notiz;
         // leeren nur Verwalter (adminOnly)

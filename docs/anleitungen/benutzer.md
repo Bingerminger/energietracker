@@ -10,14 +10,17 @@ Haushalts teilen sich alle: Zähler, Stände, Verträge und Auswertungen gibt es
 nur einmal. Zwei Rollen regeln, wer den Zugriff verwaltet und wer „nur“
 erfasst.
 
-Personen gibt es nur **mit eingeschalteter Anmeldung**. Ohne Anmeldung bleibt
-alles wie bisher: Wer die Adresse erreicht, darf alles, und die Nutzungsstufe
-gilt für die ganze Installation. Die Karte „Benutzer und Rechte“ sagt das seit
-v3.6.0 auch in der App und springt mit „Anmeldung einschalten“ zur Karte
-„Anmeldung & Zugriff“. Seit **v3.6.0** führt die App alle Personen
-zusätzlich in einem **Personenverzeichnis** mit fortlaufender Nummer, das zum
-Backup gehört (§ 7) — die Personen eines Beispielhaushalts stehen so auch ohne
-Anmeldung unter „Zuständig“ zur Wahl. Wann sich die Anmeldung lohnt, steht in
+Zugänge (Name und Passwort) gibt es nur **mit eingeschalteter Anmeldung**.
+Ohne Anmeldung bleibt alles wie bisher: Wer die Adresse erreicht, darf alles,
+und die Nutzungsstufe gilt für die ganze Installation. Die Karte „Benutzer und
+Rechte“ sagt das seit v3.6.0 auch in der App und springt mit „Anmeldung
+einschalten“ zur Karte „Anmeldung & Zugriff“. Seit **v3.6.0** führt die App
+alle Personen zusätzlich in einem **Personenverzeichnis** mit fortlaufender
+Nummer, das zum Backup gehört (§ 7). Seit **v3.9.0** legst du Personen auch
+**ohne Anmeldung** an, unter Einstellungen → Haushalt & Gebäude → „Personen im
+Haushalt“ ([Personen im Haushalt](#personen-im-haushalt-v390)): Sie stehen
+unter „Zuständig“ an Terminen, Zählern und Verträgen zur Wahl, in jeder Stufe.
+Wann sich die Anmeldung lohnt, steht in
 [Sicherheit & Netzbetrieb](../betrieb/sicherheit.md#1-das-betriebsmodell-in-einem-satz).
 
 ---
@@ -131,13 +134,36 @@ den Proxy, legt die App sie neu an (mit neuer Nummer) — aussperren muss dort
 der Proxy. Löscht ein API-Schlüssel, übernimmt niemand: Offene Termine, Zähler
 und Verträge bleiben dann mit „(gelöscht)“ stehen, bis jemand sie neu zuweist.
 
+### Personen im Haushalt *(v3.9.0)*
+
+Wer Termine, Zähler oder Verträge einer Person zuweisen will, braucht dafür
+keine Anmeldung. Die Karte **Einstellungen → Haushalt & Gebäude → „Personen im
+Haushalt“** steht in jeder Stufe:
+
+1. Unter **„Neue Person“** den Namen eintragen (bis 40 Zeichen, nicht doppelt,
+   wie bei einem Zugang).
+2. **„Hinzufügen“.** Die App meldet „… steht jetzt unter „Zuständig“ zur Wahl.“
+   Die Person bekommt die nächste Nummer.
+
+Die Liste zeigt alle Personen mit Nummer. **„Umbenennen“** und **„Person
+löschen“** gelten für Personen ohne Zugang, mit denselben Regeln und demselben
+Dialog wie unter Zugriff (unten). Personen mit Zugang stehen mit dem Vermerk
+**„mit Zugang“** in der Liste; ihr Name, ihre Rolle und ihr Passwort bleiben
+unter Einstellungen → Zugriff. Anlegen, umbenennen und löschen darf, wer
+verwaltet; ohne Anmeldung jede Person, die die Adresse erreicht. Mitglieder
+sehen nur die Namen.
+
+Anmelden kann sich eine so angelegte Person nicht. Bekommt sie später unter
+Zugriff einen Zugang mit demselben Namen, übernimmt der Zugang ihre ID und
+Nummer, ihre Termine und Zuständigkeiten bleiben bei ihr.
+
 ### Personen ohne Zugang
 
-Personen aus einem Backup oder einem Beispielhaushalt haben keinen Zugang —
-sie stehen im Personenverzeichnis, aber nicht in `auth.json`. Die Tabelle
-zeigt sie mit Nummer und dem Vermerk **„ohne Zugang“**. Löschen geht wie oben,
-mit derselben Übergabe und demselben Dialog („Die Person steht danach nicht
-mehr zur Wahl“).
+Personen aus Haushalt & Gebäude *(v3.9.0)*, einem Backup oder einem
+Beispielhaushalt haben keinen Zugang. Sie stehen im Personenverzeichnis, aber
+nicht in `auth.json`. Die Tabelle unter Zugriff zeigt sie mit Nummer und dem
+Vermerk **„ohne Zugang“**. Löschen geht wie oben, mit derselben Übergabe und
+demselben Dialog („Die Person steht danach nicht mehr zur Wahl“).
 
 **Name und Rolle ändern** (seit v3.6.0, nur wer verwaltet): Die Rolle stellst
 du in der Auswahl der Zeile um, den Namen mit **„Umbenennen“**. Der Name folgt
@@ -153,12 +179,13 @@ bekommt; „Zugang anlegen“ übernimmt sie. Ein Mitglied bekommt wie beim Lös
 Nummer der Person übernimmt — ihre Termine und Einträge im Verlauf gehören
 dann ihr.
 
-**Ohne Anmeldung** (etwa nach dem Laden eines Beispielhaushalts) zeigt
-Einstellungen → Zugriff die Karte „Benutzer und Rechte“, sobald das
-Verzeichnis Personen kennt. Bedienen darf sie dann jede Person, die die
-Adresse erreicht — wie alle Einstellungen ohne Anmeldung. Weil niemand
-angemeldet ist, übernimmt beim Löschen niemand: Offene Termine bleiben mit
-„(gelöscht)“ stehen, bis jemand sie neu zuweist; der Dialog sagt es vorher.
+**Ohne Anmeldung** stehen die Personen seit v3.9.0 nur unter Haushalt &
+Gebäude. Die Karte „Benutzer und Rechte“ unter Zugriff sagt dann, dass Zugänge
+erst mit der Anmeldung entstehen, und führt mit „Zu den Personen“ zur Karte
+„Personen im Haushalt“. Bedienen darf sie jede Person, die die Adresse
+erreicht, wie alle Einstellungen ohne Anmeldung. Weil niemand angemeldet ist,
+übernimmt beim Löschen niemand: Offene Termine bleiben mit „(gelöscht)“
+stehen, bis jemand sie neu zuweist; der Dialog sagt es vorher.
 
 ---
 
@@ -303,7 +330,8 @@ PATCH  /api/session/me            eigene Einstellungen {ui_level?, language?} �
 POST   /api/session/me/password   eigenes Passwort {current, password}
 GET    /api/users                 Personen (nur Verwaltung), seit v3.6.0 mit Nummer `no` und
                                   `has_account` (Personen ohne Zugang: `false`, `source: "none"`)
-POST   /api/users                 {name, password, role: admin|member}
+POST   /api/users                 {name, password, role: admin|member}; v3.9.0: {name, role?,
+                                  has_account: false} legt eine Person ohne Zugang an (201)
 PATCH  /api/users/{id}            {name?, role?, password?}; v3.6.0 auch für Personen ohne Zugang
                                   ({name?, role?}; ein Passwort: 400 errors.users.noAccountPassword)
 GET    /api/users/{id}/handover   (v3.6.0) vor dem Löschen: {person, to, open, done};

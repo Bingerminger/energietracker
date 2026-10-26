@@ -8,7 +8,7 @@ declare(strict_types=1);
  * je angesprochen.
  *
  * Das Verhalten wählt der API-Schlüssel (`…-ok`, `…-401`, `…-429`, `…-529`,
- * `…-refusal`, `…-maxtokens`, `…-slow`, `…-redirect`, `…-nobeta`, `…-echo`,
+ * `…-refusal`, `…-maxtokens`, `…-maxonce`, `…-ctxwindow`, `…-slow`, `…-redirect`, `…-nobeta`, `…-echo`,
  * `…-length`, `…-filter`). Die Form der Anfrage wird wie beim echten Dienst
  * geprüft; eine falsche Form ergibt 400. Die letzte Anfrage steht in der Datei
  * aus FAKE_CLOUD_LOG (Kopfzeilen und Körper), für Aussagen im Test.
@@ -49,7 +49,7 @@ if ($path === '/elsewhere') {
 
 $req = json_decode($raw, true);
 $scenario = static function (string $key): string {
-    return preg_match('/-(ok|401|429|529|refusal|maxtokens|slow|redirect|nobeta|echo|length|filter|empty)$/', $key, $m) ? $m[1] : 'unknown';
+    return preg_match('/-(ok|401|429|529|refusal|maxtokens|maxonce|ctxwindow|slow|redirect|nobeta|echo|length|filter|empty)$/', $key, $m) ? $m[1] : 'unknown';
 };
 
 // ── v3.7.0 (Karte „Auslesen“) — Modelllisten: GET …/models ──────────────────
@@ -132,8 +132,10 @@ if ($path === '/v1/messages') {
     }
     $prompt = (string)($content[1]['text'] ?? '');
     $isClassify = str_contains($prompt, 'Which kind of document');
-    if ($s === 'maxtokens') {
-        return answer(200, ['type' => 'message', 'model' => $req['model'], 'stop_reason' => 'max_tokens',
+    // v3.9.0 — `…-maxonce`: abgeschnitten nur unter 32 000 Tokens Budget (die Wiederholung reicht);
+    // `…-ctxwindow`: am Kontextfenster, da hilft kein größeres Budget
+    if ($s === 'maxtokens' || ($s === 'maxonce' && $req['max_tokens'] < 32000) || $s === 'ctxwindow') {
+        return answer(200, ['type' => 'message', 'model' => $req['model'], 'stop_reason' => $s === 'ctxwindow' ? 'model_context_window_exceeded' : 'max_tokens',
             'content' => [['type' => 'text', 'text' => 'period_from: 01.01.2025']]]);
     }
     $blocks = $isClassify

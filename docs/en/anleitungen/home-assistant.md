@@ -38,6 +38,14 @@ feature F1009).
 4. Optional (since v3.1.0): **values back** — REST sensors show balance,
    forecast and days since the last reading in Home Assistant
    ([step 5](#step-5--values-back-to-home-assistant)).
+5. Optional (since v3.9.0): **notifications**. Energietracker reports due
+   appointments, deadlines, warnings and new documents to Home Assistant by
+   itself ([step 6](#step-6--notifications-to-home-assistant-v390)), plus the
+   [“To do” sensor](#to-do-sensor-v390).
+
+**Privacy:** none of this leaves your home network unless you set it up that
+way yourself (for example a Home Assistant address outside it, through remote
+access). Energietracker only contacts the address you enter.
 
 All steps can be prepared directly in Energietracker under
 **Settings → Integrations → 🏠 Home Assistant integration** (including
@@ -85,10 +93,15 @@ ingress_port: 80       # nginx in the image
 ingress_stream: true   # uploads above 16 MiB (backups with receipts)
 ports:
   80/tcp: null         # direct port off
+homeassistant_api: true   # v3.9.0: notifications through the Supervisor
+map:
+  - type: share        # v3.9.0: folder /share for the inbox
+    read_only: false
 environment:
   ET_DATA_DIR: "/data"
   ET_AUTH: "proxy"
   ET_TRUSTED_PROXIES: "172.30.32.2"
+  ET_INBOX_DIR: "/share/energietracker/posteingang"
 ```
 
 **Differences from running it with Docker**
@@ -100,6 +113,8 @@ environment:
 | Roles | whoever opens it first manages it; everyone after that is a member | depends on the sign-in |
 | Offline entry, install as phone app | no — the page belongs to Home Assistant | yes |
 | Data | the app’s storage (`/data`), included in Home Assistant backups | volume or folder |
+| Inbox folder *(v3.9.0)* | `/share/energietracker/posteingang` (share “share”) | `posteingang/` in the data directory |
+| Notifications *(v3.9.0)* | through the Supervisor, no further setup | webhook or address with token |
 | Updates | as an app update in Home Assistant | new image tag |
 | Environment variables | set by the app | all `ET_*` |
 | Log | the app’s “Log” tab | `docker logs` |
@@ -135,14 +150,25 @@ calendar its key; the interface stays in the sidebar. Under Ingress,
 ([Calendar](kalender.md)) — for a phone, replace the start up to `/api.php`
 with `http://<Home Assistant address>:8095`.
 
-**Supplier mail into the inbox *(v3.7.0)*.** The app only mounts its own
-storage (`/data`), no share such as `/share`; the
-[watched folder](posteingang.md#watched-folder) is therefore out of reach. Two
-ways remain: **email** through Home Assistant’s IMAP integration, which sends
-attachments with an “inbox only” key to `http://<host name of the app>/api.php/api/inbox`
-([guide](posteingang.md#by-email-via-home-assistant)), and the **shortcut**
-from the iPhone or iPad through an enabled direct port
+**Supplier mail into the inbox *(v3.9.0)*.** Since v3.9.0 the app mounts
+Home Assistant’s share `/share`. The
+[watched folder](posteingang.md#watched-folder) is
+`/share/energietracker/posteingang` there; the app creates it at start. With
+the “Samba share” app it appears on the network as
+`\\<Home Assistant address>\share\energietracker\posteingang`. A PDF you put
+there is in the inbox within five minutes at most (the app reads the folder
+after requests, and the health check asks every 30 seconds). Other ways:
+**email** through Home Assistant’s IMAP integration ([below](#supplier-mail-by-email))
+and the **shortcut** from the iPhone or iPad through an enabled direct port
 ([shortcut](posteingang.md#with-a-shortcut-from-the-iphone-or-ipad)).
+
+**Notifications *(v3.9.0)*.** The app may talk to Home Assistant through the
+Supervisor (`homeassistant_api: true`). Under Settings → Integrations →
+🔔 Notifications to Home Assistant, “Send notifications” is all it takes
+([step 6](#step-6--notifications-to-home-assistant-v390)). Through this access
+the app acts towards Home Assistant with the rights of an administrator (as
+Home Assistant’s documentation puts it); it only calls the action set for
+notifications.
 
 Everything else that applies under Ingress is listed under
 [Running under Home Assistant Ingress](#running-under-home-assistant-ingress).
@@ -440,6 +466,189 @@ your calendar: [Subscribe in your calendar](kalender.md).
 
 ---
 
+## Step 6 — Notifications to Home Assistant *(v3.9.0)*
+
+Energietracker reports to Home Assistant by itself. You do not have to open it
+for that, and you do not build an automation for each deadline
+([#36](https://github.com/Bingerminger/energietracker/issues/36)).
+
+**What is reported** (each line can be switched on and off):
+
+| Event | When |
+|---|---|
+| Appointments | as soon as an appointment is due (maintenance, calibration, “Report meter reading”), once more when it becomes overdue |
+| Deadlines and other items from “To do” | notice periods, end of contract, price increase, due readings, expected bills, planning a delivery and every other item the “To do” list shows; once more when an item becomes urgent |
+| Warnings | recommendations at the level warning or urgent, for example a month far above the expectation. What is already an item in “To do” does not come twice |
+| New documents in the inbox | right after they arrive, whichever way (browser, shortcut, email, watched folder). Several in quick succession come in one message |
+
+**When:** Energietracker checks appointments, deadlines and warnings once a
+day from the time set (default 8 o’clock). The app has no schedule of its own:
+the check runs after the first request after that time, once the answer is on
+its way. In the Docker image and in the app for Home Assistant the health check
+asks every 30 seconds. On a web server without Docker the
+[“To do” sensor](#to-do-sensor-v390), which asks every 15 minutes, is enough.
+
+- **Each message only once.** Energietracker remembers what it has sent. New
+  is an item that becomes due, and one that becomes urgent or overdue.
+- **At most five at a time.** If there are more (for example when switching it
+  on the first time), four come one by one and the rest in a summary message.
+- **Home Assistant not reachable?** Then it tries again after half an hour,
+  not with every request.
+- **Language:** that of the installation (Settings → General → default
+  language), not that of the device.
+
+### Setting up the destination
+
+Settings → Integrations → 🔔 Notifications to Home Assistant:
+
+| Destination | For | What you enter |
+|---|---|---|
+| Through the Supervisor | app in Home Assistant OS | nothing, just switch on “Send notifications” |
+| Webhook | Docker, NAS, web server; your own automation decides what happens | Home Assistant address and a webhook ID |
+| Address and token | Docker, NAS, web server; Energietracker calls an action directly | Home Assistant address and a long-lived token (profile → Security) |
+
+With the Supervisor and the token Energietracker calls an **action**.
+`persistent_notification.create` (default) shows the message under
+notifications in Home Assistant; a second message about the same item replaces
+the first. `notify.mobile_app_<device>` sends it to the Companion app on your
+phone. Both take `title` and `message`.
+
+- **“Send a test message”** checks the destination, even before you switch it
+  on.
+- **Webhook ID and token are secrets.** They are only on the server, not in
+  the settings and not in the backup; the card only shows “stored”. After
+  importing a backup on another server you enter them again.
+- **Address:** for example `http://192.168.178.10:8123`, without a path. In
+  the home network `http://` works. An address outside (remote access to Home
+  Assistant) only works with `https://`, otherwise Energietracker refuses.
+- Only admins can change this.
+
+### Webhook
+
+1. In Home Assistant, create a new automation, choose “Edit in YAML” and
+   paste the template from the card. “Create a new ID” puts a random webhook
+   ID in it. The template looks like this:
+
+```yaml
+alias: "Energietracker: pass on the notification"
+triggers:
+  - trigger: webhook
+    webhook_id: "energietracker_your_own_id"   # your own ID that cannot be guessed
+    allowed_methods:
+      - POST
+    local_only: true
+actions:
+  - action: notify.notify   # or notify.mobile_app_… for your phone
+    data:
+      title: "{{ trigger.json.title }}"
+      message: "{{ trigger.json.message }}"
+mode: queued
+```
+
+2. Enter the same webhook ID in the card, plus the Home Assistant address,
+   save and “Send a test message”.
+
+- `local_only: true` only accepts requests from your own network.
+- `mode: queued`: if several messages come in quick succession, all go
+  through. In mode `single` only the first would run.
+- The webhook ID works like a password: whoever knows it can trigger the
+  automation. Choose your own that cannot be guessed.
+- An answer 200 only means that Home Assistant accepted the request. Whether
+  the automation ran is shown in its trace.
+
+What the webhook receives (JSON; in the automation under `trigger.json`):
+
+| Field | Content |
+|---|---|
+| `title`, `message` | finished text in the installation’s language |
+| `event` | `reminder`, `deadline`, `warning`, `document`, `more` (summary message) or `test` |
+| `kind` | kind of the “To do” item (`cancel_by`, `reading_due` …), for warnings the category (`anomalie`, `trend` …) |
+| `key` | unique key of the message |
+| `date`, `severity` | due date and level (`overdue`, `urgent`, `due`, `info`) |
+| `items` | for summary messages and documents the single items |
+| `language`, `instance_id`, `sent_at`, `source` | language, ID of the installation, time; `source` is always `energietracker` |
+
+---
+
+## “To do” sensor *(v3.9.0)*
+
+`GET /api/todo` returns the “To do” list: how many items are due, how many of
+them are overdue or urgent, and the next one. Every due item counts, also a
+kind that is added later. Three due readings are three items (the overview
+combines them in one line). The fields are in the
+[API reference](../referenz/api.md#get-apitodo-v390).
+
+The template is in the settings under Integrations (card “Set up the Home
+Assistant integration”, section “To do” sensor). Into `configuration.yaml`:
+
+```yaml
+rest:
+  - resource: "http://YOUR-ENERGIETRACKER-IP:8080/api.php/api/todo"
+    scan_interval: 900   # every 15 minutes
+    headers:
+      Authorization: !secret energietracker_read   # only needed if sign-in is enabled
+    sensor:
+      - name: "Energietracker to do"
+        unique_id: energietracker_todo_count
+        value_template: "{{ value_json.data.count }}"
+        json_attributes_path: "$.data"
+        json_attributes:
+          - overdue
+          - items
+      - name: "Energietracker next item"
+        unique_id: energietracker_todo_next
+        value_template: "{{ value_json.data.next.title if value_json.data.next else '-' }}"
+      - name: "Energietracker next item due"
+        unique_id: energietracker_todo_next_date
+        value_template: "{{ value_json.data.next.date if value_json.data.next else none }}"
+        device_class: date
+```
+
+- **to do:** the number, plus the attributes `overdue` and `items` (per item
+  `title`, `date`, `kind`, `severity`).
+- **next item:** the title of the first item (overdue first, then urgent, then
+  by date); “-” when there is nothing to do.
+- **next item due:** its date; “unknown” when there is nothing to do.
+- With sign-in switched on the sensor needs the read key from step 5
+  (`energietracker_read`). Without sign-in, leave out the lines `headers:` and
+  `Authorization: …`.
+
+---
+
+## Supplier mail by email
+
+If the mail comes as an email attachment, Home Assistant passes it on to the
+inbox through the **IMAP integration**. The integration reports every new mail
+as an `imap_content` event, the action `imap.fetch_part` fetches the attachment
+(`part_data`, plus `filename` and `content_transfer_encoding`), and a
+`rest_command` files it under `/api.php/api/inbox` with an “inbox only” key,
+as JSON `{"name": …, "pdf_base64": …}`. The template step by step is under
+[Inbox → By email via Home Assistant](posteingang.md#by-email-via-home-assistant).
+With the app for Home Assistant the address is `http://<host name of the app>/api.php/api/inbox`.
+If the notification “New documents” is on, Energietracker reports the document
+back afterwards.
+
+> **Not tested in a running Home Assistant.** The template follows the
+> documentation of the IMAP integration and of the action `imap.fetch_part`
+> (looked up on 26 Oct 2026). Energietracker’s side is tested: it accepts the
+> attachment as Base64 with line breaks, as the action delivers it. Home
+> Assistant’s documentation does not describe the fields of the single parts in
+> the event (`content_type`, `filename`) in detail. Reports from real
+> installations are welcome.
+
+---
+
+## HACS integration *(in preparation)*
+
+An integration for HACS is in preparation. After setup (address, optionally a
+read key) it creates the sensors itself, without YAML: “To do” with the next
+item and, per meter, balance, consumption in the current year and forecast. It
+reads the same endpoints as the templates above (`/api/summary` and
+`/api/todo`). It is not published yet; until then the sensors go through the
+templates from step 5 and the [“To do” sensor](#to-do-sensor-v390).
+
+---
+
 ## Important: the units must match
 
 Energietracker works with the units of the respective utility. The HA sensor must
@@ -717,6 +926,11 @@ Assistant sidebar), the following applies since v3.1.0. The
 | Batch: response `200`, but readings are missing | Individual entries failed — `failed` and the entries with `"status": "error"` name the reason (`code`) and position (`index`). |
 | `400 Timestamp “…” not readable` | `timestamp` without a time zone or in another format. ISO 8601 with a zone is expected, e.g. `2026-10-12T14:15:00+02:00`; the template `{{ now().isoformat() }}` delivers that. |
 | No quarter hours (`"intervals": 0`) | First reading with a timestamp, a gap of more than six hours (e.g. only the daily push) or a reading that is not newer than or lower than the previous one — see [quarter hours](#quarter-hours-additionally-every-15-minutes-v330). If `intervals` is missing from the response altogether, the REST command sends no `timestamp`, or the reading is marked as suspect. |
+| Test message: “Home Assistant refuses (401)” *(v3.9.0)* | Destination “Address and token”: the token is wrong or deleted. Create a new one in your Home Assistant profile under Security and enter it. |
+| Test message: “cannot be reached” or “name cannot be resolved” | Check the address. From inside a container a name ending in `.local` often does not resolve; then enter the IP address. |
+| Test message: “status 400” | The action does not exist in Home Assistant (for example a typo in `notify.mobile_app_…`). |
+| The test message arrives, nothing else | The check runs once a day from the time set, and each message comes only once. On a web server without Docker a request after that time is needed, for example from the [“To do” sensor](#to-do-sensor-v390). |
+| Webhook: nothing arrives in Home Assistant | Different webhook IDs in the card and the automation, or the automation runs in mode `single` (then messages in quick succession are lost). Use the template with `mode: queued`. |
 
 **Quick test** (from the HA machine, open mode or with a token):
 

@@ -19,6 +19,7 @@ import { t, tp } from '../lib/i18n.js';
 import { openModal } from '../components/modal.js';
 import { entryTitle, reasonText, whenWho } from '../lib/activity.js';
 import { uncertainRangeText } from '../lib/semantics.js';   // v3.7.0 (Nachlauf)
+import { advanceAmountText } from '../lib/advance-rhythm.js';   // v3.9.0 (F1034) — Abschlag mit Rhythmus
 // v3.7.0 — Zuständig: Vertrag, sonst Zähler; Filter wie in „Zu tun“ (je Gerät gemerkt)
 import { assigneeOf, assigneeNames, chipHtml, filterHtml, bindFilter, filterNoteHtml, matchesAssignee, storedFilter } from '../lib/assignee.js';
 
@@ -193,7 +194,10 @@ function meterBlock(u, meter, contracts, showMeter, who = {}) {
     facts.push(`<span class="warning-text">${escapeHtml(tp('contractsOverview.successorGap', Number(next.gap_days), { date: fmt.date(next.start) }))}</span>`);
   }
   if (c.current_advance_amount != null) {
-    facts.push(escapeHtml(t('contractsOverview.advance', { amount: fmt.eur(c.current_advance_amount) })));
+    // v3.9.0 (F1034) — alle zwei oder drei Monate: Betrag je Termin, nicht „im Monat“
+    facts.push(escapeHtml(Number(c.current_advance_every_months) > 1
+      ? t('contractsOverview.advanceEvery', { amount: advanceAmountText(c.current_advance_amount, c.current_advance_every_months) })
+      : t('contractsOverview.advance', { amount: fmt.eur(c.current_advance_amount) })));
   }
 
   const verdict = c.verdict;

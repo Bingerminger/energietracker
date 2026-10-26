@@ -609,12 +609,19 @@ final class ForecastService
         // v3.1.0 — Schmutzwasser = Trinkwasser × Anteil desselben Kalendermonats
         // in der Historie (s. sewageShareByMonth); bis v3.0 das volle Volumen.
         $swCost = $swWp !== null ? $volume * $sewageShare * (float)$swWp * $priceFactor / 100.0 : 0.0;
+        // v3.9.0 (F1034) — Grundpreis Schmutzwasser, wie der des Trinkwassers je Monat
+        $swBp = $this->contracts->valueValidOn($sw['base_prices'] ?? [], 'eur_per_month', $asOfYear, $asOfMonth);
+        if ($swBp !== null) $swCost += (float)$swBp;
         $nwMonthly = ($nwRate !== null && $nwArea !== null)
             ? (float)$nwRate * (float)$nwArea / 12.0
             : 0.0;
 
         $cost = $twWorking + $twBase + $swCost + $nwMonthly - $bonus;
-        $ap   = $this->contracts->valueValidOn($advancePlan, 'amount_eur', $asOfYear, $asOfMonth);
+        // v3.9.0 (F1034) — mit Rhythmus: die Raten, die in diesem Monat fällig sind; monatlich wie
+        // bisher der Betrag des Monats (beim weiterlaufenden Vertrag der seines letzten Monats)
+        $next = date('Y-m-d', (int)strtotime($first . ' +1 month'));
+        $ap   = ContractService::advanceIn($advancePlan, sprintf('%04d-%02d-01', $asOfYear, $asOfMonth), $first, $next, 1.0,
+            (int)date('t', (int)strtotime($first)));
 
         return [
             'cost'             => $cost,
@@ -657,8 +664,9 @@ final class ForecastService
             $price = $wp !== null ? $wp * $priceFactor : $fallbackPriceCt;
             $cost += $vol * $price / 100.0 + ($bp !== null ? $bp * $seg['days'] / $dim : 0.0);
             $energyCost += $vol * $price; $energyVol += $vol;
-            $byContract[$c['id']] ??= ['days' => 0, 'assumed' => false, 'contract' => $c, 'first' => $date];
+            $byContract[$c['id']] ??= ['days' => 0, 'assumed' => false, 'contract' => $c, 'first' => $date, 'from' => $seg['from']];
             $byContract[$c['id']]['days'] += $seg['days'];
+            $byContract[$c['id']]['to'] = $seg['to'];   // v3.9.0 (F1034) — Vertragstage im Monat, für die Raten
             $byContract[$c['id']]['assumed'] = $byContract[$c['id']]['assumed'] || $seg['assumed'];
         }
         if ($byContract === []) {
@@ -671,8 +679,9 @@ final class ForecastService
             // Boni nur in der eigentlichen Laufzeit; der effektive
             // Abschlagsplan berücksichtigt „mit Auswirkung" (v2.8.0)
             if (!$b['assumed']) $cost -= $this->contracts->bonusForMonth($c, $year, $month);
-            $ap = $this->contracts->valueOnDate($this->contracts->effectiveAdvanceSchedule($c), 'amount_eur', $b['first']);
-            if ($ap !== null) $advance = ($advance ?? 0.0) + $ap * min(1.0, $b['days'] / $dim);
+            // v3.9.0 (F1034) — mit Rhythmus die Raten, die in den Vertragstagen des Monats fällig sind
+            $ap = ContractService::advanceIn($this->contracts->effectiveAdvanceSchedule($c), $b['first'], $b['from'], $b['to'], min(1.0, $b['days'] / $dim), $dim);
+            if ($ap !== null) $advance = ($advance ?? 0.0) + $ap;
         }
         uasort($byContract, fn($x, $z) => [$z['days'], (string)($z['contract']['start'] ?? '')] <=> [$x['days'], (string)($x['contract']['start'] ?? '')]);
         $main = $byContract[array_key_first($byContract)];

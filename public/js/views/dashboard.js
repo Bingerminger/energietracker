@@ -27,6 +27,7 @@ import { assigneeOf, assigneeNames, chipHtml, filterHtml, bindFilter, filterNote
 // v3.6.0 — Kachel „Dein Hebel“: die Zahl der Ergebniskarte der Flexibilität
 import { actionText } from '../lib/flex-text.js';
 import { areaAssumedHtml } from '../lib/area-assumed.js';   // v3.6.0 (Paket einpers)
+import { welcomeArt } from '../lib/illustrations.js';   // v3.9.0 (Paket oberflaeche) — Bild im Willkommen
 
 export async function render(container) {
   container.innerHTML = `<div class="loading">${t('dashboard.loading')}</div>`;
@@ -240,6 +241,7 @@ export async function render(container) {
          tut, die ersten Schritte mit Häkchen aus den Daten, und Beispieldaten
          zum Ausprobieren (vorher sichert der Server den jetzigen Stand) -->
     <section class="card dash-welcome" aria-labelledby="dash-welcome-title">
+      <div class="dash-welcome__art">${welcomeArt()}</div>
       <h2 class="dash-welcome__title" id="dash-welcome-title">${escapeHtml(t('dashboard.welcome.title'))}</h2>
       <p class="dash-welcome__text">${escapeHtml(t('dashboard.welcome.text'))}</p>
       <div class="dash-welcome__actions">

@@ -31,7 +31,10 @@ final class Applier
 {
     // v3.7.0 (treffsicher, Nachbesserung 4) — der Zählertausch vor den Ablesungen: Die Stände
     // nach dem Tauschtag einer Rechnung gehören zum neuen Gerät (ReadingService nach Datum)
+    // v3.9.0 (F1034) — der Vertrag aus der Rechnung vor Rechnung und Buchung (beide hängen an ihm);
+    // Preiszeilen der Wasser-Bestandteile wie die übrigen Preise
     private const ORDER = ['meter_ids', 'contract_create', 'contract_start', 'contract_ids', 'contract_price', 'contract_base_price',
+        'contract_water_price',
         'contract_advance', 'contract_end', 'meter_change', 'reading', 'bill', 'bill_book', 'gas_factor', 'reminder'];
 
     public function __construct(
@@ -57,21 +60,29 @@ final class Applier
         $type = (string)($entry['type'] ?? '');
         $note = $this->i18n->t('inbox.applied.note', ['name' => (string)($entry['name'] ?? '')]);
         $billId = null;
+        $forBill = null;   // v3.9.0 (F1034) — der Vertrag aus dieser Rechnung, in diesem Durchgang angelegt
+        $picked = array_flip(array_column($proposals, 'id'));
         foreach ($proposals as $p) {
             if ($p['status'] === 'exists') { $res['skipped'][] = ['id' => $p['id'], 'kind' => $p['kind'], 'reason' => 'exists']; continue; }
+            // v3.9.0 (F1034) — was am neuen Vertrag hängt (`requires`), nur mit ihm; nie an einem anderen
+            if (is_string($p['requires'] ?? null) && !isset($picked[$p['requires']])) {
+                $res['failed'][] = ['id' => $p['id'], 'kind' => $p['kind'], 'error' => $this->i18n->t('errors.inboxDraft.needs.contract'),
+                    'code' => 'errors.inboxDraft.needs.contract'];
+                continue;
+            }
             try {
                 $d = $p['data'];
                 $ref = match ($p['kind']) {
                     'reading' => $this->reading($u, $p, $note),
-                    'bill' => $billId = $this->bill($u, $p),
+                    'bill' => $billId = $this->bill($u, $p, $forBill),
                     'bill_book' => $this->book($u, $p, $billId, $entry),
-                    'contract_create' => ['type' => 'contract', 'utility' => $u, 'id' => (string)$this->contracts->create($u, $d)['id']],
+                    'contract_create' => ['type' => 'contract', 'utility' => $u, 'id' => (string)$this->contracts->create($u, array_diff_key($d, ['for_bill' => 1]))['id']],
                     'contract_end' => $this->contractPatch($u, (string)$d['contract_id'], ['end' => $d['end'], 'auto_renews' => false],
                         $type === 'cancellation' ? $att : ''),
                     'contract_start' => $this->contractPatch($u, (string)$d['contract_id'], ['start' => $d['start']], $type === 'supply_start' ? $att : ''),
                     'contract_ids' => $this->contractPatch($u, (string)$d['contract_id'],
                         array_intersect_key($d, array_flip(['contract_number', 'customer_number']))),
-                    'contract_price', 'contract_base_price', 'contract_advance' => $this->priceRow($u, $d,
+                    'contract_price', 'contract_base_price', 'contract_advance', 'contract_water_price' => $this->priceRow($u, $d,
                         in_array($type, ['price_change', 'advance_change'], true) ? $att : ''),
                     'meter_ids' => $this->meterPatch($u, (string)$d['meter_id'], ['malo_id' => $d['malo_id']]),
                     'meter_change' => $this->meterChange($u, $d),
@@ -81,6 +92,7 @@ final class Applier
                     default => throw new LocalizedException('errors.inbox.proposalStale', [], 'proposal kind ' . $p['kind']),
                 };
                 if (is_array($ref) && isset($ref['bill_id'])) $ref = ['type' => 'bill', 'utility' => $u, 'id' => $ref['bill_id']];
+                if ($p['kind'] === 'contract_create' && !empty($d['for_bill'])) $forBill = (string)$ref['id'];
                 $res['applied'][] = ['id' => $p['id'], 'kind' => $p['kind'], 'ref' => $ref, 'key' => self::key($p)];
             } catch (\Throwable $e) {
                 $msg = $e instanceof LocalizedException ? $this->i18n->t($e->key, $e->params) : $e->getMessage();
@@ -111,16 +123,24 @@ final class Applier
         return ['type' => 'reading', 'utility' => $u, 'id' => (string)$r['id']];
     }
 
-    /** @return array{bill_id: string} */
-    private function bill(string $u, array $p): array
+    /**
+     * v3.9.0 (F1034) — `$forBill`: der Vertrag aus dieser Rechnung, eben angelegt; die Rechnung hängt
+     * dann an ihm (und wird dort gebucht), ohne ihn wie bisher an dem, den die Vorschau nennt.
+     *
+     * @return array{bill_id: string}
+     */
+    private function bill(string $u, array $p, ?string $forBill = null): array
     {
         $d = $p['data'];
+        $own = !empty($d['contract_new']) && empty($d['contract_id']) && $forBill !== null ? ['contract_id' => $forBill] : [];
+        unset($d['contract_new']);
         if ($p['status'] === 'conflict' && !empty($p['detail']['bill_id'])) {
             $old = $this->bills->get($u, (string)$p['detail']['bill_id']);
             $ids = array_values(array_unique([...(array)($old['attachment_ids'] ?? []), ...(array)$d['attachment_ids']]));
-            $b = $this->bills->update($u, (string)$old['id'], ['invoice' => $d['invoice'], 'kind' => $d['kind'], 'attachment_ids' => $ids]);
+            $b = $this->bills->update($u, (string)$old['id'], ['invoice' => $d['invoice'], 'kind' => $d['kind'], 'attachment_ids' => $ids]
+                + (empty($old['contract_id']) ? $own : []));
         } else {
-            $b = $this->bills->create($u, $d);
+            $b = $this->bills->create($u, $own + $d);
         }
         return ['bill_id' => (string)$b['id']];
     }
@@ -161,14 +181,22 @@ final class Applier
         return ['type' => 'contract', 'utility' => $u, 'id' => $id];
     }
 
-    /** Preiszeile, Grundpreis oder Abschlag: gleiche Zeile ersetzen, sonst anhängen. */
+    /**
+     * Preiszeile, Grundpreis oder Abschlag: gleiche Zeile ersetzen, sonst anhängen.
+     * v3.9.0 (F1034) — auch in der Liste eines Bestandteils („trinkwasser.base_prices“,
+     * der Bestandteil geht ganz zurück an den Dienst) und mit weiteren Feldern der
+     * Zeile (`row`: Fläche des Niederschlagswassers, Rhythmus des Abschlags).
+     */
     private function priceRow(string $u, array $d, string $att): array
     {
         $c = $this->contracts->get($u, (string)$d['contract_id']) ?? throw new LocalizedException('errors.inbox.contractMissing', [], 'contract');
-        $rows = array_values(array_filter((array)($c[$d['list']] ?? []), fn($r) => (string)($r['from'] ?? '') !== $d['from']));
-        $rows[] = ['from' => $d['from'], $d['key'] => $d['value']];
+        [$top, $sub] = str_contains((string)$d['list'], '.') ? explode('.', (string)$d['list'], 2) : [(string)$d['list'], null];
+        $holder = $sub !== null ? (array)($c[$top] ?? []) : $c;
+        $key = $sub ?? $top;
+        $rows = array_values(array_filter((array)($holder[$key] ?? []), fn($r) => (string)($r['from'] ?? '') !== $d['from']));
+        $rows[] = ['from' => $d['from'], $d['key'] => $d['value']] + (array)($d['row'] ?? []);
         usort($rows, fn($a, $b) => strcmp((string)$a['from'], (string)$b['from']));
-        return $this->contractPatch($u, (string)$c['id'], [$d['list'] => $rows], $att);
+        return $this->contractPatch($u, (string)$c['id'], $sub !== null ? [$top => [$sub => $rows] + $holder] : [$top => $rows], $att);
     }
 
     private function meterPatch(string $u, string $id, array $patch): array

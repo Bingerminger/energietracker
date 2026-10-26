@@ -95,7 +95,8 @@
       "tankLevel": "Relevé de cuve — {utility}",
       "reminder": "Nouveau rappel",
       "inbox": "Déposer un courrier du fournisseur",
-      "inboxHint": "PDF depuis Fichiers ou un e-mail"
+      "inboxHint": "PDF depuis Fichiers ou un e-mail",
+      "reminderHint": "Entretien, étalonnage ou relevé"
     },
     "sectionNav": "Pages de cette rubrique",
     "menu": "Menu",
@@ -502,6 +503,8 @@
         "other": "{count} paiements exceptionnels"
       },
       "sinceBill": "Calculé à partir du {date} : la facture précédente est comptabilisée dans le contrat et n’entre plus en compte ici.",
+      "nextDue": "prochaine échéance : {date}",
+      "paidCurrentEvery": "actuel : {value}",
       "suggestShort": {
         "one": "Il ne reste que {count} acompte avant le décompte du {date}. Le décompte règle le reste : inutile d’augmenter l’acompte maintenant.",
         "other": "Il ne reste que {count} acomptes avant le décompte du {date}. Le décompte règle le reste : inutile d’augmenter l’acompte maintenant."
@@ -817,13 +820,15 @@
       "advance": "Acompte",
       "twWorking": "Prix unitaire eau potable",
       "twBase": "Abonnement eau potable",
-      "swWorking": "Prix unitaire assainissement"
+      "swWorking": "Prix unitaire assainissement",
+      "swBase": "Abonnement eau usée"
     },
     "unit": {
       "ctPerKwh": "{minor}/kWh",
       "eurPerMonth": "{cur}/mois",
       "eurPerKwYear": "{cur}/kW par an",
-      "eurPerYear": "{cur}/an"
+      "eurPerYear": "{cur}/an",
+      "eurPerDue": "{cur} par échéance"
     },
     "loading": "Chargement…",
     "unknown": "Type de consommation inconnu : {key}",
@@ -852,7 +857,8 @@
       "advanceValue": "Acompte {value}/mois",
       "valuesOn": "au {date}",
       "noValues": "Aucun prix saisi pour l’instant",
-      "since": "depuis {year}"
+      "since": "depuis {year}",
+      "advanceValueEvery": "Acompte {value}"
     },
     "summary": {
       "twPrices": {
@@ -1001,7 +1007,6 @@
       "noMoreMeters": "(aucun autre compteur disponible pour l’instant)",
       "swWorking": "Prix du m³ eaux usées ({minor}/m³)",
       "nwRates": "Date d’effet",
-      "apMonthly": "Acompte mensuel ({cur})",
       "colDate": "Date",
       "colCtM3": "{minor}/m³",
       "colEurMonth": "{cur}/mois",
@@ -1014,7 +1019,10 @@
       "startRequired": "Le début du contrat est obligatoire.",
       "basisDeduct": "eau potable moins compteurs de déduction (p. ex. jardin)",
       "deductMeters": "Compteurs de déduction",
-      "deductHint": "L’eau qui passe par ces compteurs (p. ex. l’eau du jardin) coûte de l’eau potable, mais pas d’eau usée. Idéalement, gérez le compteur du jardin comme sous-compteur du compteur principal : il n’est alors pas compté deux fois dans les totaux."
+      "deductHint": "L’eau qui passe par ces compteurs (p. ex. l’eau du jardin) coûte de l’eau potable, mais pas d’eau usée. Idéalement, gérez le compteur du jardin comme sous-compteur du compteur principal : il n’est alors pas compté deux fois dans les totaux.",
+      "swBase": "Abonnement eau usée ({cur}/mois)",
+      "apPlan": "Plan d’acomptes",
+      "colEurDue": "{cur} par échéance"
     },
     "perM3": {
       "toggleTitle": "Convertir un prix au m³ en {minor}/kWh",
@@ -1101,6 +1109,10 @@
       "undated": "entrée sans date",
       "link": "Vers le paramètre",
       "why": "Le coefficient de correction et le pouvoir calorifique dépendent du point de livraison (altitude, pression) et du gaz du réseau, pas du fournisseur : ils restent les mêmes lors d’un changement, et chaque facture de gaz les indique. C’est pourquoi ils se saisissent une fois dans les paramètres et valent pour chaque contrat."
+    },
+    "advance": {
+      "every": "Rythme",
+      "dueDates": "Échéances selon la facture : {dates}, puis chaque année aux mêmes jours"
     }
   },
   "meters": {
@@ -1370,7 +1382,7 @@
     "loading": "Chargement…",
     "saved": "Paramètres enregistrés",
     "lang": {
-      "title": "🌐 Langue et pays / Language",
+      "title": "Langue et pays / Language",
       "hint": "La langue s’applique à cet appareil ; sans choix propre, il suit la langue par défaut de l’installation, qui détermine aussi le rapport annuel, les fichiers CSV et Home Assistant. Le pays définit le format des nombres et des dates, la devise et le fuseau horaire ; lors d’un changement, l’application propose des préréglages adaptés.",
       "saved": "Langue modifiée",
       "deviceLabel": "Langue sur cet appareil",
@@ -1469,7 +1481,7 @@
       "contract_remind_days_1": { "label": "Niveau 1 — préavis précoce" },
       "contract_remind_days_2": { "label": "Niveau 2 — rappel" },
       "contract_remind_days_3": { "label": "Niveau 3 — urgent" },
-      "wasser_personen_anzahl": { "label": "Personnes dans le foyer", "hint": "Pour l’indice d’économie d’eau : litres par personne et par jour par rapport à la référence." },
+      "wasser_personen_anzahl": { "label": "Nombre de personnes", "hint": "Pour l’indice d’économie d’eau : litres par personne et par jour par rapport à la référence." },
       "wasser_personen_referenz": { "label": "Référence", "hint": "BDEW 2024 : 122 L par personne et par jour (Allemagne)." },
       "wasser_sparindex_gut": { "label": "Indice d’économie — bon jusqu’à", "hint": "Un indice ≤ à cette valeur est considéré comme normal." },
       "wasser_sparindex_warnung": { "label": "Indice d’économie — alerte à partir de", "hint": "Un indice ≥ à cette valeur indique un potentiel d’économie." },
@@ -1650,18 +1662,18 @@
     },
     "boolActive": "activé",
     "activeUtils": {
-      "title": "🧩 Types de consommation actifs",
+      "title": "Types de consommation actifs",
       "hint": "Seuls les types de consommation cochés apparaissent dans la barre latérale, le tableau de bord et le rapport annuel. Les données des types inactifs sont conservées."
     },
     "pdf": {
-      "title": "📄 Rapport annuel PDF",
+      "title": "Rapport annuel PDF",
       "hint": "Rapport multipage avec aperçu, classe d’efficacité, tableaux de consommation par type de consommation et recommandations en cours.",
       "year": "Année",
       "download": "Télécharger le rapport annuel",
       "moved": "Le rapport annuel a désormais sa propre page sous « Évaluations »."
     },
     "export": {
-      "title": "📤 Export des données (CSV)",
+      "title": "Export des données (CSV)",
       "hint": "Export tabulaire pour Excel, LibreOffice ou Google Sheets (UTF-8 avec BOM). Complète la sauvegarde JSON complète plus bas.",
       "monthly": "Aperçu mensuel",
       "monthlyHint": "Consommation, coût, acompte et solde par mois.",
@@ -1678,7 +1690,7 @@
       "formatHint": "Le tableau utilise les noms de colonnes, le séparateur décimal et la date de la langue par défaut et s’ouvre ainsi directement dans Excel ou LibreOffice. Le format 1 reste tel qu’il est depuis la version 1.1 : point-virgule, virgule décimale, date AAAA-MM-JJ. Les deux peuvent être réimportés."
     },
     "backup": {
-      "title": "💾 Sauvegarde et restauration",
+      "title": "Sauvegarde et restauration",
       "hint": "Sauvegarde JSON complète (format v3.0) — contient tous les types de consommation, compteurs, contrats, températures et paramètres, réimportable.",
       "download": "Télécharger la sauvegarde JSON",
       "snapshot": "Enregistrer un instantané",
@@ -1803,7 +1815,14 @@
         "readKeyComment": "seulement si la connexion est activée",
         "sensorBalance": "Solde",
         "sensorForecast": "Prévision 12 mois",
-        "sensorDaysSince": "Jours depuis le relevé"
+        "sensorDaysSince": "Jours depuis le relevé",
+        "todoScanComment": "toutes les 15 minutes",
+        "todoName": "Energietracker à faire",
+        "todoNextName": "Energietracker prochain point",
+        "todoDateName": "Energietracker échéance du prochain point",
+        "webhookAlias": "Energietracker : transmettre la notification",
+        "webhookIdComment": "un ID propre, impossible à deviner",
+        "notifyComment": "ou notify.mobile_app_… pour le téléphone"
       },
       "lastUsed": "Dernière utilisation : {when}",
       "neverUsed": "Rien n’est encore arrivé avec ce jeton.",
@@ -1820,10 +1839,14 @@
       },
       "setupTitle": "Compteurs et modèles pour Home Assistant",
       "appHint": "Vous utilisez Home Assistant OS ? Energietracker fonctionne alors aussi comme application directement dans Home Assistant, avec une entrée dans la barre latérale.",
-      "appAdd": "Ajouter le dépôt à Home Assistant"
+      "appAdd": "Ajouter le dépôt à Home Assistant",
+      "todo": {
+        "title": "Capteur « À faire »",
+        "intro": "Nombre de points à faire et le prochain, pour le tableau de bord et les automatisations. Tous les points figurent dans l’attribut items."
+      }
     },
     "diag": {
-      "title": "🩺 Diagnostic système",
+      "title": "Diagnostic système",
       "appVersion": "Version de l’app",
       "schemaVersion": "Version du schéma",
       "phpVersion": "Version de PHP",
@@ -1877,7 +1900,7 @@
     "invalidFields": "Non enregistré : veuillez corriger les champs signalés en rouge.",
     "dayMonthInvalid": "Veuillez saisir jour-mois, p. ex. 01-10 pour le 1er octobre.",
     "security": {
-      "title": "🔐 Connexion et accès",
+      "title": "Connexion et accès",
       "hint": "Sans connexion, toute personne qui connaît l’adresse peut accéder à Energietracker – prévu pour votre réseau domestique. S’il est accessible de l’extérieur (redirection de port, reverse proxy) ou si vous partagez le réseau, activez la connexion.",
       "modeOff": "🔓 Sans connexion",
       "modePassword": "🔒 Connexion par mot de passe",
@@ -2100,9 +2123,7 @@
         "other": "{count} rappels ouverts vous reviennent désormais."
       },
       "noAccess": "sans accès",
-      "hintOff": "Sans connexion, il n’y a pas de comptes. Ces personnes viennent d’une sauvegarde ou d’un foyer d’exemple et peuvent être choisies sous « Responsable » ; quiconque atteint l’adresse peut les supprimer.",
-      "deleteHintOff": "Sans connexion, personne ne reprend lors de la suppression : les rappels ouverts, compteurs et contrats de la personne restent avec « (profil supprimé) » jusqu’à ce que quelqu’un les réattribue ; ce qui est fait garde son nom. Le numéro d’une personne n’est jamais réattribué.",
-      "noAccessHint": "« sans accès » : une personne venant d’une sauvegarde ou d’un foyer d’exemple. « Créer un accès » reprend son nom dans « Ajouter une personne » ; avec un mot de passe, elle devient un accès avec le même numéro, ses rappels et entrées restent les siens.",
+      "noAccessHint": "« sans accès » : une personne venant de Foyer et bâtiment, d’une sauvegarde ou d’un foyer d’exemple. « Créer un accès » reprend son nom dans « Ajouter une personne » ; avec un mot de passe, elle devient un accès avec le même numéro, ses rappels et entrées restent les siens.",
       "grant": "Créer un accès",
       "deleteConfirmNoAccess": "Cette personne ne sera plus proposée. Les données du foyer restent.",
       "handoverNobody": {
@@ -2208,6 +2229,82 @@
       "pickModel": "Enregistré. Choisissez maintenant un modèle dans la liste, puis activez.",
       "saved": "Lecture des documents enregistrée.",
       "modelLoad": "Charger les modèles du service"
+    },
+    "people": {
+      "title": "Personnes du foyer",
+      "hint": "Qui participe dans le foyer. Les personnes peuvent être choisies sous « Responsable » pour les rappels, les compteurs et les contrats. Elles n’ont pas besoin de se connecter pour cela.",
+      "empty": "Aucune personne pour l’instant. Ajoutez la première, vous pourrez ensuite lui attribuer des rappels, des compteurs et des contrats.",
+      "emptyMember": "Aucune personne pour l’instant.",
+      "add": "Nouvelle personne",
+      "namePlaceholder": "Nom, par ex. Anna",
+      "added": "{name} apparaît maintenant sous « Responsable ».",
+      "account": "avec accès",
+      "deleteLabel": "Supprimer {name}",
+      "accessHint": "Une personne qui doit se connecter reçoit un accès sous Accès. Les personnes avec accès se gèrent là-bas.",
+      "accessHintOff": "Personne ne peut se connecter ainsi. Les accès personnels n’existent qu’une fois la connexion activée sous Accès.",
+      "accessLink": "Ouvrir Accès",
+      "movedHint": "Vous ajoutez les personnes du foyer sous Foyer et bâtiment, même sans connexion.",
+      "goto": "Aller aux personnes"
+    },
+    "haNotify": {
+      "title": "Notifications vers Home Assistant",
+      "intro": "Energietracker prévient Home Assistant de lui-même : quand un rendez-vous ou un délai arrive à échéance, en cas d’avertissement et quand un document arrive dans la boîte de réception. Chaque message n’arrive qu’une fois.",
+      "privacy": "Les messages ne vont qu’à votre Home Assistant. Rien ne quitte le réseau domestique, sauf si vous saisissez vous-même une adresse extérieure.",
+      "adminOnly": "Seule une personne qui administre cette installation peut le modifier.",
+      "enabled": "Envoyer des notifications",
+      "targetLabel": "Vers où ?",
+      "target": {
+        "supervisor": "Par le Supervisor (application dans Home Assistant, sans configuration)",
+        "webhook": "Webhook dans Home Assistant",
+        "token": "Adresse et jeton"
+      },
+      "supervisorMissing": "Le chemin par le Supervisor ne fonctionne que dans l’application pour Home Assistant.",
+      "url": "Adresse de Home Assistant",
+      "urlHint": "Par exemple http://192.168.178.10:8123, sans chemin. Un nom en .local ne se résout souvent pas dans un conteneur ; saisissez alors l’adresse IP.",
+      "webhook": "ID du webhook",
+      "webhookHint": "Le même ID que dans le déclencheur « Webhook » de votre automatisation. Il agit comme un mot de passe : il reste sur le serveur et n’apparaît plus ici après l’enregistrement.",
+      "newId": "Créer un nouvel ID",
+      "secretStored": "enregistré, laisser vide pour conserver",
+      "secretClear": "Supprimer",
+      "token": "Jeton (longue durée)",
+      "tokenHint": "À créer dans Home Assistant, dans votre profil sous Sécurité (jetons d’accès de longue durée). Il reste sur le serveur et n’apparaît plus ici après l’enregistrement.",
+      "service": "Action dans Home Assistant",
+      "serviceHint": "persistent_notification.create affiche le message dans les notifications de Home Assistant. Pour le téléphone : notify.mobile_app_ suivi du nom de votre appareil.",
+      "events": "Que signaler ?",
+      "event": {
+        "reminder": "Les rendez-vous dès leur échéance",
+        "deadline": "Les délais et autres points de « À faire » (relevés, délais de résiliation, factures)",
+        "warning": "Les avertissements, par exemple une consommation inhabituellement élevée",
+        "document": "Les nouveaux documents dans la boîte de réception"
+      },
+      "hour": "Vérification quotidienne à partir de",
+      "hourOption": "{hour} h 00",
+      "hourHint": "Une fois par jour, à la première requête après cette heure. Les nouveaux documents sont signalés dès leur arrivée.",
+      "test": "Envoyer un message de test",
+      "testOk": "Message de test envoyé. Regardez dans Home Assistant.",
+      "testFailed": "Le message de test n’est pas arrivé : {reason}",
+      "saved": "Enregistré.",
+      "state": {
+        "on": "Activé. Destination : {target}",
+        "incomplete": "Activé, mais la destination est incomplète. Rien n’est envoyé.",
+        "off": "Désactivé. Rien n’est envoyé à Home Assistant."
+      },
+      "last": "Dernier envoi : {when}",
+      "lastFailed": "Dernière tentative le {when} échouée : {reason}",
+      "yamlTitle": "Automatisation pour le webhook",
+      "yamlHint": "Dans Home Assistant, créez une nouvelle automatisation, choisissez « Modifier en YAML » et collez ceci. L’ID du webhook doit être le même que ci-dessus.",
+      "error": {
+        "dns": "Le nom de l’adresse ne peut pas être résolu.",
+        "address": "Cette adresse est bloquée.",
+        "insecure": "Une adresse hors du réseau domestique ne fonctionne qu’avec https://.",
+        "timeout": "Home Assistant n’a pas répondu à temps.",
+        "network": "Home Assistant est injoignable.",
+        "http": "Home Assistant répond avec le statut {status}.",
+        "unauthorized": "Home Assistant refuse (401). Vérifiez le jeton.",
+        "incomplete": "La destination n’est pas encore entièrement configurée.",
+        "url": "L’adresse n’est pas valide.",
+        "noTransport": "curl pour PHP manque sur le serveur."
+      }
     }
   },
   "reminders": {
@@ -2273,7 +2370,8 @@
       "one": "Tous les mois",
       "other": "Tous les {count} mois"
     },
-    "lastDone": "Dernière exécution {when}"
+    "lastDone": "Dernière exécution {when}",
+    "emptyText": "Entretien, échéance d’étalonnage ou relevé : l’application vous le rappelle à temps et affiche ce qui est dû sous « À faire » dans l’aperçu."
   },
   "temperatures": {
     "loading": "Chargement…",
@@ -3537,7 +3635,9 @@
       "priceModelInvalid": "Modèle de prix inconnu « {value} »",
       "priceImportEmpty": "Le fichier ne contient aucune ligne au format mois;prix",
       "priceImportUnsupported": "Les prix mensuels n’existent que pour les contrats avec un prix unitaire par kWh",
-      "gridTouInvalid": "Plages du module 3 non valides ({field}) : trimestres 1–4, heures HH:MM avec début avant fin, prix 0–100 ct et un tarif standard."
+      "gridTouInvalid": "Plages du module 3 non valides ({field}) : trimestres 1–4, heures HH:MM avec début avant fin, prix 0–100 ct et un tarif standard.",
+      "advanceEveryInvalid": "Acompte n°{n} : « {value} » n’est pas un rythme. Possible : chaque mois, tous les 2 ou tous les 3 mois.",
+      "advanceDueBeforeStart": "Acompte n°{n} : l’échéance du {date} est antérieure au jour à partir duquel la ligne s’applique."
     },
     "delivery": {
       "notFound": "Livraison introuvable : {id}",
@@ -3820,6 +3920,11 @@
         "contract": "Reprenez d’abord le contrat, puis ceci."
       },
       "nothingSelected": "Rien de sélectionné."
+    },
+    "haNotify": {
+      "incomplete": "La destination est incomplète : le webhook demande une adresse et un ID de webhook, le jeton une adresse et un jeton. Le Supervisor ne fonctionne que dans l’application pour Home Assistant.",
+      "webhookFormat": "L’ID du webhook comporte de 8 à 200 lettres, chiffres, traits d’union ou tirets bas.",
+      "tokenFormat": "Le jeton comporte de 20 à 2000 caractères visibles, sans espace."
     }
   },
   "login": {
@@ -3890,6 +3995,7 @@
     "history": "Historique ({count})",
     "historyTitle": "Historique : {name}",
     "anytime": "Résiliable à tout moment",
+    "advanceEvery": "Acompte {amount}",
     "noNotice": "Délai de résiliation non saisi",
     "earliestEnd": "Résiliable au plus tôt au {date}"
   },
@@ -5496,7 +5602,7 @@
     "none": "– personne –",
     "hintMeter": "Les relevés, les rappels de ce compteur et ses contrats reviennent à cette personne s’ils n’ont pas leur propre responsable. Personne n’est averti.",
     "hintContract": "L’échéance de résiliation, la fin du contrat et « Facture attendue » reviennent à cette personne. Si le champ est vide, c’est la personne du compteur. Personne n’est averti.",
-    "noPeople": "Ajoutez des personnes dans Paramètres → Accès.",
+    "noPeople": "Ajoutez des personnes dans Paramètres → Foyer et bâtiment.",
     "via": {
       "contract": "via le contrat",
       "meter": "via le compteur"
@@ -5896,7 +6002,7 @@
       "elapsed": "{s} s",
       "wait": "Le serveur calcule encore – vérification du résultat …"
     },
-    "empty": "Pas encore de courrier. Déposez votre première facture ou confirmation de contrat en PDF.",
+    "empty": "Pas encore de courrier.",
     "col": {
       "document": "Document",
       "type": "Type",
@@ -6054,7 +6160,10 @@
       "document_title": "Titre du document",
       "meter_readings": "Relevés par compteur",
       "reading_new_estimated": "Relevé final estimé",
-      "reading_old_estimated": "Relevé initial estimé"
+      "reading_old_estimated": "Relevé initial estimé",
+      "water_prices": "Prix de l’eau",
+      "advance_new_dates": "Échéances du nouvel acompte",
+      "advance_new_every": "Rythme du nouvel acompte"
     },
     "reason": {
       "empty": "Manquant, mais nécessaire",
@@ -6090,14 +6199,28 @@
       "supplier": "Résiliation par le fournisseur",
       "switch": "Fin due au changement de fournisseur",
       "net": "HT",
-      "gross": "TTC"
+      "gross": "TTC",
+      "trinkwasser": "Eau potable",
+      "schmutzwasser": "Eau usée",
+      "niederschlagswasser": "Eau pluviale",
+      "m3": "par m³",
+      "m2_year": "par m² et par an",
+      "monthly": "chaque mois",
+      "bimonthly": "tous les deux mois",
+      "quarterly": "tous les trois mois",
+      "energy": "Prix unitaire",
+      "energy_tax": "Taxe sur l’énergie",
+      "co2": "Prix du CO₂",
+      "other": "Supplément"
     },
     "item": {
       "gasFactor": "du {from} au {to} : coefficient de correction {z} × pouvoir calorifique {hs} kWh/m³",
       "price": "à partir du {from} : {value}",
       "priceNet": "à partir du {from} : {value} HT + {vat} % de TVA = {gross}",
       "meterReading": "Compteur {meter} : {from} → {to}",
-      "estimated": "estimé selon la facture"
+      "estimated": "estimé selon la facture",
+      "waterPrice": "{section} · {label} du {from} au {to} : {price}",
+      "waterPriceNet": "{section} · {label} du {from} au {to} : {price} HT + {vat} % de TVA = {gross}"
     },
     "result": {
       "due": "complément de {amount}",
@@ -6126,7 +6249,12 @@
       "contractFromInvoice": "Créer le contrat {provider} à partir du {from} d’après cette facture",
       "contractFromSupplyStart": "Créer le contrat {provider} à partir du {from}",
       "meterSwapInvoice": "Changement de compteur le {date} : relevé final {old_final} au compteur {old_serial}, nouveau compteur {serial} avec relevé initial {new_initial}",
-      "readingEstimated": "Relevé du {date} : {counter} (estimé selon la facture)"
+      "readingEstimated": "Relevé du {date} : {counter} (estimé selon la facture)",
+      "requiresContract": "Uniquement avec le contrat issu de cette facture.",
+      "contractSpanFromInvoice": "Créer le contrat {provider} du {from} au {to} d’après cette facture",
+      "waterWorking": "{section} à partir du {from} : {value} (d’après la facture)",
+      "waterBase": "Abonnement {section} à partir du {from} : {value} par mois (d’après la facture)",
+      "waterRate": "{section} à partir du {from} : {value} par m² et par an pour {area} m² (d’après la facture)"
     },
     "detail": {
       "reading": "Enregistré : {counter}.",
@@ -6170,7 +6298,8 @@
       "remindDate": "Échéance",
       "figure": {
         "perYear": "{amount} par an",
-        "perMonth": "{amount} par mois"
+        "perMonth": "{amount} par mois",
+        "perRate": "{amount} par échéance"
       },
       "priceChange": {
         "more": "À partir du {date}, {provider} vous coûtera environ {amount} de plus par an.",
@@ -6192,7 +6321,9 @@
         "ok": "Le nouvel acompte de {amount} correspond à votre consommation.",
         "high": "Le nouvel acompte de {amount} est trop élevé d’environ {diff} par mois ({recommended} conviendrait).",
         "low": "Le nouvel acompte de {amount} est trop bas d’environ {diff} par mois ({recommended} conviendrait).",
-        "unknown": "Nouvel acompte de {amount} à partir du {date}."
+        "unknown": "Nouvel acompte de {amount} à partir du {date}.",
+        "highRate": "Le nouvel acompte de {amount} est trop élevé d’environ {diff} par échéance ({recommended} conviendrait).",
+        "lowRate": "Le nouvel acompte de {amount} est trop bas d’environ {diff} par échéance ({recommended} conviendrait)."
       },
       "cancellation": {
         "open": "La fourniture se termine le {date} – il manque encore un contrat de suite.",
@@ -6263,7 +6394,8 @@
         "serialConflict": "Attention : le compteur porte le numéro {serial}.",
         "minTerm": "Durée minimale jusqu’au {date}.",
         "guarantee": "Garantie de prix jusqu’au {date}.",
-        "dunning": "L’application ne lit pas les relances ; le rappel vous aide à régler le paiement."
+        "dunning": "L’application ne lit pas les relances ; le rappel vous aide à régler le paiement.",
+        "advanceBasisRate": "Environ {recommended} par échéance conviendrait ; avec le nouvel acompte, la facture finirait par : {balance}."
       }
     },
     "channels": {
@@ -6274,7 +6406,8 @@
       },
       "shortcut": "Raccourci",
       "folder": "Dossier",
-      "email": "E-mail"
+      "email": "E-mail",
+      "textShare": "Aussi sans navigateur : par un raccourci sur iPhone ou iPad, par le dossier « {dir} » ou par e-mail via Home Assistant."
     },
     "folder": {
       "imported": {
@@ -6325,6 +6458,22 @@
     },
     "wait": {
       "gaveUp": "Pas de réponse, même après vérification. Le document sera peut-être encore terminé – rouvrez-le dans un instant. Un délai plus long sur le serveur web règle le problème durablement."
+    },
+    "unit": {
+      "perM3": "par m³",
+      "perYear": "par an",
+      "perMonth": "par mois",
+      "perM2Year": "par m² et par an"
+    },
+    "line": {
+      "working": "{what} à partir du {from} : {value}",
+      "base": "Abonnement {what} à partir du {from} : {value} par mois",
+      "baseOnly": "Abonnement à partir du {from} : {value} par mois",
+      "rate": "{what} à partir du {from} : {value} par m² et par an pour {area} m²",
+      "energy": "Prix unitaire",
+      "parts": "à partir de {parts}",
+      "net": "{value} HT + {vat} % de TVA",
+      "advance": "Acompte à partir du {from} : {value} par échéance"
     }
   },
   "inboxCloud": {
@@ -6501,7 +6650,8 @@
       "meterChange": "Changement de compteur le {date}, nouveau compteur {serial}",
       "contract": {
         "new": "Contrat {provider} du {from} au {to}",
-        "existing": "Contrat existant {provider} à partir du {from}"
+        "existing": "Contrat existant {provider} à partir du {from}",
+        "sameSupplier": "Contrat existant {existing} à partir du {from} : le même fournisseur que {provider} ?"
       },
       "contractEnd": "L’ancien contrat {provider} se termine le {date}",
       "prices": "Prix {provider}",
@@ -6558,7 +6708,8 @@
       "swap_open": "Après un changement de compteur sans relevé final de l’ancien compteur – saisissez d’abord le changement",
       "swap_readings": "Les relevés ne correspondent pas tout à fait au changement (autre appareil, en baisse ou sous un relevé connu) – à vérifier",
       "existing_update": "Complète ce qui est déjà enregistré – à vérifier",
-      "existing_overlap": "Chevauche ce qui est déjà enregistré – à vérifier"
+      "existing_overlap": "Chevauche ce qui est déjà enregistré – à vérifier",
+      "same_supplier": "Dans vos données, le fournisseur porte un autre nom. Est-ce le même, par exemple une marque et sa régie municipale ?"
     },
     "result": {
       "title": "Repris",
@@ -6618,7 +6769,8 @@
       "memberHint": "La configuration revient à une personne qui administre l’installation. Vous voyez ici ce qui est réglé ; vous pouvez déjà déposer des documents.",
       "ready": "Configuré : l’application lit désormais avec {service}, modèle {model}.",
       "unavailable": "Les paramètres de lecture sont injoignables pour l’instant. Réessayez dans un instant."
-    }
+    },
+    "requires": "Fait partie de « {contract} » et n’est repris qu’avec ce contrat."
   },
   "interpolation": {
     "leadYear": {
@@ -6686,6 +6838,43 @@
       "too_few_points": "trop peu de points ({n})",
       "poor_fit": "ne correspond pas (R² {r2})",
       "degenerate": "incalculable (trop peu de variation dans les valeurs)"
+    }
+  },
+  "haNotify": {
+    "title": {
+      "reminder": "Energietracker : rendez-vous",
+      "deadline": "Energietracker : à faire",
+      "more": "Energietracker : à faire",
+      "warning": "Energietracker : avertissement",
+      "document": "Energietracker : boîte de réception",
+      "test": "Energietracker : message de test"
+    },
+    "test": "La connexion fonctionne. Désormais, les rendez-vous et délais échus, les avertissements et les nouveaux documents arrivent ici.",
+    "when": {
+      "today": "À faire aujourd’hui.",
+      "on": "À faire pour le {date}.",
+      "overdue": "En retard depuis le {date}."
+    },
+    "document": {
+      "single": "Nouveau document dans la boîte de réception : {name}",
+      "many": {
+        "one": "{count} nouveau document dans la boîte de réception : {names}",
+        "other": "{count} nouveaux documents dans la boîte de réception : {names}"
+      }
+    },
+    "more": {
+      "one": "S’y ajoute {count} autre point :",
+      "other": "S’y ajoutent {count} autres points :"
+    }
+  },
+  "advance": {
+    "rhythm": {
+      "every": {
+        "one": "chaque mois",
+        "other": "tous les {count} mois"
+      },
+      "everyDates": "{every}, le {dates}",
+      "dates": "le {dates}"
     }
   }
 }

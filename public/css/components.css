@@ -395,7 +395,8 @@ fieldset.fgroup, .fgroup {
 .modal__foot {
   padding: var(--sp-4) var(--sp-5);
   border-top: 1px solid var(--border-1);
-  display: flex; justify-content: flex-end; gap: var(--sp-2);
+  /* v3.9.0 — Text neben den Knöpfen (etwa „Schritt 2 von 5“) mittig, nicht oben */
+  display: flex; justify-content: flex-end; align-items: center; gap: var(--sp-2);
 }
 
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -1264,7 +1265,10 @@ a.icon-btn { display: inline-flex; align-items: center; justify-content: center;
 /* v2.13.0 (Review UI-32, UI-27) — Einstieg auf der leeren Übersicht: links
    ausgerichtet wie der Rest der Seite (bis v2.12 stand die Überschrift links,
    der Rest zentriert), mit den ersten Schritten */
-.dash-welcome { padding: var(--sp-5); }
+.dash-welcome { padding: var(--sp-5); position: relative; }
+/* v3.9.0 — Zeichnung rechts neben dem Text (Zier); am Telefon ohne, dort zählt der Platz */
+.dash-welcome__art { position: absolute; top: var(--sp-5); right: var(--sp-6); width: 200px; pointer-events: none; }
+@media (max-width: 1199.98px) { .dash-welcome__art { display: none; } }
 .dash-welcome__title { font-size: var(--fs-xl); font-weight: 700; margin: 0 0 var(--sp-2); }
 .dash-welcome__text { max-width: 62ch; margin: 0 0 var(--sp-4); color: var(--text-2); }
 .dash-welcome__actions { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-bottom: var(--sp-5); }
@@ -1386,10 +1390,16 @@ a.icon-btn { display: inline-flex; align-items: center; justify-content: center;
    16 px lassen Safari bei jedem Fokus in die Seite zoomen. */
 @media (pointer: coarse), (max-width: 899.98px) {
   .btn { min-height: 44px; }
-  .btn--sm { min-height: 40px; padding: 6px 12px; font-size: var(--fs-sm); }
+  /* v3.9.0 — auch kleine Knöpfe 44 px (bis v3.8 40 px): in einer Zeile mit
+     normalen Knöpfen sprangen die Höhen, und das „✕“ des Stufenhinweises war
+     36 × 40 px groß */
+  .btn--sm { min-height: 44px; padding: 6px 12px; font-size: var(--fs-sm); }
+  .btn--sm[aria-label]:not(:has(*)) { min-width: 44px; justify-content: center; }
   .btn--icon { min-width: 44px; justify-content: center; }
   .pill, .seg__btn { min-height: 44px; display: inline-flex; align-items: center; }
   .topbar__btn { width: 44px; height: 44px; }
+  /* v3.9.0 — die Stufenwahl daneben war 32 px hoch (neben 44-px-Knöpfen) */
+  .topbar__select { height: 44px; }
   .modal__close { min-width: 44px; min-height: 44px; }
   /* Höhe über --control-h (oben); unter 16 px zoomt Safari beim Antippen */
   .input, .select, textarea.input { font-size: 16px; }
@@ -1757,6 +1767,10 @@ a.icon-btn { display: inline-flex; align-items: center; justify-content: center;
 .demo-chip--env { cursor: default; white-space: nowrap; flex-shrink: 0; }
 @media (max-width: 420px) {
   .topbar__brand:has(.demo-chip--env) .topbar__title { display: none; }
+  /* v3.9.0 — mit „Abmelden“ und zwölf Zeichen ragte die Kopfzeile am iPhone 5 px über:
+     engere Abstände, und ein sehr langer Name endet mit „…“ statt die Zeile zu sprengen */
+  .topbar__brand:has(.demo-chip--env), .topbar:has(.demo-chip--env) .topbar__actions { gap: var(--sp-2); }
+  .demo-chip--env { margin-left: 0; max-width: 34vw; overflow: hidden; text-overflow: ellipsis; flex-shrink: 1; min-width: 0; }
 }
 .demo-bar {
   position: fixed; z-index: 55; left: 50%; transform: translateX(-50%);
@@ -2014,6 +2028,78 @@ a.icon-btn { display: inline-flex; align-items: center; justify-content: center;
 .report-print__partial { margin: 0 0 var(--sp-3); font-weight: 600; }
 .settings-level-list { margin: var(--sp-2) 0 var(--sp-3); padding-left: var(--sp-4); display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-sm); }
 .settings-subtitle { font-size: var(--fs-md, 15px); margin: var(--sp-4) 0 var(--sp-2); }
+
+/* ── v3.9.0 (Paket oberflaeche) — Personen im Haushalt ─────────────────
+   Liste mit Name, Nummer und Aktionen; am Telefon rutschen die Aktionen unter
+   den Namen. Anlegen: ein Feld und ein Knopf in einer Zeile (gleich hoch über
+   --control-h). */
+.people-list { list-style: none; margin: 0 0 var(--sp-3); padding: 0; border-top: 1px solid var(--border-1); }
+.people-list__item {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-2) var(--sp-3);
+  padding: var(--sp-2) 0; border-bottom: 1px solid var(--border-1);
+}
+.people-list__who { min-width: 0; overflow-wrap: anywhere; }
+.people-list__name { font-weight: 600; }
+.people-list__actions { display: inline-flex; flex-wrap: wrap; gap: var(--sp-2); margin-left: auto; }
+.people-add { display: flex; align-items: flex-end; gap: var(--sp-2); margin: 0 0 var(--sp-2); }
+.people-add .field { flex: 1 1 12rem; margin-bottom: 0; }
+.people-add .btn { min-height: var(--control-h); flex: none; }
+/* Benutzer und Rechte: Rollenauswahl schrumpft nicht auf ihren Pfeil, Aktionen umbrechen */
+.users-table .select { min-width: 8.5rem; }
+.users-table .row-actions { flex-wrap: wrap; }
+/* am Telefon je Person ein Block: Name und Rolle oben, Aktionen darunter in voller Breite
+   (in der Tabelle waren sie am rechten Rand abgeschnitten) */
+@media (max-width: 600px) {
+  .users-table, .users-table tbody { display: block; }
+  .users-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }
+  .users-table tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--sp-2);
+    padding: var(--sp-3); border-bottom: 1px solid var(--border-1); }
+  .users-table tr:last-child { border-bottom: 0; }
+  .users-table td { padding: 0; border: 0; }
+  .users-table td.row-actions { grid-column: 1 / -1; justify-content: flex-start; }
+}
+
+/* ── v3.9.0 (Paket oberflaeche) — Illustrationen (lib/illustrations.js) ──
+   Gemeinsame Grundlage für Zeichnungen der Ersteinrichtung und die Schaltbilder
+   des Assistenten „Messkonzept“: Strichzeichnung wie die Piktogramme des
+   Energieflusses (.ef-ico), Farben aus den Tokens, hell und dunkel über die
+   Themen-Variablen. Die Variablen stehen in tokens.css (--ill-*). */
+.ill { display: block; width: 100%; height: auto; overflow: visible; color: var(--ill-line); }
+.ill * { vector-effect: non-scaling-stroke; }
+.ill .ill-line   { fill: none; stroke: var(--ill-line); stroke-width: var(--ill-stroke); stroke-linecap: round; stroke-linejoin: round; }
+.ill .ill-ink    { fill: none; stroke: var(--ill-ink); stroke-width: var(--ill-stroke-strong); stroke-linecap: round; stroke-linejoin: round; }
+.ill .ill-accent { fill: none; stroke: var(--ill-accent); stroke-width: var(--ill-stroke-strong); stroke-linecap: round; stroke-linejoin: round; }
+.ill .ill-fill   { fill: var(--ill-fill); stroke: none; }
+.ill .ill-face   { fill: var(--ill-surface); stroke: var(--ill-line); stroke-width: var(--ill-stroke); stroke-linejoin: round; }
+.ill .ill-ground { fill: none; stroke: var(--ill-ground); stroke-width: var(--ill-stroke); stroke-linecap: round; }
+.ill .ill-dot    { fill: var(--ill-accent); stroke: none; }
+.ill .ill-text   { fill: var(--ill-ink); font-family: var(--font-mono); font-size: 9px; stroke: none; }
+/* Farbe einer Verbrauchsart: --c am Element, Rückfall der Akzent (wie .ef-c-*) */
+.ill .ill-util   { fill: none; stroke: var(--c, var(--ill-accent)); stroke-width: var(--ill-stroke-strong); stroke-linecap: round; stroke-linejoin: round; }
+.ill .ill-util-fill { fill: color-mix(in srgb, var(--c, var(--ill-accent)) 16%, transparent); stroke: none; }
+.ill-c-strom   { --c: var(--util-strom, var(--info)); }
+.ill-c-gas     { --c: var(--util-gas, var(--warning)); }
+.ill-c-wasser  { --c: var(--util-wasser, var(--info)); }
+.ill-c-waerme  { --c: var(--util-waerme, var(--danger)); }
+.ill-c-pv      { --c: var(--util-pv_erzeugung, var(--warning)); }
+.ill-c-feed    { --c: var(--util-pv_einspeisung, var(--success)); }
+/* Ersteinrichtung: kleines Bild neben der Frage, am Telefon darüber */
+.setup__head { display: flex; align-items: center; gap: var(--sp-4); }
+.setup__art { flex: none; width: 112px; }
+.setup__lead { display: flex; flex-direction: column; gap: var(--sp-2); min-width: 0; }
+.setup__lead > p { margin: 0; }
+.setup-choice__art { flex: none; width: 40px; height: 40px; }
+.setup-choice__art .ill { width: 40px; height: 40px; }
+@media (max-width: 480px) {
+  .setup__head { gap: var(--sp-3); }
+  .setup__art { width: 76px; }
+  /* Fußleiste: „Schritt n von m“ über den Knöpfen, damit „Los geht’s“ nicht umbricht */
+  .modal__foot:has(.setup__progress) { flex-wrap: wrap; }
+  .modal__foot .setup__progress { order: -1; flex-basis: 100%; margin: 0; text-align: center; }
+}
+/* „empfohlen“ als Abzeichen in Textbreite, nicht über die ganze Karte */
+.setup-choice__body .badge { align-self: flex-start; }
+@media print { .setup__art { display: none; } }
 
 /* v3.4.0 (N1020) — Sicherheits-Check unter Einstellungen → Zugriff und System */
 .security-check { list-style: none; margin: var(--sp-2) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-2); }

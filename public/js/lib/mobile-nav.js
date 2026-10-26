@@ -136,7 +136,8 @@ export async function openCaptureSheet() {
       entry(`#/utility/${u.key}?add=delivery`, u.icon || '🛢️', t('nav.sheet.delivery', { utility: u.label })),
       entry(`#/utility/${u.key}?add=level`, '📏', t('nav.sheet.tankLevel', { utility: u.label })),
     ]),
-    entry('#/reminders?add=1', '📌', t('nav.sheet.reminder')),
+    // v3.9.0 — mit Satz darunter wie die Einträge daneben
+    entry('#/reminders?add=1', '📌', t('nav.sheet.reminder'), t('nav.sheet.reminderHint')),
     // v3.7.0 — Versorgerpost ablegen (am iPad aus der Dateien-App)
     entry('#/inbox', '📥', t('nav.sheet.inbox'), t('nav.sheet.inboxHint')),
   ];

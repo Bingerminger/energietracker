@@ -142,7 +142,7 @@ final class InboxServiceTest extends ServiceTestCase
         self::assertSame('invoice', $e['type']);
         self::assertSame('local', $e['extraction']['provider']);
         self::assertSame('fake-1', $e['extraction']['model']);
-        self::assertSame(4, $e['extraction']['schema_version'], 'v3.7.0 (treffsicher): 2 Netto und Steuersatz je Preis, 3 Briefdatum, Titel, Stände je Zähler, 4 Beschreibungen (Nummer, Zeiträume, Schätzung)');
+        self::assertSame(5, $e['extraction']['schema_version'], 'v3.7.0 (treffsicher): 2 Netto und Steuersatz je Preis, 3 Briefdatum, Titel, Stände je Zähler, 4 Beschreibungen (Nummer, Zeiträume, Schätzung); v3.9.0: 5 Wasserpreise, Abschlagstermine, Bestandteile');
         self::assertSame([3], $e['extraction']['text']['dropped'], 'AGB-Seite nicht gesendet');
         self::assertStringNotContainsString('Geltungsbereich', $this->local->lastText);
         self::assertSame('invoice', $this->local->lastSchema['type']);

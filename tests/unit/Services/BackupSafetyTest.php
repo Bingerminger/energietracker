@@ -143,6 +143,11 @@ final class BackupSafetyTest extends ServiceTestCase
         $covered = array_merge($covered, ['meta.json', 'auth.json']);   // auth bewusst nicht im Backup
         // v3.7.0 (Paket cloud) — der API-Schlüssel fürs Auslesen in der Cloud bewusst nicht
         $covered[] = \Energietracker\Services\Inbox\CloudConfig::KEY_FILE;
+        // v3.9.0 (F1033) — Webhook-ID und Token für Home Assistant bewusst nicht; ebenso das
+        // Protokoll der gesendeten Nachrichten (gehört zur Verbindung mit diesem Home Assistant,
+        // Begründung in HomeAssistantNotifyService)
+        $covered[] = \Energietracker\Services\HomeAssistant\NotifyConfig::SECRET_FILE;
+        $covered[] = \Energietracker\Services\HomeAssistantNotifyService::LOG_FILE;
 
         $missing = [];
         // v3.7.0 — auch Unterordner wie Services/Inbox (bis v3.6 nur eine Ebene)

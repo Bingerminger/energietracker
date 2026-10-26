@@ -356,6 +356,23 @@ for reading a document, `renderPages()` draws pages only once they come into
 view. Without `DOMMatrix`, workers or canvas (older browsers, JSDOM in the
 tests) the preview shows the link to the file.
 
+**Illustrations and schematics (since v3.9.0).** Drawings are inline SVG from
+`lib/illustrations.js`, without image files. One basis for all of them: line
+drawings like the pictograms of the energy flow, colours only through the
+variables `--ill-line`, `--ill-ink`, `--ill-accent`, `--ill-fill`,
+`--ill-surface` and `--ill-ground` (in `tokens.css`, derived from the theme
+colours, so light and dark need no values of their own) and the classes
+`.ill-*` in `components.css`; stroke widths `--ill-stroke` (1.5 px) and
+`--ill-stroke-strong` (2 px), independent of size. A utility colours through
+`.ill-c-<type>` from the utilities SSOT. `svg(body, {viewBox, title})` frames
+building blocks from `shapes` (house, apartment block, meter with register
+text, line, arrow, sun, bolt, flame, drop, PV module, sheet, tray, …). A
+drawing that says something gets `title` (then `role="img"` with a name from
+the catalogues); pure decoration stays `aria-hidden`. The setup assistant shows
+a drawing per step and per sample household (decoration), the empty overview
+one in the welcome card. Empty states of lists come from `lib/empty.js` (icon
+in a circle, title, one sentence, at most one action).
+
 > ⚠️ **Architecture-critical:** since all modules are loaded via a single ES module
 > graph, **a single faulty relative import** (404) breaks the *entire* app — the
 > interface stays at "Loading…". That was exactly bug v1.4.1 (`sidebar.js` imported

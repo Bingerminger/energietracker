@@ -22,6 +22,7 @@ import { chipHtml, personSelectHtml, personPayload } from '../lib/assignee.js';
 import { BONUS_TYPES, bonusTypeLabel, bonusDetailLines } from '../lib/bonus.js';   // v3.7.0 (#35)
 import { infoNote } from '../components/info.js';   // v3.7.0 (#35)
 import { attachmentNames, attachmentLinksHtml, attachmentIdsOf } from '../lib/attachments.js';   // v3.7.0 — Belege am Vertrag
+import { ADVANCE_EVERY, advanceAmountText } from '../lib/advance-rhythm.js';   // v3.9.0 (F1034) — Abschlag mit Rhythmus
 import { dossierHtml, wireDossiers } from '../components/dossier.js';   // v3.7.0 (Paket betrieb) — Akte je Vertrag
 
 // Titel/Labels werden zur Render-Zeit über t() aufgelöst (nicht beim Modul-
@@ -352,7 +353,10 @@ function contractValuesHtml(c, u) {
     v.working_price_ct != null ? t(u.accounting_kind === 'feed_in' ? 'contracts.card.feedInValue' : 'contracts.card.workingValue',
       { value: ctValue(v.working_price_ct), unit }) : null,
     v.base_price_eur != null ? t('contracts.card.baseValue', { value: fmt.num(v.base_price_eur, 2) }) : null,
-    v.advance_eur != null ? t('contracts.card.advanceValue', { value: fmt.eur(v.advance_eur) }) : null,
+    // v3.9.0 (F1034) — mit Rhythmus („165,00 € alle 2 Monate“), monatlich wie bisher
+    v.advance_eur != null ? (Number(v.advance_every_months) > 1
+      ? t('contracts.card.advanceValueEvery', { value: advanceAmountText(v.advance_eur, v.advance_every_months) })
+      : t('contracts.card.advanceValue', { value: fmt.eur(v.advance_eur) })) : null,
   ].filter(Boolean);
   if (!parts.length) return `<span class="muted">${escapeHtml(t('contracts.card.noValues'))}</span>`;
   const on = v.date && v.date !== todayIso() ? ` <span class="muted">(${escapeHtml(t('contracts.card.valuesOn', { date: fmt.date(v.date) }))})</span>` : '';
@@ -781,7 +785,7 @@ function renderGroupSection(g, entries, nested = false) {
   const attrs = `data-group="${escapeHtml(g.key)}" data-date-key="${g.dateKey}" data-amount-key="${g.amountKey}"${g.level ? ` data-min-level="${g.level}"` : ''} aria-describedby="${ids}-msg"`;
   const inner = `
       <div class="field-error" id="${ids}-msg" data-role="group-msg" role="alert" hidden></div>
-      <div class="entries rowlist">
+      <div class="entries rowlist${g.key === 'advance_payments' ? ' rowlist--three' : ''}">
         ${entries.map(e => renderEntryRow(g, e)).join('')}
       </div>
       ${g.key === 'working_prices' && perM3Ctx ? gasFactorNoteHtml() + renderPerM3() : ''}`;
@@ -896,6 +900,9 @@ function amountInput(role, value, digits = 6) {
 // die Beschriftung zeigt nur die erste Zeile (CSS), die übrigen tragen sie
 // für Screenreader weiter
 function renderEntryRow(g, e) {
+  // v3.9.0 (F1034) — Abschlag mit Rhythmus: monatlich, alle zwei oder drei Monate; genannte Termine bleiben erhalten
+  const advance = g.key === 'advance_payments';
+  const every = Number(e.every_months) || 1;
   return `
     <div class="entry-row rowlist__row">
       <div class="field">
@@ -903,13 +910,30 @@ function renderEntryRow(g, e) {
         <input class="input" type="date" data-role="date" value="${escapeHtml(e[g.dateKey] || '')}"${e.__auto ? ' data-auto="1"' : ''}>
       </div>
       <div class="field">
-        <label>${escapeHtml(t(g.amountKey_))}</label>
+        <label data-role="amount-label">${escapeHtml(t(advance && every > 1 ? 'contracts.unit.eurPerDue' : g.amountKey_))}</label>
         ${amountInput('amount', e[g.amountKey])}
       </div>
+      ${advance ? advanceEveryHtml(every) : ''}
       <button type="button" class="btn btn--sm btn--ghost" data-action="copy-start" title="${t('contracts.row.copyStartTitle')}">${t('contracts.row.copyStart')}</button>
       <button type="button" class="btn btn--sm btn--danger btn--icon rowlist__del" data-action="remove-row" title="${t('contracts.row.removeRow')}" aria-label="${t('contracts.row.removeRow')}"><span aria-hidden="true">×</span></button>
+      ${advance ? advanceDueHtml(e.due_dates) : ''}
     </div>
   `;
+}
+
+/** v3.9.0 (F1034) — Auswahl des Rhythmus einer Abschlagszeile. */
+function advanceEveryHtml(every) {
+  return `<div class="field">
+        <label>${escapeHtml(t('contracts.advance.every'))}</label>
+        <select class="select" data-role="every">${ADVANCE_EVERY.map(n => `<option value="${n}"${n === every ? ' selected' : ''}>${escapeHtml(tp('advance.rhythm.every', n))}</option>`).join('')}</select>
+      </div>`;
+}
+
+/** v3.9.0 (F1034) — genannte Termine (etwa aus der Rechnung): bleiben beim Speichern erhalten, sichtbar unter der Zeile. */
+function advanceDueHtml(dates) {
+  const list = (Array.isArray(dates) ? dates : []).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(String(d)));
+  if (!list.length) return '';
+  return `<p class="muted small rowlist__sub" data-role="due-note"><input type="hidden" data-role="due" value="${escapeHtml(list.join(','))}">${escapeHtml(t('contracts.advance.dueDates', { dates: list.map(fmt.date).join(', ') }))}</p>`;
 }
 
 // v3.1.0 (H6) — `root`: nur einen nachgeladenen Teil binden (Preise je Mitglied).
@@ -982,6 +1006,14 @@ function bindRowHandlers(modalEl, row) {
   [dateInput, amountInput].filter(Boolean).forEach(i => {
     i.addEventListener('input', () => validateRow(row));
     i.addEventListener('blur',  () => validateRow(row));
+  });
+  // v3.9.0 (F1034) — der Betrag gilt je Termin, sobald der Abschlag nicht monatlich ist
+  const everySel = row.querySelector('[data-role="every"]');
+  everySel?.addEventListener('change', () => {
+    const label = row.querySelector('[data-role="amount-label"]');
+    if (label) label.textContent = t(Number(everySel.value) > 1 ? 'contracts.unit.eurPerDue' : 'contracts.unit.eurPerMonth');
+    // ein anderer Rhythmus: die Termine laut Rechnung gehörten zum alten, sie entfallen
+    row.querySelector('[data-role="due-note"]')?.remove();
   });
 }
 
@@ -1274,7 +1306,13 @@ function collectEntries(group, g) {
     // But skip fully-empty so blank template rows don't trigger silent drops.
     // v2.12.0 — ein vorbelegtes Datum ohne Betrag gilt als leer
     if (!amount && (!date || dateEl.dataset.auto === '1')) return;
-    entries.push({ [g.dateKey]: date, [g.amountKey]: amountValue(amount) });
+    const entry = { [g.dateKey]: date, [g.amountKey]: amountValue(amount) };
+    // v3.9.0 (F1034) — Rhythmus und genannte Termine des Abschlags (monatlich fehlt beides, wie bisher)
+    const every = Number(row.querySelector('[data-role="every"]')?.value || 1);
+    if (every > 1) entry.every_months = every;
+    const due = (row.querySelector('[data-role="due"]')?.value || '').split(',').filter(Boolean);
+    if (due.length) entry.due_dates = due;
+    entries.push(entry);
   });
   return entries;
 }
@@ -1373,6 +1411,7 @@ async function openWaterContractModal(u, meters, existing, contracts = []) {
         basis: 'trinkwasser',
         separater_zaehler_meter_id: null,
         working_prices: [{ from: '', ct_per_m3: '' }],
+        base_prices:    [{ from: '', eur_per_month: '' }],   // v3.9.0 (F1034)
       },
       niederschlagswasser: {
         rates: [{ from: '', eur_per_m2_year: '', versiegelte_flaeche_m2: '' }],
@@ -1522,6 +1561,8 @@ function waterFormHtml(c, meters, u, people = [], existing = null) {
             <p class="muted small">${t('contracts.water.deductHint')}</p>
           </fieldset>
           ${renderWaterEntryGroup('sw-working', t('contracts.water.swWorking'), sw.working_prices || [], ['from', 'ct_per_m3'], [t('contracts.water.colDate'), t('contracts.water.colCtM3')])}
+          ${/* v3.9.0 (F1034) — Grundpreis auch für Schmutzwasser (Basis- und Bereitstellungspreis) */ ''}
+          ${renderWaterEntryGroup('sw-base', t('contracts.water.swBase'), sw.base_prices || [], ['from', 'eur_per_month'], [t('contracts.water.colDate'), t('contracts.water.colEurMonth')])}
         </div>
       </details>
 
@@ -1537,7 +1578,8 @@ function waterFormHtml(c, meters, u, people = [], existing = null) {
       <details open style="margin-top:var(--sp-3);border:1px solid var(--border-1);border-radius:var(--r-md);padding:12px 14px">
         <summary style="cursor:pointer;font-weight:600;color:var(--text-1)">${t('contracts.water.advances')}</summary>
         <div style="margin-top:12px">
-          ${renderWaterEntryGroup('ap', t('contracts.water.apMonthly'), c.advance_payments || [], ['from', 'amount_eur'], [t('contracts.water.colDate'), t('contracts.water.colEurMonth')])}
+          ${/* v3.9.0 (F1034) — Abschlagsplan mit Rhythmus: Betrag je Termin */ ''}
+          ${renderWaterEntryGroup('ap', t('contracts.water.apPlan'), c.advance_payments || [], ['from', 'amount_eur', 'every_months'], [t('contracts.water.colDate'), t('contracts.water.colEurDue'), t('contracts.advance.every')])}
         </div>
       </details>
 
@@ -1576,7 +1618,9 @@ function renderWaterEntryGroup(groupKey, title, entries, fields, labels) {
         <td>
           ${i === 0
             ? `<input class="input" type="date" data-field="${escapeHtml(f)}" value="${escapeHtml(e[f] ?? '')}" aria-label="${escapeHtml(waterCellLabel(title, labels[i]))}">`
-            : waterNumberInput(f, e[f], waterCellLabel(title, labels[i]))}
+            : f === 'every_months'   // v3.9.0 (F1034) — Rhythmus des Abschlags, die genannten Termine bleiben erhalten
+              ? waterEverySelect(Number(e.every_months) || 1, waterCellLabel(title, labels[i])) + waterDueHidden(e.due_dates)
+              : waterNumberInput(f, e[f], waterCellLabel(title, labels[i]))}
         </td>
       `).join('')}
       <td><button type="button" class="btn btn--sm btn--ghost" data-act="del-row" title="${t('contracts.row.removeRow')}" aria-label="${t('contracts.row.removeRow')}"><span aria-hidden="true">×</span></button></td>
@@ -1593,6 +1637,16 @@ function renderWaterEntryGroup(groupKey, title, entries, fields, labels) {
       <button type="button" class="btn btn--sm btn--ghost" data-act="add-row" style="margin-top:6px">${t('contracts.water.addRow')}</button>
     </div>
   `;
+}
+
+// v3.9.0 (F1034) — Rhythmus einer Abschlagszeile im Wasserformular und ihre genannten Termine
+function waterEverySelect(every, label = '') {
+  return `<select class="select" data-field="every_months"${label ? ` aria-label="${escapeHtml(label)}"` : ''}>${ADVANCE_EVERY.map(n =>
+    `<option value="${n}"${n === every ? ' selected' : ''}>${escapeHtml(tp('advance.rhythm.every', n))}</option>`).join('')}</select>`;
+}
+function waterDueHidden(dates) {
+  const list = (Array.isArray(dates) ? dates : []).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(String(d)));
+  return list.length ? `<input type="hidden" data-field="due_dates" value="${escapeHtml(list.join(','))}"><span class="muted small" data-role="due-note">${escapeHtml(t('contracts.advance.dueDates', { dates: list.map(fmt.date).join(', ') }))}</span>` : '';
 }
 
 // Zahlenfeld der Wasser-Tabellen — Text mit Dezimaltastatur wie im
@@ -1633,6 +1687,11 @@ function renderWaterBonusGroup(bonuses) {
 }
 
 function bindWaterEntryHandlers(modalEl) {
+  // v3.9.0 (F1034) — ein anderer Rhythmus: die Termine laut Rechnung gehörten zum alten, sie entfallen
+  modalEl.addEventListener('change', (ev) => {
+    if (!ev.target.matches?.('[data-field="every_months"]')) return;
+    ev.target.closest('td')?.querySelectorAll('[data-field="due_dates"], [data-role="due-note"]').forEach(n => n.remove());
+  });
   modalEl.addEventListener('click', (ev) => {
     const btn = ev.target.closest('[data-act]');
     if (!btn) return;
@@ -1657,6 +1716,7 @@ function bindWaterEntryHandlers(modalEl) {
           return `<td><input class="input input--text" data-field="${f}"${aria}></td>`;
         }
         if (f === 'type') return `<td>${waterBonusTypeSelect()}</td>`;   // v3.7.0 (#35)
+        if (f === 'every_months') return `<td>${waterEverySelect(1, names[i] || '')}</td>`;   // v3.9.0 (F1034)
         return `<td>${waterNumberInput(f, '', names[i] || '')}</td>`;
       }).join('');
       tr.innerHTML = `${cells}<td><button type="button" class="btn btn--sm btn--ghost" data-act="del-row" title="${t('contracts.row.removeRow')}" aria-label="${t('contracts.row.removeRow')}"><span aria-hidden="true">×</span></button></td>`;
@@ -1671,9 +1731,10 @@ function bindWaterEntryHandlers(modalEl) {
 // überall sonst müssen alle Spalten einer Zeile gefüllt sein (oder keine).
 function requiredWaterFields(groupKey, fields) {
   // v3.7.0 (#35) — die Art ist eine Auswahl und immer gesetzt: kein Pflichtfeld
+  // v3.9.0 (F1034) — ebenso der Rhythmus eines Abschlags
   return groupKey === 'bonuses'
     ? fields.filter(f => f !== 'label' && f !== 'type')
-    : fields;
+    : fields.filter(f => f !== 'every_months');
 }
 
 /**
@@ -1725,8 +1786,9 @@ function collectWaterForm(modalEl) {
         const inp = tr.querySelector(`[data-field="${f}"]`);
         obj[f] = inp ? inp.value : '';
       });
-      // Drop fully empty rows
-      const allEmpty = Object.values(obj).every(v => v === '' || v === null);
+      // Drop fully empty rows — v3.9.0 (F1034): der Rhythmus ist eine Auswahl und zählt dafür nicht
+      const allEmpty = Object.entries(obj).every(([k, v]) => k === 'every_months' || v === '' || v === null);
+      if (!allEmpty && fields.includes('every_months')) obj.due_dates = (tr.querySelector('[data-field="due_dates"]')?.value || '').split(',').filter(Boolean);
       return allEmpty ? null : obj;
     }).filter(Boolean);
   };
@@ -1750,6 +1812,7 @@ function collectWaterForm(modalEl) {
       // v3.1.0 (CALC-20) — Abzugszähler (Garten); der Server prüft, dass es welche gibt
       abzug_meter_ids: fd.get('schmutz-basis') === 'trinkwasser_minus_abzug' ? fd.getAll('schmutz_abzug') : [],
       working_prices: collect('sw-working').map(r => ({ from: r.from, ct_per_m3: num(r.ct_per_m3) })),
+      base_prices:    collect('sw-base').map(r => ({ from: r.from, eur_per_month: num(r.eur_per_month) })),   // v3.9.0 (F1034)
     },
     niederschlagswasser: {
       rates: collect('nw-rates').map(r => ({
@@ -1758,7 +1821,10 @@ function collectWaterForm(modalEl) {
         versiegelte_flaeche_m2: num(r.versiegelte_flaeche_m2),
       })),
     },
-    advance_payments: collect('ap').map(r => ({ from: r.from, amount_eur: num(r.amount_eur) })),
+    // v3.9.0 (F1034) — Rhythmus und genannte Termine (monatlich ohne beides, wie bisher)
+    advance_payments: collect('ap').map(r => ({ from: r.from, amount_eur: num(r.amount_eur),
+      ...(Number(r.every_months) > 1 ? { every_months: Number(r.every_months) } : {}),
+      ...(r.due_dates?.length ? { due_dates: r.due_dates } : {}) })),
     // v3.7.0 (#35) — die gewählte Art statt immer „neukunde“; Zeilen nur mit Art zählen als leer
     bonuses: collect('bonuses').filter(r => r.credit_date || r.amount_eur || r.label).map(r => ({
       credit_date: r.credit_date,
