@@ -336,6 +336,7 @@ function topicPv(m) {
     <div class="report-print__tiles">${pv.tiles.map(x => `<div class="report-print__tile"><div class="muted small">${esc(x.label)}</div><div class="report-print__big">${esc(x.text)}</div>${x.sub ? `<div class="muted small">${esc(x.sub)}</div>` : ''}</div>`).join('')}</div>
     ${energyHtml(pv.year_row)}
     ${para(pv.sentence)}
+    ${(pv.notes || []).map(n => para(n, 'muted small')).join('')}
     ${para(pv.co2_text)}
     ${pv.payback ? today(m, `<h3>${esc(t('report.topic.pv.paybackTitle'))}</h3><progress max="${esc(pv.payback.investment_eur)}" value="${esc(Math.min(pv.payback.benefit_to_date_eur, pv.payback.investment_eur))}"></progress>${para(pv.payback.text)}`) : ''}
     ${pv.battery ? `<h3>${esc(t('report.topic.pv.batteryTitle'))}</h3>${para(pv.battery.text)}` : ''}`);

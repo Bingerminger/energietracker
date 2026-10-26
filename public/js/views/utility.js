@@ -896,6 +896,13 @@ function pvFlowHtml(rows, year) {
   const k = (v) => (v == null ? null : fmt.int(v));
   // v3.7.0 (#39) — verteilte Monate: geschätzt (≈ in der Tabelle, schraffiert im Diagramm)
   const anyInterp = rows.some(isInterpolated);
+  // v3.9.0 (V4) — mehr eingespeist als (verteilt) erzeugt: „!“; ein Zähler erfasst
+  // den Monat nur zum Teil: „*“ (ohne Eigenverbrauch). Der Satz „ergeben zusammen
+  // die Erzeugung“ gilt dort nicht, deshalb sagt es die Legende.
+  const above = rows.filter(m => m.feed_above_generation).map(m => m.ym);
+  const partial = rows.filter(m => (m.partial_series || []).length).map(m => m.ym);
+  const months = (yms) => yms.map(ym => fmt.month(ym)).join(', ');
+  const mark = (m) => (isInterpolated(m) ? ` ${MARK}` : '') + (m.feed_above_generation ? ' !' : '') + ((m.partial_series || []).length ? ' *' : '');
   return `
     <div class="card">
       <div class="card__title">☀️ ${escapeHtml(t('utility.pvFlow.title', { year }))}${info('selfConsumption')}</div>
@@ -904,9 +911,11 @@ function pvFlowHtml(rows, year) {
       ${chartTableHtml({
         caption: t('utility.pvFlow.title', { year }),
         columns: [t('utility.monthlyTable.colMonth'), t('utility.pvFlow.generation'), t('utility.pvFlow.self'), t('utility.pvFlow.feedIn'), t('utility.pvFlow.grid')],
-        rows: rows.map(m => [fmt.month(m.ym) + (isInterpolated(m) ? ` ${MARK}` : ''), k(m.erzeugung_kwh), k(m.eigenverbrauch_kwh), k(m.einspeisung_kwh), k(m.bezug_kwh)]),
+        rows: rows.map(m => [fmt.month(m.ym) + mark(m), k(m.erzeugung_kwh), k(m.eigenverbrauch_kwh), k(m.einspeisung_kwh), k(m.bezug_kwh)]),
       })}
       ${anyInterp ? `<p class="muted small" data-role="pv-interpolated-legend">${escapeHtml(t('interpolation.legendPv'))}</p>` : ''}
+      ${above.length ? `<p class="muted small" data-role="pv-feed-above">${escapeHtml(tp('utility.pvFlow.feedAbove', above.length, { months: months(above) }))}</p>` : ''}
+      ${partial.length ? `<p class="muted small" data-role="pv-partial">${escapeHtml(tp('utility.pvFlow.partial', partial.length, { months: months(partial) }))}</p>` : ''}
     </div>`;
 }
 

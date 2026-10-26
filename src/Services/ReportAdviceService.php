@@ -437,7 +437,8 @@ final class ReportAdviceService
         if (($pv['benefit_eur'] ?? null) !== null && (float)$pv['benefit_eur'] > 0) {
             $out[] = $this->success('pvBenefit', 'pv_erzeugung', 'report.advice.pvBenefit.title', [], 'report.advice.pvBenefit.reason', [
                 'savings' => $this->approx((float)($pv['savings_eur'] ?? 0)), 'feed' => $this->approx((float)($pv['feed_in_revenue_eur'] ?? 0)),
-            ], $this->euro((float)$pv['benefit_eur'], 'year', 'measured', 'earned'));
+            // v3.9.0 (V5) — aus verteilter Erzeugung ist der Eigenverbrauch geschätzt, nicht gemessen
+            ], $this->euro((float)$pv['benefit_eur'], 'year', !empty($pv['estimated']) ? 'estimated' : 'measured', 'earned'));
         }
         $rate = $pv['self_rate'] ?? null;
         if ($rate !== null && (float)$rate < self::SELF_RATE_LOW && $grid !== null && $feed !== null && (float)$grid > (float)$feed) {
@@ -604,7 +605,7 @@ final class ReportAdviceService
 
     /**
      * @param 'year'|'once'|'per100' $per
-     * @param 'measured'|'projected'|'example' $basis
+     * @param 'measured'|'estimated'|'projected'|'example' $basis  v3.9.0 (V5): `estimated` — aus verteilten Monaten
      * @param 'saves'|'avoids'|'costs'|'earned'|'refund' $effect
      */
     private function euro(float $value, string $per, string $basis, string $effect): array

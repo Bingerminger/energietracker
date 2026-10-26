@@ -750,6 +750,14 @@
       "alt": {
         "one": "Staafdiagram: energiestroom {year} — in {months} maand met gegevens van alle drie de meters opgewekt {generation}, waarvan zelf gebruikt {self} en teruggeleverd {feedIn}; van het net {grid}.",
         "other": "Staafdiagram: energiestroom {year} — in {months} maanden met gegevens van alle drie de meters opgewekt {generation}, waarvan zelf gebruikt {self} en teruggeleverd {feedIn}; van het net {grid}."
+      },
+      "feedAbove": {
+        "one": "! {months}: de gemeten teruglevering ligt boven de verdeelde opwekking. Zelf verbruikt en teruggeleverd zijn daar samen meer dan de opwekking, omdat die voor de maand te laag verdeeld is.",
+        "other": "! {months}: de gemeten teruglevering ligt boven de verdeelde opwekking. Zelf verbruikt en teruggeleverd zijn daar samen meer dan de opwekking, omdat die voor deze maanden te laag verdeeld is."
+      },
+      "partial": {
+        "one": "* {months}: één meter dekt maar een deel van de maand. Zonder dezelfde periode ontbreekt daar het eigen verbruik.",
+        "other": "* {months}: één meter dekt maar een deel van de maand. Zonder dezelfde periode ontbreekt daar het eigen verbruik."
       }
     },
     "photo": {
@@ -2958,7 +2966,8 @@
       "basis": {
         "measured": "gemeten",
         "projected": "geëxtrapoleerd",
-        "example": "rekenvoorbeeld"
+        "example": "rekenvoorbeeld",
+        "estimated": "geschat"
       }
     },
     "agenda": {
@@ -3166,7 +3175,14 @@
         "paybackOpen": "Tot nu toe terugverdiend: {paid} van {investment} (stand van vandaag).",
         "batteryTitle": "Accu",
         "battery": "Geladen {charged} kWh, ontladen {discharged} kWh, ongeveer {cycles} volledige cycli, rendement {eff}.",
-        "co2Avoided": "Vermeden CO₂: {kg}, berekend met de CO₂-factor voor stroom uit de instellingen."
+        "co2Avoided": "Vermeden CO₂: {kg}, berekend met de CO₂-factor voor stroom uit de instellingen.",
+        "span": "Berekend over de maanden waarin alle drie de meters gegevens hebben: {from} tot {to} ({span}).",
+        "estimated": "≈ Een deel van de maandwaarden is verdeeld, niet gemeten{readings}. Eigen verbruik, zelfvoorziening en opbrengst zijn daarom schattingen.",
+        "feedAbove": {
+          "one": "In {months} ligt de gemeten teruglevering boven de verdeelde opwekking. Daar telt de teruglevering als opwekking en is niets zelf verbruikt.",
+          "other": "In {count} maanden ({months}) ligt de gemeten teruglevering boven de verdeelde opwekking. Daar telt de teruglevering als opwekking en is niets zelf verbruikt."
+        },
+        "noCompare": "Geen vergelijking met {prev}: daarvoor zijn twee hele jaren met gegevens van alle drie de meters nodig en een meterstand van de opwekking bij beide jaarwisselingen."
       },
       "heatPump": {
         "sentence": "De warmtepomp maakte van {elec} kWh stroom {heat} kWh warmte: seizoensprestatiefactor {jaz}.",
@@ -4867,6 +4883,22 @@
         "calcNote": "Gestreept: per kwartier berekend, niet gemeten.",
         "powerNote": "In de knooppunten: het vermogen in dit kwartier (kW). Daaronder: de hoeveelheden sinds middernacht (kWh).",
         "gapsOption": "{date} (met gaten)"
+      },
+      "yearRange": "{year} ({from} tot {to}, {span})",
+      "series": {
+        "erzeugung_kwh": "opwekking",
+        "einspeisung_kwh": "teruglevering",
+        "bezug_kwh": "netafname"
+      },
+      "interpolatedNote": "≈ Verdeeld, niet gemeten: {series} van deze maanden{readings}. Hoe de zonnestroom zich verdeelt, is daarom geschat.",
+      "feedAboveMonth": "Tegenstrijdig: de gemeten teruglevering ({feed}) ligt boven de opwekking ({gen}). De figuur telt de hele teruglevering, dus er is niets zelf verbruikt. De zon toont hier minstens de teruglevering.",
+      "feedAboveYear": {
+        "one": "Tegenstrijdig in {months}: de gemeten teruglevering ligt boven de verdeelde opwekking. Daar telt de figuur de hele teruglevering en niets als zelf verbruikt.",
+        "other": "Tegenstrijdig in {count} maanden ({months}): de gemeten teruglevering ligt boven de verdeelde opwekking. Daar telt de figuur de hele teruglevering en niets als zelf verbruikt."
+      },
+      "partialNote": {
+        "one": "Zonder {months}: daar dekt één meter maar een deel van de maand.",
+        "other": "Zonder {count} maanden ({months}): daar dekt één meter maar een deel van de maand."
       }
     },
     "weather": {

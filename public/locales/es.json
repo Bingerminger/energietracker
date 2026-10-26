@@ -750,6 +750,14 @@
       "alt": {
         "one": "Gráfico de barras: flujo de energía {year}: en {months} mes con datos de los tres contadores, producido {generation}, del que autoconsumido {self} y vertido {feedIn}; de la red {grid}.",
         "other": "Gráfico de barras: flujo de energía {year}: en {months} meses con datos de los tres contadores, producido {generation}, del que autoconsumido {self} y vertido {feedIn}; de la red {grid}."
+      },
+      "feedAbove": {
+        "one": "! {months}: el vertido medido supera la producción repartida. Allí autoconsumo y vertido suman más que la producción, porque para ese mes está repartida demasiado baja.",
+        "other": "! {months}: el vertido medido supera la producción repartida. Allí autoconsumo y vertido suman más que la producción, porque para esos meses está repartida demasiado baja."
+      },
+      "partial": {
+        "one": "* {months}: un contador solo cubre parte del mes. Sin el mismo periodo, allí falta el autoconsumo.",
+        "other": "* {months}: un contador solo cubre parte del mes. Sin el mismo periodo, allí falta el autoconsumo."
       }
     },
     "photo": {
@@ -2958,7 +2966,8 @@
       "basis": {
         "measured": "medido",
         "projected": "proyectado",
-        "example": "ejemplo de cálculo"
+        "example": "ejemplo de cálculo",
+        "estimated": "estimado"
       }
     },
     "agenda": {
@@ -3166,7 +3175,14 @@
         "paybackOpen": "Recuperado hasta ahora: {paid} de {investment} (situación a hoy).",
         "batteryTitle": "Batería",
         "battery": "Cargados {charged} kWh, descargados {discharged} kWh, unos {cycles} ciclos completos, rendimiento {eff}.",
-        "co2Avoided": "CO₂ evitado: {kg}, calculado con el factor de CO₂ de la electricidad de los ajustes."
+        "co2Avoided": "CO₂ evitado: {kg}, calculado con el factor de CO₂ de la electricidad de los ajustes.",
+        "span": "Calculado sobre los meses en los que los tres contadores tienen datos: de {from} a {to} ({span}).",
+        "estimated": "≈ Algunos valores mensuales están repartidos, no medidos{readings}. Por eso autoconsumo, autosuficiencia y beneficio son estimaciones.",
+        "feedAbove": {
+          "one": "En {months} el vertido medido supera la producción repartida. Allí el vertido cuenta como producción y no hay autoconsumo.",
+          "other": "En {count} meses ({months}) el vertido medido supera la producción repartida. Allí el vertido cuenta como producción y no hay autoconsumo."
+        },
+        "noCompare": "Sin comparación con {prev}: hacen falta dos años completos con datos de los tres contadores y una lectura de la producción en ambos cambios de año."
       },
       "heatPump": {
         "sentence": "La bomba de calor convirtió {elec} kWh de electricidad en {heat} kWh de calor: factor de rendimiento estacional {jaz}.",
@@ -4867,6 +4883,22 @@
         "calcNote": "Discontinuo: calculado por cuarto de hora, no medido.",
         "powerNote": "En los nodos: la potencia en este cuarto de hora (kW). Debajo: las cantidades desde medianoche (kWh).",
         "gapsOption": "{date} (con huecos)"
+      },
+      "yearRange": "{year} (de {from} a {to}, {span})",
+      "series": {
+        "erzeugung_kwh": "producción",
+        "einspeisung_kwh": "vertido",
+        "bezug_kwh": "consumo de la red"
+      },
+      "interpolatedNote": "≈ Repartido, no medido: {series} de estos meses{readings}. Por eso el reparto de la electricidad solar es una estimación.",
+      "feedAboveMonth": "Contradictorio: el vertido medido ({feed}) supera la producción ({gen}). La figura cuenta todo el vertido, así que no hay autoconsumo. El sol muestra aquí al menos el vertido.",
+      "feedAboveYear": {
+        "one": "Contradictorio en {months}: el vertido medido supera la producción repartida. Allí la figura cuenta todo el vertido y nada como autoconsumo.",
+        "other": "Contradictorio en {count} meses ({months}): el vertido medido supera la producción repartida. Allí la figura cuenta todo el vertido y nada como autoconsumo."
+      },
+      "partialNote": {
+        "one": "Sin {months}: allí un contador solo cubre parte del mes.",
+        "other": "Sin {count} meses ({months}): allí un contador solo cubre parte del mes."
       }
     },
     "weather": {

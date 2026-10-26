@@ -750,6 +750,14 @@
       "alt": {
         "one": "Gráfico de barras: fluxo de energia {year} — em {months} mês com dados dos três contadores, produzido {generation}, dos quais autoconsumido {self} e injetado {feedIn}; da rede {grid}.",
         "other": "Gráfico de barras: fluxo de energia {year} — em {months} meses com dados dos três contadores, produzido {generation}, dos quais autoconsumido {self} e injetado {feedIn}; da rede {grid}."
+      },
+      "feedAbove": {
+        "one": "! {months}: a injeção medida supera a produção distribuída. Aí autoconsumo e injeção somam mais do que a produção, porque para esse mês está distribuída demasiado baixa.",
+        "other": "! {months}: a injeção medida supera a produção distribuída. Aí autoconsumo e injeção somam mais do que a produção, porque para esses meses está distribuída demasiado baixa."
+      },
+      "partial": {
+        "one": "* {months}: um contador só abrange parte do mês. Sem o mesmo período, aí falta o autoconsumo.",
+        "other": "* {months}: um contador só abrange parte do mês. Sem o mesmo período, aí falta o autoconsumo."
       }
     },
     "photo": {
@@ -2958,7 +2966,8 @@
       "basis": {
         "measured": "medido",
         "projected": "projetado",
-        "example": "exemplo de cálculo"
+        "example": "exemplo de cálculo",
+        "estimated": "estimado"
       }
     },
     "agenda": {
@@ -3166,7 +3175,14 @@
         "paybackOpen": "Recuperado até agora: {paid} de {investment} (situação à data de hoje).",
         "batteryTitle": "Bateria",
         "battery": "Carregados {charged} kWh, descarregados {discharged} kWh, cerca de {cycles} ciclos completos, rendimento {eff}.",
-        "co2Avoided": "CO₂ evitado: {kg}, calculado com o fator de CO₂ da eletricidade das definições."
+        "co2Avoided": "CO₂ evitado: {kg}, calculado com o fator de CO₂ da eletricidade das definições.",
+        "span": "Calculado sobre os meses em que os três contadores têm dados: de {from} a {to} ({span}).",
+        "estimated": "≈ Alguns valores mensais estão distribuídos, não medidos{readings}. Por isso, autoconsumo, autossuficiência e benefício são estimativas.",
+        "feedAbove": {
+          "one": "Em {months} a injeção medida supera a produção distribuída. Aí a injeção conta como produção e não há autoconsumo.",
+          "other": "Em {count} meses ({months}) a injeção medida supera a produção distribuída. Aí a injeção conta como produção e não há autoconsumo."
+        },
+        "noCompare": "Sem comparação com {prev}: são precisos dois anos completos com dados dos três contadores e uma leitura da produção nas duas passagens de ano."
       },
       "heatPump": {
         "sentence": "A bomba de calor transformou {elec} kWh de eletricidade em {heat} kWh de calor: fator de desempenho sazonal {jaz}.",
@@ -4867,6 +4883,22 @@
         "calcNote": "Tracejado: calculado por quarto de hora, não medido.",
         "powerNote": "Nos nós: a potência neste quarto de hora (kW). Abaixo: as quantidades desde a meia-noite (kWh).",
         "gapsOption": "{date} (com lacunas)"
+      },
+      "yearRange": "{year} (de {from} a {to}, {span})",
+      "series": {
+        "erzeugung_kwh": "produção",
+        "einspeisung_kwh": "injeção",
+        "bezug_kwh": "consumo da rede"
+      },
+      "interpolatedNote": "≈ Distribuído, não medido: {series} destes meses{readings}. Por isso, a repartição da eletricidade solar é uma estimativa.",
+      "feedAboveMonth": "Contraditório: a injeção medida ({feed}) supera a produção ({gen}). A figura conta toda a injeção, por isso não há autoconsumo. O sol mostra aqui pelo menos a injeção.",
+      "feedAboveYear": {
+        "one": "Contraditório em {months}: a injeção medida supera a produção distribuída. Aí a figura conta toda a injeção e nada como autoconsumo.",
+        "other": "Contraditório em {count} meses ({months}): a injeção medida supera a produção distribuída. Aí a figura conta toda a injeção e nada como autoconsumo."
+      },
+      "partialNote": {
+        "one": "Sem {months}: aí um contador só abrange parte do mês.",
+        "other": "Sem {count} meses ({months}): aí um contador só abrange parte do mês."
       }
     },
     "weather": {

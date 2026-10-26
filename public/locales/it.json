@@ -750,6 +750,14 @@
       "alt": {
         "one": "Grafico a barre: flusso di energia {year} — in {months} mese con dati di tutti e tre i contatori prodotti {generation}, di cui autoconsumati {self} e immessi in rete {feedIn}; prelevati dalla rete {grid}.",
         "other": "Grafico a barre: flusso di energia {year} — in {months} mesi con dati di tutti e tre i contatori prodotti {generation}, di cui autoconsumati {self} e immessi in rete {feedIn}; prelevati dalla rete {grid}."
+      },
+      "feedAbove": {
+        "one": "! {months}: l’immissione misurata supera la produzione distribuita. Lì autoconsumo e immissione superano la produzione, perché per il mese è distribuita troppo bassa.",
+        "other": "! {months}: l’immissione misurata supera la produzione distribuita. Lì autoconsumo e immissione superano la produzione, perché per questi mesi è distribuita troppo bassa."
+      },
+      "partial": {
+        "one": "* {months}: un contatore copre solo una parte del mese. Senza lo stesso periodo lì manca l’autoconsumo.",
+        "other": "* {months}: un contatore copre solo una parte del mese. Senza lo stesso periodo lì manca l’autoconsumo."
       }
     },
     "photo": {
@@ -2958,7 +2966,8 @@
       "basis": {
         "measured": "misurato",
         "projected": "proiettato",
-        "example": "esempio di calcolo"
+        "example": "esempio di calcolo",
+        "estimated": "stimato"
       }
     },
     "agenda": {
@@ -3166,7 +3175,14 @@
         "paybackOpen": "Recuperati finora: {paid} su {investment} (situazione a oggi).",
         "batteryTitle": "Batteria",
         "battery": "Caricati {charged} kWh, scaricati {discharged} kWh, circa {cycles} cicli completi, rendimento {eff}.",
-        "co2Avoided": "CO₂ evitata: {kg}, calcolata con il fattore CO₂ dell’elettricità delle impostazioni."
+        "co2Avoided": "CO₂ evitata: {kg}, calcolata con il fattore CO₂ dell’elettricità delle impostazioni.",
+        "span": "Calcolato sui mesi in cui tutti e tre i contatori hanno dati: da {from} a {to} ({span}).",
+        "estimated": "≈ Alcuni valori mensili sono distribuiti, non misurati{readings}. Autoconsumo, autosufficienza e beneficio sono quindi stime.",
+        "feedAbove": {
+          "one": "In {months} l’immissione misurata supera la produzione distribuita. Lì l’immissione conta come produzione e non c’è autoconsumo.",
+          "other": "In {count} mesi ({months}) l’immissione misurata supera la produzione distribuita. Lì l’immissione conta come produzione e non c’è autoconsumo."
+        },
+        "noCompare": "Nessun confronto con il {prev}: servono due anni interi con dati di tutti e tre i contatori e una lettura della produzione a entrambi i cambi d’anno."
       },
       "heatPump": {
         "sentence": "La pompa di calore ha trasformato {elec} kWh di elettricità in {heat} kWh di calore: fattore di prestazione stagionale {jaz}.",
@@ -4867,6 +4883,22 @@
         "calcNote": "Tratteggiato: calcolato per quarto d’ora, non misurato.",
         "powerNote": "Nei nodi: la potenza in questo quarto d’ora (kW). Sotto: le quantità dalla mezzanotte (kWh).",
         "gapsOption": "{date} (con lacune)"
+      },
+      "yearRange": "{year} (da {from} a {to}, {span})",
+      "series": {
+        "erzeugung_kwh": "produzione",
+        "einspeisung_kwh": "immissione",
+        "bezug_kwh": "prelievo dalla rete"
+      },
+      "interpolatedNote": "≈ Distribuito, non misurato: {series} di questi mesi{readings}. La ripartizione dell’energia solare è quindi stimata.",
+      "feedAboveMonth": "Contraddittorio: l’immissione misurata ({feed}) supera la produzione ({gen}). La figura conta tutta l’immissione, quindi non c’è autoconsumo. Il sole mostra qui almeno l’immissione.",
+      "feedAboveYear": {
+        "one": "Contraddittorio in {months}: l’immissione misurata supera la produzione distribuita. Lì la figura conta tutta l’immissione e niente come autoconsumo.",
+        "other": "Contraddittorio in {count} mesi ({months}): l’immissione misurata supera la produzione distribuita. Lì la figura conta tutta l’immissione e niente come autoconsumo."
+      },
+      "partialNote": {
+        "one": "Senza {months}: lì un contatore copre solo una parte del mese.",
+        "other": "Senza {count} mesi ({months}): lì un contatore copre solo una parte del mese."
       }
     },
     "weather": {

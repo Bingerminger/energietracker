@@ -750,6 +750,14 @@
       "alt": {
         "one": "Balkendiagramm: Energiefluss {year} — in {months} Monat mit Daten aller drei Zähler erzeugt {generation}, davon selbst genutzt {self} und eingespeist {feedIn}; aus dem Netz {grid}.",
         "other": "Balkendiagramm: Energiefluss {year} — in {months} Monaten mit Daten aller drei Zähler erzeugt {generation}, davon selbst genutzt {self} und eingespeist {feedIn}; aus dem Netz {grid}."
+      },
+      "feedAbove": {
+        "one": "! {months}: Die gemessene Einspeisung liegt über der verteilten Erzeugung. Selbst genutzt und eingespeist ergeben dort mehr als die Erzeugung, weil diese für den Monat zu niedrig verteilt ist.",
+        "other": "! {months}: Die gemessene Einspeisung liegt über der verteilten Erzeugung. Selbst genutzt und eingespeist ergeben dort mehr als die Erzeugung, weil diese für die Monate zu niedrig verteilt ist."
+      },
+      "partial": {
+        "one": "* {months}: Ein Zähler erfasst nur einen Teil des Monats. Ohne gleichen Zeitraum fehlt dort der Eigenverbrauch.",
+        "other": "* {months}: Ein Zähler erfasst nur einen Teil des Monats. Ohne gleichen Zeitraum fehlt dort der Eigenverbrauch."
       }
     },
     "photo": {
@@ -2958,7 +2966,8 @@
       "basis": {
         "measured": "gemessen",
         "projected": "hochgerechnet",
-        "example": "Rechenbeispiel"
+        "example": "Rechenbeispiel",
+        "estimated": "geschätzt"
       }
     },
     "agenda": {
@@ -3166,7 +3175,14 @@
         "paybackOpen": "Bisher eingespielt: {paid} von {investment} (Stand heute).",
         "batteryTitle": "Speicher",
         "battery": "Geladen {charged} kWh, entladen {discharged} kWh, rund {cycles} volle Zyklen, Wirkungsgrad {eff}.",
-        "co2Avoided": "Vermiedenes CO₂: {kg}, gerechnet mit dem CO₂-Faktor für Strom aus den Einstellungen."
+        "co2Avoided": "Vermiedenes CO₂: {kg}, gerechnet mit dem CO₂-Faktor für Strom aus den Einstellungen.",
+        "span": "Gerechnet über die Monate, in denen alle drei Zähler Daten haben: {from} bis {to} ({span}).",
+        "estimated": "≈ Monatswerte sind teils verteilt, nicht gemessen{readings}. Eigenverbrauch, Autarkie und Nutzen sind deshalb Schätzungen.",
+        "feedAbove": {
+          "one": "In {months} liegt die gemessene Einspeisung über der verteilten Erzeugung. Dort zählt die Einspeisung als Erzeugung, selbst genutzt ist nichts.",
+          "other": "In {count} Monaten ({months}) liegt die gemessene Einspeisung über der verteilten Erzeugung. Dort zählt die Einspeisung als Erzeugung, selbst genutzt ist nichts."
+        },
+        "noCompare": "Kein Vergleich mit {prev}: Dafür braucht es zwei ganze Jahre mit Daten aller drei Zähler und eine Ablesung der Erzeugung an beiden Jahreswechseln."
       },
       "heatPump": {
         "sentence": "Die Wärmepumpe machte aus {elec} kWh Strom {heat} kWh Wärme: Jahresarbeitszahl {jaz}.",
@@ -4867,6 +4883,22 @@
         "calcNote": "Gestrichelt: je Viertelstunde gerechnet, nicht gemessen.",
         "powerNote": "In den Knoten: die Leistung in dieser Viertelstunde (kW). Darunter: die Mengen seit Mitternacht (kWh).",
         "gapsOption": "{date} (mit Lücken)"
+      },
+      "yearRange": "{year} ({from} bis {to}, {span})",
+      "series": {
+        "erzeugung_kwh": "Erzeugung",
+        "einspeisung_kwh": "Einspeisung",
+        "bezug_kwh": "Netzbezug"
+      },
+      "interpolatedNote": "≈ Verteilt, nicht gemessen: {series} dieser Monate{readings}. Wie sich der Sonnenstrom aufteilt, ist deshalb geschätzt.",
+      "feedAboveMonth": "Widersprüchlich: Die gemessene Einspeisung ({feed}) liegt über der Erzeugung ({gen}). Das Bild zählt die ganze Einspeisung, selbst genutzt ist dann nichts. Die Sonne zeigt hier mindestens die Einspeisung.",
+      "feedAboveYear": {
+        "one": "Widersprüchlich in {months}: Die gemessene Einspeisung liegt über der verteilten Erzeugung. Das Bild zählt dort die ganze Einspeisung und nichts als selbst genutzt.",
+        "other": "Widersprüchlich in {count} Monaten ({months}): Die gemessene Einspeisung liegt über der verteilten Erzeugung. Das Bild zählt dort die ganze Einspeisung und nichts als selbst genutzt."
+      },
+      "partialNote": {
+        "one": "Ohne {months}: Dort erfasst ein Zähler nur einen Teil des Monats.",
+        "other": "Ohne {count} Monate ({months}): Dort erfasst ein Zähler nur einen Teil des Monats."
       }
     },
     "weather": {

@@ -326,6 +326,48 @@ const atStart = fig.querySelector('[data-k="v-pv"]').textContent;
 await new Promise(r => setTimeout(r, 700));
 t('Zahlen zählen hoch (Start bei 0, dann Endwert)', atStart === fmt.int(0) && fig.querySelector('[data-k="v-pv"]').textContent === endValue, `${atStart} → ${fig.querySelector('[data-k="v-pv"]').textContent}`);
 
+// ── 3b. v3.9.0 (V4): geschätzt, widersprüchlich, erfasster Zeitraum ──────
+// Der Changelog 3.7.0 versprach „markiert die Monate im Energiefluss“; bis
+// v3.8 galt das nur für das Säulendiagramm der PV-Seite. Hier das Schaubild
+// „Energiefluss im Haus“ selbst (Übersicht, PV-Seite, Jahresbericht).
+section('Energiefluss: geschätzt, widersprüchlich, Zeitraum (V4)');
+{
+  const jun = { ...month(2025, 6, 172, 196, 201.5, 0, 0, null, null), interpolated: true, interpolated_series: ['erzeugung_kwh', 'bezug_kwh'], feed_above_generation: true };
+  const may = { ...month(2025, 5, 177.7, 158.2, 208.2, 0, 0, null, null), interpolated: true, interpolated_series: ['erzeugung_kwh', 'bezug_kwh'], feed_above_generation: false };
+  const meas = { ...month(2025, 4, 172, 111.2, 201.5, 0, 0, null, null), interpolated: false, interpolated_series: [], feed_above_generation: false };
+  const flowY = sumFlow([meas, may, jun]);
+  const est = {
+    interpolation: { utility: 'pv_erzeugung', readings: 2, from: '2023-05', to: '2025-08' },
+    monthly: [meas, may, jun],
+    yearly: [{ year: 2025, months_covered: 3, flow: flowY,
+      flow_period: { from: '2025-04', to: '2025-06', months: 3, interpolated_months: 2, interpolated_series: ['erzeugung_kwh', 'bezug_kwh'],
+        feed_above_generation: ['2025-06'], partial: ['2025-08'] } }],
+  };
+  // die gemessene Einspeisung bleibt: Juni 196, nicht 172
+  t('V4: Formel kappt die Einspeisung nicht (Juni 196 > 172)', jun.flow.pv_grid === 196 && jun.flow.pv_house === 0);
+  document.body.innerHTML = `<div id="root4">${EX.energyHtml(est, { year: 2025 })}</div>`;
+  fig = document.querySelector('.ex-energy');
+  EX.playExplainers(document.getElementById('root4'));
+  const lab = () => fig.querySelector('.ef-period__label').textContent;
+  const note = () => fig.querySelector('.ef-note');
+  t('V4: Jahr nennt den erfassten Zeitraum und ≈', lab() === `≈ ${tr('explainer.energy.yearRange', { year: 2025, from: 'April', to: 'Juni', span: '3 Monate' })}`, lab());
+  t('V4: Jahr: Hinweis verteilt (mit Ablesungen), widersprüchlich, Teilmonat', !note().hidden
+    && note().textContent.includes('Verteilt, nicht gemessen: Erzeugung und Netzbezug dieser Monate (2 Ablesungen von Mai 2023 bis Aug. 2025)')
+    && note().textContent.includes('Widersprüchlich in Juni 2025') && note().textContent.includes('Ohne August 2025'), note().textContent);
+  t('V4: Satz und Knöpfe tragen ≈ an geschätzten Werten', /Die Sonne lieferte ≈ /.test(fig.querySelector('.explainer__text').textContent)
+    && /Autarkie: ≈ /.test(fig.querySelector('.explainer__text').textContent)
+    && fig.querySelector('.ef-chip[data-node="pv"]').textContent.startsWith('Sonne: ≈ ')
+    && fig.querySelector('.ef-chip[data-node="grid"]').textContent.includes('≈ '), fig.querySelector('.explainer__text').textContent);
+  fig.querySelector('[data-ef-scope="month"]').click();
+  t('V4: Monat Juni: ≈ und Widerspruch mit den Zahlen', lab().startsWith('≈ ') && note().textContent.includes(tr('explainer.energy.feedAboveMonth', { feed: fmt.unit(196, 'kWh'), gen: fmt.unit(172, 'kWh') })), `${lab()} | ${note().textContent}`);
+  fig.querySelector('[data-ef-step="-1"]').click();
+  fig.querySelector('[data-ef-step="-1"]').click();
+  t('V4: gemessener Monat ohne ≈ und ohne Hinweis', !lab().startsWith('≈') && note().hidden && !/≈/.test(fig.querySelector('.explainer__text').textContent), `${lab()} | ${note().textContent}`);
+  // gemessenes Jahr ohne Zeitraumangabe (die Demo bleibt, wie sie war)
+  const plain = parse(EX.energyHtml(summary, { year: 2025 }));
+  t('V4: gemessenes ganzes Jahr ohne ≈ und ohne Hinweis zur Schätzung', !/≈/.test(plain.textContent) && !/Verteilt|Widersprüchlich|Ohne /.test(plain.querySelector('.ef-note').textContent));
+}
+
 // ── 4. Zeitstrahl ───────────────────────────────────────────────────────
 section('Zeitstrahl');
 const TODAY = '2026-10-12';

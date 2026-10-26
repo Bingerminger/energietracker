@@ -750,6 +750,14 @@
       "alt": {
         "one": "Diagramme en barres : flux d’énergie {year} — sur {months} mois avec des données des trois compteurs, produit {generation}, dont autoconsommé {self} et injecté {feedIn} ; soutiré du réseau {grid}.",
         "other": "Diagramme en barres : flux d’énergie {year} — sur {months} mois avec des données des trois compteurs, produit {generation}, dont autoconsommé {self} et injecté {feedIn} ; soutiré du réseau {grid}."
+      },
+      "feedAbove": {
+        "one": "! {months} : l’injection mesurée dépasse la production répartie. Autoconsommation et injection y dépassent la production, car celle-ci est répartie trop bas pour le mois.",
+        "other": "! {months} : l’injection mesurée dépasse la production répartie. Autoconsommation et injection y dépassent la production, car celle-ci est répartie trop bas pour ces mois."
+      },
+      "partial": {
+        "one": "* {months} : un compteur ne couvre qu’une partie du mois. Sans période commune, l’autoconsommation y manque.",
+        "other": "* {months} : un compteur ne couvre qu’une partie du mois. Sans période commune, l’autoconsommation y manque."
       }
     },
     "photo": {
@@ -2958,7 +2966,8 @@
       "basis": {
         "measured": "mesuré",
         "projected": "extrapolé",
-        "example": "exemple de calcul"
+        "example": "exemple de calcul",
+        "estimated": "estimé"
       }
     },
     "agenda": {
@@ -3166,7 +3175,14 @@
         "paybackOpen": "Récupéré jusqu’ici : {paid} sur {investment} (état actuel).",
         "batteryTitle": "Batterie",
         "battery": "Chargé {charged} kWh, déchargé {discharged} kWh, environ {cycles} cycles complets, rendement {eff}.",
-        "co2Avoided": "CO₂ évité : {kg}, calculé avec le facteur CO₂ de l’électricité des paramètres."
+        "co2Avoided": "CO₂ évité : {kg}, calculé avec le facteur CO₂ de l’électricité des paramètres.",
+        "span": "Calculé sur les mois où les trois compteurs ont des données : {from} à {to} ({span}).",
+        "estimated": "≈ Certaines valeurs mensuelles sont réparties, non mesurées{readings}. L’autoconsommation, l’autarcie et le gain sont donc des estimations.",
+        "feedAbove": {
+          "one": "En {months}, l’injection mesurée dépasse la production répartie. L’injection y compte comme production et rien n’est autoconsommé.",
+          "other": "Sur {count} mois ({months}), l’injection mesurée dépasse la production répartie. L’injection y compte comme production et rien n’est autoconsommé."
+        },
+        "noCompare": "Pas de comparaison avec {prev} : il faut deux années entières avec des données des trois compteurs et un relevé de la production aux deux changements d’année."
       },
       "heatPump": {
         "sentence": "La pompe à chaleur a produit {heat} kWh de chaleur avec {elec} kWh d’électricité : coefficient de performance annuel {jaz}.",
@@ -4867,6 +4883,22 @@
         "calcNote": "En pointillés : calculé par quart d’heure, non mesuré.",
         "powerNote": "Dans les nœuds : la puissance pendant ce quart d’heure (kW). En dessous : les quantités depuis minuit (kWh).",
         "gapsOption": "{date} (avec lacunes)"
+      },
+      "yearRange": "{year} ({from} à {to}, {span})",
+      "series": {
+        "erzeugung_kwh": "production",
+        "einspeisung_kwh": "injection",
+        "bezug_kwh": "soutirage du réseau"
+      },
+      "interpolatedNote": "≈ Réparti, non mesuré : {series} de ces mois{readings}. La répartition de l’électricité solaire est donc estimée.",
+      "feedAboveMonth": "Contradictoire : l’injection mesurée ({feed}) dépasse la production ({gen}). La figure compte toute l’injection, rien n’est donc autoconsommé. Le soleil affiche ici au moins l’injection.",
+      "feedAboveYear": {
+        "one": "Contradictoire en {months} : l’injection mesurée dépasse la production répartie. La figure y compte toute l’injection et rien en autoconsommation.",
+        "other": "Contradictoire sur {count} mois ({months}) : l’injection mesurée dépasse la production répartie. La figure y compte toute l’injection et rien en autoconsommation."
+      },
+      "partialNote": {
+        "one": "Sans {months} : un compteur n’y couvre qu’une partie du mois.",
+        "other": "Sans {count} mois ({months}) : un compteur n’y couvre qu’une partie du mois."
       }
     },
     "weather": {

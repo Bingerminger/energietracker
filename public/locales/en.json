@@ -750,6 +750,14 @@
       "alt": {
         "one": "Bar chart: energy flow {year} — in {months} month with data from all three meters generated {generation}, of which self-consumed {self} and fed in {feedIn}; from the grid {grid}.",
         "other": "Bar chart: energy flow {year} — in {months} months with data from all three meters generated {generation}, of which self-consumed {self} and fed in {feedIn}; from the grid {grid}."
+      },
+      "feedAbove": {
+        "one": "! {months}: the measured feed-in is above the interpolated generation. Self-consumed and fed in add up to more than the generation there, because it is spread too low for the month.",
+        "other": "! {months}: the measured feed-in is above the interpolated generation. Self-consumed and fed in add up to more than the generation there, because it is spread too low for these months."
+      },
+      "partial": {
+        "one": "* {months}: one meter covers only part of the month. Without the same period, self-consumption is left out there.",
+        "other": "* {months}: one meter covers only part of the month. Without the same period, self-consumption is left out there."
       }
     },
     "photo": {
@@ -2958,7 +2966,8 @@
       "basis": {
         "measured": "measured",
         "projected": "projected",
-        "example": "worked example"
+        "example": "worked example",
+        "estimated": "estimated"
       }
     },
     "agenda": {
@@ -3166,7 +3175,14 @@
         "paybackOpen": "Recovered so far: {paid} of {investment} (as of today).",
         "batteryTitle": "Battery",
         "battery": "Charged {charged} kWh, discharged {discharged} kWh, about {cycles} full cycles, efficiency {eff}.",
-        "co2Avoided": "CO₂ avoided: {kg}, calculated with the CO₂ factor for electricity from the settings."
+        "co2Avoided": "CO₂ avoided: {kg}, calculated with the CO₂ factor for electricity from the settings.",
+        "span": "Calculated over the months in which all three meters have data: {from} to {to} ({span}).",
+        "estimated": "≈ Some monthly values are interpolated, not measured{readings}. Self-consumption, self-sufficiency and benefit are therefore estimates.",
+        "feedAbove": {
+          "one": "In {months} the measured feed-in is above the interpolated generation. There the feed-in counts as generation and nothing as self-consumed.",
+          "other": "In {count} months ({months}) the measured feed-in is above the interpolated generation. There the feed-in counts as generation and nothing as self-consumed."
+        },
+        "noCompare": "No comparison with {prev}: that needs two whole years with data from all three meters and a generation reading at both turns of the year."
       },
       "heatPump": {
         "sentence": "The heat pump turned {elec} kWh of electricity into {heat} kWh of heat: seasonal performance factor {jaz}.",
@@ -4867,6 +4883,22 @@
         "calcNote": "Dashed: calculated per quarter hour, not measured.",
         "powerNote": "In the nodes: the power in this quarter hour (kW). Below: the amounts since midnight (kWh).",
         "gapsOption": "{date} (with gaps)"
+      },
+      "yearRange": "{year} ({from} to {to}, {span})",
+      "series": {
+        "erzeugung_kwh": "generation",
+        "einspeisung_kwh": "feed-in",
+        "bezug_kwh": "grid import"
+      },
+      "interpolatedNote": "≈ Interpolated, not measured: {series} in these months{readings}. How the solar power splits up is therefore estimated.",
+      "feedAboveMonth": "Contradictory: the measured feed-in ({feed}) is above the generation ({gen}). The figure counts the whole feed-in, so nothing is self-consumed. The solar node shows at least the feed-in here.",
+      "feedAboveYear": {
+        "one": "Contradictory in {months}: the measured feed-in is above the interpolated generation. There the figure counts the whole feed-in and nothing as self-consumed.",
+        "other": "Contradictory in {count} months ({months}): the measured feed-in is above the interpolated generation. There the figure counts the whole feed-in and nothing as self-consumed."
+      },
+      "partialNote": {
+        "one": "Without {months}: there one meter covers only part of the month.",
+        "other": "Without {count} months ({months}): there one meter covers only part of the month."
       }
     },
     "weather": {
