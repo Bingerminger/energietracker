@@ -1096,7 +1096,6 @@
     },
     "advance": {
       "every": "Rhythm",
-      "monthly": "monthly",
       "dueDates": "Due dates according to the bill: {dates}, then yearly on the same days"
     }
   },
@@ -5857,7 +5856,7 @@
       "elapsed": "{s} s",
       "wait": "Server still working – checking for the result …"
     },
-    "empty": "No mail in the inbox yet. File your first bill or contract confirmation as a PDF.",
+    "empty": "No mail in the inbox yet.",
     "col": {
       "document": "Document",
       "type": "Type",

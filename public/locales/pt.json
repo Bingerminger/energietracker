@@ -1096,7 +1096,6 @@
     },
     "advance": {
       "every": "Ritmo",
-      "monthly": "todos os meses",
       "dueDates": "Vencimentos segundo a fatura: {dates}, depois todos os anos nos mesmos dias"
     }
   },
@@ -5857,7 +5856,7 @@
       "elapsed": "{s} s",
       "wait": "O servidor ainda está a processar – a verificar o resultado …"
     },
-    "empty": "Ainda não há correio. Guarde em PDF a primeira fatura ou confirmação de contrato.",
+    "empty": "Ainda não há correio.",
     "col": {
       "document": "Documento",
       "type": "Tipo",

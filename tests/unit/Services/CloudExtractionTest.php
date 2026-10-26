@@ -357,6 +357,39 @@ final class CloudExtractionTest extends ServiceTestCase
         }
     }
 
+    /**
+     * v3.9.0 (Posteingang 3.7.1) — abgeschnitten am Budget: auch der PDF-Weg
+     * wiederholt einmal mit dem doppelten Budget (wie LocalProvider); am
+     * Kontextfenster und ohne Restzeit bleibt es beim Fehler.
+     */
+    public function testATruncatedPdfAnswerIsRepeatedOnceWithTheLargerBudget(): void
+    {
+        $r = $this->claude('sk-ant-test-maxonce')->extract('invoice', self::SCHEMA, 'x', self::pdf());
+        self::assertSame('31.12.2025', $r['fields']['period_to']['value'] ?? null, 'die zweite Antwort zählt (die erste endet nach period_from)');
+        self::assertCount(2, $this->calls, 'genau eine Wiederholung');
+        $req = self::lastRequest();
+        self::assertSame(AnthropicProvider::MAX_TOKENS_RETRY, $req['body']['max_tokens']);
+        self::assertSame('base64', $req['body']['messages'][0]['content'][0]['source']['type'], 'dasselbe PDF');
+        self::assertSame('default', $req['body']['fallbacks'] ?? null, 'sonst dieselbe Anfrage');
+
+        $this->calls = [];
+        $e = $this->failure(fn() => $this->claude('sk-ant-test-maxtokens')->extract('invoice', self::SCHEMA, 'x', self::pdf()), 'sk-ant-test-maxtokens');
+        self::assertSame([502, 'errors.inboxCloud.truncated'], [$e->status, $e->key]);
+        self::assertCount(2, $this->calls, 'auch die Wiederholung abgeschnitten: Fehler, kein dritter Versuch');
+
+        $this->calls = [];
+        $e = $this->failure(fn() => $this->claude('sk-ant-test-ctxwindow')->extract('invoice', self::SCHEMA, 'x', self::pdf()), 'sk-ant-test-ctxwindow');
+        self::assertSame([502, 'errors.inboxCloud.truncated'], [$e->status, $e->key]);
+        self::assertCount(1, $this->calls, 'am Kontextfenster hilft kein größeres Budget');
+
+        $this->calls = [];
+        $this->cfg->update(['timeout_s' => AnthropicProvider::RETRY_MIN_SECONDS - 1]);
+        $p = new AnthropicProvider($this->cfg, $this->i18n, $this->transport(), fn() => ['160.79.104.10']);
+        $e = $this->failure(fn() => $p->extract('invoice', self::SCHEMA, 'x', self::pdf()), 'sk-ant-test-maxtokens');
+        self::assertSame('errors.inboxCloud.truncated', $e->key);
+        self::assertCount(1, $this->calls, 'ohne Restzeit keine Wiederholung');
+    }
+
     public function testWithoutTheFallbackBetaTheRequestIsRepeatedOnceWithout(): void
     {
         $r = $this->claude('sk-ant-test-nobeta')->classify('x', self::pdf());

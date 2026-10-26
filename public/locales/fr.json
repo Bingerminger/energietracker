@@ -1096,7 +1096,6 @@
     },
     "advance": {
       "every": "Rythme",
-      "monthly": "chaque mois",
       "dueDates": "Échéances selon la facture : {dates}, puis chaque année aux mêmes jours"
     }
   },
@@ -5857,7 +5856,7 @@
       "elapsed": "{s} s",
       "wait": "Le serveur calcule encore – vérification du résultat …"
     },
-    "empty": "Pas encore de courrier. Déposez votre première facture ou confirmation de contrat en PDF.",
+    "empty": "Pas encore de courrier.",
     "col": {
       "document": "Document",
       "type": "Type",

@@ -1096,7 +1096,6 @@
     },
     "advance": {
       "every": "Ritme",
-      "monthly": "elke maand",
       "dueDates": "Vervaldata volgens de rekening: {dates}, daarna elk jaar op dezelfde dagen"
     }
   },
@@ -5857,7 +5856,7 @@
       "elapsed": "{s} s",
       "wait": "Server is nog bezig – resultaat opvragen …"
     },
-    "empty": "Nog geen post in de postbak. Berg je eerste rekening of contractbevestiging op als pdf.",
+    "empty": "Nog geen post in de postbak.",
     "col": {
       "document": "Document",
       "type": "Soort",

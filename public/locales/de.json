@@ -1096,7 +1096,6 @@
     },
     "advance": {
       "every": "Rhythmus",
-      "monthly": "monatlich",
       "dueDates": "Termine laut Rechnung: {dates}, danach jährlich zu denselben Tagen"
     }
   },
@@ -5857,7 +5856,7 @@
       "elapsed": "{s} s",
       "wait": "Server rechnet noch – frage nach dem Ergebnis …"
     },
-    "empty": "Noch keine Post im Posteingang. Leg die erste Rechnung oder Vertragsbestätigung als PDF ab.",
+    "empty": "Noch keine Post im Posteingang.",
     "col": {
       "document": "Dokument",
       "type": "Art",

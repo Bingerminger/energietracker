@@ -46,6 +46,14 @@ final class AnthropicProvider implements ExtractionProvider
     public const API_VERSION = '2023-06-01';
     public const DEFAULT_MODEL = 'claude-opus-5-5';
     public const MAX_TOKENS = 16000;
+    /**
+     * v3.9.0 (Posteingang 3.7.1) — endet die Antwort am Budget (`max_tokens`,
+     * das Denken des Modells zählt mit), einmal mit dem doppelten Budget, wenn
+     * vom Zeitlimit noch RETRY_MIN_SECONDS übrig sind; wie LocalProvider.
+     * Ohne Datenstrom: 32 000 bleiben im Zeitlimit von höchstens 600 s.
+     */
+    public const MAX_TOKENS_RETRY = 32000;
+    public const RETRY_MIN_SECONDS = 20;
     /** Grenzen des Dienstes: 32 MB je Anfrage, 600 Seiten je Anfrage. */
     public const MAX_REQUEST_BYTES = 32 * 1024 * 1024;
     public const MAX_PAGES = 600;
@@ -183,17 +191,21 @@ final class AnthropicProvider implements ExtractionProvider
         // Die Beta des Rückfalls kennt nicht jedes Konto: dann einmal ohne
         if (!$resp['ok'] && isset($body['fallbacks']) && (int)($resp['status'] ?? 0) === 400
             && preg_match('/anthropic-beta|fallback/i', CloudHttp::errorDetail((string)($resp['body'] ?? '')))) {
-            $resp = $this->send($this->requestBody($prompt, $text, $pdf, false), $headers, $timeout, $ip);
+            $body = $this->requestBody($prompt, $text, $pdf, false);
+            $resp = $this->send($body, $headers, $timeout, $ip);
+        }
+        $json = $this->answer($resp, $timeout, $key);
+        $stop = (string)($json['stop_reason'] ?? '');
+        // v3.9.0 (Posteingang 3.7.1) — abgeschnitten am Budget: einmal mit dem doppelten, in der Restzeit.
+        // Am Kontextfenster hilft ein größeres Budget nicht (model_context_window_exceeded bleibt ein Fehler).
+        if ($stop === 'max_tokens') {
+            $left = $timeout - (int)ceil((hrtime(true) - $t0) / 1e9);
+            if ($left >= self::RETRY_MIN_SECONDS) {
+                $json = $this->answer($this->send(['max_tokens' => self::MAX_TOKENS_RETRY] + $body, $headers, $left, $ip), $left, $key);
+                $stop = (string)($json['stop_reason'] ?? '');
+            }
         }
         $seconds = round((hrtime(true) - $t0) / 1e9, 2);
-        if (!$resp['ok']) CloudHttp::fail($resp, $timeout, self::HOST, $key);
-
-        $json = json_decode((string)$resp['body'], true);
-        if (!is_array($json) || !is_array($json['content'] ?? null)) {
-            throw new HttpStatusException(502, 'errors.inboxCloud.badAnswer', [], [], 'anthropic answer without content');
-        }
-        $stop = (string)($json['stop_reason'] ?? '');
-        if ($stop === 'refusal') throw new HttpStatusException(422, 'errors.inboxCloud.refusal', ['name' => self::LABEL], [], 'anthropic refused');
         if ($stop === 'max_tokens' || $stop === 'model_context_window_exceeded') {
             throw new HttpStatusException(502, 'errors.inboxCloud.truncated', [], [], "anthropic answer cut off ($stop)");
         }
@@ -207,6 +219,23 @@ final class AnthropicProvider implements ExtractionProvider
         if (trim($all) === '') throw new HttpStatusException(502, 'errors.inboxCloud.badAnswer', [], [], 'anthropic answer without text');
         $served = is_string($json['model'] ?? null) && $json['model'] !== '' ? $json['model'] : $this->model();
         return ['text' => $all, 'blocks' => $blocks, 'model' => $served, 'seconds' => $seconds];
+    }
+
+    /**
+     * Antwort des Dienstes prüfen und lesen: Fehlerstatus, Inhalt, Ablehnung.
+     *
+     * @param array<string,mixed> $resp
+     * @return array<string,mixed>
+     */
+    private function answer(array $resp, int $timeout, string $key): array
+    {
+        if (!$resp['ok']) CloudHttp::fail($resp, $timeout, self::HOST, $key);
+        $json = json_decode((string)$resp['body'], true);
+        if (!is_array($json) || !is_array($json['content'] ?? null)) {
+            throw new HttpStatusException(502, 'errors.inboxCloud.badAnswer', [], [], 'anthropic answer without content');
+        }
+        if (($json['stop_reason'] ?? '') === 'refusal') throw new HttpStatusException(422, 'errors.inboxCloud.refusal', ['name' => self::LABEL], [], 'anthropic refused');
+        return $json;
     }
 
     /** @param array<string,mixed> $body */

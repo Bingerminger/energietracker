@@ -7,8 +7,8 @@
 // Prüfliste und Test (tests/inbox.test.mjs).
 // =====================================================================
 
-import { t, tp } from './i18n.js';
-import { fmt } from './format.js';
+import { t, tp, getCurrency } from './i18n.js';
+import { fmt, intlLocale } from './format.js';
 import { advanceRhythm } from './advance-rhythm.js';   // v3.9.0 (F1034)
 
 /** Was noch Arbeit macht (Badge in der Navigation). */
@@ -79,7 +79,12 @@ export const sectionName = (s) => (s ? t(`inbox.option.${s}`) : '–');
 function waterPrice(v, unit) {
   if (v === null || v === undefined || v === '') return '–';
   const per = { m3: t('inbox.unit.perM3'), year: t('inbox.unit.perYear'), month: t('inbox.unit.perMonth'), m2_year: t('inbox.unit.perM2Year') }[unit] || '';
-  return `${fmt.money(v)}${per ? ` ${per}` : ''}`;
+  return `${priceMoney(v)}${per ? ` ${per}` : ''}`;
+}
+
+/** v3.9.0 (F1034) — Preis mit bis zu vier Stellen („2,142 €“, „13,375 €“); Beträge bleiben bei fmt.money. */
+function priceMoney(v) {
+  return new Intl.NumberFormat(intlLocale(), { style: 'currency', currency: getCurrency(), minimumFractionDigits: 2, maximumFractionDigits: 4 }).format(Number(v));
 }
 
 export { advanceRhythm };
@@ -95,7 +100,7 @@ export function resultText(result) {
 function rowValue(kind, v, key = '') {
   if (v === null || v === undefined || v === '') return '–';
   if (kind === 'contract_price') return `${fmt.dec(v, 4)} ct/kWh`;
-  if (kind === 'contract_water_price' && key === 'ct_per_m3') return `${fmt.dec(v, 4)} ct/m³`;
+  if (kind === 'contract_water_price') return key === 'ct_per_m3' ? `${fmt.dec(v, 4)} ct/m³` : priceMoney(v);
   return fmt.money(v);
 }
 
@@ -126,8 +131,8 @@ export function proposalLines(p) {
       const base = { what, from: fmt.date(l.from) };
       let text;
       if (l.kind === 'working') text = t('inbox.line.working', { ...base, value: l.section ? `${fmt.dec(l.value, 4)} ct/m³` : `${fmt.dec(l.value, 4)} ct/kWh` });
-      else if (l.kind === 'base') text = t(l.section ? 'inbox.line.base' : 'inbox.line.baseOnly', { ...base, value: fmt.money(l.value) });
-      else if (l.kind === 'rate') text = t('inbox.line.rate', { ...base, value: fmt.money(l.value), area: fmt.dec(l.area, 2) });
+      else if (l.kind === 'base') text = t(l.section ? 'inbox.line.base' : 'inbox.line.baseOnly', { ...base, value: priceMoney(l.value) });
+      else if (l.kind === 'rate') text = t('inbox.line.rate', { ...base, value: priceMoney(l.value), area: fmt.dec(l.area, 2) });
       else if (l.kind === 'advance') {
         const rhythm = advanceRhythm(l.every, l.dates);
         return t('inbox.line.advance', { from: fmt.date(l.from), value: fmt.money(l.value) }) + (rhythm ? `, ${rhythm}` : '');

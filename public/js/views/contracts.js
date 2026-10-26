@@ -22,7 +22,7 @@ import { chipHtml, personSelectHtml, personPayload } from '../lib/assignee.js';
 import { BONUS_TYPES, bonusTypeLabel, bonusDetailLines } from '../lib/bonus.js';   // v3.7.0 (#35)
 import { infoNote } from '../components/info.js';   // v3.7.0 (#35)
 import { attachmentNames, attachmentLinksHtml, attachmentIdsOf } from '../lib/attachments.js';   // v3.7.0 — Belege am Vertrag
-import { ADVANCE_EVERY, advanceRhythm, advanceAmountText } from '../lib/advance-rhythm.js';   // v3.9.0 (F1034) — Abschlag mit Rhythmus
+import { ADVANCE_EVERY, advanceAmountText } from '../lib/advance-rhythm.js';   // v3.9.0 (F1034) — Abschlag mit Rhythmus
 import { dossierHtml, wireDossiers } from '../components/dossier.js';   // v3.7.0 (Paket betrieb) — Akte je Vertrag
 
 // Titel/Labels werden zur Render-Zeit über t() aufgelöst (nicht beim Modul-
@@ -925,7 +925,7 @@ function renderEntryRow(g, e) {
 function advanceEveryHtml(every) {
   return `<div class="field">
         <label>${escapeHtml(t('contracts.advance.every'))}</label>
-        <select class="select" data-role="every">${ADVANCE_EVERY.map(n => `<option value="${n}"${n === every ? ' selected' : ''}>${escapeHtml(n === 1 ? t('contracts.advance.monthly') : advanceRhythm(n))}</option>`).join('')}</select>
+        <select class="select" data-role="every">${ADVANCE_EVERY.map(n => `<option value="${n}"${n === every ? ' selected' : ''}>${escapeHtml(tp('advance.rhythm.every', n))}</option>`).join('')}</select>
       </div>`;
 }
 
@@ -1640,7 +1640,7 @@ function renderWaterEntryGroup(groupKey, title, entries, fields, labels) {
 // v3.9.0 (F1034) — Rhythmus einer Abschlagszeile im Wasserformular und ihre genannten Termine
 function waterEverySelect(every, label = '') {
   return `<select class="select" data-field="every_months"${label ? ` aria-label="${escapeHtml(label)}"` : ''}>${ADVANCE_EVERY.map(n =>
-    `<option value="${n}"${n === every ? ' selected' : ''}>${escapeHtml(n === 1 ? t('contracts.advance.monthly') : advanceRhythm(n))}</option>`).join('')}</select>`;
+    `<option value="${n}"${n === every ? ' selected' : ''}>${escapeHtml(tp('advance.rhythm.every', n))}</option>`).join('')}</select>`;
 }
 function waterDueHidden(dates) {
   const list = (Array.isArray(dates) ? dates : []).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(String(d)));

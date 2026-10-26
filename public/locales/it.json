@@ -1096,7 +1096,6 @@
     },
     "advance": {
       "every": "Ritmo",
-      "monthly": "ogni mese",
       "dueDates": "Scadenze secondo la bolletta: {dates}, poi ogni anno negli stessi giorni"
     }
   },
@@ -5857,7 +5856,7 @@
       "elapsed": "{s} s",
       "wait": "Il server sta ancora elaborando – controllo del risultato …"
     },
-    "empty": "Ancora nessuna posta. Archivia in PDF la prima bolletta o conferma del contratto.",
+    "empty": "Ancora nessuna posta.",
     "col": {
       "document": "Documento",
       "type": "Tipo",
