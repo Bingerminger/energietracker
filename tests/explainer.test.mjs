@@ -494,10 +494,11 @@ t('Geld: 0 € Abschläge werden genannt', parse(EXTREME['Geld ohne Abschläge (
   const svg = fig.querySelector('svg').textContent;
   t('Geld unsicher: Kosten als Spanne (Bild und Satz)', svg.includes(`${fmt.eur0(1150)} bis ${fmt.eur0(1450)}`) && cap.includes(`${fmt.eur0(1150)} bis ${fmt.eur0(1450)}`), `${svg} | ${cap}`);
   t('Geld unsicher: Ergebnis als Spanne, kein „rund 100 € Nachzahlung“ allein', /je nach Schätzung zwischen rund .+ Guthaben und rund .+ Nachzahlung/.test(cap)
-    && !cap.includes(`Das ergibt rund ${fmt.eur(100)} Nachzahlung`), cap);
+    && !cap.includes(`Das ergibt rund ${fmt.eur0(100)} Nachzahlung`), cap);
   t('Geld unsicher: keine Lücke, die einen Punktwert zeigt', !fig.querySelector('.ex-gap--due, .ex-gap--credit'));
   const sure = parse(money(1200, 1300, 700, 300, 100));
-  t('Geld sicher: wie bisher ein Betrag', (sure.querySelector('.explainer__text')?.textContent || '').includes(`Das ergibt rund ${fmt.eur(100)} Nachzahlung`) && !!sure.querySelector('.ex-gap--due'));
+  // v3.9.0 — „rund“ ohne Cent (bis v3.8 „rund 100,00 €“)
+  t('Geld sicher: ein gerundeter Betrag', (sure.querySelector('.explainer__text')?.textContent || '').includes(`Das ergibt rund ${fmt.eur0(100)} Nachzahlung`) && !!sure.querySelector('.ex-gap--due'));
 }
 
 console.log(`\nexplainer.test: ${pass} bestanden, ${fail} fehlgeschlagen`);

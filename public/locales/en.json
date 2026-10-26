@@ -2749,7 +2749,8 @@
       "poorFit": "The heating model fits this meter poorly (± {pct} a month): the forecast uses the measured months and shows no band.",
       "regressionInvalid": "The chosen heating curve ({model}) does not hold — {why}. The forecast works without it.",
       "climateNormalGrid": "There is no climate normal yet for the heating limit {base} °C (precomputed for {min} to {max} °C; the app fetches an older normal again at the next weather sync). Until then, the degree days of the own temperature history count.",
-      "fewMeasured": "Too few measured months to check the heating model: the forecast shows no band, and balance and advance payment appear only as a range."
+      "fewMeasured": "Too few measured months to check the heating model: the forecast shows no band, and balance and advance payment appear only as a range.",
+      "levelLastYear": "The annual amount follows the consumption of the last 365 days ({amount}, {from} to {to}). Not every calendar month has been measured, so the forecast only spreads this amount across the months."
     },
     "assumedNote": "No contract for this month — the last contract continues at its prices (assumption; contracts renew).",
     "method": {

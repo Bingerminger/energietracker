@@ -2749,7 +2749,8 @@
       "poorFit": "O modelo de aquecimento se ajusta mal a este contador (± {pct} por mês): a previsão usa os meses medidos e não mostra uma faixa.",
       "regressionInvalid": "A curva de aquecimento escolhida ({model}) não é válida — {why}. A previsão calcula sem ela.",
       "climateNormalGrid": "Ainda não há normal climática para a temperatura base GD {base} °C (pré-calculada de {min} a {max} °C; a aplicação volta a obter uma normal antiga na próxima sincronização meteorológica). Até lá, contam os GD do próprio histórico de temperaturas.",
-      "fewMeasured": "Poucos meses medidos para verificar o modelo de aquecimento: a previsão não mostra uma faixa, e saldo e adiantamento só aparecem como intervalo."
+      "fewMeasured": "Poucos meses medidos para verificar o modelo de aquecimento: a previsão não mostra uma faixa, e saldo e adiantamento só aparecem como intervalo.",
+      "levelLastYear": "A quantidade anual segue o consumo dos últimos 365 dias ({amount}, de {from} a {to}). Nem todos os meses foram medidos, por isso a previsão apenas reparte esta quantidade pelos meses."
     },
     "assumedNote": "Sem contrato para este mês — o último contrato continua com os seus preços (pressuposto; os contratos renovam-se).",
     "method": {

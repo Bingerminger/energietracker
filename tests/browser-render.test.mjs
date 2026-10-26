@@ -1566,7 +1566,8 @@ async function renderView(modPath, params = [], ctx = {}) {
     await new Promise(r => setTimeout(r, 700));
     const [mc] = chartOn('month-chart');
     // v2.16.0 — vorn steht das Vorjahr; das laufende Jahr trägt Farben als Funktion
-    const ds = (mc?.config?.data?.datasets || []).find(d => typeof d.backgroundColor === 'function');
+    // (v3.9.0, L9: das Vorjahr auch, für seine verteilten Monate; daher nach dem Namen)
+    const ds = (mc?.config?.data?.datasets || []).find(d => typeof d.backgroundColor === 'function' && !/zum Vergleich|Vorperiode/.test(d.label || ''));
     const months = mc?.config?.data?.labels || [];
     const rows = [...view.querySelectorAll('.table tbody tr')];
     const partialRow = rows.find(r => /^\d+ \/ \d+$/.test(r.children[1]?.textContent.trim() || ''));
@@ -1663,7 +1664,7 @@ async function renderView(modPath, params = [], ctx = {}) {
       view.querySelector('#balance-chart')?.getAttribute('aria-label'));
     const [mc] = chartOn('month-chart');
     const mds = mc?.config?.data?.datasets || [];
-    t('utility(gas): Vorjahr im Monatschart, links (order)', /zum Vergleich/.test(mds[0]?.label || '') && mds[0].order < (mds.find(d => typeof d.backgroundColor === 'function')?.order ?? 0),
+    t('utility(gas): Vorjahr im Monatschart, links (order)', /zum Vergleich/.test(mds[0]?.label || '') && mds[0].order < (mds.find(d => typeof d.backgroundColor === 'function' && !/zum Vergleich|Vorperiode/.test(d.label || ''))?.order ?? 0),
       mds.map(d => `${d.label}:${d.order}`).join(' | '));
     t('utility(gas): Monatstabelle mit Spalte „bereinigt“', [...view.querySelectorAll('.table thead th')].some(th => /bereinigt/.test(th.textContent)));
     const btn = view.querySelector('[data-chart-mode="adjusted"]');
@@ -2740,7 +2741,7 @@ async function renderView(modPath, params = [], ctx = {}) {
       && /aus \d+ Tagen zwischen zwei Ablesungen/.test(view.querySelector('[data-role="interpolated"]')?.getAttribute('title') || '')
       && !!view.querySelector('[data-role="interpolated-legend"]'));
     const [mc] = chartOn('month-chart');
-    const cur = (mc?.config?.data?.datasets || []).find(d => typeof d.backgroundColor === 'function');
+    const cur = (mc?.config?.data?.datasets || []).find(d => typeof d.backgroundColor === 'function' && !/zum Vergleich|Vorperiode/.test(d.label || ''));
     t('interpolation: Monatschart schraffiert (Farbe aus u.color) mit Satz darunter', /0\.2\)$/.test(cur?.backgroundColor?.({ dataIndex: 3 }) || '')
       && /Schraffierte Säulen/.test(view.querySelector('[data-role="month-chart-note"]')?.textContent || ''), cur?.backgroundColor?.({ dataIndex: 3 }));
     // v3.9.0 (L9) — Legende mit der Fläche eines gemessenen Monats, Vorjahr mit seinen verteilten Monaten schraffiert
@@ -2890,6 +2891,24 @@ async function renderView(modPath, params = [], ctx = {}) {
     const sinfo = fcv.view.querySelector('#fc-info')?.textContent || '';
     t('wirklichkeit-2 (Schritt 3): Prognose Strom — Jahresband nach der Streuung über die Jahre', /nach der Streuung der Monate über die Jahre/.test(sinfo) && !/je nach Winter/.test(sinfo),
       sinfo.replace(/\s+/g, ' ').slice(0, 300));
+    // v3.9.0 (auswertung, Zusatzbefund) — Strom einmal im Jahr abgelesen: die Jahresmenge der letzten 365 Tage, mit Hinweis
+    const yearly = (await (await post('/utility/strom/meters', { name: 'Jahresablesung Test', installed_on: '2023-03-01', parent_meter_id: 'm_strom_main' })).json())?.data?.id;
+    for (const [date, counter] of [['2023-03-01', 0], ['2024-03-01', 900], ['2025-03-01', 1800], ['2026-03-01', 2900]]) {
+      await post('/utility/strom/readings', { meter_id: yearly, date, counter });
+    }
+    const fy = fcv.view.querySelector('#meter-select');
+    if (fy && yearly) {
+      for (let i = 0; i < 40 && !fy.querySelector(`option[value="${yearly}"]`); i++) {
+        fu.value = 'gas'; fu.dispatchEvent(new global.window.Event('change')); await sleep(300);
+        fu.value = 'strom'; fu.dispatchEvent(new global.window.Event('change')); await sleep(300);
+      }
+      const sel = fcv.view.querySelector('#meter-select');
+      sel.value = yearly; sel.dispatchEvent(new global.window.Event('change'));
+    }
+    for (let i = 0; i < 100 && !/letzten 365 Tage/.test(fcInfo()); i++) await sleep(50);
+    t('Zusatzbefund: Prognose Strom mit Jahresablesungen — Jahresmenge der letzten 365 Tage (1.100 kWh) mit Hinweis',
+      /Die Jahresmenge folgt dem Verbrauch der letzten 365 Tage \(1\.100\skWh, März 2025 bis [^)]*2026\)/.test(fcInfo()), fcInfo().replace(/\s+/g, ' ').slice(0, 400));
+    if (yearly) await fetch(`${HOST}/api/utility/strom/meters/${yearly}`, { method: 'DELETE' });
 
     // ── wirklichkeit-2 (Punkt 1) — Heizgrenze-Vorschlag: ein Zähler, der genau unter 10,5 °C heizt ──
     const temps = await json('/temperatures');

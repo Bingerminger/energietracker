@@ -2749,7 +2749,8 @@
       "poorFit": "Het verwarmingsmodel past slecht bij deze meter (± {pct} per maand): de prognose rekent met de gemeten maanden en toont geen bandbreedte.",
       "regressionInvalid": "De gekozen stooklijn ({model}) geldt niet — {why}. De prognose rekent zonder.",
       "climateNormalGrid": "Voor de graaddagen-basistemperatuur {base} °C is er nog geen klimaatnormaal (vooraf berekend voor {min} tot {max} °C; een ouder normaal haalt de app bij de volgende weerafstemming opnieuw op). Tot dan tellen de graaddagen uit de eigen temperatuurgeschiedenis.",
-      "fewMeasured": "Te weinig gemeten maanden om het verwarmingsmodel te controleren: de prognose toont geen bandbreedte, saldo en voorschot staan er alleen als marge."
+      "fewMeasured": "Te weinig gemeten maanden om het verwarmingsmodel te controleren: de prognose toont geen bandbreedte, saldo en voorschot staan er alleen als marge.",
+      "levelLastYear": "De jaarhoeveelheid volgt het verbruik van de laatste 365 dagen ({amount}, {from} tot {to}). Niet elke kalendermaand is gemeten, daarom verdeelt de prognose alleen deze hoeveelheid over de maanden."
     },
     "assumedNote": "Geen contract voor deze maand — het laatste contract loopt tegen zijn prijzen door (aanname; contracten verlengen zich).",
     "method": {

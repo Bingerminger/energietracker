@@ -2749,7 +2749,8 @@
       "poorFit": "Le modèle de chauffage correspond mal à ce compteur (± {pct} par mois) : la prévision s’appuie sur les mois mesurés et n’affiche pas de fourchette.",
       "regressionInvalid": "La courbe de chauffe choisie ({model}) n’est pas valable — {why}. La prévision s’en passe.",
       "climateNormalGrid": "Il n’y a pas encore de normale climatique pour la température de base DJU {base} °C (précalculée de {min} à {max} °C ; l’application recharge une ancienne normale au prochain rapprochement météo). D’ici là, les DJU de votre propre historique de températures comptent.",
-      "fewMeasured": "Trop peu de mois mesurés pour vérifier le modèle de chauffage : la prévision n’affiche pas de fourchette, solde et acompte n’apparaissent que sous forme d’intervalle."
+      "fewMeasured": "Trop peu de mois mesurés pour vérifier le modèle de chauffage : la prévision n’affiche pas de fourchette, solde et acompte n’apparaissent que sous forme d’intervalle.",
+      "levelLastYear": "La quantité annuelle suit la consommation des 365 derniers jours ({amount}, de {from} à {to}). Tous les mois ne sont pas mesurés, la prévision se contente donc de répartir cette quantité sur les mois."
     },
     "assumedNote": "Pas de contrat pour ce mois — le dernier contrat continue à ses prix (hypothèse ; les contrats se reconduisent).",
     "method": {

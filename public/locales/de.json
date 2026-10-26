@@ -2749,7 +2749,8 @@
       "poorFit": "Das Heizmodell passt schlecht zu diesem Zähler (± {pct} je Monat): Die Prognose rechnet mit den gemessenen Monaten und zeigt kein Band.",
       "regressionInvalid": "Die gewählte Heizkurve ({model}) gilt nicht — {why}. Die Prognose rechnet ohne sie.",
       "climateNormalGrid": "Für die Heizgrenze {base} °C gibt es noch kein Klimanormal (vorberechnet für {min} bis {max} °C; ein älteres Normal holt die App beim nächsten Wetterabgleich neu). Bis dahin zählen die Heizgradtage der eigenen Temperaturhistorie.",
-      "fewMeasured": "Zu wenige gemessene Monate, um das Heizmodell zu prüfen: Die Prognose zeigt kein Band, Saldo und Abschlag stehen nur als Spanne da."
+      "fewMeasured": "Zu wenige gemessene Monate, um das Heizmodell zu prüfen: Die Prognose zeigt kein Band, Saldo und Abschlag stehen nur als Spanne da.",
+      "levelLastYear": "Die Jahresmenge folgt dem Verbrauch der letzten 365 Tage ({amount}, {from} bis {to}). Nicht jeder Kalendermonat ist gemessen, deshalb verteilt die Prognose nur diese Menge auf die Monate."
     },
     "assumedNote": "Kein Vertrag für diesen Monat — der letzte Vertrag läuft zu seinen Preisen weiter (Annahme; Verträge verlängern sich).",
     "method": {

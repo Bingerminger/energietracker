@@ -2749,7 +2749,8 @@
       "poorFit": "El modelo de calefacción se ajusta mal a este contador (± {pct} al mes): la previsión usa los meses medidos y no muestra una banda.",
       "regressionInvalid": "La curva de calefacción elegida ({model}) no es válida: {why}. La previsión calcula sin ella.",
       "climateNormalGrid": "Aún no hay normal climática para la temperatura base GD {base} °C (precalculada de {min} a {max} °C; la aplicación vuelve a obtener una normal antigua en la próxima sincronización meteorológica). Hasta entonces cuentan los GD del propio historial de temperaturas.",
-      "fewMeasured": "Muy pocos meses medidos para comprobar el modelo de calefacción: la previsión no muestra una banda, y saldo y anticipo solo aparecen como intervalo."
+      "fewMeasured": "Muy pocos meses medidos para comprobar el modelo de calefacción: la previsión no muestra una banda, y saldo y anticipo solo aparecen como intervalo.",
+      "levelLastYear": "La cantidad anual sigue el consumo de los últimos 365 días ({amount}, de {from} a {to}). No todos los meses están medidos, por eso la previsión solo reparte esta cantidad entre los meses."
     },
     "assumedNote": "No hay contrato para este mes: el último continúa con sus precios (supuesto; los contratos se prorrogan).",
     "method": {

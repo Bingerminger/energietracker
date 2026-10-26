@@ -2749,7 +2749,8 @@
       "poorFit": "Il modello di riscaldamento si adatta male a questo contatore (± {pct} al mese): la previsione usa i mesi misurati e non mostra una fascia.",
       "regressionInvalid": "La curva di riscaldamento scelta ({model}) non vale — {why}. La previsione procede senza.",
       "climateNormalGrid": "Per la temperatura base GG {base} °C non c’è ancora una normale climatica (precalcolata da {min} a {max} °C; l’app riscarica una normale più vecchia al prossimo allineamento meteo). Fino ad allora contano i GG del proprio storico delle temperature.",
-      "fewMeasured": "Troppo pochi mesi misurati per verificare il modello di riscaldamento: la previsione non mostra una fascia, saldo e acconto compaiono solo come intervallo."
+      "fewMeasured": "Troppo pochi mesi misurati per verificare il modello di riscaldamento: la previsione non mostra una fascia, saldo e acconto compaiono solo come intervallo.",
+      "levelLastYear": "La quantità annua segue il consumo degli ultimi 365 giorni ({amount}, da {from} a {to}). Non tutti i mesi sono misurati, perciò la previsione si limita a ripartire questa quantità sui mesi."
     },
     "assumedNote": "Nessun contratto per questo mese — l’ultimo contratto prosegue ai suoi prezzi (ipotesi; i contratti si rinnovano).",
     "method": {

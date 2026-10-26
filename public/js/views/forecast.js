@@ -939,6 +939,10 @@ function renderResult(u, result, container) {
       const names = (w.missing || []).map(m => fmt.month(`2024-${String(m).padStart(2, '0')}`).replace(/\s*2024$/, '')).join(', ');
       return t('forecast.warn.historyShort', { months: w.months, missing: names || '–' });
     }
+    // v3.9.0 (auswertung) — ohne zwölf gemessene Kalendermonate: die Jahresmenge der letzten 365 Tage
+    if (w.code === 'level_last_year') {
+      return t('forecast.warn.levelLastYear', { amount: fmt.unit(w.value, u.consumption_unit), from: fmt.month(w.from), to: fmt.month(w.to) });
+    }
     if (w.code === 'no_climate_normal') return t('forecast.warn.noClimateNormal');
     // v3.7.0 (wirklichkeit-2) — Normal vorhanden, aber nicht für diese Heizgrenze
     if (w.code === 'climate_normal_grid') return t('forecast.warn.climateNormalGrid', { base: fmt.num(w.base, 1), min: fmt.num(w.min, 0), max: fmt.num(w.max, 0) });
