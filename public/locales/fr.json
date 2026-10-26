@@ -6447,7 +6447,8 @@
       "meterChange": "Changement de compteur le {date}, nouveau compteur {serial}",
       "contract": {
         "new": "Contrat {provider} du {from} au {to}",
-        "existing": "Contrat existant {provider} à partir du {from}"
+        "existing": "Contrat existant {provider} à partir du {from}",
+        "sameSupplier": "Contrat existant {existing} à partir du {from} : le même fournisseur que {provider} ?"
       },
       "contractEnd": "L’ancien contrat {provider} se termine le {date}",
       "prices": "Prix {provider}",
@@ -6504,7 +6505,8 @@
       "swap_open": "Après un changement de compteur sans relevé final de l’ancien compteur – saisissez d’abord le changement",
       "swap_readings": "Les relevés ne correspondent pas tout à fait au changement (autre appareil, en baisse ou sous un relevé connu) – à vérifier",
       "existing_update": "Complète ce qui est déjà enregistré – à vérifier",
-      "existing_overlap": "Chevauche ce qui est déjà enregistré – à vérifier"
+      "existing_overlap": "Chevauche ce qui est déjà enregistré – à vérifier",
+      "same_supplier": "Dans vos données, le fournisseur porte un autre nom. Est-ce le même, par exemple une marque et sa régie municipale ?"
     },
     "result": {
       "title": "Repris",
@@ -6564,7 +6566,8 @@
       "memberHint": "La configuration revient à une personne qui administre l’installation. Vous voyez ici ce qui est réglé ; vous pouvez déjà déposer des documents.",
       "ready": "Configuré : l’application lit désormais avec {service}, modèle {model}.",
       "unavailable": "Les paramètres de lecture sont injoignables pour l’instant. Réessayez dans un instant."
-    }
+    },
+    "requires": "Fait partie de « {contract} » et n’est repris qu’avec ce contrat."
   },
   "interpolation": {
     "leadYear": {

@@ -14,7 +14,7 @@ import { proposalNotes } from './inbox-marks.js';
 import { priceBasisText } from './price-basis.js';
 
 /** Gründe, die der Entwurf selbst vergibt (die übrigen kommen aus der Belegprüfung, `inbox.reason.*`). */
-export const DRAFT_REASONS = ['differs', 'conflict_existing', 'invoice_differs', 'chain_mismatch', 'inferred', 'falling_reading', 'assumed_date', 'number_change', 'swap_open', 'swap_readings',
+export const DRAFT_REASONS = ['differs', 'conflict_existing', 'invoice_differs', 'chain_mismatch', 'inferred', 'falling_reading', 'assumed_date', 'number_change', 'swap_open', 'swap_readings', 'same_supplier',
   'existing_update', 'existing_overlap'];
 
 /** Status eines Eintrags: neu, schon vorhanden, Widerspruch, Überschneidung, ergänzen. */
@@ -142,6 +142,32 @@ export function initialSelection(draft) {
     confirm: new Map(),   // id → Set(Feldnamen)
     choose: new Map(),    // id → Map(Feldname → Option)
   };
+}
+
+/**
+ * v3.9.0 — Preise, Abschläge und Rechnungen eines Vertrags, der erst entsteht
+ * (oder dessen Versorger eine Rückfrage ist), gehen nur mit ihm (`requires`):
+ * ohne seinen Haken gesperrt, mit ihm wieder wie vorbelegt (`checked_with`).
+ */
+export const blockedBy = (item, sel) => (item?.requires && !sel.items.has(item.requires) ? item.requires : null);
+
+/** Einträge, die am Vertrag `id` hängen. */
+export const dependentsOf = (draft, id) => (draft?.items || []).filter(i => i.requires === id);
+
+/** Haken setzen oder nehmen; ein Vertrag nimmt seine Preise, Abschläge und Rechnungen mit. */
+export function pickItem(draft, sel, id, on) {
+  sel.touched?.add(id);
+  if (on) sel.items.add(id); else sel.items.delete(id);
+  for (const d of dependentsOf(draft, id)) {
+    if (!on) sel.items.delete(d.id);
+    else if (d.checked_with && d.actionable) sel.items.add(d.id);
+  }
+}
+
+/** Nach dem Neuladen: kein Eintrag ohne seinen Vertrag (die behaltene Auswahl kann älter sein). */
+export function dropBlocked(draft, sel) {
+  for (const i of draft?.items || []) if (blockedBy(i, sel)) sel.items.delete(i.id);
+  return sel;
 }
 
 /** Ist das Feld zweifelhaft und braucht eine eigene Bestätigung (nicht Kern, nicht vorhanden)? */
