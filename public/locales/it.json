@@ -528,7 +528,8 @@
       "colSpecial": "Pagamenti straordinari",
       "hint": "Bonus = accrediti dal contratto (bonus immediato, di cambio, nuovo cliente). Pagamenti straordinari = rimborsi (+), conguagli e acconti aggiuntivi (−) fuori dal piano acconti; entrambi entrano nel saldo. Tocca per vedere le singole voci; si gestiscono nella gestione contratti.",
       "colEarned": "Remunerazione",
-      "colReceived": "Ricevuto"
+      "colReceived": "Ricevuto",
+      "futureLegend": "≈ Contratto futuro: il saldo atteso è stimato dall’inizio del contratto con i suoi prezzi, il suo acconto e il tuo consumo finora."
     },
     "monthlyTable": {
       "noData": "Nessun dato per quest’anno.",
@@ -2892,7 +2893,9 @@
       "cheapShare": "Quota nelle ore convenienti",
       "errors": "Nota: alcune sezioni mancano perché non è stato possibile leggerne i dati.",
       "billing": "Anni di fatturazione",
-      "flexPage": "Flessibilità"
+      "flexPage": "Flessibilità",
+      "successesNoneUnadjusted": "Nel {year} hai consumato {pct} in meno rispetto al {prev}. Non si può dimostrare come risparmio: il confronto non è corretto per il clima, un inverno più mite ha lo stesso effetto. La sezione «Da sapere» mostra il confronto con l’anno precedente.",
+      "successesNoneUnproven": "Nel {year} hai consumato {pct} in meno rispetto al {prev}. Non si può dimostrare come risparmio: una parte dei mesi è distribuita, non misurata. La sezione «Da sapere» mostra il confronto con l’anno precedente."
     },
     "tile": {
       "cost": "Costi energetici",
@@ -2922,7 +2925,8 @@
         "ok": "Non più consumo",
         "warn": "Consumo un po’ più alto",
         "alert": "Consumo nettamente più alto",
-        "none": "Nessun confronto"
+        "none": "Nessun confronto",
+        "less": "Consumato meno"
       },
       "billing": {
         "ok": "Acconti adeguati",
@@ -3881,7 +3885,9 @@
     },
     "history": "Cronologia ({count})",
     "historyTitle": "Cronologia: {name}",
-    "anytime": "Disdicibile in qualsiasi momento"
+    "anytime": "Disdicibile in qualsiasi momento",
+    "noNotice": "Termine di disdetta non inserito",
+    "earliestEnd": "Disdicibile al più presto al {date}"
   },
   "billCheck": {
     "noMeter": "La verifica ricalcola la bolletta annuale di gas, elettricità, acqua e teleriscaldamento. Crea prima un contatore.",
@@ -4730,8 +4736,8 @@
     "waterBasis": "{m3} m³ nell’anno · persone nel nucleo: {persons}",
     "rating": {
       "good": "Bene",
-      "near": "Sopra",
-      "high": "Nettamente sopra"
+      "near": "Un po’ alto",
+      "high": "Alto"
     },
     "invite": {
       "reference": "Come si colloca il tuo consumo? Inserisci un valore di riferimento, per esempio da un confronto dei consumi: questo riquadro mostrerà un semaforo.",

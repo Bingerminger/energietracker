@@ -528,7 +528,8 @@
       "colSpecial": "Sonderzahlungen",
       "hint": "Bonus = Gutschriften aus dem Vertrag (Sofort-, Wechsel-, Neukundenbonus). Sonderzahlungen = Rückzahlungen (+), Nach- und Abschlagszahlungen (−) außerhalb des Abschlagsplans; beide gehen in den Saldo ein. Antippen zeigt die Einzelposten; gepflegt werden sie in der Vertragsverwaltung.",
       "colEarned": "Vergütung",
-      "colReceived": "Erhalten"
+      "colReceived": "Erhalten",
+      "futureLegend": "≈ Künftiger Vertrag: Der erwartete Saldo ist geschätzt, ab Vertragsbeginn mit seinen Preisen, seinem Abschlag und deinem bisherigen Verbrauch."
     },
     "monthlyTable": {
       "noData": "Keine Daten für dieses Jahr.",
@@ -2892,7 +2893,9 @@
       "cheapShare": "Anteil in günstigen Stunden",
       "errors": "Hinweis: Einzelne Abschnitte fehlen, weil ihre Daten nicht gelesen werden konnten.",
       "billing": "Abrechnungsjahre",
-      "flexPage": "Flexibilität"
+      "flexPage": "Flexibilität",
+      "successesNoneUnadjusted": "{year} wurde {pct} weniger verbraucht als {prev}. Als Einsparung belegen lässt sich das nicht: Der Vergleich ist nicht witterungsbereinigt, ein milderer Winter wirkt genauso. Den Vergleich mit dem Vorjahr zeigt der Abschnitt „Gut zu wissen“.",
+      "successesNoneUnproven": "{year} wurde {pct} weniger verbraucht als {prev}. Als Einsparung belegen lässt sich das nicht: Ein Teil der Monate ist verteilt, nicht gemessen. Den Vergleich mit dem Vorjahr zeigt der Abschnitt „Gut zu wissen“."
     },
     "tile": {
       "cost": "Energiekosten",
@@ -2922,7 +2925,8 @@
         "ok": "Nicht mehr verbraucht",
         "warn": "Etwas mehr verbraucht",
         "alert": "Deutlich mehr verbraucht",
-        "none": "Kein Vergleich"
+        "none": "Kein Vergleich",
+        "less": "Weniger verbraucht"
       },
       "billing": {
         "ok": "Abschläge passen",
@@ -3881,7 +3885,9 @@
     },
     "history": "Verlauf ({count})",
     "historyTitle": "Verlauf: {name}",
-    "anytime": "Jederzeit kündbar"
+    "anytime": "Jederzeit kündbar",
+    "noNotice": "Kündigungsfrist nicht eingetragen",
+    "earliestEnd": "Frühestens zum {date} kündbar"
   },
   "billCheck": {
     "noMeter": "Die Rechnungsprüfung rechnet die Jahresabrechnung für Gas, Strom, Wasser und Fernwärme nach. Lege zuerst einen Zähler an.",
@@ -4730,8 +4736,8 @@
     "waterBasis": "{m3} m³ im Jahr · Personen im Haushalt: {persons}",
     "rating": {
       "good": "Gut",
-      "near": "Darüber",
-      "high": "Deutlich darüber"
+      "near": "Etwas hoch",
+      "high": "Hoch"
     },
     "invite": {
       "reference": "Wie steht dein Verbrauch da? Trag einen Vergleichswert ein, etwa aus dem Strom- oder Heizspiegel — dann zeigt diese Kachel eine Ampel.",

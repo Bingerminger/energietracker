@@ -29,6 +29,8 @@ final class ReportAdviceService
     // ── Ampeln ──
     /** Verbrauch (witterungsbereinigt gegen Vorjahr, %): grün ≤ ok, gelb ≤ warn, sonst rot. */
     public const LIGHT_CONSUMPTION = ['ok' => 0.0, 'warn' => 5.0];
+    /** v3.9.0 (L17) — ab so viel Prozent weniger heißt die Ampel „Weniger verbraucht“ (wie „etwa wie im Vorjahr“ unter 2 %). */
+    public const LIGHT_LESS_PCT = 2.0;
     /** Kosten gegen Vorjahr (%). */
     public const LIGHT_COST = ['ok' => 3.0, 'warn' => 10.0];
     /** Abrechnung: erwartete Nachzahlung in Monatsabschlägen. */
@@ -195,8 +197,10 @@ final class ReportAdviceService
         // Verbrauch — witterungsbereinigt, wenn möglich
         $cPct = $t['consumption_pct'] ?? null;
         $lv = self::consumptionLevel($cPct);
+        // v3.9.0 (L17) — deutlich weniger: „Weniger verbraucht“ statt „Nicht mehr verbraucht −18 %“
+        $cWord = $lv === 'ok' && $cPct !== null && (float)$cPct <= -self::LIGHT_LESS_PCT ? 'report.light.consumption.less' : "report.light.consumption.$lv";
         $out[] = ['key' => 'consumption', 'level' => $lv, 'as_of_today' => false,
-            'word' => $this->i18n->t("report.light.consumption.$lv"),
+            'word' => $this->i18n->t($cWord),
             'detail' => $cPct === null ? $this->i18n->t('report.light.noPrevious', ['prev' => $year - 1])
                 : $this->i18n->t(!empty($t['consumption_adjusted']) ? 'report.light.consumptionAdjusted' : 'report.light.consumptionRaw',
                     ['pct' => $this->pct((float)$cPct), 'prev' => $year - 1])];

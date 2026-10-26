@@ -379,4 +379,13 @@ export function playExplainers(root) {
     });
   }, { threshold: 0.3 });
   figs.forEach(f => { f.classList.add('ex--ready'); io.observe(f); });
+  // v3.9.0 (A1) — spätestens nach zwei Sekunden das Endbild: Meldet der Beobachter
+  // eine Abbildung nie als sichtbar (ganze Seite als Bild, eingebettete Ansicht,
+  // eingeklappter Bereich), standen bisher nur die Beschriftungen da, die Balken
+  // blieben auf Breite 0
+  setTimeout(() => figs.forEach(f => {
+    if (!f.isConnected || f.classList.contains('ex--play')) return;
+    io.unobserve(f);
+    play(f);
+  }), 2000);
 }

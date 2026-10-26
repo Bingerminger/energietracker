@@ -528,7 +528,8 @@
       "colSpecial": "Pagos extraordinarios",
       "hint": "Bono = abonos del contrato (bono inmediato, de cambio, de nuevo cliente). Pagos extraordinarios = devoluciones (+), pagos adicionales y anticipos extra (−) fuera del plan de anticipos; ambos entran en el saldo. Toca para ver las partidas; se gestionan en la administración de contratos.",
       "colEarned": "Remuneración",
-      "colReceived": "Recibido"
+      "colReceived": "Recibido",
+      "futureLegend": "≈ Contrato futuro: el saldo previsto es una estimación desde el inicio del contrato con sus precios, su anticipo y tu consumo hasta ahora."
     },
     "monthlyTable": {
       "noData": "Sin datos para este año.",
@@ -2892,7 +2893,9 @@
       "cheapShare": "Proporción en horas baratas",
       "errors": "Nota: faltan algunos apartados porque no se pudieron leer sus datos.",
       "billing": "Años de facturación",
-      "flexPage": "Flexibilidad"
+      "flexPage": "Flexibilidad",
+      "successesNoneUnadjusted": "En {year} consumiste {pct} menos que en {prev}. No se puede demostrar como ahorro: la comparación no está corregida por el clima y un invierno más suave tiene el mismo efecto. La sección «Conviene saber» muestra la comparación con el año anterior.",
+      "successesNoneUnproven": "En {year} consumiste {pct} menos que en {prev}. No se puede demostrar como ahorro: una parte de los meses está repartida, no medida. La sección «Conviene saber» muestra la comparación con el año anterior."
     },
     "tile": {
       "cost": "Costes de energía",
@@ -2922,7 +2925,8 @@
         "ok": "No más consumo",
         "warn": "Algo más de consumo",
         "alert": "Bastante más consumo",
-        "none": "Sin comparación"
+        "none": "Sin comparación",
+        "less": "Menos consumo"
       },
       "billing": {
         "ok": "Anticipos adecuados",
@@ -3881,7 +3885,9 @@
     },
     "history": "Historial ({count})",
     "historyTitle": "Historial: {name}",
-    "anytime": "Cancelable en cualquier momento"
+    "anytime": "Cancelable en cualquier momento",
+    "noNotice": "Plazo de baja no registrado",
+    "earliestEnd": "Se puede dar de baja como pronto el {date}"
   },
   "billCheck": {
     "noMeter": "La revisión recalcula la factura anual de gas, electricidad, agua y calefacción urbana. Crea primero un contador.",
@@ -4730,8 +4736,8 @@
     "waterBasis": "{m3} m³ en el año · personas en el hogar: {persons}",
     "rating": {
       "good": "Bien",
-      "near": "Por encima",
-      "high": "Muy por encima"
+      "near": "Algo alto",
+      "high": "Alto"
     },
     "invite": {
       "reference": "¿Cómo está tu consumo? Introduce un valor de referencia, por ejemplo de una comparativa de consumo: este recuadro mostrará un semáforo.",

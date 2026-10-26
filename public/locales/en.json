@@ -528,7 +528,8 @@
       "colSpecial": "Special payments",
       "hint": "Bonus = credits from the contract (instant, switching, new-customer bonus). Special payments = refunds (+), back-payments and extra advance payments (−) outside the advance schedule; both feed into the balance. Tap to see the individual items; they are maintained in the contract management.",
       "colEarned": "Earned",
-      "colReceived": "Received"
+      "colReceived": "Received",
+      "futureLegend": "≈ Future contract: the expected balance is estimated from the start of the contract with its prices, its advance and your consumption so far."
     },
     "monthlyTable": {
       "noData": "No data for this year.",
@@ -2892,7 +2893,9 @@
       "cheapShare": "Share in cheap hours",
       "errors": "Note: some sections are missing because their data could not be read.",
       "billing": "Billing years",
-      "flexPage": "Flexibility"
+      "flexPage": "Flexibility",
+      "successesNoneUnadjusted": "In {year} you used {pct} less than in {prev}. That cannot be shown as a saving: the comparison is not weather-adjusted, and a milder winter has the same effect. The section “Good to know” shows the comparison with the previous year.",
+      "successesNoneUnproven": "In {year} you used {pct} less than in {prev}. That cannot be shown as a saving: some months are interpolated, not measured. The section “Good to know” shows the comparison with the previous year."
     },
     "tile": {
       "cost": "Energy costs",
@@ -2922,7 +2925,8 @@
         "ok": "No more used",
         "warn": "Slightly more used",
         "alert": "Clearly more used",
-        "none": "No comparison"
+        "none": "No comparison",
+        "less": "Used less"
       },
       "billing": {
         "ok": "Advance payments fit",
@@ -3881,7 +3885,9 @@
     },
     "history": "History ({count})",
     "historyTitle": "History: {name}",
-    "anytime": "Can be cancelled any time"
+    "anytime": "Can be cancelled any time",
+    "noNotice": "No notice period entered",
+    "earliestEnd": "Can end on {date} at the earliest"
   },
   "billCheck": {
     "noMeter": "The bill check recalculates the annual bill for gas, electricity, water and district heating. Set up a meter first.",
@@ -4730,8 +4736,8 @@
     "waterBasis": "{m3} m³ in the year · people in household: {persons}",
     "rating": {
       "good": "Good",
-      "near": "Above",
-      "high": "Well above"
+      "near": "A bit high",
+      "high": "High"
     },
     "invite": {
       "reference": "How does your consumption compare? Enter a reference value, for example from a consumption benchmark — this tile then shows a traffic light.",

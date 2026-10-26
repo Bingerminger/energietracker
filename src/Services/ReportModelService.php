@@ -207,7 +207,7 @@ final class ReportModelService
             'created_on'    => date('Y-m-d'),
             'location_name' => (string)$this->settings->get('location_name', ''),
             'options'       => ['utilities' => $opts['utilities'] ?? null, 'detail' => !empty($opts['detail'])],
-            'texts'         => $this->texts($year),
+            'texts'         => $this->noSuccessText($this->texts($year), $advice, $totals, $year),
             'utilities'     => array_map(fn($u) => $this->utilityInfo($u), $utilities),
             'headline'      => [
                 'tiles'     => $this->tiles($totals, $pvYear, $years),
@@ -1901,6 +1901,21 @@ final class ReportModelService
         if (isset($this->sources['market'])) $out[] = $this->i18n->t('report.sources.market');
         $out[] = $this->i18n->t('report.sources.own');
         return $out;
+    }
+
+    /**
+     * v3.9.0 (L17) — Ohne Erfolg, obwohl weniger verbraucht wurde: Die Ampel sagt
+     * „Weniger verbraucht −18 %“, der Abschnitt bisher „lässt sich keine Einsparung
+     * belegen“. Gemeint ist: als Einsparung nicht belegbar, weil der Vergleich nicht
+     * witterungsbereinigt ist (oder Monate verteilt sind). Das sagt der Satz jetzt.
+     */
+    private function noSuccessText(array $texts, array $advice, array $totals, int $year): array
+    {
+        $pct = $totals['consumption_pct'] ?? null;
+        if (($advice['successes'] ?? []) !== [] || $pct === null || (float)$pct >= -ReportAdviceService::LIGHT_LESS_PCT) return $texts;
+        $texts['successesNone'] = $this->i18n->t(!empty($totals['consumption_adjusted']) ? 'report.section.successesNoneUnproven' : 'report.section.successesNoneUnadjusted',
+            ['year' => $year, 'prev' => $year - 1, 'pct' => $this->advice->pct((float)$pct)]);
+        return $texts;
     }
 
     /** Überschriften und feste Sätze, die beide Ausgaben brauchen. */

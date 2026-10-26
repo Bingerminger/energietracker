@@ -528,7 +528,8 @@
       "colSpecial": "Bijzondere betalingen",
       "hint": "Bonus = tegoeden uit het contract (direct-, overstap-, nieuwe-klantbonus). Bijzondere betalingen = terugbetalingen (+), bijbetalingen en extra voorschotten (−) buiten het voorschotschema; beide tellen mee in het saldo. Tik voor de afzonderlijke posten; ze worden in het contractbeheer bijgehouden.",
       "colEarned": "Vergoeding",
-      "colReceived": "Ontvangen"
+      "colReceived": "Ontvangen",
+      "futureLegend": "≈ Toekomstig contract: het verwachte saldo is geschat vanaf het begin van het contract met zijn prijzen, zijn voorschot en je verbruik tot nu toe."
     },
     "monthlyTable": {
       "noData": "Geen gegevens voor dit jaar.",
@@ -2892,7 +2893,9 @@
       "cheapShare": "Aandeel in goedkope uren",
       "errors": "Let op: enkele onderdelen ontbreken, omdat hun gegevens niet gelezen konden worden.",
       "billing": "Afrekenjaren",
-      "flexPage": "Flexibiliteit"
+      "flexPage": "Flexibiliteit",
+      "successesNoneUnadjusted": "In {year} verbruikte je {pct} minder dan in {prev}. Als besparing is dat niet aan te tonen: de vergelijking is niet weersgecorrigeerd en een zachtere winter heeft hetzelfde effect. Het onderdeel ‘Goed om te weten’ toont de vergelijking met het vorige jaar.",
+      "successesNoneUnproven": "In {year} verbruikte je {pct} minder dan in {prev}. Als besparing is dat niet aan te tonen: een deel van de maanden is verdeeld, niet gemeten. Het onderdeel ‘Goed om te weten’ toont de vergelijking met het vorige jaar."
     },
     "tile": {
       "cost": "Energiekosten",
@@ -2922,7 +2925,8 @@
         "ok": "Niet meer verbruikt",
         "warn": "Iets meer verbruikt",
         "alert": "Duidelijk meer verbruikt",
-        "none": "Geen vergelijking"
+        "none": "Geen vergelijking",
+        "less": "Minder verbruikt"
       },
       "billing": {
         "ok": "Voorschotten kloppen",
@@ -3881,7 +3885,9 @@
     },
     "history": "Geschiedenis ({count})",
     "historyTitle": "Geschiedenis: {name}",
-    "anytime": "Altijd opzegbaar"
+    "anytime": "Altijd opzegbaar",
+    "noNotice": "Opzegtermijn niet ingevoerd",
+    "earliestEnd": "Op zijn vroegst opzegbaar per {date}"
   },
   "billCheck": {
     "noMeter": "De controle rekent de jaarafrekening na voor gas, stroom, water en stadsverwarming. Maak eerst een meter aan.",
@@ -4730,8 +4736,8 @@
     "waterBasis": "{m3} m³ in het jaar · personen in het huishouden: {persons}",
     "rating": {
       "good": "Goed",
-      "near": "Erboven",
-      "high": "Ruim erboven"
+      "near": "Wat hoog",
+      "high": "Hoog"
     },
     "invite": {
       "reference": "Hoe staat je verbruik ervoor? Vul een vergelijkingswaarde in, bijvoorbeeld uit een verbruiksvergelijking — deze tegel toont dan een stoplicht.",

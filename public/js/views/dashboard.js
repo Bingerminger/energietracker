@@ -848,7 +848,7 @@ export function comparisonCardHtml(c, utilities = []) {
   // Ampelzeile: Punkt (Farbe) + Wort (dasselbe in Text) + Satz
   const row = (rating, text, sub = '') => `<li class="cmp-row${rating ? ` cmp-row--${rating}` : ''}" data-rating="${rating || 'none'}">
           <span class="cmp-row__dot" aria-hidden="true"></span>
-          <span class="cmp-row__body">${rating ? `<strong class="cmp-row__label">${escapeHtml(t('comparison.rating.' + rating))}</strong> ` : ''}${escapeHtml(text)}${sub ? `<span class="cmp-row__sub">${sub}</span>` : ''}</span>
+          <span class="cmp-row__body">${escapeHtml(text)}${rating ? ` <strong class="cmp-row__label">${escapeHtml(t('comparison.rating.' + rating))}</strong>` : ''}${sub ? `<span class="cmp-row__sub">${sub}</span>` : ''}</span>
         </li>`;
   const sentence = (kind, d, vars) => t(`comparison.line.${kind}${d > 0 ? 'Above' : 'Below'}`, { ...vars, pct: pct(d) });
   const rows = [];
@@ -899,8 +899,11 @@ async function renderBeginner(container, { utilities, datasets, todo, settings }
   const withContract = (summary?.meters || []).filter(m => m.contract && !m.is_sub_meter && byKey.has(m.utility)
     && m.contract.projected_end_balance != null && !isPv(byKey.get(m.utility)));
 
+  // v3.9.0 (A3) — mehrere Zähler einer Art (etwa Haushalt und Wärmepumpe): mit Zählername
+  const perUtility = withContract.reduce((acc, m) => acc.set(m.utility, (acc.get(m.utility) || 0) + 1), new Map());
   const moneyLines = withContract.map(m => {
-    const u = byKey.get(m.utility);
+    const u0 = byKey.get(m.utility);
+    const u = perUtility.get(m.utility) > 1 && m.name ? { ...u0, label: `${u0.label} (${m.name})` } : u0;
     const v = Number(m.contract.projected_end_balance);
     const credit = v < 0, even = Math.abs(v) < 1;
     const text = even ? t('dashboard.beginner.money.even')

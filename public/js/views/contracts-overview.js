@@ -12,7 +12,8 @@
 
 import { api } from '../api.js';
 import { activeUtilities } from '../state.js';
-import { fmt, escapeHtml } from '../lib/format.js';
+import { fmt, escapeHtml, todayIso } from '../lib/format.js';
+import { addDays as addDaysIso } from '../lib/billing-period.js';   // v3.9.0 (L13)
 import { t, tp } from '../lib/i18n.js';
 // v3.4.0 (F1024) — Folgevertrag und Verlauf je Vertrag
 import { openModal } from '../components/modal.js';
@@ -169,6 +170,14 @@ function meterBlock(u, meter, contracts, showMeter, who = {}) {
       : t('contractsOverview.successorUnnamed', { date: fmt.date(next.start) }))}</span>`);
   } else if (c.cancel_missed) {
     facts.push(`<span class="danger-text">${escapeHtml(t('contractsOverview.cancelMissed', { date: fmt.date(c.cancel_by) }))}</span>`);
+  } else if (c.is_open_ended && !c.renewed && c.notice_basis === 'unknown') {
+    // v3.9.0 (L13) — unbefristet ohne eingetragene Frist: nicht „jederzeit kündbar“
+    // (das behauptete die Kachel, während die Übersicht „nicht eingetragen“ sagte)
+    facts.push(`<span class="muted">${escapeHtml(t('contractsOverview.noNotice'))}</span>`);
+  } else if (c.is_open_ended && !c.renewed && c.switch_date && c.switch_date > addDaysIso(todayIso(), 1)) {
+    // v3.9.0 (L13) — unbefristet mit Frist: frühestes Ende (letzter Tag vor dem Wechseltag);
+    // ohne Frist (0 Monate) bleibt es „jederzeit kündbar“
+    facts.push(escapeHtml(t('contractsOverview.earliestEnd', { date: fmt.date(addDaysIso(c.switch_date, -1)) })));
   } else if (c.renewed || c.is_open_ended) {
     // v3.4.0 — weiterlaufend oder unbefristet: kein datierter Stichtag (vorher
     // „Kündigen bis heute“, jeden Tag ein anderes Datum)

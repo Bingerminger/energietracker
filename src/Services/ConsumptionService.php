@@ -425,7 +425,10 @@ final class ConsumptionService
             $currentBalance = round($actualCost - $advancePaid + $spSummary['net'], 2);
 
             // Current tariff values (those valid today, for the active contract).
-            [$y, $mn] = [(int)substr($today, 0, 4), (int)substr($today, 5, 2)];
+            // v3.9.0 (L15) — ein künftiger Vertrag zeigt die Preise und den Abschlag seines
+            // Beginns (bis v3.8 „–“, weil heute noch keiner gilt)
+            $priceDay = $isFut && Dates::isIsoDate($c['start'] ?? null) ? (string)$c['start'] : $today;
+            [$y, $mn] = [(int)substr($priceDay, 0, 4), (int)substr($priceDay, 5, 2)];
             if ($utility === 'wasser') {
                 $tw = $c['trinkwasser']         ?? [];
                 $sw = $c['schmutzwasser']       ?? [];
@@ -2231,6 +2234,8 @@ final class ConsumptionService
         $monthly = $this->applyContracts($monthly, $utility, $meter, $coverage);
         ksort($monthly);
         $monthly = array_values($monthly);
+        // v3.9.0 (L7) — Abschlag der gemessenen Tage am Rand der Ablesungen
+        $monthly = self::addMeasuredAdvance($monthly, ConsumptionService::contractStarts($this->contractScope($utility, $meter)[0]));
         // v1.6.1 — Issue #13: Wechsel-Monate flaggen
         $monthly = $this->markSwapMonths($monthly, $meter);
         // v1.4.0 — F1011: Monate vor der Zäsur flaggen. Muss VOR der
@@ -3974,6 +3979,52 @@ final class ConsumptionService
             }
         }
         return (float)$row['advance_eur'] * $part / $dim;
+    }
+
+    /**
+     * v3.9.0 (L7) — Abschlag der gemessenen Tage (`advance_measured_eur`, additiv):
+     * Der erste und der letzte Monat einer Ablesereihe sind oft nur zum Teil
+     * gemessen (letzte Ablesung am 05.01.: vier Tage Januar). Der Abschlag ist für
+     * den ganzen Monat fällig; neben den Kosten von vier Tagen ergab der volle
+     * Januarabschlag aber „Saldo: Guthaben 100,84 €“ in der Kachel. Für Summen über
+     * gemessene Monate (Kachel, Monatstabelle) zählt deshalb der Anteil der
+     * gemessenen Tage — tagesanteilig wie im Abrechnungsjahr (advanceBetween).
+     * Ebenso der Grundpreis in `cost_measured`: Kosten der gemessenen Tage, wie
+     * die Abrechnungsperiode sie bis zur letzten Ablesung zählt. Sonst sind die
+     * Werte gleich `advance_eur` bzw. `cost`.
+     *
+     * @param list<array<string,mixed>> $monthly
+     * @param array<string,string> $starts
+     * @return list<array<string,mixed>>
+     */
+    public static function addMeasuredAdvance(array $monthly, array $starts): array
+    {
+        $last = count($monthly) - 1;
+        foreach ($monthly as $i => &$m) {
+            if (!array_key_exists('advance_eur', $m)) continue;
+            $m['advance_measured_eur'] = $m['advance_eur'];
+            $m['cost_measured'] = $m['cost'] ?? null;
+            if ($i !== 0 && $i !== $last) continue;
+            $ms0 = (string)($m['ym'] ?? '') . '-01';
+            $dim0 = Dates::isIsoDate($ms0) ? (int)date('t', (int)strtotime($ms0)) : 0;
+            $d0 = (int)($m['days'] ?? $dim0);
+            if ($dim0 > 0 && $d0 > 0 && $d0 < $dim0 && isset($m['cost']) && is_numeric($m['base_price_eur'] ?? null)) {
+                $m['cost_measured'] = round((float)$m['cost'] - (float)$m['base_price_eur'] * (1 - $d0 / $dim0), 2);
+            }
+            if ($m['advance_eur'] === null) continue;
+            $ms = (string)($m['ym'] ?? '') . '-01';
+            if (!Dates::isIsoDate($ms)) continue;
+            $dim = (int)date('t', (int)strtotime($ms));
+            $days = (int)($m['days'] ?? $dim);
+            if ($days <= 0 || $days >= $dim) continue;
+            $me = date('Y-m-d', (int)strtotime("$ms +1 month"));
+            // letzter Monat: vom Monatsersten an gemessen; erster: bis zum Monatsende
+            [$from, $toExcl] = $i === $last ? [$ms, date('Y-m-d', (int)strtotime("$ms +$days days"))]
+                : [date('Y-m-d', (int)strtotime("$me -$days days")), $me];
+            $m['advance_measured_eur'] = round(self::advanceBetween($m, $from, $toExcl, $starts), 2);
+        }
+        unset($m);
+        return $monthly;
     }
 
     /** v3.6.0 — Vertragsbeginn je ID (für {@see advanceBetween()}). @return array<string,string> */

@@ -361,12 +361,15 @@ async function rerender(container) {
   // v3.6.0 — im Abrechnungsjahr die Summen der Periode vom Server (Saldo mit
   // zusätzlichen Abschlagszahlungen), nicht die Summe gerundeter Teilmonate
   const sum = (k) => (billing ? Number(sel[k]) || 0 : monthlyYear.reduce((s, m) => s + (m[k] || 0), 0));
+  // v3.9.0 (L7) — Kosten und Abschlag der gemessenen Tage am Rand der Ablesungen
+  // (sonst stand ein voller Januarabschlag gegen vier Tage Kosten); gleich der Periode im Abrechnungsjahr
+  const sumMeasured = (k, fallback) => monthlyYear.reduce((s, m) => s + (Number(m[k] !== undefined && m[k] !== null ? m[k] : m[fallback]) || 0), 0);
   const totUnit = sum(consKey);
-  const totCost = sum('cost');
+  const totCost = billing ? sum('cost') : sumMeasured('cost_measured', 'cost');
   const totDays = sum('days');
   const totCO2  = sum('co2_kg');
   const totM3   = sum('m3');
-  const totAdv  = billing ? Number(sel.advances) || 0 : sum('advance_eur');
+  const totAdv  = billing ? Number(sel.advances) || 0 : sumMeasured('advance_measured_eur', 'advance_eur');
   const yearBalance = billing ? Number(sel.balance) || 0 : totCost - totAdv;
   const yearBalanceView = balanceView(yearBalance, u);
   // v3.7.0 (GitHub #33) — die Kachel „Kosten“ ohne Bonus, der Bonus als eigene
@@ -1151,9 +1154,12 @@ function contractsTable(contracts, u) {
         <td class="num success-text">${bonusStr}</td>
         ${showSpecial ? specialCell(c) : ''}
         ${balCell(cur)}
-        ${c.projection_uncertain ? `<td class="num muted" data-role="expected-range">${escapeHtml(uncertainRangeText(c.projection_uncertain))}</td>` : balCell(proj, true)}
+        ${c.projection_uncertain ? `<td class="num muted" data-role="expected-range">${escapeHtml(uncertainRangeText(c.projection_uncertain))}</td>`
+          // v3.9.0 (L15) — künftiger Vertrag: der erwartete Saldo ist eine Schätzung (≈, Legende)
+          : c.is_future ? balCell(proj, true).replace(/^<td([^>]*)>/, '<td$1 data-role="expected-future"><span aria-hidden="true">≈ </span>') : balCell(proj, true)}
       </tr>`;
   };
+  const anyFuture = contracts.some(c => c.is_future && c.projected_end_balance != null && !c.projection_uncertain);
   return `<div class="table-wrap"><table class="table contracts-table">
     <thead><tr>
       <th scope="col">${t('utility.contractsTable.colProvider')}</th>
@@ -1171,7 +1177,8 @@ function contractsTable(contracts, u) {
     </tr></thead>
     ${groupContracts(contracts).map(groupBody).join('')}
   </table></div>
-  <p class="muted" style="font-size:11px;margin:8px 4px 0">${t(feedInKind(u) ? 'saldo.tableLegendFeedIn' : 'saldo.tableLegend')}${showSpecial ? ' ' + t('utility.contractsTable.hint') : ''}</p>`;
+  <p class="muted" style="font-size:11px;margin:8px 4px 0">${t(feedInKind(u) ? 'saldo.tableLegendFeedIn' : 'saldo.tableLegend')}${showSpecial ? ' ' + t('utility.contractsTable.hint') : ''}</p>
+  ${anyFuture ? `<p class="muted" style="font-size:11px;margin:4px 4px 0" data-role="future-legend">${escapeHtml(t('utility.contractsTable.futureLegend'))}</p>` : ''}`;
 }
 
 // v2.5.1 — Zelle „Sonderzahlungen": Netto aus Kundensicht. Erhalten (Rück-
@@ -1223,16 +1230,32 @@ function monthlyTable(monthly, u, hasContracts) {
   // fälschlich `m.kwh` → komplette Wasser-Monatstabelle zeigte 0.
   const consKey = u.consumption_unit === 'kWh' ? 'kwh' : 'm3';
   const sign = v => v > 0 ? '+' : '';
+  // v3.9.0 (L6, L7) — Kosten und Abschlag der gemessenen Tage (Rand der Ablesungen,
+  // `cost_measured`/`advance_measured_eur`) und der Saldo aufsummiert über den
+  // gezeigten Zeitraum: Er beginnt mit dem Jahr bzw. der Abrechnungsperiode, wie
+  // Kachel und Abrechnungsjahr; die letzte Zeile ist der Saldo in der Gesamtzeile.
+  // Bis v3.8 summierte die Spalte ab Vertragsbeginn über alle Jahre, und die
+  // Gesamtzeile zeigte einen anderen Wert als die letzte Zeile.
+  const costOf = (m) => (m.cost_measured != null ? m.cost_measured : m.cost);
+  const advOf = (m) => (m.advance_measured_eur !== undefined ? m.advance_measured_eur : m.advance_eur);
+  let cum = null;
+  const cumByYm = new Map();
+  for (const m of monthly) {
+    const a = advOf(m);
+    if (a == null) continue;
+    cum = (cum ?? 0) + (Number(costOf(m)) || 0) - (Number(a) || 0);
+    cumByYm.set(m.ym, cum);
+  }
 
   const tot = monthly.reduce((s, m) => ({
     days: s.days + (m.days || 0),
     kwh:  s.kwh  + (m.kwh  || 0),
     m3:   s.m3   + (m.m3   || 0),
-    cost: s.cost + (m.cost || 0),
+    cost: s.cost + (costOf(m) || 0),
     co2:  s.co2  + (m.co2_kg || 0),
-    adv:  s.adv  + (m.advance_eur || 0),
+    adv:  s.adv  + (advOf(m) || 0),
   }), { days: 0, kwh: 0, m3: 0, cost: 0, co2: 0, adv: 0 });
-  const yearBal = tot.cost - tot.adv;
+  const yearBal = cum ?? (tot.cost - tot.adv);
 
   return `<div class="table-wrap"><table class="table">
     <thead><tr>
@@ -1254,7 +1277,7 @@ function monthlyTable(monthly, u, hasContracts) {
     </tr></thead>
     <tbody>
     ${monthly.map(m => {
-      const cumView = balanceView(m.cumulative_balance, u, (n) => fmt.num(n, 2));
+      const cumView = balanceView(cumByYm.has(m.ym) ? cumByYm.get(m.ym) : null, u, (n) => fmt.num(n, 2));
       // v2.10.0 — Tankbuch: Monate mit geschätzten Tagen (nach dem letzten bekannten Bestand)
       const est = m.estimated_days > 0
         ? ` <span class="muted" title="${escapeHtml(tp('utility.monthlyTable.estimatedTitle', m.estimated_days, { days: m.estimated_days }))}">≈</span>`
@@ -1272,8 +1295,8 @@ function monthlyTable(monthly, u, hasContracts) {
         ${pv ? '' : `<td class="num">${m.avg_temp != null ? fmt.num(m.avg_temp, 1) : '–'}</td>`}
         ${pv ? '' : `<td class="num">${m.hdd != null ? fmt.int(m.hdd) : '–'}</td>`}
         ${showCost ? `<td class="num">${m.working_price_ct != null ? fmt.num(m.working_price_ct, 4) : '–'}</td>` : ''}
-        ${showCost ? `<td class="num"><strong>${fmt.num(m.cost, 2)}</strong></td>` : ''}
-        ${showBalance ? `<td class="num col-yellow">${m.advance_eur != null ? fmt.num(m.advance_eur, 2) : '–'}</td>` : ''}
+        ${showCost ? `<td class="num"><strong>${fmt.num(costOf(m), 2)}</strong></td>` : ''}
+        ${showBalance ? `<td class="num col-yellow">${advOf(m) != null ? fmt.num(advOf(m), 2) : '–'}</td>` : ''}
         ${showBalance ? `<td class="num ${cumView ? cumView.cls : 'muted'}" style="font-weight:500">${cumView ? cumView.signed : '–'}</td>` : ''}
         <td class="num col-violet">${fmt.int(m.co2_kg)}</td>
         <td class="num col-blue">${m.ma3 != null ? fmt.int(m.ma3) : '–'}</td>

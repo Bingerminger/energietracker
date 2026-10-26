@@ -528,7 +528,8 @@
       "colSpecial": "Paiements exceptionnels",
       "hint": "Primes = avoirs issus du contrat (prime immédiate, de changement, de nouveau client). Paiements exceptionnels = remboursements (+), compléments et acomptes supplémentaires (−) hors échéancier ; les deux entrent dans le solde. Touchez pour voir le détail ; la saisie se fait dans la gestion des contrats.",
       "colEarned": "Rémunération",
-      "colReceived": "Reçu"
+      "colReceived": "Reçu",
+      "futureLegend": "≈ Contrat futur : le solde attendu est estimé à partir du début du contrat avec ses prix, son acompte et votre consommation jusqu’ici."
     },
     "monthlyTable": {
       "noData": "Aucune donnée pour cette année.",
@@ -2892,7 +2893,9 @@
       "cheapShare": "Part aux heures avantageuses",
       "errors": "Remarque : certaines sections manquent, car leurs données n’ont pas pu être lues.",
       "billing": "Années de facturation",
-      "flexPage": "Flexibilité"
+      "flexPage": "Flexibilité",
+      "successesNoneUnadjusted": "En {year}, la consommation a été inférieure de {pct} à celle de {prev}. Cela ne prouve pas une économie : la comparaison n’est pas corrigée du climat, un hiver plus doux a le même effet. La section « Bon à savoir » montre la comparaison avec l’année précédente.",
+      "successesNoneUnproven": "En {year}, la consommation a été inférieure de {pct} à celle de {prev}. Cela ne prouve pas une économie : une partie des mois est répartie, non mesurée. La section « Bon à savoir » montre la comparaison avec l’année précédente."
     },
     "tile": {
       "cost": "Coûts de l’énergie",
@@ -2922,7 +2925,8 @@
         "ok": "Pas plus consommé",
         "warn": "Un peu plus consommé",
         "alert": "Nettement plus consommé",
-        "none": "Pas de comparaison"
+        "none": "Pas de comparaison",
+        "less": "Moins consommé"
       },
       "billing": {
         "ok": "Acomptes adaptés",
@@ -3881,7 +3885,9 @@
     },
     "history": "Historique ({count})",
     "historyTitle": "Historique : {name}",
-    "anytime": "Résiliable à tout moment"
+    "anytime": "Résiliable à tout moment",
+    "noNotice": "Délai de résiliation non saisi",
+    "earliestEnd": "Résiliable au plus tôt au {date}"
   },
   "billCheck": {
     "noMeter": "La vérification recalcule la facture annuelle du gaz, de l’électricité, de l’eau et du réseau de chaleur. Créez d’abord un compteur.",
@@ -4730,8 +4736,8 @@
     "waterBasis": "{m3} m³ sur l’année · personnes dans le foyer : {persons}",
     "rating": {
       "good": "Bien",
-      "near": "Au-dessus",
-      "high": "Nettement au-dessus"
+      "near": "Un peu élevé",
+      "high": "Élevé"
     },
     "invite": {
       "reference": "Où se situe votre consommation ? Saisissez une valeur de référence, par exemple tirée d’un comparatif de consommation — cette tuile affiche alors un feu tricolore.",

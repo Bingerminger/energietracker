@@ -1252,9 +1252,11 @@ async function renderView(modPath, params = [], ctx = {}) {
     t('contractsOverview: laufender Gasvertrag mit Erwartung zur Abrechnung',
       !!view.querySelector('.contract-overview[data-utility="gas"] .contract-overview__expected'));
     t('contractsOverview: Verweis auf die Vertragsverwaltung', !!view.querySelector('a[href="#/utility/gas/contracts"]'));
-    // v3.4.0 — unbefristet/weiterlaufend: „Jederzeit kündbar“ statt eines Stichtags „heute“
-    t('contractsOverview: unbefristeter Vertrag „Jederzeit kündbar“',
-      !!view.querySelector('.contract-overview[data-utility="fernwaerme"]')?.textContent.includes('Jederzeit kündbar'));
+    // v3.4.0 — unbefristet/weiterlaufend: kein Stichtag „heute“; v3.9.0 (L13) — ohne eingetragene
+    // Frist (Beispieldaten Fernwärme) nicht „Jederzeit kündbar“, sondern „Kündigungsfrist nicht eingetragen“
+    t('contractsOverview: unbefristeter Vertrag ohne Frist „Kündigungsfrist nicht eingetragen“',
+      !!view.querySelector('.contract-overview[data-utility="fernwaerme"]')?.textContent.includes('Kündigungsfrist nicht eingetragen')
+      && !view.querySelector('.contract-overview[data-utility="fernwaerme"]')?.textContent.includes('Jederzeit kündbar'));
     t('contractsOverview: befristeter Vertrag mit datiertem Stichtag',
       !!view.querySelector('.contract-overview[data-utility="gas"]')?.textContent.includes('Kündigen bis'));
   } catch (e) { t('contractsOverview: render', false, e.message); }
@@ -1879,7 +1881,8 @@ async function renderView(modPath, params = [], ctx = {}) {
     t('einordnung ohne Vergleichswerte: Einladung mit genau einem Link zum Feld', links.length === 1 && links[0] === '#/settings/household?field=reference_strom_kwh', links.join(', '));
     t('einordnung: keine Links aus der App heraus (Strom-/Heizspiegel)', !without.querySelector('a[target="_blank"], a[href^="http"]'));
     const wrow = without.querySelector('.cmp-row');
-    t('einordnung: Wasser gegen den Richtwert als Ampel mit Wort und Satz', wrow?.dataset.rating === 'good' && /^Gut Wasser: 100 Liter je Person und Tag, 18\s%\sunter dem Richtwert \(122 Liter\)\./.test(wrow.textContent.replace(/\s+/g, ' ').trim()),
+    // v3.9.0 (L16) — der Satz zuerst, das Wort danach (bis v3.8 „Darüber Wasser: …“, ein Satzanfang ohne Bezug)
+    t('einordnung: Wasser gegen den Richtwert als Ampel mit Satz und Wort', wrow?.dataset.rating === 'good' && /^Wasser: 100 Liter je Person und Tag, 18\s%\sunter dem Richtwert \(122 Liter\)\. Gut/.test(wrow.textContent.replace(/\s+/g, ' ').trim()),
       wrow?.textContent.replace(/\s+/g, ' ').trim());
     // mit Vergleichswerten: Ampel je Zeile, keine Einladung
     const withOwn = card({ ...base,
@@ -1888,7 +1891,7 @@ async function renderView(modPath, params = [], ctx = {}) {
       water: { m3: 120, complete: true, persons: 4, reference_l: 122, liters_per_person_day: 82, index: 67, delta_pct: -33, rating: 'good' }, source: 'Beispielquelle' });
     const ratings = [...withOwn.querySelectorAll('.cmp-row')].map(r => r.dataset.rating);
     t('einordnung mit Vergleichswerten: Ampel je Zeile (gelb, rot, grün), Wort neben der Farbe', ratings.join(',') === 'near,high,good'
-      && [...withOwn.querySelectorAll('.cmp-row__label')].map(l => l.textContent).join('|') === 'Darüber|Deutlich darüber|Gut', ratings.join(','));
+      && [...withOwn.querySelectorAll('.cmp-row__label')].map(l => l.textContent).join('|') === 'Etwas hoch|Hoch|Gut', ratings.join(','));
     t('einordnung: klarer Satz mit Abweichung und Vergleichswert', /Haushaltsstrom: 3\.650 kWh, 7\s%\süber deinem Vergleichswert \(3\.400 kWh\)\./.test(withOwn.textContent)
       && /Gas: 150 kWh\/m², 25\s%\süber deinem Vergleichswert \(120 kWh\/m²\)\./.test(withOwn.textContent), withOwn.querySelector('.cmp-row')?.textContent.replace(/\s+/g, ' '));
     t('einordnung: ohne fehlende Angabe keine Einladung, Quelle steht da', !withOwn.querySelector('[data-role="cmp-invite"]') && /Beispielquelle/.test(withOwn.textContent));
