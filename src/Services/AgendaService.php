@@ -214,7 +214,7 @@ final class AgendaService
             foreach ($this->contracts->targets($u) as $meter) {
                 if (!MeterService::inService($meter)) continue;
                 try {
-                    $status = $this->consumption->contractStatus($u, $meter);
+                    $status = $this->consumption->contractStatus($u, $meter, $today);   // v3.9.0 (V1) — derselbe Tag
                 } catch (\Throwable) {
                     continue;
                 }
@@ -246,9 +246,15 @@ final class AgendaService
                     $cancel = ContractService::hasFixedCancelBy($raw[$cid] ?? [], $renewed) ? ($c['cancel_by'] ?? null) : null;
                     if ($cancel !== null && $cancel >= $today && ($cancel <= $until || ($remind && $basis === 'cancel_by'))) {
                         $due = $remind && $basis === 'cancel_by';
-                        $events[] = $this->event('cancel_by', self::uid('cancel_by', $cid), (string)$cancel, 'calendar.event.cancelBy', $params,
-                            $due ? ((int)($c['days_to_cancel'] ?? 99) <= 14 ? 'urgent' : 'due') : 'upcoming', $due, $href,
-                            $ref + ['days' => $c['days_to_cancel'] ?? null], $anchor, $auto, $who);
+                        // v3.9.0 (L14) — Folgevertrag bei einem anderen Versorger: Der Wechsel ist
+                        // eingetragen; zu tun bleibt, die Bestätigung der Kündigung zu prüfen — fällig,
+                        // aber nicht „eilt“ (bisher „Kündigen bis …“ wie ohne Folgevertrag)
+                        $confirm = !empty($c['successor_switch']) && $successor !== null;
+                        $events[] = $this->event('cancel_by', self::uid('cancel_by', $cid), (string)$cancel,
+                            $confirm ? 'calendar.event.cancelConfirm' : 'calendar.event.cancelBy',
+                            $confirm ? $params + ['next' => (string)($successor['provider'] ?: '—')] : $params,
+                            $due ? ($confirm ? 'due' : ((int)($c['days_to_cancel'] ?? 99) <= 14 ? 'urgent' : 'due')) : 'upcoming', $due, $href,
+                            $ref + ['days' => $c['days_to_cancel'] ?? null] + ($confirm ? ['confirm' => true] : []), $anchor, $auto, $who);
                     }
                     $end = $c['end'] ?? null;
                     if ($end !== null && !$renewed && $end >= $today && ($end <= $until || ($remind && $basis === 'end'))) {

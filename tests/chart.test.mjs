@@ -104,6 +104,9 @@ t('Trend: verteilte Monate (oder ihr Vorjahr) zählen nicht', trSparse && trSpar
   t('Hinweis: Jahr mit Zahl der Ablesungen, Grenze, Heizkurve, Heizmodell über die Abstände',
     year.startsWith('2 von 3 Monatswerten in 2025 sind verteilt, nicht gemessen (2 Ablesungen in 2025).')
     && /mehr als 45 Tage/.test(year) && /die Heizkurve lassen diese Monate aus/.test(year) && /über die 11 Abstände/.test(year), year);
+  // v3.9.0 (L10) — geschätzte Stände dazu: 2 Ablesungen und 1 Schätzung = die 3 Einträge der Liste
+  const withEst = ip.interpolationNote({ rows, info: { ...info, estimated_by_year: { 2025: 1 } }, year: 2025 });
+  t('Hinweis: Ablesungen und Schätzungen im Jahr', withEst.startsWith('2 von 3 Monatswerten in 2025 sind verteilt, nicht gemessen (2 Ablesungen und 1 Schätzung in 2025).'), withEst.slice(0, 120));
   const none = ip.interpolationNote({ rows, info: { ...info, readings_by_year: {} }, year: 2025 });
   t('Hinweis: keine Ablesung im Jahr', /\(keine Ablesung in 2025\)/.test(none) && !/Heizkurve/.test(none), none.slice(0, 90));
   const all = ip.interpolationNote({ rows, info, pv: true, series: 'PV-Erzeugung' });

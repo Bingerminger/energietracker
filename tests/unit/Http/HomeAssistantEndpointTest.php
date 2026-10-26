@@ -135,7 +135,10 @@ final class HomeAssistantEndpointTest extends HttpServerTestCase
         $this->request('GET', '/api/todo');
         usleep(300_000);
         self::assertCount(3, self::$ha->requests());
-        self::assertSame(date('Y-m-d'), $this->json('GET', '/api/homeassistant/notify')['daily_on']);
+        // „heute“ des Servers (Zeitzone der App), nicht des Testprozesses: zwischen 0 und 1 Uhr
+        // liegen beide sonst einen Tag auseinander
+        $today = (new \DateTimeImmutable('now', new \DateTimeZone('Europe/Berlin')))->format('Y-m-d');
+        self::assertSame($today, $this->json('GET', '/api/homeassistant/notify')['daily_on']);
     }
 
     public function testANewDocumentIsReportedAfterTheUpload(): void

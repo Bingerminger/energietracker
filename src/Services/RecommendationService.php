@@ -496,7 +496,7 @@ final class RecommendationService
     private function ruleContractEnd(string $utility, array $meter): array
     {
         try {
-            $status = $this->consumption->contractStatus($utility, $meter);
+            $status = $this->consumption->contractStatus($utility, $meter, $this->today);   // v3.9.0 (V1) — derselbe Stichtag
         } catch (\Throwable) {
             return [];
         }

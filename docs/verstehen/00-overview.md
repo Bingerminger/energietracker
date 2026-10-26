@@ -53,10 +53,18 @@ Tagesrate. Jeder Monat trägt deshalb eine Kennung:
 
 ```text
 gemessen          = Ablesungsabstand ≤ 45 Tage
-measured_share    = Anteil des Monatsverbrauchs aus solchen Abständen (0 … 1)
-interpolated      = measured_share < 0,5        („verteilt“)
-reading_gap_days  = längster Abstand, aus dem der Monat stammt
+measured_share      = Anteil des Monatsverbrauchs aus solchen Abständen (0 … 1)
+measured_day_share  = Anteil der Tage des Monats aus solchen Abständen (seit v3.9.0)
+interpolated        = measured_share < 0,5 oder measured_day_share < 0,5   („verteilt“)
+reading_gap_days    = längster Abstand, aus dem der Monat stammt
 ```
+
+**Seit v3.9.0 zählen auch die Tage.** Stammen die meisten Tage eines Monats aus
+einem langen Abstand, ist er verteilt, auch wenn die wenigen gemessenen Tage mehr
+Verbrauch tragen: Im unordentlichen Testhaushalt kam der Dezember 2024 zu 18 von
+31 Tagen aus einem Abstand von 103 Tagen und galt bis v3.8 als gemessen, weil der
+verteilte Teil die milderen Herbstmonate mitnimmt und damit eine zu niedrige
+Tagesrate hat. So ging er in die Anomalien ein.
 
 Maßgeblich ist die **Länge des Abstands**, nicht, ob im Monat abgelesen wurde:
 Ablesungen am 31. Januar und am 1. März messen den Februar gut. Ein Abstand bis
@@ -468,6 +476,31 @@ zweimal im Jahr abliest, hat zwar 24 Monatswerte, aber keinen gemessenen Monat.
 Die Prognose-Werkstatt gibt den Hinweis `interpolated` weiter; „Wie im Vorjahr“
 nimmt verteilte Vorjahresmonate wie fehlende aus der Prognose.
 
+**Jahresmenge der letzten 365 Tage (seit v3.9.0).** Ohne Wetterbezug (Strom,
+Wasser) und ohne zwölf gemessene Kalendermonate ist das Profil ein Flickwerk:
+gemessene Monate aus einem Jahr, verteilte als Mittel aller Jahre. Bei echten
+Strom-Daten mit fast nur verteilten Monaten lag die Prognose im Rückblick durchweg
+zu tief; im unordentlichen Testhaushalt senkten vier Sommer-Ablesungen die
+Jahresmenge um gut 5 %, obwohl der Verbrauch derselbe blieb, und ein Jahr mit 25 %
+mehr Verbrauch kam als Mittel dreier Jahre an (−13 %). Dann gilt:
+
+```text
+Jahresmenge  = Verbrauch der letzten 365 Tage (Monatswerte, der älteste anteilig nach Tagen)
+Monat        = Profilwert × Jahresmenge ÷ Σ Profilwerte der zwölf Prognosemonate
+```
+
+Zwischen zwei Ablesungen stimmt die Summe auch verteilter Monate. Der Hinweis
+`level_last_year` nennt Menge und Zeitraum. Heizarten rechnen weiter mit Wetter
+und Heizmodell; mit zwölf gemessenen Kalendermonaten bleibt das eigene Profil.
+Ändert sich der Verbrauch mitten im Jahr (neue Wärmepumpe), hinkt auch diese
+Menge bis zu einem Jahr nach.
+
+**Anteil der Heizkurve (seit v3.9.0).** `blend_weight` ist das Gewicht laut
+Modellgüte, `blend_effective` der Teil der Jahresmenge, der wirklich aus der
+Heizkurve kommt. Monate unter den Punkten der Heizkurve oder bei nicht
+bestandener Gütesperre rechnen mit dem Saisonprofil; bis v3.8 stand dann
+„Anteil Heizkurve 80 %“ neben „Saisonprofil“ in jedem Monat.
+
 **Temperaturversatz** (What-if): Ein um δ wärmeres Jahr hat genau die
 Heizgradtage der Heizgrenze `T_base - δ`. Mit Klimanormal oder eigener
 Temperaturhistorie ist das exakt; nur ohne beide wird wie bisher linear
@@ -843,7 +876,8 @@ es ein Faktor; die Tagesrate eines Kalendermonats ist dort ab drei Werten der
 Median (wie in der Prognose, Abschnitt 6).
 
 **Abschlagsvorschlag:** Weicht der erwartete Saldo spürbar ab, schlägt
-die Karte einen Abschlag vor, der ihn bis zum Vertragsende ausgleicht:
+die Karte einen Abschlag vor, der ihn bis zur Abrechnung ausgleicht (seit v3.9.0
+der letzte Tag der laufenden Abrechnungsperiode, unten):
 
 ```text
 Vorschlag = max(0, gerundet( aktueller Abschlag + erwarteter Saldo / verbleibende Monate ))
@@ -891,11 +925,8 @@ Ende der Spanne und zeigt, solange eine Schätzung unsicher ist, kein
 „Abschläge passen“) und Prognose-Werkstatt die Spanne mit dem Grund; das
 Schaubild „Wohin geht mein Geld?“ nennt Kosten und Ergebnis als Spanne.
 
-*Befund für später:* Werkstatt und Karte rechnen den Saldo verschieden — die
-Karte vom Vertragsbeginn bzw. der letzten erfassten Rechnung bis zum Vertragsende
-oder Stichtag, die Werkstatt die laufende Abrechnungsperiode. Ohne erfasste
-Rechnung zählt die Karte so mehrere Jahre, die Werkstatt eines; mit einem
-gepflegten Vertragsende nennt die Karte dieses als Abrechnungstag.
+Bis v3.8 rechneten Werkstatt und Karte den Saldo verschieden. Seit v3.9.0 gibt
+es eine Projektion für beide ([unten](#eine-projektion-für-saldo-und-werkstatt-seit-v390)).
 
 **Abgelöst (seit v3.7.0).** Beginnt ein Folgevertrag, während ein Vertrag noch
 läuft (offen oder mit Ende danach), gilt ab dessen Beginn der Folgevertrag
@@ -913,6 +944,43 @@ Nachfolger und lückenlose Ketten bleiben unverändert.
 Kosten und Saldo nur Grundpreis und Abschläge. Vertragsstatus und
 Abrechnungsjahr sagen es beide (`price_missing`), statt zwei verschiedene,
 gleich falsche Salden zu zeigen.
+
+### Eine Projektion für Saldo und Werkstatt *(seit v3.9.0)*
+
+Saldo-Karte, Kosten & Verträge, Jahresbericht, „Wohin geht mein Geld?“ und
+Prognose-Werkstatt rechnen aus derselben Projektion mit demselben
+Abrechnungstag. Die Periode ist die laufende der Abrechnungsperioden (Stichtag
+`billing_cycle_anchor_<art>`, Rechnungen, Lieferantenwechsel; ohne Stichtag das
+Kalenderjahr), auch ohne erfasste Rechnung:
+
+```text
+Saldo ab     = max(Vertragsbeginn, Periodenbeginn), nach einer Rechnung der Tag danach
+Saldo bis    = min(Vertragsende, Periodenende)
+Abrechnung   = letzter Tag der Periode (settle_on); endet der Vertrag vorher ohne
+               Folgevertrag desselben Versorgers, sein letzter Tag (Schlussrechnung)
+Werkstatt    = Summe der Salden der Karten; das Szenario ändert nur die Tage von heute bis zur Abrechnung
+```
+
+Ein Datum für alle Ansichten: der **letzte Tag** des Zeitraums (31.12.2026), nicht
+der Folgetag. Ein abgelöster Vertrag endet am Tag vor dem Folgevertrag. In einer
+angeschnittenen Periode zählen von den Sonderzahlungen nur zusätzliche
+Abschlagszahlungen; Rück- und Nachzahlungen gleichen eine frühere Abrechnung
+aus. Bis v3.8 zählte die Karte ohne erfasste Rechnung ab Vertragsbeginn: Im
+unordentlichen Testhaushalt standen so rund 1.163 € Guthaben zum 01.01.2027
+neben 357 € zum 31.12.2026 in der Werkstatt, außerhalb der Spanne der Karte.
+Verträge außerhalb der laufenden Periode (abgerechnet, vergangen) rechnen wie
+bisher über ihre eigene Laufzeit.
+
+**Kurz vor der Abrechnung kein Nachholbetrag.** Bleiben weniger als drei
+Abschläge bis zur Abrechnung (`months_left`), schlägt die Karte keinen
+Nachholbetrag vor (`suggestion_withheld: "short"`): Den Fehlbetrag auf ein, zwei
+Abschläge zu legen, vervielfacht sie (Testhaushalt Strom: 208 € statt 75 €), und
+den Rest gleicht die Abrechnung ohnehin aus. Stattdessen nennt sie den laufend
+angemessenen Abschlag (`advance_ongoing`):
+
+```text
+laufend = gerundet( geschätzte Kosten der 12 Monate nach der Abrechnung / 12 )
+```
 
 ### Tagesgenau wie die Rechnung (seit v2.9.0)
 

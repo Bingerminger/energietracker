@@ -430,6 +430,8 @@ final class WeatherModelTest extends ServiceTestCase
             'advance_payments' => [['from' => $start, 'amount_eur' => 25.0]],
             'bonuses' => [], 'special_payments' => [],
         ]]);
+        // v3.9.0 (V1) — Abrechnungsperiode = Vertragsjahr (Stichtag am Vertragsbeginn)
+        $this->settings->set(['billing_cycle_anchor_gas' => substr($start, 5)]);
         $meter = $this->meters->list('gas')[0];
         $c = $this->consumption->contractStatus('gas', $meter)['contracts'][0];
 

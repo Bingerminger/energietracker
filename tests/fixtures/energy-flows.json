@@ -27,9 +27,9 @@
       "out": { "pv_house": 250, "pv_battery": 50, "pv_grid": 0, "grid_house": 200, "grid_battery": 0, "battery_house": 80, "house": 530, "grid_in_house": 200, "autarky": 0.6226 }
     },
     {
-      "name": "Datenfehler: mehr eingespeist als erzeugt",
+      "name": "Widerspruch: mehr eingespeist als erzeugt — die gemessene Einspeisung bleibt (v3.9.0, bis v3.7 auf 100 gekappt)",
       "in": { "gen": 100, "feed": 150, "grid": 50, "charged": 0, "discharged": 0 },
-      "out": { "pv_house": 0, "pv_battery": 0, "pv_grid": 100, "grid_house": 50, "grid_battery": 0, "battery_house": 0, "house": 50, "grid_in_house": 50, "autarky": 0 }
+      "out": { "pv_house": 0, "pv_battery": 0, "pv_grid": 150, "grid_house": 50, "grid_battery": 0, "battery_house": 0, "house": 50, "grid_in_house": 50, "autarky": 0 }
     },
     {
       "name": "Datenfehler: mehr Netzladung als Bezug",

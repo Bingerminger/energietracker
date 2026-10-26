@@ -184,16 +184,17 @@ final class WaterSpecialPaymentsTest extends ServiceTestCase
         $byYm = array_column($this->consumption->forMeter('wasser', $meter), null, 'ym');
         self::assertEqualsWithDelta(40.0, $byYm[substr($this->month($start, 5), 0, 7)]['advance_eur'], 1e-9, 'vor dem Stichtag');
         self::assertEqualsWithDelta(35.0, $byYm[substr($from, 0, 7)]['advance_eur'], 1e-9, 'ab dem Stichtag');
-        self::assertEqualsWithDelta(35.0, $byYm[substr($this->month($start, 11), 0, 7)]['advance_eur'], 1e-9);
+        self::assertEqualsWithDelta(35.0, $byYm[substr($this->month($start, 10), 0, 7)]['advance_eur'], 1e-9);
 
         $after = $this->waterStatus($meter);
         self::assertEqualsWithDelta(35.0, $after['current_advance_amount'], 1e-9);
-        // v3.7.0 — Saldo nach Kalender: +30 Rückzahlung, +7 × 5 € weniger Abschlag ab dem
-        // Stichtag bis heute (der laufende Monat zählt ganz, fällig am Monatsanfang; bis v3.6
-        // nur die 6 gemessenen Monate)
-        self::assertEqualsWithDelta(30.0 + 7 * 5.0, $after['current_balance'] - $before['current_balance'], 0.01);
-        // Hochrechnung bis Vertragsende: jeder Monat ab dem Stichtag mit dem neuen Abschlag (18 Monate)
-        self::assertEqualsWithDelta(30.0 + 18 * 5.0, $after['projected_end_balance'] - $before['projected_end_balance'], 0.05);
+        // v3.7.0 — Saldo nach Kalender: +30 Rückzahlung, +6 × 5 € weniger Abschlag ab dem
+        // Stichtag bis heute (Monate 6 bis 11, der laufende zählt ganz, fällig am Monatsanfang)
+        self::assertEqualsWithDelta(30.0 + 6 * 5.0, $after['current_balance'] - $before['current_balance'], 0.01);
+        // v3.9.0 (V1) — Hochrechnung bis zur Abrechnung am Ende des Vertragsjahres (heute im
+        // letzten Monat), nicht mehr bis zum Vertragsende nach zwei Jahren: dieselben 6 Monate
+        self::assertSame(date('Y-m-t'), $after['settle_on']);
+        self::assertEqualsWithDelta(30.0 + 6 * 5.0, $after['projected_end_balance'] - $before['projected_end_balance'], 0.05);
     }
 
     public function testDashboardSummaryCarriesTheWaterSpecialPayments(): void
@@ -359,12 +360,18 @@ final class WaterSpecialPaymentsTest extends ServiceTestCase
     }
 
     /** Laufender Vertrag: Beginn vor zwölf Monaten, Ende in gut einem Jahr, Ablesung je Monatserstem. */
+    /**
+     * v3.9.0 (V1) — Vertrag seit elf Monaten, Stichtag am Vertragsbeginn: Heute liegt im
+     * ersten Vertragsjahr, die laufende Abrechnungsperiode beginnt mit dem Vertrag (bis
+     * v3.8: seit zwölf Monaten, ohne Stichtag; dann schnitte ihn jetzt die Periode).
+     */
     private function seedCurrentWater(): array
     {
-        $start = date('Y-m-d', (int)strtotime('first day of -12 months'));
+        $start = date('Y-m-d', (int)strtotime('first day of -11 months'));
+        $this->settings->set(['billing_cycle_anchor_wasser' => substr($start, 5)]);
         $meterId = $this->setMeterDevices('wasser', [['installed_on' => $start] + self::DEVICE]);
         $rows = [];
-        for ($i = 0; $i <= 12; $i++) $rows[] = ['date' => $this->month($start, $i), 'counter' => 8.0 * $i, 'device_id' => 'd1'];
+        for ($i = 0; $i <= 11; $i++) $rows[] = ['date' => $this->month($start, $i), 'counter' => 8.0 * $i, 'device_id' => 'd1'];
         $this->setReadings('wasser', $meterId, $rows);
         $c = $this->contracts->create('wasser', $this->waterInput($meterId, $start, date('Y-m-d', (int)strtotime("$start +2 years -1 day")), null));
         return [$this->meters->get('wasser', $meterId), $c, $start];

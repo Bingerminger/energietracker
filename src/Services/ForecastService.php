@@ -230,11 +230,34 @@ final class ForecastService
         $start->modify('first day of next month');
         $blendW = $reg && ($reg['valid'] ?? false) ? min($blendMax, (float)$reg['r2']) : 0.0;
 
+        // v3.9.0 (auswertung, Zusatzbefund) — ohne Wetterbezug und ohne zwölf gemessene
+        // Kalendermonate ist das Profil ein Flickwerk: gemessene Monate aus einem Jahr, verteilte
+        // als Mittel aller Jahre. Bei echten Strom-Daten (fast nur verteilt) lag die Prognose im
+        // Rückblick durchweg 12 bis 26 % zu tief; im unordentlichen Testhaushalt senkten vier
+        // Sommer-Ablesungen die Jahresmenge um gut 5 %, obwohl der Verbrauch derselbe blieb.
+        // Die Jahresmenge folgt dann dem Verbrauch der letzten 365 Tage; das Profil verteilt sie
+        // nur noch auf die Monate. Zwischen zwei Ablesungen stimmt die Summe auch verteilter Monate.
+        $levelK = 1.0; $level = null;
+        $coveredMonths = count(array_filter($avgRate, fn($v) => $v !== null));
+        if (!$hgt && $coveredMonths < 12 && !Utilities::isDelivery($utility) && !Utilities::isFeedIn($utility)
+            && !Utilities::isGenerationOnly($utility) && ($level = self::lastYearLevel($monthly, $valueField)) !== null) {
+            $profile = 0.0; $fcDays = 0;
+            $d = clone $start;
+            for ($i = 0; $i < 12; $i++, $d->modify('first day of next month')) {
+                $mo = (int)$d->format('n');
+                $dim = (int)$d->format('t');
+                $profile += ($avgRate[$mo] ?? $avgInterp[$mo] ?? $overallRate) * $dim;
+                $fcDays += $dim;
+            }
+            if ($profile > 0) $levelK = $level['per_day'] * $fcDays / $profile;
+            else $level = null;
+        }
+
         $forecast = [];
         $runningBalance = 0.0;
         $hddSource = null;
         $missing = [];
-        $weatherVar = 0.0; $noiseVar = 0.0; $annualValue = 0.0; $bandMonths = 0; $bandOk = true;
+        $weatherVar = 0.0; $noiseVar = 0.0; $annualValue = 0.0; $bandMonths = 0; $bandOk = true; $regPart = 0.0;
         for ($i = 0; $i < $fcMonths; $i++) {
             $ym = $start->format('Y-m');
             $mn = (int)$start->format('n');
@@ -295,6 +318,7 @@ final class ForecastService
                 $blended = $overallRate * $daysInMonth;
                 $method = 'filled';
             }
+            $blended *= $levelK;   // v3.9.0 — 1 außer beim Niveau der letzten 365 Tage (s. o.)
 
             // Band je Monat
             $bandLow = $bandHigh = null;
@@ -311,6 +335,8 @@ final class ForecastService
             }
             if ($i < 12) {
                 $annualValue += $blended;
+                // v3.9.0 (L4) — wie viel der Jahresmenge wirklich aus der Heizkurve kommt
+                $regPart += str_starts_with($method, 'blend(') ? $blendW * (float)$regressionVal : ($method === 'regression_only' ? $blended : 0.0);
                 $bandMonths++;
                 if ($wSd === null && $nSd === null) $bandOk = false;
                 $weatherVar += ($wSd ?? 0.0) ** 2;
@@ -379,13 +405,18 @@ final class ForecastService
         $warnings = [];
         // v3.7.0 (#37) — „Verbrauch für N Kalendermonate“ zählt gemessene Kalendermonate:
         // Ohne sie lag die Prognose bei echten Daten ohne Warnung weit daneben
-        $covered = count(array_filter($avgRate, fn($v) => $v !== null));
+        $covered = $coveredMonths;
         if ($covered < 12) {
             $warnings[] = [
                 'code'    => 'history_short',
                 'months'  => $covered,
                 'missing' => array_values(array_unique($missing)),
             ];
+        }
+        // v3.9.0 (auswertung, Zusatzbefund) — die Jahresmenge kommt aus den letzten 365 Tagen
+        if ($level !== null) {
+            $warnings[] = ['code' => 'level_last_year', 'value' => round($level['value'], 1), 'from' => $level['from'], 'to' => $level['to'],
+                'factor' => round($levelK, 4)];
         }
         if ($hgt && $hddSource !== 'climate_normal') {
             // v3.7.0 (wirklichkeit-2) — es gibt ein Normal, aber nicht für diese Heizgrenze
@@ -450,6 +481,11 @@ final class ForecastService
             'forecast'     => $forecast,
             'regression'   => $reg,
             'blend_weight' => round($blendW, 4),
+            // v3.9.0 (L4, additiv) — wirksamer Anteil der Heizkurve an den ersten zwölf
+            // Prognosemonaten: Bei nicht bestandener Gütesperre oder im Sommer unter den Punkten
+            // rechnet der Monat mit dem Saisonprofil; dann stand „Anteil Heizkurve 80 %“ neben
+            // „Saisonprofil“ in jedem Monat
+            'blend_effective' => $annualValue > 0 ? round($regPart / $annualValue, 4) : 0.0,
             'last_price_ct'=> round($fallbackPrice, 4),
             'hdd_source'   => $hddSource,
             'annual'       => $annual,
@@ -468,6 +504,32 @@ final class ForecastService
                 'forecast_months' => $fcMonths,
             ],
         ];
+    }
+
+    /**
+     * v3.9.0 (auswertung, Zusatzbefund) — Verbrauch der letzten 365 Tage aus den Monatswerten.
+     * Verteilte zählen mit: Zwischen zwei Ablesungen stimmt ihre Summe. Der älteste Monat geht
+     * anteilig nach Tagen ein. Null, wenn die Monate nach der Zäsur keine 365 Tage tragen.
+     *
+     * @param list<array<string,mixed>> $monthly
+     * @return array{value: float, per_day: float, from: string, to: string}|null
+     */
+    public static function lastYearLevel(array $monthly, string $valueField, int $span = 365): ?array
+    {
+        $need = $span; $sum = 0.0; $from = null; $to = null;
+        for ($i = count($monthly) - 1; $i >= 0 && $need > 0; $i--) {
+            $m = $monthly[$i];
+            if (!empty($m['pre_baseline'])) return null;
+            $days = (int)($m['days'] ?? 0);
+            if ($days <= 0) continue;
+            $take = min($days, $need);
+            $sum += (float)($m[$valueField] ?? 0) * $take / $days;
+            $need -= $take;
+            $to ??= (string)$m['ym'];
+            $from = (string)$m['ym'];
+        }
+        if ($need > 0 || $sum <= 0) return null;
+        return ['value' => $sum, 'per_day' => $sum / $span, 'from' => (string)$from, 'to' => (string)$to];
     }
 
     /**

@@ -27,13 +27,37 @@ final class WaterBillFixture
     public const ACCOUNT = '4000123456';
 
     /**
-     * Textebene je Seite. `$layout`: Spalten mit mehreren Leerzeichen wie
-     * `pdftotext -layout`; sonst ein Leerzeichen zwischen den Textstücken, wie
-     * der Browser (pdf.js, lib/pdf.js joinTextItems) sie liest.
+     * v3.9.0 — dieselben Zahlen, wie der Browser sie seit dem Lesen mit Lage
+     * liefert (lib/pdf.js joinTextItems: Stücke nach x, Leerzeichen nach dem
+     * Abstand): ohne Sperrung, „€/m³“ ohne Lücken. Von Hand aufgeschrieben, nicht
+     * aus der Belegprüfung abgeleitet.
+     */
+    private const BROWSER = [
+        '3 1 5,5 9 €' => '315,59 €', '2 2,0 9 €' => '22,09 €', '3 3 7,6 8 €' => '337,68 €', '2 1 9,1 3 €' => '219,13 €',
+        '4 1,6 3 €' => '41,63 €', '2 6 0,7 6 €' => '260,76 €', '2 0 9,9 7 €' => '209,97 €', '3 9,8 9 €' => '39,89 €',
+        '2 4 9,8 6 €' => '249,86 €', '8 4 8,3 0 €' => '848,30 €', '-8 0 0 , 0 0 €' => '-800,00 €', '4 8,3 0 €' => '48,30 €',
+        '6 0,7 5 €' => '60,75 €', '4,2 5 €' => '4,25 €', '6 5,0 0 €' => '65,00 €', '4 2,0 2 €' => '42,02 €', '7,9 8 €' => '7,98 €',
+        '5 0,0 0 €' => '50,00 €', '1 6 5,0 0 €' => '165,00 €',
+        '3 5 m³' => '35 m³', '3 7 m³' => '37 m³', '8 0 m³' => '80 m³', '2 , 1 0 € / m³' => '2,10 €/m³', '2 , 3 0 € / m³' => '2,30 €/m³',
+        '1 , 8 0 € / m³' => '1,80 €/m³', '1 , 9 5 € / m³' => '1,95 €/m³', '7 3,5 0 €' => '73,50 €', '8 5,1 0 €' => '85,10 €',
+        '1 8 3 Tage' => '183 Tage', '1 8 2 Tage' => '182 Tage',
+        '5 0 , 0 0 € / Jahr' => '50,00 €/Jahr', '1 0 0 , 0 0 € / Jahr' => '100,00 €/Jahr', '5 4 , 0 0 € / Jahr' => '54,00 €/Jahr',
+        '1 1 0 , 0 0 € / Jahr' => '110,00 €/Jahr', '4 0 , 0 0 € / Jahr' => '40,00 €/Jahr', '4 4 , 0 0 € / Jahr' => '44,00 €/Jahr',
+        '2 5,0 7 €' => '25,07 €', '5 0,1 4 €' => '50,14 €', '2 6,9 3 €' => '26,93 €', '5 4,8 5 €' => '54,85 €',
+        '6 3,0 0 €' => '63,00 €', '7 2,1 5 €' => '72,15 €', '2 0,0 5 €' => '20,05 €', '2 1,9 4 €' => '21,94 €', '1 9 %' => '19 %',
+        '2 0 0 , 0 0 m²' => '200,00 m²', '1 0 0,2 7 €' => '100,27 €', '1 0 9,7 0 €' => '109,70 €',
+        '2 1 , 0 0 €' => '21,00 €', '4 0 , 0 0 €' => '40,00 €', '3 8 , 0 0 €' => '38,00 €',
+    ];
+
+    /**
+     * Textebene je Seite. `$layout`: `true` Spalten mit mehreren Leerzeichen wie
+     * `pdftotext -layout`; `false` ein Leerzeichen zwischen den Textstücken, wie
+     * der Browser bis v3.8 las (Sperrung bleibt); `'browser'` wie der Browser
+     * seit v3.9.0 mit Lage liest (ein Leerzeichen, Ziffern ohne Sperrung).
      *
      * @return list<string>
      */
-    public static function pages(bool $layout = true): array
+    public static function pages(bool|string $layout = true): array
     {
         $p = [
             <<<'TXT'
@@ -124,9 +148,10 @@ Umsatzsteuer Niederschlagswasser                  3 8 , 0 0 € (19%)
 Hinweise zu Ihrer Rechnung: Der Basispreis deckt die Kosten der Bereitstellung, der Bereitstellungspreis richtet sich nach der Größe des Zählers.
 TXT,
         ];
-        if ($layout) return $p;
+        if ($layout === true) return $p;
         // wie pdf.js: Spalten mit einem Leerzeichen getrennt; die Sperrung (ein Leerzeichen) bleibt
-        return array_map(fn(string $s) => (string)preg_replace('/ {2,}/', ' ', $s), $p);
+        $single = array_map(fn(string $s) => (string)preg_replace('/ {2,}/', ' ', $s), $p);
+        return $layout === 'browser' ? array_map(fn(string $s) => strtr($s, self::BROWSER), $single) : $single;
     }
 
     /**
@@ -134,10 +159,23 @@ TXT,
      * wie das Modell die zusammengefasste Textebene sieht: ein Leerzeichen
      * zwischen den Spalten, die Sperrung bleibt).
      *
+     * `$variant` `'browser'`: die Zitate aus der Textebene, wie der Browser sie
+     * seit v3.9.0 liefert (pages('browser')).
+     *
      * @return array<string,mixed>
      */
-    public static function answer(): array
+    public static function answer(string $variant = ''): array
     {
+        if ($variant === 'browser') {
+            $fix = function (array $node) use (&$fix): array {
+                foreach ($node as $k => $v) {
+                    if ($k === 'quote' && is_string($v)) $node[$k] = strtr($v, self::BROWSER);
+                    elseif (is_array($v)) $node[$k] = $fix($v);
+                }
+                return $node;
+            };
+            return $fix(self::answer());
+        }
         $f = fn($v, ?string $q, ?int $p = 1) => ['value' => $v, 'quote' => $q, 'page' => $q === null ? null : $p];
         $row1 = '12345678901 01.04.2025 30.09.2025 1200 1235 S 35';
         $row2 = '12345678901 01.10.2025 31.03.2026 1235 1272 I 37';

@@ -559,6 +559,47 @@ auch an Tanks (Heizöl, Pellets), beim Anlegen eines Zählers und an Zählergrup
 (`PATCH …/meter-groups/{id}`). Die Agenda kennt die Art `heat_limit` (Empfehlung der
 Kategorie `modell`, `ref` mit `best`, `current`, `range`, `before`, `after`, `effect`).
 
+**Seit v3.9.0 (Auswertung), additiv** — jede Zahl stimmt oder sagt, warum sie
+unsicher ist ([Grundlagen §1](../verstehen/00-overview.md#gemessen-oder-verteilt-seit-v370),
+[§10](../verstehen/00-overview.md#eine-projektion-für-saldo-und-werkstatt-seit-v390)):
+
+| Wo | Feld | Bedeutung |
+|---|---|---|
+| `…/consumption`, `monthly[]` | `measured_day_share` | Anteil der **Tage** des Monats aus Ablesungsabständen bis 45 Tage (0 … 1). `interpolated` ist seit v3.9.0 `true`, wenn `measured_share` **oder** `measured_day_share` unter 0,5 liegt |
+| `…/consumption`, `monthly[]` | `advance_measured_eur`, `cost_measured` | Abschlag und Kosten der **gemessenen Tage**: im ersten und letzten Monat einer Ablesereihe tagesanteilig, sonst gleich `advance_eur` bzw. `cost`. Grundlage der Kachel „Saldo“ und der Monatstabelle |
+| `…/consumption`, `monthly[]` | `advance_dates` | nur mit Abschlagsrhythmus (alle 2 oder 3 Monate, Termine laut Rechnung): die Raten des Monats `[{date, amount_eur, contract_id}]`. Teilzeiträume (Abrechnungsjahr, „Rechnung prüfen“, gemessene Tage, Rest des Monats in der Werkstatt) zählen sie ganz an ihrem Tag wie der Saldo der Karte, nicht anteilig über die Tage des Monats |
+| `…/consumption`, `interpolation` | `estimated_by_year` | geschätzte Stände je Jahr, neben `readings_by_year` (sie messen nicht, stehen aber in der Liste) |
+| `…/contract-status` | `settle_on` | **letzter Tag** des Abrechnungszeitraums (einschließlich): eine Regel für Saldo-Karte, Kosten & Verträge, Jahresbericht, „Wohin geht mein Geld?“ und Werkstatt |
+| `…/contract-status` | `billing_period` | `{from, until, open_from, source, bill_id}`: die laufende Abrechnungsperiode der [Abrechnungsperioden](#abrechnungsperioden-v360), über die der Saldo rechnet; `open_from` ist der Tag nach der letzten Rechnung, wenn der Stichtag nicht zu ihr passt. `null` für Verträge außerhalb der laufenden Periode und für die Einspeisung |
+| `…/contract-status` | `months_left`, `advance_ongoing`, `suggestion_withheld` | Abschläge bis zur Abrechnung; laufend angemessener Abschlag (geschätzte Kosten der zwölf Monate danach ÷ 12, ganze Euro, `null` bei unsicherer Schätzung); `"short"`, wenn unter 3 Abschlägen bis zur Abrechnung kein Nachholbetrag vorgeschlagen wird (`suggested_advance` dann `null`) |
+| `…/contract-status` | `successor_switch` | der eingetragene Folgevertrag ist bei einem anderen Versorger: statt „Kündigung oder Wechsel bis …“ fragt die App „Kündigung bestätigt?“ |
+| `…/forecast` | `blend_effective` | wirksamer Anteil der Heizkurve an den ersten zwölf Prognosemonaten (0 … 1); `blend_weight` bleibt das Gewicht laut Modellgüte |
+| `…/forecast` | `warnings[]` | neu `level_last_year {value, from, to, factor}`: ohne Wetterbezug und ohne zwölf gemessene Kalendermonate folgt die Jahresmenge dem Verbrauch der letzten 365 Tage |
+| `GET /api/pv-summary` | `monthly[].partial_series`, `monthly[].feed_above_generation` | Reihen, die den Monat nur zum Teil erfassen (unter 90 % der Tage der längsten Reihe; der Monat zählt dann nicht als erfasst); gemessene Einspeisung über der Erzeugung (widersprüchlich) |
+| `GET /api/pv-summary` | `yearly[].flow_period` | Zeitraum des Energieflusses: `{from, to, months, interpolated_months, interpolated_series, feed_above_generation, partial, generation_kwh}` oder `null` |
+| `GET /api/readings-overview` | `first_date` | erste echte Ablesung des Zählers (Jahresauswahl des Berichts) |
+| `GET /api/reports/yearly` | `model.topics.pv.notes`, `.estimated` | Notizen zum Sonnenstrom-Block (Zeitraum, verteilt, widersprüchlich, kein Vergleich); `estimated`: der Block steht auf verteilten Monaten (≈, „geschätzt“ statt „gemessen“) |
+| `POST /api/forecast/scenario` | `advance.base_ongoing`, `.scen_ongoing`, `.withheld` | wie `advance_ongoing` und `suggestion_withheld` der Karte; das Szenario verschiebt den laufenden Abschlag um seine Monatskosten |
+
+**Geänderte Werte (v3.9.0):**
+
+- **Saldo über die laufende Abrechnungsperiode.** Ein Vertrag, der in die
+  laufende Abrechnungsperiode fällt, rechnet Saldo, Kosten, Abschläge und
+  Vorschlag über genau diese Periode, auch ohne erfasste Rechnung. Bis v3.8
+  zählte die Karte ohne Rechnung ab Vertragsbeginn (mehrere Jahre), die
+  Werkstatt das laufende Abrechnungsjahr. `effective_end` ist dann der Tag nach
+  dem Periodenende (bzw. das gepflegte Vertragsende, wenn es vorher kommt); in
+  einer angeschnittenen Periode zählen von den Sonderzahlungen nur zusätzliche
+  Abschlagszahlungen. Die Werkstatt (`billing`, `advance`) übernimmt Saldo,
+  Datum und Vorschlag aus dem Vertragsstatus.
+- **Energiefluss ohne Kappung.** `flows.pv_grid` ist die gemessene Einspeisung,
+  auch wenn sie über der (verteilten) Erzeugung liegt; bis v3.8 galt
+  `min(Einspeisung, Erzeugung)`. `eigenverbrauchsquote` bezieht sich auf die
+  Sonne im Bild.
+- **Künftige Verträge** zeigen Arbeitspreis und Abschlag ihres Beginns (bis v3.8 `null`).
+- **Prognose:** Ohne Wetterbezug und ohne zwölf gemessene Kalendermonate ist die
+  Jahressumme die der letzten 365 Tage (Warnung `level_last_year`).
+
 **Seit v2.8.0** zählen `hdd` nur die Tage mit Verbrauch; `temp_days` sagt,
 für wie viele davon Temperaturen vorliegen. Bei HGT-relevanten Arten mit
 Zählerständen (Gas, Fernwärme, seit v3.1.0 Heizwärme) kommen die Felder des Heizmodells dazu
@@ -4321,7 +4362,11 @@ oder `note`. Antwort wie die Vorschau.
 
 **Auslesen — `POST /api/inbox/{id}/classify`, dann `…/extract`** mit
 `{pages: [Text je Seite], consent?, fresh?}`. Die Textebene liest der Browser
-(pdf.js). `classify` erkennt die Art, `extract` liest die Felder dieser Art und
+(pdf.js), *(v3.9.0)* mit der Lage jedes Textstücks: Stücke einer Zeile (gleiche
+Grundlinie, innerhalb einer Zeile des Dokuments) stehen von links nach rechts,
+auch wenn das PDF eine rechtsbündige Zahl Zeichen für Zeichen von rechts zeichnet,
+und ein Leerzeichen steht nur, wo das Dokument eine Lücke hat. Zeilen, die das
+Dokument von links schreibt, bleiben wie bisher. `classify` erkennt die Art, `extract` liest die Felder dieser Art und
 prüft sie; ohne Art läuft `extract` beides. Zwischengespeichert je Anbieter,
 Modell und Schema-Version (`fresh: true` fragt neu). Gesperrt wird erst nach der
 Antwort des Diensts. Ein Anbieter außer `local` verlangt `consent: true`,

@@ -49,11 +49,11 @@ final class WaterBillContractTest extends ServiceTestCase
             'initial_counter' => 0.0, 'removed_on' => null, 'final_counter' => null, 'reason' => null]]);
     }
 
-    private function inbox(): InboxService
+    private function inbox(string|array $variant = ''): InboxService
     {
         $reminders = new ReminderService($this->store, $this->settings, $this->i18n);
         $att = new AttachmentService($this->store, $this->settings, $this->i18n);
-        $p = InboxFixture::provider('local', ['Rechnung Nr.' => 'invoice'], ['invoice' => WaterBillFixture::answer()]);
+        $p = InboxFixture::provider('local', ['Rechnung Nr.' => 'invoice'], ['invoice' => is_array($variant) ? $variant : WaterBillFixture::answer($variant)]);
         $s = new InboxService($this->store, $this->i18n, $att, new ProviderRegistry($this->settings, $p),
             new Proposals($this->meters, $this->contracts, $this->readings, $this->bills, $reminders, $this->settings),
             new Applier($this->meters, $this->contracts, $this->readings, $this->bills, $reminders, $this->settings, $this->i18n));
@@ -120,6 +120,109 @@ final class WaterBillContractTest extends ServiceTestCase
             self::assertSame('heading', $f['water_prices']['items'][9]['section_from'] ?? null, 'Bereitstellungspreis Schmutzwasser');
             self::assertSame(['vat_pct' => 19.0, 'gross' => 47.6], $f['water_prices']['items'][9]['net'], '40,00 € netto + 19 %');
         }
+    }
+
+    /**
+     * Die Textebene, wie der Browser sie seit dem Lesen mit Lage liefert (lib/pdf.js: rechtsbündige Zahlen, die
+     * das PDF Zeichen für Zeichen von rechts zeichnet, stehen in der richtigen Reihenfolge, ohne Sperrung): Alle
+     * Werte sind belegt, und der ganze Weg führt zum Vertrag mit Preisen und Abschlagsplan und zur gebuchten Rechnung.
+     */
+    public function testTheTextAsTheBrowserReadsItWithPositionsGoesAllTheWayToContractPricesAndPlan(): void
+    {
+        $pages = WaterBillFixture::pages('browser');
+        foreach ($pages as $i => $page) self::assertSame($page, Evidence::despace($page), "Seite $i: keine Sperrung mehr");
+        self::assertStringContainsString('Rechnungsbetrag 848,30 €', $pages[0]);
+        self::assertStringContainsString('Wasserverbrauch 01.04.2025 - 30.09.2025 35 m³ 2,10 €/m³ 73,50 € 7%', $pages[1]);
+        $f = Evidence::check('invoice', WaterBillFixture::answer('browser'), $pages);
+        foreach (['total_amount' => 848.3, 'advances_total' => 800.0, 'result_amount' => 48.3, 'consumption' => 72.0, 'advance_new' => 165.0,
+                  'reading_old' => 1200.0, 'reading_new' => 1272.0] as $name => $value) {
+            self::assertSame([$value, 'ok', []], [(float)$f[$name]['value'], $f[$name]['status'], $f[$name]['reasons']], $name);
+        }
+        foreach ($f['water_prices']['items'] as $i => $it) self::assertSame(['price_from_invoice', 'net_price'], $it['reasons'], "Wasserpreis #$i");
+        self::assertSame(['2026-05-15', '2026-07-15', '2026-09-15', '2026-11-15', '2027-01-15'], array_column($f['advance_new_dates']['value'], 'date'));
+
+        $s = $this->inbox('browser');
+        $e = $s->upload(InboxFixture::pdf('wasserb'), 'Wasserrechnung.pdf');
+        $s->extract($e['id'], $pages);
+        $p = $s->preview($e['id']);
+        $c = self::byKind($p['proposals'], 'contract_create')[0];
+        self::assertSame([true, []], [$c['checked'], $c['open']], 'Vertrag mit Preisen und Abschlag, nichts offen');
+        $rows = fn(array $list, string $key) => array_column(array_map(fn($r) => [$r['from'], round((float)$r[$key], 4)], $list), 1, 0);
+        self::assertEqualsWithDelta(WaterBillFixture::GROSS['trinkwasser']['working'], $rows($c['data']['trinkwasser']['working_prices'], 'ct_per_m3'), 1e-9);
+        self::assertEqualsWithDelta(WaterBillFixture::GROSS['schmutzwasser']['base'], $rows($c['data']['schmutzwasser']['base_prices'], 'eur_per_month'), 1e-4);
+        self::assertSame([2, 165.0], [$c['data']['advance_payments'][0]['every_months'] ?? null, (float)$c['data']['advance_payments'][0]['amount_eur']]);
+        $res = $s->apply($e['id'], array_column(array_filter($p['proposals'], fn($x) => $x['checked']), 'id'));
+        self::assertSame([], $res['failed'], json_encode($res['failed']));
+        $ct = $this->contracts->list('wasser')[0];
+        $b = $this->bills->list('wasser')[0];
+        self::assertSame([$ct['id'], 2], [$b['contract_id'], $ct['advance_payments'][0]['every_months'] ?? null]);
+        self::assertNotEmpty($b['special_payment_id'], 'gebucht');
+    }
+
+    // ── Rhythmus des neuen Abschlags: Feld und Termine ───────────────────
+
+    /**
+     * Dieselbe Rechnung mit anderen Terminen und einer anderen Antwort zum Rhythmus (erfunden, nach dem Befund
+     * am echten Dokument: fünf Termine im Abstand von zwei Monaten, einer um ein Wochenende verschoben).
+     *
+     * @param list<string> $dates wie gedruckt (TT.MM.JJJJ)
+     */
+    private function readRhythm(mixed $every, array $dates): array
+    {
+        $line = implode(', ', $dates);
+        $pages = array_map(fn(string $p) => str_replace('15.05.2026, 15.07.2026, 15.09.2026, 15.11.2026, 15.01.2027', $line, $p), WaterBillFixture::pages(false));
+        $a = WaterBillFixture::answer();
+        $a['advance_new_from'] = ['value' => $dates[0], 'quote' => $line, 'page' => 1];
+        $a['advance_new_dates'] = ['value' => array_map(fn($d) => ['date' => $d, 'quote' => $line, 'page' => 1], $dates), 'quote' => null, 'page' => null];
+        $a['advance_new_every'] = ['value' => $every, 'quote' => $every === null ? null : $line, 'page' => $every === null ? null : 1];
+        $s = $this->inbox($a);
+        $e = $s->upload(InboxFixture::pdf('wr' . md5(json_encode([$every, $dates]))), 'Wasserrechnung.pdf');
+        $s->extract($e['id'], $pages);
+        $p = $s->preview($e['id']);
+        return [$p, self::byKind($p['proposals'], 'contract_create')[0]];
+    }
+
+    private const SHIFTED = ['16.10.2026', '16.12.2026', '15.02.2027', '16.04.2027', '16.06.2027'];
+    private const SHIFTED_ISO = ['2026-10-16', '2026-12-16', '2027-02-15', '2027-04-16', '2027-06-16'];
+
+    public function testTheModelSaysBimonthlyAndADateIsShiftedByAWeekend(): void
+    {
+        foreach (['bimonthly', 'zweimonatlich', 'alle 2 Monate', 2, '2'] as $every) {
+            [$p, $c] = $this->readRhythm($every, self::SHIFTED);
+            self::assertSame('bimonthly', $p['entry']['extraction']['fields']['advance_new_every']['value'], json_encode($every) . ': tolerant gelesen');
+            self::assertSame(['from' => '2026-10-16', 'amount_eur' => 165.0, 'every_months' => 2, 'due_dates' => self::SHIFTED_ISO], $c['data']['advance_payments'][0], json_encode($every));
+            $line = array_values(array_filter($c['params']['lines'], fn($l) => $l['kind'] === 'advance'))[0];
+            self::assertSame(2, $line['every'], 'im Vorschlag „alle 2 Monate“, nicht monatlich');
+            self::assertSame([true, false], [$c['checked'], $c['check']]);
+        }
+    }
+
+    public function testWithoutARhythmTheDatesGiveIt(): void
+    {
+        [, $c] = $this->readRhythm(null, self::SHIFTED);
+        self::assertSame([2, self::SHIFTED_ISO, true], [$c['data']['advance_payments'][0]['every_months'] ?? null, $c['data']['advance_payments'][0]['due_dates'], $c['checked']]);
+        // drei Monate, Monatsletzte: 31.01., 30.04., 31.07.
+        [, $q] = $this->readRhythm(null, ['31.01.2027', '30.04.2027', '31.07.2027']);
+        self::assertSame(3, $q['data']['advance_payments'][0]['every_months'] ?? null);
+        // ungleichmäßig: nur die Termine, kein Rhythmus geraten
+        [, $u] = $this->readRhythm(null, ['16.10.2026', '16.11.2026', '16.02.2027']);
+        self::assertArrayNotHasKey('every_months', $u['data']['advance_payments'][0]);
+        self::assertTrue($u['checked']);
+    }
+
+    public function testMonthlyAgainstDatesTwoMonthsApartTakesTheDatesAndIsNotPreselected(): void
+    {
+        [$p, $c] = $this->readRhythm('monthly', self::SHIFTED);
+        self::assertSame(2, $c['data']['advance_payments'][0]['every_months'] ?? null, 'die Termine gelten');
+        self::assertSame([false, true], [$c['checked'], $c['check']], 'Widerspruch: nicht vorbelegt');
+        self::assertContains(['field' => 'advance_new_every', 'reason' => 'rhythm_conflict'], $c['hints']);
+        $book = self::byKind($p['proposals'], 'bill_book')[0];
+        self::assertSame($c['id'], $book['requires'] ?? null, 'Buchen nur mit dem Vertrag');
+        // ein bekannter Rhythmus ohne Termine bleibt; ein unbekannter wird nicht geraten
+        [, $q] = $this->readRhythm('ogni tre mesi', ['16.10.2026']);
+        self::assertSame([3, true], [$q['data']['advance_payments'][0]['every_months'] ?? null, $q['checked']]);
+        [, $x] = $this->readRhythm('bimensuel', ['16.10.2026']);
+        self::assertArrayNotHasKey('every_months', $x['data']['advance_payments'][0]);
     }
 
     public function testASectionFromAnotherHeadingIsNotTaken(): void

@@ -228,6 +228,9 @@ console.log('Vertrag aus der Rechnung (vertrag-aus-rechnung)');
   t('Feld Wasserpreise: netto, Satz und brutto mit allen Stellen', item === 'Schmutzwasser · Abwassermenge 01.04.2025 bis 30.09.2025: 1,80 € je m³ netto + 19 % USt = 2,142 € je m³', item);
   const adv = sp(I.proposalText({ kind: 'contract_advance', label_key: 'inbox.proposal.advance', params: { from: '2026-05-15', value: 165, every: 2, dates: ['2026-05-15'] } }));
   t('Abschlagsänderung mit Rhythmus', /, alle 2 Monate, am 15\.05\.2026$/.test(adv), adv);
+  const MK = await import(`${JS}/lib/inbox-marks.js`);
+  const rc = MK.proposalNotes({ hints: [{ field: 'advance_new_every', reason: 'rhythm_conflict' }] }).join(' | ');
+  t('Rhythmus gegen Termine: Hinweis unter dem Vorschlag', /^Der Rhythmus laut Rechnung passt nicht zu den genannten Terminen\./.test(rc), rc);
   const fig = sp(I.gistFigure({ kind: 'money_rate', value: -12, signed: true }));
   t('Kernaussage: Abweichung je Termin, nicht je Monat', fig === '−12,00 € je Termin', fig);
 }
@@ -379,6 +382,47 @@ console.log('Textebene (pdf.js)');
 t('Textstücke: Zeilenende = Umbruch, Stücke einer Zeile mit Leerzeichen', P.joinTextItems([{ str: 'Abschlag', hasEOL: false }, { str: '80,00 €', hasEOL: true },
   { str: '', hasEOL: true }, { str: 'Guthaben:', hasEOL: false }, { str: ' 548,54 €', hasEOL: false }]) === 'Abschlag 80,00 €\n\nGuthaben: 548,54 €');
 t('JSDOM ohne DOMMatrix: kein pdf.js (nur der Link)', P.pdfSupported() === false);
+
+// v3.9.0 — Stücke mit Lage (wie getTextContent sie liefert): nach x in der Zeile, Leerzeichen nach dem Abstand.
+// Erfundene Zeilen nach dem Muster einer Wasserrechnung, die rechtsbündige Zahlen Zeichen für Zeichen von rechts zeichnet.
+{
+  const it = (str, x, w, { y = 397.7, h = 9, eol = false } = {}) => ({ str, transform: [h, 0, 0, h, x, y], width: w, height: h, hasEOL: eol });
+  const sp = (x, w, y = 397.7) => ({ str: ' ', transform: [1, 0, 0, 1, x, y], width: w, height: 0, hasEOL: false });
+  // Rückwärts gezeichnet: genau die Rohstücke aus dem Befund
+  const back = [it('Rechnungsbetrag', 74.4, 71), sp(145.4, 379.7),
+    it('6', 525.2, 5), it('5', 519.7, 5), it(',', 516.8, 2.5), it('4', 511.5, 5), it('3', 506, 5), it('2', 500.5, 5), it('.', 497.7, 2.5), it('1', 492.3, 5),
+    sp(497.3, 34.3), it('€', 531.6, 5, { eol: true })];
+  t('Lage: Zahl von rechts gezeichnet → „1.234,56 €“', P.joinTextItems(back) === 'Rechnungsbetrag 1.234,56 €', JSON.stringify(P.joinTextItems(back)));
+  // Tabellenzeile rückwärts: Etikett am Ende des Stroms, Menge, Einheit mit Hochzahl, Preis — zwei Spalten auf gleicher Höhe
+  const row = [it('³', 236.4, 3, { y: 401.2, h: 5 }), it('m', 229.8, 6.5), it('2', 222.2, 5), it('3', 216.7, 5),
+    it('5', 316.5, 5), it('4', 311, 5), it(',', 308.2, 2.5), it('2', 302.7, 5), it('€', 324, 5), it('/', 329.6, 2.5), it('m', 332.6, 6.5), it('³', 339.2, 3, { y: 401.2, h: 5 }),
+    it('Wasserverbrauch', 74.4, 70, { eol: true })];
+  t('Lage: Tabellenzeile rückwärts → Etikett vorn, „32 m³ 2,45 €/m³“', P.joinTextItems(row) === 'Wasserverbrauch 32 m³ 2,45 €/m³', JSON.stringify(P.joinTextItems(row)));
+  const days = [it('e', 140.5, 4.5), it('g', 136, 4.5), it('a', 131.5, 4.5), it('T', 126, 5.5), it('3', 112, 5), it('5', 106.5, 5), it('1', 101, 5, { eol: true })];
+  t('Lage: „e g a T 3 5 1“ → „153 Tage“', P.joinTextItems(days) === '153 Tage', JSON.stringify(P.joinTextItems(days)));
+  // Normale Zeile (links nach rechts, Leerzeichen-Stücke wie pdf.js sie einfügt): Text wie bis v3.8
+  const plain = [it('Abschlag', 74.4, 38), sp(112.4, 2.5), it('ab', 114.9, 9.5), sp(124.4, 2.5), it('15.05.2026:', 126.9, 47), it('165,00 €', 300, 36, { eol: true }),
+    it('Guthaben:', 74.4, 41), it(' 548,54 €', 115.4, 40, { eol: true })];
+  const legacy = (items) => P.joinTextItems(items.map(({ str, hasEOL }) => ({ str, hasEOL })));
+  t('Lage: Zeilen ohne Rückwärtslauf wie bis v3.8', P.joinTextItems(plain) === legacy(plain) && legacy(plain) === 'Abschlag ab 15.05.2026: 165,00 €\nGuthaben: 548,54 €', JSON.stringify(P.joinTextItems(plain)));
+  // Zwei Spalten einer Tabelle auf gleicher Höhe, vorwärts: wie bis v3.8
+  const cols = [it('Trinkwasser', 74.4, 50), it('224,70 ct/m³', 300, 52), it('13,375 €', 420, 36, { eol: true })];
+  t('Lage: Spalten auf gleicher Höhe (vorwärts) mit einem Leerzeichen', P.joinTextItems(cols) === 'Trinkwasser 224,70 ct/m³ 13,375 €');
+  // gesperrtes Wort mit kleinen Lücken (keine Leerzeichen-Stücke): ein Wort; die Wortlücke davor bleibt
+  const word = 'Rechnung'.split('').map((c, i) => it(c, 120 + i * 6.2, 5.2));
+  const spaced = [it('Ihre', 74.4, 20), ...word.slice(0, -1), { ...word[word.length - 1], hasEOL: true }];
+  t('Lage: gesperrtes Wort „R e c h n u n g“ → „Rechnung“', P.joinTextItems(spaced) === 'Ihre Rechnung', JSON.stringify(P.joinTextItems(spaced)));
+  // zwei Textspalten nebeneinander: jede Stromzeile für sich, nichts wird verschränkt — auch ohne Zeilenende im Strom
+  const two = [it('Links eins', 50, 45, { y: 700, eol: true }), it('Links zwei', 50, 45, { y: 688, eol: true }),
+    it('Rechts eins', 300, 50, { y: 700, eol: true }), it('Rechts zwei', 300, 50, { y: 688, eol: true })];
+  t('Lage: zwei Textspalten bleiben getrennt', P.joinTextItems(two) === 'Links eins\nLinks zwei\nRechts eins\nRechts zwei', JSON.stringify(P.joinTextItems(two)));
+  const noEol = [it('Links eins', 50, 45, { y: 700 }), it('Rechts eins', 300, 50, { y: 700 }), it('Links zwei', 50, 45, { y: 688 }), it('Rechts zwei', 300, 50, { y: 688, eol: true })];
+  t('Lage: ohne Zeilenende im Strom wird nur innerhalb einer Höhe sortiert', P.joinTextItems(noEol) === legacy(noEol)
+    && legacy(noEol) === 'Links eins Rechts eins Links zwei Rechts zwei', JSON.stringify(P.joinTextItems(noEol)));
+  // Stücke ohne Lage (Tests, ältere Aufrufer), auch gemischt: wie bis v3.8
+  const mixed = [{ str: 'Abschlag', hasEOL: false }, it('1', 120, 5), it('8', 114.5, 5), it('0', 125.5, 5, { eol: true })];
+  t('Lage: eine Zeile mit Stücken ohne Lage bleibt, wie sie war', P.joinTextItems(mixed) === 'Abschlag 1 8 0', JSON.stringify(P.joinTextItems(mixed)));
+}
 const vendor = resolve(ROOT, 'public/vendor/pdfjs');
 const head = readFileSync(resolve(vendor, 'pdf.min.js'), 'utf8').slice(0, 2000);
 t('pdf.js mitgeliefert mit Lizenz (Apache-2.0)', /Apache License, Version 2\.0/.test(head) && /Apache License/.test(readFileSync(resolve(vendor, 'LICENSE'), 'utf8')));
@@ -415,6 +459,37 @@ try {
   const doc = await lib.getDocument({ data: new Uint8Array(readFileSync(resolve(ROOT, 'demo-data/attachments', att))), isEvalSupported: false, verbosity: 0 }).promise;
   const pages = await P.textPages(doc);
   t('Beispieldokument: drei Seiten mit Textebene', pages.length === 3 && /Jahresabrechnung Erdgas 2025/.test(pages[0]) && /Ergänzende Bedingungen/.test(pages[2]));
+  // v3.9.0 — mit Lage gelesen: ein Dokument ohne rückwärts gezeichnete Zeilen ergibt genau den Text wie bis v3.8
+  const before = [];
+  for (let i = 1; i <= doc.numPages; i++) {
+    const items = (await (await doc.getPage(i)).getTextContent()).items;
+    before.push(P.joinTextItems(items.map(({ str, hasEOL }) => ({ str, hasEOL }))));
+  }
+  const diff = pages.findIndex((p, i) => p !== before[i]);
+  t('Beispieldokument: mit Lage derselbe Text wie ohne (Byte für Byte)', diff === -1, diff === -1 ? '' : `Seite ${diff + 1}`);
+  // v3.9.0 — ein erfundenes PDF, das eine rechtsbündige Zahl Zeichen für Zeichen von rechts zeichnet (Helvetica 9 pt):
+  // textPages gibt die Lage mit, der Text steht in der richtigen Reihenfolge; eine Zeile von links bleibt wie bisher
+  const tinyPdf = (content) => {
+    const objs = ['<< /Type /Catalog /Pages 2 0 R >>', '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+      '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>',
+      '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>',
+      `<< /Length ${Buffer.byteLength(content, 'latin1')} >>\nstream\n${content}\nendstream`];
+    let pdf = '%PDF-1.4\n';
+    const offs = [];
+    objs.forEach((o, i) => { offs.push(Buffer.byteLength(pdf, 'latin1')); pdf += `${i + 1} 0 obj\n${o}\nendobj\n`; });
+    const xref = Buffer.byteLength(pdf, 'latin1');
+    pdf += `xref\n0 ${objs.length + 1}\n0000000000 65535 f \n${offs.map(o => `${String(o).padStart(10, '0')} 00000 n \n`).join('')}trailer\n<< /Size ${objs.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
+    return new Uint8Array(Buffer.from(pdf, 'latin1'));
+  };
+  const w = { '1': 5.004, '2': 5.004, '3': 5.004, '4': 5.004, '5': 5.004, '6': 5.004, ',': 2.502, '.': 2.502 };
+  let x = 530.2;
+  const glyphs = [...'1.234,56'].reverse().map((c) => { x -= w[c]; return `1 0 0 1 ${x.toFixed(3)} 397.7 Tm (${c}) Tj`; });
+  const stream = ['BT /F1 9 Tf 1 0 0 1 74.4 397.7 Tm (Rechnungsbetrag) Tj', ...glyphs, '1 0 0 1 532.2 397.7 Tm (\x80) Tj ET',
+    'BT /F1 9 Tf 1 0 0 1 74.4 380 Tm (Abschlag ab 15.05.2026) Tj 1 0 0 1 494.18 380 Tm (165,00 \x80) Tj ET'].join('\n');
+  const tiny = await lib.getDocument({ data: tinyPdf(stream), isEvalSupported: false, verbosity: 0 }).promise;
+  const [tinyText] = await P.textPages(tiny);
+  t('PDF von rechts gezeichnet: „Rechnungsbetrag 1.234,56 €“', /^Rechnungsbetrag 1\.234,56 €$/m.test(tinyText), JSON.stringify(tinyText));
+  t('PDF: Zeile von links wie bisher', /^Abschlag ab 15\.05\.2026 165,00 €$/m.test(tinyText), JSON.stringify(tinyText));
   const norm = (s) => String(s).toLowerCase().replace(/\s+/g, ' ').trim();
   const text = norm(pages.join(' '));
   const [entry] = JSON.parse(readFileSync(resolve(ROOT, 'demo-data/inbox.json'), 'utf8'));

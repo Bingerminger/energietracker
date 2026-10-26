@@ -477,7 +477,7 @@
       "consShort": "{value} consommation",
       "gpPlus": " + {value} abonnement",
       "suggestAdvance": "Avec un acompte de {suggested} au lieu de {current}, le décompte serait d’environ ±0.",
-      "measuredThenEstimated": "mesuré jusqu’au {date} ({kwh} kWh), estimé ensuite : {value}",
+      "measuredThenEstimated": "mesuré jusqu’au {date} ({amount}), estimé ensuite : {value}",
       "renewed": "La durée a pris fin le {date}. Sans résiliation, le contrat continue aux derniers prix et se résilie à tout moment avec un préavis d’un mois au plus.",
       "cancelMissed": "Date limite de résiliation du {date} dépassée : le contrat ne se termine pas le {end} mais continue — ensuite résiliable avec un préavis d’un mois au plus.",
       "priceIncrease": "Hausse de prix à partir du {date} : {what}.",
@@ -505,7 +505,13 @@
       },
       "sinceBill": "Calculé à partir du {date} : la facture précédente est comptabilisée dans le contrat et n’entre plus en compte ici.",
       "nextDue": "prochaine échéance : {date}",
-      "paidCurrentEvery": "actuel : {value}"
+      "paidCurrentEvery": "actuel : {value}",
+      "suggestShort": {
+        "one": "Il ne reste que {count} acompte avant le décompte du {date}. Le décompte règle le reste : inutile d’augmenter l’acompte maintenant.",
+        "other": "Il ne reste que {count} acomptes avant le décompte du {date}. Le décompte règle le reste : inutile d’augmenter l’acompte maintenant."
+      },
+      "suggestOngoing": "Ensuite, environ {amount} au lieu de {current} par mois seraient adaptés.",
+      "sincePeriod": "Calculé à partir du {date}, début de la période de facturation en cours jusqu’au {until}. Les périodes précédentes figurent dans l’année de facturation."
     },
     "contractsTable": {
       "emptyTitle": "Aucun contrat enregistré",
@@ -526,7 +532,8 @@
       "colSpecial": "Paiements exceptionnels",
       "hint": "Primes = avoirs issus du contrat (prime immédiate, de changement, de nouveau client). Paiements exceptionnels = remboursements (+), compléments et acomptes supplémentaires (−) hors échéancier ; les deux entrent dans le solde. Touchez pour voir le détail ; la saisie se fait dans la gestion des contrats.",
       "colEarned": "Rémunération",
-      "colReceived": "Reçu"
+      "colReceived": "Reçu",
+      "futureLegend": "≈ Contrat futur : le solde attendu est estimé à partir du début du contrat avec ses prix, son acompte et votre consommation jusqu’ici."
     },
     "monthlyTable": {
       "noData": "Aucune donnée pour cette année.",
@@ -754,6 +761,14 @@
       "alt": {
         "one": "Diagramme en barres : flux d’énergie {year} — sur {months} mois avec des données des trois compteurs, produit {generation}, dont autoconsommé {self} et injecté {feedIn} ; soutiré du réseau {grid}.",
         "other": "Diagramme en barres : flux d’énergie {year} — sur {months} mois avec des données des trois compteurs, produit {generation}, dont autoconsommé {self} et injecté {feedIn} ; soutiré du réseau {grid}."
+      },
+      "feedAbove": {
+        "one": "! {months} : l’injection mesurée dépasse la production répartie. Autoconsommation et injection y dépassent la production, car celle-ci est répartie trop bas pour le mois.",
+        "other": "! {months} : l’injection mesurée dépasse la production répartie. Autoconsommation et injection y dépassent la production, car celle-ci est répartie trop bas pour ces mois."
+      },
+      "partial": {
+        "one": "* {months} : un compteur ne couvre qu’une partie du mois. Sans période commune, l’autoconsommation y manque.",
+        "other": "* {months} : un compteur ne couvre qu’une partie du mois. Sans période commune, l’autoconsommation y manque."
       }
     },
     "photo": {
@@ -2856,7 +2871,8 @@
       "poorFit": "Le modèle de chauffage correspond mal à ce compteur (± {pct} par mois) : la prévision s’appuie sur les mois mesurés et n’affiche pas de fourchette.",
       "regressionInvalid": "La courbe de chauffe choisie ({model}) n’est pas valable — {why}. La prévision s’en passe.",
       "climateNormalGrid": "Il n’y a pas encore de normale climatique pour la température de base DJU {base} °C (précalculée de {min} à {max} °C ; l’application recharge une ancienne normale au prochain rapprochement météo). D’ici là, les DJU de votre propre historique de températures comptent.",
-      "fewMeasured": "Trop peu de mois mesurés pour vérifier le modèle de chauffage : la prévision n’affiche pas de fourchette, solde et acompte n’apparaissent que sous forme d’intervalle."
+      "fewMeasured": "Trop peu de mois mesurés pour vérifier le modèle de chauffage : la prévision n’affiche pas de fourchette, solde et acompte n’apparaissent que sous forme d’intervalle.",
+      "levelLastYear": "La quantité annuelle suit la consommation des 365 derniers jours ({amount}, de {from} à {to}). Tous les mois ne sont pas mesurés, la prévision se contente donc de répartir cette quantité sur les mois."
     },
     "assumedNote": "Pas de contrat pour ce mois — le dernier contrat continue à ses prix (hypothèse ; les contrats se reconduisent).",
     "method": {
@@ -2876,7 +2892,8 @@
     "annualNoBand": "Année : {value} {unit} — sans fourchette, car le modèle de chauffage correspond mal.",
     "annualNoBandFew": "Année : {value} {unit} — sans fourchette, car trop peu de mois sont mesurés pour vérifier le modèle de chauffage.",
     "annualNoBandYears": "Année : {value} {unit} — sans fourchette : l’écart d’un mois d’une année à l’autre n’apparaît qu’avec des mesures sur plus d’une année.",
-    "annualBandSpread": "Année : {value} {unit}, dans {level} % des années entre {low} et {high} {unit} — d’après la dispersion des mois au fil des années."
+    "annualBandSpread": "Année : {value} {unit}, dans {level} % des années entre {low} et {high} {unit} — d’après la dispersion des mois au fil des années.",
+    "blendPoorFit": "le modèle de chauffage est peu adapté, chaque mois utilise donc le profil saisonnier"
   },
   "report": {
     "createdOn": "Créé le {date}",
@@ -3000,7 +3017,9 @@
       "cheapShare": "Part aux heures avantageuses",
       "errors": "Remarque : certaines sections manquent, car leurs données n’ont pas pu être lues.",
       "billing": "Années de facturation",
-      "flexPage": "Flexibilité"
+      "flexPage": "Flexibilité",
+      "successesNoneUnadjusted": "En {year}, la consommation a été inférieure de {pct} à celle de {prev}. Cela ne prouve pas une économie : la comparaison n’est pas corrigée du climat, un hiver plus doux a le même effet. La section « Bon à savoir » montre la comparaison avec l’année précédente.",
+      "successesNoneUnproven": "En {year}, la consommation a été inférieure de {pct} à celle de {prev}. Cela ne prouve pas une économie : une partie des mois est répartie, non mesurée. La section « Bon à savoir » montre la comparaison avec l’année précédente."
     },
     "tile": {
       "cost": "Coûts de l’énergie",
@@ -3030,7 +3049,8 @@
         "ok": "Pas plus consommé",
         "warn": "Un peu plus consommé",
         "alert": "Nettement plus consommé",
-        "none": "Pas de comparaison"
+        "none": "Pas de comparaison",
+        "less": "Moins consommé"
       },
       "billing": {
         "ok": "Acomptes adaptés",
@@ -3080,7 +3100,8 @@
       "basis": {
         "measured": "mesuré",
         "projected": "extrapolé",
-        "example": "exemple de calcul"
+        "example": "exemple de calcul",
+        "estimated": "estimé"
       }
     },
     "agenda": {
@@ -3230,7 +3251,9 @@
       },
       "readings": {
         "title": "Relever les compteurs",
-        "reason": "Dernier relevé le {date} : {meters}."
+        "reason": "Dernier relevé le {date} : {meters}.",
+        "reasonEach": "Dernier relevé par compteur : {meters}.",
+        "none": "aucun pour l’instant"
       },
       "bill": {
         "title": "Vérifier la facture : {label}",
@@ -3255,6 +3278,10 @@
       "advanceUncertain": {
         "title": "{label} : vérifier l’acompte après le prochain relevé",
         "reason": "{text}"
+      },
+      "cancelConfirm": {
+        "title": "Résiliation confirmée ? {label}",
+        "reason": "Un contrat chez {next} est enregistré à partir du {start}. Vérifiez que « {provider} » a confirmé la résiliation ; elle doit lui parvenir au plus tard le {date}."
       }
     },
     "money": {
@@ -3288,7 +3315,14 @@
         "paybackOpen": "Récupéré jusqu’ici : {paid} sur {investment} (état actuel).",
         "batteryTitle": "Batterie",
         "battery": "Chargé {charged} kWh, déchargé {discharged} kWh, environ {cycles} cycles complets, rendement {eff}.",
-        "co2Avoided": "CO₂ évité : {kg}, calculé avec le facteur CO₂ de l’électricité des paramètres."
+        "co2Avoided": "CO₂ évité : {kg}, calculé avec le facteur CO₂ de l’électricité des paramètres.",
+        "span": "Calculé sur les mois où les trois compteurs ont des données : {from} à {to} ({span}).",
+        "estimated": "≈ Certaines valeurs mensuelles sont réparties, non mesurées{readings}. L’autoconsommation, l’autarcie et le gain sont donc des estimations.",
+        "feedAbove": {
+          "one": "En {months}, l’injection mesurée dépasse la production répartie. L’injection y compte comme production et rien n’est autoconsommé.",
+          "other": "Sur {count} mois ({months}), l’injection mesurée dépasse la production répartie. L’injection y compte comme production et rien n’est autoconsommé."
+        },
+        "noCompare": "Pas de comparaison avec {prev} : il faut deux années entières avec des données des trois compteurs et un relevé de la production aux deux changements d’année."
       },
       "heatPump": {
         "sentence": "La pompe à chaleur a produit {heat} kWh de chaleur avec {elec} kWh d’électricité : coefficient de performance annuel {jaz}.",
@@ -3985,7 +4019,9 @@
     "history": "Historique ({count})",
     "historyTitle": "Historique : {name}",
     "anytime": "Résiliable à tout moment",
-    "advanceEvery": "Acompte {amount}"
+    "advanceEvery": "Acompte {amount}",
+    "noNotice": "Délai de résiliation non saisi",
+    "earliestEnd": "Résiliable au plus tôt au {date}"
   },
   "billCheck": {
     "noMeter": "La vérification recalcule la facture annuelle du gaz, de l’électricité, de l’eau et du réseau de chaleur. Créez d’abord un compteur.",
@@ -4495,6 +4531,7 @@
       "billOverdue": "Facture en retard : {label} ({provider}) pour {from} – {until} — délai légal dépassé, contactez le fournisseur",
       "finalBillExpected": "Facture de clôture attendue : {label} ({provider}) pour {from} – {until}",
       "finalBillOverdue": "Facture de clôture en retard : {label} ({provider}) pour {from} – {until} — délai légal dépassé, contactez le fournisseur",
+      "cancelConfirm": "{label} : résiliation confirmée ? ({provider}, passage à {next})",
       "heatLimit": "{label} : ajuster la température de base DJU à {best} °C ({meter})"
     },
     "subscribe": "S’abonner dans votre agenda",
@@ -4834,8 +4871,8 @@
     "waterBasis": "{m3} m³ sur l’année · personnes dans le foyer : {persons}",
     "rating": {
       "good": "Bien",
-      "near": "Au-dessus",
-      "high": "Nettement au-dessus"
+      "near": "Un peu élevé",
+      "high": "Élevé"
     },
     "invite": {
       "reference": "Où se situe votre consommation ? Saisissez une valeur de référence, par exemple tirée d’un comparatif de consommation — cette tuile affiche alors un feu tricolore.",
@@ -4998,6 +5035,22 @@
         "calcNote": "En pointillés : calculé par quart d’heure, non mesuré.",
         "powerNote": "Dans les nœuds : la puissance pendant ce quart d’heure (kW). En dessous : les quantités depuis minuit (kWh).",
         "gapsOption": "{date} (avec lacunes)"
+      },
+      "yearRange": "{year} ({from} à {to}, {span})",
+      "series": {
+        "erzeugung_kwh": "production",
+        "einspeisung_kwh": "injection",
+        "bezug_kwh": "soutirage du réseau"
+      },
+      "interpolatedNote": "≈ Réparti, non mesuré : {series} de ces mois{readings}. La répartition de l’électricité solaire est donc estimée.",
+      "feedAboveMonth": "Contradictoire : l’injection mesurée ({feed}) dépasse la production ({gen}). La figure compte toute l’injection, rien n’est donc autoconsommé. Le soleil affiche ici au moins l’injection.",
+      "feedAboveYear": {
+        "one": "Contradictoire en {months} : l’injection mesurée dépasse la production répartie. La figure y compte toute l’injection et rien en autoconsommation.",
+        "other": "Contradictoire sur {count} mois ({months}) : l’injection mesurée dépasse la production répartie. La figure y compte toute l’injection et rien en autoconsommation."
+      },
+      "partialNote": {
+        "one": "Sans {months} : un compteur n’y couvre qu’une partie du mois.",
+        "other": "Sans {count} mois ({months}) : un compteur n’y couvre qu’une partie du mois."
       }
     },
     "weather": {
@@ -5776,7 +5829,8 @@
       "co2": "CO₂",
       "co2Year": "CO₂ par an",
       "advanceRange": "{low} à {high}",
-      "advanceUncertain": "incertain : le modèle de chauffage correspond mal"
+      "advanceUncertain": "incertain : le modèle de chauffage correspond mal",
+      "advanceShort": "après le décompte du {date}"
     },
     "chart": {
       "cumTitle": "Coût cumulé",
@@ -6153,7 +6207,8 @@
       "assumed": "Date supposée : premier du mois suivant la facture",
       "net_price": "Net selon la facture – converti en TTC avec le taux de TVA indiqué",
       "vat_changed": "Même prix, autre taux de TVA",
-      "invalid_format": "Format non valide – un point de livraison compte 11 chiffres avec clé de contrôle"
+      "invalid_format": "Format non valide – un point de livraison compte 11 chiffres avec clé de contrôle",
+      "rhythm_conflict": "Le rythme de la facture ne correspond pas aux échéances"
     },
     "option": {
       "gas": "Gaz",
@@ -6417,7 +6472,8 @@
       "missing": "Absent du document, à compléter plus tard : {fields}",
       "unsure": "Lu avec un doute, non repris : {fields}",
       "netPrice": "Net selon la facture, converti en TTC avec le taux de TVA indiqué (l’app gère des prix TTC).",
-      "vatChanged": "Même prix que dans le contrat, seul le taux de TVA change – la nouvelle ligne de prix s’applique à partir du jour que la facture indique pour elle."
+      "vatChanged": "Même prix que dans le contrat, seul le taux de TVA change – la nouvelle ligne de prix s’applique à partir du jour que la facture indique pour elle.",
+      "rhythmConflict": "Le rythme indiqué sur la facture ne correspond pas aux échéances. Ce sont les échéances qui sont reprises, veuillez vérifier."
     },
     "duplicate": {
       "text": "Probablement le même document que « {name} » (déposé le {date}). Ne reprenez qu’un seul des deux ; vous pouvez supprimer l’autre.",
@@ -6772,7 +6828,15 @@
     "legendPv": "≈ réparti, pas mesuré : la répartition de l’électricité solaire de ces mois est estimée.",
     "chartNote": "Barres hachurées : réparties, pas mesurées.",
     "markTitleEstimated": "Réparti, pas mesuré : issu de {gap} jours entre deux relevés, avec un relevé estimé comme point d’appui",
-    "whyEstimated": "Lorsqu’un relevé estimé se trouve entre les deux, chaque côté a son propre taux journalier."
+    "whyEstimated": "Lorsqu’un relevé estimé se trouve entre les deux, chaque côté a son propre taux journalier.",
+    "readingsYearEst": {
+      "one": "{count} relevé et {estimates} en {year}",
+      "other": "{count} relevés et {estimates} en {year}"
+    },
+    "estimates": {
+      "one": "{count} estimation",
+      "other": "{count} estimations"
+    }
   },
   "balanceUncertain": {
     "range": "Décompte du {date} incertain : entre {low} et {high}, parce que {why}.",
@@ -6782,11 +6846,12 @@
     "credit": "avoir d’{amount}",
     "light": "{label} : incertain, entre {low} et {high}",
     "why": {
-      "factor_clamped": "les derniers mois mesurés s’écartent fortement de l’attendu (facteur {raw}, calculé avec {used})",
+      "factor_clamped": "les derniers mois mesurés ont consommé environ {raw} fois la valeur attendue ; l’estimation ne suit que jusqu’à {used} fois",
       "poor_fit": "le modèle de chauffage correspond mal à ce compteur (± {pct} par mois)",
       "both": "{a} et {b}",
       "few_measured": "trop peu de mois sont mesurés pour vérifier le modèle de chauffage",
-      "three": "{a}, {b} et {c}"
+      "three": "{a}, {b} et {c}",
+      "factorLow": "les derniers mois mesurés n’ont consommé qu’environ {raw} de la valeur attendue ; l’estimation ne descend que jusqu’à {used}"
     },
     "short": "{low} à {high}",
     "verdict": "incertain"

@@ -52,10 +52,18 @@ Every month therefore carries a marker:
 
 ```text
 measured          = reading interval ≤ 45 days
-measured_share    = share of the month's consumption from such intervals (0 … 1)
-interpolated      = measured_share < 0.5
-reading_gap_days  = longest interval the month draws from
+measured_share      = share of the month's consumption from such intervals (0 … 1)
+measured_day_share  = share of the month's days from such intervals (since v3.9.0)
+interpolated        = measured_share < 0.5 or measured_day_share < 0.5
+reading_gap_days    = longest interval the month draws from
 ```
+
+**Since v3.9.0 the days count too.** If most days of a month come from a long
+interval, the month is interpolated, even when the few measured days carry more
+consumption: in the messy test household, December 2024 drew 18 of 31 days from
+a 103-day interval and counted as measured up to v3.8, because the spread part
+takes in the milder autumn months and so has a daily rate that is too low. It
+therefore entered the anomalies.
 
 What counts is the **length of the interval**, not whether there was a reading
 in the month: readings on 31 January and 1 March measure February well. An
@@ -454,6 +462,32 @@ years has 24 monthly values but no measured month. The forecast workshop passes
 the warning `interpolated` on; “Same as last year” takes interpolated months of
 the previous year from the forecast, like missing ones.
 
+**Annual amount of the last 365 days (since v3.9.0).** Without a weather link
+(electricity, water) and without twelve measured calendar months the profile is
+a patchwork: measured months from one year, interpolated ones as the mean of all
+years. With real electricity data of almost only interpolated months the
+forecast was consistently too low in retrospect; in the messy test household four
+summer readings lowered the annual amount by over 5 % although consumption stayed
+the same, and a year with 25 % more consumption came out as the mean of three
+years (−13 %). Then:
+
+```text
+annual amount = consumption of the last 365 days (monthly values, the oldest pro rata by days)
+month         = profile value × annual amount ÷ Σ profile values of the twelve forecast months
+```
+
+Between two readings the total of interpolated months is correct too. The
+warning `level_last_year` names amount and period. Heating utilities keep
+calculating with weather and heating model; with twelve measured calendar months
+the own profile stays. If consumption changes in the middle of the year (new heat
+pump), this amount also lags behind by up to a year.
+
+**Share of the heating curve (since v3.9.0).** `blend_weight` is the weight by
+model quality, `blend_effective` the part of the annual amount that really comes
+from the heating curve. Months below the heating curve's points or with a failed
+quality gate use the seasonal profile; up to v3.8 “heating curve share 80 %”
+then stood next to “seasonal profile” in every month.
+
 **Temperature offset** (what-if): a year that is δ warmer has exactly the heating
 degree days of the heating limit `T_base - δ`. With a climate normal or your own
 temperature history this is exact; only without both is the shift applied
@@ -826,7 +860,8 @@ it stays one factor; the daily rate of a calendar month there is the median from
 three values (as in the forecast, section 6).
 
 **Advance suggestion:** if the expected balance deviates noticeably, the card
-suggests an advance that evens it out by the end of the contract:
+suggests an advance that evens it out by the bill (since v3.9.0 the last day of
+the running billing period, below):
 
 ```text
 suggestion = max(0, rounded( current advance + expected balance / remaining months ))
@@ -873,11 +908,8 @@ estimate is uncertain, shows no “Advance payments fit”) and forecast worksho
 show the range with the reason; the explainer “Where does my money go?” gives cost
 and result as a range.
 
-*Finding for later:* workshop and card calculate the balance differently — the
-card from the contract start or the last captured bill up to the contract end or
-cut-off date, the workshop the running billing period. Without a captured bill
-the card thus counts several years, the workshop one; with a maintained contract
-end the card names that as the billing date.
+Up to v3.8 workshop and card calculated the balance differently. Since v3.9.0
+there is one projection for both ([below](#one-projection-for-balance-and-workshop-since-v390)).
 
 **Superseded (since v3.7.0).** If a follow-up contract begins while a contract
 is still running (open or with an end after that), the follow-up contract
@@ -895,6 +927,42 @@ supersede nothing. Contracts without a successor and gapless chains stay unchang
 balance contain only standing charge and advance payments. Contract status and
 billing year both say so (`price_missing`) instead of showing two different,
 equally wrong balances.
+
+### One projection for balance and workshop *(since v3.9.0)*
+
+Balance card, Costs & contracts, annual report, “Where does my money go?” and the
+forecast workshop calculate from the same projection with the same billing date.
+The period is the running one of the billing periods (cut-off date
+`billing_cycle_anchor_<utility>`, bills, supplier switches; without a cut-off
+date the calendar year), also without a captured bill:
+
+```text
+balance from  = max(contract start, period start), after a bill the day after it
+balance to    = min(contract end, period end)
+billing date  = last day of the period (settle_on); if the contract ends earlier without
+                a successor contract from the same supplier, its last day (final bill)
+workshop      = sum of the card balances; the scenario only changes the days from today to the bill
+```
+
+One date for every view: the **last day** of the period (31.12.2026), not the
+day after. A superseded contract ends on the day before its successor. In a
+period that is only partly covered, only additional advance payments count among
+the special payments; refunds and back payments settle an earlier bill. Up to
+v3.8 the card counted from the contract start without a captured bill: in the
+messy test household it showed about €1,163 credit as of 01.01.2027 next to €357
+as of 31.12.2026 in the workshop, outside the card's range. Contracts outside the
+running period (billed, past) still calculate over their own term.
+
+**No catch-up amount shortly before the bill.** With fewer than three advance
+payments left until the bill (`months_left`), the card suggests no catch-up
+amount (`suggestion_withheld: "short"`): putting the shortfall on one or two
+payments multiplies them (test household electricity: €208 instead of €75), and
+the bill settles the rest anyway. Instead it names the advance that fits going
+forward (`advance_ongoing`):
+
+```text
+ongoing = rounded( estimated cost of the 12 months after the bill / 12 )
+```
 
 ### Day-exact like the bill (since v2.9.0)
 

@@ -181,7 +181,11 @@ Leerzeichen zwischen den Ziffern („3 1 5,5 9 €“, „-8 0 0 , 0 0 €“, �
 Die Prüfung liest das als eine Zahl, aber nur, wenn jede Ziffer einzeln steht,
 jeweils durch genau ein Leerzeichen getrennt, und das Ergebnis eine gültige
 Zahl ist. Mehrstellige Zahlen nebeneinander (Spalten einer Tabelle wie
-„12 345“) bleiben getrennt.
+„12 345“) bleiben getrennt. Zeichnet ein PDF rechtsbündige Zahlen Zeichen für
+Zeichen von rechts, liest der Browser die Zeile seit v3.9.0 nach der Lage der
+Zeichen von links nach rechts; ohne das stand „6 5 , 4 3 2 . 1 €“ statt
+„1.234,56 €“ in der Textebene. Ein Dokument, das du davor ausgelesen hast,
+behält seine Auslesung, bis du es neu ausliest.
 
 Ein markiertes Feld **bestätigst** („Stimmt“) oder **korrigierst** du. Ein Tipp
 auf „S. 2“ neben dem Zitat blättert links zur Seite.
@@ -290,7 +294,12 @@ Nennt die Rechnung den neuen Abschlag mit Terminen („165,00 € am 15.05.2026,
 übernimmt die App ihn so: Der Betrag gilt **je Termin**, alle zwei oder drei
 Monate oder an den genannten Terminen; nach dem letzten genannten Termin geht
 es jährlich zu denselben Tagen weiter. Ohne „ab“ beginnt der Plan am ersten
-Termin. Unsicher gelesene Termine zählen nicht. Eine Abschlagsänderung nennt
+Termin. Unsicher gelesene Termine zählen nicht. Den Rhythmus nimmt die App aus
+den Terminen, wenn mindestens zwei gleichmäßig auseinanderliegen (ein, zwei oder
+drei Monate, ein Termin darf bis zu drei Tage verschoben sein, etwa wegen eines
+Wochenendes); sonst aus der Angabe der Rechnung, gelesen in jeder Sprache der
+App („zweimonatlich“, „alle 2 Monate“, „bimonthly“ …). Passt die Angabe nicht zu
+den Terminen, gelten die Termine, und der Vorschlag ist nicht vorab angehakt. Eine Abschlagsänderung nennt
 meist nur den Betrag: Dann bleibt der Rhythmus des laufenden Abschlags. Auch
 die Kernaussage beurteilt den neuen Abschlag dann je Termin, nicht je Monat. Wie
 Saldo, Vorschlag und Prognose damit rechnen, steht unter
