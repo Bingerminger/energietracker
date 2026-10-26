@@ -1389,17 +1389,80 @@ Installationen, die ihn schon haben — deshalb möglichst früh.
 
 ---
 
-## Ausblick v3.8.0–v3.11.0 (Reihenfolge entschieden 2026-10-21)
+## v3.9.0 — Release-Schnitt 2026-10-26: 3.7.1, Home Assistant und Messkonzepte in einem Release
+
+**Entscheidung des Maintainers (2026-10-26):** Alles bis 3.9.0 wird hier durchgearbeitet und als
+**ein** Release ausgeliefert. Die Nummern 3.7.1 und 3.8.0 entfallen. Die Release-Notes sagen, dass
+v3.9.0 enthält, was in #38 für 3.7.1 und in #36 für 3.8.0 angekündigt war. Der MCP-Server folgt,
+wenn die Fachlichkeit steht (kein fester Slot). Sichtung auf Dev (8096, mit einer Kopie der
+Prod-Daten des Maintainers), Freigabe erst danach. Kein Schemaschritt geplant: neue Felder additiv,
+jeder neue Topf in die `BackupService`-Feldliste.
+
+**Entscheidungen zu #40 (Chat 2026-10-26):**
+- **A:** Die Rest-Abrechnung am Elternzähler kommt in dieses Release.
+- **B:** Sie greift automatisch: Hat ein Subzähler einen **eigenen Vertrag**, rechnet der Vertrag
+  des Elternzählers nur den **Rest** (gemessen minus Subzähler). Ohne eigenen Vertrag bleibt der
+  Subzähler eine Aufschlüsselung wie bisher (etwa eine private Messung an der Wallbox). **Mit
+  Hinweis:** Am Elternzähler und an seinem Vertrag steht, wie gerechnet wird
+  („300 kWh = 500 gemessen − 200 Wärmepumpe“). Beim Anlegen eines Vertrags am Subzähler sagt ein
+  Satz, was sich am Elternzähler ändert.
+- **C:** Die übrigen Befunde des Skeptiker-Laufs kommen in dieses Release.
+- **D:** Messkonzepte kommen vor den MCP-Server.
+
+**Befund 2026-10-26 (Subzähler):** `docs/verstehen/13-meter-topologie.md` verspricht seit v3.1.0
+beim Modul 2, dass der Vertrag des Haushaltszählers nur den Rest rechnet. Umgesetzt war das nie, und
+kein Test prüfte es. Nachgemessen an Elternzähler 500 und Subzähler 200 kWh im Monat, beide mit
+Vertrag: Der Elternvertrag rechnet 500 kWh, die 200 kWh werden über beide Verträge bezahlt, und die
+Monatssumme der Kosten enthält den Subzähler nicht.
+
+**Befund 2026-10-26 (Wasser-Jahresrechnung im Prod-Posteingang):**
+- Es kommt kein Vertragsvorschlag. Die Buchung ist blockiert („Vertrag fehlt“).
+- Fast alle Beträge gelten als unbelegt, weil die Textebene des PDFs die Ziffern gesperrt führt
+  („3 7 1,9 3 €“).
+- Aufbau der Rechnung:
+  - drei Sparten (Trinkwasser, Schmutzwasser, Niederschlagswasser nach Fläche)
+  - je Sparte Mengenpreis, Basispreis und Bereitstellungspreis (nach Zählergröße)
+  - ein Preiswechsel mitten im Zeitraum
+  - Umsatzsteuer je Sparte verschieden (7 % und 19 %), Preise netto ausgewiesen
+  - Abschläge alle zwei Monate zu genannten Fälligkeitsterminen
+  - Ablesecodes „S“ (Schätzung) und „I“ (Internetablesung)
+
+**Befund 2026-10-26 (Heizgrenze):** Auf den echten Daten stimmte die Gas-Prognose erst halbwegs,
+nachdem der Maintainer unter Auswertung → Gas den Heizgrenze-Vorschlag übernommen hatte. Der Vorschlag
+steht zu weit hinten.
+
+### Pakete
+
+| Paket | Inhalt |
+|---|---|
+| **abschluss-371** (Lead) | Schon auf `main`: #38 Sommer-Referenz, Umgebungsname, Entwurf auf bestehenden Haushalt, Warten nach 504. Offen: Gegenproben der neuen Regeln, Gegenproben interpolation und wirklichkeit-2 auf neuer Basis, Demo-Schnappschuss, Entwurf gegen eine Kopie der ACC-Daten, Wirklichkeitsabgleich auf den Dev-Daten |
+| **messkonzepte** (F1032, #40) | (1) Rest-Abrechnung nach A/B in **jedem** Verbraucher: Saldo, Kosten & Verträge, Rechnung prüfen, Abrechnungsjahr, Prognose und Werkstatt, Jahresbericht, Tarifvergleich, Wohin geht mein Geld, CSV, PDF, Gruppen (HT/NT), Monatssumme; Doku richtigstellen. (2) Kaskade (MK C3) mit HT/NT und PV abbildbar, Anwendungsfall und Testhaushalt genau nach #40. (3) Zählwerke mit OBIS-Kennzahl (1.8.0, 1.8.1, 1.8.2, 2.8.0) am Zähler; der Posteingang ordnet die Stände einer Rechnung dem Zählwerk zu. (4) Assistent „Messkonzept“: fragt nach dem Aufbau, nicht nach dem Namen (die Namen variieren je Netzbetreiber), zeigt Schaltbilder typischer Aufbauten (Überschusseinspeisung, Kaskade, Modul 2 nebeneinander oder dahinter, Wallbox, Speicher), legt Zähler, Gruppen, Subzähler und Verträge an; auch aus der Ersteinrichtung erreichbar. MiSpeL nur als Hinweis mit Quelle |
+| **homeassistant** (F1033, #36) | Benachrichtigungen über neue Termine, Fristen, Warnungen und Posteingang-Dokumente an Home Assistant (in der HA-App über den Supervisor, sonst Webhook); Sensor „Zu tun“ mit Anzahl und nächstem Punkt; überwachter Posteingang-Ordner in der HA-App über `/share`; HACS-Integration mit eigenen Sensoren (eigenes Repo, Veröffentlichung erst nach Rückfrage); E-Mail-Weg dokumentiert, Prüfung in einem laufenden Home Assistant bleibt offen, solange keiner zur Hand ist |
+| **vertrag-aus-rechnung** (F1034) | Gesperrte Ziffern in der Belegprüfung; Vorschlag „Vertrag anlegen“ aus einer Rechnung, wenn kein Vertrag den Zeitraum deckt (alle Arten), mit Versorger, Vertragskonto, Beginn, Preisen je Abschnitt und neuem Abschlagsplan; Wasser: Grundpreis auch für Schmutzwasser, Preise netto zu brutto je Sparte, Preisabschnitte mit Datum, Abschlagsplan mit Rhythmus (monatlich, alle zwei oder drei Monate, Fälligkeitstermine), Preisbestandteile zu einem Preis zusammenführen (Basis- und Bereitstellungspreis; Energiesteuer und CO₂-Preis neben dem Arbeitspreis); Posteingang-Reste aus 3.7.1 |
+| **auswertung** | Skeptiker-Befunde V4, V5 und L1 bis L18 (privater Bericht, erfundene Nacherzählung im Auftrag); Saldo-Karte, Kosten & Verträge, Jahresbericht und Werkstatt aus einer Quelle auch ohne erfasste Rechnung |
+| **heizgrenze** (#38 Nachlauf) | Vorschlag dort zeigen, wo seine Folgen sichtbar sind: Zu tun bzw. Übersicht, Saldo-Karte, Prognose und Werkstatt, mit Vorher/Nachher und Knopf; Heizgrenze je Zähler im Zählerformular; Raster des Vorschlags glätten; eigene Grenze auch für Heizöl, Pellets und Zählergruppen; Übergangsmonate, die jedes Jahr als „niedrig“ erscheinen, als Muster erkennen |
+| **oberflaeche** | Durchgang durch die Oberfläche mit konkreten Verbesserungen (Liste im Bericht); Personen im Haushalt ohne Anmeldung als eigene Karte; Ersteinrichtung mit Bildern |
+| **doku** (nach dem Zusammenführen) | Doku aller Pakete gegengelesen, englische Screenshots mit englischem Datum, Werbebilder neu, README |
+
+**Danach, nicht in v3.9.0:** MCP-Server (wenn die Fachlichkeit steht), übersetzter Doku-Kern,
+N1006, Zwischenablesung prüfen, Verbrauch nach Wetter verteilen, Beispielhaushalte nicht aus dem
+Modell der App, Zuständigkeit am Mietverhältnis, Modul-3-Schalter für die Umsatzsteuer, MiSpeL.
+Der einmalige Import aller Dokumente auf Prod folgt nach dem Release, nach einer neuen Probe auf ACC
+und nur auf Zuruf des Maintainers.
+
+---
+
+## Ausblick nach v3.9.0 (Reihenfolge entschieden 2026-10-21, angepasst 2026-10-26)
 
 Die Release-Tage werden jeweils beim Release-Schnitt festgelegt. Im Issue #36 ist
-die Reihenfolge mit dem Vorbehalt „kann sich noch ändern“ genannt.
+die Reihenfolge mit dem Vorbehalt „kann sich noch ändern“ genannt. Home Assistant (bisher v3.8.0)
+und Messkonzepte sind seit 2026-10-26 Teil von v3.9.0.
 
 | Release | Thema | Inhalt |
 |---|---|---|
-| **v3.8.0** | Energietracker in Home Assistant | GitHub #36: Benachrichtigungen über neue Termine, Fristen, Warnungen und Posteingang-Dokumente an Home Assistant (in der HA-App direkt über den Supervisor, sonst Webhook); Sensor „Zu tun“ mit Anzahl und nächstem Punkt; HACS-Integration mit eigenen Sensoren; überwachter Posteingang-Ordner in der HA-App über `/share` (seit v3.7.0 nur im Docker-Image erreichbar), E-Mail-Weg in einem laufenden Home Assistant geprüft. Heute schon möglich: ICS-Kalender über „Remote Calendar“, Sensoren über `/api/summary` |
-| **v3.9.0** | Die KI bedient Energietracker | MCP-Server (zuerst lesend, dann schreibend mit Bestätigung), maschinenlesbare Beschreibung der Schnittstelle (siehe Eingang „Fernsteuerung durch eine KI“) |
 | **v3.10.0** | Für alle verständlich | übersetzter Doku-Kern (fr/it/es/pt/nl), Zuständigkeit am Mietverhältnis, Erkenntnisse aus dem Posteingang im Betrieb |
 | **v3.11.0** | Lange Verläufe | Speicher-Umbau N1006, Massen-Import weiter verbessert |
+| ohne Slot | Die KI bedient Energietracker | MCP-Server (zuerst lesend, dann schreibend mit Bestätigung), maschinenlesbare Beschreibung der Schnittstelle (siehe Eingang „Fernsteuerung durch eine KI“); kommt, wenn die Fachlichkeit steht |
 
 ---
 
@@ -1440,6 +1503,7 @@ daraus ausgewählt.
 | N10xx | Barrierefreiheit der neuen Dialoge (Tastatur, Fokus, Bildschirmleser) mit automatischer Prüfung | M | — | Ideen 2026-10-13 → **v3.7.0** (Schnitt 2026-10-20) |
 | N10xx | Messung mit großen Datenmengen (10 Jahre Tageswerte + Viertelstunden) als Auslöser für N1006 | S | — | Ideen 2026-10-13 → **v3.7.0** (Schnitt 2026-10-20) |
 | — | Sichtprüfung in Safari/WebKit; Chart.js-Version in der Release-Prüfliste | S | — | Ideen 2026-10-13 |
+| — | **MiSpeL rechnen:** Speicher und bidirektionale Ladepunkte mit Netz- und Solarstrom; Abgrenzungsoption je Viertelstunde aus den Messwerten der Kaskade, Pauschaloption bis 30 kWp mit einem Zähler; Grundlage sind die Viertelstundenwerte aus v3.3.0 | L | v3.9.0 Messkonzepte, F1021 | GitHub #40, 2026-10-26; Auslöser: EU-Genehmigung der Pauschaloption oder Ende der Übergangszeit am 30.09.2027 |
 
 ---
 
@@ -1568,6 +1632,7 @@ gebündelt oder vor dem nächsten MINOR mit hinein gezogen.
 | 2026-10-13 | v3.4.0 ausgeliefert (Minor, F1024–F1026 + N1019–N1021, kein Schemaschritt) | **Klar und sicher** — Hilfe auf dem Server, Sicherheitspaket (Proxy-Kopfzeilen, Rollen, Container, Lieferkette; v0.9.0-Import entfällt), Jahresbericht für alle, erledigte Hinweise mit Verlauf, Schaubilder zweite Fassung (Autarkie mit Speicher korrigiert), aufgeräumte Oberfläche; Altlasten PHP 8.5 (#27), Code-Scanning, zweisprachige Release-Notes, Buy-Me-a-Coffee (#28), Werbebilder. Gebaut in sechs parallelen Arbeitskopien. |
 | 2026-10-13 | v3.5.0 geplant (Release-Schnitt im Assist-Modus) | Gewählt: Tagesfilm (ein Tag und typischer Tag), Zuständig nur an Terminen, Abrechnung erwartet, Einrichtung mit Sprache und Land, iPad-Seitenleiste, Rootless-Image, Home-Assistant-App als eigenes Repo (keine HACS-Integration), Beispieldaten in den vier Haushalten, Altlasten (Rechtsstand 2027, Anleitungen, Dependabot). Doku-Kern und englische Screenshots zurückgestellt. |
 | 2026-10-14 | v3.5.0 ausgeliefert (Minor, F1027–F1029 + N1022–N1026, kein Schemaschritt) | **Wer, wann, wohin** — Tagesfilm, Zuständig an Terminen, Abrechnung erwartet (§ 40c EnWG, 120-Tage-Fenster), Verlauf als CSV, Einrichtung mit Sprache und Land, iPad-Navigation, Jahresbericht-Dialog, Image ohne root, Home-Assistant-App (eigenes Repo), Beispieldaten; Rechtsstand 2027 (Strompreispauschale 32 ct, GModG-Verfahren ab 2027); GitHub #34 (Sonderzahlungen Wasser) behoben, #33 auf v3.6.0 gelegt; Dependabot #29–#32. Gebaut in sieben parallelen Arbeitskopien. |
+| 2026-10-26 | v3.9.0 geplant (Release-Schnitt im Chat) | 3.7.1, Home Assistant (#36) und Messkonzepte (#40) in **einem** Release; die Nummern 3.7.1 und 3.8.0 entfallen. Rest-Abrechnung am Elternzähler automatisch bei eigenem Vertrag des Subzählers, mit Hinweis (Doku versprach das seit v3.1.0). Dazu Vertrag aus der Rechnung (Befund an einer echten Wasser-Jahresrechnung), Heizgrenze-Vorschlag präsenter, Skeptiker-Befunde, Oberfläche und Doku. MCP ohne festen Slot, wenn die Fachlichkeit steht; MiSpeL in den Eingang mit Auslöser |
 | 2026-10-14 | v3.5.1 ausgeliefert (Patch) | Sechs Fehler am iPad (Safari) aus der Nutzung des Maintainers: Assistent-Karten wirkten mehrfach ausgewählt (Fokus aufs erste Feld, klebendes Hover), überlappende Datumsfelder in „Rechnung prüfen“, Land im Assistenten nicht wählbar (Liste nicht nachgeladen; Demo als Text), Zugriff-Formulare, SMARD-Abruf ohne Rückmeldung (Monat für Monat mit Fortschritt, `month` additiv), Home-Assistant-App sichtbarer. Ollama mit glm-ocr live geprüft. #33 bleibt v3.6.0. |
 | 2026-09-24 | v2.5.3 ausgeliefert (Patch) | **Keine stillen Fehlbuchungen** — Paket A aus einem Gesamtreview (Berechnungen, Oberfläche Mac/iPhone, Übersetzungen, Doku, API). Schwerpunkt: Eingaben, die bisher still in eine gültige Buchung verwandelt wurden (leeres Zahlenfeld → 0, „12,5" je nach Browser → nichts, HA-Sensor „unavailable" → Zählerstand 0 durch `float(0)` in der eigenen Vorlage, unlesbarer Stichtag → 01-01, leerer Vertrag → „aktiv"). Dazu CSRF-Schutz, Escaping gespeicherter Werte, Datumsprüfung auf allen Schreibpfaden, Beschädigung als 503 mit Quarantäne-Kopie, globale Schreibsperre, Snapshot vor Migration, iPhone-Überbreite (13 von 21 Ansichten → keine), Glossar-Vorzeichen, fachliche Fehlübersetzungen. Kein Schema-Bump, keine Schnittstellenänderung. 256 → 285 Testmethoden, zwei neue Node-Tests in der CI. Die weiteren Pakete folgen als eigene Releases: „Verlässlich und sicher im Heimnetz" (optionale Anmeldung), Länderprofile, „Richtig rechnen", „Mobil und aufgeräumt", „Versteht sich von selbst", „Auswertungen, die man sieht". |
 | 2026-09-15 | v2.5.2 ausgeliefert (Patch) | UX-Politur an der Rechnungsprüfung: je Abschnitt **Stand alt / Stand neu** mit Ableseart wie die Fußnoten der Rechnung — abgelesen, als geschätzt erfasst (`S`), Ersatzwert (`E`, tagesgenau interpoliert, kein Stand über einen Zählertausch hinweg). Anlass: Beim Abgleich zweier echter Jahresrechnungen war nicht zu sehen, welche Abschnittsgrenzen auf echten Ablesungen ruhen und welche auf Schätzungen — bei der zweiten Rechnung vier von sieben Endständen. `bill-check` liefert `counter_*` + `counter_*_kind`. 254 → 256 Tests, der Browser-Test führt die Prüfung jetzt wirklich aus, 7 Toggles greifend. Doku DE + EN. Nächster Slot: F1008. |
