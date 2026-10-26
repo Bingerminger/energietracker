@@ -246,6 +246,7 @@ final class MeterService
         $this->applyLocationIds($meter, $input);
         // v3.1.0 (H7) — PV-Anlage und Wärmepumpe
         $this->applyEnergyFields($utility, $meter, $input);
+        $this->applyHeatLimit($utility, $meter, $input);   // v3.9.0 (#38) — auch beim Anlegen
         // v3.7.0 — zuständige Person (Ablesung, Eichfrist, Termine am Zähler)
         $this->applyAssignee($meter, $input);
         // v3.1.0 (H3, B2) — Erfassungsart: Zählerstände (Standard) oder Verbrauch je Zeitraum
@@ -859,16 +860,20 @@ final class MeterService
      * v3.7.0 (wirklichkeit-2, GitHub #38) — Heizgrenze dieses Zählers
      * (`hdd_base_temp`), etwa aus dem Heizgrenze-Vorschlag der Analyse. Die
      * Einstellung `hdd_base_temp` bleibt der Standard für alle Zähler ohne
-     * eigene; die beste Grenze ist je Haus verschieden. Nur Heizarten mit
-     * Zählerständen, im Raster des Klimanormals (6 bis 22 °C), damit es für
-     * sie ein Normal gibt. Leer entfernt sie.
+     * eigene; die beste Grenze ist je Haus verschieden. Nur Heizarten, im
+     * Raster des Klimanormals (6 bis 22 °C), damit es für sie ein Normal gibt.
+     * Leer entfernt sie.
+     *
+     * v3.9.0 (#38) — auch Heizöl und Pellets (sie verteilen ihre Lieferungen nach
+     * den Gradtagen dieser Grenze, DeliveryConsumptionService::tankModel), auch
+     * beim Anlegen, und Zählergruppen (updateGroup).
      */
     private function applyHeatLimit(string $utility, array &$meter, array $input): void
     {
         if (!array_key_exists('hdd_base_temp', $input)) return;
         $v = $input['hdd_base_temp'];
         if ($v === null || $v === '') { unset($meter['hdd_base_temp']); return; }
-        if (!Utilities::isHgtRelevant($utility) || Utilities::isDelivery($utility)) {
+        if (!Utilities::isHgtRelevant($utility)) {
             throw new LocalizedException('errors.meter.valueInvalid', ['field' => 'hdd_base_temp', 'value' => (string)$v], 'hdd_base_temp utility');
         }
         $f = is_numeric($v) ? round((float)$v, 1) : null;
@@ -1154,7 +1159,9 @@ final class MeterService
         if ($g === null) return null;
         return ['id' => $groupId, 'name' => (string)($g['name'] ?? $groupId), 'is_group' => true,
                 'members' => array_column($this->groupMembers($utility, $groupId), 'id'),
-                'devices' => [], 'active' => true, 'created_at' => (string)($g['created_at'] ?? '')];
+                'devices' => [], 'active' => true, 'created_at' => (string)($g['created_at'] ?? '')]
+            // v3.9.0 (#38) — eigene Heizgrenze der Gruppe (für ihre Summe und ihr Heizmodell)
+            + (is_numeric($g['hdd_base_temp'] ?? null) ? ['hdd_base_temp' => (float)$g['hdd_base_temp']] : []);
     }
 
     /** v3.1.0 (H6) — Zähler oder Gruppe zu einer ID. */
@@ -1195,6 +1202,8 @@ final class MeterService
                 }
                 $g['name'] = $name;
             }
+            // v3.9.0 (#38) — eigene Heizgrenze der Gruppe, wie am Zähler (leer entfernt sie)
+            $this->applyHeatLimit($utility, $g, $input);
         }
         unset($g);
         if (!$found) throw new NotFoundException($this->i18n->t('errors.meter.groupNotFound'));

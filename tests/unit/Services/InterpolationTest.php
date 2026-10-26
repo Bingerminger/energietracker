@@ -762,9 +762,15 @@ final class InterpolationTest extends ServiceTestCase
         $heat = $this->consumption->heatModel('gas', $monthly, $this->meter('gas'));
         self::assertSame('months', $heat['basis']);
         unset($heat['basis']);
+        // v3.9.0 (#38) — additiv: die verworfenen Punkte des Robustheitsschritts; die Rechnung selbst bleibt bit-gleich
+        self::assertIsArray($heat['dropped']);
+        unset($heat['dropped']);
         self::assertSame($want['heat'], $heat, 'bit-gleich');
         self::assertEquals($want['expected'], array_map(fn($m) => [$m['ym'], $m['expected_heat'], $m['heat_adjusted'], $m['regression_point']], $monthly));
-        self::assertEquals($want['anomalies'], $this->anomalies->detect('gas', $monthly));
+        // v3.9.0 (#38) — additiv: Muster wiederkehrender Monate (hier keins)
+        $found = $this->anomalies->detect('gas', $monthly);
+        self::assertSame([], array_filter($found, fn($a) => $a['pattern']), 'kein Monat jedes Jahr gemeldet');
+        self::assertEquals($want['anomalies'], array_map(fn($a) => array_diff_key($a, ['pattern' => 1, 'pattern_years' => 1]), $found));
         $fc = $this->forecast();
         // wirklichkeit-2 (Punkt 8) — einzige gewollte Änderung: Sommermonate unter den
         // Punkten der Heizkurve (Juni bis August, HGT 0) nur noch aus dem gemessenen Saisonwert

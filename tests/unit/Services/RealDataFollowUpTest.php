@@ -226,7 +226,9 @@ final class RealDataFollowUpTest extends ServiceTestCase
         $p = $pick([$g(12.0, 0.09), $g(15.0, 0.12)], 0.12);
         self::assertSame([12.0, false], [$p['best'], $p['suggest']], 'nur ein Viertel weniger: nicht deutlich');
         $p = $pick([$g(14.0, 0.0), $g(15.0, 0.02)], 0.02);
-        self::assertSame([14.0, false], [$p['best'], $p['suggest']], 'zwei Prozentpunkte: beide passen gut');
+        // v3.9.0 (#38) — geglättet sind beide gleich gut (Plateau): Es bleibt bei der heutigen.
+        // Bis v3.7.1 hieß das Ergebnis 14 °C ohne Vorschlag; vorgeschlagen wurde auch damals nichts
+        self::assertSame([15.0, false, [14.0, 15.0]], [$p['best'], $p['suggest'], $p['range']], 'zwei Prozentpunkte: beide passen gut');
         $p = $pick([$g(15.0, 0.05), $g(16.0, 0.30)], 0.05);
         self::assertSame([15.0, false], [$p['best'], $p['suggest']], 'die heutige ist die beste');
     }

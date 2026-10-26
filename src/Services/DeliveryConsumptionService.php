@@ -109,7 +109,9 @@ final class DeliveryConsumptionService
         if ($start > $today) return $this->memo[$memoKey] = $result;
 
         $baseShare = max(0.0, min(1.0, (float)$this->settings->get('delivery_baseload_share', 0.15)));
-        $hddBase   = (float)$this->settings->get('hdd_base_temp', 15.0);
+        // v3.9.0 (#38) — die Heizgrenze des Tanks, sonst die Einstellung (wie ConsumptionService::hddBaseFor)
+        $own       = $meter['hdd_base_temp'] ?? null;
+        $hddBase   = is_numeric($own) ? (float)$own : (float)$this->settings->get('hdd_base_temp', 15.0);
         $capacity  = (float)($meter['capacity'] ?? 0.0);
         $initial   = max(0.0, (float)($meter['initial_stock'] ?? 0.0));
 
