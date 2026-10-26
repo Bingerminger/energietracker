@@ -1913,8 +1913,11 @@ final class ReportModelService
     {
         $pct = $totals['consumption_pct'] ?? null;
         if (($advice['successes'] ?? []) !== [] || $pct === null || (float)$pct >= -ReportAdviceService::LIGHT_LESS_PCT) return $texts;
-        $texts['successesNone'] = $this->i18n->t(!empty($totals['consumption_adjusted']) ? 'report.section.successesNoneUnproven' : 'report.section.successesNoneUnadjusted',
-            ['year' => $year, 'prev' => $year - 1, 'pct' => $this->advice->pct((float)$pct)]);
+        // bereinigt und ohne verteilte Monate: Der Grund liegt anderswo (Schwelle der Regel), der Satz bleibt
+        $key = empty($totals['consumption_adjusted']) ? 'report.section.successesNoneUnadjusted'
+            : (!empty($totals['interpolated']) ? 'report.section.successesNoneUnproven' : null);
+        // „18 % weniger“, nicht „-18 % weniger“
+        if ($key !== null) $texts['successesNone'] = $this->i18n->t($key, ['year' => $year, 'prev' => $year - 1, 'pct' => $this->advice->share(abs((float)$pct))]);
         return $texts;
     }
 

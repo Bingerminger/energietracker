@@ -1667,6 +1667,17 @@ async function renderView(modPath, params = [], ctx = {}) {
     t('utility(gas): Vorjahr im Monatschart, links (order)', /zum Vergleich/.test(mds[0]?.label || '') && mds[0].order < (mds.find(d => typeof d.backgroundColor === 'function' && !/zum Vergleich|Vorperiode/.test(d.label || ''))?.order ?? 0),
       mds.map(d => `${d.label}:${d.order}`).join(' | '));
     t('utility(gas): Monatstabelle mit Spalte „bereinigt“', [...view.querySelectorAll('.table thead th')].some(th => /bereinigt/.test(th.textContent)));
+    // v3.9.0 (L6) — ein Saldo für „jetzt“: Die Gesamtzeile der Spalte „Saldo (kum.)“ ist ihr letzter Wert
+    // (bis v3.8 der Jahressaldo neben einer Summe ab Vertragsbeginn), und die Kachel nennt denselben Betrag
+    const mt = [...view.querySelectorAll('.table')].find(tb => tb.querySelector('tfoot') && [...tb.querySelectorAll('thead th')].some(th => /kum/.test(th.textContent)));
+    const cumIdx = mt ? [...mt.querySelectorAll('thead th')].findIndex(th => /kum/.test(th.textContent)) : -1;
+    const cumCells = mt ? [...mt.querySelectorAll('tbody tr')].map(r => r.children[cumIdx]?.textContent.trim()).filter(v => v && v !== '–') : [];
+    const cumTotal = mt?.querySelector('tfoot tr')?.children[cumIdx]?.textContent.trim();
+    const num = (s) => Number(String(s || '').replace(/[^\d,.-]/g, '').replace(/\./g, '').replace(',', '.'));
+    const kpiBal = [...view.querySelectorAll('.kpi__sub')].map(k => k.textContent).find(s => /Saldo/.test(s)) || '';
+    t('utility(gas): Saldo (kum.) — Gesamtzeile = letzte Zeile = Kachel', !!mt && cumCells.length > 0 && cumTotal === cumCells[cumCells.length - 1]
+      && Math.abs(Math.abs(num(cumTotal)) - Math.abs(num(kpiBal.replace(/Saldo:?/, '')))) < 0.011,
+      `${cumCells.slice(-1)[0]} | ${cumTotal} | ${kpiBal.replace(/\s+/g, ' ').trim()}`);
     const btn = view.querySelector('[data-chart-mode="adjusted"]');
     btn?.click();
     await new Promise(r => setTimeout(r, 200));
@@ -1912,6 +1923,27 @@ async function renderView(modPath, params = [], ctx = {}) {
     t('einordnung (Übersicht, Beispieldaten): Kachel ohne Links nach außen, höchstens ein Link',
       !c || (!c.querySelector('a[target="_blank"]') && c.querySelectorAll('a').length <= 1), c ? c.textContent.replace(/\s+/g, ' ').slice(0, 160) : 'ausgeblendet');
   } catch (e) { t('einordnung (Übersicht)', false, e.message); }
+
+  try {
+    // v3.9.0 (A3, L1, L2) — Einsteiger „Muss ich nachzahlen?“: zwei Stromzähler mit Vertrag tragen ihren
+    // Namen (bis v3.8 zweimal „Strom“), „rund“ ohne Cent, der letzte Tag des Zeitraums
+    freshDom();
+    const fmtMod = await import(`${ROOT}/lib/format.js`);
+    const { beginnerMoneyLines } = await import(`${ROOT}/views/dashboard.js?b=${Date.now()}`);
+    const byKey = new Map([['strom', { key: 'strom', label: 'Strom', icon: '⚡' }], ['gas', { key: 'gas', label: 'Gas', icon: '🔥' }]]);
+    const c = (bal, last, end) => ({ projected_end_balance: bal, period_last_day: last, period_end: end });
+    const box = global.document.createElement('ul');
+    box.innerHTML = beginnerMoneyLines([
+      { utility: 'strom', name: 'Haushalt', contract: c(-81.4, '2026-12-31', '2027-01-01') },
+      { utility: 'strom', name: 'Wärmepumpe', contract: c(120.6, '2026-12-31', '2027-01-01') },
+      { utility: 'gas', name: 'Gaszähler', contract: c(-369.91, '2026-12-31', '2027-01-01') },
+    ], byKey).join('');
+    const rows = [...box.querySelectorAll('li')].map(li => li.textContent.replace(/\s+/g, ' ').trim());
+    t('A3: zwei Stromzähler mit Namen, Gas ohne', rows.length === 3 && rows[0].includes('Strom (Haushalt):') && rows[1].includes('Strom (Wärmepumpe):')
+      && rows[2].includes('Gas:') && !rows[2].includes('Gas ('), rows.join(' | '));
+    t('L2/L1: „rund“ ohne Cent, bis zum letzten Tag', rows[2].includes(fmtMod.fmt.eur0(369.91).replace(/\s+/g, ' ')) && !rows[2].includes('369,91')
+      && rows.every(r => r.includes(fmtMod.fmt.date('2026-12-31')) && !r.includes(fmtMod.fmt.date('2027-01-01'))), rows[2]);
+  } catch (e) { t('Einsteiger: Muss ich nachzahlen?', false, e.stack || e.message); }
 
   try {
     // Sprung aus der Einladung: Seite Haushalt, Feld im Fokus
@@ -2909,6 +2941,18 @@ async function renderView(modPath, params = [], ctx = {}) {
     t('Zusatzbefund: Prognose Strom mit Jahresablesungen — Jahresmenge der letzten 365 Tage (1.100 kWh) mit Hinweis',
       /Die Jahresmenge folgt dem Verbrauch der letzten 365 Tage \(1\.100\skWh, März 2025 bis [^)]*2026\)/.test(fcInfo()), fcInfo().replace(/\s+/g, ' ').slice(0, 400));
     if (yearly) await fetch(`${HOST}/api/utility/strom/meters/${yearly}`, { method: 'DELETE' });
+    // v3.9.0 (L15) — künftiger Vertrag: Preis und Abschlag seines Beginns statt „–“, der erwartete Saldo mit ≈ und Legende
+    const fut = (await (await post('/utility/gas/contracts', { meter_id: 'm_gas_main', provider: 'Künftig Testgas', start: '2027-06-01',
+      working_prices: [{ from: '2027-06-01', ct_per_kwh: 9.87 }], base_prices: [{ from: '2027-06-01', eur_per_month: 14 }],
+      advance_payments: [{ from: '2027-06-01', amount_eur: 111 }] })).json())?.data;
+    const fg = await renderView(`${ROOT}/views/utility.js`, ['gas'], { query: new URLSearchParams('meter=m_gas_main') });
+    for (let i = 0; i < 60 && !fg.view.querySelector('.contracts-table'); i++) await sleep(50);
+    const futRow = [...fg.view.querySelectorAll('.contracts-table tr')].find(r => r.textContent.includes('Künftig Testgas'));
+    const futText = futRow?.textContent.replace(/\s+/g, ' ') || '';
+    t('L15: künftiger Vertrag mit Arbeitspreis und Abschlag seines Beginns, Saldo mit ≈ und Legende', !!futRow && /9,87/.test(futText) && /111/.test(futText)
+      && (!futRow.querySelector('[data-role="expected-future"]') || /≈/.test(futRow.querySelector('[data-role="expected-future"]').textContent))
+      && (!futRow.querySelector('[data-role="expected-future"]') || !!fg.view.querySelector('[data-role="future-legend"]')), futText.slice(0, 300));
+    if (fut?.id) await fetch(`${HOST}/api/utility/gas/contracts/${fut.id}`, { method: 'DELETE' });
 
     // ── wirklichkeit-2 (Punkt 1) — Heizgrenze-Vorschlag: ein Zähler, der genau unter 10,5 °C heizt ──
     const temps = await json('/temperatures');

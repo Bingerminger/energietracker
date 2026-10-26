@@ -501,5 +501,26 @@ t('Geld: 0 € Abschläge werden genannt', parse(EXTREME['Geld ohne Abschläge (
   t('Geld sicher: ein gerundeter Betrag', (sure.querySelector('.explainer__text')?.textContent || '').includes(`Das ergibt rund ${fmt.eur0(100)} Nachzahlung`) && !!sure.querySelector('.ex-gap--due'));
 }
 
+// v3.9.0 (L1) — „Wohin geht mein Geld?“ nennt den Abrechnungstag des Vertragsstatus (letzter Tag), nicht das Monatsende
+{
+  const cap = parse(EX.moneyHtml({ balance_path: [{ ym: '2026-01', paid: 100, cost: 90 }, { ym: '2027-02', paid: 1400, cost: 1300 }],
+    energy_cost_to_date: 700, base_to_date: 300, bonus_to_date: 0, projected_end_balance: -100, settle_on: '2027-02-14' }))
+    .querySelector('.explainer__text')?.textContent || '';
+  t('L1: Geld — Abrechnung am letzten Tag des Zeitraums (settle_on)', cap.includes(`am ${fmt.date('2027-02-14')}`) && !cap.includes(fmt.date('2027-02-28')), cap);
+}
+// v3.9.0 (A1) — meldet der Beobachter ein Bild nie als sichtbar, steht nach zwei Sekunden das Endbild
+{
+  const prevIO = globalThis.IntersectionObserver;
+  globalThis.IntersectionObserver = class { observe() {} unobserve() {} disconnect() {} };
+  window.IntersectionObserver = globalThis.IntersectionObserver;
+  document.body.innerHTML = `<div id="root-a1">${money(1200, 1300, 700, 300, 100)}</div>`;
+  const f = document.querySelector('#root-a1 .explainer');
+  EX.playExplainers(document.getElementById('root-a1'));
+  const before = f.classList.contains('ex--play');
+  await new Promise(r => setTimeout(r, 2100));
+  t('A1: ohne Sichtbarkeitsmeldung nach 2 s abgespielt (Balken nicht auf Breite 0)', !before && f.classList.contains('ex--ready') && f.classList.contains('ex--play'));
+  globalThis.IntersectionObserver = prevIO; window.IntersectionObserver = prevIO;
+}
+
 console.log(`\nexplainer.test: ${pass} bestanden, ${fail} fehlgeschlagen`);
 process.exit(fail ? 1 : 0);

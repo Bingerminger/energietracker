@@ -890,18 +890,22 @@ export function comparisonCardHtml(c, utilities = []) {
 // Vorauszahlung? Ein Schaubild erklärt die erste Antwort. Gerechnet wird
 // dasselbe wie in den anderen Stufen (contract-status, /api/summary).
 
-async function renderBeginner(container, { utilities, datasets, todo, settings }) {
-  const byKey = new Map(utilities.map(u => [u.key, u]));
-  const [summary, budget] = await Promise.all([
-    api.summary().catch(() => null),
-    settings.wohnverhaeltnis === 'miete' ? tenancyBudget().catch(() => null) : Promise.resolve(null),
-  ]);
-  const withContract = (summary?.meters || []).filter(m => m.contract && !m.is_sub_meter && byKey.has(m.utility)
-    && m.contract.projected_end_balance != null && !isPv(byKey.get(m.utility)));
+/** Hauptzähler mit laufendem Vertrag und erwartetem Saldo (ohne PV). */
+const moneyMeters = (meters, byKey) => (meters || []).filter(m => m.contract && !m.is_sub_meter && byKey.has(m.utility)
+  && m.contract.projected_end_balance != null && !isPv(byKey.get(m.utility)));
 
+/**
+ * Zeilen der Antwort „Muss ich nachzahlen?“ (Einsteiger) aus `/api/summary`.
+ * Rein, ohne DOM — geprüft in tests/browser-render.test.mjs.
+ * @param {Array<object>} meters  `summary.meters`
+ * @param {Map<string, object>} byKey  Verbrauchsarten nach Schlüssel
+ * @returns {string[]} `<li>` je Zähler mit laufendem Vertrag
+ */
+export function beginnerMoneyLines(meters, byKey) {
+  const withContract = moneyMeters(meters, byKey);
   // v3.9.0 (A3) — mehrere Zähler einer Art (etwa Haushalt und Wärmepumpe): mit Zählername
   const perUtility = withContract.reduce((acc, m) => acc.set(m.utility, (acc.get(m.utility) || 0) + 1), new Map());
-  const moneyLines = withContract.map(m => {
+  return withContract.map(m => {
     const u0 = byKey.get(m.utility);
     const u = perUtility.get(m.utility) > 1 && m.name ? { ...u0, label: `${u0.label} (${m.name})` } : u0;
     const v = Number(m.contract.projected_end_balance);
@@ -915,6 +919,16 @@ async function renderBeginner(container, { utilities, datasets, todo, settings }
       <span><strong>${escapeHtml(u.label)}:</strong> <span class="${even ? '' : credit ? 'success-text' : 'danger-text'}">${escapeHtml(text)}</span>
       ${until ? `<span class="muted small"> · ${escapeHtml(t('dashboard.beginner.money.until', { date: fmt.date(until) }))}</span>` : ''}</span></li>`;
   });
+}
+
+async function renderBeginner(container, { utilities, datasets, todo, settings }) {
+  const byKey = new Map(utilities.map(u => [u.key, u]));
+  const [summary, budget] = await Promise.all([
+    api.summary().catch(() => null),
+    settings.wohnverhaeltnis === 'miete' ? tenancyBudget().catch(() => null) : Promise.resolve(null),
+  ]);
+  const withContract = moneyMeters(summary?.meters || [], byKey);
+  const moneyLines = beginnerMoneyLines(summary?.meters || [], byKey);
 
   const trendLines = datasets.filter(d => (d.consumption?.monthly_total || []).length).map(({ utility: u, consumption }) => {
     const monthly = consumption.monthly_total;
