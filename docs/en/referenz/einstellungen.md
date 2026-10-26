@@ -11,13 +11,15 @@ stable: anything is removed only with a new major version and after notice — t
 deprecated ones are at the end.
 
 Since v3.2.0 a household can have several people with roles
-([Users in the household](../anleitungen/benutzer.md)). Ten keys can then
+([Users in the household](../anleitungen/benutzer.md)). Fourteen keys can then
 only be changed by admins, because they make the app talk to other addresses,
 let it be embedded, block names, shorten the history or send documents to the
 cloud: `frame_ancestors`, `ocr_endpoint`, `evcc_endpoint`, (since v3.4.0)
 `allowed_hosts` and `activity_keep_months`, and (since v3.7.0) `inbox_provider`,
 where supplier mail goes to be read, and `inbox_cloud_enabled`,
-`inbox_cloud_provider`, `inbox_cloud_endpoint` and `inbox_cloud_model`. A
+`inbox_cloud_provider`, `inbox_cloud_endpoint` and `inbox_cloud_model`, (since
+v3.9.0) `ha_notify_enabled`, `ha_notify_target`, `ha_notify_url` and
+`ha_notify_service`, whether and where notifications to Home Assistant go. A
 member who sends one of them gets `403` `errors.auth.adminOnly`; members may
 change every other key. Without sign-in the restriction does not apply.
 
@@ -318,6 +320,22 @@ without this key. Setup:
 | Key | Default | In the app | Effect |
 |---|---|---|---|
 | `evcc_endpoint` | empty | evcc address | Base address with `http://` or `https://` at which you open evcc in the browser, for example `http://192.168.178.30:7070` or `http://evcc.local:7070`; the app appends `/api/sessions`. Empty = off, the app opens no connection. Every address the name points to must be in your own network, otherwise the fetch refuses (as with text recognition). Admins only. |
+
+### Notifications to Home Assistant *(v3.9.0)*
+
+Settings → Integrations → 🔔 Notifications to Home Assistant. Webhook ID and
+token are not stored here but in a separate file on the server (not in the
+backup, never in the browser). When what is sent:
+[Home Assistant, step 6](../anleitungen/home-assistant.md#step-6--notifications-to-home-assistant-v390).
+
+| Key | Default | In the app | Effect |
+|---|---|---|---|
+| `ha_notify_enabled` | off | Send notifications | The switch. Off = nothing goes to Home Assistant. Switching on only works with a complete destination. Admins only. |
+| `ha_notify_target` | `supervisor` | Where to? | `supervisor` (app in Home Assistant, no setup), `webhook` or `token` (address and token). Admins only. |
+| `ha_notify_url` | empty | Home Assistant address | For webhook and token, without a path, for example `http://192.168.178.10:8123`. In the home network `http://` or `https://`, an address outside only with `https://`. Admins only. |
+| `ha_notify_service` | `persistent_notification.create` | Action in Home Assistant | For Supervisor and token: `persistent_notification.create` or `notify.<name>` (for example `notify.mobile_app_…`). Admins only. |
+| `ha_notify_events` | all | What to report? | Subset of `reminder` (appointments), `deadline` (deadlines and other items from “To do”), `warning` (warnings), `document` (new documents in the inbox). |
+| `ha_notify_hour` | `8` | Daily check from | Hour (0 to 23) from which the daily check runs, with the first request after it. |
 
 ### Inbox: reading in the cloud *(v3.7.0)*
 

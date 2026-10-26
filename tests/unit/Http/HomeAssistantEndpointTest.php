@@ -76,6 +76,11 @@ final class HomeAssistantEndpointTest extends HttpServerTestCase
         self::assertSame('Rauchmelder prüfen', $t['next']['title'], 'Überfälliges zuerst');
         self::assertSame('overdue', $t['next']['severity']);
         self::assertSame(1, $t['overdue']);
+        // /api/summary additiv: der Name der Verbrauchsart (HACS-Integration benennt so die Geräte)
+        $labels = array_column($this->json('GET', '/api/summary')['meters'], 'utility_label', 'utility');
+        self::assertSame('Strom', $labels['strom'] ?? null);
+        $en = array_column($this->json('GET', '/api/summary', null, ['X-ET-Language: en'])['meters'], 'utility_label', 'utility');
+        self::assertSame('Electricity', $en['strom'] ?? null, 'in der Sprache der Anfrage');
     }
 
     public function testSecretsAppearInNoAnswer(): void

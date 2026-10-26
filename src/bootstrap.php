@@ -244,7 +244,7 @@ final class App
             $this->consumption, $this->reminders, $this->recommendations, $this->i18n, $this->tenancies, $this->co2Split);
         $this->calendar     = new CalendarService($this->agenda, $this->settings, $this->instance, $this->i18n);
         $this->summary      = new SummaryService($this->settings, $this->meters, $this->readings, $this->consumption,
-            $this->forecasts, $this->deliveries, $this->pvSummary, $this->stromSaldo, $this->agenda, $this->instance);
+            $this->forecasts, $this->deliveries, $this->pvSummary, $this->stromSaldo, $this->agenda, $this->instance, $this->i18n);
         // v3.1.0 (Paket H2) — Belege und Texterkennung im Heimnetz
         $this->attachments  = new AttachmentService($this->store, $this->settings, $this->i18n);
         $this->ocr          = new OcrService($this->settings, $this->attachments);

@@ -101,7 +101,8 @@ async function enumerate(get, post = null) {
     '/api/activity',                          // v3.4.0 (F1024) — Hinweise › Erledigt, Verlauf je Vertrag
     '/api/people',                            // v3.5.0 (F1028) — Personen für „Zuständig“; v3.6.0 aus dem Verzeichnis
     '/api/users',                             // v3.6.0 — Einstellungen → Zugriff: Personen ohne Zugang
-    '/api/inbox/cloud');                      // v3.7.0 (cloud) — Einstellungen → Experte: Auslesen in der Cloud (aus)
+    '/api/inbox/cloud',                       // v3.7.0 (cloud) — Einstellungen → Experte: Auslesen in der Cloud (aus)
+    '/api/homeassistant/notify');             // v3.9.0 (F1033) — Einstellungen → Integrationen: Benachrichtigungen (aus)
   // v3.6.0 — Vorschau „Person löschen“ je Person (Löschen selbst lehnt die Demo ab)
   for (const p of (await get('/api/people')).json?.data ?? []) add(`/api/users/${p.id}/handover`);
   // v3.7.0 — Posteingang: Liste, Prüfliste und die Vorschau je Dokument (vorberechnete Auslesung)

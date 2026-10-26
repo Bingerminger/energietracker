@@ -13,7 +13,7 @@ Alle Endpunkte unter `/api/…`. Antwort-Hülle einheitlich:
 
 `{utility}` ist eine von: `gas`, `strom`, `wasser`, `fernwaerme`,
 `heizoel`, `pellets`, `pv_einspeisung`, `pv_erzeugung` und seit v3.1.0
-`waerme` (Heizwärme). Stand: **186 Routen**,
+`waerme` (Heizwärme). Stand: **190 Routen**,
 v3.7.0 — `ReleaseConsistencyTest` prüft, dass jede registrierte Route in der
 Tabelle unten steht (DE und EN).
 
@@ -133,7 +133,7 @@ braucht eine Zusage, was sich ändern darf. Drei Klassen:
 
 | Klasse | Umfang | Zusage |
 |---|---|---|
-| **A — Schnittstellen für Fremdsysteme** | `POST /api/ingest` (auch als Stapel), `GET /api/health`, `GET /api/summary` (`summary_version: 1`, v3.1.0), `GET /api/calendar.ics` (Form und UIDs, v3.1.0), Backup-Format 3.0 (`/api/backup/export`, `/api/backup/import`), CSV-Exporte im Format 1 und die CSV-Importe ([CSV-Formate](#csv-formate-v310)), Stammdaten (`meters`, `readings`, `contracts`, `deliveries`, `reminders`, `settings`, `temperatures`; seit v3.1.0 `periods` samt `periods.csv` und Zeitraum-Import, `tenancies` und `statements`), Belege hochladen und abrufen (`POST /api/attachments`, `GET /api/attachments/{id}`, v3.1.0), Fehlerhülle mit `code` | Nur additive Änderungen. Umbenennen oder Entfernen erst mit einer **Major-Version**, angekündigt mindestens eine Minor-Version vorher im CHANGELOG unter „Deprecated". Alte Feldnamen bleiben als Alias gültig. |
+| **A — Schnittstellen für Fremdsysteme** | `POST /api/ingest` (auch als Stapel), `GET /api/health`, `GET /api/summary` (`summary_version: 1`, v3.1.0), `GET /api/todo` (`todo_version: 1`, v3.9.0), `GET /api/calendar.ics` (Form und UIDs, v3.1.0), Backup-Format 3.0 (`/api/backup/export`, `/api/backup/import`), CSV-Exporte im Format 1 und die CSV-Importe ([CSV-Formate](#csv-formate-v310)), Stammdaten (`meters`, `readings`, `contracts`, `deliveries`, `reminders`, `settings`, `temperatures`; seit v3.1.0 `periods` samt `periods.csv` und Zeitraum-Import, `tenancies` und `statements`), Belege hochladen und abrufen (`POST /api/attachments`, `GET /api/attachments/{id}`, v3.1.0), Fehlerhülle mit `code` | Nur additive Änderungen. Umbenennen oder Entfernen erst mit einer **Major-Version**, angekündigt mindestens eine Minor-Version vorher im CHANGELOG unter „Deprecated". Alte Feldnamen bleiben als Alias gültig. |
 | **B — Auswertungen** | Verbrauch, Saldo, Prognose, Tarifvergleich/-wechsel, Rechnungsprüfung, Effizienz, Empfehlungen, PV/Saldo, `readings-overview`, `agenda` (v3.1.0), Budget des Mietverhältnisses (`tenancies/{id}/budget`, v3.1.0), CO₂-Preis und Aufteilung (`co2-costs`, `co2-split`, `reports/co2-split.pdf`, v3.1.0), Versorgerrechnungen (`bills` samt `check` und `book`, v3.1.0), die Auswertungen einer Zählergruppe (`meter-groups/{id}/…`, v3.1.0), Ladestrom-Nachweis (`reports/ev-charging` als JSON, CSV und PDF, v3.1.0), Jahresarbeitszahl (`heat-pump`, v3.1.0), Einordnung (`benchmarks/comparison`, v3.1.0), Flexibilität (`flexibility`, v3.3.0), Tagesfilm (`energy-flow/day`, `energy-flow/typical-day`, `energy-flow/days`, v3.5.0) | Dokumentierte Felder bleiben mit Namen und Bedeutung erhalten; neue kommen hinzu. **Werte** können sich ändern, wenn eine Berechnung korrigiert wird — das steht im CHANGELOG. |
 | **C — Oberfläche** | `session` (seit v3.4.0 samt `session/logout-everywhere`), `auth/token`, `auth/keys`, `backup/snapshots`, `diagnostics`, `demo`, `countries`, Belegliste und Löschen (`GET /api/attachments`, `DELETE /api/attachments/{id}`) und `ocr/reading` (v3.1.0), Börsenstrompreise (`market-prices` samt Import und SMARD-Abruf), Monatspreise aus einer Datei (`contracts/{id}/prices/import-csv`) und Zeitreihen mit Spaltenzuordnung (`meters/{id}/import-series`, alle v3.1.0), Personen (`users`, `session/me`, v3.2.0), Ladevorgänge aus evcc (`import-evcc`, `sync-evcc`, `ev-sessions`, v3.2.0), Viertelstundenreihen (`intervals`) und Börsenpreise je Viertelstunde (`market-prices/sync-smard-intervals`, beide v3.3.0), Doku in der App (`docs`, `docs/asset`, v3.4.0), Verlauf erledigter Hinweise (`activity`, `agenda/done`, v3.4.0) | Für die eigene Oberfläche gebaut; Änderungen möglich, stehen aber im CHANGELOG. |
 
@@ -288,6 +288,10 @@ nicht wieder passieren.
 | PATCH | `/api/activity/{id}` | *(v3.4.0)* Notiz ändern `{note}` (bis 500 Zeichen) |
 | GET | `/api/calendar.ics` | *(v3.1.0)* Dieselben Ereignisse als Kalender-Abo (iCalendar, 365 Tage) — [Kalender](#get-apicalendarics-v310); *(v3.7.0)* `?person=<id>` nur, was bei dieser Person liegt |
 | GET | `/api/summary` | *(v3.1.0)* Kennzahlen je Zähler für Home Assistant und Skripte, `?utility=&meter=` — [Kennzahlen](#get-apisummary-v310) |
+| GET | `/api/todo` | *(v3.9.0)* die Liste „Zu tun“ für einen Sensor: `count`, `overdue`, `next`, `items` — [Zu tun](#get-apitodo-v390) |
+| GET | `/api/homeassistant/notify` | *(v3.9.0)* Stand der Benachrichtigungen an Home Assistant, ohne Webhook-ID und Token — [Benachrichtigungen](#benachrichtigungen-an-home-assistant-v390). Klasse C |
+| PATCH | `/api/homeassistant/notify` | *(v3.9.0)* Benachrichtigungen speichern und einschalten (nur Verwalter) |
+| POST | `/api/homeassistant/notify/test` | *(v3.9.0)* Testnachricht an das eingestellte Ziel, `{ok, status, error, target}` (nur Verwalter) |
 | GET | `/api/attachments` | *(v3.1.0)* Belege: Index und Speicherbelegung `usage` — [Belege](#belege-und-texterkennung-v310) |
 | POST | `/api/attachments` | *(v3.1.0)* Beleg hochladen: Datei als roher Body, `?kind=reading_photo` (bzw. `bill_pdf`, `statement_pdf`, `other`), optional `&name=`; `201` mit dem Indexeintrag |
 | GET | `/api/attachments/{id}` | *(v3.1.0)* Datei eines Belegs (Foto, PDF) |
@@ -3475,7 +3479,8 @@ Abfrage für alle Sensoren statt `consumption`, `contract-status` und
         "price_increase_from": null },
       "forecast_12m": { "value": 3120.4, "cost": 1080.55, "low": 2890.1, "high": 3350.7 },
       "tank": null,
-      "capture": "counter" }
+      "capture": "counter",
+      "utility_label": "Strom" }
   ],
   "pv": { "autarky_pct_ytd": null, "self_consumption_pct_ytd": null, "strom_saldo_ytd": null },
   "agenda": { "due": 1, "overdue": 0,
@@ -3503,7 +3508,8 @@ Je Zähler:
 | `role`, `is_sub_meter` | die **wirksame** Rolle des Zählers — ohne gespeicherte Rolle die Standardrolle der Art (etwa `household`), `null` nur bei Arten ohne Rollen —, Subzähler ja/nein |
 | `last_reading_date`, `last_counter`, `days_since_reading` | letzte gültige Ablesung (ohne verdächtige und geplante). Bei einem Zähler mit Verbrauch je Zeitraum: `last_reading_date` = Ende des letzten Zeitraums, `last_counter` `null`, die Tage ab diesem Ende |
 | `reading_due` | Ablesung bzw. nächster Zeitraum älter als `alert_days_since_reading` (nur kumulative Zähler) |
-| `capture` | *(v3.1.0, letzter Schlüssel des Eintrags)* Erfassungsart: `counter` (Zählerstände) oder `period` (Verbrauch je Zeitraum) |
+| `capture` | *(v3.1.0)* Erfassungsart: `counter` (Zählerstände) oder `period` (Verbrauch je Zeitraum) |
+| `utility_label` | *(v3.9.0, letzter Schlüssel des Eintrags)* Name der Verbrauchsart in der Sprache der Anfrage (ohne `X-ET-Language` die der Installation), etwa „Strom“ |
 | `month_to_date`, `year_to_date` | Verbrauch des laufenden Monats bzw. Jahres in `consumption_unit`, `estimated: true` = enthält geschätzte Tage; `null` ohne Daten im Jahr |
 | `contract` | laufender Vertrag (Arten mit Verträgen), sonst `null`: Preise und Abschlag, `balance` und `projected_end_balance` mit dem Vorzeichen von `contract-status` (positiv = Nachzahlung, bei der Einspeisung = Auszahlung), `verdict`, `period_end`, *(v3.7.0, additiv)* `period_last_day`, `cancel_by`, `days_to_cancel`, `price_increase_from`. `period_end` ist bei einem Vertrag mit gepflegtem Ende dieses Ende (einschließlich), sonst der Stichtag der nächsten Abrechnung — der **erste Tag der nächsten Periode**; so bleibt es für bestehende Sensoren. `period_last_day` ist immer der **letzte Tag** der Periode: das Ende selbst bzw. der Tag vor dem Stichtag (Stichtag 01-09: `period_end` 2027-09-01, `period_last_day` 2027-08-31). Seit v3.4.0 sind `cancel_by` und `days_to_cancel` `null`, wenn der Vertrag keinen datierten Stichtag hat (weiterlaufend, unbefristet, jederzeit kündbar — bis v3.3 stand dort jeden Tag „heute“) oder ein Folgevertrag lückenlos anschließt |
 | `forecast_12m` | Prognose der nächsten zwölf Monate: `value` in `consumption_unit`, `cost` (bei reiner Erzeugung `null`), `low`/`high` = Jahresband; `null` bei Heizöl/Pellets oder ohne gültige Prognose |
@@ -3516,6 +3522,85 @@ periodisch, fünf Minuten genügen. `agenda.next.title` steht in der
 Standardsprache der Installation, sofern die Anfrage kein `X-ET-Language`
 schickt. Vorlage für Home Assistant:
 [Home Assistant, Schritt 5](../anleitungen/home-assistant.md#schritt-5--werte-zurück-nach-home-assistant).
+
+### `GET /api/todo` *(v3.9.0)*
+
+Die Liste „Zu tun“ für einen Sensor in Home Assistant und Skripte
+([#36](https://github.com/Bingerminger/energietracker/issues/36)). Quelle sind
+die Ereignisse der [Agenda](#get-apiagendadays90-v310) mit `due_now`, ohne
+Erledigtes. Jedes fällige Ereignis zählt, gleich welcher Art: Eine neue Art
+zählt mit, ohne dass Sensoren angepasst werden müssen. Drei fällige
+Ablesungen sind drei Punkte (die Übersicht fasst sie in einer Zeile zusammen).
+Stabilitätsklasse A mit eigener Versionsnummer `todo_version` (heute `1`).
+
+```json
+{ "success": true, "data": {
+  "todo_version": 1,
+  "instance_id": "et_3f9a1c0b7d2e4a61",
+  "generated_at": "2026-11-03T08:00:04+01:00",
+  "count": 2,
+  "overdue": 1,
+  "next": { "uid": "reminder-r_1a2b", "kind": "reminder", "title": "Rauchmelder prüfen",
+            "date": "2026-11-01", "severity": "overdue", "href": "#/reminders" },
+  "items": [
+    { "uid": "reminder-r_1a2b", "kind": "reminder", "title": "Rauchmelder prüfen",
+      "date": "2026-11-01", "severity": "overdue", "href": "#/reminders" },
+    { "uid": "reading-strom-m_strom_main", "kind": "reading_due", "title": "Strom: Zählerstand ablesen (Hauptzähler)",
+      "date": "2026-11-03", "severity": "due", "href": "#/zaehlerstaende?meter=m_strom_main" }
+  ]
+}}
+```
+
+| Feld | Bedeutung |
+|---|---|
+| `count` | Zahl der fälligen Punkte |
+| `overdue` | davon überfällig oder dringend (wie `agenda.overdue` in `/api/summary`) |
+| `next` | der erste Punkt der Reihenfolge, sonst `null` |
+| `items[]` | die Punkte, höchstens 50: überfällig, dann dringend, dann fällig; darin nach Datum, dann nach Art und `uid`. Je Punkt `uid`, `kind` (Art wie in der Agenda), `title` (in der Sprache der Anfrage, ohne `X-ET-Language` die der Installation), `date`, `severity`, `href` (Sprung in die App) |
+| `instance_id` | Kennung dieser Installation, wie in `/api/summary` |
+
+**Zugang** wie `/api/summary`: ohne Anmeldung offen, mit Anmeldung ein
+API-Schlüssel mit Bereich `read`. Vorlage:
+[Home Assistant → Sensor „Zu tun“](../anleitungen/home-assistant.md#sensor-zu-tun-v390).
+
+### Benachrichtigungen an Home Assistant *(v3.9.0)*
+
+`GET /api/homeassistant/notify` liefert den Stand, `PATCH` speichert (nur
+Verwalter), `POST /api/homeassistant/notify/test` schickt eine Testnachricht
+(nur Verwalter). Klasse C. Webhook-ID und Token kommen nie zurück, nur
+`has_webhook` und `has_token`; sie stehen in `data/ha_notify_secret.json`
+(Rechte 0600), nicht in den Einstellungen und nicht im Backup.
+
+```json
+{ "success": true, "data": {
+  "enabled": true, "target": "webhook", "url": "http://192.168.178.10:8123",
+  "service": "persistent_notification.create",
+  "events": ["reminder", "deadline", "warning", "document"], "hour": 8,
+  "has_webhook": true, "has_token": false, "supervisor_available": false,
+  "complete": true, "ready": true,
+  "targets": ["supervisor", "webhook", "token"], "all_events": ["reminder", "deadline", "warning", "document"],
+  "last": { "at": "2026-11-03T08:00:05+01:00", "ok": true, "status": 200, "error": null, "category": "deadline" },
+  "daily_on": "2026-11-03", "sent_count": 12
+}}
+```
+
+| `PATCH`-Feld | Bedeutung |
+|---|---|
+| `enabled` | Schalter; einschalten geht nur mit vollständigem Ziel (sonst `400` `errors.haNotify.incomplete`) |
+| `target` | `supervisor` (App in Home Assistant, `SUPERVISOR_TOKEN`), `webhook` oder `token` |
+| `url` | Adresse von Home Assistant ohne Pfad; im Heimnetz `http://` oder `https://`, außerhalb nur `https://` |
+| `webhook_id` | 8 bis 200 Zeichen aus Buchstaben, Ziffern, `-`, `_`; eine ganze Adresse `…/api/webhook/<id>` wird gekürzt; leer = behalten |
+| `token` | langlebiger Token aus Home Assistant (ein mitkopiertes `Bearer ` fällt weg); leer = behalten |
+| `clear_webhook`, `clear_token` | `true` löscht das Geheimnis |
+| `service` | `persistent_notification.create` oder `notify.<name>` (nicht `notify.send_message`) |
+| `events` | Teilmenge von `reminder`, `deadline`, `warning`, `document` |
+| `hour` | Stunde (0 bis 23), ab der die tägliche Prüfung läuft |
+
+Die Testnachricht antwortet `200` mit `{ok, status, error, target}`; `error`
+ist `incomplete`, `url`, `dns`, `address` (link-local, gesperrt), `insecure`
+(öffentliche Adresse ohne `https://`), `timeout`, `network`, `http` (dann
+`status` von Home Assistant) oder `noTransport`. Wann was gesendet wird:
+[Home Assistant, Schritt 6](../anleitungen/home-assistant.md#schritt-6--benachrichtigungen-an-home-assistant-v390).
 
 ### Erledigt mit Verlauf *(v3.4.0)*
 
