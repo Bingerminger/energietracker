@@ -727,7 +727,7 @@ function wireHeatLimitField(modalEl, u, existing) {
 }
 
 /** `hdd_base_temp` für den Speichern-Aufruf: leer entfernt (beim Bearbeiten), sonst 6 bis 22 °C. */
-function heatLimitPayload(f, editing) {
+export function heatLimitPayload(f, editing) {
   const input = f.hdd_base_temp;
   if (!input) return {};
   const raw = String(input.value ?? '').trim();

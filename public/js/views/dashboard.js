@@ -472,7 +472,7 @@ function todoItemsHtml(items, { go = true } = {}) {
 /** v3.9.0 (#38) — „Übernehmen (nur dieser Zähler)“ und „Nicht jetzt“ unter dem Heizgrenze-Eintrag. */
 function heatLimitActionsHtml(x, i) {
   const group = isGroupId(x.heatLimit.id);
-  return `<div class="dash-todo__actions" data-role="heat-limit-todo">
+  return `<div class="dash-todo__actions" data-role="heat-limit-todo" data-meter="${escapeHtml(String(x.heatLimit.id ?? ''))}">
       <button type="button" class="btn btn--sm btn--util" data-heat-apply="${i}">${escapeHtml(t(group ? 'heatLimit.applyGroup' : 'heatLimit.apply'))}</button>
       <button type="button" class="btn btn--sm btn--ghost" data-heat-later="${i}" title="${escapeHtml(t('heatLimit.notNowHint'))}">${escapeHtml(t('heatLimit.notNow'))}</button>
     </div>`;

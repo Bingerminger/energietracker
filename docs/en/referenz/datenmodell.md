@@ -185,7 +185,8 @@ same identifier.
   // electricity only, optional (v2.10.0):
   "heat_source": true,                   // heat pump: counts in the efficiency figure
 
-  // v3.7.0, heating types with meter readings, optional — missing = setting hdd_base_temp:
+  // v3.7.0, heating types, optional — missing = setting hdd_base_temp (since v3.9.0 also heating oil,
+  // pellets and on the meter group in meter_groups.json):
   "hdd_base_temp": 12.0,                 // this meter's own heating limit (6–22 °C, heating limit suggestion)
 
   // v3.1.0, optional — missing = default:

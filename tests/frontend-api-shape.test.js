@@ -740,6 +740,13 @@ globalThis.fetch = async (url, init) => {
       JSON.stringify(gfc.fit_quality));
     check('consumption(gas): heat_adjusted_basis je Monat (model|summer|base_load|normal_is_actual|null), heat_limit nur mit ?heat_limit=1',
       (gm.monthly || []).every(m => [null, 'model', 'summer', 'base_load', 'normal_is_actual'].includes(m.heat_adjusted_basis)) && gm.heat_limit === null);
+    // v3.9.0 (#38) — eigener Endpunkt: derselbe Vorschlag, mit Vorschlag dazu `effect`
+    const hle = await j(`/api/utility/gas/meters/${gasMeters[0].id}/heat-limit`);
+    check('heat-limit(gas): {heat_limit: null | {current, best, suggest, range, before, grid[], effect}}',
+      hle && 'heat_limit' in hle && (hle.heat_limit === null || (typeof hle.heat_limit.suggest === 'boolean' && Array.isArray(hle.heat_limit.grid)
+        && 'range' in hle.heat_limit && 'before' in hle.heat_limit && 'effect' in hle.heat_limit
+        && (hle.heat_limit.suggest || hle.heat_limit.effect === null))),
+      JSON.stringify(hle?.heat_limit ? { ...hle.heat_limit, grid: hle.heat_limit.grid.length } : hle));
     const ghl = await j(`/api/utility/gas/meters/${gasMeters[0].id}/consumption?heat_limit=1`);
     check('consumption(gas)?heat_limit=1: {current, best, suggest, grid[]} oder null',
       ghl.heat_limit === null || (typeof ghl.heat_limit.suggest === 'boolean' && typeof ghl.heat_limit.current === 'number' && Array.isArray(ghl.heat_limit.grid)),

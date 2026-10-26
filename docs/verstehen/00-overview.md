@@ -337,6 +337,47 @@ Form (Grundlast 6,5 kWh am Tag, Heizung erst unter 12 °C) zeigt bei 15 °C eine
 Grundlast von 1,25 statt 6,5 kWh am Tag und schlägt 12 °C vor
 (`RealDataFollowUpTest`).
 
+**Ruhigeres Raster (seit v3.9.0, GitHub #38).** Bei zwei Jahren Monatswerten
+springt die Streuung von Rasterpunkt zu Rasterpunkt um ein Viertel und mehr. Beim
+Maintainer lag das Minimum bei einer einzigen Grenze in einem schmalen Tal, und
+genau dort verwarf der Robustheitsschritt des Fits ein Viertel der Monate: Das
+Modell passte auf den Rest sehr gut, der Rückblick auf Mai bis September lag mit
+dieser Grenze ein Drittel über dem Gemessenen. Seitdem gilt:
+
+```text
+geglättet(g)   = Mittel der Streuung aller Grenzen bis 1 °C neben g   (fünf Rasterpunkte)
+wählbar        ⇔ Grundlast-Prüfung bestanden, Sommer höchstens 10 % überschätzt,
+                 Mai bis September zusammen höchstens 10 % überschätzt,
+                 und der Fit verwirft höchstens jeden zehnten Monat (mindestens einen)
+                 als echten Ausreißer (mehr als 10 % eines typischen Monats daneben)
+Plateau        = lückenlos anschließende wählbare Grenzen, geglättet höchstens 15 %
+                 über der besten
+Vorschlag      = die Grenze des Plateaus, die der heutigen am nächsten liegt
+deutlich besser: geglättet ≤ 2/3 × Streuung heute und mindestens 3 Prozentpunkte weniger
+```
+
+Fast rauschfreie Monate (±2 %) fallen bei winziger Streuung ebenfalls aus dem Fit,
+liegen aber innerhalb des Alltagsrauschens und zählen nicht als Ausreißer. Die
+Spanne des Plateaus steht im Vorschlag (`range`): „Zwischen 10,5 und 11,5 °C passt
+das Modell etwa gleich gut“ (`HeatLimitFollowUpTest`, auch an einer verrauschten
+Reihe und am unordentlichen Testhaushalt).
+
+**Wo der Vorschlag steht (seit v3.9.0).** Unter „Zu tun“ auf der Übersicht
+(Agenda `heat_limit`, Empfehlung der Kategorie `modell`) mit vorher und nachher und
+der Wirkung auf den erwarteten Saldo und den Abschlagsvorschlag des laufenden
+Vertrags, mit „Übernehmen (nur dieser Zähler)“ und „Nicht jetzt“. „Nicht jetzt“
+blendet genau diesen Datenstand aus (vorgeschlagene Grenze und Zahl der geprüften
+Monate stecken in der Kennung der Empfehlung); kommt ein gemessener Monat dazu,
+erscheint er wieder. Derselbe Hinweis steht an der Saldo-Karte, in der Prognose und
+in der Werkstatt, wenn deren Schätzung wegen schlechter Passung unsicher ist
+(`poor_fit`). Übernehmen geht dort in jeder Stufe und lässt sich rückgängig machen;
+die Analyse mit Raster und Zurücknehmen bleibt ab Erfahren. Eine eigene Grenze
+haben auch **Heizöl und Pellets** (sie verteilen ihre Lieferungen nach den
+Gradtagen dieser Grenze) und **Zählergruppen** (`hdd_base_temp` an der Gruppe: Die
+Mitglieder rechnen für die Summe mit ihr, die Erwartung der Summe kommt aus dem
+Heizmodell der Summe). Einen Vorschlag gibt es für Zähler mit Zählerständen und
+für Gruppen, nicht für Tanks (deren Monate sind nach Gradtagen verteilt).
+
 > **Ersetzt (seit v2.8.0 veraltet, weiter geliefert):**
 > `weather_adjusted` skalierte den **ganzen** Verbrauch mit dem
 > HGT-Verhältnis — auch das Warmwasser; ein September wurde so um 54 %
@@ -663,9 +704,29 @@ Verhältnis       = σ_robust / mittlerer gemessener Monat   (Mittel der geprüf
 Grundlast        = Erwartung / Verbrauch gemessener Sommermonate
                    (ohne Heizgradtage zu 18 °C, sonst Juni bis August; mindestens 2 Monate;
                    gemessen als Median der Tagesraten)
-model_quality    = poor, wenn Verhältnis > 15 % oder Grundlast außerhalb 0,5 … 1,5
+Grundlast c      = c × Tage / Verbrauch derselben Monate   (seit v3.9.0, die Untergrenze)
+model_quality    = poor, wenn Verhältnis > 15 % oder Grundlast c < 0,5 oder Grundlast > 1,5
 detect_floor     = anomaly_threshold × max(σ_robust, 10 % des typischen Monats)
 ```
+
+**Untergrenze mit der Grundlast selbst (seit v3.9.0, GitHub #38).** Bis v3.7.1 maß
+auch die Untergrenze die ganze Erwartung der Sommermonate. Bei hohen Heizgrenzen
+fällt `c` auf null, aber die kühlen Sommertage bekommen Heizgradtage, und `a × HGT`
+hob die Erwartung wieder über die Hälfte des Gemessenen. Beim Melder schlug die
+Prüfung in v3.7.0 zwischen 14 und 16,5 °C an und bei 17 bis 18 °C nicht mehr. Die
+feste Sommer-Referenz aus v3.7.1 änderte daran nichts, weil die Erwartung selbst
+nicht monoton in der Grenze ist: Im unordentlichen Testhaushalt schlug sie mit
+v3.7.1 von 12,5 bis 17,5 °C an und bei 18 °C nicht. Jetzt prüft die Untergrenze `c` (`base_load.base_ratio`,
+`base_per_day`), die Obergrenze weiter die ganze Erwartung; die bestandenen Grenzen
+sind ein zusammenhängendes Stück.
+
+**Wiederkehrende Monate (seit v3.9.0).** Ein Kalendermonat, der in mindestens
+zwei Jahren in dieselbe Richtung gemeldet wird und in jedem geprüften Jahr auf
+derselben Seite der Erwartung liegt, ist ein **Muster** und kein Ereignis
+(`anomalies[].pattern`, `pattern_years`): Bei einer gekrümmten Heizkurve liegen April
+und Oktober jedes Jahr unter oder über der Geraden. Die Analyse fasst sie zu einer
+Zeile je Monat zusammen und verweist auf die Heizgrenze; R1 und R4 machen daraus
+keine Empfehlung mehr.
 
 **Sommer für jede Heizgrenze derselbe (seit v3.7.1, GitHub #38).** Bis v3.7.0
 waren die Sommermonate die mit HGT ≤ `min_hdd_regression` — gerechnet mit der

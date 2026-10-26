@@ -388,6 +388,80 @@ final class HeatLimitFollowUpTest extends ServiceTestCase
         self::assertSame($want, array_keys(AnomalyService::patternMonths($found)));
     }
 
+    /**
+     * Von Hand gebaute Monatszeilen (Erwartung je Monat 1000 kWh, Alltag ± 1 %): Der April
+     * liegt in allen drei Jahren 40 % darunter (Muster), der März in zwei Jahren 40 % darüber,
+     * im dritten aber 10 % darunter (kein Muster: nicht jedes Jahr auf derselben Seite).
+     */
+    public function testAPatternNeedsTheSameSideInEveryYear(): void
+    {
+        $rows = [];
+        foreach ([2023, 2024, 2025] as $y) {
+            for ($mo = 1; $mo <= 12; $mo++) {
+                $f = 1.0 + 0.01 * ((($y * 12 + $mo) * 7) % 3 - 1);
+                if ($mo === 4) $f = 0.6;
+                if ($mo === 3) $f = $y === 2025 ? 0.9 : 1.4;
+                $rows[] = ['ym' => sprintf('%d-%02d', $y, $mo), 'year' => $y, 'month' => $mo, 'days' => 30, 'kwh' => 1000.0 * $f,
+                    'expected_heat' => 1000.0, 'hdd' => 100.0, 'temp_days' => 30];
+            }
+        }
+        $found = array_column($this->anomalies->detect('gas', $rows), null, 'ym');
+        foreach (['2023-04', '2024-04', '2025-04'] as $ym) {
+            self::assertSame(['low', true, ['2023', '2024', '2025']], [$found[$ym]['kind'], $found[$ym]['pattern'], $found[$ym]['pattern_years']], $ym);
+        }
+        foreach (['2023-03', '2024-03'] as $ym) {
+            self::assertSame(['high', false, null], [$found[$ym]['kind'], $found[$ym]['pattern'], $found[$ym]['pattern_years']], "$ym: der März 2025 liegt darunter");
+        }
+    }
+
+    /**
+     * v3.7.1 (#38, Gegenprobe der gebauten Regel) — gemessen ist der Median der Tagesraten
+     * der Sommermonate: Ein einzelner Juli mit dem Vierfachen (defekte Therme) verschiebt die
+     * gemessene Grundlast nicht. Von Hand: Grundlast 6,5 kWh am Tag ± 2 %; das Mittel der neun
+     * Sommermonate läge bei (8 × 6,5 + 26) ÷ 9 ≈ 8,7.
+     */
+    public function testTheMeasuredSummerIsTheMedianOfTheDailyRates(): void
+    {
+        $noise = fn(string $d) => 1.0 + 0.01 * ((((int)substr($d, 0, 4) * 12 + (int)substr($d, 5, 2)) * 7) % 5 - 2);
+        $meter = $this->formulaHousehold(fn($d, $temp) => (6.5 + 7.5 * max(0.0, 12.0 - $temp)) * $noise($d) * (substr($d, 0, 7) === '2024-07' ? 4.0 : 1.0),
+            '2023-01-01', '2025-12-31');
+        $q = $this->anomalies->quality('gas', $this->consumption->forMeter('gas', $meter, 12.0));
+        self::assertSame('window', $q['base_load']['reference']);
+        self::assertContains('2024-07', $q['base_load']['reference_months']);
+        self::assertEqualsWithDelta(6.5, $q['base_load']['measured_per_day'], 0.15, 'Median, nicht Mittel');
+    }
+
+    /** Das Raster der Gradtage je Monat ist intern: Es steht nicht in der Antwort. */
+    public function testTheHddGridDoesNotLeakIntoTheMonthlyRows(): void
+    {
+        $this->loadMessy();
+        $rows = $this->consumption->forMeter('gas', $this->meters->list('gas')[0]);
+        self::assertNotSame([], $rows);
+        foreach ($rows as $r) self::assertArrayNotHasKey('_hdd_grid', $r);
+        foreach ($this->consumption->forMeter('strom', $this->meters->list('strom')[0]) as $r) self::assertArrayNotHasKey('_hdd_grid', $r);
+    }
+
+    /** Die Doku nennt die Regeln, die gelten (Glättung, Plateau, Ausreißer, warme Monate, Muster, Untergrenze mit c). */
+    public function testTheDocsNameTheRulesThatApply(): void
+    {
+        $root = dirname(__DIR__, 3) . '/docs/';
+        $months = fn(array $m, string $lang) => (new \IntlDateFormatter($lang, \IntlDateFormatter::NONE, \IntlDateFormatter::NONE, 'UTC', null, 'MMMM'))->format(gmmktime(0, 0, 0, $m[0], 1, 2024));
+        $warm = AnomalyService::WARM_MONTHS;
+        foreach (['verstehen/00-overview.md' => ['de', 'bis %s °C neben', 'höchstens %d %% über der besten', 'jeden zehnten Monat', '%s bis %s', 'mindestens zwei Jahren', 'c × Tage'],
+                  'en/verstehen/00-overview.md' => ['en', 'up to %s °C either side', 'at most %d %% above the best', 'one month in ten', '%s to %s', 'at least two years', 'c × days']] as $file => [$lang, $smooth, $plateau, $ten, $range, $years, $cDays]) {
+            $flat = (string)preg_replace('/\s+/', ' ', (string)file_get_contents($root . $file));
+            self::assertStringContainsString(sprintf($smooth, (int)ConsumptionService::HEAT_LIMIT_SMOOTH_K), $flat, "$file: Glättung");
+            self::assertStringContainsString(sprintf($plateau, (int)round(ConsumptionService::HEAT_LIMIT_PLATEAU * 100)), $flat, "$file: Plateau");
+            self::assertSame(0.10, ConsumptionService::HEAT_LIMIT_MAX_DROPPED);
+            self::assertStringContainsString($ten, $flat, "$file: höchstens jeder zehnte Monat");
+            $first = $months([$warm[0]], $lang); $last = $months([end($warm)], $lang);
+            self::assertStringContainsString(sprintf($range, ucfirst($first), $last), $flat, "$file: warme Monate");
+            self::assertSame(2, AnomalyService::PATTERN_MIN_YEARS);
+            self::assertStringContainsString($years, $flat, "$file: Muster ab zwei Jahren");
+            self::assertStringContainsString($cDays, $flat, "$file: Untergrenze mit der Grundlast c");
+        }
+    }
+
     // ── 6  „Zu tun“ ─────────────────────────────────────────────────────
 
     /**
