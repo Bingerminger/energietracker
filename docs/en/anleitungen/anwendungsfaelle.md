@@ -76,7 +76,7 @@ counting. Details: [Meter topology](../verstehen/13-meter-topologie.md).
 > apportionment. If it does get a contract of its own, the flat's contract only
 > bills the remainder from that contract's start *(v3.9.0,
 > [remainder billing](../verstehen/13-meter-topologie.md#remainder-billing-v390))*.
-> Up to v3.8 this said the sub-meter was subtracted from the house connection;
+> Up to v3.7 this said the sub-meter was subtracted from the house connection;
 > the figures in the example were the measured ones even then.
 
 ---

@@ -640,7 +640,7 @@ die Prognose-Werkstatt zeigen denselben Saldo zum selben Tag. Das Datum ist der
 Karte keinen höheren Abschlag mehr vor, sondern sagt: „Bis zur Abrechnung am …
 bleiben nur noch 2 Abschläge. Den Rest gleicht die Abrechnung aus; dafür musst
 du den Abschlag jetzt nicht erhöhen.“ Weicht der laufend passende Abschlag ab,
-folgt „Danach wären rund … statt … im Monat angemessen.“ Bis v3.8 zählte die
+folgt „Danach wären rund … statt … im Monat angemessen.“ Bis v3.7 zählte die
 Karte ohne Rechnung ab Vertragsbeginn und nannte den Folgetag
 ([Grundlagen §10](../verstehen/00-overview.md#eine-projektion-für-saldo-und-werkstatt-seit-v390)).
 
@@ -2303,7 +2303,7 @@ steht der Fortschritt über den Knöpfen:
 
 1. **„Sprache und Land“** *(seit v3.5.0)* — Sprache und Land mit dem, was das
    Länderprofil setzt ([Einrichten](../einstieg/einrichtung.md#die-schritte)).
-   Bis v3.8 fehlte dieser Schritt hier, und die Fußzeile stand mit „Schritt 1
+   Bis v3.7 fehlte dieser Schritt hier, und die Fußzeile stand mit „Schritt 1
    von 4“ da.
 2. **„Wer bist du?“** — fünf Antworten mit einem Satz, seit v3.9.0 mit einem
    kleinen Haus-Bild statt des Emojis. Die Antwort
@@ -2350,7 +2350,7 @@ die Installation verwaltet (§11). „Überspringen“ ändert nichts und beende
 den Erststart.
 
 **Öffentliche Demo** ([bingerminger.github.io/energietracker](https://bingerminger.github.io/energietracker/)):
-vier Schritte, ohne „Welche Energieträger nutzt du?“ (bis v3.8 stand hier „drei“;
+vier Schritte, ohne „Welche Energieträger nutzt du?“ (bis v3.7 stand hier „drei“;
 „Sprache und Land“ gibt es auch dort seit v3.5.0). Am Ende steht „Die Demo
 zeigt jetzt den Beispielhaushalt „…“. Einen anderen wählst du über die
 Einstellungen → Allgemein → Einrichtungsassistent.“; „Los geht’s“ lädt die

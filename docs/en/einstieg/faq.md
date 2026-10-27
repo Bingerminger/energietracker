@@ -178,7 +178,7 @@ also with a heat pump, solar and meters in a row
 
 Because a sub-meter with its own contract (such as the heat pump behind the
 household meter) is now deducted: the household meter’s contract only bills the
-remainder. Up to v3.8 the app paid for the sub-meter’s amount through both
+remainder. Up to v3.7 the app paid for the sub-meter’s amount through both
 contracts. The meter and its contract say how it was calculated, for example
 “300 kWh = 500 kWh measured − 200 kWh heat pump”
 ([remainder billing](../verstehen/13-meter-topologie.md#remainder-billing-v390)).

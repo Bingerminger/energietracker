@@ -98,6 +98,24 @@ final class DocumentedThresholdsTest extends TestCase
         foreach ($en as $s) self::assertStringContainsString($s, $e, "$enFile: “{$s}”");
     }
 
+    /**
+     * Die Einstellungsreferenz nennt die Schlüssel, die nur Verwalter ändern („Vierzehn
+     * Schlüssel“ seit v3.9.0 mit `ha_notify_*`): Zahl und Liste wie in `App::ADMIN_SETTINGS`.
+     */
+    public function testTheAdminOnlySettingsAreTheOnesTheDocsName(): void
+    {
+        $keys = (new \ReflectionClassConstant(\Energietracker\App::class, 'ADMIN_SETTINGS'))->getValue();
+        $n = count($keys);
+        $num = ['de' => [14 => 'Vierzehn', 15 => 'Fünfzehn', 16 => 'Sechzehn'], 'en' => [14 => 'Fourteen', 15 => 'Fifteen', 16 => 'Sixteen']];
+        foreach (['de' => 'docs/referenz/einstellungen.md', 'en' => 'docs/en/referenz/einstellungen.md'] as $lang => $rel) {
+            $d = self::flat($rel);
+            $start = (int)strpos($d, $num[$lang][$n] ?? "($n)");
+            self::assertGreaterThan(0, $start, "$rel: „{$num[$lang][$n]} …“ fehlt (ADMIN_SETTINGS hat $n Schlüssel)");
+            $para = substr($d, $start, 900);
+            foreach ($keys as $k) self::assertStringContainsString("`$k`", $para, "$rel: `$k` fehlt in der Liste der Verwalter-Schlüssel");
+        }
+    }
+
     /** Die Werte selbst, damit die Sätze oben nicht still mit einer anderen Zahl weiterleben. */
     public function testTheConstantsBehindTheSentences(): void
     {

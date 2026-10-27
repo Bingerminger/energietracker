@@ -61,7 +61,7 @@ reading_gap_days    = longest interval the month draws from
 **Since v3.9.0 the days count too.** If most days of a month come from a long
 interval, the month is interpolated, even when the few measured days carry more
 consumption: in the messy test household, December 2024 drew 18 of 31 days from
-a 103-day interval and counted as measured up to v3.8, because the spread part
+a 103-day interval and counted as measured up to v3.7, because the spread part
 takes in the milder autumn months and so has a daily rate that is too low. It
 therefore entered the anomalies.
 
@@ -434,7 +434,7 @@ With two years of monthly values the robust spread varies by about a fifth of it
 value; a third less is clearly above that, and the percentage points prevent
 suggestions between two well-fitting models.
 
-*Since v3.7.1 (GitHub #38)* the suggested limit must also match the measured
+*Since v3.9.0 (GitHub #38, announced as 3.7.1)* the suggested limit must also match the measured
 summer: its model may overestimate the summer months of the quality gate (the same
 ones for every limit, section 9) by at most 10 % (`summer_ok` in the grid). A single
 summer month varies by 10 to 20 % in everyday life, the mean over the summers of
@@ -590,7 +590,7 @@ Without a
 heating model it comes from the regression alone (`regression_only`), otherwise
 from the daily mean of all months (`filled`).
 
-Up to v3.8 the regression of the monthly totals came first. It is fitted only
+Up to v3.7 the regression of the monthly totals came first. It is fitted only
 over months with degree days and knows no days; the change-point model gave
 every month below the knee the same level, that of the transition months (May =
 July), and the straight line put summer months at its intercept. Up to v2.7 a
@@ -634,7 +634,7 @@ pump), this amount also lags behind by up to a year.
 **Share of the heating curve (since v3.9.0).** `blend_weight` is the weight by
 model quality, `blend_effective` the part of the annual amount that really comes
 from the heating curve. Months below the heating curve's points or with a failed
-quality gate use the seasonal profile; up to v3.8 “heating curve share 80 %”
+quality gate use the seasonal profile; up to v3.7 “heating curve share 80 %”
 then stood next to “seasonal profile” in every month. A month from the heating
 model (`heat_model`) counts fully towards the heating curve.
 
@@ -880,14 +880,14 @@ model_quality    = poor if ratio > 15 % or base load outside 0.5 … 1.5
 detect_floor     = anomaly_threshold × max(σ_robust, 10 % of the typical month)
 ```
 
-**Lower bound with the base load itself (since v3.9.0, GitHub #38).** Up to v3.7.1
+**Lower bound with the base load itself (since v3.9.0, GitHub #38).** Up to v3.7.0
 the lower bound also measured the whole expectation of the summer months. At high
 heating limits `c` drops to zero, but the cool summer days get degree days, and
 `a × HDD` lifted the expectation back above half of the measurement. For the
 reporter the check failed in v3.7.0 between 14 and 16.5 °C and passed again at 17
-to 18 °C. The fixed summer reference of v3.7.1 did not change that, because the
-expectation itself is not monotone in the limit: in the messy test household it
-failed with v3.7.1 from 12.5 to 17.5 °C and passed at 18 °C. Now the lower bound
+to 18 °C. The fixed summer reference alone (below, announced as 3.7.1) did not
+change that, because the expectation itself is not monotone in the limit: in the
+messy test household it then failed from 12.5 to 17.5 °C and passed at 18 °C. Now the lower bound
 checks `c` (`base_load.base_ratio`, `base_per_day`), the upper bound still the
 whole expectation; the limits that pass form one contiguous range.
 
@@ -899,7 +899,7 @@ above the straight line every year. The analysis combines them into one line per
 month and points to the heating limit; R1 and R4 no longer turn them into
 recommendations.
 
-**The same summer for every heating limit (since v3.7.1, GitHub #38).** Up to v3.7.0
+**The same summer for every heating limit (since v3.9.0, GitHub #38, announced as 3.7.1).** Up to v3.7.0
 the summer months were those with HDD ≤ `min_hdd_regression` — calculated with the
 heating limit of the model under test. With a low limit, shoulder months with real
 heating demand thus counted as summer; the reference rose, and a model with too high
@@ -1058,7 +1058,7 @@ estimate is uncertain, shows no “Advance payments fit”) and forecast worksho
 show the range with the reason; the explainer “Where does my money go?” gives cost
 and result as a range.
 
-Up to v3.8 workshop and card calculated the balance differently. Since v3.9.0
+Up to v3.7 workshop and card calculated the balance differently. Since v3.9.0
 there is one projection for both ([below](#one-projection-for-balance-and-workshop-since-v390)).
 
 **Superseded (since v3.7.0).** If a follow-up contract begins while a contract

@@ -158,7 +158,7 @@ too. A test checks every row with an anchor against the code.
 | <a id="level-el-settings-utilities"></a>Utilities: physical constants, energy sources (delivery), own flexibility values, photovoltaics | – | ✓ | ✓ | photovoltaics *from Experienced since v3.7.0* |
 | <a id="level-el-settings-co2"></a>Utilities: CO₂ emission factors | – | – | ✓ | calculation parameters |
 | **People in the household**: add, rename, delete (Settings → Household & building), also without sign-in *(v3.9.0)* | ✓ | ✓ | ✓ | names for “Responsible” on reminders, meters and contracts |
-| Accounts and roles (Settings → Access → “Users and roles”) | – | – | ✓ | who signs in and which role applies; depends on sign-in. Up to v3.8 people could only be added here |
+| Accounts and roles (Settings → Access → “Users and roles”) | – | – | ✓ | who signs in and which role applies; depends on sign-in. Up to v3.7 people could only be added here |
 
 ### Connect
 

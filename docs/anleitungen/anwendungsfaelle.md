@@ -77,7 +77,7 @@ Hausanschluss rechnet alle 612 kWh, ohne Doppelzählung. Details:
 > doch einen eigenen Vertrag, rechnet der WG-Vertrag ab dessen Beginn nur noch
 > den Rest *(v3.9.0,
 > [Rest-Abrechnung](../verstehen/13-meter-topologie.md#rest-abrechnung-v390))*.
-> Bis v3.8 stand hier, der Subzähler werde vom Hausanschluss abgezogen; die
+> Bis v3.7 stand hier, der Subzähler werde vom Hausanschluss abgezogen; die
 > Zahlen im Beispiel waren schon damals die gemessenen.
 
 ---

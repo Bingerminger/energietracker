@@ -623,7 +623,7 @@ If fewer than three advance payments are left before the bill, the card no
 longer suggests a higher advance but says: “Only 2 advance payments are left
 before the bill on …. The bill settles the rest, so there is no need to raise
 the advance now.” If the ongoing amount differs, it adds “After that, about …
-instead of … a month would be right.” Up to v3.8 the card counted from the
+instead of … a month would be right.” Up to v3.7 the card counted from the
 contract start without a bill and named the day after
 ([basics §10](../verstehen/00-overview.md#one-projection-for-balance-and-workshop-since-v390)).
 
@@ -2219,7 +2219,7 @@ above the buttons:
 
 1. **“Language and country”** *(since v3.5.0)* — language and country with
    what the country profile sets ([Setup](../einstieg/einrichtung.md#the-steps)).
-   Up to v3.8 this step was missing here, and the footer read “Step 1 of 4”.
+   Up to v3.7 this step was missing here, and the footer read “Step 1 of 4”.
 2. **“Who are you?”** — five answers with a sentence, since v3.9.0 with a small
    house picture instead of the emoji. The answer
    ticks its utilities in the next step; on the first start it also suggests the
@@ -2264,7 +2264,7 @@ keeps the level; only someone who manages the installation may load one
 (§11). “Skip” changes nothing and ends the first start.
 
 **Public demo** ([bingerminger.github.io/energietracker](https://bingerminger.github.io/energietracker/)):
-four steps, without “Which energy sources do you use?” (up to v3.8 this said
+four steps, without “Which energy sources do you use?” (up to v3.7 this said
 “three”; “Language and country” exists there too since v3.5.0). At the end it says
 “The demo now shows the sample household “…”. Pick another under Settings →
 General → Setup assistant.”; “Let’s go” reloads the page with that household.

@@ -159,7 +159,7 @@ höheren Stufen auch. Ein Test prüft jede Zeile mit Sprungmarke gegen den Code.
 | <a id="level-el-settings-utilities"></a>Verbrauchsarten: physikalische Konstanten, Energieträger (Lieferung), eigene Werte der Flexibilität, Photovoltaik | – | ✓ | ✓ | Photovoltaik *seit v3.7.0 ab Erfahren* |
 | <a id="level-el-settings-co2"></a>Verbrauchsarten: CO₂-Emissionsfaktoren | – | – | ✓ | Rechenparameter |
 | **Personen im Haushalt** anlegen, umbenennen, löschen (Einstellungen → Haushalt & Gebäude), auch ohne Anmeldung *(v3.9.0)* | ✓ | ✓ | ✓ | Namen für „Zuständig“ an Terminen, Zählern und Verträgen |
-| Zugänge und Rollen (Einstellungen → Zugriff → „Benutzer und Rechte“) | – | – | ✓ | wer sich anmeldet und welche Rolle gilt; hängt an der Anmeldung. Bis v3.8 entstanden Personen nur hier |
+| Zugänge und Rollen (Einstellungen → Zugriff → „Benutzer und Rechte“) | – | – | ✓ | wer sich anmeldet und welche Rolle gilt; hängt an der Anmeldung. Bis v3.7 entstanden Personen nur hier |
 
 ### Anbinden
 

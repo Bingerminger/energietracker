@@ -79,7 +79,7 @@ Widerrufe und Werbung erkennt der Posteingang und legt sie nur ab.
   Einbau, statt dass ein zweiter entsteht. Angelegt wird ein Zähler nur, wenn
   etwas an ihm hängt (Ablesung, Vertrag, Rechnung) — eine verstrichene
   Aufforderung, den Zählerstand zu melden, hält allein keinen Zähler.
-- **Bestehender Haushalt, Zähler ohne Nummer** *(3.7.1)*. Führst du deine
+- **Bestehender Haushalt, Zähler ohne Nummer** *(3.9.0)*. Führst du deine
   Zähler ohne Zählernummer und Marktlokation, kennt der Bestand die Nummern der
   Dokumente nicht. Dann übernimmt der Entwurf den **einen aktiven Zähler der
   Art mit Daten** (Ablesungen, Verträge, Rechnungen), wenn nichts dagegen
@@ -124,7 +124,7 @@ Widerrufe und Werbung erkennt der Posteingang und legt sie nur ab.
     dem Beginn, am Zähler der Rechnung.
   - **Ende:** Ist das Ende im Dokument zweifelhaft und gibt es einen
     Folgevertrag, gilt der Tag vor dessen Beginn — vorbelegt.
-  - **Verträge im Bestand ohne Nummer** *(3.7.1)*: Gleicher Zähler (oder
+  - **Verträge im Bestand ohne Nummer** *(3.9.0)*: Gleicher Zähler (oder
     seine Gruppe), derselbe Versorger und ein Beginn am selben Tag oder
     höchstens sieben Tage daneben — das ist der Vertrag aus dem Bestand, kein
     zweiter. Der Beginn des Bestands bleibt („Aufgefallen“ nennt beide Tage;
@@ -169,7 +169,7 @@ Widerrufe und Werbung erkennt der Posteingang und legt sie nur ab.
   - Endstand der einen Rechnung = Anfangsstand der nächsten: beide Stände
     bestätigt, eine Ablesung. Passen sie nicht, sind beide zu prüfen. Steht
     derselbe Stand im Bestand einen Tag daneben (31.12. gegen 01.01.), ist er
-    schon vorhanden *(3.7.1)*.
+    schon vorhanden *(3.9.0)*.
   - Lücken und Überschneidungen zwischen aufeinanderfolgenden Verträgen
     derselben Verbrauchsart stehen unter „Aufgefallen“ — korrigiert wird
     nichts. Ohne Ende in den Dokumenten endet ein Vertrag am Tag vor dem
@@ -217,7 +217,7 @@ Widerrufe und Werbung erkennt der Posteingang und legt sie nur ab.
   übersprungen; „Widerspruch“ überschreibt nur, wenn du das Feld bestätigst;
   „Überschneidung“ heißt: neu, aber im Zeitraum eines anderen Vertrags;
   „ergänzen“: vorhanden, eine Angabe kommt dazu. **„Ergänzen“ und
-  „Überschneidung“ sind nie vorbelegt** *(3.7.1)* — sie berühren, was schon da
+  „Überschneidung“ sind nie vorbelegt** *(3.9.0)* — sie berühren, was schon da
   ist, und sind immer eine Frage; vorbelegt ist nur, was neu ist und nichts
   Vorhandenes ändert.
 

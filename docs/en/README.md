@@ -40,10 +40,10 @@ only happens with an opt-in.
 | [Enter and check the annual bill](anleitungen/jahresabrechnung.md) | Take readings, prices, gas factors and the credit from a bill and recalculate it — for gas, electricity, water and district heating; record the bill, compare it and book it as a special payment |
 | [As a tenant: heating, water and service charges](anleitungen/mieter.md) | Consumption information month by month, hot and cold water, prepayment against expected costs, the service charge statement and its deadlines |
 | [Share CO₂ costs with the landlord](anleitungen/co2-aufteilung.md) | The landlord’s share under the CO2KostAufG: work it out and claim it with your own gas boiler, check the statement with central heating; deadline and letter |
-| [Connect Home Assistant](anleitungen/home-assistant.md) | As an app in Home Assistant OS (since v3.5.0); push readings automatically: token, meter alias, REST command, quarter hours with a timestamp; balance and forecast back as sensors, backfilling after an outage |
+| [Connect Home Assistant](anleitungen/home-assistant.md) | As an app in Home Assistant OS (since v3.5.0); push readings automatically: token, meter alias, REST command, quarter hours with a timestamp; balance and forecast back as sensors, backfilling after an outage; *since v3.9.0* notifications to Home Assistant and the “To do” sensor |
 | [ioBroker, Node-RED, openHAB](anleitungen/andere-systeme.md) | Send readings from other systems: the common contract and one recipe each |
 | [Deadlines and dates in your calendar](anleitungen/kalender.md) | Calendar subscription in Apple Calendar, Thunderbird and Google Calendar |
-| [Ticking off notices and the history](anleitungen/hinweise-erledigen.md) | What clears itself (follow-on contract, reading, delivery), ticking off by hand with date, note and receipt, undo, the “Done” tab, who appears in the history, retention and privacy |
+| [Ticking off notices and the history](anleitungen/hinweise-erledigen.md) | What clears itself (follow-on contract, reading, delivery), ticking off by hand with date, note and receipt, undo, the “Done” tab, who appears in the history, retention and privacy; *since v3.9.0* “Check a reading” |
 | [Text recognition in the home network](anleitungen/texterkennung.md) | Let a photo suggest the meter reading: set up Ollama or LM Studio, privacy, troubleshooting |
 | [Inbox: let the app read supplier mail](anleitungen/posteingang.md) | *New in v3.7.0:* file a PDF (on the iPad from the Files app), read it locally with qwen3.8, check every value against its quote, take it over with one click; enter by hand next to the document, many at once, privacy; reading in the cloud as an opt-in — Claude (Anthropic) or an OpenAI-compatible service, key, what leaves, limits |
 | [Reading the annual report](anleitungen/jahresbericht-lesen.md) | At a glance with status lights, what paid off, tasks with priority, amount and deadline, charts; partial report and language via link, sending via Home Assistant |
@@ -52,7 +52,7 @@ only happens with an opt-in.
 | [Users in the household](anleitungen/benutzer.md) | People with name and password or via the proxy, admin and member, own level and language, forgotten password |
 | [Import time series from portals](anleitungen/daten-aus-portalen.md) | Read files from the grid operator, inverter or heat pump with a column mapping, time stamps and daylight saving time, quarter hours for flexibility, Data Act |
 | [Valuing flexibility](anleitungen/flexibilitaet.md) | When power is cheap and what shifting brings: traffic light, “Your lever” per appliance, action sentences, result card as an image, page in the annual report (v3.6.0); plus profile factor and advantage per electricity meter, battery, § 14a module 3 with time windows on the contract, dynamic tariff check with your own load profile |
-| [Use cases](anleitungen/anwendungsfaelle.md) | Shared flat with shared meters, smart home, PV household with a heat pump, landlord, wall box and company car, district heating or heat, control with evcc or Home Assistant |
+| [Use cases](anleitungen/anwendungsfaelle.md) | Shared flat with shared meters, smart home, PV household with a heat pump, landlord, wall box and company car, district heating or heat, control with evcc or Home Assistant, *since v3.9.0* cascade with heat pump, HT/NT and solar |
 
 ## 📚 Concepts — *how things are calculated*
 
@@ -66,7 +66,7 @@ only happens with an opt-in.
 | [CO₂ price in fuel](verstehen/16-co2-preis.md) | The CO₂ price (BEHG) in gas, heating oil and district heating: shown, not added; factors, price per year, scenario |
 | [Special payments](verstehen/10-sonderzahlungen.md) | Refund and back-payment, voluntary advance, effect on the balance |
 | [Meter-reading capture](verstehen/11-zaehlerstaende.md) | Capture in one pass, plausibility, direct link, photo and queue |
-| [Meter topology](verstehen/13-meter-topologie.md) | Sub-meters, meter groups and the group contract |
+| [Meter topology](verstehen/13-meter-topologie.md) | Sub-meters, meter groups and the group contract; *since v3.9.0* remainder billing on the parent meter, cascade and the “metering concept” assistant |
 | [Country profiles](verstehen/14-laenderprofile.md) | Currency, formats, efficiency scale, CO₂ factors, gas units and bill terms per country |
 | [Scenario flat](verstehen/07-szenario-wohnung.md) · [Scenario house](verstehen/08-szenario-eigenheim.md) | Worked examples |
 | [Glossary & formulas](verstehen/09-glossar.md) | All terms and formulas in brief |

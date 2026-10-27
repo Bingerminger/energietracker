@@ -620,14 +620,14 @@ Denkmodus dort ab, falls das Modell einen hat.
 darunter. Hinter einem eigenen Reverse-Proxy dessen Grenze ebenso hoch setzen
 ([Webserver](../betrieb/webserver.md)).
 
-**Webserver mit kurzer Zeitgrenze** *(3.7.1)*. Gibt der Webserver vor PHP
+**Webserver mit kurzer Zeitgrenze** *(3.9.0)*. Gibt der Webserver vor PHP
 früher auf — etwa auf einer Synology nach 60 Sekunden mit `504` —, rechnet PHP
 trotzdem zu Ende und speichert. Die Oberfläche fragt dann alle 5 Sekunden nach
 dem Dokument, bis der Schritt gespeichert ist (höchstens 660 Sekunden ab dem
 Absenden), und zeigt erst danach einen Fehler — ebenso nach einem Netzabbruch,
 im einzelnen Dokument wie beim Auslesen vieler Dokumente. Ohne Warten geht es
 mit einer höheren Zeitgrenze am Webserver
-([Webserver](../betrieb/webserver.md#kurze-zeitgrenze-vor-php-371)).
+([Webserver](../betrieb/webserver.md#kurze-zeitgrenze-vor-php-390)).
 
 ### In der Cloud auslesen
 

@@ -182,7 +182,7 @@ Wärmepumpe, PV und Zählern hintereinander
 
 Weil ein Subzähler mit eigenem Vertrag (etwa die Wärmepumpe hinter dem
 Haushaltszähler) jetzt abgezogen wird: Der Vertrag des Haushaltszählers rechnet
-nur den Rest. Bis v3.8 bezahlte die App die Menge des Subzählers über beide
+nur den Rest. Bis v3.7 bezahlte die App die Menge des Subzählers über beide
 Verträge. Am Zähler und an seinem Vertrag steht, wie gerechnet wird, etwa
 „300 kWh = 500 kWh gemessen − 200 kWh Wärmepumpe“
 ([Rest-Abrechnung](../verstehen/13-meter-topologie.md#rest-abrechnung-v390)).
