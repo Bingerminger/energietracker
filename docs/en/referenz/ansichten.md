@@ -322,6 +322,8 @@ shows the welcome.
   sub-meters and PV) “about … back” in green, “about … additional payment” in
   red or “about even” (below €1), plus “bill on …”. Without a contract: “No
   contract with advance payments yet.” with the link “Add contract”.
+  *(v3.9.0)* A group contract appears once with the group’s name, for example
+  “Electricity (Heat pump (HT/NT))”, even when its meters are sub-meters.
 - 📈 **“More or less than last year?”** — per utility the last twelve months
   against the same months a year earlier, from six comparable months on: “…
   more than last year”, “… less than last year” or, below 2 %, “about the
@@ -1121,6 +1123,11 @@ Per utility and meter, the current contract:
   done (cancellation, follow-on contract …), when and by whom
 - the advance payment per month
 - what to expect at the next bill: credit (green) or back-payment (red)
+- *(v3.9.0)* meters of a group billed through a **group contract** (for
+  example HT and NT of a heat pump) share one row with that contract and the
+  sentence “Through the group “…”: balance and advance payments apply to the
+  whole group.” The balance appears once; until then every member showed “No
+  current contract recorded. Add contract”.
 
 "Manage contracts" leads to the utility's contract list. The figures come from
 the same calculation as the utility's balance card. Heating oil and pellets

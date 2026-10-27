@@ -4155,7 +4155,8 @@
     "anytime": "Cancelable en cualquier momento",
     "advanceEvery": "Anticipo {amount}",
     "noNotice": "Plazo de baja no registrado",
-    "earliestEnd": "Se puede dar de baja como pronto el {date}"
+    "earliestEnd": "Se puede dar de baja como pronto el {date}",
+    "viaGroup": "A través del grupo «{name}»: el saldo y los anticipos valen para todo el grupo."
   },
   "billCheck": {
     "noMeter": "La revisión recalcula la factura anual de gas, electricidad, agua y calefacción urbana. Crea primero un contador.",

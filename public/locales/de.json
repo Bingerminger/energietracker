@@ -4155,7 +4155,8 @@
     "anytime": "Jederzeit kündbar",
     "advanceEvery": "Abschlag {amount}",
     "noNotice": "Kündigungsfrist nicht eingetragen",
-    "earliestEnd": "Frühestens zum {date} kündbar"
+    "earliestEnd": "Frühestens zum {date} kündbar",
+    "viaGroup": "Über die Gruppe „{name}“: Saldo und Abschläge gelten für die ganze Gruppe."
   },
   "billCheck": {
     "noMeter": "Die Rechnungsprüfung rechnet die Jahresabrechnung für Gas, Strom, Wasser und Fernwärme nach. Lege zuerst einen Zähler an.",

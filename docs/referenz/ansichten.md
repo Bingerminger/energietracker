@@ -333,6 +333,8 @@ in jeder Stufe das Willkommen.
   Subzähler und PV) „rund … zurück“ in Grün, „rund … Nachzahlung“ in Rot oder
   „etwa ausgeglichen“ (unter 1 €), dazu „Abrechnung am …“. Ohne Vertrag:
   „Noch kein Vertrag mit Abschlag erfasst.“ mit dem Link „Vertrag eintragen“.
+  *(v3.9.0)* Ein Gruppenvertrag steht einmal mit dem Namen der Gruppe, etwa
+  „Strom (Wärmepumpe (HT/NT))“, auch wenn seine Zähler Subzähler sind.
 - 📈 **„Mehr oder weniger als im Vorjahr?“** — je Verbrauchsart die letzten
   zwölf Monate gegen dieselben Monate ein Jahr zuvor, ab sechs vergleichbaren
   Monaten: „… mehr als im Vorjahr“, „… weniger als im Vorjahr“ oder unter 2 %
@@ -1152,6 +1154,11 @@ Je Verbrauchsart und Zähler der laufende Vertrag:
 - der Abschlag je Monat
 - was zur Abrechnung zu erwarten ist: Guthaben (grün) oder Nachzahlung
   (rot)
+- *(v3.9.0)* Zähler einer Gruppe, die über einen **Gruppenvertrag** rechnen
+  (etwa HT und NT einer Wärmepumpe), stehen zusammen in einer Zeile mit diesem
+  Vertrag und dem Satz „Über die Gruppe „…“: Saldo und Abschläge gelten für die
+  ganze Gruppe.“ Der Saldo steht einmal; bis dahin stand an jedem Mitglied
+  „Kein laufender Vertrag erfasst. Vertrag anlegen“.
 
 „Verträge verwalten“ führt zur Vertragsliste der Verbrauchsart. Die Zahlen
 kommen aus derselben Rechnung wie die Saldo-Karte der Verbrauchsart. Heizöl

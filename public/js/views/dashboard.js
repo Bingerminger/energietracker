@@ -1036,8 +1036,29 @@ export function comparisonCardHtml(c, utilities = []) {
 // Vorauszahlung? Ein Schaubild erklärt die erste Antwort. Gerechnet wird
 // dasselbe wie in den anderen Stufen (contract-status, /api/summary).
 
-/** Hauptzähler mit laufendem Vertrag und erwartetem Saldo (ohne PV). */
-const moneyMeters = (meters, byKey) => (meters || []).filter(m => m.contract && !m.is_sub_meter && byKey.has(m.utility)
+/**
+ * v3.9.0 (Gruppenverträge) — je Gruppe mit laufendem Gruppenvertrag ein Eintrag
+ * wie ein Zähler (aus `group_contract` der Mitglieder, je Gruppe einmal). Bis
+ * dahin fehlte ihr Saldo in „Bekomme ich Geld zurück?“: Die Mitglieder tragen
+ * `contract: null`, Subzähler zählten ohnehin nicht.
+ * @param {Array<object>} meters  `summary.meters`
+ * @returns {Array<object>} `summary.meters` und dahinter die Gruppen
+ */
+export function withGroupContracts(meters) {
+  const seen = new Set();
+  const groups = [];
+  for (const m of meters || []) {
+    const g = m.group_contract;
+    const key = `${m.utility}.${g?.group_id}`;
+    if (!g?.contract || seen.has(key)) continue;
+    seen.add(key);
+    groups.push({ key, utility: m.utility, meter_id: g.group_id, name: g.name, is_sub_meter: false, is_group: true, contract: g.contract });
+  }
+  return [...(meters || []), ...groups];
+}
+
+/** Hauptzähler und Gruppen mit laufendem Vertrag und erwartetem Saldo (ohne PV). */
+const moneyMeters = (meters, byKey) => withGroupContracts(meters).filter(m => m.contract && !m.is_sub_meter && byKey.has(m.utility)
   && m.contract.projected_end_balance != null && !isPv(byKey.get(m.utility)));
 
 /**
@@ -1183,10 +1204,10 @@ async function loadExplainers(utilities, box) {
   // zwischen 0 und 2 Uhr einen Tag zurück)
   const today = todayIso();
   const [summary, pv] = await Promise.all([api.summary().catch(() => null), api.pvSummary().catch(() => null)]);
-  const meters = (summary?.meters || []).filter(m => byKey.has(m.utility) && !m.is_sub_meter);
+  const meters = withGroupContracts(summary?.meters).filter(m => byKey.has(m.utility) && !m.is_sub_meter);
   const withContract = meters.filter(m => m.contract && !isPv(byKey.get(m.utility)));
   const main = [...withContract].sort((a, b) => Math.abs(Number(b.contract.advance_month) || 0) - Math.abs(Number(a.contract.advance_month) || 0))[0];
-  const heat = meters.find(m => byKey.get(m.utility)?.hgt_relevant && (m.role == null || m.role === 'consumption'));
+  const heat = meters.find(m => !m.is_group && byKey.get(m.utility)?.hgt_relevant && (m.role == null || m.role === 'consumption'));
   const [status, heatRes] = await Promise.all([
     main ? api.contractStatus(main.utility, main.meter_id).catch(() => null) : null,
     heat ? api.meterConsumption(heat.utility, heat.meter_id).catch(() => null) : null,

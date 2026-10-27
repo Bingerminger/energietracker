@@ -4155,7 +4155,8 @@
     "anytime": "Disdicibile in qualsiasi momento",
     "advanceEvery": "Acconto {amount}",
     "noNotice": "Termine di disdetta non inserito",
-    "earliestEnd": "Disdicibile al più presto al {date}"
+    "earliestEnd": "Disdicibile al più presto al {date}",
+    "viaGroup": "Tramite il gruppo «{name}»: saldo e acconti valgono per l’intero gruppo."
   },
   "billCheck": {
     "noMeter": "La verifica ricalcola la bolletta annuale di gas, elettricità, acqua e teleriscaldamento. Crea prima un contatore.",

@@ -328,6 +328,17 @@ function serve(dir, port) {
       t('Assistent in der Demo: „Anlegen“ gesperrt (nichts gespeichert)', !!mq('[data-role="concept-body"]') && /nichts gespeichert/.test(toasts), toasts.trim().slice(0, 160));
       mq('.modal__close')?.click();
       await settle();
+      // v3.9.0 (Gruppenverträge) — „Kosten & Verträge“ und die Verbrauchsseite der Wärmepumpe zeigen den Gruppenvertrag
+      w.location.hash = '#/contracts';
+      await settle(); await settle();
+      const grp = w.document.querySelector('#view .contract-overview__row[data-group="g_strom_wp"]');
+      t('Demo: „Kosten & Verträge“ — Wärmepumpe HT/NT über den Gruppenvertrag, kein „Vertrag anlegen“', !!grp && /Über die Gruppe/.test(grp.textContent)
+        && /Wärmepumpe Duo/.test(grp.textContent) && !/Kein laufender Vertrag/.test(w.document.querySelector('#view .contract-overview[data-utility="strom"]')?.textContent || ''),
+        grp?.textContent.replace(/\s+/g, ' ').trim().slice(0, 160));
+      w.location.hash = '#/utility/strom?meter=m_strom_wp_ht';
+      await settle(); await settle();
+      t('Demo: Verbrauchsseite der Wärmepumpe mit der Saldo-Karte des Gruppenvertrags', /Gruppenvertrag „Wärmepumpe \(HT\/NT\)“/.test(w.document.getElementById('view')?.textContent || '')
+        && !!w.document.querySelector('#view .balance-verdict__value'));
       const newMisses = [...(w.__etDemoMisses || [])].filter(k => !missesBefore.has(k));
       t('Assistent in der Demo: jede Vorschau vorberechnet', newMisses.length === 0 && (meta.concepts || 0) > 0, newMisses.slice(0, 3).join(' · ') || `${meta.concepts} Vorschauen`);
     }

@@ -3662,7 +3662,8 @@ only added, and the number only rises with a breaking change.
       "forecast_12m": { "value": 3120.4, "cost": 1080.55, "low": 2890.1, "high": 3350.7 },
       "tank": null,
       "capture": "counter",
-      "utility_label": "Electricity" }
+      "utility_label": "Electricity",
+      "group_contract": null }
   ],
   "pv": { "autarky_pct_ytd": null, "self_consumption_pct_ytd": null, "strom_saldo_ytd": null },
   "agenda": { "due": 1, "overdue": 0,
@@ -3691,11 +3692,12 @@ Per meter:
 | `last_reading_date`, `last_counter`, `days_since_reading` | last valid reading (without suspect and planned ones). For a meter with consumption per period: `last_reading_date` = end of the last period, `last_counter` `null`, the days counted from that end |
 | `reading_due` | reading or next period older than `alert_days_since_reading` (cumulative meters only) |
 | `capture` | *(v3.1.0)* way of recording: `counter` (meter readings) or `period` (consumption per period) |
-| `utility_label` | *(v3.9.0, last key of the entry)* name of the utility in the language of the request (without `X-ET-Language` that of the installation), for example “Electricity” |
+| `utility_label` | *(v3.9.0)* name of the utility in the language of the request (without `X-ET-Language` that of the installation), for example “Electricity” |
 | `month_to_date`, `year_to_date` | consumption of the current month and year in `consumption_unit`, `estimated: true` = contains estimated days; `null` without data in the year |
 | `contract` | current contract (utilities with contracts), otherwise `null`: prices and advance payment, `balance` and `projected_end_balance` with the sign of `contract-status` (positive = additional payment, for feed-in = payout), `verdict`, `period_end`, *(v3.7.0, additive)* `period_last_day`, `cancel_by`, `days_to_cancel`, `price_increase_from`. For a contract with a maintained end date `period_end` is that end (inclusive), otherwise the settlement date of the next bill — the **first day of the next period**; it stays that way for existing sensors. `period_last_day` is always the **last day** of the period: the end itself or the day before the settlement date (settlement date 01-09: `period_end` 2027-09-01, `period_last_day` 2027-08-31). Since v3.4.0 `cancel_by` and `days_to_cancel` are `null` when the contract has no dated deadline (renewing, open-ended, cancellable at any time — up to v3.3 it said “today” every day) or a follow-on contract continues without a gap |
 | `forecast_12m` | forecast of the next twelve months: `value` in `consumption_unit`, `cost` (`null` for generation only), `low`/`high` = annual band; `null` for heating oil/pellets or without a valid forecast |
 | `tank` | heating oil/pellets: `stock`, `capacity`, `unit`, `percent`, `estimated_from`; otherwise `null` |
+| `group_contract` | *(v3.9.0, additive, last key of the entry)* when the meter is billed through the running contract of its group: `group_id`, `name` (of the group) and `contract` in the same shape as above; otherwise `null`. `contract` stays `null` on a member without a contract of its own. Balance and advance payments belong to the group: whoever sums over meters counts them once per `group_id` |
 
 **Access.** Open without sign-in. With sign-in an API key with scope `read` as
 `Authorization: Bearer etk_…` (the ingest token `et_…` does not work here).

@@ -4155,7 +4155,8 @@
     "anytime": "Altijd opzegbaar",
     "advanceEvery": "Voorschot {amount}",
     "noNotice": "Opzegtermijn niet ingevoerd",
-    "earliestEnd": "Op zijn vroegst opzegbaar per {date}"
+    "earliestEnd": "Op zijn vroegst opzegbaar per {date}",
+    "viaGroup": "Via de groep ‘{name}’: saldo en voorschotten gelden voor de hele groep."
   },
   "billCheck": {
     "noMeter": "De controle rekent de jaarafrekening na voor gas, stroom, water en stadsverwarming. Maak eerst een meter aan.",

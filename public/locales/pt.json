@@ -4155,7 +4155,8 @@
     "anytime": "Rescindível a qualquer momento",
     "advanceEvery": "Adiantamento {amount}",
     "noNotice": "Prazo de denúncia não registado",
-    "earliestEnd": "Pode terminar, no mínimo, a {date}"
+    "earliestEnd": "Pode terminar, no mínimo, a {date}",
+    "viaGroup": "Através do grupo «{name}»: o saldo e os adiantamentos valem para todo o grupo."
   },
   "billCheck": {
     "noMeter": "A verificação recalcula a fatura anual de gás, eletricidade, água e aquecimento urbano. Crie primeiro um contador.",

@@ -3722,7 +3722,8 @@ Abfrage für alle Sensoren statt `consumption`, `contract-status` und
       "forecast_12m": { "value": 3120.4, "cost": 1080.55, "low": 2890.1, "high": 3350.7 },
       "tank": null,
       "capture": "counter",
-      "utility_label": "Strom" }
+      "utility_label": "Strom",
+      "group_contract": null }
   ],
   "pv": { "autarky_pct_ytd": null, "self_consumption_pct_ytd": null, "strom_saldo_ytd": null },
   "agenda": { "due": 1, "overdue": 0,
@@ -3751,11 +3752,12 @@ Je Zähler:
 | `last_reading_date`, `last_counter`, `days_since_reading` | letzte gültige Ablesung (ohne verdächtige und geplante). Bei einem Zähler mit Verbrauch je Zeitraum: `last_reading_date` = Ende des letzten Zeitraums, `last_counter` `null`, die Tage ab diesem Ende |
 | `reading_due` | Ablesung bzw. nächster Zeitraum älter als `alert_days_since_reading` (nur kumulative Zähler) |
 | `capture` | *(v3.1.0)* Erfassungsart: `counter` (Zählerstände) oder `period` (Verbrauch je Zeitraum) |
-| `utility_label` | *(v3.9.0, letzter Schlüssel des Eintrags)* Name der Verbrauchsart in der Sprache der Anfrage (ohne `X-ET-Language` die der Installation), etwa „Strom“ |
+| `utility_label` | *(v3.9.0)* Name der Verbrauchsart in der Sprache der Anfrage (ohne `X-ET-Language` die der Installation), etwa „Strom“ |
 | `month_to_date`, `year_to_date` | Verbrauch des laufenden Monats bzw. Jahres in `consumption_unit`, `estimated: true` = enthält geschätzte Tage; `null` ohne Daten im Jahr |
 | `contract` | laufender Vertrag (Arten mit Verträgen), sonst `null`: Preise und Abschlag, `balance` und `projected_end_balance` mit dem Vorzeichen von `contract-status` (positiv = Nachzahlung, bei der Einspeisung = Auszahlung), `verdict`, `period_end`, *(v3.7.0, additiv)* `period_last_day`, `cancel_by`, `days_to_cancel`, `price_increase_from`. `period_end` ist bei einem Vertrag mit gepflegtem Ende dieses Ende (einschließlich), sonst der Stichtag der nächsten Abrechnung — der **erste Tag der nächsten Periode**; so bleibt es für bestehende Sensoren. `period_last_day` ist immer der **letzte Tag** der Periode: das Ende selbst bzw. der Tag vor dem Stichtag (Stichtag 01-09: `period_end` 2027-09-01, `period_last_day` 2027-08-31). Seit v3.4.0 sind `cancel_by` und `days_to_cancel` `null`, wenn der Vertrag keinen datierten Stichtag hat (weiterlaufend, unbefristet, jederzeit kündbar — bis v3.3 stand dort jeden Tag „heute“) oder ein Folgevertrag lückenlos anschließt |
 | `forecast_12m` | Prognose der nächsten zwölf Monate: `value` in `consumption_unit`, `cost` (bei reiner Erzeugung `null`), `low`/`high` = Jahresband; `null` bei Heizöl/Pellets oder ohne gültige Prognose |
 | `tank` | Heizöl/Pellets: `stock`, `capacity`, `unit`, `percent`, `estimated_from`; sonst `null` |
+| `group_contract` | *(v3.9.0, additiv, letzter Schlüssel des Eintrags)* rechnet der Zähler über den laufenden Vertrag seiner Gruppe: `group_id`, `name` (der Gruppe) und `contract` in derselben Form wie oben; sonst `null`. `contract` bleibt an einem Mitglied ohne eigenen Vertrag `null`. Saldo und Abschläge gehören der Gruppe: Wer über Zähler summiert, zählt sie je `group_id` einmal |
 
 **Zugang.** Ohne Anmeldung offen. Mit Anmeldung ein API-Schlüssel mit Bereich
 `read` als `Authorization: Bearer etk_…` (der Ingest-Token `et_…` gilt hier

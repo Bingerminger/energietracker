@@ -39,6 +39,28 @@ export function responsibleOf(contract, meter) {
   return {};
 }
 
+/**
+ * v3.9.0 (Gruppenverträge) — Zeilen der Mitglieder einer Gruppe, die über den
+ * Gruppenvertrag rechnen, zu einer Zeile an der Stelle des ersten Mitglieds:
+ * der Vertrag mit Saldo einmal, die Zähler zusammen genannt. Bis dahin stand an
+ * jedem Mitglied „Kein laufender Vertrag erfasst. Vertrag anlegen“.
+ * @param {Array<{meter: object, contracts: Array, group: ?{id: string, name: string, contract: object}, who: object}>} rows
+ * @returns {Array<object>} dieselben Zeilen, Gruppenmitglieder zusammengefasst (`meters`)
+ */
+export function mergeGroupRows(rows) {
+  const out = [];
+  const byGroup = new Map();
+  for (const r of rows || []) {
+    if (!r.group) { out.push(r); continue; }
+    const first = byGroup.get(r.group.id);
+    if (first) { first.meters.push(r.meter); continue; }
+    const row = { ...r, meters: [r.meter] };
+    byGroup.set(r.group.id, row);
+    out.push(row);
+  }
+  return out;
+}
+
 export async function render(container) {
   const header = `
     <div class="view-header">
@@ -63,14 +85,28 @@ export async function render(container) {
   const blocks = await Promise.all(utilities.map(async u => {
     try {
       // v3.7.0 — gespeicherte Verträge für die Zuständigkeit (contract-status trägt sie nicht)
-      const [meters, stored] = await Promise.all([api.meters(u.key), api.contracts(u.key).catch(() => [])]);
+      const [meters, stored, groups] = await Promise.all([api.meters(u.key), api.contracts(u.key).catch(() => []),
+        api.meterGroups(u.key).catch(() => [])]);
       const byId = new Map((stored || []).map(c => [c.id, c]));
+      // v3.9.0 (Gruppenverträge) — Mitglieder einer Gruppe mit Gruppenvertrag: dessen Status, je Gruppe einmal geholt
+      const groupStatus = new Map();
+      const groupContract = (ref) => {
+        if (!groupStatus.has(ref.group_id)) {
+          groupStatus.set(ref.group_id, api.contractStatus(u.key, ref.group_id)
+            .then(d => (d?.contracts || []).find(c => c.contract_id === ref.contract_id && c.is_current) || null).catch(() => null));
+        }
+        return groupStatus.get(ref.group_id);
+      };
       const rows = await Promise.all(meters.map(async m => {
-        const contracts = await api.contractStatus(u.key, m.id).then(d => d?.contracts || []).catch(() => []);
+        const st = await api.contractStatus(u.key, m.id).catch(() => null);
+        const contracts = st?.contracts || [];
         const cur = contracts.find(x => x.is_current);
-        return { meter: m, contracts, who: responsibleOf(cur ? byId.get(cur.contract_id) : null, m) };
+        const ref = !cur && st?.group_contract?.contract_id ? st.group_contract : null;
+        const gc = ref ? await groupContract(ref) : null;
+        const group = gc ? { id: ref.group_id, name: (groups || []).find(g => g.id === ref.group_id)?.name || ref.group_id, contract: gc } : null;
+        return { meter: m, contracts, group, who: responsibleOf(cur ? byId.get(cur.contract_id) : gc ? byId.get(gc.contract_id) : null, m) };
       }));
-      return { u, rows };
+      return { u, rows: mergeGroupRows(rows) };
     } catch (e) {
       return { u, error: e };
     }
@@ -134,7 +170,7 @@ function utilityCard({ u, rows, error }) {
   } else if (!rows.length) {
     body = `<p class="muted">${escapeHtml(t('contractsOverview.noMeter'))}</p>`;
   } else {
-    body = rows.map(({ meter, contracts, who }) => meterBlock(u, meter, contracts, rows.length > 1, who)).join('');
+    body = rows.map(({ meter, contracts, who, group, meters }) => meterBlock(u, meter, contracts, rows.length > 1, who, group, meters)).join('');
   }
   return `
     <section class="card contract-overview card--${escapeHtml(u.key)}" data-utility="${escapeHtml(u.key)}">
@@ -146,9 +182,12 @@ function utilityCard({ u, rows, error }) {
     </section>`;
 }
 
-function meterBlock(u, meter, contracts, showMeter, who = {}) {
-  const c = (contracts || []).find(x => x.is_current);
-  const meterLine = showMeter ? `<div class="contract-overview__meter">${escapeHtml(t('contractsOverview.meter', { name: meter.name }))}</div>` : '';
+function meterBlock(u, meter, contracts, showMeter, who = {}, group = null, meters = null) {
+  // v3.9.0 (Gruppenverträge) — über die Gruppe: deren Vertrag, die Zähler zusammen genannt
+  const c = group ? group.contract : (contracts || []).find(x => x.is_current);
+  const names = (group && meters?.length ? meters : [meter]).map(m => m.name).join(', ');
+  const meterLine = showMeter ? `<div class="contract-overview__meter">${escapeHtml(t('contractsOverview.meter', { name: names }))}</div>` : '';
+  const groupNote = group ? `<p class="muted small" data-role="overview-group-note">${escapeHtml(t('contractsOverview.viaGroup', { name: group.name }))}</p>` : '';
   if (!c) {
     return `<div class="contract-overview__row">${meterLine}
       <p class="muted">${escapeHtml(t('contractsOverview.noContract'))}
@@ -228,9 +267,10 @@ function meterBlock(u, meter, contracts, showMeter, who = {}) {
         ${escapeHtml(t('contractsOverview.history', { count: entries.length }))}</button>`
     : '';
 
-  return `<div class="contract-overview__row">
+  return `<div class="contract-overview__row"${group ? ` data-group="${escapeHtml(group.id)}"` : ''}>
       ${meterLine}
       <div class="contract-overview__name">${escapeHtml(name)}${chipHtml(who)}</div>
+      ${groupNote}
       <div class="muted">${escapeHtml(term)}</div>
       ${facts.length ? `<div class="contract-overview__facts">${facts.join('<span aria-hidden="true"> · </span>')}</div>` : ''}
       ${expectedWithHint}

@@ -4155,7 +4155,8 @@
     "anytime": "Résiliable à tout moment",
     "advanceEvery": "Acompte {amount}",
     "noNotice": "Délai de résiliation non saisi",
-    "earliestEnd": "Résiliable au plus tôt au {date}"
+    "earliestEnd": "Résiliable au plus tôt au {date}",
+    "viaGroup": "Via le groupe « {name} » : le solde et les acomptes valent pour tout le groupe."
   },
   "billCheck": {
     "noMeter": "La vérification recalcule la facture annuelle du gaz, de l’électricité, de l’eau et du réseau de chaleur. Créez d’abord un compteur.",
