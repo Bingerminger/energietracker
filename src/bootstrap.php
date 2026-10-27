@@ -133,6 +133,7 @@ final class App
     public ActivityService $activity;       // v3.4.0 (F1024)
     public BillExpectedService $billsExpected; // v3.5.0 (F1029)
     public BillingPeriodService $billingPeriods; // v3.6.0 (F1030)
+    public \Energietracker\Services\ReadingCheckService $readingChecks;   // v3.9.0 (ablesung-pruefen) — Zwischenablesung prüfen
     public ScenarioService $scenarios;           // v3.6.0 (F1031) — Prognose-Werkstatt
     public \Energietracker\Services\MeteringConceptService $meteringConcepts;   // v3.9.0 (F1032) — Assistent „Messkonzept“
     public \Energietracker\Services\InboxDraftService $inboxDraft;   // v3.7.0 — Haushalt aus Dokumenten
@@ -292,6 +293,10 @@ final class App
         $this->bills->attachActivity($this->activity);
         $this->bills->attachExpectations($this->billsExpected);
         $this->agenda->attachBillExpectations($this->billsExpected);
+        // v3.9.0 (ablesung-pruefen) — Zwischenablesung prüfen: Befunde in „Zu tun“ (und damit in /api/todo)
+        $this->readingChecks = new \Energietracker\Services\ReadingCheckService($this->store, $this->meters, $this->readings,
+            $this->consumption, $this->settings, $this->factors);
+        $this->agenda->attachReadingChecks($this->readingChecks);
         // v3.6.0 — Beispieldaten: gewanderte Versorgerrechnungen nachrechnen
         $this->demo->attachBills($this->bills);
         // v3.6.0 (F1030, #33) — Abrechnungsperioden: eine Quelle für Ansichten, Bericht und CSV
@@ -903,6 +908,9 @@ final class App
                                                        fn($req) => $readingCtrl->importCsv($req));
         // F1004 (v1.6.0): Aggregat für den zentralen Zählerstand-Erfassungs-View
         $r->get('/api/readings-overview',              fn($req) => $readingCtrl->overview($req));
+        // v3.9.0 (ablesung-pruefen) — Zwischenablesung prüfen (Befund eines Zählers)
+        $checkCtrl = new \Energietracker\Controllers\ReadingCheckController($this->readingChecks, $this->meters, $this->i18n);
+        $r->get('/api/utility/{utility}/meters/{id}/reading-checks', fn($req) => $checkCtrl->meter($req));
 
         // v3.1.0 (Paket H3, B2) — Verbrauch je Zeitraum
         $periodCtrl = new PeriodController($this->periods);

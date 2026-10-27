@@ -211,7 +211,8 @@
       "billOverdueSince": "wettelijke termijn verstreken op {date}",
       "billNoDeadline": "geen wettelijke termijn",
       "billAction": "Rekening vastleggen",
-      "heatLimitAction": "Bekijken"
+      "heatLimitAction": "Bekijken",
+      "readingCheckAction": "Meterstanden bekijken"
     },
     "welcome": {
       "title": "Welkom bij Energietracker",
@@ -582,6 +583,17 @@
       "onlyFlagged": {
         "one": "Alleen opvallende ({count})",
         "other": "Alleen opvallende ({count})"
+      },
+      "check": "OPVALLEND",
+      "duplicate": "DUBBEL",
+      "duplicateTitle": "Dezelfde meterstand op dezelfde dag is twee keer ingevoerd. Eén ervan kan weg.",
+      "billingOnly": "ALLEEN AFREKENING",
+      "billingOnlyTitle": "Afrekening en saldo gebruiken deze meterstand. Maandwaarden slaan hem over: het verbruik van de vorige tot de volgende meterstand is naar het weer verdeeld.",
+      "verified": "GECONTROLEERD",
+      "verifiedTitle": "Als juist gemarkeerd. De controle van tussentijdse meterstanden vraagt bij deze meterstand niet meer.",
+      "billingOnlyNote": {
+        "one": "{count} meterstand telt alleen voor de afrekening: maandwaarden slaan hem over.",
+        "other": "{count} meterstanden tellen alleen voor de afrekening: maandwaarden slaan ze over."
       }
     },
     "deliveriesTable": {
@@ -653,7 +665,9 @@
       "validation": "Datum en meterstand zijn verplicht.",
       "savedNew": "Meterstand opgeslagen",
       "savedEdit": "Meterstand bijgewerkt",
-      "confirmLowerOk": "Toch opslaan"
+      "confirmLowerOk": "Toch opslaan",
+      "billingOnly": "Alleen voor de afrekening",
+      "verified": "Meterstand klopt (niet meer controleren)"
     },
     "deliveryModal": {
       "titleEdit": "Levering bewerken · {label}",
@@ -3980,14 +3994,45 @@
     "forgotNamed": "Wachtwoord vergeten? Iemand die deze installatie beheert, kan het opnieuw instellen onder Instellingen → Toegang."
   },
   "readingCheck": {
-    "title": "Controleer dit",
+    "title": "Meterstand van {date} controleren",
     "future": "De datum {date} ligt in de toekomst.",
     "sameDay": "Voor {date} is er al een stand ({counter} {unit}). De nieuwe waarde vervangt die.",
     "lower": "De stand is lager dan de vorige ({last} {unit}). Is de meter vervangen, leg dat dan vast via ‘Meterwissel’ – anders toont de analyse een daling.",
     "jump": "Sinds de vorige stand zou dat {perDay} {unit} per dag zijn – meestal ongeveer {typical} {unit}. Tikfout?",
     "magnitude": "De waarde is meer dan tien keer de vorige stand ({last} {unit}). Komma vergeten?",
     "confirm": "Toch opslaan",
-    "replace": "Vervangen"
+    "replace": "Vervangen",
+    "titleBlock": "Meterstanden van {date} tot {until} controleren",
+    "before": "Daarvoor ({from} tot {to}): {measured} gemeten, ongeveer {expected} verwacht.",
+    "after": "Daarna ({from} tot {to}): {measured} gemeten, ongeveer {expected} verwacht.",
+    "low": {
+      "one": "De meterstand is waarschijnlijk ongeveer {amount} te laag.",
+      "other": "De {count} meterstanden zijn waarschijnlijk allemaal ongeveer {amount} te laag."
+    },
+    "high": {
+      "one": "De meterstand is waarschijnlijk ongeveer {amount} te hoog.",
+      "other": "De {count} meterstanden zijn waarschijnlijk allemaal ongeveer {amount} te hoog."
+    },
+    "verify": {
+      "one": "Meterstand klopt",
+      "other": "Meterstanden kloppen"
+    },
+    "billingOnly": "Alleen voor de afrekening",
+    "billingOnlyHint": "Afrekening en saldo blijven deze meterstand gebruiken. Maandwaarden en het verwarmingsmodel slaan hem over; het verbruik daartussen wordt naar het weer verdeeld.",
+    "correct": "Corrigeren",
+    "suggested": "Een meterstand van ongeveer {counter} zou passen.",
+    "useSuggested": "Invullen",
+    "toast": {
+      "verified": "Als juist gemarkeerd. De app vraagt er niet meer naar.",
+      "billingOnly": "Alleen voor de afrekening: maandwaarden slaan deze meterstand nu over.",
+      "undone": "Ongedaan gemaakt"
+    },
+    "duplicate": {
+      "title": "Meterstand van {date} dubbel ingevoerd",
+      "sub": "Twee keer dezelfde meterstand: {counter}. Eén is genoeg.",
+      "delete": "Eén verwijderen",
+      "deleted": "Dubbele meterstand verwijderd"
+    }
   },
   "format": {
     "decimal": ",",
@@ -4555,7 +4600,12 @@
       "finalBillExpected": "Eindafrekening verwacht: {label} ({provider}) voor {from} – {until}",
       "finalBillOverdue": "Eindafrekening te laat: {label} ({provider}) voor {from} – {until} — wettelijke termijn verstreken, vraag het na bij de leverancier",
       "cancelConfirm": "{label}: opzegging bevestigd? ({provider}, overstap naar {next})",
-      "heatLimit": "{label}: graaddagen-basistemperatuur op {best} °C zetten ({meter})"
+      "heatLimit": "{label}: graaddagen-basistemperatuur op {best} °C zetten ({meter})",
+      "readingCheck": "{label}: meterstand van {date} controleren ({meter})",
+      "readingCheckBlock": "{label}: meterstanden van {date} tot {until} controleren ({meter})",
+      "readingDuplicate": "{label}: meterstand van {date} dubbel ingevoerd ({meter})",
+      "levelShiftLess": "{label}: sinds {date} blijvend minder verbruik. Peilmoment instellen? ({meter})",
+      "levelShiftMore": "{label}: sinds {date} blijvend meer verbruik. Peilmoment instellen? ({meter})"
     },
     "subscribe": "Abonneren in je agenda",
     "intro": "Afspraken, opzegtermijnen, contracteinden, prijsgaranties en verschuldigde meterstanden als agenda-abonnement. De agenda haalt ze elke 12 uur opnieuw op.",
@@ -7088,5 +7138,25 @@
     "notNow": "Niet nu",
     "notNowHint": "Verschijnt weer zodra er nieuwe maanden gemeten zijn of het voorstel verandert.",
     "dismissed": "Verborgen tot er nieuwe maanden gemeten zijn of het voorstel verandert."
+  },
+  "levelShift": {
+    "titleLess": "Sinds {date} blijvend minder verbruik",
+    "titleMore": "Sinds {date} blijvend meer verbruik",
+    "textHigher": {
+      "one": "Daarvoor lag het verbruik {count} maand lang constant rond {factor} keer zo hoog als nu.",
+      "other": "Daarvoor lag het verbruik {count} maanden lang constant rond {factor} keer zo hoog als nu."
+    },
+    "textLower": {
+      "one": "Daarvoor lag het verbruik {count} maand lang constant rond {pct} van nu.",
+      "other": "Daarvoor lag het verbruik {count} maanden lang constant rond {pct} van nu."
+    },
+    "advice": "Dat lijkt op een echte verandering (bijvoorbeeld een nieuwe verwarming of anders stoken), niet op een afleesfout. Een peilmoment scheidt de tijd daarvoor af: verwarmingsmodel, prognose en vergelijkingen rekenen dan met het huidige verbruik.",
+    "set": "Peilmoment op {date} instellen",
+    "notNow": "Niet nu",
+    "label": "Verbruik veranderd",
+    "toast": {
+      "set": "Peilmoment op {date} ingesteld",
+      "dismissed": "Melding verborgen"
+    }
   }
 }

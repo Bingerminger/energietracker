@@ -3358,6 +3358,156 @@ async function renderView(modPath, params = [], ctx = {}) {
     t('concept: vorher ein Snapshot', JSON.stringify(snaps).includes('concept_'), JSON.stringify(snaps).slice(0, 160));
   } catch (e) { t('concept: Assistent', false, e.stack || e.message); }
 
+  // ── 28. v3.9.0 (ablesung-pruefen) — Zwischenablesung prüfen: Zu tun, Liste, Dialog, Knöpfe ──
+  // Ein Gaszähler im Schaufenster, monatlich abgelesen, Verbrauch nach Formel (0,7 m³ am Tag
+  // + 0,35 m³ je Gradtag); am 01.02.2025 steht der Stand um 60 % des Januars zu hoch.
+  try {
+    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+    const send = async (method, path, body) => (await fetch(`${HOST}/api${path}`, { method, headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined })).json();
+    const toastAction = () => [...global.document.querySelectorAll('.toast__action')].pop();
+    const until = async (fn, n = 80) => { let v; for (let i = 0; i < n; i++) { v = await fn(); if (v) return v; await sleep(50); } return v; };
+    const agenda = async () => (await send('GET', '/agenda?days=90')).data?.events || [];
+    await send('POST', '/demo/import', { force: true });
+    const st = await import(`${ROOT}/state.js`);
+    st.invalidateSettings?.(); st.invalidateUtilities?.();
+    const temps = (await send('GET', '/temperatures')).data || {};
+    const formula = async (name, scale, offsets = {}) => {
+      const id = (await send('POST', '/utility/gas/meters', { name, installed_on: '2023-07-01', parent_meter_id: 'm_gas_main' }))?.data?.id;
+      let c = 10000; const rows = []; const month = {};
+      for (const d = new Date(Date.UTC(2023, 6, 1)); d <= new Date(Date.UTC(2026, 4, 1)); d.setUTCDate(d.getUTCDate() + 1)) {
+        const iso = d.toISOString().slice(0, 10);
+        if (iso.endsWith('-01')) rows.push([iso, c]);
+        const v = (0.7 + 0.35 * Math.max(0, 15 - (temps[iso]?.avg ?? 10))) * scale(iso);
+        month[iso.slice(0, 7)] = (month[iso.slice(0, 7)] || 0) + v;
+        c += v;
+      }
+      for (const [date, ctr] of rows) {
+        await send('POST', '/utility/gas/readings', { meter_id: id, date, counter: Math.round((ctr + (offsets[date] ? offsets[date](month) : 0)) * 100) / 100 });
+      }
+      return id;
+    };
+    const mid = await formula('Ablesung Test', () => 1, { '2025-02-01': (m) => 0.6 * m['2025-01'] });
+    const rc = (await send('GET', `/utility/gas/meters/${mid}/reading-checks`)).data;
+    const rid = rc?.checks?.[0]?.reading_ids?.[0];
+    t('ablesung: GET …/reading-checks — ein Befund für den Stand vom 01.02.2025, zu hoch, mit Vorschlag', rc?.checks?.length === 1
+      && rc.checks[0].date === '2025-02-01' && rc.checks[0].direction === 'high' && rc.checks[0].before.ratio > 1.4 && rc.checks[0].after.ratio < 0.5
+      && rc.checks[0].suggested?.[0]?.suggested < rc.checks[0].suggested?.[0]?.counter && rc.basis === 'heat_model', JSON.stringify(rc).slice(0, 400));
+    const ev = (await agenda()).find(e => e.kind === 'reading_check' && e.ref?.meter_id === mid);
+    t('ablesung: Agenda — Art reading_check, fällig, nicht abhakbar, Titel mit Datum', !!ev && ev.due_now && !ev.can_mark_done
+      && /Ablesung vom 01\.02\.2025 prüfen \(Ablesung Test\)/.test(ev.title) && ev.uid === `reading_check-gas-${mid}-2025-02-01`, JSON.stringify(ev)?.slice(0, 300));
+    const todo = (await send('GET', '/todo')).data;
+    t('ablesung: /api/todo zählt den Eintrag', (todo?.items || []).some(i => i.uid === ev?.uid), `${todo?.count}`);
+
+    // Zu tun auf der Übersicht: Titel, davor/danach, Vermutung, drei Knöpfe
+    const dv = await renderView(`${ROOT}/views/dashboard.js`);
+    const rowOf = (kind, id) => dv.view.querySelector(`[data-role="reading-check-todo"][data-kind="${kind}"][data-meter="${id}"]`)?.closest('li');
+    const row = await until(() => rowOf('check', mid), 120);
+    const rt = (row?.textContent || '').replace(/\s+/g, ' ');
+    t('ablesung: Zu tun — „Ablesung vom … prüfen“, gemessen gegen erwartet davor und danach, Vermutung, drei Knöpfe',
+      /Ablesung vom 01\.02\.2025 prüfen/.test(rt) && /Davor \(01\.01\.2025 bis 01\.02\.2025\): .+ gemessen, erwartet rund/.test(rt)
+      && /Danach \(01\.02\.2025 bis 01\.03\.2025\)/.test(rt) && /Der Stand liegt vermutlich um rund .+ zu hoch/.test(rt)
+      && /Stand ist richtig/.test(row.querySelector('[data-rc-verify]')?.textContent || '') && /Nur für die Abrechnung/.test(row.querySelector('[data-rc-billing]')?.textContent || '')
+      && row.querySelector('[data-rc-correct]')?.getAttribute('href') === `#/utility/gas?meter=${encodeURIComponent(mid)}&edit_reading=${encodeURIComponent(rid)}`
+      && !row.querySelector('[data-todo-done]'), rt.slice(0, 400));
+    // „Stand ist richtig“: weg, mit Rückgängig wieder da
+    row.querySelector('[data-rc-verify]').click();
+    const gone = await until(async () => !(await agenda()).some(e => e.kind === 'reading_check' && e.ref?.meter_id === mid));
+    const r1 = (await send('GET', `/utility/gas/readings?meter_id=${encodeURIComponent(mid)}`)).data?.find(r => r.id === rid);
+    t('ablesung: „Stand ist richtig“ — Merker an der Ablesung, Eintrag weg', gone && r1?.is_verified === true, JSON.stringify(r1));
+    await until(() => /Rückgängig/.test(toastAction()?.textContent || ''));
+    toastAction()?.click();
+    const back = await until(async () => (await agenda()).some(e => e.kind === 'reading_check' && e.ref?.meter_id === mid));
+    t('ablesung: Rückgängig — der Eintrag ist wieder da', !!back);
+    // „Nur für die Abrechnung“: Merker, Monatswerte überbrückt, Rechnung prüfen mit dem Stand
+    const dv2 = await renderView(`${ROOT}/views/dashboard.js`);
+    const row2 = await until(() => dv2.view.querySelector(`[data-role="reading-check-todo"][data-kind="check"][data-meter="${mid}"]`), 120);
+    row2?.querySelector('[data-rc-billing]')?.click();
+    const r2 = await until(async () => (await send('GET', `/utility/gas/readings?meter_id=${encodeURIComponent(mid)}`)).data?.find(r => r.id === rid && r.is_billing_only));
+    const mon = (await send('GET', `/utility/gas/meters/${mid}/consumption`)).data?.monthly || [];
+    const jan = mon.find(m => m.ym === '2025-01');
+    const bc = (await send('GET', `/utility/gas/meters/${mid}/bill-check?from=2025-01-01&to=2025-02-01`)).data;
+    t('ablesung: „Nur für die Abrechnung“ — Januar überbrückt, Rechnung prüfen rechnet mit dem Stand', !!r2 && jan?.bridged === true
+      && Math.abs((bc?.totals?.kwh ?? 0) - (jan?.billed_kwh ?? -1)) < 1 && (bc?.totals?.kwh ?? 0) > jan.kwh * 1.3, `${jan?.kwh} / ${jan?.billed_kwh} / ${bc?.totals?.kwh}`);
+    // Liste der Ablesungen: Marke „NUR ABRECHNUNG“ und der Satz über der Liste
+    const lv = await renderView(`${ROOT}/views/utility.js`, ['gas'], { query: new URLSearchParams(`meter=${mid}&year=2025`) });
+    const pill = await until(() => lv.view.querySelector(`tr[data-reading-id="${rid}"] [data-role="billing-only-pill"]`), 120);
+    t('ablesung: Liste — Marke „NUR ABRECHNUNG“ mit Erklärung und Satz über der Liste', /NUR ABRECHNUNG/.test(pill?.textContent || '')
+      && /1 Stand gilt nur für die Abrechnung/.test(lv.view.querySelector('[data-role="billing-only-note"]')?.textContent || ''));
+    await until(() => /Rückgängig/.test(toastAction()?.textContent || ''));
+    toastAction()?.click();
+    await until(async () => !(await send('GET', `/utility/gas/readings?meter_id=${encodeURIComponent(mid)}`)).data?.find(r => r.id === rid)?.is_billing_only);
+    // Liste: Marke „AUFFÄLLIG“ am Stand, Knopf „Stand ist richtig“, „nur auffällige“ zählt ihn
+    const lv2 = await renderView(`${ROOT}/views/utility.js`, ['gas'], { query: new URLSearchParams(`meter=${mid}&year=2025`) });
+    const cp = await until(() => lv2.view.querySelector(`tr[data-reading-id="${rid}"] [data-role="reading-check-pill"]`), 120);
+    const why = cp?.nextElementSibling?.getAttribute('data-info-text') || '';
+    t('ablesung: Liste — Marke „AUFFÄLLIG“ mit Erklärung (davor, danach, Vermutung) und Knopf „Stand ist richtig“', /AUFFÄLLIG/.test(cp?.textContent || '')
+      && /Davor \(.+\): .+ gemessen, erwartet rund .+ Danach/.test(why) && /zu hoch/.test(why)
+      && !!lv2.view.querySelector(`tr[data-reading-id="${rid}"] [data-action="verify-reading"]`), why.slice(0, 300));
+    // Korrigieren: der Dialog mit Befund und „Einsetzen“; Häkchen „Nur für die Abrechnung“
+    global.document.querySelectorAll('.modal [data-act="cancel"]').forEach(b => b.click());
+    await renderView(`${ROOT}/views/utility.js`, ['gas'], { query: new URLSearchParams(`meter=${mid}&edit_reading=${rid}`) });
+    const hint = await until(() => global.document.querySelector('.modal [data-role="reading-check-hint"]'), 120);
+    const cf = global.document.querySelector('.modal #rf-counter');
+    const before = cf?.value;
+    global.document.querySelector('.modal [data-act="use-suggested"]')?.click();
+    t('ablesung: Korrigieren — Bearbeiten-Dialog mit Befund, „Einsetzen“ setzt den passenden Stand, Häkchen da', !!hint
+      && /Passen würde ein Stand von rund/.test(hint.textContent) && cf?.value !== before
+      && Math.abs(parseFloat((cf?.value || '').replace(/\./g, '').replace(',', '.')) - rc.checks[0].suggested[0].suggested) < 0.1
+      && !!global.document.querySelector('.modal input[name="is_billing_only"]') && !!global.document.querySelector('.modal input[name="is_verified"]'),
+      `${before} → ${cf?.value} · ${(hint?.textContent || '').trim().slice(0, 160)}`);
+    global.document.querySelectorAll('.modal [data-act="cancel"]').forEach(b => b.click());
+
+    // Doppelt eingetragen: „Eine löschen“, Rückgängig legt sie neu an
+    const orig = (await send('GET', `/utility/gas/readings?meter_id=${encodeURIComponent(mid)}`)).data.find(r => r.date === '2024-03-01');
+    await send('POST', '/utility/gas/readings', { meter_id: mid, date: orig.date, counter: orig.counter });
+    const dv3 = await renderView(`${ROOT}/views/dashboard.js`);
+    const drow = await until(() => dv3.view.querySelector(`[data-role="reading-check-todo"][data-kind="duplicate"][data-meter="${mid}"]`)?.closest('li'), 120);
+    t('ablesung: Zu tun — „doppelt eingetragen“ mit „Eine löschen“', /Ablesung vom 01\.03\.2024 doppelt eingetragen/.test(drow?.textContent || '')
+      && /Eine löschen/.test(drow?.querySelector('[data-rc-delete]')?.textContent || ''), (drow?.textContent || '').replace(/\s+/g, ' ').slice(0, 200));
+    drow?.querySelector('[data-rc-delete]')?.click();
+    const one = await until(async () => ((await send('GET', `/utility/gas/readings?meter_id=${encodeURIComponent(mid)}`)).data || []).filter(r => r.date === '2024-03-01').length === 1);
+    t('ablesung: „Eine löschen“ — eine bleibt', !!one);
+
+    // Stufe Einsteiger: dieselben Knöpfe (wie beim Heizgrenze-Vorschlag)
+    const dash = await import(`${ROOT}/views/dashboard.js`);
+    const box = global.document.createElement('div');
+    box.dataset.variant = 'beginner';
+    global.document.body.appendChild(box);
+    dash.renderTodoBox(box, dash.buildTodo([ev], []));
+    t('ablesung: Einsteiger — Eintrag mit „Stand ist richtig“, „Nur für die Abrechnung“, „Korrigieren“',
+      !!box.querySelector('[data-rc-verify]') && !!box.querySelector('[data-rc-billing]') && !!box.querySelector('[data-rc-correct]'));
+    box.remove();
+
+    // Hinweis auf die Zäsur: zwei Jahre doppelt, dann heute
+    const lid = await formula('Niveau Test', (iso) => iso < '2025-07-01' ? 2 : 1);
+    const lev = (await agenda()).find(e => e.kind === 'level_shift' && e.ref?.meter_id === lid);
+    t('ablesung: Agenda — Hinweis auf die Analyse-Zäsur am 01.07.2025, abhakbar, kein „Ablesung prüfen“', !!lev && lev.due_now && lev.can_mark_done
+      && lev.ref?.date === '2025-07-01' && lev.ref?.direction === 'higher' && /seit 01\.07\.2025 dauerhaft weniger Verbrauch/.test(lev.title)
+      && !(await agenda()).some(e => e.kind === 'reading_check' && e.ref?.meter_id === lid), JSON.stringify(lev)?.slice(0, 300));
+    const dv4 = await renderView(`${ROOT}/views/dashboard.js`);
+    const lrow = await until(() => dv4.view.querySelector(`[data-role="reading-check-todo"][data-kind="level"][data-meter="${lid}"]`)?.closest('li'), 120);
+    const lt = (lrow?.textContent || '').replace(/\s+/g, ' ');
+    t('ablesung: Zu tun — Zäsur-Hinweis mit Faktor, Erklärung, „Zäsur am … setzen“ und „Nicht jetzt“ (ohne Haken)',
+      /Seit 01\.07\.2025 dauerhaft weniger Verbrauch/.test(lt) && /Monate lang gleichbleibend rund 2,0-mal so hoch wie heute/.test(lt)
+      && /nicht nach einem Ablesefehler/.test(lt) && /Zäsur am 01\.07\.2025 setzen/.test(lrow.querySelector('[data-rc-baseline]')?.textContent || '')
+      && /Nicht jetzt/.test(lrow.querySelector('[data-rc-later]')?.textContent || '') && !lrow.querySelector('[data-todo-done]'), lt.slice(0, 400));
+    lrow?.querySelector('[data-rc-baseline]')?.click();
+    const mb = await until(async () => ((await send('GET', '/utility/gas/meters')).data || []).find(m => m.id === lid && (m.baseline_events || []).some(e => e.date === '2025-07-01')));
+    t('ablesung: „Zäsur setzen“ — Zäsur am Zähler, Hinweis weg', !!mb && !(await agenda()).some(e => e.kind === 'level_shift' && e.ref?.meter_id === lid),
+      JSON.stringify(mb?.baseline_events));
+    await until(() => /Rückgängig/.test(toastAction()?.textContent || ''));
+    toastAction()?.click();
+    const mu = await until(async () => ((await send('GET', '/utility/gas/meters')).data || []).find(m => m.id === lid && !(m.baseline_events || []).length));
+    t('ablesung: Rückgängig — Zäsur wieder entfernt', !!mu);
+    const dv5 = await renderView(`${ROOT}/views/dashboard.js`);
+    const lrow2 = await until(() => dv5.view.querySelector(`[data-role="reading-check-todo"][data-kind="level"][data-meter="${lid}"]`)?.closest('li'), 120);
+    lrow2?.querySelector('[data-rc-later]')?.click();
+    const dismissed = await until(async () => (await agenda()).find(e => e.kind === 'level_shift' && e.ref?.meter_id === lid && !e.due_now && e.done));
+    t('ablesung: „Nicht jetzt“ — abgehakt, nicht mehr fällig', !!dismissed);
+    await send('DELETE', `/utility/gas/meters/${mid}`);
+    await send('DELETE', `/utility/gas/meters/${lid}`);
+  } catch (e) { t('ablesung: Zwischenablesung prüfen', false, e.stack || e.message); }
+
   console.log(`\n  ERGEBNIS: ${pass} bestanden, ${fail} fehlgeschlagen`);
   process.exit(fail ? 1 : 0);
 })().catch(e => { console.error('  HARNESS-FEHLER:', e.stack || e.message); process.exit(2); });

@@ -39,6 +39,15 @@ use Energietracker\Support\Dates;
  *                        der Kategorie `modell`, ref mit Vorher/Nachher und der
  *                        Wirkung auf Saldo und Abschlag; „Nicht jetzt“ blendet die
  *                        Empfehlung für diesen Datenstand aus)
+ *   reading_check        v3.9.0 (ablesung-pruefen) — Ablesung prüfen: ein Stand
+ *                        (oder Block) zwischen einem Abstand weit unter und einem
+ *                        weit über der Erwartung (ReadingCheckService); erledigt
+ *                        durch „Stand ist richtig“, „nur für die Abrechnung“ oder
+ *                        Korrigieren, also aus den Daten
+ *   reading_duplicate    v3.9.0 — derselbe Stand am selben Tag zweimal eingetragen
+ *   level_shift          v3.9.0 — Verbrauch über mindestens ein Jahr gleichbleibend
+ *                        anders als heute: Hinweis auf die Analyse-Zäsur (abhakbar,
+ *                        oder Zäsur setzen)
  *
  * v3.5.0 (F1028) — Jedes Ereignis trägt `assignee`, `assignee_id` und
  * `assignee_former` (bei Terminen die Zuständigkeit, sonst null/false);
@@ -76,16 +85,24 @@ final class AgendaService
 {
     public const KINDS = ['reminder', 'reading_due', 'cancel_by', 'term_end', 'price_guarantee_end',
                           'price_increase', 'tank_reorder', 'tenancy_statement_due', 'objection_deadline',
-                          'co2_claim_deadline', 'bill_expected', 'heat_limit'];
+                          'co2_claim_deadline', 'bill_expected', 'heat_limit',
+                          'reading_check', 'reading_duplicate', 'level_shift'];
 
     /** v3.4.0 (F1024) — Verlauf (optional; ohne ihn gibt es nur die automatische Erledigung aus den Daten). */
     private ?ActivityService $activity = null;
     /** v3.5.0 (F1029) — erwartete Abrechnungen (optional; ohne ihn keine `bill_expected`). */
     private ?BillExpectedService $billsExpected = null;
+    /** v3.9.0 (ablesung-pruefen) — Prüfung der Zwischenablesungen (optional; ohne sie keine `reading_*`/`level_shift`). */
+    private ?ReadingCheckService $readingChecks = null;
 
     public function attachBillExpectations(BillExpectedService $billsExpected): void
     {
         $this->billsExpected = $billsExpected;
+    }
+
+    public function attachReadingChecks(ReadingCheckService $readingChecks): void
+    {
+        $this->readingChecks = $readingChecks;
     }
 
     public function __construct(
@@ -319,6 +336,53 @@ final class AgendaService
                  'before' => $ev['before'] ?? null, 'after' => $ev['after'] ?? null, 'effect' => $ev['effect'] ?? null],
                 // Vorkommen: der Datenstand der Empfehlung (ihre ID)
                 (string)$r['id'], null, empty($ev['is_group']) ? $this->who(null, null, $this->meterOf($u, $m)) : null);
+        }
+
+        // ── v3.9.0 (ablesung-pruefen) — Ablesung prüfen, doppelt eingetragen, Hinweis auf die Zäsur ──
+        // Fällig ab heute (wie der Heizgrenze-Vorschlag); erledigt aus den Daten: „Stand ist
+        // richtig“, „nur für die Abrechnung“, Korrigieren oder Löschen lassen den Befund fallen.
+        // Der Hinweis auf die Zäsur ist abhakbar (ActivityService::MANUAL_KINDS).
+        foreach ($this->readingChecks?->all($today) ?? [] as $x) {
+            $u = (string)$x['utility'];
+            $m = $x['meter'];
+            $mid = (string)$m['id'];
+            $label = $this->i18n->utilityLabel($u);
+            $meterName = (string)($m['name'] ?? $mid);
+            $href = '#/utility/' . rawurlencode($u) . '?meter=' . rawurlencode($mid);
+            $who = $this->who(null, null, $this->meterOf($u, $mid));
+            $r = $x['result'];
+            $dated = function (string $key, array $params): string {
+                return $this->i18n->t($key, array_map(fn($v) => is_string($v) && Dates::isIsoDate($v) ? $this->i18n->date($v) : $v, $params));
+            };
+            foreach ($r['checks'] as $c) {
+                $key = (int)$c['count'] > 1 ? 'calendar.event.readingCheckBlock' : 'calendar.event.readingCheck';
+                $params = ['label' => $label, 'meter' => $meterName, 'date' => (string)$c['date'], 'until' => (string)$c['until']];
+                $ev = $this->event('reading_check', (string)$c['uid'], $today, $key, $params, 'due', true, $href,
+                    ['utility' => $u, 'meter_id' => $mid] + array_intersect_key($c, array_flip(['reading_ids', 'date', 'until', 'count',
+                        'direction', 'offset', 'unit', 'basis', 'before', 'after', 'suggested'])),
+                    (string)$c['date'], null, $who);
+                $ev['title'] = $dated($key, $params);
+                $events[] = $ev;
+            }
+            foreach ($r['duplicates'] as $d) {
+                $params = ['label' => $label, 'meter' => $meterName, 'date' => (string)$d['date']];
+                $ev = $this->event('reading_duplicate', (string)$d['uid'], $today, 'calendar.event.readingDuplicate', $params, 'due', true, $href,
+                    ['utility' => $u, 'meter_id' => $mid, 'date' => (string)$d['date'], 'counter' => (float)$d['counter'],
+                     'unit' => (string)$d['unit'], 'keep_id' => (string)$d['keep_id'], 'delete_ids' => $d['delete_ids']],
+                    (string)$d['date'], null, $who);
+                $ev['title'] = $dated('calendar.event.readingDuplicate', $params);
+                $events[] = $ev;
+            }
+            if (($s = $r['level_shift']) !== null) {
+                // „higher“: davor höher, heute also weniger
+                $key = $s['direction'] === 'higher' ? 'calendar.event.levelShiftLess' : 'calendar.event.levelShiftMore';
+                $params = ['label' => $label, 'meter' => $meterName, 'date' => (string)$s['date']];
+                $ev = $this->event('level_shift', (string)$s['uid'], $today, $key, $params, 'due', true, $href,
+                    ['utility' => $u, 'meter_id' => $mid] + array_intersect_key($s, array_flip(['date', 'from', 'direction', 'factor', 'days', 'months', 'basis'])),
+                    (string)$s['date'], null, $who);
+                $ev['title'] = $dated($key, $params);
+                $events[] = $ev;
+            }
         }
 
         // ── v3.5.0 (F1029) — Abrechnung erwartet: Zeitraum beendet, keine Versorgerrechnung ──
