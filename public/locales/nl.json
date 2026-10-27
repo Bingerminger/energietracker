@@ -2889,7 +2889,7 @@
     "method": {
       "seasonal_only": "seizoensprofiel",
       "regression_only": "stooklijn (geen eigen waarde voor de maand)",
-      "heat_model": "verwarmingsmodel",
+      "heat_model": "verwarmingsmodel (geen eigen waarde voor de maand)",
       "filled": "daggemiddelde (geen eigen waarde)",
       "blend": "mix: {reg} stooklijn, {seasonal} seizoensprofiel",
       "seasonal_interpolated": "Verdeelde waarden (geen gemeten maand)"

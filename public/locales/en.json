@@ -2889,7 +2889,7 @@
     "method": {
       "seasonal_only": "seasonal profile",
       "regression_only": "heating curve (no own value for the month)",
-      "heat_model": "heating model",
+      "heat_model": "heating model (no own value for the month)",
       "filled": "daily average (no own value)",
       "blend": "blend: {reg} heating curve, {seasonal} seasonal profile",
       "seasonal_interpolated": "Interpolated values (no measured month)"

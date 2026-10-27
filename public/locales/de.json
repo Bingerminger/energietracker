@@ -2889,7 +2889,7 @@
     "method": {
       "seasonal_only": "Saisonprofil",
       "regression_only": "Heizkurve (kein eigener Wert für den Monat)",
-      "heat_model": "Heizmodell",
+      "heat_model": "Heizmodell (kein eigener Wert für den Monat)",
       "filled": "Tagesmittel (kein eigener Wert)",
       "blend": "Mischung: {reg} Heizkurve, {seasonal} Saisonprofil",
       "seasonal_interpolated": "Verteilte Werte (kein gemessener Monat)"

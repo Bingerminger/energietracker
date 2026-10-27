@@ -2889,7 +2889,7 @@
     "method": {
       "seasonal_only": "perfil sazonal",
       "regression_only": "curva de aquecimento (sem valor próprio para o mês)",
-      "heat_model": "modelo de aquecimento",
+      "heat_model": "modelo de aquecimento (sem valor próprio para o mês)",
       "filled": "média diária (sem valor próprio)",
       "blend": "combinação: {reg} curva de aquecimento, {seasonal} perfil sazonal",
       "seasonal_interpolated": "Valores repartidos (nenhum mês medido)"
