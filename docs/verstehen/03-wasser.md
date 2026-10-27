@@ -69,7 +69,11 @@ Garten-Abzugszähler mit dem gemessenen Anteil Schmutzwasser), als feste Kosten
 der Grundpreis und das Niederschlagswasser (Fläche × €/m²·a ÷ 12). Dazu kommen
 wie dort ein **Vorschlag für den Abschlag** (`suggested_advance`), der
 **Saldo-Verlauf** (`balance_path`) und im Jahresbericht Saldo und Abschlags-Rat.
-In der API steht `projection_method: forecast`.
+In der API steht `projection_method: forecast`. *(v3.9.0)* Die drei Sparten unter
+„Verbraucht (Stand heute)“ rechnen dann auf derselben Grundlage (gemessen und
+geschätzt bis heute, Grundpreise tagesgenau) und ergeben zusammen den Betrag
+darüber; bis v3.8 zählten sie nur abgelesene Monate und standen nach einer
+Rechnung oft bei 0,00 €.
 
 Ohne Abschläge bleibt es beim Saldo über die Monate mit Ablesung
 (`projection_method: flat_average`, so rechnete Wasser bis v3.6 immer):

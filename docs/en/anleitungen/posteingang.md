@@ -217,7 +217,9 @@ neighbour is named below it (“Lies below your reading of … on …”). If th
 value is already recorded on an earlier day of the billing period and the bill
 states it on the last day of the period, it is the reading you reported, which
 the supplier dates to the end of the period: “already there”, and “Check bill”
-counts the quantity up to the day you read the meter. A proposal is flagged only when one
+counts the quantity up to the day you read the meter. A reading the document
+prints with fewer digits is the same as yours if yours, rounded to those digits,
+matches (29,310 in the document, 29,310.2 in your records). A proposal is flagged only when one
 of **its** core fields is in doubt *(v3.7.0)*: a new contract needs start,
 supplier and prices, not the advance payment. If the advance is missing, the
 contract is created without it; if it was read with doubt, the contract does
@@ -266,13 +268,19 @@ for water too, and ticks it in advance. It takes over:
 - for water **all three components**: drinking water and waste water per m³
   and with their standing charge, rainwater per m² and year with the area
   according to the bill,
+- the **advance payments made according to the bill** for the period
+  *(v3.9.0)*: equal dated payments on their dates, otherwise the total spread
+  evenly per month (€800 over twelve months: €66.6667 a month). Until the new plan
+  there is then no advance payment the bill does not name. So the billing year,
+  the annual report and “Check bill” count the same amount paid as the bill,
 - the **new advance payment plan** with its rhythm (see below).
 
 The bill then belongs to the new contract, and
 “Book the result as a special payment” works in the same run: the app first
 creates the contract, then the bill, then books the result. If you untick the contract, booking is locked
 (“Only together with the contract from this bill.”); you can still enter the
-bill.
+bill. After taking over, the document is assigned to the new contract
+(“Recorded when taking over.”).
 
 If a contract already applies in the period, the app overwrites nothing:
 

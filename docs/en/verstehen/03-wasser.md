@@ -69,6 +69,10 @@ costs the standing charge and the rainwater charge (area × €/m²·a ÷ 12). A
 there, you get a **suggested advance payment** (`suggested_advance`), the
 **balance history** (`balance_path`) and, in the annual report, the balance and
 the advice on the advance. The API marks this with `projection_method: forecast`.
+*(v3.9.0)* The three components below “Consumed (as of today)” are then
+calculated on the same basis (measured and estimated up to today, standing
+charges by the day) and add up to the amount above; up to v3.8 they only counted
+months with readings and often showed €0.00 after a bill.
 
 Without advance payments the balance stays over the months with readings
 (`projection_method: flat_average`, as water always calculated up to v3.6):

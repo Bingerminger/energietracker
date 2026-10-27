@@ -226,7 +226,9 @@ angehakt, und darunter steht der Nachbar („Liegt unter deinem Stand … vom �
 Steht derselbe Wert schon an einem früheren Tag im Abrechnungszeitraum und der
 Stand der Rechnung am letzten Tag des Zeitraums, ist das dein gemeldeter Stand,
 den der Versorger auf das Zeitraumende datiert: „schon vorhanden“, und „Rechnung
-prüfen“ rechnet die Menge bis zu deinem Ablesetag. Markiert ist ein
+prüfen“ rechnet die Menge bis zu deinem Ablesetag. Ein Stand, den das Dokument
+auf weniger Stellen druckt, ist derselbe wie deiner, wenn deiner auf diese
+Stellen gerundet passt (29.310 im Dokument, 29.310,2 bei dir). Markiert ist ein
 Vorschlag nur, wenn eines **seiner** Kernfelder zweifelhaft ist *(v3.7.0)*:
 Ein neuer Vertrag braucht Beginn, Versorger und Preise, nicht den Abschlag.
 Fehlt der Abschlag, entsteht der Vertrag ohne ihn; ist er unsicher gelesen,
@@ -275,13 +277,19 @@ auch für Wasser, und hakt ihn vorab an. Er übernimmt:
 - bei Wasser **alle drei Sparten**: Trinkwasser und Schmutzwasser je m³ und mit
   ihrem Grundpreis, Niederschlagswasser je m² und Jahr mit der Fläche laut
   Rechnung,
+- die **laut Rechnung gezahlten Abschläge** des Zeitraums *(v3.9.0)*: gleich hohe
+  Zahlungen mit Datum an ihren Terminen, sonst die Summe gleichmäßig je Monat
+  (800 € in zwölf Monaten: 66,6667 € je Monat). Bis zum neuen Plan steht danach
+  kein Abschlag, den die Rechnung nicht nennt. So zählen Abrechnungsjahr,
+  Jahresbericht und „Rechnung prüfen“ dasselbe Bezahlte wie die Rechnung,
 - den **neuen Abschlagsplan** mit seinem Rhythmus (siehe unten).
 
 Die Rechnung hängt dann am neuen Vertrag, und
 „Ergebnis als Sonderzahlung buchen“ geht im selben Durchgang: Die App legt erst
 den Vertrag an, dann die Rechnung, dann bucht sie das Ergebnis. Nimmst du den Haken am Vertrag weg, ist
 das Buchen gesperrt („Nur zusammen mit dem Vertrag aus dieser Rechnung.“);
-erfassen kannst du die Rechnung trotzdem.
+erfassen kannst du die Rechnung trotzdem. Nach dem Übernehmen steht die
+Zuordnung des Dokuments am neuen Vertrag („Beim Übernehmen festgehalten.“).
 
 Gilt im Zeitraum schon ein Vertrag, überschreibt die App nichts:
 

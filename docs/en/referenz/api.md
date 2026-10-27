@@ -2640,7 +2640,8 @@ the bill check (`period_to` inclusive) and sets both side by side:
 | `boundaries` | *(v3.7.0)* kind of reading at the edges `{start, end}`: `reading` (reading on the first day or on the day after the last), `reading_adjacent` (on the day before or on the last day), `reading_estimated`, `interpolated` or `null` (no reading before or after); for a group the weakest member |
 | `price_missing_at` | *(v3.7.0)* where the price is missing: `[{from, to, contract_id, provider?, meter_id?}]`, `to` inclusive, `contract_id` `null` without a contract — with every verdict, so also with `check` when the quantity differs (the page then shows the same notice with the jump to the contracts) |
 | `factor_mismatches` | *(v3.7.0, gas)* per day with differing values `{from, invoice: {zustandszahl, brennwert, kwh_per_m3}, list: {…}}`; empty when the gas conversion knows the change as the bill does |
-| `rows` | the sections of the bill check — the classification above does not change them |
+| `rows` | the sections of the bill check — the classification above does not change them. *(v3.9.0)* If the last reading lies on the last day, it is the closing reading: the one day after it has the quantity 0 and is no gap any more (also in `bill-check` and in the billing year) |
+| `ours.quantity_until` | *(v3.9.0, additive)* if the bill carries `end_reading_on` (your reported reading, which the supplier dates to the end of the period), quantity and working price count up to that day, fixed costs over the whole period |
 
 **Book — `POST …/bills/{id}/book`.** Adds the result (`invoice.result_eur`) as
 a special payment (F1003) in the contract: positive as `nachzahlung_ohne`,
@@ -4391,8 +4392,14 @@ applies at the meter during the period, `contract_create`
 section (gross), for water all three components, and the new advance payment
 plan; `data.for_bill: true` means the bill of this run belongs to it (`bill` and
 `bill_book` then carry `data.contract_new: true`). `params.lines` breaks it
-down: `{section, kind: working|base|rate|advance, from, value, parts: [{label,
-price, unit, net, vat_pct, gross}], area?, every?, dates?}`. If a contract
+down: `{section, kind: working|base|rate|advance|paid, from, value, parts: [{label,
+price, unit, net, vat_pct, gross}], area?, every?, dates?, to?, total?}`; `paid`
+are the advance payments made in the period according to the bill (on the
+contract the first row of `advance_payments`, evenly per month or on the dates
+of the payments, then a row with 0 until the new plan). After taking over, the
+document is assigned to the new contract; an assignment that only taking over
+stored carries `auto: true`, and the preview then shows `assignment_applied:
+true` instead of `assignment_saved` (additive). If a contract
 applies in the period, it stays an offer; if one of the same supplier ends
 earlier, a follow-up or preceding contract is offered (`label_key`
 `inbox.proposal.contractSpanFromInvoice` when it ends). `bill_book` at the new
