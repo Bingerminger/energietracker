@@ -340,7 +340,9 @@ final class ReportModelService
                 // wirklichkeit-2: beide Jahresgrenzen in kurzen Abständen (Jahressumme exakt)
                 'interpolated' => 0, 'interp_months' => [], 'bounds_measured' => true,
                 // v3.9.0 (Skeptiker M2) — erfasste Tage je Monat (größter Wert über die Zähler)
-                'days_months' => []];
+                'days_months' => [],
+                // v3.9.0 (Skeptiker R2-7) — Menge der Monate mit Preis (Vertrag oder eigene Kosten), für den Ø Arbeitspreis
+                'value_priced' => 0.0, 'priced_months' => []];
     }
 
     /** Jahreswerte einer Art über die Zähler, die in Summen zählen. */
@@ -378,6 +380,7 @@ final class ReportModelService
                 if (!empty($r['interpolated'])) $out['interp_months'][$mo] = true;
                 if ((int)($r['days'] ?? 0) >= (int)date('t', mktime(0, 0, 0, $mo, 1, $y))) $out['full_months']++;
                 $out['days_months'][$mo] = max($out['days_months'][$mo] ?? 0, (int)($r['days'] ?? 0));
+                if (self::pricedRow($r)) { $out['value_priced'] += $v; $out['priced_months'][$mo] = true; }
             }
         }
         // v3.9.0 (F1032, #40) — Subzähler mit eigenem Vertrag: ihr Geld zählt (der Elternvertrag
@@ -392,6 +395,8 @@ final class ReportModelService
                 $c = (float)($r['cost'] ?? 0) - $loose; $b = (float)($r['bonus_eur'] ?? 0);
                 $out['cost'] += $c;
                 $out['kwh_cost'] += (float)($r['kwh_cost'] ?? 0) - $loose;
+                // Monat ohne Preis am Elternzähler: die Menge des Subzählers gehört zu seinem Geld (R2-7)
+                if (empty($out['priced_months'][$mo])) $out['value_priced'] += (float)($r[$vf] ?? 0);
                 $out['cost_months'][$mo] = ($out['cost_months'][$mo] ?? 0.0) + $c;
                 $out['cost_gross'] += $c + $b;
                 $out['cost_months_gross'][$mo] = ($out['cost_months_gross'][$mo] ?? 0.0) + $c + $b;
@@ -433,10 +438,22 @@ final class ReportModelService
         return (int)$y['interpolated'] === 0 || !empty($y['bounds_measured']);
     }
 
-    /** Ø Arbeitspreis eines Jahres in ct je Einheit (nur der verbrauchsabhängige Teil) — null ohne Preis. */
+    /**
+     * Ø Arbeitspreis eines Jahres in ct je Einheit (nur der verbrauchsabhängige Teil) — null ohne Preis.
+     * v3.9.0 (Skeptiker R2-7) — geteilt durch die Menge der Monate mit Preis: Monate ohne Vertrag
+     * zählten bis dahin in die Menge, nicht ins Geld („Arbeitspreis im Mittel 332 ct/m³“, die
+     * Vertragspreise lagen deutlich höher).
+     */
     private static function priceCt(array $y): ?float
     {
-        return $y['value'] > 0 && $y['kwh_cost'] > 0 ? $y['kwh_cost'] / $y['value'] * 100 : null;
+        $q = (float)($y['value_priced'] ?? $y['value']);
+        return $q > 0 && $y['kwh_cost'] > 0 ? $y['kwh_cost'] / $q * 100 : null;
+    }
+
+    /** Hat die Monatszeile einen Preis? Ein Vertrag oder eigene Kosten (Ablesepreis, Lieferungen). R2-7 */
+    private static function pricedRow(array $r): bool
+    {
+        return !empty($r['contract_id']) || (float)($r['kwh_cost'] ?? 0) > 0;
     }
 
     private function utilityInfo(string $u): array
@@ -788,7 +805,7 @@ final class ReportModelService
                 $m = $this->meters->get('strom', (string)$id);
                 if ($m === null) continue;
                 foreach ($this->rows('strom', $m) as $row) {
-                    if ((int)$row['year'] !== $this->year) continue;
+                    if ((int)$row['year'] !== $this->year || !self::pricedRow($row)) continue;   // R2-7 — nur Monate mit Preis
                     $cost += (float)($row['kwh_cost'] ?? 0); $kwh += (float)($row['kwh'] ?? 0);
                 }
             }
@@ -867,7 +884,7 @@ final class ReportModelService
             foreach ($this->rootMeters($u) as $m) {
                 if ($role !== null && Utilities::roleOf($u, $m) !== $role) continue;
                 foreach ($this->rows($u, $m) as $r) {
-                    if ((int)$r['year'] !== $this->year) continue;
+                    if ((int)$r['year'] !== $this->year || !self::pricedRow($r)) continue;   // R2-7 — nur Monate mit Preis
                     $cost += (float)($r['kwh_cost'] ?? 0); $kwh += (float)($r['kwh'] ?? 0);
                 }
             }

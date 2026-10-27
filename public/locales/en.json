@@ -3121,7 +3121,8 @@
         "warn": "Small additional payment possible",
         "alert": "Additional payment expected",
         "none": "No advance payments",
-        "uncertain": "Advance payments: estimate uncertain"
+        "uncertain": "Advance payments: estimate uncertain",
+        "credit": "Advance payments higher than needed"
       },
       "deadlines": {
         "ok": "No deadline soon",

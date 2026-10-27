@@ -3121,7 +3121,8 @@
         "warn": "Posible pequeño pago adicional",
         "alert": "Pago adicional previsto",
         "none": "Sin anticipos",
-        "uncertain": "Anticipos: estimación incierta"
+        "uncertain": "Anticipos: estimación incierta",
+        "credit": "Anticipos más altos de lo necesario"
       },
       "deadlines": {
         "ok": "Ningún plazo próximo",

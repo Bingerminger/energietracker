@@ -81,7 +81,7 @@ Jede Ampel trägt ein Symbol **und** ein Wort; die Farbe allein sagt nichts
 |---|---|---|---|
 | **Kosten** gegen Vorjahr | höchstens +3 % | höchstens +10 % | mehr als +10 % |
 | **Verbrauch** gegen Vorjahr (Heizung witterungsbereinigt) | nicht gestiegen | höchstens +5 % | mehr als +5 % |
-| **Abrechnung** (Stand heute) | Guthaben oder weniger als ein Monatsabschlag Nachzahlung | bis zwei Abschläge | mehr |
+| **Abrechnung** (Stand heute) | Guthaben oder weniger als ein Monatsabschlag Nachzahlung | bis zwei Abschläge; *(seit v3.9.0)* oder ein Guthaben ab 50 € bzw. einem Abschlag („Abschläge höher als nötig“) | mehr |
 | **Fristen** (Stand heute) | nichts in den nächsten 60 Tagen | Frist in höchstens 60 Tagen | höchstens 14 Tage oder überfällig |
 
 Unter der Kosten-Ampel steht immer, wie viel davon an geänderten Preisen und
@@ -99,7 +99,13 @@ urteilt die Ampel „Abrechnung“ nicht: Sie sagt „Schätzung unsicher“ mit
 wie Saldo-Karte, Übersicht und Werkstatt (bis v3.7 nahm sie das ungünstige Ende).
 Endet ein Vertrag bald mit eingetragenem Folgevertrag oder bleiben weniger als
 drei Abschläge bis zur Abrechnung, gibt es statt der Aufgabe „Abschlag anpassen“
-einen Hinweis zur Abrechnung.
+einen Hinweis zur Abrechnung. Die Ampel „Abrechnung“ zählt nur laufende Verträge;
+ein eingetragener Folgevertrag rechnet erst später ab und bleibt draußen. Ein
+Guthaben, das die Aufgabe „Abschlag anpassen“ auslöst, heißt dort nicht mehr
+„Abschläge passen“, sondern „Abschläge höher als nötig“. Eine Spanne aus zwei
+Guthaben steht vom kleineren zum größeren Betrag, wie an der Saldo-Karte. Der
+Arbeitspreis im Mittel auf der Seite einer Verbrauchsart zählt nur Monate mit
+Vertrag oder eigenem Preis.
 
 ## 4. Aufgaben: Priorität, Betrag, Frist
 

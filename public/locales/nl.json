@@ -3121,7 +3121,8 @@
         "warn": "Kleine bijbetaling mogelijk",
         "alert": "Bijbetaling te verwachten",
         "none": "Geen voorschotten",
-        "uncertain": "Voorschotten: schatting onzeker"
+        "uncertain": "Voorschotten: schatting onzeker",
+        "credit": "Voorschotten hoger dan nodig"
       },
       "deadlines": {
         "ok": "Geen termijn op korte termijn",
