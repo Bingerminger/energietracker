@@ -4402,7 +4402,7 @@
     },
     "privacy": {
       "title": "Deine Daten",
-      "text": "Alles bleibt auf deinem Server: keine Konten, keine Werbung, keine Telemetrie. Nach außen spricht die App nur mit Open-Meteo — beim täglichen Wetterabgleich (nur der auf rund 1 km gerundete Standort, abschaltbar unter Einstellungen → Wetterdaten) und bei der Ortssuche, wenn du sie benutzt — und, nur wenn du sie einträgst, mit deinem eigenen Texterkennungsdienst und deinem evcc im Heimnetz. Tippst du auf „Von SMARD laden“, holt die App die Börsenstrompreise der Bundesnetzagentur; dabei geht nichts von dir hinaus."
+      "text": "Alles bleibt auf deinem Server: keine Konten, keine Werbung, keine Telemetrie. Nach außen spricht die App nur mit Open-Meteo — beim täglichen Wetterabgleich (nur der auf rund 1 km gerundete Standort, abschaltbar unter Einstellungen → Wetterdaten) und bei der Ortssuche, wenn du sie benutzt — und, nur wenn du sie einträgst, mit deinem eigenen Texterkennungsdienst und deinem evcc im Heimnetz. Tippst du auf „Von SMARD laden“, holt die App die Börsenstrompreise der Bundesnetzagentur; dabei geht nichts von dir hinaus. Benachrichtigungen an Home Assistant schickt die App erst, wenn jemand sie einschaltet, der die Installation verwaltet, und nur an dein Home Assistant: Titel und Text fälliger Termine, Fristen und Warnungen und die Namen neuer Dokumente. Das Auslesen im Posteingang über einen Cloud-Dienst ist aus, bis es jemand einschaltet, der die Installation verwaltet; dann fragt die App vorher und schickt das Dokument an den gewählten Dienst, je nach Anbieter das PDF oder nur seinen Text."
     },
     "onYourBill": "Auf deiner Rechnung ({country}): „{term}“",
     "cases": {

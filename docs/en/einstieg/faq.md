@@ -294,6 +294,19 @@ v3.1.0 only on request (“Load from SMARD”), the download of wholesale
 electricity prices from SMARD, the platform of the German Federal Network
 Agency; nothing of yours is sent along. No accounts, no telemetry, no ads.
 
+Two more ways are off until someone who manages the installation switches them
+on:
+
+- **Notifications to Home Assistant** *(v3.9.0)*: title and text of due
+  appointments, deadlines and warnings, and the names of new documents, only
+  to your Home Assistant (in the app through the Supervisor, otherwise to the
+  address you enter):
+  [Home Assistant, step 6](../anleitungen/home-assistant.md#step-6--notifications-to-home-assistant-v390).
+- **Reading in the inbox through a cloud service** *(v3.7.0)*: the app asks
+  first and then sends the document to the chosen service, depending on the
+  provider the PDF or only its text:
+  [Inbox → Privacy](../anleitungen/posteingang.md#privacy-what-goes-where).
+
 ### Can I use the app on the iPhone?
 
 Yes, in the browser on the home network; as an app on the home screen with

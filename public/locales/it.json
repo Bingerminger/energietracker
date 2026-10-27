@@ -4402,7 +4402,7 @@
     },
     "privacy": {
       "title": "I tuoi dati",
-      "text": "Tutto resta sul tuo server: nessun account, nessuna pubblicità, nessuna telemetria. L’app parla solo con Open-Meteo — per l’allineamento meteo giornaliero (solo la posizione arrotondata a circa 1 km, disattivabile in Impostazioni → Dati meteo) e per la ricerca del luogo quando la usi — e, solo se li inserisci, con il tuo servizio di riconoscimento del testo e il tuo evcc nella rete domestica. Se tocchi «Carica da SMARD», l’app scarica i prezzi all’ingrosso dell’elettricità dalla Bundesnetzagentur; nessun tuo dato viene inviato."
+      "text": "Tutto resta sul tuo server: nessun account, nessuna pubblicità, nessuna telemetria. L’app parla solo con Open-Meteo — per l’allineamento meteo giornaliero (solo la posizione arrotondata a circa 1 km, disattivabile in Impostazioni → Dati meteo) e per la ricerca del luogo quando la usi — e, solo se li inserisci, con il tuo servizio di riconoscimento del testo e il tuo evcc nella rete domestica. Se tocchi «Carica da SMARD», l’app scarica i prezzi all’ingrosso dell’elettricità dalla Bundesnetzagentur; nessun tuo dato viene inviato. Le notifiche a Home Assistant partono solo quando chi amministra l’installazione le attiva, e solo verso il tuo Home Assistant: titolo e testo di appuntamenti, scadenze e avvisi dovuti e i nomi dei nuovi documenti. La lettura nella posta in arrivo tramite un servizio cloud è disattivata finché chi amministra l’installazione non la attiva; allora l’app chiede prima e invia il documento al servizio scelto, a seconda del fornitore il PDF o solo il suo testo."
     },
     "onYourBill": "Sulla tua bolletta ({country}): «{term}»",
     "cases": {

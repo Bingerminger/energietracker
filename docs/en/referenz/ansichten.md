@@ -2140,7 +2140,10 @@ Reached from the footer of the sidebar, on the iPhone under "More"
   only if set up, to your own text recognition service in the home network
   (v3.1.0) and to evcc in your home network (v3.2.0) — and, only on request
   (“Load from SMARD” under Tariff switch), to SMARD for wholesale electricity
-  prices (v3.1.0).
+  prices (v3.1.0). Since v3.9.0 the card also names the notifications to Home
+  Assistant (what is sent and where to) and reading in the inbox through a
+  cloud service (PDF or text, after asking); both are off until someone who
+  manages the installation switches them on.
 - **Use cases (v3.2.0):** a card of its own between the cards above and the
   glossary, in every language of the app — the documentation exists only in
   German and English. Since v3.4.0 all seven cases of the

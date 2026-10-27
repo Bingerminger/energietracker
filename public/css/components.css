@@ -858,6 +858,17 @@ a.icon-btn { display: inline-flex; align-items: center; justify-content: center;
 .settings-field > label {
   display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap;
 }
+/* v3.9.0 — Kästchen und Radio mit langem Text: der Text bricht neben dem
+   Kästchen um, nicht darunter (die Regel darüber hatte Vorrang) */
+.settings-field > label.settings-field__check { flex-wrap: nowrap; align-items: center; }
+/* v3.9.0 — Gruppe von Kästchen bzw. Radios in einer Einstellungskarte
+   (Benachrichtigungen an Home Assistant): ohne den Rahmen des Browsers, die
+   Legende wie die Beschriftung eines Feldes */
+fieldset.settings-field { border: 0; margin: 0; padding: 0; min-inline-size: 0; }
+fieldset.settings-field > legend {
+  padding: 0; margin-bottom: var(--sp-1);
+  font-size: var(--fs-xs); color: var(--text-3); text-transform: uppercase; letter-spacing: 0.04em;
+}
 /* Ziel eines Sprungs aus der Übersicht (`?field=`) */
 .settings-field[data-target] > label { color: var(--accent); }
 .settings-field__unit {

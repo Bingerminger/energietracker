@@ -4402,7 +4402,7 @@
     },
     "privacy": {
       "title": "Your data",
-      "text": "Everything stays on your server: no accounts, no ads, no telemetry. The app only talks to Open-Meteo — for the daily weather sync (only the location rounded to about 1 km, can be switched off under Settings → Weather data) and for the place search when you use it — and, only if you enter them, to your own text recognition service and your evcc in your home network. When you tap “Load from SMARD”, the app fetches wholesale electricity prices from the Federal Network Agency; nothing of yours is sent."
+      "text": "Everything stays on your server: no accounts, no ads, no telemetry. The app only talks to Open-Meteo — for the daily weather sync (only the location rounded to about 1 km, can be switched off under Settings → Weather data) and for the place search when you use it — and, only if you enter them, to your own text recognition service and your evcc in your home network. When you tap “Load from SMARD”, the app fetches wholesale electricity prices from the Federal Network Agency; nothing of yours is sent. The app only sends notifications to Home Assistant once someone who manages the installation switches them on, and only to your Home Assistant: title and text of due appointments, deadlines and warnings, and the names of new documents. Reading in the inbox through a cloud service is off until someone who manages the installation switches it on; then the app asks first and sends the document to the chosen service, depending on the provider the PDF or only its text."
     },
     "onYourBill": "On your bill ({country}): “{term}”",
     "cases": {
