@@ -529,6 +529,14 @@ Companion-App auf dem Handy. Beide nehmen `title` und `message`.
   nur mit `https://`, sonst lehnt der Energietracker ab.
 - Ändern dürfen das nur Verwalter.
 
+> **Was geprüft ist und was nicht (v3.9.0).** Alle drei Ziele sind gegen ein
+> nachgebautes Home Assistant getestet (Anfragen, Geheimnisse, jede Nachricht
+> einmal, Wiederholung, Obergrenze, Sprache). **Noch ungeprüft in einem
+> laufenden Home Assistant** sind der Weg über den Supervisor (ob
+> `SUPERVISOR_TOKEN` bei der App ankommt) und die Rechte im Ordner `/share` der
+> App für Home Assistant. Kommt dort etwas nicht an, nennt „Testnachricht
+> senden“ den Grund; Rückmeldungen aus echten Installationen sind willkommen.
+
 ### Webhook
 
 1. In Home Assistant eine neue Automation anlegen, „In YAML bearbeiten“

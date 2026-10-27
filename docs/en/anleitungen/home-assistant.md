@@ -523,6 +523,14 @@ phone. Both take `title` and `message`.
   Assistant) only works with `https://`, otherwise Energietracker refuses.
 - Only admins can change this.
 
+> **What is tested, and what is not (v3.9.0).** All three destinations are
+> tested against a mock Home Assistant (requests, secrets, each message once,
+> retry, upper limit, language). **Not yet tested in a running Home
+> Assistant** are the way through the Supervisor (whether `SUPERVISOR_TOKEN`
+> reaches the app) and the permissions in the `/share` folder of the Home
+> Assistant app. If something does not arrive there, “Send a test message”
+> names the reason; reports from real installations are welcome.
+
 ### Webhook
 
 1. In Home Assistant, create a new automation, choose “Edit in YAML” and
