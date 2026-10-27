@@ -1611,7 +1611,10 @@ final class ReportModelService
             if ($n === 0) continue;
             $role = Utilities::roleOf($u, $m);
             $parent = !empty($m['parent_meter_id']) ? $this->meters->get($u, (string)$m['parent_meter_id']) : null;
-            $key = $parent !== null ? 'report.page.subMeter'
+            // v3.9.0 (Skeptiker M8) — mit eigenem Vertrag rechnet der Elternvertrag nur den Rest;
+            // „die Kosten laufen über dessen Vertrag“ stimmt nur ohne
+            $key = $parent !== null
+                ? ($this->consumption->isDeductingSubmeter($u, $m) ? 'report.page.subMeterOwnContract' : 'report.page.subMeter')
                 : ($role === 'heat_pump_output' ? 'report.page.heatPumpOutput' : 'report.page.outsideTotals');
             $out[] = ['name' => (string)$m['name'], 'role' => $role, 'value' => round($v, 2),
                       'text' => $this->i18n->t($key, ['name' => (string)$m['name'], 'value' => $this->i18n->number($v, $dec) . ' ' . self::unit($u),

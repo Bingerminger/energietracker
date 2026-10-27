@@ -413,7 +413,8 @@
       "daysCount": {
         "one": "{days} dia",
         "other": "{days} dias"
-      }
+      },
+      "billed": "faturado {value} (resto)"
     },
     "cards": {
       "contracts": "📑 Contratos e adiantamentos",
@@ -560,7 +561,8 @@
       "estimatedTitle": {
         "one": "{days} dia estimado (após o último stock conhecido)",
         "other": "{days} dias estimados (após o último stock conhecido)"
-      }
+      },
+      "colBilled": "Faturado {unit}"
     },
     "readingsTable": {
       "emptyTitle": "Sem leituras",
@@ -1141,7 +1143,7 @@
       "title": "Vários contadores por serviço",
       "text": "— p. ex. água quente e aquecimento (gás) ou tarifa de vazio/cheio e carregador (eletricidade). Cada contador tem o seu próprio histórico de dispositivos (as substituições de contador são calculadas sem perdas) e pode ter os seus próprios contratos.",
       "topologyLabel": "Topologia:",
-      "topologyText": "Os subcontadores são subtraídos do contador principal; os grupos combinam vários contadores no painel."
+      "topologyText": "Um subcontador com contrato próprio é descontado do contrato do contador principal, que passa a faturar só o resto; sem contrato próprio é uma discriminação. Os grupos combinam vários contadores no painel."
     },
     "empty": "Ainda sem contadores.",
     "emptyCta": "+ Adicionar um novo contador",
@@ -2988,7 +2990,8 @@
         "one": "{count} valor mensal dos dois anos está repartido; os totais anuais continuam medidos, porque houve leituras na passagem de ano.",
         "other": "{count} valores mensais dos dois anos estão repartidos; os totais anuais continuam medidos, porque houve leituras na passagem de ano."
       },
-      "poorFit": "O modelo de aquecimento se ajusta mal a este contador (± {pct} por mês): aqui o relatório não compara valores corrigidos pelo clima nem indica meses acima do esperado — ambos seriam sobretudo o erro do modelo."
+      "poorFit": "O modelo de aquecimento se ajusta mal a este contador (± {pct} por mês): aqui o relatório não compara valores corrigidos pelo clima nem indica meses acima do esperado — ambos seriam sobretudo o erro do modelo.",
+      "subMeterOwnContract": "Dos quais {name}: {value} (subcontador, incluído no total de «{parent}»). {name} tem contrato próprio; o contrato de «{parent}» só fatura o resto."
     },
     "weatherSource": "Temperaturas: Open-Meteo.com (CC BY 4.0), salvo as introduzidas por si.",
     "print": {
@@ -7079,7 +7082,10 @@
       "new": "Criar novo",
       "sameDevice": "O registo de injeção de «{name}»: mesmo número, contador próprio na injeção.",
       "genHint": "Contador de produção da instalação, muitas vezes no inversor.",
-      "batteryHint": "Carga e descarga da bateria, muitas vezes do inversor."
+      "batteryHint": "Carga e descarga da bateria, muitas vezes do inversor.",
+      "installedOn": "Instalado em",
+      "installedHint": "Vazio: a partir do início do seu contrato, caso contrário a partir de hoje.",
+      "initialCounter": "Leitura na instalação"
     },
     "contracts": {
       "title": "Que contratos existem?",
@@ -7091,7 +7097,8 @@
       "feedCt": "Remuneração ({minor}/kWh)",
       "base": "Termo fixo ({cur}/mês)",
       "advance": "Adiantamento ({cur}/mês)",
-      "restNote": "Só fatura o resto: «{parent}» menos «{sub}»."
+      "restNote": "Só fatura o resto: «{parent}» menos «{sub}».",
+      "running": "Contrato em curso: «{name}» desde {start}. Fica como está."
     },
     "summary": {
       "title": "O que o assistente vai criar",
@@ -7108,7 +7115,11 @@
       "detailObis": "registo {obis}",
       "detailParent": "a jusante de «{name}»",
       "snapshot": "Antes, a aplicação guarda o estado atual como instantâneo. Pode ser restaurado em Definições → Dados.",
-      "apply": "Criar"
+      "apply": "Criar",
+      "restFrom": "A partir de {date}, o contrato de «{parent}» só fatura o resto: o medido aí menos «{sub}».",
+      "restFromPast": "Com efeito retroativo a partir de {date}, o contrato de «{parent}» só fatura o resto: o medido aí menos «{sub}». Os custos, o saldo e o adiantamento sugerido deste contrato mudam também para os meses desde {date}.",
+      "beforeInstall": "«{name}» só está instalado a partir de {installed}, mas o seu contrato começa em {start}. Até à instalação a aplicação não desconta nada.",
+      "detailInstalled": "instalado em {date}"
     },
     "done": "Esquema de medição configurado. A seguir: registar a primeira leitura de cada contador.",
     "entry": {

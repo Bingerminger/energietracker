@@ -156,6 +156,20 @@ t('Einspeisung ohne eigene Nummer: die von Z1 (Zweirichtungszähler)', body.slot
 t('vorhandener Zähler je Zählwerk, leere Auswahl fällt weg', JSON.stringify(body.slots.house) === '{"meter_ids":{"ht":"c"}}', JSON.stringify(body.slots.house));
 t('Preise mit Komma, Vertrag ohne Eintrag fällt weg (später)', body.contracts.main.ct === 30.5 && body.contracts.main.ct_nt === 20 && !('house' in body.contracts), JSON.stringify(body.contracts));
 
+const withInstall = C.conceptPayload('behind', { device: 'heat_pump' }, { dev: { name: 'Wärmepumpe', installed_on: '2025-01-01', initial_counter: '1234,5' } }, {});
+t('Einbau und Stand beim Einbau gehen mit (Skeptiker M11), Komma als Dezimalzeichen', withInstall.slots.dev.installed_on === '2025-01-01' && withInstall.slots.dev.initial_counter === 1234.5,
+  JSON.stringify(withInstall.slots.dev));
+t('ohne Einbau kein Feld (der Server nimmt den Vertragsbeginn)', !('installed_on' in C.conceptPayload('single', {}, { main: { name: 'A', installed_on: '', initial_counter: '' } }, {}).slots.main));
+
+console.log('Rest-Hinweis in den Vertragsansichten (Skeptiker N7)');
+const RB = await import(`${JS}/lib/rest-billing.js`);
+const ms = [{ id: 'p', name: 'Hauszähler' }, { id: 's', name: 'Wärmepumpe', parent_meter_id: 'p' }, { id: 'b', name: 'Garten', parent_meter_id: 'p' },
+  { id: 'g1', name: 'Z1 HT', meter_group_id: 'G' }, { id: 'g2', name: 'Z1 NT', meter_group_id: 'G' }, { id: 'h1', name: 'Haus HT', parent_meter_id: 'g1', meter_group_id: 'H' }];
+const cs = [{ meter_id: 's' }, { meter_id: 'b', is_shadow: true }, { meter_group_id: 'H' }];
+t('Subzähler mit eigenem Vertrag ziehen ab, ein Angebot nicht', JSON.stringify(RB.deductingSubNames({ meter_id: 'p' }, ms, cs)) === '["Wärmepumpe"]');
+t('Gruppenvertrag: Subzähler der Mitglieder mit Gruppenvertrag ihrer Gruppe', JSON.stringify(RB.deductingSubNames({ meter_group_id: 'G' }, ms, cs)) === '["Haus HT"]');
+t('Wasser rechnet keinen Rest', RB.deductingSubNames({ meter_id: 'p' }, ms, cs, 'wasser').length === 0);
+
 console.log('Assistent');
 const W = await import(`${JS}/components/concept-wizard.js`);
 t('fünf Schritte: Aufbau, Schaltbild, Zähler, Verträge, Zusammenfassung', W.CONCEPT_STEPS.join() === 'setup,layout,meters,contracts,summary');

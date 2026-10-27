@@ -20,7 +20,7 @@
 
 import { api } from '../api.js';
 import { t } from '../lib/i18n.js';
-import { escapeHtml as esc, todayIso } from '../lib/format.js';
+import { escapeHtml as esc, todayIso, fmt } from '../lib/format.js';
 import { openModal } from './modal.js';
 import { toastOk, toastErr } from './toast.js';
 import { getUtilities, getSettings, invalidateSettings } from '../state.js';
@@ -68,6 +68,7 @@ export async function openConceptWizard() {
     slots: null,          // aus der Vorschau: Stelle → {utility, role, parent, registers, contract, name}
     input: {},            // Stelle → {name, serial, meter_id, meter_ids, obis}
     contracts: {},        // Vertragsschlüssel → {provider, start, ct, ct_nt, base, advance}
+    slotInfo: null,       // v3.9.0 (Skeptiker M11) — Vorschau nach den Zählern: laufender Vertrag, Name je Stelle
     preview: null,
   };
   const setConcept = () => {
@@ -78,7 +79,7 @@ export async function openConceptWizard() {
   };
   setConcept();
   /** Körper für Vorschau und Anlegen; die Einspeisung bekommt ohne eigene Nummer die von Z1 (vorhanden oder eingegeben). */
-  const payload = () => {
+  const payload = (withContracts = true) => {
     const input = { ...state.input };
     if (input.feed && !input.feed.serial?.trim() && !input.feed.meter_id) {
       const ids = [state.input.main?.meter_id, ...Object.values(state.input.main?.meter_ids || {})].filter(Boolean);
@@ -86,7 +87,29 @@ export async function openConceptWizard() {
       const dev = m?.devices?.find(d => !d.removed_on) || m?.devices?.[m.devices.length - 1];
       if (dev?.serial) input.feed = { ...input.feed, serial: dev.serial };
     }
-    return conceptPayload(state.concept, state.setup, input, state.contracts);
+    return conceptPayload(state.concept, state.setup, input, withContracts ? state.contracts : {});
+  };
+  /**
+   * v3.9.0 (Skeptiker N16) — der Name einer Stelle, wie er erscheint: mit vorhandenem
+   * Zähler sein Name (bis dahin stand „Hauszähler“ über dem eigenen „Stromzähler“).
+   */
+  const existingIds = (key) => {
+    const regs = Object.keys(state.slots?.[key]?.registers || {});
+    const v = state.input[key] || {};
+    return regs.length > 1 ? regs.map(r => v.meter_ids?.[r]) : [v.meter_id];
+  };
+  const shownName = (key) => {
+    const ids = existingIds(key);
+    if (ids.length && ids.every(Boolean)) {
+      const list = meters[state.slots[key].utility] || [];
+      return ids.map(id => list.find(m => m.id === id)?.name || id).join(' / ');
+    }
+    return state.input[key]?.name || state.slots?.[key]?.name || '';
+  };
+  /** Die Verbrauchsart hinter dem Namen, nur wenn sie etwas sagt („PV-Erzeugung · PV-Erzeugung“ nicht). */
+  const utilSuffix = (key) => {
+    const ul = label(state.slots[key].utility);
+    return ul.toLowerCase() === shownName(key).toLowerCase() ? '' : ` <span class="muted small">· ${esc(ul)}</span>`;
   };
   const tags = () => slotTags(state.concept, state.setup);
 
@@ -150,10 +173,10 @@ export async function openConceptWizard() {
         const regs = Object.entries(slot.registers);
         const multi = regs.length > 1;
         const allExisting = regs.every(([r]) => (multi ? v.meter_ids?.[r] : v.meter_id));
-        const hint = key === 'feed' ? t('concept.meters.sameDevice', { name: state.input.main?.name || state.slots.main?.name || '' })
+        const hint = key === 'feed' ? t('concept.meters.sameDevice', { name: shownName('main') })
           : key === 'gen' ? t('concept.meters.genHint') : key.startsWith('bat_') ? t('concept.meters.batteryHint') : '';
         return `<fieldset class="concept-slot" data-slot="${key}">
-          <legend><span class="concept-tag">${esc(tg[key] || '')}</span> ${esc(v.name || slot.name)} <span class="muted small">· ${esc(label(slot.utility))}</span></legend>
+          <legend><span class="concept-tag">${esc(tg[key] || '')}</span> ${esc(shownName(key))}${utilSuffix(key)}</legend>
           <div class="fgrid">
             ${regs.map(([r, obis]) => `
             <div class="field">
@@ -172,6 +195,15 @@ export async function openConceptWizard() {
               <label for="cw-serial-${key}">${esc(t('concept.meters.serial'))}</label>
               <input class="input" id="cw-serial-${key}" data-slot="${key}" data-field="serial" value="${esc(v.serial || '')}" maxlength="40" autocomplete="off" spellcheck="false">
             </div>
+            <div class="field"${allExisting ? ' hidden' : ''}>
+              <label for="cw-inst-${key}">${esc(t('concept.meters.installedOn'))}</label>
+              <input class="input" type="date" id="cw-inst-${key}" data-slot="${key}" data-field="installed_on" value="${esc(v.installed_on || '')}" aria-describedby="cw-inst-hint-${key}">
+              <span class="muted small" id="cw-inst-hint-${key}">${esc(t('concept.meters.installedHint'))}</span>
+            </div>
+            <div class="field"${allExisting ? ' hidden' : ''}>
+              <label for="cw-init-${key}">${esc(t('concept.meters.initialCounter'))}</label>
+              <input class="input" id="cw-init-${key}" data-slot="${key}" data-field="initial_counter" value="${esc(v.initial_counter ?? '')}" inputmode="decimal" autocomplete="off">
+            </div>
           </div>
           ${hint ? `<p class="muted small">${esc(hint)}</p>` : ''}
         </fieldset>`;
@@ -180,9 +212,8 @@ export async function openConceptWizard() {
 
   const contractSlots = () => Object.entries(state.slots).filter(([, s]) => s.contract);
   const restNote = (key) => {
-    const name = (k) => state.input[k]?.name || state.slots[k]?.name || '';
-    if (key === 'main' && state.concept === 'behind') return t('concept.contracts.restNote', { parent: name('main'), sub: name('dev') });
-    if (key === 'main' && state.concept === 'cascade') return t('concept.contracts.restNote', { parent: name('main'), sub: name('house') });
+    if (key === 'main' && state.concept === 'behind') return t('concept.contracts.restNote', { parent: shownName('main'), sub: shownName('dev') });
+    if (key === 'main' && state.concept === 'cascade') return t('concept.contracts.restNote', { parent: shownName('main'), sub: shownName('house') });
     return '';
   };
   const contractsStep = () => `
@@ -197,8 +228,17 @@ export async function openConceptWizard() {
             <input class="input" id="cw-c-${key}-${field}" data-contract="${slot.contract}" data-field="${field}" type="${type}" value="${esc(c[field] ?? '')}" ${extra}>
           </div>`;
         const note = restNote(key);
+        const legend = `<legend><span class="concept-tag">${esc(tags()[key] || '')}</span> ${esc(shownName(key))}${utilSuffix(key)}</legend>`;
+        // v3.9.0 (Skeptiker M11) — ein laufender Vertrag am vorhandenen Zähler bleibt: zeigen statt leerer Felder
+        const run = state.slotInfo?.[key]?.running_contract;
+        if (run) {
+          return `<fieldset class="concept-slot" data-contract-slot="${key}">${legend}
+          <p class="muted small" data-role="cw-running-contract">${esc(t('concept.contracts.running', { name: [run.provider, run.tariff_name].filter(Boolean).join(' ') || '–', start: fmt.date(run.start) }))}</p>
+          ${note ? `<p class="muted small" data-role="cw-rest-note">${esc(note)}</p>` : ''}
+        </fieldset>`;
+        }
         return `<fieldset class="concept-slot" data-contract-slot="${key}">
-          <legend><span class="concept-tag">${esc(tags()[key] || '')}</span> ${esc(state.input[key]?.name || slot.name)} <span class="muted small">· ${esc(label(slot.utility))}</span></legend>
+          ${legend}
           <div class="fgrid">
             ${f('provider', t('contracts.modal.provider'), 'text', 'maxlength="80" autocomplete="organization"')}
             ${f('start', t('concept.contracts.start'), 'date')}
@@ -220,6 +260,7 @@ export async function openConceptWizard() {
       const parentAction = state.preview.actions.find(x => x.ref === a.parent_ref);
       details.push(t('concept.summary.detailParent', { name: parentAction?.name || state.slots[pk]?.name || pk }));
     }
+    if (a.op === 'create_meter' && a.data?.installed_on) details.push(t('concept.summary.detailInstalled', { date: fmt.date(a.data.installed_on) }));
     if ((a.op === 'create_meter' || a.op === 'update_meter') && a.data?.role) {
       const r = t(`meters.roles.${a.utility}.${a.data.role}`);
       if (!r.startsWith('meters.roles.')) details.push(r);
@@ -227,14 +268,18 @@ export async function openConceptWizard() {
     const main = t(`concept.summary.op.${a.op}`, { name, existing: a.existing || '' });
     return details.length ? `${main} (${details.join(', ')})` : main;
   };
+  /** v3.9.0 (Skeptiker M11) — Wirkung mit Datum: ab wann (auch rückwirkend) nur der Rest, Vertrag vor dem Einbau. */
+  const noticeText = (n) => n.code === 'rest_from'
+    ? t(n.retro ? 'concept.summary.restFromPast' : 'concept.summary.restFrom', { date: fmt.date(n.date), parent: n.parent, sub: n.sub })
+    : n.code === 'before_install' ? t('concept.summary.beforeInstall', { name: n.name, installed: fmt.date(n.installed), start: fmt.date(n.start) }) : '';
   const summaryStep = () => {
     const p = state.preview;
     const regs = Object.fromEntries(Object.entries(p.slots).map(([k, s]) => [k, s.registers]));
     const tg = tags();
     const legend = Object.entries(p.slots).filter(([k]) => k !== 'feed' && k !== 'bat_out').map(([k, s]) => {
-      const names = [state.input[k]?.name || s.name];
-      if (k === 'main' && p.slots.feed) names.push(state.input.feed?.name || p.slots.feed.name);
-      if (k === 'bat_in' && p.slots.bat_out) names.push(state.input.bat_out?.name || p.slots.bat_out.name);
+      const names = [shownName(k)];
+      if (k === 'main' && p.slots.feed) names.push(shownName('feed'));
+      if (k === 'bat_in' && p.slots.bat_out) names.push(shownName('bat_out'));
       const codes = [...Object.values(s.registers), ...(k === 'main' && p.slots.feed ? Object.values(p.slots.feed.registers) : [])].filter(Boolean);
       return `<li><span class="concept-tag">${esc(tg[k] || '')}</span> ${esc(names.join(', '))}${codes.length ? ` <span class="muted small">${esc(codes.join(', '))}</span>` : ''}</li>`;
     }).join('');
@@ -245,6 +290,7 @@ export async function openConceptWizard() {
         <ul class="concept-legend" aria-label="${esc(t('concept.summary.legend'))}">${legend}</ul>
       </div>
       ${p.problems.length ? `<div class="banner banner--error" role="alert" data-role="cw-problems">${p.problems.map(x => `<p>${esc(t('errors.concept.' + x.code, x.params || {}))}</p>`).join('')}</div>` : ''}
+      ${(p.notices || []).length ? `<div class="banner ${p.notices.some(n => n.retro || n.code === 'before_install') ? 'banner--warning' : 'banner--info'}" data-role="cw-notices">${p.notices.map(n => `<p data-notice="${esc(n.code)}">${esc(noticeText(n))}</p>`).join('')}</div>` : ''}
       <ul class="concept-actions" data-role="cw-actions">${p.actions.map(a => `<li data-op="${esc(a.op)}">${esc(actionText(a))}</li>`).join('')}</ul>
       <p class="muted small">${esc(t('concept.summary.snapshot'))}</p>`;
   };
@@ -300,11 +346,12 @@ export async function openConceptWizard() {
           else v.meter_id = el.value || undefined;
           draw(`#${el.id}`);
         }
+        if (el.dataset.slot && el.dataset.field === 'installed_on') (state.input[el.dataset.slot] ||= {}).installed_on = el.value;
       });
       body.addEventListener('input', (e) => {
         const el = e.target;
         if (el.dataset.slot && el.dataset.field === 'name') (state.input[el.dataset.slot] ||= {}).name = el.value;
-        if (el.dataset.slot && el.dataset.field === 'serial') (state.input[el.dataset.slot] ||= {}).serial = el.value;
+        if (el.dataset.slot && ['serial', 'installed_on', 'initial_counter'].includes(el.dataset.field)) (state.input[el.dataset.slot] ||= {})[el.dataset.field] = el.value;
         if (el.dataset.slot && el.dataset.field === 'obis') {
           const v = state.input[el.dataset.slot] ||= {};
           v.obis = { ...(v.obis || {}), [el.dataset.reg]: el.value };
@@ -318,6 +365,8 @@ export async function openConceptWizard() {
         next.disabled = true;
         try {
           if (name === 'layout') await loadSlots();
+          // v3.9.0 (Skeptiker M11) — nach den Zählern: laufende Verträge vorhandener Zähler für Schritt 4
+          if (name === 'meters') state.slotInfo = (await api.conceptPreview(payload(false))).slots;
           // Verträge ohne Eintrag fallen weg (später unter Verträge)
           if (name === 'contracts') state.preview = await api.conceptPreview(payload());
           if (name === 'summary') {

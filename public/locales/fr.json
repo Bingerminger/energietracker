@@ -413,7 +413,8 @@
       "daysCount": {
         "one": "{days} jour",
         "other": "{days} jours"
-      }
+      },
+      "billed": "facturé {value} (reste)"
     },
     "cards": {
       "contracts": "📑 Contrats et acomptes",
@@ -560,7 +561,8 @@
       "estimatedTitle": {
         "one": "{days} jour estimé (après le dernier stock connu)",
         "other": "{days} jours estimés (après le dernier stock connu)"
-      }
+      },
+      "colBilled": "Facturé {unit}"
     },
     "readingsTable": {
       "emptyTitle": "Aucun relevé",
@@ -1141,7 +1143,7 @@
       "title": "Plusieurs compteurs par type de consommation",
       "text": "— p. ex. eau chaude et chauffage (gaz) ou heures pleines/creuses et borne de recharge (électricité). Chaque compteur a son propre historique d’appareils (les changements de compteur sont calculés sans perte) et peut porter ses propres contrats.",
       "topologyLabel": "Topologie :",
-      "topologyText": "Les sous-compteurs sont déduits du compteur parent ; les groupes combinent plusieurs compteurs dans le tableau de bord."
+      "topologyText": "Un sous-compteur avec son propre contrat est déduit du contrat du compteur parent, qui ne facture alors que le reste ; sans contrat propre, c’est une ventilation. Les groupes combinent plusieurs compteurs dans le tableau de bord."
     },
     "empty": "Aucun compteur pour l’instant.",
     "emptyCta": "+ Ajouter un nouveau compteur",
@@ -2988,7 +2990,8 @@
         "one": "{count} valeur mensuelle des deux années est répartie ; les totaux annuels restent mesurés, car des relevés ont été faits au changement d’année.",
         "other": "{count} valeurs mensuelles des deux années sont réparties ; les totaux annuels restent mesurés, car des relevés ont été faits au changement d’année."
       },
-      "poorFit": "Le modèle de chauffage correspond mal à ce compteur (± {pct} par mois) : le rapport ne compare pas ici en données corrigées du climat et ne signale aucun mois au-dessus de l’attendu — ce serait surtout l’erreur du modèle."
+      "poorFit": "Le modèle de chauffage correspond mal à ce compteur (± {pct} par mois) : le rapport ne compare pas ici en données corrigées du climat et ne signale aucun mois au-dessus de l’attendu — ce serait surtout l’erreur du modèle.",
+      "subMeterOwnContract": "Dont {name} : {value} (sous-compteur, inclus dans le total de « {parent} »). {name} a son propre contrat ; le contrat de « {parent} » ne facture que le reste."
     },
     "weatherSource": "Températures : Open-Meteo.com (CC BY 4.0), sauf saisie personnelle.",
     "print": {
@@ -7079,7 +7082,10 @@
       "new": "Créer",
       "sameDevice": "Le registre d’injection de « {name} » : même numéro, compteur propre sous l’injection.",
       "genHint": "Compteur de production de l’installation, souvent dans l’onduleur.",
-      "batteryHint": "Charge et décharge de la batterie, souvent fournies par l’onduleur."
+      "batteryHint": "Charge et décharge de la batterie, souvent fournies par l’onduleur.",
+      "installedOn": "Installé le",
+      "installedHint": "Vide : à partir du début de son contrat, sinon à partir d’aujourd’hui.",
+      "initialCounter": "Index à l’installation"
     },
     "contracts": {
       "title": "Quels contrats y a-t-il ?",
@@ -7091,7 +7097,8 @@
       "feedCt": "Rémunération ({minor}/kWh)",
       "base": "Abonnement ({cur}/mois)",
       "advance": "Acompte ({cur}/mois)",
-      "restNote": "Ne facture que le reste : « {parent} » moins « {sub} »."
+      "restNote": "Ne facture que le reste : « {parent} » moins « {sub} ».",
+      "running": "Contrat en cours : « {name} » depuis le {start}. Il reste tel quel."
     },
     "summary": {
       "title": "Ce que l’assistant va créer",
@@ -7108,7 +7115,11 @@
       "detailObis": "registre {obis}",
       "detailParent": "en aval de « {name} »",
       "snapshot": "Auparavant, l’application enregistre l’état actuel comme instantané. Vous pouvez le restaurer sous Paramètres → Données.",
-      "apply": "Créer"
+      "apply": "Créer",
+      "restFrom": "À partir du {date}, le contrat de « {parent} » ne facture plus que le reste : mesuré là moins « {sub} ».",
+      "restFromPast": "Rétroactivement à partir du {date}, le contrat de « {parent} » ne facture plus que le reste : mesuré là moins « {sub} ». Les coûts, le solde et l’acompte suggéré de ce contrat changent aussi pour les mois depuis le {date}.",
+      "beforeInstall": "« {name} » n’est installé qu’à partir du {installed}, alors que son contrat commence le {start}. Jusqu’à l’installation, l’application ne déduit rien.",
+      "detailInstalled": "installé le {date}"
     },
     "done": "Schéma de comptage configuré. Ensuite : saisir le premier relevé de chaque compteur.",
     "entry": {

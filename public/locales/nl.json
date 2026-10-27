@@ -413,7 +413,8 @@
       "daysCount": {
         "one": "{days} dag",
         "other": "{days} dagen"
-      }
+      },
+      "billed": "afgerekend {value} (rest)"
     },
     "cards": {
       "contracts": "📑 Contracten en voorschotten",
@@ -560,7 +561,8 @@
       "estimatedTitle": {
         "one": "{days} dag geschat (na de laatst bekende voorraad)",
         "other": "{days} dagen geschat (na de laatst bekende voorraad)"
-      }
+      },
+      "colBilled": "Afgerekend {unit}"
     },
     "readingsTable": {
       "emptyTitle": "Geen meterstanden",
@@ -1141,7 +1143,7 @@
       "title": "Meerdere meters per verbruikssoort",
       "text": "— bijv. warm water en verwarming (gas) of dal/piek en laadpunt (elektriciteit). Elke meter heeft een eigen apparaatgeschiedenis (meterwissels worden zonder verlies berekend) en kan eigen contracten hebben.",
       "topologyLabel": "Topologie:",
-      "topologyText": "Tussenmeters worden van de hoofdmeter afgetrokken; groepen combineren meerdere meters in het dashboard."
+      "topologyText": "Een tussenmeter met een eigen contract gaat af van het contract van de hoofdmeter, dat dan alleen de rest afrekent; zonder eigen contract is het een uitsplitsing. Groepen combineren meerdere meters in het dashboard."
     },
     "empty": "Nog geen meters.",
     "emptyCta": "+ Een nieuwe meter toevoegen",
@@ -2988,7 +2990,8 @@
         "one": "{count} maandwaarde van de twee jaren is verdeeld; de jaartotalen zijn toch gemeten, omdat rond de jaarwisseling is afgelezen.",
         "other": "{count} maandwaarden van de twee jaren zijn verdeeld; de jaartotalen zijn toch gemeten, omdat rond de jaarwisseling is afgelezen."
       },
-      "poorFit": "Het verwarmingsmodel past slecht bij deze meter (± {pct} per maand): het rapport vergelijkt hier niet weergecorrigeerd en noemt geen maanden boven de verwachting — beide zouden vooral de fout van het model zijn."
+      "poorFit": "Het verwarmingsmodel past slecht bij deze meter (± {pct} per maand): het rapport vergelijkt hier niet weergecorrigeerd en noemt geen maanden boven de verwachting — beide zouden vooral de fout van het model zijn.",
+      "subMeterOwnContract": "Waarvan {name}: {value} (tussenmeter, inbegrepen in het totaal van ‘{parent}’). {name} heeft een eigen contract; het contract van ‘{parent}’ rekent alleen de rest af."
     },
     "weatherSource": "Temperaturen: Open-Meteo.com (CC BY 4.0), tenzij zelf ingevoerd.",
     "print": {
@@ -7079,7 +7082,10 @@
       "new": "Nieuw aanmaken",
       "sameDevice": "Het terugleveringstelwerk van ‘{name}’: zelfde meternummer, eigen meter onder teruglevering.",
       "genHint": "Opwekmeter van de zonnepanelen, vaak in de omvormer.",
-      "batteryHint": "Laden en ontladen van de accu, vaak uit de omvormer."
+      "batteryHint": "Laden en ontladen van de accu, vaak uit de omvormer.",
+      "installedOn": "Geplaatst op",
+      "installedHint": "Leeg: vanaf het begin van zijn contract, anders vanaf vandaag.",
+      "initialCounter": "Stand bij plaatsing"
     },
     "contracts": {
       "title": "Welke contracten zijn er?",
@@ -7091,7 +7097,8 @@
       "feedCt": "Vergoeding ({minor}/kWh)",
       "base": "Vastrecht ({cur}/maand)",
       "advance": "Voorschot ({cur}/maand)",
-      "restNote": "Rekent alleen de rest af: ‘{parent}’ min ‘{sub}’."
+      "restNote": "Rekent alleen de rest af: ‘{parent}’ min ‘{sub}’.",
+      "running": "Lopend contract: ‘{name}’ sinds {start}. Het blijft zoals het is."
     },
     "summary": {
       "title": "Dit maakt de assistent aan",
@@ -7108,7 +7115,11 @@
       "detailObis": "telwerk {obis}",
       "detailParent": "achter ‘{name}’",
       "snapshot": "Eerst slaat de app de huidige stand op als momentopname. Die zet je zo nodig terug onder Instellingen → Gegevens.",
-      "apply": "Aanmaken"
+      "apply": "Aanmaken",
+      "restFrom": "Vanaf {date} rekent het contract van ‘{parent}’ alleen nog de rest af: daar gemeten min ‘{sub}’.",
+      "restFromPast": "Met terugwerkende kracht vanaf {date} rekent het contract van ‘{parent}’ alleen nog de rest af: daar gemeten min ‘{sub}’. Kosten, saldo en voorgesteld voorschot van dit contract veranderen daardoor ook voor de maanden sinds {date}.",
+      "beforeInstall": "‘{name}’ is pas vanaf {installed} geplaatst, maar zijn contract begint op {start}. Tot de plaatsing trekt de app niets af.",
+      "detailInstalled": "geplaatst op {date}"
     },
     "done": "Meetopstelling ingericht. Daarna: de eerste stand per meter invoeren.",
     "entry": {

@@ -413,7 +413,8 @@
       "daysCount": {
         "one": "{days} Tag",
         "other": "{days} Tage"
-      }
+      },
+      "billed": "abgerechnet {value} (Rest)"
     },
     "cards": {
       "contracts": "📑 Verträge & Abschläge",
@@ -560,7 +561,8 @@
       "estimatedTitle": {
         "one": "{days} Tag geschätzt (nach dem letzten bekannten Bestand)",
         "other": "{days} Tage geschätzt (nach dem letzten bekannten Bestand)"
-      }
+      },
+      "colBilled": "Abgerechnet {unit}"
     },
     "readingsTable": {
       "emptyTitle": "Keine Ablesungen",
@@ -1141,7 +1143,7 @@
       "title": "Mehrere Zähler pro Verbrauchsart",
       "text": "— z. B. Warmwasser & Heizung (Gas) oder HT/NT & Wallbox (Strom). Jeder Zähler hat eine eigene Gerätehistorie (Zählertausch wird verlustfrei berechnet) und kann eigene Verträge tragen.",
       "topologyLabel": "Topologie:",
-      "topologyText": "Subzähler werden vom Elternzähler abgezogen; Gruppen fassen mehrere Zähler im Dashboard zusammen."
+      "topologyText": "Ein Subzähler mit eigenem Vertrag wird vom Vertrag des Elternzählers abgezogen, der dann nur den Rest rechnet; ohne eigenen Vertrag ist er eine Aufschlüsselung. Gruppen fassen mehrere Zähler im Dashboard zusammen."
     },
     "empty": "Noch keine Zähler.",
     "emptyCta": "+ Neuen Zähler anlegen",
@@ -2988,7 +2990,8 @@
         "one": "{count} Monatswert der beiden Jahre ist verteilt; die Jahressummen sind trotzdem gemessen, weil an den Jahreswechseln abgelesen wurde.",
         "other": "{count} Monatswerte der beiden Jahre sind verteilt; die Jahressummen sind trotzdem gemessen, weil an den Jahreswechseln abgelesen wurde."
       },
-      "poorFit": "Das Heizmodell passt schlecht zu diesem Zähler (± {pct} je Monat): Der Bericht vergleicht hier nicht witterungsbereinigt und nennt keine Monate über der Erwartung — beides wäre vor allem der Fehler des Modells."
+      "poorFit": "Das Heizmodell passt schlecht zu diesem Zähler (± {pct} je Monat): Der Bericht vergleicht hier nicht witterungsbereinigt und nennt keine Monate über der Erwartung — beides wäre vor allem der Fehler des Modells.",
+      "subMeterOwnContract": "Davon {name}: {value} (Subzähler, in der Summe von „{parent}“ enthalten). {name} hat einen eigenen Vertrag; der Vertrag von „{parent}“ rechnet nur den Rest."
     },
     "weatherSource": "Temperaturen: Open-Meteo.com (CC BY 4.0), soweit nicht selbst erfasst.",
     "print": {
@@ -7079,7 +7082,10 @@
       "new": "Neu anlegen",
       "sameDevice": "Das Einspeisezählwerk von „{name}“: gleiche Zählernummer, eigener Zähler unter Einspeisung.",
       "genHint": "Erzeugungszähler der PV-Anlage, oft im Wechselrichter.",
-      "batteryHint": "Ladung und Entladung des Speichers, oft aus dem Wechselrichter."
+      "batteryHint": "Ladung und Entladung des Speichers, oft aus dem Wechselrichter.",
+      "installedOn": "Eingebaut am",
+      "installedHint": "Leer: ab Beginn seines Vertrags, sonst ab heute.",
+      "initialCounter": "Stand beim Einbau"
     },
     "contracts": {
       "title": "Welche Verträge gibt es?",
@@ -7091,7 +7097,8 @@
       "feedCt": "Vergütung ({minor}/kWh)",
       "base": "Grundpreis ({cur}/Monat)",
       "advance": "Abschlag ({cur}/Monat)",
-      "restNote": "Rechnet nur den Rest: „{parent}“ minus „{sub}“."
+      "restNote": "Rechnet nur den Rest: „{parent}“ minus „{sub}“.",
+      "running": "Laufender Vertrag: „{name}“ seit {start}. Er bleibt, wie er ist."
     },
     "summary": {
       "title": "Das legt der Assistent an",
@@ -7108,7 +7115,11 @@
       "detailObis": "Zählwerk {obis}",
       "detailParent": "hinter „{name}“",
       "snapshot": "Vorher sichert die App den Stand als Snapshot. Unter Einstellungen → Daten holst du ihn bei Bedarf zurück.",
-      "apply": "Anlegen"
+      "apply": "Anlegen",
+      "restFrom": "Ab {date} rechnet der Vertrag von „{parent}“ nur noch den Rest: gemessen dort minus „{sub}“.",
+      "restFromPast": "Rückwirkend ab {date} rechnet der Vertrag von „{parent}“ nur noch den Rest: gemessen dort minus „{sub}“. Kosten, Saldo und Abschlagsvorschlag dieses Vertrags ändern sich damit auch für die Monate seit {date}.",
+      "beforeInstall": "„{name}“ ist erst ab {installed} eingebaut, sein Vertrag beginnt schon am {start}. Bis zum Einbau zieht die App nichts ab.",
+      "detailInstalled": "eingebaut am {date}"
     },
     "done": "Messkonzept eingerichtet. Als Nächstes: den ersten Stand je Zähler erfassen.",
     "entry": {

@@ -105,6 +105,41 @@ final class MeteringConceptServiceTest extends ServiceTestCase
         self::assertCount(2, array_filter($this->contracts->list('strom'), fn($c) => empty($c['is_shadow'])), 'Bestand + Wärmepumpe');
     }
 
+    /**
+     * Skeptiker-Lauf v3.9.0 (M11, N16): Die Vorschau sagt, ab wann der Hausvertrag nur noch den Rest
+     * rechnet (rückwirkend, wenn der neue Vertrag in der Vergangenheit beginnt), zeigt den laufenden
+     * Vertrag und den Namen des vorhandenen Zählers; der neue Zähler ist ab Vertragsbeginn eingebaut
+     * statt „heute“, mit Stand beim Einbau; ein späterer Einbau als der Vertrag wird genannt.
+     */
+    public function testHouseContractEffectExistingContractAndInstallDate(): void
+    {
+        $main = $this->meters->list('strom')[0];
+        $this->contracts->create('strom', ['meter_id' => (string)$main['id'], 'provider' => 'Bestand', 'start' => '2023-01-01',
+            'working_prices' => [['from' => '2023-01-01', 'ct_per_kwh' => 32.0]]]);
+        $in = fn(array $dev, string $start) => ['concept' => 'behind', 'device' => 'heat_pump', 'tou' => 'none',
+            'slots' => ['main' => ['meter_id' => (string)$main['id']], 'dev' => $dev],
+            'contracts' => ['dev' => ['provider' => 'WP-Tarif', 'start' => $start, 'ct' => 24]]];
+        $p = $this->svc()->plan($in(['name' => 'Wärmepumpe', 'initial_counter' => 1234.5], '2025-01-01'));
+        self::assertSame((string)$main['name'], $p['slots']['main']['display_name'], 'der vorhandene Name statt „Hauszähler“');
+        self::assertSame('Bestand', $p['slots']['main']['running_contract']['provider'] ?? null, 'laufender Vertrag sichtbar');
+        self::assertNull($p['slots']['dev']['running_contract']);
+        self::assertSame([['code' => 'rest_from', 'slot' => 'dev', 'parent' => (string)$main['name'], 'sub' => 'Wärmepumpe', 'date' => '2025-01-01', 'retro' => true]],
+            $p['notices'], 'rückwirkend ab Vertragsbeginn nur noch der Rest');
+        $create = array_values(array_filter($p['actions'], fn($a) => $a['op'] === 'create_meter'))[0];
+        self::assertSame('2025-01-01', $create['data']['installed_on'], 'eingebaut ab Vertragsbeginn, nicht heute');
+        self::assertSame(1234.5, $create['data']['initial_counter']);
+        // später eingebaut als der Vertrag beginnt: Hinweis; künftiger Vertrag: nicht rückwirkend
+        $late = $this->svc()->plan($in(['name' => 'Wärmepumpe', 'installed_on' => '2025-06-01'], '2025-01-01'));
+        self::assertSame(['before_install'], array_values(array_diff(array_column($late['notices'], 'code'), ['rest_from'])));
+        $future = date('Y-m-d', strtotime('+40 days'));
+        $f = $this->svc()->plan($in(['name' => 'Wärmepumpe'], $future));
+        self::assertFalse($f['notices'][0]['retro']);
+        self::assertSame(date('Y-m-d'), array_values(array_filter($f['actions'], fn($a) => $a['op'] === 'create_meter'))[0]['data']['installed_on']);
+        // ungültiges Einbaudatum
+        $this->expectException(LocalizedException::class);
+        $this->svc()->plan($in(['name' => 'Wärmepumpe', 'installed_on' => '01.06.2025'], '2025-01-01'));
+    }
+
     public function testInvalidSetupsAreRefused(): void
     {
         try {
