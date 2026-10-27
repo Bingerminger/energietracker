@@ -228,7 +228,11 @@ final class BillingPeriodService
             // gerechnet bis zur letzten Ablesung (der Stand gehört zum Folgetag,
             // wie die Abschnitte von bill-check) — Kosten und Abschläge auf
             // derselben Grundlage, nicht Grundpreis bis heute und Menge bis März
-            $toExcl = max($p['from'], min(self::addDays($p['until'], 1), (string)$end));
+            // v3.9.0 (Skeptiker H2/M13) — liegt die letzte Ablesung auf dem letzten Tag der Periode, ist sie
+            // deren Endstand wie auf der Rechnung: die Periode ist ganz gerechnet (der eine Tag danach hat keinen
+            // Verbrauch, ConsumptionService::genericBillRows), nicht bis zum Vortag
+            $cap = (string)$end === $p['until'] ? self::addDays($p['until'], 1) : (string)$end;
+            $toExcl = max($p['from'], min(self::addDays($p['until'], 1), $cap));
             $p += $this->sums($utility, $meters, $monthly, $p['from'], $toExcl, $starts);
             $p['as_of'] = $toExcl > $p['from'] ? self::addDays($toExcl, -1) : null;
             $sp = self::specialPayments($contracts, $p['from'], min($p['until'], $today));

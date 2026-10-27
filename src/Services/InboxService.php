@@ -481,7 +481,9 @@ final class InboxService
         return [
             'entry' => $entry,
             'assignment' => ['utility' => $as['utility'] ?? null, 'meter_id' => $as['meter_id'] ?? null, 'contract_id' => $as['contract_id'] ?? null],
-            'assignment_saved' => is_array($e['assignment'] ?? null),
+            'assignment_saved' => is_array($e['assignment'] ?? null) && empty($e['assignment']['auto']),
+            // v3.9.0 (Skeptiker N9) — beim Übernehmen festgehalten (additiv)
+            'assignment_applied' => is_array($e['assignment'] ?? null) && !empty($e['assignment']['auto']),
             'suggested' => $suggested,
             'proposals' => $proposals,
             // v3.7.0 (Paket betrieb) — Kernaussage und nächster Schritt, frisch gerechnet
@@ -521,9 +523,16 @@ final class InboxService
         }
         $res = $this->applier->apply((string)$as['utility'], $selected, $e);
         $now = date('c');
-        $entry = $this->persistMarks($this->mutate($id, function (array $x) use ($res, $as, $now): array {
+        // v3.9.0 (Skeptiker N9) — der Vertrag, den diese Rechnung eben angelegt hat: Zuordnung danach an ihm
+        $created = null;
+        foreach ($res['applied'] as $a) {
+            if (($a['kind'] ?? '') === 'contract_create' && !empty($byId[$a['id']]['data']['for_bill']) && is_string($a['ref']['id'] ?? null)) $created = $a['ref']['id'];
+        }
+        $entry = $this->persistMarks($this->mutate($id, function (array $x) use ($res, $as, $now, $created): array {
             foreach ($res['applied'] as $a) $x['applied'][] = $a + ['at' => $now];
-            if (!is_array($x['assignment'] ?? null)) $x['assignment'] = ['utility' => $as['utility'], 'meter_id' => $as['meter_id'] ?? null, 'contract_id' => $as['contract_id'] ?? null];
+            // (beim Übernehmen festgehalten, nicht von dir gewählt: `auto`)
+            if (!is_array($x['assignment'] ?? null)) $x['assignment'] = ['utility' => $as['utility'], 'meter_id' => $as['meter_id'] ?? null, 'contract_id' => $as['contract_id'] ?? null, 'auto' => true];
+            if ($created !== null && empty($x['assignment']['contract_id'])) $x['assignment']['contract_id'] = $created;
             if ($res['failed'] === [] && ($res['applied'] !== [] || $res['skipped'] !== [])) $x['status'] = 'done';
             return $x;
         }));

@@ -462,7 +462,7 @@ async function renderDetail(container, rawId, ctx = {}) {
       ${pv.gist && !busy.reading ? '' : duplicateHtml(pv)}
       <div class="card inbox-card" id="inbox-assign">
         <h2 class="card__title">${esc(t('inbox.assign.title'))}</h2>
-        <p class="muted small">${esc(pv.assignment_saved ? t('inbox.assign.saved') : (pv.suggested?.by?.length ? t('inbox.assign.suggested', { by: pv.suggested.by.map(b => t('inbox.assign.by.' + b)).join(', ') }) : t('inbox.assign.none')))}</p>
+        <p class="muted small">${esc(pv.assignment_saved ? t('inbox.assign.saved') : pv.assignment_applied ? t('inbox.assign.applied') : (pv.suggested?.by?.length ? t('inbox.assign.suggested', { by: pv.suggested.by.map(b => t('inbox.assign.by.' + b)).join(', ') }) : t('inbox.assign.none')))}</p>
         <div class="form-row">
           <div class="field"><label for="inbox-utility">${esc(t('inbox.assign.utility'))}</label>
             <select class="select" id="inbox-utility"${DEMO ? ' disabled' : ''}><option value="">–</option>

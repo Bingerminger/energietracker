@@ -728,6 +728,13 @@ final class ConsumptionService
                             ? round((float)$curNwRate * (float)$curNwArea / 12.0, 2) : null,
                     ],
                 ];
+                // v3.9.0 (Skeptiker M14) — mit Saldo nach Kalender dieselbe Grundlage wie „Verbraucht (Stand heute)“:
+                // gemessen und geschätzt bis heute, Grundpreise tagesgenau (sonst nur abgelesene Monate, nach einer
+                // Rechnung oft 0,00 € je Sparte neben dem Gesamtbetrag)
+                if ($projection !== null) {
+                    $row['components'] = $this->waterComponentsToDate($row['components'], $c, (string)($row['balance_from'] ?? $c['start'] ?? ''),
+                        (string)$row['balance_as_of'], (float)$projection['energy_cost_to_date'], (float)$projection['base_to_date'], $monthly);
+                }
             }
             $out[] = $row;
         }
@@ -2915,6 +2922,8 @@ final class ConsumptionService
             [$rate, $k] = self::rateAt($intervals, $a, $k);
             $entry = $this->factors()->entryOn($a);
             $m3    = $rate !== null ? $rate * $days : null;
+            // v3.9.0 (Skeptiker M13) — Ablesung am letzten Tag = Endstand: der eine Tag danach ist keine Lücke
+            if ($m3 === null && $b === $to && $days === 1 && str_starts_with((string)$bounds[$a], 'reading')) $m3 = 0.0;
             $kwh   = $m3 !== null ? $m3 * $entry['kwh_per_m3'] : null;
             if ($m3 === null) $gaps++;
 
@@ -3224,6 +3233,9 @@ final class ConsumptionService
             if ($days <= 0) continue;
             [$rate, $k] = self::rateAt($intervals, $a, $k);   // v3.7.0 — wie gasBillBreakdown
             $q = $rate !== null ? $rate * $days : null;
+            // v3.9.0 (Skeptiker M13) — die Ablesung am letzten Tag ist der Endstand (wie auf der Rechnung): der
+            // eine Tag danach bis zum Ende hat keinen Verbrauch und ist keine Lücke
+            if ($q === null && $b === $to && $days === 1 && str_starts_with((string)$bounds[$a], 'reading')) $q = 0.0;
             if ($q === null) $gaps++;
             $cFrom = $counterAt($a); $cTo = $counterAt($b);
             $rows[] = [
@@ -4734,6 +4746,59 @@ final class ConsumptionService
             if ($hit) $monthly[$ym]['rest_of'] = SubmeterRest::restOf($measured, $by, $names, $est, $open === [] ? 0 : max($open));
         }
         return [$monthly, $coverage];
+    }
+
+    /**
+     * v3.9.0 (Skeptiker M14) — die Sparten eines Wasservertrags auf der Grundlage des
+     * Saldos nach Kalender: Arbeitspreis bis heute (`$energy`, gemessen und geschätzt)
+     * nach den Preisen von Trink- und Schmutzwasser am Stichtag geteilt (Schmutzwasser
+     * mit seinem gemessenen Anteil, etwa bei Gartenabzug), Grundpreise und
+     * Niederschlagswasser tagesgenau in [from, asOf), auf `$base` abgeglichen. Die
+     * Summe der Sparten ist damit „Verbraucht (Stand heute)“ ohne Boni. `to_date`
+     * sagt es; die übrigen Felder je Sparte bleiben.
+     *
+     * @param array<string,array<string,mixed>> $comp Sparten aus den abgelesenen Monaten
+     * @param list<array<string,mixed>> $monthly Monatszeilen des Zählers
+     * @return array<string,mixed>
+     */
+    private function waterComponentsToDate(array $comp, array $c, string $from, string $asOf, float $energy, float $base, array $monthly): array
+    {
+        $tw = (array)($c['trinkwasser'] ?? []); $sw = (array)($c['schmutzwasser'] ?? []); $nw = (array)($c['niederschlagswasser'] ?? []);
+        $twB = 0.0; $swB = 0.0; $nwB = 0.0;
+        if ($from !== '' && $from < $asOf) {
+            for ($t = (int)strtotime(substr($from, 0, 7) . '-01'); date('Y-m-d', $t) < $asOf; $t = (int)strtotime('+1 month', $t)) {
+                $mFrom = max(date('Y-m-d', $t), $from);
+                $mTo = min(date('Y-m-d', (int)strtotime('+1 month', $t)), $asOf);
+                $days = (int)round((strtotime($mTo) - strtotime($mFrom)) / 86400);
+                if ($days <= 0) continue;
+                $share = $days / (int)date('t', $t);
+                $twB += (float)($this->contracts->valueOnDate($tw['base_prices'] ?? [], 'eur_per_month', $mFrom) ?? 0) * $share;
+                $swB += (float)($this->contracts->valueOnDate($sw['base_prices'] ?? [], 'eur_per_month', $mFrom) ?? 0) * $share;
+                $rate = $this->contracts->valueOnDate($nw['rates'] ?? [], 'eur_per_m2_year', $mFrom);
+                $area = $this->contracts->valueOnDate($nw['rates'] ?? [], 'versiegelte_flaeche_m2', $mFrom);
+                if ($rate !== null && $area !== null) $nwB += (float)$rate * (float)$area / 12 * $share;
+            }
+        }
+        $sum = $twB + $swB + $nwB;
+        if ($sum > 0) { $k = $base / $sum; $twB *= $k; $swB *= $k; $nwB *= $k; }
+        $day = date('Y-m-d', (int)strtotime("$asOf -1 day"));
+        $twWp = (float)($this->contracts->valueOnDate($tw['working_prices'] ?? [], 'ct_per_m3', $day) ?? 0);
+        $swWp = (float)($this->contracts->valueOnDate($sw['working_prices'] ?? [], 'ct_per_m3', $day) ?? 0);
+        $twM3 = 0.0; $swM3 = 0.0;
+        foreach ($monthly as $m) {
+            if (($m['contract_id'] ?? null) !== ($c['id'] ?? null)) continue;
+            $twM3 += (float)($m['trinkwasser']['m3'] ?? 0);
+            $swM3 += (float)($m['schmutzwasser']['m3'] ?? 0);
+        }
+        $swShare = $twM3 > 0 ? $swM3 / $twM3 : 1.0;
+        $den = $twWp + $swWp * $swShare;
+        $twE = $den > 0 ? $energy * $twWp / $den : $energy;
+        $swE = $energy - $twE;
+        $comp['trinkwasser'] = ['working_cost' => round($twE, 2), 'base_cost' => round($twB, 2), 'total' => round($twE + $twB, 2)] + (array)($comp['trinkwasser'] ?? []);
+        $comp['schmutzwasser'] = ['total' => round($swE + $swB, 2)] + (!empty($sw['base_prices']) ? ['base_cost' => round($swB, 2)] : []) + (array)($comp['schmutzwasser'] ?? []);
+        $comp['niederschlagswasser'] = ['total' => round($nwB, 2)] + (array)($comp['niederschlagswasser'] ?? []);
+        $comp['to_date'] = true;
+        return $comp;
     }
 
     /**

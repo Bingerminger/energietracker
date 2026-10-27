@@ -413,7 +413,9 @@
       "daysCount": {
         "one": "{days} jour",
         "other": "{days} jours"
-      }
+      },
+      "noContract": "aucun contrat",
+      "noContractHint": "Avec un contrat, l’application calcule les coûts."
     },
     "cards": {
       "contracts": "📑 Contrats et acomptes",
@@ -512,7 +514,8 @@
         "other": "Il ne reste que {count} acomptes avant le décompte du {date}. Le décompte règle le reste : inutile d’augmenter l’acompte maintenant."
       },
       "suggestOngoing": "Ensuite, environ {amount} au lieu de {current} par mois seraient adaptés.",
-      "sincePeriod": "Calculé à partir du {date}, début de la période de facturation en cours jusqu’au {until}. Les périodes précédentes figurent dans l’année de facturation."
+      "sincePeriod": "Calculé à partir du {date}, début de la période de facturation en cours jusqu’au {until}. Les périodes précédentes figurent dans l’année de facturation.",
+      "measuredThenEstimatedBase": "mesuré jusqu’au {date} ({amount}), estimé ensuite : {value} de consommation ; plus abonnements à ce jour {base}"
     },
     "contractsTable": {
       "emptyTitle": "Aucun contrat enregistré",
@@ -6180,7 +6183,8 @@
         "utility": "énergie citée dans le document",
         "single_meter": "compteur unique",
         "date": "contrat du fournisseur à cette date"
-      }
+      },
+      "applied": "Enregistré lors de la reprise."
     },
     "manual": {
       "title": "Saisir à la main",
@@ -6586,7 +6590,8 @@
       "energy": "Prix unitaire",
       "parts": "à partir de {parts}",
       "net": "{value} HT + {vat} % de TVA",
-      "advance": "Acompte à partir du {from} : {value} par échéance"
+      "advance": "Acompte à partir du {from} : {value} par échéance",
+      "paid": "Acomptes versés du {from} au {to} : {total} selon la facture"
     }
   },
   "inboxCloud": {
@@ -6883,7 +6888,8 @@
       "ready": "Configuré : l’application lit désormais avec {service}, modèle {model}.",
       "unavailable": "Les paramètres de lecture sont injoignables pour l’instant. Réessayez dans un instant."
     },
-    "requires": "Fait partie de « {contract} » et n’est repris qu’avec ce contrat."
+    "requires": "Fait partie de « {contract} » et n’est repris qu’avec ce contrat.",
+    "existingName": "Dans vos données, le fournisseur s’appelle « {name} »."
   },
   "interpolation": {
     "leadYear": {

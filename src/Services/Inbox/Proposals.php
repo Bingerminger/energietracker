@@ -984,13 +984,30 @@ final class Proposals
         if ($plan !== null && !isset($plan['due_dates'])) $plan['from'] = self::sure($e, 'advance_new_from', $withheld);
         $advFrom = $plan['from'] ?? null;
         $rhythmConflict = false;
+        $planRows = [];
+        // v3.9.0 (Skeptiker H2) — die laut Rechnung im abgerechneten Zeitraum gezahlten Abschläge: am Vertrag,
+        // der den ganzen Zeitraum trägt (nicht an einem Vor- oder Folgevertrag aus einer Lücke). Danach bis
+        // zum neuen Plan kein Abschlag, den die Rechnung nicht nennt (Zeile mit 0 am Tag nach dem Zeitraum)
+        $pFrom = self::value($e, 'period_from'); $pTo = self::value($e, 'period_to');
+        $paid = $from === $pFrom && $to === $pTo && !Utilities::isFeedIn($u) ? InvoicePrices::paidPlan($e, $from, $to) : null;
+        if ($paid !== null) {
+            $planRows[] = array_diff_key($paid, ['total' => 1]);
+            $lines[] = ['section' => null, 'kind' => 'paid', 'from' => $from, 'to' => $to, 'value' => (float)$paid['amount_eur'], 'total' => $paid['total'],
+                'every' => (int)($paid['every_months'] ?? 1), 'dates' => $paid['due_dates'] ?? []];
+            $after = date('Y-m-d', (int)strtotime("$to +1 day"));
+            if ($end === null && !(is_string($advFrom) && $advFrom <= $after && !$final && is_numeric($adv))) $planRows[] = ['from' => $after, 'amount_eur' => 0.0];
+        }
         if (!$final && $end === null && is_numeric($adv) && is_string($advFrom) && $advFrom >= $from && !Utilities::isFeedIn($u)) {
             $row = ['from' => $advFrom, 'amount_eur' => (float)$adv] + array_intersect_key((array)$plan, array_flip(['every_months', 'due_dates']));
             // Rhythmus laut Rechnung gegen die Termine: die Termine gelten, der Vertrag ist dann nicht vorbelegt
             $rhythmConflict = !empty($plan['rhythm_conflict']);
-            $data['advance_payments'] = [$row];
+            $planRows[] = $row;
             $lines[] = ['section' => null, 'kind' => 'advance', 'from' => $advFrom, 'value' => (float)$adv,
                 'every' => (int)($row['every_months'] ?? 1), 'dates' => $row['due_dates'] ?? []];
+        }
+        if ($planRows !== []) {
+            usort($planRows, fn($a, $b) => strcmp((string)$a['from'], (string)$b['from']));
+            $data['advance_payments'] = $planRows;
         }
         $data += ['contract_number' => self::sure($e, 'contract_number', $withheld), 'customer_number' => self::sure($e, 'customer_number', $withheld)];
         // die Rechnung hängt an diesem Vertrag (nicht an einem Vor- oder Zwischenvertrag aus einer Lücke)
@@ -1268,7 +1285,7 @@ final class Proposals
         $status = 'new'; $detail = null;
         foreach ($this->readings->list($c['u'], (string)$m['id']) as $r) {
             if (($r['date'] ?? '') !== $date) continue;
-            if (abs((float)$r['counter'] - $value) < 0.0005) { $status = 'exists'; break; }
+            if (self::sameStand((float)$r['counter'], $value)) { $status = 'exists'; break; }   // v3.9.0 (Skeptiker M12) — auch gerundet gedruckt
             $status = 'conflict'; $detail = ['reading_id' => (string)$r['id'], 'counter' => (float)$r['counter']];
         }
         if ($optional && $status === 'new' && $this->fitsBetween($c['u'], $m, $date, $value, $extra)) $optional = false;
@@ -1628,9 +1645,21 @@ final class Proposals
         $best = null;
         foreach ($this->readings->list($c['u'], (string)$c['meter']['id']) as $r) {
             $d = (string)($r['date'] ?? '');
-            if ($d >= $from && $d < $date && is_numeric($r['counter'] ?? null) && abs((float)$r['counter'] - $value) < 0.0005 && ($best === null || $d > $best)) $best = $d;
+            if ($d >= $from && $d < $date && is_numeric($r['counter'] ?? null) && self::sameStand((float)$r['counter'], $value) && ($best === null || $d > $best)) $best = $d;
         }
         return $best;
+    }
+
+    /**
+     * v3.9.0 (Skeptiker M12) — Ist dein Stand derselbe wie der des Dokuments? Auch, wenn das Dokument ihn auf
+     * weniger Stellen gedruckt hat: 29.310 kWh im Dokument und 29.310,2 kWh bei dir sind derselbe Stand (dein
+     * Stand auf die Stellen des Dokuments gerundet, höchstens drei).
+     */
+    public static function sameStand(float $own, float $doc): bool
+    {
+        if (abs($own - $doc) < 0.0005) return true;
+        for ($d = 0; $d < 3 && abs($doc - round($doc, $d)) > 1e-9; $d++);
+        return abs(round($own, $d) - $doc) < 1e-9;
     }
 
     /**

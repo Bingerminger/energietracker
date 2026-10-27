@@ -24,7 +24,7 @@ import { showFieldError } from '../lib/form.js';
 import { toastOk, toastErr } from '../components/toast.js';
 import { t, tp, getCurrencyMinor, getCurrencySymbol, getLocale } from '../lib/i18n.js';
 import { info, infoNote } from '../components/info.js';
-import { isFeedIn as feedInKind, isGeneration as generationKind, isPv, usesGasFactors, balanceView, moreIsBetter, uncertainRangeText } from '../lib/semantics.js';
+import { isFeedIn as feedInKind, isGeneration as generationKind, isPv, usesGasFactors, balanceView, moreIsBetter, uncertainRangeText, costWithoutContract } from '../lib/semantics.js';
 import { typicalPerDay, checkReading, confirmIssues, issueText, deviceChangedBetween } from '../lib/plausibility.js';
 // v3.2.0 (F1020) — Schaubilder zu dieser Verbrauchsart
 import { moneyHtml, energyHtml, weatherHtml, timelineHtml, playExplainers } from '../components/explainer.js';
@@ -401,6 +401,8 @@ async function rerender(container) {
   const costShown = totCost + totBonus;
   const bonusText = withBonus ? bonusLineText(billing ? sel.bonus_items : bonusItemsOf(monthlyYear), totBonus) : '';
   const hasContract = monthlyYear.some(m => m.contract_id);
+  // v3.9.0 (Skeptiker N8) — Art mit Verträgen, im Jahr kein Vertrag und keine Kosten
+  const noContractCost = costWithoutContract({ u, hasContract, cost: costShown, billing, delivery: isDelivery });
   // v3.4.0 (N1021) — der laufende Vertrag nach der Phase des Servers: Bei
   // überlappenden Verträgen ist der abgelöste ältere zwar noch „im Zeitraum“
   // (`is_current`), gilt aber nicht mehr
@@ -444,8 +446,12 @@ async function rerender(container) {
       ${isGeneration ? '' : `
       <div class="kpi c-${u.key}">
         <div class="kpi__label">${isFeedIn ? t('utility.kpi.revenue') : t('utility.kpi.cost')} ${escapeHtml(yrLabel)}${bonusText ? infoNote(t('utility.kpi.cost'), t('bonus.costNote')) : ''}</div>
-        <div class="kpi__value ${isFeedIn ? 'success-text' : ''}" data-role="kpi-cost">${fmt.eur(costShown)}</div>
-        <div class="kpi__sub">${t('utility.kpi.perMonth', { value: fmt.eur(monthlyYear.length ? costShown / monthlyYear.length : 0) })}</div>
+        ${noContractCost
+          // v3.9.0 (Skeptiker N8) — ohne Vertrag keine Kosten: „kein Vertrag“ statt „0,00 €“
+          ? `<div class="kpi__value" data-role="kpi-cost">${escapeHtml(t('utility.kpi.noContract'))}</div>
+        <div class="kpi__sub"><a href="#/utility/${encodeURIComponent(u.key)}/contracts">${escapeHtml(t('utility.kpi.noContractHint'))}</a></div>`
+          : `<div class="kpi__value ${isFeedIn ? 'success-text' : ''}" data-role="kpi-cost">${fmt.eur(costShown)}</div>
+        <div class="kpi__sub">${t('utility.kpi.perMonth', { value: fmt.eur(monthlyYear.length ? costShown / monthlyYear.length : 0) })}</div>`}
         ${bonusText ? `<div class="kpi__sub kpi__bonus" data-role="kpi-bonus">${escapeHtml(bonusText)}</div>` : ''}
       </div>`}
       ${hasContract && !isFeedIn ? `
@@ -823,7 +829,9 @@ function balanceCard(c, u, country = 'DE') {
   const estimated = (c.estimated_cost_to_date || 0) > 0.005 && c.measured_until;
   const measuredSub = estimated
     // v3.9.0 (auswertung, Nachtrag) — die Einheit aus der SSOT (Wasser m³, bis v3.8 „(0 kWh)“)
-    ? t('utility.balance.measuredThenEstimated', { date: fmt.date(c.measured_until), value: fmt.eur(c.estimated_cost_to_date),
+    // v3.9.0 (Skeptiker M14) — Wasser: der Satz nennt neben dem geschätzten Verbrauch die Grundpreise bis heute
+    ? t(isWater && c.base_to_date > 0 ? 'utility.balance.measuredThenEstimatedBase' : 'utility.balance.measuredThenEstimated', { date: fmt.date(c.measured_until), value: fmt.eur(c.estimated_cost_to_date),
+      base: fmt.eur(c.base_to_date),
       amount: u.consumption_unit === 'kWh' ? fmt.unit(c.actual_kwh, u.consumption_unit, 0) : fmt.unit(c.actual_m3 || 0, u.consumption_unit, 1) })
     : consumedSub;
   // Die Teile der Summe (energy/base/bonus_to_date) — ältere Server liefern

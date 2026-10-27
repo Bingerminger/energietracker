@@ -79,6 +79,8 @@ export function basisText(f) {
   // v3.9.0 — Stand gegen deine Stände: gemeldeter Stand vom Versorger auf das Zeitraumende datiert, oder der Nachbar, zu dem er nicht passt
   if (f.reported_on) parts.push(t('inbox.detail.readingReported', { date: fmt.date(f.reported_on), counter: fmt.dec(f.value, 3) }));
   if (f.neighbor) parts.push(t(f.neighbor.side === 'prev' ? 'inbox.detail.readingBelow' : 'inbox.detail.readingAbove', { date: fmt.date(f.neighbor.date), counter: fmt.dec(f.neighbor.counter, 3) }));
+  // v3.9.0 (Skeptiker N15) — „schon vorhanden“, im Bestand aber anders geschrieben
+  if (f.existing_name) parts.push(t('inboxDraft.existingName', { name: f.existing_name }));
   return parts.join(' · ');
 }
 

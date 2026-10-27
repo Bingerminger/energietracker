@@ -413,7 +413,9 @@
       "daysCount": {
         "one": "{days} día",
         "other": "{days} días"
-      }
+      },
+      "noContract": "sin contrato",
+      "noContractHint": "Con un contrato, la app calcula los costes."
     },
     "cards": {
       "contracts": "📑 Contratos y anticipos",
@@ -512,7 +514,8 @@
         "other": "Antes de la liquidación del {date} solo quedan {count} anticipos. La liquidación salda el resto: no hace falta subir el anticipo ahora."
       },
       "suggestOngoing": "Después, unos {amount} en lugar de {current} al mes serían adecuados.",
-      "sincePeriod": "Calculado desde el {date}, inicio del periodo de facturación en curso hasta el {until}. Los periodos anteriores están en el año de facturación."
+      "sincePeriod": "Calculado desde el {date}, inicio del periodo de facturación en curso hasta el {until}. Los periodos anteriores están en el año de facturación.",
+      "measuredThenEstimatedBase": "medido hasta el {date} ({amount}), estimado desde entonces: {value} de consumo; más términos fijos hasta hoy {base}"
     },
     "contractsTable": {
       "emptyTitle": "Sin contratos registrados",
@@ -6180,7 +6183,8 @@
         "utility": "energía indicada en el documento",
         "single_meter": "contador único",
         "date": "contrato del suministrador en esa fecha"
-      }
+      },
+      "applied": "Registrado al adoptar."
     },
     "manual": {
       "title": "Introducir a mano",
@@ -6586,7 +6590,8 @@
       "energy": "Precio unitario",
       "parts": "a partir de {parts}",
       "net": "{value} neto + {vat} % de IVA",
-      "advance": "Anticipo desde el {from}: {value} por vencimiento"
+      "advance": "Anticipo desde el {from}: {value} por vencimiento",
+      "paid": "Anticipos pagados del {from} al {to}: {total} según la factura"
     }
   },
   "inboxCloud": {
@@ -6883,7 +6888,8 @@
       "ready": "Configurado: la app lee ahora con {service}, modelo {model}.",
       "unavailable": "Los ajustes de lectura no están disponibles ahora. Vuelve a intentarlo enseguida."
     },
-    "requires": "Pertenece a «{contract}» y solo se adopta junto con este contrato."
+    "requires": "Pertenece a «{contract}» y solo se adopta junto con este contrato.",
+    "existingName": "En tus datos el suministrador se llama «{name}»."
   },
   "interpolation": {
     "leadYear": {

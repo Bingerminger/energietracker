@@ -133,6 +133,8 @@ export function proposalLines(p) {
       if (l.kind === 'working') text = t('inbox.line.working', { ...base, value: l.section ? `${fmt.dec(l.value, 4)} ct/m³` : `${fmt.dec(l.value, 4)} ct/kWh` });
       else if (l.kind === 'base') text = t(l.section ? 'inbox.line.base' : 'inbox.line.baseOnly', { ...base, value: priceMoney(l.value) });
       else if (l.kind === 'rate') text = t('inbox.line.rate', { ...base, value: priceMoney(l.value), area: fmt.dec(l.area, 2) });
+      // v3.9.0 (Skeptiker H2) — die laut Rechnung im Zeitraum gezahlten Abschläge
+      else if (l.kind === 'paid') return t('inbox.line.paid', { from: fmt.date(l.from), to: fmt.date(l.to), total: fmt.money(l.total) });
       else if (l.kind === 'advance') {
         const rhythm = advanceRhythm(l.every, l.dates);
         return t('inbox.line.advance', { from: fmt.date(l.from), value: fmt.money(l.value) }) + (rhythm ? `, ${rhythm}` : '');
