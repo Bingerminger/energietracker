@@ -4028,7 +4028,10 @@
     "useSuggested": "Inserire",
     "toast": {
       "verified": "Segnata come corretta. L’app non lo chiederà più.",
-      "billingOnly": "Solo per la bolletta: i valori mensili ora saltano questa lettura.",
+      "billingOnly": {
+        "one": "Solo per la bolletta: i valori mensili ora saltano questa lettura.",
+        "other": "Solo per la bolletta: i valori mensili ora saltano queste {count} letture."
+      },
       "undone": "Annullato"
     },
     "duplicate": {
@@ -4042,7 +4045,12 @@
     "mismatch": {
       "one": "Una sola lettura sbagliata non spiega entrambi. Una foto o la bolletta mostra se è giusta.",
       "other": "Nessuno scostamento comune delle {count} letture spiega entrambi. Una foto o la bolletta mostra quale è giusta."
-    }
+    },
+    "notes": "Note: {notes}",
+    "note": "{date} «{note}»",
+    "bridgedTitle": "Ripartito secondo il meteo, non misurato: una lettura intermedia conta solo per la bolletta.",
+    "billedShort": "(fatturato {amount})",
+    "bridgedLegend": "≈ ripartito secondo il meteo: una lettura intermedia conta solo per la bolletta. Costi e saldo usano la quantità fatturata (tra parentesi)."
   },
   "format": {
     "decimal": ",",
@@ -7179,7 +7187,9 @@
       "date": "Dal giorno",
       "label": "Descrizione",
       "confirm": "Impostare la cesura",
-      "invalid": "Inserire un giorno."
-    }
+      "invalid": "Inserire un giorno.",
+      "textOther": "Da questo giorno previsione e confronti usano solo il periodo successivo. È preimpostata la fine del periodo insolito. Se conosci il giorno del cambiamento (ad esempio il trasloco), inseriscilo."
+    },
+    "adviceOther": "Sembra un cambiamento reale (ad esempio un trasloco, un periodo vuoto, una ristrutturazione o un altro apparecchio), non un errore di lettura. Una cesura separa il periodo precedente: previsione e confronti usano poi il consumo di oggi."
   }
 }

@@ -4028,7 +4028,10 @@
     "useSuggested": "Invullen",
     "toast": {
       "verified": "Als juist gemarkeerd. De app vraagt er niet meer naar.",
-      "billingOnly": "Alleen voor de afrekening: maandwaarden slaan deze meterstand nu over.",
+      "billingOnly": {
+        "one": "Alleen voor de afrekening: maandwaarden slaan deze meterstand nu over.",
+        "other": "Alleen voor de afrekening: maandwaarden slaan deze {count} meterstanden nu over."
+      },
       "undone": "Ongedaan gemaakt"
     },
     "duplicate": {
@@ -4042,7 +4045,12 @@
     "mismatch": {
       "one": "Eén verkeerde meterstand verklaart niet beide. Een foto of de afrekening laat zien of hij klopt.",
       "other": "Geen gemeenschappelijke afwijking van de {count} meterstanden verklaart beide. Een foto of de afrekening laat zien welke klopt."
-    }
+    },
+    "notes": "Notities: {notes}",
+    "note": "{date} ‘{note}’",
+    "bridgedTitle": "Naar het weer verdeeld, niet gemeten: een meterstand daartussen telt alleen voor de afrekening.",
+    "billedShort": "(afgerekend {amount})",
+    "bridgedLegend": "≈ naar het weer verdeeld: een meterstand daartussen telt alleen voor de afrekening. Kosten en saldo rekenen met de afgerekende hoeveelheid (tussen haakjes)."
   },
   "format": {
     "decimal": ",",
@@ -7179,7 +7187,9 @@
       "date": "Vanaf de dag",
       "label": "Omschrijving",
       "confirm": "Peilmoment instellen",
-      "invalid": "Vul een dag in."
-    }
+      "invalid": "Vul een dag in.",
+      "textOther": "Vanaf deze dag rekenen prognose en vergelijkingen alleen met de tijd daarna. Het einde van de opvallende periode is ingevuld. Weet je de dag van de verandering (bijvoorbeeld de verhuizing), vul die dan in."
+    },
+    "adviceOther": "Dat lijkt op een echte verandering (bijvoorbeeld een verhuizing, leegstand, een verbouwing of een ander apparaat), niet op een afleesfout. Een peilmoment scheidt de tijd daarvoor af: prognose en vergelijkingen rekenen dan met het huidige verbruik."
   }
 }

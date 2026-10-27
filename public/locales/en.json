@@ -4028,7 +4028,10 @@
     "useSuggested": "Insert",
     "toast": {
       "verified": "Marked as correct. The app will not ask about it again.",
-      "billingOnly": "Only for the bill: monthly values now skip this reading.",
+      "billingOnly": {
+        "one": "Only for the bill: monthly values now skip this reading.",
+        "other": "Only for the bill: monthly values now skip these {count} readings."
+      },
       "undone": "Undone"
     },
     "duplicate": {
@@ -4042,7 +4045,12 @@
     "mismatch": {
       "one": "A single wrong reading does not explain both. A photo or the bill shows whether it is right.",
       "other": "No common offset of the {count} readings explains both. A photo or the bill shows which one is right."
-    }
+    },
+    "notes": "Notes: {notes}",
+    "note": "{date} “{note}”",
+    "bridgedTitle": "Spread by the weather, not measured: a reading in between only counts for the bill.",
+    "billedShort": "(billed {amount})",
+    "bridgedLegend": "≈ spread by the weather: a reading in between only counts for the bill. Costs and balance use the billed amount (in brackets)."
   },
   "format": {
     "decimal": ".",
@@ -7179,7 +7187,9 @@
       "date": "From the day",
       "label": "Label",
       "confirm": "Set baseline date",
-      "invalid": "Please enter a day."
-    }
+      "invalid": "Please enter a day.",
+      "textOther": "From this day on, forecast and comparisons only use the time after it. The end of the unusual period is filled in. If you know the day of the change (such as moving in), enter it."
+    },
+    "adviceOther": "That looks like a real change (such as moving in, a vacancy, a renovation or a different appliance), not a reading error. A baseline date separates the time before: forecast and comparisons then use today’s consumption."
   }
 }

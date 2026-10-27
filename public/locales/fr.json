@@ -4028,7 +4028,10 @@
     "useSuggested": "Insérer",
     "toast": {
       "verified": "Noté comme correct. L’application ne posera plus la question.",
-      "billingOnly": "Seulement pour la facture : les valeurs mensuelles ignorent désormais ce relevé.",
+      "billingOnly": {
+        "one": "Seulement pour la facture : les valeurs mensuelles ignorent désormais ce relevé.",
+        "other": "Seulement pour la facture : les valeurs mensuelles ignorent désormais ces {count} relevés."
+      },
       "undone": "Annulé"
     },
     "duplicate": {
@@ -4042,7 +4045,12 @@
     "mismatch": {
       "one": "Un seul relevé erroné n’explique pas les deux. Une photo ou la facture montre s’il est juste.",
       "other": "Aucun décalage commun des {count} relevés n’explique les deux. Une photo ou la facture montre lequel est juste."
-    }
+    },
+    "notes": "Notes : {notes}",
+    "note": "{date} « {note} »",
+    "bridgedTitle": "Réparti selon la météo, non mesuré : un relevé intermédiaire ne compte que pour la facture.",
+    "billedShort": "(facturé {amount})",
+    "bridgedLegend": "≈ réparti selon la météo : un relevé intermédiaire ne compte que pour la facture. Les coûts et le solde utilisent la quantité facturée (entre parenthèses)."
   },
   "format": {
     "decimal": ",",
@@ -7179,7 +7187,9 @@
       "date": "À partir du jour",
       "label": "Libellé",
       "confirm": "Définir la rupture",
-      "invalid": "Veuillez saisir un jour."
-    }
+      "invalid": "Veuillez saisir un jour.",
+      "textOther": "À partir de ce jour, la prévision et les comparaisons n’utilisent que la période suivante. La fin de la période inhabituelle est préremplie. Si vous connaissez le jour du changement (par exemple l’emménagement), saisissez-le."
+    },
+    "adviceOther": "Cela ressemble à un vrai changement (par exemple un emménagement, une période inoccupée, des travaux ou un autre appareil), pas à une erreur de relevé. Une rupture de référence sépare la période précédente : la prévision et les comparaisons utilisent alors la consommation actuelle."
   }
 }

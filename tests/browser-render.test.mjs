@@ -3387,6 +3387,9 @@ async function renderView(modPath, params = [], ctx = {}) {
       return id;
     };
     const mid = await formula('Ablesung Test', () => 1, { '2025-02-01': (m) => 0.6 * m['2025-01'] });
+    // Skeptiker H4: eine Notiz am Stand vor dem Abstand davor steht im Befund
+    const jan1 = ((await send('GET', `/utility/gas/readings?meter_id=${encodeURIComponent(mid)}`)).data || []).find(r => r.date === '2025-01-01');
+    await send('PATCH', `/utility/gas/readings/${encodeURIComponent(jan1?.id)}`, { note: 'Besuch über Neujahr' });
     const rc = (await send('GET', `/utility/gas/meters/${mid}/reading-checks`)).data;
     const rid = rc?.checks?.[0]?.reading_ids?.[0];
     t('ablesung: GET …/reading-checks — ein Befund für den Stand vom 01.02.2025, zu hoch, mit Vorschlag', rc?.checks?.length === 1
@@ -3406,6 +3409,7 @@ async function renderView(modPath, params = [], ctx = {}) {
     t('ablesung: Zu tun — „Ablesung vom … prüfen“, gemessen gegen erwartet davor und danach, Vermutung, drei Knöpfe',
       /Ablesung vom 01\.02\.2025 prüfen/.test(rt) && /Davor \(01\.01\.2025 bis 01\.02\.2025\): .+ gemessen, erwartet rund/.test(rt)
       && /Danach \(01\.02\.2025 bis 01\.03\.2025\)/.test(rt) && /Der Stand liegt vermutlich um rund .+ zu hoch/.test(rt)
+      && /Notizen: 01\.01\.2025 „Besuch über Neujahr“/.test(rt)
       && /Stand ist richtig/.test(row.querySelector('[data-rc-verify]')?.textContent || '') && /Nur für die Abrechnung/.test(row.querySelector('[data-rc-billing]')?.textContent || '')
       && row.querySelector('[data-rc-correct]')?.getAttribute('href') === `#/utility/gas?meter=${encodeURIComponent(mid)}&edit_reading=${encodeURIComponent(rid)}`
       && !row.querySelector('[data-todo-done]'), rt.slice(0, 400));
@@ -3434,6 +3438,14 @@ async function renderView(modPath, params = [], ctx = {}) {
     const pill = await until(() => lv.view.querySelector(`tr[data-reading-id="${rid}"] [data-role="billing-only-pill"]`), 120);
     t('ablesung: Liste — Marke „NUR ABRECHNUNG“ mit Erklärung und Satz über der Liste', /NUR ABRECHNUNG/.test(pill?.textContent || '')
       && /1 Stand gilt nur für die Abrechnung/.test(lv.view.querySelector('[data-role="billing-only-note"]')?.textContent || ''));
+    // Skeptiker M9: Monatszeile mit der abgerechneten Menge, eigene Legende „nach dem Wetter“
+    const billedCell = lv.view.querySelector('[data-role="billed-qty"]');
+    const bridgedLegend = lv.view.querySelector('[data-role="bridged-legend"]')?.textContent || '';
+    t('ablesung: Monatstabelle — überbrückter Monat mit „(abgerechnet …)“, Legende nach dem Wetter, nicht „gleichmäßig“',
+      /\(abgerechnet [\d.]+\)/.test(billedCell?.textContent || '') && !!lv.view.querySelector('[data-role="bridged"]')
+      && /nach dem Wetter verteilt/.test(bridgedLegend) && !/gleichmäßig/.test(bridgedLegend)
+      && !/gleichmäßig/.test(lv.view.querySelector('[data-role="interpolated-legend"]')?.textContent || ''),
+      `${billedCell?.textContent} · ${bridgedLegend.slice(0, 120)}`);
     // zurück (Rückgängig ist oben schon geprüft): den Merker direkt entfernen
     await send('PATCH', `/utility/gas/readings/${encodeURIComponent(rid)}`, { is_billing_only: false });
     global.document.querySelectorAll('.toast').forEach(el => el.remove());
@@ -3493,6 +3505,12 @@ async function renderView(modPath, params = [], ctx = {}) {
       /Seit 01\.07\.2025 dauerhaft weniger Verbrauch/.test(lt) && /Monate lang gleichbleibend rund 2,0-mal so hoch wie heute/.test(lt)
       && /nicht nach einem Ablesefehler/.test(lt) && /Zäsur hier setzen/.test(lrow.querySelector('[data-rc-baseline]')?.textContent || '')
       && /Nicht jetzt/.test(lrow.querySelector('[data-rc-later]')?.textContent || '') && !lrow.querySelector('[data-todo-done]'), lt.slice(0, 400));
+    // Skeptiker N1: Begründung je Grundlage, beim Strom ohne Heizung
+    const rcLib = await import(`${ROOT}/lib/reading-check.js`);
+    const lsGas = rcLib.levelShiftLines({ date: '2025-07-01', months: 24, factor: 2, direction: 'higher', basis: 'heat_model' }).join(' ');
+    const lsPower = rcLib.levelShiftLines({ date: '2025-07-01', months: 14, factor: 0.08, direction: 'lower', basis: 'mean_rate' }).join(' ');
+    t('ablesung: Zäsur-Hinweis — Gas nennt eine neue Heizung, Strom Einzug oder Gerät, keine Heizung',
+      /neue Heizung/.test(lsGas) && /Einzug/.test(lsPower) && !/Heiz/.test(lsPower), lsPower.slice(0, 200));
     // erst ein Dialog: Tag vorbelegt mit dem Ende der auffälligen Zeit, Bezeichnung, Bestätigung
     lrow?.querySelector('[data-rc-baseline]')?.click();
     const lsDate = await until(() => global.document.querySelector('.modal #ls-date'));

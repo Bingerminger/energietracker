@@ -35,12 +35,16 @@ export function readingCheckLines(c) {
   const unit = c.unit || '';
   const side = (key, s) => t(key, { ...span(s), measured: amount(s.measured, unit), expected: amount(s.expected, unit) });
   const n = Number(c.count) || (Array.isArray(c.reading_ids) ? c.reading_ids.length : 1);
-  return [
+  const lines = [
     side('readingCheck.before', c.before),
     side('readingCheck.after', c.after),
     c.kind === 'mismatch' ? tp('readingCheck.mismatch', n)
       : tp(c.direction === 'high' ? 'readingCheck.high' : 'readingCheck.low', n, { amount: amount(c.offset, unit) }),
   ];
+  // Skeptiker H4: Notizen an den Ständen (davor bis danach) erklären oft, was die Zahlen zeigen
+  const notes = (c.notes || []).filter(x => x?.note);
+  if (notes.length) lines.push(t('readingCheck.notes', { notes: notes.map(x => t('readingCheck.note', { date: fmt.date(x.date), note: x.note })).join(' · ') }));
+  return lines;
 }
 
 /**
@@ -81,7 +85,7 @@ export async function markReadings({ utility, ids, flag, onChange = () => {} }) 
   try {
     await setFlag(utility, list, flag, true);
   } catch (e) { toastErr(e.message); return false; }
-  toastUndo(t(flag === 'is_billing_only' ? 'readingCheck.toast.billingOnly' : 'readingCheck.toast.verified'), async () => {
+  toastUndo(flag === 'is_billing_only' ? tp('readingCheck.toast.billingOnly', list.length) : t('readingCheck.toast.verified'), async () => {
     try {
       await setFlag(utility, list, flag, false);
       toastOk(t('readingCheck.toast.undone'));
@@ -116,14 +120,18 @@ export async function deleteDuplicates({ utility, meterId, ids, onChange = () =>
   return true;
 }
 
-/** Zeilen zum Hinweis auf die Analyse-Zäsur (`ref` eines `level_shift`-Ereignisses). */
+/**
+ * Zeilen zum Hinweis auf die Analyse-Zäsur (`ref` eines `level_shift`-Ereignisses). Die
+ * Begründung je Grundlage (Skeptiker N1): beim Heizmodell „neue Heizung“, sonst neutral
+ * („Einzug, Leerstand, Umbau oder ein anderes Gerät“).
+ */
 export function levelShiftLines(s) {
   if (!s?.date) return [];
   const months = Number(s.months) || 12;
   const text = s.direction === 'higher'
     ? tp('levelShift.textHigher', months, { factor: fmt.num(Number(s.factor), 1) })
     : tp('levelShift.textLower', months, { pct: fmt.pct(Number(s.factor), 0) });
-  return [text, t('levelShift.advice')];
+  return [text, t(s.basis === 'heat_model' ? 'levelShift.advice' : 'levelShift.adviceOther')];
 }
 
 export function levelShiftTitle(s) {
@@ -135,13 +143,13 @@ export function levelShiftTitle(s) {
  * dem ersten Stand auf heutigem Niveau) und Bezeichnung, mit Bestätigung.
  * @returns {Promise<{date:string,label:string}|null>}
  */
-export function baselineDialog({ date, label }) {
+export function baselineDialog({ date, label, basis = 'heat_model' }) {
   return new Promise(resolve => {
     let done = false;
     const finish = (v) => { if (!done) { done = true; resolve(v); } };
     const ctrl = openModal({
       title: t('levelShift.dialog.title'),
-      body: `<p class="small">${escapeHtml(t('levelShift.dialog.text'))}</p>
+      body: `<p class="small" data-role="ls-text">${escapeHtml(t(basis === 'heat_model' ? 'levelShift.dialog.text' : 'levelShift.dialog.textOther'))}</p>
         <div class="field"><label for="ls-date">${escapeHtml(t('levelShift.dialog.date'))}</label>
           <input class="input" id="ls-date" type="date" name="date" value="${escapeHtml(date || '')}" required aria-describedby="ls-msg"></div>
         <div class="field"><label for="ls-label">${escapeHtml(t('levelShift.dialog.label'))}</label>
@@ -168,8 +176,8 @@ export function baselineDialog({ date, label }) {
  * „Zäsur hier setzen“: erst der Dialog (Tag vorbelegt), dann die Zäsur am Zähler (die
  * übrigen bleiben), mit Rückgängig.
  */
-export async function setBaselineAt({ utility, meterId, date, onChange = () => {} }) {
-  const choice = await baselineDialog({ date, label: t('levelShift.label') });
+export async function setBaselineAt({ utility, meterId, date, basis = 'heat_model', onChange = () => {} }) {
+  const choice = await baselineDialog({ date, label: t('levelShift.label'), basis });
   if (!choice) return false;
   let before;
   try {

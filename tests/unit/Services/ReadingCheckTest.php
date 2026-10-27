@@ -944,6 +944,8 @@ final class ReadingCheckTest extends ServiceTestCase
         self::assertTrue($mar['bridged']);
         self::assertEqualsWithDelta(9.3, $mar['m3'], 0.01);
         self::assertEqualsWithDelta(8.60, $mar['trinkwasser']['working_cost'], 0.01);
+        // Skeptiker M9: die abgerechnete Menge steht an der Monatszeile (4,3 m³ = 8,60 € ÷ 2 €)
+        self::assertEqualsWithDelta(4.3, $mar['billed_m3'], 0.01);
     }
 
     // ── 6  „Zu tun“, /api/todo, Backup ──────────────────────────────────
@@ -1007,6 +1009,68 @@ final class ReadingCheckTest extends ServiceTestCase
         self::assertTrue($byId['r_2025-01-01']['is_verified']);
         self::assertTrue($byId['r_2025-02-20']['is_billing_only']);
         self::assertArrayNotHasKey('is_billing_only', $byId['r_2025-01-01'], 'nur gespeichert, wenn gesetzt');
+    }
+
+    /**
+     * Skeptiker H4: Monatlich abgelesen, alle Stände richtig, Monatsrauschen ±8 % (erfundenes
+     * Muster je Monat). April 2025 450 kWh unter, Mai 2025 450 über der Formel (Heizung früh
+     * aus, dann ein kalter Mai): gemeldet am Stand 01.05.2025 (0,5× davor, 2,3× danach), mit
+     * der Notiz vom 01.04.2025. April/Mai 2023 je 230 kWh daneben (0,64× und 1,71×), bei einer
+     * Streuung des Modells von 77 kWh unter drei Streuungen: nicht gemeldet.
+     * Nach „Nur für die Abrechnung“ am 01.05.2025 fallen die beiden verzerrten Abstände aus dem
+     * Heizmodell, die Streuung sinkt auf 67, und ohne Schutz hieße 2023 jetzt „deutlich“, ein
+     * neuer Befund erst nach dem Knopfdruck, obwohl dort nichts geändert wurde. Mit Schutz
+     * kommt nichts Neues.
+     */
+    public function testABillingOnlyDecisionBringsNoNewFindings(): void
+    {
+        $day = fn(string $x) => self::day($x);
+        $month = fn(string $ym) => array_sum(array_map(fn($k) => $day(sprintf('%s-%02d', $ym, $k)), range(1, (int)date('t', strtotime("$ym-01")))));
+        $scale = function (string $x) use ($month): float {
+            $ym = substr($x, 0, 7);
+            $f = 1 + 0.08 * ((((int)substr($x, 0, 4) * 12 + (int)substr($x, 5, 2)) * 7 % 5) - 2) / 2;
+            $dev = ['2023-04' => -230.0, '2023-05' => 230.0, '2025-04' => -450.0, '2025-05' => 450.0][$ym] ?? 0.0;
+            return $f + $dev / $month($ym);
+        };
+        $meter = $this->gasHousehold(self::firsts('2023-01', '2026-06'), [], 10000.0, $scale);
+        $all = $this->store->read('gas/readings.json', []);
+        foreach ($all as &$r) if ($r['date'] === '2025-04-01') $r['note'] = 'Heizung schon aus';
+        unset($r);
+        $this->store->write('gas/readings.json', $all);
+        $c = $this->checks()->forMeter('gas', $meter)['checks'];
+        self::assertSame(['r_2025-05-01'], array_merge(...array_map(fn($x) => $x['reading_ids'], $c)), json_encode($c));
+        self::assertSame([['date' => '2025-04-01', 'note' => 'Heizung schon aus']], $c[0]['notes']);
+        $this->readings->update('gas', 'r_2025-05-01', ['is_billing_only' => true]);
+        $r = $this->checks()->forMeter('gas', $meter);
+        self::assertSame([], $r['checks'], 'nach der Entscheidung kein neuer Befund: ' . json_encode($r['checks']));
+        self::assertSame(['r_2025-05-01'], $r['billing_only']);
+    }
+
+    /**
+     * Skeptiker M1: Ein Stand des Blocks steht zweimal da (derselbe Tag, derselbe Stand).
+     * „Nur für die Abrechnung“ an den drei Ständen des Befunds markiert den Zwilling mit; sonst
+     * nähme die Prüfung ihn als Stand des Tages und meldete denselben Tag neu, und die
+     * Monatswerte blieben schief. „Stand ist richtig“ und das Zurücknehmen ebenso.
+     */
+    public function testDuplicateTwinsShareTheFlags(): void
+    {
+        $meter = $this->gasHousehold(self::storyDates(), self::BLOCK);
+        $all = $this->store->read('gas/readings.json', []);
+        $twin = ['id' => 'r_dup'] + array_values(array_filter($all, fn($r) => $r['date'] === '2025-02-20'))[0];
+        $all[] = $twin;
+        $this->store->write('gas/readings.json', $all);
+        $c = $this->checks()->forMeter('gas', $meter)['checks'];
+        self::assertCount(1, $c);
+        foreach ($c[0]['reading_ids'] as $id) $this->readings->update('gas', $id, ['is_billing_only' => true]);
+        $byId = array_column($this->readings->list('gas', $meter['id']), null, 'id');
+        self::assertTrue($byId['r_dup']['is_billing_only'] ?? false, 'Zwilling mitmarkiert');
+        self::assertSame([], $this->checks()->forMeter('gas', $meter)['checks']);
+        self::assertTrue($this->monthOf($meter, '2025-02')['bridged'] ?? false, 'Februar überbrückt');
+        $this->readings->update('gas', 'r_2025-02-20', ['is_billing_only' => false, 'is_verified' => true]);
+        $byId = array_column($this->readings->list('gas', $meter['id']), null, 'id');
+        self::assertArrayNotHasKey('is_billing_only', $byId['r_dup']);
+        self::assertTrue($byId['r_dup']['is_verified'] ?? false);
+        self::assertArrayNotHasKey('is_verified', $byId['r_2025-03-01'], 'nur der Zwilling, kein anderer Stand');
     }
 
     /** Neu angelegt „nur für die Abrechnung“ (Stand von der Rechnung). */

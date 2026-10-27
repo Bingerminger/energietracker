@@ -1334,15 +1334,23 @@ function monthlyTable(monthly, u, hasContracts) {
       // v2.10.0 — Tankbuch: Monate mit geschätzten Tagen (nach dem letzten bekannten Bestand)
       const est = m.estimated_days > 0
         ? ` <span class="muted" title="${escapeHtml(tp('utility.monthlyTable.estimatedTitle', m.estimated_days, { days: m.estimated_days }))}">≈</span>`
-        // v3.7.0 (#37) — verteilt statt gemessen; Text auch für Screenreader
-        : isInterpolated(m) ? ` <span class="muted" data-role="interpolated" title="${escapeHtml(markTitle(m))}"><span aria-hidden="true">${MARK}</span><span class="sr-only">${escapeHtml(markTitle(m))}</span></span>` : '';
+        // v3.7.0 (#37) — verteilt statt gemessen; Text auch für Screenreader. v3.9.0 (Skeptiker M9):
+        // überbrückt (Stand nur für die Abrechnung) heißt nach dem Wetter verteilt, nicht gleichmäßig
+        : isInterpolated(m) || m.bridged ? (() => {
+          const title = m.bridged ? t('readingCheck.bridgedTitle') : markTitle(m);
+          return ` <span class="muted" data-role="${m.bridged ? 'bridged' : 'interpolated'}" title="${escapeHtml(title)}"><span aria-hidden="true">${MARK}</span><span class="sr-only">${escapeHtml(title)}</span></span>`;
+        })() : '';
+      // überbrückt: Kosten und Saldo rechnen mit der Menge nach dem Stand, sie steht daneben
+      const billedQty = m.bridged ? (consKey === 'kwh' ? m.billed_kwh : m.billed_m3) : null;
+      const billed = billedQty != null
+        ? ` <span class="muted small" data-role="billed-qty">${escapeHtml(t('readingCheck.billedShort', { amount: fmt.int(billedQty) }))}</span>` : '';
       // v2.15.0 (Review FE-08) — Teilmonat mit erfassten Tagen, sichtbar statt im Tooltip
       const part = isPartial(m);
       return `<tr${part ? ' class="is-partial"' : ''}>
         <td><strong>${fmt.month(m.ym)}</strong>${est}</td>
         <td class="num">${part ? `${m.days} / ${daysInMonth(m.ym)}` : (m.days || 0)}</td>
         ${isGas ? `<td class="num">${fmt.int(m.m3)}</td>` : ''}
-        <td class="num"><strong>${fmt.int(m[consKey])}</strong></td>
+        <td class="num"><strong>${fmt.int(m[consKey])}</strong>${billed}</td>
         ${adj ? `<td class="num">${m.heat_adjusted != null ? fmt.int(m.heat_adjusted) : '–'}</td>` : ''}
         <td class="num">${fmt.num(m.kwh_per_day, 1)}</td>
         ${pv ? '' : `<td class="num">${m.avg_temp != null ? fmt.num(m.avg_temp, 1) : '–'}</td>`}
@@ -1373,7 +1381,8 @@ function monthlyTable(monthly, u, hasContracts) {
   </table></div>
   ${showBalance ? `<p class="muted" style="font-size:12px;margin-top:8px">${t('saldo.tableLegend')}</p>` : ''}
   ${monthly.some(m => m.estimated_days > 0) ? `<p class="muted" style="font-size:12px;margin-top:8px">${t('utility.monthlyTable.estimatedLegend')}</p>` : ''}
-  ${monthly.some(isInterpolated) ? `<p class="muted" style="font-size:12px;margin-top:8px" data-role="interpolated-legend">${escapeHtml(t('interpolation.legend'))}</p>` : ''}
+  ${monthly.some(m => isInterpolated(m) && !m.bridged) ? `<p class="muted" style="font-size:12px;margin-top:8px" data-role="interpolated-legend">${escapeHtml(t('interpolation.legend'))}</p>` : ''}
+  ${monthly.some(m => m.bridged) ? `<p class="muted" style="font-size:12px;margin-top:8px" data-role="bridged-legend">${escapeHtml(t('readingCheck.bridgedLegend'))}</p>` : ''}
   ${monthly.some(isPartial) ? `<p class="muted" style="font-size:12px;margin-top:8px">${escapeHtml(t('utility.monthlyTable.partialLegend'))}</p>` : ''}`;
 }
 
