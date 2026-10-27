@@ -210,7 +210,11 @@ entry until a new month is measured or the suggestion changes. The same note
 with the same button appears on the balance card, in the forecast and in the
 workshop when their estimate is uncertain because the heating model fits poorly.
 Both buttons exist at every level; the analysis with the whole grid stays from
-Experienced.
+Experienced. In the beginner overview the entry is short: “Estimate more
+accurately: …”, below it “Your home only heats below about … °C outside, and with
+this value the app estimates your usage more accurately.”, the balance on the
+settlement date and the suitable advance payment with the new limit, the same two
+buttons and **“More about this”** for the technical lines.
 
 **Check a reading (v3.9.0):** If a reading between two correct ones is too low
 or too high, “To do” shows “check the reading of …” (for several readings in a
@@ -322,7 +326,9 @@ shows the welcome.
   against the same months a year earlier, from six comparable months on: “…
   more than last year”, “… less than last year” or, below 2 %, “about the
   same as last year” — green when it is good (for PV, more), otherwise red.
-  Without a previous year: “No previous year to compare yet.”
+  Without a previous year: “No previous year to compare yet.” With a previous
+  year but too few measured months *(v3.9.0)*: “Too few measured months to
+  compare. Interpolated and partial months do not count.”
 - 🏢 **“Does the prepayment cover it?”** — only “in a rented home” with a
   running tenancy: “Yes — probably about … back.” or “Tight — probably about …
   additional payment.”, then with “Suitable prepayment: … a month.”
@@ -632,9 +638,16 @@ If fewer than three advance payments are left before the bill, the card no
 longer suggests a higher advance but says: “Only 2 advance payments are left
 before the bill on …. The bill settles the rest, so there is no need to raise
 the advance now.” If the ongoing amount differs, it adds “After that, about …
-instead of … a month would be right.” Up to v3.7 the card counted from the
+instead of … a month would be right.” (with a rhythm “… every 2 months would be
+right.”). Up to v3.7 the card counted from the
 contract start without a bill and named the day after
 ([basics §10](../verstehen/00-overview.md#one-projection-for-balance-and-workshop-since-v390)).
+If the heating model passes the quality gate, the expected balance shows to the
+euro with “≈”, and a sentence names the width: “Depending on the weather and the
+estimate about … to about … (80 %, … days estimated).” With an uncertain
+estimate it stays a range with its reason
+([basics §10](../verstehen/00-overview.md#10-balance-to-date)). Without a
+contract the “Costs” tile has shown “no contract” instead of €0.00 since v3.9.0.
 
 **Advance payments with a rhythm (v3.9.0):** if the supplier collects the
 advance every two or three months or on fixed dates, the card names the amount

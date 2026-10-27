@@ -71,7 +71,7 @@ there, you get a **suggested advance payment** (`suggested_advance`), the
 the advice on the advance. The API marks this with `projection_method: forecast`.
 *(v3.9.0)* The three components below “Consumed (as of today)” are then
 calculated on the same basis (measured and estimated up to today, standing
-charges by the day) and add up to the amount above; up to v3.8 they only counted
+charges by the day) and add up to the amount above; up to v3.7 they only counted
 months with readings and often showed €0.00 after a bill.
 
 Without advance payments the balance stays over the months with readings

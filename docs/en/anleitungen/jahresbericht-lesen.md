@@ -96,7 +96,7 @@ the previous year are missing”. Litres per person and day are calculated over 
 recorded days, heating energy per m² reads “so far” for an incomplete year, and a
 merely assumed number of people is named as an assumption. If a balance estimate
 is uncertain, the “Bill” light gives no verdict: it says “estimate uncertain” with
-the range, like the balance card, the overview and the workshop (up to v3.8 it
+the range, like the balance card, the overview and the workshop (up to v3.7 it
 took the unfavourable end). If a contract ends soon with a successor contract
 entered, or fewer than three advance payments are left until the bill, there is a
 hint about the bill instead of the task “Adjust advance payment”.

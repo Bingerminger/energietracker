@@ -1033,7 +1033,7 @@ halbe Breite = 1,28 × √( Σ (a × Faktor_Heizung × σ_HGT,Monat × Anteil k�
 ```
 
 Das Wetter zählt für die Tage ab heute, die Streuung des Modells für jeden
-geschätzten Tag seit der letzten Ablesung. Bis v3.8 verschwand mit bestandener
+geschätzten Tag seit der letzten Ablesung. Bis v3.7 verschwand mit bestandener
 Gütesperre (etwa nach der Heizgrenze) jede Spanne, auch mit neun geschätzten
 Monaten. Der Abschlagsvorschlag bleibt.
 
@@ -1172,7 +1172,7 @@ laufend = gerundet( geschätzte Kosten der 12 Monate nach der Abrechnung / Raten
 Raten im Jahr: 12 bei monatlichem Abschlag, 6 alle zwei Monate, 4 alle drei
 Monate. *(seit v3.9.0)* Mit Rhythmus gelten Vorschlag und laufender Abschlag je
 Rate, und die Texte nennen den Rhythmus („rund 152 € statt 165 € alle 2 Monate“);
-bis v3.8 stand ein Monatsbetrag neben dem Betrag je Termin.
+bis v3.7 stand ein Monatsbetrag neben dem Betrag je Termin.
 
 ### Tagesgenau wie die Rechnung (seit v2.9.0)
 

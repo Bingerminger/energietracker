@@ -217,7 +217,11 @@ Gruppenvertrag an der Gruppe), der Hinweis danach bietet „Rückgängig“.
 sich der Vorschlag ändert. Derselbe Hinweis mit demselben Knopf steht an der
 Saldo-Karte, in der Prognose und in der Werkstatt, wenn deren Schätzung unsicher
 ist, weil das Heizmodell schlecht passt. Beide Knöpfe gibt es in jeder Stufe; die
-Analyse mit dem ganzen Raster bleibt ab Erfahren.
+Analyse mit dem ganzen Raster bleibt ab Erfahren. In der Übersicht für
+Einsteiger steht der Eintrag kurz: „Genauer schätzen: …“, darunter „Dein Haus
+heizt erst unter etwa … °C draußen, und mit diesem Wert schätzt die App deinen
+Verbrauch genauer.“, der Saldo zum Abrechnungstag und der passende Abschlag mit
+der neuen Grenze, dieselben zwei Knöpfe und **„Mehr dazu“** für die Fachzeilen.
 
 **Ablesung prüfen (v3.9.0):** Liegt ein Stand zwischen zwei richtigen zu niedrig
 oder zu hoch, steht unter „Zu tun“ „Ablesung vom … prüfen“ (bei mehreren
@@ -333,7 +337,9 @@ in jeder Stufe das Willkommen.
   zwölf Monate gegen dieselben Monate ein Jahr zuvor, ab sechs vergleichbaren
   Monaten: „… mehr als im Vorjahr“, „… weniger als im Vorjahr“ oder unter 2 %
   „etwa wie im Vorjahr“ — grün, wenn es gut ist (bei PV mehr), sonst rot.
-  Ohne Vorjahr: „Noch kein Vorjahr zum Vergleichen.“
+  Ohne Vorjahr: „Noch kein Vorjahr zum Vergleichen.“ Gibt es ein Vorjahr, aber
+  zu wenige gemessene Monate *(v3.9.0)*: „Zu wenige gemessene Monate zum
+  Vergleichen. Verteilte und angefangene Monate zählen nicht.“
 - 🏢 **„Reicht die Vorauszahlung?“** — nur „zur Miete“ mit laufendem
   Mietverhältnis: „Ja — voraussichtlich rund … zurück.“ oder „Knapp —
   voraussichtlich rund … Nachzahlung.“, dann mit „Passende Vorauszahlung: …
@@ -649,9 +655,15 @@ die Prognose-Werkstatt zeigen denselben Saldo zum selben Tag. Das Datum ist der
 Karte keinen höheren Abschlag mehr vor, sondern sagt: „Bis zur Abrechnung am …
 bleiben nur noch 2 Abschläge. Den Rest gleicht die Abrechnung aus; dafür musst
 du den Abschlag jetzt nicht erhöhen.“ Weicht der laufend passende Abschlag ab,
-folgt „Danach wären rund … statt … im Monat angemessen.“ Bis v3.7 zählte die
+folgt „Danach wären rund … statt … im Monat angemessen.“ (mit Rhythmus „… alle
+2 Monate angemessen.“). Bis v3.7 zählte die
 Karte ohne Rechnung ab Vertragsbeginn und nannte den Folgetag
 ([Grundlagen §10](../verstehen/00-overview.md#eine-projektion-für-saldo-und-werkstatt-seit-v390)).
+Besteht das Heizmodell die Gütesperre, steht der erwartete Saldo mit „≈“ auf den
+Euro da, und ein Satz nennt die Breite: „Je nach Wetter und Schätzung ca. … bis
+ca. … (80 %, … Tage geschätzt).“ Bei unsicherer Schätzung bleibt es bei der
+Spanne mit Grund ([Grundlagen §10](../verstehen/00-overview.md#10-saldo-bis-heute)).
+Ohne Vertrag zeigt die Kachel „Kosten“ seit v3.9.0 „kein Vertrag“ statt 0,00 €.
 
 **Abschlag im Rhythmus (v3.9.0):** Zieht der Versorger den Abschlag alle zwei
 oder drei Monate oder zu festen Terminen ein, nennt die Karte den Betrag je

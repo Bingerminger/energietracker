@@ -72,7 +72,7 @@ wie dort ein **Vorschlag für den Abschlag** (`suggested_advance`), der
 In der API steht `projection_method: forecast`. *(v3.9.0)* Die drei Sparten unter
 „Verbraucht (Stand heute)“ rechnen dann auf derselben Grundlage (gemessen und
 geschätzt bis heute, Grundpreise tagesgenau) und ergeben zusammen den Betrag
-darüber; bis v3.8 zählten sie nur abgelesene Monate und standen nach einer
+darüber; bis v3.7 zählten sie nur abgelesene Monate und standen nach einer
 Rechnung oft bei 0,00 €.
 
 Ohne Abschläge bleibt es beim Saldo über die Monate mit Ablesung
