@@ -2518,7 +2518,8 @@
       },
       "r7": {
         "title": "{label}: efficiency class {class} ({kwh} kWh/m²·a)",
-        "detail": "{label}: the heating energy demand {year} corresponds to efficiency class {class} ({kwh} kWh/m²·a). Insulation, heating optimisation or a hydraulic balance can improve the class noticeably."
+        "detail": "{label}: the heating energy demand {year} corresponds to efficiency class {class} ({kwh} kWh/m²·a). Insulation, heating optimisation or a hydraulic balance can improve the class noticeably.",
+        "areaAssumed": "The class uses an assumed living area of {area} m². Enter the real area under Settings → Household & building."
       },
       "rPriceIncrease": {
         "title": "{label}: price increase from {date}",
@@ -7146,7 +7147,16 @@
     "undone": "Heating limit back as before",
     "notNow": "Not now",
     "notNowHint": "Comes back when new months are measured or the suggestion changes.",
-    "dismissed": "Hidden until new months are measured or the suggestion changes."
+    "dismissed": "Hidden until new months are measured or the suggestion changes.",
+    "beginner": {
+      "title": "Estimate more accurately: {label}",
+      "sentence": "Your home only heats below about {best} °C outside, and with this value the app estimates your usage more accurately.",
+      "balance": "Balance on {date}: {after} instead of {before}.",
+      "advance": "Suitable advance payment: {after} instead of {before}.",
+      "advanceOnly": "Suitable advance payment: {after}.",
+      "more": "More about this"
+    },
+    "notNowNamed": "Not now: {title}"
   },
   "levelShift": {
     "titleLess": "Consistently lower consumption since {date}",

@@ -9,7 +9,7 @@ import { makeChart, chartColor, withAlpha, tokenColor, chartTableHtml } from '..
 import { isPartial, daysInMonth, yoyTrend, lastMonths, shiftYm } from '../lib/chart-data.js';
 import { toastErr, toastUndo } from '../components/toast.js';
 import { t, tp } from '../lib/i18n.js';
-import { heatLimitFacts, heatLimitEffect, applyHeatLimit, isGroupId } from '../lib/heat-limit.js';   // v3.9.0 (#38)
+import { heatLimitFacts, heatLimitEffect, heatLimitBeginnerLines, applyHeatLimit, isGroupId, heatLimitLaterUntil } from '../lib/heat-limit.js';   // v3.9.0 (#38)
 // v3.9.0 (ablesung-pruefen) — Zwischenablesung prüfen, doppelt eingetragen, Hinweis auf die Zäsur
 import { readingCheckLines, readingCheckTitle, correctHref, markReadings, deleteDuplicates, levelShiftLines, levelShiftTitle,
   setBaselineAt, dismissLevelShift } from '../lib/reading-check.js';
@@ -449,6 +449,8 @@ export function buildTodo(events, recs, keep = () => true) {
     const lines = [`${e.params?.label ?? ''} · ${e.params?.meter ?? ''}`, ...heatLimitFacts(h, r.unit || 'kWh'), ...heatLimitEffect(h)];
     items.push({ icon: '🌡️', tone: 'warn', text: t('heatLimit.title', { best: fmt.num(Number(r.best), 1) }),
       sub: lines.join(' '), subLines: lines,
+      // v3.9.0 (Skeptiker N4) — Einsteiger: kurz, ohne Fachwörter; das Übrige aufklappbar
+      short: { text: t('heatLimit.beginner.title', { label: e.params?.label ?? '' }), subLines: heatLimitBeginnerLines(h) },
       href: e.href, ev: e, action: t('dashboard.todo.heatLimitAction'), heatLimit: { ...h, utility: r.utility, id: r.meter_id, recId: r.recommendation_id } });
   }
   // v3.9.0 (ablesung-pruefen) — Ablesung prüfen (gemessen gegen erwartet davor und danach;
@@ -487,22 +489,30 @@ export function buildTodo(events, recs, keep = () => true) {
  * statt eines umbrechenden Knopfs unter dem Text); v3.4.0 (F1024) — daneben
  * der Haken, wo sich der Hinweis von Hand erledigen lässt.
  */
-function todoItemsHtml(items, { go = true } = {}) {
+function todoItemsHtml(items, { go = true, beginner = false } = {}) {
   // v3.9.0 (ablesung-pruefen) — der Hinweis auf die Zäsur hat „Nicht jetzt“ statt des Hakens
   const checkable = (x) => x.ev?.can_mark_done && !x.readingCheck;
-  return items.map((x, i) => `<li class="dash-todo__item dash-todo__item--${x.tone}${checkable(x) ? ' dash-todo__item--check' : ''}">
+  return items.map((x, i) => {
+    // v3.9.0 (Skeptiker N4) — Einsteiger: die kurze Fassung, die Fachzeilen aufklappbar unter den Knöpfen
+    const short = beginner && x.short ? x.short : null;
+    const text = short ? short.text : x.text;
+    const subLines = short ? short.subLines : x.subLines;
+    return `<li class="dash-todo__item dash-todo__item--${x.tone}${checkable(x) ? ' dash-todo__item--check' : ''}">
     <a class="dash-todo__link" href="${x.href}">
       <span class="dash-todo__icon" aria-hidden="true">${escapeHtml(x.icon)}</span>
-      <span class="dash-todo__text"><strong>${escapeHtml(x.text)}</strong>${x.subLines ? x.subLines.map(s => `<span class="muted">${escapeHtml(s)}</span>`).join('')
+      <span class="dash-todo__text"><strong>${escapeHtml(text)}</strong>${subLines ? subLines.map(s => `<span class="muted">${escapeHtml(s)}</span>`).join('')
         : x.sub ? `<span class="muted">${escapeHtml(x.sub)}</span>` : ''}${x.ev ? chipHtml(x.ev) : ''}</span>
       ${go ? `<span class="btn btn--sm btn--ghost dash-todo__go">${escapeHtml(x.action)}</span>` : ''}
       <span class="dash-todo__chev" aria-hidden="true">›</span>
     </a>
     ${checkable(x) ? `<button type="button" class="btn btn--sm btn--ghost dash-todo__done" data-todo-done="${i}"
-      title="${escapeHtml(t('activity.markDone'))}" aria-label="${escapeHtml(t('activity.markDoneNamed', { title: x.text }))}"><span aria-hidden="true">✓</span></button>` : ''}
+      title="${escapeHtml(t('activity.markDone'))}" aria-label="${escapeHtml(t('activity.markDoneNamed', { title: text }))}"><span aria-hidden="true">✓</span></button>` : ''}
     ${x.heatLimit ? heatLimitActionsHtml(x, i) : ''}
+    ${short ? `<details class="dash-todo__more" data-role="todo-more"><summary>${escapeHtml(t('heatLimit.beginner.more'))}</summary>
+      <p class="muted small"><strong>${escapeHtml(x.text)}.</strong> ${(x.subLines || []).map(escapeHtml).join(' ')}</p></details>` : ''}
     ${x.readingCheck ? readingCheckActionsHtml(x, i) : ''}
-  </li>`).join('');
+  </li>`;
+  }).join('');
 }
 
 /**
@@ -559,7 +569,7 @@ function todoHtml(items, f = null) {
 
 /** Einsteiger: höchstens vier Zeilen, ohne Knopf „Zum …". */
 function beginnerTodoHtml(items) {
-  return items.length ? `<ul class="dash-todo__list">${todoItemsHtml(items.slice(0, 4), { go: false })}</ul>`
+  return items.length ? `<ul class="dash-todo__list">${todoItemsHtml(items.slice(0, 4), { go: false, beginner: true })}</ul>`
     : `<p class="muted">${escapeHtml(t('dashboard.beginner.todo.none'))}</p>`;
 }
 
@@ -604,8 +614,7 @@ export function renderTodoBox(box, items) {
     btn.disabled = true;
     try {
       // bis die Daten sich ändern: die Empfehlung trägt den Datenstand in ihrer ID; ein Jahr als Obergrenze
-      const until = new Date(Date.now() + 365 * 86400000).toISOString().slice(0, 10);
-      await api.dismissRecommendation(h.recId, until);
+      await api.dismissRecommendation(h.recId, heatLimitLaterUntil());
       btn.closest('li')?.remove();
       toastUndo(t('heatLimit.dismissed'), async () => {
         try { await api.restoreRecommendation(h.recId); await refresh(); } catch (e) { toastErr(e.message); }

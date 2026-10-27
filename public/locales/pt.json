@@ -2518,7 +2518,8 @@
       },
       "r7": {
         "title": "{label}: classe de eficiência {class} ({kwh} kWh/m²·a)",
-        "detail": "{label}: a necessidade de energia de aquecimento {year} corresponde à classe de eficiência {class} ({kwh} kWh/m²·a). Isolamento, otimização do aquecimento ou um equilíbrio hidráulico podem melhorar a classe de forma notável."
+        "detail": "{label}: a necessidade de energia de aquecimento {year} corresponde à classe de eficiência {class} ({kwh} kWh/m²·a). Isolamento, otimização do aquecimento ou um equilíbrio hidráulico podem melhorar a classe de forma notável.",
+        "areaAssumed": "A classe usa uma área habitável presumida de {area} m². Introduza a área real em Definições → Agregado e edifício."
       },
       "rPriceIncrease": {
         "title": "{label}: aumento de preço a partir de {date}",
@@ -7146,7 +7147,16 @@
     "undone": "Temperatura base GD de novo como antes",
     "notNow": "Agora não",
     "notNowHint": "Volta a aparecer quando forem medidos novos meses ou a proposta mudar.",
-    "dismissed": "Oculto até serem medidos novos meses ou a proposta mudar."
+    "dismissed": "Oculto até serem medidos novos meses ou a proposta mudar.",
+    "beginner": {
+      "title": "Estimar com mais precisão: {label}",
+      "sentence": "A casa só aquece abaixo de cerca de {best} °C no exterior, e com este valor a aplicação estima o consumo com mais precisão.",
+      "balance": "Saldo em {date}: {after} em vez de {before}.",
+      "advance": "Adiantamento adequado: {after} em vez de {before}.",
+      "advanceOnly": "Adiantamento adequado: {after}.",
+      "more": "Mais detalhes"
+    },
+    "notNowNamed": "Agora não: {title}"
   },
   "levelShift": {
     "titleLess": "Consumo constantemente mais baixo desde {date}",

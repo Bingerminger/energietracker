@@ -581,17 +581,25 @@ final class RecommendationService
             $kwhM2 = $s['kwh_per_m2'] ?? null;
             if ($class === null || $kwhM2 === null) continue;
             if (!in_array($class, $weak, true)) continue;
+            // v3.9.0 (Skeptiker N6) — ohne eingetragene Wohnfläche rechnet die Klasse mit dem Default
+            // (BenchmarkService::efficiency, `area_assumed`); die Empfehlung sagt es wie die Effizienzkarte
+            $assumed = !empty($eff['area_assumed']);
+            $detail = $this->i18n->t('recommendations.engine.r7.detail', [
+                'year'  => $eff['year'],
+                'label' => $this->utilLabel((string)$s['utility']),
+                'class' => $class,
+                'kwh'   => $this->i18n->number((float)$kwhM2, 0),
+            ]);
+            if ($assumed) {
+                $detail .= ' ' . $this->i18n->t('recommendations.engine.r7.areaAssumed', ['area' => $this->i18n->number((float)$eff['wohnflaeche_m2'], 0)]);
+            }
             $out[] = $this->mk(
                 'r7', ['efficiency', (string)$s['utility'], (string)$eff['year']],
                 ($class === 'H' || $class === 'G') ? 'warning' : 'info', 'effizienz',
                 $this->i18n->t('recommendations.engine.r7.title', ['label' => $this->utilLabel((string)$s['utility']), 'class' => $class, 'kwh' => $this->i18n->number((float)$kwhM2, 0)]),
-                $this->i18n->t('recommendations.engine.r7.detail', [
-                    'year'  => $eff['year'],
-                    'label' => $this->utilLabel((string)$s['utility']),
-                    'class' => $class,
-                    'kwh'   => $this->i18n->number((float)$kwhM2, 0),
-                ]),
-                ['utility' => (string)$s['utility'], 'meter_id' => null]
+                $detail,
+                ['utility' => (string)$s['utility'], 'meter_id' => null, 'area_assumed' => $assumed,
+                 'area_m2' => (float)$eff['wohnflaeche_m2']]
             );
         }
         return $out;

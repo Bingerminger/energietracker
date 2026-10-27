@@ -1516,6 +1516,10 @@ a.icon-btn { display: inline-flex; align-items: center; justify-content: center;
 /* v3.9.0 (#38) — Heizgrenze: zwei Knöpfe unter dem Eintrag, eingerückt wie der Text */
 .dash-todo__actions { display: flex; flex-wrap: wrap; gap: var(--sp-2); padding: 0 0 var(--sp-3) calc(24px + var(--sp-3)); }
 .heat-limit-hint p { margin: 0 0 var(--sp-2); }
+/* v3.9.0 (Skeptiker N4) — Einsteiger: die Fachzeilen aufklappbar unter den Knöpfen */
+.dash-todo__more { padding: 0 0 var(--sp-3) calc(24px + var(--sp-3)); }
+.dash-todo__more summary { cursor: pointer; font-size: var(--fs-sm); color: var(--text-2); }
+.dash-todo__more p { margin: var(--sp-2) 0 0; }
 
 /* v3.4.0 (F1024) — Dialog „Erledigt" und Tab „Erledigt" */
 .done-dialog__what { margin: 0 0 var(--sp-3); }

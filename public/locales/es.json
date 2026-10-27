@@ -2518,7 +2518,8 @@
       },
       "r7": {
         "title": "{label}: clase de eficiencia {class} ({kwh} kWh/m²·a)",
-        "detail": "{label}: la demanda de energía de calefacción {year} corresponde a la clase de eficiencia {class} ({kwh} kWh/m²·a). Aislamiento, optimización de la calefacción o un equilibrado hidráulico pueden mejorar la clase notablemente."
+        "detail": "{label}: la demanda de energía de calefacción {year} corresponde a la clase de eficiencia {class} ({kwh} kWh/m²·a). Aislamiento, optimización de la calefacción o un equilibrado hidráulico pueden mejorar la clase notablemente.",
+        "areaAssumed": "La clase usa una superficie habitable supuesta de {area} m². Introduce la superficie real en Ajustes → Hogar y edificio."
       },
       "rPriceIncrease": {
         "title": "{label}: subida de precio a partir del {date}",
@@ -7146,7 +7147,16 @@
     "undone": "Temperatura base GD de nuevo como antes",
     "notNow": "Ahora no",
     "notNowHint": "Vuelve a aparecer cuando se miden meses nuevos o cambia la propuesta.",
-    "dismissed": "Oculto hasta que se midan meses nuevos o cambie la propuesta."
+    "dismissed": "Oculto hasta que se midan meses nuevos o cambie la propuesta.",
+    "beginner": {
+      "title": "Estimar con más precisión: {label}",
+      "sentence": "Tu vivienda solo calienta por debajo de unos {best} °C en el exterior, y con este valor la app estima tu consumo con más precisión.",
+      "balance": "Saldo al {date}: {after} en lugar de {before}.",
+      "advance": "Anticipo adecuado: {after} en lugar de {before}.",
+      "advanceOnly": "Anticipo adecuado: {after}.",
+      "more": "Más detalles"
+    },
+    "notNowNamed": "Ahora no: {title}"
   },
   "levelShift": {
     "titleLess": "Consumo constantemente menor desde el {date}",

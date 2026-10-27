@@ -3125,6 +3125,47 @@ async function renderView(modPath, params = [], ctx = {}) {
       let back = false;
       for (let i = 0; i < 60 && !back; i++) { back = ((await json('/agenda?days=90'))?.events || []).some(e => e.kind === 'heat_limit' && e.ref?.meter_id === hk); if (!back) await sleep(50); }
       t('heizgrenze: Rückgängig — der Eintrag ist wieder da', back);
+      // v3.9.0 (Skeptiker M10, Regel L1) — „Saldo zum …“ nennt den letzten Tag des Zeitraums wie die Saldo-Karte
+      const st6 = (await json(`/utility/gas/meters/${hk}/contract-status`))?.contracts?.find(c => c.is_current);
+      const fmtD = (iso) => iso.split('-').reverse().join('.');
+      t('heizgrenze (M10): Wirkung „Saldo zum“ am letzten Tag des Zeitraums, nicht am Folgetag', !!st6?.settle_on && hl6.effect?.until === st6.settle_on
+        && (row?.textContent || '').includes(`Erwarteter Saldo zum ${fmtD(st6.settle_on)}`), `${hl6.effect?.until} / ${st6?.settle_on} / ${st6?.effective_end}`);
+      // v3.9.0 (Skeptiker N4) — Einsteiger: ein Satz, Wirkung, Knöpfe; die Fachzeilen aufklappbar darunter
+      const evNow = ((await json('/agenda?days=90'))?.events || []).find(e => e.kind === 'heat_limit' && e.ref?.meter_id === hk);
+      const dashM = await import(`${ROOT}/views/dashboard.js`);
+      const bbox = global.document.createElement('div');
+      bbox.dataset.variant = 'beginner';
+      global.document.body.appendChild(bbox);
+      dashM.renderTodoBox(bbox, dashM.buildTodo(evNow ? [evNow] : [], []));
+      const bli = bbox.querySelector('[data-role="heat-limit-todo"]')?.closest('li');
+      const shortTxt = (bli?.querySelector('.dash-todo__link')?.textContent || '').replace(/\s+/g, ' ');
+      const more = bli?.querySelector('details[data-role="todo-more"]');
+      const kids = bli ? [...bli.children] : [];
+      t('heizgrenze (N4): Einsteiger — kurz ohne Fachwörter, Wirkung, Knöpfe vor „Mehr dazu“',
+        /Genauer schätzen: Gas/.test(shortTxt) && /Dein Haus heizt erst unter etwa .+ °C draußen/.test(shortTxt) && /Saldo zum .+ statt /.test(shortTxt)
+        && !/Heizmodell|Grundlast|Heizgrenze|Streuung/.test(shortTxt) && !!bli.querySelector('[data-heat-apply]') && !!bli.querySelector('[data-heat-later]')
+        && !!more && !more.open && /Mehr dazu/.test(more.querySelector('summary')?.textContent || '')
+        && more.textContent.includes(`Heizgrenze anpassen: Mit ${best(hl6.best)} °C passt das Heizmodell deutlich besser`) && /Ein Monat weicht heute typisch um/.test(more.textContent)
+        && kids.indexOf(bli.querySelector('[data-role="heat-limit-todo"]')) < kids.indexOf(more), shortTxt.slice(0, 300));
+      bbox.remove();
+      // v3.9.0 (Skeptiker N5) — eine Art Aufschub: in den Empfehlungen „Nicht jetzt“ wie in „Zu tun“, nicht „30 Tage ausblenden“
+      const rv = await renderView(`${ROOT}/views/recommendations.js`);
+      const recBtn = () => rv.view.querySelector(`[data-dismiss="${evNow?.ref?.recommendation_id}"]`);
+      for (let i = 0; i < 100 && !recBtn(); i++) await sleep(50);
+      const origFetch = global.fetch; let sent = null;
+      global.fetch = (u, o) => { if (/\/dismiss$/.test(String(u)) && o?.method === 'POST') sent = JSON.parse(o.body || '{}'); return origFetch(u, o); };
+      const btnTxt = recBtn()?.textContent || '';
+      recBtn()?.click();
+      for (let i = 0; i < 60 && !sent; i++) await sleep(50);
+      global.fetch = origFetch;
+      const in300 = new Date(Date.now() + 300 * 86400000).toISOString().slice(0, 10);
+      t('heizgrenze (N5): Empfehlungen — „Nicht jetzt“ bis neue Monate (ein Jahr als Obergrenze), nicht „30 Tage ausblenden“',
+        /^\s*Nicht jetzt\s*$/.test(btnTxt) && !!sent?.until && sent.until > in300, `${btnTxt} / ${JSON.stringify(sent)}`);
+      for (let i = 0; i < 60 && !/Rückgängig/.test(toastAction()?.textContent || ''); i++) await sleep(50);
+      toastAction()?.click();
+      let backRec = false;
+      for (let i = 0; i < 60 && !backRec; i++) { backRec = ((await json('/agenda?days=90'))?.events || []).some(e => e.kind === 'heat_limit' && e.ref?.meter_id === hk); if (!backRec) await sleep(50); }
+      t('heizgrenze (N5): Rückgängig in den Empfehlungen — der Vorschlag ist wieder da', backRec);
       // Prognose und Werkstatt: derselbe Hinweis, wenn das Heizmodell schlecht passt
       const fw = await renderView(`${ROOT}/views/forecast.js`);
       await sleep(400);

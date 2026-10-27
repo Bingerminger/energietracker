@@ -525,6 +525,12 @@ final class HeatLimitFollowUpTest extends ServiceTestCase
         // Wirkung auf den laufenden Vertrag: heute unsicher (Heizmodell), mit dem Vorschlag nicht mehr wegen der Passung
         $e = $rec['evidence']['effect'];
         self::assertSame('c_gas_messy', $e['contract_id']);
+        // v3.9.0 (Skeptiker M10, Regel L1) — „Saldo zum …“ nennt den letzten Tag des Zeitraums wie die
+        // Saldo-Karte, nicht den Folgetag (wirksames Ende)
+        $cur = array_values(array_filter($this->consumption->contractStatus('gas', $meter)['contracts'], fn($c) => !empty($c['is_current'])))[0];
+        self::assertSame($cur['settle_on'], $e['until']);
+        self::assertSame(ConsumptionService::periodLastDay($cur), $e['until']);
+        self::assertNotSame($cur['effective_end'], $e['until'], 'im Testhaushalt endet die Periode am Tag vor dem wirksamen Ende');
         self::assertContains('poor_fit', $e['before']['uncertain']);
         self::assertNotContains('poor_fit', $e['after']['uncertain']);
         self::assertNull($e['before']['advance'], 'heute kein Abschlagsvorschlag');

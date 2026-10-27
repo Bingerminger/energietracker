@@ -541,7 +541,7 @@ of the consumption response. New and additive ([Basics §5](../verstehen/00-over
 | `range` | `[from, to]`: adjoining limits that fit equally well (at most 15 % above the best smoothed spread); the suggestion is the one closest to today's limit |
 | `before`, `after` | `{ratio, model_quality, base_per_day, model_per_day, measured_per_day}` today and with the suggested limit |
 | `grid[]` | plus `fit_n`, `fit_dropped` (dropped months more than 10 % of a typical month off), `fit_ok` (at most one in ten, at least one), `warm_ratio`, `warm_ok` (expectation ÷ consumption May to September, at most 1.10), `smoothed` |
-| `effect` | only with a suggestion: `{contract_id, until, current_advance, before, after}`, each `{balance, balance_range, advance, advance_range, uncertain}` of the current contract today and with the suggested limit; `null` without a current contract |
+| `effect` | only with a suggestion: `{contract_id, until, current_advance, before, after}` (`until`: last day of the period, like `settle_on`), each `{balance, balance_range, advance, advance_range, uncertain}` of the current contract today and with the suggested limit; `null` without a current contract |
 
 More fields since v3.9.0: `monthly[].expected_base` (the base load part `c × days`),
 `anomaly_quality.base_load.base_per_day` and `base_ratio` (the base load `c` alone
