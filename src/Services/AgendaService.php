@@ -43,7 +43,9 @@ use Energietracker\Support\Dates;
  *                        (oder Block) zwischen einem Abstand weit unter und einem
  *                        weit über der Erwartung (ReadingCheckService); erledigt
  *                        durch „Stand ist richtig“, „nur für die Abrechnung“ oder
- *                        Korrigieren, also aus den Daten
+ *                        Korrigieren, also aus den Daten. `ref.kind` mismatch: sehr
+ *                        starke Gegenbewegung ohne gemeinsamen Versatz („Verbrauch vor
+ *                        und nach dem … passt nicht zusammen“, ohne Vorschlag)
  *   reading_duplicate    v3.9.0 — derselbe Stand am selben Tag zweimal eingetragen
  *   level_shift          v3.9.0 — Verbrauch über mindestens ein Jahr gleichbleibend
  *                        anders als heute: Hinweis auf die Analyse-Zäsur (abhakbar,
@@ -355,10 +357,11 @@ final class AgendaService
                 return $this->i18n->t($key, array_map(fn($v) => is_string($v) && Dates::isIsoDate($v) ? $this->i18n->date($v) : $v, $params));
             };
             foreach ($r['checks'] as $c) {
-                $key = (int)$c['count'] > 1 ? 'calendar.event.readingCheckBlock' : 'calendar.event.readingCheck';
+                // zweite Stufe (`mismatch`): „Verbrauch vor und nach dem … passt nicht zusammen“
+                $key = 'calendar.event.' . (($c['kind'] ?? '') === 'mismatch' ? 'readingMismatch' : 'readingCheck') . ((int)$c['count'] > 1 ? 'Block' : '');
                 $params = ['label' => $label, 'meter' => $meterName, 'date' => (string)$c['date'], 'until' => (string)$c['until']];
                 $ev = $this->event('reading_check', (string)$c['uid'], $today, $key, $params, 'due', true, $href,
-                    ['utility' => $u, 'meter_id' => $mid] + array_intersect_key($c, array_flip(['reading_ids', 'date', 'until', 'count',
+                    ['utility' => $u, 'meter_id' => $mid] + array_intersect_key($c, array_flip(['kind', 'reading_ids', 'date', 'until', 'count',
                         'direction', 'offset', 'unit', 'basis', 'before', 'after', 'suggested'])),
                     (string)$c['date'], null, $who);
                 $ev['title'] = $dated($key, $params);

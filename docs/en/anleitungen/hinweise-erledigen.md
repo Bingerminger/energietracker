@@ -25,7 +25,7 @@ anything off.
 | a **delivery** of heating oil or pellets, if the stock was low before | “Plan a delivery” |
 | a **service-charge statement** for the period that has ended (tenants) | “Service-charge statement due” |
 | since v3.5.0 a **supplier’s bill** covering a billing period that has ended ([section 9](#9-bill-expected-v350)) | “Bill expected” |
-| since v3.9.0 **“Reading is correct”**, **“Only for the bill”** or a **corrected reading** ([section 11](#11-check-a-reading-v390)) | “Check the reading of …” |
+| since v3.9.0 **“Reading is correct”**, **“Only for the bill”** or a **corrected reading** ([section 11](#11-check-a-reading-v390)) | “Check the reading of …”, “Consumption before and after … does not add up” |
 | since v3.9.0 **deleting** a reading entered twice | “Reading of … entered twice” |
 
 **Follow-on contract with a gap.** If the new contract starts later, the
@@ -379,6 +379,12 @@ of readings the reading carries the mark **UNUSUAL**. How the app spots it is in
 | **Correct it** | opens the edit dialog of the reading with the reading that would fit (“Insert”). Nothing is saved until “Save”. |
 
 All three with **Undo** in the message afterwards.
+
+**“Consumption before and after … does not add up”:** if the interval before is far
+below and the one after far above the expectation (or the other way round), but no
+common offset explains both, for instance because the readings got more and more wrong,
+the app asks with this text. The buttons are the same; here it suggests no reading. A
+photo of the reading or the bill shows which reading is right.
 
 **Entered twice:** if the same reading on the same day is there twice, **“Delete
 one”** deletes the second (the one with a photo is kept, otherwise the one with a

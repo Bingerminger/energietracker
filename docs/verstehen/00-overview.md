@@ -99,7 +99,11 @@ Wärmepumpe das Heizmodell `a × HGT + c × Tage` mit der Heizgrenze des Zähler
 seiner Gruppe), gefittet über die Ablesungsabstände. Bei Strom und Wasser die mittlere
 Tagesmenge der Abstände bis ein halbes Jahr davor und danach. Bei PV, Gartenwasser und
 anderen Zählern mit ausgeprägten Jahreszeiten (der schwächste Monat unter der Hälfte
-des stärksten) dieselben Tage in anderen Jahren. Der Ladepunkt einer Wallbox wird
+des stärksten) dieselben Tage in anderen Jahren. Ebenso bei einer milderen Jahreszeit,
+die wiederkehrt: Liegt das Sommerhalbjahr in mindestens zwei Jahren gleichsinnig
+mindestens ein Viertel über oder unter den Wintern daneben (gezählt aus Abständen, die
+überwiegend in einer Jahreshälfte liegen), sagt die mittlere Tagesmenge im Winter „zu
+wenig“ und im Sommer „zu viel“, obwohl alles stimmt. Der Ladepunkt einer Wallbox wird
 nicht geprüft: Geladen wird, wenn gefahren wurde.
 
 **Ein Kandidat** ist ein Stand oder ein Block von bis zu sechs aufeinanderfolgenden
@@ -130,6 +134,17 @@ echte Fall war ein Block: drei Stände um denselben Betrag zu niedrig, im Block 
 Abstand normal. Ein Prüfer, der nur Nachbarpaare ansieht, findet ihn nicht. Und ein
 Zahlendreher in einem Wintermonat (900 von 1.845 kWh) liegt bei 1,49× und 0,43×, die
 schnelle Prüfung hätte ihn übersehen.
+
+**Zweite Stufe: Es passt gar nicht zusammen.** Liegt der Abstand davor höchstens bei
+der Hälfte und der danach mindestens beim Doppelten der Erwartung (oder umgekehrt),
+beide über der Mindestmenge und den Streuungen, fragt die App auch ohne passende Summe.
+Im Block dürfen die Abstände dann weiter in dieselbe Richtung abweichen, nur nicht schon
+zurück. Das ist der Fall, in dem Stände nach und nach falscher werden: In einer
+Nachprüfung lag der Abstand davor bei 0,23×, die beiden im Block bei 0,78× und 0,69×,
+der danach bei 3,67×, und der Überschuss danach war doppelt so groß wie der Mangel
+davor. Kein gemeinsamer Versatz erklärt das, also schlägt die App keinen Stand vor; der
+Eintrag heißt „Verbrauch vor und nach dem … passt nicht zusammen“, mit denselben
+Knöpfen.
 
 **In „Zu tun“** steht dann „Ablesung vom … prüfen“ mit gemessen gegen erwartet für
 den Abstand davor und danach und der Vermutung („vermutlich um rund 900 m³ zu hoch“),
@@ -163,9 +178,15 @@ Gegenbewegung danach (höchstens ein Zehntel der Tage danach wieder auf dem alte
 Niveau), schlägt die App eine [Analyse-Zäsur](#wirkung-einer-maßnahme-zäsur) am Tag
 des Wechsels vor: „Zäsur hier setzen“ (ein Dialog mit dem Ende der auffälligen Zeit als
 Tag, zum Bestätigen oder Ändern) oder „Nicht jetzt“. Das heutige Niveau kommt aus
-mindestens einem halben Jahr nach dem Wechsel. Mit einer wirksamen Zäsur zählt nur die
-Zeit danach; steht sie am Wechsel, entfällt der Hinweis. Die Zeit vor einem erkannten
-Wechsel ist kein Maßstab für einzelne Stände.
+mindestens einem halben Jahr nach dem Wechsel (beim Heizmodell ab vier Abständen, auch
+wenn danach erst wenige Ablesungen vorliegen). Ein gleitender Übergang ist erlaubt:
+Direkt vor der Zeit danach darf ein einzelner Abstand zwischen altem und heutigem
+Niveau liegen, der Tag des Wechsels ist dann das Ende des letzten Abstands auf altem
+Niveau. Mit einer wirksamen Zäsur zählt nur die Zeit danach; steht sie am Wechsel,
+entfällt der Hinweis. Die Zeit vor einem erkannten Wechsel ist kein Maßstab für
+einzelne Stände. Bei einer wiederkehrenden Jahreszeit rechnet der Hinweis mit der
+mittleren Tagesmenge über die Zeit danach (über ein ganzes Jahr gleicht sich die
+Jahreszeit aus).
 
 Alle drei Einträge zählen in `/api/todo` und in den Benachrichtigungen an Home
 Assistant mit, in jeder Stufe.

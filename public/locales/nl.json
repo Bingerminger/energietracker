@@ -4033,6 +4033,12 @@
       "sub": "Twee keer dezelfde meterstand: {counter}. Eén is genoeg.",
       "delete": "Eén verwijderen",
       "deleted": "Dubbele meterstand verwijderd"
+    },
+    "mismatchTitle": "Verbruik voor en na {date} klopt niet",
+    "mismatchTitleBlock": "Verbruik voor {date} en na {until} klopt niet",
+    "mismatch": {
+      "one": "Eén verkeerde meterstand verklaart niet beide. Een foto of de afrekening laat zien of hij klopt.",
+      "other": "Geen gemeenschappelijke afwijking van de {count} meterstanden verklaart beide. Een foto of de afrekening laat zien welke klopt."
     }
   },
   "format": {
@@ -4606,7 +4612,9 @@
       "readingCheckBlock": "{label}: meterstanden van {date} tot {until} controleren ({meter})",
       "readingDuplicate": "{label}: meterstand van {date} dubbel ingevoerd ({meter})",
       "levelShiftLess": "{label}: sinds {date} blijvend minder verbruik. Peilmoment instellen? ({meter})",
-      "levelShiftMore": "{label}: sinds {date} blijvend meer verbruik. Peilmoment instellen? ({meter})"
+      "levelShiftMore": "{label}: sinds {date} blijvend meer verbruik. Peilmoment instellen? ({meter})",
+      "readingMismatch": "{label}: verbruik voor en na {date} klopt niet ({meter})",
+      "readingMismatchBlock": "{label}: verbruik voor {date} en na {until} klopt niet ({meter})"
     },
     "subscribe": "Abonneren in je agenda",
     "intro": "Afspraken, opzegtermijnen, contracteinden, prijsgaranties en verschuldigde meterstanden als agenda-abonnement. De agenda haalt ze elke 12 uur opnieuw op.",

@@ -343,9 +343,12 @@ final class ReadingCheckTest extends ServiceTestCase
     }
 
     /**
-     * Welche Erwartung: Gartenwasser (Rolle `garden`) und ein Strombezug mit ausgeprägtem
-     * Winter ohne Rolle (Sommer 4, Winter 12 kWh am Tag) rechnen mit denselben Tagen
-     * anderer Jahre, gleichmäßiger Haushaltsstrom mit der mittleren Tagesmenge.
+     * Welche Erwartung: Gartenwasser (Rolle `garden`), ein Strombezug mit ausgeprägtem
+     * Winter ohne Rolle (Sommer 4, Winter 12 kWh am Tag) und einer mit milderem, aber
+     * jedes Jahr wiederkehrendem Winter (Sommer 8, Winter 10: Sommer ÷ Winter = 0,8, also
+     * Winter das 1,25-Fache) rechnen mit denselben Tagen anderer Jahre. Gleichmäßiger
+     * Haushaltsstrom (Sommer 9, Winter 10) und einer mit nur einem stärkeren Sommer mit der
+     * mittleren Tagesmenge.
      */
     public function testSeasonalMetersUseOtherYears(): void
     {
@@ -354,8 +357,91 @@ final class ReadingCheckTest extends ServiceTestCase
         self::assertSame('other_years', $this->checks()->forMeter('wasser', $garden)['basis']);
         $winter = $this->rateMeter('strom', fn(string $d) => in_array((int)substr($d, 5, 2), [4, 5, 6, 7, 8, 9], true) ? 4.0 : 12.0, '2023-01-01', '2025-12-01');
         self::assertSame('other_years', $this->checks()->forMeter('strom', $winter)['basis']);
-        $flat = $this->rateMeter('strom', fn(string $d) => in_array((int)substr($d, 5, 2), [4, 5, 6, 7, 8, 9], true) ? 8.0 : 10.0, '2023-01-01', '2025-12-01');
+        $mild = $this->rateMeter('strom', fn(string $d) => in_array((int)substr($d, 5, 2), [4, 5, 6, 7, 8, 9], true) ? 8.0 : 10.0, '2023-01-01', '2025-12-01');
+        self::assertSame('other_years', $this->checks()->forMeter('strom', $mild)['basis']);
+        $flat = $this->rateMeter('strom', fn(string $d) => in_array((int)substr($d, 5, 2), [4, 5, 6, 7, 8, 9], true) ? 9.0 : 10.0, '2023-01-01', '2025-12-01');
         self::assertSame('mean_rate', $this->checks()->forMeter('strom', $flat)['basis']);
+        // ein einziger Sommer mit 30 % mehr (Klimagerät im heißen Jahr) kehrt nicht wieder
+        $once = $this->rateMeter('strom', fn(string $d) => $d >= '2024-04-01' && $d < '2024-10-01' ? 13.0 : 10.0, '2023-01-01', '2025-12-01');
+        self::assertSame('mean_rate', $this->checks()->forMeter('strom', $once)['basis']);
+    }
+
+    /** Strom-Profil mit Sommer rund anderthalbmal so viel wie Winter (kWh am Tag je Monat), erfunden. */
+    private const SUMMER = [1 => 19.0, 2 => 20.0, 3 => 22.0, 4 => 27.0, 5 => 31.0, 6 => 34.0, 7 => 37.0, 8 => 36.0, 9 => 31.0,
+                            10 => 26.0, 11 => 22.0, 12 => 20.0];
+
+    /**
+     * Ein Zähler mit Ständen in unregelmäßigen Abständen (`$steps` Tage, zyklisch ab
+     * `$shift`) nach Tagesrate `$rate(Datum)`, von `$from` bis höchstens `$to`.
+     */
+    private function irregularMeter(string $utility, callable $rate, string $from, string $to, array $steps, int $shift = 0): array
+    {
+        $dates = [];
+        for ($t = strtotime("$from 12:00 UTC"), $i = $shift; gmdate('Y-m-d', $t) <= $to; $t += 86400 * $steps[$i++ % count($steps)]) $dates[] = gmdate('Y-m-d', $t);
+        return $this->meterAt($utility, $rate, $dates);
+    }
+
+    /** Ein Zähler mit Ständen an `$dates` (aufsteigend) nach Tagesrate `$rate(Datum)`. */
+    private function meterAt(string $utility, callable $rate, array $dates): array
+    {
+        $from = $dates[0]; $to = end($dates);
+        $id = $this->setMeterDevices($utility, [['id' => 'd1', 'serial' => null, 'installed_on' => $from, 'initial_counter' => 0.0,
+            'removed_on' => null, 'final_counter' => null, 'reason' => null]]);
+        $want = array_flip($dates);
+        $rows = []; $c = 0.0;
+        for ($t = strtotime("$from 12:00 UTC"); gmdate('Y-m-d', $t) <= $to; $t += 86400) {
+            $d = gmdate('Y-m-d', $t);
+            if (isset($want[$d])) $rows[] = ['id' => 'r_' . $d, 'date' => $d, 'device_id' => 'd1', 'counter' => round($c, 3)];
+            $c += $rate($d);
+        }
+        $this->setReadings($utility, $id, $rows);
+        return $this->meters->list($utility)[0];
+    }
+
+    private const STEPS = [41, 23, 67, 35, 52, 19, 74, 30, 46, 28, 61, 38, 25, 57, 33, 70, 21, 44];
+
+    /**
+     * Nachprüfung, Befund 1: Strom, jedes Jahr im Sommer rund anderthalbmal so viel wie im
+     * Winter (Sommerhalbjahr im Mittel 32,7, Winterhalbjahr 21,5 kWh am Tag; an echten Daten
+     * 31 bis 35 gegen 18 bis 24), unregelmäßig abgelesen, alle Stände richtig. Mit der
+     * mittleren Tagesmenge (ein halbes Jahr davor und danach, also immer beide Jahreszeiten)
+     * lag der Winter 30.12.2023 bis 06.03.2024 bei 0,69× (1.319 kWh gemessen gegen rund
+     * 1.900 ohne die geprüften Abstände) und der Sommer 20.06. bis 02.09.2024 bei 1,58×
+     * (2.668 gegen rund 1.690): ein „Block“ von vier richtigen Ständen im Frühsommer. Die
+     * Jahreszeit kehrt in vier Jahren gleichsinnig wieder (Sommer ÷ Winter rund 1,5), also
+     * dieselben Tage anderer Jahre und kein Eintrag.
+     */
+    public function testARecurringSeasonIsNoWrongReading(): void
+    {
+        $this->store->write('settings.json', ['active_utilities' => ['strom']]);
+        $meter = $this->irregularMeter('strom', fn(string $d) => self::SUMMER[(int)substr($d, 5, 2)], '2022-02-01', '2026-09-30', self::STEPS, 3);
+        $r = $this->checks()->forMeter('strom', $meter);
+        self::assertSame('other_years', $r['basis']);
+        self::assertSame([], $r['checks'], json_encode($r['checks']));
+        self::assertNull($r['level_shift']);
+    }
+
+    /**
+     * Eine mildere Jahreszeit (Sommer 30, Winter 22 kWh am Tag, Sommer ÷ Winter 1,36), davor
+     * ein gutes Jahr Leerstand mit 8 % des heutigen Verbrauchs (vor dem Einzug): Der
+     * Hinweis auf die Zäsur rechnet weiter mit der mittleren Tagesmenge und kommt (davor
+     * weniger, Faktor unter 0,2 mit dem Abstand über den Einzug), geprüft wird die Zeit
+     * seit dem Einzug mit anderen Jahren, ohne Eintrag. (Bei der stärkeren Jahreszeit oben
+     * läge jeder Winter nach dem Einzug unter vier Fünfteln des Mittels und zählte als
+     * Rückkehr zum alten Niveau: kein Hinweis, auch schon vor dem Nachauftrag.)
+     */
+    public function testARecurringSeasonKeepsTheHintOnTheBaseline(): void
+    {
+        $this->store->write('settings.json', ['active_utilities' => ['strom']]);
+        $meter = $this->irregularMeter('strom', fn(string $d) => (in_array((int)substr($d, 5, 2), [4, 5, 6, 7, 8, 9], true) ? 30.0 : 22.0)
+            * ($d < '2022-02-01' ? 0.08 : 1.0), '2020-12-15', '2026-09-30', self::STEPS, 3);
+        $r = $this->checks()->forMeter('strom', $meter);
+        self::assertSame('other_years', $r['basis']);
+        self::assertNotNull($r['level_shift']);
+        self::assertSame('lower', $r['level_shift']['direction']);
+        self::assertSame('mean_rate', $r['level_shift']['basis']);
+        self::assertLessThan(0.2, $r['level_shift']['factor'], 'mit dem Abstand über den Einzug');
+        self::assertSame([], $r['checks'], json_encode($r['checks']));
     }
 
     /** Ein Ladepunkt wird nicht geprüft: Selbst ein Stand 300 kWh zu niedrig bei 10 kWh am Tag bleibt ohne Befund. */
@@ -429,6 +515,59 @@ final class ReadingCheckTest extends ServiceTestCase
         self::assertSame(3, $c[0]['count']);
     }
 
+    /**
+     * Nachprüfung, Befund 2: Heizgrenze des Zählers 10 °C (Tagesverbrauch 7 + 3,5 × Gradtag
+     * bei 10 °C: Januar 42, Februar 38,5, März 24,5, April und Oktober 10,5, Mai bis
+     * September 7, November 28, Dezember 38,5). Drei Stände werden nach und nach falscher:
+     * 26.11.2024 um 849, 31.01.2025 um 1.419,6, 15.04.2025 um 2.047,8 zu niedrig. Von Hand:
+     *
+     *   davor  20.09.–26.11. (67 T)  11 × 7 + 31 × 10,5 + 25 × 28 = 1.102,5 erwartet,
+     *                                253,5 gemessen   0,23×
+     *   Block  26.11.–31.01. (66 T)  2.593,5 erwartet, 2.022,9 gemessen   0,78×
+     *          31.01.–15.04. (74 T)  2.026,5 erwartet, 1.398,3 gemessen   0,69×
+     *   danach 15.04.–11.07. (87 T)  16 × 10,5 + 71 × 7 = 665 erwartet,
+     *                                2.712,8 gemessen   4,08×
+     *
+     * Die erste Stufe fragt nicht: Im Block weicht ein Abstand deutlich ab (0,69×, 628
+     * unter der Erwartung, die Mindestmenge ist rund 143), und die Summe passt nicht
+     * (Mangel 849 gegen Überschuss 2.047,8; nach einem gemeinsamen Versatz von 1.448 blieben
+     * 1.199 übrig, mehr als die Hälfte). Die zweite Stufe fragt: davor unter der Hälfte,
+     * danach über dem Doppelten, dazwischen keine Gegenbewegung. Ein Eintrag „Verbrauch vor
+     * dem … und nach dem … passt nicht zusammen“, ohne vorgeschlagenen Stand.
+     */
+    public function testAVeryStrongCounterMovementIsAskedWithoutASuggestion(): void
+    {
+        $dates = array_merge(self::firsts('2023-01', '2024-09'), ['2024-09-20', '2024-11-26', '2025-01-31', '2025-04-15', '2025-07-11'],
+            self::firsts('2025-08', '2026-06'));
+        $offsets = ['2024-11-26' => -849.0, '2025-01-31' => -1419.6, '2025-04-15' => -2047.8];
+        $meter = $this->gasHousehold($dates, $offsets, 10000.0, null, '2023-01-01', 10.0);
+        $all = $this->store->read('gas/meters.json', []);
+        $all[0]['hdd_base_temp'] = 10.0;
+        $this->store->write('gas/meters.json', $all);
+        $meter = $this->meters->list('gas')[0];
+        $c = $this->checks()->forMeter('gas', $meter)['checks'];
+        self::assertCount(1, $c, json_encode($c));
+        self::assertSame('mismatch', $c[0]['kind']);
+        self::assertSame(['r_2024-11-26', 'r_2025-01-31', 'r_2025-04-15'], $c[0]['reading_ids']);
+        self::assertSame('low', $c[0]['direction']);
+        self::assertNull($c[0]['offset']);
+        self::assertSame([], $c[0]['suggested']);
+        self::assertEqualsWithDelta(1102.5, $c[0]['before']['expected'], 0.5);
+        self::assertSame(0.23, $c[0]['before']['ratio']);
+        self::assertEqualsWithDelta(665.0, $c[0]['after']['expected'], 0.5);
+        self::assertSame(4.08, $c[0]['after']['ratio']);
+        // „Zu tun“ mit eigenem Text
+        $ev = array_values(array_filter($this->agenda()->events(90), fn($e) => $e['kind'] === 'reading_check'));
+        self::assertSame('calendar.event.readingMismatchBlock', $ev[0]['title_key']);
+        self::assertSame('mismatch', $ev[0]['ref']['kind']);
+        // nur 0,6× davor: keine sehr starke Gegenbewegung, kein Eintrag
+        $meter = $this->gasHousehold($dates, ['2024-11-26' => -441.0, '2025-01-31' => -1011.6, '2025-04-15' => -1639.8], 10000.0, null, '2023-01-01', 10.0);
+        $all = $this->store->read('gas/meters.json', []);
+        $all[0]['hdd_base_temp'] = 10.0;
+        $this->store->write('gas/meters.json', $all);
+        self::assertSame([], $this->checks()->forMeter('gas', $this->meters->list('gas')[0])['checks']);
+    }
+
     // ── 3  Analyse-Zäsur ────────────────────────────────────────────────
 
     /**
@@ -469,6 +608,71 @@ final class ReadingCheckTest extends ServiceTestCase
         $meter = $this->gasHousehold(self::firsts('2022-07', '2026-06'), [], 10000.0,
             fn(string $d) => $d < '2024-07-01' && !($d >= '2023-11-01' && $d < '2024-03-01') ? 2.0 : 1.0);
         self::assertNull($this->checks()->forMeter('gas', $meter)['level_shift']);
+    }
+
+    /**
+     * Gas mit langen Abständen früher und einem gleitenden Übergang: 01.07.2021 bis
+     * 31.03.2022 (273 Tage) beim `$old1`-Fachen von heute, bis 22.02.2023 (328 Tage) beim
+     * `$old2`-Fachen, bis 16.07.2023 (144 Tage) beim `$tr`-Fachen, danach heute (je Jahr
+     * abwechselnd 4 % darüber und darunter), abgelesen alle zwei bis drei Monate bis `$end`.
+     */
+    private function transitionHousehold(float $old1, float $old2, float $tr, string $end): array
+    {
+        $dates = ['2021-07-01', '2022-03-31', '2023-02-22', '2023-07-16'];
+        $steps = [61, 92, 58, 75, 88, 64, 70];
+        for ($t = strtotime('2023-07-16 12:00 UTC'), $k = 0; ; ) {
+            $t += 86400 * $steps[$k++ % count($steps)];
+            if (gmdate('Y-m-d', $t) > $end) break;
+            $dates[] = gmdate('Y-m-d', $t);
+        }
+        $scale = fn(string $d) => $d < '2022-03-31' ? $old1 : ($d < '2023-02-22' ? $old2 : ($d < '2023-07-16' ? $tr
+            : ((int)substr($d, 0, 4) % 2 ? 0.96 : 1.04)));
+        return $this->gasHousehold($dates, [], 10000.0, $scale, '2021-07-01');
+    }
+
+    /**
+     * Nachprüfung, Befund 3: zwei lange Abstände beim 2,1- und 1,7-Fachen, ein Übergang beim
+     * 1,4-Fachen, danach heute, aber nur anderthalb Jahre mit sieben Abständen. Mit dem
+     * Übergang im heutigen Niveau (Wechsel am 22.02.2023) lag er selbst über dem
+     * Eineinviertelfachen, eine Gegenbewegung; ohne ihn (Wechsel am 16.07.2023) fehlten dem
+     * Heizmodell Stücke (sieben statt acht). Das heutige Niveau reicht jetzt ab vier Stücken:
+     * Hinweis am Ende des letzten Abstands über dem Eineinviertelfachen, dem 16.07.2023.
+     */
+    public function testAShortTimeAfterAGradualChangeStillGivesTheHint(): void
+    {
+        $meter = $this->transitionHousehold(2.1, 1.7, 1.4, '2024-12-31');
+        $s = $this->checks()->forMeter('gas', $meter)['level_shift'];
+        self::assertNotNull($s);
+        self::assertSame('2023-07-16', $s['date']);
+        self::assertSame('higher', $s['direction']);
+        self::assertSame('2021-07-01', $s['from']);
+    }
+
+    /**
+     * Übergang zwischen beiden Niveaus, Strom mit der mittleren Tagesmenge: 01.07.2021 bis
+     * 31.03.2022 (273 Tage) 20 kWh am Tag, bis 22.02.2023 (328 Tage) 12,6, bis 16.07.2023
+     * (144 Tage) 12, danach heute 10 (alle 61 Tage abgelesen bis 18.05.2026, 1.037 Tage).
+     * Von Hand: Mit dem Übergang im heutigen Niveau ist das (10.370 + 1.728) ÷ 1.181 = 10,24
+     * am Tag, der Abstand mit 12,6 liegt dann beim 1,23-Fachen, nicht ein Viertel darüber,
+     * und die Reihe bricht ab. Ohne ihn ist heute 10: Der Übergang (1,2×) liegt zwischen
+     * den Niveaus und unterbrach bisher ebenfalls; davor 2,0× und 1,26×, zusammen
+     * (5.460 + 4.132,8) ÷ 6.010 = 1,60. Ein einzelner Abstand dazwischen ist jetzt erlaubt:
+     * Hinweis am Ende des Abstands mit 12,6, dem 22.02.2023. Zwei Abstände dazwischen (12,0
+     * auch davor) sind zu viel.
+     */
+    public function testOneTransitionIntervalBetweenTheLevelsIsAllowed(): void
+    {
+        $this->store->write('settings.json', ['active_utilities' => ['strom']]);
+        $dates = ['2021-07-01', '2022-03-31', '2023-02-22', '2023-07-16'];
+        for ($t = strtotime('2023-07-16 12:00 UTC') + 61 * 86400; gmdate('Y-m-d', $t) <= '2026-07-03'; $t += 61 * 86400) $dates[] = gmdate('Y-m-d', $t);
+        $rate = fn(float $old2) => fn(string $d) => $d < '2022-03-31' ? 20.0 : ($d < '2023-02-22' ? $old2 : ($d < '2023-07-16' ? 12.0 : 10.0));
+        $s = $this->checks()->forMeter('strom', $this->meterAt('strom', $rate(12.6), $dates))['level_shift'];
+        self::assertNotNull($s);
+        self::assertSame('2023-02-22', $s['date']);
+        self::assertSame('higher', $s['direction']);
+        self::assertSame('mean_rate', $s['basis']);
+        self::assertEqualsWithDelta(1.6, $s['factor'], 0.01);
+        self::assertNull($this->checks()->forMeter('strom', $this->meterAt('strom', $rate(12.0), $dates))['level_shift']);
     }
 
     /** Steht die Zäsur schon am Wechsel, kommt kein Hinweis mehr. */

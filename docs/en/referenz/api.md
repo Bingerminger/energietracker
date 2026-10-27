@@ -575,10 +575,10 @@ Empty for periods, groups and delivery types.
 
 | Field | Meaning |
 |---|---|
-| `checks[]` | a reading or a block of consecutive readings (`count`, `reading_ids`) where the interval before (`before`) and the one after (`after`) deviate clearly from the expectation in opposite directions and one common offset explains both. `direction`: `low` (the readings are probably too low) or `high`; `offset` in the meter unit; `measured`, `expected` per interval in the meter unit, `ratio` = measured ÷ expected; `suggested[]` the reading that would fit |
-| `basis` | where the expectation comes from: `heat_model` (heating model over the reading intervals), `mean_rate` (mean daily amount half a year before and after), `other_years` (the same days in other years); `null`: no check (too few intervals, charging point) |
+| `checks[]` | a reading or a block of consecutive readings (`count`, `reading_ids`) where the interval before (`before`) and the one after (`after`) deviate clearly from the expectation in opposite directions and one common offset explains both. `direction`: `low` (the readings are probably too low) or `high`; `offset` in the meter unit; `measured`, `expected` per interval in the meter unit, `ratio` = measured ÷ expected; `suggested[]` the reading that would fit. `kind`: `offset` (common offset) or *(follow-up v3.9.0)* `mismatch` (very strong counter-movement, at most half before and at least twice after or the other way round, without a matching sum): then `offset` is `null` and `suggested` empty |
+| `basis` | where the expectation comes from: `heat_model` (heating model over the reading intervals), `mean_rate` (mean daily amount half a year before and after), `other_years` (the same days in other years, also for a season that recurs every year); `null`: no check (too few intervals, charging point) |
 | `duplicates[]` | the same reading on the same day more than once: `keep_id` (with a photo, otherwise with a note, otherwise the first), `delete_ids` |
-| `level_shift` | note on the baseline date or `null`: `{uid, date, from, direction, factor, days, months, basis}`. `direction: "higher"` means: from `from` to `date` consumption was consistently `factor` times today’s |
+| `level_shift` | note on the baseline date or `null`: `{uid, date, from, direction, factor, days, months, basis}`. `direction: "higher"` means: from `from` to `date` consumption was consistently `factor` times today’s. `basis` here is `heat_model` or `mean_rate` (also when the check uses other years) |
 | `billing_only` | IDs of the readings “only for the bill” (`is_billing_only`) |
 
 The agenda reports each finding as an event with `due_now` (and so also in

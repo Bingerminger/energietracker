@@ -584,10 +584,10 @@ Für Zeiträume, Gruppen und Lieferarten leer.
 
 | Feld | Bedeutung |
 |---|---|
-| `checks[]` | Stand oder Block aufeinanderfolgender Stände (`count`, `reading_ids`), bei dem der Abstand davor (`before`) und der danach (`after`) entgegengesetzt deutlich von der Erwartung abweichen und ein gemeinsamer Versatz beide erklärt. `direction`: `low` (die Stände sind vermutlich zu niedrig) oder `high`; `offset` in der Zähleinheit; `measured`, `expected` je Abstand in der Zähleinheit, `ratio` = gemessen ÷ erwartet; `suggested[]` der Stand, der passen würde |
-| `basis` | woher die Erwartung kommt: `heat_model` (Heizmodell über die Ablesungsabstände), `mean_rate` (mittlere Tagesmenge ein halbes Jahr davor und danach), `other_years` (dieselben Tage anderer Jahre); `null`: keine Prüfung (zu wenig Abstände, Ladepunkt) |
+| `checks[]` | Stand oder Block aufeinanderfolgender Stände (`count`, `reading_ids`), bei dem der Abstand davor (`before`) und der danach (`after`) entgegengesetzt deutlich von der Erwartung abweichen und ein gemeinsamer Versatz beide erklärt. `direction`: `low` (die Stände sind vermutlich zu niedrig) oder `high`; `offset` in der Zähleinheit; `measured`, `expected` je Abstand in der Zähleinheit, `ratio` = gemessen ÷ erwartet; `suggested[]` der Stand, der passen würde. `kind`: `offset` (gemeinsamer Versatz) oder *(Nachauftrag v3.9.0)* `mismatch` (sehr starke Gegenbewegung, davor höchstens die Hälfte und danach mindestens das Doppelte oder umgekehrt, ohne passende Summe): dann `offset` `null` und `suggested` leer |
+| `basis` | woher die Erwartung kommt: `heat_model` (Heizmodell über die Ablesungsabstände), `mean_rate` (mittlere Tagesmenge ein halbes Jahr davor und danach), `other_years` (dieselben Tage anderer Jahre, auch bei einer jedes Jahr wiederkehrenden Jahreszeit); `null`: keine Prüfung (zu wenig Abstände, Ladepunkt) |
 | `duplicates[]` | derselbe Stand am selben Tag mehrfach: `keep_id` (mit Foto, sonst mit Notiz, sonst der erste), `delete_ids` |
-| `level_shift` | Hinweis auf die Analyse-Zäsur oder `null`: `{uid, date, from, direction, factor, days, months, basis}`. `direction: "higher"` heißt: Von `from` bis `date` lag der Verbrauch gleichbleibend beim `factor`-Fachen von heute |
+| `level_shift` | Hinweis auf die Analyse-Zäsur oder `null`: `{uid, date, from, direction, factor, days, months, basis}`. `direction: "higher"` heißt: Von `from` bis `date` lag der Verbrauch gleichbleibend beim `factor`-Fachen von heute. `basis` hier `heat_model` oder `mean_rate` (auch, wenn die Prüfung mit anderen Jahren rechnet) |
 | `billing_only` | IDs der Stände „nur für die Abrechnung“ (`is_billing_only`) |
 
 Die Agenda meldet jeden Befund als Ereignis mit `due_now` (und damit auch in

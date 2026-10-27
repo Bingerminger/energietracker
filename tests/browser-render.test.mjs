@@ -3513,6 +3513,33 @@ async function renderView(modPath, params = [], ctx = {}) {
     lrow2?.querySelector('[data-rc-later]')?.click();
     const dismissed = await until(async () => (await agenda()).find(e => e.kind === 'level_shift' && e.ref?.meter_id === lid && !e.due_now && e.done));
     t('ablesung: „Nicht jetzt“ — abgehakt, nicht mehr fällig', !!dismissed);
+
+    // Zweite Stufe: drei Stände nach und nach falscher (Dezember bei 0,3×, Januar und Februar
+    // bei 0,7×, März weit darüber), kein gemeinsamer Versatz: eigener Text, kein Vorschlag
+    const low = (m) => -0.7 * m['2024-12'];
+    const xid = await formula('Versatz Test', () => 1, { '2025-01-01': low, '2025-02-01': (m) => low(m) - 0.3 * m['2025-01'],
+      '2025-03-01': (m) => low(m) - 0.3 * m['2025-01'] - 0.3 * m['2025-02'] });
+    const xrc = (await send('GET', `/utility/gas/meters/${xid}/reading-checks`)).data;
+    const xc = xrc?.checks?.[0];
+    t('ablesung: zweite Stufe — ein Befund „mismatch“ über drei Stände, ohne Versatz und Vorschlag', xrc?.checks?.length === 1
+      && xc.kind === 'mismatch' && xc.count === 3 && xc.date === '2025-01-01' && xc.offset === null && (xc.suggested || []).length === 0
+      && xc.before.ratio <= 0.5 && xc.after.ratio >= 2, JSON.stringify(xrc?.checks)?.slice(0, 400));
+    const xev = (await agenda()).find(e => e.kind === 'reading_check' && e.ref?.meter_id === xid);
+    t('ablesung: zweite Stufe — Titel „Verbrauch vor dem … und nach dem … passt nicht zusammen“',
+      /Verbrauch vor dem 01\.01\.2025 und nach dem 01\.03\.2025 passt nicht zusammen \(Versatz Test\)/.test(xev?.title || ''), xev?.title);
+    const dv6 = await renderView(`${ROOT}/views/dashboard.js`);
+    const xrow = await until(() => dv6.view.querySelector(`[data-role="reading-check-todo"][data-kind="check"][data-meter="${xid}"]`)?.closest('li'), 120);
+    const xt = (xrow?.textContent || '').replace(/\s+/g, ' ');
+    t('ablesung: zweite Stufe — Zu tun mit davor/danach, „kein gemeinsamer Versatz“, Knöpfen, ohne Vermutung',
+      /Verbrauch vor dem 01\.01\.2025 und nach dem 01\.03\.2025 passt nicht zusammen/.test(xt) && /Davor \(01\.12\.2024 bis 01\.01\.2025\)/.test(xt)
+      && /Ein gemeinsamer Versatz der 3 Stände erklärt beides nicht/.test(xt) && !/vermutlich/.test(xt)
+      && !!xrow?.querySelector('[data-rc-verify]') && !!xrow?.querySelector('[data-rc-billing]') && !!xrow?.querySelector('[data-rc-correct]'), xt.slice(0, 400));
+    await renderView(`${ROOT}/views/utility.js`, ['gas'], { query: new URLSearchParams(`meter=${xid}&edit_reading=${xc?.reading_ids?.[0]}`) });
+    const xhint = await until(() => global.document.querySelector('.modal [data-role="reading-check-hint"]'), 120);
+    t('ablesung: zweite Stufe — Bearbeiten-Dialog mit Befund, ohne „Einsetzen“', !!xhint && /passt nicht zusammen/.test(xhint.textContent)
+      && !global.document.querySelector('.modal [data-act="use-suggested"]'), (xhint?.textContent || '').trim().slice(0, 200));
+    global.document.querySelectorAll('.modal [data-act="cancel"]').forEach(b => b.click());
+    await send('DELETE', `/utility/gas/meters/${xid}`);
     await send('DELETE', `/utility/gas/meters/${mid}`);
     await send('DELETE', `/utility/gas/meters/${lid}`);
   } catch (e) { t('ablesung: Zwischenablesung prüfen', false, e.stack || e.message); }

@@ -4033,6 +4033,12 @@
       "sub": "Deux fois le même relevé : {counter}. Un seul suffit.",
       "delete": "En supprimer un",
       "deleted": "Relevé en double supprimé"
+    },
+    "mismatchTitle": "La consommation avant et après le {date} ne concorde pas",
+    "mismatchTitleBlock": "La consommation avant le {date} et après le {until} ne concorde pas",
+    "mismatch": {
+      "one": "Un seul relevé erroné n’explique pas les deux. Une photo ou la facture montre s’il est juste.",
+      "other": "Aucun décalage commun des {count} relevés n’explique les deux. Une photo ou la facture montre lequel est juste."
     }
   },
   "format": {
@@ -4606,7 +4612,9 @@
       "readingCheckBlock": "{label} : vérifier les relevés du {date} au {until} ({meter})",
       "readingDuplicate": "{label} : relevé du {date} saisi deux fois ({meter})",
       "levelShiftLess": "{label} : consommation durablement plus faible depuis le {date}. Définir une rupture de référence ? ({meter})",
-      "levelShiftMore": "{label} : consommation durablement plus élevée depuis le {date}. Définir une rupture de référence ? ({meter})"
+      "levelShiftMore": "{label} : consommation durablement plus élevée depuis le {date}. Définir une rupture de référence ? ({meter})",
+      "readingMismatch": "{label} : la consommation avant et après le {date} ne concorde pas ({meter})",
+      "readingMismatchBlock": "{label} : la consommation avant le {date} et après le {until} ne concorde pas ({meter})"
     },
     "subscribe": "S’abonner dans votre agenda",
     "intro": "Rendez-vous, échéances de résiliation, fins de contrat, garanties de prix et relevés dus sous forme d’abonnement d’agenda. L’agenda les actualise toutes les 12 heures.",

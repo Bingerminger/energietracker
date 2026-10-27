@@ -27,6 +27,8 @@ const span = (s) => ({ from: fmt.date(s.from), to: fmt.date(s.to) });
 /**
  * Zeilen zu einem Befund (`ref` eines `reading_check`-Ereignisses oder ein
  * Eintrag aus `checks`): gemessen gegen erwartet davor und danach, Vermutung.
+ * Zweite Stufe (`kind` mismatch): statt der Vermutung der Satz, dass kein
+ * gemeinsamer Versatz beides erklärt (kein vorgeschlagener Stand).
  */
 export function readingCheckLines(c) {
   if (!c?.before || !c?.after) return [];
@@ -36,7 +38,8 @@ export function readingCheckLines(c) {
   return [
     side('readingCheck.before', c.before),
     side('readingCheck.after', c.after),
-    tp(c.direction === 'high' ? 'readingCheck.high' : 'readingCheck.low', n, { amount: amount(c.offset, unit) }),
+    c.kind === 'mismatch' ? tp('readingCheck.mismatch', n)
+      : tp(c.direction === 'high' ? 'readingCheck.high' : 'readingCheck.low', n, { amount: amount(c.offset, unit) }),
   ];
 }
 
@@ -51,11 +54,12 @@ export function readingCheckIndex(data) {
   return { byReading, duplicate };
 }
 
-/** Titel eines Befunds: ein Stand oder ein Block. */
+/** Titel eines Befunds: ein Stand oder ein Block; zweite Stufe „Verbrauch vor und nach dem … passt nicht zusammen“. */
 export function readingCheckTitle(c) {
   const n = Number(c?.count) || 1;
-  return n > 1 ? t('readingCheck.titleBlock', { date: fmt.date(c.date), until: fmt.date(c.until) })
-    : t('readingCheck.title', { date: fmt.date(c?.date) });
+  const mismatch = c?.kind === 'mismatch';
+  return n > 1 ? t(mismatch ? 'readingCheck.mismatchTitleBlock' : 'readingCheck.titleBlock', { date: fmt.date(c.date), until: fmt.date(c.until) })
+    : t(mismatch ? 'readingCheck.mismatchTitle' : 'readingCheck.title', { date: fmt.date(c?.date) });
 }
 
 /** Sprung in den Bearbeiten-Dialog des ersten Stands (Korrigieren). */
