@@ -224,6 +224,9 @@ for (const [lang, file] of [['de', 'docs/referenz/ansichten.md'], ['en', 'docs/e
   const missing = lang === 'de' ? /öffentlichen Demo fehlt (sie|er)\b/ : /not part of the public demo/;
   t(`${lang}: UI-Referenz: Assistent auch in der Demo, mit dem Satz der Demo bei anderem Aufbau`,
     W.conceptOffered('strom', true) && doc.includes(c.demo.conceptPresetsOnly) && !missing.test(doc));
+  // v3.9.0 (doku, Runde 4) — „Kosten & Verträge“: der Satz am Gruppenvertrag wie im Katalog
+  const via = c.contractsOverview.viaGroup.replace('{name}', '…');
+  t(`${lang}: UI-Referenz zitiert den Satz am Gruppenvertrag wie der Katalog`, doc.includes(via), via);
 }
 
 console.log(`\n  metering-concepts: ${pass} bestanden, ${fail} fehlgeschlagen`);
