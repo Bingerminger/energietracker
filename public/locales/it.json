@@ -136,7 +136,8 @@
         "hs": "sul potere calorifico superiore"
       },
       "certificateApprox": "Calcolato sul potere calorifico inferiore (approssimazione, l’attestato richiede il superiore): {fuels}.",
-      "certificateUpcoming": "Dal {date} l’attestato sui consumi segue un nuovo metodo (§ 82 GModG): {basis}, supplemento acqua calda {dhw} invece di {dhwOld} kWh/m²·a, dati su {required} invece di {requiredOld} mesi. Ne risulterebbero {value} kWh/m²·a{cls}."
+      "certificateUpcoming": "Dal {date} l’attestato sui consumi segue un nuovo metodo (§ 82 GModG): {basis}, supplemento acqua calda {dhw} invece di {dhwOld} kWh/m²·a, dati su {required} invece di {requiredOld} mesi. Ne risulterebbero {value} kWh/m²·a{cls}.",
+      "incompleteFor": "{names}: per il {year} non ci sono dati per tutto l’anno, quindi nessuna classe. L’indicatore vale solo per il periodo misurato."
     },
     "tanks": { "title": "Livelli serbatoio" },
     "stromSaldo": {
@@ -1141,7 +1142,9 @@
     },
     "advance": {
       "every": "Ritmo",
-      "dueDates": "Scadenze secondo la bolletta: {dates}, poi ogni anno negli stessi giorni"
+      "dueDates": "Scadenze secondo la bolletta: {dates}, poi ogni anno negli stessi giorni",
+      "none": "Dal {from} al {to}: nessun acconto inserito. Se in quel periodo hai pagato, inserisci qui l’importo.",
+      "noneOpen": "Dal {from} nessun acconto inserito."
     }
   },
   "meters": {
@@ -4096,7 +4099,9 @@
     "note": "{date} «{note}»",
     "bridgedTitle": "Ripartito secondo il meteo, non misurato: una lettura intermedia conta solo per la bolletta.",
     "billedShort": "(fatturato {amount})",
-    "bridgedLegend": "≈ ripartito secondo il meteo: una lettura intermedia conta solo per la bolletta. Costi e saldo usano la quantità fatturata (tra parentesi)."
+    "bridgedLegend": "≈ ripartito secondo il meteo: una lettura intermedia conta solo per la bolletta. Costi e saldo usano la quantità fatturata (tra parentesi).",
+    "bridgedLegendCol": "≈ ripartito secondo il meteo: una lettura intermedia conta solo per la bolletta. Costi e saldo usano la quantità fatturata nella colonna accanto.",
+    "bridgedTotalNote": "Nei mesi con ≈ valore mensile e quantità fatturata differiscono in tutto di {amount}: attorno alla lettura «solo per la bolletta» i valori mensili ripartiscono il consumo secondo il meteo, anche a cavallo dell’anno; costi e saldo seguono la lettura."
   },
   "format": {
     "decimal": ",",
@@ -6649,7 +6654,9 @@
       "parts": "da {parts}",
       "net": "{value} netto + IVA {vat}%",
       "advance": "Acconto dal {from}: {value} per scadenza",
-      "paid": "Acconti versati dal {from} al {to}: {total} secondo la bolletta"
+      "paid": "Acconti versati dal {from} al {to}: {total} secondo la bolletta",
+      "gap": "Dal {from} al {to}: nessun acconto inserito, la bolletta non ne indica. Se in quel periodo hai pagato, aggiungilo al contratto.",
+      "gapOpen": "Dal {from} nessun acconto inserito, la bolletta non ne indica uno nuovo. Aggiungilo al contratto appena lo conosci."
     }
   },
   "inboxCloud": {
@@ -7227,7 +7234,8 @@
       "balance": "Saldo al {date}: {after} invece di {before}.",
       "advance": "Acconto adatto: {after} invece di {before}.",
       "advanceOnly": "Acconto adatto: {after}.",
-      "more": "Maggiori dettagli"
+      "more": "Maggiori dettagli",
+      "titlePlain": "Stima più precisa"
     },
     "notNowNamed": "Non ora: {title}"
   },

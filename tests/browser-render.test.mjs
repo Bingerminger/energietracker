@@ -3280,6 +3280,45 @@ async function renderView(modPath, params = [], ctx = {}) {
       t('heizgrenze: Spanne aus zwei Guthaben — kleineres zuerst (Hinweis, Saldo-Karte); gemischt und Nachzahlungen wie bisher',
         JSON.stringify(ends) === JSON.stringify([[-325, -431], [-155, 8], [100, 300], [-325, -431]])
         && /zwischen ca\.\s325\s€ Guthaben und ca\.\s431\s€ Guthaben/.test(effTxt) && cardTxt.indexOf('325') < cardTxt.indexOf('431'), `${JSON.stringify(ends)} | ${effTxt} | ${cardTxt}`);
+      // v3.9.0 (Skeptiker N4, Runde 2) — auch der Hinweis an der Saldo-Karte ist für Einsteiger kurz, mit „Mehr dazu“
+      const Lv = await import(`${ROOT}/lib/levels.js`);
+      Lv.applyLevel('beginner');
+      const sb = await renderView(`${ROOT}/views/utility.js`, ['gas'], { query: new URLSearchParams(`meter=${hk}`) });
+      for (let i = 0; i < 100 && !sb.view.querySelector('[data-role="heat-limit-hint"]'); i++) await sleep(50);
+      const bh = sb.view.querySelector('[data-role="heat-limit-hint"]');
+      const bhMore = bh?.querySelector('details[data-role="heat-limit-more"]');
+      const bhShort = [...(bh?.children || [])].filter(el => el !== bhMore).map(el => el.textContent).join(' ').replace(/\s+/g, ' ');
+      t('heizgrenze (N4, Runde 2): Saldo-Karte für Einsteiger — kurz ohne Fachwörter, Knopf, Fachtext unter „Mehr dazu“',
+        bh?.dataset.variant === 'beginner' && /Genauer schätzen: Gas/.test(bhShort) && /Dein Haus heizt erst unter etwa/.test(bhShort)
+        && /Saldo zum .+ statt /.test(bhShort) && !/Heizmodell|Grundlast|Streuung/.test(bhShort) && !!bh.querySelector('[data-role="heat-limit-hint-apply"]')
+        && !!bhMore && !bhMore.open && /Die Spanne ist so breit, weil das Heizmodell schlecht/.test(bhMore.textContent), bhShort.slice(0, 300));
+      Lv.applyLevel('expert');
+      // v3.9.0 (Skeptiker R2-6) — der Satz zur Effizienz nennt die Quelle ohne ganzes Jahr, nicht alle
+      const effTxt2 = dashM.efficiencyIncompleteText({ year: 2025, per_source: [{ label: 'Gas', class: 'C', complete: true }, { label: 'Wärmepumpe', class: null, complete: false }] });
+      t('heizgrenze (R2-6): Effizienz — „keine Klasse“ mit Namen der Quelle ohne ganzes Jahr', /^Wärmepumpe: Für 2025 liegen nicht für das ganze Jahr Daten vor, deshalb keine Klasse\./.test(effTxt2)
+        && !/Gas/.test(effTxt2) && dashM.efficiencyIncompleteText({ year: 2025, per_source: [{ label: 'Gas', class: 'C', complete: true }] }) === '', effTxt2);
+      // v3.9.0 (Skeptiker R2-5) — nach „Übernehmen“ und „Rückgängig“ die ganze Übersicht neu; der Vorschlag steht
+      // nicht zugleich unter „Top-Empfehlungen“
+      const dv5 = await renderView(`${ROOT}/views/dashboard.js`);
+      const row5 = () => dv5.view.querySelector(`[data-role="heat-limit-todo"][data-meter="${hk}"]`);
+      for (let i = 0; i < 120 && !row5(); i++) await sleep(50);
+      const topRec = [...dv5.view.querySelectorAll('.dash-rec')].some(el => /Heizgrenze anpassen/.test(el.textContent));
+      const mark = () => { const el = dv5.view.firstElementChild; if (el) el.dataset.stale = '1'; };
+      const fresh = async () => { for (let i = 0; i < 160; i++) { const el = dv5.view.firstElementChild; if (el && !el.dataset.stale && !el.classList.contains('loading')) return true; await sleep(50); } return false; };
+      mark();
+      row5()?.querySelector('[data-heat-apply]')?.click();
+      let ma5 = null;
+      for (let i = 0; i < 60; i++) { ma5 = await json(`/utility/gas/meters/${hk}`); if (Number(ma5?.hdd_base_temp) === hl6.best) break; await sleep(50); }
+      const redrawn = await fresh();
+      for (let i = 0; i < 60 && !/Rückgängig/.test(toastAction()?.textContent || ''); i++) await sleep(50);
+      mark();
+      toastAction()?.click();
+      let mu5 = null;
+      for (let i = 0; i < 60; i++) { mu5 = await json(`/utility/gas/meters/${hk}`); if (Number(mu5?.hdd_base_temp) === 6) break; await sleep(50); }
+      const redrawn2 = await fresh();
+      t('heizgrenze (R2-5): Übersicht nach „Übernehmen“ und „Rückgängig“ ganz neu gezeichnet, Vorschlag nicht doppelt unter „Top-Empfehlungen“',
+        !topRec && Number(ma5?.hdd_base_temp) === hl6.best && redrawn && Number(mu5?.hdd_base_temp) === 6 && redrawn2,
+        `${topRec} ${ma5?.hdd_base_temp} ${redrawn} ${mu5?.hdd_base_temp} ${redrawn2}`);
       // Prognose und Werkstatt: derselbe Hinweis, wenn das Heizmodell schlecht passt
       const fw = await renderView(`${ROOT}/views/forecast.js`);
       await sleep(400);
@@ -3646,6 +3685,18 @@ async function renderView(modPath, params = [], ctx = {}) {
       && /nach dem Wetter verteilt/.test(bridgedLegend) && !/gleichmäßig/.test(bridgedLegend)
       && !/gleichmäßig/.test(lv.view.querySelector('[data-role="interpolated-legend"]')?.textContent || ''),
       `${billedCell?.textContent} · ${bridgedLegend.slice(0, 120)}`);
+    // Skeptiker R2-9: Überbrückung im selben Jahr (Januar bis März): Summen gleich, kein Satz.
+    // Über den Jahreswechsel (Stand am 01.01.2025 nur für die Abrechnung): Satz zum Unterschied
+    const noNote = !lv.view.querySelector('[data-role="bridged-total-note"]');
+    const yid = await formula('Jahreswechsel Test', () => 1, { '2025-01-01': (m) => -0.5 * m['2024-12'] });
+    const yJan = ((await send('GET', `/utility/gas/readings?meter_id=${encodeURIComponent(yid)}`)).data || []).find(r => r.date === '2025-01-01');
+    await send('PATCH', `/utility/gas/readings/${encodeURIComponent(yJan?.id)}`, { is_billing_only: true });
+    const yv = await renderView(`${ROOT}/views/utility.js`, ['gas'], { query: new URLSearchParams(`meter=${yid}&year=2025`) });
+    const yNote = (await until(() => yv.view.querySelector('[data-role="bridged-total-note"]'), 120))?.textContent || '';
+    t('ablesung: Monatstabelle — Satz zum Unterschied der Summen nur, wenn die Überbrückung über den Jahreswechsel reicht',
+      noNote && /liegen Monatswert und abgerechnete Menge zusammen um [\d.]+ kWh auseinander/.test(yNote) && /Jahreswechsel/.test(yNote),
+      `${noNote} · ${yNote.slice(0, 200)}`);
+    await send('DELETE', `/utility/gas/meters/${yid}`);
     // zurück (Rückgängig ist oben schon geprüft): den Merker direkt entfernen
     await send('PATCH', `/utility/gas/readings/${encodeURIComponent(rid)}`, { is_billing_only: false });
     global.document.querySelectorAll('.toast').forEach(el => el.remove());

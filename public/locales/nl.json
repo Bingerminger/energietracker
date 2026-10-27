@@ -136,7 +136,8 @@
         "hs": "op bovenste verbrandingswaarde"
       },
       "certificateApprox": "Gerekend op onderste verbrandingswaarde (benadering, het label vraagt de bovenste): {fuels}.",
-      "certificateUpcoming": "Vanaf {date} volgt het verbruikslabel een nieuwe methode (§ 82 GModG): {basis}, toeslag warm water {dhw} in plaats van {dhwOld} kWh/m²·j, gegevens over {required} in plaats van {requiredOld} maanden. Dat geeft dan {value} kWh/m²·j{cls}."
+      "certificateUpcoming": "Vanaf {date} volgt het verbruikslabel een nieuwe methode (§ 82 GModG): {basis}, toeslag warm water {dhw} in plaats van {dhwOld} kWh/m²·j, gegevens over {required} in plaats van {requiredOld} maanden. Dat geeft dan {value} kWh/m²·j{cls}.",
+      "incompleteFor": "{names}: voor {year} zijn er geen gegevens over het hele jaar, dus geen klasse. Het kengetal geldt alleen voor de gemeten periode."
     },
     "tanks": { "title": "Tankniveaus" },
     "stromSaldo": {
@@ -1141,7 +1142,9 @@
     },
     "advance": {
       "every": "Ritme",
-      "dueDates": "Vervaldata volgens de rekening: {dates}, daarna elk jaar op dezelfde dagen"
+      "dueDates": "Vervaldata volgens de rekening: {dates}, daarna elk jaar op dezelfde dagen",
+      "none": "{from} tot {to}: geen voorschot ingevoerd. Heb je in die tijd betaald, vul het bedrag dan hier in.",
+      "noneOpen": "Vanaf {from} geen voorschot ingevoerd."
     }
   },
   "meters": {
@@ -4096,7 +4099,9 @@
     "note": "{date} ‘{note}’",
     "bridgedTitle": "Naar het weer verdeeld, niet gemeten: een meterstand daartussen telt alleen voor de afrekening.",
     "billedShort": "(afgerekend {amount})",
-    "bridgedLegend": "≈ naar het weer verdeeld: een meterstand daartussen telt alleen voor de afrekening. Kosten en saldo rekenen met de afgerekende hoeveelheid (tussen haakjes)."
+    "bridgedLegend": "≈ naar het weer verdeeld: een meterstand daartussen telt alleen voor de afrekening. Kosten en saldo rekenen met de afgerekende hoeveelheid (tussen haakjes).",
+    "bridgedLegendCol": "≈ naar het weer verdeeld: een meterstand daartussen telt alleen voor de afrekening. Kosten en saldo rekenen met de afgerekende hoeveelheid in de kolom ernaast.",
+    "bridgedTotalNote": "In de maanden met ≈ verschillen maandwaarde en afgerekende hoeveelheid samen {amount}: rond de meterstand ‘alleen voor de afrekening’ verdelen de maandwaarden het verbruik naar het weer, ook over de jaarwisseling; kosten en saldo volgen de meterstand."
   },
   "format": {
     "decimal": ",",
@@ -6649,7 +6654,9 @@
       "parts": "uit {parts}",
       "net": "{value} netto + {vat}% btw",
       "advance": "Voorschot vanaf {from}: {value} per vervaldatum",
-      "paid": "Betaalde voorschotten {from} tot {to}: {total} volgens de rekening"
+      "paid": "Betaalde voorschotten {from} tot {to}: {total} volgens de rekening",
+      "gap": "{from} tot {to}: geen voorschot ingevoerd, de rekening noemt er geen. Heb je in die tijd betaald, vul het dan aan bij het contract.",
+      "gapOpen": "Vanaf {from} geen voorschot ingevoerd, de rekening noemt geen nieuw. Vul het aan bij het contract zodra je het weet."
     }
   },
   "inboxCloud": {
@@ -7227,7 +7234,8 @@
       "balance": "Saldo op {date}: {after} in plaats van {before}.",
       "advance": "Passend voorschot: {after} in plaats van {before}.",
       "advanceOnly": "Passend voorschot: {after}.",
-      "more": "Meer hierover"
+      "more": "Meer hierover",
+      "titlePlain": "Nauwkeuriger schatten"
     },
     "notNowNamed": "Niet nu: {title}"
   },

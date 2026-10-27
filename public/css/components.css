@@ -1531,6 +1531,9 @@ fieldset.settings-field > legend {
 .dash-todo__more { padding: 0 0 var(--sp-3) calc(24px + var(--sp-3)); }
 .dash-todo__more summary { cursor: pointer; font-size: var(--fs-sm); color: var(--text-2); }
 .dash-todo__more p { margin: var(--sp-2) 0 0; }
+.heat-limit-hint__more { margin-top: var(--sp-2); }
+.heat-limit-hint__more summary { cursor: pointer; font-size: var(--fs-sm); }
+.heat-limit-hint__more p { margin: var(--sp-2) 0 0; }
 
 /* v3.4.0 (F1024) — Dialog „Erledigt" und Tab „Erledigt" */
 .done-dialog__what { margin: 0 0 var(--sp-3); }

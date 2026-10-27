@@ -136,7 +136,8 @@
         "hs": "pelo poder calorífico superior"
       },
       "certificateApprox": "Calculado pelo poder calorífico inferior (aproximação, o certificado exige o superior): {fuels}.",
-      "certificateUpcoming": "A partir de {date} o certificado por consumo segue um novo método (§ 82 GModG): {basis}, acréscimo de água quente {dhw} em vez de {dhwOld} kWh/m²·a, dados de {required} em vez de {requiredOld} meses. Daria {value} kWh/m²·a{cls}."
+      "certificateUpcoming": "A partir de {date} o certificado por consumo segue um novo método (§ 82 GModG): {basis}, acréscimo de água quente {dhw} em vez de {dhwOld} kWh/m²·a, dados de {required} em vez de {requiredOld} meses. Daria {value} kWh/m²·a{cls}.",
+      "incompleteFor": "{names}: para {year} não há dados do ano inteiro, por isso não há classe. O indicador vale apenas para o período medido."
     },
     "tanks": { "title": "Níveis do depósito" },
     "stromSaldo": {
@@ -1141,7 +1142,9 @@
     },
     "advance": {
       "every": "Ritmo",
-      "dueDates": "Vencimentos segundo a fatura: {dates}, depois todos os anos nos mesmos dias"
+      "dueDates": "Vencimentos segundo a fatura: {dates}, depois todos os anos nos mesmos dias",
+      "none": "De {from} a {to}: nenhum adiantamento registado. Se houve pagamento nesse período, o montante pode ser indicado aqui.",
+      "noneOpen": "A partir de {from} nenhum adiantamento registado."
     }
   },
   "meters": {
@@ -4096,7 +4099,9 @@
     "note": "{date} «{note}»",
     "bridgedTitle": "Repartido conforme o tempo, não medido: uma leitura intermédia só conta para a fatura.",
     "billedShort": "(faturado {amount})",
-    "bridgedLegend": "≈ repartido conforme o tempo: uma leitura intermédia só conta para a fatura. Os custos e o saldo usam a quantidade faturada (entre parênteses)."
+    "bridgedLegend": "≈ repartido conforme o tempo: uma leitura intermédia só conta para a fatura. Os custos e o saldo usam a quantidade faturada (entre parênteses).",
+    "bridgedLegendCol": "≈ repartido conforme o tempo: uma leitura intermédia só conta para a fatura. Os custos e o saldo usam a quantidade faturada da coluna ao lado.",
+    "bridgedTotalNote": "Nos meses com ≈ o valor mensal e a quantidade faturada diferem no total em {amount}: à volta da leitura «só para a fatura» os valores mensais repartem o consumo conforme o tempo, também na passagem de ano; os custos e o saldo seguem a leitura."
   },
   "format": {
     "decimal": ",",
@@ -6649,7 +6654,9 @@
       "parts": "a partir de {parts}",
       "net": "{value} líquido + {vat}% de IVA",
       "advance": "Adiantamento a partir de {from}: {value} por vencimento",
-      "paid": "Adiantamentos pagos de {from} a {to}: {total} segundo a fatura"
+      "paid": "Adiantamentos pagos de {from} a {to}: {total} segundo a fatura",
+      "gap": "De {from} a {to}: nenhum adiantamento registado, a fatura não indica nenhum. Se houve pagamento nesse período, pode ser acrescentado no contrato.",
+      "gapOpen": "A partir de {from} nenhum adiantamento registado, a fatura não indica um novo. Pode ser acrescentado no contrato assim que for conhecido."
     }
   },
   "inboxCloud": {
@@ -7227,7 +7234,8 @@
       "balance": "Saldo em {date}: {after} em vez de {before}.",
       "advance": "Adiantamento adequado: {after} em vez de {before}.",
       "advanceOnly": "Adiantamento adequado: {after}.",
-      "more": "Mais detalhes"
+      "more": "Mais detalhes",
+      "titlePlain": "Estimar com mais precisão"
     },
     "notNowNamed": "Agora não: {title}"
   },

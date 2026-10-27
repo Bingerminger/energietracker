@@ -636,6 +636,7 @@ export async function render(container, params = [], ctx = {}) {
     slot.innerHTML = '';
     if (!poor || !meterSel.value) return;
     fillHeatLimitSlot(slot, { utility: utilSel.value, id: meterSel.value, context, unit,
+      label: utilities.find(x => x.key === utilSel.value)?.label || '',
       onChange: async () => { await Promise.all([compute(), run()]); } });
   }
 

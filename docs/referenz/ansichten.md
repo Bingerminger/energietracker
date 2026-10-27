@@ -754,7 +754,10 @@ richtig (nicht mehr prüfen)“; bei einem Befund nennt er den Stand, der passen
 würde, mit „Einsetzen“. In einem Monat, den ein Stand nur für die Abrechnung
 überbrückt, passen Menge und Kosten der Monatstabelle nicht zueinander: Die Menge
 ist nach dem Wetter verteilt (≈, mit eigener Legende), die Kosten rechnen mit dem Stand;
-die abgerechnete Menge steht in Klammern daneben („(abgerechnet …)“)
+die abgerechnete Menge steht in der Spalte „Abgerechnet“ (ohne die Spalte, etwa bei
+Wasser, in Klammern daneben: „(abgerechnet …)“). Reicht die Überbrückung über den
+Jahreswechsel, nennt ein Satz unter der Tabelle, um wie viel die beiden Summen deshalb
+auseinanderliegen
 ([Hinweise erledigen §11](../anleitungen/hinweise-erledigen.md#11-ablesung-prüfen-v390)).
 
 **Foto zum Stand (v3.1.0):** Trägt ein Stand ein Foto, zeigt die

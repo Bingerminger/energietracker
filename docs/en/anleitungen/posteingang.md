@@ -218,8 +218,10 @@ value is already recorded on an earlier day of the billing period and the bill
 states it on the last day of the period, it is the reading you reported, which
 the supplier dates to the end of the period: “already there”, and “Check bill”
 counts the quantity up to the day you read the meter. A reading the document
-prints with fewer digits is the same as yours if yours, rounded to those digits,
-matches (29,310 in the document, 29,310.2 in your records). A proposal is flagged only when one
+prints with fewer digits is the same as yours if yours, rounded or cut to those
+digits, matches (29,310 in the document, 29,310.2 in your records; 26,845 in the
+document, 26,845.5 in your records). Only your reading is cut: if the document
+has more digits than yours, it is a different reading. A proposal is flagged only when one
 of **its** core fields is in doubt *(v3.7.0)*: a new contract needs start,
 supplier and prices, not the advance payment. If the advance is missing, the
 contract is created without it; if it was read with doubt, the contract does
@@ -271,7 +273,12 @@ for water too, and ticks it in advance. It takes over:
 - the **advance payments made according to the bill** for the period
   *(v3.9.0)*: equal dated payments on their dates, otherwise the total spread
   evenly per month (€800 over twelve months: €66.6667 a month). Until the new plan
-  there is then no advance payment the bill does not name. So the billing year,
+  there is then no advance payment the bill does not name (a row with €0). A note
+  below the proposal and below the row in the contract says so, with both dates
+  (“… no advance payment entered …”); if you still paid in that time, you
+  enter the amount there. The app does not continue the old advance payment by
+  guesswork, because the bill names neither an amount nor due dates after the
+  period. So the billing year,
   the annual report and “Check bill” count the same amount paid as the bill,
 - the **new advance payment plan** with its rhythm (see below).
 

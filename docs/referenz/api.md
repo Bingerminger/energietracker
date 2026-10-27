@@ -4478,11 +4478,14 @@ Zeitraum gar kein Vertrag, ist `contract_create`
 Abschnitt (brutto), bei Wasser alle drei Sparten, und den neuen Abschlagsplan;
 `data.for_bill: true` heißt, die Rechnung dieses Durchgangs hängt an ihm
 (`bill` und `bill_book` tragen dann `data.contract_new: true`). `params.lines`
-schlüsselt auf: `{section, kind: working|base|rate|advance|paid, from, value, parts:
+schlüsselt auf: `{section, kind: working|base|rate|advance|paid|gap, from, value, parts:
 [{label, price, unit, net, vat_pct, gross}], area?, every?, dates?, to?, total?}`;
 `paid` sind die laut Rechnung im Zeitraum gezahlten Abschläge (am Vertrag die
 erste Zeile von `advance_payments`, gleichmäßig je Monat oder an den Terminen der
-Zahlungen, danach eine Zeile mit 0 bis zum neuen Plan). Nach dem Übernehmen
+Zahlungen, danach eine Zeile mit 0 bis zum neuen Plan). `gap` nennt diese
+0-€-Zeile als Hinweis: `from` der Tag nach dem Zeitraum, `to` der Vortag des
+ersten neuen Termins oder `null`, wenn die Rechnung keinen neuen Abschlag nennt.
+Nach dem Übernehmen
 steht die Zuordnung am neuen Vertrag; eine Zuordnung, die erst das Übernehmen
 gespeichert hat, trägt `auto: true`, die Vorschau dann `assignment_applied: true`
 statt `assignment_saved` (additiv). Gilt im

@@ -136,7 +136,8 @@
         "hs": "con poder calorífico superior"
       },
       "certificateApprox": "Calculado con poder calorífico inferior (aproximación, el certificado exige el superior): {fuels}.",
-      "certificateUpcoming": "Desde el {date} el certificado de consumo sigue un nuevo método (§ 82 GModG): {basis}, recargo de agua caliente {dhw} en lugar de {dhwOld} kWh/m²·a, datos de {required} en lugar de {requiredOld} meses. Resultarían {value} kWh/m²·a{cls}."
+      "certificateUpcoming": "Desde el {date} el certificado de consumo sigue un nuevo método (§ 82 GModG): {basis}, recargo de agua caliente {dhw} en lugar de {dhwOld} kWh/m²·a, datos de {required} en lugar de {requiredOld} meses. Resultarían {value} kWh/m²·a{cls}.",
+      "incompleteFor": "{names}: para {year} no hay datos de todo el año, así que no hay clase. El indicador solo vale para el periodo medido."
     },
     "tanks": { "title": "Niveles de depósito" },
     "stromSaldo": {
@@ -1141,7 +1142,9 @@
     },
     "advance": {
       "every": "Ritmo",
-      "dueDates": "Vencimientos según la factura: {dates}, después cada año en los mismos días"
+      "dueDates": "Vencimientos según la factura: {dates}, después cada año en los mismos días",
+      "none": "Del {from} al {to}: ningún anticipo registrado. Si pagaste en ese periodo, introduce aquí el importe.",
+      "noneOpen": "Desde el {from} ningún anticipo registrado."
     }
   },
   "meters": {
@@ -4096,7 +4099,9 @@
     "note": "{date} «{note}»",
     "bridgedTitle": "Repartido según el tiempo, no medido: una lectura intermedia solo cuenta para la factura.",
     "billedShort": "(facturado {amount})",
-    "bridgedLegend": "≈ repartido según el tiempo: una lectura intermedia solo cuenta para la factura. Los costes y el saldo usan la cantidad facturada (entre paréntesis)."
+    "bridgedLegend": "≈ repartido según el tiempo: una lectura intermedia solo cuenta para la factura. Los costes y el saldo usan la cantidad facturada (entre paréntesis).",
+    "bridgedLegendCol": "≈ repartido según el tiempo: una lectura intermedia solo cuenta para la factura. Los costes y el saldo usan la cantidad facturada de la columna de al lado.",
+    "bridgedTotalNote": "En los meses con ≈ el valor mensual y la cantidad facturada difieren en total en {amount}: en torno a la lectura «solo para la factura» los valores mensuales reparten el consumo según el tiempo, también con el cambio de año; los costes y el saldo siguen la lectura."
   },
   "format": {
     "decimal": ",",
@@ -6649,7 +6654,9 @@
       "parts": "a partir de {parts}",
       "net": "{value} neto + {vat} % de IVA",
       "advance": "Anticipo desde el {from}: {value} por vencimiento",
-      "paid": "Anticipos pagados del {from} al {to}: {total} según la factura"
+      "paid": "Anticipos pagados del {from} al {to}: {total} según la factura",
+      "gap": "Del {from} al {to}: ningún anticipo registrado, la factura no indica ninguno. Si pagaste en ese periodo, añádelo al contrato.",
+      "gapOpen": "Desde el {from} ningún anticipo registrado, la factura no indica uno nuevo. Añádelo al contrato cuando lo sepas."
     }
   },
   "inboxCloud": {
@@ -7227,7 +7234,8 @@
       "balance": "Saldo al {date}: {after} en lugar de {before}.",
       "advance": "Anticipo adecuado: {after} en lugar de {before}.",
       "advanceOnly": "Anticipo adecuado: {after}.",
-      "more": "Más detalles"
+      "more": "Más detalles",
+      "titlePlain": "Estimar con más precisión"
     },
     "notNowNamed": "Ahora no: {title}"
   },

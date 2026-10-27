@@ -235,6 +235,23 @@ console.log('Vertrag aus der Rechnung (vertrag-aus-rechnung)');
   // Skeptiker H2, N15, N8 — gezahlte Abschläge im Vorschlag, Name im Bestand, „kein Vertrag“ statt 0,00 €
   const paid = sp(I.proposalLines({ kind: 'contract_create', params: { lines: [{ section: null, kind: 'paid', from: '2025-04-01', to: '2026-03-31', value: 66.6667, total: 800 }] } })[0]);
   t('Vertrag aus der Rechnung: gezahlte Abschläge des Zeitraums', paid === 'Gezahlte Abschläge 01.04.2025 bis 31.03.2026: 800,00 € laut Rechnung', paid);
+  // Skeptiker R2-8 — die 0-€-Zeile danach steht als Hinweis da, im Vorschlag und am Vertrag
+  const [gap, gapOpen] = I.proposalLines({ kind: 'contract_create', params: { lines: [
+    { section: null, kind: 'gap', from: '2026-04-01', to: '2026-05-14' }, { section: null, kind: 'gap', from: '2026-04-01', to: null }] } });
+  t('Vorschlag: bis zum ersten neuen Termin kein Abschlag eingetragen',
+    gap === '01.04.2026 bis 14.05.2026: kein Abschlag eingetragen, die Rechnung nennt dafür keinen. Hast du in der Zeit gezahlt, trag es am Vertrag nach.', gap);
+  t('Vorschlag: ohne neuen Abschlag offen', gapOpen === 'Ab 01.04.2026 kein Abschlag eingetragen, die Rechnung nennt keinen neuen. Trag ihn am Vertrag nach, sobald du ihn kennst.', gapOpen);
+  const plan = [{ from: '2025-04-01', amount_eur: 66.6667 }, { from: '2026-04-01', amount_eur: 0 }, { from: '2026-05-15', amount_eur: 165, every_months: 2 }];
+  const span = R.zeroAdvanceSpan(plan, plan[1]);
+  t('Vertrag: 0-€-Zeile bis zum Vortag der nächsten Zeile', JSON.stringify(span) === JSON.stringify({ from: '2026-04-01', until: '2026-05-14' }), JSON.stringify(span));
+  t('Vertrag: Hinweis zur 0-€-Zeile', R.zeroAdvanceText(span) === '01.04.2026 bis 14.05.2026: kein Abschlag eingetragen. Hast du in der Zeit gezahlt, trag den Betrag hier ein.', R.zeroAdvanceText(span));
+  t('Vertrag: letzte 0-€-Zeile offen', R.zeroAdvanceText(R.zeroAdvanceSpan(plan.slice(0, 2), plan[1])) === 'Ab 01.04.2026 kein Abschlag eingetragen.');
+  t('Vertrag: kein Hinweis für einen Betrag, eine leere oder undatierte Zeile', R.zeroAdvanceSpan(plan, plan[0]) === null
+    && R.zeroAdvanceSpan(plan, { from: '2026-04-01', amount_eur: '' }) === null && R.zeroAdvanceSpan(plan, { from: '', amount_eur: 0 }) === null);
+  // beide Vertragsformulare zeigen den Hinweis (Standard- und Wasserformular; die Darstellung selbst prüft die Sichtprüfung)
+  const cv = readFileSync(resolve(ROOT, 'public/js/views/contracts.js'), 'utf8');
+  t('Vertrag: Hinweis in beiden Formularen verdrahtet', cv.includes('renderEntryRow(g, e, entries)') && cv.includes("${advance ? advanceGapHtml(entries, e) : ''}")
+    && cv.includes("groupKey === 'ap' && f === 'amount_eur' ? waterGapNote(entries, e)") && (cv.match(/zeroAdvanceText\(zeroAdvanceSpan\(entries, e\)\)/g) || []).length === 2);
   const DR0 = await import(`${JS}/lib/inbox-draft.js`);
   const nm = DR0.basisText({ name: 'provider', kind: 'text', value: 'Stadtwerke Musterstadt GmbH', status: 'exists', existing_name: 'Stadtwerke Musterstadt' });
   t('Entwurf: Versorger vorhanden, im Bestand anders geschrieben', nm === 'Im Bestand heißt der Versorger „Stadtwerke Musterstadt“.', nm);

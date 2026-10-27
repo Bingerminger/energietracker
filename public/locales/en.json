@@ -136,7 +136,8 @@
         "hs": "on gross calorific value"
       },
       "certificateApprox": "Counted on net calorific value (an approximation, the certificate requires gross): {fuels}.",
-      "certificateUpcoming": "From {date} the consumption certificate follows a new procedure (§ 82 GModG): {basis}, hot water surcharge {dhw} instead of {dhwOld} kWh/m²·yr, data over {required} instead of {requiredOld} months. That would give {value} kWh/m²·yr{cls}."
+      "certificateUpcoming": "From {date} the consumption certificate follows a new procedure (§ 82 GModG): {basis}, hot water surcharge {dhw} instead of {dhwOld} kWh/m²·yr, data over {required} instead of {requiredOld} months. That would give {value} kWh/m²·yr{cls}.",
+      "incompleteFor": "{names}: there is no data for the whole of {year}, so no class. The figure only covers the measured period."
     },
     "tanks": { "title": "Tank levels" },
     "stromSaldo": {
@@ -1141,7 +1142,9 @@
     },
     "advance": {
       "every": "Rhythm",
-      "dueDates": "Due dates according to the bill: {dates}, then yearly on the same days"
+      "dueDates": "Due dates according to the bill: {dates}, then yearly on the same days",
+      "none": "{from} to {to}: no advance payment entered. If you paid in that time, enter the amount here.",
+      "noneOpen": "From {from} no advance payment entered."
     }
   },
   "meters": {
@@ -4096,7 +4099,9 @@
     "note": "{date} “{note}”",
     "bridgedTitle": "Spread by the weather, not measured: a reading in between only counts for the bill.",
     "billedShort": "(billed {amount})",
-    "bridgedLegend": "≈ spread by the weather: a reading in between only counts for the bill. Costs and balance use the billed amount (in brackets)."
+    "bridgedLegend": "≈ spread by the weather: a reading in between only counts for the bill. Costs and balance use the billed amount (in brackets).",
+    "bridgedLegendCol": "≈ spread by the weather: a reading in between only counts for the bill. Costs and balance use the billed amount in the column next to it.",
+    "bridgedTotalNote": "In the months with ≈ monthly value and billed amount differ by {amount} in total: across the reading “only for the bill” the monthly values spread consumption by the weather, also across the turn of the year; costs and balance follow the reading."
   },
   "format": {
     "decimal": ".",
@@ -6649,7 +6654,9 @@
       "parts": "from {parts}",
       "net": "{value} net + {vat}% VAT",
       "advance": "Advance payment from {from}: {value} per due date",
-      "paid": "Advance payments made {from} to {to}: {total} according to the bill"
+      "paid": "Advance payments made {from} to {to}: {total} according to the bill",
+      "gap": "{from} to {to}: no advance payment entered, the bill names none for this time. If you paid in that time, add it to the contract.",
+      "gapOpen": "From {from} no advance payment entered, the bill names no new one. Add it to the contract once you know it."
     }
   },
   "inboxCloud": {
@@ -7227,7 +7234,8 @@
       "balance": "Balance on {date}: {after} instead of {before}.",
       "advance": "Suitable advance payment: {after} instead of {before}.",
       "advanceOnly": "Suitable advance payment: {after}.",
-      "more": "More about this"
+      "more": "More about this",
+      "titlePlain": "Estimate more accurately"
     },
     "notNowNamed": "Not now: {title}"
   },

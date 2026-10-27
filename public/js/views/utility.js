@@ -610,7 +610,7 @@ async function rerender(container) {
   // (Zähler, bei einem Gruppenvertrag die Gruppe)
   fillHeatLimitSlot(container.querySelector('[data-role="heat-limit-slot"]'), {
     utility: u.key, id: gcRef?.contract_id && currentContract?.contract_id === gcRef.contract_id ? gcRef.group_id : meter.id,
-    context: 'balance', unit: u.consumption_unit, onChange: () => rerender(container),
+    context: 'balance', unit: u.consumption_unit, label: u.label, onChange: () => rerender(container),
   });
 
   // v3.2.0 (F1020) — Schaubilder: Geld und Vertrag, Wetter, Energiefluss
@@ -1406,7 +1406,18 @@ function monthlyTable(monthly, u, hasContracts) {
   ${showBalance ? `<p class="muted" style="font-size:12px;margin-top:8px">${t('saldo.tableLegend')}</p>` : ''}
   ${monthly.some(m => m.estimated_days > 0) ? `<p class="muted" style="font-size:12px;margin-top:8px">${t('utility.monthlyTable.estimatedLegend')}</p>` : ''}
   ${monthly.some(m => isInterpolated(m) && !m.bridged) ? `<p class="muted" style="font-size:12px;margin-top:8px" data-role="interpolated-legend">${escapeHtml(t('interpolation.legend'))}</p>` : ''}
-  ${monthly.some(m => m.bridged) ? `<p class="muted" style="font-size:12px;margin-top:8px" data-role="bridged-legend">${escapeHtml(t('readingCheck.bridgedLegend'))}</p>` : ''}
+  ${monthly.some(m => m.bridged) ? `<p class="muted" style="font-size:12px;margin-top:8px" data-role="bridged-legend">${escapeHtml(t(billedCol ? 'readingCheck.bridgedLegendCol' : 'readingCheck.bridgedLegend'))}</p>` : ''}
+  ${(() => {
+    // Skeptiker R2-9: Reicht die Überbrückung über den Jahreswechsel, verschieben die
+    // Monatswerte Verbrauch ins Nachbarjahr, die abgerechnete Menge nicht; ein Satz zum
+    // Unterschied der beiden Summen (nur der Anteil der überbrückten Monate)
+    const billedQtyOf = (m) => (consKey === 'kwh' ? m.billed_kwh : m.billed_m3);
+    const diff = monthly.filter(m => m.bridged)
+      .reduce((a, m) => a + (Number(billedQtyOf(m) ?? m[consKey]) || 0) - (Number(m[consKey]) || 0), 0);
+    return Math.round(Math.abs(diff)) >= 1
+      ? `<p class="muted" style="font-size:12px;margin-top:8px" data-role="bridged-total-note">${escapeHtml(t('readingCheck.bridgedTotalNote',
+        { amount: `${fmt.int(Math.abs(diff))} ${u.consumption_unit}` }))}</p>` : '';
+  })()}
   ${monthly.some(isPartial) ? `<p class="muted" style="font-size:12px;margin-top:8px">${escapeHtml(t('utility.monthlyTable.partialLegend'))}</p>` : ''}`;
 }
 

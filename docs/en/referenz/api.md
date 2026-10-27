@@ -4406,11 +4406,13 @@ applies at the meter during the period, `contract_create`
 section (gross), for water all three components, and the new advance payment
 plan; `data.for_bill: true` means the bill of this run belongs to it (`bill` and
 `bill_book` then carry `data.contract_new: true`). `params.lines` breaks it
-down: `{section, kind: working|base|rate|advance|paid, from, value, parts: [{label,
+down: `{section, kind: working|base|rate|advance|paid|gap, from, value, parts: [{label,
 price, unit, net, vat_pct, gross}], area?, every?, dates?, to?, total?}`; `paid`
 are the advance payments made in the period according to the bill (on the
 contract the first row of `advance_payments`, evenly per month or on the dates
-of the payments, then a row with 0 until the new plan). After taking over, the
+of the payments, then a row with 0 until the new plan). `gap` names this €0 row
+as a note: `from` the day after the period, `to` the day before the first new
+due date, or `null` if the bill names no new advance payment. After taking over, the
 document is assigned to the new contract; an assignment that only taking over
 stored carries `auto: true`, and the preview then shows `assignment_applied:
 true` instead of `assignment_saved` (additive). If a contract

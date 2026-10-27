@@ -136,7 +136,8 @@
         "hs": "nach Brennwert"
       },
       "certificateApprox": "Nach Heizwert gerechnet (Näherung, der Ausweis verlangt den Brennwert): {fuels}.",
-      "certificateUpcoming": "Ab {date} gilt für den Verbrauchsausweis ein neues Verfahren (§ 82 GModG): {basis}, Warmwasser-Zuschlag {dhw} statt {dhwOld} kWh/m²·a, Daten über {required} statt {requiredOld} Monate. Damit wären es {value} kWh/m²·a{cls}."
+      "certificateUpcoming": "Ab {date} gilt für den Verbrauchsausweis ein neues Verfahren (§ 82 GModG): {basis}, Warmwasser-Zuschlag {dhw} statt {dhwOld} kWh/m²·a, Daten über {required} statt {requiredOld} Monate. Damit wären es {value} kWh/m²·a{cls}.",
+      "incompleteFor": "{names}: Für {year} liegen nicht für das ganze Jahr Daten vor, deshalb keine Klasse. Die Kennzahl gilt nur für den gemessenen Zeitraum."
     },
     "tanks": { "title": "Tank-Bestände" },
     "stromSaldo": {
@@ -1141,7 +1142,9 @@
     },
     "advance": {
       "every": "Rhythmus",
-      "dueDates": "Termine laut Rechnung: {dates}, danach jährlich zu denselben Tagen"
+      "dueDates": "Termine laut Rechnung: {dates}, danach jährlich zu denselben Tagen",
+      "none": "{from} bis {to}: kein Abschlag eingetragen. Hast du in der Zeit gezahlt, trag den Betrag hier ein.",
+      "noneOpen": "Ab {from} kein Abschlag eingetragen."
     }
   },
   "meters": {
@@ -4096,7 +4099,9 @@
     "note": "{date} „{note}“",
     "bridgedTitle": "Nach dem Wetter verteilt, nicht gemessen: Ein Stand dazwischen zählt nur für die Abrechnung.",
     "billedShort": "(abgerechnet {amount})",
-    "bridgedLegend": "≈ nach dem Wetter verteilt: Ein Stand dazwischen zählt nur für die Abrechnung. Kosten und Saldo rechnen mit der abgerechneten Menge (in Klammern)."
+    "bridgedLegend": "≈ nach dem Wetter verteilt: Ein Stand dazwischen zählt nur für die Abrechnung. Kosten und Saldo rechnen mit der abgerechneten Menge (in Klammern).",
+    "bridgedLegendCol": "≈ nach dem Wetter verteilt: Ein Stand dazwischen zählt nur für die Abrechnung. Kosten und Saldo rechnen mit der abgerechneten Menge in der Spalte daneben.",
+    "bridgedTotalNote": "In den Monaten mit ≈ liegen Monatswert und abgerechnete Menge zusammen um {amount} auseinander: Über den Stand „nur für die Abrechnung“ hinweg verteilen die Monatswerte den Verbrauch nach dem Wetter, auch über den Jahreswechsel; Kosten und Saldo rechnen nach dem Stand."
   },
   "format": {
     "decimal": ",",
@@ -6649,7 +6654,9 @@
       "parts": "aus {parts}",
       "net": "{value} netto + {vat} % USt",
       "advance": "Abschlag ab {from}: {value} je Termin",
-      "paid": "Gezahlte Abschläge {from} bis {to}: {total} laut Rechnung"
+      "paid": "Gezahlte Abschläge {from} bis {to}: {total} laut Rechnung",
+      "gap": "{from} bis {to}: kein Abschlag eingetragen, die Rechnung nennt dafür keinen. Hast du in der Zeit gezahlt, trag es am Vertrag nach.",
+      "gapOpen": "Ab {from} kein Abschlag eingetragen, die Rechnung nennt keinen neuen. Trag ihn am Vertrag nach, sobald du ihn kennst."
     }
   },
   "inboxCloud": {
@@ -7227,7 +7234,8 @@
       "balance": "Saldo zum {date}: {after} statt {before}.",
       "advance": "Passender Abschlag: {after} statt {before}.",
       "advanceOnly": "Passender Abschlag: {after}.",
-      "more": "Mehr dazu"
+      "more": "Mehr dazu",
+      "titlePlain": "Genauer schätzen"
     },
     "notNowNamed": "Nicht jetzt: {title}"
   },

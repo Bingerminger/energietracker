@@ -731,7 +731,9 @@ monthly values skip them. The **edit dialog** of every reading has the ticks
 again)”; with a finding it names the value that would fit, with “Insert”. In a
 month that a bill-only reading bridges, amount and cost in the monthly table do
 not match: the amount is spread by the weather (≈, with a legend of its own), the cost
-uses the reading; the billed amount stands next to it in brackets (“(billed …)”)
+uses the reading; the billed amount stands in the column “Billed” (without that column,
+such as for water, in brackets next to it: “(billed …)”). If the bridging spans the turn
+of the year, a sentence below the table says by how much the two totals differ because of it
 ([Ticking off notices §11](../anleitungen/hinweise-erledigen.md#11-check-a-reading-v390)).
 
 **Photo with the reading (v3.1.0):** if a reading carries a photo, the readings

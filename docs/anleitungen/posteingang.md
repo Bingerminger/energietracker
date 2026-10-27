@@ -228,7 +228,9 @@ Stand der Rechnung am letzten Tag des Zeitraums, ist das dein gemeldeter Stand,
 den der Versorger auf das Zeitraumende datiert: „schon vorhanden“, und „Rechnung
 prüfen“ rechnet die Menge bis zu deinem Ablesetag. Ein Stand, den das Dokument
 auf weniger Stellen druckt, ist derselbe wie deiner, wenn deiner auf diese
-Stellen gerundet passt (29.310 im Dokument, 29.310,2 bei dir). Markiert ist ein
+Stellen gerundet oder abgeschnitten passt (29.310 im Dokument, 29.310,2 bei dir;
+26.845 im Dokument, 26.845,5 bei dir). Gekürzt wird nur dein Stand: Hat das
+Dokument mehr Stellen als du, ist es ein anderer Stand. Markiert ist ein
 Vorschlag nur, wenn eines **seiner** Kernfelder zweifelhaft ist *(v3.7.0)*:
 Ein neuer Vertrag braucht Beginn, Versorger und Preise, nicht den Abschlag.
 Fehlt der Abschlag, entsteht der Vertrag ohne ihn; ist er unsicher gelesen,
@@ -280,7 +282,12 @@ auch für Wasser, und hakt ihn vorab an. Er übernimmt:
 - die **laut Rechnung gezahlten Abschläge** des Zeitraums *(v3.9.0)*: gleich hohe
   Zahlungen mit Datum an ihren Terminen, sonst die Summe gleichmäßig je Monat
   (800 € in zwölf Monaten: 66,6667 € je Monat). Bis zum neuen Plan steht danach
-  kein Abschlag, den die Rechnung nicht nennt. So zählen Abrechnungsjahr,
+  kein Abschlag, den die Rechnung nicht nennt (eine Zeile mit 0 €). Das sagt ein
+  Hinweis unter dem Vorschlag und am Vertrag unter der Zeile („01.04.2026 bis
+  14.05.2026: kein Abschlag eingetragen …“); hast du in der Zeit noch gezahlt,
+  trägst du den Betrag dort ein. Die App führt den alten Abschlag nicht geraten
+  weiter, weil die Rechnung weder Betrag noch Termine nach dem Zeitraum nennt.
+  So zählen Abrechnungsjahr,
   Jahresbericht und „Rechnung prüfen“ dasselbe Bezahlte wie die Rechnung,
 - den **neuen Abschlagsplan** mit seinem Rhythmus (siehe unten).
 
