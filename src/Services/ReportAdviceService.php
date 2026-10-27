@@ -207,13 +207,16 @@ final class ReportAdviceService
                 : $this->i18n->t(!empty($t['consumption_adjusted']) ? 'report.light.consumptionAdjusted' : 'report.light.consumptionRaw',
                     ['pct' => $this->pct((float)$cPct), 'prev' => $year - 1])];
         // Abrechnung — Stand heute, der ungünstigste laufende Vertrag
-        $worst = null; $worstC = null;
+        // v3.9.0 (Skeptiker H3) — eine unsichere Schätzung urteilt nicht: Bis dahin nahm die Ampel
+        // das ungünstige Ende der Spanne („✖ Nachzahlung zu erwarten“), während die Mitte ein
+        // Guthaben war und Karte und Übersicht „unsicher“ sagten. Sie zählt jetzt wie dort als
+        // „unsicher“ mit ihrer Spanne; die Ampel urteilt nur über die sicheren Verträge.
+        $worst = null; $worstC = null; $uncC = null;
         foreach ((array)($f['contracts'] ?? []) as $c) {
             if (empty($c['has_advance']) || ($c['projected_end_balance'] ?? null) === null) continue;
+            if (is_array($c['projection_uncertain'] ?? null)) { $uncC ??= $c; continue; }
             $adv = (float)($c['current_advance'] ?? 0);
-            // v3.7.0 (wirklichkeit-2) — unsichere Schätzung: das ungünstige Ende der Spanne
-            $bal = is_array($c['projection_uncertain'] ?? null) ? max(array_map('floatval', (array)$c['projection_uncertain']['projected_range']))
-                : (float)$c['projected_end_balance'];
+            $bal = (float)$c['projected_end_balance'];
             $ratio = $adv > 0 ? $bal / $adv : ($bal > 0 ? INF : -INF);
             if ($worst === null || $ratio > $worst) { $worst = $ratio; $worstC = $c; }
         }
@@ -221,13 +224,8 @@ final class ReportAdviceService
         // v3.7.0 (wirklichkeit-2, Schritt 3) — „Abschläge passen ✔“ nicht, solange eine
         // Schätzung unsicher ist: dann ohne Haken, mit der Spanne dieses Vertrags
         $word = "report.light.billing.$lv";
-        if ($lv === 'ok') {
-            foreach ((array)($f['contracts'] ?? []) as $c) {
-                if (!empty($c['has_advance']) && ($c['projected_end_balance'] ?? null) !== null && is_array($c['projection_uncertain'] ?? null)) {
-                    $lv = 'none'; $word = 'report.light.billing.uncertain'; $worstC = $c;
-                    break;
-                }
-            }
+        if (($lv === 'ok' || $worstC === null) && $uncC !== null) {
+            $lv = 'none'; $word = 'report.light.billing.uncertain'; $worstC = $uncC;
         }
         $worstUnc = is_array($worstC['projection_uncertain'] ?? null) ? $worstC['projection_uncertain'] : null;
         $out[] = ['key' => 'billing', 'level' => $lv, 'as_of_today' => true,

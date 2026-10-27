@@ -858,7 +858,8 @@ final class ForecastService
      * (Streuung, Grundlast), c lag bei rund einem Viertel der gemessenen Sommermonate: Mai und Juli
      * kamen auf ein Drittel bzw. ein Viertel des Ist, Mai bis September 24 % zu tief.
      */
-    private static function heatTrusted(bool $poorFit, float $c, ?float $warmMean): bool
+    // v3.9.0 (auswertung, Skeptiker M5) — öffentlich: dieselbe Regel für die Saldo-Schätzung (ConsumptionService::volumeEstimator)
+    public static function heatTrusted(bool $poorFit, float $c, ?float $warmMean): bool
     {
         return !$poorFit && ($warmMean === null || $c >= self::HEAT_BASE_MIN_SHARE * $warmMean);
     }

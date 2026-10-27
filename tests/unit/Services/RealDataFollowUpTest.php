@@ -367,13 +367,17 @@ final class RealDataFollowUpTest extends ServiceTestCase
         // v3.7.0 (Schritt 3) — „Wohin geht mein Geld?“ bekommt die Spanne mit
         $bal = array_column($m['money']['balances'], null, 'utility')['gas'];
         self::assertSame($u['projected_range'], $bal['explainer']['projection_uncertain']['projected_range'] ?? null);
-        // v3.7.0 (Schritt 3) — reicht auch das ungünstige Ende, steht trotzdem kein Haken da
-        $lv = ReportAdviceService::billingLevel(max($u['projected_range']) / (float)$c['current_advance_amount']);
-        self::assertSame($lv === 'ok' ? 'none' : $lv, $light['level'], 'die Ampel nimmt das ungünstige Ende der Spanne');
+        // v3.9.0 (Skeptiker H3) — eine unsichere Schätzung urteilt nicht (bis v3.8 das ungünstige Ende der Spanne)
+        self::assertSame(['none', $this->i18n->t('report.light.billing.uncertain')], [$light['level'], $light['word']]);
     }
 
-    /** Ampel „Abrechnung“: bei unsicherer Schätzung das ungünstige Ende der Spanne, nicht der Mittelwert. */
-    public function testTheBillingLightTakesTheUnfavourableEndOfTheRange(): void
+    /**
+     * Ampel „Abrechnung“ bei unsicherer Schätzung: kein Urteil, sondern „unsicher“ mit der Spanne.
+     * v3.9.0 (Skeptiker H3) — bis v3.8 „testTheBillingLightTakesTheUnfavourableEndOfTheRange“: Die Ampel
+     * nahm das ungünstige Ende („✖ Nachzahlung zu erwarten“), während Karte und Übersicht bei
+     * derselben Mitte (Guthaben) „unsicher“ sagten. Ein sicherer Vertrag mit Nachzahlung urteilt weiter.
+     */
+    public function testAnUncertainEstimateGivesNoVerdictOnTheBillingLight(): void
     {
         $advice = new ReportAdviceService($this->i18n);
         $lights = new \ReflectionMethod($advice, 'lights');
@@ -384,8 +388,15 @@ final class RealDataFollowUpTest extends ServiceTestCase
         $light = fn(?array $unc) => array_column($lights->invoke($advice, $f($unc)), null, 'key')['billing'];
         $level = fn(?array $unc) => $light($unc)['level'];
         self::assertSame('ok', $level(null), 'sicher: 20 € Guthaben');
-        self::assertSame('alert', $level(['projected_range' => [-150.0, 300.0], 'reasons' => ['poor_fit'], 'fit_ratio' => 0.3]),
-            'unsicher: bis zu drei Abschläge Nachzahlung');
+        $wide = $light(['projected_range' => [-150.0, 300.0], 'reasons' => ['poor_fit'], 'fit_ratio' => 0.3]);
+        self::assertSame(['none', $this->i18n->t('report.light.billing.uncertain')], [$wide['level'], $wide['word']],
+            'unsicher, auch wenn das ungünstige Ende drei Abschläge Nachzahlung wäre (bis v3.8 „alert“)');
+        // ein zweiter, sicherer Vertrag mit 400 € Nachzahlung bei 100 € Abschlag urteilt weiter
+        $two = $f(['projected_range' => [-150.0, 300.0], 'reasons' => ['poor_fit'], 'fit_ratio' => 0.3]);
+        $two['contracts'][] = ['label' => 'Strom', 'has_advance' => true, 'is_current' => true, 'projected_end_balance' => 400.0, 'current_advance' => 100.0, 'projection_uncertain' => null];
+        $l2 = array_column($lights->invoke($advice, $two), null, 'key')['billing'];
+        self::assertSame(ReportAdviceService::billingLevel(4.0), $l2['level']);
+        self::assertStringContainsString('Strom', $l2['detail']);
         // v3.7.0 (Schritt 3) — unsicher, auch das ungünstige Ende reicht: kein „Abschläge passen ✔“
         $l = $light(['projected_range' => [-150.0, -10.0], 'reasons' => ['few_measured']]);
         self::assertSame(['none', $this->i18n->t('report.light.billing.uncertain')], [$l['level'], $l['word']], 'ohne Haken, „Schätzung unsicher“');
@@ -804,11 +815,14 @@ final class RealDataFollowUpTest extends ServiceTestCase
     }
 
     /**
-     * N4 — Fällt die Grundlast-Prüfung, schätzt das Modell Sommertage fast mit null:
-     * Die Spanne reicht bis zur gemessenen Sommer-Grundlast (nach oben weiter als
-     * nach unten). Haushalt in der Form des Melders, Heizgrenze 15 °C.
+     * N4 — Fällt die Grundlast-Prüfung, schätzte das Modell Sommertage fast mit null; bis v3.8
+     * reichte deshalb die Spanne nach oben bis zur gemessenen Sommer-Grundlast.
+     * v3.9.0 (Skeptiker M5) — bis dahin „testAFailedBaseLoadCheckWidensTheRangeToTheMeasuredBaseLoad“:
+     * Die Karte schätzt mit einem nicht verlässlichen Heizmodell gar nicht mehr, sondern wie die
+     * Prognose mit dem Kalendermonat. Ein Sommertag trägt die gemessene Grundlast, die Spanne ist
+     * nicht mehr einseitig. Haushalt in der Form des Melders, Heizgrenze 15 °C.
      */
-    public function testAFailedBaseLoadCheckWidensTheRangeToTheMeasuredBaseLoad(): void
+    public function testAFailedBaseLoadCheckNoLongerEstimatesSummerDaysWithTheModel(): void
     {
         $noise = fn(string $d) => 1.0 + 0.01 * ((((int)substr($d, 0, 4) * 12 + (int)substr($d, 5, 2)) * 7) % 5 - 2);
         $first = date('Y-m-01', strtotime('-36 months'));
@@ -821,9 +835,15 @@ final class RealDataFollowUpTest extends ServiceTestCase
         $u = $c['projection_uncertain'];
         self::assertContains('poor_fit', $u['reasons']);
         self::assertSame([$q['base_load']['model_per_day'], $q['base_load']['measured_per_day']], [$u['base_load_per_day']['model'], $u['base_load_per_day']['measured']]);
+        // ein Julitag: die gemessene Grundlast (6,5 kWh am Tag), nicht das Modell (fast null)
+        $rows = $this->consumption->forMeter('gas', $meter);
+        $est = (new \ReflectionMethod($this->consumption, 'volumeEstimator'))->invoke($this->consumption, 'gas', $rows, 'kwh', $meter);
+        $july = date('Y-07-15', strtotime('-1 year'));
+        $v = $est($july, date('Y-m-d', strtotime("$july +1 day")))[$july];
+        self::assertGreaterThan(0.8 * $q['base_load']['measured_per_day'], $v, 'Sommertag mit der gemessenen Grundlast');
+        self::assertLessThan(0.5 * $q['base_load']['measured_per_day'], $q['base_load']['model_per_day'], 'das Modell allein läge fast bei null');
         [$lo, $hi] = $u['projected_range'];
-        $p = (float)$c['projected_end_balance'];
-        self::assertGreaterThan($p - $lo + 1, $hi - $p, 'nach oben bis zur gemessenen Grundlast');
+        self::assertTrue($lo < (float)$c['projected_end_balance'] && (float)$c['projected_end_balance'] < $hi, 'weiter eine Spanne (Gütesperre)');
     }
 
     /** N1 — Wasser mit einem Wert je Kalendermonat: keine Streuung messbar, also kein Band (bis v3.6 eines der Breite null). */

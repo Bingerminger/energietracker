@@ -907,6 +907,14 @@ final class ScenarioService
         }
         $last = end($months);
         $unc = is_array($cur['projection_uncertain'] ?? null) ? $cur['projection_uncertain'] : null;
+        // v3.9.0 (Skeptiker H3) — dieselbe Unsicherheit wie die Karte: deren Spanne um den Saldo
+        // der übrigen Zeilen ergänzt, das Szenario verschiebt sie wie den Punktwert
+        $range = null;
+        if ($unc !== null && is_array($unc['projected_range'] ?? null) && count($unc['projected_range']) === 2) {
+            $mid = (float)($cur['projected_end_balance'] ?? 0.0);
+            $r = array_map('floatval', $unc['projected_range']);
+            $range = [round($base + min($r) - $mid, 2), round($base + max($r) - $mid, 2)];
+        }
         return [
             'from' => $p['from'], 'until' => $p['until'],
             // der letzte Tag, zu dem abgerechnet wird (wie `settle_on` der Karte)
@@ -916,6 +924,9 @@ final class ScenarioService
             'rest_days'        => 0,
             'base_end_balance' => round($base, 2),
             'scen_end_balance' => round($base + $delta, 2),
+            // v3.9.0 (Skeptiker H3, additiv) — Spanne der Karte (null, wenn sie sicher ist)
+            'base_end_range'   => $range,
+            'scen_end_range'   => $range !== null ? [round($range[0] + $delta, 2), round($range[1] + $delta, 2)] : null,
             'months_left'      => (int)($cur['months_left'] ?? 0),
             'beyond_horizon'   => $last !== false && substr($settle, 0, 7) > $last['ym'],
             'source'           => 'contract_status',

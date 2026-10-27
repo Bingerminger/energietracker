@@ -16,7 +16,7 @@ import { readingCheckLines, readingCheckTitle, correctHref, markReadings, delete
 import { loadDemo } from '../lib/demo.js';
 import { tankLevel } from '../lib/tank.js';
 import { info, infoNote } from '../components/info.js';
-import { isFeedIn, isGeneration, isPv, moreIsBetter } from '../lib/semantics.js';
+import { isFeedIn, isGeneration, isPv, moreIsBetter, uncertainRangeText } from '../lib/semantics.js';
 import { setupSteps, setupListHtml } from '../lib/onboarding.js';
 import { periodMode, periodName, pickPeriod, periodsWithData } from '../lib/billing-period.js';   // v3.6.0 (F1030)
 import { bonusOf, bonusItemsOf, bonusLineText } from '../lib/bonus.js';   // v3.7.0 (#33)
@@ -1025,14 +1025,17 @@ export function beginnerMoneyLines(meters, byKey) {
     const u0 = byKey.get(m.utility);
     const u = perUtility.get(m.utility) > 1 && m.name ? { ...u0, label: `${u0.label} (${m.name})` } : u0;
     const v = Number(m.contract.projected_end_balance);
-    const credit = v < 0, even = Math.abs(v) < 1;
-    const text = even ? t('dashboard.beginner.money.even')
+    // v3.9.0 (Skeptiker H3) — dieselbe Unsicherheit wie die Saldo-Karte: Spanne statt eines sicheren Betrags
+    const unc = Array.isArray(m.contract.projection_uncertain?.projected_range) ? m.contract.projection_uncertain : null;
+    const credit = !unc && v < 0, even = !unc && Math.abs(v) < 1;
+    const text = unc ? `${uncertainRangeText(unc)} (${t('balanceUncertain.verdict')})`
+      : even ? t('dashboard.beginner.money.even')
       // v3.9.0 (L2) — „rund“ nur mit gerundeter Zahl
       : t(credit ? 'dashboard.beginner.money.credit' : 'dashboard.beginner.money.due', { amount: fmt.eur0(Math.abs(v)) });
     // v3.9.0 (L1) — der letzte Tag des Abrechnungszeitraums, wie überall
     const until = m.contract.period_last_day || m.contract.period_end;
     return `<li class="dash-answer__row"><span aria-hidden="true">${escapeHtml(u.icon)}</span>
-      <span><strong>${escapeHtml(u.label)}:</strong> <span class="${even ? '' : credit ? 'success-text' : 'danger-text'}">${escapeHtml(text)}</span>
+      <span><strong>${escapeHtml(u.label)}:</strong> <span class="${even || unc ? '' : credit ? 'success-text' : 'danger-text'}"${unc ? ' data-role="money-uncertain"' : ''}>${escapeHtml(text)}</span>
       ${until ? `<span class="muted small"> · ${escapeHtml(t('dashboard.beginner.money.until', { date: fmt.date(until) }))}</span>` : ''}</span></li>`;
   });
 }

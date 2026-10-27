@@ -1132,6 +1132,8 @@ async function renderView(modPath, params = [], ctx = {}) {
         if (/\/api\/forecast\/scenario/.test(url) && init?.method === 'POST') {
           const body = await res.json();
           if (body?.data?.advance) Object.assign(body.data.advance, { every_months: 2, current: 165, withheld: 'short', base_ongoing: 75, scen_ongoing: 75, uncertain: null });
+          // H3 — die Spanne der Karte (erfunden) wandert in die Werkstatt
+          if (body?.data?.billing) Object.assign(body.data.billing, { base_end_range: [-768.0, 3.0], scen_end_range: [-768.0, 3.0] });
           return reply(body);
         }
         return res;
@@ -1144,6 +1146,9 @@ async function renderView(modPath, params = [], ctx = {}) {
       for (let i = 0; i < 60 && ![...fv.view.querySelectorAll('#ws-kpis .kpi')].some(k => /Empfohlener Abschlag/.test(k.textContent)); i++) await new Promise(r => setTimeout(r, 50));
       const kp = ([...fv.view.querySelectorAll('#ws-kpis .kpi')].map(k => k.textContent).find(s => /Empfohlener Abschlag/.test(s)) || '').replace(/\s+/g, ' ');
       t('H1: Werkstatt — Abschlag je Rate mit Rhythmus', /75,00\s€ alle 2 Monate/.test(kp) && /heute 165,00\s€ alle 2 Monate/.test(kp), kp.slice(0, 200));
+      const kb = ([...fv.view.querySelectorAll('#ws-kpis .kpi')].map(k => k.textContent).find(s => /Saldo zur Abrechnung/.test(s)) || '').replace(/\s+/g, ' ');
+      t('H3: Werkstatt — Saldo zur Abrechnung als Spanne mit „unsicher“', /rund 768\s€ Guthaben bis rund 3\s€ Nachzahlung/.test(kb) && /unsicher/.test(kb)
+        && !!fv.view.querySelector('[data-role="ws-balance-range"]'), kb.slice(0, 200));
     } catch (e) { t('H1: Abschlag im Rhythmus', false, e.stack || e.message); }
     finally { global.fetch = realFetch; }
   }
@@ -2054,6 +2059,13 @@ async function renderView(modPath, params = [], ctx = {}) {
     const rows = [...box.querySelectorAll('li')].map(li => li.textContent.replace(/\s+/g, ' ').trim());
     t('A3: zwei Stromzähler mit Namen, Gas ohne', rows.length === 3 && rows[0].includes('Strom (Haushalt):') && rows[1].includes('Strom (Wärmepumpe):')
       && rows[2].includes('Gas:') && !rows[2].includes('Gas ('), rows.join(' | '));
+    // v3.9.0 (Skeptiker H3) — unsichere Schätzung der Karte: die Spanne, kein sicherer Betrag
+    const ub = global.document.createElement('ul');
+    ub.innerHTML = beginnerMoneyLines([{ utility: 'gas', name: 'Gaszähler', contract: { ...c(-532.18, '2026-12-31', '2027-01-01'),
+      projection_uncertain: { reasons: ['poor_fit'], projected_range: [-768.0, 3.0] } } }], byKey).join('');
+    const urow = ub.textContent.replace(/\s+/g, ' ');
+    t('H3: Einsteiger — Spanne der Karte statt „rund 532 € zurück“', /rund 768\s€ Guthaben bis rund 3\s€ Nachzahlung \(unsicher\)/.test(urow)
+      && !/532/.test(urow) && !!ub.querySelector('[data-role="money-uncertain"]') && !ub.querySelector('.success-text, .danger-text'), urow);
     t('L2/L1: „rund“ ohne Cent, bis zum letzten Tag', rows[2].includes(fmtMod.fmt.eur0(369.91).replace(/\s+/g, ' ')) && !rows[2].includes('369,91')
       && rows.every(r => r.includes(fmtMod.fmt.date('2026-12-31')) && !r.includes(fmtMod.fmt.date('2027-01-01'))), rows[2]);
   } catch (e) { t('Einsteiger: Muss ich nachzahlen?', false, e.stack || e.message); }

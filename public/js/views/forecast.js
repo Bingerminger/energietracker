@@ -23,7 +23,7 @@ import { toastErr, toastOk } from '../components/toast.js';
 import { t, tp } from '../lib/i18n.js';
 import { advanceAmountText } from '../lib/advance-rhythm.js';   // v3.9.0 (Skeptiker H1)
 import { info } from '../components/info.js';
-import { balanceView, isFeedIn } from '../lib/semantics.js';
+import { balanceView, isFeedIn, uncertainRangeText } from '../lib/semantics.js';
 import { DEMO } from '../lib/demo-mode.js';
 import * as S from '../lib/scenario.js';
 import { resultCardHtml, downloadResultCard } from '../components/result-card.js';
@@ -499,8 +499,14 @@ export async function render(container, params = [], ctx = {}) {
           result.advance.uncertain ? t('scenario.kpi.advanceUncertain') : '',
           result.advance.withheld === 'short' && !result.advance.uncertain ? t('scenario.kpi.advanceShort', { date: fmt.date(billing?.settle_on || billing?.until) }) : ''].filter(Boolean).join(' · '))),
       // v3.9.0 (L1) — derselbe Abrechnungstag wie die Saldo-Karte
-      ...(balScen ? [kpi(t('scenario.kpi.balance', { date: fmt.date(billing.settle_on || billing.until) }), `<span class="${balScen.cls}">${esc(balScen.word)} ${esc(fmt.eur(balScen.amount))}</span>`,
-        esc(t('scenario.kpi.balanceBase', { amount: balanceView(billing.base_end_balance, u)?.signed ?? '–' })), '', 'advanced')] : []),
+      // v3.9.0 (Skeptiker H3) — unsichere Schätzung der Karte: hier dieselbe Spanne, kein sicherer Betrag
+      ...(balScen ? [kpi(t('scenario.kpi.balance', { date: fmt.date(billing.settle_on || billing.until) }),
+        Array.isArray(billing.scen_end_range)
+          ? `<span data-role="ws-balance-range">${esc(uncertainRangeText({ projected_range: billing.scen_end_range }))}</span>`
+          : `<span class="${balScen.cls}">${esc(balScen.word)} ${esc(fmt.eur(balScen.amount))}</span>`,
+        esc(Array.isArray(billing.base_end_range)
+          ? t('scenario.kpi.balanceBase', { amount: uncertainRangeText({ projected_range: billing.base_end_range }) }) + ' · ' + t('balanceUncertain.verdict')
+          : t('scenario.kpi.balanceBase', { amount: balanceView(billing.base_end_balance, u)?.signed ?? '–' })), '', 'advanced')] : []),
       ...(tot.delta.co2_kg != null ? [kpi(t('scenario.kpi.co2Year'), esc(`${fmt.int(tot.scenario.co2_kg)} kg`),
         esc(`${signed(tot.delta.co2_kg, fmt.int)} kg`), tot.delta.co2_kg > 0 ? 'negative' : tot.delta.co2_kg < 0 ? 'positive' : '', 'advanced')] : []),
     ].join('');
