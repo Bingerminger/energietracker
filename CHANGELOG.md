@@ -283,6 +283,11 @@ und Docker-Umgebung wachsen nur additiv.
 
 ### Changed
 
+- **Empfehlung „statistische Anomalie“:** kommt nur noch, wenn derselbe Monat
+  eines Vorjahres gemessen ist (ein Heizmonat gegen den Sommer ist keine
+  Anomalie), je Zählergruppe einmal und mit dem Zählernamen, wenn die Art
+  mehrere Zähler hat. Bei neuen Zählern erscheint sie dadurch erst nach einem
+  Jahr.
 - **Oberfläche:** kein waagrechtes Scrollen mehr unter Zugriff und in der
   Kopfzeile am iPhone, alle Knöpfe bei Touch 44 px, Fußleiste der Assistenten
   mittig, einheitliche Leerzustände und Kartentitel; „Wohin geht mein Geld?“
@@ -366,6 +371,11 @@ und Docker-Umgebung wachsen nur additiv.
   Heizgrenze, die Übersicht zeigt nach „Übernehmen“ sofort die neuen Werte, die
   Effizienz-Kachel nennt die Zeile ohne Klasse, und unter der Monatstabelle
   erklärt ein Satz, warum Monatswerte und abgerechnete Menge auseinanderliegen.
+- **Gruppenvertrag an den Mitgliedern** (seit v3.1.0): „Kosten & Verträge“
+  zeigte an den Zählern einer Gruppe „Kein laufender Vertrag“ mit „Vertrag
+  anlegen“, und „Bekomme ich Geld zurück?“ kannte den Gruppenvertrag nicht. Jetzt
+  stehen die Mitglieder in einer Zeile mit dem Gruppenvertrag, sein Saldo zählt
+  einmal; `/api/summary` liefert je Mitglied `group_contract`.
 
 ### Bekannte Grenzen
 
@@ -411,8 +421,8 @@ einschaltet.
   `PersonWithoutAccountTest`, Node-Suite `illustrations.test`.
 - **Doku:** `DocumentedThresholdsTest` bindet die Zahlen der neuen Anleitungen an
   die Konstanten.
-- 1757 Testmethoden (+280). Jede neue Regel hat eine Gegenprobe, die sie
-  bricht: 580 in 9 Paketen, alle rot.
+- 1761 Testmethoden (+284). Jede neue Regel hat eine Gegenprobe, die sie
+  bricht: 598 in 9 Paketen, alle rot.
 
 ### Lessons Learned
 

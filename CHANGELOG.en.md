@@ -283,6 +283,10 @@ grow additively.
 
 ### Changed
 
+- **Recommendation “statistical anomaly”:** only appears when the same month of
+  an earlier year is measured (a heating month compared with summer is no
+  anomaly), once per meter group and with the meter name when the utility has
+  several meters. For new meters it therefore appears only after a year.
 - **Interface:** no more horizontal scrolling under Access and in the header on
   the iPhone, all buttons 44 px on touch, the assistants’ footer centred,
   consistent empty states and card titles; “Where does my money go?” shows its
@@ -365,6 +369,11 @@ grow additively.
   balance card, the overview shows the new values right after “Apply”, the
   efficiency tile names the row without a class, and a sentence below the
   monthly table explains why monthly values and the billed quantity differ.
+- **Group contract at its members** (since v3.1.0): “Costs & contracts” showed
+  “No running contract” with “Add contract” at the meters of a group, and “Do I
+  get money back?” did not know the group contract. Now the members share one
+  row with the group contract, its balance counts once; `/api/summary` returns
+  `group_contract` per member.
 
 ### Known limits
 
@@ -408,8 +417,8 @@ them on.
   `PersonWithoutAccountTest`, Node suite `illustrations.test`.
 - **Docs:** `DocumentedThresholdsTest` ties the figures of the new guides to the
   constants.
-- 1757 test methods (+280). Every new rule has a counter-check that
-  breaks it: 580 in 9 packages, all red.
+- 1761 test methods (+284). Every new rule has a counter-check that
+  breaks it: 598 in 9 packages, all red.
 
 ### Lessons learned
 
