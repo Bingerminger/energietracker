@@ -556,6 +556,12 @@ Pro Art identischer Aufbau: Jahr-Auswahl, Zähler-Auswahl, KPI-Leiste
 CO₂), Vertrags-/Saldo-Karte, Verbrauchschart mit Temperaturüberlagerung sowie
 Monatstabelle mit gleitenden Mitteln (MA-3/MA-6) und Wetterbereinigung.
 
+**Abgerechnete Menge (v3.9.0):** Rechnet der Vertrag eines Elternzählers nur den
+Rest (ein Subzähler hat einen eigenen Vertrag), steht unter dem Verbrauch der
+Kachel „abgerechnet … (Rest)“, und die Monatstabelle hat die Spalte
+„Abgerechnet“. Preis und Kosten gehören zu dieser Menge, der Verbrauch bleibt
+die Messung ([Rest-Abrechnung](../verstehen/13-meter-topologie.md#rest-abrechnung-v390)).
+
 **Kosten ohne Bonus (v3.7.0, GitHub #33):** Die Kachel „Kosten“ — hier wie in
 der Übersicht, im Kalender- wie im Abrechnungsjahr — zeigt die Kosten ohne
 Bonus, der Bonus steht als eigene Zeile darunter („Bonus −50,00 € am
@@ -2102,13 +2108,18 @@ wechseln je Netzbetreiber. Fünf Schritte, „Schritt 2 von 5“ in der Fußleis
    in einem Satz, was welcher Zähler misst und welcher Vertrag was rechnet.
 3. **Welche Zähler gibt es?** Name und Zählernummer je Stelle, die Kennzahl der
    Zählwerke vorbelegt; einen vorhandenen Zähler wählst du aus, statt ihn
-   doppelt anzulegen.
+   doppelt anzulegen, er erscheint dann unter seinem Namen. Ein neuer Zähler
+   bekommt „Eingebaut am“ (leer: ab Beginn seines Vertrags, sonst heute) und
+   den Stand beim Einbau.
 4. **Welche Verträge gibt es?** Beginn, Arbeitspreis (bei HT/NT je Zählwerk),
    Grundpreis und Abschlag; leer lassen geht auch. Ein laufender Vertrag an
-   einem vorhandenen Zähler bleibt, wie er ist; bei der Rest-Abrechnung steht
-   „Rechnet nur den Rest: … minus …“.
+   einem vorhandenen Zähler steht mit Anbieter und Beginn da und bleibt, wie er
+   ist; bei der Rest-Abrechnung steht „Rechnet nur den Rest: … minus …“.
 5. **Das legt der Assistent an:** das Schaltbild deiner Anlage mit Legende und
-   die Liste der Schritte. „Anlegen“ sichert vorher den Stand als Snapshot.
+   die Liste der Schritte. Ein Hinweis nennt mit Datum, ab wann der Vertrag des
+   Elternzählers nur noch den Rest rechnet, auch rückwirkend, wenn der neue
+   Vertrag schon begonnen hat, und ob ein Vertrag vor dem Einbau beginnt.
+   „Anlegen“ sichert vorher den Stand als Snapshot.
 
 Die Schaltbilder sind Strichzeichnungen in den Farben der Verbrauchsarten, hell
 wie dunkel; ein Bildschirmleser liest ihren Namen („Schaltbild: Kaskade“).

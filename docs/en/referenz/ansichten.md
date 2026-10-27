@@ -540,6 +540,12 @@ Identical structure per utility: year selection, meter selection, KPI bar
 CO₂), contract/balance card, a consumption chart with a temperature overlay, and a
 monthly table with moving averages (MA-3/MA-6) and weather adjustment.
 
+**Billed quantity (v3.9.0):** if a parent meter’s contract bills only the
+remainder (a sub-meter has its own contract), the consumption tile shows
+“billed … (remainder)” below the consumption, and the monthly table has the
+column “Billed”. Price and costs belong to this quantity, consumption stays the
+measurement ([remainder billing](../verstehen/13-meter-topologie.md#remainder-billing-v390)).
+
 **Costs without the bonus (v3.7.0, GitHub #33):** the “Costs” tile — here as
 on the overview, in calendar and billing years — shows the costs without the
 bonus; the bonus is a line of its own below (“Bonus −€50.00 on 15/03/2025”, an
@@ -2024,14 +2030,19 @@ of 5” in the footer:
    without such a device only “One meter for everything”. Each card says in one
    sentence what each meter measures and which contract bills what.
 3. **Which meters are there?** Name and meter number per position, the register
-   codes filled in; you pick an existing meter instead of creating it twice.
+   codes filled in; you pick an existing meter instead of creating it twice, it
+   then appears under its own name. A new meter gets “Installed on” (empty:
+   from the start of its contract, otherwise today) and the reading at
+   installation.
 4. **Which contracts are there?** Start, unit price (per register with HT/NT),
    standing charge and advance; leaving it empty is fine. A running contract on
-   an existing meter stays as it is; with remainder billing it says “Bills only
-   the remainder: … minus …”.
+   an existing meter is shown with provider and start and stays as it is; with
+   remainder billing it says “Bills only the remainder: … minus …”.
 5. **What the assistant will create:** the diagram of your installation with a
-   legend and the list of steps. “Create” saves the current state as a snapshot
-   first.
+   legend and the list of steps. A notice says with a date from when the
+   parent meter’s contract only bills the remainder, retroactively if the new
+   contract has already started, and whether a contract starts before the
+   installation. “Create” saves the current state as a snapshot first.
 
 The diagrams are line drawings in the colours of the utilities, light and dark;
 a screen reader reads their name (“Diagram: Cascade”). Obstacles (such as a
