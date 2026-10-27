@@ -136,7 +136,8 @@
         "hs": "on gross calorific value"
       },
       "certificateApprox": "Counted on net calorific value (an approximation, the certificate requires gross): {fuels}.",
-      "certificateUpcoming": "From {date} the consumption certificate follows a new procedure (§ 82 GModG): {basis}, hot water surcharge {dhw} instead of {dhwOld} kWh/m²·yr, data over {required} instead of {requiredOld} months. That would give {value} kWh/m²·yr{cls}."
+      "certificateUpcoming": "From {date} the consumption certificate follows a new procedure (§ 82 GModG): {basis}, hot water surcharge {dhw} instead of {dhwOld} kWh/m²·yr, data over {required} instead of {requiredOld} months. That would give {value} kWh/m²·yr{cls}.",
+      "incompleteFor": "{names}: there is no data for the whole of {year}, so no class. The figure only covers the measured period."
     },
     "tanks": { "title": "Tank levels" },
     "stromSaldo": {
@@ -7225,7 +7226,8 @@
       "balance": "Balance on {date}: {after} instead of {before}.",
       "advance": "Suitable advance payment: {after} instead of {before}.",
       "advanceOnly": "Suitable advance payment: {after}.",
-      "more": "More about this"
+      "more": "More about this",
+      "titlePlain": "Estimate more accurately"
     },
     "notNowNamed": "Not now: {title}"
   },

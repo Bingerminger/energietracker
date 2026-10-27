@@ -33,7 +33,11 @@ import { actionText } from '../lib/flex-text.js';
 import { areaAssumedHtml } from '../lib/area-assumed.js';   // v3.6.0 (Paket einpers)
 import { welcomeArt } from '../lib/illustrations.js';   // v3.9.0 (Paket oberflaeche) — Bild im Willkommen
 
+// v3.9.0 (Skeptiker R2-5) — der Kasten der Übersicht, damit „Übernehmen“ der Heizgrenze sie ganz neu zeichnet
+let dashRoot = null;
+
 export async function render(container) {
+  dashRoot = container;
   container.innerHTML = `<div class="loading">${t('dashboard.loading')}</div>`;
   const [allUtilities, settings] = await Promise.all([getUtilities(), getSettings()]);
 
@@ -145,7 +149,7 @@ export async function render(container) {
         `}
         ${eff.area_assumed ? areaAssumedHtml(eff.wohnflaeche_m2) : ''}
         ${eff.certificate ? certificateHtml(eff, utilities) : ''}
-        ${eff.per_source.some(s => s.complete === false) && eff.note ? `<p class="muted dash-eff__note">${escapeHtml(eff.note)}</p>` : ''}
+        ${efficiencyIncompleteText(eff) ? `<p class="muted dash-eff__note" data-role="eff-incomplete">${escapeHtml(efficiencyIncompleteText(eff))}</p>` : ''}
         ${eff.scale_note ? `<p class="muted dash-eff__note">${escapeHtml(eff.scale_note)}</p>` : ''}
       </div>` : ''}
 
@@ -451,6 +455,8 @@ export function buildTodo(events, recs, keep = () => true) {
       sub: lines.join(' '), subLines: lines,
       // v3.9.0 (Skeptiker N4) — Einsteiger: kurz, ohne Fachwörter; das Übrige aufklappbar
       short: { text: t('heatLimit.beginner.title', { label: e.params?.label ?? '' }), subLines: heatLimitBeginnerLines(h) },
+      // v3.9.0 (Skeptiker R2-5) — steht in „Zu tun“, also nicht noch einmal unter „Top-Empfehlungen“
+      recId: r.recommendation_id,
       href: e.href, ev: e, action: t('dashboard.todo.heatLimitAction'), heatLimit: { ...h, utility: r.utility, id: r.meter_id, recId: r.recommendation_id } });
   }
   // v3.9.0 (ablesung-pruefen) — Ablesung prüfen (gemessen gegen erwartet davor und danach;
@@ -541,6 +547,16 @@ function readingCheckActionsHtml(x, i) {
     </div>`;
 }
 
+/**
+ * v3.9.0 (Skeptiker R2-6) — der Satz zur Effizienz-Kachel, wenn eine Quelle kein ganzes Jahr hat:
+ * mit den Namen genau dieser Quellen. Bis dahin stand der allgemeine Satz des Servers („… keine
+ * Klasse“) unter allen Zeilen, auch unter Gas mit Klasse. Leer, wenn alle Quellen vollständig sind.
+ */
+export function efficiencyIncompleteText(eff) {
+  const names = (eff?.per_source || []).filter(s => s.complete === false).map(s => s.label).filter(Boolean);
+  return names.length ? t('dashboard.efficiency.incompleteFor', { names: names.join(', '), year: eff.year }) : '';
+}
+
 /** v3.9.0 (#38) — „Übernehmen (nur dieser Zähler)“ und „Nicht jetzt“ unter dem Heizgrenze-Eintrag. */
 function heatLimitActionsHtml(x, i) {
   const group = isGroupId(x.heatLimit.id);
@@ -607,7 +623,11 @@ export function renderTodoBox(box, items) {
     const h = list[Number(btn.dataset.heatApply)]?.heatLimit;
     if (!h) return;
     btn.disabled = true;
-    if (!await applyHeatLimit({ utility: h.utility, id: h.id, value: h.best, previous: h.own ? h.current : null, onChange: refresh })) btn.disabled = false;
+    // v3.9.0 (Skeptiker R2-5) — die Grenze ändert Saldo, Empfehlungen und „Wohin geht mein Geld?“:
+    // nach dem Übernehmen und nach „Rückgängig“ die ganze Übersicht neu, nicht nur „Zu tun“
+    // (beim „Rückgängig“ ist dieser Kasten schon ersetzt: maßgeblich ist, ob die Übersicht noch zu sehen ist)
+    const again = () => (dashRoot?.isConnected && dashRoot.querySelector('[data-role="todo"]') ? render(dashRoot) : refresh());
+    if (!await applyHeatLimit({ utility: h.utility, id: h.id, value: h.best, previous: h.own ? h.current : null, onChange: again })) btn.disabled = false;
   }));
   box.querySelectorAll('[data-heat-later]').forEach(btn => btn.addEventListener('click', async () => {
     const h = list[Number(btn.dataset.heatLater)]?.heatLimit;

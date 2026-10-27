@@ -610,7 +610,7 @@ async function rerender(container) {
   // (Zähler, bei einem Gruppenvertrag die Gruppe)
   fillHeatLimitSlot(container.querySelector('[data-role="heat-limit-slot"]'), {
     utility: u.key, id: gcRef?.contract_id && currentContract?.contract_id === gcRef.contract_id ? gcRef.group_id : meter.id,
-    context: 'balance', unit: u.consumption_unit, onChange: () => rerender(container),
+    context: 'balance', unit: u.consumption_unit, label: u.label, onChange: () => rerender(container),
   });
 
   // v3.2.0 (F1020) — Schaubilder: Geld und Vertrag, Wetter, Energiefluss

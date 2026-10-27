@@ -136,7 +136,8 @@
         "hs": "nach Brennwert"
       },
       "certificateApprox": "Nach Heizwert gerechnet (Näherung, der Ausweis verlangt den Brennwert): {fuels}.",
-      "certificateUpcoming": "Ab {date} gilt für den Verbrauchsausweis ein neues Verfahren (§ 82 GModG): {basis}, Warmwasser-Zuschlag {dhw} statt {dhwOld} kWh/m²·a, Daten über {required} statt {requiredOld} Monate. Damit wären es {value} kWh/m²·a{cls}."
+      "certificateUpcoming": "Ab {date} gilt für den Verbrauchsausweis ein neues Verfahren (§ 82 GModG): {basis}, Warmwasser-Zuschlag {dhw} statt {dhwOld} kWh/m²·a, Daten über {required} statt {requiredOld} Monate. Damit wären es {value} kWh/m²·a{cls}.",
+      "incompleteFor": "{names}: Für {year} liegen nicht für das ganze Jahr Daten vor, deshalb keine Klasse. Die Kennzahl gilt nur für den gemessenen Zeitraum."
     },
     "tanks": { "title": "Tank-Bestände" },
     "stromSaldo": {
@@ -7225,7 +7226,8 @@
       "balance": "Saldo zum {date}: {after} statt {before}.",
       "advance": "Passender Abschlag: {after} statt {before}.",
       "advanceOnly": "Passender Abschlag: {after}.",
-      "more": "Mehr dazu"
+      "more": "Mehr dazu",
+      "titlePlain": "Genauer schätzen"
     },
     "notNowNamed": "Nicht jetzt: {title}"
   },

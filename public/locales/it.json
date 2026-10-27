@@ -136,7 +136,8 @@
         "hs": "sul potere calorifico superiore"
       },
       "certificateApprox": "Calcolato sul potere calorifico inferiore (approssimazione, l’attestato richiede il superiore): {fuels}.",
-      "certificateUpcoming": "Dal {date} l’attestato sui consumi segue un nuovo metodo (§ 82 GModG): {basis}, supplemento acqua calda {dhw} invece di {dhwOld} kWh/m²·a, dati su {required} invece di {requiredOld} mesi. Ne risulterebbero {value} kWh/m²·a{cls}."
+      "certificateUpcoming": "Dal {date} l’attestato sui consumi segue un nuovo metodo (§ 82 GModG): {basis}, supplemento acqua calda {dhw} invece di {dhwOld} kWh/m²·a, dati su {required} invece di {requiredOld} mesi. Ne risulterebbero {value} kWh/m²·a{cls}.",
+      "incompleteFor": "{names}: per il {year} non ci sono dati per tutto l’anno, quindi nessuna classe. L’indicatore vale solo per il periodo misurato."
     },
     "tanks": { "title": "Livelli serbatoio" },
     "stromSaldo": {
@@ -7225,7 +7226,8 @@
       "balance": "Saldo al {date}: {after} invece di {before}.",
       "advance": "Acconto adatto: {after} invece di {before}.",
       "advanceOnly": "Acconto adatto: {after}.",
-      "more": "Maggiori dettagli"
+      "more": "Maggiori dettagli",
+      "titlePlain": "Stima più precisa"
     },
     "notNowNamed": "Non ora: {title}"
   },
