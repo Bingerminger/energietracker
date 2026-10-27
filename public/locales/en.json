@@ -4155,7 +4155,8 @@
     "anytime": "Can be cancelled any time",
     "advanceEvery": "Advance payment {amount}",
     "noNotice": "No notice period entered",
-    "earliestEnd": "Can end on {date} at the earliest"
+    "earliestEnd": "Can end on {date} at the earliest",
+    "viaGroup": "Through the group “{name}”: balance and advance payments apply to the whole group."
   },
   "billCheck": {
     "noMeter": "The bill check recalculates the annual bill for gas, electricity, water and district heating. Set up a meter first.",

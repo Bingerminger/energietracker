@@ -205,9 +205,11 @@ async function enumerate(get, post = null) {
       // v3.7.0 (Paket betrieb) — Akte je Vertrag (Angebote haben keine)
       if (!c.is_shadow) add(`/api/utility/${k}/dossier?contract_id=${encodeURIComponent(c.id)}`);
     }
-    // v3.6.0 (Paket abrechnung) — Zählergruppen der Übersicht im Abrechnungsjahr
-    if (u.supports_bill_check) {
-      for (const g of (await get(`/api/utility/${k}/meter-groups`)).json?.data ?? []) add(`/api/utility/${k}/meter-groups/${g.id}/billing-periods`);
+    for (const g of (await get(`/api/utility/${k}/meter-groups`)).json?.data ?? []) {
+      // v3.9.0 (Gruppenverträge) — Status des Gruppenvertrags: Saldo-Karte eines Mitglieds, „Kosten & Verträge“
+      if (u.has_contracts !== false) add(`/api/utility/${k}/meters/${g.id}/contract-status`);
+      // v3.6.0 (Paket abrechnung) — Zählergruppen der Übersicht im Abrechnungsjahr
+      if (u.supports_bill_check) add(`/api/utility/${k}/meter-groups/${g.id}/billing-periods`);
     }
   }
   const years = [];

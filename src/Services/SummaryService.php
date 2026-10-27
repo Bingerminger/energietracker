@@ -144,7 +144,35 @@ final class SummaryService
             'capture'            => $isPeriod ? 'period' : 'counter',   // H3: Verbrauch je Zeitraum
             // v3.9.0 (F1033) — Name der Verbrauchsart (HACS-Integration: „Strom Hauptzähler“ statt dreimal „Hauptzähler“)
             'utility_label'      => $this->i18n?->utilityLabel($u) ?? (string)($def['label'] ?? $u),
+            // v3.9.0 (Gruppenverträge) — additiv: rechnet der Zähler über einen Gruppenvertrag, Gruppe und Vertrag
+            'group_contract'     => Utilities::hasContracts($u) ? $this->groupContract($u, $m, $today) : null,
         ];
+    }
+
+    /** @var array<string,array<string,mixed>|null> Gruppenvertrag je Art, Gruppe und Tag (eine Anfrage) */
+    private array $groupMemo = [];
+
+    /**
+     * v3.9.0 (Gruppenverträge) — Mitglied einer Gruppe mit laufendem
+     * Gruppenvertrag: die Gruppe und ihr Vertrag in derselben Form wie
+     * `contract` (dieselbe Bedingung wie `group_contract` in contract-status).
+     * Saldo und Abschläge gehören der Gruppe: Wer über Zähler summiert, zählt
+     * sie je `group_id` einmal. Bis dahin stand an den Mitgliedern `contract:
+     * null`, und „Bekomme ich Geld zurück?“ ließ den Gruppenvertrag aus.
+     *
+     * @return array{group_id:string,name:string,contract:array<string,mixed>}|null
+     */
+    private function groupContract(string $u, array $m, ?string $today): ?array
+    {
+        $gid = (string)($m['meter_group_id'] ?? '');
+        if ($gid === '' || !empty($m['is_group'])) return null;
+        $key = "$u|$gid|" . ($today ?? '');
+        if (!array_key_exists($key, $this->groupMemo)) {
+            $target = $this->consumption->contractScope($u, $m)[1] !== null ? $this->meters->groupTarget($u, $gid) : null;
+            $c = $target !== null ? $this->contract($u, $target, $today) : null;
+            $this->groupMemo[$key] = $c === null ? null : ['group_id' => $gid, 'name' => (string)$target['name'], 'contract' => $c];
+        }
+        return $this->groupMemo[$key];
     }
 
     /** @return array<string,mixed>|null laufender Vertrag (ohne Schattenverträge) */

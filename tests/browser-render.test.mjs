@@ -3508,6 +3508,64 @@ async function renderView(modPath, params = [], ctx = {}) {
     if (cid) await send('DELETE', `/utility/gas/contracts/${cid}`);
   } catch (e) { t('rest: Hinweise', false, e.stack || e.message); }
 
+  // ── 26b. v3.9.0 (Gruppenverträge) — Mitglieder einer Gruppe zeigen den Gruppenvertrag ──
+  // Schaufenster (Wärmepumpe HT/NT hinter dem Hauptzähler) und Eigenheim klassisch (Einliegerwohnung HT/NT).
+  // Bis dahin stand unter „Kosten & Verträge“ an jedem Mitglied „Kein laufender Vertrag erfasst. Vertrag anlegen“,
+  // und „Bekomme ich Geld zurück?“ ließ den Saldo des Gruppenvertrags aus.
+  try {
+    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+    const send = async (method, path, body) => (await fetch(`${HOST}/api${path}`, { method, headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined })).json();
+    const st = await import(`${ROOT}/state.js`);
+    const dash = await import(`${ROOT}/views/dashboard.js`);
+    const households = [
+      { persona: null, tag: 'Schaufenster', group: 'g_strom_wp', groupName: 'Wärmepumpe (HT/NT)', contract: 'Wärmestrom Musterstadt · Wärmepumpe Duo', members: ['m_strom_wp_ht', 'm_strom_wp_nt'] },
+      { persona: 'eigenheim-klassisch', tag: 'Eigenheim klassisch', group: 'g_strom_einlieger', groupName: 'Einliegerwohnung (HT/NT)', contract: 'Stadtwerke Musterstadt · Heizstrom HT/NT',
+        members: ['m_strom_einlieger_ht', 'm_strom_einlieger_nt'], without: 'm_strom_gartenhaus' },
+    ];
+    for (const h of households) {
+      await send('POST', '/demo/import', h.persona ? { force: true, persona: h.persona } : { force: true });
+      st.invalidateSettings?.(); st.invalidateUtilities?.();
+      const meters = (await send('GET', '/utility/strom/meters')).data || [];
+      const nameOf = (id) => meters.find(m => m.id === id)?.name || id;
+      const gs = (await send('GET', `/utility/strom/meters/${h.group}/contract-status`)).data;
+      const gc = (gs?.contracts || []).find(c => c.is_current);
+      const ov = await renderView(`${ROOT}/views/contracts-overview.js`, []);
+      for (let i = 0; i < 80 && !ov.view.querySelector('.contract-overview[data-utility="strom"]'); i++) await sleep(50);
+      const card = ov.view.querySelector('.contract-overview[data-utility="strom"]');
+      const rows = [...(card?.querySelectorAll('.contract-overview__row') || [])];
+      const row = card?.querySelector(`.contract-overview__row[data-group="${h.group}"]`);
+      const rowText = row?.textContent.replace(/\s+/g, ' ') || '';
+      const memberRows = rows.filter(r => h.members.some(id => r.querySelector('.contract-overview__meter')?.textContent.includes(nameOf(id))));
+      t(`gruppe (${h.tag}): „Kosten & Verträge“ — Mitglieder in einer Zeile mit dem Gruppenvertrag und „Über die Gruppe …“`, !!row && memberRows.length === 1 && memberRows[0] === row
+        && h.members.every(id => row.querySelector('.contract-overview__meter')?.textContent.includes(nameOf(id)))
+        && row.querySelector('.contract-overview__name')?.textContent.includes(h.contract)
+        && new RegExp(`Über die Gruppe „${h.groupName.replace(/[()]/g, '\\$&')}“`).test(row.querySelector('[data-role="overview-group-note"]')?.textContent || ''), rowText.slice(0, 220));
+      t(`gruppe (${h.tag}): kein „Vertrag anlegen“ an den Mitgliedern, Saldo genau einmal`, !memberRows.some(r => /Kein laufender Vertrag/.test(r.textContent))
+        && row?.querySelectorAll('.contract-overview__expected').length === 1 && rows.filter(r => r.textContent.includes(h.contract)).length === 1
+        && !!gc && (gc.projected_end_balance == null || !!gc.projection_uncertain || rowText.includes(Math.abs(gc.projected_end_balance).toFixed(2).replace('.', ','))),
+        `${gc?.projected_end_balance} | ${rowText.slice(0, 160)}`);
+      if (h.without) {
+        const lone = rows.find(r => r.querySelector('.contract-overview__meter')?.textContent.includes(nameOf(h.without)));
+        t(`gruppe (${h.tag}): ein Zähler ohne Vertrag behält „Vertrag anlegen“`, !!lone && /Kein laufender Vertrag/.test(lone.textContent) && !lone.dataset.group, lone?.textContent.replace(/\s+/g, ' ').slice(0, 120));
+      }
+      // Verbrauchsseite eines Mitglieds: Saldo-Karte des Gruppenvertrags mit Satz, Kosten-Kachel mit Betrag
+      const uv = await renderView(`${ROOT}/views/utility.js`, ['strom'], { query: new URLSearchParams(`meter=${h.members[0]}`) });
+      await sleep(700);
+      const note = uv.view.textContent.replace(/\s+/g, ' ');
+      const kpi = uv.view.querySelector('[data-role="kpi-cost"]')?.textContent || '';
+      t(`gruppe (${h.tag}): Verbrauchsseite des Mitglieds — Saldo-Karte über den Gruppenvertrag, Kosten-Kachel ohne „kein Vertrag“`,
+        new RegExp(`Gruppenvertrag „${h.groupName.replace(/[()]/g, '\\$&')}“`).test(note) && !!uv.view.querySelector('.balance-verdict__value') && /€/.test(kpi) && !/kein Vertrag/i.test(kpi),
+        `${kpi.trim().slice(0, 60)} | ${uv.view.querySelector('.balance-verdict__value')?.textContent.trim()}`);
+      // „Bekomme ich Geld zurück?“ (Einsteiger): der Gruppenvertrag einmal, mit dem Saldo aus contract-status
+      const sum = (await send('GET', '/summary')).data;
+      const byKey = new Map((await st.activeUtilities()).map(u => [u.key, u]));
+      const lines = dash.beginnerMoneyLines(sum?.meters || [], byKey).map(l => l.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' '));
+      const gl = lines.filter(l => l.includes(h.groupName));
+      t(`gruppe (${h.tag}): „Bekomme ich Geld zurück?“ nennt den Gruppenvertrag einmal`, gl.length === 1 && h.members.every(id => !lines.some(l => l.includes(`(${nameOf(id)})`)))
+        && sum.meters.filter(m => h.members.includes(m.meter_id)).every(m => m.contract === null && m.group_contract?.contract?.contract_id === gc?.contract_id), lines.join(' | ').slice(0, 260));
+    }
+  } catch (e) { t('gruppe: Gruppenvertrag an den Mitgliedern', false, e.stack || e.message); }
+
   // ── 27. v3.9.0 (F1032, #40) — Assistent „Messkonzept“: Einstieg, Schaltbilder, Vorschau, Anlegen ──
   try {
     const sleep = (ms) => new Promise(r => setTimeout(r, ms));
