@@ -3118,7 +3118,8 @@
         "warn": "Kleine Nachzahlung möglich",
         "alert": "Nachzahlung zu erwarten",
         "none": "Keine Abschläge",
-        "uncertain": "Abschläge: Schätzung unsicher"
+        "uncertain": "Abschläge: Schätzung unsicher",
+        "credit": "Abschläge höher als nötig"
       },
       "deadlines": {
         "ok": "Keine Frist in Kürze",

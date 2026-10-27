@@ -81,7 +81,7 @@ readable in black-and-white print).
 |---|---|---|---|
 | **Costs** against the previous year | at most +3% | at most +10% | more than +10% |
 | **Consumption** against the previous year (heating weather-adjusted) | not up | at most +5% | more than +5% |
-| **Bill** (as of today) | credit or less than one monthly advance payment due | up to two advance payments | more |
+| **Bill** (as of today) | credit or less than one monthly advance payment due | up to two advance payments; *(since v3.9.0)* or a credit of 50 € or one advance payment and more (“Advance payments higher than needed”) | more |
 | **Deadlines** (as of today) | nothing in the next 60 days | deadline within 60 days | 14 days or less, or overdue |
 
 Below the cost light, the report always says how much is due to changed prices
@@ -99,7 +99,13 @@ is uncertain, the “Bill” light gives no verdict: it says “estimate uncerta
 the range, like the balance card, the overview and the workshop (up to v3.7 it
 took the unfavourable end). If a contract ends soon with a successor contract
 entered, or fewer than three advance payments are left until the bill, there is a
-hint about the bill instead of the task “Adjust advance payment”.
+hint about the bill instead of the task “Adjust advance payment”. The “Bill” light
+counts running contracts only; a successor contract that is already entered bills
+later and stays out. A credit that triggers the task “Adjust advance payment” no
+longer reads “Advance payments fit” there, but “Advance payments higher than
+needed”. A range of two credits runs from the smaller to the larger amount, as on
+the balance card. The average working price on a utility’s page counts only months
+with a contract or a price of their own.
 
 ## 4. Tasks: priority, amount, deadline
 

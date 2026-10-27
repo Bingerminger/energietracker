@@ -3118,7 +3118,8 @@
         "warn": "Possibile piccolo conguaglio",
         "alert": "Conguaglio previsto",
         "none": "Nessun acconto",
-        "uncertain": "Acconti: stima incerta"
+        "uncertain": "Acconti: stima incerta",
+        "credit": "Acconti più alti del necessario"
       },
       "deadlines": {
         "ok": "Nessuna scadenza vicina",

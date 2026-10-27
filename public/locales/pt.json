@@ -3118,7 +3118,8 @@
         "warn": "Possível pequeno acerto",
         "alert": "Acerto previsto",
         "none": "Sem adiantamentos",
-        "uncertain": "Adiantamentos: estimativa incerta"
+        "uncertain": "Adiantamentos: estimativa incerta",
+        "credit": "Adiantamentos mais altos do que o necessário"
       },
       "deadlines": {
         "ok": "Nenhum prazo próximo",

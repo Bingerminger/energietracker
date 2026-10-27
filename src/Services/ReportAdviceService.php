@@ -230,29 +230,40 @@ final class ReportAdviceService
         // das ungünstige Ende der Spanne („✖ Nachzahlung zu erwarten“), während die Mitte ein
         // Guthaben war und Karte und Übersicht „unsicher“ sagten. Sie zählt jetzt wie dort als
         // „unsicher“ mit ihrer Spanne; die Ampel urteilt nur über die sicheren Verträge.
-        $worst = null; $worstC = null; $uncC = null;
+        // v3.9.0 (Skeptiker R2-2) — nur laufende Verträge: Ein eingetragener Folgevertrag rechnet
+        // erst später ab. Bis dahin nahm die Ampel auch ihn („✔ Abschläge passen“ mit seinem Saldo,
+        // während der laufende Vertrag rund 60 % mehr erwartete). Und „passen“ nicht neben einer
+        // Aufgabe „Abschläge über den Kosten“: Ein Guthaben über der Schwelle der Abschlag-Regel
+        // (advanceOff) heißt „Abschläge höher als nötig“, mit dem größten dieser Guthaben.
+        $worst = null; $worstC = null; $uncC = null; $overC = null;
         foreach ((array)($f['contracts'] ?? []) as $c) {
-            if (empty($c['has_advance']) || ($c['projected_end_balance'] ?? null) === null) continue;
+            if (empty($c['is_current']) || empty($c['has_advance']) || ($c['projected_end_balance'] ?? null) === null) continue;
             if (is_array($c['projection_uncertain'] ?? null)) { $uncC ??= $c; continue; }
             $adv = (float)($c['current_advance'] ?? 0);
             $bal = (float)$c['projected_end_balance'];
             $ratio = $adv > 0 ? $bal / $adv : ($bal > 0 ? INF : -INF);
             if ($worst === null || $ratio > $worst) { $worst = $ratio; $worstC = $c; }
+            if ($bal < 0 && self::advanceOff($bal, $adv) && ($overC === null || $bal < (float)$overC['projected_end_balance'])) $overC = $c;
         }
         $lv = self::billingLevel($worst === null ? null : (is_infinite($worst) ? ($worst > 0 ? 99.0 : -99.0) : $worst));
+        $word = "report.light.billing.$lv";
+        if ($lv === 'ok' && $overC !== null) {
+            $lv = 'warn'; $word = 'report.light.billing.credit'; $worstC = $overC;
+        }
         // v3.7.0 (wirklichkeit-2, Schritt 3) — „Abschläge passen ✔“ nicht, solange eine
         // Schätzung unsicher ist: dann ohne Haken, mit der Spanne dieses Vertrags
-        $word = "report.light.billing.$lv";
         if (($lv === 'ok' || $worstC === null) && $uncC !== null) {
             $lv = 'none'; $word = 'report.light.billing.uncertain'; $worstC = $uncC;
         }
         $worstUnc = is_array($worstC['projection_uncertain'] ?? null) ? $worstC['projection_uncertain'] : null;
+        // v3.9.0 (Skeptiker R2-4) — die Enden in Lesereihenfolge wie Saldo-Karte und Heizgrenze
+        $ends = $worstUnc !== null ? self::balanceRangeEnds((array)$worstUnc['projected_range']) : null;
         $out[] = ['key' => 'billing', 'level' => $lv, 'as_of_today' => true,
             'word' => $this->i18n->t($word),
             'detail' => $worstC === null ? $this->i18n->t('report.light.billingNone')
-                : ($worstUnc !== null
+                : ($ends !== null
                     ? $this->i18n->t('balanceUncertain.light', ['label' => (string)$worstC['label'],
-                        'low' => $this->balanceWord((float)min($worstUnc['projected_range'])), 'high' => $this->balanceWord((float)max($worstUnc['projected_range']))])
+                        'low' => $this->balanceWord($ends[0]), 'high' => $this->balanceWord($ends[1])])
                     : $this->i18n->t((float)$worstC['projected_end_balance'] > 0 ? 'report.light.billingDue' : 'report.light.billingCredit', [
                         'label' => (string)$worstC['label'], 'amount' => $this->approx(abs((float)$worstC['projected_end_balance'])),
                     ]))];
@@ -296,7 +307,6 @@ final class ReportAdviceService
         } elseif (!empty($c['has_advance']) && ($c['projected_end_balance'] ?? null) !== null && !empty($c['is_current'])) {
             $bal = (float)$c['projected_end_balance'];
             $adv = (float)($c['current_advance'] ?? 0);
-            $limit = max(self::ADVANCE_MIN_EUR, $adv);
             $date = $this->i18n->date((string)($c['settle_date'] ?? $c['effective_end'] ?? $today));
             $sugg = $c['suggested_advance'] ?? null;
             // v3.9.0 (Skeptiker M15) — Vertrag endet bald mit eingetragenem Folgevertrag, oder bis zur
@@ -304,11 +314,11 @@ final class ReportAdviceService
             // ändern lohnt nicht, die Abrechnung gleicht den Rest aus. Ein Hinweis statt Aufgabe Nr. 1.
             $final = (!empty($c['successor']) && ($c['settle_date'] ?? null) !== null && self::days($today, (string)$c['settle_date']) <= self::FINAL_BILL_DAYS)
                 || ($c['suggestion_withheld'] ?? null) === 'short';
-            if ($final && abs($bal) >= $limit) {
+            if ($final && self::advanceOff($bal, $adv)) {
                 $out[] = $this->info('advanceFinal', $c['utility'] ?? null, 'report.advice.advanceFinal.title', ['label' => $label],
                     $bal > 0 ? 'report.advice.advanceFinal.reasonDue' : 'report.advice.advanceFinal.reasonCredit',
                     ['date' => $date, 'amount' => $this->approx(abs($bal))], true);
-            } elseif (abs($bal) >= $limit) {
+            } elseif (self::advanceOff($bal, $adv)) {
                 $due = $bal > 0;
                 $steps = [];
                 // v3.9.0 (Skeptiker H1) — mit Rhythmus gelten die Beträge je Rate („alle 2 Monate“), nicht „im Monat“
@@ -731,12 +741,39 @@ final class ReportAdviceService
      */
     public function uncertainBalance(array $unc, string $date): array
     {
-        [$lo, $hi] = array_map('floatval', (array)$unc['projected_range']);
+        [$lo, $hi] = self::balanceRangeEnds((array)$unc['projected_range']);   // v3.9.0 (Skeptiker R2-4)
         $text = $this->i18n->t('balanceUncertain.range', ['date' => $date, 'low' => $this->balanceWord($lo),
             'high' => $this->balanceWord($hi), 'why' => $this->uncertainWhy($unc)]);
         $s = $unc['suggested_range'] ?? null;
         $adv = is_array($s) ? $this->i18n->t('balanceUncertain.advance', ['low' => $this->eur((float)$s[0]), 'high' => $this->eur((float)$s[1])]) : null;
         return [$text, $adv];
+    }
+
+    /**
+     * v3.9.0 (Skeptiker R2-4) — die Enden einer Saldo-Spanne (positiv = Nachzahlung) in
+     * Lesereihenfolge, wie `balanceRangeEnds` in public/js/lib/semantics.js (Saldo-Karte,
+     * Übersicht, Heizgrenze): Liegen beide im Guthaben, vom kleineren zum größeren Betrag
+     * („zwischen ca. 150 € Guthaben und ca. 1.700 € Guthaben“; bis dahin der Zahl nach
+     * „zwischen ca. 1.700 € Guthaben und ca. 150 € Guthaben“). Sonst der Zahl nach.
+     *
+     * @param array<int,mixed> $r [ein Ende, anderes Ende]
+     * @return array{0:float,1:float} [zuerst, danach]
+     */
+    public static function balanceRangeEnds(array $r): array
+    {
+        $r = array_values(array_map('floatval', $r));
+        $lo = min($r[0], $r[1]); $hi = max($r[0], $r[1]);
+        return $hi < 0 ? [$hi, $lo] : [$lo, $hi];
+    }
+
+    /**
+     * Weicht der Saldo zur Abrechnung so weit ab, dass „Abschlag anpassen“ gilt? Ab
+     * max(ADVANCE_MIN_EUR, ein Abschlag), Nachzahlung wie Guthaben. Dieselbe Schwelle für
+     * Aufgabe, Hinweis kurz vor der Abrechnung und Ampel (v3.9.0, Skeptiker R2-2).
+     */
+    private static function advanceOff(float $bal, float $adv): bool
+    {
+        return abs($bal) >= max(self::ADVANCE_MIN_EUR, $adv);
     }
 
     /** Nachzahlung, Guthaben oder ausgeglichen — positiver Saldo = Nachzahlung. */

@@ -3118,7 +3118,8 @@
         "warn": "Petit complément possible",
         "alert": "Complément à prévoir",
         "none": "Pas d’acomptes",
-        "uncertain": "Acomptes : estimation incertaine"
+        "uncertain": "Acomptes : estimation incertaine",
+        "credit": "Acomptes plus élevés que nécessaire"
       },
       "deadlines": {
         "ok": "Pas d’échéance proche",
