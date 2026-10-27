@@ -296,7 +296,12 @@ both. “Book as special payment” books into the group contract.
   recorded bill always comes first. *(v3.7.0)* If the change lies only a few
   days next to the settlement date — settlement date 31-08, new contract from
   1 September —, there is no one-day period: remainders under 14 days join the
-  neighbouring period. The totals stay the same.
+  neighbouring period. The totals stay the same. *(since v3.9.0)* If a supply
+  begins and ends at a change of supplier and lasts at most 400 days (a one-year
+  contract), it is one period up to the end of the contract: the supplier then
+  bills with the final bill, and the settlement date does not apply within it.
+  If the settlement date does not match the last bill or the contracts, the hint
+  also appears on the balance card and under “Costs & contracts”.
 - **Current year in both views:** the calendar year counts the standing
   charge and advance payment of the month of the last reading in full, the
   billing year only the days up to the reading; the ⓘ next to “Advances up to

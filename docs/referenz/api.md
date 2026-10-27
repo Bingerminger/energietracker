@@ -625,6 +625,12 @@ unsicher ist ([Grundlagen §1](../verstehen/00-overview.md#gemessen-oder-verteil
 | `GET /api/readings-overview` | `first_date` | erste echte Ablesung des Zählers (Jahresauswahl des Berichts) |
 | `GET /api/reports/yearly` | `model.topics.pv.notes`, `.estimated` | Notizen zum Sonnenstrom-Block (Zeitraum, verteilt, widersprüchlich, kein Vergleich); `estimated`: der Block steht auf verteilten Monaten (≈, „geschätzt“ statt „gemessen“) |
 | `POST /api/forecast/scenario` | `advance.base_ongoing`, `.scen_ongoing`, `.withheld` | wie `advance_ongoing` und `suggestion_withheld` der Karte; das Szenario verschiebt den laufenden Abschlag um seine Monatskosten |
+| `…/contract-status` | `projection_band` | *(Skeptiker-Lauf)* bei sicherer Schätzung mit Heizmodell `{low, high, half, level_pct, estimated_days, weather, model}`: Breite aus dem Wetter der kommenden Tage und der Streuung des Modells, sonst `null` (unter 1 € nicht) |
+| `…/contract-status` | `billing_period.anchor`, `.suggested_anchor`, `.suggested_anchor_source`, `.last_bill_until` | Stichtag und Vorschlag wie unter „Abrechnungsjahr“, für den Hinweis an Karte und „Kosten & Verträge“ |
+| `…/contract-status` | `advance_ongoing` | mit Abschlagsrhythmus je Rate (Jahreskosten ÷ Raten im Jahr), sonst je Monat |
+| `POST /api/forecast/scenario` | `advance.every_months`, `billing.advance_every_months`, `billing.base_end_range`, `billing.scen_end_range` | Rhythmus der Beträge (je Rate); Spanne der Karte bei unsicherer Schätzung, im Szenario verschoben wie der Punktwert (sonst `null`) |
+| `GET /api/reports/yearly` | `headline` (Kosten), Ampeln | Kostenvergleich nur über Arten mit Kosten in beiden Jahren, neu abgerechnete getrennt genannt; CO₂-Vergleich nur über ganze Jahre; bei unsicherer Schätzung urteilt die Ampel „Abrechnung“ nicht |
+| `GET /api/reports/yearly` | `pages[].water.days`, `.persons_assumed`, `pages[].efficiency.partial` | Liter je Person und Tag über die erfassten Tage; Personenzahl nur angenommen; Heizenergie je m² eines unvollständigen Jahres („bisher“) |
 
 **Geänderte Werte (v3.9.0):**
 
@@ -2583,7 +2589,9 @@ Periode. **Keine Kurzreste:** Ein Stück unter 14 Tagen zwischen Stichtag und
 Wechsel (Stichtag 31-08, Verträge ab 01.09.) geht über den Stichtag hinweg in
 die Nachbarperiode auf, nie über einen Wechsel oder eine Rechnung; liegt heute
 im Rest, läuft die laufende Periode bis zum übernächsten Stichtag. Die Summen
-bleiben dieselben.
+bleiben dieselben. *(v3.9.0)* Eine Belieferung, die an einem Lieferantenwechsel
+beginnt und endet und höchstens 400 Tage dauert, ist eine Periode bis zum
+Vertragsende (`ends_at_switch: true`); der Stichtag teilt sie nicht.
 
 | Feld | Bedeutung |
 |---|---|

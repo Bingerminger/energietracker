@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Energietracker\Tests\Services;
 
+use Energietracker\Services\BillingPeriodService;
 use Energietracker\Services\ConsumptionService;
 use Energietracker\Services\ForecastService;
 use Energietracker\Services\HomeAssistant\Todo;
@@ -51,6 +52,7 @@ final class DocumentedThresholdsTest extends TestCase
         $sug = ConsumptionService::SUGGEST_MIN_MONTHS;
         $span = (int)round(PvSummaryService::SAME_SPAN_SHARE * 100);
         $rest = ConsumptionService::REST_EXTRAPOLATE_DAYS;
+        $supply = BillingPeriodService::SWITCH_PERIOD_MAX_DAYS;   // v3.9.0 (auswertung, Skeptiker M7)
         $W = self::WORDS;
         return [
             'HA: höchstens fünf je Lauf' => ['docs/anleitungen/home-assistant.md', 'docs/en/anleitungen/home-assistant.md',
@@ -83,6 +85,10 @@ final class DocumentedThresholdsTest extends TestCase
                 ['mehr als 0,5 kWh darüber'], ['more than 0.5 kWh above']],
             'Rest-Abrechnung: höchstens 92 Tage fortgeschrieben' => ['docs/verstehen/13-meter-topologie.md', 'docs/en/verstehen/13-meter-topologie.md',
                 ["bis zu $rest Tage fort"], ["for up to $rest days"]],
+            'Perioden: Belieferung zwischen zwei Wechseln bis 400 Tage' => ['docs/anleitungen/jahresabrechnung.md', 'docs/en/anleitungen/jahresabrechnung.md',
+                ["dauert sie höchstens $supply Tage"], ["lasts at most $supply days"]],
+            'Perioden (API): Belieferung zwischen zwei Wechseln bis 400 Tage' => ['docs/referenz/api.md', 'docs/en/referenz/api.md',
+                ["höchstens $supply Tage dauert"], ["lasts at most $supply days"]],
             'Rhythmus: ein Termin bis drei Tage daneben' => ['docs/anleitungen/posteingang.md', 'docs/en/anleitungen/posteingang.md',
                 ['ein Termin darf bis zu drei Tage verschoben sein'], ['a date may be shifted by up to three days']],
         ];

@@ -985,6 +985,29 @@ rate of a calendar month comes from measured months as long as there are any;
 only otherwise from interpolated ones. The heating model is the same as in
 section 5, so with few readings also the one over the reading intervals.
 
+**The same trust rule as the forecast (since v3.9.0).** The card only estimates
+with the heating model when it passes the quality gate and its base load is not
+below half the measured summer rate (like the forecast, section 6). Otherwise,
+like the forecast, it takes the calendar month: measured, otherwise interpolated
+from short gaps; only where there is none, the heating model with the measured
+summer rate as base load. In the messy test household June to August used to be
+0 kWh (base price only); the measured values were 157 to 187 kWh.
+
+**A width even for a certain estimate (since v3.9.0).** When the heating model
+passes the quality gate, the estimate is not “uncertain”, but it is not exact
+either: the card names the balance to the euro (“≈”) and a width next to it
+(`projection_band`, 80 %):
+
+```text
+half width = 1.28 × √( Σ (a × heating factor × σ_HDD,month × share of future days)²
+                      + Σ (σ_model × share of estimated days)² ) × price per kWh
+```
+
+The weather counts for the days from today, the model's spread for every
+estimated day since the last reading. Up to v3.8 every range disappeared once the
+quality gate was passed (for example after the heating limit), even with nine
+estimated months. The advance suggestion stays.
+
 **Two factors (since v3.7.0).** The factor only acts on the part it comes from:
 months whose expectation is less than 30 % heating calibrate the base load
 (`projection_factor_base`), the others the heating share
@@ -1111,8 +1134,13 @@ the bill settles the rest anyway. Instead it names the advance that fits going
 forward (`advance_ongoing`):
 
 ```text
-ongoing = rounded( estimated cost of the 12 months after the bill / 12 )
+ongoing = rounded( estimated cost of the 12 months after the bill / installments per year )
 ```
+
+Installments per year: 12 for a monthly advance, 6 every two months, 4 every
+three months. *(since v3.9.0)* With a rhythm, suggestion and ongoing advance apply
+per installment, and the texts name the rhythm (“about €152 instead of €165 every
+2 months”); up to v3.8 a monthly amount stood next to the amount per due date.
 
 ### Day-exact like the bill (since v2.9.0)
 

@@ -616,6 +616,12 @@ is uncertain ([Basics §1](../verstehen/00-overview.md#measured-or-interpolated-
 | `GET /api/readings-overview` | `first_date` | first real reading of the meter (year choice of the report) |
 | `GET /api/reports/yearly` | `model.topics.pv.notes`, `.estimated` | notes on the solar block (period, interpolated, contradictory, no comparison); `estimated`: the block rests on interpolated months (≈, “estimated” instead of “measured”) |
 | `POST /api/forecast/scenario` | `advance.base_ongoing`, `.scen_ongoing`, `.withheld` | like the card's `advance_ongoing` and `suggestion_withheld`; the scenario shifts the ongoing advance by its monthly costs |
+| `…/contract-status` | `projection_band` | *(sceptic run)* for a certain estimate with a heating model `{low, high, half, level_pct, estimated_days, weather, model}`: width from the weather of the coming days and the model's spread, otherwise `null` (not below €1) |
+| `…/contract-status` | `billing_period.anchor`, `.suggested_anchor`, `.suggested_anchor_source`, `.last_bill_until` | settlement date and suggestion as under “Billing year”, for the hint on the card and in “Costs & contracts” |
+| `…/contract-status` | `advance_ongoing` | with an advance rhythm per installment (annual cost ÷ installments per year), otherwise per month |
+| `POST /api/forecast/scenario` | `advance.every_months`, `billing.advance_every_months`, `billing.base_end_range`, `billing.scen_end_range` | rhythm of the amounts (per installment); the card's range for an uncertain estimate, shifted in the scenario like the point value (otherwise `null`) |
+| `GET /api/reports/yearly` | `headline` (costs), lights | cost comparison only over utilities with costs in both years, newly billed ones named separately; CO₂ comparison over whole years only; with an uncertain estimate the “Bill” light gives no verdict |
+| `GET /api/reports/yearly` | `pages[].water.days`, `.persons_assumed`, `pages[].efficiency.partial` | litres per person and day over the recorded days; number of people only assumed; heating energy per m² of an incomplete year (“so far”) |
 
 **Changed values (v3.9.0):**
 
@@ -2533,7 +2539,10 @@ short remainders:** a piece under 14 days between the settlement date and a
 change of supplier (settlement date 31-08, contracts from 1 September) joins
 the neighbouring period across the settlement date, never across a change or a
 bill; if today lies in the remainder, the current period runs to the
-settlement date after next. The totals stay the same.
+settlement date after next. The totals stay the same. *(v3.9.0)* A supply that
+begins and ends at a change of supplier and lasts at most 400 days is one period
+up to the end of the contract (`ends_at_switch: true`); the settlement date does
+not split it.
 
 | Field | Meaning |
 |---|---|
