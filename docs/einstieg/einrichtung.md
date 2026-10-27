@@ -27,7 +27,11 @@ deinen eigenen Daten.
 
 ### Die Schritte
 
-Der Dialog „Einrichten“ hat fünf Schritte („Schritt 1 von 5“):
+Der Dialog „Einrichten“ hat fünf Schritte („Schritt 1 von 5“). Seit **v3.9.0**
+steht neben jeder Frage eine kleine Zeichnung (Weltkugel, Häuser, Zähler,
+Stufen, Ablage), und jede Antwort auf „Wer bist du?“ trägt ein kleines Haus-Bild
+statt eines Emojis. Die Bilder sind nur Schmuck; die Frage und der Text der
+Antwort sagen alles.
 
 1. **„Sprache und Land“** *(seit v3.5.0)* — zwei Auswahlen:
    - **Sprache:** eine der sieben Oberflächensprachen. Vorgewählt ist die
@@ -51,8 +55,8 @@ Der Dialog „Einrichten“ hat fünf Schritte („Schritt 1 von 5“):
    ([§ 2](#fernwärme-oder-heizwärme)).
 4. **„Wie viel Erfahrung hast du?“** — Einsteiger, Erfahren oder Experte
    ([§ 3](#3-nutzungsstufen)).
-5. **„So geht es weiter“** — die Zusammenfassung und eine von drei Wegen
-   *(seit v3.7.0)*:
+5. **„So geht es weiter“** — die Zusammenfassung und einer von drei Wegen
+   *(seit v3.7.0)*, mit Strom seit v3.9.0 einer von vier:
    - **„Aus Dokumenten“** *(empfohlen)* führt in den Posteingang: Versorgerpost
      als PDF ablegen, auslesen lassen, und ein Entwurf deines Haushalts
      entsteht — [Haushalt aus Dokumenten](../anleitungen/haushalt-aus-dokumenten.md).
@@ -62,6 +66,11 @@ Der Dialog „Einrichten“ hat fünf Schritte („Schritt 1 von 5“):
      Verwalter; Mitglieder lesen, dass ein Verwalter das einrichtet).
    - **„Von Hand anlegen“** führt zu „Zählerstände“: Zähler prüfen, den ersten
      Stand erfassen — weiter mit den [Ersten Schritten](erste-schritte.md).
+   - **„Messkonzept einrichten“** *(seit v3.9.0, nur mit Strom)*: „Für PV,
+     Wärmepumpe oder Wallbox mit eigenem Zähler: erst den Aufbau, dann die
+     Stände.“ Öffnet die Zählerseite von Strom mit dem Assistenten, der nach dem
+     Aufbau im Zählerschrank fragt und Zähler, Zählwerke und Verträge anlegt
+     ([Anwendungsfall H](../anleitungen/anwendungsfaelle.md#h--kaskade-mit-wärmepumpe-htnt-und-pv-v390)).
    - **„Mit Beispieldaten ansehen“** *(nur Verwalter)* lädt den
      Beispielhaushalt zur Antwort aus Schritt 2
      ([§ 2](#2-die-beispielhaushalte)). Vorher sichert die App den jetzigen

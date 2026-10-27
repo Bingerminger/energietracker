@@ -34,8 +34,12 @@ v1.0.2.
    curl -s -X POST -H 'Content-Type: application/json' -H 'X-ET-Language: de' \
      --data '{"force":true}' $A/demo/import
    curl -s -X PATCH -H 'Content-Type: application/json' \
-     --data '{"ui_level":"expert"}' $A/settings
+     --data '{"ui_level":"expert","weather_auto_fill":false}' $A/settings
    ```
+
+   `weather_auto_fill: false` *(v3.9.0)*: the import already carries the
+   weather forward; without the switch the browser asks Open-Meteo while you
+   capture.
 
    For the English images use a second instance with its own directory: set
    `{"language":"en"}` before the import and import with `X-ET-Language: en`.
@@ -108,6 +112,11 @@ instance with sign-in switched on.
 | `handbuch.png` | Handbook in the app (v3.4.0) | `#/help/doc/anleitungen/anwendungsfaelle.md` or `#/help/doc/en/anleitungen/anwendungsfaelle.md` | 1440 × 900 | ✓ |
 | `erklaerung-mac.png` | ⓘ explanation on the Mac | Gas → monthly table → ⓘ at HDD | detail | ✓ |
 | `erklaerung-iphone.png` | ⓘ explanation as a sheet | as above | 375 × 812 | ✓ |
+| `einrichtung.png` | Setup assistant, step “Who are you?” (v3.9.0) | empty directory, “Next” in the step “Language and country” | 1440 × 900 | ✓ |
+| `personen.png` | Card “People in the household” (v3.9.0) | `#/settings/household` | detail | ✓ |
+| `ha-benachrichtigungen.png` | Card “Notifications to Home Assistant” (v3.9.0) | `#/settings/integrations`, target webhook with an address from `192.168.178.x`, switched off | detail (window 1440 × 2600, full page, so the fixed top bar does not cover the title) | ✓ |
+| `messkonzept.png` | Assistant “Set up metering concept”, step “How are the meters connected?” (v3.9.0) | `#/utility/strom/meters?concept=1`: heat pump, HT/NT on every import meter, solar, then “Cascade” | 1440 × 900 | ✓ |
+| `ablesung-pruefen.png` | “To do” with “Check the reading of …” (v3.9.0) | sample data, one winter reading of the main gas meter lowered by 100 m³ (only in the capture instance) | detail | ✓ |
 
 A test checks that every linked image exists ([Tests](tests.md)).
 

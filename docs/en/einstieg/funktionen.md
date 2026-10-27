@@ -35,7 +35,15 @@ The detailed feature overview. What the views look like is shown in the
   the bill check, advance payment against the forecast, a reminder with the
   person responsible). Mail also comes in with a shortcut from the iPhone,
   through a watched folder or by email via Home Assistant; every contract and
-  meter has a file with all its documents.
+  meter has a file with all its documents. Since v3.9.0 an annual bill also
+  creates the contract when none applies at the meter yet: prices per section
+  gross, for water all three components, plus the advance payment plan; amounts
+  with spaces between the digits are read as one number.
+- **Check a reading** (v3.9.0): a wrong reading between two correct ones
+  silently moves consumption from one month to the next. The app finds such
+  readings, duplicates too, and asks under “To do”: “Reading is correct”, “Only
+  for the bill” or “Correct it”. It never corrects on its own
+  ([Ticking off notices](../anleitungen/hinweise-erledigen.md#11-check-a-reading-v390)).
 - **Plausibility check** before saving: a multiple of the usual daily
   consumption ("forgot a comma?"), a smaller reading without a meter swap, a
   date in the future, a second reading on the same day. A register rollover
@@ -43,9 +51,15 @@ The detailed feature overview. What the views look like is shown in the
 - **Meter swap** as a data model of its own: a meter bundles its devices with
   serial number, installation and removal, initial and final reading;
   consumption across the swap is right.
-- **Several meters** per utility, **sub-meters** (subtracted from the parent,
-  no double counting) and **groups** (sum on the overview) — see
-  [Meter topology](../verstehen/13-meter-topologie.md).
+- **Several meters** per utility, **sub-meters** (no double counting in the
+  total; if the sub-meter has its own contract, the parent meter’s contract
+  bills only the remainder since v3.9.0) and **groups** (sum on the overview) —
+  see [Meter topology](../verstehen/13-meter-topologie.md).
+- **Metering concept** (v3.9.0): an assistant asks about the layout in the
+  meter cabinet (one meter, two side by side, a sub-meter behind, cascade),
+  shows it as a diagram and creates meters, **registers with OBIS code** (such
+  as 1.8.1 for import HT), groups and contracts, without duplicates
+  ([use case H](../anleitungen/anwendungsfaelle.md#h--cascade-with-heat-pump-htnt-and-solar-v390)).
 - **Consumption per period** (v3.1.0) instead of meter readings, where the
   consumption already comes ready-made — such as the monthly consumption
   information for heating and hot water. The app spreads each period over the
@@ -67,7 +81,10 @@ The detailed feature overview. What the views look like is shown in the
   idempotent, with token and meter alias, since v3.1.0 also as a batch for
   backfilling, since v3.3.0 with a timestamp for consumption per quarter hour)
   and reads balance, forecast and “days since reading” back as
-  sensors (`GET /api/summary`) — see
+  sensors (`GET /api/summary`). Since v3.9.0 Energietracker reports due
+  appointments, deadlines, warnings and new mail to Home Assistant by itself,
+  each message once, and a “To do” sensor counts the open items
+  (`GET /api/todo`) — see
   [Connect Home Assistant](../anleitungen/home-assistant.md). ioBroker,
   Node-RED and openHAB send readings the same way — see
   [Other systems](../anleitungen/andere-systeme.md).
@@ -112,7 +129,10 @@ The detailed feature overview. What the views look like is shown in the
   [Special payments](../verstehen/10-sonderzahlungen.md).
 - **Balance** per contract, in the words of the bill: "credit" or "additional
   payment", by calendar up to today, estimated from the last reading on, plus
-  the **expected bill** on the billing date and a **suggested advance**.
+  the **expected bill** on the billing date and a **suggested advance**. Since
+  v3.9.0 balance card, annual report and forecast workshop calculate over the
+  running billing period with the same result, and advance payments every two
+  or three months count per due date.
 - **Notice periods** in months, weeks or days: reminders in three stages up to
   the last day to cancel, notes on missed deadlines and announced price
   increases (with the special right to cancel in Germany).
@@ -126,7 +146,8 @@ The detailed feature overview. What the views look like is shown in the
 - **Contracts & payments** on one page: all running contracts with notice
   deadline, advance and the bill to expect.
 - **Water** with three components: drinking water, wastewater (by drinking
-  water or its own meter) and rainwater by sealed area.
+  water or its own meter, since v3.9.0 also with a standing charge of its own)
+  and rainwater by sealed area.
 - **Tenancy** (v3.1.0) for everyone who pays for heating and water through the
   service charges: prepayment against the expected costs of the current
   billing period, with an assessment and a suitable prepayment per month (an
@@ -176,7 +197,10 @@ The detailed feature overview. What the views look like is shown in the
 - **Heating degree days** from your own location against the heating limit
   (default 15 °C), plus a **heating model** with base load and **weather
   adjustment**: "used more, or was it just colder?" — every month against its
-  expectation for that weather.
+  expectation for that weather. If the heating model fits much better with a
+  different heating limit, “To do” says so since v3.9.0, with the effect on
+  balance and advance payment and a button to apply it; meters, tanks and meter
+  groups can have a heating limit of their own.
 - **Five models** for degree days against consumption: linear, polynomial,
   robust, segmented (with a break point from the data) and sigmoid, with an R²
   comparison.
@@ -280,8 +304,10 @@ The detailed feature overview. What the views look like is shown in the
   most once per reason) — see
   [Setup and experience levels](einrichtung.md#3-experience-levels) and, every
   feature on its own, [What can I do at each level?](../referenz/stufen.md).
-- **Setup assistant** (v3.2.0) on the first start: three questions, then
-  matching utilities and level; start it again from the settings at any time.
+- **Setup assistant** (v3.2.0) on the first start: four questions (since
+  v3.5.0 language and country first), then matching utilities and level; since
+  v3.9.0 with a small drawing per step. Start it again from the settings at any
+  time.
 - **Sample data** to try it out without losing your own (the app saves the
   current state first); since v3.2.0 four sample households — rented flat,
   owner-occupied flat with district heating, classic and modern house — next
@@ -307,7 +333,8 @@ The detailed feature overview. What the views look like is shown in the
   [Security & network operation](../betrieb/sicherheit.md).
 - **Users in the household** (v3.2.0): with sign-in, people of their own with
   name and password or reported by the proxy, the roles admin and member,
-  level and language per person — see
+  level and language per person; since v3.9.0 people for “Responsible” also
+  without sign-in (Settings → Household & building) — see
   [Users in the household](../anleitungen/benutzer.md).
 - **Diagnostics** under Settings → System and `GET /api/health` for the Docker
   health check and uptime monitors.
