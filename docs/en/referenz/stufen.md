@@ -82,7 +82,10 @@ too. A test checks every row with an anchor against the code.
 | <a id="level-el-contract-terms"></a>Contract: price guaranteed until, “Cancellation takes effect”, minimum term, “Renews unless cancelled” | – | ✓ | ✓ | plan a switch |
 | <a id="level-el-price-changes"></a>Contract: more price rows (“+ Row”), bonuses, special payments | – | ✓ | ✓ | reflect price changes and refunds exactly |
 | <a id="level-el-contract-expert"></a>Contract: district heating key figures (CO₂, primary energy), prices per meter of a group, § 14a module 1 and module 3, credit notes from the direct marketer, “Import monthly prices”, counts per contract | – | – | ✓ | special cases of tariff and grid fee |
-| <a id="level-meters"></a>**Meter structure** — sub-meters, roles, devices and meter swaps, CSV import of readings | – | ✓ | ✓ | manage the meters of a utility (link “⚙️ Meters” in the consumption view) |
+| Reading: **“Only for the bill”** and **“Reading is correct”** in the edit dialog *(v3.9.0)* | ✓ | ✓ | ✓ | a reading the supplier billed with that skews the months |
+| Contract: **advance payments with a rhythm** (every 2 or 3 months, due dates from the bill) *(v3.9.0)* | ✓ | ✓ | ✓ | as the supplier collects them; balance and suggestion count per due date |
+| <a id="level-meters"></a>**Meter structure** — sub-meters, roles, devices and meter swaps, CSV import of readings; since v3.9.0 register (OBIS) and heating limit per meter | – | ✓ | ✓ | manage the meters of a utility (link “⚙️ Meters” in the consumption view) |
+| Assistant **“Set up metering concept”** — meters, registers, sub-meters and contracts from the layout *(v3.9.0)* | ✓ | ✓ | ✓ | through Settings → Utilities & billing and the setup assistant; the button on the meters page from Experienced |
 | <a id="level-el-meter-plant"></a>Meter: **PV system** (investment, commissioning, battery, plug-in solar), **heat pump electricity meter** | – | ✓ | ✓ | *from Experienced since v3.7.0:* the basis for payback and seasonal performance factor |
 | <a id="level-el-meter-expert"></a>Meter: meter group, baseline dates, “Import time series” | – | – | ✓ | group contract, calculating from a renovation, quarter hours from portals |
 
@@ -98,6 +101,8 @@ too. A test checks every row with an anchor against the code.
 | <a id="level-el-heat-pump"></a>The **“Heat pump”** card with seasonal performance factor | – | ✓ | ✓ | *from Experienced since v3.7.0:* how efficiently the heat pump works |
 | <a id="level-el-utility-expert"></a>Consumption: hot water heat, CO₂ price in the fuel | – | – | ✓ | figures behind the cost |
 | <a id="level-recommendations"></a>**Recommendations** | ✓ | ✓ | ✓ | tips from your data |
+| “To do”: **adjust the heating limit** with “Apply (this meter only)” and “Not now”, also on the balance card, forecast and workshop *(v3.9.0)* | ✓ | ✓ | ✓ | whether the advance is enough depends on the heating limit |
+| “To do”: **check a reading**, duplicate readings, note on the baseline date *(v3.9.0)* | ✓ | ✓ | ✓ | otherwise a mistyped reading silently skews the months |
 | <a id="level-report"></a><a id="level-report-print"></a>**Annual report** — also as a PDF and for printing | ✓ | ✓ | ✓ | the year on one page |
 | <a id="level-analysis"></a>**Analysis** — heating signature, years compared | – | ✓ | ✓ | consumption and temperature side by side |
 | <a id="level-el-baseline"></a>Analysis: baseline and “Effect of the measure” | – | – | ✓ | before and after a renovation |
@@ -152,14 +157,15 @@ too. A test checks every row with an anchor against the code.
 | <a id="level-settings-utilities"></a>Settings → **Utilities & billing** — active utilities, billing dates | ✓ | ✓ | ✓ | |
 | <a id="level-el-settings-utilities"></a>Utilities: physical constants, energy sources (delivery), own flexibility values, photovoltaics | – | ✓ | ✓ | photovoltaics *from Experienced since v3.7.0* |
 | <a id="level-el-settings-co2"></a>Utilities: CO₂ emission factors | – | – | ✓ | calculation parameters |
-| Adding people to the household (Settings → Access → “Users and roles”) | – | – | ✓ | names, roles and accounts; they depend on sign-in |
+| **People in the household**: add, rename, delete (Settings → Household & building), also without sign-in *(v3.9.0)* | ✓ | ✓ | ✓ | names for “Responsible” on reminders, meters and contracts |
+| Accounts and roles (Settings → Access → “Users and roles”) | – | – | ✓ | who signs in and which role applies; depends on sign-in. Up to v3.8 people could only be added here |
 
 ### Connect
 
 | Feature | 🌱 | 🌿 | 🌳 | What for |
 |---|---|---|---|---|
 | <a id="level-settings-data"></a>Settings → **Data** — export, backup, restore, sample data | ✓ | ✓ | ✓ | your data is yours |
-| <a id="level-settings-integrations"></a>Settings → **Integrations** — Home Assistant: token, alias, templates | – | ✓ | ✓ | meter readings from outside |
+| <a id="level-settings-integrations"></a>Settings → **Integrations** — Home Assistant: token, alias, templates; since v3.9.0 notifications to Home Assistant | – | ✓ | ✓ | meter readings from outside, deadlines and new mail to Home Assistant |
 | <a id="level-el-evcc"></a>Wallbox: **“Charging sessions from evcc”** | – | ✓ | ✓ | upload or fetch charging sessions |
 | <a id="level-settings-access"></a>Settings → **Access** — sign-in, users and roles, API keys, embedding, host names | – | – | ✓ | who gets in |
 | <a id="level-settings-expert"></a>Settings → **Expert** — reading, receipts, text recognition, evcc address; collapsed, the calculation parameters | – | – | ✓ | services in the home network, fine-tuning |

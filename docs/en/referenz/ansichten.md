@@ -8,12 +8,15 @@
 > running app with the bundled [demo dataset](../../../demo-data/) (light theme; base
 > set v1.9.2, sign-in, security card and the capture question v2.6.0, navigation
 > v2.11.0, capture, settings and import preview v2.12.0, help and explanations
-> v2.13.0, analysis v2.15.0, overview, gas, PV and temperatures v2.16.0). Since
+> v2.13.0, analysis v2.15.0, overview, gas, PV and temperatures v2.16.0; captured
+> again with v3.9.0: overview, gas, settings, welcome and the new views). Since
 > v2.14.0 the views show the
-> English interface; dialogs, the sign-in and the iPhone captures are still
+> English interface, since v3.7.0 with English dates (dd/mm/yyyy); a few older
+> captures (sign-in, the capture question, the CSV import preview) are still
 > German. How the images are made: [Screenshots](../entwicklung/screenshots.md).
-> The images predate the experience levels (v3.2.0): they show what the
-> “Expert” level shows today, and they do not show the level switch yet.
+> Older images predate the experience levels (v3.2.0): they show what the
+> “Expert” level shows today, and they do not show the level switch yet. The
+> v3.9.0 captures show the “Expert” level with the switch.
 
 The app is a single-page application. Since **v2.11.0** its navigation follows
 the users' questions: seven areas instead of 17 entries. Since v3.7.0 the
@@ -209,11 +212,30 @@ workshop when their estimate is uncertain because the heating model fits poorly.
 Both buttons exist at every level; the analysis with the whole grid stays from
 Experienced.
 
+**Check a reading (v3.9.0):** If a reading between two correct ones is too low
+or too high, “To do” shows “check the reading of …” (for several readings in a
+row “check the readings from … to …”). Below it one line each for the interval
+before and after (“Before (… to …): … measured, about … expected.”) and the
+guess, such as “This reading is probably about 250 m³ too low.” Three buttons:
+**“Reading is correct”**, **“Only for the bill”** and **“Correct it”** (opens the
+edit dialog of the reading with the value that would fit). If consumption
+before and after does not add up at all, the entry says “Consumption before and
+after … does not add up”, with the same buttons and no suggested value. The
+same reading on the same day twice gives “Reading of … entered twice” with
+**“Delete one”**. If consumption stayed on a different level for a year or
+more, the entry suggests a baseline date: **“Set baseline date here”** (a
+dialog with the day filled in) or **“Not now”**. All with “Undo” and at every
+level ([Ticking off notices §11](../anleitungen/hinweise-erledigen.md#11-check-a-reading-v390),
+[basics](../verstehen/00-overview.md#check-a-reading-since-v390)).
+
+!["To do" with "Adjust the heating limit" and "Check the reading of …" (one reading of the sample data deliberately too low)](../../ui/screenshots/en/ablesung-pruefen.png)
+
 **Without data (v2.13.0)** a welcome replaces the empty tiles: what the
 Energietracker does, the first steps with ticks taken from the data (location,
 first and second reading, contract, optionally Home Assistant) and **"Try with
 sample data"**. The app saves the current state first; the way
-back is Settings → Data → Snapshots.
+back is Settings → Data → Snapshots. Since v3.9.0 a small drawing (house,
+meters, sheet) stands to the right of it, from a window width of 1200 px.
 
 ![Welcome without data](../../ui/screenshots/en/willkommen.png)
 
@@ -572,7 +594,8 @@ meter replacement in the month.
 today)" breaks down into working price and base price (minus bonuses); below it,
 the card states up to when consumption is measured and from when it is
 estimated. "Advance paid" counts the advances as they were debited. If the
-expected balance deviates noticeably, the card suggests an advance. The KPI
+expected balance deviates noticeably, the card suggests an advance (since
+v3.9.0 not shortly before the bill, see below). The KPI
 tiles, by contrast, sum up the months that have been read; if the last reading in
 the current year is some time back, the tile is labelled "Advances up to
 ‹date›". The **Contracts & advances** table lists per contract tariff, advance,
@@ -590,6 +613,35 @@ card says so (“Counted from ‹date›: the bill before is booked in the contr
 bill that is not booked yet keeps its result in the balance until it is booked.
 Up to v3.5 the balance always counted from the contract start — on a contract
 over several years every year without a booked settlement stayed in it.
+
+**One calculation for card, workshop and report (v3.9.0):** the balance card
+counts the current contract over the running billing period, even without a
+recorded bill; Costs & contracts, the annual report, “Where does my money go?”
+and the forecast workshop show the same balance on the same day. The date is
+the **last day** of the period (“next settlement: 31/12/2026”, not 1 January).
+If fewer than three advance payments are left before the bill, the card no
+longer suggests a higher advance but says: “Only 2 advance payments are left
+before the bill on …. The bill settles the rest, so there is no need to raise
+the advance now.” If the ongoing amount differs, it adds “After that, about …
+instead of … a month would be right.” Up to v3.8 the card counted from the
+contract start without a bill and named the day after
+([basics §10](../verstehen/00-overview.md#one-projection-for-balance-and-workshop-since-v390)).
+
+**Advance payments with a rhythm (v3.9.0):** if the supplier collects the
+advance every two or three months or on fixed dates, the card names the amount
+per due date (“current: €165.00 every 2 months”) and the “next due date: …”;
+the suggestion is then per due date too. For water the waste water standing
+charge appears in the breakdown when the contract has one
+([water](../verstehen/03-wasser.md#advance-payments-every-two-or-three-months-v390)).
+
+**Remainder billing (v3.9.0):** if a sub-meter has its own contract, the parent
+meter’s contract only bills the remainder. The parent meter’s balance card, the
+row in Contracts & advances and “Check the bill” say so: “Only the remainder is
+billed here: 300 kWh = 500 kWh measured − 200 kWh heat pump. …”. If sub-meter
+readings are missing, a sentence names the estimated amount or the days without
+a reading; if the sub-meter measures more than its parent in a month, the card
+asks you to check the readings
+([meter topology](../verstehen/13-meter-topologie.md#remainder-billing-v390)).
 
 **Order and status of the contracts (v3.4.0):** the table runs backwards
 through time, grouped under header rows: **Upcoming**, **Current** (a renewed
@@ -645,6 +697,19 @@ readings, so does another year or another meter, and after editing you stay on
 the page. If a long list holds readings with CHECK or IMPLAUSIBLE, the tick box
 **“Only flagged (n)”** shows exactly those. Paging happens in the browser; the
 interface still delivers all readings.
+
+**Checking readings in the list (v3.9.0):** readings that “To do” asks about
+carry **UNUSUAL** (with ⓘ: interval before, after and the guess), duplicates
+**DUPLICATE**, readings marked as correct **VERIFIED** and readings that only
+count for the bill **BILL ONLY**. “Only flagged (n)” counts UNUSUAL and
+DUPLICATE too. The row of an unusual reading has ✅ for “Reading is correct”.
+If there are readings only for the bill, a sentence above the list says that
+monthly values skip them. The **edit dialog** of every reading has the ticks
+“Only for the bill” (also when creating) and “Reading is correct (do not check
+again)”; with a finding it names the value that would fit, with “Insert”. In a
+month that a bill-only reading bridges, amount and cost in the monthly table do
+not match: the amount is spread by the weather, the cost uses the reading
+([Ticking off notices §11](../anleitungen/hinweise-erledigen.md#11-check-a-reading-v390)).
 
 **Photo with the reading (v3.1.0):** if a reading carries a photo, the readings
 table shows a small thumbnail. A click opens the large view with “Open in new
@@ -723,7 +788,11 @@ meter, the link or a common month is missing, the card says so
 heating utilities — heating oil and pellets too (§4) — “Colder, or used more?”
 over the last twelve months, for both PV utilities “Energy flow in the house”,
 first for the selected year, switchable to the months (§1). If none fits, the
-card is left out.
+card is left out. Since v3.9.0 the energy flow names the period it covers when
+that is not a whole year, puts “≈” in front of amounts from interpolated months
+and says in the sentence below which series is interpolated or which month
+contradicts itself; it no longer caps the measured feed-in
+([PV](../verstehen/12-pv.md)).
 
 **Charging sessions from evcc (v3.2.0):** for an electricity meter with the
 role “Wallbox”, from the “Experienced” level on, the card **“Charging sessions
@@ -1472,10 +1541,10 @@ Since v2.12.0 **nine sub-pages** instead of one long page:
 |---|---|---|
 | General | since v3.2.0 at the top “Experience level and setup” and, with sign-in, “My account”; Language & country, overview (months, forecast horizon, warn after days without a reading), contract reminders | Beginner; the groups “Display” and “Reminders” from Experienced |
 | Household & building | living area, building type, heated basement, hot water; since v3.1.0 “Home and hot water” and “Own reference values” (for the benchmark); water reference values with the number of people in the household; since v3.9.0 “People in the household”: add, rename and delete names for “Responsible”, also without sign-in ([Users in the household](../anleitungen/benutzer.md#people-in-the-household-v390)) | Beginner; “Own reference values” and “Water reference values” from Experienced |
-| Utilities & billing | active utilities (since v3.1.0 including heat), all billing dates in one card, physical constants (gas factors, heating threshold), calorific values and tank warning, CO₂ factors (since v3.1.0 with “CO₂ avoided by PV”), since v3.1.0 “Photovoltaics” (assumed self-consumption of plug-in solar) | Beginner; physical constants, calorific values and since v3.7.0 Photovoltaics from Experienced, CO₂ factors from Expert |
+| Utilities & billing | active utilities (since v3.1.0 including heat), all billing dates in one card, physical constants (gas factors, heating threshold), calorific values and tank warning, CO₂ factors (since v3.1.0 with “CO₂ avoided by PV”), since v3.1.0 “Photovoltaics” (assumed self-consumption of plug-in solar), since v3.9.0 “Metering concept” (assistant, below) | Beginner; physical constants, calorific values and since v3.7.0 Photovoltaics from Experienced, CO₂ factors from Expert |
 | Weather data | §10 | Experienced |
 | Data | CSV export (spreadsheet in the default language or format 1), backup & restore with snapshots, demo data; link to the annual report | Beginner |
-| Integrations | Home Assistant integration | Experienced |
+| Integrations | Home Assistant integration; since v3.9.0 “Notifications to Home Assistant” | Experienced |
 | Access | since v3.4.0 “Security check” (does the web server serve `data/`?, proxy header, open operation without a host list), sign-in & access with “Sign out everywhere”, since v3.2.0 “Users and roles”, embedding, since v3.4.0 “Host names” | Expert |
 | Expert | since v3.7.0 at the top the “Reading documents” card (Local \| Cloud), since v3.1.0 receipts (storage limit) and text recognition in the home network, since v3.2.0 “evcc in your home network”; below, collapsed (“Show calculation parameters”) and with a warning: regression, forecast model, anomaly and recommendation thresholds, since v3.1.0 CO₂ price | Expert |
 | System | version, licence, since v3.4.0 “Support Energietracker”, security check (v3.4.0), system diagnostics | Expert |
@@ -1664,6 +1733,20 @@ Once people have been added (v3.2.0), the fields for changing the password are
 gone here; instead it says “Each person changes their password under Settings
 → General → My account.”
 
+**People in the household (v3.9.0, Household & building page):** the card 👥
+appears at every level and without sign-in too. It lists everyone with their
+number; people without sign-in have **“Rename”** and **“Delete person”** (the
+same dialog as under Access), people with sign-in the note “with sign-in” and no
+buttons. Below it the field **“New person”** (placeholder “Name, e.g. Anna”)
+with **“Add”**; Enter is enough, the focus then stays in the field, and the
+message says “… can now be chosen under “Responsible”.” Members only see the
+names. Without people it says “No people yet. Add the first one, then you can
+assign reminders, meters and contracts to them.” The field for the water saving
+index has since been called “Number of people”
+([Users in the household](../anleitungen/benutzer.md#people-in-the-household-v390)).
+
+![People in the household](../../ui/screenshots/en/personen.png)
+
 **Users and roles (v3.2.0, Access page):** with sign-in switched on,
 the card 👥 **“Users and roles”** follows “Sign-in & access”, with the
 hint “Each person signs in with name and password and has their own level and
@@ -1679,14 +1762,40 @@ password” (at least 8 characters) and role (“Member” preselected) creates 
 person — “{name} can now sign in.” Before the first new person, the list only
 holds the admin “admin”; the installation’s previous password belongs to
 them. The last person who manages can neither be deleted nor made a member
-(“At least one person must manage the installation.”).
+(“At least one person must manage the installation.”). Without sign-in the
+card shows, since v3.9.0, only the note that own accounts only come with
+sign-in and the button **“Go to people”**; there is no second list of people
+there any more.
 
 To a **member** the Access page shows only “Access is managed by whoever
 manages the installation. Change your own password under Settings → General.”
 What only admins may do — people, API keys and sign-in, restoring a backup or
 snapshot, loading sample data, the addresses for embedding, text recognition
-and evcc — the server refuses for members with “Only someone who manages this
+and evcc, since v3.9.0 the notifications to Home Assistant — the server refuses
+for members with “Only someone who manages this
 installation may do that.” ([Users in the household](../anleitungen/benutzer.md)).
+
+**Notifications to Home Assistant (v3.9.0, Integrations page):** the card 🔔
+sits next to the Home Assistant integration. At the top a sentence on what is
+reported and “The messages only go to your Home Assistant. Nothing leaves your
+home network unless you enter an address outside it yourself.” Below it the
+switch **“Send notifications”**, **“Where to?”** (Through the Supervisor, only
+selectable in the Home Assistant app · Webhook in Home Assistant · Address and
+token), depending on the target “Home Assistant address”, “Webhook ID” with
+**“Create a new ID”** and the ready-made automation to copy, or “Token
+(long-lived)”, plus “Action in Home Assistant”, **“What to report?”**
+(appointments, deadlines and other items from “To do”, warnings, new documents
+in the inbox) and “Daily check from” (time). After saving, the card shows
+webhook ID and token only as “stored”. **“Send a test message”** checks the
+target; the line below names the last delivery or why it failed. Only admins
+may change it
+([Home Assistant, step 6](../anleitungen/home-assistant.md#step-6--notifications-to-home-assistant-v390)).
+
+![Notifications to Home Assistant](../../ui/screenshots/en/ha-benachrichtigungen.png)
+
+**Metering concept (v3.9.0, Utilities & billing page):** the card 🔌 asks
+“Solar, heat pump or EV charger with its own tariff?” and opens the assistant
+from §12 with **“Set up metering concept”**. It is not part of the public demo.
 
 ![Settings](../../ui/screenshots/en/einstellungen.png)
 
@@ -1787,6 +1896,24 @@ wrong ID — such as a market location ID with a wrong check digit — with a
 message. The market location ID appears in the switching decision under “Have
 ready for switching” (§7).
 
+**Register and parent meter (v3.9.0):** for electricity and solar feed-in the
+meter dialog has the field **“Register (OBIS code)”** with suggestions (1.8.0
+import, 1.8.1 import HT, 1.8.2 import NT, or 2.8.0 feed-in) and the hint to
+create one meter per register with the same meter number. The meter card shows
+“Register 1.8.1”. Below “Parent meter” it now says what it does: “If this meter
+has its own contract, the parent meter’s contract only bills the remainder.
+Without its own contract it is a breakdown.” When you create a contract on a
+sub-meter, the contract dialog says in one sentence what changes on the parent
+meter.
+
+**Advance payments with a rhythm (v3.9.0):** every row of the advance payment
+plan has the choice **“Rhythm”** (every month, every 2 months, every 3 months);
+the amount is then “€ per due date”. If the plan came from a bill, it shows
+“Due dates according to the bill: …, then yearly on the same days” below; a
+different rhythm removes the dates. The water contract also has the field
+**“Waste water standing charge (€/month)”**, and its advance payment plan counts
+per due date too ([water](../verstehen/03-wasser.md#advance-payments-every-two-or-three-months-v390)).
+
 **District heating (v3.1.0):** the district heating contract dialog has two
 more price lists with an effective date — **“Capacity charge”** (€ per kW and
 year) and **“Metering charge”** (€ per year) — and the field group **“District
@@ -1879,6 +2006,41 @@ reinterpreted; the row is reported. The example below the file field and the
 example CSV are in the interface language.
 
 ![CSV import preview](../../ui/screenshots/import-vorschau.png)
+
+### Assistant “Set up metering concept” *(v3.9.0, GitHub #40)*
+
+Reached through **“Set up metering concept”** on the meters page of
+electricity and the solar utilities, through the card “Metering concept” under
+Settings → Utilities & billing and as a way at the end of the setup assistant
+(§16). It asks about the layout, not about the name of the metering concept,
+because the names differ from one grid operator to the next. Five steps, “Step 2
+of 5” in the footer:
+
+1. **What is connected to your electricity supply?** Solar system, battery, a
+   device with its own tariff (heat pump or EV charger) and “Two time-of-use
+   rates (HT/NT)?” (no, on every import meter, only on the device’s meter).
+2. **How are the meters connected?** Cards with a diagram: with a device on
+   its own tariff “Two meters side by side”, “Sub-meter behind” and “Cascade”,
+   without such a device only “One meter for everything”. Each card says in one
+   sentence what each meter measures and which contract bills what.
+3. **Which meters are there?** Name and meter number per position, the register
+   codes filled in; you pick an existing meter instead of creating it twice.
+4. **Which contracts are there?** Start, unit price (per register with HT/NT),
+   standing charge and advance; leaving it empty is fine. A running contract on
+   an existing meter stays as it is; with remainder billing it says “Bills only
+   the remainder: … minus …”.
+5. **What the assistant will create:** the diagram of your installation with a
+   legend and the list of steps. “Create” saves the current state as a snapshot
+   first.
+
+The diagrams are line drawings in the colours of the utilities, light and dark;
+a screen reader reads their name (“Diagram: Cascade”). Obstacles (such as a
+meter with sub-meters of its own that is supposed to hang behind another)
+appear in the summary; “Create” is then disabled. It is not part of the public
+demo ([use case H](../anleitungen/anwendungsfaelle.md#h--cascade-with-heat-pump-htnt-and-solar-v390),
+[meter topology](../verstehen/13-meter-topologie.md#3-interaction--data-model)).
+
+![Assistant “Set up metering concept”: choose the layout](../../ui/screenshots/en/messkonzept.png)
 
 ---
 
@@ -1985,7 +2147,8 @@ Reached from the footer of the sidebar, on the iPhone under "More"
   [guide](../anleitungen/anwendungsfaelle.md) (A–G: shared flat with shared
   meters, smart home with Home Assistant, solar household with a heat pump,
   landlord with several units, wallbox and company car, **“District heating
-  or heat?”**, **“Control with evcc or Home Assistant”**) and **“Simple first,
+  or heat?”**, **“Control with evcc or Home Assistant”**), since v3.9.0 as the
+  eighth case **“Cascade with heat pump, HT/NT and solar”** (H), and **“Simple first,
   everything later”** (the experience levels), each with title, a short
   explanation and **“Read more in the handbook”** — the jump leads exactly to
   the section, in German or English. Below them **“Try an example
@@ -2032,7 +2195,8 @@ to GitHub. Technical details: [Docs in the app](api.md#docs-in-the-app-get-apido
 
 ## 16. Setup assistant (v3.2.0)
 
-The **“Set up”** dialog asks three questions and then sets the utilities, the
+The **“Set up”** dialog asks four questions (since v3.5.0 language and country
+first) and then sets the utilities, the
 tenure and the experience level; at the end it shows a matching sample
 household or leads to your own data. Explained in
 [Setup and experience levels](../einstieg/einrichtung.md).
@@ -2047,31 +2211,43 @@ household or leads to your own data. Explained in
 - in the **public demo**, as long as this browser has not picked a sample
   household.
 
-**The steps** — the footer shows “Step 1 of 4”, “Back”, “Next” and “Skip”:
+**The steps** — the footer shows “Step 1 of 5”, “Back”, “Next” and “Skip”.
+Since v3.9.0 each question has a small line drawing next to it (globe with a
+speech bubble, houses, three meters, steps with a sprout, a sheet going into a
+tray), decoration without a message of its own; on the phone the progress sits
+above the buttons:
 
-1. **“Who are you?”** — five answers with a symbol and a sentence. The answer
-   ticks its utilities in step 2; on the first start it also suggests the
+1. **“Language and country”** *(since v3.5.0)* — language and country with
+   what the country profile sets ([Setup](../einstieg/einrichtung.md#the-steps)).
+   Up to v3.8 this step was missing here, and the footer read “Step 1 of 4”.
+2. **“Who are you?”** — five answers with a sentence, since v3.9.0 with a small
+   house picture instead of the emoji. The answer
+   ticks its utilities in the next step; on the first start it also suggests the
    level.
-2. **“Which energy sources do you use?”** — every utility to tick, “Suggested
+3. **“Which energy sources do you use?”** — every utility to tick, “Suggested
    from your answer — combine freely.”; without a tick you cannot go on. Below
    it the note “District heating or heat? …”.
-3. **“How much experience do you have?”** — the three levels with the same
+4. **“How much experience do you have?”** — the three levels with the same
    lines as in the settings and “You can change the level at any time at the
    top, next to light/dark. If your household needs more, the app suggests it
    once.”; since v3.7.0 followed by the link **“What can I do at each
    level?”** ([feature table](stufen.md)), which opens in a new tab — the
    assistant stays open.
-4. **“What comes next”** — “{answer} · level “…”” and the choice *(three ways
+5. **“What comes next”** — “{answer} · level “…”” and the choice *(three ways
    since v3.7.0)* **“From documents”** (*recommended*; below it, which
    documents help, and without a reading service the button “Set up reading”
    with the “Reading documents” card as a dialog; afterwards you go to the
    inbox), **“Enter by hand”**
-   (“Next: check the meters and add the first reading.”) or — administrators
+   (“Next: check the meters and add the first reading.”), with electricity
+   since v3.9.0 **“Set up metering concept”** (opens the electricity meters page
+   with the assistant from §12) or — administrators
    only — **“Look at it with sample data”** (“Loads the matching sample
    household. The app saves the current state first.”). The button here reads
    **“Let’s go”**.
 
-| Answer in step 1 | Sample household | Suggested utilities | Level |
+![Setup assistant with a drawing](../../ui/screenshots/en/einrichtung.png)
+
+| Answer in step 2 | Sample household | Suggested utilities | Level |
 |---|---|---|---|
 | 🏢 “I rent my home” | `mieterin` | Electricity, Heat, Water | Beginner |
 | 🏙️ “Owner-occupied flat with district heating” | `etw-fernwaerme` | Electricity, District heating | Beginner |
@@ -2088,7 +2264,8 @@ keeps the level; only someone who manages the installation may load one
 (§11). “Skip” changes nothing and ends the first start.
 
 **Public demo** ([bingerminger.github.io/energietracker](https://bingerminger.github.io/energietracker/)):
-three steps, without “Which energy sources do you use?”. At the end it says
+four steps, without “Which energy sources do you use?” (up to v3.8 this said
+“three”; “Language and country” exists there too since v3.5.0). At the end it says
 “The demo now shows the sample household “…”. Pick another under Settings →
 General → Setup assistant.”; “Let’s go” reloads the page with that household.
 The browser remembers sample household and level; “Skip” shows the showcase.
