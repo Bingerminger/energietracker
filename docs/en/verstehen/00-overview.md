@@ -443,6 +443,12 @@ then `seasonal_only` applies. With a convex heating curve the line lay at zero i
 summer; with weight 0.8 almost all the hot water was missing, about 23 % of the
 year with real data, also in the quantity for comparison portals.
 
+Since v3.9.0 the regression also does not count where it is flat: for the
+change-point model below the knee (where it computes the fixed level b), for
+the sigmoid up to θ₀ (where it computes the base load D). b is fitted to all
+months below the knee, the transition months; June, August and September thus
+got 80 % of the same level instead of their measured seasonal value.
+
 **If a calendar month is missing from your own history** (anyone who starts in
 May has no January yet), it comes from the heating model since v3.9.0
 (`heat_model`): a × degree days of the climate normal at the meter's heating

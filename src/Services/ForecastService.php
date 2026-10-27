@@ -313,7 +313,9 @@ final class ForecastService
             //     fast das ganze Warmwasser — bei echten Daten rund 23 % im Jahr, auch
             //     in der Menge fürs Vergleichsportal
             //   bei nicht bestandener Gütesperre: Der gemessene Monat ist näher als das Modell
-            if ($seasonalVal !== null && $regressionVal !== null && ($poorFit || ($regXMin !== null && $hdd < $regXMin))) {
+            //   v3.9.0 (#38, Rückblick) — und nicht, wo Knick oder Sigmoide flach sind (s. regressionFlat)
+            if ($seasonalVal !== null && $regressionVal !== null
+                && ($poorFit || ($regXMin !== null && $hdd < $regXMin) || self::regressionFlat($reg, $hdd))) {
                 $regressionVal = null;
             }
             $heatVal = ($heat !== null && $hdd !== null)
@@ -776,6 +778,24 @@ final class ForecastService
             'contract_id'      => (string)array_key_first($byContract),
             'assumed'          => $main['assumed'],
         ];
+    }
+
+    /**
+     * v3.9.0 (#38, Rückblick) — Liegt `$x` dort, wo die Regression flach ist? Das Knickmodell
+     * gibt unter dem Knick das feste Niveau b, die Sigmoide unter θ₀ die Grundlast D
+     * (RegressionService::predict). Gefittet wird b an den Monaten zwischen dem kleinsten Punkt
+     * und dem Knick, den Übergangsmonaten; ein Mischmonat darunter bekam so 80 % dieses Niveaus,
+     * ob Juni oder September. In der Form 15 °C/0,5 der erfundenen Haushalte lagen Juni, August
+     * und September im Mittel 40, 32 und 103 % zu hoch, mit der Geraden 9 % darüber, 8 % darunter,
+     * 18 % darüber. Dort gilt wie unter den Punkten der Kurve der gemessene Saisonwert.
+     */
+    private static function regressionFlat(?array $reg, float $x): bool
+    {
+        return match ($reg['model'] ?? null) {
+            'segmented' => isset($reg['split']) && $x < (float)$reg['split'],
+            'sigmoid'   => isset($reg['theta0']) && $x - (float)$reg['theta0'] <= 1e-6,
+            default     => false,
+        };
     }
 
     /** v3.9.0 (#38) — Hat das Heizmodell so warme Monate selbst gesehen? (s. HEAT_SUPPORT_MIN) */

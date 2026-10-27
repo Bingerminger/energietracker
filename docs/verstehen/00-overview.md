@@ -456,6 +456,12 @@ nicht, wenn das Heizmodell die Gütesperre nicht besteht (Abschnitt 9) — dann 
 mit Gewicht 0,8 fehlte so fast das ganze Warmwasser, bei echten Daten rund 23 %
 im Jahr, auch in der Menge fürs Vergleichsportal.
 
+Seit v3.9.0 zählt die Regression auch dort nicht, wo sie flach ist: beim
+Knickmodell unter dem Knick (dort rechnet es das feste Niveau b), bei der
+Sigmoide bis θ₀ (dort die Grundlast D). Gefittet ist b an allen Monaten unter
+dem Knick, den Übergangsmonaten; Juni, August und September bekamen so 80 %
+desselben Niveaus, statt ihres gemessenen Saisonwerts.
+
 **Fehlt ein Kalendermonat in der eigenen Historie** (wer im Mai beginnt,
 hat noch keinen Januar), kommt er seit v3.9.0 aus dem Heizmodell
 (`heat_model`): a × Heizgradtage des Klimanormals zur Heizgrenze des
