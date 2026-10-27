@@ -87,6 +87,41 @@ final class UntrustedHeatModelTest extends ServiceTestCase
         self::assertGreaterThan(0.05 * $longRate * 30, abs(self::monthSum($est, '2026-09') - $longRate * 30 * (float)$p['base']), 'nicht die Tagesrate des langen Abstands');
     }
 
+    /**
+     * v3.9.0 — die Gütesperre allein entscheidet schon: Die Grundlast passt (5 m³ je Tag wie der
+     * gemessene Sommer, Verhältnis rund 1), aber der Heizanteil springt von Monat zu Monat
+     * (abwechselnd 1,9- und 0,1-fach von 0,3 m³ je Gradtag). Das Modell streut zu stark (Streuung
+     * über 0,15 des mittleren Monats), also kein Vertrauen und keine Aufteilung auf Grundlast und
+     * Heizanteil (Schritt 3, N5, Nachlauf). Erfundene Daten.
+     */
+    public function testAPoorFitAloneIsNotTrustedEvenWithTheRightBaseLoad(): void
+    {
+        $first = date('Y-m-01', strtotime('-30 months'));
+        $meter = $this->setMeterDevices('gas', [['id' => 'd_p', 'serial' => null, 'installed_on' => $first, 'initial_counter' => 0.0,
+            'removed_on' => null, 'final_counter' => null, 'reason' => null]]);
+        $temps = []; $rows = []; $c = 0.0;
+        for ($t = strtotime($first); $t <= strtotime(date('Y-m-01')); $t += 86400) {
+            $d = date('Y-m-d', $t);
+            $avg = 10.0 - 9.0 * cos(2 * M_PI * ((int)date('z', $t) - 15) / 365.25);
+            $temps[$d] = ['avg' => round($avg, 1), 'min' => round($avg - 3, 1), 'max' => round($avg + 3, 1)];
+            if (substr($d, 8) === '01') $rows[] = ['date' => $d, 'counter' => round($c, 1), 'device_id' => 'd_p'];
+            $swing = ((int)date('n', $t)) % 2 === 1 ? 1.9 : 0.1;
+            $c += 5.0 + $swing * 0.3 * max(0.0, 15.0 - $avg);
+        }
+        $this->store->write('temperatures.json', $temps);
+        $this->setReadings('gas', $meter, $rows);
+        $m = $this->meters->get('gas', $meter);
+        $monthly = $this->consumption->forMeter('gas', $m);
+        $q = $this->consumption->anomalyQuality('gas', $monthly);
+        self::assertSame('poor', $q['model_quality'], json_encode($q));
+        self::assertSame(['scatter'], $q['reasons'], 'nur die Streuung, die Grundlast besteht');
+        self::assertGreaterThan(0.5, (float)$q['base_load']['base_ratio'], 'Grundlast des Modells über der Hälfte des gemessenen Sommers');
+        (new \ReflectionMethod($this->consumption, 'volumeEstimator'))->invoke($this->consumption, 'gas', $monthly, 'kwh', $m);
+        $p = (new \ReflectionProperty($this->consumption, 'lastProjection'))->getValue($this->consumption);
+        self::assertFalse($p['trusted'], 'Gütesperre nicht bestanden');
+        self::assertFalse($p['split'], 'ein Faktor für das Ganze');
+    }
+
     public function testATrustedHeatModelStillEstimatesWithTheWeather(): void
     {
         // gleichmäßig 5 kWh Grundlast + 0,3 kWh je Gradtag, monatlich abgelesen: verlässliches Modell
