@@ -243,6 +243,45 @@ final class InboxRegisterTest extends ServiceTestCase
         self::assertSame(['2024-12-31' => 5000.0, '2025-12-31' => 6100.0], $by[$nt] ?? null);
     }
 
+    /**
+     * Nach dem Merge mit c4ea367 (Stand passt nicht zwischen die vorhandenen, `not_monotonic`):
+     * Die Prüfung läuft je Zählwerk gegen die Stände desselben Zählwerks. HT 10.000 → 12.400 mit
+     * eigenem Zwischenstand 11.000 passt, obwohl NT am selben Tag 5.500 zeigt; ein HT-Zwischenstand
+     * 13.000 bricht den HT-Endstand (Nachbar 13.000), NT bleibt unberührt.
+     */
+    public function testMonotonicCheckRunsPerRegister(): void
+    {
+        [$ht, $nt] = $this->registerMeters();
+        $add = function (string $id, string $date, float $counter): void {
+            $m = $this->meters->get('strom', $id);
+            $all = $this->store->read('strom/readings.json', []);
+            $all[] = ['id' => 'r_' . md5($id . $date), 'meter_id' => $id, 'device_id' => $m['devices'][0]['id'], 'date' => $date, 'counter' => $counter,
+                      'price_cents' => null, 'note' => '', 'is_estimated' => false, 'is_future' => false];
+            $this->store->write('strom/readings.json', $all);
+        };
+        $add($ht, '2025-06-30', 11000.0);
+        $add($nt, '2025-06-30', 5500.0);
+        $flags = function (string $name) use ($ht, $nt): array {
+            $s = $this->inbox(self::answer());
+            $e = $s->upload(InboxFixture::pdf($name), "$name.pdf");
+            $s->extract($e['id'], self::pages());
+            $out = [];
+            foreach ($s->preview($e['id'])['proposals'] as $p) {
+                if ($p['kind'] !== 'reading' || !in_array($p['data']['meter_id'], [$ht, $nt], true)) continue;
+                $bad = in_array('not_monotonic', array_column((array)($p['hints'] ?? []), 'reason'), true);
+                $out[$p['data']['meter_id'] === $ht ? 'ht' : 'nt'][$p['data']['date']] = $bad ? ($p['detail']['neighbor']['counter'] ?? 'x') : 'ok';
+            }
+            ksort($out);
+            return $out;
+        };
+        self::assertSame(['ht' => ['2024-12-31' => 'ok', '2025-12-31' => 'ok'], 'nt' => ['2024-12-31' => 'ok', '2025-12-31' => 'ok']], $flags('mono1'),
+            'HT gegen HT (11.000), NT gegen NT (5.500): alles passt');
+        $add($ht, '2025-09-30', 13000.0);
+        $got = $flags('mono2');
+        self::assertSame(13000.0, $got['ht']['2025-12-31'] ?? null, 'HT-Endstand bricht am eigenen Zwischenstand');
+        self::assertSame(['2024-12-31' => 'ok', '2025-12-31' => 'ok'], $got['nt'] ?? null, 'NT unberührt');
+    }
+
     public function testWithoutRegistersNothingIsGuessed(): void
     {
         $this->registerMeters();
