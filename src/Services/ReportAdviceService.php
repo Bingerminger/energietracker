@@ -179,6 +179,18 @@ final class ReportAdviceService
         return $days <= self::LIGHT_DEADLINE_DAYS['alert'] ? 'alert' : 'warn';
     }
 
+    /**
+     * v3.9.0 (Skeptiker N17) — warum kein Vergleich: Berichtsjahr erst zum Teil erfasst (laufendes
+     * Jahr) oder Vorjahr unvollständig.
+     */
+    private function noCompareText(array $t, int $year): string
+    {
+        $now = (int)($t['coverage_now'] ?? 12);
+        return $now > 0 && $now < 12
+            ? $this->i18n->tp('report.light.yearIncomplete', $now, ['year' => $year, 'count' => $now, 'prev' => $year - 1])
+            : $this->i18n->t('report.light.noPrevious', ['prev' => $year - 1]);
+    }
+
     /** @return list<array{key:string,level:string,word:string,detail:string,as_of_today:bool}> */
     private function lights(array $f): array
     {
@@ -188,14 +200,21 @@ final class ReportAdviceService
         // Kosten — immer mit Preis- und Mengeneffekt
         $costPct = $t['cost_pct'] ?? null;
         $lv = self::costLevel($costPct);
+        // v3.9.0 (Skeptiker N17) — ohne Vergleich: Fehlt das Vorjahr oder ist das Berichtsjahr selbst
+        // noch nicht ganz erfasst? (bis dahin immer „Für {Vorjahr} fehlen vergleichbare Daten“)
+        $noCompare = $this->noCompareText($t, $year);
+        // v3.9.0 (Skeptiker M3) — neu abgerechnete Arten zählen im Vergleich nicht mit; der Satz nennt sie
+        $new = (array)($t['cost_new'] ?? []);
+        $newText = $new === [] ? '' : ' ' . $this->i18n->t('report.light.costNew', ['items' => implode(', ',
+            array_map(fn($n) => (string)$n['label'] . ' ' . $this->eur((float)$n['amount']), $new))]);
         $out[] = ['key' => 'cost', 'level' => $lv, 'as_of_today' => false,
             'word' => $this->i18n->t("report.light.cost.$lv"),
-            'detail' => $costPct === null ? $this->i18n->t('report.light.noPrevious', ['prev' => $year - 1])
+            'detail' => $costPct === null ? $noCompare
                 : $this->i18n->t('report.light.costDetail', [
                     'pct' => $this->pct((float)$costPct), 'prev' => $year - 1,
                     'price' => $this->signedEur((float)($t['price_effect'] ?? 0)),
                     'volume' => $this->signedEur((float)($t['volume_effect'] ?? 0)),
-                ])];
+                ]) . $newText];
         // Verbrauch — witterungsbereinigt, wenn möglich
         $cPct = $t['consumption_pct'] ?? null;
         $lv = self::consumptionLevel($cPct);
@@ -203,7 +222,7 @@ final class ReportAdviceService
         $cWord = $lv === 'ok' && $cPct !== null && (float)$cPct <= -self::LIGHT_LESS_PCT ? 'report.light.consumption.less' : "report.light.consumption.$lv";
         $out[] = ['key' => 'consumption', 'level' => $lv, 'as_of_today' => false,
             'word' => $this->i18n->t($cWord),
-            'detail' => $cPct === null ? $this->i18n->t('report.light.noPrevious', ['prev' => $year - 1])
+            'detail' => $cPct === null ? $noCompare
                 : $this->i18n->t(!empty($t['consumption_adjusted']) ? 'report.light.consumptionAdjusted' : 'report.light.consumptionRaw',
                     ['pct' => $this->pct((float)$cPct), 'prev' => $year - 1])];
         // Abrechnung — Stand heute, der ungünstigste laufende Vertrag

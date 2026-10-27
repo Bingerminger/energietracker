@@ -522,5 +522,28 @@ t('Geld: 0 € Abschläge werden genannt', parse(EXTREME['Geld ohne Abschläge (
   globalThis.IntersectionObserver = prevIO; window.IntersectionObserver = prevIO;
 }
 
+// v3.9.0 (Skeptiker N10) — „Wohin geht mein Geld?“ nennt auf der Übersicht die Verbrauchsart
+{
+  const withLabel = parse(EX.moneyHtml({ balance_path: [{ ym: '2026-01', paid: 100, cost: 90 }, { ym: '2026-12', paid: 1200, cost: 1300 }],
+    energy_cost_to_date: 700, base_to_date: 300, bonus_to_date: 0, projected_end_balance: 100 }, { utilityLabel: 'Wasser' }));
+  t('N10: Geld — Titel mit Verbrauchsart', withLabel.querySelector('.explainer__title')?.textContent === `${tr('explainer.money.title')} · Wasser`,
+    withLabel.querySelector('.explainer__title')?.textContent);
+  t('N10: ohne Angabe der Titel wie bisher', parse(money(1200, 1300, 700, 300, 100)).querySelector('.explainer__title')?.textContent === tr('explainer.money.title'));
+}
+// v3.9.0 (Skeptiker N13) — „Kälter oder mehr verbraucht?“: −4 % bei ±9 % Streuung je Monat ist kein Befund.
+// Handrechnung: 1,28 × 0,09 × √(2/12) = 4,7 % > 4 % → „übliche Schwankung“; bei ±3 % je Monat: 1,6 % → Schwelle 2 % → „weniger“
+{
+  const rows = [];
+  for (let i = 1; i <= 12; i++) rows.push(wm(2025, i, 1000, 300));
+  for (let i = 1; i <= 12; i++) rows.push({ ...wm(2026, i, 1010, 330), heat_adjusted: 960 });
+  const noisy = parse(EX.weatherHtml(rows, { quality: { model_quality: 'good', ratio: 0.09 } }));
+  const cap = noisy.querySelector('.explainer__text')?.textContent || '';
+  t('N13: −4 % bei ±9 % je Monat — „übliche Schwankung“, kein „wirklich weniger“', /üblichen Schwankung/.test(cap) && /±5\s?%/.test(cap)
+    && !!noisy.querySelector('.ex-badge--same'), cap);
+  const quiet = parse(EX.weatherHtml(rows, { quality: { model_quality: 'good', ratio: 0.03 } }));
+  t('N13: −4 % bei ±3 % je Monat — weniger geheizt', !!quiet.querySelector('.ex-badge--less')
+    && (quiet.querySelector('.explainer__text')?.textContent || '').includes(tr('explainer.weather.text.less', { cons: '+1\u00a0%', hdd: '+10\u00a0%', adj: '-4\u00a0%' }).slice(0, 8)));
+}
+
 console.log(`\nexplainer.test: ${pass} bestanden, ${fail} fehlgeschlagen`);
 process.exit(fail ? 1 : 0);

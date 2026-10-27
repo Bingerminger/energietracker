@@ -243,7 +243,8 @@
         "more": "{pct} de plus que l’an dernier",
         "less": "{pct} de moins que l’an dernier",
         "same": "à peu près comme l’an dernier",
-        "none": "Pas encore d’année précédente à comparer."
+        "none": "Pas encore d’année précédente à comparer.",
+        "fewMeasured": "Trop peu de mois mesurés pour comparer. Les mois répartis et incomplets ne comptent pas."
       },
       "rent": {
         "title": "Les provisions suffisent-elles ?",
@@ -2969,7 +2970,7 @@
         "ev_charger": "Borne de recharge"
       },
       "roles": "Au total {total} kWh.",
-      "rolesWithPv": "Au total {total} kWh, autoconsommation solaire comprise. La borne de recharge fait partie de l’électricité du ménage.",
+      "rolesWithPv": "Au total {total} kWh, autoconsommation solaire comprise.",
       "water": {
         "one": "Cela représente environ {liters} litres par jour pour {count} personne.",
         "other": "Cela représente environ {liters} litres par personne et par jour ({count} personnes)."
@@ -2992,7 +2993,20 @@
         "one": "{count} valeur mensuelle des deux années est répartie ; les totaux annuels restent mesurés, car des relevés ont été faits au changement d’année.",
         "other": "{count} valeurs mensuelles des deux années sont réparties ; les totaux annuels restent mesurés, car des relevés ont été faits au changement d’année."
       },
-      "poorFit": "Le modèle de chauffage correspond mal à ce compteur (± {pct} par mois) : le rapport ne compare pas ici en données corrigées du climat et ne signale aucun mois au-dessus de l’attendu — ce serait surtout l’erreur du modèle."
+      "poorFit": "Le modèle de chauffage correspond mal à ce compteur (± {pct} par mois) : le rapport ne compare pas ici en données corrigées du climat et ne signale aucun mois au-dessus de l’attendu — ce serait surtout l’erreur du modèle.",
+      "rolesEvNote": "La borne de recharge fait partie de l’électricité du ménage.",
+      "personsAssumed": {
+        "one": "Hypothèse : {count} personne, le nombre n’est pas indiqué dans les paramètres.",
+        "other": "Hypothèse : {count} personnes, le nombre n’est pas indiqué dans les paramètres."
+      },
+      "waterDays": {
+        "one": "Calculé sur {count} jour enregistré.",
+        "other": "Calculé sur {count} jours enregistrés."
+      },
+      "heatDemandPartial": {
+        "one": "Énergie de chauffage jusqu’ici : {value} kWh par m² de surface habitable ({area} m²) sur {count} jour enregistré, pas encore une année entière.",
+        "other": "Énergie de chauffage jusqu’ici : {value} kWh par m² de surface habitable ({area} m²) sur {count} jours enregistrés, pas encore une année entière."
+      }
     },
     "weatherSource": "Températures : Open-Meteo.com (CC BY 4.0), sauf saisie personnelle.",
     "print": {
@@ -3059,7 +3073,8 @@
       "pv": "Gain de l’installation solaire",
       "vsPrevious": "{pct} par rapport à {prev}",
       "noPrevious": "pas de comparaison avec {prev}",
-      "sparkNote": "Lignes dans les vignettes : évolution {from}–{to}."
+      "sparkNote": "Lignes dans les vignettes : évolution {from}–{to}.",
+      "vsPreviousWithout": "{pct} par rapport à {prev}, sans {labels} (nouvellement facturé)"
     },
     "light": {
       "title": {
@@ -3106,6 +3121,11 @@
       "deadlinesNone": {
         "one": "Aucune échéance dans le prochain jour.",
         "other": "Aucune échéance dans les {days} prochains jours."
+      },
+      "costNew": "Nouvellement facturé et hors comparaison : {items}.",
+      "yearIncomplete": {
+        "one": "Seul {count} mois sur 12 de {year} est enregistré. La comparaison avec {prev} viendra quand l’année sera complète.",
+        "other": "Seuls {count} mois sur 12 de {year} sont enregistrés. La comparaison avec {prev} viendra quand l’année sera complète."
       }
     },
     "euro": {
@@ -5159,7 +5179,11 @@
         "less": "Consommation {cons}, degrés-jours {hdd} par rapport aux mêmes mois l’an dernier. Corrigé du climat {adj} : vous avez vraiment moins consommé.",
         "more": "Consommation {cons}, degrés-jours {hdd} par rapport aux mêmes mois l’an dernier. Corrigé du climat {adj} : vous avez vraiment plus consommé, ce n’est pas que la météo.",
         "same": "Consommation {cons}, degrés-jours {hdd} par rapport aux mêmes mois l’an dernier. Corrigé du climat {adj} : à peu près pareil, la différence vient de la météo.",
-        "poorFit": "Consommation {cons}, degrés-jours {hdd} par rapport aux mêmes mois l’an dernier. Impossible de dire si vous avez vraiment consommé plus ou moins : le modèle de chauffage correspond mal à ce compteur (± {pct} par mois)."
+        "poorFit": "Consommation {cons}, degrés-jours {hdd} par rapport aux mêmes mois l’an dernier. Impossible de dire si vous avez vraiment consommé plus ou moins : le modèle de chauffage correspond mal à ce compteur (± {pct} par mois).",
+        "noise": {
+          "one": "Mesuré : {cons}, degrés-jours : {hdd}. Corrigé du climat : {adj} ; c’est dans la variation habituelle (jusqu’à ±{noise} sur {count} mois), aucun écart n’est prouvé.",
+          "other": "Mesuré : {cons}, degrés-jours : {hdd}. Corrigé du climat : {adj} ; c’est dans la variation habituelle (jusqu’à ±{noise} sur {count} mois), aucun écart n’est prouvé."
+        }
       },
       "poorFitBadge": "corrigé : non démontrable"
     },
@@ -5749,10 +5773,10 @@
       "none": "Pas encore de période de facturation avec relevés. Elle apparaît dès que deux relevés sont saisis.",
       "fromBill": "Du {from} au {until}, comme sur la facture",
       "fromAnchor": "Du {from} au {until}, selon la date de régularisation",
-      "asOf": "calculé jusqu’au {date} (dernier relevé)",
       "running": "en cours",
       "partial": "période partielle",
-      "switch": "se termine au changement de fournisseur"
+      "switch": "se termine au changement de fournisseur",
+      "asOfReading": "calculé jusqu’au dernier relevé du {date}"
     },
     "suggest": "La dernière facture se termine le {date}, la date de régularisation est le {anchor}. Saisissez le {day} comme date de régularisation dans les paramètres : la période en cours et les suivantes suivront le rythme de la facture.",
     "chart": {

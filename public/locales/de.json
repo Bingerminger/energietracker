@@ -243,7 +243,8 @@
         "more": "{pct} mehr als im Vorjahr",
         "less": "{pct} weniger als im Vorjahr",
         "same": "etwa wie im Vorjahr",
-        "none": "Noch kein Vorjahr zum Vergleichen."
+        "none": "Noch kein Vorjahr zum Vergleichen.",
+        "fewMeasured": "Zu wenige gemessene Monate zum Vergleichen. Verteilte und angefangene Monate zählen nicht."
       },
       "rent": {
         "title": "Reicht die Vorauszahlung?",
@@ -2969,7 +2970,7 @@
         "ev_charger": "Wallbox"
       },
       "roles": "Zusammen {total} kWh.",
-      "rolesWithPv": "Zusammen {total} kWh, einschließlich des selbst genutzten Sonnenstroms. Die Wallbox ist ein Teil des Haushaltsstroms.",
+      "rolesWithPv": "Zusammen {total} kWh, einschließlich des selbst genutzten Sonnenstroms.",
       "water": {
         "one": "Das sind rund {liters} Liter am Tag für {count} Person.",
         "other": "Das sind rund {liters} Liter je Person und Tag ({count} Personen)."
@@ -2992,7 +2993,20 @@
         "one": "{count} Monatswert der beiden Jahre ist verteilt; die Jahressummen sind trotzdem gemessen, weil an den Jahreswechseln abgelesen wurde.",
         "other": "{count} Monatswerte der beiden Jahre sind verteilt; die Jahressummen sind trotzdem gemessen, weil an den Jahreswechseln abgelesen wurde."
       },
-      "poorFit": "Das Heizmodell passt schlecht zu diesem Zähler (± {pct} je Monat): Der Bericht vergleicht hier nicht witterungsbereinigt und nennt keine Monate über der Erwartung — beides wäre vor allem der Fehler des Modells."
+      "poorFit": "Das Heizmodell passt schlecht zu diesem Zähler (± {pct} je Monat): Der Bericht vergleicht hier nicht witterungsbereinigt und nennt keine Monate über der Erwartung — beides wäre vor allem der Fehler des Modells.",
+      "rolesEvNote": "Die Wallbox ist ein Teil des Haushaltsstroms.",
+      "personsAssumed": {
+        "one": "Angenommen: {count} Person, die Zahl ist in den Einstellungen nicht eingetragen.",
+        "other": "Angenommen: {count} Personen, die Zahl ist in den Einstellungen nicht eingetragen."
+      },
+      "waterDays": {
+        "one": "Gerechnet über {count} erfassten Tag.",
+        "other": "Gerechnet über {count} erfasste Tage."
+      },
+      "heatDemandPartial": {
+        "one": "Heizenergie bisher: {value} kWh je m² Wohnfläche ({area} m²) an {count} erfassten Tag, noch kein ganzes Jahr.",
+        "other": "Heizenergie bisher: {value} kWh je m² Wohnfläche ({area} m²) an {count} erfassten Tagen, noch kein ganzes Jahr."
+      }
     },
     "weatherSource": "Temperaturen: Open-Meteo.com (CC BY 4.0), soweit nicht selbst erfasst.",
     "print": {
@@ -3059,7 +3073,8 @@
       "pv": "Nutzen der Solaranlage",
       "vsPrevious": "{pct} gegenüber {prev}",
       "noPrevious": "kein Vergleich mit {prev}",
-      "sparkNote": "Linien in den Kacheln: Verlauf {from}–{to}."
+      "sparkNote": "Linien in den Kacheln: Verlauf {from}–{to}.",
+      "vsPreviousWithout": "{pct} gegenüber {prev}, ohne {labels} (neu abgerechnet)"
     },
     "light": {
       "title": {
@@ -3106,6 +3121,11 @@
       "deadlinesNone": {
         "one": "Keine Frist im nächsten Tag.",
         "other": "Keine Frist in den nächsten {days} Tagen."
+      },
+      "costNew": "Neu abgerechnet und nicht im Vergleich: {items}.",
+      "yearIncomplete": {
+        "one": "{year} ist erst zu {count} von 12 Monaten erfasst. Verglichen wird mit {prev}, sobald das Jahr vollständig ist.",
+        "other": "{year} ist erst zu {count} von 12 Monaten erfasst. Verglichen wird mit {prev}, sobald das Jahr vollständig ist."
       }
     },
     "euro": {
@@ -5159,7 +5179,11 @@
         "less": "Verbrauch {cons}, Heizgradtage {hdd} gegenüber denselben Monaten im Vorjahr. Witterungsbereinigt {adj}: Du hast wirklich weniger verbraucht.",
         "more": "Verbrauch {cons}, Heizgradtage {hdd} gegenüber denselben Monaten im Vorjahr. Witterungsbereinigt {adj}: Du hast wirklich mehr verbraucht — nicht nur das Wetter.",
         "same": "Verbrauch {cons}, Heizgradtage {hdd} gegenüber denselben Monaten im Vorjahr. Witterungsbereinigt {adj}: etwa gleich — der Unterschied kommt vom Wetter.",
-        "poorFit": "Verbrauch {cons}, Heizgradtage {hdd} gegenüber denselben Monaten im Vorjahr. Ob du wirklich mehr oder weniger verbraucht hast, lässt sich nicht belegen: Das Heizmodell passt schlecht zu diesem Zähler (± {pct} je Monat)."
+        "poorFit": "Verbrauch {cons}, Heizgradtage {hdd} gegenüber denselben Monaten im Vorjahr. Ob du wirklich mehr oder weniger verbraucht hast, lässt sich nicht belegen: Das Heizmodell passt schlecht zu diesem Zähler (± {pct} je Monat).",
+        "noise": {
+          "one": "Gemessen {cons}, die Heizgradtage {hdd}. Witterungsbereinigt {adj}: Das liegt in der üblichen Schwankung (bis ±{noise} über {count} Monat), ein Unterschied ist nicht belegt.",
+          "other": "Gemessen {cons}, die Heizgradtage {hdd}. Witterungsbereinigt {adj}: Das liegt in der üblichen Schwankung (bis ±{noise} über {count} Monate), ein Unterschied ist nicht belegt."
+        }
       },
       "poorFitBadge": "bereinigt: nicht belegbar"
     },
@@ -5749,10 +5773,10 @@
       "none": "Noch keine Abrechnungsperiode mit Ablesungen. Sie erscheint, sobald zwei Stände erfasst sind.",
       "fromBill": "{from} bis {until}, wie auf der Rechnung",
       "fromAnchor": "{from} bis {until}, nach dem Stichtag",
-      "asOf": "gerechnet bis {date} (letzte Ablesung)",
       "running": "läuft noch",
       "partial": "Teilperiode",
-      "switch": "endet mit dem Lieferantenwechsel"
+      "switch": "endet mit dem Lieferantenwechsel",
+      "asOfReading": "gerechnet bis zur letzten Ablesung am {date}"
     },
     "suggest": "Die letzte Rechnung endet am {date}, der Stichtag steht auf dem {anchor}. Trag in den Einstellungen den {day} als Stichtag ein, dann folgen die laufende und die nächsten Perioden dem Rhythmus der Rechnung.",
     "chart": {

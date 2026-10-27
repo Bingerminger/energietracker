@@ -18,7 +18,7 @@ import { tankLevel } from '../lib/tank.js';
 import { info, infoNote } from '../components/info.js';
 import { isFeedIn, isGeneration, isPv, moreIsBetter, uncertainRangeText } from '../lib/semantics.js';
 import { setupSteps, setupListHtml } from '../lib/onboarding.js';
-import { periodMode, periodName, pickPeriod, periodsWithData } from '../lib/billing-period.js';   // v3.6.0 (F1030)
+import { periodMode, periodName, pickPeriod, periodsWithData, addDays as addDaysIso } from '../lib/billing-period.js';   // v3.6.0 (F1030)
 import { bonusOf, bonusItemsOf, bonusLineText } from '../lib/bonus.js';   // v3.7.0 (#33)
 import { periodModeHtml, wirePeriodMode } from '../components/period-mode.js';
 // v3.2.0 (F1019, F1020) — Einsteiger-Übersicht, Schaubilder, Vorschlag zum Hochstufen
@@ -670,7 +670,7 @@ function renderUtilityCard({ utility, consumption, billing = null, groups = null
   const trendCost = billing ? null : yoyTrend(costRows, withBonus ? 'cost_without_bonus' : 'cost', { months: 12, minMonths: 6, within });
   const windowText = billing
     ? t('billing.dashboard.window', { name: periodName(billing, fmt.date), from: fmt.date(billing.from), until: fmt.date(billing.until) })
-      + (billing.as_of && billing.as_of < billing.until ? ' · ' + t('billing.period.asOf', { date: fmt.date(billing.as_of) }) : '')
+      + (billing.as_of && billing.as_of < billing.until ? ' · ' + t('billing.period.asOfReading', { date: fmt.date(addDaysIso(billing.as_of, 1)) }) : '')
     : win ? t('dashboard.card.window', { from: fmt.month(win.from), to: fmt.month(win.to) })
     + (win.partialLast ? ' · ' + t('dashboard.card.partial', { month: fmt.month(win.to), days: win.lastDays, total: win.lastTotal }) : '') : '';
   // v2.12.0 (Review UI-21) — die Kachel „Aktive Zähler 1 · 1 insgesamt" stand
@@ -1040,6 +1040,20 @@ export function beginnerMoneyLines(meters, byKey) {
   });
 }
 
+/**
+ * v3.9.0 (Skeptiker N2) — warum es keinen Vergleich mit dem Vorjahr gibt: Gibt es Monate von vor
+ * einem Jahr, fehlen gemessene Paare (verteilte und Teilmonate zählen nicht), nicht das Vorjahr.
+ * Bis dahin stand immer „Noch kein Vorjahr zum Vergleichen“, auch mit mehreren erfassten Jahren.
+ * @param {Array<object>} monthly  Monatszeilen der Art (monthly_total)
+ * @returns {string} Katalogschlüssel
+ */
+export function beginnerTrendNoneKey(monthly) {
+  const rows = Array.isArray(monthly) ? monthly : [];
+  const last = rows.length ? rows[rows.length - 1].ym : null;
+  const hasPrevYear = !!last && rows.some(r => r.ym <= shiftYm(last, -12));
+  return hasPrevYear ? 'dashboard.beginner.trend.fewMeasured' : 'dashboard.beginner.trend.none';
+}
+
 async function renderBeginner(container, { utilities, datasets, todo, settings }) {
   const byKey = new Map(utilities.map(u => [u.key, u]));
   const [summary, budget] = await Promise.all([
@@ -1056,7 +1070,7 @@ async function renderBeginner(container, { utilities, datasets, todo, settings }
     const trend = yoyTrend(monthly, key, { months: 12, minMonths: 6, within: win?.rows.map(m => m.ym) });
     if (!trend) {
       return `<li class="dash-answer__row"><span aria-hidden="true">${escapeHtml(u.icon)}</span>
-        <span><strong>${escapeHtml(u.label)}:</strong> <span class="muted">${escapeHtml(t('dashboard.beginner.trend.none'))}</span></span></li>`;
+        <span><strong>${escapeHtml(u.label)}:</strong> <span class="muted">${escapeHtml(t(beginnerTrendNoneKey(monthly)))}</span></span></li>`;
     }
     const good = moreIsBetter(u) ? trend.pct > 0 : trend.pct < 0;
     const same = Math.abs(trend.pct) < 2;
@@ -1073,7 +1087,7 @@ async function renderBeginner(container, { utilities, datasets, todo, settings }
     try {
       const st = await api.contractStatus(main.utility, main.meter_id);
       const row = (st?.contracts || []).find(c => c.is_current);
-      explainer = moneyHtml(row, { color: byKey.get(main.utility)?.color });
+      explainer = moneyHtml(row, { color: byKey.get(main.utility)?.color, utilityLabel: byKey.get(main.utility)?.label });
     } catch { /* ohne Schaubild */ }
   }
 
@@ -1154,7 +1168,7 @@ async function loadExplainers(utilities, box) {
   const cy = new Date().getFullYear();
   const pvYear = years.find(y => y.year === cy - 1) || years[years.length - 1];
   const parts = [
-    moneyHtml(row, { color: main ? byKey.get(main.utility)?.color : undefined }),
+    moneyHtml(row, { color: main ? byKey.get(main.utility)?.color : undefined, utilityLabel: main ? byKey.get(main.utility)?.label : null }),
     // v3.4.0 (F1026) — die ganze Antwort: Jahr und Monat umschaltbar
     pv ? energyHtml(pv, { year: pvYear?.year }) : '',
     weatherHtml(Array.isArray(heatRows) ? heatRows : [], { quality: heatRes?.anomaly_quality }),

@@ -1147,7 +1147,7 @@ async function renderView(modPath, params = [], ctx = {}) {
       const kp = ([...fv.view.querySelectorAll('#ws-kpis .kpi')].map(k => k.textContent).find(s => /Empfohlener Abschlag/.test(s)) || '').replace(/\s+/g, ' ');
       t('H1: Werkstatt — Abschlag je Rate mit Rhythmus', /75,00\s€ alle 2 Monate/.test(kp) && /heute 165,00\s€ alle 2 Monate/.test(kp), kp.slice(0, 200));
       const kb = ([...fv.view.querySelectorAll('#ws-kpis .kpi')].map(k => k.textContent).find(s => /Saldo zur Abrechnung/.test(s)) || '').replace(/\s+/g, ' ');
-      t('H3: Werkstatt — Saldo zur Abrechnung als Spanne mit „unsicher“', /rund 768\s€ Guthaben bis rund 3\s€ Nachzahlung/.test(kb) && /unsicher/.test(kb)
+      t('H3: Werkstatt — Saldo zur Abrechnung als Spanne mit „unsicher“', /768\s€ Guthaben bis \S+ 3\s€ Nachzahlung/.test(kb) && /unsicher/.test(kb)
         && !!fv.view.querySelector('[data-role="ws-balance-range"]'), kb.slice(0, 200));
     } catch (e) { t('H1: Abschlag im Rhythmus', false, e.stack || e.message); }
     finally { global.fetch = realFetch; }
@@ -1411,6 +1411,11 @@ async function renderView(modPath, params = [], ctx = {}) {
       t(`report-print (${lang}): Schaubilder aus explainer.js (Energiefluss der PV, Zeitstrahl)`,
         !!view.querySelector('.explainer.ex-energy') && !!view.querySelector('.explainer.ex-timeline'));
       t(`report-print (${lang}): ohne Häkchen kein Anhang`, !view.querySelector('.report-print__appendix'));
+      // v3.9.0 (Skeptiker N18) — je Vertrag ein Satz: der des Zeitstrahls, nicht dazu derselbe noch einmal
+      const tls = [...view.querySelectorAll('.report-print__timeline')];
+      t(`report-print (${lang}): „Vertrag auf einen Blick“ ohne doppelten Satz`, tls.length > 0
+        && tls.every(d => !!d.querySelector('.ex-timeline') && d.querySelectorAll('.ex-timeline .explainer__text').length === 1 && !d.querySelector(':scope > p')),
+        tls.map(d => d.querySelectorAll('p').length).join(','));
       if (lang === 'de') {
         // v3.6.0 (abrplus) — Kosten wie die Übersicht: Heizöl und Pellets aus ihren Lieferungen
         const money = view.querySelector('.report-print__money')?.textContent || '';
@@ -1884,6 +1889,15 @@ async function renderView(modPath, params = [], ctx = {}) {
     const active = view.querySelector('.period-pills .pill.active')?.textContent.replace('·', '').trim() || '';
     t('abrechnungsjahr(gas): Kennzahlen nennen die Periode', !!active && view.querySelector('.kpi__label')?.textContent.includes(active), active);
     t('abrechnungsjahr(gas): Zeitraum und Grundlage benannt', /nach dem Stichtag/.test(view.querySelector('[data-role="period-meta"]')?.textContent || ''));
+    // v3.9.0 (Skeptiker N12) — „gerechnet bis“ nennt den Tag der letzten Ablesung (bis dahin den Tag davor)
+    {
+      const metaText = view.querySelector('[data-role="period-meta"]')?.textContent || '';
+      const m12 = metaText.match(/gerechnet bis zur letzten Ablesung am (\d{2}\.\d{2}\.\d{4})/);
+      const lastRd = ((await (await fetch(`${HOST}/api/utility/gas/readings?meter_id=m_gas_main`)).json()).data || []).map(r => r.date).sort().pop();
+      const fmtMod12 = await import(`${ROOT}/lib/format.js`);
+      t('N12: Abrechnungsjahr — „gerechnet bis zur letzten Ablesung am …“ mit dem Ablesetag', !/gerechnet bis \d/.test(metaText)
+        && (!m12 || m12[1] === fmtMod12.fmt.date(lastRd)), `${metaText.slice(0, 160)} | ${lastRd}`);
+    }
     // v3.6.0 (abrplus) — gerechnet bis zur letzten Ablesung: ⓘ „Laufendes Jahr“ an der Abschlagskachel
     const advLabel = view.querySelector('.kpi.c-yellow .kpi__label');
     t('abrechnungsjahr(gas): ⓘ „Laufendes Jahr“ an „Abschläge bis …“', /Abschläge bis/.test(advLabel?.textContent || '')
@@ -2057,6 +2071,13 @@ async function renderView(modPath, params = [], ctx = {}) {
       { utility: 'gas', name: 'Gaszähler', contract: c(-369.91, '2026-12-31', '2027-01-01') },
     ], byKey).join('');
     const rows = [...box.querySelectorAll('li')].map(li => li.textContent.replace(/\s+/g, ' ').trim());
+    // v3.9.0 (Skeptiker N2) — Vorjahre erfasst, aber zu wenig gemessene Paare: nicht „Noch kein Vorjahr“
+    {
+      const { beginnerTrendNoneKey } = await import(`${ROOT}/views/dashboard.js?b=${Date.now()}`);
+      const months = (from, n) => Array.from({ length: n }, (_, i) => { const d = new Date(Date.UTC(from, i, 1)); return { ym: d.toISOString().slice(0, 7) }; });
+      t('N2: Einsteiger — mit Vorjahr „zu wenige gemessene Monate“, ohne „noch kein Vorjahr“',
+        beginnerTrendNoneKey(months(2024, 30)) === 'dashboard.beginner.trend.fewMeasured' && beginnerTrendNoneKey(months(2026, 8)) === 'dashboard.beginner.trend.none');
+    }
     t('A3: zwei Stromzähler mit Namen, Gas ohne', rows.length === 3 && rows[0].includes('Strom (Haushalt):') && rows[1].includes('Strom (Wärmepumpe):')
       && rows[2].includes('Gas:') && !rows[2].includes('Gas ('), rows.join(' | '));
     // v3.9.0 (Skeptiker H3) — unsichere Schätzung der Karte: die Spanne, kein sicherer Betrag
@@ -2064,7 +2085,7 @@ async function renderView(modPath, params = [], ctx = {}) {
     ub.innerHTML = beginnerMoneyLines([{ utility: 'gas', name: 'Gaszähler', contract: { ...c(-532.18, '2026-12-31', '2027-01-01'),
       projection_uncertain: { reasons: ['poor_fit'], projected_range: [-768.0, 3.0] } } }], byKey).join('');
     const urow = ub.textContent.replace(/\s+/g, ' ');
-    t('H3: Einsteiger — Spanne der Karte statt „rund 532 € zurück“', /rund 768\s€ Guthaben bis rund 3\s€ Nachzahlung \(unsicher\)/.test(urow)
+    t('H3: Einsteiger — Spanne der Karte statt „rund 532 € zurück“', /768\s€ Guthaben bis \S+ 3\s€ Nachzahlung \(unsicher\)/.test(urow)
       && !/532/.test(urow) && !!ub.querySelector('[data-role="money-uncertain"]') && !ub.querySelector('.success-text, .danger-text'), urow);
     t('L2/L1: „rund“ ohne Cent, bis zum letzten Tag', rows[2].includes(fmtMod.fmt.eur0(369.91).replace(/\s+/g, ' ')) && !rows[2].includes('369,91')
       && rows.every(r => r.includes(fmtMod.fmt.date('2026-12-31')) && !r.includes(fmtMod.fmt.date('2027-01-01'))), rows[2]);

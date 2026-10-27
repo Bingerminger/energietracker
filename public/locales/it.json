@@ -243,7 +243,8 @@
         "more": "{pct} in più dell’anno scorso",
         "less": "{pct} in meno dell’anno scorso",
         "same": "più o meno come l’anno scorso",
-        "none": "Ancora nessun anno precedente da confrontare."
+        "none": "Ancora nessun anno precedente da confrontare.",
+        "fewMeasured": "Troppo pochi mesi misurati per un confronto. I mesi ripartiti e incompleti non contano."
       },
       "rent": {
         "title": "L’anticipo spese basta?",
@@ -2969,7 +2970,7 @@
         "ev_charger": "Wallbox"
       },
       "roles": "In totale {total} kWh.",
-      "rolesWithPv": "In totale {total} kWh, compreso l’autoconsumo solare. La wallbox fa parte dell’elettricità di casa.",
+      "rolesWithPv": "In totale {total} kWh, compreso l’autoconsumo solare.",
       "water": {
         "one": "Sono circa {liters} litri al giorno per {count} persona.",
         "other": "Sono circa {liters} litri per persona al giorno ({count} persone)."
@@ -2992,7 +2993,20 @@
         "one": "{count} valore mensile dei due anni è ripartito; i totali annuali restano misurati, perché le letture sono state fatte al cambio d’anno.",
         "other": "{count} valori mensili dei due anni sono ripartiti; i totali annuali restano misurati, perché le letture sono state fatte al cambio d’anno."
       },
-      "poorFit": "Il modello di riscaldamento si adatta male a questo contatore (± {pct} al mese): qui il rapporto non confronta i valori corretti per il clima e non segnala mesi sopra l’atteso — sarebbe soprattutto l’errore del modello."
+      "poorFit": "Il modello di riscaldamento si adatta male a questo contatore (± {pct} al mese): qui il rapporto non confronta i valori corretti per il clima e non segnala mesi sopra l’atteso — sarebbe soprattutto l’errore del modello.",
+      "rolesEvNote": "La wallbox fa parte dell’elettricità di casa.",
+      "personsAssumed": {
+        "one": "Ipotesi: {count} persona, il numero non è inserito nelle impostazioni.",
+        "other": "Ipotesi: {count} persone, il numero non è inserito nelle impostazioni."
+      },
+      "waterDays": {
+        "one": "Calcolato su {count} giorno registrato.",
+        "other": "Calcolato su {count} giorni registrati."
+      },
+      "heatDemandPartial": {
+        "one": "Energia di riscaldamento finora: {value} kWh per m² di superficie abitabile ({area} m²) in {count} giorno registrato, non ancora un anno intero.",
+        "other": "Energia di riscaldamento finora: {value} kWh per m² di superficie abitabile ({area} m²) in {count} giorni registrati, non ancora un anno intero."
+      }
     },
     "weatherSource": "Temperature: Open-Meteo.com (CC BY 4.0), salvo inserimento proprio.",
     "print": {
@@ -3059,7 +3073,8 @@
       "pv": "Beneficio dell’impianto solare",
       "vsPrevious": "{pct} rispetto al {prev}",
       "noPrevious": "nessun confronto con il {prev}",
-      "sparkNote": "Linee nei riquadri: andamento {from}–{to}."
+      "sparkNote": "Linee nei riquadri: andamento {from}–{to}.",
+      "vsPreviousWithout": "{pct} rispetto al {prev}, senza {labels} (fatturato per la prima volta)"
     },
     "light": {
       "title": {
@@ -3106,6 +3121,11 @@
       "deadlinesNone": {
         "one": "Nessuna scadenza nel prossimo giorno.",
         "other": "Nessuna scadenza nei prossimi {days} giorni."
+      },
+      "costNew": "Fatturato per la prima volta e fuori dal confronto: {items}.",
+      "yearIncomplete": {
+        "one": "Del {year} è registrato solo {count} mese su 12. Il confronto con il {prev} arriva quando l’anno è completo.",
+        "other": "Del {year} sono registrati solo {count} mesi su 12. Il confronto con il {prev} arriva quando l’anno è completo."
       }
     },
     "euro": {
@@ -5159,7 +5179,11 @@
         "less": "Consumi {cons}, gradi giorno {hdd} rispetto agli stessi mesi dell’anno prima. Corretto per il clima {adj}: hai davvero consumato meno.",
         "more": "Consumi {cons}, gradi giorno {hdd} rispetto agli stessi mesi dell’anno prima. Corretto per il clima {adj}: hai davvero consumato di più, non è solo il meteo.",
         "same": "Consumi {cons}, gradi giorno {hdd} rispetto agli stessi mesi dell’anno prima. Corretto per il clima {adj}: più o meno uguale, la differenza è il meteo.",
-        "poorFit": "Consumi {cons}, gradi giorno {hdd} rispetto agli stessi mesi dell’anno prima. Non si può dimostrare se hai davvero consumato di più o di meno: il modello di riscaldamento si adatta male a questo contatore (± {pct} al mese)."
+        "poorFit": "Consumi {cons}, gradi giorno {hdd} rispetto agli stessi mesi dell’anno prima. Non si può dimostrare se hai davvero consumato di più o di meno: il modello di riscaldamento si adatta male a questo contatore (± {pct} al mese).",
+        "noise": {
+          "one": "Misurato {cons}, gradi giorno {hdd}. Corretto per il clima {adj}: rientra nella normale variazione (fino a ±{noise} su {count} mese), nessuna differenza è dimostrata.",
+          "other": "Misurato {cons}, gradi giorno {hdd}. Corretto per il clima {adj}: rientra nella normale variazione (fino a ±{noise} su {count} mesi), nessuna differenza è dimostrata."
+        }
       },
       "poorFitBadge": "corretto: non dimostrabile"
     },
@@ -5749,10 +5773,10 @@
       "none": "Ancora nessun periodo di fatturazione con letture. Compare quando ci sono due letture.",
       "fromBill": "Dal {from} al {until}, come in bolletta",
       "fromAnchor": "Dal {from} al {until}, secondo la data di conguaglio",
-      "asOf": "calcolato fino al {date} (ultima lettura)",
       "running": "in corso",
       "partial": "periodo parziale",
-      "switch": "termina con il cambio di fornitore"
+      "switch": "termina con il cambio di fornitore",
+      "asOfReading": "calcolato fino all’ultima lettura del {date}"
     },
     "suggest": "L’ultima bolletta termina il {date}, la data di conguaglio è il {anchor}. Inserisci il {day} come data di conguaglio nelle impostazioni: il periodo in corso e i successivi seguiranno il ritmo della bolletta.",
     "chart": {

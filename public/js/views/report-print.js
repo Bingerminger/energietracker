@@ -265,12 +265,17 @@ function agenda(m) {
   const table = ev.length ? `<table class="table report-print__table">
       <tbody>${ev.map(e => `<tr class="${e.days < 0 ? 'report-print__overdue' : ''}"><td>${esc(fmt.date(e.date))}</td><td>${esc(e.title)}</td><td class="num">${esc(e.state)}</td></tr>`).join('')}</tbody>
     </table>` : para(tx.agendaNone);
-  const lines = tl.map(c => `
+  // v3.9.0 (Skeptiker N18) — der Satz unter dem Zeitstrahl sagt schon, was der Satz des Berichts sagt:
+  // nur einer von beiden (bis dahin zwei fast gleiche Sätze hintereinander)
+  const lines = tl.map(c => {
+    const fig = timelineHtml(c.explainer, m.today);
+    return `
     <div class="report-print__timeline" style="${colorVars(m, c.utility)}">
       <h4>${esc(c.label)}${c.provider ? ` · ${esc(c.provider)}` : ''}</h4>
-      ${timelineHtml(c.explainer, m.today)}
-      ${para(c.sentence)}
-    </div>`).join('');
+      ${fig}
+      ${fig ? '' : para(c.sentence)}
+    </div>`;
+  }).join('');
   return section('report-print__agenda', tx.agenda || '', today(m, `${para(tx.agendaIntro, 'muted small')}${table}`) + (tl.length ? `<h3>${esc(tx.contracts || '')}</h3>${lines}` : ''));
 }
 

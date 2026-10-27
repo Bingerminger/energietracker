@@ -243,7 +243,8 @@
         "more": "{pct} more than last year",
         "less": "{pct} less than last year",
         "same": "about the same as last year",
-        "none": "No previous year to compare yet."
+        "none": "No previous year to compare yet.",
+        "fewMeasured": "Too few measured months to compare. Interpolated and partial months do not count."
       },
       "rent": {
         "title": "Does the prepayment cover it?",
@@ -2969,7 +2970,7 @@
         "ev_charger": "Wallbox"
       },
       "roles": "Together {total} kWh.",
-      "rolesWithPv": "Together {total} kWh, including self-consumed solar power. The wallbox is part of the household electricity.",
+      "rolesWithPv": "Together {total} kWh, including self-consumed solar power.",
       "water": {
         "one": "That is about {liters} litres a day for {count} person.",
         "other": "That is about {liters} litres per person and day ({count} people)."
@@ -2992,7 +2993,20 @@
         "one": "{count} monthly value of the two years is interpolated; the annual totals are still measured, because readings were taken at the turn of the year.",
         "other": "{count} monthly values of the two years are interpolated; the annual totals are still measured, because readings were taken at the turn of the year."
       },
-      "poorFit": "The heating model fits this meter poorly (± {pct} a month): the report makes no weather-adjusted comparison here and names no months above the expectation — both would mainly be the model’s error."
+      "poorFit": "The heating model fits this meter poorly (± {pct} a month): the report makes no weather-adjusted comparison here and names no months above the expectation — both would mainly be the model’s error.",
+      "rolesEvNote": "The wallbox is part of the household electricity.",
+      "personsAssumed": {
+        "one": "Assumed: {count} person, the number is not entered in the settings.",
+        "other": "Assumed: {count} people, the number is not entered in the settings."
+      },
+      "waterDays": {
+        "one": "Calculated over {count} recorded day.",
+        "other": "Calculated over {count} recorded days."
+      },
+      "heatDemandPartial": {
+        "one": "Heating energy so far: {value} kWh per m² of living space ({area} m²) on {count} recorded day, not yet a whole year.",
+        "other": "Heating energy so far: {value} kWh per m² of living space ({area} m²) on {count} recorded days, not yet a whole year."
+      }
     },
     "weatherSource": "Temperatures: Open-Meteo.com (CC BY 4.0), unless entered yourself.",
     "print": {
@@ -3059,7 +3073,8 @@
       "pv": "Benefit of the solar system",
       "vsPrevious": "{pct} compared with {prev}",
       "noPrevious": "no comparison with {prev}",
-      "sparkNote": "Lines in the tiles: trend {from}–{to}."
+      "sparkNote": "Lines in the tiles: trend {from}–{to}.",
+      "vsPreviousWithout": "{pct} compared with {prev}, excluding {labels} (newly billed)"
     },
     "light": {
       "title": {
@@ -3106,6 +3121,11 @@
       "deadlinesNone": {
         "one": "No deadline in the next day.",
         "other": "No deadline in the next {days} days."
+      },
+      "costNew": "Newly billed and not in the comparison: {items}.",
+      "yearIncomplete": {
+        "one": "Only {count} of 12 months of {year} are recorded. The comparison with {prev} follows once the year is complete.",
+        "other": "Only {count} of 12 months of {year} are recorded. The comparison with {prev} follows once the year is complete."
       }
     },
     "euro": {
@@ -5159,7 +5179,11 @@
         "less": "Consumption {cons}, heating degree days {hdd} compared with the same months a year earlier. Weather-adjusted {adj}: you really used less.",
         "more": "Consumption {cons}, heating degree days {hdd} compared with the same months a year earlier. Weather-adjusted {adj}: you really used more — not just the weather.",
         "same": "Consumption {cons}, heating degree days {hdd} compared with the same months a year earlier. Weather-adjusted {adj}: about the same — the difference is the weather.",
-        "poorFit": "Consumption {cons}, heating degree days {hdd} compared with the same months a year earlier. Whether you really used more or less cannot be shown: the heating model fits this meter poorly (± {pct} a month)."
+        "poorFit": "Consumption {cons}, heating degree days {hdd} compared with the same months a year earlier. Whether you really used more or less cannot be shown: the heating model fits this meter poorly (± {pct} a month).",
+        "noise": {
+          "one": "Measured {cons}, heating degree days {hdd}. Weather-adjusted {adj}: that is within the usual variation (up to ±{noise} over {count} month), so no difference is proven.",
+          "other": "Measured {cons}, heating degree days {hdd}. Weather-adjusted {adj}: that is within the usual variation (up to ±{noise} over {count} months), so no difference is proven."
+        }
       },
       "poorFitBadge": "adjusted: cannot be shown"
     },
@@ -5749,10 +5773,10 @@
       "none": "No billing period with readings yet. It appears once two readings are recorded.",
       "fromBill": "{from} to {until}, as on the bill",
       "fromAnchor": "{from} to {until}, by the settlement date",
-      "asOf": "calculated up to {date} (last reading)",
       "running": "still running",
       "partial": "partial period",
-      "switch": "ends with the change of supplier"
+      "switch": "ends with the change of supplier",
+      "asOfReading": "calculated up to the last reading on {date}"
     },
     "suggest": "The last bill ends on {date}, the settlement date is set to {anchor}. Enter {day} as the settlement date in the settings, and the current and next periods follow the rhythm of the bill.",
     "chart": {

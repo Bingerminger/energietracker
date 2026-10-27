@@ -32,7 +32,7 @@ import { docUrl } from '../lib/docs.js';
 // v3.4.0 (N1021) — Vertragsreihenfolge, Blättern, Abrechnungsperiode
 import { groupContracts, phasePill } from '../lib/contract-order.js';
 import { paginate, pagerHtml, wirePager, pageSize, PAGER_THRESHOLD } from '../components/pager.js';
-import { lastClosedPeriod, periodToCheck, calendarYearOf, periodMode, billingApplies, periodName, periodsWithData, pickPeriod, periodRows, refMonth } from '../lib/billing-period.js';
+import { lastClosedPeriod, periodToCheck, calendarYearOf, periodMode, billingApplies, periodName, periodsWithData, pickPeriod, periodRows, refMonth, addDays as addDaysIso } from '../lib/billing-period.js';
 import { periodModeHtml, wirePeriodMode, calendarOnlyNote } from '../components/period-mode.js';
 import { bonusOf, bonusItemsOf, bonusLineText } from '../lib/bonus.js';   // v3.7.0 (#33)
 import { fillHeatLimitSlot, poorFitIn } from '../lib/heat-limit.js';   // v3.9.0 (#38)
@@ -642,7 +642,8 @@ function periodPills(list, sel, utilityKey) {
 /** v3.6.0 (F1030) — Zeitraum, Grundlage und Stand der gewählten Periode; Vorschlag, wenn der Stichtag nicht zur Rechnung passt. */
 function periodMeta(sel, bp) {
   const parts = [t(sel.source === 'bill' ? 'billing.period.fromBill' : 'billing.period.fromAnchor', { from: fmt.date(sel.from), until: fmt.date(sel.until) })];
-  if (sel.as_of && sel.as_of < sel.until) parts.push(t('billing.period.asOf', { date: fmt.date(sel.as_of) }));
+  // v3.9.0 (Skeptiker N12) — der Tag der Ablesung (as_of ist der letzte gezählte Tag davor)
+  if (sel.as_of && sel.as_of < sel.until) parts.push(t('billing.period.asOfReading', { date: fmt.date(addDaysIso(sel.as_of, 1)) }));
   // v3.6.0 — ohne Schlussrechnung endet die Periode am Lieferantenwechsel
   if (sel.ends_at_switch) parts.push(t('billing.period.switch'));
   if (sel.running) parts.push(t('billing.period.running'));

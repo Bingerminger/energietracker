@@ -243,7 +243,8 @@
         "more": "{pct} más que el año pasado",
         "less": "{pct} menos que el año pasado",
         "same": "más o menos como el año pasado",
-        "none": "Todavía no hay un año anterior para comparar."
+        "none": "Todavía no hay un año anterior para comparar.",
+        "fewMeasured": "Muy pocos meses medidos para comparar. Los meses repartidos e incompletos no cuentan."
       },
       "rent": {
         "title": "¿Basta el anticipo de gastos?",
@@ -2969,7 +2970,7 @@
         "ev_charger": "Punto de carga"
       },
       "roles": "En total {total} kWh.",
-      "rolesWithPv": "En total {total} kWh, incluido el autoconsumo solar. El punto de carga forma parte de la electricidad del hogar.",
+      "rolesWithPv": "En total {total} kWh, incluido el autoconsumo solar.",
       "water": {
         "one": "Son unos {liters} litros al día para {count} persona.",
         "other": "Son unos {liters} litros por persona y día ({count} personas)."
@@ -2992,7 +2993,20 @@
         "one": "{count} valor mensual de los dos años está repartido; los totales anuales siguen medidos, porque se leyó en el cambio de año.",
         "other": "{count} valores mensuales de los dos años están repartidos; los totales anuales siguen medidos, porque se leyó en el cambio de año."
       },
-      "poorFit": "El modelo de calefacción se ajusta mal a este contador (± {pct} al mes): el informe no compara aquí con datos corregidos por clima ni señala meses por encima de lo esperado; ambas cosas serían sobre todo el error del modelo."
+      "poorFit": "El modelo de calefacción se ajusta mal a este contador (± {pct} al mes): el informe no compara aquí con datos corregidos por clima ni señala meses por encima de lo esperado; ambas cosas serían sobre todo el error del modelo.",
+      "rolesEvNote": "El punto de carga forma parte de la electricidad del hogar.",
+      "personsAssumed": {
+        "one": "Supuesto: {count} persona, el número no está indicado en los ajustes.",
+        "other": "Supuesto: {count} personas, el número no está indicado en los ajustes."
+      },
+      "waterDays": {
+        "one": "Calculado sobre {count} día registrado.",
+        "other": "Calculado sobre {count} días registrados."
+      },
+      "heatDemandPartial": {
+        "one": "Energía de calefacción hasta ahora: {value} kWh por m² de superficie útil ({area} m²) en {count} día registrado, todavía no un año entero.",
+        "other": "Energía de calefacción hasta ahora: {value} kWh por m² de superficie útil ({area} m²) en {count} días registrados, todavía no un año entero."
+      }
     },
     "weatherSource": "Temperaturas: Open-Meteo.com (CC BY 4.0), salvo las introducidas por ti.",
     "print": {
@@ -3059,7 +3073,8 @@
       "pv": "Beneficio de la instalación solar",
       "vsPrevious": "{pct} frente a {prev}",
       "noPrevious": "sin comparación con {prev}",
-      "sparkNote": "Líneas en los recuadros: evolución {from}–{to}."
+      "sparkNote": "Líneas en los recuadros: evolución {from}–{to}.",
+      "vsPreviousWithout": "{pct} frente a {prev}, sin {labels} (facturado por primera vez)"
     },
     "light": {
       "title": {
@@ -3106,6 +3121,11 @@
       "deadlinesNone": {
         "one": "Ningún plazo en el próximo día.",
         "other": "Ningún plazo en los próximos {days} días."
+      },
+      "costNew": "Facturado por primera vez y fuera de la comparación: {items}.",
+      "yearIncomplete": {
+        "one": "De {year} solo está registrado {count} mes de 12. La comparación con {prev} llegará cuando el año esté completo.",
+        "other": "De {year} solo están registrados {count} meses de 12. La comparación con {prev} llegará cuando el año esté completo."
       }
     },
     "euro": {
@@ -5159,7 +5179,11 @@
         "less": "Consumo {cons}, grados-día {hdd} frente a los mismos meses del año anterior. Corregido por clima {adj}: de verdad has consumido menos.",
         "more": "Consumo {cons}, grados-día {hdd} frente a los mismos meses del año anterior. Corregido por clima {adj}: de verdad has consumido más, no es solo el tiempo.",
         "same": "Consumo {cons}, grados-día {hdd} frente a los mismos meses del año anterior. Corregido por clima {adj}: más o menos igual, la diferencia es el tiempo.",
-        "poorFit": "Consumo {cons}, grados-día {hdd} frente a los mismos meses del año anterior. No se puede demostrar si de verdad consumiste más o menos: el modelo de calefacción se ajusta mal a este contador (± {pct} al mes)."
+        "poorFit": "Consumo {cons}, grados-día {hdd} frente a los mismos meses del año anterior. No se puede demostrar si de verdad consumiste más o menos: el modelo de calefacción se ajusta mal a este contador (± {pct} al mes).",
+        "noise": {
+          "one": "Medido {cons}, grados-día {hdd}. Corregido por clima {adj}: está dentro de la variación habitual (hasta ±{noise} en {count} mes), no hay una diferencia demostrada.",
+          "other": "Medido {cons}, grados-día {hdd}. Corregido por clima {adj}: está dentro de la variación habitual (hasta ±{noise} en {count} meses), no hay una diferencia demostrada."
+        }
       },
       "poorFitBadge": "corregido: no demostrable"
     },
@@ -5749,10 +5773,10 @@
       "none": "Todavía no hay ningún periodo de facturación con lecturas. Aparece cuando haya dos lecturas.",
       "fromBill": "Del {from} al {until}, como en la factura",
       "fromAnchor": "Del {from} al {until}, según la fecha de liquidación",
-      "asOf": "calculado hasta el {date} (última lectura)",
       "running": "en curso",
       "partial": "periodo parcial",
-      "switch": "termina con el cambio de proveedor"
+      "switch": "termina con el cambio de proveedor",
+      "asOfReading": "calculado hasta la última lectura del {date}"
     },
     "suggest": "La última factura termina el {date} y la fecha de liquidación es el {anchor}. Introduce el {day} como fecha de liquidación en la configuración: el periodo en curso y los siguientes seguirán el ritmo de la factura.",
     "chart": {

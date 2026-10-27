@@ -32,6 +32,8 @@ import { energyFigureHtml, bindEnergyFigure, startEnergyFigure } from './energy-
 
 const esc = escapeHtml;
 const W = 320;
+/** v3.9.0 (Skeptiker N13) — Schwelle für „wirklich mehr/weniger“ in Standardabweichungen (80 %, wie das Prognoseband). */
+export const WEATHER_VERDICT_Z = 1.28;
 
 function figure(cls, title, svg, caption) {
   return `<figure class="explainer ${cls}">
@@ -79,7 +81,7 @@ function legend(items, y0, d = '.9s') {
  * @param {{color?: string}} [opts]  Farbe der Verbrauchsart (u.color)
  * @returns {string} leer, wenn die Zahlen fehlen
  */
-export function moneyHtml(row, { color } = {}) {
+export function moneyHtml(row, { color, utilityLabel = null } = {}) {
   const end = (row?.balance_path || []).slice(-1)[0];
   if (!row || !end || row.projected_end_balance == null) return '';
   const paid = Math.max(0, Number(end.paid) || 0);
@@ -128,7 +130,8 @@ export function moneyHtml(row, { color } = {}) {
   const caption = t('explainer.money.text', {
     date: fmt.date(row.settle_on || `${end.ym}-${String(daysInMonth(end.ym)).padStart(2, '0')}`), paid: fmt.eur(paid), cost: costText, result,
   });
-  return figure('ex-money', t('explainer.money.title'), { h: 96 + leg.h + 4, body }, caption);
+  // v3.9.0 (Skeptiker N10) — auf der Übersicht mit der Verbrauchsart (dort steht nur ein Vertrag)
+  return figure('ex-money', utilityLabel ? `${t('explainer.money.title')} · ${utilityLabel}` : t('explainer.money.title'), { h: 96 + leg.h + 4, body }, caption);
 }
 
 // ── 2. Energiefluss im Haus ─────────────────────────────────────────────
@@ -173,7 +176,14 @@ export function weatherHtml(monthly, { quality } = {}) {
   const x0 = 0, BW = W - Math.max(textWidth(pc, FS.value, true), textWidth(ph, FS.value, true)) - 6;
   const bar = (y, v, m, cls, d) => `<rect class="ex-grow ${cls}" style="--d:${d}s" x="${x0}" y="${y}" width="${(v / m * BW).toFixed(1)}" height="11" rx="2"/>`;
   const poor = quality?.model_quality === 'poor';
-  const verdict = poor ? 'same' : adj.pct < -2 ? 'less' : adj.pct > 2 ? 'more' : 'same';
+  // v3.9.0 (Skeptiker N13) — „wirklich weniger“ nur außerhalb der üblichen Schwankung: Streut ein
+  // Monat um ±ratio (Gütesperre), streut der Vergleich zweier Summen über n Monate um ratio × √(2/n);
+  // mit 1,28 σ (80 %, wie das Prognoseband) wurde aus −4 % bei ±9 % je Monat kein Befund mehr
+  const n = adj.months?.length || 12;
+  const noise = Number.isFinite(Number(quality?.ratio)) ? WEATHER_VERDICT_Z * Number(quality.ratio) * Math.sqrt(2 / n) * 100 : 0;
+  const limit = Math.max(2, noise);
+  const verdict = poor ? 'same' : adj.pct < -limit ? 'less' : adj.pct > limit ? 'more' : 'same';
+  const inNoise = !poor && verdict === 'same' && Math.abs(adj.pct) > 2;
   const badge = poor ? t('explainer.weather.poorFitBadge') : t('explainer.weather.adjusted', { pct: p(adj.pct) });
   const bw = Math.min(W, Math.max(170, textWidth(badge, FS.label) + 24));
   const leg = legend([
@@ -194,6 +204,7 @@ export function weatherHtml(monthly, { quality } = {}) {
     ${leg.svg}`;
   const caption = poor
     ? t('explainer.weather.text.poorFit', { cons: p(cons.pct), hdd: p(hdd.pct), pct: fmt.pct(Number(quality.ratio) || 0, 0) })
+    : inNoise ? tp('explainer.weather.text.noise', n, { cons: p(cons.pct), hdd: p(hdd.pct), adj: p(adj.pct), noise: fmt.pct(noise / 100, 0), count: n })
     : t(`explainer.weather.text.${verdict}`, { cons: p(cons.pct), hdd: p(hdd.pct), adj: p(adj.pct) });
   return figure('ex-weather', t('explainer.weather.title'), { h: 138 + leg.h + 4, body }, caption);
 }

@@ -338,7 +338,9 @@ final class ReportModelService
                 'cost_gross' => 0.0, 'cost_months_gross' => array_fill(1, 12, null), 'bonus_items' => [],
                 // v3.7.0 (#37) — Monate, die aus längeren Ablesungsabständen verteilt sind;
                 // wirklichkeit-2: beide Jahresgrenzen in kurzen Abständen (Jahressumme exakt)
-                'interpolated' => 0, 'interp_months' => [], 'bounds_measured' => true];
+                'interpolated' => 0, 'interp_months' => [], 'bounds_measured' => true,
+                // v3.9.0 (Skeptiker M2) — erfasste Tage je Monat (größter Wert über die Zähler)
+                'days_months' => []];
     }
 
     /** Jahreswerte einer Art über die Zähler, die in Summen zählen. */
@@ -375,6 +377,7 @@ final class ReportModelService
                 if (($r['heat_adjusted'] ?? null) !== null) { $adj += (float)$r['heat_adjusted']; $adjN++; }
                 if (!empty($r['interpolated'])) $out['interp_months'][$mo] = true;
                 if ((int)($r['days'] ?? 0) >= (int)date('t', mktime(0, 0, 0, $mo, 1, $y))) $out['full_months']++;
+                $out['days_months'][$mo] = max($out['days_months'][$mo] ?? 0, (int)($r['days'] ?? 0));
             }
         }
         // v3.9.0 (F1032, #40) — Subzähler mit eigenem Vertrag: ihr Geld zählt (der Elternvertrag
@@ -470,29 +473,44 @@ final class ReportModelService
     private function totals(array $consumptionU, array $yd, array $years): array
     {
         $y = $this->year; $p = $y - 1;
-        $t = ['cost_now' => null, 'cost_prev' => null, 'cost_pct' => null, 'price_effect' => 0.0, 'volume_effect' => 0.0,
+        $t = ['cost_now' => null, 'cost_prev' => null, 'cost_pct' => null, 'price_effect' => 0.0, 'volume_effect' => 0.0, 'cost_new' => [],
               'consumption_now' => null, 'consumption_prev' => null, 'consumption_pct' => null, 'consumption_adjusted' => false,
               'co2_now' => null, 'co2_prev' => null, 'co2_pct' => null,
               'history' => ['years' => $years, 'cost' => [], 'consumption' => [], 'co2' => []]];
         $cn = $cp = 0.0; $hasCost = false;
         $en = $ep = 0.0; $hasEnergy = false; $adjUsed = false;
-        $co2n = $co2p = 0.0;
+        $co2n = $co2p = $co2nCmp = 0.0;
+        // v3.9.0 (Skeptiker M3) — der Vergleich nur über Arten mit Kosten in beiden Jahren; was neu
+        // abgerechnet wird (etwa Wasser aus dem Vertrag der Rechnung), steht getrennt da. Bis dahin
+        // verglich „+33 %“ alle Kosten jetzt mit den vergleichbaren des Vorjahres, und Preis- und
+        // Mengeneffekt (−21 € und +197 €) gingen nicht in rund 806 € Mehrkosten auf
+        $cnCmp = 0.0; $newCost = [];
+        // v3.9.0 (Skeptiker M2, N17) — wie viele Monate beider Jahre erfasst sind
+        $t['coverage_now'] = 0; $t['coverage_prev'] = 0;
         // v3.7.0 (#37) — stecken verteilte Monate im Vergleich, ist eine Ersparnis nicht „gemessen“
         $t['interpolated'] = false;
         foreach ($consumptionU as $u) {
             $now = $yd[$u][$y]; $prev = $yd[$u][$p];
             if (!self::yearExact($now) || !self::yearExact($prev)) $t['interpolated'] = true;
-            $co2n += $now['co2']; $co2p += $prev['co2'];
+            if ($now['value'] > 0) $t['coverage_now'] = max($t['coverage_now'], (int)$now['coverage']);
+            if ($prev['value'] > 0) $t['coverage_prev'] = max($t['coverage_prev'], (int)$prev['coverage']);
+            // v3.9.0 (Skeptiker M2) — CO₂ wie Kosten und Verbrauch nur über ganze Jahre beider Seiten
+            // (bis dahin „CO₂ 90 kg −97 % gegenüber 2025“ aus einem erfassten Monat)
+            $co2n += $now['co2'];
+            if ($now['coverage'] >= 12 && $prev['coverage'] >= 12) { $co2nCmp += $now['co2']; $co2p += $prev['co2']; }
             // v3.7.0 (#33) — Kosten ohne Bonus, wie die Kachel der Verbrauchsart: Eine
             // einmalige Gutschrift wäre sonst ein „Preiseffekt“ im Jahr danach
             if ($now['priced'] && $now['cost_gross'] != 0.0) {
                 $cn += $now['cost_gross']; $hasCost = true;
                 if ($prev['priced'] && $prev['value'] > 0 && $prev['coverage'] >= 12 && $now['coverage'] >= 12) {
+                    $cnCmp += $now['cost_gross'];
                     $cp += $prev['cost_gross'];
                     $pp = $prev['cost_gross'] / $prev['value'];
                     $vol = ($now['value'] - $prev['value']) * $pp;
                     $t['volume_effect'] += $vol;
                     $t['price_effect'] += ($now['cost_gross'] - $prev['cost_gross']) - $vol;
+                } elseif ($now['coverage'] >= 12) {
+                    $newCost[$u] = $now['cost_gross'];
                 }
             }
             if (self::unit($u) === 'kWh' && $now['value'] > 0 && $prev['value'] > 0 && $now['coverage'] >= 12 && $prev['coverage'] >= 12) {
@@ -505,8 +523,11 @@ final class ReportModelService
         if ($hasCost) {
             $t['cost_now'] = round($cn, 2);
             $t['cost_prev'] = $cp > 0 ? round($cp, 2) : null;
-            $t['cost_pct'] = $cp > 0 ? round(($cn / $cp - 1) * 100, 1) : null;
+            $t['cost_pct'] = $cp > 0 ? round(($cnCmp / $cp - 1) * 100, 1) : null;
             if ($cp <= 0) { $t['price_effect'] = 0.0; $t['volume_effect'] = 0.0; }
+            // die Arten, die nicht mitverglichen werden (nur mit Vergleich): Zerlegung geht auf
+            $t['cost_new'] = $cp > 0 ? array_map(fn($u, $v) => ['utility' => $u, 'label' => $this->i18n->utilityLabel($u), 'amount' => round($v, 2)],
+                array_keys($newCost), array_values($newCost)) : [];
         }
         if ($hasEnergy && $ep > 0) {
             $t['consumption_now'] = round($en, 1); $t['consumption_prev'] = round($ep, 1);
@@ -516,7 +537,7 @@ final class ReportModelService
             if ($adjUsed) { $this->term('heatAdjusted'); $this->sources['weather'] = true; }
         }
         $t['co2_now'] = round($co2n, 1); $t['co2_prev'] = $co2p > 0 ? round($co2p, 1) : null;
-        $t['co2_pct'] = $co2p > 0 ? round(($co2n / $co2p - 1) * 100, 1) : null;
+        $t['co2_pct'] = $co2p > 0 ? round(($co2nCmp / $co2p - 1) * 100, 1) : null;
         foreach ($years as $hy) {
             $c = 0.0; $e = 0.0; $k = 0.0;
             foreach ($consumptionU as $u) {
@@ -542,8 +563,13 @@ final class ReportModelService
         $vs = fn(?float $pct) => $pct === null ? $this->i18n->t('report.tile.noPrevious', ['prev' => $prev])
             : $this->i18n->t('report.tile.vsPrevious', ['pct' => $this->advice->pct($pct), 'prev' => $prev]);
         if ($t['cost_now'] !== null) {
+            // v3.9.0 (Skeptiker M3) — neu abgerechnete Arten zählen im Vergleich nicht mit: die Kachel sagt es
+            $newLabels = implode(', ', array_column((array)($t['cost_new'] ?? []), 'label'));
             $tiles[] = ['key' => 'cost', 'label' => $this->i18n->t('report.tile.cost'), 'value' => $t['cost_now'],
-                'value_text' => $this->i18n->money(round($t['cost_now']), 0), 'pct' => $t['cost_pct'], 'sub' => $vs($t['cost_pct']),
+                'value_text' => $this->i18n->money(round($t['cost_now']), 0), 'pct' => $t['cost_pct'],
+                'sub' => $t['cost_pct'] !== null && $newLabels !== ''
+                    ? $this->i18n->t('report.tile.vsPreviousWithout', ['pct' => $this->advice->pct((float)$t['cost_pct']), 'prev' => $prev, 'labels' => $newLabels])
+                    : $vs($t['cost_pct']),
                 'spark' => $t['history']['cost'], 'better' => 'lower'];
         }
         if ($t['consumption_now'] !== null || array_filter($t['history']['consumption'])) {
@@ -1233,9 +1259,17 @@ final class ReportModelService
 
     // ── Sektionen ────────────────────────────────────────────────────────
 
+    /**
+     * v3.9.0 (Skeptiker N3) — Einträge aus „Zu tun“ ohne eigenes Datum (Vorschlag zur Heizgrenze,
+     * Ablesung prüfen, doppelt eingetragen, Hinweis auf die Zäsur) sind keine Fristen oder Termine.
+     * Bis dahin standen sie im Bericht als Termine „heute“.
+     */
+    public const AGENDA_NOT_DATES = ['heat_limit', 'reading_check', 'reading_duplicate', 'level_shift'];
+
     private function agendaSection(array $events, array $contracts): array
     {
         $rows = [];
+        $events = array_values(array_filter($events, fn($e) => !in_array((string)($e['kind'] ?? ''), self::AGENDA_NOT_DATES, true)));
         // fällige Ablesungen in einer Zeile statt einer je Zähler
         $readings = array_values(array_filter($events, fn($e) => ($e['kind'] ?? '') === 'reading_due' && !empty($e['due_now'])));
         if (count($readings) > 1) {
@@ -1500,10 +1534,17 @@ final class ReportModelService
             $params = ['class' => (string)($s['class'] ?? ''), 'value' => $this->i18n->number((float)$s['kwh_per_m2'], 0),
                        'area' => $this->i18n->number((float)($eff['wohnflaeche_m2'] ?? 0), 0)];
             $scaled = !empty($eff['scale']) && !empty($s['class']);
+            // v3.9.0 (Skeptiker M2) — kein ganzes Jahr erfasst: „bisher“, nicht „je m² und Jahr“
+            // (aus einem Monat stand „3 kWh je m² und Jahr“ da)
+            $partial = empty($s['complete']);
             $page['efficiency'] = ['class' => $scaled ? (string)$s['class'] : null, 'kwh_per_m2' => (float)$s['kwh_per_m2'],
-                'thresholds' => $scaled ? ($eff['thresholds'] ?? []) : [], 'value_text' => $this->i18n->number((float)$s['kwh_per_m2'], 0) . ' kWh/m²·a',
-                'text' => $scaled ? $this->i18n->t('report.page.efficiency', $params)
-                    : trim($this->i18n->t('report.page.heatDemand', $params) . ' ' . (string)($eff['scale_note'] ?? '')),
+                'thresholds' => $scaled ? ($eff['thresholds'] ?? []) : [],
+                'value_text' => $this->i18n->number((float)$s['kwh_per_m2'], 0) . ($partial ? ' kWh/m²' : ' kWh/m²·a'),
+                'partial' => $partial,
+                'text' => $partial
+                    ? $this->i18n->tp('report.page.heatDemandPartial', (int)($s['coverage_days'] ?? 0), $params + ['count' => (int)($s['coverage_days'] ?? 0)])
+                    : ($scaled ? $this->i18n->t('report.page.efficiency', $params)
+                    : trim($this->i18n->t('report.page.heatDemand', $params) . ' ' . (string)($eff['scale_note'] ?? ''))),
                 // v3.6.0 — Fläche nur angenommen (Default): sagen, nicht still rechnen
                 'area_assumed' => !empty($eff['area_assumed']),
                 'area_note' => !empty($eff['area_assumed']) ? $this->i18n->t('report.page.areaAssumed', ['area' => $params['area']]) : null];
@@ -1512,11 +1553,19 @@ final class ReportModelService
         if ($u === 'strom') $page['roles'] = $this->stromRoles($pvNow);
         if ($u === 'wasser') {
             $persons = (int)$this->settings->get('wasser_personen_anzahl', 0);
-            if ($persons > 0) {
-                $days = (int)date('z', mktime(0, 0, 0, 12, 31, $y)) + 1;
+            // v3.9.0 (Skeptiker M2) — je Tag über die erfassten Tage, nicht über 365 (ein erfasster
+            // Monat ergab „rund 25 Liter je Person und Tag“, über seine Tage waren es rund 100)
+            $yearDays = (int)date('z', mktime(0, 0, 0, 12, 31, $y)) + 1;
+            $days = min($yearDays, array_sum((array)($now['days_months'] ?? [])));
+            if ($persons > 0 && $days > 0) {
                 $l = $now['value'] * 1000 / $persons / $days;
-                $page['water'] = ['liters_per_person_day' => round($l, 0), 'persons' => $persons,
-                    'text' => $this->i18n->tp('report.page.water', $persons, ['liters' => $this->i18n->number($l, 0), 'count' => $persons])];
+                $text = $this->i18n->tp('report.page.water', $persons, ['liters' => $this->i18n->number($l, 0), 'count' => $persons]);
+                if ($days < $yearDays) $text .= ' ' . $this->i18n->tp('report.page.waterDays', $days, ['count' => $days]);
+                // v3.9.0 (Skeptiker N14) — die Personenzahl ist nur angenommen (nicht eingetragen): sagen
+                $assumed = in_array('wasser_personen_anzahl', $this->settings->assumedKeys(), true);
+                if ($assumed) $text .= ' ' . $this->i18n->tp('report.page.personsAssumed', $persons, ['count' => $persons]);
+                $page['water'] = ['liters_per_person_day' => round($l, 0), 'persons' => $persons, 'days' => $days,
+                    'persons_assumed' => $assumed, 'text' => $text];
             }
         }
         if (Utilities::isDelivery($u)) $page['tank'] = $this->tank($u);
@@ -1665,8 +1714,10 @@ final class ReportModelService
                        'share' => $total > 0 ? round($v / $total * 100, 1) : null,
                        'text' => $this->i18n->number($v, 0) . ' kWh · ' . $this->advice->share($total > 0 ? $v / $total * 100 : 0)];
         }
+        // v3.9.0 (Skeptiker N11) — der Satz zur Wallbox nur, wenn es eine gibt
         return ['rows' => $rows, 'with_pv' => $self > 0,
-                'text' => $this->i18n->t($self > 0 ? 'report.page.rolesWithPv' : 'report.page.roles', ['total' => $this->i18n->number($total, 0)])];
+                'text' => $this->i18n->t($self > 0 ? 'report.page.rolesWithPv' : 'report.page.roles', ['total' => $this->i18n->number($total, 0)])
+                    . ($self > 0 && $ev > 0 ? ' ' . $this->i18n->t('report.page.rolesEvNote') : '')];
     }
 
     /** Tank: Bestand heute und wie lange er bei üblichem Verbrauch etwa reicht. */

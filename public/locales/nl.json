@@ -243,7 +243,8 @@
         "more": "{pct} meer dan vorig jaar",
         "less": "{pct} minder dan vorig jaar",
         "same": "ongeveer zoals vorig jaar",
-        "none": "Nog geen vorig jaar om te vergelijken."
+        "none": "Nog geen vorig jaar om te vergelijken.",
+        "fewMeasured": "Te weinig gemeten maanden om te vergelijken. Verdeelde en onvolledige maanden tellen niet mee."
       },
       "rent": {
         "title": "Is het voorschot genoeg?",
@@ -2969,7 +2970,7 @@
         "ev_charger": "Laadpaal"
       },
       "roles": "Samen {total} kWh.",
-      "rolesWithPv": "Samen {total} kWh, inclusief zelf gebruikte zonnestroom. De laadpaal is een deel van de huishoudstroom.",
+      "rolesWithPv": "Samen {total} kWh, inclusief zelf gebruikte zonnestroom.",
       "water": {
         "one": "Dat is ongeveer {liters} liter per dag voor {count} persoon.",
         "other": "Dat is ongeveer {liters} liter per persoon per dag ({count} personen)."
@@ -2992,7 +2993,20 @@
         "one": "{count} maandwaarde van de twee jaren is verdeeld; de jaartotalen zijn toch gemeten, omdat rond de jaarwisseling is afgelezen.",
         "other": "{count} maandwaarden van de twee jaren zijn verdeeld; de jaartotalen zijn toch gemeten, omdat rond de jaarwisseling is afgelezen."
       },
-      "poorFit": "Het verwarmingsmodel past slecht bij deze meter (± {pct} per maand): het rapport vergelijkt hier niet weergecorrigeerd en noemt geen maanden boven de verwachting — beide zouden vooral de fout van het model zijn."
+      "poorFit": "Het verwarmingsmodel past slecht bij deze meter (± {pct} per maand): het rapport vergelijkt hier niet weergecorrigeerd en noemt geen maanden boven de verwachting — beide zouden vooral de fout van het model zijn.",
+      "rolesEvNote": "De laadpaal is een deel van de huishoudstroom.",
+      "personsAssumed": {
+        "one": "Aangenomen: {count} persoon, het aantal is niet ingevuld bij de instellingen.",
+        "other": "Aangenomen: {count} personen, het aantal is niet ingevuld bij de instellingen."
+      },
+      "waterDays": {
+        "one": "Berekend over {count} geregistreerde dag.",
+        "other": "Berekend over {count} geregistreerde dagen."
+      },
+      "heatDemandPartial": {
+        "one": "Verwarmingsenergie tot nu toe: {value} kWh per m² woonoppervlak ({area} m²) op {count} geregistreerde dag, nog geen heel jaar.",
+        "other": "Verwarmingsenergie tot nu toe: {value} kWh per m² woonoppervlak ({area} m²) op {count} geregistreerde dagen, nog geen heel jaar."
+      }
     },
     "weatherSource": "Temperaturen: Open-Meteo.com (CC BY 4.0), tenzij zelf ingevoerd.",
     "print": {
@@ -3059,7 +3073,8 @@
       "pv": "Opbrengst van de zonnepanelen",
       "vsPrevious": "{pct} ten opzichte van {prev}",
       "noPrevious": "geen vergelijking met {prev}",
-      "sparkNote": "Lijnen in de tegels: verloop {from}–{to}."
+      "sparkNote": "Lijnen in de tegels: verloop {from}–{to}.",
+      "vsPreviousWithout": "{pct} ten opzichte van {prev}, zonder {labels} (nieuw afgerekend)"
     },
     "light": {
       "title": {
@@ -3106,6 +3121,11 @@
       "deadlinesNone": {
         "one": "Geen termijn in de komende dag.",
         "other": "Geen termijn in de komende {days} dagen."
+      },
+      "costNew": "Nieuw afgerekend en niet in de vergelijking: {items}.",
+      "yearIncomplete": {
+        "one": "Van {year} is pas {count} van de 12 maanden geregistreerd. De vergelijking met {prev} volgt zodra het jaar compleet is.",
+        "other": "Van {year} zijn pas {count} van de 12 maanden geregistreerd. De vergelijking met {prev} volgt zodra het jaar compleet is."
       }
     },
     "euro": {
@@ -5159,7 +5179,11 @@
         "less": "Verbruik {cons}, graaddagen {hdd} ten opzichte van dezelfde maanden een jaar eerder. Weergecorrigeerd {adj}: je hebt echt minder verbruikt.",
         "more": "Verbruik {cons}, graaddagen {hdd} ten opzichte van dezelfde maanden een jaar eerder. Weergecorrigeerd {adj}: je hebt echt meer verbruikt — niet alleen door het weer.",
         "same": "Verbruik {cons}, graaddagen {hdd} ten opzichte van dezelfde maanden een jaar eerder. Weergecorrigeerd {adj}: ongeveer gelijk — het verschil komt door het weer.",
-        "poorFit": "Verbruik {cons}, graaddagen {hdd} ten opzichte van dezelfde maanden een jaar eerder. Of je echt meer of minder hebt verbruikt, valt niet aan te tonen: het verwarmingsmodel past slecht bij deze meter (± {pct} per maand)."
+        "poorFit": "Verbruik {cons}, graaddagen {hdd} ten opzichte van dezelfde maanden een jaar eerder. Of je echt meer of minder hebt verbruikt, valt niet aan te tonen: het verwarmingsmodel past slecht bij deze meter (± {pct} per maand).",
+        "noise": {
+          "one": "Gemeten {cons}, graaddagen {hdd}. Weergecorrigeerd {adj}: dat valt binnen de gewone schommeling (tot ±{noise} over {count} maand), een verschil is niet aangetoond.",
+          "other": "Gemeten {cons}, graaddagen {hdd}. Weergecorrigeerd {adj}: dat valt binnen de gewone schommeling (tot ±{noise} over {count} maanden), een verschil is niet aangetoond."
+        }
       },
       "poorFitBadge": "gecorrigeerd: niet aantoonbaar"
     },
@@ -5749,10 +5773,10 @@
       "none": "Nog geen afrekenperiode met meterstanden. Die verschijnt zodra er twee standen zijn.",
       "fromBill": "{from} tot en met {until}, zoals op de afrekening",
       "fromAnchor": "{from} tot en met {until}, volgens de afrekendatum",
-      "asOf": "berekend tot {date} (laatste meterstand)",
       "running": "loopt nog",
       "partial": "deelperiode",
-      "switch": "eindigt bij de leverancierswissel"
+      "switch": "eindigt bij de leverancierswissel",
+      "asOfReading": "berekend tot de laatste meterstand op {date}"
     },
     "suggest": "De laatste afrekening eindigt op {date}, de afrekendatum staat op {anchor}. Vul in de instellingen {day} in als afrekendatum, dan volgen de lopende en de volgende periodes het ritme van de afrekening.",
     "chart": {
