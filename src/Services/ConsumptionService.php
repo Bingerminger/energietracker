@@ -1053,34 +1053,8 @@ final class ConsumptionService
         // Ablesung. Bis dahin verschwand mit bestandener Gütesperre (etwa nach der Heizgrenze)
         // jede Spanne, der Saldo stand auf den Cent da, auch mit neun geschätzten Monaten.
         // Kein „unsicher“, kein Wegfall des Vorschlags: eine Spanne neben dem Punktwert.
-        $band = null;
-        $lp = $this->lastProjection;
-        if ($est !== null && $uncertain === null && !empty($lp['trusted']) && is_array($lp['model'] ?? null) && $estVolume > 0) {
-            $model = $lp['model'];
-            $normals = $this->hddNormals($this->hddBaseFor($meter));
-            $varW = 0.0; $varN = 0.0; $estDays = 0;
-            $from = $gapFrom; $future = max($asOf, $gapFrom);
-            for ($t = strtotime(substr($from, 0, 7) . '-01'); $t !== false && date('Y-m-d', $t) < $endExcl; $t = strtotime('+1 month', $t)) {
-                $ms = date('Y-m-d', $t); $me = date('Y-m-d', (int)strtotime('+1 month', $t));
-                $dim = (int)date('t', $t);
-                $days = fn(string $a, string $b): int => max(0, (int)round((strtotime(min($b, $me, $endExcl)) - strtotime(max($a, $ms))) / 86400));
-                $all = $days($from, $endExcl);
-                if ($all <= 0) continue;
-                $estDays += $all;
-                $varN += ((float)($model['resid_sd'] ?? 0.0) * $all / $dim) ** 2;
-                $fut = $days($future, $endExcl);
-                $sd = $normals[(int)date('n', $t)]['sd'] ?? null;
-                if ($fut > 0 && is_numeric($sd)) $varW += ((float)$model['a'] * (float)($lp['heat'] ?? 1.0) * (float)$sd * $fut / $dim) ** 2;
-            }
-            $z = (float)$this->settings->get('confidence_band_sigma', 1.28);
-            $price = ($gapEnergy + $remainingEnergy) / $estVolume;   // € je geschätzter Einheit
-            $half = round($z * sqrt($varW + $varN) * $price, 2);
-            if ($half >= self::BAND_MIN_EUR) {
-                $band = ['low' => round($projected - $half, 2), 'high' => round($projected + $half, 2), 'half' => $half,
-                         'level_pct' => (int)round((2 * (0.5 * (1 + self::erf($z / M_SQRT2))) - 1) * 100), 'estimated_days' => $estDays,
-                         'weather' => round($z * sqrt($varW) * $price, 2), 'model' => round($z * sqrt($varN) * $price, 2)];
-            }
-        }
+        // eigene Methode: ihre Hilfsvariablen dürfen die der Projektion (etwa `$from`) nicht überschreiben
+        $band = $this->projectionBand($meter, $est, $uncertain, $estVolume, $gapFrom, $asOf, $endExcl, $gapEnergy + $remainingEnergy, $projected);
 
         // v2.16.0 (Review FE-31) — dieselbe Rechnung als Monatsreihe für den
         // Saldo-Verlauf: je Monat die Kosten (gemessen, geschätzt, Grundpreis,
@@ -1179,6 +1153,45 @@ final class ConsumptionService
             'band'                     => $band,   // v3.9.0 (Skeptiker M6)
             'path'                     => $path,
         ];
+    }
+
+    /**
+     * v3.9.0 (Skeptiker M6) — Breite einer sicheren Schätzung (s. balanceProjection), oder null.
+     *
+     * @return array{low:float,high:float,half:float,level_pct:int,estimated_days:int,weather:float,model:float}|null
+     */
+    private function projectionBand(array $meter, ?callable $est, ?array $uncertain, float $estVolume, string $gapFrom, string $asOf,
+        string $endExcl, float $estEnergy, float $projected): ?array
+    {
+        $band = null;
+        $lp = $this->lastProjection;
+        if ($est !== null && $uncertain === null && !empty($lp['trusted']) && is_array($lp['model'] ?? null) && $estVolume > 0) {
+            $model = $lp['model'];
+            $normals = $this->hddNormals($this->hddBaseFor($meter));
+            $varW = 0.0; $varN = 0.0; $estDays = 0;
+            $from = $gapFrom; $future = max($asOf, $gapFrom);
+            for ($t = strtotime(substr($from, 0, 7) . '-01'); $t !== false && date('Y-m-d', $t) < $endExcl; $t = strtotime('+1 month', $t)) {
+                $ms = date('Y-m-d', $t); $me = date('Y-m-d', (int)strtotime('+1 month', $t));
+                $dim = (int)date('t', $t);
+                $days = fn(string $a, string $b): int => max(0, (int)round((strtotime(min($b, $me, $endExcl)) - strtotime(max($a, $ms))) / 86400));
+                $all = $days($from, $endExcl);
+                if ($all <= 0) continue;
+                $estDays += $all;
+                $varN += ((float)($model['resid_sd'] ?? 0.0) * $all / $dim) ** 2;
+                $fut = $days($future, $endExcl);
+                $sd = $normals[(int)date('n', $t)]['sd'] ?? null;
+                if ($fut > 0 && is_numeric($sd)) $varW += ((float)$model['a'] * (float)($lp['heat'] ?? 1.0) * (float)$sd * $fut / $dim) ** 2;
+            }
+            $z = (float)$this->settings->get('confidence_band_sigma', 1.28);
+            $price = $estEnergy / $estVolume;   // € je geschätzter Einheit
+            $half = round($z * sqrt($varW + $varN) * $price, 2);
+            if ($half >= self::BAND_MIN_EUR) {
+                $band = ['low' => round($projected - $half, 2), 'high' => round($projected + $half, 2), 'half' => $half,
+                         'level_pct' => (int)round((2 * (0.5 * (1 + self::erf($z / M_SQRT2))) - 1) * 100), 'estimated_days' => $estDays,
+                         'weather' => round($z * sqrt($varW) * $price, 2), 'model' => round($z * sqrt($varN) * $price, 2)];
+            }
+        }
+        return $band;
     }
 
     /** v3.9.0 (Skeptiker M6) — Breite unter einem Euro zeigt die Karte nicht. */

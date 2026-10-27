@@ -60,6 +60,33 @@ final class UntrustedHeatModelTest extends ServiceTestCase
         }
     }
 
+    /**
+     * Ohne verlässliches Modell zählt ein verteilter Kalendermonat nur aus kurzen Abständen
+     * (ForecastService::INTERP_GAP_MAX_DAYS), wie in der Prognose. Im Testhaushalt fehlen dafür die
+     * Ablesungen zwischen 01.08. und 15.10. jedes Jahres: Der September ist nur noch aus Abständen
+     * über 62 Tage verteilt. Dann schätzen Prognose und Karte ihn mit dem Heizmodell und der
+     * gemessenen Sommerrate als Grundlast, nicht mit der Tagesrate des langen Abstands.
+     */
+    public function testWithoutATrustedModelOnlyShortGapsReplaceAMonth(): void
+    {
+        $meter = $this->messy();
+        $rows = array_values(array_filter($this->store->read('gas/readings.json'), fn($r) => !(substr((string)$r['date'], 5) >= '08-01' && substr((string)$r['date'], 5) <= '10-15')));
+        $this->store->write('gas/readings.json', $rows);
+        $monthly = $this->consumption->forMeter('gas', $meter);
+        $septs = array_values(array_filter($monthly, fn($m) => (int)$m['month'] === 9 && (int)$m['days'] >= 20));
+        self::assertNotEmpty($septs);
+        foreach ($septs as $m) self::assertTrue(!empty($m['interpolated']) && (int)$m['reading_gap_days'] > ForecastService::INTERP_GAP_MAX_DAYS, $m['ym']);
+        $est = (new \ReflectionMethod($this->consumption, 'volumeEstimator'))->invoke($this->consumption, 'gas', $monthly, 'kwh', $meter);
+        $p = (new \ReflectionProperty($this->consumption, 'lastProjection'))->getValue($this->consumption);
+        self::assertFalse($p['trusted']);
+        $fc = array_column((new ForecastService($this->consumption, $this->regression, $this->settings, $this->contracts, $this->i18n))->forMeter('gas', $meter)['forecast'], null, 'ym');
+        self::assertStringStartsWith('heat_model', $fc['2026-09']['method']);
+        // dieselbe Monatsmenge wie die Prognose (bis auf den Faktor), nicht die des langen Abstands
+        self::assertEqualsWithDelta((float)$fc['2026-09']['kwh'] * (float)$p['base'], self::monthSum($est, '2026-09'), 0.02 * (float)$fc['2026-09']['kwh']);
+        $longRate = array_sum(array_map(fn($m) => (float)$m['kwh'] / (int)$m['days'], $septs)) / count($septs);
+        self::assertGreaterThan(0.05 * $longRate * 30, abs(self::monthSum($est, '2026-09') - $longRate * 30 * (float)$p['base']), 'nicht die Tagesrate des langen Abstands');
+    }
+
     public function testATrustedHeatModelStillEstimatesWithTheWeather(): void
     {
         // gleichmäßig 5 kWh Grundlast + 0,3 kWh je Gradtag, monatlich abgelesen: verlässliches Modell

@@ -26,6 +26,12 @@ final class ProjectionBandTest extends ServiceTestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->household('2026-01-01');
+    }
+
+    /** Haushalt mit Ablesungen am Monatsersten bis $last. */
+    private function household(string $last): void
+    {
         $this->meterId = $this->setMeterDevices('gas', [['id' => 'd_b', 'serial' => null, 'installed_on' => '2023-01-01', 'initial_counter' => 0.0,
             'removed_on' => null, 'final_counter' => null, 'reason' => null]]);
         $temps = []; $rows = []; $c = 0.0; $seed = 7;
@@ -35,7 +41,7 @@ final class ProjectionBandTest extends ServiceTestCase
             $noise = ($seed / 2147483648 - 0.5) * 8.0;   // ±4 K Wetter, deterministisch
             $avg = 10.0 - 9.0 * cos(2 * M_PI * ((int)date('z', $t) - 15) / 365.25) + $noise;
             $temps[$d] = ['avg' => round($avg, 1), 'min' => round($avg - 3, 1), 'max' => round($avg + 3, 1)];
-            if ($d <= '2026-01-01' && substr($d, 8) === '01') $rows[] = ['date' => $d, 'counter' => round($c, 1), 'device_id' => 'd_b'];
+            if ($d <= $last && substr($d, 8) === '01') $rows[] = ['date' => $d, 'counter' => round($c, 1), 'device_id' => 'd_b'];
             $c += 5.0 + 0.3 * max(0.0, 15.0 - round($avg, 1));
         }
         $this->store->write('temperatures.json', $temps);
@@ -69,9 +75,24 @@ final class ProjectionBandTest extends ServiceTestCase
         self::assertEqualsWithDelta($c['projected_end_balance'] - $b['half'], $b['low'], 0.011);
         self::assertEqualsWithDelta($c['projected_end_balance'] + $b['half'], $b['high'], 0.011);
         self::assertSame(80, $b['level_pct']);
+        // die Breite verändert die Projektion nicht: der Saldo-Verlauf endet beim Endsaldo
+        $path = $c['balance_path'];
+        self::assertEqualsWithDelta($c['projected_end_balance'], $path[count($path) - 1]['balance'], 0.01);
         // kein „unsicher“: Vorschlag bzw. laufender Abschlag bleiben (hier zwei Abschläge bis zur Abrechnung, L12)
         self::assertSame('short', $c['suggestion_withheld']);
         self::assertNotNull($c['advance_ongoing']);
+    }
+
+    public function testTheBandLeavesTheBalancePathAlone(): void
+    {
+        // letzte Ablesung 01.06.2026, Saldo ab 01.01.2026: gemessene Monate und geschätzter Rest getrennt
+        foreach (['meters', 'readings', 'contracts'] as $pot) $this->store->write("gas/$pot.json", []);
+        $this->household('2026-06-01');
+        $c = $this->consumption->contractStatus('gas', $this->meters->get('gas', $this->meterId), self::TODAY)['contracts'][0];
+        self::assertNotNull($c['projection_band']);
+        $path = $c['balance_path'];
+        self::assertEqualsWithDelta($c['projected_end_balance'], $path[count($path) - 1]['balance'], 0.01, 'Verlauf endet beim Endsaldo');
+        self::assertEqualsWithDelta($c['cost_to_date'] + $c['estimated_cost_remaining'], $path[count($path) - 1]['cost'], 0.02);
     }
 
     public function testAnUncertainEstimateKeepsItsRangeAndGetsNoBand(): void
