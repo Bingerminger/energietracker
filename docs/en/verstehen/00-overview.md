@@ -331,6 +331,46 @@ data the optimum lay far below 15 °C; an invented household of the same shape (
 load 6.5 kWh a day, heating only below 12 °C) shows a base load of 1.25 instead of
 6.5 kWh a day at 15 °C and suggests 12 °C (`RealDataFollowUpTest`).
 
+**A calmer grid (since v3.9.0, GitHub #38).** With two years of monthly values the
+spread jumps by a quarter and more from one grid point to the next. For the
+maintainer the minimum sat at a single limit in a narrow valley, and right there
+the robustness step of the fit dropped a quarter of the months: the model fitted
+the rest very well, and the look back at May to September was a third above the
+measurement with this limit. Since then:
+
+```text
+smoothed(g)    = mean spread of all limits up to 1 °C either side of g   (five grid points)
+eligible       ⇔ base load check passed, summer overestimated by at most 10 %,
+                 May to September together overestimated by at most 10 %,
+                 and the fit drops at most one month in ten (at least one) as a real
+                 outlier (more than 10 % of a typical month off)
+plateau        = adjoining eligible limits, smoothed at most 15 % above the best
+suggestion     = the limit of the plateau closest to today's
+much better    : smoothed ≤ 2/3 × spread today and at least 3 percentage points less
+```
+
+Nearly noise-free months (±2 %) also drop out of the fit when the spread is tiny,
+but they lie within everyday noise and do not count as outliers. The plateau's
+range is part of the suggestion (`range`): “Between 10.5 and 11.5 °C the model fits
+about equally well” (`HeatLimitFollowUpTest`, also on a noisy series and on the
+messy test household).
+
+**Where the suggestion appears (since v3.9.0).** Under “To do” on the overview
+(agenda `heat_limit`, recommendation of category `modell`) with before and after
+and the effect on the expected balance and the advance payment suggestion of the
+current contract, with “Apply (this meter only)” and “Not now”. “Not now” hides
+exactly this state of the data (the suggested limit and the number of checked
+months are part of the recommendation's ID); when a measured month is added, it
+comes back. The same note appears on the balance card, in the forecast and in the
+workshop when their estimate is uncertain because of a poor fit (`poor_fit`).
+Applying works there at every level and can be undone; the analysis with the grid
+and the reset stays from Experienced. **Heating oil and pellets** have their own
+limit too (they spread their deliveries by the degree days of that limit), and so
+do **meter groups** (`hdd_base_temp` on the group: the members use it for the sum,
+the expectation of the sum comes from the heating model of the sum). There is a
+suggestion for meters with readings and for groups, not for tanks (their months
+are spread by degree days).
+
 > **Replaced (deprecated since v2.8.0, still delivered):**
 > `weather_adjusted` scaled the **entire** consumption with the HDD ratio — hot
 > water included; a September was thus "adjusted" by 54 %. `delta_pct` compared
@@ -684,9 +724,30 @@ ratio            = σ_robust / average measured month   (mean of the checked mon
 base load        = expectation / consumption of measured summer months
                    (no degree days at 18 °C, otherwise June to August; at least 2 months;
                    measured as the median of the daily rates)
+base load c      = c × days / consumption of the same months   (since v3.9.0, the lower bound)
 model_quality    = poor if ratio > 15 % or base load outside 0.5 … 1.5
+                   (since v3.9.0 the lower bound uses base load c, the upper bound the base load)
 detect_floor     = anomaly_threshold × max(σ_robust, 10 % of the typical month)
 ```
+
+**Lower bound with the base load itself (since v3.9.0, GitHub #38).** Up to v3.7.1
+the lower bound also measured the whole expectation of the summer months. At high
+heating limits `c` drops to zero, but the cool summer days get degree days, and
+`a × HDD` lifted the expectation back above half of the measurement. For the
+reporter the check failed in v3.7.0 between 14 and 16.5 °C and passed again at 17
+to 18 °C. The fixed summer reference of v3.7.1 did not change that, because the
+expectation itself is not monotone in the limit: in the messy test household it
+failed with v3.7.1 from 12.5 to 17.5 °C and passed at 18 °C. Now the lower bound
+checks `c` (`base_load.base_ratio`, `base_per_day`), the upper bound still the
+whole expectation; the limits that pass form one contiguous range.
+
+**Recurring months (since v3.9.0).** A calendar month reported in the same
+direction in at least two years and on the same side of the expectation in every
+checked year is a **pattern**, not an event (`anomalies[].pattern`,
+`pattern_years`): with a curved heating curve, April and October lie below or
+above the straight line every year. The analysis combines them into one line per
+month and points to the heating limit; R1 and R4 no longer turn them into
+recommendations.
 
 **The same summer for every heating limit (since v3.7.1, GitHub #38).** Up to v3.7.0
 the summer months were those with HDD ≤ `min_hdd_regression` — calculated with the

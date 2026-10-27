@@ -210,7 +210,8 @@
       "billDeadline": "délai légal du fournisseur : {date}",
       "billOverdueSince": "délai légal dépassé le {date}",
       "billNoDeadline": "pas de délai légal",
-      "billAction": "Saisir la facture"
+      "billAction": "Saisir la facture",
+      "heatLimitAction": "Voir"
     },
     "welcome": {
       "title": "Bienvenue dans Energietracker",
@@ -1376,6 +1377,16 @@
       "export": "injection",
       "exportHt": "injection HP",
       "exportNt": "injection HC"
+    },
+    "heatLimit": {
+      "title": "Température de base DJU",
+      "label": "Température de base DJU de ce compteur (°C)",
+      "placeholder": "{value} (par défaut)",
+      "hint": "Un jour dont la température moyenne est inférieure compte comme jour de chauffage. Attendu, correction, prévision et solde de ce compteur l’utilisent. Vide signifie la valeur par défaut des paramètres ({value} °C).",
+      "hintTank": "Un jour dont la température moyenne est inférieure compte comme jour de chauffage. L’application répartit les livraisons de cette cuve sur les mois selon ces jours. Vide signifie la valeur par défaut des paramètres ({value} °C).",
+      "suggest": "Proposition d’après les mois mesurés : {best} °C. Un mois s’écarte alors typiquement de {then} d’un mois moyen au lieu de {now}.",
+      "use": "Saisir {value} °C",
+      "invalid": "Température de base DJU entre {min} et {max} °C, ou laisser vide"
     }
   },
   "settings": {
@@ -2442,7 +2453,7 @@
     "filterAll": "Toutes ({count})",
     "filterGroupLabel": "Filtrer par urgence",
     "sev": { "urgent": "Urgent", "warning": "Attention", "info": "Note" },
-    "cat": { "effizienz": "Efficacité", "vertrag": "Contrat", "bestand": "Stock", "anomalie": "Anomalie", "trend": "Tendance" },
+    "cat": { "effizienz": "Efficacité", "vertrag": "Contrat", "bestand": "Stock", "anomalie": "Anomalie", "trend": "Tendance", "modell": "Modèle de chauffage" },
     "emptyAll": "Aucune recommandation — tout va bien.",
     "dismiss": "Masquer pendant 30 jours",
     "error": "Erreur : {msg}",
@@ -2498,6 +2509,13 @@
       "rPriceIncrease": {
         "title": "{label} : hausse de prix au {date}",
         "detail": "{provider} augmente ses prix au {date}. Vous avez donc un droit de résiliation exceptionnel à cette date (§ 41 al. 5 EnWG). Comparez dès maintenant et résiliez à temps si un autre tarif est moins cher."
+      },
+      "heatLimit": {
+        "title": "Ajuster la température de base DJU : avec {best} °C, le modèle de chauffage correspond nettement mieux",
+        "detail": "Prévision, solde et acompte dépendent du modèle de chauffage. Avec {current} °C, un mois s’écarte typiquement de {now} d’un mois moyen, avec {best} °C de {then}.",
+        "baseLoad": "Il estime aujourd’hui la charge de base estivale à {now} {unit} par jour, avec {best} °C à {then} ; {measured} ont été mesurés.",
+        "scope": "La température ne vaut que pour ce compteur et n’est appliquée que lorsque vous cliquez.",
+        "scopeGroup": "La température ne vaut que pour ce groupe de compteurs et n’est appliquée que lorsque vous cliquez."
       }
     },
     "dismissedNamed": "« {title} » masqué pendant 30 jours",
@@ -2812,6 +2830,12 @@
       "own": "Ce compteur utilise sa propre température de base DJU de {value} °C (par défaut {default} °C).",
       "reset": "Revenir à {value} °C",
       "resetDone": "Température de base DJU de ce compteur réinitialisée"
+    },
+    "pattern": {
+      "low": "{month} : chaque année en dessous de l’attendu en {years} ({pcts})",
+      "high": "{month} : chaque année au-dessus de l’attendu en {years} ({pcts})",
+      "whyHeat": "Ces mois s’écartent de l’attendu de la même façon chaque année. C’est un motif du modèle de chauffage, pas un événement isolé : une droite ne suit pas les mois de transition d’une courbe de chauffe incurvée. Une autre température de base DJU peut aider.",
+      "why": "Ces mois s’écartent de l’attendu de la même façon chaque année. C’est un motif récurrent, pas un événement isolé."
     }
   },
   "forecast": {
@@ -4530,7 +4554,8 @@
       "billOverdue": "Facture en retard : {label} ({provider}) pour {from} – {until} — délai légal dépassé, contactez le fournisseur",
       "finalBillExpected": "Facture de clôture attendue : {label} ({provider}) pour {from} – {until}",
       "finalBillOverdue": "Facture de clôture en retard : {label} ({provider}) pour {from} – {until} — délai légal dépassé, contactez le fournisseur",
-      "cancelConfirm": "{label} : résiliation confirmée ? ({provider}, passage à {next})"
+      "cancelConfirm": "{label} : résiliation confirmée ? ({provider}, passage à {next})",
+      "heatLimit": "{label} : ajuster la température de base DJU à {best} °C ({meter})"
     },
     "subscribe": "S’abonner dans votre agenda",
     "intro": "Rendez-vous, échéances de résiliation, fins de contrat, garanties de prix et relevés dus sous forme d’abonnement d’agenda. L’agenda les actualise toutes les 12 heures.",
@@ -7034,5 +7059,34 @@
     "setupChoice": {
       "hint": "Pour le photovoltaïque, une pompe à chaleur ou une borne avec compteur propre : d’abord la disposition, ensuite les relevés."
     }
+  },
+  "heatLimit": {
+    "title": "Ajuster la température de base DJU : avec {best} °C, le modèle de chauffage correspond nettement mieux",
+    "fit": "Aujourd’hui, un mois s’écarte typiquement de l’attendu de {now} d’un mois moyen, avec {best} °C de {then}.",
+    "baseLoad": "Charge de base en été (eau chaude, cuisine) : aujourd’hui {now} {unit} par jour selon le modèle, avec {best} °C {then}, mesuré {measured}.",
+    "range": "Entre {from} et {to} °C, le modèle correspond à peu près aussi bien ; la proposition est la température qui change le moins.",
+    "effect": {
+      "balance": "Solde attendu au {date} : aujourd’hui {before}, avec {best} °C {after}.",
+      "between": "entre {low} et {high}",
+      "advance": "Acompte (aujourd’hui {current} par mois) : proposition aujourd’hui {before}, avec {best} °C {after}.",
+      "advanceValue": "{amount} par mois",
+      "advanceRange": "entre {low} et {high} par mois",
+      "noAdvance": "aucune"
+    },
+    "hint": {
+      "balance": "La fourchette est aussi large parce que le modèle de chauffage correspond mal à ce compteur.",
+      "forecast": "Cette prévision est incertaine parce que le modèle de chauffage correspond mal à ce compteur.",
+      "workshop": "L’acompte et la part de chauffage manquent ici parce que le modèle de chauffage correspond mal à ce compteur."
+    },
+    "scope": "La température ne vaut que pour ce compteur ; prévision, solde et acompte la prennent alors en compte.",
+    "scopeGroup": "La température ne vaut que pour ce groupe de compteurs ; prévision, solde et acompte du contrat de groupe la prennent alors en compte.",
+    "apply": "Appliquer (ce compteur uniquement)",
+    "applyGroup": "Appliquer (ce groupe uniquement)",
+    "applied": "Température de base DJU de ce compteur réglée sur {value} °C. Prévision, solde et acompte en tiennent compte désormais.",
+    "appliedGroup": "Température de base DJU de ce groupe de compteurs réglée sur {value} °C. Prévision, solde et acompte en tiennent compte désormais.",
+    "undone": "Température de base DJU revenue à l’état précédent",
+    "notNow": "Pas maintenant",
+    "notNowHint": "Réapparaît lorsque de nouveaux mois sont mesurés ou que la proposition change.",
+    "dismissed": "Masqué jusqu’à ce que de nouveaux mois soient mesurés ou que la proposition change."
   }
 }

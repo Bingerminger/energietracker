@@ -161,6 +161,8 @@ async function enumerate(get, post = null) {
       if (u.supports_bill_check) add(`/api/utility/${k}/bills?meter_id=${q}`);    // v3.1.0 (H5)
       // v3.7.0 (wirklichkeit-2) — die Analyse fragt Heizarten mit Heizgrenze-Vorschlag
       if (u.hgt_relevant) add(`/api/utility/${k}/meters/${id}/consumption?heat_limit=1`);
+      // v3.9.0 (#38) — Saldo-Karte, Prognose und Werkstatt fragen den Vorschlag eigens
+      if (u.hgt_relevant) add(`/api/utility/${k}/meters/${id}/heat-limit`);
       // v3.6.0 (F1030) — Verbrauchsart und Analyse im Abrechnungsjahr
       if (u.supports_bill_check && m.capture !== 'period') add(`/api/utility/${k}/meters/${id}/billing-periods?months=1`);
       // v3.6.0 (Paket abrechnung) — „Rechnung prüfen“ schlägt die jüngste

@@ -195,6 +195,20 @@ deadlines as soon as they are due; a follow-on contract with a gap is named in
 the second line. The beginner overview has the tick as well.
 [Ticking off notices](../anleitungen/hinweise-erledigen.md).
 
+**Adjust the heating limit (v3.9.0, GitHub #38):** If a meter’s heating model
+fits much better with a different heating limit, “To do” shows “Adjust the
+heating limit: with X °C the heating model fits much better”. Below it, before
+and after: how far a month typically deviates from the expectation and which
+summer base load the model assumes, plus the expected balance and the advance
+payment suggestion of the current contract today and with the new limit.
+**“Apply (this meter only)”** sets the limit on the meter (on the group for a
+group contract); the message afterwards offers “Undo”. **“Not now”** hides the
+entry until a new month is measured or the suggestion changes. The same note
+with the same button appears on the balance card, in the forecast and in the
+workshop when their estimate is uncertain because the heating model fits poorly.
+Both buttons exist at every level; the analysis with the whole grid stays from
+Experienced.
+
 **Without data (v2.13.0)** a welcome replaces the empty tiles: what the
 Energietracker does, the first steps with ticks taken from the data (location,
 first and second reading, contract, optionally Home Assistant) and **"Try with
@@ -1691,6 +1705,14 @@ summarises the swap before performing it. A **contract** needs a provider or tar
 and at least one working price; the start is prefilled with the day after the
 current commitment, and the app asks before a new contract supersedes a running one. Since v2.12.0 the first price rows apply from the contract start and follow it until someone changes their date; a pre-filled row without an amount stays empty. "From start" (up to v2.11 "⇧ Start") sets a row to the contract start. The contract card counts in the right plural ("1 working price"), delete is an outlined button, and the question names the contract. Since v2.9.0 the **Notice period** takes months, weeks or days, plus **Cancellation takes effect** ("automatic", "at the end of the term", "any time, at month end", "any time, to any day") and the **"Renews unless cancelled"** checkbox — clear it once you have cancelled. A meter with *Active* cleared still counts in every total, but no longer appears in the reading entry and raises no warnings. Below the unit prices of a gas contract, **"Convert a price per m³"** (v2.7.0) turns a price per m³ or Smc into ct/kWh and enters it. For oil/pellets only the tank/store
 management is relevant here. When creating or editing a tank, **tank capacity** and **initial stock** are captured (instead of a cumulative meter reading), since v2.10.0 optionally the **price of the initial stock** (empty = price of the first delivery). For cumulative meters the **register digits** can be maintained since v2.6.0 — the evaluation then calculates a rollover (99,999 → 0) correctly; the device line shows them.
+
+**Heating limit (v3.9.0):** For gas, district heating, heat, heating oil and pellets
+the form has its own block with this meter’s heating limit (6 to 22 °C). Empty
+means the default from the settings, shown as the placeholder. The explanation
+says what the limit changes (expectation, adjustment, forecast, balance; for
+tanks how deliveries are spread over the months). If the measured months give a
+suggestion, it appears below with a button that enters it into the field; it is
+only stored with “Save”.
 
 **Contract list (v3.4.0):** the contracts of a utility (Costs → Contracts →
 “Manage contracts”) stand in one view, backwards through time and grouped:

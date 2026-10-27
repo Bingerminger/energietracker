@@ -1007,6 +1007,8 @@ final class App
         // v3.6.0 (F1030, #33) — Abrechnungsperioden mit Summen (Zähler, Gruppe, ganze Art)
         $r->get('/api/utility/{utility}/meters/{id}/billing-periods', fn($req) => $cCtrl->billingPeriods($req));
         $r->get('/api/utility/{utility}/billing-periods',             fn($req) => $cCtrl->utilityBillingPeriods($req));
+        // v3.9.0 (#38) — Heizgrenze-Vorschlag mit Vorher/Nachher und Wirkung auf Saldo und Abschlag
+        $r->get('/api/utility/{utility}/meters/{id}/heat-limit',      fn($req) => $cCtrl->heatLimit($req));
 
         // ── Forecast ──
         $fCtrl = new ForecastController($this->forecasts, $this->meters, $this->i18n);
@@ -1082,6 +1084,7 @@ final class App
         $r->get('/api/utility/{utility}/meter-groups/{id}/billing-periods', fn($req) => $cCtrl->billingPeriods($req));   // v3.6.0 (F1030)
         $r->get('/api/utility/{utility}/meter-groups/{id}/forecast',        fn($req) => $fCtrl->forMeter($req));
         $r->get('/api/utility/{utility}/meter-groups/{id}/tariff-switch',   fn($req) => $tsCtrl->analyze($req));
+        $r->get('/api/utility/{utility}/meter-groups/{id}/heat-limit',      fn($req) => $cCtrl->heatLimit($req));   // v3.9.0 (#38)
 
         // ── Empfehlungen (v1.3.0 — statistische Insights) ──
         $recCtrl = new RecommendationController($this->recommendations);

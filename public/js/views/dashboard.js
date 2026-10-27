@@ -7,8 +7,9 @@ import { getUtilities, getSettings } from '../state.js';
 import { fmt, escapeHtml, todayIso } from '../lib/format.js';
 import { makeChart, chartColor, withAlpha, tokenColor, chartTableHtml } from '../components/chart.js';
 import { isPartial, daysInMonth, yoyTrend, lastMonths, shiftYm } from '../lib/chart-data.js';
-import { toastErr } from '../components/toast.js';
+import { toastErr, toastUndo } from '../components/toast.js';
 import { t, tp } from '../lib/i18n.js';
+import { heatLimitFacts, heatLimitEffect, applyHeatLimit, isGroupId } from '../lib/heat-limit.js';   // v3.9.0 (#38)
 import { loadDemo } from '../lib/demo.js';
 import { tankLevel } from '../lib/tank.js';
 import { info, infoNote } from '../components/info.js';
@@ -437,6 +438,16 @@ export function buildTodo(events, recs, keep = () => true) {
         : t('dashboard.todo.billNoDeadline'),
       href: e.href, ev: e, action: t('dashboard.todo.billAction') });
   }
+  // v3.9.0 (#38) — Heizgrenze anpassen: Vorher/Nachher und Wirkung, „Übernehmen“ und „Nicht jetzt“
+  for (const e of due.filter(x => x.kind === 'heat_limit')) {
+    const r = e.ref || {};
+    const h = { best: r.best, current: r.current, own: r.own, range: r.range, before: r.before, after: r.after, effect: r.effect };
+    // je Satz eine Zeile (am Handy sonst ein Block): Zähler, vorher/nachher, Wirkung
+    const lines = [`${e.params?.label ?? ''} · ${e.params?.meter ?? ''}`, ...heatLimitFacts(h, r.unit || 'kWh'), ...heatLimitEffect(h)];
+    items.push({ icon: '🌡️', tone: 'warn', text: t('heatLimit.title', { best: fmt.num(Number(r.best), 1) }),
+      sub: lines.join(' '), subLines: lines,
+      href: e.href, ev: e, action: t('dashboard.todo.heatLimitAction'), heatLimit: { ...h, utility: r.utility, id: r.meter_id, recId: r.recommendation_id } });
+  }
   // Überfälliges zuerst
   const sorted = items.sort((a, b) => (a.tone === 'alert' ? 0 : 1) - (b.tone === 'alert' ? 0 : 1));
   sorted.source = items.source;
@@ -452,13 +463,24 @@ function todoItemsHtml(items, { go = true } = {}) {
   return items.map((x, i) => `<li class="dash-todo__item dash-todo__item--${x.tone}${x.ev?.can_mark_done ? ' dash-todo__item--check' : ''}">
     <a class="dash-todo__link" href="${x.href}">
       <span class="dash-todo__icon" aria-hidden="true">${escapeHtml(x.icon)}</span>
-      <span class="dash-todo__text"><strong>${escapeHtml(x.text)}</strong>${x.sub ? `<span class="muted">${escapeHtml(x.sub)}</span>` : ''}${x.ev ? chipHtml(x.ev) : ''}</span>
+      <span class="dash-todo__text"><strong>${escapeHtml(x.text)}</strong>${x.subLines ? x.subLines.map(s => `<span class="muted">${escapeHtml(s)}</span>`).join('')
+        : x.sub ? `<span class="muted">${escapeHtml(x.sub)}</span>` : ''}${x.ev ? chipHtml(x.ev) : ''}</span>
       ${go ? `<span class="btn btn--sm btn--ghost dash-todo__go">${escapeHtml(x.action)}</span>` : ''}
       <span class="dash-todo__chev" aria-hidden="true">›</span>
     </a>
     ${x.ev?.can_mark_done ? `<button type="button" class="btn btn--sm btn--ghost dash-todo__done" data-todo-done="${i}"
       title="${escapeHtml(t('activity.markDone'))}" aria-label="${escapeHtml(t('activity.markDoneNamed', { title: x.text }))}"><span aria-hidden="true">✓</span></button>` : ''}
+    ${x.heatLimit ? heatLimitActionsHtml(x, i) : ''}
   </li>`).join('');
+}
+
+/** v3.9.0 (#38) — „Übernehmen (nur dieser Zähler)“ und „Nicht jetzt“ unter dem Heizgrenze-Eintrag. */
+function heatLimitActionsHtml(x, i) {
+  const group = isGroupId(x.heatLimit.id);
+  return `<div class="dash-todo__actions" data-role="heat-limit-todo" data-meter="${escapeHtml(String(x.heatLimit.id ?? ''))}">
+      <button type="button" class="btn btn--sm btn--util" data-heat-apply="${i}">${escapeHtml(t(group ? 'heatLimit.applyGroup' : 'heatLimit.apply'))}</button>
+      <button type="button" class="btn btn--sm btn--ghost" data-heat-later="${i}" title="${escapeHtml(t('heatLimit.notNowHint'))}">${escapeHtml(t('heatLimit.notNow'))}</button>
+    </div>`;
 }
 
 /**
@@ -511,6 +533,29 @@ export function renderTodoBox(box, items) {
     const x = shown[Number(btn.dataset.todoDone)];
     if (!x?.ev) return;
     if (await markEventDone(x.ev, { title: x.text, onChange: refresh })) btn.closest('li')?.remove();
+  }));
+  // v3.9.0 (#38) — Heizgrenze übernehmen (mit Rückgängig) oder für diesen Datenstand ausblenden
+  const list = full ? shown : items;
+  box.querySelectorAll('[data-heat-apply]').forEach(btn => btn.addEventListener('click', async () => {
+    const h = list[Number(btn.dataset.heatApply)]?.heatLimit;
+    if (!h) return;
+    btn.disabled = true;
+    if (!await applyHeatLimit({ utility: h.utility, id: h.id, value: h.best, previous: h.own ? h.current : null, onChange: refresh })) btn.disabled = false;
+  }));
+  box.querySelectorAll('[data-heat-later]').forEach(btn => btn.addEventListener('click', async () => {
+    const h = list[Number(btn.dataset.heatLater)]?.heatLimit;
+    if (!h?.recId) return;
+    btn.disabled = true;
+    try {
+      // bis die Daten sich ändern: die Empfehlung trägt den Datenstand in ihrer ID; ein Jahr als Obergrenze
+      const until = new Date(Date.now() + 365 * 86400000).toISOString().slice(0, 10);
+      await api.dismissRecommendation(h.recId, until);
+      btn.closest('li')?.remove();
+      toastUndo(t('heatLimit.dismissed'), async () => {
+        try { await api.restoreRecommendation(h.recId); await refresh(); } catch (e) { toastErr(e.message); }
+      });
+      window.dispatchEvent(new CustomEvent('et:badges-refresh'));
+    } catch (e) { toastErr(e.message); btn.disabled = false; }
   }));
 }
 

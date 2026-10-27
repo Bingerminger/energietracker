@@ -210,7 +210,8 @@
       "billDeadline": "plazo legal del proveedor: {date}",
       "billOverdueSince": "plazo legal vencido el {date}",
       "billNoDeadline": "sin plazo legal",
-      "billAction": "Registrar factura"
+      "billAction": "Registrar factura",
+      "heatLimitAction": "Ver"
     },
     "welcome": {
       "title": "Bienvenido a Energietracker",
@@ -1376,6 +1377,16 @@
       "export": "vertido",
       "exportHt": "vertido punta",
       "exportNt": "vertido valle"
+    },
+    "heatLimit": {
+      "title": "Temperatura base GD",
+      "label": "Temperatura base GD de este contador (°C)",
+      "placeholder": "{value} (por defecto)",
+      "hint": "Un día cuya temperatura media está por debajo cuenta como día de calefacción. Lo esperado, la corrección, la previsión y el saldo de este contador la usan. Vacío significa el valor por defecto de los ajustes ({value} °C).",
+      "hintTank": "Un día cuya temperatura media está por debajo cuenta como día de calefacción. La app reparte las entregas de este depósito entre los meses según esos días. Vacío significa el valor por defecto de los ajustes ({value} °C).",
+      "suggest": "Propuesta a partir de los meses medidos: {best} °C. Un mes se desvía entonces normalmente el {then} de un mes medio en lugar del {now}.",
+      "use": "Introducir {value} °C",
+      "invalid": "Temperatura base GD entre {min} y {max} °C, o dejar vacío"
     }
   },
   "settings": {
@@ -2442,7 +2453,7 @@
     "filterAll": "Todas ({count})",
     "filterGroupLabel": "Filtrar por urgencia",
     "sev": { "urgent": "Urgente", "warning": "Atención", "info": "Nota" },
-    "cat": { "effizienz": "Eficiencia", "vertrag": "Contrato", "bestand": "Existencias", "anomalie": "Anomalía", "trend": "Tendencia" },
+    "cat": { "effizienz": "Eficiencia", "vertrag": "Contrato", "bestand": "Existencias", "anomalie": "Anomalía", "trend": "Tendencia", "modell": "Modelo de calefacción" },
     "emptyAll": "Sin recomendaciones — todo en orden.",
     "dismiss": "Ocultar durante 30 días",
     "error": "Error: {msg}",
@@ -2498,6 +2509,13 @@
       "rPriceIncrease": {
         "title": "{label}: subida de precio a partir del {date}",
         "detail": "{provider} sube los precios a partir del {date}. Tienes por ello un derecho de rescisión extraordinario en esa fecha (§ 41 apdo. 5 EnWG). Compara ahora y rescinde a tiempo si otra tarifa es más barata."
+      },
+      "heatLimit": {
+        "title": "Ajustar la temperatura base GD: con {best} °C el modelo de calefacción se ajusta mucho mejor",
+        "detail": "Previsión, saldo y anticipo dependen del modelo de calefacción. Con {current} °C un mes se desvía normalmente el {now} de un mes medio, con {best} °C el {then}.",
+        "baseLoad": "Hoy estima la carga base de verano en {now} {unit} al día, con {best} °C en {then}; se midieron {measured}.",
+        "scope": "La temperatura solo vale para este contador y solo se aplica cuando haces clic.",
+        "scopeGroup": "La temperatura solo vale para este grupo de contadores y solo se aplica cuando haces clic."
       }
     },
     "dismissedNamed": "«{title}» oculto durante 30 días",
@@ -2812,6 +2830,12 @@
       "own": "Este contador usa su propia temperatura base GD de {value} °C (por defecto {default} °C).",
       "reset": "Volver a {value} °C",
       "resetDone": "Temperatura base GD de este contador restablecida"
+    },
+    "pattern": {
+      "low": "{month}: cada año por debajo de lo esperado en {years} ({pcts})",
+      "high": "{month}: cada año por encima de lo esperado en {years} ({pcts})",
+      "whyHeat": "Estos meses se desvían de lo esperado igual cada año. Es un patrón del modelo de calefacción, no un hecho aislado: una recta no acierta los meses de transición de una curva de calefacción curvada. Otra temperatura base GD puede ayudar.",
+      "why": "Estos meses se desvían de lo esperado igual cada año. Es un patrón recurrente, no un hecho aislado."
     }
   },
   "forecast": {
@@ -4530,7 +4554,8 @@
       "billOverdue": "Factura con retraso: {label} ({provider}) para {from} – {until} — plazo legal vencido, pregunta al proveedor",
       "finalBillExpected": "Factura de cierre esperada: {label} ({provider}) para {from} – {until}",
       "finalBillOverdue": "Factura de cierre con retraso: {label} ({provider}) para {from} – {until} — plazo legal vencido, pregunta al proveedor",
-      "cancelConfirm": "{label}: ¿baja confirmada? ({provider}, cambio a {next})"
+      "cancelConfirm": "{label}: ¿baja confirmada? ({provider}, cambio a {next})",
+      "heatLimit": "{label}: ajustar la temperatura base GD a {best} °C ({meter})"
     },
     "subscribe": "Suscribirse en el calendario",
     "intro": "Citas, plazos de cancelación, fin de contratos, garantías de precio y lecturas pendientes como suscripción de calendario. El calendario los actualiza cada 12 horas.",
@@ -7034,5 +7059,34 @@
     "setupChoice": {
       "hint": "Para fotovoltaica, bomba de calor o cargador con contador propio: primero la disposición, luego las lecturas."
     }
+  },
+  "heatLimit": {
+    "title": "Ajustar la temperatura base GD: con {best} °C el modelo de calefacción se ajusta mucho mejor",
+    "fit": "Hoy un mes se desvía normalmente de lo esperado el {now} de un mes medio, con {best} °C el {then}.",
+    "baseLoad": "Carga base en verano (agua caliente, cocina): hoy {now} {unit} al día según el modelo, con {best} °C {then}, medidos {measured}.",
+    "range": "Entre {from} y {to} °C el modelo se ajusta más o menos igual de bien; la propuesta es la temperatura que menos cambia.",
+    "effect": {
+      "balance": "Saldo esperado al {date}: hoy {before}, con {best} °C {after}.",
+      "between": "entre {low} y {high}",
+      "advance": "Anticipo (hoy {current} al mes): propuesta hoy {before}, con {best} °C {after}.",
+      "advanceValue": "{amount} al mes",
+      "advanceRange": "entre {low} y {high} al mes",
+      "noAdvance": "ninguna"
+    },
+    "hint": {
+      "balance": "El rango es tan amplio porque el modelo de calefacción se ajusta mal a este contador.",
+      "forecast": "Esta previsión es incierta porque el modelo de calefacción se ajusta mal a este contador.",
+      "workshop": "Aquí faltan el anticipo y la parte de calefacción porque el modelo de calefacción se ajusta mal a este contador."
+    },
+    "scope": "La temperatura solo vale para este contador; previsión, saldo y anticipo la usan después.",
+    "scopeGroup": "La temperatura solo vale para este grupo de contadores; previsión, saldo y anticipo del contrato de grupo la usan después.",
+    "apply": "Aplicar (solo este contador)",
+    "applyGroup": "Aplicar (solo este grupo)",
+    "applied": "Temperatura base GD de este contador fijada en {value} °C. Previsión, saldo y anticipo ya la usan.",
+    "appliedGroup": "Temperatura base GD de este grupo de contadores fijada en {value} °C. Previsión, saldo y anticipo ya la usan.",
+    "undone": "Temperatura base GD de nuevo como antes",
+    "notNow": "Ahora no",
+    "notNowHint": "Vuelve a aparecer cuando se miden meses nuevos o cambia la propuesta.",
+    "dismissed": "Oculto hasta que se midan meses nuevos o cambie la propuesta."
   }
 }

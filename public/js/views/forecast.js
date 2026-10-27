@@ -29,6 +29,7 @@ import { resultCardHtml, downloadResultCard } from '../components/result-card.js
 import { docUrl } from '../lib/docs.js';
 // v3.6.0 — derselbe Aufklappbereich wie „CO₂-Emissionsfaktoren“ in den Einstellungen
 import { disclosureHtml, wireDisclosures } from '../components/disclosure.js';
+import { fillHeatLimitSlot } from '../lib/heat-limit.js';   // v3.9.0 (#38)
 
 const esc = escapeHtml;
 let chart = null;
@@ -190,6 +191,7 @@ export async function render(container, params = [], ctx = {}) {
           <button type="button" class="btn btn--ghost" id="ws-csv" data-min-level="expert">${esc(t('scenario.share.csv'))}</button>
         </div>
         <p class="ws-note" id="ws-honesty"></p>
+        <div data-role="heat-limit-slot-ws"></div>
       </div>
     </div>
 
@@ -228,6 +230,7 @@ export async function render(container, params = [], ctx = {}) {
         <div class="chart-wrap"><canvas id="fc-chart"></canvas></div>
         <div data-role="fc-chart-data"></div>
         <div id="fc-info" class="muted" style="margin-top: var(--sp-3)"></div>
+        <div data-role="heat-limit-slot-fc"></div>
       </div>
       <div class="card" style="margin-top: var(--sp-5)">
         <h3 class="card__title">${t('forecast.monthlyDetail')}</h3>
@@ -614,6 +617,17 @@ export async function render(container, params = [], ctx = {}) {
     if (activePreset) parts.push(t(`scenario.preset.${activePreset}.note`, { pct: fmt.pct(state.winter_pct / 100, 0) }));
     for (const w of result.warnings || []) parts.push(t(`scenario.warn.${w.code}`, { n: w.months ?? 0, pct: fmt.pct(w.ratio ?? 0, 0) }));
     $('#ws-honesty').textContent = parts.join(' ');
+    heatLimitHint('ws', (result.warnings || []).some(w => w.code === 'poor_fit'), 'workshop', result.unit);
+  }
+
+  // v3.9.0 (#38) — schlecht passendes Heizmodell: der Heizgrenze-Vorschlag mit Knopf (Werkstatt und Prognose)
+  function heatLimitHint(where, poor, context, unit) {
+    const slot = container.querySelector(`[data-role="heat-limit-slot-${where}"]`);
+    if (!slot) return;
+    slot.innerHTML = '';
+    if (!poor || !meterSel.value) return;
+    fillHeatLimitSlot(slot, { utility: utilSel.value, id: meterSel.value, context, unit,
+      onChange: async () => { await Promise.all([compute(), run()]); } });
   }
 
   // ── Ereignisse ────────────────────────────────────────────────────────
@@ -775,6 +789,7 @@ export async function render(container, params = [], ctx = {}) {
       const res = await api.forecast(utility.key, meterSel.value, opts);
       if (my !== runSeq) return;   // überholt
       renderResult(utility, res, container);
+      heatLimitHint('fc', (res.warnings || []).some(w => w.code === 'poor_fit'), 'forecast', utility.consumption_unit);   // v3.9.0 (#38)
     } catch (e) { if (my === runSeq) toastErr(e.message); }
   }
 

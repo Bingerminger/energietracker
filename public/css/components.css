@@ -1513,6 +1513,9 @@ a.icon-btn { display: inline-flex; align-items: center; justify-content: center;
 .dash-todo__item--check { display: flex; align-items: center; gap: var(--sp-2); }
 .dash-todo__item--check .dash-todo__link { flex: 1 1 auto; min-width: 0; }
 .dash-todo__done { flex: none; min-width: 44px; min-height: 44px; justify-content: center; font-size: 18px; }
+/* v3.9.0 (#38) — Heizgrenze: zwei Knöpfe unter dem Eintrag, eingerückt wie der Text */
+.dash-todo__actions { display: flex; flex-wrap: wrap; gap: var(--sp-2); padding: 0 0 var(--sp-3) calc(24px + var(--sp-3)); }
+.heat-limit-hint p { margin: 0 0 var(--sp-2); }
 
 /* v3.4.0 (F1024) — Dialog „Erledigt" und Tab „Erledigt" */
 .done-dialog__what { margin: 0 0 var(--sp-3); }

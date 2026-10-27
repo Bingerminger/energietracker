@@ -13,7 +13,7 @@ All endpoints under `/api/…`. A uniform response envelope:
 
 `{utility}` is one of: `gas`, `strom`, `wasser`, `fernwaerme`, `heizoel`,
 `pellets`, `pv_einspeisung`, `pv_erzeugung` and, since v3.1.0, `waerme`
-(heat). As of: **192 routes**, v3.9.0 —
+(heat). As of: **194 routes**, v3.9.0 —
 `ReleaseConsistencyTest` checks that every registered route appears in the
 table below (German and English).
 
@@ -196,6 +196,7 @@ Reason: v2.0.0 silently switched `verdict` from "Nachzahlung/Erstattung" to keys
 | POST | `/api/metering-concept/preview` | *(v3.9.0)* “metering concept” assistant: preview from the layout (`concept`, `device`, `pv`, `battery`, `tou`, `slots`, `contracts`) → `{concept, slots, actions, problems}`; writes nothing, also with a read-only key — [see below](#set-up-a-metering-concept-v390-f1032) |
 | POST | `/api/metering-concept` | *(v3.9.0)* create the same: meters, registers, groups, sub-meters and contracts through the existing services, with a snapshot first (`concept_…`); `201` `{concept, actions, created: {meters, groups, contracts}, snapshot}` |
 | GET | `/api/utility/{u}/meter-groups/{id}/billing-periods` | *(v3.6.0)* billing periods of the group (members together) — [Billing periods](#billing-periods-v360) |
+| GET | `/api/utility/{u}/meter-groups/{id}/heat-limit` | *(v3.9.0)* heating limit suggestion of the group, as for a meter |
 | GET | `/api/utility/{u}/readings` | readings |
 | POST | `/api/utility/{u}/readings` | create; since v3.1.0 with `client_ref` (same identifier on the same meter → `200` with `duplicate: true` instead of a second reading) and `attachment_id` (photo) — [see below](#readings-client_ref-attachment_id-v310-additive) |
 | PATCH | `/api/utility/{u}/readings/{id}` | change; since v3.1.0 also `attachment_id` (`null` detaches the photo); moving it to a meter with consumption per period → `400` `errors.reading.periodMeter` |
@@ -235,6 +236,7 @@ Reason: v2.0.0 silently switched `verdict` from "Nachzahlung/Erstattung" to keys
 | GET | `/api/utility/{u}/meters/{id}/bill-check` | bill verification: sections per reading and calorific-value change or price date, with costs, `?from=&to=` (F1012; up to v3.0 gas only, since v3.1.0 gas, electricity, water, district heating, otherwise 400) — [see below](#get-apiutilityumetersidbill-checkfromto-f1012-v250-all-utilities-since-v310) |
 | GET | `/api/utility/{u}/meters/{id}/billing-periods` | *(v3.6.0)* billing periods of the meter from bills and settlement date, with quantity, cost, advance payments, balance; `?months=1` with a monthly series — [Billing periods](#billing-periods-v360) |
 | GET | `/api/utility/{u}/billing-periods` | *(v3.6.0)* the same for the whole utility (meters without a parent meter, without consumption per period) |
+| GET | `/api/utility/{u}/meters/{id}/heat-limit` | *(v3.9.0)* heating limit suggestion of the meter `{heat_limit}` as with `…/consumption?heat_limit=1`, with a suggestion also `effect` (balance and advance payment of the current contract before and after) — [Heating limit suggestion](#heating-limit-suggestion-v390) |
 | GET | `/api/utility/{u}/bills` | *(v3.1.0)* supplier bills, the newest first; `?meter_id=` only this meter — [Supplier bills](#supplier-bills-v310) |
 | POST | `/api/utility/{u}/bills` | *(v3.1.0)* record a bill; `201` |
 | PATCH | `/api/utility/{u}/bills/{id}` | *(v3.1.0)* change a bill |
@@ -514,7 +516,7 @@ intervals between real readings ([Basics §5](../verstehen/00-overview.md#heatin
 | `anomaly_quality.base_load` | `reference`, `reference_months` | *(v3.7.1)* where the summer months of the base-load check come from: `no_hdd_top` (no degree days at 18 °C) or `window` (June to August), and which they are |
 | `monthly[]` | `hdd_top` | *(v3.7.1)* degree days of the month at 18 °C, independent of the heating limit (summer reference) |
 | `GET …/meters/{id}/forecast` | `?hdd_base=` | *(v3.7.1)* heating limit for this forecast (6 to 22 °C) as with `…/consumption`, without storing it on the meter; outside: 400 |
-| `PATCH …/meters/{id}`, meter | `hdd_base_temp` | this meter's own heating limit in °C (6 to 22, only heating types with meter readings); `null` or empty removes it, then the setting applies |
+| `PATCH …/meters/{id}`, meter | `hdd_base_temp` | this meter's own heating limit in °C (6 to 22, only heating types; up to v3.7.1 only with meter readings, since v3.9.0 also tanks and groups); `null` or empty removes it, then the setting applies |
 | `monthly[]` | `heat_adjusted_basis` | why `heat_adjusted` is what it is: `model`, `summer`, `base_load`, `normal_is_actual` (or `null`) |
 | `regressions.*`, `forecast.regression` | `reason` | with `valid: false`: `too_few_points`, `poor_fit`, `degenerate` |
 | `…/contract-status` | `projection_uncertain` | `{reasons: [factor_clamped \| few_measured \| poor_fit], factor, factor_raw, factor_part, factor_limits, fit_ratio, base_load_per_day, projected_range, suggested_range}` or `null`; then `suggested_advance` is `null`. `factor_part`: which factor is clamped (`base`, `heat`, `both`); `base_load_per_day`: `{model, measured}` when the range uses the measured summer base load; `suggested_range` is `null` if both ends would be equal |
@@ -525,6 +527,30 @@ intervals between real readings ([Basics §5](../verstehen/00-overview.md#heatin
 | `…/forecast` | `annual.withheld` | why the year has no band: `poor_fit`, `few_measured` (heating model only over the reading intervals, or unchecked), `few_years` (without a weather reference fewer than 3 degrees of freedom of the spread) |
 | `…/forecast` | `warnings[]` | new `poor_fit {ratio, reasons}`, `few_measured {heat_basis}`, `regression_invalid {model, reason, n, r2}`, `climate_normal_grid {base, min, max, hdd_source}` |
 | `POST /api/forecast/scenario` | `advance.uncertain` | with a failed quality gate or too little measured `{reasons: [few_measured \| poor_fit], fit_ratio, spread, base_range, scen_range}`, then `base_/scen_recommended: null`; `warnings[]` new `poor_fit`, `few_measured`, `basis.heat_share_year: null` |
+
+### Heating limit suggestion *(v3.9.0)*
+
+`GET /api/utility/{u}/meters/{id}/heat-limit` (also `…/meter-groups/{id}/heat-limit`)
+answers `{heat_limit}` in the form of `…/consumption?heat_limit=1`, without the rest
+of the consumption response. New and additive ([Basics §5](../verstehen/00-overview.md#heating-limit-suggestion-since-v370)):
+
+| Field | Meaning |
+|---|---|
+| `best_smoothed` | smoothed spread of the suggested limit (mean of all limits up to 1 °C either side); the choice uses it, `best_ratio` is the spread the quality gate shows with that limit |
+| `range` | `[from, to]`: adjoining limits that fit equally well (at most 15 % above the best smoothed spread); the suggestion is the one closest to today's limit |
+| `before`, `after` | `{ratio, model_quality, base_per_day, model_per_day, measured_per_day}` today and with the suggested limit |
+| `grid[]` | plus `fit_n`, `fit_dropped` (dropped months more than 10 % of a typical month off), `fit_ok` (at most one in ten, at least one), `warm_ratio`, `warm_ok` (expectation ÷ consumption May to September, at most 1.10), `smoothed` |
+| `effect` | only with a suggestion: `{contract_id, until, current_advance, before, after}`, each `{balance, balance_range, advance, advance_range, uncertain}` of the current contract today and with the suggested limit; `null` without a current contract |
+
+More fields since v3.9.0: `monthly[].expected_base` (the base load part `c × days`),
+`anomaly_quality.base_load.base_per_day` and `base_ratio` (the base load `c` alone
+against the measured summer: the lower bound 0.5 of the check), `anomaly_quality.warm`
+(`{ratio, months}` for May to September), `anomalies[].pattern` and `pattern_years`
+(the same calendar month reported in the same direction in at least two years and on
+the same side in every checked year: a pattern, not an event), `hdd_base_temp` also on
+tanks (heating oil, pellets), when creating a meter and on meter groups
+(`PATCH …/meter-groups/{id}`). The agenda knows the kind `heat_limit` (recommendation of
+category `modell`, `ref` with `best`, `current`, `range`, `before`, `after`, `effect`).
 
 **Since v3.9.0 (evaluation), additive** — every number is right or says why it
 is uncertain ([Basics §1](../verstehen/00-overview.md#measured-or-interpolated-since-v370),

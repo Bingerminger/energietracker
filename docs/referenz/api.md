@@ -13,7 +13,7 @@ Alle Endpunkte unter `/api/…`. Antwort-Hülle einheitlich:
 
 `{utility}` ist eine von: `gas`, `strom`, `wasser`, `fernwaerme`,
 `heizoel`, `pellets`, `pv_einspeisung`, `pv_erzeugung` und seit v3.1.0
-`waerme` (Heizwärme). Stand: **192 Routen**,
+`waerme` (Heizwärme). Stand: **194 Routen**,
 v3.9.0 — `ReleaseConsistencyTest` prüft, dass jede registrierte Route in der
 Tabelle unten steht (DE und EN).
 
@@ -201,6 +201,7 @@ nicht wieder passieren.
 | POST | `/api/metering-concept/preview` | *(v3.9.0)* Assistent „Messkonzept“: Vorschau aus dem Aufbau (`concept`, `device`, `pv`, `battery`, `tou`, `slots`, `contracts`) → `{concept, slots, actions, problems}`; schreibt nichts, auch mit Lese-Schlüssel — [s. u.](#messkonzept-einrichten-v390-f1032) |
 | POST | `/api/metering-concept` | *(v3.9.0)* dasselbe anlegen: Zähler, Zählwerke, Gruppen, Subzähler und Verträge über die vorhandenen Dienste, vorher ein Snapshot (`concept_…`); `201` `{concept, actions, created: {meters, groups, contracts}, snapshot}` |
 | GET | `/api/utility/{u}/meter-groups/{id}/billing-periods` | *(v3.6.0)* Abrechnungsperioden der Gruppe (Mitglieder zusammen) — [Abrechnungsperioden](#abrechnungsperioden-v360) |
+| GET | `/api/utility/{u}/meter-groups/{id}/heat-limit` | *(v3.9.0)* Heizgrenze-Vorschlag der Gruppe, wie beim Zähler |
 | GET | `/api/utility/{u}/readings` | Ablesungen |
 | POST | `/api/utility/{u}/readings` | anlegen; seit v3.1.0 mit `client_ref` (gleiche Kennung am selben Zähler → `200` mit `duplicate: true` statt eines zweiten Stands) und `attachment_id` (Foto) — [s. u.](#ablesungen-client_ref-attachment_id-v310-additiv) |
 | PATCH | `/api/utility/{u}/readings/{id}` | ändern; seit v3.1.0 auch `attachment_id` (`null` löst das Foto); auf einen Zähler mit Verbrauch je Zeitraum umhängen → `400` `errors.reading.periodMeter` |
@@ -240,6 +241,7 @@ nicht wieder passieren.
 | GET | `/api/utility/{u}/meters/{id}/bill-check` | Rechnungsprüfung: Abschnitte je Ablesung und Brennwertwechsel bzw. Preisstichtag, mit Kosten, `?from=&to=` (F1012; bis v3.0 nur Gas, seit v3.1.0 Gas, Strom, Wasser, Fernwärme, sonst 400) — [s. u.](#get-apiutilityumetersidbill-checkfromto-f1012-v250-alle-arten-seit-v310) |
 | GET | `/api/utility/{u}/meters/{id}/billing-periods` | *(v3.6.0)* Abrechnungsperioden des Zählers aus Rechnungen und Stichtag mit Menge, Kosten, Abschlägen, Saldo; `?months=1` mit Monatsreihe — [Abrechnungsperioden](#abrechnungsperioden-v360) |
 | GET | `/api/utility/{u}/billing-periods` | *(v3.6.0)* dasselbe für die ganze Art (Zähler ohne Elternzähler, ohne Verbrauch je Zeitraum) |
+| GET | `/api/utility/{u}/meters/{id}/heat-limit` | *(v3.9.0)* Heizgrenze-Vorschlag des Zählers `{heat_limit}` wie bei `…/consumption?heat_limit=1`, mit Vorschlag dazu `effect` (Saldo und Abschlag des laufenden Vertrags vorher und nachher) — [Heizgrenze-Vorschlag](#heizgrenze-vorschlag-v390) |
 | GET | `/api/utility/{u}/bills` | *(v3.1.0)* Versorgerrechnungen, die neueste zuerst; `?meter_id=` nur dieser Zähler — [Versorgerrechnungen](#versorgerrechnungen-v310) |
 | POST | `/api/utility/{u}/bills` | *(v3.1.0)* Rechnung erfassen; `201` |
 | PATCH | `/api/utility/{u}/bills/{id}` | *(v3.1.0)* Rechnung ändern |
@@ -523,7 +525,7 @@ Abweichung, die ein typischer Monat mindestens braucht, um gemeldet zu werden
 | `anomaly_quality.base_load` | `reference`, `reference_months` | *(v3.7.1)* woher die Sommermonate der Grundlast-Prüfung kommen: `no_hdd_top` (ohne Heizgradtage zu 18 °C) oder `window` (Juni bis August), und welche es sind |
 | `monthly[]` | `hdd_top` | *(v3.7.1)* Heizgradtage des Monats zu 18 °C, unabhängig von der Heizgrenze (Sommer-Referenz) |
 | `GET …/meters/{id}/forecast` | `?hdd_base=` | *(v3.7.1)* Heizgrenze für diese Prognose (6 bis 22 °C) wie bei `…/consumption`, ohne sie am Zähler zu speichern; außerhalb: 400 |
-| `PATCH …/meters/{id}`, Zähler | `hdd_base_temp` | eigene Heizgrenze dieses Zählers in °C (6 bis 22, nur Heizarten mit Zählerständen); `null` oder leer entfernt sie, dann gilt die Einstellung |
+| `PATCH …/meters/{id}`, Zähler | `hdd_base_temp` | eigene Heizgrenze dieses Zählers in °C (6 bis 22, nur Heizarten; bis v3.7.1 nur mit Zählerständen, seit v3.9.0 auch Tanks und Gruppen); `null` oder leer entfernt sie, dann gilt die Einstellung |
 | `monthly[]` | `heat_adjusted_basis` | warum `heat_adjusted` so ist: `model`, `summer`, `base_load`, `normal_is_actual` (oder `null`) |
 | `regressions.*`, `forecast.regression` | `reason` | bei `valid: false`: `too_few_points`, `poor_fit`, `degenerate` |
 | `…/contract-status` | `projection_uncertain` | `{reasons: [factor_clamped \| few_measured \| poor_fit], factor, factor_raw, factor_part, factor_limits, fit_ratio, base_load_per_day, projected_range, suggested_range}` oder `null`; dann ist `suggested_advance` `null`. `factor_part`: welcher Faktor klemmt (`base`, `heat`, `both`); `base_load_per_day`: `{model, measured}`, wenn die Spanne die gemessene Sommer-Grundlast nimmt; `suggested_range` `null`, wenn beide Enden gleich wären |
@@ -534,6 +536,30 @@ Abweichung, die ein typischer Monat mindestens braucht, um gemeldet zu werden
 | `…/forecast` | `annual.withheld` | warum das Jahr ohne Band ist: `poor_fit`, `few_measured` (Heizmodell nur über die Ablesungsabstände oder ungeprüft), `few_years` (ohne Wetterbezug weniger als 3 Freiheitsgrade der Streuung) |
 | `…/forecast` | `warnings[]` | neu `poor_fit {ratio, reasons}`, `few_measured {heat_basis}`, `regression_invalid {model, reason, n, r2}`, `climate_normal_grid {base, min, max, hdd_source}` |
 | `POST /api/forecast/scenario` | `advance.uncertain` | bei nicht bestandener Gütesperre oder zu wenig Gemessenem `{reasons: [few_measured \| poor_fit], fit_ratio, spread, base_range, scen_range}`, dann `base_/scen_recommended: null`; `warnings[]` neu `poor_fit`, `few_measured`, `basis.heat_share_year: null` |
+
+### Heizgrenze-Vorschlag *(v3.9.0)*
+
+`GET /api/utility/{u}/meters/{id}/heat-limit` (auch `…/meter-groups/{id}/heat-limit`)
+antwortet `{heat_limit}` in der Form von `…/consumption?heat_limit=1`, ohne die
+übrige Verbrauchsantwort. Neu und additiv ([Grundlagen §5](../verstehen/00-overview.md#heizgrenze-vorschlag-seit-v370)):
+
+| Feld | Bedeutung |
+|---|---|
+| `best_smoothed` | geglättete Streuung der vorgeschlagenen Grenze (Mittel aller Grenzen bis 1 °C daneben); danach wird gewählt, `best_ratio` ist die Streuung, die die Gütesperre mit der Grenze zeigt |
+| `range` | `[von, bis]`: lückenlos anschließende Grenzen, die gleich gut passen (höchstens 15 % über der besten geglätteten Streuung); vorgeschlagen wird die, die der heutigen am nächsten liegt |
+| `before`, `after` | `{ratio, model_quality, base_per_day, model_per_day, measured_per_day}` heute und mit der vorgeschlagenen Grenze |
+| `grid[]` | dazu `fit_n`, `fit_dropped` (verworfene Monate, die mehr als 10 % eines typischen Monats danebenliegen), `fit_ok` (höchstens jeder zehnte, mindestens einer), `warm_ratio`, `warm_ok` (Erwartung ÷ Verbrauch Mai bis September, höchstens 1,10), `smoothed` |
+| `effect` | nur mit Vorschlag: `{contract_id, until, current_advance, before, after}` mit je `{balance, balance_range, advance, advance_range, uncertain}` des laufenden Vertrags heute und mit der vorgeschlagenen Grenze; `null` ohne laufenden Vertrag |
+
+Weitere Felder seit v3.9.0: `monthly[].expected_base` (davon die Grundlast `c × Tage`),
+`anomaly_quality.base_load.base_per_day` und `base_ratio` (Grundlast `c` allein gegen
+den gemessenen Sommer: die Untergrenze 0,5 der Prüfung), `anomaly_quality.warm`
+(`{ratio, months}` für Mai bis September), `anomalies[].pattern` und `pattern_years`
+(derselbe Kalendermonat in mindestens zwei Jahren in dieselbe Richtung gemeldet und in
+jedem geprüften Jahr auf derselben Seite: ein Muster, kein Ereignis), `hdd_base_temp`
+auch an Tanks (Heizöl, Pellets), beim Anlegen eines Zählers und an Zählergruppen
+(`PATCH …/meter-groups/{id}`). Die Agenda kennt die Art `heat_limit` (Empfehlung der
+Kategorie `modell`, `ref` mit `best`, `current`, `range`, `before`, `after`, `effect`).
 
 **Seit v3.9.0 (Auswertung), additiv** — jede Zahl stimmt oder sagt, warum sie
 unsicher ist ([Grundlagen §1](../verstehen/00-overview.md#gemessen-oder-verteilt-seit-v370),

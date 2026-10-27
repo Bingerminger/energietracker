@@ -34,6 +34,11 @@ use Energietracker\Support\Dates;
  *                        beendet, keine Versorgerrechnung erfasst
  *                        (BillExpectedService); nach der gesetzlichen Frist
  *                        „überfällig“ (EnWG § 40c Abs. 2, Strom/Gas in DE)
+ *   heat_limit           v3.9.0 (#38) — Heizgrenze anpassen: Mit einer anderen
+ *                        Grenze passt das Heizmodell deutlich besser (Empfehlung
+ *                        der Kategorie `modell`, ref mit Vorher/Nachher und der
+ *                        Wirkung auf Saldo und Abschlag; „Nicht jetzt“ blendet die
+ *                        Empfehlung für diesen Datenstand aus)
  *
  * v3.5.0 (F1028) — Jedes Ereignis trägt `assignee`, `assignee_id` und
  * `assignee_former` (bei Terminen die Zuständigkeit, sonst null/false);
@@ -71,7 +76,7 @@ final class AgendaService
 {
     public const KINDS = ['reminder', 'reading_due', 'cancel_by', 'term_end', 'price_guarantee_end',
                           'price_increase', 'tank_reorder', 'tenancy_statement_due', 'objection_deadline',
-                          'co2_claim_deadline', 'bill_expected'];
+                          'co2_claim_deadline', 'bill_expected', 'heat_limit'];
 
     /** v3.4.0 (F1024) — Verlauf (optional; ohne ihn gibt es nur die automatische Erledigung aus den Daten). */
     private ?ActivityService $activity = null;
@@ -293,6 +298,27 @@ final class AgendaService
                 // v3.4.0 (F1024) — Vorkommen: seit der letzten Lieferung
                 (string)($r['evidence']['anchor'] ?? 'none'),
                 null, $this->who(null, null, $this->meterOf($u, $m)));   // v3.7.0 — Zuständige des Tanks
+        }
+
+        // ── v3.9.0 (#38) — Heizgrenze anpassen (Empfehlung, „Nicht jetzt“ = Ausblenden für diesen Datenstand) ──
+        foreach ($recs as $r) {
+            if (($r['category'] ?? '') !== 'modell') continue;
+            $ev = (array)($r['evidence'] ?? []);
+            $u = (string)($ev['utility'] ?? '');
+            $m = (string)($ev['meter_id'] ?? '');
+            if ($u === '' || !Utilities::exists($u)) continue;
+            // stabile Kennung je Zähler und vorgeschlagener Grenze (`heat_limit-gas-m_gas_main-10.5`): eine
+            // Benachrichtigung (Home Assistant) kommt einmal je Vorschlag, nicht mit jedem neuen Monat
+            $events[] = $this->event('heat_limit', self::uid('heat_limit', $u, $m, sprintf('%.1f', (float)($ev['best'] ?? 0))), $today, 'calendar.event.heatLimit',
+                ['label' => $this->i18n->utilityLabel($u), 'meter' => (string)($ev['meter'] ?? $m), 'best' => $this->i18n->number((float)($ev['best'] ?? 0), 1)],
+                // zur Verbrauchsart mit diesem Zähler (dort Saldo-Karte mit demselben Hinweis; die Analyse ist ab Erfahren)
+                'due', true, '#/utility/' . rawurlencode($u) . (empty($ev['is_group']) ? '?meter=' . rawurlencode($m) : ''),
+                ['utility' => $u, 'meter_id' => $m, 'recommendation_id' => (string)$r['id'], 'is_group' => !empty($ev['is_group']),
+                 'best' => (float)($ev['best'] ?? 0), 'current' => (float)($ev['current'] ?? 0), 'own' => !empty($ev['own']),
+                 'range' => $ev['range'] ?? null, 'unit' => (string)($ev['unit'] ?? ''),
+                 'before' => $ev['before'] ?? null, 'after' => $ev['after'] ?? null, 'effect' => $ev['effect'] ?? null],
+                // Vorkommen: der Datenstand der Empfehlung (ihre ID)
+                (string)$r['id'], null, empty($ev['is_group']) ? $this->who(null, null, $this->meterOf($u, $m)) : null);
         }
 
         // ── v3.5.0 (F1029) — Abrechnung erwartet: Zeitraum beendet, keine Versorgerrechnung ──

@@ -57,6 +57,17 @@ final class AnomalyService
     public const SUMMER_REF_MIN = 2;
 
     /**
+     * v3.9.0 (#38) — die warmen Monate Mai bis September (`warm` in quality()):
+     * Erwartung ÷ Verbrauch über alle geprüften Monate dieser Kalendermonate. Die
+     * Sommer-Referenz kennt nur Juni bis August; Mai und September sind
+     * Übergangsmonate. Der Heizgrenze-Vorschlag darf sie zusammen höchstens um
+     * ConsumptionService::HEAT_LIMIT_SUMMER_MAX überschätzen: Beim Maintainer lag der
+     * Rückblick Mai bis September mit der vorgeschlagenen niedrigen Grenze ein Drittel
+     * über dem Gemessenen.
+     */
+    public const WARM_MONTHS = [5, 6, 7, 8, 9];
+
+    /**
      * Die Sommermonate der Grundlast-Prüfung (Indizes in `$valid`) und ihre Herkunft.
      *
      * @param list<array<string,mixed>> $valid
@@ -222,13 +233,16 @@ final class AnomalyService
         // Übergangsmonate mit echtem Heizbedarf hinein, die Referenz stieg, und ein Modell
         // mit zu hoher Grundlast bestand die Prüfung
         [$summer, $source] = self::summerReference($r['valid'], array_keys($r['residuals']));
-        $exp = 0.0; $days = 0; $n = 0; $rates = [];
+        $exp = 0.0; $expBase = 0.0; $baseKnown = true; $days = 0; $n = 0; $rates = [];
         foreach ($summer as $i) {
             $m = $r['valid'][$i];
             $d = (int)($m['days'] ?? 0);
             if ($d <= 0) continue;
             $exp += (float)$r['expected'][$i]; $days += $d; $n++;
             $rates[] = (float)($m[$vf] ?? 0) / $d;
+            // v3.9.0 (#38) — der Anteil der Grundlast c × Tage (ConsumptionService::applyHeatModel)
+            if (is_numeric($m['expected_base'] ?? null)) $expBase += (float)$m['expected_base'];
+            else $baseKnown = false;
         }
         // v3.7.1 — gemessen: der Median der Tagesraten. Mit festen Sommermonaten sind es
         // weniger als früher; ein einzelner Ausreißer (Urlaub, defekte Therme — genau der
@@ -245,10 +259,29 @@ final class AnomalyService
             // SUMMER_REF_BASE) oder `window` (SUMMER_REF_MONTHS); die Monate selbst
             'reference'        => $source,
             'reference_months' => array_map(fn($i) => (string)$r['valid'][$i]['ym'], $summer),
+            // v3.9.0 (#38) — die Grundlast c des Modells allein (ohne den Heizanteil der
+            // Sommermonate) und ihr Verhältnis zum gemessenen Sommer; null ohne Angabe
+            'base_per_day'     => $baseKnown ? round($expBase / $days, 2) : null,
+            'base_ratio'       => $baseKnown ? round($expBase / $act, 3) : null,
         ] : null;
         $reasons = [];
         if ($ratio > self::POOR_FIT_RATIO) $reasons[] = 'scatter';
-        if ($base !== null && ($exp / $act < self::BASE_LOAD_MIN || $exp / $act > self::BASE_LOAD_MAX)) $reasons[] = 'base_load';
+        // v3.9.0 (#38, Nachmessung der öffentlichen Zusage) — nach unten zählt die Grundlast c
+        // selbst, nach oben die ganze Erwartung. Bis v3.7.1 maß auch die Untergrenze die
+        // Erwartung der Sommermonate: Bei hohen Heizgrenzen fällt c auf null, aber die kühlen
+        // Sommertage bekommen Heizgradtage, und a × HGT hob die Erwartung wieder über die Hälfte
+        // des Gemessenen — die Prüfung schlug bis etwa 17 °C an und bei 17,5 bis 18 °C nicht mehr
+        // (nicht monoton, im unordentlichen Testhaushalt und beim Melder). Eine Grundlast von null
+        // beschreibt das Haus bei keiner Grenze.
+        $low = $base !== null ? ($base['base_ratio'] ?? $exp / $act) : null;
+        if ($base !== null && ($low < self::BASE_LOAD_MIN || $exp / $act > self::BASE_LOAD_MAX)) $reasons[] = 'base_load';
+        // v3.9.0 (#38) — die warmen Monate Mai bis September (WARM_MONTHS), für den Vorschlag
+        $wExp = $wAct = 0.0; $wN = 0;
+        foreach (array_keys($r['residuals']) as $i) {
+            if (!in_array((int)($r['valid'][$i]['month'] ?? 0), self::WARM_MONTHS, true)) continue;
+            $wExp += (float)$r['expected'][$i]; $wAct += (float)($r['valid'][$i][$vf] ?? 0); $wN++;
+        }
+        $warm = $wN >= 2 && $wAct > 0 ? ['ratio' => round($wExp / $wAct, 3), 'months' => $wN] : null;
         return [
             'model_quality'   => $reasons !== [] ? 'poor' : 'good',
             'reasons'         => $reasons,
@@ -257,6 +290,7 @@ final class AnomalyService
             'resid_scale'     => round($r['scale'], 1),
             'mean_month'      => round($mean, 1),
             'base_load'       => $base,
+            'warm'            => $warm,   // v3.9.0 (#38)
             'typical'         => round($r['typical'], 1),
             'threshold_sigma' => $threshold,
             'detect_floor'    => round($threshold * max($r['scale'], self::noiseFloor($r['typical'], $r['typical'])), 1),
@@ -294,7 +328,63 @@ final class AnomalyService
                 'kind'      => $z > 0 ? 'high' : 'low',
             ];
         }
+        return self::markPatterns($anomalies, $valid, $residuals, $center);
+    }
+
+    /**
+     * v3.9.0 (#38) — Ab so vielen Jahren mit Meldung ist ein Kalendermonat ein Muster.
+     */
+    public const PATTERN_MIN_YEARS = 2;
+
+    /**
+     * v3.9.0 (#38, Wirklichkeitsabgleich) — Ein Kalendermonat, der in mindestens
+     * PATTERN_MIN_YEARS Jahren in dieselbe Richtung gemeldet wird und in jedem
+     * geprüften Jahr auf derselben Seite der Erwartung liegt, ist ein **Muster**, kein
+     * Ereignis: Bei einer gekrümmten Heizkurve liegen April und Oktober jedes Jahr unter
+     * der Geraden. Die Meldungen bleiben (`pattern: true`, `pattern_years` mit allen
+     * gemeldeten Jahren dieses Monats); die Analyse fasst sie zu einer Zeile zusammen,
+     * Empfehlungen R1 und R4 entstehen daraus nicht mehr jedes Jahr neu.
+     *
+     * @param list<array<string,mixed>> $anomalies
+     * @param list<array<string,mixed>> $valid
+     * @param array<int,float> $residuals
+     * @return list<array<string,mixed>>
+     */
+    private static function markPatterns(array $anomalies, array $valid, array $residuals, float $center): array
+    {
+        // je Kalendermonat: die Seite jedes geprüften Jahres (+1 über, −1 unter der Erwartung)
+        $sides = [];
+        foreach ($residuals as $i => $res) {
+            $mo = (int)($valid[$i]['month'] ?? 0);
+            $sides[$mo][] = $res - $center >= 0 ? 1 : -1;
+        }
+        $flagged = [];
+        foreach ($anomalies as $a) {
+            $flagged[(int)substr((string)$a['ym'], 5, 2) . '|' . $a['kind']][] = substr((string)$a['ym'], 0, 4);
+        }
+        foreach ($anomalies as &$a) {
+            $mo = (int)substr((string)$a['ym'], 5, 2);
+            $years = array_values(array_unique($flagged[$mo . '|' . $a['kind']] ?? []));
+            $want = $a['kind'] === 'high' ? 1 : -1;
+            $a['pattern'] = count($years) >= self::PATTERN_MIN_YEARS
+                && array_filter($sides[$mo] ?? [], fn($s) => $s !== $want) === [];
+            $a['pattern_years'] = $a['pattern'] ? $years : null;
+        }
+        unset($a);
         return $anomalies;
+    }
+
+    /**
+     * v3.9.0 (#38) — Monate (`YYYY-MM`), deren Meldung ein Muster ist (s. markPatterns).
+     *
+     * @param list<array<string,mixed>> $anomalies Ergebnis von detect()
+     * @return array<string,true>
+     */
+    public static function patternMonths(array $anomalies): array
+    {
+        $out = [];
+        foreach ($anomalies as $a) if (!empty($a['pattern'])) $out[(string)$a['ym']] = true;
+        return $out;
     }
 
     /**

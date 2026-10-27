@@ -153,6 +153,25 @@ final class ConsumptionController
     }
 
     /**
+     * v3.9.0 (#38): GET /api/utility/{u}/meters/{id}/heat-limit (auch meter-groups/{id}) —
+     * der Heizgrenze-Vorschlag mit Raster und Vorher/Nachher, dazu mit Vorschlag die
+     * Wirkung auf erwarteten Saldo und Abschlag des laufenden Vertrags (`effect`).
+     * `heat_limit` ist null ohne Heizmodell oder mit zu wenig gemessenen Monaten.
+     */
+    public function heatLimit(Request $req): never
+    {
+        $utility = (string)$req->param('utility');
+        $target = $this->meters->target($utility, (string)$req->param('id'));
+        if (!$target) Response::error($this->i18n->t('errors.meter.notFound'), 404);
+        $h = $this->consumption->heatLimitSuggestion($utility, $target);
+        if ($h !== null) {
+            $h['effect'] = !empty($h['suggest']) && $h['best'] !== null
+                ? $this->consumption->heatLimitEffect($utility, $target, (float)$h['best']) : null;
+        }
+        Response::json(['heat_limit' => $h]);
+    }
+
+    /**
      * v3.4.0 (N1021) — additiv `phase` je Vertrag, aus derselben Quelle wie
      * `GET …/contracts` ({@see ContractService::phase()}). Die Tabelle
      * „Verträge & Abschläge“ liest den Status nur noch daraus.

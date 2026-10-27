@@ -187,7 +187,8 @@ Kennung.
   // nur bei Strom, optional (v2.10.0):
   "heat_source": true,                   // Wärmepumpe: zählt in der Effizienzkennzahl
 
-  // v3.7.0, Heizarten mit Zählerständen, optional — fehlt = Einstellung hdd_base_temp:
+  // v3.7.0, Heizarten, optional — fehlt = Einstellung hdd_base_temp (seit v3.9.0 auch Heizöl, Pellets
+  // und an der Zählergruppe in meter_groups.json):
   "hdd_base_temp": 12.0,                 // eigene Heizgrenze dieses Zählers (6–22 °C, Heizgrenze-Vorschlag)
 
   // v3.1.0, optional — fehlt = Standard:

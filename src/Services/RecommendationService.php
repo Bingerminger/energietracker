@@ -77,10 +77,15 @@ final class RecommendationService
                     $recs = array_merge($recs, $this->ruleTankLevel($utility, $meter));
                 }
                 $recs = array_merge($recs, $this->ruleContractEnd($utility, $meter));
+                // v3.9.0 (#38) — Heizgrenze anpassen
+                $recs = array_merge($recs, $this->ruleHeatLimit($utility, $meter));
             }
             // v3.1.0 (H6, #17) — Gruppenverträge: Fristen und Preiserhöhung wie beim Zähler
             foreach ($this->consumption->contractTargets($utility) as $target) {
-                if (!empty($target['is_group'])) $recs = array_merge($recs, $this->ruleContractEnd($utility, $target));
+                if (!empty($target['is_group'])) {
+                    $recs = array_merge($recs, $this->ruleContractEnd($utility, $target));
+                    $recs = array_merge($recs, $this->ruleHeatLimit($utility, $target));   // v3.9.0 (#38)
+                }
             }
         }
         $recs = array_merge($recs, $this->ruleEfficiencyClass());
@@ -248,10 +253,14 @@ final class RecommendationService
         $typical = AnomalyService::typical(array_map(fn($i) => (float)$monthly[$i]['expected_heat'], array_keys($res)));
         if (max($scale, AnomalyService::noiseFloor(0.0, $typical)) <= 0) return [];
 
+        // v3.9.0 (#38) — ein Monat, der jedes Jahr gleich danebenliegt, ist ein Muster des
+        // Heizmodells, kein Mehrverbrauch (AnomalyService::markPatterns)
+        $patterns = AnomalyService::patternMonths($this->anomalies()->detect($utility, $monthly));
         $out = [];
         foreach ($res as $i => $r) {
             $m = $monthly[$i];
             if (!$this->recent((string)$m['ym'])) continue;   // v3.7.0 — nur aus den letzten 24 Monaten
+            if (isset($patterns[(string)$m['ym']])) continue;
             // gleiche Untergrenze wie die Anomalie-Erkennung: kleine Schwankungen sind Alltag
             $z = ($r - $center) / max($scale, AnomalyService::noiseFloor((float)$m['expected_heat'], $typical));
             if ($z >= $sigma) {
@@ -372,6 +381,7 @@ final class RecommendationService
         $out = [];
         foreach ($this->anomalies()->detect($utility, $monthly) as $a) {
             if (($a['kind'] ?? '') !== 'high') continue;
+            if (!empty($a['pattern'])) continue;   // v3.9.0 (#38) — jedes Jahr derselbe Monat: ein Muster, kein Ereignis
             if (!$this->recent((string)$a['ym'])) continue;   // v3.7.0 — nur aus den letzten 24 Monaten
             $out[] = $this->mk(
                 'r4', [$utility, $meter['id'], $a['ym']],
@@ -382,6 +392,50 @@ final class RecommendationService
             );
         }
         return $out;
+    }
+
+    /**
+     * v3.9.0 (#38) — Heizgrenze anpassen: Es gibt für diesen Zähler (oder diese Gruppe
+     * mit eigenem Vertrag) eine Heizgrenze, mit der das Heizmodell deutlich besser passt
+     * (ConsumptionService::heatLimitSuggestion). Prognose, Saldo und Abschlag hängen am
+     * Heizmodell; der Vorschlag stand bis v3.7 nur in der Analyse, beim Maintainer zu weit
+     * hinten. Jetzt auch in „Zu tun“ (AgendaService, `heat_limit`) mit Vorher/Nachher und
+     * der Wirkung auf Saldo und Abschlag (`evidence.effect`).
+     *
+     * Die ID trägt den Datenstand (vorgeschlagene Grenze, Zahl der geprüften Monate):
+     * „Nicht jetzt“ blendet genau diesen Stand aus; kommt ein gemessener Monat dazu oder
+     * ändert sich der Vorschlag, erscheint er wieder.
+     */
+    private function ruleHeatLimit(string $utility, array $meter): array
+    {
+        if (!Utilities::isHgtRelevant($utility) || Utilities::isDelivery($utility)) return [];
+        $h = $this->consumption->heatLimitSuggestion($utility, $meter);
+        if (empty($h['suggest']) || $h['best'] === null) return [];
+        $best = (float)$h['best'];
+        $effect = $this->consumption->heatLimitEffect($utility, $meter, $best);
+        $isGroup = !empty($meter['is_group']);
+        $unit = (string)(Utilities::get($utility)['consumption_unit'] ?? 'kWh');
+        $deg = fn(float $v) => $this->i18n->number($v, 1);
+        $pct = fn(?float $v) => $v === null ? '–' : $this->i18n->number($v * 100, 0) . ' %';
+        $detail = [$this->i18n->t('recommendations.engine.heatLimit.detail', [
+            'best' => $deg($best), 'current' => $deg((float)$h['current']),
+            'now' => $pct($h['before']['ratio'] ?? null), 'then' => $pct($h['after']['ratio'] ?? null)])];
+        $bNow = $h['before']['base_per_day'] ?? null; $bThen = $h['after']['base_per_day'] ?? null; $meas = $h['before']['measured_per_day'] ?? null;
+        if ($bNow !== null && $bThen !== null && $meas !== null) {
+            $detail[] = $this->i18n->t('recommendations.engine.heatLimit.baseLoad', ['best' => $deg($best), 'unit' => $unit,
+                'now' => $this->i18n->number((float)$bNow, 1), 'then' => $this->i18n->number((float)$bThen, 1), 'measured' => $this->i18n->number((float)$meas, 1)]);
+        }
+        $detail[] = $this->i18n->t($isGroup ? 'recommendations.engine.heatLimit.scopeGroup' : 'recommendations.engine.heatLimit.scope');
+        return [$this->mk(
+            'r_heat_limit', [$utility, (string)$meter['id'], sprintf('%.1f', $best), (string)(int)$h['months']],
+            'warning', 'modell',
+            $this->i18n->t('recommendations.engine.heatLimit.title', ['best' => $deg($best)]),
+            implode(' ', $detail),
+            ['utility' => $utility, 'meter_id' => (string)$meter['id'], 'meter' => (string)($meter['name'] ?? ''), 'is_group' => $isGroup,
+             'best' => $best, 'current' => (float)$h['current'], 'own' => (bool)$h['own'], 'default' => (float)$h['default'],
+             'range' => $h['range'], 'months' => (int)$h['months'],
+             'before' => $h['before'], 'after' => $h['after'], 'effect' => $effect, 'unit' => $unit]
+        )];
     }
 
     private function anomalies(): AnomalyService

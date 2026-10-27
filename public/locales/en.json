@@ -210,7 +210,8 @@
       "billDeadline": "statutory deadline for the supplier: {date}",
       "billOverdueSince": "statutory deadline passed on {date}",
       "billNoDeadline": "no statutory deadline",
-      "billAction": "Record bill"
+      "billAction": "Record bill",
+      "heatLimitAction": "View"
     },
     "welcome": {
       "title": "Welcome to Energietracker",
@@ -1376,6 +1377,16 @@
       "export": "feed-in",
       "exportHt": "feed-in HT",
       "exportNt": "feed-in NT"
+    },
+    "heatLimit": {
+      "title": "Heating limit",
+      "label": "This meter’s heating limit (°C)",
+      "placeholder": "{value} (default)",
+      "hint": "A day whose mean temperature is below this counts as a heating day. Expectation, adjustment, forecast and balance of this meter use the limit. Empty means the default from the settings ({value} °C).",
+      "hintTank": "A day whose mean temperature is below this counts as a heating day. The app spreads this tank’s deliveries over the months by these heating days. Empty means the default from the settings ({value} °C).",
+      "suggest": "Suggestion from the measured months: {best} °C. A month then typically deviates by {then} of an average month instead of {now}.",
+      "use": "Enter {value} °C",
+      "invalid": "Heating limit between {min} and {max} °C, or leave it empty"
     }
   },
   "settings": {
@@ -2442,7 +2453,7 @@
     "filterAll": "All ({count})",
     "filterGroupLabel": "Filter by urgency",
     "sev": { "urgent": "Urgent", "warning": "Attention", "info": "Note" },
-    "cat": { "effizienz": "Efficiency", "vertrag": "Contract", "bestand": "Stock", "anomalie": "Anomaly", "trend": "Trend" },
+    "cat": { "effizienz": "Efficiency", "vertrag": "Contract", "bestand": "Stock", "anomalie": "Anomaly", "trend": "Trend", "modell": "Heating model" },
     "emptyAll": "No recommendations — all clear.",
     "dismiss": "Hide for 30 days",
     "error": "Error: {msg}",
@@ -2498,6 +2509,13 @@
       "rPriceIncrease": {
         "title": "{label}: price increase from {date}",
         "detail": "{provider} is raising prices from {date}. This gives you a special right to terminate as of that day (§ 41(5) EnWG). Compare now and give notice in time if another tariff is cheaper."
+      },
+      "heatLimit": {
+        "title": "Adjust the heating limit: with {best} °C the heating model fits much better",
+        "detail": "Forecast, balance and advance payment depend on the heating model. With {current} °C a month typically deviates by {now} of an average month, with {best} °C by {then}.",
+        "baseLoad": "Today it estimates the summer base load at {now} {unit} a day, with {best} °C at {then}; {measured} were measured.",
+        "scope": "The limit applies to this meter only and is only applied when you click.",
+        "scopeGroup": "The limit applies to this meter group only and is only applied when you click."
       }
     },
     "dismissedNamed": "“{title}” hidden for 30 days",
@@ -2812,6 +2830,12 @@
       "own": "This meter uses its own heating limit of {value} °C (default {default} °C).",
       "reset": "Back to {value} °C",
       "resetDone": "This meter’s heating limit reset"
+    },
+    "pattern": {
+      "low": "{month}: below the expectation every year in {years} ({pcts})",
+      "high": "{month}: above the expectation every year in {years} ({pcts})",
+      "whyHeat": "These months lie off the expectation in the same way every year. That is a pattern of the heating model, not a single event: a straight line misses the transition months of a curved heating curve. A different heating limit can help.",
+      "why": "These months lie off the expectation in the same way every year. That is a recurring pattern, not a single event."
     }
   },
   "forecast": {
@@ -4530,7 +4554,8 @@
       "billOverdue": "Bill overdue: {label} ({provider}) for {from} – {until} — statutory deadline passed, ask the supplier",
       "finalBillExpected": "Final bill expected: {label} ({provider}) for {from} – {until}",
       "finalBillOverdue": "Final bill overdue: {label} ({provider}) for {from} – {until} — statutory deadline passed, ask the supplier",
-      "cancelConfirm": "{label}: cancellation confirmed? ({provider}, switching to {next})"
+      "cancelConfirm": "{label}: cancellation confirmed? ({provider}, switching to {next})",
+      "heatLimit": "{label}: adjust the heating limit to {best} °C ({meter})"
     },
     "subscribe": "Subscribe in your calendar",
     "intro": "Dates, cancellation deadlines, contract ends, price guarantees and due readings as a calendar subscription. The calendar refreshes them every 12 hours.",
@@ -7034,5 +7059,34 @@
     "setupChoice": {
       "hint": "For solar, heat pump or EV charger with its own meter: first the layout, then the readings."
     }
+  },
+  "heatLimit": {
+    "title": "Adjust the heating limit: with {best} °C the heating model fits much better",
+    "fit": "Today a month typically deviates from the expectation by {now} of an average month, with {best} °C by {then}.",
+    "baseLoad": "Base load in summer (hot water, cooking): today {now} {unit} a day according to the model, with {best} °C {then}, measured {measured}.",
+    "range": "Between {from} and {to} °C the model fits about equally well; the suggestion is the limit that changes the least.",
+    "effect": {
+      "balance": "Expected balance on {date}: today {before}, with {best} °C {after}.",
+      "between": "between {low} and {high}",
+      "advance": "Advance payment (today {current} a month): suggestion today {before}, with {best} °C {after}.",
+      "advanceValue": "{amount} a month",
+      "advanceRange": "between {low} and {high} a month",
+      "noAdvance": "none"
+    },
+    "hint": {
+      "balance": "The range is this wide because the heating model fits this meter poorly.",
+      "forecast": "This forecast is uncertain because the heating model fits this meter poorly.",
+      "workshop": "Advance payment and heating share are missing here because the heating model fits this meter poorly."
+    },
+    "scope": "The limit applies to this meter only; forecast, balance and advance payment then use it.",
+    "scopeGroup": "The limit applies to this meter group only; forecast, balance and advance payment of the group contract then use it.",
+    "apply": "Apply (this meter only)",
+    "applyGroup": "Apply (this group only)",
+    "applied": "This meter’s heating limit set to {value} °C. Forecast, balance and advance payment now use it.",
+    "appliedGroup": "This meter group’s heating limit set to {value} °C. Forecast, balance and advance payment now use it.",
+    "undone": "Heating limit back as before",
+    "notNow": "Not now",
+    "notNowHint": "Comes back when new months are measured or the suggestion changes.",
+    "dismissed": "Hidden until new months are measured or the suggestion changes."
   }
 }

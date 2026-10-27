@@ -6,7 +6,8 @@
 // =====================================================================
 
 import { api } from '../api.js';
-import { getUtility } from '../state.js';
+import { getUtility, getSettings } from '../state.js';
+import { loadHeatLimit } from '../lib/heat-limit.js';   // v3.9.0 (#38)
 import { fmt, escapeHtml, todayIso, parseDecimal, formatForInput } from '../lib/format.js';
 import { toastOk, toastErr } from '../components/toast.js';
 import { openModal, confirmModal, guardSubmit } from '../components/modal.js';
@@ -324,6 +325,8 @@ async function openMeterModal(u, existing, allMeters = [], groups = []) {
   const activeDigits = (existing?.devices || []).find(d => !d.removed_on)?.digits ?? '';
   // v3.7.0 — Personen für „Zuständig“ (auch ohne Anmeldung, etwa im Beispielhaushalt)
   const people = await api.people().catch(() => []);
+  // v3.9.0 (#38) — Standard-Heizgrenze für den Platzhalter des eigenen Felds
+  const defaultHddBase = u.hgt_relevant ? Number((await getSettings().catch(() => null))?.hdd_base_temp ?? 15) : null;
   return new Promise(resolve => {
     // v3.4.0 (N1021) — ein Raster wie im Vertrag. Rolle und Erfassung
     // bestimmen den Zähler und stehen jetzt oben (bis v3.3 hinter Notizen
@@ -480,6 +483,7 @@ async function openMeterModal(u, existing, allMeters = [], groups = []) {
           <div data-role="hp-list" class="check-grid muted small">${t('meters.heatPumpLink.loading')}</div>
           <p class="fgroup__hint">${t('meters.heatPumpLink.hint')}</p>
         </fieldset>` : ''}
+        ${heatLimitFieldsetHtml(u, existing, defaultHddBase)}
         <fieldset class="fgroup" data-section="baseline" data-min-level="expert">
           <legend>${t('meters.baseline.title')}</legend>
           <p class="fgroup__hint">${t('meters.baseline.hint')}</p>
@@ -577,6 +581,7 @@ async function openMeterModal(u, existing, allMeters = [], groups = []) {
         });
 
         drawBaseline();
+        wireHeatLimitField(modalEl, u, existing);   // v3.9.0 (#38)
 
         // v3.1.0 (H7) — Wärmezähler: Stromzähler mit der Rolle Wärmepumpe zur Auswahl
         const hpList = modalEl.querySelector('[data-role="hp-list"]');
@@ -658,6 +663,7 @@ async function openMeterModal(u, existing, allMeters = [], groups = []) {
                 ...(f.obis ? { obis: f.obis.value.trim() } : {}),   // v3.9.0 (F1032) — leer entfernt das Zählwerk
                 ...energyFields(f),                // v3.1.0 (H7)
                 ...personPayload(f.querySelector('[name="assignee_id"]'), existing),   // v3.7.0
+                ...heatLimitPayload(f, true),      // v3.9.0 (#38) — leer entfernt die eigene Grenze
               };
               // v2.1.1 — Fix #18: Tank-Felder mitsenden (nur Heizöl/Pellets).
               if (isDelivery) {
@@ -685,6 +691,7 @@ async function openMeterModal(u, existing, allMeters = [], groups = []) {
                 ...(f.obis?.value.trim() ? { obis: f.obis.value.trim() } : {}),   // v3.9.0 (F1032)
                 ...energyFields(f),                                                  // v3.1.0 (H7)
                 ...personPayload(f.querySelector('[name="assignee_id"]'), null),     // v3.7.0
+                ...heatLimitPayload(f, false),                                       // v3.9.0 (#38)
               };
               // v2.1.1 — Fix #18: Delivery-Utilities bekommen Tank-Kapazität +
               // Anfangsbestand statt eines kumulativen Anfangsstands.
@@ -705,6 +712,65 @@ async function openMeterModal(u, existing, allMeters = [], groups = []) {
       }
     });
   });
+}
+
+// ───── v3.9.0 (#38): Heizgrenze dieses Zählers ──────────────────────
+// Eigener Block im Zählerformular, nur für Heizarten (auch Heizöl und Pellets:
+// Sie verteilen ihre Lieferungen nach den Gradtagen dieser Grenze). Leer heißt:
+// der Standard aus den Einstellungen. Mit gemessenen Monaten steht der
+// Vorschlag aus der Analyse darunter, mit einem Knopf, der ihn einträgt.
+const HDD_BASE_MIN = 6;
+const HDD_BASE_MAX = 22;
+
+function heatLimitFieldsetHtml(u, existing, defaultBase) {
+  if (!u.hgt_relevant) return '';
+  const own = existing?.hdd_base_temp;
+  return `
+        <fieldset class="fgroup" data-section="heat-limit">
+          <legend>${t('meters.heatLimit.title')}</legend>
+          <div class="fgrid">
+            <div class="field field--s">
+              <label for="mf-hdd-base">${t('meters.heatLimit.label')}</label>
+              <input class="input" id="mf-hdd-base" name="hdd_base_temp" type="text" inputmode="decimal" autocomplete="off"
+                     value="${escapeHtml(own != null ? formatForInput(own) : '')}" placeholder="${escapeHtml(t('meters.heatLimit.placeholder', { value: fmt.num(defaultBase ?? 15, 1) }))}"
+                     aria-describedby="mf-hdd-base-hint">
+              <div class="field-error" id="mf-hdd-base-msg" role="alert" hidden></div>
+            </div>
+          </div>
+          <p class="fgroup__hint" id="mf-hdd-base-hint">${escapeHtml(t(u.reading_kind === 'delivery' ? 'meters.heatLimit.hintTank' : 'meters.heatLimit.hint', { value: fmt.num(defaultBase ?? 15, 1) }))}</p>
+          <p class="fgroup__hint" data-role="heat-limit-suggestion" hidden></p>
+        </fieldset>`;
+}
+
+/** Den Vorschlag der Analyse nachladen (nur bestehende Zähler mit Zählerständen). */
+function wireHeatLimitField(modalEl, u, existing) {
+  const box = modalEl.querySelector('[data-role="heat-limit-suggestion"]');
+  if (!box || !existing || u.reading_kind === 'delivery') return;
+  loadHeatLimit(u.key, existing.id, { fresh: true }).then(h => {
+    if (!h?.suggest || !box.isConnected) return;
+    box.innerHTML = `${escapeHtml(t('meters.heatLimit.suggest', { best: fmt.num(h.best, 1), now: fmt.pct(h.before?.ratio ?? h.current_ratio, 0), then: fmt.pct(h.after?.ratio ?? h.best_ratio, 0) }))}
+      <button type="button" class="btn btn--sm btn--ghost" data-role="heat-limit-use">${escapeHtml(t('meters.heatLimit.use', { value: fmt.num(h.best, 1) }))}</button>`;
+    box.hidden = false;
+    box.querySelector('[data-role="heat-limit-use"]').addEventListener('click', () => {
+      const input = modalEl.querySelector('#mf-hdd-base');
+      if (input) { input.value = formatForInput(h.best); input.dispatchEvent(new Event('input', { bubbles: true })); input.focus(); }
+    });
+  });
+}
+
+/** `hdd_base_temp` für den Speichern-Aufruf: leer entfernt (beim Bearbeiten), sonst 6 bis 22 °C. */
+export function heatLimitPayload(f, editing) {
+  const input = f.hdd_base_temp;
+  if (!input) return {};
+  const raw = String(input.value ?? '').trim();
+  if (raw === '') return editing ? { hdd_base_temp: null } : {};
+  const v = parseDecimal(raw);
+  if (v == null || v < HDD_BASE_MIN || v > HDD_BASE_MAX) {
+    const msg = t('meters.heatLimit.invalid', { min: HDD_BASE_MIN, max: HDD_BASE_MAX });
+    showFieldError(input, f.querySelector('#mf-hdd-base-msg'), msg);
+    throw new Error(msg);
+  }
+  return { hdd_base_temp: v };
 }
 
 // ───── Device replacement (F2) ──────────────────────────────────────

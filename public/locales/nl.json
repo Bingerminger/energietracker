@@ -210,7 +210,8 @@
       "billDeadline": "wettelijke termijn voor de leverancier: {date}",
       "billOverdueSince": "wettelijke termijn verstreken op {date}",
       "billNoDeadline": "geen wettelijke termijn",
-      "billAction": "Rekening vastleggen"
+      "billAction": "Rekening vastleggen",
+      "heatLimitAction": "Bekijken"
     },
     "welcome": {
       "title": "Welkom bij Energietracker",
@@ -1376,6 +1377,16 @@
       "export": "teruglevering",
       "exportHt": "teruglevering piek",
       "exportNt": "teruglevering dal"
+    },
+    "heatLimit": {
+      "title": "Graaddagen-basistemperatuur",
+      "label": "Graaddagen-basistemperatuur van deze meter (°C)",
+      "placeholder": "{value} (standaard)",
+      "hint": "Een dag met een gemiddelde temperatuur daaronder telt als stookdag. Verwachting, correctie, prognose en saldo van deze meter rekenen ermee. Leeg betekent de standaard uit de instellingen ({value} °C).",
+      "hintTank": "Een dag met een gemiddelde temperatuur daaronder telt als stookdag. Volgens die stookdagen verdeelt de app de leveringen van deze tank over de maanden. Leeg betekent de standaard uit de instellingen ({value} °C).",
+      "suggest": "Voorstel uit de gemeten maanden: {best} °C. Een maand wijkt dan doorgaans {then} van een gemiddelde maand af in plaats van {now}.",
+      "use": "{value} °C invullen",
+      "invalid": "Graaddagen-basistemperatuur tussen {min} en {max} °C, of leeg laten"
     }
   },
   "settings": {
@@ -2442,7 +2453,7 @@
     "filterAll": "Alle ({count})",
     "filterGroupLabel": "Filteren op urgentie",
     "sev": { "urgent": "Urgent", "warning": "Let op", "info": "Notitie" },
-    "cat": { "effizienz": "Efficiëntie", "vertrag": "Contract", "bestand": "Voorraad", "anomalie": "Afwijking", "trend": "Trend" },
+    "cat": { "effizienz": "Efficiëntie", "vertrag": "Contract", "bestand": "Voorraad", "anomalie": "Afwijking", "trend": "Trend", "modell": "Verwarmingsmodel" },
     "emptyAll": "Geen aanbevelingen — alles in orde.",
     "dismiss": "30 dagen verbergen",
     "error": "Fout: {msg}",
@@ -2498,6 +2509,13 @@
       "rPriceIncrease": {
         "title": "{label}: prijsverhoging per {date}",
         "detail": "{provider} verhoogt de prijzen per {date}. Daarmee heb je een bijzonder opzegrecht per die dag (§ 41 lid 5 EnWG). Vergelijk nu en zeg op tijd op als een ander tarief goedkoper is."
+      },
+      "heatLimit": {
+        "title": "Graaddagen-basistemperatuur aanpassen: met {best} °C past het verwarmingsmodel duidelijk beter",
+        "detail": "Prognose, saldo en voorschot hangen af van het verwarmingsmodel. Met {current} °C wijkt een maand doorgaans {now} van een gemiddelde maand af, met {best} °C {then}.",
+        "baseLoad": "Nu schat het de basislast in de zomer op {now} {unit} per dag, met {best} °C op {then}; gemeten is {measured}.",
+        "scope": "De temperatuur geldt alleen voor deze meter en wordt pas overgenomen als je klikt.",
+        "scopeGroup": "De temperatuur geldt alleen voor deze metergroep en wordt pas overgenomen als je klikt."
       }
     },
     "dismissedNamed": "‘{title}’ 30 dagen verborgen",
@@ -2812,6 +2830,12 @@
       "own": "Deze meter rekent met een eigen graaddagen-basistemperatuur van {value} °C (standaard {default} °C).",
       "reset": "Terug naar {value} °C",
       "resetDone": "Graaddagen-basistemperatuur van deze meter teruggezet"
+    },
+    "pattern": {
+      "low": "{month}: elk jaar onder de verwachting in {years} ({pcts})",
+      "high": "{month}: elk jaar boven de verwachting in {years} ({pcts})",
+      "whyHeat": "Deze maanden wijken elk jaar op dezelfde manier af van de verwachting. Dat is een patroon van het verwarmingsmodel, geen losse gebeurtenis: een rechte lijn mist de overgangsmaanden van een gebogen stooklijn. Een andere graaddagen-basistemperatuur kan helpen.",
+      "why": "Deze maanden wijken elk jaar op dezelfde manier af van de verwachting. Dat is een terugkerend patroon, geen losse gebeurtenis."
     }
   },
   "forecast": {
@@ -4530,7 +4554,8 @@
       "billOverdue": "Rekening te laat: {label} ({provider}) voor {from} – {until} — wettelijke termijn verstreken, vraag het na bij de leverancier",
       "finalBillExpected": "Eindafrekening verwacht: {label} ({provider}) voor {from} – {until}",
       "finalBillOverdue": "Eindafrekening te laat: {label} ({provider}) voor {from} – {until} — wettelijke termijn verstreken, vraag het na bij de leverancier",
-      "cancelConfirm": "{label}: opzegging bevestigd? ({provider}, overstap naar {next})"
+      "cancelConfirm": "{label}: opzegging bevestigd? ({provider}, overstap naar {next})",
+      "heatLimit": "{label}: graaddagen-basistemperatuur op {best} °C zetten ({meter})"
     },
     "subscribe": "Abonneren in je agenda",
     "intro": "Afspraken, opzegtermijnen, contracteinden, prijsgaranties en verschuldigde meterstanden als agenda-abonnement. De agenda haalt ze elke 12 uur opnieuw op.",
@@ -7034,5 +7059,34 @@
     "setupChoice": {
       "hint": "Voor zonnepanelen, warmtepomp of laadpaal met een eigen meter: eerst de opbouw, dan de standen."
     }
+  },
+  "heatLimit": {
+    "title": "Graaddagen-basistemperatuur aanpassen: met {best} °C past het verwarmingsmodel duidelijk beter",
+    "fit": "Nu wijkt een maand doorgaans {now} van een gemiddelde maand af van de verwachting, met {best} °C {then}.",
+    "baseLoad": "Basislast in de zomer (warm water, koken): nu {now} {unit} per dag volgens het model, met {best} °C {then}, gemeten {measured}.",
+    "range": "Tussen {from} en {to} °C past het model ongeveer even goed; voorgesteld is de temperatuur die het minst verandert.",
+    "effect": {
+      "balance": "Verwacht saldo op {date}: nu {before}, met {best} °C {after}.",
+      "between": "tussen {low} en {high}",
+      "advance": "Voorschot (nu {current} per maand): voorstel nu {before}, met {best} °C {after}.",
+      "advanceValue": "{amount} per maand",
+      "advanceRange": "tussen {low} en {high} per maand",
+      "noAdvance": "geen"
+    },
+    "hint": {
+      "balance": "De bandbreedte is zo groot omdat het verwarmingsmodel slecht bij deze meter past.",
+      "forecast": "Deze prognose is onzeker omdat het verwarmingsmodel slecht bij deze meter past.",
+      "workshop": "Voorschot en verwarmingsaandeel ontbreken hier omdat het verwarmingsmodel slecht bij deze meter past."
+    },
+    "scope": "De temperatuur geldt alleen voor deze meter; prognose, saldo en voorschot rekenen er dan mee.",
+    "scopeGroup": "De temperatuur geldt alleen voor deze metergroep; prognose, saldo en voorschot van het groepscontract rekenen er dan mee.",
+    "apply": "Overnemen (alleen deze meter)",
+    "applyGroup": "Overnemen (alleen deze groep)",
+    "applied": "Graaddagen-basistemperatuur van deze meter op {value} °C gezet. Prognose, saldo en voorschot rekenen er nu mee.",
+    "appliedGroup": "Graaddagen-basistemperatuur van deze metergroep op {value} °C gezet. Prognose, saldo en voorschot rekenen er nu mee.",
+    "undone": "Graaddagen-basistemperatuur weer zoals eerst",
+    "notNow": "Niet nu",
+    "notNowHint": "Verschijnt weer zodra er nieuwe maanden gemeten zijn of het voorstel verandert.",
+    "dismissed": "Verborgen tot er nieuwe maanden gemeten zijn of het voorstel verandert."
   }
 }

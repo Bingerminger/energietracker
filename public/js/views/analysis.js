@@ -20,6 +20,7 @@ import { info } from '../components/info.js';
 import { isFeedIn, isGeneration, moreIsBetter, changeTone } from '../lib/semantics.js';
 import { periodMode, billingApplies, periodName, periodsWithData, periodRows, refMonth, slotLabels } from '../lib/billing-period.js';   // v3.6.0 (F1030)
 import { periodModeHtml, wirePeriodMode, calendarOnlyNote } from '../components/period-mode.js';
+import { heatLimitFacts, applyHeatLimit } from '../lib/heat-limit.js';   // v3.9.0 (#38)
 
 // Locale-bewusste Kurz-Monatsnamen für die Chart-Achsen. v2.2.0: aus der
 // gemeinsamen Intl-Quelle in lib/format.js statt einer zweiten, nur auf de/en
@@ -93,7 +94,10 @@ async function renderForMeter(u, meterId, body) {
   catch { contractStatus = null; }
 
   const monthly     = meterData.monthly || [];
-  const anomalies   = meterData.anomalies || [];
+  // v3.9.0 (#38) — Monate, die jedes Jahr gleich danebenliegen, sind ein Muster: eine Zeile je Kalendermonat
+  const anomalies   = (meterData.anomalies || []).filter(a => !a.pattern);
+  const patterns    = groupPatterns(meterData.anomalies || []);
+  const shownCount  = anomalies.length + patterns.length;
   const regressions = meterData.regressions || {};
   const baseline    = meterData.baseline || null;              // F1011
   const comparison  = meterData.baseline_comparison || null;   // F1011
@@ -150,10 +154,11 @@ async function renderForMeter(u, meterId, body) {
     ${renderYoyWidget(series, u)}
 
     <div class="card" style="margin-top: var(--sp-5)">
-      <h3 class="card__title">${t('analysis.anomalies', { count: anomalies.length })}${info('anomaly')}</h3>
-      ${qualityHtml(meterData.anomaly_quality, anomalies.length)}
-      ${heatLimitHtml(meterData.heat_limit)}
-      ${anomalies.length === 0 ? (meterData.anomaly_quality?.model_quality === 'poor' ? ''
+      <h3 class="card__title">${t('analysis.anomalies', { count: shownCount })}${info('anomaly')}</h3>
+      ${qualityHtml(meterData.anomaly_quality, shownCount, !!meterData.heat_limit?.suggest)}
+      ${heatLimitHtml(meterData.heat_limit, u.consumption_unit)}
+      ${patterns.length ? patternsHtml(patterns, u) : ''}
+      ${anomalies.length === 0 ? (meterData.anomaly_quality?.model_quality === 'poor' || patterns.length ? ''
         // v3.7.0 (#37) — zu wenig geprüfte Monate (etwa alle verteilt): das sagen, nicht „alle im Erwartungsbereich“
         : anomalyLimit ? `<p class="muted" data-role="anomaly-limit">${t('analysis.baseline.limit.anomalies', { need: anomalyLimit.need, have: anomalyLimit.have })}</p>`
         : `<p class="muted">${t('analysis.noAnomalies')}</p>`) : `
@@ -208,6 +213,13 @@ async function renderForMeter(u, meterId, body) {
       const btn = e.currentTarget;
       const value = btn.dataset.role === 'heat-limit-reset' ? null : Number(btn.dataset.value);
       btn.disabled = true;
+      // v3.9.0 (#38) — Übernehmen mit „Rückgängig“ wie in „Zu tun“
+      if (value !== null) {
+        const h = meterData.heat_limit;
+        if (!await applyHeatLimit({ utility: u.key, id: meterId, value, previous: h?.own ? h.current : null,
+          onChange: () => renderForMeter(u, meterId, body) })) btn.disabled = false;
+        return;
+      }
       try {
         await api.updateMeter(u.key, meterId, { hdd_base_temp: value });
         toastOk(value === null ? t('analysis.heatLimit.resetDone') : t('analysis.heatLimit.applied', { value: fmt.num(value, 1) }));
@@ -224,7 +236,7 @@ async function renderForMeter(u, meterId, body) {
 // Einstellung bleibt der Standard der anderen). Übernommen wird nie
 // automatisch: ab Erfahren per Knopf (wie die Karte „Physikalische
 // Konstanten“), darunter mit dem Stufenhinweis — wie bei der Gütesperre.
-function heatLimitHtml(h) {
+function heatLimitHtml(h, unit = 'kWh') {
   if (!h) return '';
   const advanced = atLeast('advanced');
   const levelNote = escapeHtml(t('analysis.quality.levelNote', { level: t('level.advanced') }));
@@ -235,10 +247,42 @@ function heatLimitHtml(h) {
   const text = t('analysis.heatLimit.suggest', {
     best: fmt.num(h.best, 1), current: fmt.num(h.current, 1), bestPct: fmt.pct(h.best_ratio, 0), currentPct: fmt.pct(h.current_ratio, 0),
   });
+  // v3.9.0 (#38) — Grundlast vorher und nachher, die Spanne gleich guter Grenzen
+  const facts = heatLimitFacts(h, unit).slice(1);
   const action = advanced
     ? `<button type="button" class="btn btn--sm" data-role="heat-limit-apply" data-value="${h.best}">${escapeHtml(t('analysis.heatLimit.apply', { value: fmt.num(h.best, 1) }))}</button>`
     : levelNote;
-  return `<p class="banner banner--info" data-role="heat-limit">${escapeHtml(text)} ${escapeHtml(t('analysis.heatLimit.scope'))}<br>${action}</p>${own}`;
+  return `<p class="banner banner--info" data-role="heat-limit">${escapeHtml([text, ...facts, t('analysis.heatLimit.scope')].join(' '))}<br>${action}</p>${own}`;
+}
+
+// ── v3.9.0 (#38): Muster statt Meldung ──────────────────────────────
+// Ein Kalendermonat, der in mindestens zwei Jahren in dieselbe Richtung
+// gemeldet wird und in jedem geprüften Jahr auf derselben Seite der
+// Erwartung liegt (AnomalyService::markPatterns), ist ein Muster des
+// Heizmodells (gekrümmte Heizkurve, Übergangsmonate), kein Ereignis.
+function groupPatterns(list) {
+  const by = new Map();
+  for (const a of list) {
+    if (!a.pattern) continue;
+    const key = `${a.ym.slice(5, 7)}|${a.kind}`;
+    if (!by.has(key)) by.set(key, { month: Number(a.ym.slice(5, 7)), kind: a.kind, rows: [] });
+    by.get(key).rows.push(a);
+  }
+  return [...by.values()].sort((a, b) => a.month - b.month);
+}
+
+function patternsHtml(patterns, u) {
+  const items = patterns.map(p => {
+    const rows = [...p.rows].sort((a, b) => a.ym.localeCompare(b.ym));
+    const month = fmt.month(rows[0].ym).replace(/\s*\d{4}$/, '');
+    const pcts = rows.map(a => a.expected > 0 ? `${a.percent >= 0 ? '+' : ''}${fmt.pct(a.percent / 100, 0)}` : '–').join(', ');
+    return `<li>${escapeHtml(t(p.kind === 'high' ? 'analysis.pattern.high' : 'analysis.pattern.low', {
+      month, years: rows.map(a => a.ym.slice(0, 4)).join(', '), pcts }))}</li>`;
+  }).join('');
+  return `<div class="banner banner--info" data-role="anomaly-patterns">
+      <p>${escapeHtml(t(u.hgt_relevant ? 'analysis.pattern.whyHeat' : 'analysis.pattern.why'))}</p>
+      <ul>${items}</ul>
+    </div>`;
 }
 
 // ── v3.7.0 (GitHub #38): Gütesperre der Abweichungstabelle ───────────
@@ -248,16 +292,21 @@ function heatLimitHtml(h) {
 // Modellfehler. Statt leer zu bleiben, sagt sie das — mit der Grenze, unter der
 // sie nichts erkennt, und dem Weg zur Heizgrenze. Die Karte „Physikalische
 // Konstanten“ steht ab Erfahren (settings.js); darunter nur der Weg.
-function qualityHtml(q, rows = 0) {
+function qualityHtml(q, rows = 0, suggested = false) {
   if (q?.model_quality !== 'poor') return '';
   const n = (v) => fmt.num(v, 0);
   const parts = [t('analysis.quality.poor', { scale: n(q.resid_scale), unit: q.unit, pct: fmt.pct(q.ratio, 0), mean: n(q.mean_month) })];
   if ((q.reasons || []).includes('base_load') && q.base_load) {
-    parts.push(t('analysis.quality.baseLoad', { model: fmt.num(q.base_load.model_per_day, 1), measured: fmt.num(q.base_load.measured_per_day, 1), unit: q.unit }));
+    // v3.9.0 (#38) — nach unten zählt die Grundlast c selbst (base_per_day), nach oben die Erwartung
+    const low = q.base_load.base_ratio != null && q.base_load.base_ratio < (q.base_load.allowed?.[0] ?? 0.5);
+    parts.push(t('analysis.quality.baseLoad', { model: fmt.num(low ? q.base_load.base_per_day : q.base_load.model_per_day, 1), measured: fmt.num(q.base_load.measured_per_day, 1), unit: q.unit }));
   }
   // v3.7.0 (Schritt 3, N2) — mit Zeilen nicht „dass sie leer ist“: Was sie zeigt, kann der Modellfehler sein
   parts.push(t(rows > 0 ? 'analysis.quality.floorRows' : 'analysis.quality.floor', { floor: n(q.detect_floor), unit: q.unit }));
   const text = parts.join(' ');
+  // v3.9.0 (#38, Skeptiker L5) — steht der konkrete Vorschlag mit Knopf darunter, entfällt der
+  // allgemeine Satz mit dem Weg in die Einstellungen (vorher zwei Hinweise zur Heizgrenze untereinander)
+  if (suggested) return `<p class="banner banner--warning" data-role="anomaly-quality">${escapeHtml(text)}</p>`;
   const path = [t('nav.settings'), t('settings.page.utilities.title'), t('settings.group.physical.title'), t('settings.field.hdd_base_temp.label')].join(' › ');
   const where = atLeast('advanced')
     ? `<a href="#/settings/utilities?field=hdd_base_temp" data-role="quality-link">${escapeHtml(path)}</a>`

@@ -216,6 +216,8 @@ export const api = {
     return request('GET', `/api/utility/${u}/meters/${id}/consumption${q}`);
   },
   contractStatus:     (u, id)           => request('GET', `/api/utility/${u}/meters/${id}/contract-status`),
+  // v3.9.0 (#38) — Heizgrenze-Vorschlag mit Vorher/Nachher und Wirkung auf Saldo und Abschlag (auch Gruppe)
+  heatLimit:          (u, id, isGroup = false) => request('GET', `/api/utility/${u}/${isGroup ? 'meter-groups' : 'meters'}/${id}/heat-limit`),
   // v3.2.0 — Kennzahlen je Zähler (wie für Home Assistant): Übersicht der Einsteiger, Schaubilder
   summary:            ()                => request('GET', '/api/summary'),
   // v2.5.0 — F1012: Rechnungsprüfung (nur Gas)

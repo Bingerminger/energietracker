@@ -210,7 +210,8 @@
       "billDeadline": "gesetzliche Frist für den Versorger: {date}",
       "billOverdueSince": "gesetzliche Frist am {date} verstrichen",
       "billNoDeadline": "keine gesetzliche Frist",
-      "billAction": "Rechnung erfassen"
+      "billAction": "Rechnung erfassen",
+      "heatLimitAction": "Ansehen"
     },
     "welcome": {
       "title": "Willkommen beim Energietracker",
@@ -1376,6 +1377,16 @@
       "export": "Einspeisung",
       "exportHt": "Einspeisung HT",
       "exportNt": "Einspeisung NT"
+    },
+    "heatLimit": {
+      "title": "Heizgrenze",
+      "label": "Heizgrenze dieses Zählers (°C)",
+      "placeholder": "{value} (Standard)",
+      "hint": "Liegt ein Tag im Mittel unter dieser Temperatur, zählt er als Heiztag. Mit der Grenze rechnen Erwartung, Bereinigung, Prognose und Saldo dieses Zählers. Leer heißt: der Standard aus den Einstellungen ({value} °C).",
+      "hintTank": "Liegt ein Tag im Mittel unter dieser Temperatur, zählt er als Heiztag. Nach diesen Heiztagen verteilt die App die Lieferungen dieses Tanks auf die Monate. Leer heißt: der Standard aus den Einstellungen ({value} °C).",
+      "suggest": "Vorschlag aus den gemessenen Monaten: {best} °C. Ein Monat weicht dann typisch um {then} eines mittleren Monats ab statt um {now}.",
+      "use": "{value} °C eintragen",
+      "invalid": "Heizgrenze zwischen {min} und {max} °C oder leer lassen"
     }
   },
   "settings": {
@@ -2442,7 +2453,7 @@
     "filterAll": "Alle ({count})",
     "filterGroupLabel": "Nach Dringlichkeit filtern",
     "sev": { "urgent": "Dringend", "warning": "Achtung", "info": "Hinweis" },
-    "cat": { "effizienz": "Effizienz", "vertrag": "Vertrag", "bestand": "Bestand", "anomalie": "Anomalie", "trend": "Trend" },
+    "cat": { "effizienz": "Effizienz", "vertrag": "Vertrag", "bestand": "Bestand", "anomalie": "Anomalie", "trend": "Trend", "modell": "Heizmodell" },
     "emptyAll": "Keine Empfehlungen — alles im grünen Bereich.",
     "dismiss": "30 Tage ausblenden",
     "error": "Fehler: {msg}",
@@ -2498,6 +2509,13 @@
       "rPriceIncrease": {
         "title": "{label}: Preiserhöhung zum {date}",
         "detail": "{provider} erhöht die Preise zum {date}. Damit hast du ein Sonderkündigungsrecht zu diesem Tag (§ 41 Abs. 5 EnWG). Vergleiche jetzt und kündige rechtzeitig, wenn ein anderer Tarif günstiger ist."
+      },
+      "heatLimit": {
+        "title": "Heizgrenze anpassen: Mit {best} °C passt das Heizmodell deutlich besser",
+        "detail": "Prognose, Saldo und Abschlag hängen am Heizmodell. Mit {current} °C weicht ein Monat typisch um {now} eines mittleren Monats ab, mit {best} °C um {then}.",
+        "baseLoad": "Die Grundlast im Sommer schätzt es heute auf {now} {unit} am Tag, mit {best} °C auf {then}; gemessen sind {measured}.",
+        "scope": "Die Grenze gilt nur für diesen Zähler, übernommen wird sie erst auf deinen Klick.",
+        "scopeGroup": "Die Grenze gilt nur für diese Zählergruppe, übernommen wird sie erst auf deinen Klick."
       }
     },
     "dismissedNamed": "„{title}“ für 30 Tage ausgeblendet",
@@ -2812,6 +2830,12 @@
       "own": "Dieser Zähler rechnet mit eigener Heizgrenze {value} °C (Standard {default} °C).",
       "reset": "Zurück auf {value} °C",
       "resetDone": "Heizgrenze dieses Zählers zurückgesetzt"
+    },
+    "pattern": {
+      "low": "{month}: in {years} jedes Jahr unter der Erwartung ({pcts})",
+      "high": "{month}: in {years} jedes Jahr über der Erwartung ({pcts})",
+      "whyHeat": "Diese Monate liegen jedes Jahr gleich neben der Erwartung. Das ist ein Muster des Heizmodells, kein einzelnes Ereignis: Eine gekrümmte Heizkurve trifft die Übergangsmonate mit einer Geraden nicht. Eine andere Heizgrenze kann helfen.",
+      "why": "Diese Monate liegen jedes Jahr gleich neben der Erwartung. Das ist ein wiederkehrendes Muster, kein einzelnes Ereignis."
     }
   },
   "forecast": {
@@ -4530,7 +4554,8 @@
       "billOverdue": "Abrechnung überfällig: {label} ({provider}) für {from} – {until} — gesetzliche Frist verstrichen, beim Versorger nachfragen",
       "finalBillExpected": "Schlussrechnung erwartet: {label} ({provider}) für {from} – {until}",
       "finalBillOverdue": "Schlussrechnung überfällig: {label} ({provider}) für {from} – {until} — gesetzliche Frist verstrichen, beim Versorger nachfragen",
-      "cancelConfirm": "{label}: Kündigung bestätigt? ({provider}, Wechsel zu {next})"
+      "cancelConfirm": "{label}: Kündigung bestätigt? ({provider}, Wechsel zu {next})",
+      "heatLimit": "{label}: Heizgrenze auf {best} °C anpassen ({meter})"
     },
     "subscribe": "Im Kalender abonnieren",
     "intro": "Termine, Kündigungsstichtage, Vertragsenden, Preisgarantien und fällige Ablesungen als Kalender-Abo. Der Kalender holt sie alle 12 Stunden neu.",
@@ -7034,5 +7059,34 @@
     "setupChoice": {
       "hint": "Für PV, Wärmepumpe oder Wallbox mit eigenem Zähler: erst den Aufbau, dann die Stände."
     }
+  },
+  "heatLimit": {
+    "title": "Heizgrenze anpassen: Mit {best} °C passt das Heizmodell deutlich besser",
+    "fit": "Ein Monat weicht heute typisch um {now} eines mittleren Monats von der Erwartung ab, mit {best} °C um {then}.",
+    "baseLoad": "Grundlast im Sommer (Warmwasser, Kochen): heute laut Modell {now} {unit} am Tag, mit {best} °C {then}, gemessen sind {measured}.",
+    "range": "Zwischen {from} und {to} °C passt das Modell etwa gleich gut; vorgeschlagen ist die Grenze, die am wenigsten ändert.",
+    "effect": {
+      "balance": "Erwarteter Saldo zum {date}: heute {before}, mit {best} °C {after}.",
+      "between": "zwischen {low} und {high}",
+      "advance": "Abschlag (heute {current} im Monat): Vorschlag heute {before}, mit {best} °C {after}.",
+      "advanceValue": "{amount} im Monat",
+      "advanceRange": "zwischen {low} und {high} im Monat",
+      "noAdvance": "keiner"
+    },
+    "hint": {
+      "balance": "Die Spanne ist so breit, weil das Heizmodell schlecht zu diesem Zähler passt.",
+      "forecast": "Diese Prognose ist unsicher, weil das Heizmodell schlecht zu diesem Zähler passt.",
+      "workshop": "Abschlag und Heizanteil fehlen hier, weil das Heizmodell schlecht zu diesem Zähler passt."
+    },
+    "scope": "Die Grenze gilt nur für diesen Zähler; Prognose, Saldo und Abschlag rechnen dann mit ihr.",
+    "scopeGroup": "Die Grenze gilt nur für diese Zählergruppe; Prognose, Saldo und Abschlag des Gruppenvertrags rechnen dann mit ihr.",
+    "apply": "Übernehmen (nur dieser Zähler)",
+    "applyGroup": "Übernehmen (nur diese Gruppe)",
+    "applied": "Heizgrenze dieses Zählers auf {value} °C gesetzt. Prognose, Saldo und Abschlag rechnen jetzt damit.",
+    "appliedGroup": "Heizgrenze dieser Zählergruppe auf {value} °C gesetzt. Prognose, Saldo und Abschlag rechnen jetzt damit.",
+    "undone": "Heizgrenze wieder wie vorher",
+    "notNow": "Nicht jetzt",
+    "notNowHint": "Erscheint wieder, wenn neue Monate gemessen sind oder sich der Vorschlag ändert.",
+    "dismissed": "Ausgeblendet, bis neue Monate gemessen sind oder sich der Vorschlag ändert."
   }
 }

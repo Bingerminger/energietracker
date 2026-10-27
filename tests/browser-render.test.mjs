@@ -3070,6 +3070,124 @@ async function renderView(modPath, params = [], ctx = {}) {
     let m2 = null;
     for (let i = 0; i < 60; i++) { m2 = await json(`/utility/gas/meters/${hk}`); if (m2 && !('hdd_base_temp' in m2)) break; await sleep(50); }
     t('wirklichkeit-2: zurückgenommen — der Zähler rechnet wieder mit der Einstellung', m2 && !('hdd_base_temp' in m2), JSON.stringify(m2?.hdd_base_temp));
+
+    // ── v3.9.0 (#38, heizgrenze) — der Vorschlag dort, wo seine Folgen sichtbar sind ──
+    // Derselbe Zähler mit eigener Grenze 6 °C (sein Haus heizt unter 10,5 °C): Das Heizmodell passt
+    // schlecht, die Saldo-Schätzung seines Vertrags ist unsicher, und es gibt einen Vorschlag.
+    try {
+      const patchJson = async (p, body) => (await fetch(`${HOST}/api${p}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })).json();
+      const toastAction = () => [...global.document.querySelectorAll('.toast__action')].pop();
+      await patchJson(`/utility/gas/meters/${hk}`, { hdd_base_temp: 6 });
+      const hkc = (await (await post('/utility/gas/contracts', { meter_id: hk, provider: 'Testgas', start: '2023-07-01',
+        working_prices: [{ from: '2023-07-01', ct_per_kwh: 11 }], advance_payments: [{ from: '2023-07-01', amount_eur: 60 }] })).json())?.data;
+      const hl6 = (await json(`/utility/gas/meters/${hk}/heat-limit`))?.heat_limit;
+      t('heizgrenze: GET …/heat-limit mit Vorher/Nachher, Spanne und Wirkung auf Saldo und Abschlag', hl6?.suggest === true && hl6.current === 6
+        && hl6.before?.model_quality === 'poor' && Array.isArray(hl6.range) && hl6.best >= hl6.range[0] && hl6.best <= hl6.range[1]
+        && hl6.effect?.contract_id === hkc?.id && (hl6.effect.before.uncertain || []).includes('poor_fit'), JSON.stringify({ ...hl6, grid: undefined }).slice(0, 400));
+      // Saldo-Karte: der Hinweis mit Knopf, übernommen mit Rückgängig
+      const sv = await renderView(`${ROOT}/views/utility.js`, ['gas'], { query: new URLSearchParams(`meter=${hk}`) });
+      for (let i = 0; i < 100 && !sv.view.querySelector('[data-role="heat-limit-hint"]'); i++) await sleep(50);
+      const hint = sv.view.querySelector('.balance-grid ~ [data-role="heat-limit-slot"] [data-role="heat-limit-hint"]') || sv.view.querySelector('[data-role="heat-limit-hint"]');
+      const best = (v) => v.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+      t('heizgrenze: Saldo-Karte — Hinweis mit Vorschlag, Vorher/Nachher und Wirkung', /Die Spanne ist so breit, weil das Heizmodell schlecht/.test(hint?.textContent || '')
+        && hint.textContent.includes(`Heizgrenze anpassen: Mit ${best(hl6.best)} °C passt das Heizmodell deutlich besser`)
+        && /Grundlast im Sommer/.test(hint.textContent) && /Erwarteter Saldo zum .+: heute .+, mit .+ °C/.test(hint.textContent)
+        && /Übernehmen \(nur dieser Zähler\)/.test(hint.querySelector('[data-role="heat-limit-hint-apply"]')?.textContent || ''), (hint?.textContent || '').replace(/\s+/g, ' ').slice(0, 400));
+      hint?.querySelector('[data-role="heat-limit-hint-apply"]')?.click();
+      let ma = null;
+      for (let i = 0; i < 60; i++) { ma = await json(`/utility/gas/meters/${hk}`); if (Number(ma?.hdd_base_temp) === hl6.best) break; await sleep(50); }
+      for (let i = 0; i < 60 && !/Rückgängig/.test(toastAction()?.textContent || ''); i++) await sleep(50);
+      t('heizgrenze: übernommen — nur dieser Zähler, Rückmeldung mit Rückgängig', Number(ma?.hdd_base_temp) === hl6.best && /Rückgängig/.test(toastAction()?.textContent || '')
+        && /Heizgrenze dieses Zählers auf .+ °C gesetzt/.test([...global.document.querySelectorAll('.toast')].pop()?.textContent || ''), `${ma?.hdd_base_temp}`);
+      toastAction()?.click();
+      let mu = null;
+      for (let i = 0; i < 60; i++) { mu = await json(`/utility/gas/meters/${hk}`); if (Number(mu?.hdd_base_temp) === 6) break; await sleep(50); }
+      t('heizgrenze: Rückgängig — zurück auf die eigene Grenze von vorher (6 °C)', Number(mu?.hdd_base_temp) === 6, `${mu?.hdd_base_temp}`);
+      // Zu tun auf der Übersicht: Eintrag mit beiden Knöpfen; „Nicht jetzt“ blendet ihn aus, Rückgängig holt ihn zurück
+      const ag = (await json('/agenda?days=90'))?.events || [];
+      const ev = ag.find(e => e.kind === 'heat_limit' && e.ref?.meter_id === hk);
+      t('heizgrenze: Agenda — Art heat_limit, fällig, mit Empfehlung und Wirkung', !!ev && ev.due_now && !ev.can_mark_done && !!ev.ref?.recommendation_id
+        && ev.ref?.best === hl6.best && !!ev.ref?.effect, JSON.stringify(ev)?.slice(0, 300));
+      const dv = await renderView(`${ROOT}/views/dashboard.js`);
+      const hkRow = () => dv.view.querySelector(`[data-role="heat-limit-todo"][data-meter="${hk}"]`);
+      for (let i = 0; i < 120 && !hkRow(); i++) await sleep(50);
+      const row = hkRow()?.closest('li');
+      t('heizgrenze: Zu tun — Titel, Vorher/Nachher, Wirkung, „Übernehmen (nur dieser Zähler)“ und „Nicht jetzt“',
+        (row?.textContent || '').includes(`Heizgrenze anpassen: Mit ${best(hl6.best)} °C passt das Heizmodell deutlich besser`)
+        && /Ein Monat weicht heute typisch um/.test(row.textContent) && /Erwarteter Saldo zum/.test(row.textContent)
+        && !!row.querySelector('[data-heat-apply]') && /Nicht jetzt/.test(row.querySelector('[data-heat-later]')?.textContent || ''), (row?.textContent || '').replace(/\s+/g, ' ').slice(0, 300));
+      row?.querySelector('[data-heat-later]')?.click();
+      let gone = false;
+      for (let i = 0; i < 60 && !gone; i++) { gone = !((await json('/agenda?days=90'))?.events || []).some(e => e.kind === 'heat_limit' && e.ref?.meter_id === hk); if (!gone) await sleep(50); }
+      t('heizgrenze: „Nicht jetzt“ — für diesen Datenstand ausgeblendet', gone && !hkRow());
+      for (let i = 0; i < 60 && !/Rückgängig/.test(toastAction()?.textContent || ''); i++) await sleep(50);
+      toastAction()?.click();
+      let back = false;
+      for (let i = 0; i < 60 && !back; i++) { back = ((await json('/agenda?days=90'))?.events || []).some(e => e.kind === 'heat_limit' && e.ref?.meter_id === hk); if (!back) await sleep(50); }
+      t('heizgrenze: Rückgängig — der Eintrag ist wieder da', back);
+      // Prognose und Werkstatt: derselbe Hinweis, wenn das Heizmodell schlecht passt
+      const fw = await renderView(`${ROOT}/views/forecast.js`);
+      await sleep(400);
+      const fwu = fw.view.querySelector('#util-select');
+      if (fwu && fwu.value !== 'gas') { fwu.value = 'gas'; fwu.dispatchEvent(new global.window.Event('change')); await sleep(400); }
+      const fwm = fw.view.querySelector('#meter-select');
+      if (fwm) { fwm.value = hk; fwm.dispatchEvent(new global.window.Event('change')); }
+      const wsHint = () => fw.view.querySelector('[data-role="heat-limit-slot-ws"] [data-role="heat-limit-hint"]');
+      const fcHint = () => fw.view.querySelector('[data-role="heat-limit-slot-fc"] [data-role="heat-limit-hint"]');
+      for (let i = 0; i < 120 && !(wsHint() && fcHint()); i++) await sleep(50);
+      t('heizgrenze: Werkstatt und Prognose — Hinweis mit Knopf', /Abschlag und Heizanteil fehlen hier/.test(wsHint()?.textContent || '')
+        && /Diese Prognose ist unsicher/.test(fcHint()?.textContent || '') && !!wsHint()?.querySelector('[data-role="heat-limit-hint-apply"]'),
+        `${(wsHint()?.textContent || '–').trim().slice(0, 120)} | ${(fcHint()?.textContent || '–').trim().slice(0, 80)}`);
+      // Analyse: Monate, die jedes Jahr gleich danebenliegen, als Muster (der Zähler mit ±40 % im Wechsel)
+      const wt = (await json('/utility/gas/meters') || []).find(m => m.name === 'Werkstatt Test');
+      if (wt) {
+        const pats = ((await json(`/utility/gas/meters/${wt.id}/consumption`))?.anomalies || []).filter(a => a.pattern);
+        us.dispatchEvent(new global.window.Event('change'));
+        await sleep(100);
+        await settled(wt.id);
+        ms.value = wt.id; ms.dispatchEvent(new global.window.Event('change'));
+        for (let i = 0; i < 100 && !an.view.querySelector('[data-role="anomaly-patterns"]'); i++) await sleep(50);
+        const pb = an.view.querySelector('[data-role="anomaly-patterns"]');
+        t('heizgrenze: Analyse — wiederkehrende Monate als Muster, eine Zeile je Monat', pats.length > 0 && !!pb
+          && pb.querySelectorAll('li').length === new Set(pats.map(a => `${a.ym.slice(5)}|${a.kind}`)).size && /jedes Jahr/.test(pb.textContent),
+          `${pats.length} · ${(pb?.textContent || '').trim().slice(0, 160)}`);
+      }
+      // Analyse (L5): mit konkretem Vorschlag kein allgemeiner Satz mit Einstellungspfad darüber
+      us.dispatchEvent(new global.window.Event('change'));
+      await sleep(100);
+      await settled(hk);
+      ms.value = hk; ms.dispatchEvent(new global.window.Event('change'));
+      for (let i = 0; i < 100 && !an.view.querySelector('[data-role="heat-limit"]'); i++) await sleep(50);
+      const aq = an.view.querySelector('[data-role="anomaly-quality"]');
+      t('heizgrenze (L5): Gütesperre ohne den allgemeinen Satz, wenn der Vorschlag mit Knopf darunter steht', !!an.view.querySelector('[data-role="heat-limit"] [data-role="heat-limit-apply"]')
+        && !!aq && !aq.querySelector('[data-role="quality-link"]') && !/Oft passt die Heizkurve/.test(aq.textContent), (aq?.textContent || '').trim().slice(0, 200));
+      // Zählerformular: eigener Block mit Feld, Erklärung und dem Vorschlag zum Eintragen
+      const mclick = (el) => el?.dispatchEvent(new global.window.MouseEvent('click', { bubbles: true }));
+      global.document.querySelectorAll('.modal [data-act="cancel"]').forEach(b => b.click());
+      const mv = await renderView(`${ROOT}/views/meters.js`, ['gas']);
+      for (let i = 0; i < 80 && !mv.view.querySelector(`[data-edit-meter="${hk}"]`); i++) await sleep(50);
+      mclick(mv.view.querySelector(`[data-edit-meter="${hk}"]`));
+      for (let i = 0; i < 80 && !global.document.querySelector('[data-role="heat-limit-use"]'); i++) await sleep(50);
+      const fld = global.document.querySelector('#mf-hdd-base');
+      const use = global.document.querySelector('[data-role="heat-limit-use"]');
+      t('heizgrenze: Zählerformular — Feld mit eigener Grenze, Standard als Platzhalter, Erklärung und Vorschlag', fld?.value === '6'
+        && /15,0 \(Standard\)/.test(fld.getAttribute('placeholder') || '') && /Heiztag/.test(global.document.querySelector('#mf-hdd-base-hint')?.textContent || '')
+        && use?.textContent.includes(`${best(hl6.best)} °C eintragen`), `${fld?.value} · ${fld?.getAttribute('placeholder')} · ${use?.textContent}`);
+      mclick(use);
+      t('heizgrenze: Zählerformular — „eintragen“ füllt das Feld', fld?.value === best(hl6.best).replace(/,0$/, '') || fld?.value === best(hl6.best), fld?.value);
+      // Speichern: der Teil des Formulars (JSDOM kennt den Zugriff form.<name> nicht, den das ganze Formular nutzt)
+      const form = fld?.closest('form');
+      const { heatLimitPayload } = await import(`${ROOT}/views/meters.js`);
+      const pay = (v, editing) => { fld.value = v; try { return heatLimitPayload({ hdd_base_temp: fld, querySelector: (s) => form.querySelector(s) }, editing); } catch (e) { return e.message; } };
+      t('heizgrenze: Zählerformular — gespeichert wird die Zahl, leer entfernt, außerhalb 6–22 °C ein Fehler am Feld',
+        JSON.stringify(pay('10,5', true)) === '{"hdd_base_temp":10.5}' && JSON.stringify(pay('', true)) === '{"hdd_base_temp":null}'
+        && JSON.stringify(pay('', false)) === '{}' && /zwischen 6 und 22 °C/.test(String(pay('30', true)))
+        && fld.getAttribute('aria-invalid') === 'true' && /zwischen 6 und 22/.test(form.querySelector('#mf-hdd-base-msg')?.textContent || ''),
+        `${JSON.stringify(pay('10,5', true))} · ${pay('30', true)}`);
+      global.document.querySelectorAll('.modal [data-act="cancel"]').forEach(b => b.click());
+      if (hkc?.id) await fetch(`${HOST}/api/utility/gas/contracts/${hkc.id}`, { method: 'DELETE' });
+      await patchJson(`/utility/gas/meters/${hk}`, { hdd_base_temp: null });
+    } catch (e) { t('heizgrenze: Hinweise und Zu tun', false, e.stack || e.message); }
     fresh();
 
     // PV (#39): Balkonkraftwerk mit zwei Ablesungen

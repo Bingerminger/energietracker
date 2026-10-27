@@ -201,6 +201,20 @@ ein Folgevertrag mit Lücke nennt sie in der zweiten Zeile. Die Einsteiger-
 Übersicht hat den Haken ebenso.
 [Hinweise erledigen](../anleitungen/hinweise-erledigen.md).
 
+**Heizgrenze anpassen (v3.9.0, GitHub #38):** Passt das Heizmodell eines Zählers
+mit einer anderen Heizgrenze deutlich besser, steht unter „Zu tun“ „Heizgrenze
+anpassen: Mit X °C passt das Heizmodell deutlich besser“. Darunter vorher und
+nachher, wie weit ein Monat typisch von der Erwartung abweicht und welche
+Grundlast im Sommer das Modell annimmt, dazu der erwartete Saldo und der
+Abschlagsvorschlag des laufenden Vertrags heute und mit der neuen Grenze.
+**„Übernehmen (nur dieser Zähler)“** setzt die Grenze am Zähler (bei einem
+Gruppenvertrag an der Gruppe), der Hinweis danach bietet „Rückgängig“.
+**„Nicht jetzt“** blendet den Eintrag aus, bis ein neuer Monat gemessen ist oder
+sich der Vorschlag ändert. Derselbe Hinweis mit demselben Knopf steht an der
+Saldo-Karte, in der Prognose und in der Werkstatt, wenn deren Schätzung unsicher
+ist, weil das Heizmodell schlecht passt. Beide Knöpfe gibt es in jeder Stufe; die
+Analyse mit dem ganzen Raster bleibt ab Erfahren.
+
 **Ohne Daten (v2.13.0)** steht statt leerer Kacheln ein Willkommen: was der
 Energietracker tut, die ersten Schritte mit Häkchen aus den Daten (Standort,
 erster und zweiter Stand, Vertrag, optional Home Assistant) und
@@ -1760,6 +1774,14 @@ kumulativen Zählern
 lassen sich seit v2.6.0 die **Stellen des Zählwerks** pflegen — dann rechnet
 die Auswertung einen Überlauf (99.999 → 0) richtig; die Gerätezeile zeigt
 sie an.
+
+**Heizgrenze (v3.9.0):** Bei Gas, Fernwärme, Heizwärme, Heizöl und Pellets hat
+das Formular einen eigenen Block mit der Heizgrenze dieses Zählers (6 bis 22 °C).
+Leer heißt: der Standard aus den Einstellungen, er steht als Platzhalter im Feld.
+Die Erklärung sagt, was die Grenze ändert (Erwartung, Bereinigung, Prognose,
+Saldo; bei Tanks die Verteilung der Lieferungen auf die Monate). Gibt es aus den
+gemessenen Monaten einen Vorschlag, steht er darunter, mit einem Knopf, der ihn
+ins Feld einträgt; gespeichert wird erst mit „Speichern“.
 
 **Vertragsliste (v3.4.0):** Die Verträge einer Art (Kosten → Verträge →
 „Verträge verwalten“) stehen in einer Ansicht, rückwärts durch die Zeit und
