@@ -3468,8 +3468,12 @@ async function renderView(modPath, params = [], ctx = {}) {
     // Skeptiker M9: Monatszeile mit der abgerechneten Menge, eigene Legende „nach dem Wetter“
     const billedCell = lv.view.querySelector('[data-role="billed-qty"]');
     const bridgedLegend = lv.view.querySelector('[data-role="bridged-legend"]')?.textContent || '';
-    t('ablesung: Monatstabelle — überbrückter Monat mit „(abgerechnet …)“, Legende nach dem Wetter, nicht „gleichmäßig“',
-      /\(abgerechnet [\d.]+\)/.test(billedCell?.textContent || '') && !!lv.view.querySelector('[data-role="bridged"]')
+    // gibt es die Spalte „Abgerechnet“ (Rest-Abrechnung, messkonzepte), steht die Menge dort statt daneben
+    const digits = (s) => String(s ?? '').replace(/\D/g, '');
+    const billedInCol = !!lv.view.querySelector('[data-role="col-billed"]')
+      && [...lv.view.querySelectorAll('[data-role="billed"]')].some(td => digits(td.textContent) === digits(Math.round(jan?.billed_kwh ?? -1)));
+    t('ablesung: Monatstabelle — überbrückter Monat mit abgerechneter Menge, Legende nach dem Wetter, nicht „gleichmäßig“',
+      (/\(abgerechnet [\d.]+\)/.test(billedCell?.textContent || '') || billedInCol) && !!lv.view.querySelector('[data-role="bridged"]')
       && /nach dem Wetter verteilt/.test(bridgedLegend) && !/gleichmäßig/.test(bridgedLegend)
       && !/gleichmäßig/.test(lv.view.querySelector('[data-role="interpolated-legend"]')?.textContent || ''),
       `${billedCell?.textContent} · ${bridgedLegend.slice(0, 120)}`);
