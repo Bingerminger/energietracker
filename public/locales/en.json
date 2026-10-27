@@ -4033,6 +4033,12 @@
       "sub": "The same reading twice: {counter}. One is enough.",
       "delete": "Delete one",
       "deleted": "Duplicate reading deleted"
+    },
+    "mismatchTitle": "Consumption before and after {date} does not add up",
+    "mismatchTitleBlock": "Consumption before {date} and after {until} does not add up",
+    "mismatch": {
+      "one": "A single wrong reading does not explain both. A photo or the bill shows whether it is right.",
+      "other": "No common offset of the {count} readings explains both. A photo or the bill shows which one is right."
     }
   },
   "format": {
@@ -4606,7 +4612,9 @@
       "readingCheckBlock": "{label}: check the readings from {date} to {until} ({meter})",
       "readingDuplicate": "{label}: reading of {date} entered twice ({meter})",
       "levelShiftLess": "{label}: consistently lower consumption since {date}. Set a baseline date? ({meter})",
-      "levelShiftMore": "{label}: consistently higher consumption since {date}. Set a baseline date? ({meter})"
+      "levelShiftMore": "{label}: consistently higher consumption since {date}. Set a baseline date? ({meter})",
+      "readingMismatch": "{label}: consumption before and after {date} does not add up ({meter})",
+      "readingMismatchBlock": "{label}: consumption before {date} and after {until} does not add up ({meter})"
     },
     "subscribe": "Subscribe in your calendar",
     "intro": "Dates, cancellation deadlines, contract ends, price guarantees and due readings as a calendar subscription. The calendar refreshes them every 12 hours.",

@@ -98,8 +98,12 @@ heat pump: the heating model `a × HDD + c × days` with the heating limit of th
 (or its group), fitted over the reading intervals. For electricity and water: the mean
 daily amount of the intervals up to half a year before and after. For PV, garden water
 and other meters with marked seasons (the weakest month below half the strongest): the
-same days in other years. An EV charging point is not checked: charging happens when
-the car was driven.
+same days in other years. The same for a milder season that recurs: if the summer half
+is at least a quarter above or below the winters next to it in at least two years, the
+same way round (counted from intervals that lie mostly in one half of the year), the
+mean daily amount would say “too little” in winter and “too much” in summer although
+everything is right. An EV charging point is not checked: charging happens when the car
+was driven.
 
 **A candidate** is a reading or a block of up to six consecutive readings (at most half
 a year from the first to the last) where
@@ -129,6 +133,16 @@ a block: three readings too low by the same amount, every interval inside the bl
 normal. A checker that only looks at neighbouring pairs does not find it. And a
 transposed digit in a winter month (900 of 1,845 kWh) is at 1.49× and 0.43×; the quick
 check would have missed it.
+
+**Second stage: it does not add up at all.** If the interval before is at most half and
+the one after at least twice the expectation (or the other way round), both above the
+minimum amount and the spreads, the app asks even without a matching sum. Inside the
+block the intervals may then keep deviating in the same direction, just not already back.
+That is the case of readings getting more and more wrong: in a follow-up check the
+interval before was at 0.23×, the two inside the block at 0.78× and 0.69×, the one after
+at 3.67×, and the surplus afterwards was twice the shortfall before. No common offset
+explains that, so the app suggests no reading; the entry says “Consumption before and
+after … does not add up”, with the same buttons.
 
 **In “To do”** it then says “Check the reading of …”, with measured against expected
 for the interval before and after and the guess (“probably about 900 m³ too high”); in
@@ -160,9 +174,13 @@ afterwards (at most a tenth of the days afterwards back at the old level), the a
 suggests a [baseline date](#effect-of-a-measure-baseline-date) on the day of the change:
 “Set baseline date here” (a dialog with the end of the unusual period as the day, to
 confirm or change) or “Not now”. Today’s level comes from at least half a year
-after the change. With an effective baseline date only the time after it counts; if it
-is at the change, the note is not shown. The time before a detected change is no
-yardstick for single readings.
+after the change (for the heating model from four intervals on, even if only a few
+readings exist after it). A gradual transition is allowed: right before the time after,
+a single interval may lie between the old and today’s level; the day of the change is
+then the end of the last interval at the old level. With an effective baseline date only
+the time after it counts; if it is at the change, the note is not shown. The time before
+a detected change is no yardstick for single readings. With a recurring season the note
+uses the mean daily amount of the time after (over a whole year the season evens out).
 
 All three entries count in `/api/todo` and in the notifications to Home Assistant, at
 every level.

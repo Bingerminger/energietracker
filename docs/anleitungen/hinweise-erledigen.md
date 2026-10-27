@@ -25,7 +25,7 @@ jemand etwas abhakt.
 | eine **Lieferung** Heizöl oder Pellets, wenn der Bestand vorher niedrig war | „Lieferung planen“ |
 | eine **Nebenkostenabrechnung** für den abgelaufenen Zeitraum (zur Miete) | „Nebenkostenabrechnung fällig“ |
 | seit v3.5.0 eine **Versorgerrechnung**, die einen abgelaufenen Abrechnungszeitraum abdeckt ([Abschnitt 9](#9-abrechnung-erwartet-v350)) | „Abrechnung erwartet“ |
-| seit v3.9.0 **„Stand ist richtig“**, **„Nur für die Abrechnung“** oder einen **korrigierten Stand** ([Abschnitt 11](#11-ablesung-prüfen-v390)) | „Ablesung vom … prüfen“ |
+| seit v3.9.0 **„Stand ist richtig“**, **„Nur für die Abrechnung“** oder einen **korrigierten Stand** ([Abschnitt 11](#11-ablesung-prüfen-v390)) | „Ablesung vom … prüfen“, „Verbrauch vor und nach dem … passt nicht zusammen“ |
 | seit v3.9.0 das **Löschen** einer doppelt eingetragenen Ablesung | „Ablesung vom … doppelt eingetragen“ |
 
 **Folgevertrag mit Lücke.** Beginnt der neue Vertrag später, bleibt die
@@ -390,6 +390,12 @@ um rund 300 m³ zu niedrig“). In der Liste der Ablesungen trägt der Stand die
 | **Korrigieren** | öffnet den Bearbeiten-Dialog der Ablesung mit dem Stand, der passen würde („Einsetzen“). Gespeichert wird erst mit „Speichern“. |
 
 Alle drei mit **Rückgängig** im Hinweis danach.
+
+**„Verbrauch vor und nach dem … passt nicht zusammen“:** Liegt der Abstand davor weit
+unter und der danach weit über der Erwartung (oder umgekehrt), aber kein gemeinsamer
+Versatz erklärt beides, etwa weil die Stände nach und nach falscher wurden, fragt die App
+mit diesem Text. Die Knöpfe sind dieselben; einen passenden Stand schlägt sie hier nicht
+vor. Ein Foto der Ablesung oder die Abrechnung zeigt, welcher Stand stimmt.
 
 **Doppelt eingetragen:** Steht derselbe Stand am selben Tag zweimal da, löscht
 **„Eine löschen“** den zweiten (behalten wird der mit Foto, sonst der mit Notiz).

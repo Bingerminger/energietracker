@@ -4033,6 +4033,12 @@
       "sub": "Due volte la stessa lettura: {counter}. Ne basta una.",
       "delete": "Eliminarne una",
       "deleted": "Lettura doppia eliminata"
+    },
+    "mismatchTitle": "Il consumo prima e dopo il {date} non torna",
+    "mismatchTitleBlock": "Il consumo prima del {date} e dopo il {until} non torna",
+    "mismatch": {
+      "one": "Una sola lettura sbagliata non spiega entrambi. Una foto o la bolletta mostra se è giusta.",
+      "other": "Nessuno scostamento comune delle {count} letture spiega entrambi. Una foto o la bolletta mostra quale è giusta."
     }
   },
   "format": {
@@ -4606,7 +4612,9 @@
       "readingCheckBlock": "{label}: verificare le letture dal {date} al {until} ({meter})",
       "readingDuplicate": "{label}: lettura del {date} inserita due volte ({meter})",
       "levelShiftLess": "{label}: consumo stabilmente più basso dal {date}. Impostare una cesura? ({meter})",
-      "levelShiftMore": "{label}: consumo stabilmente più alto dal {date}. Impostare una cesura? ({meter})"
+      "levelShiftMore": "{label}: consumo stabilmente più alto dal {date}. Impostare una cesura? ({meter})",
+      "readingMismatch": "{label}: il consumo prima e dopo il {date} non torna ({meter})",
+      "readingMismatchBlock": "{label}: il consumo prima del {date} e dopo il {until} non torna ({meter})"
     },
     "subscribe": "Iscriviti nel calendario",
     "intro": "Appuntamenti, termini di disdetta, fine dei contratti, garanzie di prezzo e letture dovute come abbonamento al calendario. Il calendario li aggiorna ogni 12 ore.",

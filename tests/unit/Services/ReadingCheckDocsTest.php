@@ -42,6 +42,13 @@ final class ReadingCheckDocsTest extends TestCase
             'Zäsur, zusammen' => ['zusammen mindestens das Anderthalbfache', 'together at least one and a half times', ReadingCheckService::LEVEL_RATIO, 1.5],
             'Zäsur, danach'   => ['höchstens ein Zehntel der Tage danach', 'at most a tenth of the days afterwards', ReadingCheckService::LEVEL_AFTER_BACK, 0.1],
             'Zäsur, heute'    => ['mindestens einem halben Jahr nach dem Wechsel', 'at least half a year after the change', ReadingCheckService::LEVEL_AFTER_DAYS, 182.0],
+            // Nachauftrag (Nachprüfung an echten Daten)
+            'zweite Stufe'    => ['höchstens bei der Hälfte und der danach mindestens beim Doppelten', 'at most half and the one after at least twice',
+                                  ReadingCheckService::STRONG_RATIO, 2.0],
+            'Jahreszeit'      => ['mindestens ein Viertel über oder unter den Wintern daneben', 'at least a quarter above or below the winters next to it',
+                                  ReadingCheckService::SEASON_RATIO, 1.25],
+            'Jahreszeit, Jahre' => ['in mindestens zwei Jahren gleichsinnig', 'in at least two years, the same way round', ReadingCheckService::SEASON_YEARS, 2.0],
+            'Zäsur, Modell'   => ['beim Heizmodell ab vier Abständen', 'for the heating model from four intervals on', ReadingCheckService::LEVEL_AFTER_POINTS, 4.0],
         ];
     }
 

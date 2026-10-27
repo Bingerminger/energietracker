@@ -4033,6 +4033,12 @@
       "sub": "Zweimal derselbe Stand: {counter}. Einer genügt.",
       "delete": "Eine löschen",
       "deleted": "Doppelte Ablesung gelöscht"
+    },
+    "mismatchTitle": "Verbrauch vor und nach dem {date} passt nicht zusammen",
+    "mismatchTitleBlock": "Verbrauch vor dem {date} und nach dem {until} passt nicht zusammen",
+    "mismatch": {
+      "one": "Ein einzelner falscher Stand erklärt beides nicht. Ein Foto oder die Abrechnung zeigt, ob er stimmt.",
+      "other": "Ein gemeinsamer Versatz der {count} Stände erklärt beides nicht. Ein Foto oder die Abrechnung zeigt, welcher stimmt."
     }
   },
   "format": {
@@ -4606,7 +4612,9 @@
       "readingCheckBlock": "{label}: Ablesungen vom {date} bis {until} prüfen ({meter})",
       "readingDuplicate": "{label}: Ablesung vom {date} doppelt eingetragen ({meter})",
       "levelShiftLess": "{label}: seit {date} dauerhaft weniger Verbrauch. Analyse-Zäsur setzen? ({meter})",
-      "levelShiftMore": "{label}: seit {date} dauerhaft mehr Verbrauch. Analyse-Zäsur setzen? ({meter})"
+      "levelShiftMore": "{label}: seit {date} dauerhaft mehr Verbrauch. Analyse-Zäsur setzen? ({meter})",
+      "readingMismatch": "{label}: Verbrauch vor und nach dem {date} passt nicht zusammen ({meter})",
+      "readingMismatchBlock": "{label}: Verbrauch vor dem {date} und nach dem {until} passt nicht zusammen ({meter})"
     },
     "subscribe": "Im Kalender abonnieren",
     "intro": "Termine, Kündigungsstichtage, Vertragsenden, Preisgarantien und fällige Ablesungen als Kalender-Abo. Der Kalender holt sie alle 12 Stunden neu.",

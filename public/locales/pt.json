@@ -4033,6 +4033,12 @@
       "sub": "Duas vezes a mesma leitura: {counter}. Basta uma.",
       "delete": "Eliminar uma",
       "deleted": "Leitura duplicada eliminada"
+    },
+    "mismatchTitle": "O consumo antes e depois de {date} não bate certo",
+    "mismatchTitleBlock": "O consumo antes de {date} e depois de {until} não bate certo",
+    "mismatch": {
+      "one": "Uma só leitura errada não explica ambos. Uma fotografia ou a fatura mostra se está certa.",
+      "other": "Nenhum desvio comum das {count} leituras explica ambos. Uma fotografia ou a fatura mostra qual está certa."
     }
   },
   "format": {
@@ -4606,7 +4612,9 @@
       "readingCheckBlock": "{label}: verificar as leituras de {date} a {until} ({meter})",
       "readingDuplicate": "{label}: leitura de {date} registada duas vezes ({meter})",
       "levelShiftLess": "{label}: consumo constantemente mais baixo desde {date}. Definir um corte de referência? ({meter})",
-      "levelShiftMore": "{label}: consumo constantemente mais alto desde {date}. Definir um corte de referência? ({meter})"
+      "levelShiftMore": "{label}: consumo constantemente mais alto desde {date}. Definir um corte de referência? ({meter})",
+      "readingMismatch": "{label}: o consumo antes e depois de {date} não bate certo ({meter})",
+      "readingMismatchBlock": "{label}: o consumo antes de {date} e depois de {until} não bate certo ({meter})"
     },
     "subscribe": "Subscrever no calendário",
     "intro": "Compromissos, prazos de denúncia, fim de contratos, garantias de preço e leituras pendentes como subscrição de calendário. O calendário atualiza-os a cada 12 horas.",

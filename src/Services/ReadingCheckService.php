@@ -27,10 +27,10 @@ use Energietracker\Support\Dates;
  *               Gruppe, gefittet über die Ablesungsabstände (zu Stücken ab
  *               `min_days_period` Tagen zusammengefasst, Gewicht wie heatIntervalPoints).
  *               Strom und Wasser: die mittlere Tagesmenge der Abstände bis ein halbes
- *               Jahr davor und danach. PV, Garten, ausgeprägte Jahreszeiten und
- *               Heizarten ohne Modell: dieselben Tage in anderen Jahren (Median).
- *               Ladepunkte nicht (geladen wird, wenn gefahren wurde). Ohne Erwartung
- *               keine Prüfung.
+ *               Jahr davor und danach. PV, Garten, ausgeprägte oder jedes Jahr
+ *               wiederkehrende Jahreszeiten (SEASON_RATIO) und Heizarten ohne Modell:
+ *               dieselben Tage in anderen Jahren (Median). Ladepunkte nicht (geladen
+ *               wird, wenn gefahren wurde). Ohne Erwartung keine Prüfung.
  *   Kandidat    ein Stand oder ein Block aufeinanderfolgender Stände (höchstens
  *               MAX_BLOCK, höchstens MAX_BLOCK_DAYS Tage), bei dem der Abstand davor
  *               deutlich unter und der danach deutlich über der Erwartung liegt (oder
@@ -43,6 +43,9 @@ use Energietracker\Support\Dates;
  *               eines typischen Monats und mindestens SIGMA Streuungen des Modells.
  *   Gegenprobe  Erwartungen für den Kandidaten neu, ohne die geprüften Abstände
  *               (Lektion 46: eine Erwartung, die den geprüften Wert enthält, prüft nichts).
+ *   2. Stufe    sehr starke Gegenbewegung (STRONG_RATIO: davor höchstens die Hälfte,
+ *               danach mindestens das Doppelte oder umgekehrt) ohne passende Summe, im
+ *               Block weiter in dieselbe Richtung erlaubt: `kind` mismatch, ohne Vorschlag.
  *
  * Dazu doppelt eingetragene Stände (derselbe Tag, derselbe Stand) und der Hinweis auf
  * die Analyse-Zäsur: Lag der Verbrauch mindestens ein Jahr am Stück gleichbleibend weit
@@ -135,6 +138,43 @@ final class ReadingCheckService
      * ist es eine Gegenbewegung, kein neues Niveau.
      */
     public const LEVEL_AFTER_BACK = 0.1;
+
+    /**
+     * Heutiges Niveau bei Heizarten: Heizmodell über mindestens so viele Stücke nach dem
+     * Wechsel (statt der acht der Monatsregression). Nach einem Wechsel liegen oft nur
+     * anderthalb Jahre mit Abständen von zwei, drei Monaten vor; mit acht Stücken fiel der
+     * Wechsel dann ganz aus, und der Übergangsabstand stand im heutigen Niveau.
+     */
+    public const LEVEL_AFTER_POINTS = 4;
+
+    /**
+     * Zweite Stufe: sehr starke Gegenbewegung. Liegt der Abstand davor höchstens bei der
+     * Hälfte und der danach mindestens beim Doppelten der Erwartung (oder umgekehrt), je
+     * über der Mindestmenge und den Streuungen, fragt die App auch dann, wenn kein
+     * gemeinsamer Versatz beide erklärt, ohne einen Stand vorzuschlagen. Im Block dürfen
+     * die Abstände dabei in dieselbe Richtung weitergehen (die Stände werden nach und nach
+     * falscher). Fall aus der Nachprüfung: 0,23× davor, 0,78× und 0,69× im Block, 3,67×
+     * danach, der Überschuss danach doppelt so groß wie der Mangel davor.
+     */
+    public const STRONG_RATIO = 2.0;
+
+    /**
+     * Wiederkehrende Jahreszeit bei Strom und Wasser: Liegt die Tagesrate eines
+     * Sommerhalbjahrs (April bis September) in mindestens SEASON_YEARS Jahren gleichsinnig
+     * mindestens SEASON_RATIO über (bzw. unter) der der Winter daneben, in mehr Jahren als
+     * umgekehrt, kommt die Erwartung aus denselben Tagen anderer Jahre statt aus der
+     * mittleren Tagesmenge. Gezählt werden nur Abstände, die überwiegend
+     * (SEASON_HALF_SHARE) in einer Jahreshälfte liegen. Fall aus der Nachprüfung: Strom im
+     * Sommer rund 1,4-mal so viel wie im Winter, drei Jahre in Folge; die mittlere Tagesmenge
+     * hieß einen Winterabstand „zu wenig“ und den Sommer danach „zu viel“ und meldete vier
+     * richtige Stände. Ein Jahresgang in der Tagesmenge (Sinus) half nicht: Strom neben PV
+     * springt im Herbst und Frühjahr, statt sanft zu schwingen.
+     */
+    public const SEASON_RATIO = 1.25;
+    public const SEASON_YEARS = 2;
+    private const SEASON_HALF_SHARE = 2 / 3;
+    /** Tage, ab denen ein Halbjahr mit seiner Rate zählt. */
+    private const SEASON_HALF_DAYS = 60;
 
     /** Tage eines mittleren Monats (wie ConsumptionService). */
     private const MONTH_DAYS = 365.25 / 12;
@@ -322,7 +362,7 @@ final class ReadingCheckService
         $heat = Utilities::isHgtRelevant($utility)
             || ($utility === 'strom' && Utilities::roleOf('strom', $meter) === 'heat_pump');
         $ctx = ['typical' => $typical, 'min' => self::MIN_SHARE * $typical, 'heat' => $heat, 'min_from' => null,
-                'base' => null, 'model' => null, 'chunks' => [], 'method' => null];
+                'base' => null, 'model' => null, 'chunks' => [], 'method' => null, 'level_method' => null];
         if ($heat) {
             $ctx['base'] = $this->baseFor($utility, $meter);
             $this->addDegreeDays($iv, $ctx['base']);
@@ -336,7 +376,58 @@ final class ReadingCheckService
         // wenig“ und im Sommer „zu viel“. Dieselben Tage anderer Jahre statt dessen.
         $ctx['method'] ??= $heat || Utilities::isFeedIn($utility) || Utilities::isGenerationOnly($utility)
             || Utilities::roleOf($utility, $meter) === 'garden' || self::seasonal($usable) ? 'other_years' : 'mean_rate';
+        // Eine mildere Jahreszeit, die jedes Jahr wiederkehrt: ebenfalls andere Jahre. Der
+        // Hinweis auf die Zäsur rechnet weiter mit der mittleren Tagesmenge (über ein ganzes
+        // Jahr gleicht sich die Jahreszeit aus, ein Jahr am Stück auf anderem Niveau nicht)
+        if ($ctx['method'] === 'mean_rate' && self::recurringSeason($usable)) {
+            $ctx['method'] = 'other_years';
+            $ctx['level_method'] = 'mean_rate';
+        }
         return $this->withLists($ctx, $iv);
+    }
+
+    /**
+     * Wiederkehrende Jahreszeit (SEASON_RATIO, SEASON_YEARS): je Sommerhalbjahr die
+     * Tagesrate gegen die der Winter davor und danach (Mittel der vorhandenen), aus den
+     * Abständen, die überwiegend in einer Jahreshälfte liegen. Mindestens SEASON_YEARS Jahre
+     * gleichsinnig jenseits SEASON_RATIO und mehr in diese Richtung als in die andere. Jahre
+     * ohne Jahreszeit (etwa Leerstand vor dem Einzug) zählen nicht dagegen; ein falscher
+     * Stand verschiebt höchstens ein Jahr.
+     */
+    private static function recurringSeason(array $usable): bool
+    {
+        $half = [];   // 'S2024' Sommer 2024, 'W2024' Winter ab Oktober 2024
+        foreach ($usable as $x) {
+            if ($x['days'] <= 0) continue;
+            $summer = 0;
+            for ($d = $x['d0']; $d < $x['d1'];) {
+                $t = $d * 86400 + 43200;
+                $mo = (int)gmdate('n', $t);
+                $y = (int)gmdate('Y', $t);
+                $next = min($x['d1'], max($d + 1, self::dayNo(sprintf('%04d-%02d-01', $mo === 12 ? $y + 1 : $y, $mo === 12 ? 1 : $mo + 1))));
+                if ($mo >= 4 && $mo <= 9) $summer += $next - $d;
+                $d = $next;
+            }
+            $mid = intdiv($x['d0'] + $x['d1'], 2) * 86400 + 43200;
+            $y = (int)gmdate('Y', $mid);
+            if ($summer >= self::SEASON_HALF_SHARE * $x['days']) $key = 'S' . $y;
+            elseif ($x['days'] - $summer >= self::SEASON_HALF_SHARE * $x['days']) $key = 'W' . ((int)gmdate('n', $mid) >= 10 ? $y : $y - 1);
+            else continue;
+            $half[$key] ??= [0.0, 0];
+            $half[$key][0] += (float)$x['kwh'];
+            $half[$key][1] += (int)$x['days'];
+        }
+        $rate = fn(string $k): ?float => isset($half[$k]) && $half[$k][1] >= self::SEASON_HALF_DAYS && $half[$k][0] > 0 ? $half[$k][0] / $half[$k][1] : null;
+        $ratios = [];
+        foreach (array_keys($half) as $k) {
+            if ($k[0] !== 'S' || ($s = $rate($k)) === null) continue;
+            $y = (int)substr($k, 1);
+            $w = array_values(array_filter([$rate('W' . ($y - 1)), $rate('W' . $y)], fn($v) => $v !== null));
+            if ($w !== []) $ratios[] = $s / (array_sum($w) / count($w));
+        }
+        $up = count(array_filter($ratios, fn($r) => $r >= self::SEASON_RATIO));
+        $down = count(array_filter($ratios, fn($r) => $r * self::SEASON_RATIO <= 1));
+        return ($up >= self::SEASON_YEARS && $up > $down) || ($down >= self::SEASON_YEARS && $down > $up);
     }
 
     /**
@@ -376,9 +467,9 @@ final class ReadingCheckService
      * und die des Winterhalbjahrs (Oktober bis März) liegen um mehr als das Doppelte
      * auseinander (Gartenwasser, Strom mit Wärmepumpe ohne Rolle, Bezug neben PV). Je
      * Halbjahr der Median der Kalendermonate, damit ein falscher Stand (ein Monat zu
-     * niedrig, der nächste zu hoch) nicht selbst als Jahreszeit gilt. Haushaltsstrom
-     * und Trinkwasser schwanken um ein Drittel und bleiben bei der mittleren
-     * Tagesmenge. Mit weniger als zwei belegten Monaten je Halbjahr: nein.
+     * niedrig, der nächste zu hoch) nicht selbst als Jahreszeit gilt. Eine mildere
+     * Jahreszeit (ab einem Viertel) zählt, wenn sie jedes Jahr wiederkehrt
+     * (recurringSeason). Mit weniger als zwei belegten Monaten je Halbjahr: nein.
      */
     private static function seasonal(array $usable): bool
     {
@@ -474,15 +565,15 @@ final class ReadingCheckService
 
     /**
      * Heizmodell über die Stücke (ConsumptionService::fitHeatPoints, Gewicht wie
-     * heatIntervalPoints). null unter MIN_POINTS_REGRESSION Stücken oder ohne Signal.
+     * heatIntervalPoints). null unter `$minPoints` Stücken (sonst MIN_POINTS_REGRESSION) oder ohne Signal.
      *
      * @return array{a:float,c:float,resid_sd:float}|null
      */
-    private function fit(array $chunks): ?array
+    private function fit(array $chunks, int $minPoints = ConsumptionService::MIN_POINTS_REGRESSION): ?array
     {
         $pts = [];
         foreach ($chunks as $c) if ($c['kwh'] > 0) $pts[] = [(float)$c['hdd'], (float)$c['days'], (float)$c['kwh'], self::MONTH_DAYS / $c['days']];
-        if (count($pts) < ConsumptionService::MIN_POINTS_REGRESSION) return null;
+        if (count($pts) < $minPoints) return null;
         $m = ConsumptionService::fitHeatPoints($pts);
         return $m['a'] > 0 || $m['c'] > 0 ? ['a' => (float)$m['a'], 'c' => (float)$m['c'], 'resid_sd' => (float)$m['resid_sd']] : null;
     }
@@ -654,6 +745,13 @@ final class ReadingCheckService
         return !self::sig($x, 1, $min) && !self::sig($x, -1, $min);
     }
 
+    /** Deutlich und dazu jenseits STRONG_RATIO (zweite Stufe). */
+    private static function strong(?array $x, int $sign, float $min): bool
+    {
+        if (!self::sig($x, $sign, $min)) return false;
+        return $sign < 0 ? $x['m'] * self::STRONG_RATIO <= $x['e'] : $x['m'] >= $x['e'] * self::STRONG_RATIO;
+    }
+
     // ── Kandidaten ───────────────────────────────────────────────────────
 
     /**
@@ -678,27 +776,36 @@ final class ReadingCheckService
         foreach ($scr as $p => $xp) {
             foreach ([-1, 1] as $s) {
                 if (!self::sig($xp, $s, $min)) continue;
+                // erste Stufe: gemeinsamer Versatz, im Block jeder Abstand normal
                 for ($q = $p + 1; $q <= $p + self::MAX_BLOCK && isset($iv[$q]); $q++) {
                     if ($scr[$q] === null) break;
                     if (self::days((string)$points[$p]['date'], (string)$points[$q - 1]['date']) > self::MAX_BLOCK_DAYS) break;
-                    if (self::sig($scr[$q], -$s, $min)) { $cands[] = [$p, $q, $s]; break; }
+                    if (self::sig($scr[$q], -$s, $min)) { $cands[] = [$p, $q, $s, false]; break; }
                     if (!self::normal($scr[$q], $min)) break;
+                }
+                // zweite Stufe: sehr starke Gegenbewegung, im Block weiter in dieselbe Richtung erlaubt
+                if (!self::strong($xp, $s, $min)) continue;
+                for ($q = $p + 1; $q <= $p + self::MAX_BLOCK && isset($iv[$q]); $q++) {
+                    if ($scr[$q] === null) break;
+                    if (self::days((string)$points[$p]['date'], (string)$points[$q - 1]['date']) > self::MAX_BLOCK_DAYS) break;
+                    if (self::strong($scr[$q], -$s, $min)) { $cands[] = [$p, $q, $s, true]; break; }
+                    if (self::sig($scr[$q], -$s, $min)) break;
                 }
             }
         }
         $found = [];
-        foreach ($cands as [$p, $q, $s]) {
-            $c = $this->confirm($utility, $meter, $points, $iv, $ctx, $scr, $p, $q, $s);
+        foreach ($cands as [$p, $q, $s, $strong]) {
+            $c = $this->confirm($utility, $meter, $points, $iv, $ctx, $scr, $p, $q, $s, $strong);
             if ($c !== null) $found[] = $c;
         }
-        // stärkster Versatz zuerst, Blöcke überschneiden sich nicht
-        usort($found, fn($a, $b) => $b['_score'] <=> $a['_score']);
+        // erste Stufe vor der zweiten, darin der stärkste Versatz zuerst; Blöcke überschneiden sich nicht
+        usort($found, fn($a, $b) => [$a['_level'], $b['_score']] <=> [$b['_level'], $a['_score']]);
         $taken = []; $out = [];
         foreach ($found as $c) {
             $range = range($c['_p'], $c['_q']);
             if (array_intersect($range, $taken) !== []) continue;
             $taken = array_merge($taken, $range);
-            unset($c['_score'], $c['_p'], $c['_q']);
+            unset($c['_score'], $c['_p'], $c['_q'], $c['_level']);
             $out[] = $c;
         }
         usort($out, fn($a, $b) => strcmp($a['date'], $b['date']));
@@ -708,11 +815,13 @@ final class ReadingCheckService
     /**
      * Einen Kandidaten bestätigen: kein bestätigter Stand im Block, Nachbarn nicht in
      * dieselbe Richtung, und mit Erwartungen ohne die geprüften Abstände weiter deutlich,
-     * der Block normal und die Summe passend.
+     * der Block normal und die Summe passend. Zweite Stufe (`$strong`): davor und danach
+     * jenseits STRONG_RATIO, im Block keine Gegenbewegung, ohne Summe und ohne Vorschlag
+     * (`kind` mismatch).
      *
      * @return array<string,mixed>|null
      */
-    private function confirm(string $utility, array $meter, array $points, array $iv, array $ctx, array $scr, int $p, int $q, int $s): ?array
+    private function confirm(string $utility, array $meter, array $points, array $iv, array $ctx, array $scr, int $p, int $q, int $s, bool $strong = false): ?array
     {
         $min = (float)$ctx['min'];
         for ($k = $p; $k < $q; $k++) if (!empty($points[$k]['is_verified'])) return null;
@@ -726,12 +835,17 @@ final class ReadingCheckService
         }
         $xp = $this->expect($iv, $p, $ctx, $skip, $model);
         $xq = $this->expect($iv, $q, $ctx, $skip, $model);
-        if (!self::sig($xp, $s, $min) || !self::sig($xq, -$s, $min)) return null;
-        for ($k = $p + 1; $k < $q; $k++) if (!self::normal($this->expect($iv, $k, $ctx, $skip, $model), $min)) return null;
+        $far = $strong ? self::strong(...) : self::sig(...);
+        if (!$far($xp, $s, $min) || !$far($xq, -$s, $min)) return null;
+        for ($k = $p + 1; $k < $q; $k++) {
+            $xk = $this->expect($iv, $k, $ctx, $skip, $model);
+            // erste Stufe: jeder Abstand im Block normal; zweite: keiner schon zurück
+            if ($strong ? self::sig($xk, -$s, $min) : !self::normal($xk, $min)) return null;
+        }
         $dp = $xp['m'] - $xp['e'];
         $dq = $xq['m'] - $xq['e'];
         $delta = ($dq - $dp) / 2;   // > 0: die Stände im Block sind zu niedrig
-        if (abs($dp + $dq) > self::SUM_TOLERANCE * abs($delta)) return null;
+        if (!$strong && abs($dp + $dq) > self::SUM_TOLERANCE * abs($delta)) return null;
 
         $f = $this->unitFactor($utility, $iv[$p]);
         $side = function (array $x, array $e) use ($utility): array {
@@ -745,20 +859,21 @@ final class ReadingCheckService
         $first = (string)$block[0]['date'];
         return [
             'uid'         => AgendaService::uid('reading_check', $utility, (string)$meter['id'], $first),
-            'kind'        => 'offset',
+            'kind'        => $strong ? 'mismatch' : 'offset',
             'date'        => $first,
             'until'       => (string)$block[count($block) - 1]['date'],
             'count'       => count($block),
             'reading_ids' => array_map(fn($r) => (string)($r['id'] ?? ''), $block),
-            'direction'   => $delta > 0 ? 'low' : 'high',
-            'offset'      => round(abs($offsetRaw), 1),
+            'direction'   => $s < 0 ? 'low' : 'high',
+            // zweite Stufe: kein gemeinsamer Versatz, also kein Vorschlag
+            'offset'      => $strong ? null : round(abs($offsetRaw), 1),
             'unit'        => (string)(Utilities::get($utility)['unit'] ?? ''),
             'basis'       => $ctx['method'],
             'before'      => $side($iv[$p], $xp),
             'after'       => $side($iv[$q], $xq),
-            'suggested'   => array_map(fn($r) => ['id' => (string)($r['id'] ?? ''), 'date' => (string)$r['date'],
+            'suggested'   => $strong ? [] : array_map(fn($r) => ['id' => (string)($r['id'] ?? ''), 'date' => (string)$r['date'],
                 'counter' => (float)$r['counter'], 'suggested' => round((float)$r['counter'] + $offsetRaw, 1)], $block),
-            '_score' => abs($delta) / $ctx['typical'], '_p' => $p, '_q' => $q,
+            '_score' => abs($delta) / $ctx['typical'], '_p' => $p, '_q' => $q, '_level' => $strong ? 2 : 1,
         ];
     }
 
@@ -767,14 +882,20 @@ final class ReadingCheckService
     /**
      * Gleichbleibend anderes Niveau vor einem Wechsel (s. LEVEL_*), über die Stücke
      * (etwa Monate). Wechsel kommen an jedem Stückbeginn in Frage; das heutige Niveau
-     * kommt aus den Stücken danach (Heizmodell bzw. mittlere Tagesmenge). Nicht bei
-     * denselben Tagen anderer Jahre (PV, Garten, Jahreszeiten ohne Modell).
+     * kommt aus den Stücken danach (Heizmodell ab LEVEL_AFTER_POINTS Stücken bzw. mittlere
+     * Tagesmenge). Ein gleitender Übergang ist erlaubt: Direkt vor der Zeit danach darf ein
+     * einzelnes Stück zwischen altem und heutigem Niveau liegen; es zählt weder zum alten
+     * Niveau noch zum heutigen. Der Tag des Wechsels ist dann das Ende des letzten Stücks
+     * auf altem Niveau. Nicht bei PV, Garten und Jahreszeiten über das Doppelte (dort fragt
+     * die App mit denselben Tagen anderer Jahre); bei einer milderen wiederkehrenden
+     * Jahreszeit mit der mittleren Tagesmenge (`level_method`).
      *
      * @return array<string,mixed>|null
      */
     private function levelShift(string $utility, array $meter, array $points, array $ctx): ?array
     {
-        if (!in_array($ctx['method'], ['heat_model', 'mean_rate'], true)) return null;
+        $method = $ctx['level_method'] ?? $ctx['method'];
+        if (!in_array($method, ['heat_model', 'mean_rate'], true)) return null;
         $ch = array_values($ctx['chunks']);
         $n = count($ch);
         if ($n < 3) return null;
@@ -783,11 +904,11 @@ final class ReadingCheckService
         $min = (float)$ctx['min'];
         $best = null;
         for ($s = 1; $s < $n; $s++) {
-            $date = $ch[$s]['from'];
-            if (self::days($first, $date) < self::LEVEL_MIN_DAYS || self::days($date, $last) < self::LEVEL_AFTER_DAYS) continue;
+            $start = $ch[$s]['from'];
+            if (self::days($first, $start) < self::LEVEL_MIN_DAYS || self::days($start, $last) < self::LEVEL_AFTER_DAYS) continue;
             $after = array_slice($ch, $s);
-            if ($ctx['method'] === 'heat_model') {
-                $model = $this->fit($after);
+            if ($method === 'heat_model') {
+                $model = $this->fit($after, self::LEVEL_AFTER_POINTS);
                 if ($model === null) continue;
                 $exp = fn(array $c): float => $model['a'] * $c['hdd'] + $model['c'] * $c['days'];
             } else {
@@ -797,8 +918,9 @@ final class ReadingCheckService
                 $rate = $sum / $days;
                 $exp = fn(array $c): float => $rate * $c['days'];
             }
-            // davor: am Stück, jedes nennenswerte Stück auf derselben Seite
-            $dir = 0; $sm = 0.0; $se = 0.0; $runFrom = null;
+            // davor: am Stück, jedes nennenswerte Stück auf derselben Seite; direkt vor
+            // der Zeit danach darf ein Übergang stehen (ein Stück dazwischen)
+            $dir = 0; $sm = 0.0; $se = 0.0; $runFrom = null; $date = null;
             for ($k = $s - 1; $k >= 0; $k--) {
                 $c = $ch[$k];
                 if ($c['to'] !== ($ch[$k + 1]['from'] ?? $c['to'])) break;   // Lücke in den Daten
@@ -808,18 +930,20 @@ final class ReadingCheckService
                 if (max($e, $m) >= $min) {
                     $r = $m / $e;
                     $d = $r >= self::LEVEL_STEP ? 1 : ($r <= 1 / self::LEVEL_STEP ? -1 : 0);
+                    if ($d === 0 && $k === $s - 1) continue;   // Übergang
                     if ($d === 0 || ($dir !== 0 && $d !== $dir)) break;
                     $dir = $d;
                 }
                 $sm += $m; $se += $e; $runFrom = $c['from'];
+                $date ??= $c['to'];
             }
-            if ($dir === 0 || $runFrom === null || $se <= 0) continue;
+            if ($dir === 0 || $runFrom === null || $date === null || $se <= 0) continue;
             $span = self::days($runFrom, $date);
             $ratio = $sm / $se;
             if ($span < self::LEVEL_MIN_DAYS || ($dir > 0 ? $ratio < self::LEVEL_RATIO : $ratio > 1 / self::LEVEL_RATIO)) continue;
-            // danach keine Gegenbewegung: Der Wechsel liegt hier (das erste Stück danach
-            // schon auf heutigem Niveau), und höchstens LEVEL_AFTER_BACK der Tage danach
-            // kehren zum alten Niveau zurück
+            // danach keine Gegenbewegung: Das erste Stück danach liegt schon auf heutigem
+            // Niveau, und höchstens LEVEL_AFTER_BACK der Tage danach kehren zum alten
+            // Niveau zurück
             $back = 0; $total = 0; $firstBack = null;
             foreach ($after as $i => $c) {
                 $e = $exp($c);
@@ -844,7 +968,7 @@ final class ReadingCheckService
             'factor'    => round($best['ratio'], 2),
             'days'      => $best['days'],
             'months'    => (int)round($best['days'] / self::MONTH_DAYS),
-            'basis'     => $ctx['method'],
+            'basis'     => $method,
         ];
     }
 
