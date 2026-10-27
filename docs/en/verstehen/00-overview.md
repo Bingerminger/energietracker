@@ -170,7 +170,9 @@ twice” with “Delete one” (the one with a photo is kept, otherwise the one 
 **A different level, not a reading error:** if consumption was consistently far above
 or below today for at least a year in a row (every sizeable interval at least a quarter
 above or below, together at least one and a half times), with no counter-movement
-afterwards (at most a tenth of the days afterwards back at the old level), the app
+afterwards (at most a tenth of the days afterwards back at the old level; an interval
+only counts if it, or one next to it in a row, also differs from today by at least the
+minimum amount, so a short summer interval with a few kWh more is no return), the app
 suggests a [baseline date](#effect-of-a-measure-baseline-date) on the day of the change:
 “Set baseline date here” (a dialog with the end of the unusual period as the day, to
 confirm or change) or “Not now”. Today’s level comes from at least half a year

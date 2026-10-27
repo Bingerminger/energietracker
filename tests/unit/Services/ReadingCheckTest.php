@@ -675,6 +675,39 @@ final class ReadingCheckTest extends ServiceTestCase
         self::assertNull($this->checks()->forMeter('strom', $this->meterAt('strom', $rate(12.0), $dates))['level_shift']);
     }
 
+    /**
+     * Nachprüfung, zweiter Nachauftrag: Gas, zwei alte Jahre beim 2,16- und 1,74-Fachen
+     * (273 und 328 Tage), Übergang 1,39-fach (144 Tage), danach heute, unregelmäßig
+     * abgelesen bis 01.06.2026 (1.051 Tage). Im Sommer 2024 drei kurze Abstände (20, 32
+     * und 51 Tage) beim 1,4-Fachen: 199,5 → 279, 224 → 314, 357 → 500 kWh, also 80, 90 und
+     * 143 kWh mehr bei einer Mindestmenge von rund 225 (ein Viertel von 901). Im zweiten
+     * Winter ein falscher Block: 01.01., 01.02. und 01.03.2025 um 1.500 zu niedrig, der März
+     * danach 1.302 → 2.802 kWh (2,15×). Bisher zählten die drei Sommerabstände als Rückkehr
+     * zum alten Niveau, weil Verbrauch oder Erwartung die Mindestmenge erreichten: 20 + 32 +
+     * 51 + 31 = 134 von 1.051 Tagen, 12,7 % > 10 %, kein Hinweis. Jetzt zählt ein Stück nur,
+     * wenn seine Abweichung die Mindestmenge erreicht: nur der März, 31 Tage, 2,9 %.
+     * Ergebnis: Hinweis auf die Zäsur am 16.07.2023 UND „Ablesungen vom 01.01. bis 01.03.2025
+     * prüfen“.
+     */
+    public function testSmallSummerExcessIsNoReturnToTheOldLevel(): void
+    {
+        $dates = ['2021-07-01', '2022-03-31', '2023-02-22', '2023-07-16', '2023-08-16', '2023-09-16', '2023-10-16', '2023-11-16',
+            '2023-12-16', '2024-01-16', '2024-02-16', '2024-03-16', '2024-04-16', '2024-05-15', '2024-06-04', '2024-07-06', '2024-08-26',
+            '2024-10-01', '2024-11-01', '2024-12-01', '2025-01-01', '2025-02-01', '2025-03-01', '2025-04-01', '2025-05-01', '2025-06-01',
+            '2025-07-01', '2025-08-01', '2025-09-01', '2025-10-01', '2025-11-01', '2025-12-01', '2026-01-01', '2026-02-01', '2026-03-01',
+            '2026-04-01', '2026-05-01', '2026-06-01'];
+        $scale = fn(string $d) => $d < '2022-03-31' ? 2.16 : ($d < '2023-02-22' ? 1.74 : ($d < '2023-07-16' ? 1.39
+            : ($d >= '2024-05-15' && $d < '2024-08-26' ? 1.4 : 1.0)));
+        $meter = $this->gasHousehold($dates, ['2025-01-01' => -1500.0, '2025-02-01' => -1500.0, '2025-03-01' => -1500.0], 10000.0, $scale, '2021-07-01');
+        $r = $this->checks()->forMeter('gas', $meter);
+        self::assertNotNull($r['level_shift'], 'Hinweis auf die Zäsur fehlt');
+        self::assertSame('2023-07-16', $r['level_shift']['date']);
+        self::assertSame('higher', $r['level_shift']['direction']);
+        self::assertCount(1, $r['checks'], json_encode($r['checks']));
+        self::assertSame('offset', $r['checks'][0]['kind']);
+        self::assertSame(['r_2025-01-01', 'r_2025-02-01', 'r_2025-03-01'], $r['checks'][0]['reading_ids']);
+    }
+
     /** Steht die Zäsur schon am Wechsel, kommt kein Hinweis mehr. */
     public function testAnExistingBaselineAtTheShiftSilencesTheHint(): void
     {

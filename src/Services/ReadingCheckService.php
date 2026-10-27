@@ -927,6 +927,9 @@ final class ReadingCheckService
                 $e = $exp($c);
                 if ($e <= 0) break;
                 $m = (float)$c['kwh'];
+                // nennenswert: Verbrauch oder Erwartung erreichen die Mindestmenge. Nicht die
+                // Abweichung von heute: Ein Stück auf heutigem Niveau mitten in der alten Zeit
+                // weicht von heute nicht ab, widerspricht aber dem alten Niveau (Gegenbewegung)
                 if (max($e, $m) >= $min) {
                     $r = $m / $e;
                     $d = $r >= self::LEVEL_STEP ? 1 : ($r <= 1 / self::LEVEL_STEP ? -1 : 0);
@@ -942,17 +945,30 @@ final class ReadingCheckService
             $ratio = $sm / $se;
             if ($span < self::LEVEL_MIN_DAYS || ($dir > 0 ? $ratio < self::LEVEL_RATIO : $ratio > 1 / self::LEVEL_RATIO)) continue;
             // danach keine Gegenbewegung: Das erste Stück danach liegt schon auf heutigem
-            // Niveau, und höchstens LEVEL_AFTER_BACK der Tage danach kehren zum alten
-            // Niveau zurück
-            $back = 0; $total = 0; $firstBack = null;
+            // Niveau (sonst liegt der Wechsel später), und höchstens LEVEL_AFTER_BACK der
+            // Tage danach kehren zum alten Niveau zurück. Zurück heißt: jenseits LEVEL_STEP in
+            // Richtung des alten Niveaus, und das Stück selbst oder eines, das am Stück in
+            // dieselbe Richtung daneben liegt, weicht um mindestens die Mindestmenge von heute
+            // ab. Ein kurzer Sommerabstand mit 40 % mehr, aber 100 kWh, ist allein keine
+            // Rückkehr (Nachprüfung: drei solche Stücke hoben den Anteil von 7,1 auf 14,6 %);
+            // die kleinen Monate am Ende einer echten Rückkehr zählen mit.
+            $back = 0; $total = 0; $firstBack = false;
+            $run = []; $runBig = false;
+            $flush = function () use (&$run, &$runBig, &$back): void {
+                if ($runBig) $back += array_sum($run);
+                $run = []; $runBig = false;
+            };
             foreach ($after as $i => $c) {
                 $e = $exp($c);
                 $total += $c['days'];
-                $old = $e > 0 && max($e, $c['kwh']) >= $min
-                    && ($dir > 0 ? $c['kwh'] >= $e * self::LEVEL_STEP : $c['kwh'] * self::LEVEL_STEP <= $e);
-                if ($i === 0) $firstBack = $old;
-                if ($old) $back += $c['days'];
+                $toward = $e > 0 && ($dir > 0 ? $c['kwh'] >= $e * self::LEVEL_STEP : $c['kwh'] * self::LEVEL_STEP <= $e);
+                if ($i === 0) $firstBack = $toward && max($e, $c['kwh']) >= $min;
+                if (!$toward || ($i > 0 && $after[$i - 1]['to'] !== $c['from'])) $flush();
+                if (!$toward) continue;
+                $run[] = $c['days'];
+                $runBig = $runBig || abs($c['kwh'] - $e) >= $min;
             }
+            $flush();
             if ($firstBack || $back > self::LEVEL_AFTER_BACK * $total) continue;
             $score = abs(log($ratio));
             if ($best === null || $score > $best['_score'] + 1e-9) {
