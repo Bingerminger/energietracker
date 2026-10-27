@@ -63,6 +63,12 @@ final class RecommendationService
         $activeUtilities = $this->activeUtilities();
 
         foreach ($activeUtilities as $utility) {
+            // v3.9.0 (Skeptiker) — R4 je Zähler außerhalb einer Gruppe und je Gruppe; den Namen nennt der
+            // Titel, wenn es davon mehr als einen gibt (HT und NT einer Wärmepumpe neben dem Hauszähler)
+            $groups = array_values(array_filter(array_map(fn($g) => $this->meters->groupTarget($utility, (string)($g['id'] ?? '')),
+                $this->meters->listGroups($utility)), fn($g) => $g !== null && $g['members'] !== []));
+            $loose = array_values(array_filter($this->meters->list($utility), fn($m) => MeterService::inService($m) && empty($m['meter_group_id'])));
+            $named = count($loose) + count($groups) > 1;
             foreach ($this->meters->list($utility) as $meter) {
                 // v2.9.0 (CALC-15) — außer Betrieb: keine Empfehlungen
                 if (!MeterService::inService($meter)) continue;
@@ -71,7 +77,7 @@ final class RecommendationService
                     $recs = array_merge($recs, $this->ruleWeatherIndependent($utility, $meter, $monthly));
                     $recs = array_merge($recs, $this->ruleTrend($utility, $meter, $monthly));
                     $recs = array_merge($recs, $this->ruleSummerHeating($utility, $meter, $monthly));
-                    $recs = array_merge($recs, $this->ruleAnomaly($utility, $meter, $monthly));
+                    if (empty($meter['meter_group_id'])) $recs = array_merge($recs, $this->ruleAnomaly($utility, $meter, $monthly, $named));
                 }
                 if (Utilities::isDelivery($utility)) {
                     $recs = array_merge($recs, $this->ruleTankLevel($utility, $meter));
@@ -79,6 +85,11 @@ final class RecommendationService
                 $recs = array_merge($recs, $this->ruleContractEnd($utility, $meter));
                 // v3.9.0 (#38) — Heizgrenze anpassen
                 $recs = array_merge($recs, $this->ruleHeatLimit($utility, $meter));
+            }
+            // v3.9.0 (Skeptiker) — Anomalie einer Zählergruppe für ihre Summe, eine Empfehlung je Gruppe
+            foreach ($groups as $g) {
+                $monthly = $this->consumption->forMeter($utility, $g);
+                if (!empty($monthly)) $recs = array_merge($recs, $this->ruleAnomaly($utility, $g, $monthly, $named));
             }
             // v3.1.0 (H6, #17) — Gruppenverträge: Fristen und Preiserhöhung wie beim Zähler
             foreach ($this->consumption->contractTargets($utility) as $target) {
@@ -373,22 +384,37 @@ final class RecommendationService
      * Teilmonat (ein 14-Tage-März galt als „3,9σ") und lief für Wasser nie,
      * weil er `kwh` las, wo Wasser `m3` führt. Heizarten deckt R1 ab.
      */
-    private function ruleAnomaly(string $utility, array $meter, array $monthly): array
+    /**
+     * R4 — statistische Anomalie (Arten ohne Heizmodell, etwa Strom und Wasser).
+     *
+     * v3.9.0 (Skeptiker, Wärmepumpe im Schaufenster):
+     *   - nur, wenn derselbe Kalendermonat in einem früheren Jahr gemessen ist
+     *     (`prior_same_month`). Sonst vergleicht die Erwartung mit den Nachbarmonaten, und
+     *     der erste Heizmonat einer Wärmepumpe (Oktober gegen September) war „Anomalie“.
+     *     Zwölf Monate Vorgeschichte sind das Mindeste, damit dieselbe Jahreszeit vorliegt.
+     *   - Mitglieder einer Zählergruppe (HT/NT einer Wärmepumpe) prüft die Regel als Gruppe,
+     *     eine Empfehlung je Gruppe statt je Zählwerk mit gleichem Text (`all()`).
+     *   - `$named`: Hat die Art mehrere Zähler bzw. Gruppen, nennt der Titel den Namen.
+     */
+    private function ruleAnomaly(string $utility, array $meter, array $monthly, bool $named = false): array
     {
         if (Utilities::isHgtRelevant($utility) || Utilities::isDelivery($utility)) return [];
         // PV: ein ertragreicher Monat ist kein Warnsignal
         if (Utilities::isFeedIn($utility) || Utilities::isGenerationOnly($utility)) return [];
+        $label = $this->utilLabel($utility) . ($named && (string)($meter['name'] ?? '') !== '' ? ' · ' . $meter['name'] : '');
         $out = [];
         foreach ($this->anomalies()->detect($utility, $monthly) as $a) {
             if (($a['kind'] ?? '') !== 'high') continue;
             if (!empty($a['pattern'])) continue;   // v3.9.0 (#38) — jedes Jahr derselbe Monat: ein Muster, kein Ereignis
+            if (empty($a['prior_same_month'])) continue;   // v3.9.0 — dieselbe Jahreszeit muss vorliegen (s. o.)
             if (!$this->recent((string)$a['ym'])) continue;   // v3.7.0 — nur aus den letzten 24 Monaten
             $out[] = $this->mk(
                 'r4', [$utility, $meter['id'], $a['ym']],
                 'info', 'anomalie',
-                $this->i18n->t('recommendations.engine.r4.title', ['label' => $this->utilLabel($utility), 'ym' => $this->i18n->month($a['ym'])]),
+                $this->i18n->t('recommendations.engine.r4.title', ['label' => $label, 'ym' => $this->i18n->month($a['ym'])]),
                 $this->i18n->t('recommendations.engine.r4.detail', ['ym' => $this->i18n->month($a['ym']), 'sigma' => $this->i18n->number(abs((float)$a['z_score']), 1)]),
-                ['utility' => $utility, 'meter_id' => $meter['id'], 'ym' => $a['ym']]
+                ['utility' => $utility, 'meter_id' => $meter['id'], 'ym' => $a['ym'],
+                 'meter' => (string)($meter['name'] ?? ''), 'is_group' => !empty($meter['is_group'])]
             );
         }
         return $out;
