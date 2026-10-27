@@ -3671,6 +3671,18 @@ async function renderView(modPath, params = [], ctx = {}) {
       && /nach dem Wetter verteilt/.test(bridgedLegend) && !/gleichmäßig/.test(bridgedLegend)
       && !/gleichmäßig/.test(lv.view.querySelector('[data-role="interpolated-legend"]')?.textContent || ''),
       `${billedCell?.textContent} · ${bridgedLegend.slice(0, 120)}`);
+    // Skeptiker R2-9: Überbrückung im selben Jahr (Januar bis März): Summen gleich, kein Satz.
+    // Über den Jahreswechsel (Stand am 01.01.2025 nur für die Abrechnung): Satz zum Unterschied
+    const noNote = !lv.view.querySelector('[data-role="bridged-total-note"]');
+    const yid = await formula('Jahreswechsel Test', () => 1, { '2025-01-01': (m) => -0.5 * m['2024-12'] });
+    const yJan = ((await send('GET', `/utility/gas/readings?meter_id=${encodeURIComponent(yid)}`)).data || []).find(r => r.date === '2025-01-01');
+    await send('PATCH', `/utility/gas/readings/${encodeURIComponent(yJan?.id)}`, { is_billing_only: true });
+    const yv = await renderView(`${ROOT}/views/utility.js`, ['gas'], { query: new URLSearchParams(`meter=${yid}&year=2025`) });
+    const yNote = (await until(() => yv.view.querySelector('[data-role="bridged-total-note"]'), 120))?.textContent || '';
+    t('ablesung: Monatstabelle — Satz zum Unterschied der Summen nur, wenn die Überbrückung über den Jahreswechsel reicht',
+      noNote && /liegen Monatswert und abgerechnete Menge zusammen um [\d.]+ kWh auseinander/.test(yNote) && /Jahreswechsel/.test(yNote),
+      `${noNote} · ${yNote.slice(0, 200)}`);
+    await send('DELETE', `/utility/gas/meters/${yid}`);
     // zurück (Rückgängig ist oben schon geprüft): den Merker direkt entfernen
     await send('PATCH', `/utility/gas/readings/${encodeURIComponent(rid)}`, { is_billing_only: false });
     global.document.querySelectorAll('.toast').forEach(el => el.remove());

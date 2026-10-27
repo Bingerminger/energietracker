@@ -4099,7 +4099,9 @@
     "note": "{date} „{note}“",
     "bridgedTitle": "Nach dem Wetter verteilt, nicht gemessen: Ein Stand dazwischen zählt nur für die Abrechnung.",
     "billedShort": "(abgerechnet {amount})",
-    "bridgedLegend": "≈ nach dem Wetter verteilt: Ein Stand dazwischen zählt nur für die Abrechnung. Kosten und Saldo rechnen mit der abgerechneten Menge (in Klammern)."
+    "bridgedLegend": "≈ nach dem Wetter verteilt: Ein Stand dazwischen zählt nur für die Abrechnung. Kosten und Saldo rechnen mit der abgerechneten Menge (in Klammern).",
+    "bridgedLegendCol": "≈ nach dem Wetter verteilt: Ein Stand dazwischen zählt nur für die Abrechnung. Kosten und Saldo rechnen mit der abgerechneten Menge in der Spalte daneben.",
+    "bridgedTotalNote": "In den Monaten mit ≈ liegen Monatswert und abgerechnete Menge zusammen um {amount} auseinander: Über den Stand „nur für die Abrechnung“ hinweg verteilen die Monatswerte den Verbrauch nach dem Wetter, auch über den Jahreswechsel; Kosten und Saldo rechnen nach dem Stand."
   },
   "format": {
     "decimal": ",",

@@ -4099,7 +4099,9 @@
     "note": "{date} «{note}»",
     "bridgedTitle": "Ripartito secondo il meteo, non misurato: una lettura intermedia conta solo per la bolletta.",
     "billedShort": "(fatturato {amount})",
-    "bridgedLegend": "≈ ripartito secondo il meteo: una lettura intermedia conta solo per la bolletta. Costi e saldo usano la quantità fatturata (tra parentesi)."
+    "bridgedLegend": "≈ ripartito secondo il meteo: una lettura intermedia conta solo per la bolletta. Costi e saldo usano la quantità fatturata (tra parentesi).",
+    "bridgedLegendCol": "≈ ripartito secondo il meteo: una lettura intermedia conta solo per la bolletta. Costi e saldo usano la quantità fatturata nella colonna accanto.",
+    "bridgedTotalNote": "Nei mesi con ≈ valore mensile e quantità fatturata differiscono in tutto di {amount}: attorno alla lettura «solo per la bolletta» i valori mensili ripartiscono il consumo secondo il meteo, anche a cavallo dell’anno; costi e saldo seguono la lettura."
   },
   "format": {
     "decimal": ",",

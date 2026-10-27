@@ -181,7 +181,9 @@ Only what would also exist with the marked readings as ordinary readings is repo
 Notes on the readings (from the interval before to the interval after) are shown in the
 entry, since they often explain what the numbers show (“heating only on from today”).
 In the monthly table bridged months carry ≈ with a legend of their own (spread by the
-weather) and the billed quantity in brackets.
+weather) and the billed quantity in the column “Billed” (without that column, such as for
+water, in brackets next to it). If the bridging spans the turn of the year, the two totals
+of the year differ; a sentence below the table names the difference and why.
 
 **Entered twice:** the same reading on the same day twice gives “Reading of … entered
 twice” with “Delete one” (the one with a photo is kept, otherwise the one with a note);
@@ -214,7 +216,8 @@ four fifths of the mean), every winter after moving in counts as a return to
 the old, lower level, and then no baseline note comes. In a month that a
 reading “only for the bill” bridges, amount and cost do not match: the amount
 is spread by the weather, the cost uses the reading (`billed_kwh`, for water
-`billed_m3`, says which; the monthly table shows it in brackets).
+`billed_m3`, says which; the monthly table shows it in the column “Billed” or in
+brackets).
 
 All three entries count in `/api/todo` and in the notifications to Home Assistant, at
 every level.

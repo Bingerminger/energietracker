@@ -184,7 +184,9 @@ hat. Gemeldet wird nur, was es auch mit den markierten Ständen als gewöhnliche
 gäbe. Notizen an den Ständen (vom Abstand davor bis zum Abstand danach) stehen im
 Eintrag, denn sie erklären oft, was die Zahlen zeigen („Heizung erst ab heute an“). In der
 Monatstabelle tragen überbrückte Monate ≈ mit eigener Legende (nach dem Wetter verteilt)
-und die abgerechnete Menge in Klammern.
+und die abgerechnete Menge in der Spalte „Abgerechnet“ (ohne die Spalte, etwa bei Wasser, in
+Klammern daneben). Reicht die Überbrückung über den Jahreswechsel, liegen die beiden Summen
+des Jahres auseinander; ein Satz unter der Tabelle nennt den Unterschied und warum.
 
 **Doppelt eingetragen:** Derselbe Stand am selben Tag zweimal ergibt „Ablesung vom …
 doppelt eingetragen“ mit „Eine löschen“ (behalten wird die mit Foto, sonst die mit
@@ -220,7 +222,7 @@ alten, niedrigeren Niveau, dann kommt kein Hinweis auf die Zäsur. In einem
 Monat, den ein Stand „nur für die Abrechnung“ überbrückt, passen Menge und
 Kosten nicht zueinander: Die Menge ist nach dem Wetter verteilt, die Kosten
 rechnen mit dem Stand (`billed_kwh`, bei Wasser `billed_m3`, sagt, womit; die
-Monatstabelle zeigt es in Klammern).
+Monatstabelle zeigt es in der Spalte „Abgerechnet“ bzw. in Klammern).
 
 Alle drei Einträge zählen in `/api/todo` und in den Benachrichtigungen an Home
 Assistant mit, in jeder Stufe.

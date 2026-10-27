@@ -4099,7 +4099,9 @@
     "note": "{date} «{note}»",
     "bridgedTitle": "Repartido según el tiempo, no medido: una lectura intermedia solo cuenta para la factura.",
     "billedShort": "(facturado {amount})",
-    "bridgedLegend": "≈ repartido según el tiempo: una lectura intermedia solo cuenta para la factura. Los costes y el saldo usan la cantidad facturada (entre paréntesis)."
+    "bridgedLegend": "≈ repartido según el tiempo: una lectura intermedia solo cuenta para la factura. Los costes y el saldo usan la cantidad facturada (entre paréntesis).",
+    "bridgedLegendCol": "≈ repartido según el tiempo: una lectura intermedia solo cuenta para la factura. Los costes y el saldo usan la cantidad facturada de la columna de al lado.",
+    "bridgedTotalNote": "En los meses con ≈ el valor mensual y la cantidad facturada difieren en total en {amount}: en torno a la lectura «solo para la factura» los valores mensuales reparten el consumo según el tiempo, también con el cambio de año; los costes y el saldo siguen la lectura."
   },
   "format": {
     "decimal": ",",
