@@ -228,10 +228,8 @@ final class ReadingCheckService
      */
     private function points(string $utility, array $meter, array $all, string $today): array
     {
-        $skip = [];
-        foreach ($this->consumption->readingWarnings($utility, $meter) as $w) {
-            if (in_array($w['type'] ?? '', ['suspect', 'outlier'], true) && !empty($w['reading_id'])) $skip[(string)$w['reading_id']] = true;
-        }
+        // verdächtig und eingeklemmte Ausreißer: wie die Rechnung (ohne sie ganz zu rechnen)
+        $skip = $this->consumption->skippedReadingIds($utility, $meter, $all);
         $out = [];
         $last = null;
         foreach ($all as $r) {

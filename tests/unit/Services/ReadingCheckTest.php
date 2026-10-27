@@ -302,6 +302,74 @@ final class ReadingCheckTest extends ServiceTestCase
         }
     }
 
+    /** Ein Zähler mit Zählerständen nach Tagesrate je Monat (`$rate(Datum)`), monatlich abgelesen. */
+    private function rateMeter(string $utility, callable $rate, string $from, string $to, array $offsets = [], array $meterFields = []): array
+    {
+        $id = $this->setMeterDevices($utility, [['id' => 'd1', 'serial' => null, 'installed_on' => $from, 'initial_counter' => 0.0,
+            'removed_on' => null, 'final_counter' => null, 'reason' => null]]);
+        if ($meterFields !== []) {
+            $all = $this->store->read("$utility/meters.json", []);
+            $all[0] = $meterFields + $all[0];
+            $this->store->write("$utility/meters.json", $all);
+        }
+        $want = array_flip(self::firsts(substr($from, 0, 7), substr($to, 0, 7)));
+        $rows = []; $c = 0.0;
+        for ($t = strtotime("$from 12:00 UTC"); gmdate('Y-m-d', $t) <= $to; $t += 86400) {
+            $d = gmdate('Y-m-d', $t);
+            if (isset($want[$d])) $rows[] = ['id' => 'r_' . $d, 'date' => $d, 'device_id' => 'd1', 'counter' => round($c + ($offsets[$d] ?? 0.0), 3)];
+            $c += $rate($d);
+        }
+        $this->setReadings($utility, $id, $rows);
+        return $this->meters->list($utility)[0];
+    }
+
+    /** Sonnenprofil je Monat (kWh am Tag), erfunden. */
+    private const SUN = [1 => 2.0, 2 => 3.5, 3 => 6.0, 4 => 9.0, 5 => 11.0, 6 => 12.0, 7 => 12.0, 8 => 10.5, 9 => 7.5, 10 => 4.5, 11 => 2.5, 12 => 1.5];
+
+    /**
+     * PV mit zwei Jahren, im zweiten ein sonniger Juni (+45 %) und ein trüber Juli (−45 %):
+     * Juni 360 → 522, Juli 372 → 204,6. Das sieht aus wie ein Stand am 01.07. um rund
+     * 165 kWh zu hoch, ist aber Wetter. Mit nur einem anderen Jahr gibt es keine
+     * Streuung zwischen den Jahren; die Untergrenze von 20 % (3 × 20 % = 60 % je Seite)
+     * hält beide Abweichungen (45 %) still.
+     */
+    public function testASunnyJuneAndADullJulyAreNoWrongReading(): void
+    {
+        $meter = $this->rateMeter('pv_erzeugung', fn(string $d) => self::SUN[(int)substr($d, 5, 2)]
+            * (str_starts_with($d, '2025-06') ? 1.45 : (str_starts_with($d, '2025-07') ? 0.55 : 1.0)), '2024-01-01', '2025-12-01');
+        $r = $this->checks()->forMeter('pv_erzeugung', $meter);
+        self::assertSame('other_years', $r['basis']);
+        self::assertSame([], $r['checks'], json_encode($r['checks']));
+    }
+
+    /**
+     * Welche Erwartung: Gartenwasser (Rolle `garden`) und ein Strombezug mit ausgeprägtem
+     * Winter ohne Rolle (Sommer 4, Winter 12 kWh am Tag) rechnen mit denselben Tagen
+     * anderer Jahre, gleichmäßiger Haushaltsstrom mit der mittleren Tagesmenge.
+     */
+    public function testSeasonalMetersUseOtherYears(): void
+    {
+        $garden = $this->rateMeter('wasser', fn(string $d) => in_array((int)substr($d, 5, 2), [5, 6, 7, 8, 9], true) ? 0.8 : 0.02,
+            '2023-01-01', '2025-12-01', [], ['role' => 'garden']);
+        self::assertSame('other_years', $this->checks()->forMeter('wasser', $garden)['basis']);
+        $winter = $this->rateMeter('strom', fn(string $d) => in_array((int)substr($d, 5, 2), [4, 5, 6, 7, 8, 9], true) ? 4.0 : 12.0, '2023-01-01', '2025-12-01');
+        self::assertSame('other_years', $this->checks()->forMeter('strom', $winter)['basis']);
+        $flat = $this->rateMeter('strom', fn(string $d) => in_array((int)substr($d, 5, 2), [4, 5, 6, 7, 8, 9], true) ? 8.0 : 10.0, '2023-01-01', '2025-12-01');
+        self::assertSame('mean_rate', $this->checks()->forMeter('strom', $flat)['basis']);
+    }
+
+    /** Ein Ladepunkt wird nicht geprüft: Selbst ein Stand 300 kWh zu niedrig bei 10 kWh am Tag bleibt ohne Befund. */
+    public function testAChargingPointIsNotChecked(): void
+    {
+        $meter = $this->rateMeter('strom', fn() => 10.0, '2024-01-01', '2025-12-01', ['2025-04-01' => -250.0], ['role' => 'ev_charger']);
+        $r = $this->checks()->forMeter('strom', $meter);
+        self::assertNull($r['basis']);
+        self::assertSame([], $r['checks']);
+        // derselbe Zähler als Haushaltsstrom: gefunden
+        $meter = $this->rateMeter('strom', fn() => 10.0, '2024-01-01', '2025-12-01', ['2025-04-01' => -250.0], ['role' => null]);
+        self::assertCount(1, $this->checks()->forMeter('strom', $meter)['checks']);
+    }
+
     // ── 2  keine Gegenbewegung ──────────────────────────────────────────
 
     /**

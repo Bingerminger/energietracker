@@ -2075,6 +2075,22 @@ final class ConsumptionService
     }
 
     /**
+     * v3.9.0 (ablesung-pruefen) — IDs der Ablesungen, die die Rechnung übergeht (verdächtig,
+     * eingeklemmter Ausreißer), dieselbe Prüfung wie plausibleReadings(), ohne die ganze
+     * Monatsrechnung: Die Agenda prüft bei jedem Aufruf alle Zähler (ReadingCheckService).
+     *
+     * @param list<array<string,mixed>>|null $readings die Ablesungen des Zählers, sonst gelesen
+     * @return array<string,true>
+     */
+    public function skippedReadingIds(string $utility, array $meter, ?array $readings = null): array
+    {
+        [, $warnings] = $this->plausibleReadings($readings ?? $this->readings->list($utility, (string)($meter['id'] ?? '')), $meter);
+        $out = [];
+        foreach ($warnings as $w) if (!empty($w['reading_id'])) $out[(string)$w['reading_id']] = true;
+        return $out;
+    }
+
+    /**
      * v2.6.0 — Ablesungen, die in die Rechnung eingehen, und die Warnungen zu
      * denen, die nicht eingehen (Lektion 33: keine stumme Untergrenze).
      *
