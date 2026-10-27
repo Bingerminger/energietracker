@@ -1508,6 +1508,11 @@ dort „alles im grünen Bereich“. Seit v3.4.0 heißt der Knopf bei einer
 Empfehlung mit Frist, die weiter als 30 Tage weg ist (Kündigung,
 Vertragsende, Preiserhöhung), **„Bis … ausblenden“** — sie kommt nicht vor
 dem Stichtag zurück; jedes Ausblenden steht im Verlauf (Hinweise → Erledigt).
+Seit v3.9.0 meldet die Regel „Anomalie“ einen Monat nur, wenn derselbe Monat in
+einem früheren Jahr gemessen ist. HT und NT einer Zählergruppe prüft sie
+zusammen, mit einer Empfehlung je Gruppe; hat eine Verbrauchsart mehrere Zähler
+oder Gruppen, nennt der Titel den Namen
+([Anomalien](../verstehen/00-overview.md#9-anomalien)).
 
 ![Empfehlungen](../ui/screenshots/empfehlungen.png)
 

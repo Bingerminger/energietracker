@@ -1467,7 +1467,11 @@ that it is too early for recommendations — before, it read "all clear". Since
 v3.4.0 a recommendation with a deadline more than 30 days away (cancellation,
 contract end, price increase) has the button **“Hide until …”** — it does not
 come back before the deadline; every hide is recorded in the history
-(Reminders & tips → Done).
+(Reminders & tips → Done). Since v3.9.0 the “anomaly” rule only reports a month
+if the same month was measured in an earlier year. It checks HT and NT of a
+meter group together, with one recommendation per group; if a utility has
+several meters or groups, the title names it
+([anomalies](../verstehen/00-overview.md#9-anomalies)).
 
 ![Recommendations](../../ui/screenshots/en/empfehlungen.png)
 
