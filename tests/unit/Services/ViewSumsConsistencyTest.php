@@ -7,6 +7,7 @@ use Energietracker\Config\Utilities;
 use Energietracker\Services\BackupService;
 use Energietracker\Services\BillingPeriodService;
 use Energietracker\Services\BillService;
+use Energietracker\Services\ConsumptionService;
 use Energietracker\Services\CsvExportService;
 use Energietracker\Services\DeliveryService;
 use Energietracker\Services\DemoService;
@@ -113,6 +114,17 @@ final class ViewSumsConsistencyTest extends ServiceTestCase
         return (Utilities::get($u)['consumption_unit'] ?? '') === 'kWh' ? 'kwh' : 'm3';
     }
 
+    /**
+     * v3.9.0 (F1032, Rest-Abrechnung) — Subzähler mit eigenem Vertrag: Ihre Menge steckt im
+     * Elternzähler, ihr Geld zählt in der Summe der Art zusätzlich (der Elternvertrag rechnet
+     * nur den Rest). „Zähler einzeln = Art“ zählt deshalb ihr Geld mit, ihre Menge nicht.
+     */
+    private function deductingSubs(string $u): array
+    {
+        return array_values(array_filter($this->meters->list($u),
+            fn($m) => !MeterService::countsInTotals($m) && ($m['capture'] ?? null) !== 'period' && $this->consumption->isDeductingSubmeter($u, $m)));
+    }
+
     /** Arten mit Zählern, die Monatszeilen haben. */
     private function utilitiesWithData(): array
     {
@@ -180,6 +192,16 @@ final class ViewSumsConsistencyTest extends ServiceTestCase
                 foreach (self::yearSums($this->consumption->forMeter($u, $m), $qk) as $y => $s) {
                     $sum[$y] ??= ['q' => 0.0, 'cost' => 0.0, 'adv' => 0.0];
                     foreach (['q', 'cost', 'adv'] as $k) $sum[$y][$k] += $s[$k];
+                }
+            }
+            // v3.9.0 (F1032) — dazu das Geld der Subzähler mit eigenem Vertrag (Tage ohne eigenen Vertrag rechnet der Elternzähler)
+            foreach ($this->deductingSubs($u) as $m) {
+                foreach ($this->consumption->forMeter($u, $m) as $r) {
+                    if (empty($r['contract_id'])) continue;
+                    $yk = (int)$r['year'];
+                    $sum[$yk] ??= ['q' => 0.0, 'cost' => 0.0, 'adv' => 0.0];
+                    $sum[$yk]['cost'] += (float)($r['cost'] ?? 0) - (float)($r['uncontracted_cost'] ?? 0);
+                    $sum[$yk]['adv'] += (float)($r['advance_eur'] ?? 0);
                 }
             }
             // (2) CSV je Monat
@@ -272,6 +294,9 @@ final class ViewSumsConsistencyTest extends ServiceTestCase
             $roots = array_values(array_filter($this->meters->list($u), fn($m) => MeterService::countsInTotals($m) && ($m['capture'] ?? null) !== 'period'));
             $perMeter = [];
             foreach ($roots as $m) $perMeter[$m['id']] = $bp->forTarget($u, $m, false, $today);
+            // v3.9.0 (F1032) — Subzähler mit eigenem Vertrag: nur ihr Geld (ihre Menge steckt im Elternzähler),
+            // über genau die Periode der Art gerechnet wie die Art selbst (eigene Perioden haben andere Grenzen)
+            $moneyOnly = $this->deductingSubs($u);
             foreach ($art['periods'] as $p) {
                 $ctx = "$id $today $u {$p['from']}…{$p['until']}";
                 // (1) Monatsreihe der Periode (Tabelle, Diagramm) = Periode (Kennzahlen)
@@ -287,8 +312,18 @@ final class ViewSumsConsistencyTest extends ServiceTestCase
                 foreach ($perMeter as $t) {
                     foreach ($t['periods'] as $x) {
                         if ($x['from'] !== $p['from'] || $x['until'] !== $p['until']) continue;
-                        $acc['q'] += (float)$x[$qk]; $acc['cost'] += (float)$x['cost']; $acc['adv'] += (float)$x['advances']; $acc['bal'] += (float)$x['balance']; $acc['n']++;
+                        // v3.9.0 (F1032) — Menge = Messung (`measured_kwh`; bei der Rest-Abrechnung ist `kwh` die Menge der Verträge)
+                        $acc['q'] += (float)($x['measured_kwh'] ?? $x[$qk]); $acc['cost'] += (float)$x['cost']; $acc['adv'] += (float)$x['advances']; $acc['bal'] += (float)$x['balance']; $acc['n']++;
                     }
+                }
+                // gerechnet bis zur letzten Ablesung der Art (`as_of`), wie die Periode selbst
+                $toExcl = $p['as_of'] !== null ? date('Y-m-d', (int)strtotime($p['as_of'] . ' +1 day')) : $p['from'];
+                foreach ($moneyOnly as $m) {
+                    $c = (float)($this->consumption->billBreakdown($u, $m, $p['from'], $toExcl)['totals']['total'] ?? 0);
+                    $starts = ConsumptionService::contractStarts($this->consumption->contractScope($u, $m)[0]);
+                    $a = 0.0;
+                    foreach ($this->consumption->forMeter($u, $m) as $r) $a += ConsumptionService::advanceBetween($r, $p['from'], $toExcl, $starts);
+                    $acc['cost'] += $c; $acc['adv'] += $a; $acc['bal'] += $c - $a;
                 }
                 if ($acc['n'] === count($perMeter)) {
                     self::assertClose((float)$p[$qk], $acc['q'], 0.05 * count($perMeter) + 0.01, "$ctx: Menge Zähler = Art");

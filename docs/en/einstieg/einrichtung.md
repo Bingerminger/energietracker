@@ -28,7 +28,7 @@ data.
 
 ### The steps
 
-The “Set up” dialog has five steps (“Step 1 of 5”). Since **v3.9.0** each
+The “Set up” dialog has five steps (“Step 1 of 5”), six with electricity and solar. Since **v3.9.0** each
 question has a small drawing next to it (globe, houses, meters, levels, tray),
 and each answer to “Who are you?” shows a small house picture instead of an
 emoji. The pictures are only decoration; the question and the text of the
@@ -55,6 +55,14 @@ answer say everything.
    ticked; combine freely, at least one has to stay. A note explains the
    difference between district heating and heat
    ([§ 2](#district-heating-or-heat)).
+   *With electricity and solar* (or as “Modern house”) **“How are your meters
+   connected?”** follows since **v3.9.0**: two cards with a diagram, **“One
+   meter per utility”** (preselected, the usual case) or **“A different
+   layout”** (heat pump, EV charger or battery with its own meter). The
+   different layout preselects “Set up metering concept” at the end; afterwards
+   the “metering concept” assistant opens
+   ([views](../referenz/ansichten.md#assistant-set-up-metering-concept-v390-github-40)).
+   The dialog then has six steps.
 4. **“How much experience do you have?”** — Beginner, Experienced or Expert
    ([§ 3](#3-experience-levels)).
 5. **“What comes next”** — the summary and one of three ways *(since

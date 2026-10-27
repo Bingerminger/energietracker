@@ -21,7 +21,7 @@ final class MeteringConceptServiceTest extends ServiceTestCase
 {
     private function svc(): MeteringConceptService
     {
-        return new MeteringConceptService($this->meters, $this->contracts, $this->settings, $this->i18n, new BackupService($this->store, $this->i18n));
+        return new MeteringConceptService($this->meters, $this->contracts, $this->settings, $this->i18n, new BackupService($this->store, $this->i18n), $this->readings);
     }
 
     /** Die Kaskade aus #40, von Grund auf: HT/NT, PV, drei Verträge. */
@@ -138,6 +138,52 @@ final class MeteringConceptServiceTest extends ServiceTestCase
         // ungültiges Einbaudatum
         $this->expectException(LocalizedException::class);
         $this->svc()->plan($in(['name' => 'Wärmepumpe', 'installed_on' => '01.06.2025'], '2025-01-01'));
+    }
+
+    /**
+     * Skeptiker-Lauf v3.9.0, Runde 2 (R2-1): Der „Stand beim Einbau“ wird eine Ablesung am Einbautag.
+     * Bis dahin lag er nur am Gerät; die Wärmepumpe zählte bis zu ihrem ersten Stand nichts, der
+     * Hausvertrag rechnete dort alles. Erfundene Werte, von Hand:
+     *   Hauszähler 10.000 → 10.500 → 11.000 → 11.500 kWh am 01.01./01.02./01.03./01.04.2025
+     *   Wärmepumpe eingebaut 01.01.2025 mit 1.000 kWh, Stand 1.600 kWh am 01.04.2025
+     *   → 600 kWh auf 90 Tage, Januar 600 × 31/90 = 206,67 kWh; Rest Januar 500 − 206,67 = 293,33 kWh
+     */
+    public function testReadingAtInstallationBecomesTheFirstReading(): void
+    {
+        $this->store->write('strom/meters.json', []);
+        $this->store->write('strom/contracts.json', []);
+        $this->store->write('strom/readings.json', []);
+        $in = ['concept' => 'behind', 'device' => 'heat_pump', 'tou' => 'none',
+               'slots' => ['main' => ['name' => 'Hauszähler', 'installed_on' => '2025-01-01', 'initial_counter' => 10000],
+                           'dev' => ['name' => 'Wärmepumpe', 'installed_on' => '2025-01-01', 'initial_counter' => 1000]],
+               'contracts' => ['main' => ['provider' => 'Versorger A', 'start' => '2025-01-01', 'ct' => 30],
+                               'dev' => ['provider' => 'WP-Tarif', 'start' => '2025-01-01', 'ct' => 24]]];
+        $plan = $this->svc()->plan($in);
+        $reads = array_values(array_filter($plan['actions'], fn($a) => $a['op'] === 'create_reading'));
+        self::assertSame([['main', '2025-01-01', 10000.0], ['dev', '2025-01-01', 1000.0]], array_map(fn($a) => [$a['slot'], $a['date'], $a['counter']], $reads),
+            'die Vorschau nennt die Ablesung am Einbautag');
+        $res = $this->svc()->apply($in);
+        self::assertCount(2, $res['created']['readings']);
+        $m = array_column($this->meters->list('strom'), null, 'name');
+        $sub = $this->readings->list('strom', (string)$m['Wärmepumpe']['id']);
+        self::assertSame([['2025-01-01', 1000.0]], array_map(fn($r) => [$r['date'], (float)$r['counter']], $sub), 'Stand beim Einbau als Ablesung');
+        foreach (['2025-02-01' => 10500, '2025-03-01' => 11000, '2025-04-01' => 11500] as $d => $c) {
+            $this->readings->create('strom', ['meter_id' => (string)$m['Hauszähler']['id'], 'date' => $d, 'counter' => $c]);
+        }
+        $this->readings->create('strom', ['meter_id' => (string)$m['Wärmepumpe']['id'], 'date' => '2025-04-01', 'counter' => 1600]);
+        $jan = array_values(array_filter($this->consumption->forMeter('strom', $this->meters->get('strom', (string)$m['Wärmepumpe']['id'])), fn($r) => $r['ym'] === '2025-01'))[0];
+        self::assertEqualsWithDelta(600 * 31 / 90, $jan['kwh'], 0.05, 'Verbrauch ab dem Einbautag');
+        $p = array_values(array_filter($this->consumption->forMeter('strom', $this->meters->get('strom', (string)$m['Hauszähler']['id'])), fn($r) => $r['ym'] === '2025-01'))[0];
+        self::assertEqualsWithDelta(500 - 600 * 31 / 90, $p['billed_kwh'], 0.05, 'der Hausvertrag rechnet im Januar nur den Rest');
+        self::assertEqualsWithDelta((500 - 600 * 31 / 90) * 0.30, $p['cost'], 0.01);
+        // HT und NT haben je ihren eigenen Stand beim Einbau (eine Zahl für beide wäre falsch)
+        $tou = $this->svc()->plan(['concept' => 'behind', 'device' => 'heat_pump', 'tou' => 'device',
+            'slots' => ['dev' => ['name' => 'WP', 'installed_on' => '2025-01-01', 'initial_counter' => ['ht' => 500, 'nt' => 300]]]]);
+        self::assertSame([['ht', 500.0], ['nt', 300.0]], array_map(fn($a) => [$a['register'], $a['counter']],
+            array_values(array_filter($tou['actions'], fn($a) => $a['op'] === 'create_reading'))));
+        // ohne Stand beim Einbau keine Ablesung (unbekannter Start)
+        $plain = $this->svc()->plan(['concept' => 'behind', 'device' => 'heat_pump', 'slots' => ['dev' => ['name' => 'X', 'installed_on' => '2025-01-01']]]);
+        self::assertSame([], array_values(array_filter($plain['actions'], fn($a) => $a['op'] === 'create_reading')));
     }
 
     public function testInvalidSetupsAreRefused(): void

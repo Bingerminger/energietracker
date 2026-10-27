@@ -289,6 +289,29 @@ conceptChoice?.click(); await tick();
 next(); await tick(120);
 t('… führt zu den Zählern „Strom“ und öffnet dort den Assistenten', location.hash === '#/utility/strom/meters?concept=1', location.hash);
 
+// v3.9.0 (F1032) — Schritt „Wie hängen deine Zähler?“ beim Beginn: mit Strom und PV (Eigenheim modern), sonst nicht
+t('Schritt „Wie hängen deine Zähler?“ nur mit Strom und PV', W.setupSteps(false, ['strom', 'pv_einspeisung']).join() === 'region,persona,utilities,concept,level,finish'
+  && W.setupSteps(false, ['gas', 'strom', 'wasser']).join() === 'region,persona,utilities,level,finish'
+  && W.setupSteps(true, ['strom', 'pv_einspeisung']).join() === 'region,persona,level,finish');
+settings = { ...DEFAULTS };
+location.hash = '#/settings';
+await tick();
+await open({ firstRun: true });
+next(); await tick();
+q('input[name="setup-persona"][value="eigenheim-modern"]').click(); await tick();
+next(); await tick();   // Energieträger (mit PV)
+next(); await tick();   // Wie hängen deine Zähler?
+const meterCards = [...(modal()?.querySelectorAll('input[name="setup-meters"]') || [])].map(i => i.value);
+t('… zwei Wege mit Schaltbild, „Ein Zähler je Art“ vorgewählt, Bild neben der Frage', meterCards.join() === 'simple,concept'
+  && q('input[name="setup-meters"]:checked')?.value === 'simple' && modal().querySelectorAll('.concept-layout svg[role="img"]').length === 2
+  && !!q('.setup__head .setup__art svg.ill'), meterCards.join());
+q('input[name="setup-meters"][value="concept"]').click(); await tick();
+next(); await tick();   // Stufe
+next(); await tick();   // So geht es weiter
+t('… „Anderer Aufbau“ wählt am Ende „Messkonzept einrichten“ vor', q('input[name="setup-start"]:checked')?.value === 'concept');
+next(); await tick(120);
+t('… und öffnet danach den Assistenten', location.hash === '#/utility/strom/meters?concept=1', location.hash);
+
 settings = { ...DEFAULTS };
 location.hash = '#/settings';
 await tick();

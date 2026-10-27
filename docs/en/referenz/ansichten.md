@@ -2052,7 +2052,8 @@ of 5” in the footer:
    codes filled in; you pick an existing meter instead of creating it twice, it
    then appears under its own name. A new meter gets “Installed on” (empty:
    from the start of its contract, otherwise today) and the reading at
-   installation.
+   installation, per register with HT/NT. This reading becomes the first
+   reading on the installation day; consumption counts from then on.
 4. **Which contracts are there?** Start, unit price (per register with HT/NT),
    standing charge and advance; leaving it empty is fine. A running contract on
    an existing meter is shown with provider and start and stays as it is; with
@@ -2259,7 +2260,11 @@ above the buttons:
    level.
 3. **“Which energy sources do you use?”** — every utility to tick, “Suggested
    from your answer — combine freely.”; without a tick you cannot go on. Below
-   it the note “District heating or heat? …”.
+   it the note “District heating or heat? …”. With electricity and solar (or
+   “Modern house”) **“How are your meters connected?”** follows since v3.9.0:
+   “One meter per utility” (preselected) or “A different layout”, each with a
+   diagram; the different layout preselects “Set up metering concept” in “What
+   comes next”.
 4. **“How much experience do you have?”** — the three levels with the same
    lines as in the settings and “You can change the level at any time at the
    top, next to light/dark. If your household needs more, the app suggests it

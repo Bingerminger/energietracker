@@ -4563,7 +4563,8 @@
     "close": "Hinweis schließen",
     "readOnly": "In der Demo wird nichts gespeichert. Mit einer eigenen Installation erfasst du deine Daten.",
     "unavailable": "Diese Auswertung ist in der Demo nicht vorberechnet – mit einer eigenen Installation geht sie.",
-    "scenarioPresetsOnly": "In der Demo sind nur die Beispielszenarien vorgerechnet."
+    "scenarioPresetsOnly": "In der Demo sind nur die Beispielszenarien vorgerechnet.",
+    "conceptPresetsOnly": "In der Demo ist die Vorschau nur für den Aufbau dieses Beispielhaushalts vorberechnet."
   },
   "manifest": {
     "description": "Verbrauch, Kosten und Verträge für Strom, Gas, Wasser, Fernwärme, Heizöl, Pellets und PV — auf dem eigenen Server, die Post vom Versorger lokal ausgelesen, die Cloud nur auf Wunsch.",
@@ -5322,6 +5323,14 @@
       "weather": "Wetterort",
       "heatingLimit": "Heizgrenze",
       "demoCountry": "In der Demo gilt das Land des Beispielhaushalts. In einer eigenen Installation wählst du es hier."
+    },
+    "concept": {
+      "title": "Wie hängen deine Zähler?",
+      "hint": "Mit PV, Wärmepumpe, Wallbox oder Speicher gibt es oft mehr als einen Zähler. Wähle, was zu deinem Zählerschrank passt.",
+      "simple": "Ein Zähler je Art",
+      "simpleHint": "Der übliche Fall: ein Stromzähler, mit PV ein Zweirichtungszähler. Weitere Zähler legst du später an.",
+      "other": "Anderer Aufbau",
+      "otherHint": "Wärmepumpe, Wallbox oder Speicher mit eigenem Zähler: Am Ende richtet der Assistent „Messkonzept“ die Zähler und Verträge ein."
     }
   },
   "evcc": {
@@ -7179,7 +7188,8 @@
         "create_group": "Gruppe „{name}“ mit beiden Zählwerken anlegen",
         "reuse_group": "Gruppe „{name}“ weiter nutzen",
         "create_contract": "Vertrag für „{name}“ anlegen",
-        "skip_contract": "Vertrag für „{name}“: Der laufende Vertrag „{existing}“ bleibt."
+        "skip_contract": "Vertrag für „{name}“: Der laufende Vertrag „{existing}“ bleibt.",
+        "create_reading": "Stand beim Einbau erfassen: „{name}“ {counter} am {date}"
       },
       "detailObis": "Zählwerk {obis}",
       "detailParent": "hinter „{name}“",
@@ -7197,7 +7207,8 @@
     },
     "setupChoice": {
       "hint": "Für PV, Wärmepumpe oder Wallbox mit eigenem Zähler: erst den Aufbau, dann die Stände."
-    }
+    },
+    "readingNote": "Stand beim Einbau"
   },
   "heatLimit": {
     "title": "Heizgrenze anpassen: Mit {best} °C passt das Heizmodell deutlich besser",

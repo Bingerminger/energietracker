@@ -4563,7 +4563,8 @@
     "close": "Close notice",
     "readOnly": "Nothing is saved in the demo. With your own installation you record your own data.",
     "unavailable": "This evaluation is not precomputed in the demo – it works with your own installation.",
-    "scenarioPresetsOnly": "Only the example scenarios are precomputed in the demo."
+    "scenarioPresetsOnly": "Only the example scenarios are precomputed in the demo.",
+    "conceptPresetsOnly": "In the demo the preview is only precomputed for the layout of this sample household."
   },
   "manifest": {
     "description": "Consumption, costs and contracts for electricity, gas, water, district heating, heating oil, pellets and PV — on your own server, supplier mail read locally, the cloud only if you want it.",
@@ -5322,6 +5323,14 @@
       "weather": "Weather location",
       "heatingLimit": "Heating limit",
       "demoCountry": "The demo uses the country of the sample household. In your own installation you choose it here."
+    },
+    "concept": {
+      "title": "How are your meters connected?",
+      "hint": "With solar, a heat pump, an EV charger or a battery there is often more than one meter. Choose what matches your meter cabinet.",
+      "simple": "One meter per utility",
+      "simpleHint": "The usual case: one electricity meter, with solar a bidirectional meter. You add more meters later.",
+      "other": "A different layout",
+      "otherHint": "Heat pump, EV charger or battery with its own meter: at the end the “metering concept” assistant sets up the meters and contracts."
     }
   },
   "evcc": {
@@ -7179,7 +7188,8 @@
         "create_group": "Create group “{name}” with both registers",
         "reuse_group": "Keep using group “{name}”",
         "create_contract": "Create contract for “{name}”",
-        "skip_contract": "Contract for “{name}”: the running contract “{existing}” stays."
+        "skip_contract": "Contract for “{name}”: the running contract “{existing}” stays.",
+        "create_reading": "Record the reading at installation: “{name}” {counter} on {date}"
       },
       "detailObis": "register {obis}",
       "detailParent": "behind “{name}”",
@@ -7197,7 +7207,8 @@
     },
     "setupChoice": {
       "hint": "For solar, heat pump or EV charger with its own meter: first the layout, then the readings."
-    }
+    },
+    "readingNote": "Reading at installation"
   },
   "heatLimit": {
     "title": "Adjust the heating limit: with {best} °C the heating model fits much better",

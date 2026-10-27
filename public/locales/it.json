@@ -4563,7 +4563,8 @@
     "close": "Chiudi l’avviso",
     "readOnly": "Nella demo non si salva nulla. Con una tua installazione registri i tuoi dati.",
     "unavailable": "Questa analisi non è precalcolata nella demo – funziona con una tua installazione.",
-    "scenarioPresetsOnly": "Nella demo sono precalcolati solo gli scenari di esempio."
+    "scenarioPresetsOnly": "Nella demo sono precalcolati solo gli scenari di esempio.",
+    "conceptPresetsOnly": "Nella demo l’anteprima è precalcolata solo per la disposizione di questa famiglia di esempio."
   },
   "manifest": {
     "description": "Consumi, costi e contratti per elettricità, gas, acqua, teleriscaldamento, gasolio, pellet e fotovoltaico — sul proprio server, posta del fornitore letta in locale, il cloud solo su richiesta.",
@@ -5322,6 +5323,14 @@
       "weather": "Località meteo",
       "heatingLimit": "Limite di riscaldamento",
       "demoCountry": "La demo usa il paese della famiglia di esempio. Nella tua installazione lo scegli qui."
+    },
+    "concept": {
+      "title": "Come sono collegati i tuoi contatori?",
+      "hint": "Con fotovoltaico, pompa di calore, wallbox o batteria spesso c’è più di un contatore. Scegli ciò che corrisponde al tuo quadro contatori.",
+      "simple": "Un contatore per utenza",
+      "simpleHint": "Il caso abituale: un contatore elettrico, con il fotovoltaico un contatore bidirezionale. Altri contatori li aggiungi più tardi.",
+      "other": "Un’altra disposizione",
+      "otherHint": "Pompa di calore, wallbox o batteria con contatore proprio: alla fine l’assistente «schema di misura» configura contatori e contratti."
     }
   },
   "evcc": {
@@ -7179,7 +7188,8 @@
         "create_group": "Creare il gruppo «{name}» con entrambi i registri",
         "reuse_group": "Continuare a usare il gruppo «{name}»",
         "create_contract": "Creare il contratto per «{name}»",
-        "skip_contract": "Contratto per «{name}»: resta il contratto in corso «{existing}»."
+        "skip_contract": "Contratto per «{name}»: resta il contratto in corso «{existing}».",
+        "create_reading": "Inserire la lettura all’installazione: «{name}» {counter} il {date}"
       },
       "detailObis": "registro {obis}",
       "detailParent": "a valle di «{name}»",
@@ -7197,7 +7207,8 @@
     },
     "setupChoice": {
       "hint": "Per fotovoltaico, pompa di calore o wallbox con contatore proprio: prima la disposizione, poi le letture."
-    }
+    },
+    "readingNote": "Lettura all’installazione"
   },
   "heatLimit": {
     "title": "Regolare la temperatura base GG: con {best} °C il modello di riscaldamento si adatta molto meglio",

@@ -194,5 +194,52 @@
     "min_term_end": null,
     "price_guarantee_until": null,
     "signup_bonus_eur": null
+  },
+  {
+    "id": "c_strom_wp",
+    "meter_id": null,
+    "provider": "Wärmestrom Musterstadt",
+    "tariff_name": "Wärmepumpe Duo",
+    "start": "2025-04-01",
+    "end": null,
+    "notes": "",
+    "working_prices": [
+      {
+        "from": "2025-04-01",
+        "ct_per_kwh": 27.4
+      }
+    ],
+    "base_prices": [
+      {
+        "from": "2025-04-01",
+        "eur_per_month": 9.9
+      }
+    ],
+    "advance_payments": [
+      {
+        "from": "2025-04-01",
+        "amount_eur": 25
+      }
+    ],
+    "bonuses": [],
+    "special_payments": [],
+    "meter_group_id": "g_strom_wp",
+    "working_prices_by_meter": {
+      "m_strom_wp_nt": [
+        {
+          "from": "2025-04-01",
+          "ct_per_kwh": 21.6
+        }
+      ]
+    },
+    "is_shadow": false,
+    "shadow_label": null,
+    "notice_period_months": 1,
+    "notice_period_days": null,
+    "notice_mode": null,
+    "auto_renews": true,
+    "min_term_end": null,
+    "price_guarantee_until": null,
+    "signup_bonus_eur": null
   }
 ]

@@ -39,6 +39,8 @@ import { openReadingSetup } from './reading-setup.js';   // v3.7.0 — „Ausles
 import { docUrl } from '../lib/docs.js';   // v3.7.0 (Paket reifegrad) — Funktionstabelle nach Stufe
 // v3.9.0 (Paket oberflaeche) — kleine Strichzeichnungen je Schritt und Haushalt (Zier, aria-hidden)
 import { setupArt, personaArt } from '../lib/illustrations.js';
+// v3.9.0 (F1032) — Schritt „Wie hängen deine Zähler?“ mit den Schaltbildern des Assistenten „Messkonzept“
+import { schematic } from '../lib/metering-concepts.js';
 
 /**
  * v3.9.0 — Bild neben die Frage eines Schritts: das erste `.setup__question`
@@ -80,12 +82,29 @@ export function docsHelp(personaId, utilities = []) {
 }
 
 /**
+ * v3.9.0 (F1032) — Braucht der Haushalt den Schritt „Wie hängen deine Zähler?“:
+ * Strom und PV (Einspeisung oder Erzeugung) oder der Haushalt mit Wärmepumpe,
+ * Wallbox und Speicher (Eigenheim modern). Sonst gilt ein Zähler je Art.
+ */
+export function conceptStepFor(utilities = [], persona = null) {
+  const u = utilities || [];
+  return u.includes('strom') && (u.includes('pv_einspeisung') || u.includes('pv_erzeugung') || persona === 'eigenheim-modern');
+}
+
+/**
  * v3.5.0 (N1022) — die Schritte des Assistenten: zuerst Sprache und Land, in
  * der Demo ohne Verbrauchsarten (die bringt der Beispielhaushalt mit).
+ * v3.9.0 (F1032) — nach den Energieträgern „Wie hängen deine Zähler?“, wenn
+ * der Haushalt mehr als einen Zähler je Art braucht (conceptStepFor).
  * @param {boolean} [demo]
+ * @param {string[]|null} [utilities]  gewählte Energieträger
+ * @param {string|null} [persona]
  */
-export function setupSteps(demo = DEMO) {
-  return demo ? ['region', 'persona', 'level', 'finish'] : ['region', 'persona', 'utilities', 'level', 'finish'];
+export function setupSteps(demo = DEMO, utilities = null, persona = null) {
+  if (demo) return ['region', 'persona', 'level', 'finish'];
+  return conceptStepFor(utilities || [], persona)
+    ? ['region', 'persona', 'utilities', 'concept', 'level', 'finish']
+    : ['region', 'persona', 'utilities', 'level', 'finish'];
 }
 
 /**
@@ -117,9 +136,12 @@ export async function openSetupWizard({ session = null, firstRun = false } = {})
     // v3.6.0 — Hinweis auf neue Versionen: bei der Einrichtung vorgeschlagen (sichtbar,
     // abwählbar); beim erneuten Öffnen die aktuelle Einstellung
     updateCheck: firstRun ? true : !!settings.update_check,
+    // v3.9.0 (F1032) — „Wie hängen deine Zähler?“: simple (ein Zähler je Art) oder concept (Assistent)
+    meterSetup: 'simple',
   };
   const canLoadDemo = sessionRole() === 'admin';
-  const steps = setupSteps();
+  // v3.9.0 (F1032) — die Schritte folgen den gewählten Energieträgern (Schritt „Wie hängen deine Zähler?“)
+  const stepsNow = () => setupSteps(DEMO, state.utilities, state.persona);
 
   /** Was das gewählte Land setzt (gewechselt) bzw. was gilt (unverändert). */
   const factsHtml = () => {
@@ -233,7 +255,29 @@ export async function openSetupWizard({ session = null, firstRun = false } = {})
         ${esc(t('setup.finish.updateCheck'))}</label>` : ''}`;
   };
 
-  const html = { region: regionStep, persona: personaStep, utilities: utilitiesStep, level: levelStep, finish: finishStep };
+  /**
+   * v3.9.0 (F1032) — „Wie hängen deine Zähler?“: ein Zähler je Art (Standard) oder ein
+   * anderer Aufbau; dann wählt „So geht es weiter“ den Assistenten „Messkonzept“ vor.
+   */
+  const conceptStep = () => {
+    const pv = state.utilities.includes('pv_einspeisung') || state.utilities.includes('pv_erzeugung');
+    const card = (value, art, title, text) => `
+        <label class="setup-choice concept-layout${state.meterSetup === value ? ' setup-choice--on' : ''}">
+          <input type="radio" name="setup-meters" value="${value}" ${state.meterSetup === value ? 'checked' : ''}>
+          <span class="concept-layout__art">${art}</span>
+          <span class="setup-choice__body"><strong>${esc(title)}</strong>
+            <span class="muted small">${esc(text)}</span></span>
+        </label>`;
+    return `
+      <h3 class="setup__question">${esc(t('setup.concept.title'))}</h3>
+      <p class="muted small">${esc(t('setup.concept.hint'))}</p>
+      <div class="concept-layouts" role="radiogroup" aria-label="${esc(t('setup.concept.title'))}">
+        ${card('simple', schematic('single', { pv }), t('setup.concept.simple'), t('setup.concept.simpleHint'))}
+        ${card('concept', schematic('behind', { device: 'heat_pump', pv }), t('setup.concept.other'), t('setup.concept.otherHint'))}
+      </div>`;
+  };
+
+  const html = { region: regionStep, persona: personaStep, utilities: utilitiesStep, concept: conceptStep, level: levelStep, finish: finishStep };
 
   const ctrl = openModal({
     title: t('setup.title'),
@@ -259,6 +303,7 @@ export async function openSetupWizard({ session = null, firstRun = false } = {})
       };
       /** @param {string} [focusSel] Element, das den Fokus behält (sonst das erste Feld) */
       const draw = (focusSel) => {
+        const steps = stepsNow();
         const name = steps[state.step];
         body.innerHTML = withArt(name, html[name](), state.step === 0 ? `<p class="muted">${esc(t('setup.intro'))}</p>` : '');
         modalEl.querySelector('[data-role="progress"]').textContent = t('setup.progress', { n: state.step + 1, total: steps.length });
@@ -301,6 +346,12 @@ export async function openSetupWizard({ session = null, firstRun = false } = {})
         }
         if (el.name === 'setup-level') state.level = el.value;
         if (el.name === 'setup-start') state.start = el.value;
+        // v3.9.0 (F1032) — anderer Aufbau: „So geht es weiter“ wählt den Assistenten „Messkonzept“ vor
+        if (el.name === 'setup-meters') {
+          state.meterSetup = el.value;
+          if (el.value === 'concept') state.start = 'concept';
+          else if (state.start === 'concept') state.start = 'docs';
+        }
         if (el.name === 'setup-update-check') state.updateCheck = el.checked;
         // v3.5.1 — der Fokus bleibt am gewählten Feld. Bisher setzte draw() ihn
         // aufs erste Feld; dessen Karte trug den Fokusrahmen und sah am iPad wie
@@ -320,7 +371,7 @@ export async function openSetupWizard({ session = null, firstRun = false } = {})
         close(null);
       });
       next.addEventListener('click', async () => {
-        if (state.step < steps.length - 1) { state.step++; draw(); return; }
+        if (state.step < stepsNow().length - 1) { state.step++; draw(); return; }
         next.disabled = true;
         try {
           const go = await finish(state, { start, settings, countries, session });

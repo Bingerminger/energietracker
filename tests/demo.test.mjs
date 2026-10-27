@@ -283,6 +283,55 @@ function serve(dir, port) {
     const newErrors = errors.slice(before);
     t('keine Fehler beim Durchklicken', newErrors.length === 0, newErrors.slice(0, 5).join(' | '));
 
+    // v3.9.0 (F1032) — Messkonzept im Schaufenster: Wärmepumpe mit Doppeltarifzähler hinter dem
+    // Hauptzähler. Rest-Hinweis und Spalte „Abgerechnet“ am Hauptzähler, Zählwerke an den Zählern,
+    // der Assistent bis zur Zusammenfassung (Vorschau vorberechnet), „Anlegen“ gesperrt.
+    {
+      const missesBefore = new Set(w.__etDemoMisses || []);
+      w.location.hash = '#/utility/strom?meter=m_strom_main';
+      await settle();
+      const view = w.document.getElementById('view');
+      const note = view.querySelector('[data-role="rest-note"]')?.textContent || '';
+      t('Schaufenster: Hauptzähler Strom rechnet nur den Rest („… gemessen − … Wärmepumpe HT − … Wärmepumpe NT“)',
+        /gemessen − /.test(note) && /Wärmepumpe HT/.test(note) && /Wärmepumpe NT/.test(note), note.slice(0, 200));
+      t('Schaufenster: Kachel und Monatstabelle nennen die abgerechnete Menge', !!view.querySelector('[data-role="kpi-billed"]')
+        && !!view.querySelector('th[data-role="col-billed"]'));
+      w.location.hash = '#/utility/strom/meters';
+      await settle();
+      const mv = w.document.getElementById('view');
+      t('Schaufenster: Zählwerke mit OBIS an den Zählern (1.8.0, 1.8.1, 1.8.2)', ['1.8.0', '1.8.1', '1.8.2'].every(o => mv.textContent.includes(o)));
+      const btn = mv.querySelector('[data-action="concept"]');
+      t('Demo: Zählerseite bietet „Messkonzept einrichten“', !!btn);
+      btn?.click();
+      await settle(); await sleep(200);
+      const mq = (s) => w.document.querySelector(`#modal-root ${s}`);
+      const step = () => mq('[data-role="concept-body"]')?.dataset.step;
+      const next = async () => { mq('[data-act="next"]')?.click(); await settle(); await sleep(150); };
+      t('Assistent in der Demo: Aufbau aus dem Schaufenster vorbelegt (PV, Wärmepumpe, HT/NT am Gerät)', step() === 'setup' && mq('input[name="cw-pv"]')?.checked
+        && mq('input[name="cw-device"]:checked')?.value === 'heat_pump' && mq('input[name="cw-tou"]:checked')?.value === 'device');
+      await next();
+      t('Assistent in der Demo: „Subzähler dahinter“ vorgewählt', step() === 'layout' && mq('input[name="cw-concept"]:checked')?.value === 'behind');
+      await next();
+      const ex = [...w.document.querySelectorAll('#modal-root select[data-field="existing"]')].map(s => `${s.dataset.slot}/${s.dataset.reg}=${s.value}`);
+      t('Assistent in der Demo: Zähler (vorberechnete Vorschau), vorhandene vorgewählt', step() === 'meters'
+        && ex.includes('main/one=m_strom_main') && ex.includes('dev/ht=m_strom_wp_ht') && ex.includes('dev/nt=m_strom_wp_nt'), ex.join(' '));
+      await next();
+      t('Assistent in der Demo: Verträge zeigen die laufenden statt leerer Felder', step() === 'contracts'
+        && w.document.querySelectorAll('#modal-root [data-role="cw-running-contract"]').length >= 2);
+      await next();
+      const ops = [...w.document.querySelectorAll('#modal-root [data-role="cw-actions"] li')].map(li => li.dataset.op);
+      t('Assistent in der Demo: Zusammenfassung mit Schaltbild, nichts doppelt', step() === 'summary' && !!mq('.concept-summary__art svg[role="img"]')
+        && ops.includes('update_meter') && !ops.includes('create_meter'), ops.join(','));
+      mq('[data-act="next"]')?.click();   // „Anlegen“
+      await settle(); await sleep(200);
+      const toasts = w.document.getElementById('toast-stack')?.textContent || '';
+      t('Assistent in der Demo: „Anlegen“ gesperrt (nichts gespeichert)', !!mq('[data-role="concept-body"]') && /nichts gespeichert/.test(toasts), toasts.trim().slice(0, 160));
+      mq('.modal__close')?.click();
+      await settle();
+      const newMisses = [...(w.__etDemoMisses || [])].filter(k => !missesBefore.has(k));
+      t('Assistent in der Demo: jede Vorschau vorberechnet', newMisses.length === 0 && (meta.concepts || 0) > 0, newMisses.slice(0, 3).join(' · ') || `${meta.concepts} Vorschauen`);
+    }
+
     // v3.2.0 (F1018) — der Einrichtungsassistent bietet die Beispielhaushalte an
     const { openSetupWizard } = await import(pathToFileURL(join(out, 'public/js/components/setup-wizard.js')).href);
     await openSetupWizard({ firstRun: true });

@@ -227,6 +227,10 @@ const SETUP = {
   }).join(''),
   /** Erfahrung: Stufen mit einem Keimling oben. */
   level: () => shapes.ground(6, 114, 72) + shapes.steps(22, 36, 72, 36) + shapes.sprout(83, 34, 1.1),
+  /** v3.9.0 (F1032) — Wie hängen deine Zähler: Netz, Zähler, Abzweig zu Haus und Wärmepumpe. */
+  concept: () => shapes.grid(12, 60) + shapes.wire([[20, 43], [30, 43]], { strong: true }) + shapes.meter(30, 30, { w: 22, h: 26 })
+    + shapes.wire([[52, 43], [64, 43]]) + shapes.bus(64, 22, 64, { nodes: [43] }) + shapes.wire([[64, 22], [80, 22]])
+    + shapes.house(80, 2, 32, 30) + shapes.wire([[64, 64], [84, 64]]) + shapes.heatpump(84, 54, { w: 26, h: 20 }),
   /** Los geht's: Dokument fällt in den Posteingang. */
   finish: () => shapes.doc(46, 6, { check: true }) + shapes.arrow(82, 16, 82, 44) + shapes.tray(36, 50, 56, 18) + shapes.ground(6, 114, 74),
 };

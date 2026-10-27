@@ -6,6 +6,7 @@
         "created_at": "2023-04-01",
         "active": true,
         "notes": "Zwei-Richtungs-Zähler des Netzbetreibers, Plombiert",
+        "obis": "2.8.0",
         "devices": [
             {
                 "id": "d_pv_eins_001",

@@ -4563,7 +4563,8 @@
     "close": "Cerrar aviso",
     "readOnly": "En la demo no se guarda nada. Con tu propia instalación registras tus datos.",
     "unavailable": "Este análisis no está precalculado en la demo; funciona con tu propia instalación.",
-    "scenarioPresetsOnly": "En la demo solo están precalculados los escenarios de ejemplo."
+    "scenarioPresetsOnly": "En la demo solo están precalculados los escenarios de ejemplo.",
+    "conceptPresetsOnly": "En la demo, la vista previa solo está precalculada para la disposición de este hogar de ejemplo."
   },
   "manifest": {
     "description": "Consumo, costes y contratos de electricidad, gas, agua, calefacción urbana, gasóleo, pellets y fotovoltaica, en tu propio servidor, con el correo del proveedor leído en local y la nube solo si la quieres.",
@@ -5322,6 +5323,14 @@
       "weather": "Ubicación meteorológica",
       "heatingLimit": "Límite de calefacción",
       "demoCountry": "La demo usa el país del hogar de ejemplo. En tu propia instalación lo eliges aquí."
+    },
+    "concept": {
+      "title": "¿Cómo están conectados tus contadores?",
+      "hint": "Con fotovoltaica, bomba de calor, cargador o batería suele haber más de un contador. Elige lo que corresponde a tu armario de contadores.",
+      "simple": "Un contador por suministro",
+      "simpleHint": "El caso habitual: un contador eléctrico, con fotovoltaica un contador bidireccional. Más contadores los añades después.",
+      "other": "Otra disposición",
+      "otherHint": "Bomba de calor, cargador o batería con contador propio: al final, el asistente «esquema de medición» configura los contadores y los contratos."
     }
   },
   "evcc": {
@@ -7179,7 +7188,8 @@
         "create_group": "Crear el grupo «{name}» con ambos registros",
         "reuse_group": "Seguir usando el grupo «{name}»",
         "create_contract": "Crear el contrato para «{name}»",
-        "skip_contract": "Contrato para «{name}»: se mantiene el contrato en curso «{existing}»."
+        "skip_contract": "Contrato para «{name}»: se mantiene el contrato en curso «{existing}».",
+        "create_reading": "Registrar la lectura en la instalación: «{name}» {counter} el {date}"
       },
       "detailObis": "registro {obis}",
       "detailParent": "detrás de «{name}»",
@@ -7197,7 +7207,8 @@
     },
     "setupChoice": {
       "hint": "Para fotovoltaica, bomba de calor o cargador con contador propio: primero la disposición, luego las lecturas."
-    }
+    },
+    "readingNote": "Lectura en la instalación"
   },
   "heatLimit": {
     "title": "Ajustar la temperatura base GD: con {best} °C el modelo de calefacción se ajusta mucho mejor",

@@ -3542,6 +3542,11 @@ async function renderView(modPath, params = [], ctx = {}) {
     t('concept: Wärmepumpe mit zwei Zählwerken, OBIS vorbelegt', devObis.join() === '1.8.1,1.8.2', devObis.join());
     const serial = q('input[data-slot="dev"][data-field="serial"]');
     serial.value = 'TEST-WP-1'; serial.dispatchEvent(new global.window.Event('input', { bubbles: true }));
+    // Skeptiker R2-1 — Stand beim Einbau je Zählwerk (wird eine Ablesung am Einbautag)
+    for (const [r, v] of [['ht', '500'], ['nt', '300']]) {
+      const el = q(`input[data-slot="dev"][data-reg="${r}"][data-field="initial_counter"]`);
+      el.value = v; el.dispatchEvent(new global.window.Event('input', { bubbles: true }));
+    }
     await next();
     // Skeptiker M11 — am Hauszähler der laufende Vertrag statt leerer Felder; N16 — sein Name statt „Hauszähler“
     t('concept: Verträge, am Hauszähler der laufende Vertrag und der Satz zur Rest-Abrechnung', q('[data-role="concept-body"]')?.dataset.step === 'contracts'
@@ -3561,6 +3566,9 @@ async function renderView(modPath, params = [], ctx = {}) {
     const restFrom = q('[data-role="cw-notices"] [data-notice="rest_from"]')?.textContent || '';
     t('concept: Zusammenfassung sagt, dass der Hausvertrag rückwirkend ab Vertragsbeginn nur den Rest rechnet', /Rückwirkend ab 01\.01\.2025/.test(restFrom)
       && restFrom.includes(before[0].name) && /nur noch den Rest/.test(restFrom), restFrom);
+    const readOps = [...global.document.querySelectorAll('#modal-root [data-role="cw-actions"] [data-op="create_reading"]')].map(li => li.textContent);
+    t('concept: Stand beim Einbau je Zählwerk als Ablesung am Einbautag (R2-1)', readOps.length === 2 && readOps.every(x => /am 01\.01\.2025/.test(x))
+      && readOps.some(x => /500/.test(x)) && readOps.some(x => /300/.test(x)), readOps.join(' | '));
     t('concept: das neue Gerät ist ab Vertragsbeginn eingebaut, nicht heute', /eingebaut am 01\.01\.2025/.test(q('[data-role="cw-actions"] [data-op="create_meter"]')?.textContent || ''),
       q('[data-role="cw-actions"] [data-op="create_meter"]')?.textContent);
     await next(900);
@@ -3571,6 +3579,12 @@ async function renderView(modPath, params = [], ctx = {}) {
       && wp.every(m => m.parent_meter_id === before[0].id && m.meter_group_id && m.meter_group_id === wp[0].meter_group_id)
       && wp.map(m => m.obis).sort().join() === '1.8.1,1.8.2' && wp.every(m => m.devices?.[0]?.serial === 'TEST-WP-1')
       && wp.every(m => m.devices?.[0]?.installed_on === '2025-01-01'), after.map(m => `${m.name}:${m.obis || ''}:${m.devices?.[0]?.installed_on}`).join(' | '));
+    const startReads = [];
+    for (const m of wp) {
+      const rs = (await send('GET', `/utility/strom/readings?meter_id=${encodeURIComponent(m.id)}`)).data || [];
+      startReads.push(...rs.filter(x => x.date === '2025-01-01').map(x => `${m.obis}:${x.counter}`));
+    }
+    t('concept: nach „Anlegen“ steht der Stand beim Einbau als Ablesung am 01.01.2025', startReads.sort().join() === '1.8.1:500,1.8.2:300', startReads.join());
     const contracts = ((await send('GET', '/utility/strom/contracts')).data || []).filter(c => !c.is_shadow);
     const gc = contracts.find(c => c.provider === 'Testtarif');
     t('concept: Gruppenvertrag mit Preis je Zählwerk, kein zweiter Vertrag am Hauszähler', !!gc && gc.meter_group_id === wp[0].meter_group_id

@@ -88,6 +88,8 @@ t('Klassen der Formen haben eine Regel', ['ill-line', 'ill-ink', 'ill-accent', '
 
 console.log('Ersteinrichtung');
 t('jeder Schritt hat ein Bild', W.setupSteps(false).every(s => I.SETUP_ART_STEPS.includes(s)), W.setupSteps(false).join());
+// v3.9.0 (F1032) — auch der Schritt „Wie hängen deine Zähler?“ (Strom mit PV)
+t('… auch „Wie hängen deine Zähler?“', W.setupSteps(false, ['strom', 'pv_einspeisung']).every(s => I.SETUP_ART_STEPS.includes(s)), W.setupSteps(false, ['strom', 'pv_einspeisung']).join());
 t('jeder Beispielhaushalt hat ein Bild', W.PERSONAS.every(p => I.PERSONA_ART_IDS.includes(p.id)));
 
 console.log('Leerzustand (lib/empty.js)');

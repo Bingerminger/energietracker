@@ -2129,7 +2129,8 @@ wechseln je Netzbetreiber. Fünf Schritte, „Schritt 2 von 5“ in der Fußleis
    Zählwerke vorbelegt; einen vorhandenen Zähler wählst du aus, statt ihn
    doppelt anzulegen, er erscheint dann unter seinem Namen. Ein neuer Zähler
    bekommt „Eingebaut am“ (leer: ab Beginn seines Vertrags, sonst heute) und
-   den Stand beim Einbau.
+   den Stand beim Einbau, bei HT/NT je Zählwerk. Dieser Stand wird die erste
+   Ablesung am Einbautag; der Verbrauch zählt ab dann.
 4. **Welche Verträge gibt es?** Beginn, Arbeitspreis (bei HT/NT je Zählwerk),
    Grundpreis und Abschlag; leer lassen geht auch. Ein laufender Vertrag an
    einem vorhandenen Zähler steht mit Anbieter und Beginn da und bleibt, wie er
@@ -2346,6 +2347,10 @@ steht der Fortschritt über den Knöpfen:
 3. **„Welche Energieträger nutzt du?“** — alle Verbrauchsarten zum Ankreuzen,
    „Vorgeschlagen nach deiner Antwort — frei kombinierbar.“; ohne Haken geht
    es nicht weiter. Darunter der Hinweis „Fernwärme oder Heizwärme? …“.
+   Mit Strom und PV (oder „Eigenheim modern“) folgt seit v3.9.0 **„Wie hängen
+   deine Zähler?“**: „Ein Zähler je Art“ (vorgewählt) oder „Anderer Aufbau“ mit
+   je einem Schaltbild; der andere Aufbau wählt in Schritt „So geht es weiter“
+   „Messkonzept einrichten“ vor.
 4. **„Wie viel Erfahrung hast du?“** — die drei Stufen mit denselben Zeilen
    wie in den Einstellungen und „Die Stufe lässt sich jederzeit oben neben
    Tag/Nacht umstellen. Braucht dein Haushalt mehr, schlägt die App es dir

@@ -27,7 +27,7 @@ deinen eigenen Daten.
 
 ### Die Schritte
 
-Der Dialog „Einrichten“ hat fünf Schritte („Schritt 1 von 5“). Seit **v3.9.0**
+Der Dialog „Einrichten“ hat fünf Schritte („Schritt 1 von 5“), mit Strom und PV sechs. Seit **v3.9.0**
 steht neben jeder Frage eine kleine Zeichnung (Weltkugel, Häuser, Zähler,
 Stufen, Ablage), und jede Antwort auf „Wer bist du?“ trägt ein kleines Haus-Bild
 statt eines Emojis. Die Bilder sind nur Schmuck; die Frage und der Text der
@@ -53,6 +53,13 @@ Antwort sagen alles.
    sind angehakt; du kombinierst frei, mindestens eine muss bleiben. Ein
    Hinweis erklärt den Unterschied zwischen Fernwärme und Heizwärme
    ([§ 2](#fernwärme-oder-heizwärme)).
+   *Mit Strom und PV* (oder als „Eigenheim modern“) folgt seit **v3.9.0**
+   **„Wie hängen deine Zähler?“**: zwei Karten mit Schaltbild, **„Ein Zähler je
+   Art“** (vorgewählt, der übliche Fall) oder **„Anderer Aufbau“** (Wärmepumpe,
+   Wallbox oder Speicher mit eigenem Zähler). Der andere Aufbau wählt am Ende
+   „Messkonzept einrichten“ vor; danach öffnet der Assistent „Messkonzept“
+   ([Ansichten](../referenz/ansichten.md#assistent-messkonzept-einrichten-v390-github-40)).
+   Der Dialog hat dann sechs Schritte.
 4. **„Wie viel Erfahrung hast du?“** — Einsteiger, Erfahren oder Experte
    ([§ 3](#3-nutzungsstufen)).
 5. **„So geht es weiter“** — die Zusammenfassung und einer von drei Wegen

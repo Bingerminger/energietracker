@@ -4563,7 +4563,8 @@
     "close": "Fermer l’avis",
     "readOnly": "Rien n’est enregistré dans la démo. Avec votre propre installation, vous saisissez vos données.",
     "unavailable": "Cette analyse n’est pas précalculée dans la démo – elle fonctionne avec votre propre installation.",
-    "scenarioPresetsOnly": "Seuls les scénarios d’exemple sont précalculés dans la démo."
+    "scenarioPresetsOnly": "Seuls les scénarios d’exemple sont précalculés dans la démo.",
+    "conceptPresetsOnly": "Dans la démo, l’aperçu n’est précalculé que pour la disposition de ce foyer d’exemple."
   },
   "manifest": {
     "description": "Consommation, coûts et contrats pour l’électricité, le gaz, l’eau, le chauffage urbain, le fioul, les granulés et le photovoltaïque — sur votre propre serveur, courrier du fournisseur lu en local, le cloud seulement sur demande.",
@@ -5322,6 +5323,14 @@
       "weather": "Lieu météo",
       "heatingLimit": "Limite de chauffe",
       "demoCountry": "La démo utilise le pays du foyer d’exemple. Dans votre propre installation, vous le choisissez ici."
+    },
+    "concept": {
+      "title": "Comment vos compteurs sont-ils raccordés ?",
+      "hint": "Avec du photovoltaïque, une pompe à chaleur, une borne ou une batterie, il y a souvent plus d’un compteur. Choisissez ce qui correspond à votre armoire de comptage.",
+      "simple": "Un compteur par énergie",
+      "simpleHint": "Le cas habituel : un compteur électrique, avec du photovoltaïque un compteur bidirectionnel. Vous ajoutez d’autres compteurs plus tard.",
+      "other": "Une autre disposition",
+      "otherHint": "Pompe à chaleur, borne ou batterie avec son propre compteur : à la fin, l’assistant « schéma de comptage » configure les compteurs et les contrats."
     }
   },
   "evcc": {
@@ -7179,7 +7188,8 @@
         "create_group": "Créer le groupe « {name} » avec les deux registres",
         "reuse_group": "Conserver le groupe « {name} »",
         "create_contract": "Créer le contrat pour « {name} »",
-        "skip_contract": "Contrat pour « {name} » : le contrat en cours « {existing} » est conservé."
+        "skip_contract": "Contrat pour « {name} » : le contrat en cours « {existing} » est conservé.",
+        "create_reading": "Saisir l’index à l’installation : « {name} » {counter} le {date}"
       },
       "detailObis": "registre {obis}",
       "detailParent": "en aval de « {name} »",
@@ -7197,7 +7207,8 @@
     },
     "setupChoice": {
       "hint": "Pour le photovoltaïque, une pompe à chaleur ou une borne avec compteur propre : d’abord la disposition, ensuite les relevés."
-    }
+    },
+    "readingNote": "Index à l’installation"
   },
   "heatLimit": {
     "title": "Ajuster la température de base DJU : avec {best} °C, le modèle de chauffage correspond nettement mieux",

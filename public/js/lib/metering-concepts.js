@@ -281,6 +281,61 @@ export function slotSignature(slots) {
 }
 
 /**
+ * Vorbelegung des Aufbaus aus dem Haushalt: PV aktiv, Gerät nach den Rollen
+ * vorhandener Zähler, Speicher, HT/NT. v3.9.0 (Schaufenster) — HT/NT „nur am
+ * Gerät“, wenn allein Zähler des Geräts Zählwerke HT/NT haben, „an jedem“,
+ * wenn auch ein anderer Stromzähler welche hat.
+ */
+export function setupFromHousehold(settings, meters = {}) {
+  const active = Array.isArray(settings?.active_utilities) ? settings.active_utilities : [];
+  const strom = (meters.strom || []).filter(m => m.active !== false);
+  const device = strom.some(m => m.role === 'heat_pump') ? 'heat_pump' : strom.some(m => m.role === 'ev_charger') ? 'ev_charger' : null;
+  const pv = active.includes('pv_einspeisung') || (meters.pv_einspeisung || []).length > 0;
+  const battery = (meters.pv_erzeugung || []).some(m => m.role === 'battery_charge' || m.role === 'battery_discharge');
+  const tou = (m) => /^1\.8\.[12]$/.test(shortObis(m.obis)) || /\b(HT|NT)\b/.test(m.name || '');
+  const devTou = strom.some(m => device && m.role === device && tou(m));
+  const otherTou = strom.some(m => (!device || m.role !== device) && tou(m));
+  return normalizeSetup({ device, pv, battery, tou: otherTou ? 'all' : devTou ? 'device' : 'none' });
+}
+
+/**
+ * Aufbau aus dem Haushalt: Hängt der Zähler des Geräts hinter einem anderen,
+ * „dahinter“; hat er selbst einen Subzähler, „Kaskade“; sonst „nebeneinander“
+ * (ohne Gerät „ein Zähler für alles“).
+ */
+export function conceptFromHousehold(setup, meters = {}) {
+  const s = normalizeSetup(setup);
+  if (!s.device) return 'single';
+  const strom = (meters.strom || []).filter(m => m.active !== false);
+  const dev = strom.filter(m => m.role === s.device);
+  if (dev.some(m => m.parent_meter_id)) return 'behind';
+  if (dev.some(m => strom.some(c => c.parent_meter_id === m.id)) && conceptAllowed('cascade', s)) return 'cascade';
+  return 'side_by_side';
+}
+
+/** Eingaben nach der ersten Vorschau: Name vorbelegt, vorhandene Zähler zugeordnet, Zählwerke mit OBIS. */
+export function initialInput(slots, suggested = {}) {
+  return Object.fromEntries(Object.entries(slots || {}).map(([k, s]) => [k, { name: s.name, serial: '', ...(suggested[k] || {}), obis: { ...s.registers } }]));
+}
+
+/**
+ * Körper des Assistenten für Vorschau und Anlegen: wie conceptPayload, die
+ * Einspeisung ohne eigene Nummer bekommt die des vorhandenen Zählers Z1
+ * (Zweirichtungszähler). Assistent und Demo-Bau (vorberechnete Vorschau)
+ * benutzen dieselbe Funktion, damit dieselben Körper entstehen.
+ */
+export function wizardPayload(concept, setup, slotsInput = {}, contractsInput = {}, meters = {}) {
+  const input = { ...slotsInput };
+  if (input.feed && !input.feed.serial?.trim() && !input.feed.meter_id) {
+    const ids = [slotsInput.main?.meter_id, ...Object.values(slotsInput.main?.meter_ids || {})].filter(Boolean);
+    const m = (meters.strom || []).find(x => ids.includes(x.id));
+    const dev = m?.devices?.find(d => !d.removed_on) || m?.devices?.[m.devices.length - 1];
+    if (dev?.serial) input.feed = { ...input.feed, serial: dev.serial };
+  }
+  return conceptPayload(concept, setup, input, contractsInput);
+}
+
+/**
  * Körper für Vorschau und Anlegen aus den Eingaben des Assistenten. Leere
  * Felder fallen weg; die Einspeisung bekommt ohne eigene die Nummer von Z1.
  */
@@ -294,8 +349,13 @@ export function conceptPayload(concept, setup, slotsInput = {}, contractsInput =
     if (v.meter_id) o.meter_id = v.meter_id;
     // v3.9.0 (Skeptiker M11) — Einbau und Stand beim Einbau eines neuen Zählers
     if (v.installed_on) o.installed_on = v.installed_on;
-    if (v.initial_counter !== undefined && v.initial_counter !== null && String(v.initial_counter).trim() !== '') {
-      o.initial_counter = Number(String(v.initial_counter).trim().replace(',', '.'));
+    // je Zählwerk ({one} bzw. {ht, nt}); leere fallen weg
+    const toNum = (x) => Number(String(x).trim().replace(',', '.'));
+    if (v.initial_counter !== undefined && v.initial_counter !== null && typeof v.initial_counter === 'object') {
+      const init = Object.fromEntries(Object.entries(v.initial_counter).filter(([, x]) => x !== null && x !== undefined && String(x).trim() !== '').map(([r, x]) => [r, toNum(x)]));
+      if (Object.keys(init).length) o.initial_counter = init;
+    } else if (v.initial_counter !== undefined && v.initial_counter !== null && String(v.initial_counter).trim() !== '') {
+      o.initial_counter = toNum(v.initial_counter);
     }
     const ids = Object.fromEntries(Object.entries(v.meter_ids || {}).filter(([, id]) => id));
     if (Object.keys(ids).length) o.meter_ids = ids;

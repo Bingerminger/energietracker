@@ -159,7 +159,16 @@ t('Preise mit Komma, Vertrag ohne Eintrag fällt weg (später)', body.contracts.
 const withInstall = C.conceptPayload('behind', { device: 'heat_pump' }, { dev: { name: 'Wärmepumpe', installed_on: '2025-01-01', initial_counter: '1234,5' } }, {});
 t('Einbau und Stand beim Einbau gehen mit (Skeptiker M11), Komma als Dezimalzeichen', withInstall.slots.dev.installed_on === '2025-01-01' && withInstall.slots.dev.initial_counter === 1234.5,
   JSON.stringify(withInstall.slots.dev));
+const perReg = C.conceptPayload('behind', { device: 'heat_pump', tou: 'device' }, { dev: { initial_counter: { ht: '500', nt: '300,5', x: '' } } }, {});
+t('Stand beim Einbau je Zählwerk (Skeptiker R2-1), leere fallen weg', JSON.stringify(perReg.slots.dev.initial_counter) === '{"ht":500,"nt":300.5}', JSON.stringify(perReg.slots.dev));
 t('ohne Einbau kein Feld (der Server nimmt den Vertragsbeginn)', !('installed_on' in C.conceptPayload('single', {}, { main: { name: 'A', installed_on: '', initial_counter: '' } }, {}).slots.main));
+
+console.log('Abrechnungsjahr: Verbrauch = Messung, abgerechnet = Rest (Skeptiker M9)');
+const BP = await import(`${JS}/lib/billing-period.js`);
+const pr = BP.periodRows({ from: '2025-01-01', months: [{ ym: '2025-01', month: 1, days: 31, kwh: 300, measured_kwh: 500, kwh_cost: 60, cost: 70, advance_eur: 50 },
+  { ym: '2025-02', month: 2, days: 28, kwh: 400, measured_kwh: 400, kwh_cost: 80, cost: 90, advance_eur: 50 }] }, [], 'kwh');
+t('Periodenzeile: Verbrauch = Messung, abgerechnet = Menge der Verträge, Preis je abgerechneter kWh', pr[0].kwh === 500 && pr[0].billed_kwh === 300
+  && Math.abs(pr[0].working_price_ct - 20) < 1e-9 && pr[1].kwh === 400 && pr[1].billed_kwh === undefined, JSON.stringify(pr.map(r => [r.kwh, r.billed_kwh, r.working_price_ct])));
 
 console.log('Rest-Hinweis in den Vertragsansichten (Skeptiker N7)');
 const RB = await import(`${JS}/lib/rest-billing.js`);
@@ -174,12 +183,27 @@ console.log('Assistent');
 const W = await import(`${JS}/components/concept-wizard.js`);
 t('fünf Schritte: Aufbau, Schaltbild, Zähler, Verträge, Zusammenfassung', W.CONCEPT_STEPS.join() === 'setup,layout,meters,contracts,summary');
 const pre = W.setupFromHousehold({ active_utilities: ['strom', 'pv_einspeisung'] }, { strom: [{ id: 'a', name: 'WP HT', role: 'heat_pump' }], pv_erzeugung: [{ id: 'b', role: 'battery_charge' }] });
-t('Vorbelegung aus dem Haushalt: PV aktiv, Wärmepumpe, Speicher, HT/NT', pre.pv && pre.device === 'heat_pump' && pre.battery && pre.tou === 'all', JSON.stringify(pre));
+t('Vorbelegung aus dem Haushalt: PV aktiv, Wärmepumpe, Speicher, HT/NT nur am Gerät', pre.pv && pre.device === 'heat_pump' && pre.battery && pre.tou === 'device', JSON.stringify(pre));
+const preAll = W.setupFromHousehold({}, { strom: [{ id: 'h', name: 'Haus HT', obis: '1.8.1' }, { id: 'a', name: 'WP HT', role: 'heat_pump' }] });
+t('… HT/NT an jedem Bezugszähler, wenn auch der Haushalt Zählwerke HT/NT hat', preAll.tou === 'all', JSON.stringify(preAll));
+// Aufbau aus dem Haushalt (Schaufenster: Wärmepumpe hinter dem Hauptzähler → „dahinter“)
+const hh = (strom) => C.conceptFromHousehold(C.setupFromHousehold({}, { strom }), { strom });
+t('Aufbau aus dem Haushalt: dahinter, Kaskade, nebeneinander, ein Zähler', hh([{ id: 'p', name: 'Haus' }, { id: 'w', name: 'WP', role: 'heat_pump', parent_meter_id: 'p' }]) === 'behind'
+  && hh([{ id: 'w', name: 'Vorn', role: 'heat_pump' }, { id: 'h', name: 'Haus', parent_meter_id: 'w' }]) === 'cascade'
+  && hh([{ id: 'p', name: 'Haus' }, { id: 'w', name: 'WP', role: 'heat_pump' }]) === 'side_by_side' && hh([{ id: 'p', name: 'Haus' }]) === 'single');
+// Eingaben nach der ersten Vorschau und Körper wie im Assistenten (der Demo-Bau rechnet damit vor)
+const slots = { main: { utility: 'strom', role: 'household', parent: null, registers: { one: '1.8.0' }, name: 'Hauszähler' },
+  feed: { utility: 'pv_einspeisung', role: null, parent: null, registers: { one: '2.8.0' }, name: 'Einspeisung' } };
+const input = C.initialInput(slots, { main: { meter_id: 'm1' } });
+t('Eingaben: Name aus der Vorschau, vorhandener Zähler, Zählwerke', JSON.stringify(input) === JSON.stringify({
+  main: { name: 'Hauszähler', serial: '', meter_id: 'm1', obis: { one: '1.8.0' } }, feed: { name: 'Einspeisung', serial: '', obis: { one: '2.8.0' } } }), JSON.stringify(input));
+const wb = C.wizardPayload('single', { pv: true }, input, {}, { strom: [{ id: 'm1', devices: [{ id: 'd', serial: 'TEST-1', removed_on: null }] }] });
+t('Körper: die Einspeisung bekommt die Nummer des vorhandenen Z1', wb.slots.feed.serial === 'TEST-1' && wb.slots.main.meter_id === 'm1', JSON.stringify(wb.slots));
 const empty = W.setupFromHousehold({ active_utilities: ['strom'] }, { strom: [{ id: 'm', name: 'Hauptzähler' }] });
 t('… und ohne Anlage: nichts vorgewählt', !empty.pv && !empty.device && empty.tou === 'none');
 const meters = read('public/js/views/meters.js'), settingsView = read('public/js/views/settings.js'), setup = read('public/js/components/setup-wizard.js');
-t('angeboten an Strom und PV, nicht an Gas, nicht in der öffentlichen Demo', W.conceptOffered('strom', false) && W.conceptOffered('pv_einspeisung', false)
-  && !W.conceptOffered('gas', false) && !W.conceptOffered('strom', true));
+t('angeboten an Strom und PV, nicht an Gas, auch in der öffentlichen Demo (Vorschau vorberechnet)', W.conceptOffered('strom', false) && W.conceptOffered('pv_einspeisung', false)
+  && !W.conceptOffered('gas', false) && W.conceptOffered('strom', true));
 t('Einstiege: Zählerseite, Einstellungen, Ersteinrichtung (alle über conceptOffered)',
   (meters.match(/conceptOffered\(u\.key\)/g) || []).length === 2 && /!conceptOffered\(\) \? '' : `<div class="card settings-card" id="concept-card">/.test(settingsView)
   && /choice\('concept'/.test(setup) && /\?concept=1/.test(setup));
