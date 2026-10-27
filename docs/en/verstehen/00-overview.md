@@ -962,6 +962,14 @@ months of the last 24 months**; the anomaly table of the analysis still shows
 all of them. An outlier from three years ago is no longer something to act on,
 and “Hide for 30 days” should not bring it back every month.
 
+**Since v3.9.0, R4 only reports a month if the same calendar month was measured
+in an earlier year** (`prior_same_month` in the anomaly table). Without it the
+expectation compares with the neighbouring months: the first heating month of a
+new heat pump (October against September) counted as an anomaly. Members of a
+meter group, such as HT and NT of a heat pump, are checked by R4 as the group,
+with one recommendation per group; if a utility has several meters or groups,
+the title names it (“Electricity · Heat pump Oct 2025: …”).
+
 Anomalies are hints, not judgements — a move, a new heat pump or a faulty meter
 produce them alike.
 

@@ -152,9 +152,10 @@ final class InterpolationTest extends ServiceTestCase
     /** #37-Nachtrag — Empfehlungen aus Monaten (R1, R3, R4) nur aus den letzten 24 Monaten; die Tabelle der Analyse zeigt weiter alles. */
     public function testRecommendationsComeOnlyFromTheLastTwoYears(): void
     {
-        $this->seedTemps('2023-01-01', '2026-01-31');
+        $this->seedTemps('2022-01-01', '2026-01-31');
         $this->seedReadings('gas', self::firsts('2023-01', '2026-01'), ['2023-03' => 4.0]);
-        $this->seedReadings('strom', self::firsts('2023-01', '2026-01'), ['2023-06' => 6.0], fn() => 8.0);
+        // v3.9.0 (Skeptiker) — Strom ab 2022: R4 meldet nur mit demselben Monat ein Jahr früher (Juni 2022)
+        $this->seedReadings('strom', self::firsts('2022-01', '2026-01'), ['2023-06' => 6.0], fn() => 8.0);
         $ymOf = fn(array $recs, string $rule) => array_values(array_map(fn($r) => $r['evidence']['ym'] ?? null,
             array_filter($recs, fn($r) => str_starts_with((string)$r['id'], $rule))));
         self::assertContains('2023-03', array_column($this->anomalies->detect('gas', $this->monthly('gas')), 'ym'), 'die Analyse kennt den Monat');
@@ -802,7 +803,8 @@ final class InterpolationTest extends ServiceTestCase
         // v3.9.0 (#38) — additiv: Muster wiederkehrender Monate (hier keins)
         $found = $this->anomalies->detect('gas', $monthly);
         self::assertSame([], array_filter($found, fn($a) => $a['pattern']), 'kein Monat jedes Jahr gemeldet');
-        self::assertEquals($want['anomalies'], array_map(fn($a) => array_diff_key($a, ['pattern' => 1, 'pattern_years' => 1]), $found));
+        // v3.9.0 (Skeptiker) — additiv: `prior_same_month` (derselbe Kalendermonat in einem früheren Jahr)
+        self::assertEquals($want['anomalies'], array_map(fn($a) => array_diff_key($a, ['pattern' => 1, 'pattern_years' => 1, 'prior_same_month' => 1]), $found));
         $fc = $this->forecast();
         // wirklichkeit-2 (Punkt 8) — einzige gewollte Änderung: Sommermonate unter den
         // Punkten der Heizkurve (Juni bis August, HGT 0) nur noch aus dem gemessenen Saisonwert

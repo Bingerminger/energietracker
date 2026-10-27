@@ -311,12 +311,22 @@ final class AnomalyService
         $idx = array_keys($residuals);
         if (max($scale, self::noiseFloor(0.0, $typical)) < 1e-6) return [];
 
+        // v3.9.0 (Skeptiker, Wärmepumpe im Schaufenster) — das früheste Jahr je Kalendermonat unter den
+        // geprüften Monaten: Gibt es denselben Monat ein Jahr früher, vergleicht die Erwartung dieselbe
+        // Jahreszeit; sonst nur die Nachbarmonate (der erste Heizmonat gegen den Sommer)
+        $firstYear = [];
+        foreach ($valid as $v) {
+            $mo = (int)($v['month'] ?? 0);
+            $firstYear[$mo] = min($firstYear[$mo] ?? PHP_INT_MAX, (int)($v['year'] ?? 0));
+        }
         $anomalies = [];
         foreach ($idx as $i) {
             $m = $valid[$i];
             $z = ($residuals[$i] - $center) / max($scale, self::noiseFloor((float)$expected[$i], $typical));
             if (abs($z) < $threshold) continue;
             $anomalies[] = [
+                // additiv: derselbe Kalendermonat liegt in einem früheren Jahr vor (RecommendationService R4)
+                'prior_same_month' => ($firstYear[(int)($m['month'] ?? 0)] ?? PHP_INT_MAX) < (int)($m['year'] ?? 0),
                 'ym'        => $m['ym'],
                 'value'     => round((float)($m[$valueField] ?? 0), 1),
                 'expected'  => round($expected[$i], 1),

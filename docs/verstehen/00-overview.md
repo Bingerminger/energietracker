@@ -979,6 +979,14 @@ und R4 nur Monate der letzten 24 Monate**; die Abweichungstabelle der Analyse
 zeigt weiter alle. Ein Ausreißer von vor drei Jahren ist keine Handlung mehr,
 und „30 Tage ausblenden“ soll ihn nicht jeden Monat zurückbringen.
 
+**Seit v3.9.0 meldet R4 einen Monat nur, wenn derselbe Kalendermonat in einem
+früheren Jahr gemessen ist** (`prior_same_month` in der Abweichungstabelle).
+Ohne ihn vergleicht die Erwartung mit den Nachbarmonaten: Der erste Heizmonat
+einer neuen Wärmepumpe (Oktober gegen September) galt als Anomalie. Mitglieder
+einer Zählergruppe, etwa HT und NT einer Wärmepumpe, prüft R4 als Gruppe mit
+einer Empfehlung je Gruppe; hat eine Art mehrere Zähler oder Gruppen, nennt
+der Titel den Namen („Strom · Wärmepumpe Okt. 2025: …“).
+
 Anomalien sind Hinweise, keine Urteile — ein Umzug, eine neue
 Wärmepumpe oder ein defekter Zähler erzeugen sie gleichermaßen.
 
