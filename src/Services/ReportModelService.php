@@ -614,6 +614,9 @@ final class ReportModelService
                         'projected_end_balance' => $c['projected_end_balance'] ?? null,
                         'current_advance' => $c['current_advance_amount'] ?? null,
                         'suggested_advance' => $c['suggested_advance'] ?? null,
+                        // v3.9.0 (Skeptiker M15, H1) — kurz vor der Abrechnung kein Nachholbetrag; Rhythmus des Plans
+                        'suggestion_withheld' => $c['suggestion_withheld'] ?? null, 'months_left' => $c['months_left'] ?? null,
+                        'advance_every_months' => (int)($c['current_advance_every_months'] ?? 1),
                         // v3.7.0 (wirklichkeit-2) — Saldo-Schätzung unsicher: Spanne statt Vorschlag
                         'projection_uncertain' => $c['projection_uncertain'] ?? null,
                         // v3.9.0 (L1) — der letzte Tag des Abrechnungszeitraums, wie überall

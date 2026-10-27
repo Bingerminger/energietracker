@@ -717,8 +717,10 @@ final class ScenarioService
             $left = (int)$billing['months_left'];
             $short = $left < ConsumptionService::SUGGEST_MIN_MONTHS;
             $ongoing = $billing['advance_ongoing'] ?? null;
+            $every = max(1, (int)($billing['advance_every_months'] ?? 1));
             $n = min(12, count($months));
-            $shift = $n > 0 ? (array_sum(array_slice($scenCost, 0, $n)) - array_sum(array_slice($baseCost, 0, $n))) / $n : 0.0;
+            // je Rate: die Monatskosten des Szenarios mal den Monaten je Rate (H1)
+            $shift = $n > 0 ? (array_sum(array_slice($scenCost, 0, $n)) - array_sum(array_slice($baseCost, 0, $n))) / $n * $every : 0.0;
             $scenRec = $current !== null && $left >= 1 && !$short
                 ? max(0.0, round((float)$current + (float)$billing['scen_end_balance'] / $left)) : null;
             $out = ['current' => $current !== null ? round((float)$current, 2) : null, 'method' => 'billing_period', 'months_left' => $left,
@@ -727,7 +729,8 @@ final class ScenarioService
                 // laufend angemessen nach der Abrechnung (Karte: advance_ongoing), im Szenario um die Monatskosten verschoben
                 'base_ongoing' => $ongoing !== null ? (float)$ongoing : null,
                 'scen_ongoing' => $ongoing !== null ? max(0.0, round((float)$ongoing + $shift)) : null,
-                'withheld' => $billing['suggestion_withheld'] ?? null];
+                'withheld' => $billing['suggestion_withheld'] ?? null,
+                'every_months' => $every];   // v3.9.0 (Skeptiker H1, additiv) — alle Beträge je Rate
             // die Spanne der Karte, wenn ihre Schätzung unsicher ist; das Szenario verschiebt sie
             if (is_array($billing['suggested_range'] ?? null) && $left >= 1) {
                 $d = ((float)$billing['scen_end_balance'] - (float)$billing['base_end_balance']) / $left;
@@ -918,6 +921,8 @@ final class ScenarioService
             'source'           => 'contract_status',
             // die Abschläge der Karte (eine Quelle für Vorschlag, Spanne und laufenden Bedarf)
             'current_advance'     => $cur['current_advance_amount'] ?? null,
+            // v3.9.0 (Skeptiker H1) — Rhythmus des Plans: Beträge gelten je Rate (alle N Monate)
+            'advance_every_months' => max(1, (int)($cur['current_advance_every_months'] ?? 1)),
             'suggested_advance'   => $cur['suggested_advance'] ?? null,
             'suggested_range'     => $unc['suggested_range'] ?? null,
             'advance_ongoing'     => $cur['advance_ongoing'] ?? null,

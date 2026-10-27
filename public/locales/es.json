@@ -512,7 +512,11 @@
         "other": "Antes de la liquidación del {date} solo quedan {count} anticipos. La liquidación salda el resto: no hace falta subir el anticipo ahora."
       },
       "suggestOngoing": "Después, unos {amount} en lugar de {current} al mes serían adecuados.",
-      "sincePeriod": "Calculado desde el {date}, inicio del periodo de facturación en curso hasta el {until}. Los periodos anteriores están en el año de facturación."
+      "sincePeriod": "Calculado desde el {date}, inicio del periodo de facturación en curso hasta el {until}. Los periodos anteriores están en el año de facturación.",
+      "suggestOngoingEvery": {
+        "one": "Después, unos {amount} en lugar de {current} cada mes serían adecuados.",
+        "other": "Después, unos {amount} en lugar de {current} cada {count} meses serían adecuados."
+      }
     },
     "contractsTable": {
       "emptyTitle": "Sin contratos registrados",
@@ -3157,7 +3161,11 @@
         "reasonCredit": "En la liquidación del {date} se prevén {amount} a favor: los anticipos de {advance} al mes superan los costes.",
         "stepRaise": "Un anticipo de {new} en lugar de {old} al mes compensaría la diferencia; el proveedor puede cambiarlo.",
         "stepLower": "Bastaría un anticipo de {new} en lugar de {old} al mes; el proveedor puede cambiarlo.",
-        "stepLowerNoAmount": "El anticipo puede reducirse. El informe no indica un importe: los anticipos ya pagados cubren los costes hasta la liquidación."
+        "stepLowerNoAmount": "El anticipo puede reducirse. El informe no indica un importe: los anticipos ya pagados cubren los costes hasta la liquidación.",
+        "reasonDueEvery": "Hasta la liquidación del {date} faltarán probablemente {amount}: los costes superan los anticipos de {advance} {every}.",
+        "reasonCreditEvery": "En la liquidación del {date} se prevén {amount} a favor: los anticipos de {advance} {every} superan los costes.",
+        "stepRaiseEvery": "Un anticipo de {new} en lugar de {old} {every} compensaría la diferencia; el proveedor puede cambiarlo.",
+        "stepLowerEvery": "Bastaría un anticipo de {new} en lugar de {old} {every}; el proveedor puede cambiarlo."
       },
       "advanceOk": {
         "title": "Anticipo adecuado: {label}",
@@ -3308,6 +3316,11 @@
       "cancelConfirm": {
         "title": "¿Baja confirmada? {label}",
         "reason": "Desde el {start} hay un contrato con {next}. Comprueba que «{provider}» ha confirmado la baja; debe llegar antes del {date}."
+      },
+      "advanceFinal": {
+        "title": "{label}: la liquidación está cerca",
+        "reasonDue": "Hasta la liquidación del {date} faltarán probablemente {amount}. Hasta entonces apenas vence algún anticipo, la liquidación compensa el resto. No merece la pena cambiar el anticipo ahora.",
+        "reasonCredit": "En la liquidación del {date} se prevén {amount} a favor. Hasta entonces apenas vence algún anticipo, la liquidación compensa el resto. No merece la pena cambiar el anticipo ahora."
       }
     },
     "money": {

@@ -512,7 +512,11 @@
         "other": "Bis zur Abrechnung am {date} bleiben nur noch {count} Abschläge. Den Rest gleicht die Abrechnung aus; dafür musst du den Abschlag jetzt nicht erhöhen."
       },
       "suggestOngoing": "Danach wären rund {amount} statt {current} im Monat angemessen.",
-      "sincePeriod": "Gerechnet ab {date}, dem Beginn der laufenden Abrechnungsperiode bis {until}. Frühere Perioden stehen im Abrechnungsjahr."
+      "sincePeriod": "Gerechnet ab {date}, dem Beginn der laufenden Abrechnungsperiode bis {until}. Frühere Perioden stehen im Abrechnungsjahr.",
+      "suggestOngoingEvery": {
+        "one": "Danach wären rund {amount} statt {current} jeden Monat angemessen.",
+        "other": "Danach wären rund {amount} statt {current} alle {count} Monate angemessen."
+      }
     },
     "contractsTable": {
       "emptyTitle": "Keine Verträge erfasst",
@@ -3157,7 +3161,11 @@
         "reasonCredit": "Zur Abrechnung am {date} ist ein Guthaben von {amount} zu erwarten: Die Abschläge von {advance} im Monat liegen über den Kosten.",
         "stepRaise": "Ein Abschlag von {new} statt {old} im Monat gleicht das aus; die Änderung ist beim Anbieter möglich.",
         "stepLower": "Ein Abschlag von {new} statt {old} im Monat genügt; die Änderung ist beim Anbieter möglich.",
-        "stepLowerNoAmount": "Eine Senkung des Abschlags ist möglich. Einen Betrag nennt der Bericht nicht: Bis zur Abrechnung reichen die gezahlten Abschläge schon."
+        "stepLowerNoAmount": "Eine Senkung des Abschlags ist möglich. Einen Betrag nennt der Bericht nicht: Bis zur Abrechnung reichen die gezahlten Abschläge schon.",
+        "reasonDueEvery": "Bis zur Abrechnung am {date} fehlen voraussichtlich {amount}: Die Kosten liegen über den Abschlägen von {advance} {every}.",
+        "reasonCreditEvery": "Zur Abrechnung am {date} ist ein Guthaben von {amount} zu erwarten: Die Abschläge von {advance} {every} liegen über den Kosten.",
+        "stepRaiseEvery": "Ein Abschlag von {new} statt {old} {every} gleicht das aus; die Änderung ist beim Anbieter möglich.",
+        "stepLowerEvery": "Ein Abschlag von {new} statt {old} {every} genügt; die Änderung ist beim Anbieter möglich."
       },
       "advanceOk": {
         "title": "Abschlag passt: {label}",
@@ -3308,6 +3316,11 @@
       "cancelConfirm": {
         "title": "Kündigung bestätigt? {label}",
         "reason": "Ab {start} ist ein Vertrag bei {next} eingetragen. Prüfe, ob „{provider}“ die Kündigung bestätigt hat; sie muss bis {date} dort sein."
+      },
+      "advanceFinal": {
+        "title": "{label}: Abrechnung steht bald an",
+        "reasonDue": "Bis zur Abrechnung am {date} fehlen voraussichtlich {amount}. Bis dahin ist kaum noch ein Abschlag fällig, den Rest gleicht die Abrechnung aus. Den Abschlag jetzt zu ändern lohnt sich nicht.",
+        "reasonCredit": "Zur Abrechnung am {date} ist ein Guthaben von {amount} zu erwarten. Bis dahin ist kaum noch ein Abschlag fällig, den Rest gleicht die Abrechnung aus. Den Abschlag jetzt zu ändern lohnt sich nicht."
       }
     },
     "money": {

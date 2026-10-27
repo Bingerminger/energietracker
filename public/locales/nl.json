@@ -512,7 +512,11 @@
         "other": "Tot de afrekening op {date} resten nog maar {count} voorschotten. De afrekening verrekent de rest, dus het voorschot hoeft nu niet omhoog."
       },
       "suggestOngoing": "Daarna zou ongeveer {amount} in plaats van {current} per maand passend zijn.",
-      "sincePeriod": "Gerekend vanaf {date}, het begin van de lopende afrekenperiode tot {until}. Eerdere periodes staan onder afrekenjaar."
+      "sincePeriod": "Gerekend vanaf {date}, het begin van de lopende afrekenperiode tot {until}. Eerdere periodes staan onder afrekenjaar.",
+      "suggestOngoingEvery": {
+        "one": "Daarna zou ongeveer {amount} in plaats van {current} elke maand passend zijn.",
+        "other": "Daarna zou ongeveer {amount} in plaats van {current} elke {count} maanden passend zijn."
+      }
     },
     "contractsTable": {
       "emptyTitle": "Geen contracten geregistreerd",
@@ -3157,7 +3161,11 @@
         "reasonCredit": "Bij de afrekening op {date} is een tegoed van {amount} te verwachten: de voorschotten van {advance} per maand liggen boven de kosten.",
         "stepRaise": "Een voorschot van {new} in plaats van {old} per maand vangt dat op; de leverancier kan het aanpassen.",
         "stepLower": "Een voorschot van {new} in plaats van {old} per maand volstaat; de leverancier kan het aanpassen.",
-        "stepLowerNoAmount": "Het voorschot kan omlaag. Het rapport noemt geen bedrag: de betaalde voorschotten dekken de kosten tot de afrekening al."
+        "stepLowerNoAmount": "Het voorschot kan omlaag. Het rapport noemt geen bedrag: de betaalde voorschotten dekken de kosten tot de afrekening al.",
+        "reasonDueEvery": "Tot de afrekening op {date} ontbreekt naar verwachting {amount}: de kosten liggen boven de voorschotten van {advance} {every}.",
+        "reasonCreditEvery": "Bij de afrekening op {date} is een tegoed van {amount} te verwachten: de voorschotten van {advance} {every} liggen boven de kosten.",
+        "stepRaiseEvery": "Een voorschot van {new} in plaats van {old} {every} vangt dat op; de leverancier kan het aanpassen.",
+        "stepLowerEvery": "Een voorschot van {new} in plaats van {old} {every} volstaat; de leverancier kan het aanpassen."
       },
       "advanceOk": {
         "title": "Voorschot klopt: {label}",
@@ -3308,6 +3316,11 @@
       "cancelConfirm": {
         "title": "Opzegging bevestigd? {label}",
         "reason": "Vanaf {start} staat een contract bij {next} ingevoerd. Controleer of ‘{provider}’ de opzegging heeft bevestigd; die moet uiterlijk {date} binnen zijn."
+      },
+      "advanceFinal": {
+        "title": "{label}: de afrekening komt eraan",
+        "reasonDue": "Tot de afrekening op {date} ontbreekt naar verwachting {amount}. Tot dan is er nauwelijks nog een voorschot verschuldigd, de afrekening verrekent de rest. Het voorschot nu aanpassen loont niet.",
+        "reasonCredit": "Bij de afrekening op {date} is een tegoed van {amount} te verwachten. Tot dan is er nauwelijks nog een voorschot verschuldigd, de afrekening verrekent de rest. Het voorschot nu aanpassen loont niet."
       }
     },
     "money": {

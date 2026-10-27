@@ -47,6 +47,8 @@ final class ReportAdviceService
     public const ADVANCE_MIN_EUR = 50.0;
     /** Kündigungsstichtag in höchstens so vielen Tagen. */
     public const CANCEL_WINDOW_DAYS = 90;
+    /** v3.9.0 (Skeptiker M15) — Vertrag mit Folgevertrag endet in höchstens so vielen Tagen: keine Abschlagsaufgabe. */
+    public const FINAL_BILL_DAYS = 90;
     /** Heizverbrauch gestiegen ab +5 % (witterungsbereinigt); Erfolg ab −2 %. */
     public const HEATING_RISE_PCT = 5.0;
     public const HEATING_FALL_PCT = -2.0;
@@ -280,21 +282,34 @@ final class ReportAdviceService
             $limit = max(self::ADVANCE_MIN_EUR, $adv);
             $date = $this->i18n->date((string)($c['settle_date'] ?? $c['effective_end'] ?? $today));
             $sugg = $c['suggested_advance'] ?? null;
-            if (abs($bal) >= $limit) {
+            // v3.9.0 (Skeptiker M15) — Vertrag endet bald mit eingetragenem Folgevertrag, oder bis zur
+            // Abrechnung bleiben weniger als SUGGEST_MIN_MONTHS Abschläge (L12): Den Abschlag jetzt zu
+            // ändern lohnt nicht, die Abrechnung gleicht den Rest aus. Ein Hinweis statt Aufgabe Nr. 1.
+            $final = (!empty($c['successor']) && ($c['settle_date'] ?? null) !== null && self::days($today, (string)$c['settle_date']) <= self::FINAL_BILL_DAYS)
+                || ($c['suggestion_withheld'] ?? null) === 'short';
+            if ($final && abs($bal) >= $limit) {
+                $out[] = $this->info('advanceFinal', $c['utility'] ?? null, 'report.advice.advanceFinal.title', ['label' => $label],
+                    $bal > 0 ? 'report.advice.advanceFinal.reasonDue' : 'report.advice.advanceFinal.reasonCredit',
+                    ['date' => $date, 'amount' => $this->approx(abs($bal))], true);
+            } elseif (abs($bal) >= $limit) {
                 $due = $bal > 0;
                 $steps = [];
+                // v3.9.0 (Skeptiker H1) — mit Rhythmus gelten die Beträge je Rate („alle 2 Monate“), nicht „im Monat“
+                $every = max(1, (int)($c['advance_every_months'] ?? 1));
+                $ev = $every > 1 ? 'Every' : '';
+                $evp = $every > 1 ? ['every' => $this->i18n->tp('advance.rhythm.every', $every, ['count' => $every])] : [];
                 if ($due && $sugg !== null && (float)$sugg > $adv) {
-                    $steps[] = $this->i18n->t('report.advice.advance.stepRaise', ['new' => $this->eur((float)$sugg), 'old' => $this->eur($adv)]);
+                    $steps[] = $this->i18n->t("report.advice.advance.stepRaise$ev", ['new' => $this->eur((float)$sugg), 'old' => $this->eur($adv)] + $evp);
                 } elseif (!$due && $sugg !== null && (float)$sugg > 0 && (float)$sugg < $adv) {
-                    $steps[] = $this->i18n->t('report.advice.advance.stepLower', ['new' => $this->eur((float)$sugg), 'old' => $this->eur($adv)]);
+                    $steps[] = $this->i18n->t("report.advice.advance.stepLower$ev", ['new' => $this->eur((float)$sugg), 'old' => $this->eur($adv)] + $evp);
                 } elseif (!$due) {
                     // Mangel 11 — Vorschlag ≤ 0: keine Zahl, nur „senken lassen“
                     $steps[] = $this->i18n->t('report.advice.advance.stepLowerNoAmount');
                 }
                 $out[] = $this->task('advance', $c['utility'] ?? null, 'advance|' . ($c['key'] ?? ''),
                     'report.advice.advance.title', ['label' => $label],
-                    $due ? 'report.advice.advance.reasonDue' : 'report.advice.advance.reasonCredit',
-                    ['date' => $date, 'amount' => $this->approx(abs($bal)), 'advance' => $this->eur($adv)],
+                    ($due ? 'report.advice.advance.reasonDue' : 'report.advice.advance.reasonCredit') . $ev,
+                    ['date' => $date, 'amount' => $this->approx(abs($bal)), 'advance' => $this->eur($adv)] + $evp,
                     $this->euro(abs($bal), 'once', 'projected', $due ? 'avoids' : 'refund'),
                     null, $steps, true);
             } else {

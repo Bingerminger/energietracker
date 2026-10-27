@@ -833,14 +833,20 @@ function balanceCard(c, u, country = 'DE') {
   const suggestHtml = !isFeedIn && c.suggested_advance != null && c.current_advance_amount != null
       && c.suggested_advance > 0 && Math.abs(proj) > 5
       && Math.abs(c.suggested_advance - c.current_advance_amount) >= 5
-    ? `<p class="balance-suggest">${t('utility.balance.suggestAdvance', { suggested: fmt.eur(c.suggested_advance), current: fmt.eur(c.current_advance_amount) })}</p>`
+    // v3.9.0 (Skeptiker H1) — Beträge im Rhythmus des Plans (je Rate, „alle 2 Monate“)
+    ? `<p class="balance-suggest">${t('utility.balance.suggestAdvance', { suggested: advanceAmountText(c.suggested_advance, c.current_advance_every_months),
+        current: advanceAmountText(c.current_advance_amount, c.current_advance_every_months) })}</p>`
     // v3.9.0 (L12) — kurz vor der Abrechnung kein Nachholbetrag: den Rest gleicht
     // die Abrechnung aus, danach gilt der laufende Bedarf
     : !isFeedIn && c.suggestion_withheld === 'short' && Math.abs(proj) > 5
     ? `<p class="balance-suggest" data-role="balance-short">${escapeHtml(tp('utility.balance.suggestShort', c.months_left, {
         count: c.months_left, date: fmt.date(settle) }) + (c.advance_ongoing != null && c.current_advance_amount != null
         && Math.abs(c.advance_ongoing - c.current_advance_amount) >= 5
-        ? ' ' + t('utility.balance.suggestOngoing', { amount: fmt.eur0(c.advance_ongoing), current: fmt.eur(c.current_advance_amount) }) : ''))}</p>`
+        ? ' ' + (Number(c.current_advance_every_months) > 1
+          // v3.9.0 (Skeptiker H1) — je Rate wie der Plan, nicht „im Monat“
+          ? tp('utility.balance.suggestOngoingEvery', Number(c.current_advance_every_months), { count: Number(c.current_advance_every_months),
+              amount: fmt.eur0(c.advance_ongoing), current: fmt.eur(c.current_advance_amount) })
+          : t('utility.balance.suggestOngoing', { amount: fmt.eur0(c.advance_ongoing), current: fmt.eur(c.current_advance_amount) })) : ''))}</p>`
     : '';
   // v3.7.0 (wirklichkeit-2) — unsichere Schätzung (Kalibrierfaktor klemmt,
   // Heizmodell schlecht): Spanne und Grund statt eines Vorschlags; der Server

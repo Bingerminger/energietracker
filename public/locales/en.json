@@ -512,7 +512,11 @@
         "other": "Only {count} advance payments are left before the bill on {date}. The bill settles the rest, so there is no need to raise the advance now."
       },
       "suggestOngoing": "After that, about {amount} instead of {current} a month would be right.",
-      "sincePeriod": "Counted from {date}, the start of the current billing period up to {until}. Earlier periods are listed under billing year."
+      "sincePeriod": "Counted from {date}, the start of the current billing period up to {until}. Earlier periods are listed under billing year.",
+      "suggestOngoingEvery": {
+        "one": "After that, about {amount} instead of {current} every month would be right.",
+        "other": "After that, about {amount} instead of {current} every {count} months would be right."
+      }
     },
     "contractsTable": {
       "emptyTitle": "No contracts recorded",
@@ -3157,7 +3161,11 @@
         "reasonCredit": "A credit of {amount} is expected with the bill on {date}: the advance payments of {advance} a month exceed the costs.",
         "stepRaise": "An advance payment of {new} instead of {old} a month would even this out; the supplier can change it.",
         "stepLower": "An advance payment of {new} instead of {old} a month would be enough; the supplier can change it.",
-        "stepLowerNoAmount": "The advance payment can be lowered. The report gives no amount: the payments made already cover the costs up to the bill."
+        "stepLowerNoAmount": "The advance payment can be lowered. The report gives no amount: the payments made already cover the costs up to the bill.",
+        "reasonDueEvery": "By the bill on {date}, a shortfall of {amount} is expected: costs are higher than the advance payments of {advance} {every}.",
+        "reasonCreditEvery": "A credit of {amount} is expected with the bill on {date}: the advance payments of {advance} {every} exceed the costs.",
+        "stepRaiseEvery": "An advance payment of {new} instead of {old} {every} would even this out; the supplier can change it.",
+        "stepLowerEvery": "An advance payment of {new} instead of {old} {every} would be enough; the supplier can change it."
       },
       "advanceOk": {
         "title": "Advance payment fits: {label}",
@@ -3308,6 +3316,11 @@
       "cancelConfirm": {
         "title": "Cancellation confirmed? {label}",
         "reason": "A contract with {next} is entered from {start}. Check that “{provider}” has confirmed the cancellation; it has to reach them by {date}."
+      },
+      "advanceFinal": {
+        "title": "{label}: the bill is due soon",
+        "reasonDue": "By the bill on {date}, a shortfall of {amount} is expected. Hardly any advance payment is due before then, and the bill settles the rest. Changing the advance payment now is not worth it.",
+        "reasonCredit": "A credit of {amount} is expected with the bill on {date}. Hardly any advance payment is due before then, and the bill settles the rest. Changing the advance payment now is not worth it."
       }
     },
     "money": {

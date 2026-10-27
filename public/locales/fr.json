@@ -512,7 +512,11 @@
         "other": "Il ne reste que {count} acomptes avant le décompte du {date}. Le décompte règle le reste : inutile d’augmenter l’acompte maintenant."
       },
       "suggestOngoing": "Ensuite, environ {amount} au lieu de {current} par mois seraient adaptés.",
-      "sincePeriod": "Calculé à partir du {date}, début de la période de facturation en cours jusqu’au {until}. Les périodes précédentes figurent dans l’année de facturation."
+      "sincePeriod": "Calculé à partir du {date}, début de la période de facturation en cours jusqu’au {until}. Les périodes précédentes figurent dans l’année de facturation.",
+      "suggestOngoingEvery": {
+        "one": "Ensuite, environ {amount} au lieu de {current} chaque mois seraient adaptés.",
+        "other": "Ensuite, environ {amount} au lieu de {current} tous les {count} mois seraient adaptés."
+      }
     },
     "contractsTable": {
       "emptyTitle": "Aucun contrat enregistré",
@@ -3157,7 +3161,11 @@
         "reasonCredit": "Au décompte du {date}, un crédit d’{amount} est à prévoir : les acomptes de {advance} par mois dépassent les coûts.",
         "stepRaise": "Un acompte de {new} au lieu de {old} par mois compenserait l’écart ; le fournisseur peut le modifier.",
         "stepLower": "Un acompte de {new} au lieu de {old} par mois suffirait ; le fournisseur peut le modifier.",
-        "stepLowerNoAmount": "L’acompte peut être réduit. Le rapport n’indique pas de montant : les acomptes déjà versés couvrent les coûts jusqu’au décompte."
+        "stepLowerNoAmount": "L’acompte peut être réduit. Le rapport n’indique pas de montant : les acomptes déjà versés couvrent les coûts jusqu’au décompte.",
+        "reasonDueEvery": "D’ici au décompte du {date}, il manquera probablement {amount} : les coûts dépassent les acomptes de {advance} {every}.",
+        "reasonCreditEvery": "Au décompte du {date}, un crédit de {amount} est à prévoir : les acomptes de {advance} {every} dépassent les coûts.",
+        "stepRaiseEvery": "Un acompte de {new} au lieu de {old} {every} compenserait l’écart ; le fournisseur peut le modifier.",
+        "stepLowerEvery": "Un acompte de {new} au lieu de {old} {every} suffirait ; le fournisseur peut le modifier."
       },
       "advanceOk": {
         "title": "Acompte adapté : {label}",
@@ -3308,6 +3316,11 @@
       "cancelConfirm": {
         "title": "Résiliation confirmée ? {label}",
         "reason": "Un contrat chez {next} est enregistré à partir du {start}. Vérifiez que « {provider} » a confirmé la résiliation ; elle doit lui parvenir au plus tard le {date}."
+      },
+      "advanceFinal": {
+        "title": "{label} : le décompte arrive bientôt",
+        "reasonDue": "D’ici au décompte du {date}, il manquera probablement {amount}. D’ici là, presque aucun acompte n’est encore dû, le décompte règle le reste. Il ne vaut pas la peine de modifier l’acompte maintenant.",
+        "reasonCredit": "Au décompte du {date}, un crédit de {amount} est à prévoir. D’ici là, presque aucun acompte n’est encore dû, le décompte règle le reste. Il ne vaut pas la peine de modifier l’acompte maintenant."
       }
     },
     "money": {

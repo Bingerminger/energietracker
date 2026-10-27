@@ -1114,6 +1114,40 @@ async function renderView(modPath, params = [], ctx = {}) {
     finally { global.fetch = realFetch; }
   }
 
+  // v3.9.0 (Skeptiker H1) — Abschlag alle 2 Monate: Saldo-Karte und Werkstatt nennen die Beträge je Rate.
+  // Vertragsstatus und Werkstatt-Antwort werden hier um einen Plan mit Rhythmus ergänzt (erfundene Werte).
+  {
+    const realFetch = global.fetch;
+    const reply = (body) => new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    try {
+      global.fetch = async (input, init) => {
+        const res = await realFetch(input, init);
+        const url = String(input);
+        if (/\/api\/utility\/strom\/meters\/[^/?]+\/contract-status/.test(url)) {
+          const body = await res.json();
+          for (const c of body?.data?.contracts || []) if (c.is_current) Object.assign(c, { suggested_advance: null, suggestion_withheld: 'short', months_left: 2,
+            advance_ongoing: 75, current_advance_amount: 165, current_advance_every_months: 2, projected_end_balance: 120, projection_uncertain: null, settle_on: '2026-12-31' });
+          return reply(body);
+        }
+        if (/\/api\/forecast\/scenario/.test(url) && init?.method === 'POST') {
+          const body = await res.json();
+          if (body?.data?.advance) Object.assign(body.data.advance, { every_months: 2, current: 165, withheld: 'short', base_ongoing: 75, scen_ongoing: 75, uncertain: null });
+          return reply(body);
+        }
+        return res;
+      };
+      const { view } = await renderView(`${ROOT}/views/utility.js`, ['strom']);
+      await new Promise(r => setTimeout(r, 500));
+      const short = view.querySelector('[data-role="balance-short"]')?.textContent.replace(/\s+/g, ' ') || '';
+      t('H1: Saldo-Karte — „rund 75 € statt 165,00 € alle 2 Monate“ (bis v3.8 „im Monat“)', /rund 75\s€ statt 165,00\s€ alle 2 Monate angemessen/.test(short) && !/im Monat/.test(short), short.slice(0, 220));
+      const fv = await renderView(`${ROOT}/views/forecast.js`);
+      for (let i = 0; i < 60 && ![...fv.view.querySelectorAll('#ws-kpis .kpi')].some(k => /Empfohlener Abschlag/.test(k.textContent)); i++) await new Promise(r => setTimeout(r, 50));
+      const kp = ([...fv.view.querySelectorAll('#ws-kpis .kpi')].map(k => k.textContent).find(s => /Empfohlener Abschlag/.test(s)) || '').replace(/\s+/g, ' ');
+      t('H1: Werkstatt — Abschlag je Rate mit Rhythmus', /75,00\s€ alle 2 Monate/.test(kp) && /heute 165,00\s€ alle 2 Monate/.test(kp), kp.slice(0, 200));
+    } catch (e) { t('H1: Abschlag im Rhythmus', false, e.stack || e.message); }
+    finally { global.fetch = realFetch; }
+  }
+
   // ── 7b. Utility-View Strom: Rechnungsprüfung seit v3.1.0 (H5) auch hier ──
   try {
     const { view } = await renderView(`${ROOT}/views/utility.js`, ['strom']);

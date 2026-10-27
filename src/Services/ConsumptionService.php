@@ -1027,7 +1027,11 @@ final class ConsumptionService
             $priceDay = $end !== '' && $endExcl > $end ? $end : $endExcl;
             $fixed = (float)($this->contracts->fixedPerMonthOn($c, $priceDay) ?? 0.0);
             $yearCost = $energy($endExcl, $next) + 12 * $fixed;
-            if ($yearCost > 0) $ongoing = (float)round($yearCost / 12);
+            // v3.9.0 (Skeptiker H1) — mit Rhythmus je Rate wie der Plan (alle 2 Monate: ÷ 6);
+            // bis dahin stand ein Monatsbetrag neben dem Betrag je Termin („76 € statt 165 €“)
+            $perYear = $nowRow !== null && ContractService::hasRhythm($nowRow)
+                ? max(1, count(ContractService::installments($plan, $endExcl, $next))) : 12;
+            if ($yearCost > 0) $ongoing = (float)round($yearCost / $perYear);
         }
 
         // v2.16.0 (Review FE-31) — dieselbe Rechnung als Monatsreihe für den

@@ -13,6 +13,7 @@ import { api } from '../api.js';
 import { getUtility } from '../state.js';
 import { fmt, escapeHtml } from '../lib/format.js';
 import { t } from '../lib/i18n.js';
+import { advanceAmountText } from '../lib/advance-rhythm.js';   // v3.9.0 (Skeptiker H1)
 import { renderError } from '../components/error.js';
 import { balanceView } from '../lib/semantics.js';
 import * as S from '../lib/scenario.js';
@@ -170,8 +171,8 @@ export function scenarioHtml({ cur, r, u, meters = [], contracts = [], cardId = 
                   ? t('scenario.kpi.advanceRange', { low: fmt.eur0(r.advance.uncertain[k][0]), high: fmt.eur0(r.advance.uncertain[k][1]) }) : '–'), t('scenario.kpi.advanceUncertain'))
               // v3.9.0 (L12) — kurz vor der Abrechnung: der laufende Bedarf danach
               : r.advance.withheld === 'short' && r.advance.base_ongoing != null
-              ? row(t('scenario.kpi.advance'), fmt.eur(r.advance.base_ongoing), fmt.eur(r.advance.scen_ongoing), t('scenario.kpi.advanceShort', { date: fmt.date(r.billing?.settle_on || r.billing?.until) }))
-              : row(t('scenario.kpi.advance'), fmt.eur(r.advance.base_recommended), fmt.eur(r.advance.scen_recommended), signed(r.advance.scen_recommended - r.advance.base_recommended, fmt.eur))}
+              ? row(t('scenario.kpi.advance'), advanceAmountText(r.advance.base_ongoing, r.advance.every_months), advanceAmountText(r.advance.scen_ongoing, r.advance.every_months), t('scenario.kpi.advanceShort', { date: fmt.date(r.billing?.settle_on || r.billing?.until) }))
+              : row(t('scenario.kpi.advance'), advanceAmountText(r.advance.base_recommended, r.advance.every_months), advanceAmountText(r.advance.scen_recommended, r.advance.every_months), signed(r.advance.scen_recommended - r.advance.base_recommended, fmt.eur))}
             ${r.billing ? row(t('scenario.kpi.balance', { date: fmt.date(r.billing.settle_on || r.billing.until) }), bal(r.billing.base_end_balance), bal(r.billing.scen_end_balance), '') : ''}
           </tbody></table></div>
       </section>

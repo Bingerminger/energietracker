@@ -512,7 +512,11 @@
         "other": "Até ao acerto de {date} faltam apenas {count} adiantamentos. O acerto trata do resto: não é preciso aumentar o adiantamento agora."
       },
       "suggestOngoing": "Depois, cerca de {amount} em vez de {current} por mês seriam adequados.",
-      "sincePeriod": "Calculado a partir de {date}, início do período de faturação em curso até {until}. Os períodos anteriores estão no ano de faturação."
+      "sincePeriod": "Calculado a partir de {date}, início do período de faturação em curso até {until}. Os períodos anteriores estão no ano de faturação.",
+      "suggestOngoingEvery": {
+        "one": "Depois, cerca de {amount} em vez de {current} todos os meses seriam adequados.",
+        "other": "Depois, cerca de {amount} em vez de {current} a cada {count} meses seriam adequados."
+      }
     },
     "contractsTable": {
       "emptyTitle": "Sem contratos registados",
@@ -3157,7 +3161,11 @@
         "reasonCredit": "No acerto de {date} prevê-se um crédito de {amount}: os adiantamentos de {advance} por mês superam os custos.",
         "stepRaise": "Um adiantamento de {new} em vez de {old} por mês compensaria a diferença; o fornecedor pode alterá-lo.",
         "stepLower": "Bastaria um adiantamento de {new} em vez de {old} por mês; o fornecedor pode alterá-lo.",
-        "stepLowerNoAmount": "O adiantamento pode ser reduzido. O relatório não indica um montante: os adiantamentos já pagos cobrem os custos até ao acerto."
+        "stepLowerNoAmount": "O adiantamento pode ser reduzido. O relatório não indica um montante: os adiantamentos já pagos cobrem os custos até ao acerto.",
+        "reasonDueEvery": "Até ao acerto de {date} deverão faltar {amount}: os custos superam os adiantamentos de {advance} {every}.",
+        "reasonCreditEvery": "No acerto de {date} prevê-se um crédito de {amount}: os adiantamentos de {advance} {every} superam os custos.",
+        "stepRaiseEvery": "Um adiantamento de {new} em vez de {old} {every} compensaria a diferença; o fornecedor pode alterá-lo.",
+        "stepLowerEvery": "Bastaria um adiantamento de {new} em vez de {old} {every}; o fornecedor pode alterá-lo."
       },
       "advanceOk": {
         "title": "Adiantamento adequado: {label}",
@@ -3308,6 +3316,11 @@
       "cancelConfirm": {
         "title": "Denúncia confirmada? {label}",
         "reason": "A partir de {start} está registado um contrato com {next}. Verifique se «{provider}» confirmou a denúncia; ela tem de chegar até {date}."
+      },
+      "advanceFinal": {
+        "title": "{label}: o acerto está próximo",
+        "reasonDue": "Até ao acerto de {date} deverão faltar {amount}. Até lá quase nenhum adiantamento vence, o acerto compensa o resto. Não compensa alterar o adiantamento agora.",
+        "reasonCredit": "No acerto de {date} prevê-se um crédito de {amount}. Até lá quase nenhum adiantamento vence, o acerto compensa o resto. Não compensa alterar o adiantamento agora."
       }
     },
     "money": {

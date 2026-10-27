@@ -21,6 +21,7 @@ import { fmt, escapeHtml, parseDecimal, formatForInput } from '../lib/format.js'
 import { makeChart, utilColor, tokenColor, chartTableHtml } from '../components/chart.js';
 import { toastErr, toastOk } from '../components/toast.js';
 import { t, tp } from '../lib/i18n.js';
+import { advanceAmountText } from '../lib/advance-rhythm.js';   // v3.9.0 (Skeptiker H1)
 import { info } from '../components/info.js';
 import { balanceView, isFeedIn } from '../lib/semantics.js';
 import { DEMO } from '../lib/demo-mode.js';
@@ -441,7 +442,7 @@ export async function render(container, params = [], ctx = {}) {
       { label: t('scenario.kpi.qty'), value: d.qty_pct != null ? pctSigned(d.qty_pct) : '–' },
     ];
     if (d.co2_kg != null) facts.push({ label: t('scenario.kpi.co2'), value: `${signed(d.co2_kg, fmt.int)} kg` });
-    if (result.advance?.scen_recommended != null) facts.push({ label: t('scenario.kpi.advance'), value: fmt.eur0(result.advance.scen_recommended) });
+    if (result.advance?.scen_recommended != null) facts.push({ label: t('scenario.kpi.advance'), value: advanceAmountText(result.advance.scen_recommended, result.advance.every_months) });   // H1
     return {
       brand: t('scenario.card.brand'), title: name, tone, facts,
       big: tone === 'same' ? '±0' : `${d.cost > 0 ? '+' : '−'}${amount}`,
@@ -488,11 +489,13 @@ export async function render(container, params = [], ctx = {}) {
         esc(tot.delta.qty_pct != null ? pctSigned(tot.delta.qty_pct) : ''), tot.delta.qty > 0 ? 'negative' : tot.delta.qty < 0 ? 'positive' : ''),
       // v3.7.0 (wirklichkeit-2) — Gütesperre: Spanne statt Betrag
       // v3.9.0 (L12) — kurz vor der Abrechnung kein Nachholbetrag, sondern der laufende Bedarf danach
+      // v3.9.0 (Skeptiker H1) — alle Beträge je Rate im Rhythmus des Plans („alle 2 Monate“)
       kpi(t('scenario.kpi.advance'), esc(result.advance.uncertain?.scen_range
           ? t('scenario.kpi.advanceRange', { low: fmt.eur0(result.advance.uncertain.scen_range[0]), high: fmt.eur0(result.advance.uncertain.scen_range[1]) })
-          : result.advance.withheld === 'short' && result.advance.scen_ongoing != null ? fmt.eur(result.advance.scen_ongoing)
-          : fmt.eur(result.advance.scen_recommended)),
-        esc([result.advance.current != null ? t('scenario.kpi.advanceNow', { amount: fmt.eur(result.advance.current) }) : '',
+            + (Number(result.advance.every_months) > 1 ? ' ' + tp('advance.rhythm.every', Number(result.advance.every_months)) : '')
+          : result.advance.withheld === 'short' && result.advance.scen_ongoing != null ? advanceAmountText(result.advance.scen_ongoing, result.advance.every_months)
+          : advanceAmountText(result.advance.scen_recommended, result.advance.every_months)),
+        esc([result.advance.current != null ? t('scenario.kpi.advanceNow', { amount: advanceAmountText(result.advance.current, result.advance.every_months) }) : '',
           result.advance.uncertain ? t('scenario.kpi.advanceUncertain') : '',
           result.advance.withheld === 'short' && !result.advance.uncertain ? t('scenario.kpi.advanceShort', { date: fmt.date(billing?.settle_on || billing?.until) }) : ''].filter(Boolean).join(' · '))),
       // v3.9.0 (L1) — derselbe Abrechnungstag wie die Saldo-Karte
