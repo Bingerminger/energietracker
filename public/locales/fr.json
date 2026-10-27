@@ -4096,7 +4096,9 @@
     "note": "{date} « {note} »",
     "bridgedTitle": "Réparti selon la météo, non mesuré : un relevé intermédiaire ne compte que pour la facture.",
     "billedShort": "(facturé {amount})",
-    "bridgedLegend": "≈ réparti selon la météo : un relevé intermédiaire ne compte que pour la facture. Les coûts et le solde utilisent la quantité facturée (entre parenthèses)."
+    "bridgedLegend": "≈ réparti selon la météo : un relevé intermédiaire ne compte que pour la facture. Les coûts et le solde utilisent la quantité facturée (entre parenthèses).",
+    "bridgedLegendCol": "≈ réparti selon la météo : un relevé intermédiaire ne compte que pour la facture. Les coûts et le solde utilisent la quantité facturée de la colonne voisine.",
+    "bridgedTotalNote": "Dans les mois marqués ≈, la valeur mensuelle et la quantité facturée diffèrent au total de {amount} : de part et d’autre du relevé « seulement pour la facture », les valeurs mensuelles répartissent la consommation selon la météo, y compris au changement d’année ; les coûts et le solde suivent le relevé."
   },
   "format": {
     "decimal": ",",

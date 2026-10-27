@@ -4096,7 +4096,9 @@
     "note": "{date} «{note}»",
     "bridgedTitle": "Repartido conforme o tempo, não medido: uma leitura intermédia só conta para a fatura.",
     "billedShort": "(faturado {amount})",
-    "bridgedLegend": "≈ repartido conforme o tempo: uma leitura intermédia só conta para a fatura. Os custos e o saldo usam a quantidade faturada (entre parênteses)."
+    "bridgedLegend": "≈ repartido conforme o tempo: uma leitura intermédia só conta para a fatura. Os custos e o saldo usam a quantidade faturada (entre parênteses).",
+    "bridgedLegendCol": "≈ repartido conforme o tempo: uma leitura intermédia só conta para a fatura. Os custos e o saldo usam a quantidade faturada da coluna ao lado.",
+    "bridgedTotalNote": "Nos meses com ≈ o valor mensal e a quantidade faturada diferem no total em {amount}: à volta da leitura «só para a fatura» os valores mensais repartem o consumo conforme o tempo, também na passagem de ano; os custos e o saldo seguem a leitura."
   },
   "format": {
     "decimal": ",",

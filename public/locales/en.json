@@ -4096,7 +4096,9 @@
     "note": "{date} “{note}”",
     "bridgedTitle": "Spread by the weather, not measured: a reading in between only counts for the bill.",
     "billedShort": "(billed {amount})",
-    "bridgedLegend": "≈ spread by the weather: a reading in between only counts for the bill. Costs and balance use the billed amount (in brackets)."
+    "bridgedLegend": "≈ spread by the weather: a reading in between only counts for the bill. Costs and balance use the billed amount (in brackets).",
+    "bridgedLegendCol": "≈ spread by the weather: a reading in between only counts for the bill. Costs and balance use the billed amount in the column next to it.",
+    "bridgedTotalNote": "In the months with ≈ monthly value and billed amount differ by {amount} in total: across the reading “only for the bill” the monthly values spread consumption by the weather, also across the turn of the year; costs and balance follow the reading."
   },
   "format": {
     "decimal": ".",

@@ -4096,7 +4096,9 @@
     "note": "{date} ‘{note}’",
     "bridgedTitle": "Naar het weer verdeeld, niet gemeten: een meterstand daartussen telt alleen voor de afrekening.",
     "billedShort": "(afgerekend {amount})",
-    "bridgedLegend": "≈ naar het weer verdeeld: een meterstand daartussen telt alleen voor de afrekening. Kosten en saldo rekenen met de afgerekende hoeveelheid (tussen haakjes)."
+    "bridgedLegend": "≈ naar het weer verdeeld: een meterstand daartussen telt alleen voor de afrekening. Kosten en saldo rekenen met de afgerekende hoeveelheid (tussen haakjes).",
+    "bridgedLegendCol": "≈ naar het weer verdeeld: een meterstand daartussen telt alleen voor de afrekening. Kosten en saldo rekenen met de afgerekende hoeveelheid in de kolom ernaast.",
+    "bridgedTotalNote": "In de maanden met ≈ verschillen maandwaarde en afgerekende hoeveelheid samen {amount}: rond de meterstand ‘alleen voor de afrekening’ verdelen de maandwaarden het verbruik naar het weer, ook over de jaarwisseling; kosten en saldo volgen de meterstand."
   },
   "format": {
     "decimal": ",",
