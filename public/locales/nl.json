@@ -4402,7 +4402,7 @@
     },
     "privacy": {
       "title": "Je gegevens",
-      "text": "Alles blijft op je server: geen accounts, geen reclame, geen telemetrie. De app praat alleen met Open-Meteo — bij de dagelijkse weersynchronisatie (alleen de op ongeveer 1 km afgeronde locatie, uit te schakelen onder Instellingen → Weergegevens) en bij het zoeken naar een plaats als je dat gebruikt — en, alleen als je ze invult, met je eigen tekstherkenningsdienst en je evcc in het thuisnetwerk. Tik je op ‘Laden van SMARD’, dan haalt de app de groothandelsprijzen voor stroom op bij de Bundesnetzagentur; daarbij gaat niets van jou naar buiten."
+      "text": "Alles blijft op je server: geen accounts, geen reclame, geen telemetrie. De app praat alleen met Open-Meteo — bij de dagelijkse weersynchronisatie (alleen de op ongeveer 1 km afgeronde locatie, uit te schakelen onder Instellingen → Weergegevens) en bij het zoeken naar een plaats als je dat gebruikt — en, alleen als je ze invult, met je eigen tekstherkenningsdienst en je evcc in het thuisnetwerk. Tik je op ‘Laden van SMARD’, dan haalt de app de groothandelsprijzen voor stroom op bij de Bundesnetzagentur; daarbij gaat niets van jou naar buiten. Meldingen naar Home Assistant gaan pas weg als iemand die de installatie beheert ze aanzet, en alleen naar je eigen Home Assistant: titel en tekst van afspraken, termijnen en waarschuwingen die aan de beurt zijn en de namen van nieuwe documenten. Het lezen in het postvak via een clouddienst staat uit tot iemand die de installatie beheert het aanzet; dan vraagt de app eerst en stuurt het document naar de gekozen dienst, afhankelijk van de aanbieder de pdf of alleen de tekst."
     },
     "onYourBill": "Op je rekening ({country}): “{term}”",
     "cases": {

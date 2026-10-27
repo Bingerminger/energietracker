@@ -2220,7 +2220,11 @@ Erreichbar über die Fußzeile der Seitenleiste, am iPhone unter „Mehr“
   Ortssuche — und, nur wenn eingetragen, mit dem eigenen Texterkennungsdienst
   im Heimnetz (v3.1.0) und mit evcc im Heimnetz (v3.2.0) — und, nur auf
   Knopfdruck („Von SMARD laden“ unter Wechsel prüfen), mit SMARD für die
-  Börsenstrompreise (v3.1.0).
+  Börsenstrompreise (v3.1.0). Seit v3.9.0 nennt die Karte auch die
+  Benachrichtigungen an Home Assistant (was hinausgeht und wohin) und das
+  Auslesen im Posteingang über einen Cloud-Dienst (PDF oder Text, nach
+  Rückfrage); beide sind aus, bis jemand sie einschaltet, der die Installation
+  verwaltet.
 - **Anwendungsfälle (v3.2.0):** eine eigene Karte zwischen den Karten oben
   und dem Glossar, in allen Sprachen der App — die Dokumentation gibt es nur
   auf Deutsch und Englisch. Seit v3.4.0 alle sieben Fälle der
