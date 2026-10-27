@@ -455,13 +455,7 @@ export function buildTodo(events, recs, keep = () => true) {
   // „Stand ist richtig“, „Nur für die Abrechnung“, „Korrigieren“), doppelt eingetragen
   // („Eine löschen“) und der Hinweis auf die Analyse-Zäsur („Zäsur setzen“, „Nicht jetzt“)
   const meterLine = (e) => `${e.params?.label ?? ''} · ${e.params?.meter ?? ''}`;
-  for (const e of due.filter(x => x.kind === 'reading_check')) {
-    const r = e.ref || {};
-    const lines = [meterLine(e), ...readingCheckLines(r)];
-    items.push({ icon: '🔎', tone: 'warn', text: readingCheckTitle(r), sub: lines.join(' '), subLines: lines,
-      href: e.href, ev: e, action: t('dashboard.todo.readingCheckAction'),
-      readingCheck: { kind: 'check', utility: r.utility, meterId: r.meter_id, ids: r.reading_ids || [], count: Number(r.count) || 1 } });
-  }
+  // „doppelt“ vor „prüfen“: erst die Doppel klären (Skeptiker M1)
   for (const e of due.filter(x => x.kind === 'reading_duplicate')) {
     const r = e.ref || {};
     const lines = [meterLine(e), t('readingCheck.duplicate.sub', { counter: `${fmt.num(Number(r.counter), 1)} ${r.unit || ''}`.trim() })];
@@ -469,12 +463,19 @@ export function buildTodo(events, recs, keep = () => true) {
       href: e.href, ev: e, action: t('dashboard.todo.readingCheckAction'),
       readingCheck: { kind: 'duplicate', utility: r.utility, meterId: r.meter_id, ids: r.delete_ids || [] } });
   }
+  for (const e of due.filter(x => x.kind === 'reading_check')) {
+    const r = e.ref || {};
+    const lines = [meterLine(e), ...readingCheckLines(r)];
+    items.push({ icon: '🔎', tone: 'warn', text: readingCheckTitle(r), sub: lines.join(' '), subLines: lines,
+      href: e.href, ev: e, action: t('dashboard.todo.readingCheckAction'),
+      readingCheck: { kind: 'check', utility: r.utility, meterId: r.meter_id, ids: r.reading_ids || [], count: Number(r.count) || 1 } });
+  }
   for (const e of due.filter(x => x.kind === 'level_shift')) {
     const r = e.ref || {};
     const lines = [meterLine(e), ...levelShiftLines(r)];
     items.push({ icon: r.direction === 'higher' ? '📉' : '📈', tone: 'warn', text: levelShiftTitle(r), sub: lines.join(' '), subLines: lines,
       href: e.href, ev: e, action: t('dashboard.todo.readingCheckAction'),
-      readingCheck: { kind: 'level', utility: r.utility, meterId: r.meter_id, date: r.date } });
+      readingCheck: { kind: 'level', utility: r.utility, meterId: r.meter_id, date: r.date, basis: r.basis } });
   }
   // Überfälliges zuerst
   const sorted = items.sort((a, b) => (a.tone === 'alert' ? 0 : 1) - (b.tone === 'alert' ? 0 : 1));
@@ -624,7 +625,7 @@ export function renderTodoBox(box, items) {
   act('data-rc-verify', (rc) => markReadings({ utility: rc.utility, ids: rc.ids, flag: 'is_verified', onChange: refresh }));
   act('data-rc-billing', (rc) => markReadings({ utility: rc.utility, ids: rc.ids, flag: 'is_billing_only', onChange: refresh }));
   act('data-rc-delete', (rc) => deleteDuplicates({ utility: rc.utility, meterId: rc.meterId, ids: rc.ids, onChange: refresh }));
-  act('data-rc-baseline', (rc) => setBaselineAt({ utility: rc.utility, meterId: rc.meterId, date: rc.date, onChange: refresh }));
+  act('data-rc-baseline', (rc) => setBaselineAt({ utility: rc.utility, meterId: rc.meterId, date: rc.date, basis: rc.basis, onChange: refresh }));
   act('data-rc-later', (rc, ev) => ev ? dismissLevelShift({ event: ev, onChange: refresh }) : false);
 }
 

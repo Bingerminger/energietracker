@@ -2718,6 +2718,8 @@ final class ConsumptionService
         foreach ($monthly as &$m) {
             if (!array_key_exists('_bill_kwh', $m)) continue;
             if ($utility !== 'wasser' && !array_key_exists('billed_kwh', $m)) $m['billed_kwh'] = round((float)$m['_bill_kwh'], 1);
+            // Skeptiker M9: bei Wasser die abgerechnete Menge in m³ (für die Monatszeile)
+            if ($utility === 'wasser') $m['billed_m3'] = round((float)$m['_bill_kwh'], 2);
             unset($m['_bill_kwh']);
         }
         unset($m);

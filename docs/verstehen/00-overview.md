@@ -167,9 +167,19 @@ Verteilung geht weiter durch ihn. Geschätzte Stände kommen oft vom Versorger u
 meist brauchbar; sie alle zu überbrücken, hätte Monatswerte geändert, die niemand
 angefasst hat.
 
+**Nach der Entscheidung:** Was erst „Nur für die Abrechnung“ hervorbringt, meldet die
+App nicht. Ohne die markierten Stände wird das Heizmodell genauer, und dann hießen
+Abweichungen „deutlich“, die es vorher nicht waren, obwohl dort niemand etwas geändert
+hat. Gemeldet wird nur, was es auch mit den markierten Ständen als gewöhnlichen Ständen
+gäbe. Notizen an den Ständen (vom Abstand davor bis zum Abstand danach) stehen im
+Eintrag, denn sie erklären oft, was die Zahlen zeigen („Heizung erst ab heute an“). In der
+Monatstabelle tragen überbrückte Monate ≈ mit eigener Legende (nach dem Wetter verteilt)
+und die abgerechnete Menge in Klammern.
+
 **Doppelt eingetragen:** Derselbe Stand am selben Tag zweimal ergibt „Ablesung vom …
 doppelt eingetragen“ mit „Eine löschen“ (behalten wird die mit Foto, sonst die mit
-Notiz).
+Notiz); der Eintrag steht in „Zu tun“ vor „prüfen“. „Stand ist richtig“ und „Nur für die
+Abrechnung“ gelten für beide gleichen Stände zugleich.
 
 **Anderes Niveau, kein Ablesefehler:** Lag der Verbrauch mindestens ein Jahr am Stück
 gleichbleibend weit über bzw. unter heute (jeder nennenswerte Abstand mindestens ein

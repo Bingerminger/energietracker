@@ -164,8 +164,19 @@ the spreading still goes through it. Estimated readings often come from the supp
 and are usually fine; bridging all of them would have changed monthly values nobody
 touched.
 
+**After the decision:** what only “Only for the bill” brings about is not reported.
+Without the marked readings the heating model gets more precise, and then deviations
+would count as “clear” that were not before, although nobody changed anything there.
+Only what would also exist with the marked readings as ordinary readings is reported.
+Notes on the readings (from the interval before to the interval after) are shown in the
+entry, since they often explain what the numbers show (“heating only on from today”).
+In the monthly table bridged months carry ≈ with a legend of their own (spread by the
+weather) and the billed quantity in brackets.
+
 **Entered twice:** the same reading on the same day twice gives “Reading of … entered
-twice” with “Delete one” (the one with a photo is kept, otherwise the one with a note).
+twice” with “Delete one” (the one with a photo is kept, otherwise the one with a note);
+in “To do” the entry comes before “check”. “Reading is correct” and “Only for the bill”
+apply to both identical readings at once.
 
 **A different level, not a reading error:** if consumption was consistently far above
 or below today for at least a year in a row (every sizeable interval at least a quarter

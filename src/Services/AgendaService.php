@@ -362,7 +362,7 @@ final class AgendaService
                 $params = ['label' => $label, 'meter' => $meterName, 'date' => (string)$c['date'], 'until' => (string)$c['until']];
                 $ev = $this->event('reading_check', (string)$c['uid'], $today, $key, $params, 'due', true, $href,
                     ['utility' => $u, 'meter_id' => $mid] + array_intersect_key($c, array_flip(['kind', 'reading_ids', 'date', 'until', 'count',
-                        'direction', 'offset', 'unit', 'basis', 'before', 'after', 'suggested'])),
+                        'direction', 'offset', 'unit', 'basis', 'before', 'after', 'suggested', 'notes'])),
                     (string)$c['date'], null, $who);
                 $ev['title'] = $dated($key, $params);
                 $events[] = $ev;

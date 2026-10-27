@@ -4025,7 +4025,10 @@
     "useSuggested": "Einsetzen",
     "toast": {
       "verified": "Als richtig vermerkt. Die App fragt hier nicht mehr.",
-      "billingOnly": "Nur für die Abrechnung: Die Monatswerte überspringen den Stand jetzt.",
+      "billingOnly": {
+        "one": "Nur für die Abrechnung: Die Monatswerte überspringen den Stand jetzt.",
+        "other": "Nur für die Abrechnung: Die Monatswerte überspringen die {count} Stände jetzt."
+      },
       "undone": "Rückgängig gemacht"
     },
     "duplicate": {
@@ -4039,7 +4042,12 @@
     "mismatch": {
       "one": "Ein einzelner falscher Stand erklärt beides nicht. Ein Foto oder die Abrechnung zeigt, ob er stimmt.",
       "other": "Ein gemeinsamer Versatz der {count} Stände erklärt beides nicht. Ein Foto oder die Abrechnung zeigt, welcher stimmt."
-    }
+    },
+    "notes": "Notizen: {notes}",
+    "note": "{date} „{note}“",
+    "bridgedTitle": "Nach dem Wetter verteilt, nicht gemessen: Ein Stand dazwischen zählt nur für die Abrechnung.",
+    "billedShort": "(abgerechnet {amount})",
+    "bridgedLegend": "≈ nach dem Wetter verteilt: Ein Stand dazwischen zählt nur für die Abrechnung. Kosten und Saldo rechnen mit der abgerechneten Menge (in Klammern)."
   },
   "format": {
     "decimal": ",",
@@ -7173,7 +7181,9 @@
       "date": "Ab dem Tag",
       "label": "Bezeichnung",
       "confirm": "Zäsur setzen",
-      "invalid": "Bitte einen Tag eingeben."
-    }
+      "invalid": "Bitte einen Tag eingeben.",
+      "textOther": "Ab diesem Tag rechnen Prognose und Vergleiche nur mit der Zeit danach. Vorbelegt ist das Ende der auffälligen Zeit. Kennst du den Tag der Änderung (etwa den Einzug), trag ihn ein."
+    },
+    "adviceOther": "Das sieht nach einer echten Änderung aus (etwa Einzug, Leerstand, Umbau oder ein anderes Gerät), nicht nach einem Ablesefehler. Eine Analyse-Zäsur trennt die Zeit davor ab: Prognose und Vergleiche rechnen dann mit dem heutigen Verbrauch."
   }
 }

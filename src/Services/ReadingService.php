@@ -232,6 +232,20 @@ final class ReadingService
         }
         unset($r);
         if (!$found) throw new NotFoundException($this->i18n->t('errors.reading.notFound'));
+        // v3.9.0 (ablesung-pruefen, Skeptiker M1) — doppelt eingetragene Stände (derselbe Zähler,
+        // Tag und Stand) bekommen „Stand ist richtig“ und „nur für die Abrechnung“ gemeinsam.
+        // Sonst rechnet der Zwilling in den Monatswerten weiter, und die Prüfung meldet denselben
+        // Tag sofort neu.
+        $flags = array_intersect_key($input, ['is_verified' => true, 'is_billing_only' => true]);
+        if ($flags !== []) {
+            $same = sprintf('%.6f', (float)($found['counter'] ?? 0));
+            foreach ($all as &$t) {
+                if (($t['id'] ?? null) === $id || ($t['meter_id'] ?? null) !== ($found['meter_id'] ?? null)
+                    || ($t['date'] ?? null) !== ($found['date'] ?? null) || sprintf('%.6f', (float)($t['counter'] ?? 0)) !== $same) continue;
+                foreach ($flags as $flag => $v) if (!empty($v)) $t[$flag] = true; else unset($t[$flag]);
+            }
+            unset($t);
+        }
         usort($all, fn($a, $b) => strcmp($a['date'], $b['date']));
         $this->store->write("$utility/readings.json", $all);
         return $found;

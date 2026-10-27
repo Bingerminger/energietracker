@@ -391,8 +391,9 @@ one”** deletes the second (the one with a photo is kept, otherwise the one wit
 note). Undo creates it again.
 
 **A different level:** if consumption was consistently far above or below today for at
-least a year, that is more likely a different consumption (such as a new heating
-system) than a reading error. The app then suggests a
+least a year, that is more likely a different consumption (for heating such as a new
+heating system, otherwise moving in, a vacancy, a renovation or a different appliance)
+than a reading error. The app then suggests a
 [baseline date](../verstehen/00-overview.md#effect-of-a-measure-baseline-date):
 **“Set baseline date here”** opens a small dialog: the day is filled in with the end of
 the unusual period (if you know the day of the change, such as the heating replacement,

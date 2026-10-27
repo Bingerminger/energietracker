@@ -752,7 +752,8 @@ globalThis.fetch = async (url, init) => {
     check('reading-checks(gas): {checks[], duplicates[], level_shift, basis, unit, billing_only[]}',
       rck && Array.isArray(rck.checks) && Array.isArray(rck.duplicates) && 'level_shift' in rck && 'basis' in rck
         && rck.unit === 'm³' && Array.isArray(rck.billing_only)
-        && rck.checks.every(c => typeof c.uid === 'string' && Array.isArray(c.reading_ids) && ['low', 'high'].includes(c.direction) && c.before && c.after),
+        && rck.checks.every(c => typeof c.uid === 'string' && Array.isArray(c.reading_ids) && ['low', 'high'].includes(c.direction) && c.before && c.after
+          && Array.isArray(c.notes) && ['offset', 'mismatch'].includes(c.kind)),
       JSON.stringify(rck)?.slice(0, 200));
     const ghl = await j(`/api/utility/gas/meters/${gasMeters[0].id}/consumption?heat_limit=1`);
     check('consumption(gas)?heat_limit=1: {current, best, suggest, grid[]} oder null',

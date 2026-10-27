@@ -602,7 +602,13 @@ abhaken (`POST /api/agenda/done`), oder eine Zäsur am Tag `date` setzt ihn auß
 **Seit v3.9.0, additiv, in `…/consumption` (`monthly[]`):** `bridged: true` an
 Monaten, die über einen Stand „nur für die Abrechnung“ hinweg nach dem Wetter
 verteilt sind; dort trägt `billed_kwh` die Menge, mit der die Verträge rechnen
-(nach dem Stand, wie bei der Rest-Abrechnung), `kwh` den Monatswert.
+(nach dem Stand, wie bei der Rest-Abrechnung), `kwh` den Monatswert; bei Wasser
+`billed_m3`. Je Befund in `checks[]` zusätzlich `notes[]` (`{date, note}`): die Notizen
+an den Ständen vom Beginn des Abstands davor bis zum Ende des Abstands danach. Befunde,
+die es erst durch Stände „nur für die Abrechnung“ gäbe, fehlen (gemeldet wird nur, was
+es auch mit diesen Ständen als gewöhnlichen Ständen gäbe). `is_verified` und
+`is_billing_only` gelten per `PATCH` auch für doppelt eingetragene Stände (derselbe Tag,
+derselbe Stand).
 
 **Seit v3.9.0 (Auswertung), additiv** — jede Zahl stimmt oder sagt, warum sie
 unsicher ist ([Grundlagen §1](../verstehen/00-overview.md#gemessen-oder-verteilt-seit-v370),

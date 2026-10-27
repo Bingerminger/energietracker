@@ -255,7 +255,35 @@ final class ReadingCheckService
             }
             if ($ctx !== null) $out['checks'] = $this->offsets($utility, $meter, $points, $iv, $ctx);
         }
+        // Skeptiker H4: Eine Entscheidung „nur für die Abrechnung“ bringt keine neuen Befunde
+        // hervor. Ohne die markierten Stände wird das Heizmodell genauer (die verzerrten
+        // Abstände fallen heraus), und dann hießen Abweichungen „deutlich“, die es vorher nicht
+        // waren, obwohl niemand an diesen Ständen etwas geändert hat. Gemeldet wird deshalb nur,
+        // was es auch mit den markierten Ständen als gewöhnlichen Ständen gäbe.
+        if ($out['checks'] !== [] && $out['billing_only'] !== []) {
+            $known = $this->undecidedChecks($utility, $meter, $all, $today, $out['level_shift']['date'] ?? null);
+            $out['checks'] = array_values(array_filter($out['checks'], fn($c) => isset($known[implode('|', $c['reading_ids'])])));
+        }
         return $this->memo[$key] = $out;
+    }
+
+    /**
+     * Befunde, als wären die Stände „nur für die Abrechnung“ gewöhnliche Stände (der Stand vor
+     * der Entscheidung), als Menge der Schlüssel `reading_ids`.
+     *
+     * @param list<array<string,mixed>> $all
+     * @return array<string,true>
+     */
+    private function undecidedChecks(string $utility, array $meter, array $all, string $today, ?string $minFrom): array
+    {
+        $points = $this->points($utility, $meter, $all, $today, true);
+        $iv = $this->intervals($utility, $meter, $points);
+        $ctx = $this->context($utility, $meter, $iv);
+        if ($ctx !== null && $minFrom !== null) $ctx = $this->withMinFrom($ctx, $iv, $minFrom);
+        if ($ctx === null) return [];
+        $out = [];
+        foreach ($this->offsets($utility, $meter, $points, $iv, $ctx) as $c) $out[implode('|', $c['reading_ids'])] = true;
+        return $out;
     }
 
     // ── Reihe ────────────────────────────────────────────────────────────
@@ -266,7 +294,7 @@ final class ReadingCheckService
      * @param list<array<string,mixed>> $all
      * @return list<array<string,mixed>>
      */
-    private function points(string $utility, array $meter, array $all, string $today): array
+    private function points(string $utility, array $meter, array $all, string $today, bool $withBillingOnly = false): array
     {
         // verdächtig und eingeklemmte Ausreißer: wie die Rechnung (ohne sie ganz zu rechnen)
         $skip = $this->consumption->skippedReadingIds($utility, $meter, $all);
@@ -275,7 +303,7 @@ final class ReadingCheckService
         foreach ($all as $r) {
             $d = $r['date'] ?? null;
             if (!Dates::isIsoDate($d) || $d > $today || !empty($r['is_future']) || !empty($r['is_suspect'])) continue;
-            if (!empty($r['is_billing_only']) || isset($skip[(string)($r['id'] ?? '')])) continue;
+            if ((!$withBillingOnly && !empty($r['is_billing_only'])) || isset($skip[(string)($r['id'] ?? '')])) continue;
             if ($d === $last) continue;   // am selben Tag: der erste (doppelte stehen in `duplicates`)
             $out[] = $r;
             $last = $d;
@@ -873,6 +901,10 @@ final class ReadingCheckService
             'after'       => $side($iv[$q], $xq),
             'suggested'   => $strong ? [] : array_map(fn($r) => ['id' => (string)($r['id'] ?? ''), 'date' => (string)$r['date'],
                 'counter' => (float)$r['counter'], 'suggested' => round((float)$r['counter'] + $offsetRaw, 1)], $block),
+            // Skeptiker H4: Notizen an den Ständen vom Beginn des Abstands davor bis zum Ende des
+            // Abstands danach („Heizung erst ab heute an“), damit die Frage im Zusammenhang steht
+            'notes'       => array_values(array_map(fn($r) => ['date' => (string)$r['date'], 'note' => trim((string)$r['note'])],
+                array_filter(array_slice($points, $p - 1, $q - $p + 2), fn($r) => trim((string)($r['note'] ?? '')) !== ''))),
             '_score' => abs($delta) / $ctx['typical'], '_p' => $p, '_q' => $q, '_level' => $strong ? 2 : 1,
         ];
     }

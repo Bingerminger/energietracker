@@ -4025,7 +4025,10 @@
     "useSuggested": "Inserir",
     "toast": {
       "verified": "Marcada como correta. A aplicação não volta a perguntar.",
-      "billingOnly": "Só para a fatura: os valores mensais passam a ignorar esta leitura.",
+      "billingOnly": {
+        "one": "Só para a fatura: os valores mensais passam a ignorar esta leitura.",
+        "other": "Só para a fatura: os valores mensais passam a ignorar estas {count} leituras."
+      },
       "undone": "Anulado"
     },
     "duplicate": {
@@ -4039,7 +4042,12 @@
     "mismatch": {
       "one": "Uma só leitura errada não explica ambos. Uma fotografia ou a fatura mostra se está certa.",
       "other": "Nenhum desvio comum das {count} leituras explica ambos. Uma fotografia ou a fatura mostra qual está certa."
-    }
+    },
+    "notes": "Notas: {notes}",
+    "note": "{date} «{note}»",
+    "bridgedTitle": "Repartido conforme o tempo, não medido: uma leitura intermédia só conta para a fatura.",
+    "billedShort": "(faturado {amount})",
+    "bridgedLegend": "≈ repartido conforme o tempo: uma leitura intermédia só conta para a fatura. Os custos e o saldo usam a quantidade faturada (entre parênteses)."
   },
   "format": {
     "decimal": ",",
@@ -7173,7 +7181,9 @@
       "date": "A partir do dia",
       "label": "Descrição",
       "confirm": "Definir o corte",
-      "invalid": "Introduza um dia."
-    }
+      "invalid": "Introduza um dia.",
+      "textOther": "A partir deste dia, a previsão e as comparações só usam o período seguinte. Vem preenchido o fim do período invulgar. Se souber o dia da mudança (por exemplo, a mudança de casa), introduza-o."
+    },
+    "adviceOther": "Parece uma mudança real (por exemplo, uma mudança de casa, um período desocupado, uma remodelação ou outro aparelho), não um erro de leitura. Um corte de referência separa o período anterior: a previsão e as comparações passam a usar o consumo atual."
   }
 }

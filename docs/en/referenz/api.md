@@ -593,7 +593,12 @@ baseline date on the day `date` settles it.
 **Since v3.9.0, additive, in `…/consumption` (`monthly[]`):** `bridged: true` on
 months spread by the weather across a reading “only for the bill”; there `billed_kwh`
 carries the quantity the contracts use (by the reading, as with remainder billing),
-`kwh` the monthly value.
+`kwh` the monthly value; for water `billed_m3`. Each finding in `checks[]` also has
+`notes[]` (`{date, note}`): the notes on the readings from the start of the interval
+before to the end of the interval after. Findings that would only exist because of
+readings “only for the bill” are left out (only what would also exist with those readings
+as ordinary readings is reported). `is_verified` and `is_billing_only` set by `PATCH`
+also apply to readings entered twice (same day, same reading).
 
 **Since v3.9.0 (evaluation), additive** — every number is right or says why it
 is uncertain ([Basics §1](../verstehen/00-overview.md#measured-or-interpolated-since-v370),

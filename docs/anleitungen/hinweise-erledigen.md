@@ -402,8 +402,9 @@ vor. Ein Foto der Ablesung oder die Abrechnung zeigt, welcher Stand stimmt.
 Rückgängig legt ihn neu an.
 
 **Anderes Niveau:** Lag der Verbrauch über mindestens ein Jahr gleichbleibend weit
-über oder unter heute, ist das eher ein anderer Verbrauch (etwa eine neue Heizung)
-als ein Ablesefehler. Dann schlägt die App eine
+über oder unter heute, ist das eher ein anderer Verbrauch (beim Heizen etwa eine neue
+Heizung, sonst ein Einzug, Leerstand, Umbau oder ein anderes Gerät) als ein
+Ablesefehler. Dann schlägt die App eine
 [Analyse-Zäsur](../verstehen/00-overview.md#wirkung-einer-maßnahme-zäsur) vor:
 **„Zäsur hier setzen“** öffnet einen kleinen Dialog: Der Tag ist mit dem Ende der
 auffälligen Zeit vorbelegt (kennst du den Tag der Änderung, etwa den Heizungstausch,
