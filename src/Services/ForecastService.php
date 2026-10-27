@@ -84,6 +84,17 @@ final class ForecastService
      */
     public const HEAT_SUPPORT_MIN = 2;
     public const HEAT_SUPPORT_MARGIN = 0.5;
+    /**
+     * v3.9.0 (#38, Nachmessung) — Mindestanteil der Grundlast c an der mittleren Tagesrate
+     * gemessener Sommermonate (Juni bis August, AnomalyService::SUMMER_REF_MONTHS), damit das
+     * Heizmodell einen Monat ohne Vorgeschichte trägt (heatTrusted). Dieselbe Hälfte wie die
+     * Gütesperre nach unten (AnomalyService::BASE_LOAD_MIN); die prüft aber erst ab zwei
+     * Sommermonaten, diese Prüfung schon mit einem. In 160 Rückblicken an erfundenen Haushalten
+     * lag c bei bestandener Gütesperre zwischen 0,49 und 1,11 dieser Rate (Median 0,87, nur
+     * einmal unter 0,5), bei nicht bestandener höchstens bei 0,46. Mit Mai bis September als
+     * Bezug (Heiztage im Mai und September) lagen fünf von 90 guten Modellen unter der Hälfte.
+     */
+    public const HEAT_BASE_MIN_SHARE = AnomalyService::BASE_LOAD_MIN;
 
     public function __construct(
         private ConsumptionService $consumption,
@@ -177,6 +188,8 @@ final class ForecastService
         // Ablesungsabständen (oder fehlt), oder die Gütesperre kann es nicht prüfen:
         // Ein Band behauptete dann eine Sicherheit, die niemand geprüft hat
         $fewMeasured = $hgt && !Utilities::isDelivery($utility) && (($heat['basis'] ?? null) !== 'months' || $quality === null);
+        // v3.9.0 (#38, Nachmessung) — trägt das Heizmodell einen Monat ohne Vorgeschichte? (s. heatTrusted)
+        $heatTrusted = $heat !== null && self::heatTrusted($poorFit, (float)$heat['c'], self::summerRate($rates));
 
         // Fallback working price — the last month that carries one. Used only
         // when the active contract has no working price pflegt for a forecast
@@ -327,7 +340,7 @@ final class ForecastService
             } elseif ($seasonalVal !== null) {
                 $blended = $seasonalVal;
                 $method = 'seasonal_only';
-            } elseif ($heatVal !== null && ($avgInterp[$mn] === null || $this->heatKnows($heat, $hdd / $daysInMonth))) {
+            } elseif ($heatVal !== null && ($avgInterp[$mn] === null || ($heatTrusted && $this->heatKnows($heat, $hdd / $daysInMonth)))) {
                 // v3.9.0 (#38, Rückblick) — Kalendermonat ohne eigene Historie: das Heizmodell,
                 // a × HGT des Normals zur Heizgrenze des Zählers + c × Tage (s. HEAT_SUPPORT_MIN)
                 $blended = $heatVal;
@@ -796,6 +809,34 @@ final class ForecastService
             'sigmoid'   => isset($reg['theta0']) && $x - (float)$reg['theta0'] <= 1e-6,
             default     => false,
         };
+    }
+
+    /**
+     * v3.9.0 (#38, Nachmessung) — Trägt das Heizmodell einen Monat ohne Vorgeschichte?
+     * Nur, wenn es die Gütesperre besteht und seine Grundlast c nicht unter HEAT_BASE_MIN_SHARE
+     * der mittleren Tagesrate gemessener Sommermonate (Juni bis August) liegt. Sonst nimmt die
+     * Prognose die verteilten Werte des Kalendermonats, wenn es sie gibt.
+     *
+     * Beim Melder (gekürzter Lauf bis 30.04., Grenze 10 °C) bestand das Modell die Gütesperre nicht
+     * (Streuung, Grundlast), c lag bei rund einem Viertel der gemessenen Sommermonate: Mai und Juli
+     * kamen auf ein Drittel bzw. ein Viertel des Ist, Mai bis September 24 % zu tief.
+     */
+    private static function heatTrusted(bool $poorFit, float $c, ?float $warmMean): bool
+    {
+        return !$poorFit && ($warmMean === null || $c >= self::HEAT_BASE_MIN_SHARE * $warmMean);
+    }
+
+    /**
+     * v3.9.0 (#38, Nachmessung) — mittlere Tagesrate der gemessenen Sommermonate (Juni bis August)
+     * aus den gemessenen Tagesraten je Kalendermonat; null ohne gemessenen Sommermonat.
+     *
+     * @param array<int,list<float>> $rates
+     */
+    private static function summerRate(array $rates): ?float
+    {
+        $summer = [];
+        foreach (AnomalyService::SUMMER_REF_MONTHS as $mo) foreach ($rates[$mo] ?? [] as $r) $summer[] = (float)$r;
+        return $summer ? array_sum($summer) / count($summer) : null;
     }
 
     /** v3.9.0 (#38) — Hat das Heizmodell so warme Monate selbst gesehen? (s. HEAT_SUPPORT_MIN) */
