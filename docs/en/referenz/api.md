@@ -469,7 +469,7 @@ smoothings (`ma3`/`ma6`/`ma12`).
 | Field per month | Meaning |
 |---|---|
 | `measured_share` | share of the month's consumption from reading intervals of up to 45 days (0 … 1); estimated readings do not measure |
-| `interpolated` | `true` when `measured_share` is below 0.5: the value is spread evenly from a longer interval. Heating oil and pellets: `null` |
+| `interpolated` | `true` when `measured_share` is below 0.5 (since v3.9.0 also when `measured_day_share` is below 0.5, see the v3.9.0 table on evaluations below): the value is spread evenly from a longer interval. Heating oil and pellets: `null` |
 | `reading_gap_days` | longest reading interval the month draws from (`null` when a real reading is missing on one side) |
 | `reading_gap_estimated` | *(v3.7.0)* the month is interpolated with an estimated reading as a support point (each side has its own daily rate) |
 

@@ -87,6 +87,15 @@ Verbrauchsart, Analyse und PV-Übersicht sagen, wenn Monatswerte verteilt sind,
 mit der Zahl der Ablesungen im Zeitraum; Tabellen zeigen „≈“, Diagramme
 schraffierte Säulen.
 
+**Grenze (Stand v3.9.0):** Innerhalb eines Abstands verteilt die App
+gleichmäßig je Tag, nicht nach dem Wetter. Ein Abstand von September bis
+Dezember gibt dem Oktober deshalb zu viel Gas und dem Dezember zu wenig; bei
+der PV bekommt in einem Abstand von Februar bis Juli der März so viel Sonne wie
+der Juni. Nach dem Wetter verteilt sie nur
+über einen Stand „nur für die Abrechnung“ hinweg (unten). Verbrauch allgemein
+nach Wetter zu verteilen ist für eine spätere Version vorgemerkt. Bis dahin
+helfen kürzere Abstände: Jede Ablesung macht die Monate daneben genauer.
+
 ### Ablesung prüfen *(seit v3.9.0)*
 
 Ein falscher Stand zwischen zwei richtigen verschiebt Verbrauch still von einem
@@ -190,6 +199,17 @@ entfällt der Hinweis. Die Zeit vor einem erkannten Wechsel ist kein Maßstab f�
 einzelne Stände. Bei einer wiederkehrenden Jahreszeit rechnet der Hinweis mit der
 mittleren Tagesmenge über die Zeit danach (über ein ganzes Jahr gleicht sich die
 Jahreszeit aus).
+
+**Grenzen.** Die Prüfung ist bewusst vorsichtig: An keinem Beispielhaushalt und
+nicht am unordentlichen Testhaushalt meldet sie etwas, solange alle Stände
+stimmen. Dafür übersieht sie kleine Fehler. Passt das Heizmodell schlecht (große
+Streuung), fragt sie erst bei großen Versätzen; eine passende Heizgrenze macht
+sie empfindlicher. Bei Strom mit starker Jahreszeit (der Winter unter vier
+Fünfteln des Mittels) zählt nach einem Einzug jeder Winter als Rückkehr zum
+alten, niedrigeren Niveau, dann kommt kein Hinweis auf die Zäsur. In einem
+Monat, den ein Stand „nur für die Abrechnung“ überbrückt, passen Menge und
+Kosten nicht zueinander: Die Menge ist nach dem Wetter verteilt, die Kosten
+rechnen mit dem Stand (`billed_kwh` sagt, womit).
 
 Alle drei Einträge zählen in `/api/todo` und in den Benachrichtigungen an Home
 Assistant mit, in jeder Stufe.

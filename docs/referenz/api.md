@@ -477,7 +477,7 @@ Monat u. a.: `ym`, `days`, `kwh` *oder* `m3`, `cost`, `avg_temp`,
 | Feld je Monat | Bedeutung |
 |---|---|
 | `measured_share` | Anteil des Monatsverbrauchs aus Ablesungsabständen bis 45 Tage (0 … 1); geschätzte Ablesungen messen nicht |
-| `interpolated` | `true`, wenn `measured_share` unter 0,5 liegt: Der Wert ist aus einem längeren Abstand gleichmäßig verteilt. Heizöl und Pellets: `null` |
+| `interpolated` | `true`, wenn `measured_share` unter 0,5 liegt (seit v3.9.0 auch, wenn `measured_day_share` unter 0,5 liegt, siehe die Tabelle „Seit v3.9.0 (Auswertung)“ unten): Der Wert ist aus einem längeren Abstand gleichmäßig verteilt. Heizöl und Pellets: `null` |
 | `reading_gap_days` | längster Ablesungsabstand, aus dem der Monat stammt (`null`, wenn auf einer Seite eine echte Ablesung fehlt) |
 | `reading_gap_estimated` | *(v3.7.0)* der Monat ist an einer geschätzten Ablesung als Stütze verteilt (je Seite eine eigene Tagesrate) |
 

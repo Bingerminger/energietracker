@@ -185,7 +185,9 @@ Zahl ist. Mehrstellige Zahlen nebeneinander (Spalten einer Tabelle wie
 Zeichen von rechts, liest der Browser die Zeile seit v3.9.0 nach der Lage der
 Zeichen von links nach rechts; ohne das stand „6 5 , 4 3 2 . 1 €“ statt
 „1.234,56 €“ in der Textebene. Ein Dokument, das du davor ausgelesen hast,
-behält seine Auslesung, bis du es neu ausliest.
+behält seine Auslesung, bis du es neu ausliest. Ein Datum mit gesperrten Ziffern
+(„0 1 . 0 4 . 2 0 2 5“) setzt die Prüfung bewusst nicht zusammen; ein solches
+Feld bleibt markiert, bis du es bestätigst.
 
 Ein markiertes Feld **bestätigst** („Stimmt“) oder **korrigierst** du. Ein Tipp
 auf „S. 2“ neben dem Zitat blättert links zur Seite.

@@ -178,7 +178,9 @@ each other (columns of a table like “12 345”) stay apart. If a PDF draws
 right-aligned numbers character by character from the right, the browser has
 read the line from left to right by the position of the characters since
 v3.9.0; before, the text layer said “6 5 , 4 3 2 . 1 €” instead of “1.234,56 €”.
-A document you read before keeps its reading until you read it again.
+A document you read before keeps its reading until you read it again. A date
+with spaced digits (“0 1 . 0 4 . 2 0 2 5”) is deliberately not joined; such a
+field stays flagged until you confirm it.
 
 You **confirm** a flagged field (“Correct”) or **change** it. Tapping “p. 2”
 next to the quote turns the document on the left to that page.

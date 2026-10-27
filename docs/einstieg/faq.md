@@ -174,6 +174,27 @@ für die Gruppe anlegen — mit einem Grundpreis und unter „Arbeitspreis je
 Zähler (z. B. HT/NT)“ dem Preis je Zählwerk. Saldo, Prognose und Wechsel
 rechnen dann für beide zusammen
 ([Strom](../verstehen/02-strom.md#hoch--und-niedertarif-ein-vertrag-für-eine-zählergruppe-v310)).
+Seit v3.9.0 legt das der Assistent **„Messkonzept einrichten“** an, auch mit
+Wärmepumpe, PV und Zählern hintereinander
+([Anwendungsfall H](../anleitungen/anwendungsfaelle.md#h--kaskade-mit-wärmepumpe-htnt-und-pv-v390)).
+
+### Warum kostet mein Haushaltszähler seit v3.9.0 weniger?
+
+Weil ein Subzähler mit eigenem Vertrag (etwa die Wärmepumpe hinter dem
+Haushaltszähler) jetzt abgezogen wird: Der Vertrag des Haushaltszählers rechnet
+nur den Rest. Bis v3.8 bezahlte die App die Menge des Subzählers über beide
+Verträge. Am Zähler und an seinem Vertrag steht, wie gerechnet wird, etwa
+„300 kWh = 500 kWh gemessen − 200 kWh Wärmepumpe“
+([Rest-Abrechnung](../verstehen/13-meter-topologie.md#rest-abrechnung-v390)).
+
+### Die App schreibt „Ablesung vom … prüfen“. Was soll ich tun?
+
+Den Stand mit dem Foto oder der Abrechnung vergleichen. Stimmt er, tippe
+„Stand ist richtig“. Hat der Versorger mit diesem Stand abgerechnet, obwohl er
+die Monate verzieht, nimm „Nur für die Abrechnung“. Ist er vertippt, öffnet
+„Korrigieren“ die Ablesung mit dem Stand, der passen würde. Die App ändert
+nichts von selbst
+([Hinweise erledigen §11](../anleitungen/hinweise-erledigen.md#11-ablesung-prüfen-v390)).
 
 ### Wie gut ist meine Wärmepumpe?
 
@@ -285,6 +306,14 @@ keine Telemetrie, keine Werbung.
 
 Ja, im Browser im Heimnetz; als App auf dem Home-Bildschirm mit HTTPS. Siehe
 [Auf dem Handy nutzen](handy.md).
+
+### Kann mir die App Fristen nach Home Assistant melden?
+
+Ja, seit v3.9.0: Einstellungen → Integrationen → „Benachrichtigungen an Home
+Assistant“. In der App für Home Assistant genügt der Schalter, sonst ein
+Webhook oder Adresse und Token. Fällige Termine, Fristen, Warnungen und neue
+Post kommen je einmal an, in der Sprache der Installation
+([Home Assistant, Schritt 6](../anleitungen/home-assistant.md#schritt-6--benachrichtigungen-an-home-assistant-v390)).
 
 ### Kann ich Fristen in meinem Kalender sehen?
 

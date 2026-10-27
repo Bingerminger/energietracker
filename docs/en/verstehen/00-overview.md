@@ -86,6 +86,15 @@ correct. Utility view, analysis and PV summary say when monthly values are
 interpolated, with the number of readings in the range; tables show “≈”, charts
 hatched bars.
 
+**Limit (as of v3.9.0):** within an interval the app spreads evenly per day,
+not by the weather. An interval from September to December therefore gives
+October too much gas and December too little; for PV, in an interval from
+February to July, March gets as much sun as June. It spreads by the weather only
+across a reading marked “only for the
+bill” (below). Spreading consumption by the weather in general is planned for a
+later version. Until then shorter intervals help: every reading makes the
+months next to it more precise.
+
 ### Check a reading *(since v3.9.0)*
 
 A wrong reading between two correct ones silently moves consumption from one stretch
@@ -184,6 +193,16 @@ then the end of the last interval at the old level. With an effective baseline d
 the time after it counts; if it is at the change, the note is not shown. The time before
 a detected change is no yardstick for single readings. With a recurring season the note
 uses the mean daily amount of the time after (over a whole year the season evens out).
+
+**Limits.** The check is deliberately cautious: it reports nothing for any
+sample household nor for the messy test household as long as all readings are
+right. In return it misses small errors. If the heating model fits poorly
+(large spread), it asks only about large offsets; a suitable heating limit
+makes it more sensitive. For electricity with a strong season (winter below
+four fifths of the mean), every winter after moving in counts as a return to
+the old, lower level, and then no baseline note comes. In a month that a
+reading “only for the bill” bridges, amount and cost do not match: the amount
+is spread by the weather, the cost uses the reading (`billed_kwh` says which).
 
 All three entries count in `/api/todo` and in the notifications to Home Assistant, at
 every level.

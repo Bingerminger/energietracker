@@ -143,6 +143,12 @@ advertising are recognised by the inbox and only filed.
     names both. It is not pre-selected. If you tick it, the values add to the
     recorded contract and its name stays. With another contract number in your
     records it stays a conflict.
+  - **Limit** *(3.9.0)*: bills of the municipal utility that does the billing,
+    which share neither a number nor a word in the name with the brand’s
+    confirmation, still form a contract of their own from the first bill. It
+    shows as a question, not pre-selected, and its prices, advance payments and
+    bills are locked until you tick it. Then assign them to the recorded
+    contract by hand.
 - **Price chain.** Confirmation and price changes (valid from) form the chain
   and are pre-selected. A price on a bill is evidence — compared gross: if it
   is printed net with a VAT rate that was read, the draft converts it as the

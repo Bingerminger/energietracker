@@ -143,6 +143,12 @@ Widerrufe und Werbung erkennt der Posteingang und legt sie nur ab.
     Namen. Er ist nicht vorbelegt. Hakst du ihn an, ergänzen die Angaben den
     vorhandenen Vertrag, sein Name bleibt. Mit einer anderen Vertragsnummer im
     Bestand bleibt es ein Widerspruch.
+  - **Grenze** *(3.9.0)*: Rechnungen des abrechnenden Stadtwerks, die mit der
+    Bestätigung der Marke weder eine Nummer noch ein Wort im Namen teilen,
+    bilden weiter einen eigenen Vertrag ab der ersten Rechnung. Er steht als
+    Frage da, nicht vorbelegt, und seine Preise, Abschläge und Rechnungen sind
+    gesperrt, bis du ihn anhakst. Ordne sie dann von Hand dem Vertrag im Bestand
+    zu.
 - **Preiskette.** Bestätigung und Preisänderungen (gültig ab) bilden die Kette
   und sind vorbelegt. Ein Preis auf der Rechnung ist ein Beleg — verglichen
   wird brutto: Steht er netto mit gelesenem Steuersatz da, rechnet der Entwurf
