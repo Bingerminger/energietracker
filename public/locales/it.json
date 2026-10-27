@@ -415,7 +415,8 @@
         "other": "{days} giorni"
       },
       "noContract": "nessun contratto",
-      "noContractHint": "Con un contratto l’app calcola i costi."
+      "noContractHint": "Con un contratto l’app calcola i costi.",
+      "billed": "fatturato {value} (resto)"
     },
     "cards": {
       "contracts": "📑 Contratti e acconti",
@@ -563,7 +564,8 @@
       "estimatedTitle": {
         "one": "{days} giorno stimato (dopo l’ultima scorta nota)",
         "other": "{days} giorni stimati (dopo l’ultima scorta nota)"
-      }
+      },
+      "colBilled": "Fatturato {unit}"
     },
     "readingsTable": {
       "emptyTitle": "Nessuna lettura",
@@ -1144,7 +1146,7 @@
       "title": "Più contatori per utenza",
       "text": "— es. acqua calda e riscaldamento (gas) oppure F1/F2/F3 e wallbox (elettricità). Ogni contatore ha la propria cronologia dei dispositivi (le sostituzioni del contatore sono calcolate senza perdite) e può avere i propri contratti.",
       "topologyLabel": "Topologia:",
-      "topologyText": "I sottocontatori vengono sottratti dal contatore principale; i gruppi combinano più contatori nel cruscotto."
+      "topologyText": "Un sottocontatore con un proprio contratto viene sottratto dal contratto del contatore principale, che fattura poi solo il resto; senza contratto proprio è una ripartizione. I gruppi combinano più contatori nel cruscotto."
     },
     "empty": "Ancora nessun contatore.",
     "emptyCta": "+ Aggiungi un nuovo contatore",
@@ -2991,7 +2993,8 @@
         "one": "{count} valore mensile dei due anni è ripartito; i totali annuali restano misurati, perché le letture sono state fatte al cambio d’anno.",
         "other": "{count} valori mensili dei due anni sono ripartiti; i totali annuali restano misurati, perché le letture sono state fatte al cambio d’anno."
       },
-      "poorFit": "Il modello di riscaldamento si adatta male a questo contatore (± {pct} al mese): qui il rapporto non confronta i valori corretti per il clima e non segnala mesi sopra l’atteso — sarebbe soprattutto l’errore del modello."
+      "poorFit": "Il modello di riscaldamento si adatta male a questo contatore (± {pct} al mese): qui il rapporto non confronta i valori corretti per il clima e non segnala mesi sopra l’atteso — sarebbe soprattutto l’errore del modello.",
+      "subMeterOwnContract": "Di cui {name}: {value} (sottocontatore, compreso nel totale di «{parent}»). {name} ha un proprio contratto; il contratto di «{parent}» fattura solo il resto."
     },
     "weatherSource": "Temperature: Open-Meteo.com (CC BY 4.0), salvo inserimento proprio.",
     "print": {
@@ -7093,7 +7096,10 @@
       "new": "Crea nuovo",
       "sameDevice": "Il registro di immissione di «{name}»: stessa matricola, contatore proprio sotto l’immissione.",
       "genHint": "Contatore di produzione dell’impianto, spesso nell’inverter.",
-      "batteryHint": "Carica e scarica della batteria, spesso dall’inverter."
+      "batteryHint": "Carica e scarica della batteria, spesso dall’inverter.",
+      "installedOn": "Installato il",
+      "installedHint": "Vuoto: dall’inizio del suo contratto, altrimenti da oggi.",
+      "initialCounter": "Lettura all’installazione"
     },
     "contracts": {
       "title": "Quali contratti ci sono?",
@@ -7105,7 +7111,8 @@
       "feedCt": "Remunerazione ({minor}/kWh)",
       "base": "Quota fissa ({cur}/mese)",
       "advance": "Acconto ({cur}/mese)",
-      "restNote": "Fattura solo il resto: «{parent}» meno «{sub}»."
+      "restNote": "Fattura solo il resto: «{parent}» meno «{sub}».",
+      "running": "Contratto in corso: «{name}» dal {start}. Resta com’è."
     },
     "summary": {
       "title": "Cosa crea l’assistente",
@@ -7122,7 +7129,11 @@
       "detailObis": "registro {obis}",
       "detailParent": "a valle di «{name}»",
       "snapshot": "Prima l’app salva lo stato attuale come istantanea. Puoi ripristinarla in Impostazioni → Dati.",
-      "apply": "Crea"
+      "apply": "Crea",
+      "restFrom": "Dal {date} il contratto di «{parent}» fattura solo il resto: misurato lì meno «{sub}».",
+      "restFromPast": "Con effetto retroattivo dal {date} il contratto di «{parent}» fattura solo il resto: misurato lì meno «{sub}». Costi, saldo e acconto suggerito di questo contratto cambiano anche per i mesi dal {date}.",
+      "beforeInstall": "«{name}» è installato solo dal {installed}, ma il suo contratto inizia il {start}. Fino all’installazione l’app non sottrae nulla.",
+      "detailInstalled": "installato il {date}"
     },
     "done": "Schema di misura configurato. Poi: inserisci la prima lettura di ogni contatore.",
     "entry": {

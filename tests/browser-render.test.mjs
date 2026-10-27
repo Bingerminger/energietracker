@@ -3274,6 +3274,13 @@ async function renderView(modPath, params = [], ctx = {}) {
       && /Abgerechnet wird hier nur der Rest/.test(note.textContent), note?.textContent.trim().slice(0, 200));
     const card = [...uv.view.querySelectorAll('.balance-note')].map(n => n.textContent).join(' | ');
     t('rest: Hinweis an der Saldo-Karte des Vertrags', /Abgerechnet wird hier nur der Rest/.test(card), card.slice(0, 200));
+    // Skeptiker M9 — Menge, Preis und Kosten passen zusammen: die abgerechnete Menge steht an Kachel und Monatszeile
+    const kb = uv.view.querySelector('[data-role="kpi-billed"]');
+    const billedCells = [...uv.view.querySelectorAll('td[data-role="billed"]')];
+    t('rest: Kachel nennt die abgerechnete Menge (Rest)', !!kb && /abgerechnet .+ \(Rest\)/.test(kb.textContent), kb?.textContent);
+    t('rest: Monatstabelle mit Spalte „Abgerechnet“, kleiner als die Messung', !!uv.view.querySelector('th[data-role="col-billed"]') && billedCells.length > 0
+      && billedCells.some(td => { const row = td.closest('tr'); const cells = [...row.children]; const i = cells.indexOf(td);
+        return Number(td.textContent.replace(/\D/g, '')) < Number(cells[i - 1].textContent.replace(/\D/g, '')); }), String(billedCells.length));
     const sub = await renderView(`${ROOT}/views/utility.js`, ['gas'], { query: new URLSearchParams('meter=m_gas_werkstatt') });
     await sleep(600);
     const subNote = sub.view.querySelector('[data-role="sub-rest-note"]');
@@ -3292,6 +3299,18 @@ async function renderView(modPath, params = [], ctx = {}) {
     if (sel) { sel.value = 'm_gas_werkstatt'; sel.dispatchEvent(new global.window.Event('change', { bubbles: true })); }
     const dh = global.document.querySelector('[data-role="sub-contract-hint"]');
     t('rest: Vertragsdialog mit Subzähler zeigt den Satz', !!dh && !dh.hidden && /Hauptzähler|misst/.test(dh.textContent), dh ? `${dh.hidden} ${dh.textContent}` : 'kein Dialog');
+    // Skeptiker N7 — der Rest-Hinweis auch unter „Verträge verwalten“ und „Kosten & Verträge“, der Zählertext stimmt
+    const cv2 = await renderView(`${ROOT}/views/contracts.js`, ['gas']);
+    await sleep(400);
+    const ch = [...cv2.view.querySelectorAll('[data-role="contract-rest-hint"]')].map(x => x.textContent);
+    t('rest: „Verträge verwalten“ zeigt am Elternvertrag „Rechnet nur den Rest … minus „Werkstatt““', ch.length >= 1 && ch.every(x => /Rechnet nur den Rest/.test(x) && /Werkstatt/.test(x)), ch.join(' | '));
+    const ov = await renderView(`${ROOT}/views/contracts-overview.js`, []);
+    await sleep(800);
+    const on = ov.view.querySelector('[data-role="overview-rest-note"]');
+    t('rest: „Kosten & Verträge“ zeigt den Rest-Hinweis am Elternvertrag', !!on && /nur der Rest/.test(on.textContent) && /Werkstatt/.test(on.textContent), on?.textContent.slice(0, 160));
+    const mv2 = await renderView(`${ROOT}/views/meters.js`, ['gas']);
+    await sleep(300);
+    t('rest: Zählerseite sagt, dass nur ein Subzähler mit eigenem Vertrag abgezogen wird', /mit eigenem Vertrag wird vom Vertrag des Elternzählers abgezogen/.test(mv2.view.textContent));
     if (cid) await send('DELETE', `/utility/gas/contracts/${cid}`);
   } catch (e) { t('rest: Hinweise', false, e.stack || e.message); }
 
@@ -3330,26 +3349,34 @@ async function renderView(modPath, params = [], ctx = {}) {
     const serial = q('input[data-slot="dev"][data-field="serial"]');
     serial.value = 'TEST-WP-1'; serial.dispatchEvent(new global.window.Event('input', { bubbles: true }));
     await next();
-    t('concept: Verträge, am Hauszähler der Satz zur Rest-Abrechnung', q('[data-role="concept-body"]')?.dataset.step === 'contracts'
-      && /Rechnet nur den Rest/.test(q('[data-role="cw-rest-note"]')?.textContent || ''));
+    // Skeptiker M11 — am Hauszähler der laufende Vertrag statt leerer Felder; N16 — sein Name statt „Hauszähler“
+    t('concept: Verträge, am Hauszähler der laufende Vertrag und der Satz zur Rest-Abrechnung', q('[data-role="concept-body"]')?.dataset.step === 'contracts'
+      && /Laufender Vertrag/.test(q('[data-role="cw-running-contract"]')?.textContent || '') && !q('input[data-contract="main"]')
+      && /Rechnet nur den Rest/.test(q('[data-role="cw-rest-note"]')?.textContent || ''), q('[data-contract-slot="main"]')?.textContent.replace(/\s+/g, ' ').slice(0, 200));
+    const legendMain = q('[data-contract-slot="main"] legend')?.textContent || '';
+    t('concept: der vorhandene Zähler heißt wie er, nicht „Hauszähler“', legendMain.includes(before[0].name) && !legendMain.includes('Hauszähler'), legendMain);
     const fill = (sel, v) => { const el = q(sel); el.value = v; el.dispatchEvent(new global.window.Event('input', { bubbles: true })); };
     fill('input[data-contract="dev"][data-field="provider"]', 'Testtarif');
     fill('input[data-contract="dev"][data-field="ct"]', '24,5');
     fill('input[data-contract="dev"][data-field="ct_nt"]', '19');
-    fill('input[data-contract="main"][data-field="provider"]', 'Doppelt');
-    fill('input[data-contract="main"][data-field="ct"]', '30');
+    fill('input[data-contract="dev"][data-field="start"]', '2025-01-01');
     await next(600);
     const ops = [...global.document.querySelectorAll('#modal-root [data-role="cw-actions"] li')].map(li => li.dataset.op);
     t('concept: Zusammenfassung mit eigenem Schaltbild und den Schritten', q('.concept-summary__art svg[role="img"] title')?.textContent === 'Schaltbild deiner Anlage'
-      && ops.includes('update_meter') && ops.filter(o => o === 'create_meter').length === 2 && ops.includes('create_group') && ops.includes('skip_contract') && ops.includes('create_contract'), ops.join());
-    t('concept: laufender Vertrag bleibt (Satz in der Zusammenfassung)', /laufende Vertrag/.test(q('[data-role="cw-actions"] [data-op="skip_contract"]')?.textContent || ''));
+      && ops.includes('update_meter') && ops.filter(o => o === 'create_meter').length === 2 && ops.includes('create_group') && ops.includes('create_contract') && !ops.includes('skip_contract'), ops.join());
+    const restFrom = q('[data-role="cw-notices"] [data-notice="rest_from"]')?.textContent || '';
+    t('concept: Zusammenfassung sagt, dass der Hausvertrag rückwirkend ab Vertragsbeginn nur den Rest rechnet', /Rückwirkend ab 01\.01\.2025/.test(restFrom)
+      && restFrom.includes(before[0].name) && /nur noch den Rest/.test(restFrom), restFrom);
+    t('concept: das neue Gerät ist ab Vertragsbeginn eingebaut, nicht heute', /eingebaut am 01\.01\.2025/.test(q('[data-role="cw-actions"] [data-op="create_meter"]')?.textContent || ''),
+      q('[data-role="cw-actions"] [data-op="create_meter"]')?.textContent);
     await next(900);
     t('concept: nach „Anlegen“ ist der Dialog zu', !q('[data-role="concept-body"]'));
     const after = (await send('GET', '/utility/strom/meters')).data || [];
     const wp = after.filter(m => m.role === 'heat_pump');
     t('concept: zwei Zählwerke der Wärmepumpe hinter dem vorhandenen Zähler, in einer Gruppe', after.length === before.length + 2 && wp.length === 2
       && wp.every(m => m.parent_meter_id === before[0].id && m.meter_group_id && m.meter_group_id === wp[0].meter_group_id)
-      && wp.map(m => m.obis).sort().join() === '1.8.1,1.8.2' && wp.every(m => m.devices?.[0]?.serial === 'TEST-WP-1'), after.map(m => `${m.name}:${m.obis || ''}`).join(' | '));
+      && wp.map(m => m.obis).sort().join() === '1.8.1,1.8.2' && wp.every(m => m.devices?.[0]?.serial === 'TEST-WP-1')
+      && wp.every(m => m.devices?.[0]?.installed_on === '2025-01-01'), after.map(m => `${m.name}:${m.obis || ''}:${m.devices?.[0]?.installed_on}`).join(' | '));
     const contracts = ((await send('GET', '/utility/strom/contracts')).data || []).filter(c => !c.is_shadow);
     const gc = contracts.find(c => c.provider === 'Testtarif');
     t('concept: Gruppenvertrag mit Preis je Zählwerk, kein zweiter Vertrag am Hauszähler', !!gc && gc.meter_group_id === wp[0].meter_group_id

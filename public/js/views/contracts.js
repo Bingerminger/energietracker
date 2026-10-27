@@ -24,7 +24,7 @@ import { infoNote } from '../components/info.js';   // v3.7.0 (#35)
 import { attachmentNames, attachmentLinksHtml, attachmentIdsOf } from '../lib/attachments.js';   // v3.7.0 — Belege am Vertrag
 import { ADVANCE_EVERY, advanceAmountText } from '../lib/advance-rhythm.js';   // v3.9.0 (F1034) — Abschlag mit Rhythmus
 import { dossierHtml, wireDossiers } from '../components/dossier.js';   // v3.7.0 (Paket betrieb) — Akte je Vertrag
-import { subContractHint } from '../lib/rest-billing.js';   // v3.9.0 (F1032, #40)
+import { subContractHint, deductingSubNames } from '../lib/rest-billing.js';   // v3.9.0 (F1032, #40)
 
 // Titel/Labels werden zur Render-Zeit über t() aufgelöst (nicht beim Modul-
 // Laden, da der Sprachkatalog dann ggf. noch nicht steht).
@@ -140,6 +140,8 @@ async function refresh(container, u) {
   // Bis v3.3 nur nach Beginn: Angebote für das nächste Jahr standen als
   // „neuester Vertrag“ oben, ein lange laufender Vertrag ganz unten.
   const grouped = groupContracts(contracts);
+  // v3.9.0 (Skeptiker N7) — welche Subzähler mit eigenem Vertrag der Vertrag eines Zählers abzieht
+  restCtx = { meters, contracts };
   // v3.7.0 — Dateinamen der Belege (nur, wenn ein Vertrag welche hat)
   const docNames = await attachmentNames(contracts);
 
@@ -381,6 +383,18 @@ function documentsCardHtml(c, docNames) {
   return `<p class="muted small contract-card__documents" data-role="contract-documents">${escapeHtml(t('attachments.label'))} ${attachmentLinksHtml(c, docNames)}</p>`;
 }
 
+/** v3.9.0 (Skeptiker N7) — Zähler und Verträge der Liste, für den Rest-Hinweis an der Karte. */
+let restCtx = { meters: [], contracts: [] };
+
+/** „Rechnet nur den Rest: „Hauszähler“ minus „Wärmepumpe“.“ am Elternvertrag (kein Angebot). */
+function restHintHtml(c, u, meter, group) {
+  if (c.is_shadow) return '';
+  const subs = deductingSubNames({ meter_id: c.meter_id || null, meter_group_id: c.meter_group_id || null }, restCtx.meters, restCtx.contracts, u.key);
+  if (!subs.length) return '';
+  const parent = group?.name || meter?.name || '';
+  return `<p class="muted small" data-role="contract-rest-hint">${escapeHtml(t('concept.contracts.restNote', { parent, sub: subs.join(', ') }))}</p>`;
+}
+
 function renderContractCard(c, meters, u, groups = [], docNames = new Map()) {
   const meter = meters.find(m => m.id === c.meter_id);
   const group = c.meter_group_id ? groups.find(g => g.id === c.meter_group_id) : null;
@@ -433,6 +447,7 @@ function renderContractCard(c, meters, u, groups = [], docNames = new Map()) {
           : `${t('contracts.card.meterLabel')} <strong>${escapeHtml(meter?.name || t('contracts.card.noMeter'))}</strong>`}
         <span class="contract-card__counts" data-min-level="expert">· ${summary}</span>
       </div>
+      ${restHintHtml(c, u, meter, group)}
       ${bonusCardHtml(c)}
       ${documentsCardHtml(c, docNames)}
       ${c.notes ?`<p style="margin-top:var(--sp-2)">${escapeHtml(c.notes)}</p>` : ''}

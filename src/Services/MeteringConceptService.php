@@ -132,7 +132,14 @@ final class MeteringConceptService
                 if (MeterService::obisKey($v) === null) throw new LocalizedException('errors.meter.obisInvalid', ['value' => mb_substr($v, 0, 24)], 'concept obis');
                 $def['registers'][$r] = $v;
             }
-            $s['slots'][$key] = $def + ['name' => mb_substr($name, 0, 80), 'serial' => mb_substr(trim((string)($raw['serial'] ?? '')), 0, 40), 'meter_ids' => $ids];
+            // v3.9.0 (Skeptiker M11) — Einbaudatum und Stand beim Einbau eines neuen Zählers (bis dahin „heute“ und 0)
+            $installed = trim((string)($raw['installed_on'] ?? ''));
+            if ($installed !== '' && !Dates::isIsoDate($installed)) throw new LocalizedException('errors.concept.field', ['field' => 'installed_on'], 'concept installed');
+            $initial = $raw['initial_counter'] ?? null;
+            if ($initial === '') $initial = null;
+            if ($initial !== null && (!is_numeric($initial) || (float)$initial < 0)) throw new LocalizedException('errors.concept.field', ['field' => 'initial_counter'], 'concept initial');
+            $s['slots'][$key] = $def + ['name' => mb_substr($name, 0, 80), 'serial' => mb_substr(trim((string)($raw['serial'] ?? '')), 0, 40), 'meter_ids' => $ids,
+                                        'installed_on' => $installed, 'initial_counter' => $initial !== null ? (float)$initial : null];
         }
         $used = [];
         foreach ($s['slots'] as $slot) foreach ($slot['meter_ids'] as $id) {
@@ -168,23 +175,28 @@ final class MeteringConceptService
     public function plan(array $in): array
     {
         $s = $this->normalize($in);
-        [$actions, $problems] = $this->steps($s);
-        // die Stellen für die Eingabe der Zähler und Verträge (Name vorbelegt, Zählwerke mit OBIS)
+        $st = $this->steps($s);
+        // die Stellen für die Eingabe der Zähler und Verträge (Name vorbelegt, Zählwerke mit OBIS);
+        // v3.9.0 (Skeptiker M11, N16) — dazu der Name vorhandener Zähler und ihr laufender Vertrag
         $slots = [];
         foreach ($s['slots'] as $key => $slot) {
+            $run = $st['running'][$key] ?? null;
             $slots[$key] = ['utility' => $slot['utility'], 'role' => $slot['role'], 'parent' => $slot['parent'], 'registers' => $slot['registers'],
                             'contract' => $slot['contract'] !== null && Utilities::hasContracts($slot['utility']) ? $slot['contract'] : null,
-                            'name' => $this->slotName($s, $key), 'default_name' => $this->slotName($s, $key, true)];
+                            'name' => $this->slotName($s, $key), 'default_name' => $this->slotName($s, $key, true),
+                            'display_name' => $st['display'][$key] ?? $this->slotName($s, $key),
+                            'running_contract' => $run === null ? null : ['provider' => (string)($run['provider'] ?? ''), 'tariff_name' => (string)($run['tariff_name'] ?? ''),
+                                                                          'start' => (string)($run['start'] ?? ''), 'end' => $run['end'] ?? null]];
         }
         return ['concept' => array_intersect_key($s, array_flip(['concept', 'device', 'pv', 'battery', 'tou'])), 'slots' => $slots,
-                'actions' => $actions, 'problems' => $problems];
+                'actions' => $st['actions'], 'problems' => $st['problems'], 'notices' => $st['notices']];
     }
 
     /** Anlegen. @return array{concept:array<string,mixed>,actions:list<array<string,mixed>>,created:array<string,list<string>>,snapshot:?string} */
     public function apply(array $in): array
     {
         $s = $this->normalize($in);
-        [$actions, $problems] = $this->steps($s);
+        ['actions' => $actions, 'problems' => $problems, 'notices' => $notices] = $this->steps($s);
         if ($problems !== []) {
             $p = $problems[0];
             throw new LocalizedException('errors.concept.' . $p['code'], $p['params'] ?? [], 'concept problem');
@@ -231,18 +243,23 @@ final class MeteringConceptService
             }
         }
         return ['concept' => array_intersect_key($s, array_flip(['concept', 'device', 'pv', 'battery', 'tou'])), 'actions' => $actions,
-                'created' => $created, 'snapshot' => $snapshot];
+                'notices' => $notices, 'created' => $created, 'snapshot' => $snapshot];
     }
 
     /**
      * Die Schritte und Hindernisse: Zähler anlegen oder zuordnen (Eltern zuerst),
      * Gruppen für HT/NT, Verträge, wo das Ziel keinen laufenden hat.
      *
-     * @return array{0:list<array<string,mixed>>,1:list<array<string,mixed>>}
+     * v3.9.0 (Skeptiker M11) — dazu Hinweise (`notices`): ab wann der Vertrag einer
+     * Elternstelle nur noch den Rest rechnet (auch rückwirkend), und ein Vertrag,
+     * der vor dem Einbau des neuen Zählers beginnt; je Stelle der laufende Vertrag
+     * vorhandener Zähler und der Name, unter dem die Stelle erscheint.
+     *
+     * @return array{actions:list<array<string,mixed>>,problems:list<array<string,mixed>>,notices:list<array<string,mixed>>,running:array<string,?array>,display:array<string,string>}
      */
     private function steps(array $s): array
     {
-        $actions = []; $problems = [];
+        $actions = []; $problems = []; $notices = []; $running = []; $display = [];
         $need = array_values(array_unique(array_filter(array_map(fn($x) => $x['utility'], $s['slots']), fn($u) => $u !== 'strom')));
         $active = (array)$this->settings->get('active_utilities', ['gas', 'strom', 'wasser']);
         $missing = array_values(array_diff(array_merge(['strom'], $need), $active));
@@ -259,6 +276,10 @@ final class MeteringConceptService
             $name = $this->slotName($s, $key);
             $multi = count($slot['registers']) > 1;
             $parent = $slot['parent'] !== null ? $s['slots'][$slot['parent']] : null;
+            $contractIn = $s['contracts'][$key] ?? null;
+            // Einbau: eingegeben, sonst der Beginn des Vertrags dieser Stelle (höchstens heute), sonst heute
+            $installedOn = $slot['installed_on'] !== '' ? $slot['installed_on']
+                : ($contractIn !== null && $contractIn['start'] < $today ? $contractIn['start'] : $today);
             foreach ($slot['registers'] as $r => $obis) {
                 $ref = "$key|$r";
                 // Elternzählwerk: das gleichnamige, sonst das einzige
@@ -281,30 +302,40 @@ final class MeteringConceptService
                                   'name' => (string)$m['name'], 'parent_ref' => $parentRef, 'data' => $data];
                 } else {
                     $mName = trim($name . ($multi ? ' ' . $regName[$r] : ''));
-                    $data += ['name' => $mName, 'installed_on' => $today];
+                    $data += ['name' => $mName, 'installed_on' => $installedOn];
+                    if ($slot['initial_counter'] !== null) $data['initial_counter'] = $slot['initial_counter'];
                     if ($slot['serial'] !== '') $data['device_serial'] = $slot['serial'];
+                    if ($contractIn !== null && $contractIn['start'] < $installedOn) {
+                        $notices[] = ['code' => 'before_install', 'slot' => $key, 'name' => $mName, 'installed' => $installedOn, 'start' => $contractIn['start']];
+                    }
                     $actions[] = ['op' => 'create_meter', 'utility' => $u, 'slot' => $key, 'register' => $r, 'ref' => $ref, 'name' => $mName,
                                   'parent_ref' => $parentRef, 'data' => $data];
                 }
             }
+            // v3.9.0 (Skeptiker N16) — eine Stelle mit vorhandenem Zähler heißt wie er (bzw. seine Gruppe)
+            $existing = array_values(array_filter(array_map(fn($id) => $this->meters->get($u, $id), $slot['meter_ids'])));
+            $allExisting = $existing !== [] && count($existing) === count($slot['registers']);
+            $display[$key] = $allExisting && !$multi ? (string)$existing[0]['name'] : $name;
             if ($multi) {
-                $existing = array_values(array_filter(array_map(fn($id) => $this->meters->get($u, $id), $slot['meter_ids'])));
                 $gids = array_values(array_unique(array_filter(array_map(fn($m) => (string)($m['meter_group_id'] ?? ''), $existing))));
-                if (count($existing) === count($slot['registers']) && count($gids) === 1 && $gids[0] !== '') {
+                if ($allExisting && count($gids) === 1 && $gids[0] !== '') {
                     $g = $this->meters->getGroup($u, $gids[0]);
                     $actions[] = ['op' => 'reuse_group', 'utility' => $u, 'slot' => $key, 'group_id' => $gids[0], 'name' => (string)($g['name'] ?? $gids[0])];
+                    $display[$key] = (string)($g['name'] ?? $name);
                 } else {
                     $actions[] = ['op' => 'create_group', 'utility' => $u, 'slot' => $key, 'name' => $name,
                                   'members' => array_map(fn($r) => "$key|$r", array_keys($slot['registers']))];
                 }
             }
+            // laufender Vertrag vorhandener Zähler (Schritt „Verträge“ zeigt ihn)
+            if (Utilities::hasContracts($u) && $existing !== []) $running[$key] = $this->runningContract($u, $slot, $multi, $actions, $key);
             // Vertrag
-            $c = $s['contracts'][$key] ?? null;
+            $c = $contractIn;
             if ($c === null || !Utilities::hasContracts($u)) continue;
-            $running = $this->runningContract($u, $slot, $multi, $actions, $key);
-            if ($running !== null) {
-                $actions[] = ['op' => 'skip_contract', 'utility' => $u, 'slot' => $key, 'name' => $name,
-                              'existing' => trim((string)($running['provider'] ?? '') . ' ' . (string)($running['tariff_name'] ?? ''))];
+            $run = $running[$key] ?? null;
+            if ($run !== null) {
+                $actions[] = ['op' => 'skip_contract', 'utility' => $u, 'slot' => $key, 'name' => $display[$key],
+                              'existing' => trim((string)($run['provider'] ?? '') . ' ' . (string)($run['tariff_name'] ?? ''))];
                 continue;
             }
             $data = ['provider' => $c['provider'], 'start' => $c['start'],
@@ -314,10 +345,30 @@ final class MeteringConceptService
                 if ($c['base'] !== null) $data['base_prices'] = [['from' => $c['start'], 'eur_per_month' => $c['base']]];
                 if ($c['advance'] !== null) $data['advance_payments'] = [['from' => $c['start'], 'amount_eur' => $c['advance']]];
             }
-            $actions[] = ['op' => 'create_contract', 'utility' => $u, 'slot' => $key, 'name' => $name, 'meter_ref' => "$key|" . array_key_first($slot['registers']),
+            $actions[] = ['op' => 'create_contract', 'utility' => $u, 'slot' => $key, 'name' => $display[$key], 'meter_ref' => "$key|" . array_key_first($slot['registers']),
                           'group' => $multi, 'data' => $data];
+            // v3.9.0 (Skeptiker M11) — ab wann der Vertrag der Elternstelle nur noch den Rest rechnet
+            // (auch rückwirkend); nur, wenn die Elternstelle einen Vertrag hat oder bekommt
+            $pk = $slot['parent'];
+            if ($pk !== null && $this->slotHasContract($s, $pk, $actions)) {
+                $notices[] = ['code' => 'rest_from', 'slot' => $key, 'parent' => $display[$pk] ?? $this->slotName($s, $pk), 'sub' => $display[$key],
+                              'date' => $c['start'], 'retro' => $c['start'] < $today];
+            }
         }
-        return [$actions, $problems];
+        return ['actions' => $actions, 'problems' => $problems, 'notices' => $notices, 'running' => $running, 'display' => $display];
+    }
+
+    /** Hat die Stelle einen Vertrag (neu, laufend oder irgendeinen echten am vorhandenen Zähler)? */
+    private function slotHasContract(array $s, string $key, array $actions): bool
+    {
+        foreach ($actions as $a) if (($a['slot'] ?? null) === $key && in_array($a['op'], ['create_contract', 'skip_contract'], true)) return true;
+        $slot = $s['slots'][$key];
+        $targets = array_values($slot['meter_ids']);
+        foreach ($actions as $a) if ($a['op'] === 'reuse_group' && $a['slot'] === $key) $targets[] = $a['group_id'];
+        foreach ($targets as $t) {
+            foreach ($this->contracts->list($slot['utility'], $t) as $c) if (empty($c['is_shadow'])) return true;
+        }
+        return false;
     }
 
     /** Name einer Stelle: eingegeben, sonst aus dem Katalog („Wärmepumpe“, „Haushalt“ …). */

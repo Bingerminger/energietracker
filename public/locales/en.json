@@ -415,7 +415,8 @@
         "other": "{days} days"
       },
       "noContract": "no contract",
-      "noContractHint": "With a contract the app calculates the costs."
+      "noContractHint": "With a contract the app calculates the costs.",
+      "billed": "billed {value} (remainder)"
     },
     "cards": {
       "contracts": "📑 Contracts & advances",
@@ -563,7 +564,8 @@
       "estimatedTitle": {
         "one": "{days} day estimated (after the last known stock)",
         "other": "{days} days estimated (after the last known stock)"
-      }
+      },
+      "colBilled": "Billed {unit}"
     },
     "readingsTable": {
       "emptyTitle": "No readings",
@@ -1144,7 +1146,7 @@
       "title": "Multiple meters per utility",
       "text": "— e.g. hot water & heating (gas) or peak/off-peak & wallbox (electricity). Each meter has its own device history (meter swaps are calculated without loss) and can carry its own contracts.",
       "topologyLabel": "Topology:",
-      "topologyText": "Sub-meters are subtracted from the parent meter; groups combine several meters in the dashboard."
+      "topologyText": "A sub-meter with its own contract is deducted from the parent meter’s contract, which then bills only the remainder; without its own contract it is a breakdown. Groups combine several meters in the dashboard."
     },
     "empty": "No meters yet.",
     "emptyCta": "+ Add a new meter",
@@ -2991,7 +2993,8 @@
         "one": "{count} monthly value of the two years is interpolated; the annual totals are still measured, because readings were taken at the turn of the year.",
         "other": "{count} monthly values of the two years are interpolated; the annual totals are still measured, because readings were taken at the turn of the year."
       },
-      "poorFit": "The heating model fits this meter poorly (± {pct} a month): the report makes no weather-adjusted comparison here and names no months above the expectation — both would mainly be the model’s error."
+      "poorFit": "The heating model fits this meter poorly (± {pct} a month): the report makes no weather-adjusted comparison here and names no months above the expectation — both would mainly be the model’s error.",
+      "subMeterOwnContract": "Of which {name}: {value} (sub-meter, included in the total of “{parent}”). {name} has its own contract; the contract of “{parent}” only bills the remainder."
     },
     "weatherSource": "Temperatures: Open-Meteo.com (CC BY 4.0), unless entered yourself.",
     "print": {
@@ -7093,7 +7096,10 @@
       "new": "Create new",
       "sameDevice": "The feed-in register of “{name}”: same meter number, own meter under feed-in.",
       "genHint": "Generation meter of the solar system, often in the inverter.",
-      "batteryHint": "Battery charging and discharging, often from the inverter."
+      "batteryHint": "Battery charging and discharging, often from the inverter.",
+      "installedOn": "Installed on",
+      "installedHint": "Empty: from the start of its contract, otherwise from today.",
+      "initialCounter": "Reading at installation"
     },
     "contracts": {
       "title": "Which contracts are there?",
@@ -7105,7 +7111,8 @@
       "feedCt": "Feed-in tariff ({minor}/kWh)",
       "base": "Standing charge ({cur}/month)",
       "advance": "Advance ({cur}/month)",
-      "restNote": "Bills only the remainder: “{parent}” minus “{sub}”."
+      "restNote": "Bills only the remainder: “{parent}” minus “{sub}”.",
+      "running": "Running contract: “{name}” since {start}. It stays as it is."
     },
     "summary": {
       "title": "What the assistant will create",
@@ -7122,7 +7129,11 @@
       "detailObis": "register {obis}",
       "detailParent": "behind “{name}”",
       "snapshot": "Before that the app saves the current state as a snapshot. You can restore it under Settings → Data.",
-      "apply": "Create"
+      "apply": "Create",
+      "restFrom": "From {date} the contract of “{parent}” only bills the remainder: measured there minus “{sub}”.",
+      "restFromPast": "Retroactively from {date} the contract of “{parent}” only bills the remainder: measured there minus “{sub}”. Costs, balance and suggested advance of this contract also change for the months since {date}.",
+      "beforeInstall": "“{name}” is only installed from {installed}, but its contract starts on {start}. Until the installation the app deducts nothing.",
+      "detailInstalled": "installed on {date}"
     },
     "done": "Metering concept set up. Next: add the first reading for each meter.",
     "entry": {

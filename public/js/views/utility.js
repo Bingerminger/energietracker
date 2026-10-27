@@ -386,6 +386,10 @@ async function rerender(container) {
   // (sonst stand ein voller Januarabschlag gegen vier Tage Kosten); gleich der Periode im Abrechnungsjahr
   const sumMeasured = (k, fallback) => monthlyYear.reduce((s, m) => s + (Number(m[k] !== undefined && m[k] !== null ? m[k] : m[fallback]) || 0), 0);
   const totUnit = sum(consKey);
+  // v3.9.0 (Skeptiker M9) — die Menge der Verträge (Rest nach Subzählern mit eigenem Vertrag),
+  // damit Menge, Preis und Kosten zueinander passen; nur, wo die Rest-Abrechnung greift
+  const billedYear = monthlyYear.some(m => m.billed_kwh != null)
+    ? monthlyYear.reduce((s, m) => s + (Number(m.billed_kwh != null ? m.billed_kwh : m[consKey]) || 0), 0) : null;
   const totCost = billing ? sum('cost') : sumMeasured('cost_measured', 'cost');
   const totDays = sum('days');
   const totCO2  = sum('co2_kg');
@@ -441,6 +445,7 @@ async function rerender(container) {
       <div class="kpi c-${u.key}">
         <div class="kpi__label">${u.icon} ${isFeedIn ? t('utility.kpi.feedIn') : isGeneration ? t('utility.kpi.generation') : t('utility.kpi.consumption')} ${escapeHtml(yrLabel)}</div>
         <div class="kpi__value">${fmt.unit(totUnit, u.consumption_unit, 0)}</div>
+        ${billedYear != null ? `<div class="kpi__sub" data-role="kpi-billed">${escapeHtml(t('utility.kpi.billed', { value: fmt.unit(billedYear, u.consumption_unit, 0) }))}</div>` : ''}
         ${usesGasFactors(u) ? `<div class="kpi__sub">${fmt.unit(totM3, 'm³', 0)}</div>` : ''}
       </div>
       ${isGeneration ? '' : `
@@ -1282,6 +1287,9 @@ function monthlyTable(monthly, u, hasContracts) {
   // Feld ist nach applyUtilityFields leer. Vorher las die m³-Spalte
   // fälschlich `m.kwh` → komplette Wasser-Monatstabelle zeigte 0.
   const consKey = u.consumption_unit === 'kWh' ? 'kwh' : 'm3';
+  // v3.9.0 (Skeptiker M9) — abgerechnete Menge neben der Messung, wo die Rest-Abrechnung greift
+  const billedCol = monthly.some(m => m.billed_kwh != null);
+  const billedOf = (m) => (m.billed_kwh != null ? m.billed_kwh : m[consKey]);
   const sign = v => v > 0 ? '+' : '';
   // v3.9.0 (L6, L7) — Kosten und Abschlag der gemessenen Tage (Rand der Ablesungen,
   // `cost_measured`/`advance_measured_eur`) und der Saldo aufsummiert über den
@@ -1316,6 +1324,7 @@ function monthlyTable(monthly, u, hasContracts) {
       <th scope="col" class="num">${t('utility.monthlyTable.colDays')}</th>
       ${isGas ? '<th scope="col" class="num">m³</th>' : ''}
       <th scope="col" class="num">${u.consumption_unit}</th>
+      ${billedCol ? `<th scope="col" class="num" data-role="col-billed">${escapeHtml(t('utility.monthlyTable.colBilled', { unit: u.consumption_unit }))}</th>` : ''}
       ${adj ? `<th scope="col" class="num">${t('utility.monthlyTable.colAdjusted')}${info('weatherAdjusted')}</th>` : ''}
       <th scope="col" class="num">${t('utility.monthlyTable.colPerDay', { unit: u.consumption_unit })}</th>
       ${pv ? '' : `<th scope="col" class="num" title="${t('utility.monthlyTable.colTempTitle')}">${t('utility.monthlyTable.colTemp')}</th>`}
@@ -1341,6 +1350,7 @@ function monthlyTable(monthly, u, hasContracts) {
           return ` <span class="muted" data-role="${m.bridged ? 'bridged' : 'interpolated'}" title="${escapeHtml(title)}"><span aria-hidden="true">${MARK}</span><span class="sr-only">${escapeHtml(title)}</span></span>`;
         })() : '';
       // überbrückt: Kosten und Saldo rechnen mit der Menge nach dem Stand, sie steht daneben
+      // (gibt es die Spalte „Abgerechnet“ der Rest-Abrechnung, steht sie dort statt daneben)
       const billedQty = m.bridged ? (consKey === 'kwh' ? m.billed_kwh : m.billed_m3) : null;
       const billed = billedQty != null
         ? ` <span class="muted small" data-role="billed-qty">${escapeHtml(t('readingCheck.billedShort', { amount: fmt.int(billedQty) }))}</span>` : '';
@@ -1350,7 +1360,8 @@ function monthlyTable(monthly, u, hasContracts) {
         <td><strong>${fmt.month(m.ym)}</strong>${est}</td>
         <td class="num">${part ? `${m.days} / ${daysInMonth(m.ym)}` : (m.days || 0)}</td>
         ${isGas ? `<td class="num">${fmt.int(m.m3)}</td>` : ''}
-        <td class="num"><strong>${fmt.int(m[consKey])}</strong>${billed}</td>
+        <td class="num"><strong>${fmt.int(m[consKey])}</strong>${billedCol ? '' : billed}</td>
+        ${billedCol ? `<td class="num" data-role="billed">${fmt.int(billedOf(m))}</td>` : ''}
         ${adj ? `<td class="num">${m.heat_adjusted != null ? fmt.int(m.heat_adjusted) : '–'}</td>` : ''}
         <td class="num">${fmt.num(m.kwh_per_day, 1)}</td>
         ${pv ? '' : `<td class="num">${m.avg_temp != null ? fmt.num(m.avg_temp, 1) : '–'}</td>`}
@@ -1370,6 +1381,7 @@ function monthlyTable(monthly, u, hasContracts) {
       <td class="num">${tot.days}</td>
       ${isGas ? `<td class="num">${fmt.int(tot.m3)}</td>` : ''}
       <td class="num">${fmt.int(tot[consKey])}</td>
+      ${billedCol ? `<td class="num" data-role="billed-total">${fmt.int(monthly.reduce((a, m) => a + (Number(billedOf(m)) || 0), 0))}</td>` : ''}
       ${adj ? `<td class="num">${monthly.every(m => m.heat_adjusted != null) ? fmt.int(monthly.reduce((a, m) => a + m.heat_adjusted, 0)) : '–'}</td>` : ''}
       <td></td>${pv ? '' : '<td></td><td></td>'}${showCost ? '<td></td>' : ''}
       ${showCost ? `<td class="num">${fmt.num(tot.cost, 2)}</td>` : ''}

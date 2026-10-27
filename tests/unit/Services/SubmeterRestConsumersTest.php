@@ -161,6 +161,26 @@ final class SubmeterRestConsumersTest extends ServiceTestCase
         self::assertEqualsWithDelta(1680.0, $u['cost'], 0.1);
     }
 
+    /**
+     * Skeptiker-Lauf v3.9.0 (M8): Der Jahresbericht sagt beim Subzähler mit eigenem Vertrag nicht
+     * mehr „die Kosten laufen über dessen Vertrag“, sondern dass der Elternvertrag nur den Rest rechnet.
+     */
+    public function testReportSaysTheSubmeterHasItsOwnContract(): void
+    {
+        $text = function (): string {
+            $model = $this->reportServices()['model']->build(2025);
+            $page = array_values(array_filter($model['pages'], fn($p) => ($p['utility'] ?? null) === 'strom'))[0];
+            return (string)($page['sub_meters'][0]['text'] ?? '');
+        };
+        $own = $text();
+        self::assertStringContainsString('Wärmepumpe hat einen eigenen Vertrag', $own);
+        self::assertStringContainsString('„Hausanschluss“ rechnet nur den Rest', $own);
+        self::assertStringNotContainsString('laufen über dessen Vertrag', $own);
+        // ohne eigenen Vertrag bleibt der Satz von bisher
+        foreach ($this->contracts->list('strom', $this->sub) as $c) $this->contracts->delete('strom', (string)$c['id']);
+        self::assertStringContainsString('die Kosten laufen über dessen Vertrag', $text());
+    }
+
     /** PV-Ersparnis: Bezugspreis je Monat gewichtet mit der Menge jedes Vertrags (300 × 20 + 200 × 40) / 500 = 28 ct. */
     public function testPvSavingsPriceWeighsEveryContract(): void
     {

@@ -61,3 +61,25 @@ export function subContractHint(meter, meters) {
   const parent = (meters || []).find(m => m.id === pid);
   return t('restBilling.contractHint', { name: meter.name || meter.id, parent: parent?.name || pid });
 }
+
+/**
+ * v3.9.0 (Skeptiker N7) — Subzähler, deren eigener Vertrag vom Vertrag dieses
+ * Ziels abgezogen wird (wie ConsumptionService::deductingSubmeters, ohne
+ * Rechnung): Ziel ist ein Zähler (`meter_id`) oder eine Gruppe
+ * (`meter_group_id`; dann die Subzähler ihrer Mitglieder außerhalb der Gruppe).
+ * Abziehend ist ein Subzähler mit einem echten Vertrag (kein Angebot) an ihm
+ * oder an seiner Gruppe. Wasser rechnet keinen Rest (Abzug über Schmutzwasser).
+ * @returns {string[]} Namen
+ */
+export function deductingSubNames(target, meters, contracts, utilityKey = '') {
+  if (utilityKey === 'wasser') return [];
+  const list = meters || [];
+  const parents = target?.meter_group_id
+    ? list.filter(m => m.meter_group_id === target.meter_group_id).map(m => m.id)
+    : (target?.meter_id ? [target.meter_id] : []);
+  const real = (contracts || []).filter(c => !c.is_shadow);
+  return list.filter(m => parents.includes(m.parent_meter_id)
+      && !(target?.meter_group_id && m.meter_group_id === target.meter_group_id)
+      && real.some(c => c.meter_id === m.id || (m.meter_group_id && c.meter_group_id === m.meter_group_id)))
+    .map(m => m.name || m.id);
+}

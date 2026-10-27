@@ -20,6 +20,7 @@ import { openModal } from '../components/modal.js';
 import { entryTitle, reasonText, whenWho } from '../lib/activity.js';
 import { uncertainRangeText } from '../lib/semantics.js';   // v3.7.0 (Nachlauf)
 import { advanceAmountText } from '../lib/advance-rhythm.js';   // v3.9.0 (F1034) — Abschlag mit Rhythmus
+import { restNoteText } from '../lib/rest-billing.js';   // v3.9.0 (Skeptiker N7) — Rest-Abrechnung am Elternvertrag
 // v3.7.0 — Zuständig: Vertrag, sonst Zähler; Filter wie in „Zu tun“ (je Gerät gemerkt)
 import { assigneeOf, assigneeNames, chipHtml, filterHtml, bindFilter, filterNoteHtml, matchesAssignee, storedFilter } from '../lib/assignee.js';
 
@@ -230,6 +231,7 @@ function meterBlock(u, meter, contracts, showMeter, who = {}) {
       <div class="muted">${escapeHtml(term)}</div>
       ${facts.length ? `<div class="contract-overview__facts">${facts.join('<span aria-hidden="true"> · </span>')}</div>` : ''}
       ${expected}
+      ${c.rest_of ? `<p class="muted small" data-role="overview-rest-note">${escapeHtml(restNoteText(c.rest_of, u.consumption_unit))}</p>` : ''}
       ${historyBtn}
     </div>`;
 }
