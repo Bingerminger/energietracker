@@ -1066,9 +1066,10 @@ Pro Prognosemonat:
   `last_price_ct`).
 - `method` — `blend(reg=…, seasonal=…)`, `seasonal_only`, seit v2.8.0 auch
   `regression_only`, `heat_model` und `filled`. Ein Kalendermonat ohne eigene
-  Historie kommt seit v3.9.0 aus dem Heizmodell (`heat_model`), sonst aus den
-  verteilten Werten (`seasonal_interpolated`) und nur ohne Heizmodell aus der
-  Regression (`regression_only`).
+  Historie kommt seit v3.9.0 aus dem Heizmodell (`heat_model`, bei nicht
+  verlässlichem Modell mit gemessener Sommer-Grundlast `heat_model_summer`),
+  sonst aus den verteilten Werten (`seasonal_interpolated`) und nur ohne
+  Heizmodell aus der Regression (`regression_only`).
 - `band_low`/`band_high` *(v2.8.0)* — Unsicherheitsband, Breite
   `confidence_band_sigma` (Default 1,28 σ ≈ 80 % der Jahre).
 - `hdd_estimated` — seit v2.8.0 die normalen Heizgradtage aus dem

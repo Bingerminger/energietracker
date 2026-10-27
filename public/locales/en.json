@@ -2892,7 +2892,8 @@
       "heat_model": "heating model (no own value for the month)",
       "filled": "daily average (no own value)",
       "blend": "blend: {reg} heating curve, {seasonal} seasonal profile",
-      "seasonal_interpolated": "Interpolated values (no measured month)"
+      "seasonal_interpolated": "Interpolated values (no measured month)",
+      "heat_model_summer": "heating model with the measured summer base load (no own value for the month)"
     },
     "chartAltSpan": "Line chart: consumption {from} – {to} and forecast until {until}",
     "co2Scenario": {

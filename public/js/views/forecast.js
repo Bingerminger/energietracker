@@ -1034,7 +1034,8 @@ function renderResult(u, result, container) {
 // v2.8.0 — Methoden lesbar. Das API-Feld bleibt unverändert
 // (`blend(reg=0.56, seasonal=0.44)`), übersetzt wird nur die Anzeige.
 function methodLabel(method) {
-  const known = ['seasonal_only', 'regression_only', 'heat_model', 'filled', 'seasonal_interpolated'];   // v3.7.0 (#37)
+  // v3.7.0 (#37); v3.9.0 — heat_model_summer (Heizmodell mit gemessener Sommer-Grundlast)
+  const known = ['seasonal_only', 'regression_only', 'heat_model', 'heat_model_summer', 'filled', 'seasonal_interpolated'];
   if (known.includes(method)) return escapeHtml(t('forecast.method.' + method));
   const blend = /^blend\(reg=([\d.]+), seasonal=([\d.]+)\)$/.exec(method || '');
   if (blend) return escapeHtml(t('forecast.method.blend', { reg: fmt.pct(Number(blend[1]), 0), seasonal: fmt.pct(Number(blend[2]), 0) }));

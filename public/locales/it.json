@@ -2892,7 +2892,8 @@
       "heat_model": "modello di riscaldamento (nessun valore proprio per il mese)",
       "filled": "media giornaliera (nessun valore proprio)",
       "blend": "combinazione: {reg} curva di riscaldamento, {seasonal} profilo stagionale",
-      "seasonal_interpolated": "Valori ripartiti (nessun mese misurato)"
+      "seasonal_interpolated": "Valori ripartiti (nessun mese misurato)",
+      "heat_model_summer": "modello di riscaldamento con il carico di base estivo misurato (nessun valore proprio per il mese)"
     },
     "chartAltSpan": "Grafico a linee: consumo {from} – {to} e previsione fino a {until}",
     "co2Scenario": {

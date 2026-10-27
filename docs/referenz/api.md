@@ -1347,7 +1347,7 @@ Je Prognosemonat zusätzlich:
 | `band_low`, `band_high` | Unsicherheitsband (Breite `confidence_band_sigma`, Default 1,28 σ ≈ 80 %) |
 | `hdd_estimated` | normale Heizgradtage des Monats (Klimanormal, sonst eigene Historie) |
 | `contract_assumed` | `true`, wenn nach Vertragsende der letzte Vertrag als Annahme weiterläuft |
-| `method` | `blend(reg=…, seasonal=…)`, `seasonal_only`, `heat_model` (Kalendermonat ohne eigene Historie, seit v3.9.0 vor der Regression), `seasonal_interpolated` (nur verteilte Werte, oder das Heizmodell kennt so warme Monate nicht, besteht die Gütesperre nicht oder hat eine Grundlast unter der Hälfte des gemessenen Sommers), `regression_only` (ohne Heizmodell), `filled` |
+| `method` | `blend(reg=…, seasonal=…)`, `seasonal_only`, `heat_model` (Kalendermonat ohne eigene Historie, seit v3.9.0 vor der Regression), `heat_model_summer` (ebenso, Heizmodell nicht verlässlich: Grundlast aus den gemessenen Sommermonaten), `seasonal_interpolated` (nur verteilte Werte, oder das Heizmodell kennt so warme Monate nicht, besteht die Gütesperre nicht oder hat eine Grundlast unter der Hälfte des gemessenen Sommers; bei Heizarten nur aus Abständen bis 62 Tagen, solange es ein Heizmodell gibt), `regression_only` (ohne Heizmodell), `filled` |
 
 Auf oberster Ebene:
 

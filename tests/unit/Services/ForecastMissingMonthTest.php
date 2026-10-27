@@ -172,10 +172,11 @@ final class ForecastMissingMonthTest extends ServiceTestCase
 
     public function testWithoutWarmMonthsInTheModelTheInterpolatedMonthStands(): void
     {
-        // Gemessen nur Oktober bis Mai, der Sommer in einem Abstand vom 01.06. bis 01.10. (verteilt,
-        // 6 kWh am Tag). Unter 12 °C 4 kWh am Tag mehr, als die Gradtage zu 10 °C erfassen: Das
-        // Heizmodell kennt nur diese Monate und setzt die Grundlast auf 6 + 4 = 10 kWh am Tag
-        $dates = self::dates('2023-10-01', '2026-06-01', ['2024-07-01', '2024-08-01', '2024-09-01', '2025-07-01', '2025-08-01', '2025-09-01'], []);
+        // Gemessen nur Oktober bis Mai, der Sommer in zwei Abständen 01.06.–01.08. und 01.08.–01.10.
+        // (je 61 Tage, verteilt, 6 kWh am Tag). Unter 12 °C 4 kWh am Tag mehr, als die Gradtage zu
+        // 10 °C erfassen: Das Heizmodell kennt nur diese Monate und setzt die Grundlast auf 10 kWh.
+        // (Seit Nachmessung 2 zählen verteilte Werte nur aus Abständen bis 62 Tagen.)
+        $dates = self::dates('2023-10-01', '2026-06-01', ['2024-07-01', '2024-09-01', '2025-07-01', '2025-09-01'], []);
         $fc = $this->forecast($this->household($dates, '2026-06-01', 'linear', 4.0));
         $short = array_values(array_filter($fc['warnings'], fn($w) => $w['code'] === 'history_short'))[0];
         self::assertSame([6, 7, 8, 9], $short['missing']);
@@ -224,8 +225,9 @@ final class ForecastMissingMonthTest extends ServiceTestCase
         // Milder konvex, je Tag 6 + 2 × h + 0,1 × h² (Juni h = 2: 10,4 kWh/Tag), und ohne die Ablesung
         // vom 12.08.2025: gemessen ist im Sommer nur der Juni 2024. Die Gütesperre besteht, denn sie
         // prüft die Grundlast erst ab zwei Sommermonaten; diese Prüfung schon mit einem
-        // (c unter 0,5 × 10,4 = 5,2). Juli 2025 aus 25.06.–01.09.: (6 × 10,4 + 62 × 6) / 68 = 6,3882,
-        // Juli 2024 6,0 → Juli 2026 = (6,0 + 6,3882) / 2 × 31 = 192,0
+        // (c unter 0,5 × 10,4 = 5,2). Verteilt zählt nur der Juli 2024 aus 01.07.–01.09. (62 Tage,
+        // 6,0 kWh/Tag); der Juli 2025 stammt aus 25.06.–01.09. (68 Tage, INTERP_GAP_MAX_DAYS)
+        // → Juli 2026 = 6,0 × 31 = 186,0
         $temp = self::TEMP; $temp[9] = 15.5;
         $dates = self::dates('2023-10-01', '2026-04-01', ['2024-05-01', '2024-08-01', '2025-06-01', '2025-07-01', '2025-08-01'],
             ['2025-06-25', '2026-04-30']);
@@ -235,7 +237,86 @@ final class ForecastMissingMonthTest extends ServiceTestCase
         self::assertLessThan(0.5 * 10.4, $fc['heat_model']['c']);
         $jul = self::month($fc, '2026-07');
         self::assertSame('seasonal_interpolated', $jul['method']);
-        self::assertEqualsWithDelta((6.0 + (6 * 10.4 + 62 * 6) / 68) / 2 * 31, $jul['kwh'], 0.5);
+        self::assertEqualsWithDelta(6.0 * 31, $jul['kwh'], 0.5);
+    }
+
+    // ── verteilte Werte nur aus kurzen Abständen, sonst Sommerrate als Grundlast (Nachmessung 2) ──
+
+    /**
+     * Konvex wie oben (6 + 0,4 × h² zur Grenze 15 °C), Juli 17 °C und September 15,5 °C ohne
+     * Gradtage. Mai und Juli liegen nur in langen Abständen über Winter und Frühjahr:
+     *   2024: 01.02. → 01.08. (182 Tage: Februar bis Juli verteilt), danach monatlich
+     *   2025: 01.03. → 01.06. (92 Tage: März bis Mai), 01.06. → 01.07. (Juni gemessen),
+     *         01.07. → 01.10. (92 Tage: Juli bis September)
+     * Gemessene Sommermonate: August 2024 (6,0 kWh/Tag) und Juni 2025 (Juni h = 2: 7,6 kWh/Tag),
+     * Mittel 6,8. Das Heizmodell besteht die Gütesperre nicht (Grundlast), c liegt weit darunter.
+     *   Juli 2026 = a × 0 + 6,8 × 31 = 210,8 kWh   (Juli-Normal 17 ± 1,5 °C: keine Gradtage)
+     *   Mai 2026  = a × 186 + 6,8 × 31              (Mai-Normal 9 ± 1,5 °C: 31 × 6 = 186 HGT)
+     * Bis Nachmessung 2 kamen beide aus den verteilten Werten, der Juli mit dem Winter darin.
+     */
+    public function testLongWinterGapsGiveTheHeatModelWithTheMeasuredSummerAsBaseLoad(): void
+    {
+        $temp = self::TEMP; $temp[7] = 17.0; $temp[9] = 15.5;
+        $dates = self::dates('2023-10-01', '2026-04-01',
+            ['2024-03-01', '2024-04-01', '2024-05-01', '2024-06-01', '2024-07-01', '2025-04-01', '2025-05-01', '2025-08-01', '2025-09-01'],
+            ['2026-04-30']);
+        $fc = $this->forecast($this->household($dates, '2026-04-30', 'linear', 0.0, fn(float $t) => 6.0 + 0.4 * max(0.0, 15.0 - $t) ** 2, 15.0, $temp));
+        $short = array_values(array_filter($fc['warnings'], fn($w) => $w['code'] === 'history_short'))[0];
+        self::assertSame([5, 7], $short['missing']);
+        self::assertSame('poor', $fc['fit_quality']['model_quality']);
+        self::assertLessThan(0.5 * 6.8, $fc['heat_model']['c']);
+        $hist = array_column($fc['historical'], null, 'ym');
+        self::assertSame([182, 92, 182, 92], [$hist['2024-05']['reading_gap_days'], $hist['2025-05']['reading_gap_days'],
+            $hist['2024-07']['reading_gap_days'], $hist['2025-07']['reading_gap_days']], 'nur lange Abstände');
+        $jul = self::month($fc, '2026-07');
+        $may = self::month($fc, '2026-05');
+        self::assertSame(['heat_model_summer', 'heat_model_summer'], [$may['method'], $jul['method']]);
+        self::assertSame(0.0, $jul['hdd_estimated']);
+        self::assertEqualsWithDelta(6.8 * 31, $jul['kwh'], 0.5);   // 210,8
+        self::assertEqualsWithDelta(186.0, $may['hdd_estimated'], 0.05);
+        self::assertEqualsWithDelta($fc['heat_model']['a'] * 186.0 + 6.8 * 31, $may['kwh'], 0.5);
+        // L4: Gütesperre nicht bestanden, alle anderen Monate rechnen mit dem Saisonwert; aus der
+        // Heizkurve kommen genau Mai und Juli
+        $annual = array_sum(array_column(array_slice($fc['forecast'], 0, 12), 'kwh'));
+        self::assertEqualsWithDelta(($may['kwh'] + $jul['kwh']) / $annual, $fc['blend_effective'], 0.0002);
+    }
+
+    public function testAReliableModelKeepsItsOwnBaseLoadEvenWithLongGaps(): void
+    {
+        // dieselben langen Abstände, aber die Gerade 26 × HGT + 6 zur Grenze 10 °C, im Sommer (ab 13 °C)
+        // 1 kWh am Tag mehr: gemessener Sommer 7 kWh/Tag, das Modell besteht die Gütesperre und c liegt
+        // knapp darunter. Dann gilt das Heizmodell mit seinem eigenen c, nicht die Sommerrate
+        $dates = self::dates('2023-10-01', '2026-04-01',
+            ['2024-03-01', '2024-04-01', '2024-05-01', '2024-06-01', '2024-07-01', '2025-04-01', '2025-05-01', '2025-08-01', '2025-09-01'],
+            ['2026-04-30']);
+        $fc = $this->forecast($this->household($dates, '2026-04-30', 'linear', 0.0,
+            fn(float $t) => self::A * max(0.0, 10.0 - $t) + self::C + ($t >= 13.0 ? 1.0 : 0.0)));
+        self::assertSame('good', $fc['fit_quality']['model_quality']);
+        $c = $fc['heat_model']['c'];
+        self::assertGreaterThan(0.5 * 7.0, $c);
+        self::assertLessThan(7.0, $c);
+        $jul = self::month($fc, '2026-07');
+        self::assertSame('heat_model', $jul['method']);
+        self::assertEqualsWithDelta($c * 31, $jul['kwh'], 0.5);
+    }
+
+    public function testShortGapsKeepTheInterpolatedValuesAndOneShortYearIsEnough(): void
+    {
+        // der Haushalt mit poor-Fit oben (Mai und Juli aus Abständen von 48 bis 62 Tagen): bleibt verteilt
+        $temp = self::TEMP; $temp[9] = 15.5;
+        $fc = $this->forecast($this->withoutMayAndJuly('linear', fn(float $t) => 6.0 + 0.4 * max(0.0, 15.0 - $t) ** 2, 15.0, $temp));
+        $hist = array_column($fc['historical'], null, 'ym');
+        self::assertSame([61, 55, 62, 48], [$hist['2024-05']['reading_gap_days'], $hist['2025-05']['reading_gap_days'],
+            $hist['2024-07']['reading_gap_days'], $hist['2025-07']['reading_gap_days']]);
+        self::assertSame('seasonal_interpolated', self::month($fc, '2026-07')['method']);
+        self::assertEqualsWithDelta((6.0 + 6.2) / 2 * 31, self::month($fc, '2026-07')['kwh'], 0.5);
+        // ein langer Abstand im zweiten Jahr: Der Juli kommt aus dem kurzen allein
+        $dates = self::dates('2023-10-01', '2026-04-01', ['2024-05-01', '2024-08-01', '2025-06-01', '2025-07-01', '2025-08-01', '2025-09-01'],
+            ['2025-06-25', '2026-04-30']);
+        $fc = $this->forecast($this->household($dates, '2026-04-30', 'linear', 0.0, fn(float $t) => 6.0 + 0.4 * max(0.0, 15.0 - $t) ** 2, 15.0, $temp));
+        self::assertSame(98, array_column($fc['historical'], null, 'ym')['2025-07']['reading_gap_days']);
+        self::assertSame('seasonal_interpolated', self::month($fc, '2026-07')['method']);
+        self::assertEqualsWithDelta(6.0 * 31, self::month($fc, '2026-07')['kwh'], 0.5);
     }
 
     public function testTheHeatModelCarriesAMissingMonthOnlyIfItPassesAndItsBaseLoadFitsTheSummer(): void

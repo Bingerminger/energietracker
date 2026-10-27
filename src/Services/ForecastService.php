@@ -96,6 +96,19 @@ final class ForecastService
      */
     public const HEAT_BASE_MIN_SHARE = AnomalyService::BASE_LOAD_MIN;
 
+    /**
+     * v3.9.0 (#38, Nachmessung 2) — verteilte Werte eines Heiz-Verbrauchs zählen als Ersatz für
+     * einen Monat ohne Vorgeschichte nur aus Abständen bis zu so vielen Tagen
+     * (`reading_gap_days`, der längste Abstand, aus dem der Monat stammt). Innerhalb eines Abstands
+     * wird nach Tagen verteilt, nicht nach Wetter; ein Abstand von zwei Monaten mischt den Monat
+     * höchstens mit einem Nachbarmonat, ein längerer trägt Winterverbrauch in den Juli. Beim Melder
+     * stammten Mai und Juli aus Abständen über den Winter und lagen beim Vier- bis
+     * Viereinhalbfachen des Ist. 62 Tage sind zwei volle Monate (Juli und August); die kurzen
+     * Sommerabstände der erfundenen Haushalte liegen bei 48 bis 62 Tagen. Arten ohne Wetterbezug
+     * (Strom, Wasser) bleiben wie bisher: Ein Gartenzähler wird im Winter nicht abgelesen.
+     */
+    public const INTERP_GAP_MAX_DAYS = 62;
+
     public function __construct(
         private ConsumptionService $consumption,
         private RegressionService $regression,
@@ -134,6 +147,7 @@ final class ForecastService
         // nicht, 28 und 31 Tage werden vergleichbar).
         $rates = array_fill(1, 12, []);
         $interpRates = array_fill(1, 12, []);   // v3.7.0 (#37)
+        $interpAll = array_fill(1, 12, []);     // v3.9.0 — auch aus langen Abständen
         $seasonalHdd = array_fill(1, 12, []);
         $allRates = [];
         foreach ($monthly as $m) {
@@ -155,13 +169,20 @@ final class ForecastService
             // ist dann immer noch besser als das Mittel des ganzen Jahres (ein
             // Gartenzähler, der im Winter nicht abgelesen wird). Das Tagesmittel
             // aller Monate stimmt auch für verteilte.
-            if (!empty($m['interpolated'])) { $interpRates[(int)$m['month']][] = $rate; continue; }
+            // v3.9.0 (#38, Nachmessung 2) — bei Heizarten zählen als Ersatz zuerst nur verteilte Werte
+            // aus kurzen Abständen (INTERP_GAP_MAX_DAYS); die aus langen erst, wenn es kein Heizmodell gibt
+            if (!empty($m['interpolated'])) {
+                $interpAll[(int)$m['month']][] = $rate;
+                if (!$hgt || self::shortGap($m)) $interpRates[(int)$m['month']][] = $rate;
+                continue;
+            }
             $rates[(int)$m['month']][] = $rate;
         }
         // v3.7.0 (wirklichkeit-2, Schritt 3, N1) — ohne Wetterbezug ab drei Werten der
         // Median (ConsumptionService::seasonalRate); bei Heizarten bleibt es das Mittel
         $avgRate = array_map(fn($arr) => ConsumptionService::seasonalRate($arr, !$hgt), $rates);
         $avgInterp = array_map(fn($arr) => count($arr) ? array_sum($arr) / count($arr) : null, $interpRates);
+        $avgInterpAll = array_map(fn($arr) => count($arr) ? array_sum($arr) / count($arr) : null, $interpAll);
         $overallRate = $allRates ? array_sum($allRates) / count($allRates) : 0.0;
         $avgHdd = array_map(fn($arr) => count($arr) ? array_sum($arr) / count($arr) : null, $seasonalHdd);
 
@@ -189,7 +210,13 @@ final class ForecastService
         // Ein Band behauptete dann eine Sicherheit, die niemand geprüft hat
         $fewMeasured = $hgt && !Utilities::isDelivery($utility) && (($heat['basis'] ?? null) !== 'months' || $quality === null);
         // v3.9.0 (#38, Nachmessung) — trägt das Heizmodell einen Monat ohne Vorgeschichte? (s. heatTrusted)
-        $heatTrusted = $heat !== null && self::heatTrusted($poorFit, (float)$heat['c'], self::summerRate($rates));
+        $summerRate = self::summerRate($rates);
+        $heatTrusted = $heat !== null && self::heatTrusted($poorFit, (float)$heat['c'], $summerRate);
+        // v3.9.0 (#38, Nachmessung 2) — ist das Heizmodell nicht verlässlich und gibt es keine verteilten
+        // Werte aus kurzen Abständen, kommt ein Monat ohne Vorgeschichte aus dem Heizmodell mit angehobener
+        // Grundlast: a × HGT + max(c, gemessene Sommerrate Juni bis August) × Tage (`heat_model_summer`).
+        // Ohne gemessenen Sommer das Heizmodell wie gehabt; ein Jahresmittel ist nie der Ersatz
+        $baseEff = $heat !== null && !$heatTrusted && $summerRate !== null ? max((float)$heat['c'], $summerRate) : null;
 
         // Fallback working price — the last month that carries one. Used only
         // when the active contract has no working price pflegt for a forecast
@@ -342,9 +369,15 @@ final class ForecastService
                 $method = 'seasonal_only';
             } elseif ($heatVal !== null && ($avgInterp[$mn] === null || ($heatTrusted && $this->heatKnows($heat, $hdd / $daysInMonth)))) {
                 // v3.9.0 (#38, Rückblick) — Kalendermonat ohne eigene Historie: das Heizmodell,
-                // a × HGT des Normals zur Heizgrenze des Zählers + c × Tage (s. HEAT_SUPPORT_MIN)
+                // a × HGT des Normals zur Heizgrenze des Zählers + c × Tage (s. HEAT_SUPPORT_MIN);
+                // ohne verlässliches Modell mit der gemessenen Sommerrate als Grundlast (s. $baseEff)
+                if ($baseEff !== null && $baseEff > (float)$heat['c']) {
+                    $heatVal = $heat['a'] * $hdd + $baseEff * $daysInMonth;
+                    $method = 'heat_model_summer';
+                } else {
+                    $method = 'heat_model';
+                }
                 $blended = $heatVal;
-                $method = 'heat_model';
             } elseif ($regressionVal !== null && $heatVal === null) {
                 // ohne Heizmodell: die Regression allein (bis v3.8 vor dem Heizmodell, s. HEAT_SUPPORT_MIN)
                 $blended = $regressionVal;
@@ -352,6 +385,10 @@ final class ForecastService
             } elseif ($avgInterp[$mn] !== null) {
                 // v3.7.0 (#37) — nur verteilte Werte für diesen Kalendermonat
                 $blended = $avgInterp[$mn] * $daysInMonth;
+                $method = 'seasonal_interpolated';
+            } elseif ($heatVal === null && $avgInterpAll[$mn] !== null) {
+                // v3.9.0 — ohne Heizmodell auch aus langen Abständen: immer noch der Kalendermonat
+                $blended = $avgInterpAll[$mn] * $daysInMonth;
                 $method = 'seasonal_interpolated';
             } else {
                 // Ohne Wetterbezug oder ohne Modell: Tagesmittel aller Monate
@@ -378,7 +415,7 @@ final class ForecastService
                 // v3.9.0 (L4) — wie viel der Jahresmenge wirklich aus der Heizkurve kommt
                 // v3.9.0 (#38, Rückblick) — auch ein Monat aus dem Heizmodell kommt ganz aus der Heizkurve
                 $regPart += str_starts_with($method, 'blend(') ? $blendW * (float)$regressionVal
-                    : (in_array($method, ['regression_only', 'heat_model'], true) ? $blended : 0.0);
+                    : (in_array($method, ['regression_only', 'heat_model', 'heat_model_summer'], true) ? $blended : 0.0);
                 $bandMonths++;
                 if ($wSd === null && $nSd === null) $bandOk = false;
                 $weatherVar += ($wSd ?? 0.0) ** 2;
@@ -837,6 +874,13 @@ final class ForecastService
         $summer = [];
         foreach (AnomalyService::SUMMER_REF_MONTHS as $mo) foreach ($rates[$mo] ?? [] as $r) $summer[] = (float)$r;
         return $summer ? array_sum($summer) / count($summer) : null;
+    }
+
+    /** v3.9.0 (#38, Nachmessung 2) — Stammt der verteilte Monat aus kurzen Abständen? (INTERP_GAP_MAX_DAYS) */
+    private static function shortGap(array $m): bool
+    {
+        $gap = $m['reading_gap_days'] ?? null;
+        return is_numeric($gap) && (int)$gap <= self::INTERP_GAP_MAX_DAYS;
     }
 
     /** v3.9.0 (#38) — Hat das Heizmodell so warme Monate selbst gesehen? (s. HEAT_SUPPORT_MIN) */

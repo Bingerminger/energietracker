@@ -460,7 +460,12 @@ the same calendar month (`seasonal_interpolated`) if there are any. The same
 applies if the heating model fails the quality gate or its base load c lies
 below half the mean daily rate of measured summer months (June to August); the
 quality gate checks the base load only from two summer months on, this check
-already with one. Without a
+already with one. Interpolated values only count from gaps of up to 62 days:
+within a gap the consumption is spread by days, not by weather, and a gap over
+the winter carries heating consumption into July. If there are none, the month
+comes from the heating model; if that is not reliable, with the measured summer
+rate (June to August) as the base load if it is above c (`heat_model_summer`).
+Without a
 heating model it comes from the regression alone (`regression_only`), otherwise
 from the daily mean of all months (`filled`).
 
