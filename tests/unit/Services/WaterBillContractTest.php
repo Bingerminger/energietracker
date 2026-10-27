@@ -280,6 +280,11 @@ final class WaterBillContractTest extends ServiceTestCase
             ['from' => '2026-05-15', 'amount_eur' => 165.0, 'every_months' => 2,
             'due_dates' => ['2026-05-15', '2026-07-15', '2026-09-15', '2026-11-15', '2027-01-15']]], $d['advance_payments'],
             'der neue Abschlagsplan: je Termin, alle zwei Monate — nicht still in einen Monatsbetrag umgedeutet');
+        // Skeptiker R2-8 — die 0-€-Zeile steht als Hinweis unter dem Vorschlag: 01.04.2026 bis zum Vortag des ersten neuen Termins
+        $kinds = fn(array $lines) => array_values(array_map(fn($l) => array_intersect_key($l, array_flip(['kind', 'from', 'to'])),
+            array_filter($lines, fn($l) => $l['section'] === null && in_array($l['kind'], ['paid', 'gap', 'advance'], true))));
+        self::assertSame([['kind' => 'paid', 'from' => '2025-04-01', 'to' => '2026-03-31'], ['kind' => 'gap', 'from' => '2026-04-01', 'to' => '2026-05-14'],
+            ['kind' => 'advance', 'from' => '2026-05-15']], $kinds($c['params']['lines']));
         self::assertSame([], $c['open']);
         // Aufschlüsselung für den Vorschlag: der Grundpreis aus Basis- und Bereitstellungspreis
         $base = array_values(array_filter($c['params']['lines'], fn($l) => $l['section'] === 'trinkwasser' && $l['kind'] === 'base' && $l['from'] === '2025-04-01'))[0];
@@ -290,6 +295,24 @@ final class WaterBillContractTest extends ServiceTestCase
         $book = self::byKind($p['proposals'], 'bill_book')[0];
         self::assertSame([true, []], [$book['checked'], $book['open']]);
         self::assertTrue(self::byKind($p['proposals'], 'bill')[0]['data']['contract_new'] ?? false);
+    }
+
+    /**
+     * Skeptiker R2-8 — nennt die Rechnung keinen neuen Abschlag, steht ab dem Tag nach dem Zeitraum offen kein
+     * Abschlag (0 €), und der Vorschlag sagt das; der alte wird nicht geraten weitergeführt.
+     */
+    public function testWithoutANewAdvanceTheGapAfterThePeriodIsOpenAndNamed(): void
+    {
+        $a = WaterBillFixture::answer();
+        foreach (['advance_new', 'advance_new_from', 'advance_new_every'] as $k) $a[$k] = ['value' => null, 'quote' => null, 'page' => null];
+        $a['advance_new_dates'] = ['value' => [], 'quote' => null, 'page' => null];
+        $s = $this->inbox($a);
+        $e = $s->upload(InboxFixture::pdf('wgap'), 'Wasserrechnung.pdf');
+        $s->extract($e['id'], WaterBillFixture::pages());
+        $c = self::byKind($s->preview($e['id'])['proposals'], 'contract_create')[0];
+        self::assertSame([['from' => '2025-04-01', 'amount_eur' => 66.6667], ['from' => '2026-04-01', 'amount_eur' => 0.0]], $c['data']['advance_payments']);
+        self::assertSame([['section' => null, 'kind' => 'gap', 'from' => '2026-04-01', 'to' => null]],
+            array_values(array_filter($c['params']['lines'], fn($l) => $l['kind'] === 'gap')));
     }
 
     /**

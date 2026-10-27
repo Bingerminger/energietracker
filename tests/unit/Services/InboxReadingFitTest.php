@@ -151,9 +151,39 @@ final class InboxReadingFitTest extends ServiceTestCase
         self::assertSame(['exists', false], [$f['status'], in_array('conflict_existing', $f['reasons'], true)], 'Entwurf: kein „Im Bestand steht etwas anderes“');
         self::assertTrue(Proposals::sameStand(29310.2, 29310.0));
         self::assertTrue(Proposals::sameStand(1235.62, 1235.6));
+        // nur gerundet gleich (abgeschnitten wären es 999 bzw. 1235,5)
+        self::assertTrue(Proposals::sameStand(999.6, 1000.0), '999,6 gerundet ist 1000');
+        self::assertTrue(Proposals::sameStand(1235.58, 1235.6));
         self::assertFalse(Proposals::sameStand(1001.0, 1000.0));
-        self::assertFalse(Proposals::sameStand(1000.6, 1000.0), '1000,6 gerundet ist 1001');
-        self::assertFalse(Proposals::sameStand(1235.66, 1235.6));
+        self::assertFalse(Proposals::sameStand(999.4, 1000.0), 'weder gerundet noch abgeschnitten 1000');
+        self::assertFalse(Proposals::sameStand(1235.7, 1235.6));
+    }
+
+    /**
+     * Skeptiker M12, Runde 2 — die Rechnung schneidet die Stellen ab: 26.845 im Dokument, 26.845,5 bei dir ist
+     * derselbe Stand (gerundet wären es 26.846). Nur in diese Richtung: Hat das Dokument mehr Stellen als du
+     * (26.845,5 gegen deine 26.845), bleibt es ein anderer Stand.
+     */
+    public function testACutPrintedReadingIsTheSameAsYoursButNotTheOtherWayRound(): void
+    {
+        $this->setReadings('wasser', 'm_wasser_default', [
+            ['date' => '2025-08-01', 'counter' => 1000.7, 'device_id' => 'd_w1'],
+            ['date' => '2026-07-30', 'counter' => 1212.0, 'device_id' => 'd_w1'],
+        ]);
+        $old = fn(array $pv) => array_values(array_filter($pv['proposals'], fn($p) => $p['kind'] === 'reading' && $p['data']['date'] === '2025-08-01'))[0];
+        $id = $this->invoice('cut', '1215');
+        self::assertSame('exists', $old($this->inbox->preview($id))['status'], '1000 im Dokument, 1000,7 bei dir: abgeschnitten derselbe');
+        $d = $this->draft->draft(null, self::TODAY);
+        $r = array_values(array_filter($d['items'], fn($i) => $i['kind'] === 'readings'))[0];
+        $f = array_values(array_filter($r['fields'], fn($x) => $x['name'] === 'r:2025-08-01'))[0];
+        self::assertSame(['exists', false], [$f['status'], in_array('conflict_existing', $f['reasons'], true)], 'Entwurf ebenso');
+        self::assertTrue(Proposals::sameStand(26845.5, 26845.0));
+        self::assertTrue(Proposals::sameStand(1000.6, 1000.0));
+        self::assertTrue(Proposals::sameStand(1235.66, 1235.6));
+        self::assertTrue(Proposals::sameStand(1235.699, 1235.69), 'drei Stellen bei dir, zwei im Dokument');
+        self::assertFalse(Proposals::sameStand(26845.0, 26845.5), 'das Dokument hat mehr Stellen: nicht gekürzt');
+        self::assertFalse(Proposals::sameStand(1235.6, 1235.66));
+        self::assertFalse(Proposals::sameStand(1001.0, 1000.0));
     }
 
     /** Skeptiker M13 — auch beim Gas: die Ablesung am letzten Tag ist der Endstand, der Tag danach keine Lücke. */

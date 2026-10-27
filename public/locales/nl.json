@@ -1141,7 +1141,9 @@
     },
     "advance": {
       "every": "Ritme",
-      "dueDates": "Vervaldata volgens de rekening: {dates}, daarna elk jaar op dezelfde dagen"
+      "dueDates": "Vervaldata volgens de rekening: {dates}, daarna elk jaar op dezelfde dagen",
+      "none": "{from} tot {to}: geen voorschot ingevoerd. Heb je in die tijd betaald, vul het bedrag dan hier in.",
+      "noneOpen": "Vanaf {from} geen voorschot ingevoerd."
     }
   },
   "meters": {
@@ -6649,7 +6651,9 @@
       "parts": "uit {parts}",
       "net": "{value} netto + {vat}% btw",
       "advance": "Voorschot vanaf {from}: {value} per vervaldatum",
-      "paid": "Betaalde voorschotten {from} tot {to}: {total} volgens de rekening"
+      "paid": "Betaalde voorschotten {from} tot {to}: {total} volgens de rekening",
+      "gap": "{from} tot {to}: geen voorschot ingevoerd, de rekening noemt er geen. Heb je in die tijd betaald, vul het dan aan bij het contract.",
+      "gapOpen": "Vanaf {from} geen voorschot ingevoerd, de rekening noemt geen nieuw. Vul het aan bij het contract zodra je het weet."
     }
   },
   "inboxCloud": {

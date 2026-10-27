@@ -1141,7 +1141,9 @@
     },
     "advance": {
       "every": "Ritmo",
-      "dueDates": "Vencimentos segundo a fatura: {dates}, depois todos os anos nos mesmos dias"
+      "dueDates": "Vencimentos segundo a fatura: {dates}, depois todos os anos nos mesmos dias",
+      "none": "De {from} a {to}: nenhum adiantamento registado. Se houve pagamento nesse período, o montante pode ser indicado aqui.",
+      "noneOpen": "A partir de {from} nenhum adiantamento registado."
     }
   },
   "meters": {
@@ -6649,7 +6651,9 @@
       "parts": "a partir de {parts}",
       "net": "{value} líquido + {vat}% de IVA",
       "advance": "Adiantamento a partir de {from}: {value} por vencimento",
-      "paid": "Adiantamentos pagos de {from} a {to}: {total} segundo a fatura"
+      "paid": "Adiantamentos pagos de {from} a {to}: {total} segundo a fatura",
+      "gap": "De {from} a {to}: nenhum adiantamento registado, a fatura não indica nenhum. Se houve pagamento nesse período, pode ser acrescentado no contrato.",
+      "gapOpen": "A partir de {from} nenhum adiantamento registado, a fatura não indica um novo. Pode ser acrescentado no contrato assim que for conhecido."
     }
   },
   "inboxCloud": {

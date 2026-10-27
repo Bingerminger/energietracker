@@ -1141,7 +1141,9 @@
     },
     "advance": {
       "every": "Rhythm",
-      "dueDates": "Due dates according to the bill: {dates}, then yearly on the same days"
+      "dueDates": "Due dates according to the bill: {dates}, then yearly on the same days",
+      "none": "{from} to {to}: no advance payment entered. If you paid in that time, enter the amount here.",
+      "noneOpen": "From {from} no advance payment entered."
     }
   },
   "meters": {
@@ -6649,7 +6651,9 @@
       "parts": "from {parts}",
       "net": "{value} net + {vat}% VAT",
       "advance": "Advance payment from {from}: {value} per due date",
-      "paid": "Advance payments made {from} to {to}: {total} according to the bill"
+      "paid": "Advance payments made {from} to {to}: {total} according to the bill",
+      "gap": "{from} to {to}: no advance payment entered, the bill names none for this time. If you paid in that time, add it to the contract.",
+      "gapOpen": "From {from} no advance payment entered, the bill names no new one. Add it to the contract once you know it."
     }
   },
   "inboxCloud": {
