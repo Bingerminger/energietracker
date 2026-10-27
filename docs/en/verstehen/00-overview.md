@@ -97,8 +97,9 @@ readings and asks. It never corrects anything by itself.
 heat pump: the heating model `a × HDD + c × days` with the heating limit of the meter
 (or its group), fitted over the reading intervals. For electricity and water: the mean
 daily amount of the intervals up to half a year before and after. For PV, garden water
-and other meters with marked seasons (the weakest month below half the strongest): the
-same days in other years. The same for a milder season that recurs: if the summer half
+and other meters with marked seasons (the daily rate of the summer half, April to
+September, and that of the winter half are more than a factor of two apart, each half
+taken as the median of its months): the same days in other years. The same for a milder season that recurs: if the summer half
 is at least a quarter above or below the winters next to it in at least two years, the
 same way round (counted from intervals that lie mostly in one half of the year), the
 mean daily amount would say “too little” in winter and “too much” in summer although
@@ -138,9 +139,9 @@ check would have missed it.
 the one after at least twice the expectation (or the other way round), both above the
 minimum amount and the spreads, the app asks even without a matching sum. Inside the
 block the intervals may then keep deviating in the same direction, just not already back.
-That is the case of readings getting more and more wrong: in a follow-up check the
+That is the case of readings getting more and more wrong: in a made-up follow-up check the
 interval before was at 0.23×, the two inside the block at 0.78× and 0.69×, the one after
-at 3.67×, and the surplus afterwards was twice the shortfall before. No common offset
+at 4.08×, and the surplus afterwards was about 2.4 times the shortfall before. No common offset
 explains that, so the app suggests no reading; the entry says “Consumption before and
 after … does not add up”, with the same buttons.
 

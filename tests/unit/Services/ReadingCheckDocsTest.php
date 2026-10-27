@@ -63,6 +63,39 @@ final class ReadingCheckDocsTest extends TestCase
         }
     }
 
+    /**
+     * v3.9.0 (doku) — „Ausgeprägte Jahreszeiten“: Die Grundlagen sagten bis zum Gegenlesen
+     * „der schwächste Monat unter der Hälfte des stärksten“. Die Regel vergleicht aber die
+     * Mediane der Halbjahre (April bis September gegen Oktober bis März) mit dem Faktor 2.
+     * Satz und Regel hier zusammen: Sommer 10 je Tag, Winter 4,9 ist ausgeprägt, 5,1 nicht;
+     * ein einzelner sehr schwacher Wintermonat macht noch keine Jahreszeit (Median).
+     */
+    public function testMarkedSeasonsCompareTheHalfYearMedians(): void
+    {
+        $seasonal = new \ReflectionMethod(ReadingCheckService::class, 'seasonal');
+        $day = fn(string $d) => intdiv((int)strtotime("$d 12:00:00 UTC"), 86400);
+        $months = function (float $summer, float $winter, ?float $january = null) use ($day): array {
+            $out = [];
+            for ($t = gmmktime(0, 0, 0, 1, 1, 2024); $t < gmmktime(0, 0, 0, 1, 1, 2026); $t = gmmktime(0, 0, 0, (int)gmdate('n', $t) + 1, 1, (int)gmdate('Y', $t))) {
+                $mo = (int)gmdate('n', $t);
+                $d0 = $day(gmdate('Y-m-d', $t));
+                $d1 = $day(gmdate('Y-m-d', gmmktime(0, 0, 0, $mo + 1, 1, (int)gmdate('Y', $t))));
+                $rate = $mo >= 4 && $mo <= 9 ? $summer : ($mo === 1 && $january !== null ? $january : $winter);
+                $out[] = ['d0' => $d0, 'd1' => $d1, 'days' => $d1 - $d0, 'kwh' => $rate * ($d1 - $d0)];
+            }
+            return $out;
+        };
+        self::assertTrue($seasonal->invoke(null, $months(10.0, 4.9)), 'mehr als das Doppelte: ausgeprägt');
+        self::assertFalse($seasonal->invoke(null, $months(10.0, 5.1)), 'knapp unter dem Doppelten: nicht ausgeprägt');
+        self::assertFalse($seasonal->invoke(null, $months(10.0, 6.0, 1.0)), 'ein schwacher Januar allein: nicht ausgeprägt (Median der Halbjahre)');
+        $de = (string)preg_replace('/\s+/u', ' ', self::doc('docs/verstehen/00-overview.md'));
+        $en = (string)preg_replace('/\s+/u', ' ', self::doc('docs/en/verstehen/00-overview.md'));
+        self::assertStringContainsString('die Tagesrate des Sommerhalbjahrs, April bis September, und die des Winterhalbjahrs liegen um mehr als das Doppelte auseinander, je Halbjahr der Median der Monate', $de);
+        self::assertStringContainsString('the daily rate of the summer half, April to September, and that of the winter half are more than a factor of two apart, each half taken as the median of its months', $en);
+        self::assertStringNotContainsString('der schwächste Monat unter der Hälfte', $de);
+        self::assertStringNotContainsString('the weakest month below half', $en);
+    }
+
     /** Die Anleitung nennt die drei Knöpfe und „Eine löschen“ mit den Wörtern der Oberfläche. */
     public function testTheGuideNamesTheButtonsOfTheInterface(): void
     {

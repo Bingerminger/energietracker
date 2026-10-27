@@ -98,8 +98,9 @@ solche Stände und fragt nach. Sie korrigiert nie selbst.
 Wärmepumpe das Heizmodell `a × HGT + c × Tage` mit der Heizgrenze des Zählers (bzw.
 seiner Gruppe), gefittet über die Ablesungsabstände. Bei Strom und Wasser die mittlere
 Tagesmenge der Abstände bis ein halbes Jahr davor und danach. Bei PV, Gartenwasser und
-anderen Zählern mit ausgeprägten Jahreszeiten (der schwächste Monat unter der Hälfte
-des stärksten) dieselben Tage in anderen Jahren. Ebenso bei einer milderen Jahreszeit,
+anderen Zählern mit ausgeprägten Jahreszeiten (die Tagesrate des Sommerhalbjahrs, April
+bis September, und die des Winterhalbjahrs liegen um mehr als das Doppelte auseinander,
+je Halbjahr der Median der Monate) dieselben Tage in anderen Jahren. Ebenso bei einer milderen Jahreszeit,
 die wiederkehrt: Liegt das Sommerhalbjahr in mindestens zwei Jahren gleichsinnig
 mindestens ein Viertel über oder unter den Wintern daneben (gezählt aus Abständen, die
 überwiegend in einer Jahreshälfte liegen), sagt die mittlere Tagesmenge im Winter „zu
@@ -140,8 +141,8 @@ der Hälfte und der danach mindestens beim Doppelten der Erwartung (oder umgekeh
 beide über der Mindestmenge und den Streuungen, fragt die App auch ohne passende Summe.
 Im Block dürfen die Abstände dann weiter in dieselbe Richtung abweichen, nur nicht schon
 zurück. Das ist der Fall, in dem Stände nach und nach falscher werden: In einer
-Nachprüfung lag der Abstand davor bei 0,23×, die beiden im Block bei 0,78× und 0,69×,
-der danach bei 3,67×, und der Überschuss danach war doppelt so groß wie der Mangel
+erfundenen Nachprüfung lag der Abstand davor bei 0,23×, die beiden im Block bei 0,78× und 0,69×,
+der danach bei 4,08×, und der Überschuss danach war rund 2,4-mal so groß wie der Mangel
 davor. Kein gemeinsamer Versatz erklärt das, also schlägt die App keinen Stand vor; der
 Eintrag heißt „Verbrauch vor und nach dem … passt nicht zusammen“, mit denselben
 Knöpfen.

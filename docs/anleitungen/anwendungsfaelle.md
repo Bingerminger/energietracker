@@ -57,21 +57,28 @@ ihren Anteil sauber heraushalten.
 3. Beim zweiten Zähler unter **⚙️ Zähler → Bearbeiten** den **Elternzähler** auf
    *„Hausanschluss WG"* setzen → er wird zum **Subzähler**.
 
-**Was passiert.** Der Server-Subzähler wird vom Hausanschluss abgezogen. Im
-Dashboard erscheint:
+**Was passiert.** Der Hausanschluss misst den Server mit. Der Subzähler zählt
+deshalb nicht zusätzlich in die Summe, er schlüsselt nur auf:
 
-```
-⚡ Hausanschluss WG ........ 612 kWh   (netto, ohne Server)
+<!-- doc-claim: shared-meters-example (SubmeterRestDocsTest) -->
+```text
+⚡ Hausanschluss WG ........ 612 kWh   (gemessen, mit Server)
    ↳ Arbeitszimmer (Server)  188 kWh   (Aufschlüsselung)
 Strom-Gesamtsumme ......... 612 kWh
 ```
 
-So lässt sich der Server-Anteil (188 kWh) für die interne WG-Abrechnung exakt
-beziffern, während die WG-Gesamtkosten (612 kWh × Tarif) korrekt ohne
-Doppelzählung bleiben. Details: [Meter-Topologie](../verstehen/13-meter-topologie.md).
+So lässt sich der Server-Anteil (188 kWh) für die interne WG-Abrechnung genau
+beziffern; auf den Rest der WG entfallen 612 − 188 = 424 kWh. Der WG-Vertrag am
+Hausanschluss rechnet alle 612 kWh, ohne Doppelzählung. Details:
+[Meter-Topologie](../verstehen/13-meter-topologie.md).
 
 > **Tipp.** Den WG-Vertrag am Hauptzähler pflegen. Der Subzähler braucht keinen
-> eigenen Vertrag — für die interne Umlage genügt seine kWh-Zahl.
+> eigenen Vertrag: Für die interne Umlage genügt seine kWh-Zahl. Bekommt er
+> doch einen eigenen Vertrag, rechnet der WG-Vertrag ab dessen Beginn nur noch
+> den Rest *(v3.9.0,
+> [Rest-Abrechnung](../verstehen/13-meter-topologie.md#rest-abrechnung-v390))*.
+> Bis v3.8 stand hier, der Subzähler werde vom Hausanschluss abgezogen; die
+> Zahlen im Beispiel waren schon damals die gemessenen.
 
 ---
 
