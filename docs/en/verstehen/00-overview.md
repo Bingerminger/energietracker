@@ -1016,7 +1016,7 @@ half width = 1.28 × √( Σ (a × heating factor × σ_HDD,month × share of fu
 ```
 
 The weather counts for the days from today, the model's spread for every
-estimated day since the last reading. Up to v3.8 every range disappeared once the
+estimated day since the last reading. Up to v3.7 every range disappeared once the
 quality gate was passed (for example after the heating limit), even with nine
 estimated months. The advance suggestion stays.
 
@@ -1152,7 +1152,7 @@ ongoing = rounded( estimated cost of the 12 months after the bill / installments
 Installments per year: 12 for a monthly advance, 6 every two months, 4 every
 three months. *(since v3.9.0)* With a rhythm, suggestion and ongoing advance apply
 per installment, and the texts name the rhythm (“about €152 instead of €165 every
-2 months”); up to v3.8 a monthly amount stood next to the amount per due date.
+2 months”); up to v3.7 a monthly amount stood next to the amount per due date.
 
 ### Day-exact like the bill (since v2.9.0)
 

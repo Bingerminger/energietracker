@@ -96,7 +96,7 @@ Vorjahr fehlen Daten“. Liter je Person und Tag rechnen über die erfassten Tag
 die Heizenergie je m² heißt bei einem unvollständigen Jahr „bisher“, und eine nur
 angenommene Personenzahl steht als Annahme da. Ist eine Saldo-Schätzung unsicher,
 urteilt die Ampel „Abrechnung“ nicht: Sie sagt „Schätzung unsicher“ mit der Spanne,
-wie Saldo-Karte, Übersicht und Werkstatt (bis v3.8 nahm sie das ungünstige Ende).
+wie Saldo-Karte, Übersicht und Werkstatt (bis v3.7 nahm sie das ungünstige Ende).
 Endet ein Vertrag bald mit eingetragenem Folgevertrag oder bleiben weniger als
 drei Abschläge bis zur Abrechnung, gibt es statt der Aufgabe „Abschlag anpassen“
 einen Hinweis zur Abrechnung.
