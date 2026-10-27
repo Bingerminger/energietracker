@@ -517,6 +517,10 @@
       "suggestOngoingEvery": {
         "one": "Dopo, circa {amount} invece di {current} ogni mese sarebbero adeguati.",
         "other": "Dopo, circa {amount} invece di {current} ogni {count} mesi sarebbero adeguati."
+      },
+      "band": {
+        "one": "A seconda del meteo e della stima {range} ({level}, {count} giorno stimato).",
+        "other": "A seconda del meteo e della stima {range} ({level}, {count} giorni stimati)."
       }
     },
     "contractsTable": {
@@ -2924,7 +2928,12 @@
     "annualNoBandFew": "Anno: {value} {unit} — senza fascia, perché sono misurati troppo pochi mesi per verificare il modello di riscaldamento.",
     "annualNoBandYears": "Anno: {value} {unit} — senza fascia: quanto un mese varia da un anno all’altro si vede solo con misure di più di un anno.",
     "annualBandSpread": "Anno: {value} {unit}, nel {level}% degli anni tra {low} e {high} {unit} — secondo la dispersione dei mesi negli anni.",
-    "blendPoorFit": "il modello di riscaldamento si adatta male, quindi ogni mese usa il profilo stagionale"
+    "blendPoorFit": "il modello di riscaldamento si adatta male, quindi ogni mese usa il profilo stagionale",
+    "balanceCard": "Saldo al conguaglio del {date}, come nella scheda del saldo:",
+    "balanceCardNote": {
+      "one": "· La colonna «Saldo» qui sotto conta solo il {count} mese di previsione da {month}, senza il saldo finora.",
+      "other": "· La colonna «Saldo» qui sotto conta solo i {count} mesi di previsione da {month}, senza il saldo finora."
+    }
   },
   "report": {
     "createdOn": "Creato il {date}",

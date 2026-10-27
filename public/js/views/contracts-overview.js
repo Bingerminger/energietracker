@@ -13,7 +13,7 @@
 import { api } from '../api.js';
 import { activeUtilities } from '../state.js';
 import { fmt, escapeHtml, todayIso } from '../lib/format.js';
-import { addDays as addDaysIso } from '../lib/billing-period.js';   // v3.9.0 (L13)
+import { addDays as addDaysIso, anchorHintText } from '../lib/billing-period.js';   // v3.9.0 (L13, Skeptiker M7)
 import { t, tp } from '../lib/i18n.js';
 // v3.4.0 (F1024) — Folgevertrag und Verlauf je Vertrag
 import { openModal } from '../components/modal.js';
@@ -216,6 +216,9 @@ function meterBlock(u, meter, contracts, showMeter, who = {}) {
           verdict === 'balanced' ? '' : fmt.eur(Math.abs(c.projected_end_balance))}</strong>
       </div>`
     : '';
+  // v3.9.0 (Skeptiker M7) — passt der Stichtag nicht zur letzten Rechnung: derselbe Hinweis wie an der Karte
+  const anchorHint = anchorHintText(c.billing_period);
+  const expectedWithHint = expected + (anchorHint ? `<p class="muted small" data-role="overview-anchor-hint">${escapeHtml(anchorHint)}</p>` : '');
 
   // v3.4.0 (F1024) — Verlauf an der Vertragskarte, sobald es Einträge gibt
   const entries = historyByContract.get(c.contract_id) || [];
@@ -229,7 +232,7 @@ function meterBlock(u, meter, contracts, showMeter, who = {}) {
       <div class="contract-overview__name">${escapeHtml(name)}${chipHtml(who)}</div>
       <div class="muted">${escapeHtml(term)}</div>
       ${facts.length ? `<div class="contract-overview__facts">${facts.join('<span aria-hidden="true"> · </span>')}</div>` : ''}
-      ${expected}
+      ${expectedWithHint}
       ${historyBtn}
     </div>`;
 }

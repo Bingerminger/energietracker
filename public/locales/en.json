@@ -517,6 +517,10 @@
       "suggestOngoingEvery": {
         "one": "After that, about {amount} instead of {current} every month would be right.",
         "other": "After that, about {amount} instead of {current} every {count} months would be right."
+      },
+      "band": {
+        "one": "Depending on the weather and the estimate {range} ({level}, {count} day estimated).",
+        "other": "Depending on the weather and the estimate {range} ({level}, {count} days estimated)."
       }
     },
     "contractsTable": {
@@ -2924,7 +2928,12 @@
     "annualNoBandFew": "Year: {value} {unit} — without a band, because too few months are measured to check the heating model.",
     "annualNoBandYears": "Year: {value} {unit} — without a band: how much a month varies from year to year only shows with measurements from more than one year.",
     "annualBandSpread": "Year: {value} {unit}, in {level}% of years between {low} and {high} {unit} — from how the months varied over the years.",
-    "blendPoorFit": "the heating model fits poorly, so every month uses the seasonal profile"
+    "blendPoorFit": "the heating model fits poorly, so every month uses the seasonal profile",
+    "balanceCard": "Balance at the bill on {date}, as on the balance card:",
+    "balanceCardNote": {
+      "one": "· The “Balance” column below only counts the {count} forecast month from {month}, without the balance so far.",
+      "other": "· The “Balance” column below only counts the {count} forecast months from {month}, without the balance so far."
+    }
   },
   "report": {
     "createdOn": "Created on {date}",

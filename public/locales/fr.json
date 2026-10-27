@@ -517,6 +517,10 @@
       "suggestOngoingEvery": {
         "one": "Ensuite, environ {amount} au lieu de {current} chaque mois seraient adaptés.",
         "other": "Ensuite, environ {amount} au lieu de {current} tous les {count} mois seraient adaptés."
+      },
+      "band": {
+        "one": "Selon la météo et l’estimation : {range} ({level}, {count} jour estimé).",
+        "other": "Selon la météo et l’estimation : {range} ({level}, {count} jours estimés)."
       }
     },
     "contractsTable": {
@@ -2924,7 +2928,12 @@
     "annualNoBandFew": "Année : {value} {unit} — sans fourchette, car trop peu de mois sont mesurés pour vérifier le modèle de chauffage.",
     "annualNoBandYears": "Année : {value} {unit} — sans fourchette : l’écart d’un mois d’une année à l’autre n’apparaît qu’avec des mesures sur plus d’une année.",
     "annualBandSpread": "Année : {value} {unit}, dans {level} % des années entre {low} et {high} {unit} — d’après la dispersion des mois au fil des années.",
-    "blendPoorFit": "le modèle de chauffage est peu adapté, chaque mois utilise donc le profil saisonnier"
+    "blendPoorFit": "le modèle de chauffage est peu adapté, chaque mois utilise donc le profil saisonnier",
+    "balanceCard": "Solde au décompte du {date}, comme sur la carte du solde :",
+    "balanceCardNote": {
+      "one": "· La colonne « Solde » ci-dessous ne compte que le {count} mois de prévision à partir de {month}, sans le solde déjà atteint.",
+      "other": "· La colonne « Solde » ci-dessous ne compte que les {count} mois de prévision à partir de {month}, sans le solde déjà atteint."
+    }
   },
   "report": {
     "createdOn": "Créé le {date}",

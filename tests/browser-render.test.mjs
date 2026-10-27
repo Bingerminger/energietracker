@@ -1114,6 +1114,34 @@ async function renderView(modPath, params = [], ctx = {}) {
     finally { global.fetch = realFetch; }
   }
 
+  // v3.9.0 (Skeptiker M6, M4) — Gas mit sicherer Schätzung und Band (erfundene Werte): die Karte auf den Euro mit
+  // „≈“ und der Breite; die Prognose nennt denselben Saldo und Tag wie die Karte (bis dahin ab null bis zum Horizont)
+  {
+    const realFetch = global.fetch;
+    try {
+      global.fetch = async (input, init) => {
+        const res = await realFetch(input, init);
+        if (!/\/api\/utility\/gas\/meters\/[^/?]+\/contract-status/.test(String(input))) return res;
+        const body = await res.json();
+        for (const c of body?.data?.contracts || []) if (c.is_current) Object.assign(c, { projection_uncertain: null, projected_end_balance: -517.43, settle_on: '2026-12-31',
+          projection_band: { low: -562.43, high: -472.43, half: 45.0, level_pct: 80, estimated_days: 270, weather: 40.0, model: 20.6 } });
+        return new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      };
+      const { view } = await renderView(`${ROOT}/views/utility.js`, ['gas']);
+      await new Promise(r => setTimeout(r, 500));
+      const val = view.querySelector('.balance-verdict__value')?.textContent.replace(/\s+/g, ' ').trim() || '';
+      const band = view.querySelector('[data-role="balance-band"]')?.textContent.replace(/\s+/g, ' ') || '';
+      t('M6: Saldo-Karte — „≈ 517 €“ statt Cent und die Breite je nach Wetter', /^≈ 517\s€$/.test(val) && /Je nach Wetter und Schätzung/.test(band)
+        && /562\s€ Guthaben bis \S+ 472\s€ Guthaben/.test(band) && /270 Tage geschätzt/.test(band), `${val} | ${band.slice(0, 160)}`);
+      const fcv = await renderView(`${ROOT}/views/forecast.js`);
+      for (let i = 0; i < 80 && !fcv.view.querySelector('[data-role="fc-card-balance"]'); i++) await new Promise(r => setTimeout(r, 50));
+      const fb = fcv.view.querySelector('[data-role="fc-card-balance"]')?.textContent.replace(/\s+/g, ' ') || '';
+      t('M4: Prognose — Saldo zur Abrechnung wie die Karte (Datum, Betrag), Spalte nur Prognosemonate', /Saldo zur Abrechnung am 31\.12\.2026/.test(fb)
+        && /517,43\s€/.test(fb) && /ohne den bisherigen Stand/.test(fb) && !/Ende des Horizonts/.test(fcv.view.querySelector('#fc-table')?.textContent || ''), fb.slice(0, 200));
+    } catch (e) { t('M6/M4: Band und Saldo der Karte', false, e.stack || e.message); }
+    finally { global.fetch = realFetch; }
+  }
+
   // v3.9.0 (Skeptiker H1) — Abschlag alle 2 Monate: Saldo-Karte und Werkstatt nennen die Beträge je Rate.
   // Vertragsstatus und Werkstatt-Antwort werden hier um einen Plan mit Rhythmus ergänzt (erfundene Werte).
   {
@@ -1126,7 +1154,10 @@ async function renderView(modPath, params = [], ctx = {}) {
         if (/\/api\/utility\/strom\/meters\/[^/?]+\/contract-status/.test(url)) {
           const body = await res.json();
           for (const c of body?.data?.contracts || []) if (c.is_current) Object.assign(c, { suggested_advance: null, suggestion_withheld: 'short', months_left: 2,
-            advance_ongoing: 75, current_advance_amount: 165, current_advance_every_months: 2, projected_end_balance: 120, projection_uncertain: null, settle_on: '2026-12-31' });
+            advance_ongoing: 75, current_advance_amount: 165, current_advance_every_months: 2, projected_end_balance: 120, projection_uncertain: null, settle_on: '2026-12-31',
+            // M7 — der Stichtag passt nicht zur letzten Rechnung (erfunden)
+            billing_period: { from: '2026-01-01', until: '2026-12-31', open_from: '2026-01-01', source: 'anchor', bill_id: null, anchor: '01-01',
+              suggested_anchor: '04-01', suggested_anchor_source: 'bill', last_bill_until: '2026-03-31' } });
           return reply(body);
         }
         if (/\/api\/forecast\/scenario/.test(url) && init?.method === 'POST') {
@@ -1141,6 +1172,12 @@ async function renderView(modPath, params = [], ctx = {}) {
       const { view } = await renderView(`${ROOT}/views/utility.js`, ['strom']);
       await new Promise(r => setTimeout(r, 500));
       const short = view.querySelector('[data-role="balance-short"]')?.textContent.replace(/\s+/g, ' ') || '';
+      const hintM7 = view.querySelector('[data-role="card-anchor-hint"]')?.textContent || '';
+      t('M7: Saldo-Karte — Stichtag-Hinweis wie unter „Abrechnungsjahr“', /letzte Rechnung endet am 31\.03\.2026/.test(hintM7) && /1\. April/.test(hintM7), hintM7.slice(0, 160));
+      const ov = await renderView(`${ROOT}/views/contracts-overview.js`);
+      for (let i = 0; i < 60 && !ov.view.querySelector('.contract-overview'); i++) await new Promise(r => setTimeout(r, 50));
+      const ovHint = ov.view.querySelector('.contract-overview[data-utility="strom"] [data-role="overview-anchor-hint"]')?.textContent || '';
+      t('M7: Kosten & Verträge — derselbe Hinweis am Stromvertrag', /1\. April/.test(ovHint), ovHint.slice(0, 160));
       t('H1: Saldo-Karte — „rund 75 € statt 165,00 € alle 2 Monate“ (bis v3.8 „im Monat“)', /rund 75\s€ statt 165,00\s€ alle 2 Monate angemessen/.test(short) && !/im Monat/.test(short), short.slice(0, 220));
       const fv = await renderView(`${ROOT}/views/forecast.js`);
       for (let i = 0; i < 60 && ![...fv.view.querySelectorAll('#ws-kpis .kpi')].some(k => /Empfohlener Abschlag/.test(k.textContent)); i++) await new Promise(r => setTimeout(r, 50));

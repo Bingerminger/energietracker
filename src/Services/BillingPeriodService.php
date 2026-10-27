@@ -65,6 +65,15 @@ final class BillingPeriodService
      */
     public const SHORT_REST_DAYS = 14;
 
+    /**
+     * v3.9.0 (Skeptiker M7) — Eine Lieferzeit, die an einem Lieferantenwechsel beginnt und an
+     * einem endet, ist bis zu so vielen Tagen eine Abrechnungsperiode: Der Versorger rechnet sie
+     * mit der Schlussrechnung zum Vertragsende ab, der Stichtag gilt in ihr nicht. 400 Tage: ein
+     * Jahresvertrag mit einem Monat Spielraum (Verlängerung um Wochen, Wechsel zum Monatsende);
+     * eine längere Belieferung rechnet der Versorger im Jahresrhythmus ab.
+     */
+    public const SWITCH_PERIOD_MAX_DAYS = 400;
+
     public function __construct(
         private SettingsService $settings,
         private MeterService $meters,
@@ -147,7 +156,18 @@ final class BillingPeriodService
         $today ??= date('Y-m-d');
         $meters = !empty($target['is_group']) ? $this->meters->groupSumMembers($utility, (string)$target['id']) : [$target];
         if ($meters === []) return null;
-        $periods = $this->structure($utility, $meters, $today)['periods'];
+        $st = $this->structure($utility, $meters, $today);
+        $periods = $st['periods'];
+        // v3.9.0 (Skeptiker M7) — der Stichtag-Vorschlag auch an Saldo-Karte und „Kosten & Verträge“
+        // (bis dahin nur unter „Abrechnungsjahr“): passt er nicht zur letzten Rechnung bzw. zu den Verträgen
+        $suggested = self::suggestedAnchor($st['bills'], $st['anchor']);
+        $source = $suggested !== null ? 'bill' : null;
+        if ($st['bills'] === []) {
+            $suggested = self::suggestedAnchorFromContracts(array_values($st['starts']), $st['switches'], $st['anchor']);
+            $source = $suggested !== null ? 'contracts' : null;
+        }
+        $hint = ['anchor' => $st['anchor'], 'suggested_anchor' => $suggested, 'suggested_anchor_source' => $source,
+                 'last_bill_until' => $st['bills'] !== [] ? (string)$st['bills'][count($st['bills']) - 1]['until'] : null];
         foreach ($periods as $i => $p) {
             if ($p['from'] <= $today && $today <= $p['until']) {
                 // offen seit: Eine angeschnittene Stichtag-Periode direkt nach einer
@@ -160,7 +180,7 @@ final class BillingPeriodService
                 $p['open_from'] = $prev !== null && $prev['source'] === 'anchor' && !$prev['complete'] && $before !== null
                     && $before['source'] === 'bill' && self::addDays($before['until'], 1) === $prev['from'] && $p['source'] === 'anchor'
                     ? $prev['from'] : $p['from'];
-                return $p;
+                return $p + $hint;
             }
         }
         return null;
@@ -292,6 +312,22 @@ final class BillingPeriodService
         $fill = function (string $a, string $b, bool $last = false) use (&$out, $anchor, $today, $cuts): void {
             for ($p = $a; $p <= $b;) {
                 if ($last && $p > $today) break;   // nach einem künftigen Wechsel: noch keine Periode
+                // v3.9.0 (Skeptiker M7) — Lieferzeit zwischen zwei Lieferantenwechseln bis
+                // SWITCH_PERIOD_MAX_DAYS: eine Periode bis zum Vertragsende, wie die Schlussrechnung
+                // des Versorgers. Bis dahin teilte ein Stichtag mitten in ihr die Lieferzeit (Stichtag
+                // einen Monat vor dem Wechseltag: Stummel, „nächste Abrechnung“ einen Monat zu früh)
+                if (!empty($cuts[$p]['start'])) {
+                    $endCut = null;
+                    foreach ($cuts as $day => $f) if ($day > $p && !empty($f['end'])) { $endCut = (string)$day; break; }
+                    if ($endCut !== null && self::days($p, $endCut) <= self::SWITCH_PERIOD_MAX_DAYS && ($endCut <= self::addDays($b, 1) || $last)) {
+                        $until = self::addDays($endCut, -1);
+                        $out[] = ['from' => $p, 'until' => $until, 'source' => 'anchor', 'bill_id' => null,
+                                  'complete' => $until < $today, 'running' => $until >= $today,
+                                  'label' => self::yearLabel($p, $until), 'ends_at_switch' => true];
+                        $p = $endCut;
+                        continue;
+                    }
+                }
                 [$gs, $ge] = self::gridAround($anchor, $p);
                 $until = min($ge, $b);
                 foreach ($cuts as $day => $_) {

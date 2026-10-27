@@ -795,9 +795,12 @@ export async function render(container, params = [], ctx = {}) {
       co2_scenario_eur_t: co2,
     };
     try {
-      const res = await api.forecast(utility.key, meterSel.value, opts);
+      // v3.9.0 (Skeptiker M4) — der Saldo zur Abrechnung kommt aus der Saldo-Karte (Datum, Startsaldo),
+      // nicht aus der Prognose ab null bis zum Ende des Horizonts
+      const [res, card] = await Promise.all([api.forecast(utility.key, meterSel.value, opts),
+        api.contractStatus(utility.key, meterSel.value).then(s => (s?.contracts || []).find(c => c.is_current) || null).catch(() => null)]);
       if (my !== runSeq) return;   // überholt
-      renderResult(utility, res, container);
+      renderResult(utility, res, container, card);
       heatLimitHint('fc', (res.warnings || []).some(w => w.code === 'poor_fit'), 'forecast', utility.consumption_unit);   // v3.9.0 (#38)
     } catch (e) { if (my === runSeq) toastErr(e.message); }
   }
@@ -845,7 +848,7 @@ export async function render(container, params = [], ctx = {}) {
   return () => { clearTimeout(timer); if (chart) { chart.destroy(); chart = null; } };
 }
 
-function renderResult(u, result, container) {
+function renderResult(u, result, container, card = null) {
   // v2.13.0 — nicht `info`: Der Name gehört dem ⓘ-Knopf aus components/info.js,
   // die lokale Variable überschattete ihn und die Tabelle blieb leer
   const infoEl = container.querySelector('#fc-info');
@@ -995,8 +998,19 @@ function renderResult(u, result, container) {
   const hasFinance = fc.some(r => r.advance_estimated != null || r.balance_running != null);
   const lastBalance = fc.length ? fc[fc.length - 1].balance_running : null;
 
+  // v3.9.0 (Skeptiker M4) — mit Vertrag in der laufenden Abrechnung: derselbe Saldo, dasselbe Datum wie
+  // die Saldo-Karte; die Spalte darunter zählt nur die Prognosemonate (bis dahin ein zweiter Saldo ab null)
+  const cardBal = card && card.projected_end_balance != null && (card.settle_on || card.effective_end) ? Number(card.projected_end_balance) : null;
+  const cardUnc = card?.projection_uncertain?.projected_range ? card.projection_uncertain : null;
   tbl.innerHTML = `
-    ${hasFinance && lastBalance != null ? `
+    ${cardBal != null ? `
+      <div class="banner ${cardUnc ? 'banner--info' : cardBal > 5 ? 'banner--warning' : cardBal < -5 ? 'banner--success' : 'banner--info'}"
+           style="margin-bottom: var(--sp-3)" data-role="fc-card-balance">
+        ${escapeHtml(t('forecast.balanceCard', { date: fmt.date(card.settle_on || card.effective_end) }))}
+        <strong>${escapeHtml(cardUnc ? uncertainRangeText(cardUnc) : `${Math.abs(cardBal) < 1 ? t('forecast.balanceBalanced') : (cardBal > 0 ? t('forecast.balanceSurcharge') : t('forecast.balanceCredit'))} ${fmt.eur(Math.abs(cardBal))}`)}</strong>
+        <span class="muted"> ${escapeHtml(tp('forecast.balanceCardNote', fc.length, { count: fc.length, month: fc[0] ? fmt.month(fc[0].ym) : '–' }))}</span>
+      </div>
+    ` : hasFinance && lastBalance != null ? `
       <div class="banner ${lastBalance > 5 ? 'banner--warning' : lastBalance < -5 ? 'banner--success' : 'banner--info'}"
            style="margin-bottom: var(--sp-3)">
         ${t('forecast.balanceLabel')}

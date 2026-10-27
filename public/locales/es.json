@@ -517,6 +517,10 @@
       "suggestOngoingEvery": {
         "one": "Después, unos {amount} en lugar de {current} cada mes serían adecuados.",
         "other": "Después, unos {amount} en lugar de {current} cada {count} meses serían adecuados."
+      },
+      "band": {
+        "one": "Según el tiempo y la estimación {range} ({level}, {count} día estimado).",
+        "other": "Según el tiempo y la estimación {range} ({level}, {count} días estimados)."
       }
     },
     "contractsTable": {
@@ -2924,7 +2928,12 @@
     "annualNoBandFew": "Año: {value} {unit}, sin banda, porque hay muy pocos meses medidos para comprobar el modelo de calefacción.",
     "annualNoBandYears": "Año: {value} {unit}, sin banda: cuánto varía un mes de un año a otro solo se ve con mediciones de más de un año.",
     "annualBandSpread": "Año: {value} {unit}; en el {level} % de los años entre {low} y {high} {unit}, según la dispersión de los meses a lo largo de los años.",
-    "blendPoorFit": "el modelo de calefacción encaja mal, por eso cada mes usa el perfil estacional"
+    "blendPoorFit": "el modelo de calefacción encaja mal, por eso cada mes usa el perfil estacional",
+    "balanceCard": "Saldo en la liquidación del {date}, como en la tarjeta de saldo:",
+    "balanceCardNote": {
+      "one": "· La columna «Saldo» de abajo solo cuenta el {count} mes de previsión desde {month}, sin el saldo hasta ahora.",
+      "other": "· La columna «Saldo» de abajo solo cuenta los {count} meses de previsión desde {month}, sin el saldo hasta ahora."
+    }
   },
   "report": {
     "createdOn": "Creado el {date}",

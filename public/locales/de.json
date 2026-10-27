@@ -517,6 +517,10 @@
       "suggestOngoingEvery": {
         "one": "Danach wären rund {amount} statt {current} jeden Monat angemessen.",
         "other": "Danach wären rund {amount} statt {current} alle {count} Monate angemessen."
+      },
+      "band": {
+        "one": "Je nach Wetter und Schätzung {range} ({level}, {count} Tag geschätzt).",
+        "other": "Je nach Wetter und Schätzung {range} ({level}, {count} Tage geschätzt)."
       }
     },
     "contractsTable": {
@@ -2924,7 +2928,12 @@
     "annualNoBandFew": "Jahr: {value} {unit} — ohne Band, weil zu wenige Monate gemessen sind, um das Heizmodell zu prüfen.",
     "annualNoBandYears": "Jahr: {value} {unit} — ohne Band: Wie stark ein Monat von Jahr zu Jahr schwankt, zeigt sich erst mit Messwerten aus mehr als einem Jahr.",
     "annualBandSpread": "Jahr: {value} {unit}, in {level} % der Jahre zwischen {low} und {high} {unit} — nach der Streuung der Monate über die Jahre.",
-    "blendPoorFit": "das Heizmodell passt schlecht, deshalb rechnet jeder Monat mit dem Saisonprofil"
+    "blendPoorFit": "das Heizmodell passt schlecht, deshalb rechnet jeder Monat mit dem Saisonprofil",
+    "balanceCard": "Saldo zur Abrechnung am {date}, wie die Saldo-Karte:",
+    "balanceCardNote": {
+      "one": "· Die Spalte „Saldo“ darunter zählt nur den {count} Prognosemonat ab {month}, ohne den bisherigen Stand.",
+      "other": "· Die Spalte „Saldo“ darunter zählt nur die {count} Prognosemonate ab {month}, ohne den bisherigen Stand."
+    }
   },
   "report": {
     "createdOn": "Erstellt am {date}",

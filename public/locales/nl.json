@@ -517,6 +517,10 @@
       "suggestOngoingEvery": {
         "one": "Daarna zou ongeveer {amount} in plaats van {current} elke maand passend zijn.",
         "other": "Daarna zou ongeveer {amount} in plaats van {current} elke {count} maanden passend zijn."
+      },
+      "band": {
+        "one": "Afhankelijk van het weer en de schatting {range} ({level}, {count} dag geschat).",
+        "other": "Afhankelijk van het weer en de schatting {range} ({level}, {count} dagen geschat)."
       }
     },
     "contractsTable": {
@@ -2924,7 +2928,12 @@
     "annualNoBandFew": "Jaar: {value} {unit} — zonder bandbreedte, omdat er te weinig maanden gemeten zijn om het verwarmingsmodel te controleren.",
     "annualNoBandYears": "Jaar: {value} {unit} — zonder bandbreedte: hoe sterk een maand van jaar tot jaar schommelt, blijkt pas uit metingen van meer dan één jaar.",
     "annualBandSpread": "Jaar: {value} {unit}, in {level}% van de jaren tussen {low} en {high} {unit} — naar de spreiding van de maanden over de jaren.",
-    "blendPoorFit": "het verwarmingsmodel past slecht, daarom rekent elke maand met het seizoensprofiel"
+    "blendPoorFit": "het verwarmingsmodel past slecht, daarom rekent elke maand met het seizoensprofiel",
+    "balanceCard": "Saldo bij de afrekening op {date}, zoals op de saldokaart:",
+    "balanceCardNote": {
+      "one": "· De kolom ‘Saldo’ hieronder telt alleen de {count} prognosemaand vanaf {month}, zonder het saldo tot nu toe.",
+      "other": "· De kolom ‘Saldo’ hieronder telt alleen de {count} prognosemaanden vanaf {month}, zonder het saldo tot nu toe."
+    }
   },
   "report": {
     "createdOn": "Gemaakt op {date}",

@@ -517,6 +517,10 @@
       "suggestOngoingEvery": {
         "one": "Depois, cerca de {amount} em vez de {current} todos os meses seriam adequados.",
         "other": "Depois, cerca de {amount} em vez de {current} a cada {count} meses seriam adequados."
+      },
+      "band": {
+        "one": "Conforme o tempo e a estimativa {range} ({level}, {count} dia estimado).",
+        "other": "Conforme o tempo e a estimativa {range} ({level}, {count} dias estimados)."
       }
     },
     "contractsTable": {
@@ -2924,7 +2928,12 @@
     "annualNoBandFew": "Ano: {value} {unit} — sem faixa, porque há poucos meses medidos para verificar o modelo de aquecimento.",
     "annualNoBandYears": "Ano: {value} {unit} — sem faixa: quanto um mês varia de ano para ano só se vê com medições de mais de um ano.",
     "annualBandSpread": "Ano: {value} {unit}, em {level}% dos anos entre {low} e {high} {unit} — conforme a dispersão dos meses ao longo dos anos.",
-    "blendPoorFit": "o modelo de aquecimento ajusta-se mal, por isso cada mês usa o perfil sazonal"
+    "blendPoorFit": "o modelo de aquecimento ajusta-se mal, por isso cada mês usa o perfil sazonal",
+    "balanceCard": "Saldo no acerto de {date}, como no cartão do saldo:",
+    "balanceCardNote": {
+      "one": "· A coluna «Saldo» abaixo só conta o {count} mês de previsão a partir de {month}, sem o saldo até agora.",
+      "other": "· A coluna «Saldo» abaixo só conta os {count} meses de previsão a partir de {month}, sem o saldo até agora."
+    }
   },
   "report": {
     "createdOn": "Criado a {date}",

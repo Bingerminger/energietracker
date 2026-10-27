@@ -86,7 +86,8 @@ final class OneProjectionTest extends ServiceTestCase
         // laufende Periode des Stichtags 01.01. (keine Rechnung erfasst), nicht seit 11/2022
         self::assertSame('2022-11-01', $card['start']);
         self::assertSame('2026-01-01', $card['balance_from']);
-        self::assertSame(['from' => '2026-01-01', 'until' => '2026-12-31', 'open_from' => '2026-01-01', 'source' => 'anchor', 'bill_id' => null], $card['billing_period']);
+        self::assertSame(['from' => '2026-01-01', 'until' => '2026-12-31', 'open_from' => '2026-01-01', 'source' => 'anchor', 'bill_id' => null,
+            'anchor' => '01-01', 'suggested_anchor' => null, 'suggested_anchor_source' => null, 'last_bill_until' => null], $card['billing_period']);
         self::assertSame('2026-12-31', $card['settle_on'], 'der letzte Tag, nicht der 01.01.2027 (L1)');
         // Abschläge nach Plan: 150 € für Januar bis Oktober 2026 bis heute, November und Dezember danach
         self::assertSame(1500.0, $card['advance_paid']);

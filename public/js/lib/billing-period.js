@@ -10,7 +10,22 @@
 // Die Schnittstelle `bill-check` nimmt `to` ausschließlich: `exclusiveEnd()`.
 // =====================================================================
 
+import { t, getLocale } from './i18n.js';
+import { fmt } from './format.js';
+
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Hinweis zum Stichtag, wenn er nicht zur letzten Rechnung (bzw. zu den Verträgen) passt — oder null.
+ * v3.9.0 (Skeptiker M7) — eine Stelle für Abrechnungsjahr, Saldo-Karte und „Kosten & Verträge“.
+ * @param {{anchor:string, suggested_anchor:?string, suggested_anchor_source:?string, last_bill_until:?string}} h
+ */
+export function anchorHintText(h) {
+  if (!h?.suggested_anchor) return null;
+  const md = (s) => { const [m, d] = String(s).split('-').map(Number); return new Date(Date.UTC(2000, m - 1, d)).toLocaleDateString(getLocale(), { day: 'numeric', month: 'long', timeZone: 'UTC' }); };
+  if (h.suggested_anchor_source === 'contracts') return t('billing.suggestContracts', { anchor: md(h.anchor), day: md(h.suggested_anchor) });
+  return h.last_bill_until ? t('billing.suggest', { date: fmt.date(h.last_bill_until), anchor: md(h.anchor), day: md(h.suggested_anchor) }) : null;
+}
 
 /** Stichtag wie der Server (SettingsService::isMonthDay, nextBillingAnchor): ungültig → 01-01, 29.–31.02. → 28.02. */
 export function normalizeAnchor(anchor) {

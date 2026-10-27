@@ -600,7 +600,10 @@ final class ConsumptionService
                 // Saldo rechnet (laufende Abrechnungsperiode; null außerhalb von ihr)
                 'settle_on'                   => $settleOn ?? self::lastDayOf($effEnd, $hasEnd ? (string)$c['end'] : null),
                 'billing_period'              => $period !== null
-                    ? ['from' => $period['from'], 'until' => $period['until'], 'open_from' => $openFrom, 'source' => $period['source'], 'bill_id' => $period['bill_id']] : null,
+                    ? ['from' => $period['from'], 'until' => $period['until'], 'open_from' => $openFrom, 'source' => $period['source'], 'bill_id' => $period['bill_id'],
+                       // v3.9.0 (Skeptiker M7, additiv) — Stichtag und Vorschlag für den Hinweis an der Karte
+                       'anchor' => $period['anchor'] ?? null, 'suggested_anchor' => $period['suggested_anchor'] ?? null,
+                       'suggested_anchor_source' => $period['suggested_anchor_source'] ?? null, 'last_bill_until' => $period['last_bill_until'] ?? null] : null,
                 'is_current'                  => $isCur,
                 'is_past'                     => $isPast,
                 'is_future'                   => $isFut,
@@ -676,6 +679,9 @@ final class ConsumptionService
                     // v3.7.0 (wirklichkeit-2) — {reasons, factor, factor_raw, factor_part, factor_limits,
                     // fit_ratio, base_load_per_day, projected_range, suggested_range} oder null (additiv)
                     'projection_uncertain'     => $projection['uncertain'],
+                    // v3.9.0 (Skeptiker M6, additiv) — {low, high, half, level_pct, estimated_days, weather, model}
+                    // oder null: Wetter und Modell bei sicherer Schätzung
+                    'projection_band'          => $projection['band'] ?? null,
                     // v3.7.0 (Schritt 3) — wirksamer Faktor; getrennt für Grundlast und Heizanteil (additiv)
                     'projection_factor'        => $projection['factor'],
                     'projection_factor_base'   => $projection['factor_base'],
@@ -1034,6 +1040,41 @@ final class ConsumptionService
             if ($yearCost > 0) $ongoing = (float)round($yearCost / $perYear);
         }
 
+        // v3.9.0 (Skeptiker M6) — auch eine sichere Schätzung hat eine Breite: Wetter der noch
+        // kommenden Tage (Streuung der Heizgradtage je Monat im Klimanormal × Heizanteil je
+        // Gradtag) und Streuung des Modells je Monat für jeden geschätzten Tag seit der letzten
+        // Ablesung. Bis dahin verschwand mit bestandener Gütesperre (etwa nach der Heizgrenze)
+        // jede Spanne, der Saldo stand auf den Cent da, auch mit neun geschätzten Monaten.
+        // Kein „unsicher“, kein Wegfall des Vorschlags: eine Spanne neben dem Punktwert.
+        $band = null;
+        $lp = $this->lastProjection;
+        if ($est !== null && $uncertain === null && !empty($lp['trusted']) && is_array($lp['model'] ?? null) && $estVolume > 0) {
+            $model = $lp['model'];
+            $normals = $this->hddNormals($this->hddBaseFor($meter));
+            $varW = 0.0; $varN = 0.0; $estDays = 0;
+            $from = $gapFrom; $future = max($asOf, $gapFrom);
+            for ($t = strtotime(substr($from, 0, 7) . '-01'); $t !== false && date('Y-m-d', $t) < $endExcl; $t = strtotime('+1 month', $t)) {
+                $ms = date('Y-m-d', $t); $me = date('Y-m-d', (int)strtotime('+1 month', $t));
+                $dim = (int)date('t', $t);
+                $days = fn(string $a, string $b): int => max(0, (int)round((strtotime(min($b, $me, $endExcl)) - strtotime(max($a, $ms))) / 86400));
+                $all = $days($from, $endExcl);
+                if ($all <= 0) continue;
+                $estDays += $all;
+                $varN += ((float)($model['resid_sd'] ?? 0.0) * $all / $dim) ** 2;
+                $fut = $days($future, $endExcl);
+                $sd = $normals[(int)date('n', $t)]['sd'] ?? null;
+                if ($fut > 0 && is_numeric($sd)) $varW += ((float)$model['a'] * (float)($lp['heat'] ?? 1.0) * (float)$sd * $fut / $dim) ** 2;
+            }
+            $z = (float)$this->settings->get('confidence_band_sigma', 1.28);
+            $price = ($gapEnergy + $remainingEnergy) / $estVolume;   // € je geschätzter Einheit
+            $half = round($z * sqrt($varW + $varN) * $price, 2);
+            if ($half >= self::BAND_MIN_EUR) {
+                $band = ['low' => round($projected - $half, 2), 'high' => round($projected + $half, 2), 'half' => $half,
+                         'level_pct' => (int)round((2 * (0.5 * (1 + self::erf($z / M_SQRT2))) - 1) * 100), 'estimated_days' => $estDays,
+                         'weather' => round($z * sqrt($varW) * $price, 2), 'model' => round($z * sqrt($varN) * $price, 2)];
+            }
+        }
+
         // v2.16.0 (Review FE-31) — dieselbe Rechnung als Monatsreihe für den
         // Saldo-Verlauf: je Monat die Kosten (gemessen, geschätzt, Grundpreis,
         // Boni) und das Bezahlte (Abschläge, Sonderzahlungen), aufsummiert.
@@ -1128,8 +1169,20 @@ final class ConsumptionService
             'advance_ongoing'          => $ongoing,
             'suggestion_withheld'      => $withheld,
             'uncertain'                => $uncertain,
+            'band'                     => $band,   // v3.9.0 (Skeptiker M6)
             'path'                     => $path,
         ];
+    }
+
+    /** v3.9.0 (Skeptiker M6) — Breite unter einem Euro zeigt die Karte nicht. */
+    public const BAND_MIN_EUR = 1.0;
+
+    /** Fehlerfunktion (Abramowitz/Stegun 7.1.26, Fehler < 1,5·10⁻⁷) für das Niveau des Bands. */
+    private static function erf(float $x): float
+    {
+        $t = 1.0 / (1.0 + 0.3275911 * abs($x));
+        $y = 1.0 - (((((1.061405429 * $t - 1.453152027) * $t) + 1.421413741) * $t - 0.284496736) * $t + 0.254829592) * $t * exp(-$x * $x);
+        return $x >= 0 ? $y : -$y;
     }
 
     /**
