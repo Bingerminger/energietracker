@@ -2892,7 +2892,8 @@
       "heat_model": "Heizmodell (kein eigener Wert für den Monat)",
       "filled": "Tagesmittel (kein eigener Wert)",
       "blend": "Mischung: {reg} Heizkurve, {seasonal} Saisonprofil",
-      "seasonal_interpolated": "Verteilte Werte (kein gemessener Monat)"
+      "seasonal_interpolated": "Verteilte Werte (kein gemessener Monat)",
+      "heat_model_summer": "Heizmodell mit gemessener Sommer-Grundlast (kein eigener Wert für den Monat)"
     },
     "chartAltSpan": "Liniendiagramm: Verbrauch {from} – {to} und Prognose bis {until}",
     "co2Scenario": {

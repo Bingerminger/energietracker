@@ -473,7 +473,12 @@ desselben Kalendermonats (`seasonal_interpolated`), wenn es sie gibt. Ebenso,
 wenn das Heizmodell die Gütesperre nicht besteht oder seine Grundlast c unter
 der Hälfte der mittleren Tagesrate gemessener Sommermonate (Juni bis August)
 liegt; die Gütesperre prüft die Grundlast erst ab zwei Sommermonaten, diese
-Prüfung schon mit einem. Ohne
+Prüfung schon mit einem. Verteilte Werte zählen dabei nur aus Abständen bis
+62 Tagen: Innerhalb eines Abstands wird nach Tagen verteilt, nicht nach Wetter,
+und ein Abstand über den Winter trägt Heizverbrauch in den Juli. Gibt es keine,
+kommt der Monat aus dem Heizmodell; ist es nicht verlässlich, mit der gemessenen
+Sommerrate (Juni bis August) als Grundlast, wenn sie über c liegt
+(`heat_model_summer`). Ohne
 Heizmodell kommt er aus der Regression allein (`regression_only`), sonst aus
 dem Tagesmittel aller Monate (`filled`).
 

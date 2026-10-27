@@ -2892,7 +2892,8 @@
       "heat_model": "modelo de aquecimento (sem valor próprio para o mês)",
       "filled": "média diária (sem valor próprio)",
       "blend": "combinação: {reg} curva de aquecimento, {seasonal} perfil sazonal",
-      "seasonal_interpolated": "Valores repartidos (nenhum mês medido)"
+      "seasonal_interpolated": "Valores repartidos (nenhum mês medido)",
+      "heat_model_summer": "modelo de aquecimento com a carga de base do verão medida (sem valor próprio para o mês)"
     },
     "chartAltSpan": "Gráfico de linhas: consumo {from} – {to} e previsão até {until}",
     "co2Scenario": {

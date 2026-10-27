@@ -2892,7 +2892,8 @@
       "heat_model": "verwarmingsmodel (geen eigen waarde voor de maand)",
       "filled": "daggemiddelde (geen eigen waarde)",
       "blend": "mix: {reg} stooklijn, {seasonal} seizoensprofiel",
-      "seasonal_interpolated": "Verdeelde waarden (geen gemeten maand)"
+      "seasonal_interpolated": "Verdeelde waarden (geen gemeten maand)",
+      "heat_model_summer": "verwarmingsmodel met de gemeten basislast in de zomer (geen eigen waarde voor de maand)"
     },
     "chartAltSpan": "Lijndiagram: verbruik {from} – {to} en prognose tot {until}",
     "co2Scenario": {

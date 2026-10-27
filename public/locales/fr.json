@@ -2892,7 +2892,8 @@
       "heat_model": "modèle de chauffage (pas de valeur propre pour le mois)",
       "filled": "moyenne journalière (pas de valeur propre)",
       "blend": "mélange : {reg} courbe de chauffe, {seasonal} profil saisonnier",
-      "seasonal_interpolated": "Valeurs réparties (aucun mois mesuré)"
+      "seasonal_interpolated": "Valeurs réparties (aucun mois mesuré)",
+      "heat_model_summer": "modèle de chauffage avec la charge de base estivale mesurée (pas de valeur propre pour le mois)"
     },
     "chartAltSpan": "Graphique linéaire : consommation {from} – {to} et prévision jusqu’à {until}",
     "co2Scenario": {
