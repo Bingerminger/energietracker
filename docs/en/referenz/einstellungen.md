@@ -68,7 +68,7 @@ level stays reachable and shows a note whose one click raises the level. More:
 
 Independently of this, every device shows “Updated to …” once after an update, with a link to the release notes — without any request going out.
 
-### Environment *(v3.7.1)*
+### Environment *(v3.9.0)*
 
 | Key | Default | In the app | Effect |
 |---|---|---|---|
@@ -140,7 +140,7 @@ field focused.
 
 | Key | Default | In the app | Effect |
 |---|---|---|---|
-| `wasser_personen_anzahl` | 2 | Number of people | For the water saving index: litres per person and day compared with the reference. Since v3.6.0 the “Benchmark” card only rates water once the number has been entered (see below). Up to v3.8 the field was called “People in household”; since v3.9.0 that is the name of the card with the names for “Responsible”. |
+| `wasser_personen_anzahl` | 2 | Number of people | For the water saving index: litres per person and day compared with the reference. Since v3.6.0 the “Benchmark” card only rates water once the number has been entered (see below). Up to v3.7 the field was called “People in household”; since v3.9.0 that is the name of the card with the names for “Responsible”. |
 | `wasser_personen_referenz` | 122 | Reference | BDEW 2024: 122 L per person and day (Germany). Existing installations keep the former default 127 until they take over the new values. |
 | `wasser_sparindex_gut` | 100 | Saving index — good up to | Index ≤ this value is considered unremarkable. |
 | `wasser_sparindex_warnung` | 150 | Saving index — warning from | Index ≥ this value indicates saving potential. |

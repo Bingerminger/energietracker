@@ -56,23 +56,28 @@ to keep their share cleanly separate.
 3. On the second meter, under **⚙️ Meters → Edit**, set the **parent meter** to
    *"shared-flat house connection"* → it becomes a **sub-meter**.
 
-**What happens.** The server sub-meter is subtracted from the house connection.
-On the dashboard you see:
+**What happens.** The house connection also measures the server. So the
+sub-meter does not count again in the total, it only breaks it down:
 
-```
-⚡ Shared-flat house connection .. 612 kWh   (net, without server)
+<!-- doc-claim: shared-meters-example (SubmeterRestDocsTest) -->
+```text
+⚡ Shared-flat house connection .. 612 kWh   (measured, with server)
    ↳ Study (server) .............. 188 kWh   (breakdown)
 Electricity total ............... 612 kWh
 ```
 
 This lets you quantify the server share (188 kWh) exactly for the internal
-shared-flat settlement, while the flat's total cost (612 kWh × tariff) stays
-correct without double counting. Details:
-[Meter topology](../verstehen/13-meter-topologie.md).
+shared-flat settlement; the rest of the flat accounts for 612 − 188 = 424 kWh.
+The flat's contract on the house connection bills all 612 kWh, without double
+counting. Details: [Meter topology](../verstehen/13-meter-topologie.md).
 
 > **Tip.** Maintain the shared-flat contract on the main meter. The sub-meter
-> needs no contract of its own — its kWh figure is enough for the internal
-> apportionment.
+> needs no contract of its own: its kWh figure is enough for the internal
+> apportionment. If it does get a contract of its own, the flat's contract only
+> bills the remainder from that contract's start *(v3.9.0,
+> [remainder billing](../verstehen/13-meter-topologie.md#remainder-billing-v390))*.
+> Up to v3.7 this said the sub-meter was subtracted from the house connection;
+> the figures in the example were the measured ones even then.
 
 ---
 

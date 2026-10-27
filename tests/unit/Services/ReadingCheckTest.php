@@ -556,6 +556,20 @@ final class ReadingCheckTest extends ServiceTestCase
         self::assertSame(0.23, $c[0]['before']['ratio']);
         self::assertEqualsWithDelta(665.0, $c[0]['after']['expected'], 0.5);
         self::assertSame(4.08, $c[0]['after']['ratio']);
+        // v3.9.0 (doku) — die Grundlagen erzählen genau diesen Fall nach (Lektion 31):
+        // Verhältnisse davor, im Block, danach und Überschuss ÷ Mangel, DE und EN.
+        $short = $c[0]['before']['expected'] - $c[0]['before']['measured'];
+        $surplus = $c[0]['after']['measured'] - $c[0]['after']['expected'];
+        $times = round($surplus / $short, 1);
+        self::assertSame(2.4, $times);
+        $fmt = fn(float $v, string $dec) => str_replace('.', $dec, number_format($v, 2, '.', ''));
+        foreach (['docs/verstehen/00-overview.md' => [',', "rund %s-mal so groß"], 'docs/en/verstehen/00-overview.md' => ['.', 'about %s times the shortfall']] as $rel => [$dec, $phrase]) {
+            $doc = (string)preg_replace('/\s+/u', ' ', (string)file_get_contents(dirname(__DIR__, 3) . '/' . $rel));
+            foreach ([$c[0]['before']['ratio'], 0.78, 0.69, $c[0]['after']['ratio']] as $r) {
+                self::assertStringContainsString($fmt((float)$r, $dec) . '×', $doc, "$rel: Verhältnis $r");
+            }
+            self::assertStringContainsString(sprintf($phrase, str_replace('.', $dec, (string)$times)), $doc, "$rel: Überschuss gegen Mangel");
+        }
         // „Zu tun“ mit eigenem Text
         $ev = array_values(array_filter($this->agenda()->events(90), fn($e) => $e['kind'] === 'reading_check'));
         self::assertSame('calendar.event.readingMismatchBlock', $ev[0]['title_key']);

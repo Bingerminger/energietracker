@@ -34,8 +34,11 @@ noch fünf SVG-Attrappen aus v1.0.2.
    curl -s -X POST -H 'Content-Type: application/json' -H 'X-ET-Language: de' \
      --data '{"force":true}' $A/demo/import
    curl -s -X PATCH -H 'Content-Type: application/json' \
-     --data '{"ui_level":"expert"}' $A/settings
+     --data '{"ui_level":"expert","weather_auto_fill":false}' $A/settings
    ```
+
+   `weather_auto_fill: false` *(v3.9.0)*: Der Import schreibt das Wetter schon
+   fort; ohne den Schalter fragt der Browser beim Aufnehmen Open-Meteo.
 
    Für die englischen Bilder eine zweite Instanz mit eigenem Verzeichnis:
    vor dem Import `{"language":"en"}` setzen und mit `X-ET-Language: en`
@@ -109,6 +112,11 @@ entstehen in einer eigenen Instanz mit eingeschalteter Anmeldung.
 | `handbuch.png` | Handbuch in der App (v3.4.0) | `#/help/doc/anleitungen/anwendungsfaelle.md` bzw. `#/help/doc/en/anleitungen/anwendungsfaelle.md` | 1440 × 900 | ✓ |
 | `erklaerung-mac.png` | ⓘ-Erklärung am Mac | Gas → Monatstabelle → ⓘ an HGT | Ausschnitt | ✓ |
 | `erklaerung-iphone.png` | ⓘ-Erklärung als Blatt | wie oben | 375 × 812 | ✓ |
+| `einrichtung.png` | Einrichtungsassistent, Schritt „Wer bist du?“ (v3.9.0) | leeres Verzeichnis, im Schritt „Sprache und Land“ „Weiter“ | 1440 × 900 | ✓ |
+| `personen.png` | Karte „Personen im Haushalt“ (v3.9.0) | `#/settings/household` | Ausschnitt | ✓ |
+| `ha-benachrichtigungen.png` | Karte „Benachrichtigungen an Home Assistant“ (v3.9.0) | `#/settings/integrations`, Ziel Webhook mit Adresse aus `192.168.178.x`, ausgeschaltet | Ausschnitt (Fenster 1440 × 2600, ganze Seite, damit die feste Kopfleiste den Titel nicht verdeckt) | ✓ |
+| `messkonzept.png` | Assistent „Messkonzept einrichten“, Schritt „Wie hängen die Zähler?“ (v3.9.0) | `#/utility/strom/meters?concept=1`: Wärmepumpe, HT/NT an jedem Bezugszähler, PV, dann „Kaskade“ | 1440 × 900 | ✓ |
+| `ablesung-pruefen.png` | „Zu tun“ mit „Ablesung vom … prüfen“ (v3.9.0) | Beispieldaten, ein Winterstand des Hauptzählers Gas um 100 m³ abgesenkt (nur in der Aufnahme-Instanz) | Ausschnitt | ✓ |
 
 Ein Test prüft, dass jedes verlinkte Bild existiert
 ([Tests](tests.md)).
