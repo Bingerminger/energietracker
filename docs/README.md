@@ -40,10 +40,10 @@ eigene OpenAI-kompatible Adresse; experimentell) geht nur mit einem Opt-in.
 | [Jahresabrechnung eintragen und prüfen](anleitungen/jahresabrechnung.md) | Stände, Preise, Gasfaktoren und Guthaben einer Rechnung übernehmen und nachrechnen — für Gas, Strom, Wasser und Fernwärme; die Rechnung erfassen, vergleichen und als Sonderzahlung buchen |
 | [Als Mieter: Heizung, Wasser und Nebenkosten](anleitungen/mieter.md) | Verbrauchsinfo Monat für Monat, Warm- und Kaltwasser, Vorauszahlung gegen erwartete Kosten, Nebenkostenabrechnung und ihre Fristen |
 | [CO₂-Kosten mit dem Vermieter teilen](anleitungen/co2-aufteilung.md) | Anteil des Vermieters nach CO2KostAufG: bei eigener Gastherme ausrechnen und einfordern, bei Zentralheizung die Abrechnung prüfen; Frist und Anschreiben |
-| [Home Assistant anbinden](anleitungen/home-assistant.md) | Als App in Home Assistant OS (seit v3.5.0); Zählerstände automatisch pushen: Token, Zähler-Alias, REST-Command, Viertelstunden mit Zeitstempel; Saldo und Prognose als Sensoren zurück, Nachliefern nach einem Ausfall |
+| [Home Assistant anbinden](anleitungen/home-assistant.md) | Als App in Home Assistant OS (seit v3.5.0); Zählerstände automatisch pushen: Token, Zähler-Alias, REST-Command, Viertelstunden mit Zeitstempel; Saldo und Prognose als Sensoren zurück, Nachliefern nach einem Ausfall; *seit v3.9.0* Benachrichtigungen an Home Assistant und der Sensor „Zu tun“ |
 | [ioBroker, Node-RED, openHAB](anleitungen/andere-systeme.md) | Zählerstände aus anderen Systemen senden: gemeinsamer Vertrag und je ein Rezept |
 | [Fristen und Termine im Kalender](anleitungen/kalender.md) | Kalender-Abo in Apple Kalender, Thunderbird und Google Kalender |
-| [Hinweise erledigen und der Verlauf](anleitungen/hinweise-erledigen.md) | Was sich von selbst erledigt (Folgevertrag, Ablesung, Lieferung), von Hand abhaken mit Datum, Notiz und Beleg, Rückgängig, Tab „Erledigt“, wer im Verlauf steht, Aufbewahrung und Datenschutz |
+| [Hinweise erledigen und der Verlauf](anleitungen/hinweise-erledigen.md) | Was sich von selbst erledigt (Folgevertrag, Ablesung, Lieferung), von Hand abhaken mit Datum, Notiz und Beleg, Rückgängig, Tab „Erledigt“, wer im Verlauf steht, Aufbewahrung und Datenschutz; *seit v3.9.0* „Ablesung prüfen“ |
 | [Texterkennung im Heimnetz](anleitungen/texterkennung.md) | Zählerstand vom Foto vorschlagen lassen: Ollama oder LM Studio einrichten, Datenschutz, Fehlersuche |
 | [Posteingang: Versorgerpost auslesen lassen](anleitungen/posteingang.md) | *Neu in v3.7.0:* PDF ablegen (am iPad aus der Dateien-App), lokal mit qwen3.8 auslesen, jede Angabe mit Belegstelle prüfen, mit einem Klick übernehmen; von Hand erfassen neben dem Dokument, viele auf einmal, Datenschutz; in der Cloud auslesen als Opt-in — Claude (Anthropic) oder ein OpenAI-kompatibler Dienst, Schlüssel, was hinausgeht, Grenzen |
 | [Jahresbericht lesen](anleitungen/jahresbericht-lesen.md) | Das Wichtigste mit Ampeln, was sich gelohnt hat, Aufgaben mit Priorität, Betrag und Frist, Grafiken; Teilbericht und Sprache per Link, Versand über Home Assistant |
@@ -52,7 +52,7 @@ eigene OpenAI-kompatible Adresse; experimentell) geht nur mit einem Opt-in.
 | [Benutzer im Haushalt](anleitungen/benutzer.md) | Personen mit Name und Passwort oder über den Proxy, Verwaltung und Mitglied, eigene Stufe und Sprache, Passwort vergessen |
 | [Zeitreihen aus Portalen übernehmen](anleitungen/daten-aus-portalen.md) | Dateien von Netzbetreiber, Wechselrichter oder Wärmepumpe mit Spaltenzuordnung einlesen, Zeitstempel und Zeitumstellung, Viertelstunden für die Flexibilität, Data Act |
 | [Flexibilität bewerten](anleitungen/flexibilitaet.md) | Wann Strom günstig ist und was Verschieben bringt: Ampel, „Dein Hebel“ je Gerät, Handlungssätze, Ergebniskarte als Bild, Seite im Jahresbericht (v3.6.0); dazu Profilfaktor und Vorteil je Stromzähler, Speicher, § 14a Modul 3 mit Zeitfenstern am Vertrag, Dynamik-Check mit eigenem Lastgang |
-| [Anwendungsfälle](anleitungen/anwendungsfaelle.md) | WG mit geteilten Zählern, Smart Home, PV-Haushalt mit Wärmepumpe, Vermieter, Wallbox und Dienstwagen, Fernwärme oder Heizwärme, Steuern mit evcc oder Home Assistant |
+| [Anwendungsfälle](anleitungen/anwendungsfaelle.md) | WG mit geteilten Zählern, Smart Home, PV-Haushalt mit Wärmepumpe, Vermieter, Wallbox und Dienstwagen, Fernwärme oder Heizwärme, Steuern mit evcc oder Home Assistant, *seit v3.9.0* Kaskade mit Wärmepumpe, HT/NT und PV |
 
 ## 📚 Verstehen — *wie gerechnet wird*
 
@@ -66,7 +66,7 @@ eigene OpenAI-kompatible Adresse; experimentell) geht nur mit einem Opt-in.
 | [CO₂-Preis im Brennstoff](verstehen/16-co2-preis.md) | Der CO₂-Preis (BEHG) in Gas, Heizöl und Fernwärme: Ausweis statt Aufschlag, Faktoren, Preis je Jahr, Szenario |
 | [Sonderzahlungen](verstehen/10-sonderzahlungen.md) | Rück- und Nachzahlung, Abschlagszahlung, Wirkung auf den Saldo |
 | [Zählerstand-Erfassung](verstehen/11-zaehlerstaende.md) | Erfassung in einem Durchgang, Plausibilität, Direktsprung, Foto und Warteschlange |
-| [Meter-Topologie](verstehen/13-meter-topologie.md) | Subzähler, Zählergruppen und der Gruppenvertrag |
+| [Meter-Topologie](verstehen/13-meter-topologie.md) | Subzähler, Zählergruppen und der Gruppenvertrag; *seit v3.9.0* Rest-Abrechnung am Elternzähler, Kaskade und der Assistent „Messkonzept“ |
 | [Länderprofile](verstehen/14-laenderprofile.md) | Währung, Formate, Effizienzskala, CO₂-Faktoren, Gaseinheiten und Begriffe der Rechnung je Land |
 | [Szenario Wohnung](verstehen/07-szenario-wohnung.md) · [Szenario Eigenheim](verstehen/08-szenario-eigenheim.md) | Durchgerechnete Beispiele |
 | [Glossar & Formelsammlung](verstehen/09-glossar.md) | Alle Begriffe und Formeln kompakt |

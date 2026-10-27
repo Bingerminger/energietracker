@@ -363,6 +363,18 @@ for (const [lang, file, step, demo] of [['de', 'docs/einstieg/einrichtung.md', '
     d.includes(`${step} ${nInst}`) && d.includes(demo.replace('{n}', NUM[lang][nDemo])));
   t(`${lang}: Schritt 1 heißt wie im Katalog`, d.includes(cat(lang).setup.region.title));
 }
+// v3.9.0 (doku) — die UI-Referenz nannte bis zum Gegenlesen „Schritt 1 von 4“ und für
+// die Demo „drei Schritte“ (der Schritt Sprache und Land fehlte seit v3.5.0).
+for (const [lang, file, head, step, demo] of [['de', 'docs/referenz/ansichten.md', '## 16. Einrichtungsassistent', 'Schritt 1 von', '{n} Schritte, ohne'],
+  ['en', 'docs/en/referenz/ansichten.md', '## 16. Setup assistant', 'Step 1 of', '{n} steps, without']]) {
+  const d = readFileSync(resolve(ROOT, file), 'utf8').replace(/\s+/g, ' ');
+  const nInst = W.setupSteps(false).length, nDemo = W.setupSteps(true).length;
+  const sec = d.slice(Math.max(0, d.indexOf(head)));
+  t(`${lang}: UI-Referenz §16 mit der Schrittzahl aus dem Code (${nInst}, Demo ${nDemo})`,
+    d.includes(head) && sec.includes(`${step} ${nInst}`) && sec.includes(demo.replace('{n}', NUM[lang][nDemo])));
+  t(`${lang}: UI-Referenz §16 nennt den ersten Schritt und den Weg „${cat(lang).concept.title}“`,
+    sec.includes(cat(lang).setup.region.title) && sec.includes(cat(lang).concept.title));
+}
 
 // ── Demo (eigener Prozess: DEMO wird beim Laden des Moduls bestimmt) ────
 for (const [title, flag] of [['Demo', '--demo'], ['Start der App', '--boot']]) {

@@ -3,7 +3,7 @@
 
 # Energietracker
 
-<p align="center"><img src="docs/assets/promo/banner.de.png" alt="Energietracker – Energiekosten verstehen, bares Geld sparen: Kosten und Abschläge, Verbrauch, Verträge und Fristen, Sonne, Speicher, Wärmepumpe und E-Auto in einer selbst gehosteten App" width="860"></p>
+<p align="center"><img src="docs/assets/promo/banner.de.png" alt="Energietracker – Energiekosten verstehen, bares Geld sparen: Kosten und Abschläge, Verbrauch, Post vom Versorger, Sonne, Speicher, Wärmepumpe und E-Auto, Messkonzepte und Benachrichtigungen an Home Assistant in einer selbst gehosteten App" width="860"></p>
 
 **Home Assistant misst — der Energietracker rechnet ab.** Zählerstände rein,
 Antworten raus: Bekomme ich Geld zurück? Stimmt die Gasrechnung? Lohnt sich der
@@ -39,12 +39,17 @@ Beispielhaushalt, bis heute fortgeschrieben, in sieben Sprachen, ohne Installati
 | Was kommt auf mich zu? | **Prognose** mit Unsicherheitsband und Kosten je Monat aus dem gültigen Tarif |
 | Wie effizient ist das Haus? | **Effizienz** in kWh/m²·a und eine energieausweis-nahe Kennzahl; mit Wärmepumpe die Jahresarbeitszahl |
 | Reicht die Vorauszahlung zur Miete? | **Mietverhältnis**: Heizung und Wasser gegen die Nebenkostenvorauszahlung, Fristen im Kalender, CO₂-Kosten mit dem Vermieter teilen |
+| Was steht in der Post vom Versorger? | **Posteingang**: PDF ablegen, auslesen lassen, jede Zahl mit ihrer Belegstelle prüfen und übernehmen; *neu in v3.9.0* legt eine Jahresrechnung auch den Vertrag an, mit Preisen je Abschnitt und Abschlägen alle zwei oder drei Monate |
+| Wärmepumpe mit eigenem Tarif, HT/NT, PV? | **Messkonzept** *(neu in v3.9.0)*: ein Assistent fragt nach dem Aufbau im Zählerschrank, zeichnet das Schaltbild und legt Zähler, Zählwerke und Verträge an; hat ein Subzähler einen eigenen Vertrag, rechnet der Elternzähler nur den Rest |
+| Muss ich die App öffnen, um nichts zu verpassen? | **Benachrichtigungen an Home Assistant** *(neu in v3.9.0)*: Fristen, Termine, Warnungen und neue Post erscheinen in Home Assistant, jede nur einmal; dazu ein Sensor „Zu tun“ |
+| Stimmt dieser Zählerstand? | **Ablesung prüfen** *(neu in v3.9.0)*: Ein vertippter Stand zwischen zwei richtigen verzieht sonst still die Monate. Die App fragt nach und korrigiert nie selbst |
 
 Neun Verbrauchsarten: Gas, Strom, Wasser, Fernwärme, Heizöl und Pellets (mit
 Tankbuch), PV-Einspeisung und PV-Erzeugung (Eigenverbrauch, Autarkie, Speicher)
 und Heizwärme (Wärmemengenzähler oder monatliche Verbrauchsinfo). Dazu
 Zählertausch, Subzähler und Gruppen — auch mit einem Vertrag für Hoch- und
-Niedertarif —, Belege und Fotos der Zähler, Termine als Kalender-Abo,
+Niedertarif —, Zählwerke mit OBIS-Kennzahl, Personen im Haushalt auch ohne
+Anmeldung, Belege und Fotos der Zähler, Termine als Kalender-Abo,
 Empfehlungen, PDF-Jahresbericht und eine Übersicht für Home Assistant — und eine
 Hilfe in der App mit Glossar und ⓘ an jeder Kennzahl.
 → [Alle Funktionen](docs/einstieg/funktionen.md) ·
@@ -58,7 +63,8 @@ Hilfe in der App mit Glossar und ⓘ an jeder Kennzahl.
   in der Mietwohnung wie im Eigenheim.
 - **Home-Assistant-Nutzer**: Home Assistant pusht die Zählerstände, der
   Energietracker rechnet Verträge, Abschläge und Prognosen —
-  [Anleitung](docs/anleitungen/home-assistant.md).
+  [Anleitung](docs/anleitungen/home-assistant.md). Seit 3.9.0 meldet er
+  Fristen, Warnungen und neue Post selbst an Home Assistant zurück.
 - **Tüftler**: offene REST-API, CSV und JSON-Backup, keine Datenbank.
 
 | | Home Assistant (Energie) | Energietracker |
@@ -155,7 +161,13 @@ er ohne Klassen und sagt warum; Währungen rechnet er nicht um —
 
 **v3.7.0** ist die aktuelle Version — [CHANGELOG](CHANGELOG.md). Schnittstellen,
 CSV-Formate und das Backup-Format ändern sich nur additiv; entfernt wird erst
-mit einer neuen Hauptversion und nach Ankündigung. 3.7.0 liest die Post vom
+mit einer neuen Hauptversion und nach Ankündigung. 3.9.0 enthält, was als
+3.7.1 und 3.8.0 angekündigt war: Messkonzepte mit Wärmepumpe, HT/NT und PV, bei
+denen jeder Vertrag nur bezahlt, was er wirklich misst; Benachrichtigungen an
+Home Assistant; der Vertrag aus der Jahresrechnung, auch für Wasser mit
+Abschlägen alle zwei Monate; die Prüfung von Zwischenablesungen; eine Rechnung
+für Saldo-Karte, Werkstatt und Jahresbericht; die Heizgrenze dort, wo sie
+wirkt; Personen im Haushalt ohne Anmeldung. 3.7.0 liest die Post vom
 Versorger: PDF in den Posteingang, eine KI im eigenen Heimnetz (oder, als
 experimentelles Opt-in, ein Cloud-Dienst) liest es aus, belegt jede Zahl mit
 ihrer Stelle im Dokument, und ein Klick übernimmt sie — auch einen ganzen

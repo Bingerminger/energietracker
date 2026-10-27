@@ -83,7 +83,10 @@ höheren Stufen auch. Ein Test prüft jede Zeile mit Sprungmarke gegen den Code.
 | <a id="level-el-contract-terms"></a>Vertrag: Preisgarantie, „Kündigung wirkt“, Mindestlaufzeit, „Verlängert sich ohne Kündigung“ | – | ✓ | ✓ | Wechsel planen |
 | <a id="level-el-price-changes"></a>Vertrag: weitere Preiszeilen („+ Zeile“), Boni, Sonderzahlungen | – | ✓ | ✓ | Preiswechsel und Rückzahlungen genau abbilden |
 | <a id="level-el-contract-expert"></a>Vertrag: Kennwerte der Fernwärme (CO₂, Primärenergie), Preise je Zähler einer Gruppe, § 14a Modul 1 und Modul 3, Gutschriften des Direktvermarkters, „Monatspreise importieren“, Zählungen je Vertrag | – | – | ✓ | Sonderfälle von Tarif und Netzentgelt |
-| <a id="level-meters"></a>**Zähler-Aufbau** — Subzähler, Rollen, Geräte und Zählertausch, CSV-Import von Ständen | – | ✓ | ✓ | Zähler einer Art verwalten (Link „⚙️ Zähler“ in der Verbrauchsansicht) |
+| Ablesung: **„Nur für die Abrechnung“** und **„Stand ist richtig“** im Bearbeiten-Dialog *(v3.9.0)* | ✓ | ✓ | ✓ | ein Stand, mit dem der Versorger abgerechnet hat, der aber die Monate verzieht |
+| Vertrag: **Abschlag im Rhythmus** (alle 2 oder 3 Monate, Termine laut Rechnung) *(v3.9.0)* | ✓ | ✓ | ✓ | wie der Versorger abbucht; Saldo und Vorschlag zählen je Termin |
+| <a id="level-meters"></a>**Zähler-Aufbau** — Subzähler, Rollen, Geräte und Zählertausch, CSV-Import von Ständen; seit v3.9.0 Zählwerk (OBIS) und Heizgrenze je Zähler | – | ✓ | ✓ | Zähler einer Art verwalten (Link „⚙️ Zähler“ in der Verbrauchsansicht) |
+| Assistent **„Messkonzept einrichten“** — Zähler, Zählwerke, Subzähler und Verträge aus dem Aufbau *(v3.9.0)* | ✓ | ✓ | ✓ | über Einstellungen → Verbrauchsarten & Abrechnung und die Ersteinrichtung; der Knopf auf der Zählerseite ab Erfahren |
 | <a id="level-el-meter-plant"></a>Zähler: **PV-Anlage** (Investition, Inbetriebnahme, Speicher, Balkonkraftwerk), **Stromzähler der Wärmepumpe** | – | ✓ | ✓ | *seit v3.7.0 ab Erfahren:* Grundlage für Amortisation und Jahresarbeitszahl |
 | <a id="level-el-meter-expert"></a>Zähler: Zählergruppe, Analyse-Zäsuren, „Zeitreihe importieren“ | – | – | ✓ | Gruppenvertrag, Rechnen ab einer Sanierung, Viertelstunden aus Portalen |
 
@@ -99,6 +102,8 @@ höheren Stufen auch. Ein Test prüft jede Zeile mit Sprungmarke gegen den Code.
 | <a id="level-el-heat-pump"></a>Karte **„Wärmepumpe“** mit Jahresarbeitszahl | – | ✓ | ✓ | *seit v3.7.0 ab Erfahren:* wie effizient die Wärmepumpe arbeitet |
 | <a id="level-el-utility-expert"></a>Verbrauch: Warmwasser-Wärme, CO₂-Preis im Brennstoff | – | – | ✓ | Rechengrößen hinter den Kosten |
 | <a id="level-recommendations"></a>**Empfehlungen** | ✓ | ✓ | ✓ | Hinweise aus deinen Daten |
+| „Zu tun“: **Heizgrenze anpassen** mit „Übernehmen (nur dieser Zähler)“ und „Nicht jetzt“, auch an Saldo-Karte, Prognose und Werkstatt *(v3.9.0)* | ✓ | ✓ | ✓ | ob der Abschlag reicht, hängt an der Heizgrenze |
+| „Zu tun“: **Ablesung prüfen**, doppelte Stände, Hinweis auf die Analyse-Zäsur *(v3.9.0)* | ✓ | ✓ | ✓ | ein vertippter Stand verzieht sonst still die Monate |
 | <a id="level-report"></a><a id="level-report-print"></a>**Jahresbericht** — auch als PDF und zum Drucken | ✓ | ✓ | ✓ | das Jahr auf einer Seite |
 | <a id="level-analysis"></a>**Analyse** — Heizsignatur, Jahre im Vergleich | – | ✓ | ✓ | Verbrauch und Temperatur nebeneinander |
 | <a id="level-el-baseline"></a>Analyse: Zäsur und „Wirkung der Maßnahme“ | – | – | ✓ | vorher und nachher einer Sanierung |
@@ -153,14 +158,15 @@ höheren Stufen auch. Ein Test prüft jede Zeile mit Sprungmarke gegen den Code.
 | <a id="level-settings-utilities"></a>Einstellungen → **Verbrauchsarten & Abrechnung** — aktive Arten, Abrechnungsstichtage | ✓ | ✓ | ✓ | |
 | <a id="level-el-settings-utilities"></a>Verbrauchsarten: physikalische Konstanten, Energieträger (Lieferung), eigene Werte der Flexibilität, Photovoltaik | – | ✓ | ✓ | Photovoltaik *seit v3.7.0 ab Erfahren* |
 | <a id="level-el-settings-co2"></a>Verbrauchsarten: CO₂-Emissionsfaktoren | – | – | ✓ | Rechenparameter |
-| Personen im Haushalt anlegen (Einstellungen → Zugriff → „Benutzer und Rechte“) | – | – | ✓ | Namen, Rollen und Zugänge; sie hängen an der Anmeldung |
+| **Personen im Haushalt** anlegen, umbenennen, löschen (Einstellungen → Haushalt & Gebäude), auch ohne Anmeldung *(v3.9.0)* | ✓ | ✓ | ✓ | Namen für „Zuständig“ an Terminen, Zählern und Verträgen |
+| Zugänge und Rollen (Einstellungen → Zugriff → „Benutzer und Rechte“) | – | – | ✓ | wer sich anmeldet und welche Rolle gilt; hängt an der Anmeldung. Bis v3.7 entstanden Personen nur hier |
 
 ### Anbinden
 
 | Funktion | 🌱 | 🌿 | 🌳 | Wofür |
 |---|---|---|---|---|
 | <a id="level-settings-data"></a>Einstellungen → **Daten** — Export, Sicherung, Wiederherstellung, Beispieldaten | ✓ | ✓ | ✓ | deine Daten gehören dir |
-| <a id="level-settings-integrations"></a>Einstellungen → **Integrationen** — Home Assistant: Token, Alias, Vorlagen | – | ✓ | ✓ | Zählerstände von außen |
+| <a id="level-settings-integrations"></a>Einstellungen → **Integrationen** — Home Assistant: Token, Alias, Vorlagen; seit v3.9.0 Benachrichtigungen an Home Assistant | – | ✓ | ✓ | Zählerstände von außen, Fristen und neue Post nach Home Assistant |
 | <a id="level-el-evcc"></a>Wallbox: **„Ladevorgänge aus evcc“** | – | ✓ | ✓ | Ladevorgänge hochladen oder abrufen |
 | <a id="level-settings-access"></a>Einstellungen → **Zugriff** — Anmeldung, Benutzer und Rechte, API-Schlüssel, Einbetten, Hostnamen | – | – | ✓ | wer hineinkommt |
 | <a id="level-settings-expert"></a>Einstellungen → **Experte** — Auslesen, Belege, Texterkennung, evcc-Adresse; eingeklappt die Rechenparameter | – | – | ✓ | Dienste im Heimnetz, Feinabstimmung |
