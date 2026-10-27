@@ -88,6 +88,7 @@ entstehen in einer eigenen Instanz mit eingeschalteter Anmeldung.
 | `zaehlerstaende.png` | Zählerstand-Erfassung | `#/zaehlerstaende` | 1440 × 1500 | ✓ |
 | `pruefung-zaehlerstand.png` | Rückfrage bei einem Sprung | Erfassung mit auffälligem Wert → „Alle speichern“ | 1440 × 900 | — |
 | `gas-view.png` | Verbrauch Gas | `#/utility/gas` | 1440 × 1500 | ✓ |
+| `strom-view.png` | Verbrauch Strom mit Rest-Abrechnung am Hauptzähler (v3.9.0) | `#/utility/strom` | 1440 × 1500 | ✓ |
 | `heizoel-view.png` | Verbrauch Heizöl | `#/utility/heizoel` | 1440 × 1500 | ✓ |
 | `pv.png` | PV-Einspeisung mit Energiefluss | `#/utility/pv_einspeisung` | 1440 × 1280 | ✓ |
 | `zaehler-vertraege.png` | Vertragsliste einer Art (v3.4.0) | `#/utility/gas/contracts`, „Beendet“ aufgeklappt | 1440 × 1500 | ✓ |
@@ -113,6 +114,7 @@ entstehen in einer eigenen Instanz mit eingeschalteter Anmeldung.
 | `erklaerung-mac.png` | ⓘ-Erklärung am Mac | Gas → Monatstabelle → ⓘ an HGT | Ausschnitt | ✓ |
 | `erklaerung-iphone.png` | ⓘ-Erklärung als Blatt | wie oben | 375 × 812 | ✓ |
 | `einrichtung.png` | Einrichtungsassistent, Schritt „Wer bist du?“ (v3.9.0) | leeres Verzeichnis, im Schritt „Sprache und Land“ „Weiter“ | 1440 × 900 | ✓ |
+| `einrichtung-zaehler.png` | Einrichtungsassistent, Schritt „Wie hängen deine Zähler?“ (v3.9.0) | leeres Verzeichnis: „Weiter“, „Eigenheim mit Wärmepumpe und PV“, zweimal „Weiter“ | 1440 × 900 | ✓ |
 | `personen.png` | Karte „Personen im Haushalt“ (v3.9.0) | `#/settings/household` | Ausschnitt | ✓ |
 | `ha-benachrichtigungen.png` | Karte „Benachrichtigungen an Home Assistant“ (v3.9.0) | `#/settings/integrations`, Ziel Webhook mit Adresse aus `192.168.178.x`, ausgeschaltet | Ausschnitt (Fenster 1440 × 2600, ganze Seite, damit die feste Kopfleiste den Titel nicht verdeckt) | ✓ |
 | `messkonzept.png` | Assistent „Messkonzept einrichten“, Schritt „Wie hängen die Zähler?“ (v3.9.0) | `#/utility/strom/meters?concept=1`: Wärmepumpe, HT/NT an jedem Bezugszähler, PV, dann „Kaskade“ | 1440 × 900 | ✓ |

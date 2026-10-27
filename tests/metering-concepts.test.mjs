@@ -216,6 +216,15 @@ for (const [lang, file] of [['de', 'docs/anleitungen/anwendungsfaelle.md'], ['en
   t(`${lang}: Use-Case H nennt Knopf, Karte, Antworten und Aufbau wie der Assistent`, doc.includes('doc-claim: concept-wizard') && want.every(s => doc.includes(s)),
     want.filter(s => !doc.includes(s)).join(' | '));
 }
+// v3.9.0 (doku, Runde 3) — der Assistent ist auch in der öffentlichen Demo; die UI-Referenz zitiert
+// den Satz der Demo für einen anderen Aufbau und sagt nicht mehr, er fehle dort
+for (const [lang, file] of [['de', 'docs/referenz/ansichten.md'], ['en', 'docs/en/referenz/ansichten.md']]) {
+  const doc = read(file).replace(/\s+/g, ' ');
+  const c = JSON.parse(read(`public/locales/${lang}.json`));
+  const missing = lang === 'de' ? /öffentlichen Demo fehlt (sie|er)\b/ : /not part of the public demo/;
+  t(`${lang}: UI-Referenz: Assistent auch in der Demo, mit dem Satz der Demo bei anderem Aufbau`,
+    W.conceptOffered('strom', true) && doc.includes(c.demo.conceptPresetsOnly) && !missing.test(doc));
+}
 
 console.log(`\n  metering-concepts: ${pass} bestanden, ${fail} fehlgeschlagen`);
 process.exit(fail ? 1 : 0);

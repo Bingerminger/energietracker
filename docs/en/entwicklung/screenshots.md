@@ -88,6 +88,7 @@ instance with sign-in switched on.
 | `zaehlerstaende.png` | Meter-reading capture | `#/zaehlerstaende` | 1440 × 1500 | ✓ |
 | `pruefung-zaehlerstand.png` | Question on a jump | capture with a conspicuous value → “Save all” | 1440 × 900 | — |
 | `gas-view.png` | Consumption gas | `#/utility/gas` | 1440 × 1500 | ✓ |
+| `strom-view.png` | Consumption electricity with remainder billing at the main meter (v3.9.0) | `#/utility/strom` | 1440 × 1500 | ✓ |
 | `heizoel-view.png` | Consumption heating oil | `#/utility/heizoel` | 1440 × 1500 | ✓ |
 | `pv.png` | PV feed-in with energy flow | `#/utility/pv_einspeisung` | 1440 × 1280 | ✓ |
 | `zaehler-vertraege.png` | Contract list of a utility (v3.4.0) | `#/utility/gas/contracts`, “Ended” expanded | 1440 × 1500 | ✓ |
@@ -113,6 +114,7 @@ instance with sign-in switched on.
 | `erklaerung-mac.png` | ⓘ explanation on the Mac | Gas → monthly table → ⓘ at HDD | detail | ✓ |
 | `erklaerung-iphone.png` | ⓘ explanation as a sheet | as above | 375 × 812 | ✓ |
 | `einrichtung.png` | Setup assistant, step “Who are you?” (v3.9.0) | empty directory, “Next” in the step “Language and country” | 1440 × 900 | ✓ |
+| `einrichtung-zaehler.png` | Setup assistant, step “How are your meters connected?” (v3.9.0) | empty directory: “Next”, “Own house with heat pump and solar”, “Next” twice | 1440 × 900 | ✓ |
 | `personen.png` | Card “People in the household” (v3.9.0) | `#/settings/household` | detail | ✓ |
 | `ha-benachrichtigungen.png` | Card “Notifications to Home Assistant” (v3.9.0) | `#/settings/integrations`, target webhook with an address from `192.168.178.x`, switched off | detail (window 1440 × 2600, full page, so the fixed top bar does not cover the title) | ✓ |
 | `messkonzept.png` | Assistant “Set up metering concept”, step “How are the meters connected?” (v3.9.0) | `#/utility/strom/meters?concept=1`: heat pump, HT/NT on every import meter, solar, then “Cascade” | 1440 × 900 | ✓ |

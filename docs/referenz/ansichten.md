@@ -680,6 +680,11 @@ Fehlen Stände des Subzählers, nennt ein Satz die geschätzte Menge oder die Ta
 ohne Stand; misst der Subzähler in einem Monat mehr als sein Elternzähler, bittet
 die Karte, die Ablesungen zu prüfen
 ([Meter-Topologie](../verstehen/13-meter-topologie.md#rest-abrechnung-v390)).
+Im Schaufenster hängt seit v3.9.0 eine Wärmepumpe mit eigenem HT/NT-Zähler und
+Gruppenvertrag hinter dem Hauptzähler Strom; das Bild zeigt die Kachel
+„abgerechnet … (Rest)“, den Satz zur Rest-Abrechnung und die Saldo-Karte.
+
+![Strom-Ansicht mit Rest-Abrechnung am Hauptzähler](../ui/screenshots/strom-view.png)
 
 **Reihenfolge und Status der Verträge (v3.4.0):** Die Tabelle läuft rückwärts
 durch die Zeit, gruppiert unter Kopfzeilen: **Zukünftig**, **Aktuell** (auch
@@ -1872,8 +1877,8 @@ dürfen nur Verwalter
 
 **Messkonzept (v3.9.0, Seite Verbrauchsarten & Abrechnung):** Die Karte 🔌
 fragt „PV, Wärmepumpe oder Wallbox mit eigenem Tarif?“ und öffnet mit
-**„Messkonzept einrichten“** den Assistenten aus §12. In der öffentlichen Demo
-fehlt sie.
+**„Messkonzept einrichten“** den Assistenten aus §12, auch in der öffentlichen
+Demo (dort speichert er nichts).
 
 ![Einstellungen](../ui/screenshots/einstellungen.png)
 
@@ -2145,7 +2150,10 @@ Die Schaltbilder sind Strichzeichnungen in den Farben der Verbrauchsarten, hell
 wie dunkel; ein Bildschirmleser liest ihren Namen („Schaltbild: Kaskade“).
 Hindernisse (etwa ein Zähler mit eigenen Subzählern, der selbst dahinter hängen
 soll) nennt die Zusammenfassung; „Anlegen“ ist dann gesperrt. In der
-öffentlichen Demo fehlt er
+öffentlichen Demo ist die Vorschau für den Aufbau des Beispielhaushalts
+vorberechnet. Ein anderer Aufbau ergibt „In der Demo ist die Vorschau nur für
+den Aufbau dieses Beispielhaushalts vorberechnet.“, und „Anlegen“ speichert
+nichts
 ([Anwendungsfall H](../anleitungen/anwendungsfaelle.md#h--kaskade-mit-wärmepumpe-htnt-und-pv-v390),
 [Meter-Topologie](../verstehen/13-meter-topologie.md#3-zusammenspiel--datenmodell)).
 
@@ -2330,9 +2338,9 @@ einen passenden Beispielhaushalt oder führt zu den eigenen Daten. Erklärt in
 - in der **öffentlichen Demo**, solange dieser Browser keinen
   Beispielhaushalt gewählt hat.
 
-**Die Schritte** — die Fußzeile zeigt „Schritt 1 von 5“, „Zurück“, „Weiter“
-und „Überspringen“. Seit v3.9.0 steht neben jeder Frage eine kleine
-Strichzeichnung (Weltkugel mit Sprechblase, Häuser, drei Zähler, Stufen mit
+**Die Schritte** — die Fußzeile zeigt „Schritt 1 von 5“ (mit Strom und PV
+„Schritt 1 von 6“), „Zurück“, „Weiter“ und „Überspringen“. Seit v3.9.0 steht
+neben jeder Frage eine kleine Strichzeichnung (Weltkugel mit Sprechblase, Häuser, drei Zähler, Stufen mit
 Keimling, Blatt in die Ablage), als Schmuck ohne eigene Aussage; am Telefon
 steht der Fortschritt über den Knöpfen:
 
@@ -2370,6 +2378,8 @@ steht der Fortschritt über den Knöpfen:
    heißt hier **„Los geht’s“**.
 
 ![Einrichtungsassistent mit Zeichnung](../ui/screenshots/einrichtung.png)
+
+![Schritt „Wie hängen deine Zähler?“ mit „Ein Zähler je Art“ und „Anderer Aufbau“ („Schritt 4 von 6“)](../ui/screenshots/einrichtung-zaehler.png)
 
 | Antwort in Schritt 2 | Beispielhaushalt | vorgeschlagene Verbrauchsarten | Stufe |
 |---|---|---|---|
