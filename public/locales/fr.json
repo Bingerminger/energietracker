@@ -136,7 +136,8 @@
         "hs": "en PCS"
       },
       "certificateApprox": "Compté en PCI (approximation, le certificat exige le PCS) : {fuels}.",
-      "certificateUpcoming": "À partir du {date}, le certificat sur consommation suit une nouvelle méthode (§ 82 GModG) : {basis}, supplément eau chaude {dhw} au lieu de {dhwOld} kWh/m²·an, données sur {required} au lieu de {requiredOld} mois. Cela donnerait {value} kWh/m²·an{cls}."
+      "certificateUpcoming": "À partir du {date}, le certificat sur consommation suit une nouvelle méthode (§ 82 GModG) : {basis}, supplément eau chaude {dhw} au lieu de {dhwOld} kWh/m²·an, données sur {required} au lieu de {requiredOld} mois. Cela donnerait {value} kWh/m²·an{cls}.",
+      "incompleteFor": "{names} : les données de {year} ne couvrent pas toute l’année, donc pas de classe. L’indicateur ne vaut que pour la période mesurée."
     },
     "tanks": { "title": "Niveaux de cuve" },
     "stromSaldo": {
@@ -7229,7 +7230,8 @@
       "balance": "Solde au {date} : {after} au lieu de {before}.",
       "advance": "Acompte adapté : {after} au lieu de {before}.",
       "advanceOnly": "Acompte adapté : {after}.",
-      "more": "En savoir plus"
+      "more": "En savoir plus",
+      "titlePlain": "Estimer plus précisément"
     },
     "notNowNamed": "Pas maintenant : {title}"
   },

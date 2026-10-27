@@ -136,7 +136,8 @@
         "hs": "op bovenste verbrandingswaarde"
       },
       "certificateApprox": "Gerekend op onderste verbrandingswaarde (benadering, het label vraagt de bovenste): {fuels}.",
-      "certificateUpcoming": "Vanaf {date} volgt het verbruikslabel een nieuwe methode (§ 82 GModG): {basis}, toeslag warm water {dhw} in plaats van {dhwOld} kWh/m²·j, gegevens over {required} in plaats van {requiredOld} maanden. Dat geeft dan {value} kWh/m²·j{cls}."
+      "certificateUpcoming": "Vanaf {date} volgt het verbruikslabel een nieuwe methode (§ 82 GModG): {basis}, toeslag warm water {dhw} in plaats van {dhwOld} kWh/m²·j, gegevens over {required} in plaats van {requiredOld} maanden. Dat geeft dan {value} kWh/m²·j{cls}.",
+      "incompleteFor": "{names}: voor {year} zijn er geen gegevens over het hele jaar, dus geen klasse. Het kengetal geldt alleen voor de gemeten periode."
     },
     "tanks": { "title": "Tankniveaus" },
     "stromSaldo": {
@@ -7229,7 +7230,8 @@
       "balance": "Saldo op {date}: {after} in plaats van {before}.",
       "advance": "Passend voorschot: {after} in plaats van {before}.",
       "advanceOnly": "Passend voorschot: {after}.",
-      "more": "Meer hierover"
+      "more": "Meer hierover",
+      "titlePlain": "Nauwkeuriger schatten"
     },
     "notNowNamed": "Niet nu: {title}"
   },

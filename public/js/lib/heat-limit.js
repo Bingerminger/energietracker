@@ -14,6 +14,7 @@ import { api } from '../api.js';
 import { t } from './i18n.js';
 import { fmt, escapeHtml } from './format.js';
 import { balanceRangeEnds } from './semantics.js';
+import { currentLevel } from './levels.js';   // v3.9.0 (Skeptiker N4) — Einsteiger kurz
 import { toastErr, toastOk, toastUndo } from '../components/toast.js';
 
 /** Eine Gruppe (Gruppenvertrag) statt eines Zählers? IDs nach MeterService::createGroup. */
@@ -121,15 +122,27 @@ export function heatLimitBeginnerLines(h) {
  * Hinweis mit Knopf für Saldo-Karte, Prognose und Werkstatt (`context`: balance,
  * forecast, workshop). Leer ohne Vorschlag.
  */
-export function heatLimitHintHtml(h, { context = 'balance', unit = 'kWh', id = '' } = {}) {
+export function heatLimitHintHtml(h, { context = 'balance', unit = 'kWh', id = '', label = '', beginner = currentLevel() === 'beginner' } = {}) {
   if (!h?.suggest || h.best == null) return '';
   const group = isGroupId(id);
   const lines = [...heatLimitFacts(h, unit), ...(context === 'balance' || context === 'workshop' ? heatLimitEffect(h) : []),
     t(group ? 'heatLimit.scopeGroup' : 'heatLimit.scope')];
+  const button = `<button type="button" class="btn btn--sm btn--util" data-role="heat-limit-hint-apply" data-value="${escapeHtml(String(h.best))}">${escapeHtml(t(group ? 'heatLimit.applyGroup' : 'heatLimit.apply'))}</button>`;
+  const head = `${escapeHtml(t(`heatLimit.hint.${context}`))} <strong>${escapeHtml(t('heatLimit.title', { best: deg(h.best) }))}.</strong>`;
+  // v3.9.0 (Skeptiker N4, Runde 2) — Einsteiger: wie in „Zu tun“ kurz (ein Satz, Wirkung, Knopf), die Fachzeilen aufklappbar
+  if (beginner) {
+    return `<div class="banner banner--info heat-limit-hint" data-role="heat-limit-hint" data-context="${escapeHtml(context)}" data-variant="beginner">
+      <p><strong>${escapeHtml(label ? t('heatLimit.beginner.title', { label }) : t('heatLimit.beginner.titlePlain'))}</strong></p>
+      <p class="small">${heatLimitBeginnerLines(h).map(escapeHtml).join(' ')}</p>
+      ${button}
+      <details class="heat-limit-hint__more" data-role="heat-limit-more"><summary>${escapeHtml(t('heatLimit.beginner.more'))}</summary>
+        <p class="small">${head} ${lines.map(escapeHtml).join(' ')}</p></details>
+    </div>`;
+  }
   return `<div class="banner banner--info heat-limit-hint" data-role="heat-limit-hint" data-context="${escapeHtml(context)}">
-      <p>${escapeHtml(t(`heatLimit.hint.${context}`))} <strong>${escapeHtml(t('heatLimit.title', { best: deg(h.best) }))}.</strong></p>
+      <p>${head}</p>
       <p class="small">${lines.map(escapeHtml).join(' ')}</p>
-      <button type="button" class="btn btn--sm btn--util" data-role="heat-limit-hint-apply" data-value="${escapeHtml(String(h.best))}">${escapeHtml(t(group ? 'heatLimit.applyGroup' : 'heatLimit.apply'))}</button>
+      ${button}
     </div>`;
 }
 
@@ -161,11 +174,11 @@ export async function applyHeatLimit({ utility, id, value, previous = null, onCh
  * Einen Platzhalter füllen: laden, Hinweis zeichnen, Knopf binden. Ohne Vorschlag
  * bleibt er leer. `utility`: Schlüssel der Verbrauchsart.
  */
-export async function fillHeatLimitSlot(slot, { utility, id, context, unit, onChange }) {
+export async function fillHeatLimitSlot(slot, { utility, id, context, unit, label = '', onChange }) {
   if (!slot || !utility || !id) return;
   const h = await loadHeatLimit(utility, id);
   if (!slot.isConnected) return;
-  slot.innerHTML = heatLimitHintHtml(h, { context, unit, id });
+  slot.innerHTML = heatLimitHintHtml(h, { context, unit, id, label });
   slot.querySelector('[data-role="heat-limit-hint-apply"]')?.addEventListener('click', async (ev) => {
     const btn = ev.currentTarget;
     btn.disabled = true;
