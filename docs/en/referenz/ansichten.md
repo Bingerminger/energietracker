@@ -220,9 +220,12 @@ guess, such as “This reading is probably about 250 m³ too low.” Three butto
 **“Reading is correct”**, **“Only for the bill”** and **“Correct it”** (opens the
 edit dialog of the reading with the value that would fit). If consumption
 before and after does not add up at all, the entry says “Consumption before and
-after … does not add up”, with the same buttons and no suggested value. The
-same reading on the same day twice gives “Reading of … entered twice” with
-**“Delete one”**. If consumption stayed on a different level for a year or
+after … does not add up”, with the same buttons and no suggested value. Notes on
+the readings get a line of their own (“Notes: … ‘…’”). After “Only for the bill” no new
+entries appear that would only exist because of that decision. The same reading on
+the same day twice gives “Reading of … entered twice” with **“Delete one”**, before
+“check”; “Reading is correct” and “Only for the bill” apply to both identical
+readings. If consumption stayed on a different level for a year or
 more, the entry suggests a baseline date: **“Set baseline date here”** (a
 dialog with the day filled in) or **“Not now”**. All with “Undo” and at every
 level ([Ticking off notices §11](../anleitungen/hinweise-erledigen.md#11-check-a-reading-v390),
@@ -708,7 +711,8 @@ monthly values skip them. The **edit dialog** of every reading has the ticks
 “Only for the bill” (also when creating) and “Reading is correct (do not check
 again)”; with a finding it names the value that would fit, with “Insert”. In a
 month that a bill-only reading bridges, amount and cost in the monthly table do
-not match: the amount is spread by the weather, the cost uses the reading
+not match: the amount is spread by the weather (≈, with a legend of its own), the cost
+uses the reading; the billed amount stands next to it in brackets (“(billed …)”)
 ([Ticking off notices §11](../anleitungen/hinweise-erledigen.md#11-check-a-reading-v390)).
 
 **Photo with the reading (v3.1.0):** if a reading carries a photo, the readings

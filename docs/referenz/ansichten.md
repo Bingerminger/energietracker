@@ -229,9 +229,12 @@ Drei Knöpfe:
 den Bearbeiten-Dialog der Ablesung mit dem Stand, der passen würde). Passt der
 Verbrauch davor und danach gar nicht zusammen, heißt der Eintrag „Verbrauch vor
 und nach dem … passt nicht zusammen“, mit denselben Knöpfen und ohne
-vorgeschlagenen Stand. Derselbe Stand am selben Tag zweimal ergibt „Ablesung vom
-… doppelt eingetragen“ mit **„Eine löschen“**. Lag der Verbrauch ein Jahr und
-länger gleichbleibend auf einem anderen Niveau, schlägt der Eintrag eine
+vorgeschlagenen Stand. Notizen an den Ständen stehen in einer eigenen Zeile
+(„Notizen: … ‚…‘“). Nach „Nur für die Abrechnung“ kommen keine neuen Einträge, die es
+erst durch diese Entscheidung gäbe. Derselbe Stand am selben Tag zweimal ergibt
+„Ablesung vom … doppelt eingetragen“ mit **„Eine löschen“**, vor „prüfen“; „Stand ist
+richtig“ und „Nur für die Abrechnung“ gelten für beide gleichen Stände. Lag der
+Verbrauch ein Jahr und länger gleichbleibend auf einem anderen Niveau, schlägt der Eintrag eine
 Analyse-Zäsur vor: **„Zäsur hier setzen“** (Dialog mit vorbelegtem Tag) oder
 **„Nicht jetzt“**. Alles mit „Rückgängig“ und in jeder Stufe
 ([Hinweise erledigen §11](../anleitungen/hinweise-erledigen.md#11-ablesung-prüfen-v390),
@@ -732,7 +735,8 @@ hat die Häkchen „Nur für die Abrechnung“ (auch beim Anlegen) und „Stand 
 richtig (nicht mehr prüfen)“; bei einem Befund nennt er den Stand, der passen
 würde, mit „Einsetzen“. In einem Monat, den ein Stand nur für die Abrechnung
 überbrückt, passen Menge und Kosten der Monatstabelle nicht zueinander: Die Menge
-ist nach dem Wetter verteilt, die Kosten rechnen mit dem Stand
+ist nach dem Wetter verteilt (≈, mit eigener Legende), die Kosten rechnen mit dem Stand;
+die abgerechnete Menge steht in Klammern daneben („(abgerechnet …)“)
 ([Hinweise erledigen §11](../anleitungen/hinweise-erledigen.md#11-ablesung-prüfen-v390)).
 
 **Foto zum Stand (v3.1.0):** Trägt ein Stand ein Foto, zeigt die

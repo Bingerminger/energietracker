@@ -219,7 +219,8 @@ Fünfteln des Mittels) zählt nach einem Einzug jeder Winter als Rückkehr zum
 alten, niedrigeren Niveau, dann kommt kein Hinweis auf die Zäsur. In einem
 Monat, den ein Stand „nur für die Abrechnung“ überbrückt, passen Menge und
 Kosten nicht zueinander: Die Menge ist nach dem Wetter verteilt, die Kosten
-rechnen mit dem Stand (`billed_kwh` sagt, womit).
+rechnen mit dem Stand (`billed_kwh`, bei Wasser `billed_m3`, sagt, womit; die
+Monatstabelle zeigt es in Klammern).
 
 Alle drei Einträge zählen in `/api/todo` und in den Benachrichtigungen an Home
 Assistant mit, in jeder Stufe.

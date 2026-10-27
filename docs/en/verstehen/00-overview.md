@@ -213,7 +213,8 @@ makes it more sensitive. For electricity with a strong season (winter below
 four fifths of the mean), every winter after moving in counts as a return to
 the old, lower level, and then no baseline note comes. In a month that a
 reading “only for the bill” bridges, amount and cost do not match: the amount
-is spread by the weather, the cost uses the reading (`billed_kwh` says which).
+is spread by the weather, the cost uses the reading (`billed_kwh`, for water
+`billed_m3`, says which; the monthly table shows it in brackets).
 
 All three entries count in `/api/todo` and in the notifications to Home Assistant, at
 every level.
