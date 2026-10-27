@@ -13,6 +13,7 @@
 import { api } from '../api.js';
 import { t } from './i18n.js';
 import { fmt, escapeHtml } from './format.js';
+import { balanceRangeEnds } from './semantics.js';
 import { toastErr, toastOk, toastUndo } from '../components/toast.js';
 
 /** Eine Gruppe (Gruppenvertrag) statt eines Zählers? IDs nach MeterService::createGroup. */
@@ -72,7 +73,9 @@ function balanceWords(side) {
     : t(v > 0 ? 'balanceUncertain.due' : 'balanceUncertain.credit', { amount: t('report.fmt.approx', { amount: fmt.eur0(Math.abs(v)) }) });
   const r = Array.isArray(side?.balance_range) ? side.balance_range.map(Number) : null;
   if (r && r.length === 2 && r.every(Number.isFinite)) {
-    return t('heatLimit.effect.between', { low: word(Math.min(...r)), high: word(Math.max(...r)) });
+    // v3.9.0 (Paket doku) — Lesereihenfolge wie an der Saldo-Karte (zwei Guthaben: kleineres zuerst)
+    const [a, b] = balanceRangeEnds(r);
+    return t('heatLimit.effect.between', { low: word(a), high: word(b) });
   }
   return side?.balance != null ? word(Number(side.balance)) : '–';
 }

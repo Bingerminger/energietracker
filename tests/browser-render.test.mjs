@@ -3166,6 +3166,15 @@ async function renderView(modPath, params = [], ctx = {}) {
       let backRec = false;
       for (let i = 0; i < 60 && !backRec; i++) { backRec = ((await json('/agenda?days=90'))?.events || []).some(e => e.kind === 'heat_limit' && e.ref?.meter_id === hk); if (!backRec) await sleep(50); }
       t('heizgrenze (N5): Rückgängig in den Empfehlungen — der Vorschlag ist wieder da', backRec);
+      // v3.9.0 (Paket doku) — eine Spanne aus zwei Guthaben vom kleineren zum größeren Betrag, wie an der Saldo-Karte
+      const sem = await import(`${ROOT}/lib/semantics.js`);
+      const hlm = await import(`${ROOT}/lib/heat-limit.js`);
+      const ends = [sem.balanceRangeEnds([-431, -325]), sem.balanceRangeEnds([-155, 8]), sem.balanceRangeEnds([100, 300]), sem.balanceRangeEnds([-325, -431])];
+      const effTxt = hlm.heatLimitEffect({ best: 10, effect: { until: '2026-12-31', before: { balance_range: [-431, -325] }, after: { balance: -74 } } })[0] || '';
+      const cardTxt = sem.uncertainRangeText({ projected_range: [-431, -325] });
+      t('heizgrenze: Spanne aus zwei Guthaben — kleineres zuerst (Hinweis, Saldo-Karte); gemischt und Nachzahlungen wie bisher',
+        JSON.stringify(ends) === JSON.stringify([[-325, -431], [-155, 8], [100, 300], [-325, -431]])
+        && /zwischen ca\.\s325\s€ Guthaben und ca\.\s431\s€ Guthaben/.test(effTxt) && cardTxt.indexOf('325') < cardTxt.indexOf('431'), `${JSON.stringify(ends)} | ${effTxt} | ${cardTxt}`);
       // Prognose und Werkstatt: derselbe Hinweis, wenn das Heizmodell schlecht passt
       const fw = await renderView(`${ROOT}/views/forecast.js`);
       await sleep(400);

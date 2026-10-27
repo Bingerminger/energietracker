@@ -29,6 +29,7 @@ import { t, tp } from '../lib/i18n.js';
 import { fmt, escapeHtml, todayIso } from '../lib/format.js';
 import { lastMonths, yoyTrend, isPartial, daysInMonth } from '../lib/chart-data.js';
 import { energyFigureHtml, bindEnergyFigure, startEnergyFigure } from './energy-flow.js';
+import { balanceRangeEnds } from '../lib/semantics.js';   // v3.9.0 — Spanne in Lesereihenfolge
 
 const esc = escapeHtml;
 const W = 320;
@@ -103,7 +104,8 @@ export function moneyHtml(row, { color } = {}) {
   // v3.7.0 (wirklichkeit-2, Schritt 3) — unsichere Schätzung (projection_uncertain):
   // Kosten und Ergebnis als Spanne, keine Lücke, die einen Punktwert behauptet
   const range = Array.isArray(row.projection_uncertain?.projected_range) ? row.projection_uncertain.projected_range.map(Number) : null;
-  const result = range ? t('explainer.money.uncertain', { low: word(Math.min(...range)), high: word(Math.max(...range)) }) : word(balance);
+  const ends = range ? balanceRangeEnds(range) : null;
+  const result = range ? t('explainer.money.uncertain', { low: word(ends[0]), high: word(ends[1]) }) : word(balance);
   const costText = range
     ? t('explainer.money.costRange', { low: fmt.eur0(Math.max(0, cost + Math.min(...range) - balance)), high: fmt.eur0(Math.max(0, cost + Math.max(...range) - balance)) })
     : fmt.eur(cost);
