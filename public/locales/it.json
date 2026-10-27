@@ -7151,12 +7151,20 @@
       "other": "Prima il consumo è stato per {count} mesi costantemente circa il {pct} di quello di oggi."
     },
     "advice": "Sembra un cambiamento reale (ad esempio un nuovo riscaldamento o un modo diverso di riscaldare), non un errore di lettura. Una cesura separa il periodo precedente: modello di riscaldamento, previsione e confronti usano poi il consumo di oggi.",
-    "set": "Impostare la cesura al {date}",
+    "set": "Impostare qui la cesura",
     "notNow": "Non ora",
     "label": "Consumo cambiato",
     "toast": {
       "set": "Cesura impostata al {date}",
       "dismissed": "Avviso nascosto"
+    },
+    "dialog": {
+      "title": "Impostare una cesura",
+      "text": "Da questo giorno modello di riscaldamento, previsione e confronti usano solo il periodo successivo. È preimpostata la fine del periodo insolito. Se conosci il giorno del cambiamento (ad esempio la sostituzione del riscaldamento), inseriscilo.",
+      "date": "Dal giorno",
+      "label": "Descrizione",
+      "confirm": "Impostare la cesura",
+      "invalid": "Inserire un giorno."
     }
   }
 }

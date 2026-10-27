@@ -25,10 +25,12 @@ use Energietracker\Support\Dates;
  *   Erwartung   Heizarten (Gas, Fernwärme, Heizwärme, Strom der Wärmepumpe): das
  *               Heizmodell a × HGT + c × Tage mit der Heizgrenze des Zählers bzw. seiner
  *               Gruppe, gefittet über die Ablesungsabstände (zu Stücken ab
- *               `min_days_period` Tagen zusammengefasst, wie heatIntervalPoints).
+ *               `min_days_period` Tagen zusammengefasst, Gewicht wie heatIntervalPoints).
  *               Strom und Wasser: die mittlere Tagesmenge der Abstände bis ein halbes
- *               Jahr davor und danach. PV und Heizarten ohne Modell: dieselben Tage in
- *               anderen Jahren (Median). Ohne Erwartung keine Prüfung.
+ *               Jahr davor und danach. PV, Garten, ausgeprägte Jahreszeiten und
+ *               Heizarten ohne Modell: dieselben Tage in anderen Jahren (Median).
+ *               Ladepunkte nicht (geladen wird, wenn gefahren wurde). Ohne Erwartung
+ *               keine Prüfung.
  *   Kandidat    ein Stand oder ein Block aufeinanderfolgender Stände (höchstens
  *               MAX_BLOCK, höchstens MAX_BLOCK_DAYS Tage), bei dem der Abstand davor
  *               deutlich unter und der danach deutlich über der Erwartung liegt (oder
@@ -50,6 +52,12 @@ use Energietracker\Support\Dates;
  * „Stand ist richtig“ (`is_verified` an der Ablesung) beendet die Frage für jeden
  * Block mit diesem Stand; „nur für die Abrechnung“ (`is_billing_only`) nimmt ihn aus
  * den Monatswerten (ConsumptionService::billingOnlyBridges) und aus dieser Prüfung.
+ *
+ * Laufzeit: Die Agenda fragt bei jedem Aufruf alle Zähler. Bei zehn Jahren täglicher
+ * Stände (tools/large-household.mjs) heißt das je Zähler rund 3.650 Abstände; die
+ * mittlere Tagesmenge kommt deshalb aus Präfixsummen, andere Jahre über eine binäre
+ * Suche, der Hinweis auf die Zäsur aus den Stücken, und Abstände, die nach Menge gar
+ * nicht deutlich sein können, rechnen keine Erwartung.
  */
 final class ReadingCheckService
 {
@@ -112,19 +120,18 @@ final class ReadingCheckService
 
     /**
      * Hinweis auf die Analyse-Zäsur: mindestens LEVEL_MIN_DAYS Tage am Stück vor dem
-     * Wechsel, jeder nennenswerte Abstand mindestens LEVEL_STEP über (bzw. unter) dem
+     * Wechsel, jedes nennenswerte Stück mindestens LEVEL_STEP über (bzw. unter) dem
      * heutigen Niveau (keine Gegenbewegung), zusammen mindestens LEVEL_RATIO. Das
      * heutige Niveau kommt aus der Zeit nach dem Wechsel (mindestens LEVEL_AFTER_DAYS).
-     * Gibt es schon eine Zäsur bis LEVEL_NEAR_DAYS Tage daneben, entfällt der Hinweis.
+     * Mit einer wirksamen Zäsur zählt nur die Zeit danach.
      */
     public const LEVEL_RATIO = 1.5;
     public const LEVEL_STEP = 1.25;
     public const LEVEL_MIN_DAYS = 365;
     public const LEVEL_AFTER_DAYS = 182;
-    public const LEVEL_NEAR_DAYS = 62;
     /**
      * Nach dem Wechsel darf höchstens ein Zehntel der Tage wieder auf dem alten Niveau
-     * liegen (ein einzelner kalter Monat), und der erste Abstand danach gar nicht: Sonst
+     * liegen (ein einzelner kalter Monat), und das erste Stück danach gar nicht: Sonst
      * ist es eine Gegenbewegung, kein neues Niveau.
      */
     public const LEVEL_AFTER_BACK = 0.1;
@@ -197,10 +204,10 @@ final class ReadingCheckService
 
         $points = $this->points($utility, $meter, $all, $today);
         $iv = $this->intervals($utility, $meter, $points);
-        $ctx = $this->context($utility, $meter, $points, $iv);
+        $ctx = $this->context($utility, $meter, $iv);
         if ($ctx !== null) {
             $out['basis'] = $ctx['method'];
-            $out['level_shift'] = $this->levelShift($utility, $meter, $points, $iv, $ctx);
+            $out['level_shift'] = $this->levelShift($utility, $meter, $points, $ctx);
             if ($out['level_shift'] !== null) {
                 // Nur die Zeit seit dem Wechsel gilt als heute: Davor ist ein anderer
                 // Verbrauch, kein Maßstab für einzelne Stände (und wird nicht geprüft)
@@ -240,6 +247,7 @@ final class ReadingCheckService
 
     /**
      * Abstände zwischen aufeinanderfolgenden Punkten. Index j: von Punkt j−1 bis j.
+     * `d0`, `d1`: Tagesnummern von Beginn und Ende (für Suche und Fenster).
      *
      * @param list<array<string,mixed>> $points
      * @return array<int,array<string,mixed>>
@@ -253,18 +261,20 @@ final class ReadingCheckService
         $dev = fn(array $r): ?string => isset($r['device_id']) ? (string)$r['device_id'] : ($this->meters->deviceOnDate($meter, (string)$r['date'])['id'] ?? null);
         $baseline = MeterService::activeBaselineDate($meter);
         $out = [];
-        for ($j = 1; $j < count($points); $j++) {
+        $n = count($points);
+        for ($j = 1; $j < $n; $j++) {
             $a = $points[$j - 1]; $b = $points[$j];
             $from = (string)$a['date']; $to = (string)$b['date'];
-            $days = self::days($from, $to);
+            $d0 = self::dayNo($from); $d1 = self::dayNo($to);
+            $days = $d1 - $d0;
             $raw = (float)$b['counter'] - (float)$a['counter'];
             $devA = $dev($a);
             if ($raw < 0) $raw = ConsumptionService::rolloverAmount((float)$a['counter'], (float)$b['counter'], $devicesById[(string)$devA] ?? null) ?? $raw;
             $valid = $days > 0 && $devA !== null && $devA === $dev($b) && $raw >= 0;
             $kwh = $valid ? ($toKwh ? $this->rawToKwh($utility, $from, $to, $raw) : $raw) : 0.0;
             $out[$j] = [
-                'j' => $j, 'from' => $from, 'to' => $to, 'days' => $days, 'raw' => $raw, 'kwh' => $kwh,
-                'valid' => $valid, 'pre' => $baseline !== null && $from < $baseline,
+                'j' => $j, 'from' => $from, 'to' => $to, 'd0' => $d0, 'd1' => $d1, 'days' => $days, 'raw' => $raw, 'kwh' => $kwh,
+                'valid' => $valid, 'pre' => $baseline !== null && $from < $baseline, 'hdd' => 0.0, 'temp_ok' => false,
             ];
         }
         return $out;
@@ -276,6 +286,7 @@ final class ReadingCheckService
         $days = self::days($from, $to);
         if ($days <= 0) return 0.0;
         $cuts = $utility === 'gas' ? $this->factors()->boundariesBetween($from, $to) : [];
+        if ($cuts === []) return $raw * $this->factors()->factorOn($utility, $from);
         $bounds = array_merge([$from], $cuts, [$to]);
         $kwh = 0.0;
         for ($i = 1; $i < count($bounds); $i++) {
@@ -296,13 +307,13 @@ final class ReadingCheckService
     // ── Erwartung ────────────────────────────────────────────────────────
 
     /**
-     * Methode, Heizgrenze, Gradtage je Abstand, typischer Monat, Modell. null: keine
-     * Prüfung möglich (zu wenig Daten, keine Erwartung).
+     * Methode, Heizgrenze, Gradtage je Abstand, typischer Monat, Modell, Stücke und die
+     * Hilfslisten der Methoden. null: keine Prüfung möglich.
      *
      * @param array<int,array<string,mixed>> $iv (wird um `hdd`, `temp_ok` ergänzt)
      * @return array<string,mixed>|null
      */
-    private function context(string $utility, array $meter, array $points, array &$iv): ?array
+    private function context(string $utility, array $meter, array &$iv): ?array
     {
         $usable = array_filter($iv, fn($x) => $x['valid'] && !$x['pre']);
         if (count($usable) < 3) return null;
@@ -315,46 +326,40 @@ final class ReadingCheckService
         $ctx = ['typical' => $typical, 'min' => self::MIN_SHARE * $typical, 'heat' => $heat, 'min_from' => null,
                 'base' => null, 'model' => null, 'chunks' => [], 'method' => null];
         if ($heat) {
-            $base = $this->baseFor($utility, $meter);
-            $ctx['base'] = $base;
-            $this->addDegreeDays($iv, $base);
-            $ctx['chunks'] = $this->chunks($iv);
+            $ctx['base'] = $this->baseFor($utility, $meter);
+            $this->addDegreeDays($iv, $ctx['base']);
+        }
+        $ctx['chunks'] = $this->chunks($iv, $heat);
+        if ($heat) {
             $ctx['model'] = $this->fit($ctx['chunks']);
-            if ($ctx['model'] !== null) { $ctx['method'] = 'heat_model'; return $ctx; }
+            if ($ctx['model'] !== null) $ctx['method'] = 'heat_model';
         }
         // Sonne, Garten, Heizen ohne Modell: Die mittlere Tagesmenge hieße im Winter „zu
         // wenig“ und im Sommer „zu viel“. Dieselben Tage anderer Jahre statt dessen.
-        if ($heat || Utilities::isFeedIn($utility) || Utilities::isGenerationOnly($utility)
-            || Utilities::roleOf($utility, $meter) === 'garden' || self::seasonal($usable)) {
-            $ctx['method'] = 'other_years';
-            return $ctx;
-        }
-        $ctx['method'] = 'mean_rate';
-        return $ctx;
+        $ctx['method'] ??= $heat || Utilities::isFeedIn($utility) || Utilities::isGenerationOnly($utility)
+            || Utilities::roleOf($utility, $meter) === 'garden' || self::seasonal($usable) ? 'other_years' : 'mean_rate';
+        return $this->withLists($ctx, $iv);
     }
 
     /**
-     * Ausgeprägte Jahreszeiten: Die mittlere Tagesrate des schwächsten Kalendermonats
-     * liegt unter der Hälfte des stärksten (Gartenwasser, Strom mit Wärmepumpe ohne
-     * Rolle). Haushaltsstrom und Trinkwasser schwanken um ein Drittel und bleiben bei
-     * der mittleren Tagesmenge. Mit weniger als sechs belegten Monaten: nein.
+     * Die nutzbaren Abstände in Reihenfolge (`list`, mit `pos` je j) und ihre
+     * Präfixsummen (`pk`, `pd`) für die mittlere Tagesmenge; dazu die größte Tagesrate
+     * eines Stücks (Vorfilter: was nach Menge nicht deutlich sein kann).
      */
-    private static function seasonal(array $usable): bool
+    private function withLists(array $ctx, array $iv): array
     {
-        $sum = array_fill(1, 12, 0.0); $cnt = array_fill(1, 12, 0);
-        foreach ($usable as $x) {
-            if ($x['days'] <= 0) continue;
-            $rate = $x['kwh'] / $x['days'];
-            for ($t = strtotime($x['from'] . ' 12:00:00'), $e = strtotime($x['to'] . ' 00:00:00'); $t < $e; $t += 86400) {
-                $mo = (int)date('n', $t);
-                $sum[$mo] += $rate; $cnt[$mo]++;
-            }
+        $list = []; $pos = []; $pk = [0.0]; $pd = [0];
+        foreach ($iv as $j => $x) {
+            if (!$this->usable($x, $ctx)) continue;
+            $pos[$j] = count($list);
+            $list[] = $x;
+            $pk[] = end($pk) + (float)$x['kwh'];
+            $pd[] = end($pd) + (int)$x['days'];
         }
-        $rates = [];
-        foreach ($sum as $mo => $s) if ($cnt[$mo] >= 20) $rates[] = $s / $cnt[$mo];
-        if (count($rates) < 6) return false;
-        $max = max($rates);
-        return $max > 0 && min($rates) < $max / 2;
+        $maxRate = 0.0;
+        foreach ($ctx['chunks'] as $c) if ($c['days'] > 0) $maxRate = max($maxRate, $c['kwh'] / $c['days']);
+        foreach ($list as $x) if ($x['days'] >= 7) $maxRate = max($maxRate, $x['kwh'] / $x['days']);
+        return ['list' => $list, 'pos' => $pos, 'pk' => $pk, 'pd' => $pd, 'max_rate' => $maxRate] + $ctx;
     }
 
     /** Nur noch Abstände ab `$date` (nach einem erkannten Wechsel des Niveaus). */
@@ -365,7 +370,46 @@ final class ReadingCheckService
             $ctx['model'] = $this->fit(array_filter($ctx['chunks'], fn($c) => $c['from'] >= $date));
             if ($ctx['model'] === null) return null;
         }
-        return $ctx;
+        return $this->withLists($ctx, $iv);
+    }
+
+    /**
+     * Ausgeprägte Jahreszeiten: Die Tagesrate des Sommerhalbjahrs (April bis September)
+     * und die des Winterhalbjahrs (Oktober bis März) liegen um mehr als das Doppelte
+     * auseinander (Gartenwasser, Strom mit Wärmepumpe ohne Rolle, Bezug neben PV). Je
+     * Halbjahr der Median der Kalendermonate, damit ein falscher Stand (ein Monat zu
+     * niedrig, der nächste zu hoch) nicht selbst als Jahreszeit gilt. Haushaltsstrom
+     * und Trinkwasser schwanken um ein Drittel und bleiben bei der mittleren
+     * Tagesmenge. Mit weniger als zwei belegten Monaten je Halbjahr: nein.
+     */
+    private static function seasonal(array $usable): bool
+    {
+        $sum = array_fill(1, 12, 0.0); $cnt = array_fill(1, 12, 0);
+        foreach ($usable as $x) {
+            if ($x['days'] <= 0) continue;
+            $rate = $x['kwh'] / $x['days'];
+            // je Kalendermonat die Tage dieses Abstands (ohne Schleife über jeden Tag)
+            for ($d = $x['d0']; $d < $x['d1'];) {
+                $t = $d * 86400 + 43200;
+                $mo = (int)gmdate('n', $t);
+                $y = (int)gmdate('Y', $t);
+                // Monatserster danach rein rechnerisch (strtotime rechnet in der Zeitzone des Servers)
+                $next = min($x['d1'], max($d + 1, self::dayNo(sprintf('%04d-%02d-01', $mo === 12 ? $y + 1 : $y, $mo === 12 ? 1 : $mo + 1))));
+                $sum[$mo] += $rate * ($next - $d);
+                $cnt[$mo] += $next - $d;
+                $d = $next;
+            }
+        }
+        $half = [[], []];   // [Sommer, Winter]
+        foreach ($sum as $mo => $s) if ($cnt[$mo] >= 20) $half[$mo >= 4 && $mo <= 9 ? 0 : 1][] = $s / $cnt[$mo];
+        if (count($half[0]) < 2 || count($half[1]) < 2) return false;
+        $med = function (array $v): float {
+            sort($v);
+            $c = count($v);
+            return $c % 2 ? $v[intdiv($c, 2)] : ($v[$c / 2 - 1] + $v[$c / 2]) / 2;
+        };
+        [$s, $w] = [$med($half[0]), $med($half[1])];
+        return max($s, $w) > 0 && min($s, $w) < max($s, $w) / 2;
     }
 
     /** Heizgrenze: die eigene des Zählers, sonst die seiner Gruppe, sonst die Einstellung. */
@@ -391,36 +435,38 @@ final class ReadingCheckService
         $normals = $this->consumption->hddNormals($base);
         foreach ($iv as &$x) {
             $hdd = 0.0; $miss = 0; $n = 0;
-            if ($x['valid']) {
-                for ($t = strtotime($x['from'] . ' 12:00:00'), $e = strtotime($x['to'] . ' 00:00:00'); $t < $e; $t += 86400) {
+            if ($x['valid'] && !$x['pre']) {
+                for ($d = $x['d0']; $d < $x['d1']; $d++) {
                     $n++;
-                    $d = date('Y-m-d', $t);
-                    if (isset($temps[$d]['avg'])) { $hdd += max(0.0, $base - (float)$temps[$d]['avg']); continue; }
-                    $norm = $normals[(int)date('n', $t)]['mean'] ?? null;
+                    $t = $d * 86400 + 43200;
+                    $k = gmdate('Y-m-d', $t);
+                    if (isset($temps[$k]['avg'])) { $hdd += max(0.0, $base - (float)$temps[$k]['avg']); continue; }
+                    $norm = $normals[(int)gmdate('n', $t)]['mean'] ?? null;
                     if ($norm === null) { $miss++; continue; }
-                    $hdd += (float)$norm / (int)date('t', $t);
+                    $hdd += (float)$norm / (int)gmdate('t', $t);
                 }
             }
             $x['hdd'] = $hdd;
-            $x['temp_ok'] = $x['valid'] && $n > 0 && $miss <= $n / 10;
+            $x['temp_ok'] = $n > 0 && $miss <= $n / 10;
         }
         unset($x);
     }
 
     /**
-     * Stücke für den Fit: aufeinanderfolgende nutzbare Abstände, zusammengefasst, bis
-     * sie `min_days_period` Tage erreichen (bei täglichen Ständen etwa Monate). Ein
-     * Abstand, der nicht rechnet, beendet ein Stück; ein Rest unter der Mindestlänge
-     * entfällt.
+     * Stücke: aufeinanderfolgende nutzbare Abstände, zusammengefasst, bis sie
+     * `min_days_period` Tage erreichen (bei täglichen Ständen etwa Monate). Ein Abstand,
+     * der nicht rechnet (bei Heizarten auch: ohne Temperaturen), beendet ein Stück; ein
+     * Rest unter der Mindestlänge entfällt. Grundlage des Fits und des Hinweises auf
+     * die Zäsur.
      *
      * @return list<array{hdd:float,days:int,kwh:float,from:string,to:string}>
      */
-    private function chunks(array $iv): array
+    private function chunks(array $iv, bool $heat): array
     {
         $min = max(1, (int)$this->settings->get('min_days_period', 20));
         $out = []; $cur = null;
         foreach ($iv as $x) {
-            if (!$x['valid'] || $x['pre'] || empty($x['temp_ok'])) { $cur = null; continue; }
+            if (!$x['valid'] || $x['pre'] || ($heat && empty($x['temp_ok']))) { $cur = null; continue; }
             $cur ??= ['hdd' => 0.0, 'days' => 0, 'kwh' => 0.0, 'from' => $x['from'], 'to' => $x['to']];
             $cur['hdd'] += $x['hdd']; $cur['days'] += $x['days']; $cur['kwh'] += $x['kwh']; $cur['to'] = $x['to'];
             if ($cur['days'] >= $min) { $out[] = $cur; $cur = null; }
@@ -430,7 +476,7 @@ final class ReadingCheckService
 
     /**
      * Heizmodell über die Stücke (ConsumptionService::fitHeatPoints, Gewicht wie
-     * heatIntervalPoints). null unter MIN_POINTS_REGRESSION Stücken oder ohne Heizsignal.
+     * heatIntervalPoints). null unter MIN_POINTS_REGRESSION Stücken oder ohne Signal.
      *
      * @return array{a:float,c:float,resid_sd:float}|null
      */
@@ -446,13 +492,13 @@ final class ReadingCheckService
     /** Typischer Monat: Verbrauch der letzten zwölf Monate der Reihe ÷ 12 (kürzer: Tagesmittel × 30,4). */
     private function typicalMonth(array $usable): float
     {
-        $last = max(array_map(fn($x) => $x['to'], $usable));
-        $from = date('Y-m-d', (int)strtotime("$last -365 days"));
-        $first = min(array_map(fn($x) => $x['from'], $usable));
+        $last = max(array_map(fn($x) => $x['d1'], $usable));
+        $from = $last - 365;
+        $first = min(array_map(fn($x) => $x['d0'], $usable));
         $sum = 0.0; $days = 0;
         foreach ($usable as $x) {
-            if ($first <= $from && $x['to'] <= $from) continue;
-            $share = $first <= $from && $x['from'] < $from ? self::days($from, $x['to']) / max(1, $x['days']) : 1.0;
+            if ($first <= $from && $x['d1'] <= $from) continue;
+            $share = $first <= $from && $x['d0'] < $from ? ($x['d1'] - $from) / max(1, $x['days']) : 1.0;
             $sum += $x['kwh'] * $share;
             $days += (int)round($x['days'] * $share);
         }
@@ -470,7 +516,7 @@ final class ReadingCheckService
     {
         $x = $iv[$j] ?? null;
         if ($x === null || !$this->usable($x, $ctx)) return null;
-        $e = null; $sd = null;
+        $e = null; $sd = 0.0;
         switch ($ctx['method']) {
             case 'heat_model':
                 $m = $model ?? $ctx['model'];
@@ -479,20 +525,11 @@ final class ReadingCheckService
                 $sd = $m['resid_sd'] * sqrt($x['days'] / self::MONTH_DAYS);
                 break;
             case 'mean_rate':
-                $wFrom = date('Y-m-d', (int)strtotime($x['from'] . ' -' . self::LOCAL_WINDOW_DAYS . ' days'));
-                $wTo = date('Y-m-d', (int)strtotime($x['to'] . ' +' . self::LOCAL_WINDOW_DAYS . ' days'));
-                $sum = 0.0; $days = 0;
-                foreach ($iv as $k => $y) {
-                    if (isset($skip[$k]) || $k === $j || !$this->usable($y, $ctx) || $y['to'] <= $wFrom || $y['from'] >= $wTo) continue;
-                    $ov = self::days(max($y['from'], $wFrom), min($y['to'], $wTo));
-                    $sum += $y['kwh'] * $ov / max(1, $y['days']);
-                    $days += $ov;
-                }
-                if ($days < 60) return null;
-                $e = $sum / $days * $x['days'];
+                $e = $this->meanRate($x, $ctx, $skip + [$j => true]);
+                if ($e !== null) $e *= $x['days'];
                 break;
             case 'other_years':
-                [$e, $sd] = $this->otherYears($iv, $x, $ctx, $skip + [$j => true]) ?? [null, null];
+                [$e, $sd] = $this->otherYears($x, $ctx, $skip + [$j => true]) ?? [null, 0.0];
                 break;
         }
         if ($e === null || $e <= 0) return null;
@@ -505,32 +542,87 @@ final class ReadingCheckService
     }
 
     /**
+     * Mittlere Tagesmenge der nutzbaren Abstände im Fenster LOCAL_WINDOW_DAYS vor und
+     * nach dem Abstand, ohne `$skip` (Präfixsummen, Ränder anteilig). null unter 60 Tagen.
+     */
+    private function meanRate(array $x, array $ctx, array $skip): ?float
+    {
+        $list = $ctx['list'];
+        $n = count($list);
+        if ($n === 0) return null;
+        $w0 = $x['d0'] - self::LOCAL_WINDOW_DAYS; $w1 = $x['d1'] + self::LOCAL_WINDOW_DAYS;
+        $a = self::firstEndingAfter($list, $w0);
+        $b = self::lastStartingBefore($list, $w1);
+        if ($a >= $n || $b < $a) return null;
+        $sum = $ctx['pk'][$b + 1] - $ctx['pk'][$a];
+        $days = $ctx['pd'][$b + 1] - $ctx['pd'][$a];
+        $cut = function (array $y, bool $all = false) use ($w0, $w1, &$sum, &$days): void {
+            // vom vollen Beitrag auf den Teil im Fenster (oder ganz heraus)
+            $ov = $all ? 0 : max(0, min($y['d1'], $w1) - max($y['d0'], $w0));
+            $sum -= $y['kwh'] * ($y['days'] - $ov) / max(1, $y['days']);
+            $days -= $y['days'] - $ov;
+        };
+        $cut($list[$a]);
+        if ($b !== $a) $cut($list[$b]);
+        foreach ($skip as $j => $_) {
+            $k = $ctx['pos'][$j] ?? null;
+            if ($k === null || $k < $a || $k > $b) continue;
+            // schon am Rand gekürzt: den Rest im Fenster herausnehmen
+            $y = $list[$k];
+            $ov = max(0, min($y['d1'], $w1) - max($y['d0'], $w0));
+            $sum -= $y['kwh'] * $ov / max(1, $y['days']);
+            $days -= $ov;
+        }
+        return $days >= 60 ? $sum / $days : null;
+    }
+
+    /** Index des ersten Abstands, der nach Tag `$d` endet (`d1 > $d`). */
+    private static function firstEndingAfter(array $list, int $d): int
+    {
+        $lo = 0; $hi = count($list);
+        while ($lo < $hi) { $mid = intdiv($lo + $hi, 2); if ($list[$mid]['d1'] > $d) $hi = $mid; else $lo = $mid + 1; }
+        return $lo;
+    }
+
+    /** Index des letzten Abstands, der vor Tag `$d` beginnt (`d0 < $d`), −1 ohne. */
+    private static function lastStartingBefore(array $list, int $d): int
+    {
+        $lo = 0; $hi = count($list);
+        while ($lo < $hi) { $mid = intdiv($lo + $hi, 2); if ($list[$mid]['d0'] < $d) $lo = $mid + 1; else $hi = $mid; }
+        return $lo - 1;
+    }
+
+    /**
      * Dieselben Tage in anderen Jahren (bis drei davor und danach): je Jahr die Summe der
      * Tagesraten der Abstände, die diese Tage abdecken (mindestens neun Zehntel), Median.
      * Dazu die Streuung zwischen den Jahren (YEAR_SPREAD_MIN als Untergrenze).
      *
      * @return array{0:float,1:float}|null [Erwartung, Streuung]
      */
-    private function otherYears(array $iv, array $x, array $ctx, array $skip): ?array
+    private function otherYears(array $x, array $ctx, array $skip): ?array
     {
-        $list = array_values(array_filter($iv, fn($y) => !isset($skip[$y['j']]) && $this->usable($y, $ctx)));
+        $list = $ctx['list'];
         if ($list === []) return null;
         $sums = [];
+        $md0 = gmdate('m-d', $x['d0'] * 86400 + 43200);
+        $y0 = (int)gmdate('Y', $x['d0'] * 86400 + 43200);
         foreach ([-3, -2, -1, 1, 2, 3] as $k) {
-            $sum = 0.0; $cov = 0; $n = 0; $pos = 0;
-            for ($t = strtotime($x['from'] . ' 12:00:00'), $e = strtotime($x['to'] . ' 00:00:00'); $t < $e; $t += 86400) {
-                $n++;
-                $md = date('m-d', $t);
-                $y = (int)date('Y', $t) + $k;
-                $d = ($md === '02-29' && !checkdate(2, 29, $y)) ? sprintf('%04d-02-28', $y) : sprintf('%04d-%s', $y, $md);
-                // Abstände sind aufsteigend: die Position wandert mit
-                while ($pos < count($list) && $list[$pos]['to'] <= $d) $pos++;
-                if ($pos < count($list) && $list[$pos]['from'] <= $d) {
-                    $sum += $list[$pos]['kwh'] / max(1, $list[$pos]['days']);
-                    $cov++;
+            $y = $y0 + $k;
+            $start = self::dayNo(($md0 === '02-29' && !checkdate(2, 29, $y)) ? sprintf('%04d-02-28', $y) : sprintf('%04d-%s', $y, $md0));
+            $sum = 0.0; $cov = 0;
+            $pos = self::firstEndingAfter($list, $start);
+            for ($d = $start, $end = $start + $x['days']; $d < $end && $pos < count($list);) {
+                $z = $list[$pos];
+                if ($z['d1'] <= $d) { $pos++; continue; }
+                if ($z['d0'] > $d) { $d = min($end, $z['d0']); continue; }   // Lücke ohne Daten
+                $upto = min($end, $z['d1']);
+                if (!isset($skip[$z['j']])) {
+                    $sum += $z['kwh'] / max(1, $z['days']) * ($upto - $d);
+                    $cov += $upto - $d;
                 }
+                $d = $upto;
             }
-            if ($n > 0 && $cov >= 0.9 * $n) $sums[] = $sum * $n / $cov;
+            if ($cov >= 0.9 * $x['days']) $sums[] = $sum * $x['days'] / $cov;
         }
         if ($sums === []) return null;
         sort($sums);
@@ -575,7 +667,15 @@ final class ReadingCheckService
     {
         $min = (float)$ctx['min'];
         $scr = [];
-        foreach ($iv as $j => $x) $scr[$j] = $this->expect($iv, $j, $ctx, []);
+        foreach ($iv as $j => $x) {
+            // Vorfilter: Gemessen und höchstens Erwartbares (größte Tagesrate × 1,5) beide
+            // unter der Mindestmenge — dann kann der Abstand nicht deutlich sein (normal)
+            if ($this->usable($x, $ctx) && max((float)$x['kwh'], 1.5 * $ctx['max_rate'] * $x['days']) < $min) {
+                $scr[$j] = ['m' => (float)$x['kwh'], 'e' => max((float)$x['kwh'], 1e-9), 'sd' => 0.0];
+                continue;
+            }
+            $scr[$j] = $this->expect($iv, $j, $ctx, []);
+        }
         $cands = [];
         foreach ($scr as $p => $xp) {
             foreach ([-1, 1] as $s) {
@@ -667,79 +767,77 @@ final class ReadingCheckService
     // ── Zäsur ────────────────────────────────────────────────────────────
 
     /**
-     * Gleichbleibend anderes Niveau vor einem Wechsel (s. LEVEL_*). Gesucht wird am
-     * ersten Stand jedes Monats; das heutige Niveau kommt aus der Zeit danach
-     * (Heizmodell bzw. mittlere Tagesmenge). Nicht bei PV (Jahreszeiten ohne Modell).
+     * Gleichbleibend anderes Niveau vor einem Wechsel (s. LEVEL_*), über die Stücke
+     * (etwa Monate). Wechsel kommen an jedem Stückbeginn in Frage; das heutige Niveau
+     * kommt aus den Stücken danach (Heizmodell bzw. mittlere Tagesmenge). Nicht bei
+     * denselben Tagen anderer Jahre (PV, Garten, Jahreszeiten ohne Modell).
      *
      * @return array<string,mixed>|null
      */
-    private function levelShift(string $utility, array $meter, array $points, array $iv, array $ctx): ?array
+    private function levelShift(string $utility, array $meter, array $points, array $ctx): ?array
     {
         if (!in_array($ctx['method'], ['heat_model', 'mean_rate'], true)) return null;
-        $usable = array_filter($iv, fn($x) => $this->usable($x, $ctx));
-        if ($usable === []) return null;
-        $first = min(array_map(fn($x) => $x['from'], $usable));
-        $last = max(array_map(fn($x) => $x['to'], $usable));
+        $ch = array_values($ctx['chunks']);
+        $n = count($ch);
+        if ($n < 3) return null;
+        $first = $ch[0]['from'];
+        $last = $ch[$n - 1]['to'];
         $min = (float)$ctx['min'];
         $best = null;
-        for ($s = 1; $s < count($points) - 1; $s++) {
-            $date = (string)$points[$s]['date'];
-            if (substr($date, 0, 7) === substr((string)$points[$s - 1]['date'], 0, 7)) continue;
+        for ($s = 1; $s < $n; $s++) {
+            $date = $ch[$s]['from'];
             if (self::days($first, $date) < self::LEVEL_MIN_DAYS || self::days($date, $last) < self::LEVEL_AFTER_DAYS) continue;
+            $after = array_slice($ch, $s);
             if ($ctx['method'] === 'heat_model') {
-                $model = $this->fit(array_filter($ctx['chunks'], fn($c) => $c['from'] >= $date));
+                $model = $this->fit($after);
                 if ($model === null) continue;
-                $exp = fn(array $x): ?float => empty($x['temp_ok']) ? null : $model['a'] * $x['hdd'] + $model['c'] * $x['days'];
+                $exp = fn(array $c): float => $model['a'] * $c['hdd'] + $model['c'] * $c['days'];
             } else {
                 $sum = 0.0; $days = 0;
-                foreach ($usable as $x) if ($x['from'] >= $date) { $sum += $x['kwh']; $days += $x['days']; }
+                foreach ($after as $c) { $sum += $c['kwh']; $days += $c['days']; }
                 if ($days < self::LEVEL_AFTER_DAYS) continue;
                 $rate = $sum / $days;
-                $exp = fn(array $x): ?float => $rate * $x['days'];
+                $exp = fn(array $c): float => $rate * $c['days'];
             }
+            // davor: am Stück, jedes nennenswerte Stück auf derselben Seite
             $dir = 0; $sm = 0.0; $se = 0.0; $runFrom = null;
-            for ($j = $s; $j >= 1; $j--) {
-                $x = $iv[$j];
-                if (!$this->usable($x, $ctx)) break;
-                $e = $exp($x);
-                if ($e === null || $e <= 0) break;
-                $m = (float)$x['kwh'];
+            for ($k = $s - 1; $k >= 0; $k--) {
+                $c = $ch[$k];
+                if ($c['to'] !== ($ch[$k + 1]['from'] ?? $c['to'])) break;   // Lücke in den Daten
+                $e = $exp($c);
+                if ($e <= 0) break;
+                $m = (float)$c['kwh'];
                 if (max($e, $m) >= $min) {
                     $r = $m / $e;
                     $d = $r >= self::LEVEL_STEP ? 1 : ($r <= 1 / self::LEVEL_STEP ? -1 : 0);
                     if ($d === 0 || ($dir !== 0 && $d !== $dir)) break;
                     $dir = $d;
                 }
-                $sm += $m; $se += $e; $runFrom = $x['from'];
+                $sm += $m; $se += $e; $runFrom = $c['from'];
             }
             if ($dir === 0 || $runFrom === null || $se <= 0) continue;
             $span = self::days($runFrom, $date);
             $ratio = $sm / $se;
             if ($span < self::LEVEL_MIN_DAYS || ($dir > 0 ? $ratio < self::LEVEL_RATIO : $ratio > 1 / self::LEVEL_RATIO)) continue;
-            // Danach keine Gegenbewegung: Der Wechsel liegt hier (der erste Abstand danach
+            // danach keine Gegenbewegung: Der Wechsel liegt hier (das erste Stück danach
             // schon auf heutigem Niveau), und höchstens LEVEL_AFTER_BACK der Tage danach
             // kehren zum alten Niveau zurück
-            $back = 0; $after = 0; $firstBack = null;
-            foreach ($usable as $k => $x) {
-                if ($x['from'] < $date) continue;
-                $e = $exp($x);
-                $after += $x['days'];
-                $old = $e !== null && $e > 0 && max($e, $x['kwh']) >= $min
-                    && ($dir > 0 ? $x['kwh'] >= $e * self::LEVEL_STEP : $x['kwh'] * self::LEVEL_STEP <= $e);
-                if ($k === $s + 1) $firstBack = $old;
-                if ($old) $back += $x['days'];
+            $back = 0; $total = 0; $firstBack = null;
+            foreach ($after as $i => $c) {
+                $e = $exp($c);
+                $total += $c['days'];
+                $old = $e > 0 && max($e, $c['kwh']) >= $min
+                    && ($dir > 0 ? $c['kwh'] >= $e * self::LEVEL_STEP : $c['kwh'] * self::LEVEL_STEP <= $e);
+                if ($i === 0) $firstBack = $old;
+                if ($old) $back += $c['days'];
             }
-            if ($firstBack === true || $back > self::LEVEL_AFTER_BACK * $after) continue;
+            if ($firstBack || $back > self::LEVEL_AFTER_BACK * $total) continue;
             $score = abs(log($ratio));
             if ($best === null || $score > $best['_score'] + 1e-9) {
                 $best = ['date' => $date, 'from' => $runFrom, 'dir' => $dir, 'ratio' => $ratio, 'days' => $span, '_score' => $score];
             }
         }
         if ($best === null) return null;
-        foreach ((array)($meter['baseline_events'] ?? []) as $ev) {
-            $d = (string)($ev['date'] ?? '');
-            if (Dates::isIsoDate($d) && abs(self::days($d, $best['date'])) <= self::LEVEL_NEAR_DAYS) return null;
-        }
         return [
             'uid'       => AgendaService::uid('level_shift', $utility, (string)$meter['id'], $best['date']),
             'date'      => $best['date'],
@@ -792,9 +890,15 @@ final class ReadingCheckService
 
     // ── Hilfen ───────────────────────────────────────────────────────────
 
+    /** Tagesnummer eines ISO-Datums (UTC, ohne Sommerzeit). */
+    private static function dayNo(string $date): int
+    {
+        return intdiv((int)strtotime($date . ' 12:00:00 UTC'), 86400);
+    }
+
     private static function days(string $a, string $b): int
     {
-        return (int)round((strtotime($b . ' 12:00:00') - strtotime($a . ' 12:00:00')) / 86400);
+        return self::dayNo($b) - self::dayNo($a);
     }
 
     /** @return list<string> */

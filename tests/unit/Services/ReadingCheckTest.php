@@ -53,10 +53,10 @@ final class ReadingCheckTest extends ServiceTestCase
         return new ReadingCheckService($this->store, $this->meters, $this->readings, $this->consumption, $this->settings);
     }
 
-    /** Tagesverbrauch des Testhaushalts (s. Klassenkommentar). */
-    private static function day(string $d): float
+    /** Tagesverbrauch des Testhaushalts (s. Klassenkommentar), Heizgrenze `$base`. */
+    private static function day(string $d, float $base = 15.0): float
     {
-        return 7.0 + 3.5 * max(0.0, 15.0 - self::TEMP[(int)substr($d, 5, 2)]);
+        return 7.0 + 3.5 * max(0.0, $base - self::TEMP[(int)substr($d, 5, 2)]);
     }
 
     /** Erste Tage der Monate von `$from` bis einschließlich `$to` (JJJJ-MM). */
@@ -72,7 +72,7 @@ final class ReadingCheckTest extends ServiceTestCase
      * aller Tage davor, dazu `$offsets[Datum]` (der Fehler). `$scale(Datum)`
      * vervielfacht den Tagesverbrauch (anderes Niveau, Urlaub).
      */
-    private function gasHousehold(array $dates, array $offsets = [], float $start = 10000.0, ?callable $scale = null, string $from = '2022-07-01'): array
+    private function gasHousehold(array $dates, array $offsets = [], float $start = 10000.0, ?callable $scale = null, string $from = '2022-07-01', float $base = 15.0): array
     {
         sort($dates);
         $to = end($dates);
@@ -91,7 +91,7 @@ final class ReadingCheckTest extends ServiceTestCase
         for ($t = strtotime("$from 12:00"); date('Y-m-d', $t) <= $to; $t += 86400) {
             $d = date('Y-m-d', $t);
             if (isset($want[$d])) $rows[] = ['id' => 'r_' . $d, 'date' => $d, 'counter' => round($c + ($offsets[$d] ?? 0.0), 3), 'device_id' => 'd1'];
-            $c += self::day($d) * ($scale !== null ? $scale($d) : 1.0);
+            $c += self::day($d, $base) * ($scale !== null ? $scale($d) : 1.0);
         }
         $this->setReadings('gas', $id, $rows);
         return $this->meters->list('gas')[0];
@@ -231,6 +231,75 @@ final class ReadingCheckTest extends ServiceTestCase
     {
         $meter = $this->gasHousehold(self::storyDates(), array_map(fn() => -600.0, self::BLOCK));
         self::assertSame([], $this->checks()->forMeter('gas', $meter)['checks']);
+    }
+
+    /**
+     * Die Heizgrenze der Gruppe gilt: Der Haushalt heizt unter 12 °C, eingestellt sind
+     * 15 °C, die Gruppe des Zählers hat 12 °C. Von Hand mit 12 °C, davor (15.10.–01.01.)
+     * 17 × 17,5 + 30 × 35 + 31 × 45,5 = 2.758 kWh, danach (01.03.–25.05.) 31 × 31,5 +
+     * 30 × 17,5 + 24 × 7 = 1.669,5 kWh — genau das, was die Prüfung erwartet. Mit 15 °C
+     * passte das Modell nicht und die Zahlen lägen daneben.
+     */
+    public function testTheHeatingLimitOfTheGroupApplies(): void
+    {
+        $meter = $this->gasHousehold(self::storyDates(), array_map(fn() => -1500.0, self::BLOCK), 10000.0, null, '2022-07-01', 12.0);
+        $g = $this->meters->createGroup('gas', ['name' => 'Haus']);
+        $this->meters->update('gas', (string)$meter['id'], ['meter_group_id' => $g['id']]);
+        $this->meters->updateGroup('gas', (string)$g['id'], ['hdd_base_temp' => 12]);
+        $c = $this->checks()->forMeter('gas', $this->meters->list('gas')[0])['checks'];
+        self::assertCount(1, $c, json_encode($c));
+        self::assertEqualsWithDelta(2758.0, $c[0]['before']['expected'], 0.5);
+        self::assertEqualsWithDelta(1669.5, $c[0]['after']['expected'], 0.5);
+        self::assertEqualsWithDelta(1500.0, $c[0]['offset'], 0.5);
+    }
+
+    /**
+     * Strom, 10 kWh am Tag, monatlich abgelesen; am 01.04.2025 steht der Stand 250 kWh
+     * zu niedrig: März 310 → 60, April 300 → 550. Die Erwartung kommt aus der mittleren
+     * Tagesmenge OHNE die beiden geprüften Abstände (Lektion 46): (310 + 280 + 310 + 300
+     * + 310) ÷ 151 Tage = 10 kWh, also März 310 und April 300. Mit dem April im Fenster
+     * hieße es für den März 2.060 ÷ 181 × 31 ≈ 353.
+     */
+    public function testTheMeanRateLeavesTheCheckedIntervalsOut(): void
+    {
+        $id = $this->setMeterDevices('strom', [['id' => 'd1', 'serial' => null, 'installed_on' => '2025-01-01', 'initial_counter' => 0.0,
+            'removed_on' => null, 'final_counter' => null, 'reason' => null]]);
+        $rows = [];
+        foreach (self::firsts('2025-01', '2025-08') as $d) {
+            $rows[] = ['id' => 'r_' . $d, 'date' => $d, 'device_id' => 'd1',
+                'counter' => 10.0 * (strtotime("$d 12:00 UTC") - strtotime('2025-01-01 12:00 UTC')) / 86400 + ($d === '2025-04-01' ? -250.0 : 0.0)];
+        }
+        $this->setReadings('strom', $id, $rows);
+        $r = $this->checks()->forMeter('strom', $this->meters->list('strom')[0]);
+        self::assertSame('mean_rate', $r['basis']);
+        self::assertCount(1, $r['checks'], json_encode($r['checks']));
+        $c = $r['checks'][0];
+        self::assertSame(['r_2025-04-01'], $c['reading_ids']);
+        self::assertSame('low', $c['direction']);
+        self::assertEqualsWithDelta(310.0, $c['before']['expected'], 0.05);
+        self::assertEqualsWithDelta(300.0, $c['after']['expected'], 0.05);
+        self::assertEqualsWithDelta(60.0, $c['before']['measured'], 0.05);
+        self::assertEqualsWithDelta(250.0, $c['offset'], 0.05);
+    }
+
+    /**
+     * In der Zeitzone des Servers (Europe/Berlin statt UTC der Tests): Bis zur Korrektur
+     * fand die Jahreszeiten-Prüfung den nächsten Monatsersten über strtotime in Ortszeit
+     * und kam nie dort an (die Agenda lief in die 30 Sekunden). Dieselben Befunde wie in UTC.
+     */
+    public function testTheCheckRunsInTheServersTimeZone(): void
+    {
+        $tz = date_default_timezone_get();
+        date_default_timezone_set('Europe/Berlin');
+        try {
+            $meter = $this->gasHousehold(self::storyDates(), self::BLOCK);
+            $c = $this->checks()->forMeter('gas', $meter)['checks'];
+            self::assertCount(1, $c);
+            self::assertEqualsWithDelta(3577.0, $c[0]['before']['expected'], 0.5);
+            $this->testTheMeanRateLeavesTheCheckedIntervalsOut();
+        } finally {
+            date_default_timezone_set($tz);
+        }
     }
 
     // ── 2  keine Gegenbewegung ──────────────────────────────────────────
@@ -393,6 +462,19 @@ final class ReadingCheckTest extends ServiceTestCase
         self::assertArrayNotHasKey('is_verified', $r);
     }
 
+    /** Ein CSV-Import mit anderem Stand am selben Tag hebt die Bestätigung auf, derselbe Stand nicht. */
+    public function testAnImportWithAnotherCounterCancelsTheConfirmation(): void
+    {
+        $meter = $this->gasHousehold(self::firsts('2025-01', '2025-06'));
+        $this->readings->update('gas', 'r_2025-03-01', ['is_verified' => true]);
+        $this->readings->update('gas', 'r_2025-04-01', ['is_verified' => true]);
+        $byId = fn() => array_column($this->readings->list('gas', $meter['id']), null, 'id');
+        $same = $byId()['r_2025-03-01']['counter'];
+        $this->readings->upsertMany('gas', $meter['id'], [['date' => '2025-03-01', 'counter' => $same], ['date' => '2025-04-01', 'counter' => 99999]]);
+        self::assertTrue($byId()['r_2025-03-01']['is_verified'] ?? false);
+        self::assertArrayNotHasKey('is_verified', $byId()['r_2025-04-01']);
+    }
+
     /**
      * „Nur für die Abrechnung“ am Block: Die Monatswerte überspringen die drei
      * Stände, der Abstand 15.10.2024–25.05.2025 verteilt sich nach dem Wetter. Weil
@@ -407,8 +489,11 @@ final class ReadingCheckTest extends ServiceTestCase
         $meter = $this->gasHousehold(self::storyDates(), self::BLOCK);
         $before = $this->monthOf($meter, '2024-12');
         self::assertEqualsWithDelta(1077.0 * 31 / 78, $before['kwh'], 0.1);
+        self::assertTrue($this->consumption->boundaryMeasured('gas', $meter, '2025-01-01'));
         foreach (array_keys(self::BLOCK) as $d) $this->readings->update('gas', 'r_' . $d, ['is_billing_only' => true]);
         $meter = $this->meters->list('gas')[0];
+        // Jahresgrenze am Stand „nur für die Abrechnung“: Die Jahressumme der Monatswerte ist dort verteilt
+        self::assertFalse($this->consumption->boundaryMeasured('gas', $meter, '2025-01-01'));
 
         $dec = $this->monthOf($meter, '2024-12');
         $jan = $this->monthOf($meter, '2025-01');
@@ -436,6 +521,53 @@ final class ReadingCheckTest extends ServiceTestCase
         $r = $this->checks()->forMeter('gas', $meter);
         self::assertSame([], $r['checks']);
         self::assertSame(['r_2025-01-01', 'r_2025-02-20', 'r_2025-03-01'], $r['billing_only']);
+    }
+
+    /**
+     * Befund des Leads an echten Daten: Drei Stände eines Winters als „geschätzt“ markiert,
+     * Heizmodell und Rückblicke blieben bit-gleich — `is_estimated` überbrückt nichts. Hier
+     * der Gegenbeweis für „nur für die Abrechnung“: monatlich abgelesen (jeder Monat
+     * gemessen, also ein Punkt des Heizmodells), jeder Monat mit Alltagsrauschen, die drei
+     * Stände 01.01., 01.02. und 01.03.2025 je um 40 % des Dezembers (1.736 × 0,4 = 694,4)
+     * zu niedrig. Mit `is_estimated` bleiben die Monatswerte bit-gleich (der Dezember
+     * bleibt zu niedrig; die Monate gelten nur als verteilt — liegen sie ohnehin in
+     * langen Abständen wie beim Lead, ändert auch das Modell nichts). Mit
+     * `is_billing_only` ändern sich beide: Dezember bis März sind über 121 Tage nach dem
+     * Wetter verteilt, keine Punkte des Modells mehr, der Dezember zeigt wieder rund
+     * 1.736, und das Modell liegt näher am Haushalt.
+     */
+    public function testBillingOnlyChangesMonthlyValuesAndTheHeatModel(): void
+    {
+        mt_srand(11);
+        $noise = [];
+        $scale = function (string $d) use (&$noise): float {
+            $ym = substr($d, 0, 7);
+            return $noise[$ym] ??= 1.0 + (mt_rand(-80, 80) / 1000.0);   // ±8 % je Monat
+        };
+        $offsets = array_fill_keys(['2025-01-01', '2025-02-01', '2025-03-01'], -0.4 * 1736.0);
+        $meter = $this->gasHousehold(self::firsts('2022-07', '2026-06'), $offsets, 10000.0, $scale);
+        self::assertCount(1, $this->checks()->forMeter('gas', $meter)['checks'], 'die Prüfung findet den Block');
+        $state = function () {
+            $m = $this->meters->list('gas')[0];
+            $rows = $this->consumption->forMeter('gas', $m);
+            $model = $this->consumption->heatModel('gas', $rows, $m);
+            return [array_column($rows, 'kwh', 'ym'), $model];
+        };
+        [$plainRows, $plainModel] = $state();
+        foreach (array_keys($offsets) as $d) $this->readings->update('gas', 'r_' . $d, ['is_estimated' => true]);
+        [$estRows] = $state();
+        self::assertSame($plainRows, $estRows, '„geschätzt“ ändert die Monatswerte nicht (der Dezember bleibt zu niedrig)');
+        foreach (array_keys($offsets) as $d) $this->readings->update('gas', 'r_' . $d, ['is_estimated' => false, 'is_billing_only' => true]);
+        [$billRows, $billModel] = $state();
+        self::assertEqualsWithDelta(1736.0 * $scale('2024-12-15'), $plainRows['2024-12'] + 694.4, 1.0, 'vorher: Dezember um den Versatz zu niedrig');
+        self::assertEqualsWithDelta(1736.0, $billRows['2024-12'], 1736.0 * 0.1, 'nachher: Dezember nach dem Wetter, rund 1.736');
+        self::assertLessThan($plainRows['2025-03'] - 400, $billRows['2025-03'], 'der März trägt den Überschuss nicht mehr');
+        // Fit vorher/nachher (gemessen an diesem Haushalt: n 42 → 40, a 3,485 → 3,494, Streuung 34,6 → 31,3)
+        $info = json_encode([[$plainModel['a'], $plainModel['c'], $plainModel['n'], $plainModel['resid_sd']],
+            [$billModel['a'], $billModel['c'], $billModel['n'], $billModel['resid_sd']]]);
+        self::assertLessThan($plainModel['n'], $billModel['n'], "die verzerrten Monate sind keine Punkte mehr: $info");
+        self::assertLessThan($plainModel['resid_sd'], $billModel['resid_sd'], "das Modell streut weniger: $info");
+        self::assertLessThan(abs($plainModel['a'] - 3.5), abs($billModel['a'] - 3.5), "a liegt näher an den 3,5 des Haushalts: $info");
     }
 
     /** Ein Stand „nur für die Abrechnung“ ohne Ablesung danach bleibt in den Monatswerten. */
@@ -467,6 +599,32 @@ final class ReadingCheckTest extends ServiceTestCase
         self::assertEqualsWithDelta($plain['kwh_cost'], $dec['kwh_cost'], 0.01);
         self::assertEqualsWithDelta($plain['cost'], $dec['cost'], 0.01);
         self::assertEqualsWithDelta(1736.0, $dec['kwh'], 0.5);
+    }
+
+    /**
+     * Wasser, 0,3 m³ am Tag; der Stand vom 01.04.2025 ist 5 m³ zu niedrig und „nur für
+     * die Abrechnung“. Monatswerte gleichmäßig über 01.03.–01.05. (Wasser hat kein
+     * Heizmodell): März 31 × 0,3 = 9,3, April 9,0. Die Kosten nach dem Stand: März
+     * 9,3 − 5 = 4,3 m³ × 2,00 € = 8,60 € Trinkwasser.
+     */
+    public function testWaterBillingOnlyKeepsTheCostsOfTheReading(): void
+    {
+        $id = $this->setMeterDevices('wasser', [['id' => 'd1', 'serial' => null, 'installed_on' => '2025-01-01', 'initial_counter' => 0.0,
+            'removed_on' => null, 'final_counter' => null, 'reason' => null]]);
+        $rows = [];
+        foreach (self::firsts('2025-01', '2025-07') as $d) {
+            $rows[] = ['id' => 'r_' . $d, 'date' => $d, 'device_id' => 'd1',
+                'counter' => round(0.3 * (strtotime("$d 12:00 UTC") - strtotime('2025-01-01 12:00 UTC')) / 86400 + ($d === '2025-04-01' ? -5.0 : 0.0), 3)];
+        }
+        $this->setReadings('wasser', $id, $rows);
+        $this->contracts->create('wasser', ['meter_id' => $id, 'provider' => 'Stadtwerke Musterstadt', 'start' => '2025-01-01',
+            'trinkwasser' => ['working_prices' => [['from' => '2025-01-01', 'ct_per_m3' => 200.0]], 'base_prices' => [['from' => '2025-01-01', 'eur_per_month' => 0.0]]],
+            'schmutzwasser' => ['basis' => 'trinkwasser', 'working_prices' => [['from' => '2025-01-01', 'ct_per_m3' => 0.0]]]]);
+        $this->readings->update('wasser', 'r_2025-04-01', ['is_billing_only' => true]);
+        $mar = array_values(array_filter($this->consumption->forMeter('wasser', $this->meters->list('wasser')[0]), fn($m) => $m['ym'] === '2025-03'))[0];
+        self::assertTrue($mar['bridged']);
+        self::assertEqualsWithDelta(9.3, $mar['m3'], 0.01);
+        self::assertEqualsWithDelta(8.60, $mar['trinkwasser']['working_cost'], 0.01);
     }
 
     // ── 6  „Zu tun“, /api/todo, Backup ──────────────────────────────────

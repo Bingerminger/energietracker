@@ -747,6 +747,13 @@ globalThis.fetch = async (url, init) => {
         && 'range' in hle.heat_limit && 'before' in hle.heat_limit && 'effect' in hle.heat_limit
         && (hle.heat_limit.suggest || hle.heat_limit.effect === null))),
       JSON.stringify(hle?.heat_limit ? { ...hle.heat_limit, grid: hle.heat_limit.grid.length } : hle));
+    // v3.9.0 (ablesung-pruefen) — Zwischenablesung prüfen: Befund eines Zählers
+    const rck = await j(`/api/utility/gas/meters/${gasMeters[0].id}/reading-checks`);
+    check('reading-checks(gas): {checks[], duplicates[], level_shift, basis, unit, billing_only[]}',
+      rck && Array.isArray(rck.checks) && Array.isArray(rck.duplicates) && 'level_shift' in rck && 'basis' in rck
+        && rck.unit === 'm³' && Array.isArray(rck.billing_only)
+        && rck.checks.every(c => typeof c.uid === 'string' && Array.isArray(c.reading_ids) && ['low', 'high'].includes(c.direction) && c.before && c.after),
+      JSON.stringify(rck)?.slice(0, 200));
     const ghl = await j(`/api/utility/gas/meters/${gasMeters[0].id}/consumption?heat_limit=1`);
     check('consumption(gas)?heat_limit=1: {current, best, suggest, grid[]} oder null',
       ghl.heat_limit === null || (typeof ghl.heat_limit.suggest === 'boolean' && typeof ghl.heat_limit.current === 'number' && Array.isArray(ghl.heat_limit.grid)),

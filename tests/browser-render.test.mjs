@@ -3410,6 +3410,7 @@ async function renderView(modPath, params = [], ctx = {}) {
       && row.querySelector('[data-rc-correct]')?.getAttribute('href') === `#/utility/gas?meter=${encodeURIComponent(mid)}&edit_reading=${encodeURIComponent(rid)}`
       && !row.querySelector('[data-todo-done]'), rt.slice(0, 400));
     // „Stand ist richtig“: weg, mit Rückgängig wieder da
+    global.document.querySelectorAll('.toast').forEach(el => el.remove());
     row.querySelector('[data-rc-verify]').click();
     const gone = await until(async () => !(await agenda()).some(e => e.kind === 'reading_check' && e.ref?.meter_id === mid));
     const r1 = (await send('GET', `/utility/gas/readings?meter_id=${encodeURIComponent(mid)}`)).data?.find(r => r.id === rid);
@@ -3433,16 +3434,17 @@ async function renderView(modPath, params = [], ctx = {}) {
     const pill = await until(() => lv.view.querySelector(`tr[data-reading-id="${rid}"] [data-role="billing-only-pill"]`), 120);
     t('ablesung: Liste — Marke „NUR ABRECHNUNG“ mit Erklärung und Satz über der Liste', /NUR ABRECHNUNG/.test(pill?.textContent || '')
       && /1 Stand gilt nur für die Abrechnung/.test(lv.view.querySelector('[data-role="billing-only-note"]')?.textContent || ''));
-    await until(() => /Rückgängig/.test(toastAction()?.textContent || ''));
-    toastAction()?.click();
-    await until(async () => !(await send('GET', `/utility/gas/readings?meter_id=${encodeURIComponent(mid)}`)).data?.find(r => r.id === rid)?.is_billing_only);
+    // zurück (Rückgängig ist oben schon geprüft): den Merker direkt entfernen
+    await send('PATCH', `/utility/gas/readings/${encodeURIComponent(rid)}`, { is_billing_only: false });
+    global.document.querySelectorAll('.toast').forEach(el => el.remove());
     // Liste: Marke „AUFFÄLLIG“ am Stand, Knopf „Stand ist richtig“, „nur auffällige“ zählt ihn
     const lv2 = await renderView(`${ROOT}/views/utility.js`, ['gas'], { query: new URLSearchParams(`meter=${mid}&year=2025`) });
     const cp = await until(() => lv2.view.querySelector(`tr[data-reading-id="${rid}"] [data-role="reading-check-pill"]`), 120);
     const why = cp?.nextElementSibling?.getAttribute('data-info-text') || '';
     t('ablesung: Liste — Marke „AUFFÄLLIG“ mit Erklärung (davor, danach, Vermutung) und Knopf „Stand ist richtig“', /AUFFÄLLIG/.test(cp?.textContent || '')
       && /Davor \(.+\): .+ gemessen, erwartet rund .+ Danach/.test(why) && /zu hoch/.test(why)
-      && !!lv2.view.querySelector(`tr[data-reading-id="${rid}"] [data-action="verify-reading"]`), why.slice(0, 300));
+      && !!lv2.view.querySelector(`tr[data-reading-id="${rid}"] [data-action="verify-reading"]`),
+      why.slice(0, 300) || `${JSON.stringify((await send('GET', `/utility/gas/meters/${mid}/reading-checks`)).data?.checks?.map(c => c.reading_ids))} · ${lv2.view.querySelector(`tr[data-reading-id="${rid}"]`)?.innerHTML?.slice(0, 300) || 'keine Zeile'}`);
     // Korrigieren: der Dialog mit Befund und „Einsetzen“; Häkchen „Nur für die Abrechnung“
     global.document.querySelectorAll('.modal [data-act="cancel"]').forEach(b => b.click());
     await renderView(`${ROOT}/views/utility.js`, ['gas'], { query: new URLSearchParams(`meter=${mid}&edit_reading=${rid}`) });
@@ -3487,11 +3489,18 @@ async function renderView(modPath, params = [], ctx = {}) {
     const dv4 = await renderView(`${ROOT}/views/dashboard.js`);
     const lrow = await until(() => dv4.view.querySelector(`[data-role="reading-check-todo"][data-kind="level"][data-meter="${lid}"]`)?.closest('li'), 120);
     const lt = (lrow?.textContent || '').replace(/\s+/g, ' ');
-    t('ablesung: Zu tun — Zäsur-Hinweis mit Faktor, Erklärung, „Zäsur am … setzen“ und „Nicht jetzt“ (ohne Haken)',
+    t('ablesung: Zu tun — Zäsur-Hinweis mit Faktor, Erklärung, „Zäsur hier setzen“ und „Nicht jetzt“ (ohne Haken)',
       /Seit 01\.07\.2025 dauerhaft weniger Verbrauch/.test(lt) && /Monate lang gleichbleibend rund 2,0-mal so hoch wie heute/.test(lt)
-      && /nicht nach einem Ablesefehler/.test(lt) && /Zäsur am 01\.07\.2025 setzen/.test(lrow.querySelector('[data-rc-baseline]')?.textContent || '')
+      && /nicht nach einem Ablesefehler/.test(lt) && /Zäsur hier setzen/.test(lrow.querySelector('[data-rc-baseline]')?.textContent || '')
       && /Nicht jetzt/.test(lrow.querySelector('[data-rc-later]')?.textContent || '') && !lrow.querySelector('[data-todo-done]'), lt.slice(0, 400));
+    // erst ein Dialog: Tag vorbelegt mit dem Ende der auffälligen Zeit, Bezeichnung, Bestätigung
     lrow?.querySelector('[data-rc-baseline]')?.click();
+    const lsDate = await until(() => global.document.querySelector('.modal #ls-date'));
+    t('ablesung: „Zäsur hier setzen“ — Dialog mit vorbelegtem Tag 01.07.2025 und Bezeichnung, noch nichts gespeichert', lsDate?.value === '2025-07-01'
+      && global.document.querySelector('.modal #ls-label')?.value === 'Verbrauch geändert'
+      && !((await send('GET', '/utility/gas/meters')).data || []).find(m => m.id === lid)?.baseline_events?.length, `${lsDate?.value}`);
+    global.document.querySelectorAll('.toast').forEach(el => el.remove());
+    global.document.querySelector('.modal [data-act="ok"]')?.click();
     const mb = await until(async () => ((await send('GET', '/utility/gas/meters')).data || []).find(m => m.id === lid && (m.baseline_events || []).some(e => e.date === '2025-07-01')));
     t('ablesung: „Zäsur setzen“ — Zäsur am Zähler, Hinweis weg', !!mb && !(await agenda()).some(e => e.kind === 'level_shift' && e.ref?.meter_id === lid),
       JSON.stringify(mb?.baseline_events));

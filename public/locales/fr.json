@@ -7151,12 +7151,20 @@
       "other": "Auparavant, la consommation était pendant {count} mois constamment d’environ {pct} de celle d’aujourd’hui."
     },
     "advice": "Cela ressemble à un vrai changement (par exemple un nouveau chauffage ou une autre façon de chauffer), pas à une erreur de relevé. Une rupture de référence sépare la période précédente : le modèle de chauffage, la prévision et les comparaisons utilisent alors la consommation actuelle.",
-    "set": "Définir la rupture au {date}",
+    "set": "Définir la rupture ici",
     "notNow": "Pas maintenant",
     "label": "Consommation modifiée",
     "toast": {
       "set": "Rupture de référence définie au {date}",
       "dismissed": "Remarque masquée"
+    },
+    "dialog": {
+      "title": "Définir une rupture de référence",
+      "text": "À partir de ce jour, le modèle de chauffage, la prévision et les comparaisons n’utilisent que la période suivante. La fin de la période inhabituelle est préremplie. Si vous connaissez le jour du changement (par exemple le remplacement du chauffage), saisissez-le.",
+      "date": "À partir du jour",
+      "label": "Libellé",
+      "confirm": "Définir la rupture",
+      "invalid": "Veuillez saisir un jour."
     }
   }
 }

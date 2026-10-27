@@ -354,6 +354,16 @@ Zwei weitere seit v3.1.0, ebenso optional:
 - `attachment_id`: Foto des Zählerstands — ID eines Belegs mit
   `kind: reading_photo` ([Belege](#belege-v310)).
 
+Zwei Merker seit v3.9.0, ebenso optional (nur `true` wird gespeichert, im Backup mit
+der Ablesung):
+
+- `is_verified: true`: „Stand ist richtig“, die Prüfung der Zwischenablesungen fragt
+  nicht mehr; ein geänderter Stand oder ein anderes Datum hebt das auf.
+- `is_billing_only: true`: „nur für die Abrechnung“. Rechnung prüfen, Abrechnungsjahr,
+  Kosten und Saldo rechnen mit dem Stand, die Monatswerte überspringen ihn
+  ([API](api.md#ablesungen-is_verified-is_billing_only-v390-additiv),
+  [Grundlagen](../verstehen/00-overview.md#ablesung-prüfen-seit-v390)).
+
 Die Verbrauchsrechnung übergeht außerdem **eingeklemmte Ausreißer** desselben
 Geräts und meldet sie als `warnings` (siehe
 [Zählerstände → Plausibilität](../verstehen/11-zaehlerstaende.md)).

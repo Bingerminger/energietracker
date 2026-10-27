@@ -7151,12 +7151,20 @@
       "other": "Davor lag der Verbrauch {count} Monate lang gleichbleibend bei rund {pct} von heute."
     },
     "advice": "Das sieht nach einer echten Änderung aus (etwa eine neue Heizung oder anders geheizt), nicht nach einem Ablesefehler. Eine Analyse-Zäsur trennt die Zeit davor ab: Heizmodell, Prognose und Vergleiche rechnen dann mit dem heutigen Verbrauch.",
-    "set": "Zäsur am {date} setzen",
+    "set": "Zäsur hier setzen",
     "notNow": "Nicht jetzt",
     "label": "Verbrauch geändert",
     "toast": {
       "set": "Analyse-Zäsur am {date} gesetzt",
       "dismissed": "Hinweis ausgeblendet"
+    },
+    "dialog": {
+      "title": "Analyse-Zäsur setzen",
+      "text": "Ab diesem Tag rechnen Heizmodell, Prognose und Vergleiche nur mit der Zeit danach. Vorbelegt ist das Ende der auffälligen Zeit. Kennst du den Tag der Änderung (etwa den Heizungstausch), trag ihn ein.",
+      "date": "Ab dem Tag",
+      "label": "Bezeichnung",
+      "confirm": "Zäsur setzen",
+      "invalid": "Bitte einen Tag eingeben."
     }
   }
 }

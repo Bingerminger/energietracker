@@ -525,7 +525,7 @@ function readingCheckActionsHtml(x, i) {
     </div>`;
   }
   return `<div ${attrs}>
-      <button type="button" class="btn btn--sm btn--util" data-rc-baseline="${i}">${escapeHtml(t('levelShift.set', { date: fmt.date(rc.date) }))}</button>
+      <button type="button" class="btn btn--sm btn--util" data-rc-baseline="${i}">${escapeHtml(t('levelShift.set'))}</button>
       <button type="button" class="btn btn--sm btn--ghost" data-rc-later="${i}">${escapeHtml(t('levelShift.notNow'))}</button>
     </div>`;
 }

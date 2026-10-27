@@ -13,7 +13,7 @@ All endpoints under `/api/…`. A uniform response envelope:
 
 `{utility}` is one of: `gas`, `strom`, `wasser`, `fernwaerme`, `heizoel`,
 `pellets`, `pv_einspeisung`, `pv_erzeugung` and, since v3.1.0, `waerme`
-(heat). As of: **194 routes**, v3.9.0 —
+(heat). As of: **195 routes**, v3.9.0 —
 `ReleaseConsistencyTest` checks that every registered route appears in the
 table below (German and English).
 
@@ -199,7 +199,7 @@ Reason: v2.0.0 silently switched `verdict` from "Nachzahlung/Erstattung" to keys
 | GET | `/api/utility/{u}/meter-groups/{id}/heat-limit` | *(v3.9.0)* heating limit suggestion of the group, as for a meter |
 | GET | `/api/utility/{u}/readings` | readings |
 | POST | `/api/utility/{u}/readings` | create; since v3.1.0 with `client_ref` (same identifier on the same meter → `200` with `duplicate: true` instead of a second reading) and `attachment_id` (photo) — [see below](#readings-client_ref-attachment_id-v310-additive) |
-| PATCH | `/api/utility/{u}/readings/{id}` | change; since v3.1.0 also `attachment_id` (`null` detaches the photo); moving it to a meter with consumption per period → `400` `errors.reading.periodMeter` |
+| PATCH | `/api/utility/{u}/readings/{id}` | change; since v3.1.0 also `attachment_id` (`null` detaches the photo); moving it to a meter with consumption per period → `400` `errors.reading.periodMeter`; since v3.9.0 `is_verified` and `is_billing_only` — [see below](#readings-is_verified-is_billing_only-v390-additive) |
 | DELETE | `/api/utility/{u}/readings/{id}` | delete (a photo is detached and cleaned up after 24 hours) |
 | POST | `/api/utility/{u}/meters/{id}/readings/import-csv` | CSV bulk import; `?dry_run=1` only reads (preview, v2.12.0); since v3.1.0 headers and date formats of every language — see below |
 | POST | `/api/utility/{u}/meters/{id}/import-series` | *(v3.1.0)* time series from a portal with a column mapping `{csv, mapping}`, condensed into daily values; `?dry_run=1` only reads — [Import time series](#import-time-series-v310); since v3.3.0 values at 15, 30 or 60 minute intervals additionally per quarter hour (`intervals`) |
@@ -211,6 +211,7 @@ Reason: v2.0.0 silently switched `verdict` from "Nachzahlung/Erstattung" to keys
 | DELETE | `/api/utility/{u}/periods/{id}` | *(v3.1.0)* delete a period |
 | POST | `/api/utility/{u}/meters/{id}/periods/import-csv` | *(v3.1.0)* periods from CSV (`month;value[;note]` or `from;to;value[;note]`); `?dry_run=1` only reads |
 | **GET** | **`/api/readings-overview`** | **all active cumulative meters + last reading (F1004, v1.6.0); since v3.1.0 with `capture`, `last_period` and `role`** |
+| GET | `/api/utility/{u}/meters/{id}/reading-checks` | *(v3.9.0)* check intermediate readings: readings with a common offset (`checks`), readings entered twice (`duplicates`), note on the baseline date (`level_shift`) — [Check intermediate readings](#check-intermediate-readings-v390) |
 | GET | `/api/utility/{u}/deliveries` | deliveries (heating oil/pellets) |
 | POST | `/api/utility/{u}/deliveries` | create |
 | PATCH | `/api/utility/{u}/deliveries/{id}` | change |
@@ -551,6 +552,48 @@ the same side in every checked year: a pattern, not an event), `hdd_base_temp` a
 tanks (heating oil, pellets), when creating a meter and on meter groups
 (`PATCH …/meter-groups/{id}`). The agenda knows the kind `heat_limit` (recommendation of
 category `modell`, `ref` with `best`, `current`, `range`, `before`, `after`, `effect`).
+
+### Check intermediate readings *(v3.9.0)*
+
+`GET /api/utility/{u}/meters/{id}/reading-checks` — the finding for a meter with
+meter readings (method and thresholds: [Basics §1](../verstehen/00-overview.md#check-a-reading-since-v390)).
+Empty for periods, groups and delivery types.
+
+```jsonc
+{ "checks": [ {
+    "uid": "reading_check-gas-m_gas_main-2025-01-01", "kind": "offset",
+    "date": "2025-01-01", "until": "2025-03-01", "count": 3,
+    "reading_ids": ["r1", "r2", "r3"], "direction": "low", "offset": 250.0, "unit": "m³",
+    "basis": "heat_model",
+    "before": { "from": "2024-10-15", "to": "2025-01-01", "days": 78, "measured": 108.0, "expected": 358.0, "ratio": 0.3 },
+    "after":  { "from": "2025-03-01", "to": "2025-05-25", "days": 85, "measured": 489.0, "expected": 239.0, "ratio": 2.04 },
+    "suggested": [ { "id": "r1", "date": "2025-01-01", "counter": 4210.0, "suggested": 4460.0 } ] } ],
+  "duplicates": [ { "uid": "reading_duplicate-gas-m_gas_main-2025-03-01", "date": "2025-03-01",
+    "counter": 4890.0, "unit": "m³", "keep_id": "r7", "delete_ids": ["r8"] } ],
+  "level_shift": null, "basis": "heat_model", "unit": "m³", "billing_only": [] }
+```
+
+| Field | Meaning |
+|---|---|
+| `checks[]` | a reading or a block of consecutive readings (`count`, `reading_ids`) where the interval before (`before`) and the one after (`after`) deviate clearly from the expectation in opposite directions and one common offset explains both. `direction`: `low` (the readings are probably too low) or `high`; `offset` in the meter unit; `measured`, `expected` per interval in the meter unit, `ratio` = measured ÷ expected; `suggested[]` the reading that would fit |
+| `basis` | where the expectation comes from: `heat_model` (heating model over the reading intervals), `mean_rate` (mean daily amount half a year before and after), `other_years` (the same days in other years); `null`: no check (too few intervals, charging point) |
+| `duplicates[]` | the same reading on the same day more than once: `keep_id` (with a photo, otherwise with a note, otherwise the first), `delete_ids` |
+| `level_shift` | note on the baseline date or `null`: `{uid, date, from, direction, factor, days, months, basis}`. `direction: "higher"` means: from `from` to `date` consumption was consistently `factor` times today’s |
+| `billing_only` | IDs of the readings “only for the bill” (`is_billing_only`) |
+
+The agenda reports each finding as an event with `due_now` (and so also in
+[`/api/todo`](#get-apitodo-v390) and to Home Assistant): `reading_check`,
+`reading_duplicate` and `level_shift`, with `uid` as above and the fields of the
+finding in `ref`. They are settled by the data: “Reading is correct”
+(`PATCH …/readings/{id}` with `is_verified: true` per reading), “only for the bill”
+(`is_billing_only: true`), a corrected reading or deleting a duplicate make the
+finding go away. Only `level_shift` can be ticked off (`POST /api/agenda/done`), or a
+baseline date on the day `date` settles it.
+
+**Since v3.9.0, additive, in `…/consumption` (`monthly[]`):** `bridged: true` on
+months spread by the weather across a reading “only for the bill”; there `billed_kwh`
+carries the quantity the contracts use (by the reading, as with remainder billing),
+`kwh` the monthly value.
 
 **Since v3.9.0 (evaluation), additive** — every number is right or says why it
 is uncertain ([Basics §1](../verstehen/00-overview.md#measured-or-interpolated-since-v370),
@@ -1637,6 +1680,21 @@ Two more optional fields, likewise only present when set:
   "client_ref": "7d0f6c1e-2b8a-4c55-9e3d-0a1b2c3d4e5f",
   "attachment_id": "att_5f0c2a9e81d34b67" }
 ```
+
+### Readings: `is_verified`, `is_billing_only` *(v3.9.0, additive)*
+
+Two flags of the [check of intermediate readings](#check-intermediate-readings-v390),
+stored only when set (`PATCH` with `false` removes them):
+
+- `is_verified: true` — “Reading is correct”: the check no longer asks about any block
+  with this reading. Changing `counter` or `date` cancels the confirmation (so does a
+  CSV import with a different reading on the same day).
+- `is_billing_only: true` — “only for the bill”: bill check, billing year, costs and
+  balance keep using the reading; monthly values, heating model and forecast skip it.
+  The consumption from the reading before to the next one without the flag is spread
+  by the weather (`bridged`). Without a reading after it (or across a meter
+  replacement) the reading stays in the monthly values. Also when creating
+  (`POST …/readings`).
 
 ### Meters: `role`, `capture` *(v3.1.0, additive)*
 
@@ -3365,6 +3423,9 @@ already due or overdue is added. Sorted by date, then kind.
 | `objection_deadline` *(v3.1.0)* | last day to object to a statement | receipt (`received_on`) + 12 months | from 30 days before (`severity` then `due`) |
 | `co2_claim_deadline` *(v3.1.0)* | self-contained heating in a rented home: claim the landlord’s share of the CO₂ costs (CO2KostAufG § 6(2)) — only with `case: self_supplied` and an amount above 0 | `deadline` from `/api/co2-split`: bill date of the gas bill + 12 months | from 30 days before (`severity` then `due`) |
 | `bill_expected` *(v3.5.0)* | a billing period of a contract has ended, no supplier’s bill recorded — [Bill expected](#bill-expected-v350) | electricity/gas in DE: end + 42 days (§ 40c(2) EnWG); otherwise the day after the end | always; `severity` `due`, after the statutory deadline `overdue` |
+| `reading_check` *(v3.9.0)* | check a reading (or a block) — [Check intermediate readings](#check-intermediate-readings-v390) | today | always, until “Reading is correct”, “only for the bill” or a corrected reading settles it; cannot be ticked off |
+| `reading_duplicate` *(v3.9.0)* | the same reading entered twice on the same day | today | always, until one is deleted; cannot be ticked off |
+| `level_shift` *(v3.9.0)* | consumption consistently different from today for at least a year: note on the baseline date | today | until ticked off (“Not now”) or a baseline date near `ref.date` is set |
 
 **Period meters *(v3.1.0)*.** For a meter with consumption per period,
 `reading_due` counts from the end of the last period instead of the last

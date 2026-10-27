@@ -11,14 +11,15 @@
 //   Nur für die Abrechnung PATCH …/readings/{id} {is_billing_only: true}, Rückgängig
 //   Korrigieren            Bearbeiten-Dialog der Ablesung (#/utility/…&edit_reading=…)
 //   Eine löschen           DELETE …/readings/{id}, Rückgängig legt sie neu an
-//   Zäsur setzen           PATCH …/meters/{id} mit baseline_events, Rückgängig
+//   Zäsur hier setzen      Dialog (Tag vorbelegt), dann PATCH …/meters/{id} mit baseline_events, Rückgängig
 //   Nicht jetzt            POST /api/agenda/done (abhaken), Rückgängig
 // Die App korrigiert nie selbst.
 // =====================================================================
 import { api } from '../api.js';
 import { t, tp } from './i18n.js';
-import { fmt } from './format.js';
+import { fmt, escapeHtml } from './format.js';
 import { toastErr, toastOk, toastUndo } from '../components/toast.js';
+import { openModal } from '../components/modal.js';
 
 const amount = (v, unit) => `${fmt.num(Number(v), 0)} ${unit || ''}`.trim();
 const span = (s) => ({ from: fmt.date(s.from), to: fmt.date(s.to) });
@@ -125,17 +126,56 @@ export function levelShiftTitle(s) {
   return t(s?.direction === 'higher' ? 'levelShift.titleLess' : 'levelShift.titleMore', { date: fmt.date(s?.date) });
 }
 
-/** Zäsur am erkannten Tag setzen (die übrigen Zäsuren bleiben), mit Rückgängig. */
+/**
+ * Dialog „Analyse-Zäsur setzen“: Tag (vorbelegt mit dem Ende der auffälligen Zeit, also
+ * dem ersten Stand auf heutigem Niveau) und Bezeichnung, mit Bestätigung.
+ * @returns {Promise<{date:string,label:string}|null>}
+ */
+export function baselineDialog({ date, label }) {
+  return new Promise(resolve => {
+    let done = false;
+    const finish = (v) => { if (!done) { done = true; resolve(v); } };
+    const ctrl = openModal({
+      title: t('levelShift.dialog.title'),
+      body: `<p class="small">${escapeHtml(t('levelShift.dialog.text'))}</p>
+        <div class="field"><label for="ls-date">${escapeHtml(t('levelShift.dialog.date'))}</label>
+          <input class="input" id="ls-date" type="date" name="date" value="${escapeHtml(date || '')}" required aria-describedby="ls-msg"></div>
+        <div class="field"><label for="ls-label">${escapeHtml(t('levelShift.dialog.label'))}</label>
+          <input class="input input--text" id="ls-label" type="text" name="label" maxlength="80" value="${escapeHtml(label || '')}"></div>
+        <div class="field-error" id="ls-msg" data-role="msg" role="alert" hidden></div>`,
+      footer: `<button type="button" class="btn btn--ghost" data-act="cancel">${escapeHtml(t('common.cancel'))}</button>
+        <button type="button" class="btn btn--primary" data-act="ok">${escapeHtml(t('levelShift.dialog.confirm'))}</button>`,
+      onMount({ modalEl, close }) {
+        modalEl.querySelector('[data-act="cancel"]').addEventListener('click', () => { close(null); finish(null); });
+        modalEl.querySelector('[data-act="ok"]').addEventListener('click', () => {
+          const d = modalEl.querySelector('#ls-date').value;
+          const msg = modalEl.querySelector('[data-role="msg"]');
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(d || '')) { msg.textContent = t('levelShift.dialog.invalid'); msg.hidden = false; return; }
+          finish({ date: d, label: modalEl.querySelector('#ls-label').value.trim() });
+          close(true);
+        });
+      },
+    });
+    ctrl.closedPromise?.then(() => finish(null));
+  });
+}
+
+/**
+ * „Zäsur hier setzen“: erst der Dialog (Tag vorbelegt), dann die Zäsur am Zähler (die
+ * übrigen bleiben), mit Rückgängig.
+ */
 export async function setBaselineAt({ utility, meterId, date, onChange = () => {} }) {
+  const choice = await baselineDialog({ date, label: t('levelShift.label') });
+  if (!choice) return false;
   let before;
   try {
     const meter = (await api.meters(utility)).find(m => m.id === meterId);
     if (!meter) throw new Error(t('errors.meter.notFound'));
     before = Array.isArray(meter.baseline_events) ? meter.baseline_events : [];
-    const next = [...before.filter(e => e.date !== date), { date, label: t('levelShift.label') }];
+    const next = [...before.filter(e => e.date !== choice.date), { date: choice.date, label: choice.label }];
     await api.updateMeter(utility, meterId, { baseline_events: next });
   } catch (e) { toastErr(e.message); return false; }
-  toastUndo(t('levelShift.toast.set', { date: fmt.date(date) }), async () => {
+  toastUndo(t('levelShift.toast.set', { date: fmt.date(choice.date) }), async () => {
     try {
       await api.updateMeter(utility, meterId, { baseline_events: before });
       toastOk(t('readingCheck.toast.undone'));

@@ -351,6 +351,16 @@ Two more since v3.1.0, likewise optional:
 - `attachment_id`: photo of the meter reading — ID of a receipt with
   `kind: reading_photo` ([Receipts](#receipts-v310)).
 
+Two flags since v3.9.0, likewise optional (only `true` is stored, in the backup with the
+reading):
+
+- `is_verified: true`: “Reading is correct”, the check of intermediate readings no
+  longer asks; a changed reading or a different date cancels it.
+- `is_billing_only: true`: “only for the bill”. Bill check, billing year, costs and
+  balance use the reading, monthly values skip it
+  ([API](api.md#readings-is_verified-is_billing_only-v390-additive),
+  [Basics](../verstehen/00-overview.md#check-a-reading-since-v390)).
+
 The consumption calculation also skips **sandwiched outliers** of the same
 device and reports them as `warnings` (see
 [Meter readings → plausibility](../verstehen/11-zaehlerstaende.md)).

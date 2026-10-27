@@ -25,6 +25,8 @@ jemand etwas abhakt.
 | eine **Lieferung** Heizöl oder Pellets, wenn der Bestand vorher niedrig war | „Lieferung planen“ |
 | eine **Nebenkostenabrechnung** für den abgelaufenen Zeitraum (zur Miete) | „Nebenkostenabrechnung fällig“ |
 | seit v3.5.0 eine **Versorgerrechnung**, die einen abgelaufenen Abrechnungszeitraum abdeckt ([Abschnitt 9](#9-abrechnung-erwartet-v350)) | „Abrechnung erwartet“ |
+| seit v3.9.0 **„Stand ist richtig“**, **„Nur für die Abrechnung“** oder einen **korrigierten Stand** ([Abschnitt 11](#11-ablesung-prüfen-v390)) | „Ablesung vom … prüfen“ |
+| seit v3.9.0 das **Löschen** einer doppelt eingetragenen Ablesung | „Ablesung vom … doppelt eingetragen“ |
 
 **Folgevertrag mit Lücke.** Beginnt der neue Vertrag später, bleibt die
 Erinnerung — sie nennt die Lücke: „Der Folgevertrag … beginnt erst am … –
@@ -66,6 +68,8 @@ Danach verschwindet die Zeile; der Hinweis unten bietet **Rückgängig**.
 | Abrechnung erwartet *(v3.5.0)* | ja — heißt „kam ohne Erfassung“; wer die Rechnung erfasst, braucht nichts abzuhaken |
 | Zählerstand ablesen | nein — das erledigt eine Ablesung |
 | Nebenkostenabrechnung fällig | nein — das erledigt die erfasste Abrechnung |
+| Ablesung prüfen, doppelt eingetragen *(v3.9.0)* | nein: Das erledigen die Knöpfe am Eintrag ([Abschnitt 11](#11-ablesung-prüfen-v390)) |
+| Hinweis auf die Analyse-Zäsur *(v3.9.0)* | ja, mit „Nicht jetzt“ am Eintrag (ohne Dialog, mit Rückgängig) |
 
 **Ein Haken gilt für dieses eine Vorkommen.** Beim Vertrag ist das sein Ende:
 Ändert sich das Vertragsende, ist der Hinweis wieder offen — gewollt, denn es
@@ -366,6 +370,42 @@ CSV-Exporten ([Datenexport](../referenz/api.md#csv-formate-v310)). Durchgestrich
 (zurückgenommene) Einträge stehen nicht darin. Freitext, der mit `=`, `+`, `-`
 oder `@` beginnt, bekommt ein Apostroph davor, damit Excel ihn nicht als
 Formel ausführt.
+
+---
+
+## 11. Ablesung prüfen *(v3.9.0)*
+
+Ein falscher Stand zwischen zwei richtigen verschiebt Verbrauch von einem Monat in
+den nächsten. Findet die App so einen Stand (oder mehrere hintereinander mit
+demselben Fehler), steht unter **„Zu tun“** „Ablesung vom … prüfen“, mit dem, was im
+Abstand davor und danach gemessen und erwartet war, und der Vermutung („vermutlich
+um rund 300 m³ zu niedrig“). In der Liste der Ablesungen trägt der Stand die Marke
+**AUFFÄLLIG**. Wie die App das erkennt, steht in den
+[Grundlagen](../verstehen/00-overview.md#ablesung-prüfen-seit-v390).
+
+| Knopf | was passiert |
+|---|---|
+| **Stand ist richtig** | Die App fragt bei diesem Stand nicht mehr. In der Liste steht **GEPRÜFT**. Ändert jemand später den Stand, fragt sie wieder. Auch in der Liste (✅ in der Zeile). |
+| **Nur für die Abrechnung** | Der Stand bleibt für Rechnung und Saldo, die Monatswerte und das Heizmodell überspringen ihn: Der Verbrauch dazwischen wird nach dem Wetter verteilt. Das passt, wenn der Versorger mit einem geschätzten oder falschen Stand abgerechnet hat. In der Liste steht **NUR ABRECHNUNG**; im Bearbeiten-Dialog lässt sich das Häkchen wieder entfernen. |
+| **Korrigieren** | öffnet den Bearbeiten-Dialog der Ablesung mit dem Stand, der passen würde („Einsetzen“). Gespeichert wird erst mit „Speichern“. |
+
+Alle drei mit **Rückgängig** im Hinweis danach.
+
+**Doppelt eingetragen:** Steht derselbe Stand am selben Tag zweimal da, löscht
+**„Eine löschen“** den zweiten (behalten wird der mit Foto, sonst der mit Notiz).
+Rückgängig legt ihn neu an.
+
+**Anderes Niveau:** Lag der Verbrauch über mindestens ein Jahr gleichbleibend weit
+über oder unter heute, ist das eher ein anderer Verbrauch (etwa eine neue Heizung)
+als ein Ablesefehler. Dann schlägt die App eine
+[Analyse-Zäsur](../verstehen/00-overview.md#wirkung-einer-maßnahme-zäsur) vor:
+**„Zäsur hier setzen“** öffnet einen kleinen Dialog: Der Tag ist mit dem Ende der
+auffälligen Zeit vorbelegt (kennst du den Tag der Änderung, etwa den Heizungstausch,
+trag ihn ein), dazu eine Bezeichnung. **„Zäsur setzen“** trägt sie am Zähler ein,
+**„Nicht jetzt“** hakt den Hinweis ab. Beides mit Rückgängig.
+
+Die Einträge stehen in jeder Stufe und zählen im Sensor „Zu tun“ von Home Assistant
+mit (`/api/todo`).
 
 ---
 

@@ -154,6 +154,18 @@ marks the readings ("CHECK", "IMPLAUSIBLE"); a suspect reading can be confirmed
 with ✅. Technical details:
 [API reference → `warnings`](../referenz/api.md).
 
+### A reading that is too low or too high *(v3.9.0)*
+
+Not every wrong reading falls: if it lies between two correct ones, only too low or too
+high by some amount, the interval before is too small and the one after too large. The
+total is right, the months are not. The app spots such readings (also several in a row
+with the same error) and asks in “To do”: “Check the reading of …”, in the list with
+the mark **UNUSUAL**. Answers: **Reading is correct**, **Only for the bill** (bill and
+balance use the reading, monthly values skip it; the mark **BILL ONLY** and the tick in
+the edit dialog) or **Correct it**. The same reading on the same day twice is “entered
+twice” (mark **DUPLICATE**). How and from when: [Basics → Check a reading](00-overview.md#check-a-reading-since-v390),
+the buttons: [Settling notices](../anleitungen/hinweise-erledigen.md#11-check-a-reading-v390).
+
 ## Many values at once: time series from portals *(v3.1.0)*
 
 Meter entry is built for single readings. If a portal delivers many values at

@@ -7151,12 +7151,20 @@
       "other": "Daarvoor lag het verbruik {count} maanden lang constant rond {pct} van nu."
     },
     "advice": "Dat lijkt op een echte verandering (bijvoorbeeld een nieuwe verwarming of anders stoken), niet op een afleesfout. Een peilmoment scheidt de tijd daarvoor af: verwarmingsmodel, prognose en vergelijkingen rekenen dan met het huidige verbruik.",
-    "set": "Peilmoment op {date} instellen",
+    "set": "Peilmoment hier instellen",
     "notNow": "Niet nu",
     "label": "Verbruik veranderd",
     "toast": {
       "set": "Peilmoment op {date} ingesteld",
       "dismissed": "Melding verborgen"
+    },
+    "dialog": {
+      "title": "Peilmoment instellen",
+      "text": "Vanaf deze dag rekenen verwarmingsmodel, prognose en vergelijkingen alleen met de tijd daarna. Het einde van de opvallende periode is ingevuld. Weet je de dag van de verandering (bijvoorbeeld de vervanging van de verwarming), vul die dan in.",
+      "date": "Vanaf de dag",
+      "label": "Omschrijving",
+      "confirm": "Peilmoment instellen",
+      "invalid": "Vul een dag in."
     }
   }
 }

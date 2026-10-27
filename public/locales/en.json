@@ -7151,12 +7151,20 @@
       "other": "Before that, consumption was consistently about {pct} of today’s for {count} months."
     },
     "advice": "That looks like a real change (such as a new heating system or heating differently), not a reading error. A baseline date separates the time before: heating model, forecast and comparisons then use today’s consumption.",
-    "set": "Set baseline date to {date}",
+    "set": "Set baseline date here",
     "notNow": "Not now",
     "label": "Consumption changed",
     "toast": {
       "set": "Baseline date set to {date}",
       "dismissed": "Note hidden"
+    },
+    "dialog": {
+      "title": "Set a baseline date",
+      "text": "From this day on, heating model, forecast and comparisons only use the time after it. The end of the unusual period is filled in. If you know the day of the change (such as the heating replacement), enter it.",
+      "date": "From the day",
+      "label": "Label",
+      "confirm": "Set baseline date",
+      "invalid": "Please enter a day."
     }
   }
 }

@@ -7151,12 +7151,20 @@
       "other": "Antes, durante {count} meses, o consumo foi constantemente cerca de {pct} do de hoje."
     },
     "advice": "Parece uma mudança real (por exemplo, um novo aquecimento ou outra forma de aquecer), não um erro de leitura. Um corte de referência separa o período anterior: o modelo de aquecimento, a previsão e as comparações passam a usar o consumo atual.",
-    "set": "Definir o corte em {date}",
+    "set": "Definir o corte aqui",
     "notNow": "Agora não",
     "label": "Consumo alterado",
     "toast": {
       "set": "Corte de referência definido em {date}",
       "dismissed": "Aviso ocultado"
+    },
+    "dialog": {
+      "title": "Definir um corte de referência",
+      "text": "A partir deste dia, o modelo de aquecimento, a previsão e as comparações só usam o período seguinte. Vem preenchido o fim do período invulgar. Se souber o dia da mudança (por exemplo, a substituição do aquecimento), introduza-o.",
+      "date": "A partir do dia",
+      "label": "Descrição",
+      "confirm": "Definir o corte",
+      "invalid": "Introduza um dia."
     }
   }
 }

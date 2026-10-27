@@ -7151,12 +7151,20 @@
       "other": "Antes, durante {count} meses, el consumo fue constantemente alrededor del {pct} del de hoy."
     },
     "advice": "Parece un cambio real (por ejemplo, una calefacción nueva u otra forma de calentar), no un error de lectura. Un corte de referencia separa el período anterior: el modelo de calefacción, la previsión y las comparaciones usan entonces el consumo actual.",
-    "set": "Fijar el corte el {date}",
+    "set": "Fijar el corte aquí",
     "notNow": "Ahora no",
     "label": "Consumo cambiado",
     "toast": {
       "set": "Corte de referencia fijado el {date}",
       "dismissed": "Aviso ocultado"
+    },
+    "dialog": {
+      "title": "Fijar un corte de referencia",
+      "text": "A partir de este día, el modelo de calefacción, la previsión y las comparaciones solo usan el período posterior. Viene rellenado el final del período inusual. Si conoces el día del cambio (por ejemplo, la sustitución de la calefacción), introdúcelo.",
+      "date": "Desde el día",
+      "label": "Descripción",
+      "confirm": "Fijar el corte",
+      "invalid": "Introduce un día."
     }
   }
 }
