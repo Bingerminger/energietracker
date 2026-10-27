@@ -1141,7 +1141,9 @@
     },
     "advance": {
       "every": "Rhythmus",
-      "dueDates": "Termine laut Rechnung: {dates}, danach jährlich zu denselben Tagen"
+      "dueDates": "Termine laut Rechnung: {dates}, danach jährlich zu denselben Tagen",
+      "none": "{from} bis {to}: kein Abschlag eingetragen. Hast du in der Zeit gezahlt, trag den Betrag hier ein.",
+      "noneOpen": "Ab {from} kein Abschlag eingetragen."
     }
   },
   "meters": {
@@ -6649,7 +6651,9 @@
       "parts": "aus {parts}",
       "net": "{value} netto + {vat} % USt",
       "advance": "Abschlag ab {from}: {value} je Termin",
-      "paid": "Gezahlte Abschläge {from} bis {to}: {total} laut Rechnung"
+      "paid": "Gezahlte Abschläge {from} bis {to}: {total} laut Rechnung",
+      "gap": "{from} bis {to}: kein Abschlag eingetragen, die Rechnung nennt dafür keinen. Hast du in der Zeit gezahlt, trag es am Vertrag nach.",
+      "gapOpen": "Ab {from} kein Abschlag eingetragen, die Rechnung nennt keinen neuen. Trag ihn am Vertrag nach, sobald du ihn kennst."
     }
   },
   "inboxCloud": {

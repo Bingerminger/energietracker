@@ -22,7 +22,7 @@ import { chipHtml, personSelectHtml, personPayload } from '../lib/assignee.js';
 import { BONUS_TYPES, bonusTypeLabel, bonusDetailLines } from '../lib/bonus.js';   // v3.7.0 (#35)
 import { infoNote } from '../components/info.js';   // v3.7.0 (#35)
 import { attachmentNames, attachmentLinksHtml, attachmentIdsOf } from '../lib/attachments.js';   // v3.7.0 — Belege am Vertrag
-import { ADVANCE_EVERY, advanceAmountText } from '../lib/advance-rhythm.js';   // v3.9.0 (F1034) — Abschlag mit Rhythmus
+import { ADVANCE_EVERY, advanceAmountText, zeroAdvanceSpan, zeroAdvanceText } from '../lib/advance-rhythm.js';   // v3.9.0 (F1034) — Abschlag mit Rhythmus; R2-8 Hinweis zur 0-€-Zeile
 import { dossierHtml, wireDossiers } from '../components/dossier.js';   // v3.7.0 (Paket betrieb) — Akte je Vertrag
 import { subContractHint, deductingSubNames } from '../lib/rest-billing.js';   // v3.9.0 (F1032, #40)
 
@@ -817,7 +817,7 @@ function renderGroupSection(g, entries, nested = false) {
   const inner = `
       <div class="field-error" id="${ids}-msg" data-role="group-msg" role="alert" hidden></div>
       <div class="entries rowlist${g.key === 'advance_payments' ? ' rowlist--three' : ''}">
-        ${entries.map(e => renderEntryRow(g, e)).join('')}
+        ${entries.map(e => renderEntryRow(g, e, entries)).join('')}
       </div>
       ${g.key === 'working_prices' && perM3Ctx ? gasFactorNoteHtml() + renderPerM3() : ''}`;
   return nested
@@ -930,7 +930,7 @@ function amountInput(role, value, digits = 6) {
 // v3.4.0 (N1021) — Zeile im Listenraster: Gültig ab | Betrag | „Ab Beginn" | ✕;
 // die Beschriftung zeigt nur die erste Zeile (CSS), die übrigen tragen sie
 // für Screenreader weiter
-function renderEntryRow(g, e) {
+function renderEntryRow(g, e, entries = []) {
   // v3.9.0 (F1034) — Abschlag mit Rhythmus: monatlich, alle zwei oder drei Monate; genannte Termine bleiben erhalten
   const advance = g.key === 'advance_payments';
   const every = Number(e.every_months) || 1;
@@ -948,6 +948,7 @@ function renderEntryRow(g, e) {
       <button type="button" class="btn btn--sm btn--ghost" data-action="copy-start" title="${t('contracts.row.copyStartTitle')}">${t('contracts.row.copyStart')}</button>
       <button type="button" class="btn btn--sm btn--danger btn--icon rowlist__del" data-action="remove-row" title="${t('contracts.row.removeRow')}" aria-label="${t('contracts.row.removeRow')}"><span aria-hidden="true">×</span></button>
       ${advance ? advanceDueHtml(e.due_dates) : ''}
+      ${advance ? advanceGapHtml(entries, e) : ''}
     </div>
   `;
 }
@@ -965,6 +966,12 @@ function advanceDueHtml(dates) {
   const list = (Array.isArray(dates) ? dates : []).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(String(d)));
   if (!list.length) return '';
   return `<p class="muted small rowlist__sub" data-role="due-note"><input type="hidden" data-role="due" value="${escapeHtml(list.join(','))}">${escapeHtml(t('contracts.advance.dueDates', { dates: list.map(fmt.date).join(', ') }))}</p>`;
+}
+
+/** Skeptiker R2-8 — eine Zeile mit 0 €: in diesem Zeitraum ist kein Abschlag eingetragen (sichtbar, nicht still). */
+function advanceGapHtml(entries, e) {
+  const text = zeroAdvanceText(zeroAdvanceSpan(entries, e));
+  return text ? `<p class="muted small rowlist__sub" data-role="gap-note">${escapeHtml(text)}</p>` : '';
 }
 
 // v3.1.0 (H6) — `root`: nur einen nachgeladenen Teil binden (Preise je Mitglied).
@@ -1035,7 +1042,7 @@ function bindRowHandlers(modalEl, row) {
   });
 
   [dateInput, amountInput].filter(Boolean).forEach(i => {
-    i.addEventListener('input', () => validateRow(row));
+    i.addEventListener('input', () => { validateRow(row); row.querySelector('[data-role="gap-note"]')?.remove(); });
     i.addEventListener('blur',  () => validateRow(row));
   });
   // v3.9.0 (F1034) — der Betrag gilt je Termin, sobald der Abschlag nicht monatlich ist
@@ -1651,7 +1658,7 @@ function renderWaterEntryGroup(groupKey, title, entries, fields, labels) {
             ? `<input class="input" type="date" data-field="${escapeHtml(f)}" value="${escapeHtml(e[f] ?? '')}" aria-label="${escapeHtml(waterCellLabel(title, labels[i]))}">`
             : f === 'every_months'   // v3.9.0 (F1034) — Rhythmus des Abschlags, die genannten Termine bleiben erhalten
               ? waterEverySelect(Number(e.every_months) || 1, waterCellLabel(title, labels[i])) + waterDueHidden(e.due_dates)
-              : waterNumberInput(f, e[f], waterCellLabel(title, labels[i]))}
+              : waterNumberInput(f, e[f], waterCellLabel(title, labels[i])) + (groupKey === 'ap' && f === 'amount_eur' ? waterGapNote(entries, e) : '')}
         </td>
       `).join('')}
       <td><button type="button" class="btn btn--sm btn--ghost" data-act="del-row" title="${t('contracts.row.removeRow')}" aria-label="${t('contracts.row.removeRow')}"><span aria-hidden="true">×</span></button></td>
@@ -1674,6 +1681,11 @@ function renderWaterEntryGroup(groupKey, title, entries, fields, labels) {
 function waterEverySelect(every, label = '') {
   return `<select class="select" data-field="every_months"${label ? ` aria-label="${escapeHtml(label)}"` : ''}>${ADVANCE_EVERY.map(n =>
     `<option value="${n}"${n === every ? ' selected' : ''}>${escapeHtml(tp('advance.rhythm.every', n))}</option>`).join('')}</select>`;
+}
+// Skeptiker R2-8 — Hinweis zur 0-€-Zeile wie im Standardformular
+function waterGapNote(entries, e) {
+  const text = zeroAdvanceText(zeroAdvanceSpan(entries, e));
+  return text ? `<span class="muted small" data-role="gap-note">${escapeHtml(text)}</span>` : '';
 }
 function waterDueHidden(dates) {
   const list = (Array.isArray(dates) ? dates : []).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(String(d)));
@@ -1722,6 +1734,10 @@ function bindWaterEntryHandlers(modalEl) {
   modalEl.addEventListener('change', (ev) => {
     if (!ev.target.matches?.('[data-field="every_months"]')) return;
     ev.target.closest('td')?.querySelectorAll('[data-field="due_dates"], [data-role="due-note"]').forEach(n => n.remove());
+  });
+  // Skeptiker R2-8 — ein anderer Betrag oder Tag: der Hinweis zur 0-€-Zeile gilt nicht mehr
+  modalEl.addEventListener('input', (ev) => {
+    if (ev.target.matches?.('[data-field="amount_eur"], [data-field="from"]')) ev.target.closest('tr')?.querySelector('[data-role="gap-note"]')?.remove();
   });
   modalEl.addEventListener('click', (ev) => {
     const btn = ev.target.closest('[data-act]');

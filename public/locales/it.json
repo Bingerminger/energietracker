@@ -1141,7 +1141,9 @@
     },
     "advance": {
       "every": "Ritmo",
-      "dueDates": "Scadenze secondo la bolletta: {dates}, poi ogni anno negli stessi giorni"
+      "dueDates": "Scadenze secondo la bolletta: {dates}, poi ogni anno negli stessi giorni",
+      "none": "Dal {from} al {to}: nessun acconto inserito. Se in quel periodo hai pagato, inserisci qui l’importo.",
+      "noneOpen": "Dal {from} nessun acconto inserito."
     }
   },
   "meters": {
@@ -6649,7 +6651,9 @@
       "parts": "da {parts}",
       "net": "{value} netto + IVA {vat}%",
       "advance": "Acconto dal {from}: {value} per scadenza",
-      "paid": "Acconti versati dal {from} al {to}: {total} secondo la bolletta"
+      "paid": "Acconti versati dal {from} al {to}: {total} secondo la bolletta",
+      "gap": "Dal {from} al {to}: nessun acconto inserito, la bolletta non ne indica. Se in quel periodo hai pagato, aggiungilo al contratto.",
+      "gapOpen": "Dal {from} nessun acconto inserito, la bolletta non ne indica uno nuovo. Aggiungilo al contratto appena lo conosci."
     }
   },
   "inboxCloud": {

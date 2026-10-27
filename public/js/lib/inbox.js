@@ -135,6 +135,8 @@ export function proposalLines(p) {
       else if (l.kind === 'rate') text = t('inbox.line.rate', { ...base, value: priceMoney(l.value), area: fmt.dec(l.area, 2) });
       // v3.9.0 (Skeptiker H2) — die laut Rechnung im Zeitraum gezahlten Abschläge
       else if (l.kind === 'paid') return t('inbox.line.paid', { from: fmt.date(l.from), to: fmt.date(l.to), total: fmt.money(l.total) });
+      // Skeptiker R2-8 — danach bis zum ersten neuen Termin kein Abschlag (die Rechnung nennt keinen)
+      else if (l.kind === 'gap') return l.to ? t('inbox.line.gap', { from: fmt.date(l.from), to: fmt.date(l.to) }) : t('inbox.line.gapOpen', { from: fmt.date(l.from) });
       else if (l.kind === 'advance') {
         const rhythm = advanceRhythm(l.every, l.dates);
         return t('inbox.line.advance', { from: fmt.date(l.from), value: fmt.money(l.value) }) + (rhythm ? `, ${rhythm}` : '');

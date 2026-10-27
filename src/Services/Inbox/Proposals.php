@@ -990,14 +990,22 @@ final class Proposals
         // zum neuen Plan kein Abschlag, den die Rechnung nicht nennt (Zeile mit 0 am Tag nach dem Zeitraum)
         $pFrom = self::value($e, 'period_from'); $pTo = self::value($e, 'period_to');
         $paid = $from === $pFrom && $to === $pTo && !Utilities::isFeedIn($u) ? InvoicePrices::paidPlan($e, $from, $to) : null;
+        $newPlan = !$final && $end === null && is_numeric($adv) && is_string($advFrom) && $advFrom >= $from && !Utilities::isFeedIn($u);
         if ($paid !== null) {
             $planRows[] = array_diff_key($paid, ['total' => 1]);
             $lines[] = ['section' => null, 'kind' => 'paid', 'from' => $from, 'to' => $to, 'value' => (float)$paid['amount_eur'], 'total' => $paid['total'],
                 'every' => (int)($paid['every_months'] ?? 1), 'dates' => $paid['due_dates'] ?? []];
             $after = date('Y-m-d', (int)strtotime("$to +1 day"));
-            if ($end === null && !(is_string($advFrom) && $advFrom <= $after && !$final && is_numeric($adv))) $planRows[] = ['from' => $after, 'amount_eur' => 0.0];
+            if ($end === null && !(is_string($advFrom) && $advFrom <= $after && !$final && is_numeric($adv))) {
+                $planRows[] = ['from' => $after, 'amount_eur' => 0.0];
+                // Skeptiker R2-8 — die Lücke bis zum ersten neuen Termin (oder ohne neuen Plan ab dem Tag nach dem
+                // Zeitraum) steht als Hinweis unter dem Vorschlag: die Rechnung nennt für diese Zeit keinen Abschlag,
+                // die App führt den alten nicht geraten weiter
+                $lines[] = ['section' => null, 'kind' => 'gap', 'from' => $after,
+                    'to' => $newPlan && $advFrom > $after ? date('Y-m-d', (int)strtotime("$advFrom -1 day")) : null];
+            }
         }
-        if (!$final && $end === null && is_numeric($adv) && is_string($advFrom) && $advFrom >= $from && !Utilities::isFeedIn($u)) {
+        if ($newPlan) {
             $row = ['from' => $advFrom, 'amount_eur' => (float)$adv] + array_intersect_key((array)$plan, array_flip(['every_months', 'due_dates']));
             // Rhythmus laut Rechnung gegen die Termine: die Termine gelten, der Vertrag ist dann nicht vorbelegt
             $rhythmConflict = !empty($plan['rhythm_conflict']);
@@ -1654,12 +1662,17 @@ final class Proposals
      * v3.9.0 (Skeptiker M12) — Ist dein Stand derselbe wie der des Dokuments? Auch, wenn das Dokument ihn auf
      * weniger Stellen gedruckt hat: 29.310 kWh im Dokument und 29.310,2 kWh bei dir sind derselbe Stand (dein
      * Stand auf die Stellen des Dokuments gerundet, höchstens drei).
+     * Runde 2: auch abgeschnitten (26.845 im Dokument, 26.845,5 bei dir), aber nur in diese Richtung: gekürzt
+     * wird dein Stand auf die Stellen des Dokuments, nie der des Dokuments auf deine (26.845,5 im Dokument und
+     * 26.845 bei dir bleiben verschieden).
      */
     public static function sameStand(float $own, float $doc): bool
     {
         if (abs($own - $doc) < 0.0005) return true;
         for ($d = 0; $d < 3 && abs($doc - round($doc, $d)) > 1e-9; $d++);
-        return abs(round($own, $d) - $doc) < 1e-9;
+        if (abs(round($own, $d) - $doc) < 1e-9) return true;   // gerundet
+        $t = 10 ** $d;
+        return $own >= 0 && abs(floor($own * $t + 1e-6) / $t - $doc) < 1e-9;   // abgeschnitten
     }
 
     /**
