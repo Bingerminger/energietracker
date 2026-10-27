@@ -20,6 +20,8 @@ import { renderError } from '../components/error.js';
 import { chipHtml, personSelectHtml, personPayload } from '../lib/assignee.js';
 // v3.7.0 (Paket betrieb) — Akte je Zähler
 import { dossierHtml, wireDossiers } from '../components/dossier.js';
+// v3.9.0 (F1032) — Assistent „Messkonzept“ (nicht in der öffentlichen Demo: dort schreibt nichts)
+import { openConceptWizard, conceptOffered } from '../components/concept-wizard.js';
 
 export async function render(container, params, ctx = {}) {
   const utilityKey = params[0];
@@ -36,6 +38,11 @@ export async function render(container, params, ctx = {}) {
   const q = ctx.query;
   const wanted = q?.get('replace');
   const m = wanted ? (meters || []).find(x => x.id === wanted) : null;
+  // v3.9.0 (F1032) — aus der Ersteinrichtung: #/utility/strom/meters?concept=1 öffnet den Assistenten „Messkonzept“
+  if (q?.get('concept') && conceptOffered(u.key)) {
+    try { history.replaceState(history.state, '', `#/utility/${u.key}/meters`); } catch { /* egal */ }
+    openConceptWizard().then(done => { if (done && container.isConnected) refresh(container, u); }).catch(() => {});
+  }
   if (m && m.capture !== 'period') {
     // nicht abwarten: Der Dialog bleibt offen, bis man ihn schließt — die Ansicht ist fertig
     openReplaceDeviceModal(u, m, swapPrefill(q)).then((changed) => {
@@ -89,6 +96,7 @@ async function refresh(container, u) {
         <div class="section-actions">
           <a class="btn btn--ghost" href="#/utility/${u.key}">${t('meters.toOverview')}</a>
           ${meters.length >= 2 ? `<button type="button" class="btn btn--ghost" data-action="merge-meters">${t('meters.merge')}</button>` : ''}
+          ${conceptOffered(u.key) ? `<button type="button" class="btn btn--ghost" data-action="concept">${escapeHtml(t('concept.title'))}</button>` : ''}
           <button type="button" class="btn btn--util" data-action="new-meter">${t('meters.newMeter')}</button>
         </div>
       </div>
@@ -113,6 +121,11 @@ async function refresh(container, u) {
     btn.addEventListener('click', () => {
       openMeterModal(u, null, meters, groups).then(changed => { if (changed) refresh(container, u); });
     });
+  });
+
+  // v3.9.0 (F1032) — Assistent „Messkonzept“: Zähler, Zählwerke, Subzähler und Verträge aus dem Aufbau
+  container.querySelector('[data-action="concept"]')?.addEventListener('click', () => {
+    openConceptWizard().then(done => { if (done && container.isConnected) refresh(container, u); }).catch(e => toastErr(e.message));
   });
 
   container.querySelector('[data-action="merge-meters"]')?.addEventListener('click', () => {
@@ -244,6 +257,7 @@ function renderMeterCard(meter, u, groups, isSub) {
           ${isSub ? `<span class="tag">${t('meters.card.sub')}</span>` : ''}
           ${gName ? `<span class="tag tag--util">${t('meters.card.group', { name: escapeHtml(gName) })}</span>` : ''}
           ${meter.capture === 'period' ? `<span class="tag">${t('meters.card.periodTag')}</span>` : ''}
+          ${meter.obis ? `<span class="tag" data-role="obis-tag">${escapeHtml(t('meters.card.obis', { obis: meter.obis }))}</span>` : ''}
           ${roleOf(u, meter) && roleOf(u, meter) !== u.meter_roles[0] ? `<span class="tag">${escapeHtml(t(`meters.roles.${u.key}.${roleOf(u, meter)}`))}</span>` : ''}
           ${chipHtml(meter)}
         </div>
@@ -282,6 +296,13 @@ function roleOf(u, meter) {
   if (!roles.length) return null;
   const r = meter?.role ?? (u.key === 'strom' && meter?.heat_source ? 'heat_pump' : null);
   return roles.includes(r) ? r : roles[0];
+}
+
+// v3.9.0 (F1032) — Vorschläge für das Zählwerk (OBIS-Kennzahl) je Verbrauchsart: Kennzahl und Katalogschlüssel
+export function obisOptions(u) {
+  if (u?.key === 'strom') return [['1.8.0', 'meters.obis.import'], ['1.8.1', 'meters.obis.importHt'], ['1.8.2', 'meters.obis.importNt']];
+  if (u?.key === 'pv_einspeisung') return [['2.8.0', 'meters.obis.export'], ['2.8.1', 'meters.obis.exportHt'], ['2.8.2', 'meters.obis.exportNt']];
+  return [];
 }
 
 // ───── New / Edit meter ─────────────────────────────────────────────
@@ -400,6 +421,15 @@ async function openMeterModal(u, existing, allMeters = [], groups = []) {
               </select>
               <small class="settings-field__hint">${t('meters.modal.parentHint')}</small>
             </div>
+            ${isDelivery ? '' : `
+            <!-- v3.9.0 (F1032, #40) — Zählwerk als OBIS-Kennzahl (HT/NT, Bezug/Einspeisung) -->
+            <div class="field field--s">
+              <label for="mf-obis">${t('meters.modal.obis')}</label>
+              <input class="input" id="mf-obis" name="obis" type="text" autocomplete="off" maxlength="24" list="mf-obis-list"
+                     value="${escapeHtml(existing?.obis || '')}" aria-describedby="mf-obis-hint" placeholder="${escapeHtml(obisOptions(u)[0]?.[0] || '')}">
+              <datalist id="mf-obis-list">${obisOptions(u).map(([code, key]) => `<option value="${code}">${escapeHtml(code + ' · ' + t(key))}</option>`).join('')}</datalist>
+              <small class="settings-field__hint" id="mf-obis-hint">${t('meters.modal.obisHint')}</small>
+            </div>`}
             <div class="field" data-min-level="expert">
               <label>${t('meters.modal.group')}</label>
               <select class="input" name="meter_group_id">
@@ -625,6 +655,7 @@ async function openMeterModal(u, existing, allMeters = [], groups = []) {
                 parent_meter_id: f.parent_meter_id.value || null,
                 meter_group_id:  f.meter_group_id.value || null,
                 baseline_events: baselineEvents,   // F1011
+                ...(f.obis ? { obis: f.obis.value.trim() } : {}),   // v3.9.0 (F1032) — leer entfernt das Zählwerk
                 ...energyFields(f),                // v3.1.0 (H7)
                 ...personPayload(f.querySelector('[name="assignee_id"]'), existing),   // v3.7.0
               };
@@ -651,6 +682,7 @@ async function openMeterModal(u, existing, allMeters = [], groups = []) {
                 ...(f.malo_id?.value ? { malo_id: f.malo_id.value } : {}),
                 ...(f.melo_id?.value ? { melo_id: f.melo_id.value } : {}),
                 ...(f.capture?.value === 'period' ? { capture: 'period' } : {}),   // v3.1.0 (B2)
+                ...(f.obis?.value.trim() ? { obis: f.obis.value.trim() } : {}),   // v3.9.0 (F1032)
                 ...energyFields(f),                                                  // v3.1.0 (H7)
                 ...personPayload(f.querySelector('[name="assignee_id"]'), null),     // v3.7.0
               };

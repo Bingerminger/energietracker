@@ -1167,7 +1167,8 @@
         "one": "{count} Gerät",
         "other": "{count} Geräte"
       },
-      "periodTag": "je Zeitraum"
+      "periodTag": "je Zeitraum",
+      "obis": "Zählwerk {obis}"
     },
     "modal": {
       "titleEdit": "Zähler bearbeiten",
@@ -1177,7 +1178,7 @@
       "icon": "Icon",
       "parent": "Elternzähler (Subzähler-Reihenschaltung)",
       "parentNone": "— keiner (eigenständig) —",
-      "parentHint": "Der Verbrauch dieses Zählers wird vom Elternzähler abgezogen.",
+      "parentHint": "Der Elternzähler misst diesen Zähler mit. Hat dieser Zähler einen eigenen Vertrag, rechnet der Vertrag des Elternzählers nur den Rest. Ohne eigenen Vertrag ist er eine Aufschlüsselung.",
       "group": "Gruppe (Dashboard-Zusammenfassung)",
       "groupNone": "— keine —",
       "deviceSerial": "Geräte-Seriennummer (optional)",
@@ -1212,7 +1213,9 @@
         "device": "Gerät",
         "topology": "Aufbau",
         "market": "Marktlokation"
-      }
+      },
+      "obis": "Zählwerk (OBIS-Kennzahl)",
+      "obisHint": "Steht auf dem Zähler und auf der Rechnung beim Stand, z. B. 1.8.1 für Bezug HT. Zählt ein Zähler mehrere Zählwerke, lege je Zählwerk einen Zähler mit derselben Zählernummer an. Der Posteingang ordnet die Stände einer Rechnung dann dem passenden Zählwerk zu."
     },
     "replace": {
       "title": "Zählertausch: {name}",
@@ -1365,6 +1368,14 @@
       "hint": "Für die Jahresarbeitszahl (Wärme ÷ Strom). Zur Auswahl stehen Stromzähler mit der Rolle Wärmepumpe.",
       "loading": "Lädt …",
       "none": "Kein Stromzähler mit der Rolle Wärmepumpe angelegt."
+    },
+    "obis": {
+      "import": "Bezug",
+      "importHt": "Bezug HT",
+      "importNt": "Bezug NT",
+      "export": "Einspeisung",
+      "exportHt": "Einspeisung HT",
+      "exportNt": "Einspeisung NT"
     }
   },
   "settings": {
@@ -3575,7 +3586,8 @@
       "heatPumpLinkInvalid": "Zähler „{id}“ ist kein Stromzähler mit der Rolle Wärmepumpe",
       "valueInvalid": "{field}: „{value}“ ist kein gültiger Wert",
       "idInvalid": "Ungültige Kennung „{id}“ – erlaubt sind Buchstaben, Ziffern, _ und - (höchstens 64 Zeichen).",
-      "serialSet": "Das Gerät hat schon die Nummer {serial}. Ein anderer Zähler ist ein Zählertausch."
+      "serialSet": "Das Gerät hat schon die Nummer {serial}. Ein anderer Zähler ist ein Zählertausch.",
+      "obisInvalid": "Zählwerk „{value}“ ist keine OBIS-Kennzahl. Beispiele: 1.8.0, 1.8.1, 2.8.0 oder 1-0:1.8.0."
     },
     "common": {
       "unknownUtility": "Unbekannte Verbrauchsart: {utility}",
@@ -3925,6 +3937,13 @@
       "incomplete": "Das Ziel ist nicht vollständig: Der Webhook braucht Adresse und Webhook-ID, der Token Adresse und Token. Über den Supervisor geht es nur in der App für Home Assistant.",
       "webhookFormat": "Die Webhook-ID besteht aus 8 bis 200 Buchstaben, Ziffern, Bindestrichen oder Unterstrichen.",
       "tokenFormat": "Der Token besteht aus 20 bis 2000 sichtbaren Zeichen ohne Leerzeichen."
+    },
+    "concept": {
+      "field": "Die Angabe „{field}“ für das Messkonzept fehlt oder passt nicht.",
+      "touCascade": "In der Kaskade hängt der Haushaltszähler je Zählwerk am vorderen Zähler. Deshalb haben beide HT/NT oder keiner.",
+      "meterUnknown": "Den Zähler „{id}“ gibt es nicht.",
+      "meterTwice": "Der Zähler „{id}“ ist zwei Stellen zugeordnet. Jeder Zähler steht nur einmal im Schaltbild.",
+      "chain": "„{name}“ hat selbst Subzähler und kann deshalb nicht hinter einem anderen Zähler hängen."
     }
   },
   "login": {
@@ -4345,6 +4364,10 @@
       "wallbox": {
         "title": "Wallbox und Dienstwagen",
         "text": "Die Wallbox als Subzähler am Hausanschluss mit der Rolle „Wallbox“, monatlich abgelesen – von Hand, per Home Assistant oder mit den Ladevorgängen aus evcc. Ihre Verbrauchsansicht zeigt den Ladestrom-Nachweis für den Arbeitgeber: Vertragspreis mit anteiligem Grundpreis oder Pauschale, als CSV oder PDF. Die Gesamtsumme bleibt richtig."
+      },
+      "cascade": {
+        "title": "Kaskade mit Wärmepumpe, HT/NT und PV",
+        "text": "Drei Zähler hintereinander: Der vordere misst alles, der hintere den Haushalt, die Wärmepumpe ist der Rest. Je Zählwerk (HT, NT) ein Zähler, je Zähler ein Vertrag. Der Vertrag der Wärmepumpe rechnet nur den Rest, die Summe der Kosten stimmt, und Eigenverbrauch und Autarkie rechnen mit dem vorderen Zähler als Netzbezug."
       }
     },
     "doc": {
@@ -6881,6 +6904,135 @@
       },
       "everyDates": "{every}, am {dates}",
       "dates": "am {dates}"
+    }
+  },
+  "restBilling": {
+    "part": "{kwh} {name}",
+    "formula": "{rest} = {measured} gemessen − {parts}",
+    "note": "Abgerechnet wird hier nur der Rest: {formula}. Was ein Subzähler mit eigenem Vertrag misst, rechnet sein Vertrag.",
+    "estimated": "Davon sind {kwh} mit der letzten Tagesrate geschätzt, bis der Subzähler wieder abgelesen ist.",
+    "openDays": {
+      "one": "An {days} Tag fehlt ein Stand des Subzählers. Dort rechnet dieser Vertrag alles.",
+      "other": "An {days} Tagen fehlt ein Stand des Subzählers. Dort rechnet dieser Vertrag alles."
+    },
+    "short": "In einzelnen Monaten misst der Subzähler mehr als der Zähler davor ({kwh}). Bitte die Ablesungen prüfen. Ein Rest unter null wird nicht berechnet.",
+    "contractHint": "„{parent}“ misst „{name}“ mit. Mit einem eigenen Vertrag rechnet der Vertrag von „{parent}“ ab dessen Beginn nur noch den Rest: gemessen dort minus „{name}“."
+  },
+  "concept": {
+    "slotName": {
+      "main": "Hauszähler",
+      "mainCascade": {
+        "heat_pump": "Zähler vorn (Wärmepumpe)",
+        "ev_charger": "Zähler vorn (Wallbox)"
+      },
+      "house": "Haushalt",
+      "dev": {
+        "heat_pump": "Wärmepumpe",
+        "ev_charger": "Wallbox"
+      },
+      "feed": "Einspeisung",
+      "gen": "PV-Erzeugung",
+      "bat_in": "Speicher Ladung",
+      "bat_out": "Speicher Entladung"
+    },
+    "regShort": {
+      "ht": "HT",
+      "nt": "NT"
+    },
+    "title": "Messkonzept einrichten",
+    "intro": "Ein paar Fragen zu deinem Stromanschluss. Daraus legt der Assistent Zähler, Zählwerke, Subzähler und Verträge an. Was schon da ist, ordnest du zu, statt es doppelt anzulegen.",
+    "setup": {
+      "title": "Was hängt an deinem Stromanschluss?",
+      "pv": "PV-Anlage, die ins Netz einspeist",
+      "battery": "Batteriespeicher",
+      "device": "Gerät mit eigenem Tarif",
+      "deviceNone": "Keins, alles läuft über einen Tarif",
+      "deviceHeatPump": "Wärmepumpe mit Wärmepumpentarif",
+      "deviceEv": "Wallbox mit eigenem Tarif",
+      "deviceHint": "Ein eigener Tarif braucht einen eigenen Zähler. Ohne eigenen Tarif gehören Wärmepumpe und Wallbox einfach zum Haushalt.",
+      "tou": "Zwei Tarifzeiten (HT/NT)?",
+      "touNone": "Nein, ein Preis rund um die Uhr",
+      "touAll": "Ja, an jedem Bezugszähler",
+      "touDevice": "Ja, nur am Zähler des Geräts",
+      "touHint": "Mit HT/NT hat ein Zähler zwei Zählwerke (1.8.1 und 1.8.2) mit eigenem Preis. Die App legt je Zählwerk einen Zähler an und fasst beide in einer Gruppe mit einem Vertrag zusammen."
+    },
+    "layout": {
+      "title": "Wie hängen die Zähler?",
+      "hint": "Schau in den Zählerschrank oder auf den Plan des Elektrikers. Die Namen der Messkonzepte wechseln je Netzbetreiber, deshalb fragt der Assistent nach dem Aufbau.",
+      "single": {
+        "title": "Ein Zähler für alles",
+        "text": "Ein Zähler misst, was der Haushalt aus dem Netz bezieht.",
+        "textPv": "Ein Zweirichtungszähler misst Bezug (1.8.0) und Einspeisung (2.8.0). Die PV-Anlage versorgt zuerst den Haushalt und speist den Überschuss ein."
+      },
+      "side_by_side": {
+        "title": "Zwei Zähler nebeneinander",
+        "text": "Beide Zähler hängen direkt am Netzanschluss: einer misst den Haushalt, einer {deviceThe}. Jeder Vertrag rechnet, was sein Zähler misst."
+      },
+      "behind": {
+        "title": "Subzähler dahinter",
+        "text": "Der Hauszähler misst alles. Dahinter misst ein Subzähler {deviceThe}. Mit eigenem Vertrag am Subzähler rechnet der Haushaltsvertrag nur den Rest."
+      },
+      "cascade": {
+        "title": "Kaskade",
+        "text": "Der vordere Zähler misst alles, dahinter misst ein zweiter Zähler den Haushalt. Für {deviceThe} bleibt der Rest: vorn minus Haushalt. Der Tarif dafür hängt am vorderen Zähler."
+      },
+      "battery": "Den Speicher erfasst die App mit zwei Zählern unter PV-Erzeugung: Ladung und Entladung."
+    },
+    "deviceThe": {
+      "heat_pump": "die Wärmepumpe",
+      "ev_charger": "die Wallbox"
+    },
+    "art": {
+      "title": "Schaltbild: {name}",
+      "own": "Schaltbild deiner Anlage"
+    },
+    "meters": {
+      "title": "Welche Zähler gibt es?",
+      "hint": "Name und Zählernummer stehen auf dem Typenschild, die Kennzahl der Zählwerke ist vorbelegt. Hast du einen Zähler schon angelegt, wähle ihn aus: Er wird zugeordnet, nicht doppelt angelegt.",
+      "name": "Name",
+      "serial": "Zählernummer",
+      "existing": "Vorhandener Zähler",
+      "new": "Neu anlegen",
+      "sameDevice": "Das Einspeisezählwerk von „{name}“: gleiche Zählernummer, eigener Zähler unter Einspeisung.",
+      "genHint": "Erzeugungszähler der PV-Anlage, oft im Wechselrichter.",
+      "batteryHint": "Ladung und Entladung des Speichers, oft aus dem Wechselrichter."
+    },
+    "contracts": {
+      "title": "Welche Verträge gibt es?",
+      "hint": "Leer lassen geht auch: Verträge kannst du später anlegen. Ein laufender Vertrag an einem vorhandenen Zähler bleibt, wie er ist.",
+      "start": "Beginn",
+      "ct": "Arbeitspreis ({minor}/kWh)",
+      "ctHt": "Arbeitspreis HT ({minor}/kWh)",
+      "ctNt": "Arbeitspreis NT ({minor}/kWh)",
+      "feedCt": "Vergütung ({minor}/kWh)",
+      "base": "Grundpreis ({cur}/Monat)",
+      "advance": "Abschlag ({cur}/Monat)",
+      "restNote": "Rechnet nur den Rest: „{parent}“ minus „{sub}“."
+    },
+    "summary": {
+      "title": "Das legt der Assistent an",
+      "legend": "Zähler im Schaltbild",
+      "op": {
+        "activate": "Verbrauchsarten einschalten: {list}",
+        "create_meter": "Zähler „{name}“ anlegen",
+        "update_meter": "Vorhandenen Zähler „{name}“ zuordnen",
+        "create_group": "Gruppe „{name}“ mit beiden Zählwerken anlegen",
+        "reuse_group": "Gruppe „{name}“ weiter nutzen",
+        "create_contract": "Vertrag für „{name}“ anlegen",
+        "skip_contract": "Vertrag für „{name}“: Der laufende Vertrag „{existing}“ bleibt."
+      },
+      "detailObis": "Zählwerk {obis}",
+      "detailParent": "hinter „{name}“",
+      "snapshot": "Vorher sichert die App den Stand als Snapshot. Unter Einstellungen → Daten holst du ihn bei Bedarf zurück.",
+      "apply": "Anlegen"
+    },
+    "done": "Messkonzept eingerichtet. Als Nächstes: den ersten Stand je Zähler erfassen.",
+    "entry": {
+      "title": "Messkonzept",
+      "text": "PV, Wärmepumpe oder Wallbox mit eigenem Tarif? Der Assistent fragt nach dem Aufbau im Zählerschrank und legt Zähler, Zählwerke und Verträge passend an."
+    },
+    "setupChoice": {
+      "hint": "Für PV, Wärmepumpe oder Wallbox mit eigenem Zähler: erst den Aufbau, dann die Stände."
     }
   }
 }

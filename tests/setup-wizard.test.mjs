@@ -277,6 +277,18 @@ t('Einstellungen des Haushalts wie bisher', patch?.body?.setup_pending === false
 t('Hinweis auf neue Versionen: bei der Einrichtung vorgeschlagen und gespeichert', patch?.body?.update_check === true, JSON.stringify(patch?.body));
 t('nach „Los geht’s“ bleibt der Sprung zu „Zählerstände“ stehen (kein history.back)', location.hash === '#/zaehlerstaende', location.hash);
 
+// v3.9.0 (F1032) — vierter Weg: „Messkonzept einrichten“ (mit Strom), ohne neuen Schritt
+settings = { ...DEFAULTS };
+location.hash = '#/settings';
+await tick();
+await open({ firstRun: true });
+await walk();
+const conceptChoice = q('input[name="setup-start"][value="concept"]');
+t('Weg „Messkonzept einrichten“ am Ende der Einrichtung (Haushalt mit Strom)', !!conceptChoice && W.setupSteps(false).length === 5);
+conceptChoice?.click(); await tick();
+next(); await tick(120);
+t('… führt zu den Zählern „Strom“ und öffnet dort den Assistenten', location.hash === '#/utility/strom/meters?concept=1', location.hash);
+
 settings = { ...DEFAULTS };
 location.hash = '#/settings';
 await tick();

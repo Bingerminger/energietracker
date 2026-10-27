@@ -34,6 +34,27 @@ final class IngestService
     ) {}
 
     /**
+     * v3.9.0 (F1032) — Zähler über Zählernummer und Zählwerk: `meter` ist dann die
+     * Nummer auf dem Gerät (Seriennummer des eingebauten Geräts), `obis` die
+     * Kennzahl (etwa 1.8.1). Für Lesekopf-Sensoren, die je Zählwerk einen Wert
+     * liefern. Eindeutig oder gar nicht: Passt mehr als ein Zähler, keiner.
+     */
+    private function byRegister(string $utility, string $serial, mixed $obis): ?array
+    {
+        $key = MeterService::obisKey(is_string($obis) ? $obis : null);
+        if ($key === null || $serial === '') return null;
+        $norm = fn(string $s): string => strtolower(preg_replace('/[\s.\-\/]/', '', $s) ?? '');
+        $hits = [];
+        foreach ($this->meters->list($utility) as $m) {
+            if (MeterService::obisKey($m['obis'] ?? null) !== $key) continue;
+            foreach ($m['devices'] ?? [] as $d) {
+                if (empty($d['removed_on']) && $norm((string)($d['serial'] ?? '')) !== '' && $norm((string)$d['serial']) === $norm($serial)) { $hits[] = $m; break; }
+            }
+        }
+        return count($hits) === 1 ? $hits[0] : null;
+    }
+
+    /**
      * @param array{utility?:string, meter?:string, meter_id?:string,
      *              value?:mixed, counter?:mixed, date?:string} $input
      * @return array{status:string, utility:string, meter_id:string,
@@ -96,7 +117,8 @@ final class IngestService
             throw new \InvalidArgumentException($this->i18n->t('errors.ingest.meterMissing'));
         }
         $meter = $this->meters->getByExternalId($utility, $meterRef)
-            ?? $this->meters->get($utility, $meterRef);
+            ?? $this->meters->get($utility, $meterRef)
+            ?? $this->byRegister($utility, $meterRef, $input['obis'] ?? null);
         if (!$meter) {
             throw new \InvalidArgumentException(
                 $this->i18n->t('errors.ingest.meterNotFound', ['meter' => $meterRef, 'utility' => $utility])

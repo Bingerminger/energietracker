@@ -134,6 +134,7 @@ final class App
     public BillExpectedService $billsExpected; // v3.5.0 (F1029)
     public BillingPeriodService $billingPeriods; // v3.6.0 (F1030)
     public ScenarioService $scenarios;           // v3.6.0 (F1031) — Prognose-Werkstatt
+    public \Energietracker\Services\MeteringConceptService $meteringConcepts;   // v3.9.0 (F1032) — Assistent „Messkonzept“
     public \Energietracker\Services\InboxDraftService $inboxDraft;   // v3.7.0 — Haushalt aus Dokumenten
     public \Energietracker\Services\ResponsibilityService $responsibility;   // v3.7.0 — Zuständig an Zählern und Verträgen
     public InboxService $inbox;                  // v3.7.0 — Posteingang
@@ -301,6 +302,8 @@ final class App
         // v3.6.0 (F1031) — Prognose-Werkstatt: Szenarien auf der Prognose, liest nur
         $this->scenarios = new ScenarioService($this->forecasts, $this->consumption, $this->contracts, $this->meters,
             $this->settings, $this->tariffSwitch, $this->billingPeriods);
+        // v3.9.0 (F1032, #40) — Assistent „Messkonzept“: Zähler, Gruppen, Subzähler, Verträge aus dem Aufbau
+        $this->meteringConcepts = new \Energietracker\Services\MeteringConceptService($this->meters, $this->contracts, $this->settings, $this->i18n, $this->backups);
         // v3.7.0 — Posteingang: lokal über die Einstellung der Texterkennung;
         // weitere Anbieter melden sich mit $this->inboxProviders->register() an
         $this->inboxProviders = new ProviderRegistry($this->settings, new LocalProvider($this->settings, $this->ocr, $this->i18n));
@@ -421,13 +424,14 @@ final class App
         '#^/api/utility/strom/meters/[^/]+/sync-evcc$#',
         '#^/api/forecast/scenario$#',   // v3.6.0 (F1031) — schreibt nichts
         '#^/api/inbox/[^/]+/(classify|extract)$#',   // v3.7.0 — Posteingang: erst die KI, dann schreiben
+        '#^/api/metering-concept/preview$#',   // v3.9.0 (F1032) — Vorschau, schreibt nichts
     ];
 
     /**
      * v3.6.0 (F1031) — POST-Routen, die nur rechnen und nichts schreiben: auch
      * mit einem API-Schlüssel erlaubt, der nur lesen darf.
      */
-    private const READ_ONLY_POST = ['#^/api/forecast/scenario$#'];
+    private const READ_ONLY_POST = ['#^/api/forecast/scenario$#', '#^/api/metering-concept/preview$#'];   // v3.9.0 — Vorschau des Messkonzepts
 
     public static function locksLate(Request $req): bool
     {
@@ -1010,6 +1014,10 @@ final class App
         // v3.6.0 (F1031) — Prognose-Werkstatt: Szenario rechnen (liest nur)
         $scCtrl = new ScenarioController($this->scenarios, $this->meters, $this->i18n);
         $r->post('/api/forecast/scenario', fn($req) => $scCtrl->compute($req));
+        // v3.9.0 (F1032, #40) — Assistent „Messkonzept“: Vorschau (schreibt nichts) und Anlegen
+        $mcCtrl = new \Energietracker\Controllers\MeteringConceptController($this->meteringConcepts, $this->i18n);
+        $r->post('/api/metering-concept/preview', fn($req) => $mcCtrl->preview($req));
+        $r->post('/api/metering-concept',         fn($req) => $mcCtrl->apply($req));
 
         // ── Temperatures ──
         $tCtrl = new TemperatureController($this->temperatures, $this->i18n, $this->settings);

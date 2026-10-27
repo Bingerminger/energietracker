@@ -1167,7 +1167,8 @@
         "one": "{count} dispositivo",
         "other": "{count} dispositivos"
       },
-      "periodTag": "por periodo"
+      "periodTag": "por periodo",
+      "obis": "Registro {obis}"
     },
     "modal": {
       "titleEdit": "Editar contador",
@@ -1177,7 +1178,7 @@
       "icon": "Icono",
       "parent": "Contador principal (subcontador en serie)",
       "parentNone": "— ninguno (independiente) —",
-      "parentHint": "El consumo de este contador se resta del contador principal.",
+      "parentHint": "El contador principal también mide este contador. Si este contador tiene contrato propio, el contrato del contador principal solo factura el resto. Sin contrato propio es un desglose.",
       "group": "Grupo (resumen del panel)",
       "groupNone": "— ninguno —",
       "deviceSerial": "Número de serie del dispositivo (opcional)",
@@ -1212,7 +1213,9 @@
         "device": "Dispositivo",
         "topology": "Estructura",
         "market": "Punto de suministro"
-      }
+      },
+      "obis": "Registro (código OBIS)",
+      "obisHint": "Figura en el contador y junto a la lectura en la factura, p. ej. 1.8.1 para el consumo en punta. Si un contador tiene varios registros, crea un contador por registro con el mismo número de contador. El buzón de entrada asigna entonces las lecturas de una factura al registro correspondiente."
     },
     "replace": {
       "title": "Cambio de contador: {name}",
@@ -1365,6 +1368,14 @@
       "hint": "Para el factor de rendimiento estacional (calor ÷ electricidad). Se ofrecen los contadores de electricidad con el rol bomba de calor.",
       "loading": "Cargando …",
       "none": "No hay ningún contador de electricidad con el rol bomba de calor."
+    },
+    "obis": {
+      "import": "consumo",
+      "importHt": "consumo punta",
+      "importNt": "consumo valle",
+      "export": "vertido",
+      "exportHt": "vertido punta",
+      "exportNt": "vertido valle"
     }
   },
   "settings": {
@@ -3575,7 +3586,8 @@
       "heatPumpLinkInvalid": "El contador «{id}» no es un contador de electricidad con el rol bomba de calor",
       "valueInvalid": "{field}: «{value}» no es un valor válido",
       "idInvalid": "Identificador «{id}» no válido: se permiten letras, cifras, _ y - (como máximo 64 caracteres).",
-      "serialSet": "El aparato ya tiene el número {serial}. Otro contador es un cambio de contador."
+      "serialSet": "El aparato ya tiene el número {serial}. Otro contador es un cambio de contador.",
+      "obisInvalid": "El registro «{value}» no es un código OBIS. Ejemplos: 1.8.0, 1.8.1, 2.8.0 o 1-0:1.8.0."
     },
     "common": {
       "unknownUtility": "Suministro desconocido: {utility}",
@@ -3925,6 +3937,13 @@
       "incomplete": "El destino está incompleto: el webhook necesita dirección e ID del webhook, el token dirección y token. El Supervisor solo funciona en la app para Home Assistant.",
       "webhookFormat": "El ID del webhook tiene de 8 a 200 letras, cifras, guiones o guiones bajos.",
       "tokenFormat": "El token tiene de 20 a 2000 caracteres visibles sin espacios."
+    },
+    "concept": {
+      "field": "El dato «{field}» del esquema de medición falta o no es válido.",
+      "touCascade": "En cascada, el contador del hogar va detrás del contador de cabecera registro por registro. Así que punta/valle en los dos o en ninguno.",
+      "meterUnknown": "El contador «{id}» no existe.",
+      "meterTwice": "El contador «{id}» está asignado a dos posiciones. Cada contador aparece una sola vez en el esquema.",
+      "chain": "«{name}» tiene subcontadores propios y por eso no puede ir detrás de otro contador."
     }
   },
   "login": {
@@ -4345,6 +4364,10 @@
       "wallbox": {
         "title": "Cargador y coche de empresa",
         "text": "El cargador como subcontador de la acometida con el rol «Cargador del coche eléctrico», leído cada mes – a mano, con Home Assistant o con las cargas de evcc. Su vista de consumo muestra el justificante de carga para la empresa: precio del contrato con la parte proporcional del término fijo o tarifa plana, en CSV o PDF. El total sigue siendo correcto."
+      },
+      "cascade": {
+        "title": "Cascada con bomba de calor, punta/valle y fotovoltaica",
+        "text": "Tres contadores en serie: el de delante mide todo, el de detrás el hogar, la bomba de calor es el resto. Un contador por registro (punta, valle), un contrato por contador. El contrato de la bomba de calor solo factura el resto, el total de costes cuadra, y el autoconsumo y la autosuficiencia usan el contador de delante como consumo de red."
       }
     },
     "doc": {
@@ -6881,6 +6904,135 @@
       },
       "everyDates": "{every}, el {dates}",
       "dates": "el {dates}"
+    }
+  },
+  "restBilling": {
+    "part": "{kwh} {name}",
+    "formula": "{rest} = {measured} medidos − {parts}",
+    "note": "Aquí solo se factura el resto: {formula}. Lo que mide un subcontador con contrato propio lo factura ese contrato.",
+    "estimated": "De ellos, {kwh} están estimados con el último consumo diario hasta que se vuelva a leer el subcontador.",
+    "openDays": {
+      "one": "Durante {days} día falta una lectura del subcontador. Ahí este contrato factura todo.",
+      "other": "Durante {days} días falta una lectura del subcontador. Ahí este contrato factura todo."
+    },
+    "short": "En algunos meses el subcontador mide más que el contador anterior ({kwh}). Revisa las lecturas. Un resto por debajo de cero no se factura.",
+    "contractHint": "«{parent}» también mide «{name}». Con un contrato propio, el contrato de «{parent}» solo factura el resto desde su inicio: lo medido allí menos «{name}»."
+  },
+  "concept": {
+    "slotName": {
+      "main": "Contador principal",
+      "mainCascade": {
+        "heat_pump": "Contador de cabecera (bomba de calor)",
+        "ev_charger": "Contador de cabecera (cargador)"
+      },
+      "house": "Hogar",
+      "dev": {
+        "heat_pump": "Bomba de calor",
+        "ev_charger": "Cargador del coche"
+      },
+      "feed": "Vertido",
+      "gen": "Generación FV",
+      "bat_in": "Batería carga",
+      "bat_out": "Batería descarga"
+    },
+    "regShort": {
+      "ht": "punta",
+      "nt": "valle"
+    },
+    "title": "Configurar el esquema de medición",
+    "intro": "Unas preguntas sobre tu conexión eléctrica. Con ellas el asistente crea contadores, registros, subcontadores y contratos. Lo que ya existe lo asignas en lugar de crearlo dos veces.",
+    "setup": {
+      "title": "¿Qué hay en tu conexión eléctrica?",
+      "pv": "Instalación fotovoltaica que vierte a la red",
+      "battery": "Batería de almacenamiento",
+      "device": "Aparato con tarifa propia",
+      "deviceNone": "Ninguno, todo va con una sola tarifa",
+      "deviceHeatPump": "Bomba de calor con tarifa propia",
+      "deviceEv": "Cargador del coche con tarifa propia",
+      "deviceHint": "Una tarifa propia necesita un contador propio. Sin ella, la bomba de calor y el cargador forman parte del hogar.",
+      "tou": "¿Dos tramos horarios (punta/valle)?",
+      "touNone": "No, un único precio a todas horas",
+      "touAll": "Sí, en cada contador de consumo",
+      "touDevice": "Sí, solo en el contador del aparato",
+      "touHint": "Con punta/valle, un contador tiene dos registros (1.8.1 y 1.8.2), cada uno con su precio. La app crea un contador por registro y los reúne en un grupo con un solo contrato."
+    },
+    "layout": {
+      "title": "¿Cómo están conectados los contadores?",
+      "hint": "Mira en el armario de contadores o en el plano del electricista. Los nombres de los esquemas de medición cambian según la distribuidora, por eso el asistente pregunta por la disposición.",
+      "single": {
+        "title": "Un contador para todo",
+        "text": "Un contador mide lo que el hogar consume de la red.",
+        "textPv": "Un contador bidireccional mide consumo (1.8.0) y vertido (2.8.0). La instalación abastece primero al hogar y vierte el excedente."
+      },
+      "side_by_side": {
+        "title": "Dos contadores en paralelo",
+        "text": "Los dos contadores van directamente a la acometida: uno mide el hogar, el otro {deviceThe}. Cada contrato factura lo que mide su contador."
+      },
+      "behind": {
+        "title": "Subcontador detrás",
+        "text": "El contador principal mide todo. Detrás, un subcontador mide {deviceThe}. Con contrato propio en el subcontador, el contrato del hogar solo factura el resto."
+      },
+      "cascade": {
+        "title": "Cascada",
+        "text": "El contador de cabecera mide todo, un segundo contador detrás mide el hogar. El resto es {deviceThe}: cabecera menos hogar. Su tarifa va en el contador de cabecera."
+      },
+      "battery": "La app registra la batería con dos contadores en la generación FV: carga y descarga."
+    },
+    "deviceThe": {
+      "heat_pump": "la bomba de calor",
+      "ev_charger": "el cargador del coche"
+    },
+    "art": {
+      "title": "Esquema: {name}",
+      "own": "Esquema de tu instalación"
+    },
+    "meters": {
+      "title": "¿Qué contadores hay?",
+      "hint": "El nombre y el número del contador están en la placa, los códigos de los registros vienen rellenados. Si ya creaste un contador, elígelo: se asigna, no se crea dos veces.",
+      "name": "Nombre",
+      "serial": "Número de contador",
+      "existing": "Contador existente",
+      "new": "Crear nuevo",
+      "sameDevice": "El registro de vertido de «{name}»: mismo número, contador propio en el vertido.",
+      "genHint": "Contador de generación de la instalación, a menudo en el inversor.",
+      "batteryHint": "Carga y descarga de la batería, a menudo del inversor."
+    },
+    "contracts": {
+      "title": "¿Qué contratos hay?",
+      "hint": "Puedes dejarlo vacío y crear los contratos más tarde. Un contrato en curso en un contador existente se queda como está.",
+      "start": "Inicio",
+      "ct": "Precio unitario ({minor}/kWh)",
+      "ctHt": "Precio unitario punta ({minor}/kWh)",
+      "ctNt": "Precio unitario valle ({minor}/kWh)",
+      "feedCt": "Compensación ({minor}/kWh)",
+      "base": "Término fijo ({cur}/mes)",
+      "advance": "Anticipo ({cur}/mes)",
+      "restNote": "Solo factura el resto: «{parent}» menos «{sub}»."
+    },
+    "summary": {
+      "title": "Lo que creará el asistente",
+      "legend": "Contadores del esquema",
+      "op": {
+        "activate": "Activar los suministros: {list}",
+        "create_meter": "Crear el contador «{name}»",
+        "update_meter": "Asignar el contador existente «{name}»",
+        "create_group": "Crear el grupo «{name}» con ambos registros",
+        "reuse_group": "Seguir usando el grupo «{name}»",
+        "create_contract": "Crear el contrato para «{name}»",
+        "skip_contract": "Contrato para «{name}»: se mantiene el contrato en curso «{existing}»."
+      },
+      "detailObis": "registro {obis}",
+      "detailParent": "detrás de «{name}»",
+      "snapshot": "Antes, la app guarda el estado actual como instantánea. Puedes restaurarla en Ajustes → Datos.",
+      "apply": "Crear"
+    },
+    "done": "Esquema de medición configurado. Después: añade la primera lectura de cada contador.",
+    "entry": {
+      "title": "Esquema de medición",
+      "text": "¿Fotovoltaica, bomba de calor o cargador con tarifa propia? El asistente pregunta por la disposición en el armario de contadores y crea los contadores, registros y contratos adecuados."
+    },
+    "setupChoice": {
+      "hint": "Para fotovoltaica, bomba de calor o cargador con contador propio: primero la disposición, luego las lecturas."
     }
   }
 }

@@ -1315,6 +1315,11 @@ final class Proposals
         $items = array_values(array_filter((array)($c['entry']['extraction']['fields']['meter_readings']['items'] ?? []),
             fn($it) => is_string($it['value']['meter_number'] ?? null) && trim((string)$it['value']['meter_number']) !== ''));
         if ($m === null || $items === [] || !Utilities::isCumulative($c['u']) || ($m['capture'] ?? 'counter') === 'period') return $out;
+        // v3.9.0 (F1032, #40) — dieselbe Nummer mit mehreren Zählwerken (HT/NT, Bezug/Einspeisung):
+        // je Stand der Zähler mit diesem Zählwerk (OBIS-Kennzahl oder Bezeichnung). Ohne eindeutige
+        // Zuordnung bleibt es wie bisher (kein Vorschlag aus den Ständen je Zähler).
+        $targets = $this->registerTargets($c, $items);
+        if ($targets !== null) return $this->registerReadings($c, $targets, $out);
         foreach ($items as $i => $a) {
             foreach (array_slice($items, $i + 1) as $b) if (self::sameId((string)$a['value']['meter_number'], (string)$b['value']['meter_number'])) return $out;
         }
@@ -1397,6 +1402,102 @@ final class Proposals
             if ($mine === []) $out[$k]['optional'] = true;
         }
         if ($swap !== null) $out[] = $swap;
+        return $out;
+    }
+
+    /**
+     * v3.9.0 (F1032, #40) — Zählwerk eines Eintrags von `meter_readings`: die OBIS-Kennzahl
+     * (`obis`) oder die Bezeichnung (`register`, etwa „HT“), aber nur, wenn sie im Zitat des
+     * Eintrags steht (Hilfsfelder markieren nie; ohne Beleg zählt das Zählwerk nicht).
+     */
+    private static function itemRegister(array $it): ?string
+    {
+        $quote = mb_strtolower((string)preg_replace('/\s+/u', ' ', (string)($it['quote'] ?? '')));
+        foreach (['obis' => fn($v) => MeterService::obisKey($v), 'register' => fn($v) => MeterService::registerKey($v)] as $f => $key) {
+            $v = $it['value'][$f] ?? null;
+            if (!is_string($v) || trim($v) === '') continue;
+            $k = $key(trim($v));
+            if ($k !== null && $quote !== '' && str_contains($quote, mb_strtolower(trim($v)))) return $k;
+        }
+        return null;
+    }
+
+    /**
+     * v3.9.0 (F1032, #40) — Zähler je Eintrag, wenn dieselbe Nummer mehrfach auf der Rechnung
+     * steht und jeder Eintrag ein Zählwerk trägt: der eine Zähler der Art (bei einem
+     * Einspeise-Zählwerk auch der PV-Einspeisung), dessen Gerät diese Nummer trägt und dessen
+     * Zählwerk passt (MeterService::meterRegister: OBIS-Kennzahl, sonst der Name). Null, wenn
+     * nicht jeder Eintrag genau einen Zähler findet oder zwei Einträge denselben.
+     *
+     * @param list<array<string,mixed>> $items
+     * @return list<array{0:array<string,mixed>,1:string,2:array<string,mixed>}>|null [Eintrag, Art, Zähler]
+     */
+    private function registerTargets(array $c, array $items): ?array
+    {
+        $dup = false;
+        foreach ($items as $i => $a) foreach (array_slice($items, $i + 1) as $b) {
+            if (self::sameId((string)$a['value']['meter_number'], (string)$b['value']['meter_number'])) $dup = true;
+        }
+        if (!$dup) return null;
+        $out = []; $used = [];
+        foreach ($items as $it) {
+            $key = self::itemRegister($it);
+            if ($key === null) return null;
+            $utils = [$c['u']];
+            if (str_starts_with($key, '2.8.') && $c['u'] === 'strom') $utils[] = 'pv_einspeisung';
+            $hits = [];
+            foreach ($utils as $u) {
+                if (!Utilities::exists($u)) continue;
+                foreach ($this->meters->list($u) as $m) {
+                    if (MeterService::meterRegister($m) !== $key || ($m['capture'] ?? 'counter') === 'period') continue;
+                    foreach ((array)($m['devices'] ?? []) as $d) {
+                        if (self::sameId((string)($d['serial'] ?? ''), (string)$it['value']['meter_number'])) { $hits[] = [$u, $m]; break; }
+                    }
+                }
+            }
+            if (count($hits) !== 1) return null;
+            $id = $hits[0][0] . '|' . $hits[0][1]['id'];
+            if (isset($used[$id])) return null;
+            $used[$id] = true;
+            $out[] = [$it, $hits[0][0], $hits[0][1]];
+        }
+        return $out;
+    }
+
+    /**
+     * v3.9.0 (F1032, #40) — Ablesungen je Zählwerk: jeder Stand am Zähler seines Zählwerks
+     * (eine andere Art bekommt `utility` in den Daten, Applier legt die Ablesung dort an).
+     * Die Einzelfelder (ein Stand je Rechnung, welcher, wählt das Modell) entfallen dann —
+     * jeder ihrer Stände steht in einem Eintrag mit Zählwerk.
+     *
+     * @param list<array{0:array<string,mixed>,1:string,2:array<string,mixed>}> $targets
+     * @param list<array<string,mixed>> $out
+     * @return list<array<string,mixed>>
+     */
+    private function registerReadings(array $c, array $targets, array $out): array
+    {
+        $out = array_values(array_filter($out, fn($p) => $p['kind'] !== 'reading' || in_array('meter_readings', (array)$p['sources'], true)));
+        foreach ($targets as [$it, $u, $m]) {
+            $v = (array)$it['value'];
+            $ends = (array)($it['estimated_ends'] ?? [!empty($v['estimated']), !empty($v['estimated'])]);
+            $stands = [['date' => $v['reading_old_date'] ?? null, 'counter' => $v['reading_old'] ?? null, 'estimated' => !empty($ends[0]), 'first' => true]];
+            foreach ((array)($it['between'] ?? []) as $b) $stands[] = ['date' => $b['date'] ?? null, 'counter' => $b['counter'] ?? null, 'estimated' => !empty($b['estimated'])];
+            $stands[] = ['date' => $v['reading_new_date'] ?? null, 'counter' => $v['reading_new'] ?? null, 'estimated' => !empty($ends[1])];
+            $stands = array_values(array_filter($stands, fn($s) => is_string($s['date']) && is_numeric($s['counter'])));
+            $more = ($it['status'] ?? '') === 'check'
+                ? ['check' => true, 'core' => [], 'reasons' => [['field' => 'meter_readings', 'reasons' => array_values((array)($it['reasons'] ?? []))]]]
+                : ['core' => []];
+            $cc = ['u' => $u, 'meter' => $m] + $c;
+            foreach ($stands as $s) {
+                $first = !empty($s['first']);
+                $extra = $first ? array_map(fn($x) => ['date' => (string)$x['date'], 'counter' => (float)$x['counter']], array_slice($stands, 1)) : [];
+                $p = $this->readingAt($cc, (string)$s['date'], (float)$s['counter'], ['meter_readings'], $first, $extra, $more, (bool)$s['estimated']);
+                if ($p === null) continue;
+                if ($u !== $c['u']) $p['data']['utility'] = $u;
+                $p['params']['register'] = (string)($m['obis'] ?? '');
+                $out[] = $p;
+            }
+        }
         return $out;
     }
 

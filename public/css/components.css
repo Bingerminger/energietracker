@@ -2083,6 +2083,9 @@ a.icon-btn { display: inline-flex; align-items: center; justify-content: center;
 .ill-c-waerme  { --c: var(--util-waerme, var(--danger)); }
 .ill-c-pv      { --c: var(--util-pv_erzeugung, var(--warning)); }
 .ill-c-feed    { --c: var(--util-pv_einspeisung, var(--success)); }
+/* v3.9.0 (Paket messkonzepte) — Schaltbilder: Knoten an Abzweigen, kleine Beschriftung (Zählwerke, „Z1 − Z2“) */
+.ill .ill-node  { fill: var(--ill-ink); stroke: none; }
+.ill .ill-small { fill: var(--ill-line); font-family: var(--font-mono); font-size: 7px; stroke: none; }
 /* Ersteinrichtung: kleines Bild neben der Frage, am Telefon darüber */
 .setup__head { display: flex; align-items: center; gap: var(--sp-4); }
 .setup__art { flex: none; width: 112px; }
@@ -2097,6 +2100,29 @@ a.icon-btn { display: inline-flex; align-items: center; justify-content: center;
   .modal__foot:has(.setup__progress) { flex-wrap: wrap; }
   .modal__foot .setup__progress { order: -1; flex-basis: 100%; margin: 0; text-align: center; }
 }
+/* v3.9.0 (F1032) — Assistent „Messkonzept“: Aufbauten als Karten mit Schaltbild,
+   Stellen als Feldgruppen mit Kürzel (Z1, Z2 …), Zusammenfassung mit Legende */
+.concept-setup { display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-4); }
+.concept-fieldset { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-1); }
+.concept-fieldset > legend { font-weight: 600; margin-bottom: var(--sp-1); padding: 0; }
+.concept-fieldset > p { margin: var(--sp-1) 0 0; }
+.concept-layouts { display: grid; gap: var(--sp-3); grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr)); }
+.concept-layout { flex-direction: column; align-items: stretch; }
+.concept-layout__art { display: block; padding: var(--sp-2); border-radius: var(--r-sm, 6px); background: var(--bg-2); }
+.concept-layout--off { cursor: not-allowed; opacity: .6; }
+.concept-slot { border: 1px solid var(--border-1); border-radius: var(--r-md); margin: 0; padding: var(--sp-3) var(--sp-4) 0; min-width: 0; }
+.concept-slot > legend { padding: 0 var(--sp-1); font-weight: 600; }
+.concept-slot > p { margin: 0 0 var(--sp-3); }
+.concept-tag {
+  display: inline-block; min-width: 2.2em; padding: 0 6px; border-radius: 999px; text-align: center;
+  background: var(--bg-3); color: var(--text-1); font-family: var(--font-mono); font-size: var(--fs-xs, 12px); font-weight: 600;
+}
+.concept-summary { display: grid; gap: var(--sp-3); align-items: start; }
+@media (min-width: 720px) { .concept-summary { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); } }
+.concept-summary__art { padding: var(--sp-2); border-radius: var(--r-md); background: var(--bg-2); }
+.concept-legend, .concept-actions { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--sp-1); }
+.concept-actions { padding-left: var(--sp-4); list-style: disc; }
+
 /* „empfohlen“ als Abzeichen in Textbreite, nicht über die ganze Karte */
 .setup-choice__body .badge { align-self: flex-start; }
 @media print { .setup__art { display: none; } }

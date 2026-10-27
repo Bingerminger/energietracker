@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Energietracker\Services\Inbox;
 
+use Energietracker\Config\Utilities;
 use Energietracker\Services\BillService;
 use Energietracker\Services\ContractService;
 use Energietracker\Services\ConversionFactorService;
@@ -112,6 +113,9 @@ final class Applier
     private function reading(string $u, array $p, string $note): array
     {
         $d = $p['data'];
+        // v3.9.0 (F1032) — Stand eines anderen Zählwerks derselben Nummer in einer anderen Art
+        // (Einspeisung auf der Stromrechnung, Proposals::registerReadings)
+        if (is_string($d['utility'] ?? null) && Utilities::exists($d['utility']) && Utilities::isCumulative($d['utility'])) $u = $d['utility'];
         // v3.7.0 (treffsicher, Nachbesserung 4) — geschätzt laut Rechnung: als geschätzt angelegt
         $est = !empty($d['is_estimated']) ? ['is_estimated' => true] : [];
         if ($p['status'] === 'conflict' && !empty($p['detail']['reading_id'])) {

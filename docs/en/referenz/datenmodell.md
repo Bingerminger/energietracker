@@ -196,6 +196,9 @@ same identifier.
   "malo_id": "51234567895",              // market location ID (synthetic example)
   "melo_id": "DE…",                      // metering location ID, 33 characters
 
+  // v3.9.0, optional — register as an OBIS code (not for heating oil/pellets):
+  "obis": "1.8.1",                       // e.g. 1.8.0, 1.8.2, 2.8.0, also 1-0:1.8.1
+
   // v3.1.0, PV generation only, optional:
   "plug_in": true,                       // plug-in solar device without a feed-in meter
   "investment_eur": 800,                 // investment incl. VAT (payback)
@@ -230,6 +233,13 @@ the metering location ID has 33 characters, “DE” and 31 digits or capital
 letters. The app removes spaces, an empty value deletes the field; it rejects
 anything else (`errors.meter.maloInvalid`, `…meloInvalid`). The switching
 decision shows the market location ID under “Have ready for switching”.
+
+**Register (`obis`, v3.9.0).** OBIS code `[A-B:]C.D.E[*F]`, such as `1.8.1` for
+import at the peak rate. The app removes spaces, empty deletes the field, and
+it rejects anything else (`errors.meter.obisInvalid`). A meter with several
+registers (HT/NT, import/feed-in) becomes one meter per register with the same
+device number; the inbox and the Home Assistant input assign readings with it
+([API](api.md#meters-obis-v390-additive)).
 
 **Role (`role`, v3.1.0).** What a meter measures, for the utilities that know
 roles. The first is the default and is **not** stored — a meter without `role`

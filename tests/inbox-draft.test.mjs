@@ -335,7 +335,8 @@ try {
   for (let s = 0; s < 3; s++) { modal()?.querySelector('[data-act="next"]')?.click(); await sleep(40); }   // Energieträger, Stufe → So geht es weiter
   const m = modal();
   const starts = [...(m?.querySelectorAll('input[name="setup-start"]') || [])].map(r => r.value);
-  t('drei Wege: aus Dokumenten, von Hand, Beispielhaushalt', starts.join() === 'docs,own,demo', starts.join());
+  // v3.9.0 (F1032) — dazu „Messkonzept einrichten“ (Haushalt mit Strom), vor dem Beispielhaushalt
+  t('Wege: aus Dokumenten, von Hand, Messkonzept, Beispielhaushalt', starts.join() === 'docs,own,concept,demo', starts.join());
   t('„Aus Dokumenten“ vorgewählt und empfohlen', m?.querySelector('input[name="setup-start"]:checked')?.value === 'docs' && /empfohlen/.test(text(m.querySelector('.setup-choice'))));
   t('welche Dokumente helfen (je Haushalt)', m?.querySelectorAll('[data-role="setup-docs"] li').length >= 1);
   const hint = m?.querySelector('[data-role="setup-reader"]');

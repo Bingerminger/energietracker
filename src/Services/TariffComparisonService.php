@@ -267,7 +267,7 @@ final class TariffComparisonService
                 }
             } elseif (($m['contract_id'] ?? null) === ($c['id'] ?? null)) {
                 $total += (float)($m['cost'] ?? 0);
-                $consumption += (float)($m['kwh'] ?? 0);
+                $consumption += ConsumptionService::billedQuantity($m);   // v3.9.0 (F1032) — Rest-Abrechnung
                 $yms[] = $ym;
             }
         }
@@ -307,7 +307,8 @@ final class TariffComparisonService
                ?? self::firstValue($c['base_prices'] ?? [], 'eur_per_month');
             $bn = $this->contracts->bonusForMonth($c, $y, $mn);
 
-            $value = (float)($m['kwh'] ?? 0);
+            // v3.9.0 (F1032) — ein Angebot für diesen Zähler rechnet, was sein Vertrag rechnet (den Rest)
+            $value = ConsumptionService::billedQuantity($m);
             $total += $value * $wp / 100.0 + (float)($bp ?? 0) - $bn;
             $consumption += $value;
             $yms[] = $ym;

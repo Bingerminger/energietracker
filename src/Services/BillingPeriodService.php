@@ -95,6 +95,13 @@ final class BillingPeriodService
         $this->assertSupported($utility);
         // v3.6.0 — Gruppe ohne Subzähler, deren Elternzähler Mitglied ist (wie ConsumptionService::computeForGroup)
         $meters = !empty($target['is_group']) ? $this->meters->groupSumMembers($utility, (string)$target['id']) : [$target];
+        // v3.9.0 (F1032) — … außer sie rechnen nach dem Gruppenvertrag (dann rechnet ihr Elternzähler nur den Rest)
+        if (!empty($target['is_group'])) {
+            $ids = array_map(fn($m) => (string)($m['id'] ?? ''), $meters);
+            foreach ($this->meters->groupMembers($utility, (string)$target['id']) as $m) {
+                if (!in_array((string)($m['id'] ?? ''), $ids, true) && $this->consumption->isDeductingSubmeter($utility, $m)) $meters[] = $m;
+            }
+        }
         return $this->compute($utility, $meters, $withMonths, $today) + ['target_id' => (string)($target['id'] ?? '')];
     }
 
@@ -109,7 +116,11 @@ final class BillingPeriodService
         $this->assertSupported($utility);
         $meters = array_values(array_filter($this->meters->list($utility),
             fn($m) => MeterService::countsInTotals($m) && ($m['capture'] ?? null) !== 'period'));
-        return $this->compute($utility, $meters, $withMonths, $today);
+        // v3.9.0 (F1032, #40) — Subzähler mit eigenem Vertrag: ihr Geld, nicht ihre Menge; die
+        // Menge der Art ist die Messung der Zähler ohne Elternzähler (`measured_kwh`)
+        $money = array_values(array_filter($this->meters->list($utility),
+            fn($m) => !MeterService::countsInTotals($m) && ($m['capture'] ?? null) !== 'period' && $this->consumption->isDeductingSubmeter($utility, $m)));
+        return $this->compute($utility, $meters, $withMonths, $today, $money, true);
     }
 
     private function assertSupported(string $utility): void
@@ -180,12 +191,19 @@ final class BillingPeriodService
                 'switches' => $switches, 'periods' => $periods];
     }
 
-    /** @param list<array<string,mixed>> $meters @return array<string,mixed> */
-    private function compute(string $utility, array $meters, bool $withMonths, ?string $today): array
+    /**
+     * @param list<array<string,mixed>> $meters
+     * @param list<array<string,mixed>> $money    v3.9.0 (F1032) — Zähler, von denen nur das Geld zählt (Subzähler mit eigenem Vertrag)
+     * @param bool $measured  v3.9.0 (F1032) — Menge = Messung (Summe der Art) statt Menge der Verträge
+     * @return array<string,mixed>
+     */
+    private function compute(string $utility, array $meters, bool $withMonths, ?string $today, array $money = [], bool $measured = false): array
     {
         $today ??= date('Y-m-d');
         ['anchor' => $anchor, 'bills' => $bills, 'start' => $start, 'end' => $end, 'starts' => $starts,
          'switches' => $switches, 'periods' => $periods] = $this->structure($utility, $meters, $today);
+        // v3.9.0 (F1032) — die Verträge der Subzähler mit eigenem Vertrag ordnen nur ihre Abschläge zu
+        foreach ($money as $m) $starts += ConsumptionService::contractStarts($this->consumption->contractScope($utility, $m)[0]);
         // v3.7.0 (#33) — ohne Rechnung ein Vorschlag aus den Vertragsbeginnen
         $suggested = self::suggestedAnchor($bills, $anchor);
         $source = $suggested !== null ? 'bill' : null;
@@ -199,8 +217,10 @@ final class BillingPeriodService
         if ($start === null || $meters === []) return $out;
 
         $monthly = [];
-        foreach ($meters as $m) $monthly[(string)$m['id']] = $this->consumption->forMeter($utility, $m);
-        $contracts = $this->carryingContracts($utility, $meters);
+        foreach (array_merge($meters, $money) as $m) $monthly[(string)$m['id']] = $this->consumption->forMeter($utility, $m);
+        $contracts = $this->carryingContracts($utility, array_merge($meters, $money));
+        $this->money = $money;
+        $this->measured = $measured;
         $billById = [];
         foreach ($this->bills->list($utility) as $b) $billById[(string)($b['id'] ?? '')] = $b;
 
@@ -229,9 +249,16 @@ final class BillingPeriodService
             if ($withMonths) $p['months'] = $this->months($utility, $meters, $monthly, $p['from'], $toExcl, $starts);
         }
         unset($p);
+        $this->money = [];
+        $this->measured = false;
         $out['periods'] = $periods;
         return $out;
     }
+
+    /** @var list<array<string,mixed>> v3.9.0 (F1032) — Zähler der laufenden Rechnung, von denen nur das Geld zählt */
+    private array $money = [];
+    /** v3.9.0 (F1032) — Menge der laufenden Rechnung als Messung (Summe der Art) */
+    private bool $measured = false;
 
     /**
      * Die Perioden ohne Summen (rein, testbar).
@@ -540,10 +567,16 @@ final class BillingPeriodService
               'bonus_items' => []];
         if ($utility === 'gas') $t['m3'] = 0.0;
         if ($toExcl <= $from) return $t;
-        foreach ($meters as $m) {
+        $moneyIds = array_map(fn($m) => (string)($m['id'] ?? ''), $this->money);
+        foreach (array_merge($meters, $this->money) as $m) {
             $bt = $this->consumption->billBreakdown($utility, $m, $from, $toExcl)['totals'] ?? [];
-            $t[$qk] += (float)($bt[$qk] ?? 0);
-            if ($utility === 'gas') $t['m3'] += (float)($bt['m3'] ?? 0);
+            // v3.9.0 (F1032) — von Subzählern mit eigenem Vertrag nur das Geld; die Summe der Art
+            // zählt die Messung (`measured_kwh`), ein Zähler oder eine Gruppe die Menge der Verträge
+            $moneyOnly = in_array((string)($m['id'] ?? ''), $moneyIds, true);
+            if (!$moneyOnly) {
+                $t[$qk] += (float)(($this->measured ? ($bt['measured_kwh'] ?? null) : null) ?? $bt[$qk] ?? 0);
+                if ($utility === 'gas') $t['m3'] += (float)($bt['m3'] ?? 0);
+            }
             foreach (['energy_cost', 'fixed_cost', 'bonus'] as $k) $t[$k] += (float)($bt[$k] ?? 0);
             // v3.7.0 (#33) — die Boni einzeln für „Bonus −X € am …“ unter der Kachel
             $t['bonus_items'] = array_merge($t['bonus_items'], (array)($bt['bonus_items'] ?? []));
@@ -558,7 +591,7 @@ final class BillingPeriodService
                 if ($a >= $b) continue;
                 $share = self::days($a, $b) / (int)date('t', (int)strtotime($ms));
                 $t['advances'] += ConsumptionService::advanceBetween($row, $from, $toExcl, $starts);
-                $t['co2_kg'] += (float)($row['co2_kg'] ?? 0) * $share;
+                if (!$moneyOnly) $t['co2_kg'] += (float)($row['co2_kg'] ?? 0) * $share;
             }
         }
         foreach (['energy_cost', 'fixed_cost', 'bonus', 'cost', 'advances'] as $k) $t[$k] = round($t[$k], 2);

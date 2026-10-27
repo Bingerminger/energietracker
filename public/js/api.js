@@ -235,6 +235,9 @@ export const api = {
   },
   // v3.6.0 (F1031) — Prognose-Werkstatt: Szenario rechnen (liest nur, s. lib/scenario.js)
   scenario:      (body)                => request('POST', '/api/forecast/scenario', body, { timeoutMs: TIMEOUT_READ_MS }),
+  // v3.9.0 (F1032, #40) — Assistent „Messkonzept“: Vorschau (schreibt nichts) und Anlegen
+  conceptPreview: (body)               => request('POST', '/api/metering-concept/preview', body),
+  conceptApply:   (body)               => request('POST', '/api/metering-concept', body),
 
   // Temperatures
   temperatures:  ()                    => request('GET',  '/api/temperatures'),

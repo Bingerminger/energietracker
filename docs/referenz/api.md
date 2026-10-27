@@ -13,8 +13,8 @@ Alle Endpunkte unter `/api/…`. Antwort-Hülle einheitlich:
 
 `{utility}` ist eine von: `gas`, `strom`, `wasser`, `fernwaerme`,
 `heizoel`, `pellets`, `pv_einspeisung`, `pv_erzeugung` und seit v3.1.0
-`waerme` (Heizwärme). Stand: **190 Routen**,
-v3.7.0 — `ReleaseConsistencyTest` prüft, dass jede registrierte Route in der
+`waerme` (Heizwärme). Stand: **192 Routen**,
+v3.9.0 — `ReleaseConsistencyTest` prüft, dass jede registrierte Route in der
 Tabelle unten steht (DE und EN).
 
 > Ausführliche Request-/Response-Beispiele für die meistgenutzten Endpunkte
@@ -198,6 +198,8 @@ nicht wieder passieren.
 | GET | `/api/utility/{u}/meter-groups/{id}/forecast` | *(v3.1.0)* Prognose der Gruppe; bei Arbeitspreisen je Mitglied mit Mischpreis |
 | GET | `/api/utility/{u}/meter-groups/{id}/tariff-switch` | *(v3.1.0)* Wechselentscheidung für die Gruppe |
 | GET | `/api/utility/{u}/meter-groups/{id}/bill-check` | *(v3.1.0)* Rechnungsprüfung der Gruppe: Abschnitte je Mitglied, feste Kosten einmal |
+| POST | `/api/metering-concept/preview` | *(v3.9.0)* Assistent „Messkonzept“: Vorschau aus dem Aufbau (`concept`, `device`, `pv`, `battery`, `tou`, `slots`, `contracts`) → `{concept, slots, actions, problems}`; schreibt nichts, auch mit Lese-Schlüssel — [s. u.](#messkonzept-einrichten-v390-f1032) |
+| POST | `/api/metering-concept` | *(v3.9.0)* dasselbe anlegen: Zähler, Zählwerke, Gruppen, Subzähler und Verträge über die vorhandenen Dienste, vorher ein Snapshot (`concept_…`); `201` `{concept, actions, created: {meters, groups, contracts}, snapshot}` |
 | GET | `/api/utility/{u}/meter-groups/{id}/billing-periods` | *(v3.6.0)* Abrechnungsperioden der Gruppe (Mitglieder zusammen) — [Abrechnungsperioden](#abrechnungsperioden-v360) |
 | GET | `/api/utility/{u}/readings` | Ablesungen |
 | POST | `/api/utility/{u}/readings` | anlegen; seit v3.1.0 mit `client_ref` (gleiche Kennung am selben Zähler → `200` mit `duplicate: true` statt eines zweiten Stands) und `attachment_id` (Foto) — [s. u.](#ablesungen-client_ref-attachment_id-v310-additiv) |
@@ -921,6 +923,29 @@ Gruppen-ID ebenfalls an. Unterschiede:
 Agenda, Kalender und Empfehlungen (Kündigungsstichtag, Vertragsende,
 Preiserhöhung) laufen auch für Gruppenverträge. Hintergrund:
 [Meter-Topologie](../verstehen/13-meter-topologie.md#gruppenvertrag-v310).
+
+### Rest-Abrechnung am Elternzähler *(v3.9.0, additiv)*
+
+Hat ein Subzähler (`parent_meter_id`) einen eigenen Vertrag oder rechnet er über
+den Gruppenvertrag seiner Gruppe, rechnen die Verträge des Elternzählers nur den
+Rest: gemessen minus Subzähler, an den Tagen mit eigenem Vertrag
+([Meter-Topologie](../verstehen/13-meter-topologie.md#rest-abrechnung-v390)).
+Gas, Strom, Fernwärme und Einspeisung; nicht Wasser. Neue Felder, nur wo die
+Regel greift:
+
+| Wo | Feld | Bedeutung |
+|---|---|---|
+| Monatszeile des Elternzählers (`…/consumption`, auch einer Gruppe) | `billed_kwh` | Menge seiner Verträge (Rest, nie unter null); `kwh` bleibt die Messung |
+| ebenda, `…/contract-status` (je Vertrag), `…/bill-check` (`totals`) | `rest_of` | `{measured, submeters: [{meter_id, name, kwh}], rest}`, dazu nur wenn es sie gibt `estimated_kwh` (letzte Tagesrate des Subzählers fortgeschrieben, höchstens 92 Tage), `open_days` (Tage ohne Stand des Subzählers), `short_kwh` (Rest unter null, nicht berechnet) |
+| `…/bill-check`, Zeilen und `totals` | `measured_kwh`, `submeter_kwh` | Messung und Abzug je Abschnitt; `kwh` ist dort die Menge des Vertrags |
+| `…/forecast`, Prognosemonate | `billed_kwh`, `deducted_kwh`, `rest_of` | Kosten und Abschlag rechnen mit `billed_kwh`; `kwh` bleibt die Prognose der Messung |
+
+Summen über Zähler (`…/consumption` der Art `monthly_total`, Abrechnungsjahr
+der Art, Jahresbericht, PDF, CSV) zählen die **Menge** weiter nur aus Zählern
+ohne Elternzähler und das **Geld** zusätzlich aus Subzählern mit eigenem
+Vertrag (Kosten, Abschläge, Saldo, Boni). `contract-status`, Rechnungsprüfung,
+Tarifvergleich (`actual_kwh`, `consumption`, `expected_consumption`) und
+Prognose-Werkstatt rechnen mit dem Rest.
 
 ### Verträge: reduziertes Netzentgelt, Preismodell, Gutschriften *(v3.1.0, additiv)*
 
@@ -1693,6 +1718,59 @@ Körper angenommen: beim Anlegen ein Objekt `device {serial, installed_on,
 initial_counter}`, beim Zählertausch `removed_on`, `final_counter` und
 `new_device {serial, installed_on, initial_counter}`. Die aktuellen Namen
 haben Vorrang.
+
+### Zähler: `obis` *(v3.9.0, additiv)*
+
+Zählwerk des Zählers als OBIS-Kennzahl, etwa `1.8.0` (Bezug), `1.8.1` (Bezug
+HT), `1.8.2` (Bezug NT), `2.8.0` (Einspeisung), auch mit Präfix (`1-0:1.8.1`)
+und Rest (`*255`). Optional, beim Anlegen und mit `PATCH …/meters/{id}`; leer
+entfernt das Feld. Gespeichert wird die Eingabe ohne Leerzeichen; verglichen
+wird die Form `C.D.E` (`1-0:1.8.1*255` ist `1.8.1`). Ungültig → 400
+`errors.meter.obisInvalid`. Ein Zähler mit mehreren Zählwerken ist je Zählwerk
+ein Zähler mit derselben Gerätenummer (`serial`).
+
+- **Home Assistant** (`POST /api/ingest`): Findet `meter` weder Alias noch ID,
+  gilt es zusammen mit `obis` als Gerätenummer: genau der Zähler der Art,
+  dessen eingebautes Gerät diese Nummer trägt und dessen Zählwerk passt.
+- **Posteingang:** Einträge von `meter_readings` tragen dazu `obis` und
+  `register` (Bezeichnung wie „HT“, „Einspeisung“; Hilfsfelder, `schema_version`
+  5). Steht dieselbe Zählernummer mit mehreren Zählwerken auf der Rechnung,
+  landet jeder Stand am Zähler mit diesem Zählwerk (Kennzahl am Zähler, sonst
+  sein Name); ein Einspeise-Zählwerk auf der Stromrechnung bei der
+  PV-Einspeisung (Vorschlag mit `utility`). Ohne eindeutige Zuordnung kommt kein
+  Vorschlag aus diesen Einträgen.
+
+### Messkonzept einrichten *(v3.9.0, F1032)*
+
+Der Assistent „Messkonzept“ ([#40](https://github.com/Bingerminger/energietracker/issues/40))
+fragt nach dem Aufbau, nicht nach dem Namen des Messkonzepts (die Namen wechseln
+je Netzbetreiber). Körper beider Routen:
+
+| Feld | Werte |
+|---|---|
+| `concept` | `single` (ein Zähler, mit PV Zweirichtungszähler), `side_by_side` (Gerät mit eigenem Zähler neben dem Hauszähler), `behind` (Gerät als Subzähler hinter dem Hauszähler), `cascade` (vorn misst alles, dahinter der Haushalt, das Gerät ist der Rest) |
+| `device` | `heat_pump` oder `ev_charger`; Pflicht außer bei `single` |
+| `pv`, `battery` | Einspeisung (`pv_einspeisung`, Zählwerk `2.8.0`) und Erzeugung (`pv_erzeugung`); Speicher mit Ladung und Entladung (Rollen `battery_charge`, `battery_discharge`) |
+| `tou` | `none`, `all` (HT/NT an jedem Bezugszähler), `device` (nur am Zähler des Geräts; nicht in der Kaskade: `400` `errors.concept.touCascade`) |
+| `slots.<stelle>` | `name`, `serial`, `obis.<zählwerk>` (vorbelegt `1.8.0` bzw. `1.8.1`/`1.8.2`, geprüft wie [`obis`](#zähler-obis-v390-additiv)), `meter_id` bzw. `meter_ids.<zählwerk>` für einen vorhandenen Zähler |
+| `contracts.<stelle>` | `provider`, `start`, `ct`, `ct_nt` (HT/NT), `base` und `advance` je Monat; leer bleibt die Stelle ohne Vertrag |
+
+Stellen: `main` (vorn bzw. Hauszähler), `house` (Kaskade: Haushalt), `dev`
+(Gerät), `feed`, `gen`, `bat_in`, `bat_out`. Mit HT/NT wird eine Stelle zu je
+einem Zähler pro Zählwerk in einer Gruppe mit Gruppenvertrag und Preis je
+Zählwerk; ein Subzähler hängt je Zählwerk am gleichnamigen Zählwerk seines
+Elternzählers. Die Kaskade setzt die Rollen nach dem eigenen Verbrauch: vorn
+`heat_pump` bzw. `ev_charger` (der Rest), dahinter `household`.
+
+Vorhandene Zähler werden zugeordnet (Rolle, Zählwerk, Eltern, Gruppe), nicht
+neu angelegt; ein vorhandenes Zählwerk bleibt. Ein Vertrag entsteht nur, wo das
+Ziel heute keinen laufenden oder vereinbarten hat (`skip_contract`). Die
+Vorschau listet je Schritt `op` (`activate`, `create_meter`, `update_meter`,
+`create_group`, `reuse_group`, `create_contract`, `skip_contract`) und unter
+`problems` Hindernisse wie `chain` (ein Zähler mit Subzählern soll selbst
+dahinter hängen); `POST /api/metering-concept` lehnt dann mit
+`errors.concept.<code>` ab. Weitere Fehler: `errors.concept.field`,
+`errors.concept.meterUnknown`, `errors.concept.meterTwice`.
 
 ### Verbrauch je Zeitraum *(v3.1.0)*
 

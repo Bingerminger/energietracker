@@ -278,7 +278,8 @@ final class TariffSwitchService
             if ($mn < 1 || $mn > 12) continue;
             // Erster Treffer gewinnt — bei einem 12-Monats-Horizont kommt
             // ohnehin jeder Kalendermonat genau einmal vor.
-            if (!isset($byMonth[$mn])) $byMonth[$mn] = (float)($m[$valueField] ?? 0);
+            // v3.9.0 (F1032) — mit Rest-Abrechnung die Menge, die der Vertrag rechnet (ohne Subzähler mit eigenem Vertrag)
+            if (!isset($byMonth[$mn])) $byMonth[$mn] = (float)($m['billed_kwh'] ?? $m[$valueField] ?? 0);
         }
         if (count($byMonth) < 12) {
             // Lücken mit dem Mittel der vorhandenen Monate füllen, damit ein

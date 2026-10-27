@@ -198,6 +198,9 @@ Kennung.
   "malo_id": "51234567895",              // Marktlokations-ID (synthetisches Beispiel)
   "melo_id": "DE…",                      // Messlokations-ID, 33 Zeichen
 
+  // v3.9.0, optional — Zählwerk als OBIS-Kennzahl (nicht bei Heizöl/Pellets):
+  "obis": "1.8.1",                       // etwa 1.8.0, 1.8.2, 2.8.0, auch 1-0:1.8.1
+
   // v3.1.0, nur bei PV-Erzeugung, optional:
   "plug_in": true,                       // Balkonkraftwerk ohne Einspeisezähler
   "investment_eur": 800,                 // Investition brutto (Amortisation)
@@ -232,6 +235,13 @@ Prüfziffer nach BDEW; die Messlokations-ID hat 33 Zeichen, „DE“ und 31 Ziff
 oder Großbuchstaben. Leerzeichen entfernt die App, ein leerer Wert löscht das
 Feld; Falsches lehnt sie ab (`errors.meter.maloInvalid`, `…meloInvalid`). Die
 Wechselentscheidung zeigt die MaLo-ID unter „Für den Wechsel bereithalten“.
+
+**Zählwerk (`obis`, v3.9.0).** OBIS-Kennzahl `[A-B:]C.D.E[*F]`, etwa `1.8.1` für
+den Bezug im Hochtarif. Leerzeichen entfernt die App, leer löscht das Feld,
+Falsches lehnt sie ab (`errors.meter.obisInvalid`). Ein Zähler mit mehreren
+Zählwerken (HT/NT, Bezug/Einspeisung) wird je Zählwerk ein Zähler mit derselben
+Gerätenummer; Posteingang und Home-Assistant-Eingang ordnen damit Stände zu
+([API](api.md#zähler-obis-v390-additiv)).
 
 **Rolle (`role`, v3.1.0).** Was ein Zähler misst, bei den Arten, die Rollen
 kennen. Die erste ist der Standard und wird **nicht** gespeichert — ein Zähler

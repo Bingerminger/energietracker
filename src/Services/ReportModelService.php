@@ -377,6 +377,30 @@ final class ReportModelService
                 if ((int)($r['days'] ?? 0) >= (int)date('t', mktime(0, 0, 0, $mo, 1, $y))) $out['full_months']++;
             }
         }
+        // v3.9.0 (F1032, #40) — Subzähler mit eigenem Vertrag: ihr Geld zählt (der Elternvertrag
+        // rechnet nur den Rest), ihre Menge steckt im Elternzähler
+        foreach ($this->meters->list($u) as $m) {
+            if (MeterService::countsInTotals($m) || !$this->consumption->isDeductingSubmeter($u, $m)) continue;
+            foreach ($this->rows($u, $m) as $r) {
+                if ((int)($r['year'] ?? 0) !== $y || empty($r['contract_id'])) continue;
+                $mo = (int)$r['month'];
+                // nur das Geld seiner Verträge (Tage ohne Vertrag rechnet der Elternzähler brutto)
+                $loose = (float)($r['uncontracted_cost'] ?? 0);
+                $c = (float)($r['cost'] ?? 0) - $loose; $b = (float)($r['bonus_eur'] ?? 0);
+                $out['cost'] += $c;
+                $out['kwh_cost'] += (float)($r['kwh_cost'] ?? 0) - $loose;
+                $out['cost_months'][$mo] = ($out['cost_months'][$mo] ?? 0.0) + $c;
+                $out['cost_gross'] += $c + $b;
+                $out['cost_months_gross'][$mo] = ($out['cost_months_gross'][$mo] ?? 0.0) + $c + $b;
+                if ($b > 0) {
+                    $out['bonus'] += $b;
+                    $out['bonus_months'][$mo] = ($out['bonus_months'][$mo] ?? 0.0) + $b;
+                    foreach ((array)($r['bonus_items'] ?? []) as $bi) $out['bonus_items'][] = $bi;
+                }
+                $out['has_contract'] = true;
+                $out['priced'] = true;
+            }
+        }
         $out['coverage'] = count(array_filter($out['months'], fn($v) => $v !== null));
         $out['interpolated'] = count($out['interp_months']);
         // v3.7.0 (wirklichkeit-2) — mit verteilten Monaten: Liegen beide Jahresgrenzen
@@ -1606,19 +1630,30 @@ final class ReportModelService
     {
         $y = $this->year;
         $sum = fn(array $m): float => array_sum(array_map(fn($r) => (int)$r['year'] === $y ? (float)($r['kwh'] ?? 0) : 0.0, $this->rows('strom', $m)));
-        $household = 0.0; $hp = 0.0; $ev = 0.0; $evNames = [];
-        foreach ($this->meters->list('strom') as $m) {
+        // v3.9.0 (F1032, #40) — je Zähler der eigene Verbrauch nach seiner Rolle: ein Subzähler
+        // zählt bei seiner Rolle und fehlt dafür seinem Elternzähler. Bis v3.7 zählte nur die
+        // Wallbox als Subzähler; in der Kaskade (vorn Wärmepumpe, dahinter der Haushalt) stand
+        // sonst der ganze Strom bei der Wärmepumpe, und eine Wärmepumpe hinter dem
+        // Haushaltszähler (Modul 2) fehlte ganz
+        $household = 0.0; $hp = 0.0; $ev = 0.0;
+        $bucket = function (string $role, float $v) use (&$household, &$hp, &$ev): void {
+            if ($role === 'heat_pump') $hp += $v; elseif ($role === 'ev_charger') $ev += $v; else $household += $v;
+        };
+        $all = $this->meters->list('strom');
+        foreach ($all as $m) {
             $role = Utilities::roleOf('strom', $m);
             if (MeterService::countsInTotals($m)) {
-                if ($role === 'heat_pump') $hp += $sum($m); else $household += $sum($m);
-            } elseif ($role === 'ev_charger') {
-                $ev += $sum($m);
+                $subs = array_filter($all, fn($s) => (string)($s['parent_meter_id'] ?? '') === (string)$m['id']);
+                $bucket((string)$role, $sum($m) - array_sum(array_map($sum, $subs)));
+            } elseif (!empty($m['parent_meter_id'])) {
+                $bucket((string)$role, $sum($m));
             }
         }
         if ($hp <= 0 && $ev <= 0) return null;
         $self = $pvNow !== null ? (float)($pvNow['eigenverbrauch_kwh'] ?? 0) : 0.0;
-        $house = $household + $self;
-        $rest = max(0.0, $house - $ev);
+        // Sonnenstrom hinter dem Hauszähler: Haushalt = eigener Bezug + selbst genutzter Sonnenstrom
+        // (die Wallbox kann im Sommer mehr messen als der Bezug, deshalb erst hier begrenzt)
+        $rest = max(0.0, $household + $self);
         $total = $rest + $ev + $hp;
         $rows = [];
         foreach ([['household', $rest], ['heat_pump', $hp], ['ev_charger', $ev]] as [$role, $v]) {

@@ -1167,7 +1167,8 @@
         "one": "{count} apparaat",
         "other": "{count} apparaten"
       },
-      "periodTag": "per periode"
+      "periodTag": "per periode",
+      "obis": "Telwerk {obis}"
     },
     "modal": {
       "titleEdit": "Meter bewerken",
@@ -1177,7 +1178,7 @@
       "icon": "Pictogram",
       "parent": "Hoofdmeter (tussenmeter in serie)",
       "parentNone": "— geen (zelfstandig) —",
-      "parentHint": "Het verbruik van deze meter wordt van de hoofdmeter afgetrokken.",
+      "parentHint": "De hoofdmeter meet deze meter mee. Heeft deze meter een eigen contract, dan rekent het contract van de hoofdmeter alleen de rest af. Zonder eigen contract is het een uitsplitsing.",
       "group": "Groep (dashboardsamenvatting)",
       "groupNone": "— geen —",
       "deviceSerial": "Serienummer apparaat (optioneel)",
@@ -1212,7 +1213,9 @@
         "device": "Apparaat",
         "topology": "Opbouw",
         "market": "Marktlocatie"
-      }
+      },
+      "obis": "Telwerk (OBIS-code)",
+      "obisHint": "Staat op de meter en bij de stand op de rekening, bijv. 1.8.1 voor afname piek. Heeft een meter meerdere telwerken, maak dan per telwerk een meter met hetzelfde meternummer. De postbak koppelt de standen van een rekening dan aan het juiste telwerk."
     },
     "replace": {
       "title": "Meterwissel: {name}",
@@ -1365,6 +1368,14 @@
       "hint": "Voor de seizoensprestatiefactor (warmte ÷ stroom). Je kunt kiezen uit stroommeters met de rol warmtepomp.",
       "loading": "Laden …",
       "none": "Geen stroommeter met de rol warmtepomp aangemaakt."
+    },
+    "obis": {
+      "import": "afname",
+      "importHt": "afname piek",
+      "importNt": "afname dal",
+      "export": "teruglevering",
+      "exportHt": "teruglevering piek",
+      "exportNt": "teruglevering dal"
     }
   },
   "settings": {
@@ -3575,7 +3586,8 @@
       "heatPumpLinkInvalid": "Meter ‘{id}’ is geen stroommeter met de rol warmtepomp",
       "valueInvalid": "{field}: ‘{value}’ is geen geldige waarde",
       "idInvalid": "Ongeldige id ‘{id}’ – toegestaan zijn letters, cijfers, _ en - (hoogstens 64 tekens).",
-      "serialSet": "Het apparaat heeft al nummer {serial}. Een andere meter is een meterwissel."
+      "serialSet": "Het apparaat heeft al nummer {serial}. Een andere meter is een meterwissel.",
+      "obisInvalid": "Telwerk ‘{value}’ is geen OBIS-code. Voorbeelden: 1.8.0, 1.8.1, 2.8.0 of 1-0:1.8.0."
     },
     "common": {
       "unknownUtility": "Onbekende verbruikssoort: {utility}",
@@ -3925,6 +3937,13 @@
       "incomplete": "De bestemming is onvolledig: de webhook heeft een adres en een webhook-ID nodig, de token een adres en een token. De Supervisor werkt alleen in de app voor Home Assistant.",
       "webhookFormat": "De webhook-ID bestaat uit 8 tot 200 letters, cijfers, koppeltekens of liggende streepjes.",
       "tokenFormat": "De token bestaat uit 20 tot 2000 zichtbare tekens zonder spaties."
+    },
+    "concept": {
+      "field": "Het gegeven ‘{field}’ voor de meetopstelling ontbreekt of klopt niet.",
+      "touCascade": "In een cascade hangt de huishoudmeter per telwerk achter de voorste meter. Dus piek/dal op beide of op geen van beide.",
+      "meterUnknown": "De meter ‘{id}’ bestaat niet.",
+      "meterTwice": "De meter ‘{id}’ is aan twee plaatsen toegewezen. Elke meter staat maar één keer in het schema.",
+      "chain": "‘{name}’ heeft zelf tussenmeters en kan daarom niet achter een andere meter hangen."
     }
   },
   "login": {
@@ -4345,6 +4364,10 @@
       "wallbox": {
         "title": "Laadpaal en leaseauto",
         "text": "De laadpaal als tussenmeter van de aansluiting met de rol ‘Laadpaal’, elke maand afgelezen – met de hand, via Home Assistant of met de laadsessies uit evcc. De verbruiksweergave ervan toont het laadstroomoverzicht voor de werkgever: contractprijs met een evenredig deel van het vastrecht of een vast tarief, als CSV of PDF. Het totaal blijft kloppen."
+      },
+      "cascade": {
+        "title": "Cascade met warmtepomp, piek/dal en zonnepanelen",
+        "text": "Drie meters achter elkaar: de voorste meet alles, de achterste het huishouden, de warmtepomp is de rest. Eén meter per telwerk (piek, dal), één contract per meter. Het contract van de warmtepomp rekent alleen de rest af, het totaal van de kosten klopt, en eigen verbruik en zelfvoorziening rekenen met de voorste meter als netafname."
       }
     },
     "doc": {
@@ -6881,6 +6904,135 @@
       },
       "everyDates": "{every}, op {dates}",
       "dates": "op {dates}"
+    }
+  },
+  "restBilling": {
+    "part": "{kwh} {name}",
+    "formula": "{rest} = {measured} gemeten − {parts}",
+    "note": "Hier wordt alleen de rest afgerekend: {formula}. Wat een tussenmeter met een eigen contract meet, rekent dat contract af.",
+    "estimated": "Daarvan is {kwh} geschat met het laatste dagverbruik, tot de tussenmeter weer wordt afgelezen.",
+    "openDays": {
+      "one": "Op {days} dag ontbreekt een stand van de tussenmeter. Daar rekent dit contract alles af.",
+      "other": "Op {days} dagen ontbreekt een stand van de tussenmeter. Daar rekent dit contract alles af."
+    },
+    "short": "In sommige maanden meet de tussenmeter meer dan de meter ervoor ({kwh}). Controleer de standen. Een rest onder nul wordt niet afgerekend.",
+    "contractHint": "‘{parent}’ meet ‘{name}’ mee. Met een eigen contract rekent het contract van ‘{parent}’ vanaf het begin alleen nog de rest af: daar gemeten min ‘{name}’."
+  },
+  "concept": {
+    "slotName": {
+      "main": "Hoofdmeter",
+      "mainCascade": {
+        "heat_pump": "Voorste meter (warmtepomp)",
+        "ev_charger": "Voorste meter (laadpaal)"
+      },
+      "house": "Huishouden",
+      "dev": {
+        "heat_pump": "Warmtepomp",
+        "ev_charger": "Laadpaal"
+      },
+      "feed": "Teruglevering",
+      "gen": "Opwek zonnepanelen",
+      "bat_in": "Accu laden",
+      "bat_out": "Accu ontladen"
+    },
+    "regShort": {
+      "ht": "piek",
+      "nt": "dal"
+    },
+    "title": "Meetopstelling inrichten",
+    "intro": "Een paar vragen over je stroomaansluiting. Daaruit maakt de assistent meters, telwerken, tussenmeters en contracten aan. Wat er al is, wijs je toe in plaats van het dubbel aan te maken.",
+    "setup": {
+      "title": "Wat hangt er aan je stroomaansluiting?",
+      "pv": "Zonnepanelen die terugleveren aan het net",
+      "battery": "Thuisaccu",
+      "device": "Apparaat met een eigen tarief",
+      "deviceNone": "Geen, alles loopt via één tarief",
+      "deviceHeatPump": "Warmtepomp met warmtepomptarief",
+      "deviceEv": "Laadpaal met een eigen tarief",
+      "deviceHint": "Een eigen tarief vraagt een eigen meter. Zonder eigen tarief horen warmtepomp en laadpaal gewoon bij het huishouden.",
+      "tou": "Twee tariefperioden (piek/dal)?",
+      "touNone": "Nee, één prijs de klok rond",
+      "touAll": "Ja, op elke afnamemeter",
+      "touDevice": "Ja, alleen op de meter van het apparaat",
+      "touHint": "Met piek/dal heeft een meter twee telwerken (1.8.1 en 1.8.2), elk met een eigen prijs. De app maakt per telwerk een meter aan en zet beide in een groep met één contract."
+    },
+    "layout": {
+      "title": "Hoe hangen de meters?",
+      "hint": "Kijk in de meterkast of op het schema van de installateur. De namen van meetopstellingen verschillen per netbeheerder, daarom vraagt de assistent naar de opbouw.",
+      "single": {
+        "title": "Eén meter voor alles",
+        "text": "Eén meter meet wat het huishouden van het net afneemt.",
+        "textPv": "Een tweerichtingsmeter meet afname (1.8.0) en teruglevering (2.8.0). De zonnepanelen voeden eerst het huishouden en leveren het overschot terug."
+      },
+      "side_by_side": {
+        "title": "Twee meters naast elkaar",
+        "text": "Beide meters hangen direct aan de netaansluiting: de ene meet het huishouden, de andere {deviceThe}. Elk contract rekent af wat zijn meter meet."
+      },
+      "behind": {
+        "title": "Tussenmeter erachter",
+        "text": "De hoofdmeter meet alles. Daarachter meet een tussenmeter {deviceThe}. Met een eigen contract op de tussenmeter rekent het huishoudcontract alleen de rest af."
+      },
+      "cascade": {
+        "title": "Cascade",
+        "text": "De voorste meter meet alles, een tweede meter daarachter meet het huishouden. Wat overblijft is {deviceThe}: voor min huishouden. Het tarief daarvan hangt aan de voorste meter."
+      },
+      "battery": "De app legt de accu vast met twee meters onder de opwek: laden en ontladen."
+    },
+    "deviceThe": {
+      "heat_pump": "de warmtepomp",
+      "ev_charger": "de laadpaal"
+    },
+    "art": {
+      "title": "Schema: {name}",
+      "own": "Schema van je installatie"
+    },
+    "meters": {
+      "title": "Welke meters zijn er?",
+      "hint": "Naam en meternummer staan op het typeplaatje, de codes van de telwerken zijn al ingevuld. Heb je een meter al aangemaakt, kies hem dan: hij wordt toegewezen, niet dubbel aangemaakt.",
+      "name": "Naam",
+      "serial": "Meternummer",
+      "existing": "Bestaande meter",
+      "new": "Nieuw aanmaken",
+      "sameDevice": "Het terugleveringstelwerk van ‘{name}’: zelfde meternummer, eigen meter onder teruglevering.",
+      "genHint": "Opwekmeter van de zonnepanelen, vaak in de omvormer.",
+      "batteryHint": "Laden en ontladen van de accu, vaak uit de omvormer."
+    },
+    "contracts": {
+      "title": "Welke contracten zijn er?",
+      "hint": "Leeg laten kan ook: contracten maak je later aan. Een lopend contract op een bestaande meter blijft zoals het is.",
+      "start": "Begin",
+      "ct": "Eenheidsprijs ({minor}/kWh)",
+      "ctHt": "Eenheidsprijs piek ({minor}/kWh)",
+      "ctNt": "Eenheidsprijs dal ({minor}/kWh)",
+      "feedCt": "Vergoeding ({minor}/kWh)",
+      "base": "Vastrecht ({cur}/maand)",
+      "advance": "Voorschot ({cur}/maand)",
+      "restNote": "Rekent alleen de rest af: ‘{parent}’ min ‘{sub}’."
+    },
+    "summary": {
+      "title": "Dit maakt de assistent aan",
+      "legend": "Meters in het schema",
+      "op": {
+        "activate": "Verbruikssoorten inschakelen: {list}",
+        "create_meter": "Meter ‘{name}’ aanmaken",
+        "update_meter": "Bestaande meter ‘{name}’ toewijzen",
+        "create_group": "Groep ‘{name}’ met beide telwerken aanmaken",
+        "reuse_group": "Groep ‘{name}’ blijven gebruiken",
+        "create_contract": "Contract voor ‘{name}’ aanmaken",
+        "skip_contract": "Contract voor ‘{name}’: het lopende contract ‘{existing}’ blijft."
+      },
+      "detailObis": "telwerk {obis}",
+      "detailParent": "achter ‘{name}’",
+      "snapshot": "Eerst slaat de app de huidige stand op als momentopname. Die zet je zo nodig terug onder Instellingen → Gegevens.",
+      "apply": "Aanmaken"
+    },
+    "done": "Meetopstelling ingericht. Daarna: de eerste stand per meter invoeren.",
+    "entry": {
+      "title": "Meetopstelling",
+      "text": "Zonnepanelen, warmtepomp of laadpaal met een eigen tarief? De assistent vraagt naar de opbouw in de meterkast en maakt passende meters, telwerken en contracten aan."
+    },
+    "setupChoice": {
+      "hint": "Voor zonnepanelen, warmtepomp of laadpaal met een eigen meter: eerst de opbouw, dan de standen."
     }
   }
 }

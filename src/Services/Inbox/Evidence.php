@@ -82,7 +82,9 @@ final class Evidence
      *   - mindestens eine Lücke ist ein einfaches Leerzeichen zwischen zwei
      *     Ziffern (sonst ist es eine gewöhnliche Zahl wie „5,5“ oder „1.8.0“),
      *   - zusammengezogen ergibt sie eine gültige Zahl (Evidence::readings):
-     *     „1 1.8.0“ bleibt, wie es ist.
+     *     „1 1.8.0“ bleibt, wie es ist; steht vorn eine Kennzahl („1.8.1 1 0.0 0 0“),
+     *     bleibt sie getrennt und nur der Stand dahinter wird zusammengezogen
+     *     (v3.9.0, F1032: Zählwerk je Stand).
      * Zahlen in Tabellenspalten („35 m³   2,10“, „1200  1235 S  35“) haben
      * mehrstellige Gruppen oder mehrere Leerzeichen und bleiben getrennt; ein
      * mehrstelliger Nachbar gehört nie dazu („2026 4 8,3 0“ → „2026 48,30“).
@@ -94,7 +96,14 @@ final class Evidence
             $run = $m[0];
             if (!preg_match('/\d \d/u', $run)) return $run;   // keine einfache Lücke: keine Sperrung
             $joined = str_replace(' ', '', $run);
-            return self::readings($joined) !== [] ? $joined : $run;
+            if (self::readings($joined) !== []) return $joined;
+            // v3.9.0 (F1032) — vorn eine Kennzahl wie „1.8.1“ (Zählwerk), dahinter der gesperrte
+            // Stand („1.8.1 1 0.0 0 0“): die Kennzahl bleibt, der Stand wird zusammengezogen
+            if (preg_match('/^(\d\.\d\.\d) (.+)$/u', $run, $o) && preg_match('/\d \d/u', $o[2])) {
+                $rest = str_replace(' ', '', $o[2]);
+                if (self::readings($rest) !== []) return $o[1] . ' ' . $rest;
+            }
+            return $run;
         }, $s);
     }
 
@@ -872,10 +881,13 @@ final class Evidence
         $items = array_values((array)($out['meter_readings']['items'] ?? []));
         if (count($items) < 2) return;
         $groups = [];
+        // v3.9.0 (F1032) — nur Einträge desselben Zählwerks (HT und NT derselben Nummer bleiben getrennt)
+        $reg = fn(array $it): ?string => \Energietracker\Services\MeterService::obisKey(is_string($it['value']['obis'] ?? null) ? $it['value']['obis'] : null)
+            ?? \Energietracker\Services\MeterService::registerKey(is_string($it['value']['register'] ?? null) ? $it['value']['register'] : null);
         foreach ($items as $it) {
             $n = (string)($it['value']['meter_number'] ?? '');
             $k = null;
-            foreach (array_keys($groups) as $g) if ($n !== '' && Proposals::sameId((string)$groups[$g][0]['value']['meter_number'], $n)) $k = $g;
+            foreach (array_keys($groups) as $g) if ($n !== '' && Proposals::sameId((string)$groups[$g][0]['value']['meter_number'], $n) && $reg($groups[$g][0]) === $reg($it)) $k = $g;
             if ($k === null) $groups[] = [$it]; else $groups[$k][] = $it;
         }
         if (count($groups) === count($items)) return;
@@ -922,7 +934,8 @@ final class Evidence
             $value = ['meter_number' => $parts[0]['value']['meter_number'],
                 'reading_old' => $first['counter'] ?? null, 'reading_old_date' => $first['date'] ?? null,
                 'reading_new' => $last['counter'] ?? null, 'reading_new_date' => $last['date'] ?? null,
-                'estimated' => array_filter($parts, fn($p) => !empty($p['value']['estimated'])) !== []];
+                'estimated' => array_filter($parts, fn($p) => !empty($p['value']['estimated'])) !== [],
+                'obis' => $parts[0]['value']['obis'] ?? null, 'register' => $parts[0]['value']['register'] ?? null];
             $one = ['value' => $value,
                 'quote' => mb_substr(implode(' | ', array_filter(array_map(fn($p) => $p['quote'] ?? null, $parts), 'is_string')), 0, 800),
                 'page' => $parts[0]['page'] ?? null,

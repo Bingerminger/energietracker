@@ -1167,7 +1167,8 @@
         "one": "{count} appareil",
         "other": "{count} appareils"
       },
-      "periodTag": "par période"
+      "periodTag": "par période",
+      "obis": "Registre {obis}"
     },
     "modal": {
       "titleEdit": "Modifier le compteur",
@@ -1177,7 +1178,7 @@
       "icon": "Icône",
       "parent": "Compteur parent (sous-compteur en série)",
       "parentNone": "— aucun (autonome) —",
-      "parentHint": "La consommation de ce compteur est déduite du compteur parent.",
+      "parentHint": "Le compteur parent mesure aussi ce compteur. Si ce compteur a son propre contrat, le contrat du compteur parent ne facture que le reste. Sans contrat propre, c’est une ventilation.",
       "group": "Groupe (résumé du tableau de bord)",
       "groupNone": "— aucun —",
       "deviceSerial": "Numéro de série de l’appareil (facultatif)",
@@ -1212,7 +1213,9 @@
         "device": "Appareil",
         "topology": "Structure",
         "market": "Point de livraison"
-      }
+      },
+      "obis": "Registre (code OBIS)",
+      "obisHint": "Indiqué sur le compteur et à côté de l’index sur la facture, p. ex. 1.8.1 pour le soutirage HP. Si un compteur a plusieurs registres, créez un compteur par registre avec le même numéro de compteur. La boîte de réception attribue alors les index d’une facture au bon registre."
     },
     "replace": {
       "title": "Changement de compteur : {name}",
@@ -1365,6 +1368,14 @@
       "hint": "Pour le coefficient de performance annuel (chaleur ÷ électricité). Seuls les compteurs d’électricité au rôle pompe à chaleur sont proposés.",
       "loading": "Chargement …",
       "none": "Aucun compteur d’électricité avec le rôle pompe à chaleur."
+    },
+    "obis": {
+      "import": "soutirage",
+      "importHt": "soutirage HP",
+      "importNt": "soutirage HC",
+      "export": "injection",
+      "exportHt": "injection HP",
+      "exportNt": "injection HC"
     }
   },
   "settings": {
@@ -3575,7 +3586,8 @@
       "heatPumpLinkInvalid": "Le compteur « {id} » n’est pas un compteur d’électricité avec le rôle pompe à chaleur",
       "valueInvalid": "{field} : « {value} » n’est pas une valeur valide",
       "idInvalid": "Identifiant « {id} » invalide – lettres, chiffres, _ et - autorisés (64 caractères au plus).",
-      "serialSet": "L’appareil a déjà le numéro {serial}. Un autre compteur est un changement de compteur."
+      "serialSet": "L’appareil a déjà le numéro {serial}. Un autre compteur est un changement de compteur.",
+      "obisInvalid": "Le registre « {value} » n’est pas un code OBIS. Exemples : 1.8.0, 1.8.1, 2.8.0 ou 1-0:1.8.0."
     },
     "common": {
       "unknownUtility": "Type de consommation inconnu : {utility}",
@@ -3925,6 +3937,13 @@
       "incomplete": "La destination est incomplète : le webhook demande une adresse et un ID de webhook, le jeton une adresse et un jeton. Le Supervisor ne fonctionne que dans l’application pour Home Assistant.",
       "webhookFormat": "L’ID du webhook comporte de 8 à 200 lettres, chiffres, traits d’union ou tirets bas.",
       "tokenFormat": "Le jeton comporte de 20 à 2000 caractères visibles, sans espace."
+    },
+    "concept": {
+      "field": "L’indication « {field} » du schéma de comptage manque ou ne convient pas.",
+      "touCascade": "En cascade, le compteur du foyer suit le compteur amont registre par registre. Les deux ont donc HP/HC, ou aucun.",
+      "meterUnknown": "Le compteur « {id} » n’existe pas.",
+      "meterTwice": "Le compteur « {id} » est attribué à deux emplacements. Chaque compteur n’apparaît qu’une fois dans le schéma.",
+      "chain": "« {name} » a ses propres sous-compteurs et ne peut donc pas être placé en aval d’un autre compteur."
     }
   },
   "login": {
@@ -4345,6 +4364,10 @@
       "wallbox": {
         "title": "Borne de recharge et véhicule de fonction",
         "text": "La borne comme sous-compteur du raccordement avec le rôle « Borne de recharge », relevée chaque mois – à la main, via Home Assistant ou avec les sessions de recharge d’evcc. Sa vue de consommation affiche le justificatif de recharge pour l’employeur : prix du contrat avec une part de l’abonnement ou forfait, en CSV ou PDF. Le total reste juste."
+      },
+      "cascade": {
+        "title": "Cascade avec pompe à chaleur, HP/HC et photovoltaïque",
+        "text": "Trois compteurs en série : celui de devant mesure tout, celui de derrière le ménage, la pompe à chaleur est le reste. Un compteur par registre (HP, HC), un contrat par compteur. Le contrat de la pompe à chaleur ne facture que le reste, le total des coûts est juste, et l’autoconsommation et l’autarcie utilisent le compteur de devant comme soutirage."
       }
     },
     "doc": {
@@ -6881,6 +6904,135 @@
       },
       "everyDates": "{every}, le {dates}",
       "dates": "le {dates}"
+    }
+  },
+  "restBilling": {
+    "part": "{kwh} {name}",
+    "formula": "{rest} = {measured} mesurés − {parts}",
+    "note": "Seul le reste est facturé ici : {formula}. Ce que mesure un sous-compteur avec son propre contrat est facturé par ce contrat.",
+    "estimated": "Dont {kwh} estimés avec le dernier débit journalier, jusqu’au prochain relevé du sous-compteur.",
+    "openDays": {
+      "one": "Pendant {days} jour, il manque un relevé du sous-compteur. Ce contrat y facture tout.",
+      "other": "Pendant {days} jours, il manque un relevé du sous-compteur. Ce contrat y facture tout."
+    },
+    "short": "Certains mois, le sous-compteur mesure plus que le compteur en amont ({kwh}). Vérifiez les relevés. Un reste négatif n’est pas facturé.",
+    "contractHint": "« {parent} » mesure aussi « {name} ». Avec un contrat propre, le contrat de « {parent} » ne facture plus que le reste à partir de son début : mesuré là moins « {name} »."
+  },
+  "concept": {
+    "slotName": {
+      "main": "Compteur principal",
+      "mainCascade": {
+        "heat_pump": "Compteur amont (pompe à chaleur)",
+        "ev_charger": "Compteur amont (borne de recharge)"
+      },
+      "house": "Foyer",
+      "dev": {
+        "heat_pump": "Pompe à chaleur",
+        "ev_charger": "Borne de recharge"
+      },
+      "feed": "Injection",
+      "gen": "Production PV",
+      "bat_in": "Batterie charge",
+      "bat_out": "Batterie décharge"
+    },
+    "regShort": {
+      "ht": "HP",
+      "nt": "HC"
+    },
+    "title": "Configurer le schéma de comptage",
+    "intro": "Quelques questions sur votre raccordement électrique. L’assistant en déduit les compteurs, registres, sous-compteurs et contrats. Ce qui existe déjà, vous l’attribuez au lieu de le créer en double.",
+    "setup": {
+      "title": "Qu’est-ce qui est raccordé à votre installation électrique ?",
+      "pv": "Installation photovoltaïque qui injecte dans le réseau",
+      "battery": "Batterie de stockage",
+      "device": "Appareil avec son propre tarif",
+      "deviceNone": "Aucun, tout passe par un seul tarif",
+      "deviceHeatPump": "Pompe à chaleur avec tarif spécifique",
+      "deviceEv": "Borne de recharge avec tarif spécifique",
+      "deviceHint": "Un tarif propre exige un compteur propre. Sans cela, pompe à chaleur et borne font simplement partie du foyer.",
+      "tou": "Deux plages tarifaires (HP/HC) ?",
+      "touNone": "Non, un seul prix à toute heure",
+      "touAll": "Oui, sur chaque compteur de soutirage",
+      "touDevice": "Oui, seulement sur le compteur de l’appareil",
+      "touHint": "Avec HP/HC, un compteur a deux registres (1.8.1 et 1.8.2), chacun avec son prix. L’application crée un compteur par registre et les réunit dans un groupe avec un seul contrat."
+    },
+    "layout": {
+      "title": "Comment les compteurs sont-ils raccordés ?",
+      "hint": "Regardez dans l’armoire de comptage ou sur le plan de l’électricien. Les noms des schémas de comptage changent selon le gestionnaire de réseau, c’est pourquoi l’assistant demande la disposition.",
+      "single": {
+        "title": "Un compteur pour tout",
+        "text": "Un compteur mesure ce que le foyer soutire du réseau.",
+        "textPv": "Un compteur bidirectionnel mesure le soutirage (1.8.0) et l’injection (2.8.0). L’installation alimente d’abord le foyer et injecte le surplus."
+      },
+      "side_by_side": {
+        "title": "Deux compteurs côte à côte",
+        "text": "Les deux compteurs sont raccordés directement au réseau : l’un mesure le foyer, l’autre {deviceThe}. Chaque contrat facture ce que mesure son compteur."
+      },
+      "behind": {
+        "title": "Sous-compteur en aval",
+        "text": "Le compteur principal mesure tout. En aval, un sous-compteur mesure {deviceThe}. Avec un contrat propre sur le sous-compteur, le contrat du foyer ne facture que le reste."
+      },
+      "cascade": {
+        "title": "Cascade",
+        "text": "Le compteur amont mesure tout, un second compteur en aval mesure le foyer. Le reste correspond à {deviceThe} : amont moins foyer. Son tarif est rattaché au compteur amont."
+      },
+      "battery": "L’application enregistre la batterie avec deux compteurs sous la production PV : charge et décharge."
+    },
+    "deviceThe": {
+      "heat_pump": "la pompe à chaleur",
+      "ev_charger": "la borne de recharge"
+    },
+    "art": {
+      "title": "Schéma : {name}",
+      "own": "Schéma de votre installation"
+    },
+    "meters": {
+      "title": "Quels compteurs y a-t-il ?",
+      "hint": "Le nom et le numéro figurent sur la plaque signalétique, les codes des registres sont préremplis. Si vous avez déjà créé un compteur, choisissez-le : il est attribué, pas créé en double.",
+      "name": "Nom",
+      "serial": "Numéro de compteur",
+      "existing": "Compteur existant",
+      "new": "Créer",
+      "sameDevice": "Le registre d’injection de « {name} » : même numéro, compteur propre sous l’injection.",
+      "genHint": "Compteur de production de l’installation, souvent dans l’onduleur.",
+      "batteryHint": "Charge et décharge de la batterie, souvent fournies par l’onduleur."
+    },
+    "contracts": {
+      "title": "Quels contrats y a-t-il ?",
+      "hint": "Vous pouvez laisser vide et créer les contrats plus tard. Un contrat en cours sur un compteur existant reste tel quel.",
+      "start": "Début",
+      "ct": "Prix unitaire ({minor}/kWh)",
+      "ctHt": "Prix unitaire HP ({minor}/kWh)",
+      "ctNt": "Prix unitaire HC ({minor}/kWh)",
+      "feedCt": "Rémunération ({minor}/kWh)",
+      "base": "Abonnement ({cur}/mois)",
+      "advance": "Acompte ({cur}/mois)",
+      "restNote": "Ne facture que le reste : « {parent} » moins « {sub} »."
+    },
+    "summary": {
+      "title": "Ce que l’assistant va créer",
+      "legend": "Compteurs du schéma",
+      "op": {
+        "activate": "Activer les types de consommation : {list}",
+        "create_meter": "Créer le compteur « {name} »",
+        "update_meter": "Attribuer le compteur existant « {name} »",
+        "create_group": "Créer le groupe « {name} » avec les deux registres",
+        "reuse_group": "Conserver le groupe « {name} »",
+        "create_contract": "Créer le contrat pour « {name} »",
+        "skip_contract": "Contrat pour « {name} » : le contrat en cours « {existing} » est conservé."
+      },
+      "detailObis": "registre {obis}",
+      "detailParent": "en aval de « {name} »",
+      "snapshot": "Auparavant, l’application enregistre l’état actuel comme instantané. Vous pouvez le restaurer sous Paramètres → Données.",
+      "apply": "Créer"
+    },
+    "done": "Schéma de comptage configuré. Ensuite : saisir le premier relevé de chaque compteur.",
+    "entry": {
+      "title": "Schéma de comptage",
+      "text": "Photovoltaïque, pompe à chaleur ou borne avec tarif propre ? L’assistant demande la disposition dans l’armoire de comptage et crée les compteurs, registres et contrats correspondants."
+    },
+    "setupChoice": {
+      "hint": "Pour le photovoltaïque, une pompe à chaleur ou une borne avec compteur propre : d’abord la disposition, ensuite les relevés."
     }
   }
 }

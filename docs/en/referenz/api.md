@@ -13,7 +13,7 @@ All endpoints under `/api/…`. A uniform response envelope:
 
 `{utility}` is one of: `gas`, `strom`, `wasser`, `fernwaerme`, `heizoel`,
 `pellets`, `pv_einspeisung`, `pv_erzeugung` and, since v3.1.0, `waerme`
-(heat). As of: **190 routes**, v3.7.0 —
+(heat). As of: **192 routes**, v3.9.0 —
 `ReleaseConsistencyTest` checks that every registered route appears in the
 table below (German and English).
 
@@ -193,6 +193,8 @@ Reason: v2.0.0 silently switched `verdict` from "Nachzahlung/Erstattung" to keys
 | GET | `/api/utility/{u}/meter-groups/{id}/forecast` | *(v3.1.0)* forecast of the group; with unit prices per member using a blended price |
 | GET | `/api/utility/{u}/meter-groups/{id}/tariff-switch` | *(v3.1.0)* switch decision for the group |
 | GET | `/api/utility/{u}/meter-groups/{id}/bill-check` | *(v3.1.0)* bill check of the group: sections per member, fixed costs once |
+| POST | `/api/metering-concept/preview` | *(v3.9.0)* “metering concept” assistant: preview from the layout (`concept`, `device`, `pv`, `battery`, `tou`, `slots`, `contracts`) → `{concept, slots, actions, problems}`; writes nothing, also with a read-only key — [see below](#set-up-a-metering-concept-v390-f1032) |
+| POST | `/api/metering-concept` | *(v3.9.0)* create the same: meters, registers, groups, sub-meters and contracts through the existing services, with a snapshot first (`concept_…`); `201` `{concept, actions, created: {meters, groups, contracts}, snapshot}` |
 | GET | `/api/utility/{u}/meter-groups/{id}/billing-periods` | *(v3.6.0)* billing periods of the group (members together) — [Billing periods](#billing-periods-v360) |
 | GET | `/api/utility/{u}/readings` | readings |
 | POST | `/api/utility/{u}/readings` | create; since v3.1.0 with `client_ref` (same identifier on the same meter → `200` with `duplicate: true` instead of a second reading) and `attachment_id` (photo) — [see below](#readings-client_ref-attachment_id-v310-additive) |
@@ -910,6 +912,29 @@ Differences:
 Agenda, calendar and recommendations (cancellation deadline, contract end,
 price increase) also run for group contracts. Background:
 [Meter topology](../verstehen/13-meter-topologie.md#group-contract-v310).
+
+### Remainder billing at the parent meter *(v3.9.0, additive)*
+
+If a submeter (`parent_meter_id`) has a contract of its own or is billed through
+the group contract of its group, the parent meter’s contracts only bill the
+remainder: measured minus submeter, on the days with its own contract
+([meter topology](../verstehen/13-meter-topologie.md#remainder-billing-v390)).
+Gas, electricity, district heating and feed-in; not water. New fields, only
+where the rule applies:
+
+| Where | Field | Meaning |
+|---|---|---|
+| monthly row of the parent meter (`…/consumption`, also of a group) | `billed_kwh` | amount of its contracts (remainder, never below zero); `kwh` stays the measurement |
+| there, `…/contract-status` (per contract), `…/bill-check` (`totals`) | `rest_of` | `{measured, submeters: [{meter_id, name, kwh}], rest}`, plus only where present `estimated_kwh` (the submeter’s latest daily rate carried forward, at most 92 days), `open_days` (days without a submeter reading), `short_kwh` (remainder below zero, not billed) |
+| `…/bill-check`, rows and `totals` | `measured_kwh`, `submeter_kwh` | measurement and deduction per section; there `kwh` is the contract’s amount |
+| `…/forecast`, forecast months | `billed_kwh`, `deducted_kwh`, `rest_of` | costs and advance use `billed_kwh`; `kwh` stays the forecast of the measurement |
+
+Totals across meters (`…/consumption` of the utility `monthly_total`, billing
+year of the utility, annual report, PDF, CSV) keep counting the **amount** only
+from meters without a parent and add the **money** of submeters with their own
+contract (costs, advances, balance, bonuses). `contract-status`, bill check,
+tariff comparison (`actual_kwh`, `consumption`, `expected_consumption`) and the
+forecast workshop calculate with the remainder.
 
 ### Contracts: reduced grid fee, price model, credit notes *(v3.1.0, additive)*
 
@@ -1652,6 +1677,59 @@ well: on creation an object `device {serial, installed_on, initial_counter}`,
 on a meter swap `removed_on`, `final_counter` and
 `new_device {serial, installed_on, initial_counter}`. The current names take
 precedence.
+
+### Meters: `obis` *(v3.9.0, additive)*
+
+The meter’s register as an OBIS code, such as `1.8.0` (import), `1.8.1`
+(import HT), `1.8.2` (import NT), `2.8.0` (feed-in), also with prefix
+(`1-0:1.8.1`) and suffix (`*255`). Optional, on creation and with
+`PATCH …/meters/{id}`; empty removes the field. The input is stored without
+spaces; comparison uses the form `C.D.E` (`1-0:1.8.1*255` is `1.8.1`).
+Invalid → 400 `errors.meter.obisInvalid`. A meter with several registers is
+one meter per register with the same device number (`serial`).
+
+- **Home Assistant** (`POST /api/ingest`): if `meter` matches neither alias nor
+  ID, it counts together with `obis` as a device number: exactly the meter of
+  the utility whose installed device carries this number and whose register
+  matches.
+- **Inbox:** entries of `meter_readings` also carry `obis` and `register`
+  (label such as “HT”, “Einspeisung”; helper fields, `schema_version` 5). If the
+  same meter number appears with several registers on the bill, each reading
+  goes to the meter with that register (code on the meter, otherwise its name);
+  a feed-in register on the electricity bill goes to solar feed-in (proposal
+  with `utility`). Without a unique assignment these entries make no proposal.
+
+### Set up a metering concept *(v3.9.0, F1032)*
+
+The “metering concept” assistant ([#40](https://github.com/Bingerminger/energietracker/issues/40))
+asks about the layout, not the name of the metering concept (names differ
+between grid operators). Body of both routes:
+
+| Field | Values |
+|---|---|
+| `concept` | `single` (one meter, bidirectional with solar), `side_by_side` (device with its own meter next to the main meter), `behind` (device as a sub-meter behind the main meter), `cascade` (the front meter measures everything, the household behind it, the device is the remainder) |
+| `device` | `heat_pump` or `ev_charger`; required except for `single` |
+| `pv`, `battery` | feed-in (`pv_einspeisung`, register `2.8.0`) and generation (`pv_erzeugung`); battery with charging and discharging (roles `battery_charge`, `battery_discharge`) |
+| `tou` | `none`, `all` (HT/NT on every import meter), `device` (only on the device’s meter; not in a cascade: `400` `errors.concept.touCascade`) |
+| `slots.<slot>` | `name`, `serial`, `obis.<register>` (prefilled `1.8.0` or `1.8.1`/`1.8.2`, validated like [`obis`](#meters-obis-v390-additive)), `meter_id` or `meter_ids.<register>` for an existing meter |
+| `contracts.<slot>` | `provider`, `start`, `ct`, `ct_nt` (HT/NT), `base` and `advance` per month; left empty the slot gets no contract |
+
+Slots: `main` (front or main meter), `house` (cascade: household), `dev`
+(device), `feed`, `gen`, `bat_in`, `bat_out`. With HT/NT a slot becomes one
+meter per register in a group with a group contract and a price per register; a
+sub-meter hangs register by register behind the register of the same name of
+its parent. The cascade sets roles by own consumption: the front meter gets
+`heat_pump` or `ev_charger` (the remainder), the one behind it `household`.
+
+Existing meters are assigned (role, register, parent, group), not created
+again; an existing register is kept. A contract is only created where the
+target has no running or agreed contract today (`skip_contract`). The preview
+lists each step as `op` (`activate`, `create_meter`, `update_meter`,
+`create_group`, `reuse_group`, `create_contract`, `skip_contract`) and under
+`problems` obstacles such as `chain` (a meter with sub-meters is meant to hang
+behind another one); `POST /api/metering-concept` then refuses with
+`errors.concept.<code>`. Other errors: `errors.concept.field`,
+`errors.concept.meterUnknown`, `errors.concept.meterTwice`.
 
 ### Consumption per period *(v3.1.0)*
 

@@ -1007,7 +1007,15 @@ final class PdfReportService
         foreach ($this->meters->list($utility) as $meter) {
             // v2.1.3 — F1006: Subzähler nicht mitzählen (Doppelzählung);
             // v2.9.0 (CALC-15) — Zähler außer Betrieb zählen mit ihrer Historie.
-            if (!MeterService::countsInTotals($meter)) continue;
+            if (!MeterService::countsInTotals($meter)) {
+                // v3.9.0 (F1032, #40) — Subzähler mit eigenem Vertrag: sein Geld zählt, seine Menge nicht
+                if ($this->consumption->isDeductingSubmeter($utility, $meter)) {
+                    foreach ($this->consumption->forMeter($utility, $meter) as $m) {
+                        if ((int)($m['year'] ?? 0) === $year && !empty($m['contract_id'])) $cost += (float)($m['cost'] ?? 0) - (float)($m['uncontracted_cost'] ?? 0);
+                    }
+                }
+                continue;
+            }
             foreach ($this->consumption->forMeter($utility, $meter) as $m) {
                 if ((int)($m['year'] ?? 0) !== $year) continue;
                 $kwh  += (float)($m['kwh'] ?? 0);
