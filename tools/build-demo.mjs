@@ -38,6 +38,8 @@ import { demoKey, demoFileName, demoBodyKey } from '../public/js/lib/demo-key.js
 import { normalizeAnchor, exclusiveEnd as addDay } from '../public/js/lib/billing-period.js';
 // v3.6.0 (F1031) — Prognose-Werkstatt: dieselben Anfragen wie die Oberfläche
 import { defaultState, presetState, presetsFor, scenarioBody } from '../public/js/lib/scenario.js';
+// v3.9.0 (F1032) — Assistent „Messkonzept“: dieselben Körper wie die Oberfläche (vorberechnete Vorschau)
+import { setupFromHousehold, conceptFromHousehold, conceptPayload, suggestAssignments, initialInput, wizardPayload } from '../public/js/lib/metering-concepts.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const FORECAST_MODELS = ['linear', 'polynomial', 'robust', 'segmented', 'sigmoid'];
@@ -276,6 +278,31 @@ function docCandidates() {
   return { pages: pages.sort(), images: images.sort() };
 }
 
+/**
+ * v3.9.0 (F1032) — Vorschau des Assistenten „Messkonzept“ für den Aufbau des
+ * geladenen Haushalts, wie die Oberfläche sie anfragt: zuerst die Stellen (nur
+ * der Aufbau), dann mit vorgewählten vorhandenen Zählern (lib/metering-concepts.js,
+ * dieselben Funktionen wie components/concept-wizard.js). Verträge ohne Eintrag
+ * fallen weg, die Zusammenfassung fragt deshalb denselben Körper.
+ * @returns {Promise<Array<[object, {status:number,json:any}]>>}
+ */
+async function conceptPresets(get, post, lang) {
+  const settings = (await get('/api/settings', lang)).json?.data ?? {};
+  const meters = {};
+  for (const u of ['strom', 'pv_einspeisung', 'pv_erzeugung']) meters[u] = (await get(`/api/utility/${u}/meters`, lang)).json?.data ?? [];
+  const setup = setupFromHousehold(settings, meters);
+  const concept = conceptFromHousehold(setup, meters);
+  const path = '/api/metering-concept/preview';
+  const b1 = conceptPayload(concept, setup, {}, {});
+  const r1 = await post(path, b1, lang);
+  const out = [[b1, r1]];
+  if (r1.status !== 200 || !r1.json?.data?.slots) return out;
+  const slots = r1.json.data.slots;
+  const b2 = wizardPayload(concept, setup, initialInput(slots, suggestAssignments(slots, meters)), {}, meters);
+  out.push([b2, await post(path, b2, lang)]);
+  return out;
+}
+
 export async function buildDemo({ out = join(ROOT, 'dist', 'demo'), port = 8896, log = console.log } = {}) {
   const dataDir = mkdtempSync(join(tmpdir(), 'et-demo-'));
   const { proc, base } = await startServer(port, dataDir);
@@ -370,6 +397,16 @@ export async function buildDemo({ out = join(ROOT, 'dist', 'demo'), port = 8896,
           firstOf[key] ??= index[lang][key];
         }
         writeFileSync(join(dir, `index-${lang}.json`), JSON.stringify(index[lang]));
+        // v3.9.0 (F1032) — Vorschau des Assistenten „Messkonzept“ in dieser Sprache (Namen übersetzt)
+        const conceptIndex = {};
+        for (const [body, r] of await conceptPresets(get, post, lang)) {
+          let text;
+          try { text = asStored(r); }
+          catch (e) { throw new Error(`Messkonzept (${persona}, ${lang}): ${e.message}`); }
+          conceptIndex[demoBodyKey('/api/metering-concept/preview', body)] = store(text);
+          stats.concepts = (stats.concepts || 0) + 1;
+        }
+        writeFileSync(join(dir, `concepts-${lang}.json`), JSON.stringify(conceptIndex));
         // Datei-Downloads dieser Sprache, solange ihre Daten geladen sind
         for (const f of found.files) {
           // „local" in der Sprache der Demo (im Betrieb: Standardsprache der Installation)
@@ -430,7 +467,7 @@ export async function buildDemo({ out = join(ROOT, 'dist', 'demo'), port = 8896,
     writeFileSync(join(out, 'demo-api', 'meta.json'), JSON.stringify({
       version, today: localToday(), built_at: new Date().toISOString(),
       schema: health.schema_version ?? null, languages, years, keys: keys.length, varying: varying.length, personas,
-      docs: stats.docs, doc_images: stats.docImages, scenarios: stats.scenarios || 0,
+      docs: stats.docs, doc_images: stats.docImages, scenarios: stats.scenarios || 0, concepts: stats.concepts || 0,
     }, null, 1));
     log(`Demo gebaut: ${keys.length} Anfragen (${varying.length} sprachabhängig), ` +
       `${stored.size} Antworten, ${stats.files} Dateien, Handbuch ${stats.docs} Seiten + ${stats.docImages} Bilder, ` +

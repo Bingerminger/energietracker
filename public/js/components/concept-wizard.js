@@ -28,7 +28,11 @@ import { DEMO } from '../lib/demo-mode.js';
 import {
   normalizeSetup, conceptsFor, conceptAllowed, layoutTitle, layoutText, schematic, slotTags,
   registerLabel, suggestAssignments, conceptPayload, slotSignature,
+  setupFromHousehold, conceptFromHousehold, initialInput, wizardPayload,
 } from '../lib/metering-concepts.js';
+
+// v3.9.0 — die Vorbelegung liegt in der Bibliothek (der Demo-Bau rechnet damit die Vorschau vor)
+export { setupFromHousehold };
 
 export const CONCEPT_STEPS = ['setup', 'layout', 'meters', 'contracts', 'summary'];
 
@@ -37,19 +41,12 @@ export const CONCEPT_UTILITIES = ['strom', 'pv_einspeisung', 'pv_erzeugung'];
 
 /** Bietet die App den Assistenten an? Nicht in der öffentlichen Demo (dort schreibt nichts). */
 export function conceptOffered(utilityKey = 'strom', demo = DEMO) {
-  return !demo && CONCEPT_UTILITIES.includes(utilityKey);
+  // v3.9.0 (Schaufenster) — auch in der öffentlichen Demo: die Vorschau ist für den Aufbau
+  // jedes Beispielhaushalts vorberechnet, „Anlegen“ lehnt die Demo ab (nichts gespeichert)
+  void demo;
+  return CONCEPT_UTILITIES.includes(utilityKey);
 }
 
-/** Vorbelegung des Aufbaus aus dem Haushalt: PV aktiv, Rollen vorhandener Zähler. */
-export function setupFromHousehold(settings, meters) {
-  const active = Array.isArray(settings?.active_utilities) ? settings.active_utilities : [];
-  const strom = meters.strom || [];
-  const device = strom.some(m => m.role === 'heat_pump') ? 'heat_pump' : strom.some(m => m.role === 'ev_charger') ? 'ev_charger' : null;
-  const pv = active.includes('pv_einspeisung') || (meters.pv_einspeisung || []).length > 0;
-  const battery = (meters.pv_erzeugung || []).some(m => m.role === 'battery_charge' || m.role === 'battery_discharge');
-  const reg = (m) => /^1\.8\.[12]$/.test(String(m.obis || '').replace(/^1-0:/, '').replace(/\*.*$/, '')) || /\b(HT|NT)\b/.test(m.name || '');
-  return normalizeSetup({ device, pv, battery, tou: strom.some(reg) ? 'all' : 'none' });
-}
 
 /**
  * Öffnet den Assistenten.
@@ -77,18 +74,11 @@ export async function openConceptWizard() {
       state.concept = list.find(c => conceptAllowed(c, state.setup)) || list[0];
     }
   };
+  // v3.9.0 — der Aufbau des Haushalts vorgewählt (Wärmepumpe hinter dem Hauptzähler → „dahinter“)
+  state.concept = conceptFromHousehold(state.setup, meters);
   setConcept();
   /** Körper für Vorschau und Anlegen; die Einspeisung bekommt ohne eigene Nummer die von Z1 (vorhanden oder eingegeben). */
-  const payload = (withContracts = true) => {
-    const input = { ...state.input };
-    if (input.feed && !input.feed.serial?.trim() && !input.feed.meter_id) {
-      const ids = [state.input.main?.meter_id, ...Object.values(state.input.main?.meter_ids || {})].filter(Boolean);
-      const m = (meters.strom || []).find(x => ids.includes(x.id));
-      const dev = m?.devices?.find(d => !d.removed_on) || m?.devices?.[m.devices.length - 1];
-      if (dev?.serial) input.feed = { ...input.feed, serial: dev.serial };
-    }
-    return conceptPayload(state.concept, state.setup, input, withContracts ? state.contracts : {});
-  };
+  const payload = (withContracts = true) => wizardPayload(state.concept, state.setup, state.input, withContracts ? state.contracts : {}, meters);
   /**
    * v3.9.0 (Skeptiker N16) — der Name einer Stelle, wie er erscheint: mit vorhandenem
    * Zähler sein Name (bis dahin stand „Hauszähler“ über dem eigenen „Stromzähler“).
@@ -306,7 +296,7 @@ export async function openConceptWizard() {
     state.slots = p.slots;
     if (!keep) {
       const suggested = suggestAssignments(p.slots, meters);
-      state.input = Object.fromEntries(Object.entries(p.slots).map(([k, s]) => [k, { name: s.name, serial: '', ...(suggested[k] || {}), obis: { ...s.registers } }]));
+      state.input = initialInput(p.slots, suggested);
       state.contracts = Object.fromEntries(Object.values(p.slots).filter(s => s.contract).map(s => [s.contract, { start: todayIso() }]));
     }
   };

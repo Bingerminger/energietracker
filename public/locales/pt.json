@@ -4562,7 +4562,8 @@
     "close": "Fechar aviso",
     "readOnly": "Na demo nada é guardado. Com a sua própria instalação regista os seus dados.",
     "unavailable": "Esta análise não está pré-calculada na demo – funciona com a sua própria instalação.",
-    "scenarioPresetsOnly": "Na demonstração, apenas os cenários de exemplo estão pré-calculados."
+    "scenarioPresetsOnly": "Na demonstração, apenas os cenários de exemplo estão pré-calculados.",
+    "conceptPresetsOnly": "Na demonstração, a pré-visualização só está pré-calculada para a disposição deste agregado de exemplo."
   },
   "manifest": {
     "description": "Consumo, custos e contratos de eletricidade, gás, água, aquecimento urbano, gasóleo, pellets e fotovoltaico — no próprio servidor, correio do fornecedor lido localmente, a nuvem só a pedido.",
@@ -5321,6 +5322,14 @@
       "weather": "Local meteorológico",
       "heatingLimit": "Limite de aquecimento",
       "demoCountry": "A demonstração usa o país do agregado de exemplo. Numa instalação própria, escolhe-se aqui."
+    },
+    "concept": {
+      "title": "Como estão ligados os contadores?",
+      "hint": "Com fotovoltaico, bomba de calor, carregador ou bateria há muitas vezes mais do que um contador. Convém escolher o que corresponde ao quadro de contadores.",
+      "simple": "Um contador por serviço",
+      "simpleHint": "O caso habitual: um contador de eletricidade, com fotovoltaico um contador bidirecional. Outros contadores podem ser adicionados mais tarde.",
+      "other": "Outra disposição",
+      "otherHint": "Bomba de calor, carregador ou bateria com contador próprio: no fim, o assistente «esquema de medição» configura os contadores e os contratos."
     }
   },
   "evcc": {

@@ -11,12 +11,12 @@ Einrichtungsassistenten „Schaufenster“; daneben gibt es vier kleinere
 | Verbrauchsart | Zähler | Zeitraum | Verträge | Besonderes |
 |---|---|---|---|---|
 | Gas | Hauptzähler | Ablesungen 01/2023 – 03/2026 | 4 und 2 Angebote für 2027 | **Zählertausch** am 01.10.2024, **Zäsur** „Dachdämmung“ am 01.08.2024, 4 Brennwert-Zeiträume, Sonderzahlungen (Rückzahlung, Abschlagszahlung) |
-| Strom | Hauptzähler | 01/2023 – 03/2026 | 4 und 2 Angebote für 2027 | Anbieterwechsel, Neukundenbonus |
+| Strom | Hauptzähler (Zählwerk 1.8.0), seit 04/2025 Wärmepumpe mit Doppeltarifzähler (1.8.1, 1.8.2) dahinter | 01/2023 – 03/2026 | 4 und 2 Angebote für 2027, Wärmepumpentarif als Gruppenvertrag | Anbieterwechsel, Neukundenbonus, Rest-Abrechnung am Hauptzähler (v3.9.0) |
 | Wasser | Hauptzähler und Gartenzähler | 01/2023 – 03/2026 | 4 | zwei Zähler einer Art |
 | Fernwärme | ein Zähler | 01/2023 – 01/2026 | 1 | |
 | Heizöl | Heizöltank Keller | Lieferungen 2023 – 2025 | — | Tankbuch mit Peilstand |
 | Holzpellets | Pelletlager | Lieferungen 2023 – 2025 | — | |
-| PV-Einspeisung | ein Zähler | 04/2023 – 05/2026 | 1 (Einspeisevergütung) | |
+| PV-Einspeisung | ein Zähler (Zählwerk 2.8.0) | 04/2023 – 05/2026 | 1 (Einspeisevergütung) | |
 | PV-Erzeugung | ein Zähler | 04/2023 – 05/2026 | — | Autarkie und Eigenverbrauch |
 
 Dazu Tagestemperaturen für Leipzig vom 01.01.2023 bis 30.06.2026 und sechs
@@ -29,6 +29,15 @@ zu heute (`demo_align`), so dass die App immer eine Jahresabrechnung als
 „erwartet“ zeigt. Diese Ergänzungen schreibt `tools/build-personas.mjs` (s. u.)
 in das Backup und in die Verzeichnisform (`reminders.json`, `activity.json`,
 `strom/bills.json`, `fernwaerme/bills.json`); alles andere bleibt byte-gleich.
+Seit v3.9.0 (Messkonzepte) hängt hinter dem Hauptzähler Strom eine
+Hybrid-Wärmepumpe mit eigenem Doppeltarifzähler (Zählergruppe „Wärmepumpe
+(HT/NT)“, Gruppenvertrag mit Preis je Zählwerk). Der Vertrag des Hauptzählers
+rechnet ab ihrem Vertragsbeginn nur den Rest; die Stände des Hauptzählers
+bleiben (er misst sie mit). `build-personas.mjs` schreibt das in Backup und
+Verzeichnisform (`strom/meters.json`, `strom/readings.json`,
+`strom/contracts.json`, neu `strom/meter_groups.json`, Zählwerk an
+`pv_einspeisung/meters.json`). Die Vorschau des Assistenten „Messkonzept“ für
+diesen Aufbau rechnet die Demo vor (`concepts-<lang>.json`).
 Viertelstunden für den Tagesfilm hat das Schaufenster bewusst nicht — die hat
 der Beispielhaushalt „Eigenheim modern“.
 
@@ -173,4 +182,9 @@ yesterday when loading, day by day from the same calendar day a year earlier.
 The showcase deliberately has no quarter hours. `build-personas.mjs` also
 writes the showcase’s additions (backup and directory form: `reminders.json`,
 `activity.json`, `strom/bills.json`, `fernwaerme/bills.json`) and leaves the
-rest byte for byte; `PersonaUseCasesTest` checks the use cases.
+rest byte for byte; `PersonaUseCasesTest` checks the use cases. Since v3.9.0
+(metering concepts) a hybrid heat pump with its own dual-rate meter hangs
+behind the showcase’s main electricity meter (meter group “Heat pump (HT/NT)”,
+group contract with a price per register); from its contract start the main
+meter’s contract bills only the remainder. The demo precomputes the preview of
+the “metering concept” assistant for this layout (`concepts-<lang>.json`).

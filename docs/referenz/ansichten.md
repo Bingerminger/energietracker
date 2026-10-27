@@ -2347,6 +2347,10 @@ steht der Fortschritt über den Knöpfen:
 3. **„Welche Energieträger nutzt du?“** — alle Verbrauchsarten zum Ankreuzen,
    „Vorgeschlagen nach deiner Antwort — frei kombinierbar.“; ohne Haken geht
    es nicht weiter. Darunter der Hinweis „Fernwärme oder Heizwärme? …“.
+   Mit Strom und PV (oder „Eigenheim modern“) folgt seit v3.9.0 **„Wie hängen
+   deine Zähler?“**: „Ein Zähler je Art“ (vorgewählt) oder „Anderer Aufbau“ mit
+   je einem Schaltbild; der andere Aufbau wählt in Schritt „So geht es weiter“
+   „Messkonzept einrichten“ vor.
 4. **„Wie viel Erfahrung hast du?“** — die drei Stufen mit denselben Zeilen
    wie in den Einstellungen und „Die Stufe lässt sich jederzeit oben neben
    Tag/Nacht umstellen. Braucht dein Haushalt mehr, schlägt die App es dir

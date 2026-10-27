@@ -4562,7 +4562,8 @@
     "close": "Melding sluiten",
     "readOnly": "In de demo wordt niets opgeslagen. Met een eigen installatie leg je je eigen gegevens vast.",
     "unavailable": "Deze analyse is in de demo niet vooraf berekend – met een eigen installatie werkt ze wel.",
-    "scenarioPresetsOnly": "In de demo zijn alleen de voorbeeldscenario’s vooraf berekend."
+    "scenarioPresetsOnly": "In de demo zijn alleen de voorbeeldscenario’s vooraf berekend.",
+    "conceptPresetsOnly": "In de demo is de voorvertoning alleen vooraf berekend voor de opbouw van dit voorbeeldhuishouden."
   },
   "manifest": {
     "description": "Verbruik, kosten en contracten voor stroom, gas, water, stadsverwarming, huisbrandolie, pellets en zonnepanelen — op je eigen server, post van de leverancier lokaal uitgelezen, de cloud alleen als je wilt.",
@@ -5321,6 +5322,14 @@
       "weather": "Weerlocatie",
       "heatingLimit": "Stookgrens",
       "demoCountry": "De demo gebruikt het land van het voorbeeldhuishouden. In een eigen installatie kies je het hier."
+    },
+    "concept": {
+      "title": "Hoe hangen je meters?",
+      "hint": "Met zonnepanelen, een warmtepomp, laadpaal of thuisaccu is er vaak meer dan één meter. Kies wat bij je meterkast past.",
+      "simple": "Eén meter per soort",
+      "simpleHint": "Het gewone geval: één stroommeter, met zonnepanelen een tweerichtingsmeter. Meer meters voeg je later toe.",
+      "other": "Een andere opbouw",
+      "otherHint": "Warmtepomp, laadpaal of thuisaccu met een eigen meter: aan het eind richt de assistent ‘meetopstelling’ de meters en contracten in."
     }
   },
   "evcc": {

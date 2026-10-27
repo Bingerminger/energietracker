@@ -13,6 +13,11 @@
 //   • v3.6.0 (F1031) — POST /api/forecast/scenario rechnet nur: Ausgangsfall
 //     und Beispielszenarien je Zähler liegen in `scenarios.json` (je
 //     Haushalt, sprachunabhängig); eigene Reglerwerte → „nur Beispiele“
+//   • v3.9.0 (F1032) — POST /api/metering-concept/preview schreibt nichts: die
+//     Vorschau des Assistenten „Messkonzept“ für den Aufbau des Haushalts liegt
+//     in `concepts-<lang>.json` (je Haushalt und Sprache, die Namen sind
+//     übersetzt); ein anderer Aufbau → „nur für den Aufbau des Haushalts“,
+//     „Anlegen“ → „nichts gespeichert“
 //
 // Eine normale Installation führt diesen Code nie aus: Er greift nur, wenn
 // die Seite `data-demo` trägt (das setzt index.php allein mit ET_DEMO_BUILD).
@@ -98,6 +103,14 @@ function loadIndex(lang) {
 
 /** v3.6.0 (F1031) — POST-Routen, die nur rechnen (Antworten aus scenarios.json). */
 const POST_READS = ['/api/forecast/scenario'];
+/** v3.9.0 (F1032) — Vorschau des Assistenten „Messkonzept“ (Antworten aus concepts-<lang>.json). */
+const CONCEPT_PREVIEW = '/api/metering-concept/preview';
+const conceptIndexes = new Map();
+function loadConceptIndex(lang) {
+  const key = `${demoPersona()}|${lang}`;
+  if (!conceptIndexes.has(key)) conceptIndexes.set(key, loadJson(`${personaRoot()}/concepts-${lang}.json`).catch(() => ({})));
+  return conceptIndexes.get(key);
+}
 const scenarioIndexes = new Map();
 function loadScenarioIndex() {
   const p = demoPersona();
@@ -126,7 +139,14 @@ function demoError(code, status = 0) {
  */
 export async function demoRequest(method, path, lang, body = null) {
   let key, file;
-  if (method === 'POST' && POST_READS.includes(path)) {
+  if (method === 'POST' && path === CONCEPT_PREVIEW) {
+    key = demoBodyKey(path, body);
+    file = (await loadConceptIndex(lang))[key] ?? (await loadConceptIndex('de'))[key];
+    if (!file) {
+      demoMisses.add(key);
+      throw demoError('demo.conceptPresetsOnly', 404);
+    }
+  } else if (method === 'POST' && POST_READS.includes(path)) {
     // v3.6.0 (F1031) — Rechnen ohne Schreiben: vorgerechnete Szenarien
     key = demoBodyKey(path, body);
     file = (await loadScenarioIndex())[key];
