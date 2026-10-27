@@ -150,12 +150,12 @@ final class WaterBillContractTest extends ServiceTestCase
         $rows = fn(array $list, string $key) => array_column(array_map(fn($r) => [$r['from'], round((float)$r[$key], 4)], $list), 1, 0);
         self::assertEqualsWithDelta(WaterBillFixture::GROSS['trinkwasser']['working'], $rows($c['data']['trinkwasser']['working_prices'], 'ct_per_m3'), 1e-9);
         self::assertEqualsWithDelta(WaterBillFixture::GROSS['schmutzwasser']['base'], $rows($c['data']['schmutzwasser']['base_prices'], 'eur_per_month'), 1e-4);
-        self::assertSame([2, 165.0], [$c['data']['advance_payments'][0]['every_months'] ?? null, (float)$c['data']['advance_payments'][0]['amount_eur']]);
+        self::assertSame([2, 165.0], [$c['data']['advance_payments'][2]['every_months'] ?? null, (float)$c['data']['advance_payments'][2]['amount_eur']]);
         $res = $s->apply($e['id'], array_column(array_filter($p['proposals'], fn($x) => $x['checked']), 'id'));
         self::assertSame([], $res['failed'], json_encode($res['failed']));
         $ct = $this->contracts->list('wasser')[0];
         $b = $this->bills->list('wasser')[0];
-        self::assertSame([$ct['id'], 2], [$b['contract_id'], $ct['advance_payments'][0]['every_months'] ?? null]);
+        self::assertSame([$ct['id'], 2], [$b['contract_id'], $ct['advance_payments'][2]['every_months'] ?? null]);
         self::assertNotEmpty($b['special_payment_id'], 'gebucht');
     }
 
@@ -190,7 +190,7 @@ final class WaterBillContractTest extends ServiceTestCase
         foreach (['bimonthly', 'zweimonatlich', 'alle 2 Monate', 2, '2'] as $every) {
             [$p, $c] = $this->readRhythm($every, self::SHIFTED);
             self::assertSame('bimonthly', $p['entry']['extraction']['fields']['advance_new_every']['value'], json_encode($every) . ': tolerant gelesen');
-            self::assertSame(['from' => '2026-10-16', 'amount_eur' => 165.0, 'every_months' => 2, 'due_dates' => self::SHIFTED_ISO], $c['data']['advance_payments'][0], json_encode($every));
+            self::assertSame(['from' => '2026-10-16', 'amount_eur' => 165.0, 'every_months' => 2, 'due_dates' => self::SHIFTED_ISO], $c['data']['advance_payments'][2], json_encode($every));
             $line = array_values(array_filter($c['params']['lines'], fn($l) => $l['kind'] === 'advance'))[0];
             self::assertSame(2, $line['every'], 'im Vorschlag „alle 2 Monate“, nicht monatlich');
             self::assertSame([true, false], [$c['checked'], $c['check']]);
@@ -200,29 +200,29 @@ final class WaterBillContractTest extends ServiceTestCase
     public function testWithoutARhythmTheDatesGiveIt(): void
     {
         [, $c] = $this->readRhythm(null, self::SHIFTED);
-        self::assertSame([2, self::SHIFTED_ISO, true], [$c['data']['advance_payments'][0]['every_months'] ?? null, $c['data']['advance_payments'][0]['due_dates'], $c['checked']]);
+        self::assertSame([2, self::SHIFTED_ISO, true], [$c['data']['advance_payments'][2]['every_months'] ?? null, $c['data']['advance_payments'][2]['due_dates'], $c['checked']]);
         // drei Monate, Monatsletzte: 31.01., 30.04., 31.07.
         [, $q] = $this->readRhythm(null, ['31.01.2027', '30.04.2027', '31.07.2027']);
-        self::assertSame(3, $q['data']['advance_payments'][0]['every_months'] ?? null);
+        self::assertSame(3, $q['data']['advance_payments'][2]['every_months'] ?? null);
         // ungleichmäßig: nur die Termine, kein Rhythmus geraten
         [, $u] = $this->readRhythm(null, ['16.10.2026', '16.11.2026', '16.02.2027']);
-        self::assertArrayNotHasKey('every_months', $u['data']['advance_payments'][0]);
+        self::assertArrayNotHasKey('every_months', $u['data']['advance_payments'][2]);
         self::assertTrue($u['checked']);
     }
 
     public function testMonthlyAgainstDatesTwoMonthsApartTakesTheDatesAndIsNotPreselected(): void
     {
         [$p, $c] = $this->readRhythm('monthly', self::SHIFTED);
-        self::assertSame(2, $c['data']['advance_payments'][0]['every_months'] ?? null, 'die Termine gelten');
+        self::assertSame(2, $c['data']['advance_payments'][2]['every_months'] ?? null, 'die Termine gelten');
         self::assertSame([false, true], [$c['checked'], $c['check']], 'Widerspruch: nicht vorbelegt');
         self::assertContains(['field' => 'advance_new_every', 'reason' => 'rhythm_conflict'], $c['hints']);
         $book = self::byKind($p['proposals'], 'bill_book')[0];
         self::assertSame($c['id'], $book['requires'] ?? null, 'Buchen nur mit dem Vertrag');
         // ein bekannter Rhythmus ohne Termine bleibt; ein unbekannter wird nicht geraten
         [, $q] = $this->readRhythm('ogni tre mesi', ['16.10.2026']);
-        self::assertSame([3, true], [$q['data']['advance_payments'][0]['every_months'] ?? null, $q['checked']]);
+        self::assertSame([3, true], [$q['data']['advance_payments'][2]['every_months'] ?? null, $q['checked']]);
         [, $x] = $this->readRhythm('bimensuel', ['16.10.2026']);
-        self::assertArrayNotHasKey('every_months', $x['data']['advance_payments'][0]);
+        self::assertArrayNotHasKey('every_months', $x['data']['advance_payments'][2]);
     }
 
     public function testASectionFromAnotherHeadingIsNotTaken(): void
@@ -274,7 +274,10 @@ final class WaterBillContractTest extends ServiceTestCase
         self::assertSame('trinkwasser', $d['schmutzwasser']['basis']);
         self::assertEqualsWithDelta($g['niederschlagswasser']['rate'], $rows($d['niederschlagswasser']['rates'], 'eur_per_m2_year'), 1e-9);
         self::assertSame([200.0, 200.0], array_column($d['niederschlagswasser']['rates'], 'versiegelte_flaeche_m2'), 'Fläche aus der Rechnung');
-        self::assertSame([['from' => '2026-05-15', 'amount_eur' => 165.0, 'every_months' => 2,
+        // v3.9.0 (Skeptiker H2) — davor die laut Rechnung gezahlten 800 € des Zeitraums: 800 ÷ 12 Monate je Monat
+        // ab 01.04.2025 (die Rechnung nennt nur die Summe), ab 01.04.2026 bis zum neuen Plan kein Abschlag
+        self::assertSame([['from' => '2025-04-01', 'amount_eur' => 66.6667], ['from' => '2026-04-01', 'amount_eur' => 0.0],
+            ['from' => '2026-05-15', 'amount_eur' => 165.0, 'every_months' => 2,
             'due_dates' => ['2026-05-15', '2026-07-15', '2026-09-15', '2026-11-15', '2027-01-15']]], $d['advance_payments'],
             'der neue Abschlagsplan: je Termin, alle zwei Monate — nicht still in einen Monatsbetrag umgedeutet');
         self::assertSame([], $c['open']);
@@ -397,7 +400,7 @@ final class WaterBillContractTest extends ServiceTestCase
         $contracts = $this->contracts->list('wasser');
         self::assertCount(1, $contracts);
         $c = $contracts[0];
-        self::assertSame([2, 165.0], [$c['advance_payments'][0]['every_months'] ?? null, (float)$c['advance_payments'][0]['amount_eur']]);
+        self::assertSame([2, 165.0], [$c['advance_payments'][2]['every_months'] ?? null, (float)$c['advance_payments'][2]['amount_eur']]);
         // Ablesungen: nur der Stand mit S ist geschätzt
         $est = array_column(array_map(fn($r) => [$r['date'], !empty($r['is_estimated'])], $this->readings->list('wasser', 'm_wasser_default')), 1, 0);
         self::assertSame(['2025-04-01' => false, '2025-09-30' => true, '2026-03-31' => false], $est);
@@ -418,6 +421,14 @@ final class WaterBillContractTest extends ServiceTestCase
         self::assertEqualsWithDelta(72.0, (float)$cmp['ours']['m3'], 0.01);
         self::assertEqualsWithDelta(848.3, (float)$cmp['ours']['total'], 0.25);
         self::assertSame('ok', $cmp['verdict']);
+        // v3.9.0 (Skeptiker H2) — das Abrechnungsjahr der Rechnung zählt die laut Rechnung gezahlten 800 € (12 × 66,6667),
+        // der Saldo dort liegt bei der Nachzahlung der Rechnung (48,30 €; die eigene Rechnung ist gut 8 Cent höher, s. o.)
+        $bp = (new \Energietracker\Services\BillingPeriodService($this->settings, $this->meters, $this->readings, $this->consumption, $this->bills))
+            ->forUtility('wasser', false, '2026-07-31');
+        $year = array_values(array_filter($bp['periods'], fn($x) => $x['from'] === '2025-04-01'))[0];
+        self::assertEqualsWithDelta(800.0, (float)$year['advances'], 0.01, 'nicht 0 €');
+        self::assertEqualsWithDelta(48.3, (float)$year['balance'], 0.5);
+        self::assertEqualsWithDelta(800.0, (float)$cmp['ours']['advances'], 0.01, '„Rechnung prüfen“ zählt dieselben Abschläge');
 
         // Saldo am 31.07.2026: ab dem Tag nach der Rechnung (01.04.2026), gebucht ist sie ausgeglichen.
         // Mit der Hand: geschätzt die Tage 01.04.–30.07. mit der Menge derselben Kalendermonate des Vorjahrs
@@ -442,6 +453,25 @@ final class WaterBillContractTest extends ServiceTestCase
         self::assertEqualsWithDelta(165 + (float)$row['projected_end_balance'] / 3, (float)$row['suggested_advance'], 0.51);
         // der Saldo-Verlauf endet beim erwarteten Saldo (wie bei monatlichen Abschlägen)
         self::assertEqualsWithDelta((float)$row['projected_end_balance'], (float)end($row['balance_path'])['balance'], 0.02);
+        // v3.9.0 (Skeptiker M14) — die Sparten auf derselben Grundlage wie „Verbraucht (Stand heute)“, nicht 0,00 €:
+        // Trinkwasser Menge × 2,461 + 14,6233 × Monate, Schmutzwasser Menge × 2,3205 + 8,7267 × Monate,
+        // Niederschlagswasser 200 × 1,309 ÷ 12 × Monate (Monate = 3 + 30/31, Menge wie oben)
+        $vol = 5.8 + 6.0 + 5.8 + 6.0 * 30 / 31;
+        $f = 3 + 30 / 31;
+        $comp = $row['components'];
+        self::assertTrue($comp['to_date'] ?? false);
+        self::assertEqualsWithDelta($vol * 2.461 + 14.6233 * $f, (float)$comp['trinkwasser']['total'], 0.05);
+        self::assertEqualsWithDelta($vol * 2.3205 + 8.7267 * $f, (float)$comp['schmutzwasser']['total'], 0.05);
+        self::assertEqualsWithDelta(200 * 1.309 / 12 * $f, (float)$comp['niederschlagswasser']['total'], 0.05);
+        self::assertEqualsWithDelta((float)$row['cost_to_date'], $comp['trinkwasser']['total'] + $comp['schmutzwasser']['total'] + $comp['niederschlagswasser']['total'], 0.03,
+            'die Sparten ergeben „Verbraucht (Stand heute)“');
+        // v3.9.0 (Skeptiker N9) — nach dem Übernehmen steht die Zuordnung am Vertrag aus dieser Rechnung, festgehalten beim Übernehmen
+        $after = $s->preview($p['entry']['id']);
+        self::assertSame([$c['id'], false, true], [$after['assignment']['contract_id'], $after['assignment_saved'], $after['assignment_applied']]);
+        self::assertSame(0, (int)$after['entry']['extraction']['flags'], 'die Wasserpreise stehen jetzt im Vertrag: keine Marke mehr');
+        // v3.9.0 (Skeptiker M13) — „Rechnung prüfen“ des Zeitraums: der Stand vom 31.03. ist der Endstand, keine Lücke
+        $bd = $this->consumption->billBreakdown('wasser', $this->meters->get('wasser', 'm_wasser_default'), '2025-04-01', '2026-04-01');
+        self::assertSame([0, 72.0], [$bd['totals']['gaps'], (float)$bd['totals']['m3']]);
 
         // Kernaussage: der neue Abschlag wird je Termin beurteilt. Raten ab 15.05.2026 bis zur nächsten
         // Abrechnung (01.04.2027): fünf (15.05., 15.07., 15.09., 15.11., 15.01.) = 825 € laut Plan; passend

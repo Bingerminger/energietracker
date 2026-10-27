@@ -413,7 +413,9 @@
       "daysCount": {
         "one": "{days} dag",
         "other": "{days} dagen"
-      }
+      },
+      "noContract": "geen contract",
+      "noContractHint": "Met een contract rekent de app de kosten."
     },
     "cards": {
       "contracts": "📑 Contracten en voorschotten",
@@ -512,7 +514,8 @@
         "other": "Tot de afrekening op {date} resten nog maar {count} voorschotten. De afrekening verrekent de rest, dus het voorschot hoeft nu niet omhoog."
       },
       "suggestOngoing": "Daarna zou ongeveer {amount} in plaats van {current} per maand passend zijn.",
-      "sincePeriod": "Gerekend vanaf {date}, het begin van de lopende afrekenperiode tot {until}. Eerdere periodes staan onder afrekenjaar."
+      "sincePeriod": "Gerekend vanaf {date}, het begin van de lopende afrekenperiode tot {until}. Eerdere periodes staan onder afrekenjaar.",
+      "measuredThenEstimatedBase": "gemeten tot {date} ({amount}), daarna geschat: {value} verbruik; plus vastrecht tot vandaag {base}"
     },
     "contractsTable": {
       "emptyTitle": "Geen contracten geregistreerd",
@@ -6180,7 +6183,8 @@
         "utility": "energie genoemd in het document",
         "single_meter": "enige meter",
         "date": "contract van de leverancier op die dag"
-      }
+      },
+      "applied": "Vastgelegd bij het overnemen."
     },
     "manual": {
       "title": "Met de hand invoeren",
@@ -6586,7 +6590,8 @@
       "energy": "Eenheidsprijs",
       "parts": "uit {parts}",
       "net": "{value} netto + {vat}% btw",
-      "advance": "Voorschot vanaf {from}: {value} per vervaldatum"
+      "advance": "Voorschot vanaf {from}: {value} per vervaldatum",
+      "paid": "Betaalde voorschotten {from} tot {to}: {total} volgens de rekening"
     }
   },
   "inboxCloud": {
@@ -6883,7 +6888,8 @@
       "ready": "Ingesteld: de app leest nu uit met {service}, model {model}.",
       "unavailable": "De instellingen voor uitlezen zijn nu niet bereikbaar. Probeer het zo meteen opnieuw."
     },
-    "requires": "Hoort bij ‘{contract}’ en wordt alleen samen met dit contract overgenomen."
+    "requires": "Hoort bij ‘{contract}’ en wordt alleen samen met dit contract overgenomen.",
+    "existingName": "In je gegevens heet de leverancier ‘{name}’."
   },
   "interpolation": {
     "leadYear": {

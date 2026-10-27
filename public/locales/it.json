@@ -413,7 +413,9 @@
       "daysCount": {
         "one": "{days} giorno",
         "other": "{days} giorni"
-      }
+      },
+      "noContract": "nessun contratto",
+      "noContractHint": "Con un contratto l’app calcola i costi."
     },
     "cards": {
       "contracts": "📑 Contratti e acconti",
@@ -512,7 +514,8 @@
         "other": "Prima del conguaglio del {date} restano solo {count} acconti. Il conguaglio salda il resto: non serve aumentare l’acconto adesso."
       },
       "suggestOngoing": "Dopo, circa {amount} invece di {current} al mese sarebbero adeguati.",
-      "sincePeriod": "Calcolato dal {date}, inizio del periodo di fatturazione in corso fino al {until}. I periodi precedenti sono nell’anno di fatturazione."
+      "sincePeriod": "Calcolato dal {date}, inizio del periodo di fatturazione in corso fino al {until}. I periodi precedenti sono nell’anno di fatturazione.",
+      "measuredThenEstimatedBase": "misurato fino al {date} ({amount}), poi stimato: {value} di consumo; in più quote fisse finora {base}"
     },
     "contractsTable": {
       "emptyTitle": "Nessun contratto registrato",
@@ -6180,7 +6183,8 @@
         "utility": "energia indicata nel documento",
         "single_meter": "unico contatore",
         "date": "contratto del fornitore in quella data"
-      }
+      },
+      "applied": "Registrato al momento della ripresa."
     },
     "manual": {
       "title": "Inserisci a mano",
@@ -6586,7 +6590,8 @@
       "energy": "Prezzo unitario",
       "parts": "da {parts}",
       "net": "{value} netto + IVA {vat}%",
-      "advance": "Acconto dal {from}: {value} per scadenza"
+      "advance": "Acconto dal {from}: {value} per scadenza",
+      "paid": "Acconti versati dal {from} al {to}: {total} secondo la bolletta"
     }
   },
   "inboxCloud": {
@@ -6883,7 +6888,8 @@
       "ready": "Configurato: ora l’app legge con {service}, modello {model}.",
       "unavailable": "Le impostazioni di lettura non sono raggiungibili adesso. Riprova tra poco."
     },
-    "requires": "Fa parte di «{contract}» e viene ripreso solo insieme a questo contratto."
+    "requires": "Fa parte di «{contract}» e viene ripreso solo insieme a questo contratto.",
+    "existingName": "Nei tuoi dati il fornitore si chiama «{name}»."
   },
   "interpolation": {
     "leadYear": {

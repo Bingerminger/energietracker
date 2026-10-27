@@ -160,8 +160,10 @@ final class BillVerdictTest extends ServiceTestCase
         $r = $this->bills()->compare('strom', $b['id']);
         self::assertSame('reading_adjacent', $r['boundaries']['end']);
         self::assertNotContains('gaps', $r['reasons']);
-        self::assertSame(1, $this->consumption->billBreakdown('strom', $this->meters->get('strom', $this->meterId), '2025-01-01', '2026-01-01')['totals']['gaps'],
-            'die Rechnung selbst bleibt, wie sie war');
+        // v3.9.0 (Skeptiker M13) — auch die Prüfung selbst: Der Stand am 31.12. ist der Endstand, der eine Tag
+        // danach hat keinen Verbrauch und ist keine Lücke mehr (bis v3.8: 1 Lücke, „dort fehlt der Verbrauch“)
+        $bd = $this->consumption->billBreakdown('strom', $this->meters->get('strom', $this->meterId), '2025-01-01', '2026-01-01');
+        self::assertSame([0, 0.0], [$bd['totals']['gaps'], (float)end($bd['rows'])['kwh']]);
 
         // Gegenprobe: weit weg von beiden Rändern bleibt es geschätzt
         $this->readingsOn(['2024-12-15', '2026-01-15']);

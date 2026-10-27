@@ -207,6 +207,44 @@ final class InvoicePrices
         return $row + ($conflict ? ['rhythm_conflict' => true] : []);
     }
 
+    /**
+     * v3.9.0 (Skeptiker H2) — die laut Rechnung im abgerechneten Zeitraum gezahlten
+     * Abschläge als Zeile des Abschlagsplans, damit Abrechnungsjahr, Bericht und
+     * Rechnung dasselbe Bezahlte zählen. Mit gleich hohen, datierten Zahlungen
+     * (mindestens zwei, alle im Zeitraum, Summe wie die Gesamtsumme): Betrag je
+     * Termin an diesen Terminen (Rhythmus aus ihnen); sonst die Summe gleichmäßig
+     * je Monat des Zeitraums (auf vier Stellen, die Summe geht auf den Cent auf).
+     * Unsichere Angaben zählen nicht. Ohne Summe: leer.
+     *
+     * @param array<string,mixed> $entry Eintrag des Posteingangs
+     * @return array{from: string, amount_eur: float, every_months?: int, due_dates?: list<string>, total: float}|null
+     */
+    public static function paidPlan(array $entry, string $from, string $to): ?array
+    {
+        $fields = (array)($entry['extraction']['fields'] ?? []);
+        $edits = (array)($entry['edits'] ?? []);
+        $items = [];
+        foreach ((array)($fields['advances_paid']['items'] ?? []) as $it) {
+            if (($it['status'] ?? '') === 'check' || !is_numeric($it['value']['amount'] ?? null)) continue;
+            $items[] = ['amount' => (float)$it['value']['amount'], 'date' => is_string($it['value']['date'] ?? null) ? (string)$it['value']['date'] : null];
+        }
+        $totalSure = array_key_exists('advances_total', $edits) || ($fields['advances_total']['status'] ?? '') !== 'check';
+        $total = $totalSure && is_numeric(Proposals::value($entry, 'advances_total')) ? (float)Proposals::value($entry, 'advances_total')
+            : ($items !== [] ? array_sum(array_column($items, 'amount')) : null);
+        if ($total === null || $total <= 0) return null;
+        $dates = array_values(array_filter(array_column($items, 'date'), fn($d) => is_string($d) && $d >= $from && $d <= $to));
+        sort($dates);
+        $amounts = array_column($items, 'amount');
+        if (count($items) >= 2 && count($dates) === count($items) && count(array_unique($dates)) === count($dates)
+            && max($amounts) - min($amounts) < 0.005 && abs(array_sum($amounts) - $total) < 0.005) {
+            $n = self::rhythmOfDates($dates);
+            return ['from' => $from, 'amount_eur' => $amounts[0]] + ($n !== null && $n > 1 ? ['every_months' => $n] : []) + ['due_dates' => $dates, 'total' => round($total, 2)];
+        }
+        $days = (int)round((strtotime($to) - strtotime($from)) / 86400) + 1;
+        $months = max(1, (int)round($days / (365.25 / 12)));
+        return ['from' => $from, 'amount_eur' => round($total / $months, 4), 'total' => round($total, 2)];
+    }
+
     /** Auswahl des Felds `advance_new_every` je Rhythmus in Monaten. */
     public const EVERY_OPTION = [1 => 'monthly', 2 => 'bimonthly', 3 => 'quarterly'];
 

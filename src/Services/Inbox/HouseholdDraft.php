@@ -1344,6 +1344,14 @@ final class HouseholdDraft
                 }
                 if ($f['status'] === 'new' && $meter !== null) $f = $this->againstStock($f, $list, $existing, $meter, $mp);
             }
+            // v3.9.0 (Skeptiker M12) — gerundet gedruckt: dein Stand mit Nachkommastelle, auf die Stellen des
+            // Dokuments gerundet, ist derselbe (29.310 gegen 29.310,2) — schon vorhanden, kein Widerspruch
+            if ($f['status'] === 'conflict' && isset($existing[$date]) && !isset($f['options']) && Proposals::sameStand((float)$existing[$date]['counter'], (float)$f['value'])) {
+                $f['status'] = 'exists';
+                $f['reasons'] = array_values(array_diff($f['reasons'], ['conflict_existing']));
+                $f['check'] = $f['reasons'] !== [] && $f['check'];
+                unset($f['existing'], $f['reading_id']);
+            }
             $fields[] = $f;
         }
         if ($fields === []) return;
@@ -2174,7 +2182,12 @@ final class HouseholdDraft
                     // v3.9.0 — Rückfrage „derselbe Versorger?“: beide Namen am Feld (der des Bestands als
                     // `existing`); die Antwort ist der Haken am Eintrag, der Name im Bestand bleibt
                     if ($f['name'] === 'provider' && isset($c['supplier_question'])) { $fields[$i] = ['status' => 'conflict', 'existing' => $c['supplier_question'], 'check' => false] + $f; continue; }
-                    if ($f['name'] === 'provider' || $f['name'] === 'start') { $fields[$i]['status'] = 'exists'; continue; }
+                    if ($f['name'] === 'provider' || $f['name'] === 'start') {
+                        $fields[$i]['status'] = 'exists';
+                        // v3.9.0 (Skeptiker N15) — derselbe Versorger, im Bestand aber anders geschrieben: den Namen dort nennen
+                        if ($f['name'] === 'provider' && is_string($cur) && trim($cur) !== '' && mb_strtolower(trim($cur)) !== mb_strtolower(trim((string)$f['value']))) $fields[$i]['existing_name'] = trim($cur);
+                        continue;
+                    }
                     if ($cur === null || $cur === '') continue;
                     if ($f['name'] === 'notice' || self::same($f['kind'], $cur, $f['value']) || ($f['kind'] === 'text' && Proposals::sameId((string)$cur, (string)$f['value']))) $fields[$i]['status'] = 'exists';
                     else self::conflict($fields[$i], $cur);

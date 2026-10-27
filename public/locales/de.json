@@ -413,7 +413,9 @@
       "daysCount": {
         "one": "{days} Tag",
         "other": "{days} Tage"
-      }
+      },
+      "noContract": "kein Vertrag",
+      "noContractHint": "Mit einem Vertrag rechnet die App die Kosten."
     },
     "cards": {
       "contracts": "📑 Verträge & Abschläge",
@@ -512,7 +514,8 @@
         "other": "Bis zur Abrechnung am {date} bleiben nur noch {count} Abschläge. Den Rest gleicht die Abrechnung aus; dafür musst du den Abschlag jetzt nicht erhöhen."
       },
       "suggestOngoing": "Danach wären rund {amount} statt {current} im Monat angemessen.",
-      "sincePeriod": "Gerechnet ab {date}, dem Beginn der laufenden Abrechnungsperiode bis {until}. Frühere Perioden stehen im Abrechnungsjahr."
+      "sincePeriod": "Gerechnet ab {date}, dem Beginn der laufenden Abrechnungsperiode bis {until}. Frühere Perioden stehen im Abrechnungsjahr.",
+      "measuredThenEstimatedBase": "gemessen bis {date} ({amount}), danach geschätzt: {value} Verbrauch; dazu Grundpreise bis heute {base}"
     },
     "contractsTable": {
       "emptyTitle": "Keine Verträge erfasst",
@@ -6180,7 +6183,8 @@
         "utility": "Energieart im Dokument",
         "single_meter": "einziger Zähler",
         "date": "Vertrag des Versorgers an diesem Tag"
-      }
+      },
+      "applied": "Beim Übernehmen festgehalten."
     },
     "manual": {
       "title": "Von Hand erfassen",
@@ -6586,7 +6590,8 @@
       "energy": "Arbeitspreis",
       "parts": "aus {parts}",
       "net": "{value} netto + {vat} % USt",
-      "advance": "Abschlag ab {from}: {value} je Termin"
+      "advance": "Abschlag ab {from}: {value} je Termin",
+      "paid": "Gezahlte Abschläge {from} bis {to}: {total} laut Rechnung"
     }
   },
   "inboxCloud": {
@@ -6883,7 +6888,8 @@
       "ready": "Eingerichtet: Die App liest jetzt aus mit {service}, Modell {model}.",
       "unavailable": "Die Einstellungen zum Auslesen sind gerade nicht erreichbar. Versuch es gleich noch einmal."
     },
-    "requires": "Gehört zu „{contract}“ und wird nur zusammen mit diesem Vertrag übernommen."
+    "requires": "Gehört zu „{contract}“ und wird nur zusammen mit diesem Vertrag übernommen.",
+    "existingName": "Im Bestand heißt der Versorger „{name}“."
   },
   "interpolation": {
     "leadYear": {

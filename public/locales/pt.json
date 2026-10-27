@@ -413,7 +413,9 @@
       "daysCount": {
         "one": "{days} dia",
         "other": "{days} dias"
-      }
+      },
+      "noContract": "sem contrato",
+      "noContractHint": "Com um contrato, a aplicação calcula os custos."
     },
     "cards": {
       "contracts": "📑 Contratos e adiantamentos",
@@ -512,7 +514,8 @@
         "other": "Até ao acerto de {date} faltam apenas {count} adiantamentos. O acerto trata do resto: não é preciso aumentar o adiantamento agora."
       },
       "suggestOngoing": "Depois, cerca de {amount} em vez de {current} por mês seriam adequados.",
-      "sincePeriod": "Calculado a partir de {date}, início do período de faturação em curso até {until}. Os períodos anteriores estão no ano de faturação."
+      "sincePeriod": "Calculado a partir de {date}, início do período de faturação em curso até {until}. Os períodos anteriores estão no ano de faturação.",
+      "measuredThenEstimatedBase": "medido até {date} ({amount}), depois estimado: {value} de consumo; mais termos fixos até hoje {base}"
     },
     "contractsTable": {
       "emptyTitle": "Sem contratos registados",
@@ -6180,7 +6183,8 @@
         "utility": "energia indicada no documento",
         "single_meter": "contador único",
         "date": "contrato do fornecedor nessa data"
-      }
+      },
+      "applied": "Registado ao adotar."
     },
     "manual": {
       "title": "Introduzir à mão",
@@ -6586,7 +6590,8 @@
       "energy": "Preço unitário",
       "parts": "a partir de {parts}",
       "net": "{value} líquido + {vat}% de IVA",
-      "advance": "Adiantamento a partir de {from}: {value} por vencimento"
+      "advance": "Adiantamento a partir de {from}: {value} por vencimento",
+      "paid": "Adiantamentos pagos de {from} a {to}: {total} segundo a fatura"
     }
   },
   "inboxCloud": {
@@ -6883,7 +6888,8 @@
       "ready": "Configurado: a aplicação lê agora com {service}, modelo {model}.",
       "unavailable": "As definições de leitura não estão acessíveis agora. Tente novamente daqui a pouco."
     },
-    "requires": "Pertence a «{contract}» e só é adotado juntamente com este contrato."
+    "requires": "Pertence a «{contract}» e só é adotado juntamente com este contrato.",
+    "existingName": "Nos dados registados o fornecedor chama-se «{name}»."
   },
   "interpolation": {
     "leadYear": {

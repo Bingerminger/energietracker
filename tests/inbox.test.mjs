@@ -232,6 +232,19 @@ console.log('Vertrag aus der Rechnung (vertrag-aus-rechnung)');
   t('Stand: dein gemeldeter Stand, auf das Zeitraumende datiert', rep === 'Dein Stand vom 20.07.2026 (1.210 m³): Der Versorger datiert den gemeldeten Stand auf das Ende des Zeitraums.', rep);
   const below = I.detailText({ kind: 'reading', detail: { neighbor: { side: 'prev', date: '2026-07-30', counter: 1212 } } }, { unit: 'm³' });
   t('Stand: liegt unter deinem Stand (mit Tag)', below === 'Liegt unter deinem Stand 1.212 m³ vom 30.07.2026.', below);
+  // Skeptiker H2, N15, N8 — gezahlte Abschläge im Vorschlag, Name im Bestand, „kein Vertrag“ statt 0,00 €
+  const paid = sp(I.proposalLines({ kind: 'contract_create', params: { lines: [{ section: null, kind: 'paid', from: '2025-04-01', to: '2026-03-31', value: 66.6667, total: 800 }] } })[0]);
+  t('Vertrag aus der Rechnung: gezahlte Abschläge des Zeitraums', paid === 'Gezahlte Abschläge 01.04.2025 bis 31.03.2026: 800,00 € laut Rechnung', paid);
+  const DR0 = await import(`${JS}/lib/inbox-draft.js`);
+  const nm = DR0.basisText({ name: 'provider', kind: 'text', value: 'Stadtwerke Musterstadt GmbH', status: 'exists', existing_name: 'Stadtwerke Musterstadt' });
+  t('Entwurf: Versorger vorhanden, im Bestand anders geschrieben', nm === 'Im Bestand heißt der Versorger „Stadtwerke Musterstadt“.', nm);
+  const SM = await import(`${JS}/lib/semantics.js`);
+  const water = { key: 'wasser', has_contracts: true, accounting_kind: 'consumption' };
+  t('Kosten ohne Vertrag: „kein Vertrag“, mit Vertrag, Kosten oder im Abrechnungsjahr nicht', SM.costWithoutContract({ u: water, hasContract: false, cost: 0 })
+    && !SM.costWithoutContract({ u: water, hasContract: true, cost: 0 }) && !SM.costWithoutContract({ u: water, hasContract: false, cost: 12.5 })
+    && !SM.costWithoutContract({ u: water, hasContract: false, cost: 0, billing: true })
+    && !SM.costWithoutContract({ u: { key: 'pv_einspeisung', accounting_kind: 'feed_in' }, hasContract: false, cost: 0 })
+    && !SM.costWithoutContract({ u: { key: 'heizoel', has_contracts: false }, hasContract: false, cost: 0 }));
   const DR = await import(`${JS}/lib/inbox-draft.js`);
   const dn = DR.basisText({ name: 'r:2026-07-31', kind: 'number', value: 1209, neighbor: { side: 'prev', date: '2026-07-30', counter: 1212 } });
   t('Entwurf: Stand nennt den Nachbarn', dn === 'Liegt unter deinem Stand 1.212 vom 30.07.2026.', dn);

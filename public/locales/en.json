@@ -413,7 +413,9 @@
       "daysCount": {
         "one": "{days} day",
         "other": "{days} days"
-      }
+      },
+      "noContract": "no contract",
+      "noContractHint": "With a contract the app calculates the costs."
     },
     "cards": {
       "contracts": "📑 Contracts & advances",
@@ -512,7 +514,8 @@
         "other": "Only {count} advance payments are left before the bill on {date}. The bill settles the rest, so there is no need to raise the advance now."
       },
       "suggestOngoing": "After that, about {amount} instead of {current} a month would be right.",
-      "sincePeriod": "Counted from {date}, the start of the current billing period up to {until}. Earlier periods are listed under billing year."
+      "sincePeriod": "Counted from {date}, the start of the current billing period up to {until}. Earlier periods are listed under billing year.",
+      "measuredThenEstimatedBase": "measured up to {date} ({amount}), estimated since: {value} consumption; plus standing charges to date {base}"
     },
     "contractsTable": {
       "emptyTitle": "No contracts recorded",
@@ -6180,7 +6183,8 @@
         "utility": "energy named in the document",
         "single_meter": "only meter",
         "date": "the supplier’s contract on that date"
-      }
+      },
+      "applied": "Recorded when taking over."
     },
     "manual": {
       "title": "Enter by hand",
@@ -6586,7 +6590,8 @@
       "energy": "Unit price",
       "parts": "from {parts}",
       "net": "{value} net + {vat}% VAT",
-      "advance": "Advance payment from {from}: {value} per due date"
+      "advance": "Advance payment from {from}: {value} per due date",
+      "paid": "Advance payments made {from} to {to}: {total} according to the bill"
     }
   },
   "inboxCloud": {
@@ -6883,7 +6888,8 @@
       "ready": "Set up: the app now reads with {service}, model {model}.",
       "unavailable": "The reading settings cannot be reached right now. Please try again shortly."
     },
-    "requires": "Belongs to “{contract}” and is only taken over together with this contract."
+    "requires": "Belongs to “{contract}” and is only taken over together with this contract.",
+    "existingName": "In your records the supplier is called “{name}”."
   },
   "interpolation": {
     "leadYear": {
