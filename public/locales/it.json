@@ -2523,7 +2523,8 @@
       },
       "r7": {
         "title": "{label}: classe di efficienza {class} ({kwh} kWh/m²·a)",
-        "detail": "{label}: il fabbisogno di energia di riscaldamento {year} corrisponde alla classe di efficienza {class} ({kwh} kWh/m²·a). Isolamento, ottimizzazione del riscaldamento o un bilanciamento idraulico possono migliorare nettamente la classe."
+        "detail": "{label}: il fabbisogno di energia di riscaldamento {year} corrisponde alla classe di efficienza {class} ({kwh} kWh/m²·a). Isolamento, ottimizzazione del riscaldamento o un bilanciamento idraulico possono migliorare nettamente la classe.",
+        "areaAssumed": "La classe usa una superficie abitabile presunta di {area} m². Inserisci la superficie reale in Impostazioni → Nucleo e edificio."
       },
       "rPriceIncrease": {
         "title": "{label}: aumento di prezzo dal {date}",
@@ -7171,7 +7172,16 @@
     "undone": "Temperatura base GG di nuovo come prima",
     "notNow": "Non ora",
     "notNowHint": "Ricompare quando vengono misurati nuovi mesi o la proposta cambia.",
-    "dismissed": "Nascosto finché non vengono misurati nuovi mesi o la proposta cambia."
+    "dismissed": "Nascosto finché non vengono misurati nuovi mesi o la proposta cambia.",
+    "beginner": {
+      "title": "Stima più precisa: {label}",
+      "sentence": "La tua casa riscalda solo sotto circa {best} °C all’esterno, e con questo valore l’app stima i tuoi consumi in modo più preciso.",
+      "balance": "Saldo al {date}: {after} invece di {before}.",
+      "advance": "Acconto adatto: {after} invece di {before}.",
+      "advanceOnly": "Acconto adatto: {after}.",
+      "more": "Maggiori dettagli"
+    },
+    "notNowNamed": "Non ora: {title}"
   },
   "levelShift": {
     "titleLess": "Consumo stabilmente più basso dal {date}",

@@ -1569,7 +1569,9 @@ final class ConsumptionService
         ];
         return [
             'contract_id'     => (string)$now['contract_id'],
-            'until'           => $now['effective_end'] ?? null,
+            // v3.9.0 (Skeptiker M10, Regel L1) — der letzte Tag des Zeitraums wie auf der Saldo-Karte
+            // (bis dahin der Folgetag: „Saldo zum 01.01.“ neben „31.12.“ auf der Karte)
+            'until'           => self::periodLastDay($now),
             'current_advance' => isset($now['current_advance_amount']) ? (float)$now['current_advance_amount'] : null,
             'before'          => $facts($now),
             'after'           => $facts($then),

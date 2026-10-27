@@ -13,10 +13,22 @@
 import { api } from '../api.js';
 import { t } from './i18n.js';
 import { fmt, escapeHtml } from './format.js';
+import { balanceRangeEnds } from './semantics.js';
 import { toastErr, toastOk, toastUndo } from '../components/toast.js';
 
 /** Eine Gruppe (Gruppenvertrag) statt eines Zählers? IDs nach MeterService::createGroup. */
 export const isGroupId = (id) => String(id || '').startsWith('g_');
+
+/**
+ * v3.9.0 (Skeptiker N5) — der Heizgrenze-Vorschlag kennt eine Art Aufschub: „Nicht jetzt“ bis neue
+ * Monate gemessen sind (die Empfehlung trägt den Datenstand in ihrer ID), höchstens ein Jahr. So
+ * in „Zu tun“ und in den Empfehlungen; dort stand bis dahin daneben „30 Tage ausblenden“.
+ */
+export const isHeatLimitRec = (r) => String(r?.id || '').startsWith('r_heat_limit_');
+export const HEAT_LIMIT_LATER_DAYS = 365;
+export function heatLimitLaterUntil(now = Date.now()) {
+  return new Date(now + HEAT_LIMIT_LATER_DAYS * 86400000).toISOString().slice(0, 10);
+}
 
 const memo = new Map();
 
@@ -61,7 +73,9 @@ function balanceWords(side) {
     : t(v > 0 ? 'balanceUncertain.due' : 'balanceUncertain.credit', { amount: t('report.fmt.approx', { amount: fmt.eur0(Math.abs(v)) }) });
   const r = Array.isArray(side?.balance_range) ? side.balance_range.map(Number) : null;
   if (r && r.length === 2 && r.every(Number.isFinite)) {
-    return t('heatLimit.effect.between', { low: word(Math.min(...r)), high: word(Math.max(...r)) });
+    // v3.9.0 (Paket doku) — Lesereihenfolge wie an der Saldo-Karte (zwei Guthaben: kleineres zuerst)
+    const [a, b] = balanceRangeEnds(r);
+    return t('heatLimit.effect.between', { low: word(a), high: word(b) });
   }
   return side?.balance != null ? word(Number(side.balance)) : '–';
 }
@@ -82,6 +96,24 @@ export function heatLimitEffect(h) {
   const changed = advanceWords(e.before) !== advanceWords(e.after);
   if (changed) out.push(t('heatLimit.effect.advance', { best: deg(h.best), before: advanceWords(e.before), after: advanceWords(e.after),
     current: e.current_advance != null ? fmt.eur0(e.current_advance) : '–' }));
+  return out;
+}
+
+/**
+ * v3.9.0 (Skeptiker N4) — für Einsteiger: ein Satz ohne Fachwörter, dazu die Wirkung auf den
+ * erwarteten Saldo und (wenn er sich ändert) den passenden Abschlag. Die Fachzeilen
+ * (heatLimitFacts, heatLimitEffect) stehen aufklappbar darunter.
+ */
+export function heatLimitBeginnerLines(h) {
+  const out = [t('heatLimit.beginner.sentence', { best: deg(h.best) })];
+  const e = h?.effect;
+  if (!e?.before || !e?.after) return out;
+  out.push(t('heatLimit.beginner.balance', { date: e.until ? fmt.date(e.until) : '–', before: balanceWords(e.before), after: balanceWords(e.after) }));
+  const has = (side) => side?.advance != null || Array.isArray(side?.advance_range);
+  const before = advanceWords(e.before), after = advanceWords(e.after);
+  if (has(e.after) && before !== after) {
+    out.push(t(has(e.before) ? 'heatLimit.beginner.advance' : 'heatLimit.beginner.advanceOnly', { before, after }));
+  }
   return out;
 }
 

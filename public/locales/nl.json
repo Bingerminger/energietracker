@@ -2523,7 +2523,8 @@
       },
       "r7": {
         "title": "{label}: efficiëntieklasse {class} ({kwh} kWh/m²·a)",
-        "detail": "{label}: de stookenergiebehoefte {year} komt overeen met efficiëntieklasse {class} ({kwh} kWh/m²·a). Isolatie, verwarmingsoptimalisatie of een waterzijdige inregeling kunnen de klasse merkbaar verbeteren."
+        "detail": "{label}: de stookenergiebehoefte {year} komt overeen met efficiëntieklasse {class} ({kwh} kWh/m²·a). Isolatie, verwarmingsoptimalisatie of een waterzijdige inregeling kunnen de klasse merkbaar verbeteren.",
+        "areaAssumed": "De klasse rekent met een aangenomen woonoppervlak van {area} m². Vul het echte oppervlak in onder Instellingen → Huishouden en gebouw."
       },
       "rPriceIncrease": {
         "title": "{label}: prijsverhoging per {date}",
@@ -7171,7 +7172,16 @@
     "undone": "Graaddagen-basistemperatuur weer zoals eerst",
     "notNow": "Niet nu",
     "notNowHint": "Verschijnt weer zodra er nieuwe maanden gemeten zijn of het voorstel verandert.",
-    "dismissed": "Verborgen tot er nieuwe maanden gemeten zijn of het voorstel verandert."
+    "dismissed": "Verborgen tot er nieuwe maanden gemeten zijn of het voorstel verandert.",
+    "beginner": {
+      "title": "Nauwkeuriger schatten: {label}",
+      "sentence": "Je huis stookt pas onder ongeveer {best} °C buiten, en met deze waarde schat de app je verbruik nauwkeuriger.",
+      "balance": "Saldo op {date}: {after} in plaats van {before}.",
+      "advance": "Passend voorschot: {after} in plaats van {before}.",
+      "advanceOnly": "Passend voorschot: {after}.",
+      "more": "Meer hierover"
+    },
+    "notNowNamed": "Niet nu: {title}"
   },
   "levelShift": {
     "titleLess": "Sinds {date} blijvend minder verbruik",

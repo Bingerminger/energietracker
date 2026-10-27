@@ -6,6 +6,8 @@ import { api } from '../api.js';
 import { toastOk, toastErr, toastUndo } from '../components/toast.js';
 import { t } from '../lib/i18n.js';
 import { escapeHtml as esc, fmt } from '../lib/format.js';
+import { isHeatLimitRec, heatLimitLaterUntil } from '../lib/heat-limit.js';   // v3.9.0 (Skeptiker N5)
+import { AREA_LINKS } from '../lib/area-assumed.js';                         // v3.9.0 (Skeptiker N6)
 
 const SEV_CLS = { urgent: 'danger', warning: 'warning', info: 'info' };
 const sevLabel = (k) => t('recommendations.sev.' + k);
@@ -61,13 +63,16 @@ export async function render(container) {
       b.addEventListener('click', async () => {
         const id = b.dataset.dismiss;
         const rec = recs.find(r => r.id === id);
+        // v3.9.0 (Skeptiker N5) — der Heizgrenze-Vorschlag: „Nicht jetzt“ wie in „Zu tun“
+        const heat = isHeatLimitRec(rec);
         try {
-          const res = await api.dismissRecommendation(id);
+          const res = await api.dismissRecommendation(id, heat ? heatLimitLaterUntil() : null);
           recs = recs.filter(r => r.id !== id);
           // v2.12.0 (Review UI-22) — mit Namen und „Rückgängig"
           // v3.4.0 (F1024) — mit Frist: ausgeblendet bis zum Stichtag (sagt der Server)
           const until = holdsUntil(rec);
-          const msg = until && res?.until
+          const msg = heat ? t('heatLimit.dismissed')
+            : until && res?.until
             ? t('recommendations.dismissedUntilNamed', { title: rec?.title || '', date: fmt.date(res.until) })
             : t('recommendations.dismissedNamed', { title: rec?.title || '' });
           toastUndo(msg, async () => {
@@ -111,6 +116,10 @@ function card(r) {
   const sevKey = SEV_CLS[r.severity] ? r.severity : 'info';
   const cls = SEV_CLS[sevKey];
   const until = holdsUntil(r);
+  const heat = isHeatLimitRec(r);
+  const label = heat ? t('heatLimit.notNow') : until ? t('recommendations.dismissUntil', { date: fmt.date(until) }) : t('recommendations.dismiss');
+  const aria = heat ? t('heatLimit.notNowNamed', { title: r.title })
+    : until ? t('recommendations.dismissUntilNamed', { title: r.title, date: fmt.date(until) }) : t('recommendations.dismissNamed', { title: r.title });
   return `
     <div class="rec-card rec-card--${cls}">
       <div class="rec-card__head">
@@ -119,11 +128,11 @@ function card(r) {
         <!-- v2.11.0 (Review UI-26) — sichtbarer Text statt „✕": Das Kreuz sah
              nach „löschen" aus und blendete doch nur 30 Tage aus -->
         <button type="button" class="btn btn--ghost btn--sm rec-card__dismiss" data-dismiss="${esc(r.id)}"
-          aria-label="${esc(until ? t('recommendations.dismissUntilNamed', { title: r.title, date: fmt.date(until) }) : t('recommendations.dismissNamed', { title: r.title }))}">${esc(until
-            ? t('recommendations.dismissUntil', { date: fmt.date(until) }) : t('recommendations.dismiss'))}</button>
+          ${heat ? `title="${esc(t('heatLimit.notNowHint'))}"` : ''} aria-label="${esc(aria)}">${esc(label)}</button>
       </div>
       <div class="rec-card__title">${esc(r.title)}</div>
-      <div class="rec-card__detail">${esc(r.detail)}</div>
+      <div class="rec-card__detail">${esc(r.detail)}${r.evidence?.area_assumed
+        ? ` <a href="${AREA_LINKS.household}" data-role="area-assumed-link">${esc(t('area.enterHousehold'))}</a>` : ''}</div>
     </div>`;
 }
 

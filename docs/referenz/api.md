@@ -550,7 +550,7 @@ antwortet `{heat_limit}` in der Form von `…/consumption?heat_limit=1`, ohne di
 | `range` | `[von, bis]`: lückenlos anschließende Grenzen, die gleich gut passen (höchstens 15 % über der besten geglätteten Streuung); vorgeschlagen wird die, die der heutigen am nächsten liegt |
 | `before`, `after` | `{ratio, model_quality, base_per_day, model_per_day, measured_per_day}` heute und mit der vorgeschlagenen Grenze |
 | `grid[]` | dazu `fit_n`, `fit_dropped` (verworfene Monate, die mehr als 10 % eines typischen Monats danebenliegen), `fit_ok` (höchstens jeder zehnte, mindestens einer), `warm_ratio`, `warm_ok` (Erwartung ÷ Verbrauch Mai bis September, höchstens 1,10), `smoothed` |
-| `effect` | nur mit Vorschlag: `{contract_id, until, current_advance, before, after}` mit je `{balance, balance_range, advance, advance_range, uncertain}` des laufenden Vertrags heute und mit der vorgeschlagenen Grenze; `null` ohne laufenden Vertrag |
+| `effect` | nur mit Vorschlag: `{contract_id, until, current_advance, before, after}` (`until`: letzter Tag des Zeitraums, wie `settle_on`) mit je `{balance, balance_range, advance, advance_range, uncertain}` des laufenden Vertrags heute und mit der vorgeschlagenen Grenze; `null` ohne laufenden Vertrag |
 
 Weitere Felder seit v3.9.0: `monthly[].expected_base` (davon die Grundlast `c × Tage`),
 `anomaly_quality.base_load.base_per_day` und `base_ratio` (Grundlast `c` allein gegen

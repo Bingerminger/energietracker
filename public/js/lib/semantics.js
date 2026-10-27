@@ -52,7 +52,24 @@ export function uncertainRangeText(unc) {
   if (!r || r.length !== 2 || !r.every(Number.isFinite)) return '';
   const word = (v) => Math.abs(v) < 1 ? t('balanceUncertain.even')
     : t(v > 0 ? 'balanceUncertain.due' : 'balanceUncertain.credit', { amount: t('report.fmt.approx', { amount: fmt.eur0(Math.abs(v)) }) });
-  return t('balanceUncertain.short', { low: word(Math.min(...r)), high: word(Math.max(...r)) });
+  const [a, b] = balanceRangeEnds(r);
+  return t('balanceUncertain.short', { low: word(a), high: word(b) });
+}
+
+/**
+ * v3.9.0 (Paket doku, Befund am Heizgrenze-Hinweis) — die Enden einer Saldo-Spanne
+ * (positiv = Nachzahlung) in Lesereihenfolge: Liegen beide im Guthaben, vom kleineren zum
+ * größeren Betrag („zwischen ca. 325 € und ca. 431 € Guthaben“; bis dahin „zwischen ca. 431 €
+ * Guthaben und ca. 325 € Guthaben“, der Zahl nach). Sonst der Zahl nach: Guthaben vor
+ * Nachzahlung, zwei Nachzahlungen vom kleineren zum größeren Betrag. Für Saldo-Karte,
+ * Vertragsübersicht, „Wohin geht mein Geld?“ und den Heizgrenze-Hinweis.
+ *
+ * @param {number[]} r  [ein Ende, anderes Ende]
+ * @returns {number[]}  [zuerst, danach]
+ */
+export function balanceRangeEnds(r) {
+  const lo = Math.min(Number(r[0]), Number(r[1])), hi = Math.max(Number(r[0]), Number(r[1]));
+  return hi < 0 ? [hi, lo] : [lo, hi];
 }
 
 export function balanceView(v, u, money = fmt.eur) {

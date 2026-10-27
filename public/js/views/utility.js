@@ -24,7 +24,7 @@ import { showFieldError } from '../lib/form.js';
 import { toastOk, toastErr } from '../components/toast.js';
 import { t, tp, getCurrencyMinor, getCurrencySymbol, getLocale } from '../lib/i18n.js';
 import { info, infoNote } from '../components/info.js';
-import { isFeedIn as feedInKind, isGeneration as generationKind, isPv, usesGasFactors, balanceView, moreIsBetter, uncertainRangeText, costWithoutContract } from '../lib/semantics.js';
+import { isFeedIn as feedInKind, isGeneration as generationKind, isPv, usesGasFactors, balanceView, moreIsBetter, uncertainRangeText, costWithoutContract, balanceRangeEnds } from '../lib/semantics.js';
 import { typicalPerDay, checkReading, confirmIssues, issueText, deviceChangedBetween } from '../lib/plausibility.js';
 // v3.2.0 (F1020) — Schaubilder zu dieser Verbrauchsart
 import { moneyHtml, energyHtml, weatherHtml, timelineHtml, playExplainers } from '../components/explainer.js';
@@ -788,7 +788,7 @@ function uncertainBalanceText(unc, date) {
       : t('balanceUncertain.why.poor_fit', { pct: fmt.pct(unc.fit_ratio ?? 0, 0) }));
   const why = parts.length > 2 ? t('balanceUncertain.why.three', { a: parts[0], b: parts[1], c: parts[2] })
     : parts.length > 1 ? t('balanceUncertain.why.both', { a: parts[0], b: parts[1] }) : (parts[0] ?? '');
-  const [lo, hi] = unc.projected_range || [0, 0];
+  const [lo, hi] = balanceRangeEnds(unc.projected_range || [0, 0]);   // v3.9.0 — zwei Guthaben vom kleineren zum größeren
   const text = t('balanceUncertain.range', { date, low: word(lo), high: word(hi), why });
   const s = unc.suggested_range;
   return Array.isArray(s) ? `${text} ${t('balanceUncertain.advance', { low: fmt.eur0(s[0]), high: fmt.eur0(s[1]) })}` : text;

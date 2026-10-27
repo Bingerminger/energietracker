@@ -2523,7 +2523,8 @@
       },
       "r7": {
         "title": "{label}: Effizienzklasse {class} ({kwh} kWh/m²·a)",
-        "detail": "Der Heizenergiebedarf {year} über {label} entspricht Effizienzklasse {class} ({kwh} kWh/m²·a). Dämmung, Heizungsoptimierung oder ein hydraulischer Abgleich können die Klasse spürbar verbessern."
+        "detail": "Der Heizenergiebedarf {year} über {label} entspricht Effizienzklasse {class} ({kwh} kWh/m²·a). Dämmung, Heizungsoptimierung oder ein hydraulischer Abgleich können die Klasse spürbar verbessern.",
+        "areaAssumed": "Die Klasse rechnet mit einer angenommenen Wohnfläche von {area} m². Trag die echte Fläche unter Einstellungen → Haushalt & Gebäude ein."
       },
       "rPriceIncrease": {
         "title": "{label}: Preiserhöhung zum {date}",
@@ -7171,7 +7172,16 @@
     "undone": "Heizgrenze wieder wie vorher",
     "notNow": "Nicht jetzt",
     "notNowHint": "Erscheint wieder, wenn neue Monate gemessen sind oder sich der Vorschlag ändert.",
-    "dismissed": "Ausgeblendet, bis neue Monate gemessen sind oder sich der Vorschlag ändert."
+    "dismissed": "Ausgeblendet, bis neue Monate gemessen sind oder sich der Vorschlag ändert.",
+    "beginner": {
+      "title": "Genauer schätzen: {label}",
+      "sentence": "Dein Haus heizt erst unter etwa {best} °C draußen, und mit diesem Wert schätzt die App deinen Verbrauch genauer.",
+      "balance": "Saldo zum {date}: {after} statt {before}.",
+      "advance": "Passender Abschlag: {after} statt {before}.",
+      "advanceOnly": "Passender Abschlag: {after}.",
+      "more": "Mehr dazu"
+    },
+    "notNowNamed": "Nicht jetzt: {title}"
   },
   "levelShift": {
     "titleLess": "Seit {date} dauerhaft weniger Verbrauch",

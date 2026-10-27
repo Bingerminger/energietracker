@@ -2523,7 +2523,8 @@
       },
       "r7": {
         "title": "{label} : classe d’efficacité {class} ({kwh} kWh/m²·a)",
-        "detail": "{label} : le besoin d’énergie de chauffage {year} correspond à la classe d’efficacité {class} ({kwh} kWh/m²·a). Une isolation, une optimisation du chauffage ou un équilibrage hydraulique peuvent améliorer nettement la classe."
+        "detail": "{label} : le besoin d’énergie de chauffage {year} correspond à la classe d’efficacité {class} ({kwh} kWh/m²·a). Une isolation, une optimisation du chauffage ou un équilibrage hydraulique peuvent améliorer nettement la classe.",
+        "areaAssumed": "La classe utilise une surface habitable supposée de {area} m². Saisissez la surface réelle sous Paramètres → Foyer et bâtiment."
       },
       "rPriceIncrease": {
         "title": "{label} : hausse de prix au {date}",
@@ -7171,7 +7172,16 @@
     "undone": "Température de base DJU revenue à l’état précédent",
     "notNow": "Pas maintenant",
     "notNowHint": "Réapparaît lorsque de nouveaux mois sont mesurés ou que la proposition change.",
-    "dismissed": "Masqué jusqu’à ce que de nouveaux mois soient mesurés ou que la proposition change."
+    "dismissed": "Masqué jusqu’à ce que de nouveaux mois soient mesurés ou que la proposition change.",
+    "beginner": {
+      "title": "Estimer plus précisément : {label}",
+      "sentence": "Votre logement ne chauffe qu’en dessous d’environ {best} °C dehors, et avec cette valeur l’application estime votre consommation plus précisément.",
+      "balance": "Solde au {date} : {after} au lieu de {before}.",
+      "advance": "Acompte adapté : {after} au lieu de {before}.",
+      "advanceOnly": "Acompte adapté : {after}.",
+      "more": "En savoir plus"
+    },
+    "notNowNamed": "Pas maintenant : {title}"
   },
   "levelShift": {
     "titleLess": "Consommation durablement plus faible depuis le {date}",
