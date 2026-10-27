@@ -6,6 +6,419 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [3.9.0] — 2026-10-27 — Jeder Vertrag zahlt nur seinen Teil. Messkonzepte, Home Assistant und der Vertrag aus der Rechnung
+
+MINOR-Release ohne Schemaschritt (bleibt 1.8.0). 3.9.0 enthält, was als 3.7.1
+(GitHub [#38]) und 3.8.0 ([#36]) angekündigt war; diese Nummern entfallen. Neu
+sind **Messkonzepte** ([#40]): Hat ein Subzähler einen eigenen Vertrag, rechnet
+der Elternzähler nur noch den Rest, eine Kaskade mit Wärmepumpe, HT/NT und PV
+lässt sich abbilden, Zählwerke tragen ihre OBIS-Kennzahl, und ein Assistent mit
+Schaltbildern legt alles an. Der Energietracker **meldet sich selbst bei Home
+Assistant**: Fristen, Termine, Warnungen und neue Post, dazu ein Sensor „Zu tun“.
+Aus einer Jahresrechnung entsteht der **Vertrag samt Preisen und
+Abschlagsplan**, auch für Wasser mit Abschlägen alle zwei Monate. Die
+**Heizgrenze** steht dort, wo sie wirkt, ein **vertippter Zählerstand** fällt
+auf, und Saldo-Karte, Jahresbericht und Prognose-Werkstatt rechnen aus **einer**
+Projektion. Dazu: Haushalt aus Dokumenten auf einem bestehenden Haushalt,
+Personen im Haushalt ohne Anmeldung, eine Ersteinrichtung mit Zeichnungen und
+ein Durchgang durch die ganze Oberfläche. API, CSV-Format 1, Backup-Format 3.0
+und Docker-Umgebung wachsen nur additiv.
+
+### ⚠️ Für bestehende Installationen
+
+- **Rest-Abrechnung am Elternzähler** ([#40]): Hat ein Subzähler einen eigenen
+  Vertrag (oder rechnet er über den Gruppenvertrag seiner Gruppe), rechnen
+  Kosten, Vertragsmenge, Saldo, Prognose, Tarifvergleich, Rechnungsprüfung und
+  Jahresbericht des Elternzählers ab dem Beginn dieses Vertrags nur noch den
+  Rest. Bis 3.7 wurde die Menge des Subzählers über beide Verträge bezahlt, und
+  die Monatssumme der Kosten enthielt den Subzähler nicht: Am Elternzähler sinken
+  die Kosten, in der Summe der Verbrauchsart steigen sie. Effizienz,
+  Jahresarbeitszahl und „Strom nach Rollen“ rechnen je Zähler mit dem eigenen
+  Verbrauch. Ein Subzähler ohne eigenen Vertrag bleibt eine Aufschlüsselung.
+- **Saldo über die laufende Abrechnungsperiode:** Saldo-Karte, Kosten &
+  Verträge, Jahresbericht, „Wohin geht mein Geld?“ und Prognose-Werkstatt
+  rechnen einen laufenden Vertrag über die laufende Abrechnungsperiode, auch
+  ohne erfasste Rechnung. Bis 3.7 zählte die Karte ohne Rechnung ab
+  Vertragsbeginn, die Werkstatt das Abrechnungsjahr; beide nannten verschiedene
+  Salden. Als Abrechnungstag steht überall der **letzte Tag** des Zeitraums
+  (`settle_on`, etwa 31.12. statt 01.01.). Bleiben weniger als drei Abschläge bis
+  zur Abrechnung, schlägt die Karte keinen Nachholbetrag mehr vor
+  (`suggested_advance` ist dann `null`, `suggestion_withheld: "short"`), sondern
+  den laufend passenden Abschlag.
+- **Abschläge der gemessenen Tage:** Die Kachel „Abschläge“ und die
+  Monatstabelle zählen im ersten und letzten Monat einer Ablesereihe den
+  Abschlag tagesanteilig (`advance_measured_eur`), nicht mehr voll.
+- **Verteilt auch nach Tagen:** Ein Monat gilt auch dann als verteilt, wenn
+  weniger als die Hälfte seiner Tage aus Abständen bis 45 Tage stammt
+  (`measured_day_share`). Bei Zählern mit wenigen Ablesungen können sich
+  Abweichungen, Empfehlungen, Heizmodell und Prognose ändern; Monatswerte und
+  Kosten bleiben.
+- **Prognose:** Ein Kalendermonat ohne eigene Vorgeschichte kommt aus dem
+  Heizmodell statt aus der Regression der Monatssummen; ist das Modell nicht
+  verlässlich, mit der gemessenen Sommer-Grundlast (`heat_model_summer`), sonst
+  aus verteilten Werten, die bei Heizarten nur noch aus Abständen bis 62 Tagen
+  zählen. Wo Knickmodell oder Sigmoide flach sind, gilt der gemessene
+  Saisonwert. Ohne Wetterbezug (Strom, Wasser) und ohne zwölf gemessene
+  Kalendermonate folgt die Jahresmenge dem Verbrauch der letzten 365 Tage
+  (`level_last_year`). Prognosen von Heizarten, besonders mit dem Knickmodell,
+  und von Strom mit wenigen Ablesungen ändern sich. Die Anzeige nennt den
+  wirksamen Anteil der Heizkurve (`blend_effective`).
+- **Heizgrenze-Vorschlag** ([#38]): geglättet über 1 °C, ohne Grenzen, bei denen
+  der Fit viele Monate verwirft oder Mai bis September überschätzt, mit Spanne;
+  vorgeschlagen ist die Grenze, die am wenigsten ändert. Vorschläge können sich
+  gegenüber 3.7 verschieben, meist um 0,5 bis 1 °C nach oben. Die
+  Grundlast-Prüfung misst nach unten die Grundlast des Modells selbst; bei sehr
+  hohen Heizgrenzen schlägt die Gütesperre jetzt an, wo sie bis 3.7 knapp
+  bestand. Wiederkehrende Monate sind ein Muster und keine Empfehlung mehr.
+- **Energiefluss der PV:** Die gemessene Einspeisung wird nicht mehr an der
+  verteilten Erzeugung gekappt (`flows.pv_grid`). Der Block „Sonnenstrom“ im
+  Jahresbericht rechnet alle Mengen aus einem Zeitraum und vergleicht nur ganze
+  Jahre.
+- **Künftige Verträge** zeigen Arbeitspreis und Abschlag ihres Beginns statt
+  „–“ (API bisher `null`).
+- **Posteingang:** Der Browser setzt die Textebene eines PDFs nach der Lage der
+  Zeichen zusammen; rückwärts gezeichnete Zeilen und Stücke ohne Lücke ergeben
+  einen anderen Text als bisher. Die Auslesung trägt `schema_version` 5; ein
+  schon ausgelesenes Dokument behält seine Auslesung, „Neu auslesen“ fragt mit
+  der neuen Textebene. Ein Ablesecode gilt nur noch für den Stand direkt davor:
+  Von „Altstand … I · Neustand … S“ wird nur der Neustand als geschätzt angelegt.
+  Gilt am Zähler gar kein Vertrag, ist „Vertrag … aus dieser Rechnung anlegen“
+  vorab angehakt.
+- **Haushalt aus Dokumenten:** Preise, Abschläge und Rechnungen eines Vertrags,
+  der erst entsteht, gehen nur mit ihm. Eine Auswahl ohne ihren Vertrag lehnt
+  `POST /api/inbox/draft/apply` jetzt vor dem Schreiben ab
+  (`400 errors.inboxDraft.needs.contract`); bis 3.7 scheiterten die Einträge
+  einzeln, und eine Rechnung entstand ohne Vertrag.
+- **Überwachter Ordner:** Die App liest ihn jetzt auch, ohne dass jemand sie
+  öffnet, höchstens alle fünf Minuten nach einer beliebigen Anfrage (im
+  Docker-Image fragt der Gesundheitscheck alle 30 Sekunden).
+- **App für Home Assistant:** Sie fordert neu `homeassistant_api` (für die
+  Benachrichtigungen über den Supervisor) und die Freigabe `/share` mit
+  Schreibrecht an. Der überwachte Ordner liegt dort unter
+  `/share/energietracker/posteingang`. Benachrichtigungen bleiben aus, bis ein
+  Verwalter sie einschaltet.
+- **Personen:** Ohne Anmeldung zeigt Einstellungen → Zugriff keine
+  Personenliste mehr; die Personen stehen unter Haushalt & Gebäude. Das
+  Wasser-Feld „Personen im Haushalt“ heißt „Anzahl der Personen“.
+- **Kataloge:** neue Schlüssel in allen sieben Sprachen; geändert unter anderem
+  `assignee.noPeople`, `settings.users.noAccessHint`,
+  `settings.field.wasser_personen_anzahl.label`, `inbox.empty` und die
+  Kartentitel der Einstellungen (Symbol nicht mehr im Text); entfernt
+  `settings.users.hintOff`, `settings.users.deleteHintOff`,
+  `contracts.water.apMonthly`.
+- **Keine neue Verbindung nach außen ohne Zutun:** Benachrichtigungen gehen nur
+  an die Adresse, die ein Verwalter einträgt; eine Adresse außerhalb des
+  Heimnetzes nur mit `https://`.
+
+### Added
+
+#### Messkonzepte ([#40])
+
+- **Rest-Abrechnung am Elternzähler:** Ein Subzähler mit eigenem Vertrag wird
+  tagesgenau abgezogen, nur an Tagen, an denen sein Vertrag läuft. Am Zähler, an
+  seinem Vertrag und in „Rechnung prüfen“ steht, wie gerechnet wurde („300 kWh =
+  500 kWh gemessen − 200 kWh Wärmepumpe“). Fehlen Stände des Subzählers, schreibt
+  die App seine letzte Tagesrate bis zu 92 Tage fort und sagt es; misst er mehr
+  als der Elternzähler, wird kein negativer Rest berechnet, und ein Hinweis bittet,
+  die Ablesungen zu prüfen. Beim Anlegen eines Vertrags am Subzähler sagt ein
+  Satz, was sich am Elternzähler ändert. Nicht bei Wasser (dort zieht der
+  Gartenzähler über das Schmutzwasser ab).
+- **Kaskade mit Wärmepumpe, HT/NT und PV:** als Anwendungsfall H beschrieben und
+  gerechnet; die Rollen folgen dem eigenen Verbrauch (vorn die Wärmepumpe als
+  Rest, dahinter der Haushalt).
+- **Zählwerke mit OBIS-Kennzahl** (1.8.0, 1.8.1, 1.8.2, 2.8.0) am Zähler. Home
+  Assistant (Zählernummer plus Kennzahl) und der Posteingang ordnen Stände
+  derselben Zählernummer dem passenden Zählwerk zu, ein Einspeise-Zählwerk der
+  PV-Einspeisung.
+- **Assistent „Messkonzept einrichten“** in fünf Schritten: Was hängt am
+  Stromanschluss, wie hängen die Zähler (Schaltbilder für zwei Zähler
+  nebeneinander, Subzähler dahinter, Kaskade oder einen Zähler für alles),
+  welche Zähler und welche Verträge gibt es. Er legt Zähler, Zählwerke, Gruppen
+  und Verträge an, ordnet vorhandene Zähler zu, statt sie doppelt anzulegen,
+  lässt laufende Verträge stehen und sichert vorher den Stand. Erreichbar über
+  die Zählerseite, Einstellungen → Verbrauchsarten & Abrechnung und das Ende der
+  Ersteinrichtung.
+
+#### Benachrichtigungen an Home Assistant ([#36])
+
+- **Der Energietracker meldet sich selbst:** fällige Termine, Fristen und
+  weitere Punkte aus „Zu tun“, Warnungen und neue Dokumente im Posteingang, jede
+  Nachricht nur einmal (eine neue Stufe wie „überfällig“ ist eine neue
+  Nachricht), höchstens fünf auf einmal, in der Sprache der Installation. Ohne
+  eigenen Zeitplan: geprüft wird einmal am Tag ab der eingestellten Uhrzeit, nach
+  der Antwort der ersten Anfrage danach.
+- **Drei Wege:** in der App für Home Assistant über den Supervisor ohne
+  Einrichtung, sonst per Webhook (mit fertiger Automation) oder mit Adresse und
+  Token. Einstellungen → Integrationen: Ereignisse, Uhrzeit, „Testnachricht
+  senden“, letzter Versand. Webhook-ID und Token bleiben auf dem Server, nicht in
+  den Einstellungen und nicht im Backup.
+- **Sensor „Zu tun“:** `GET /api/todo` mit Anzahl, Überfälligem, nächstem Punkt
+  und bis zu 50 Punkten, mit Vorlage; jede neue Art von Punkt zählt mit.
+- **Überwachter Ordner** in der App für Home Assistant unter `/share` (über die
+  Samba-Freigabe erreichbar), neue Umgebungsvariable `ET_INBOX_DIR` für einen
+  eigenen Ort.
+- **Versorgerpost per E-Mail** über die IMAP-Integration von Home Assistant
+  beschrieben; eine HACS-Integration ist in Vorbereitung.
+
+#### Vertrag aus der Rechnung
+
+- Gilt am Zähler im Zeitraum einer Rechnung kein Vertrag, legt der Posteingang
+  ihn an: Versorger, Vertragskonto, Beginn, **Preise je Abschnitt brutto** (Satz
+  je Sparte gelesen, nie vermutet), Basis- und Bereitstellungspreis als
+  Grundpreis, Energiesteuer und CO₂-Preis im Arbeitspreis, mit sichtbarer
+  Aufschlüsselung; bei Wasser alle drei Sparten. Die Rechnung hängt im selben
+  Durchgang am neuen Vertrag und wird gebucht; ohne den Vertrag ist das Buchen
+  gesperrt. Ein Vertrag desselben Versorgers, der früher endet, bekommt einen
+  Folgevertrag als Angebot.
+- **Abschläge alle zwei oder drei Monate oder zu festen Terminen** für jede
+  Verbrauchsart: Rhythmus und Termine aus der Rechnung, im Vertragsformular als
+  „Rhythmus“. Saldo nach Kalender, Abschlagsvorschlag, Prognose, Saldo-Verlauf,
+  Abrechnungsjahr, „Rechnung prüfen“ und die Kernaussage zählen je Termin.
+  Monatlich bleibt alles wie bisher.
+- **Schmutzwasser** mit eigenem Grundpreis.
+- **Belegprüfung:** gesperrte Ziffern („3 1 5,5 9 €“) als eine Zahl; ein
+  Ablesecode gilt für seinen Stand; ein Stand aus einem Dokument, der nicht
+  zwischen die eigenen passt, ist nicht vorbelegt und nennt den Nachbarn; ein
+  gemeldeter Stand, den der Versorger aufs Zeitraumende datiert, ist „schon
+  vorhanden“, und „Rechnung prüfen“ rechnet bis zum Ablesetag. Die Cloud
+  wiederholt eine abgeschnittene Antwort auch beim PDF.
+
+#### Heizgrenze dort, wo sie wirkt ([#38])
+
+- **„Heizgrenze anpassen“ unter „Zu tun“**, wenn das Heizmodell mit einer anderen
+  Grenze deutlich besser passt: vorher und nachher, die Wirkung auf erwarteten
+  Saldo und Abschlag, „Übernehmen (nur dieser Zähler)“ mit Rückgängig und „Nicht
+  jetzt“ bis zum nächsten gemessenen Monat. Derselbe Hinweis an Saldo-Karte,
+  Prognose und Werkstatt, wenn deren Schätzung wegen schlechter Passung unsicher
+  ist. In jeder Stufe; Home Assistant zählt den Eintrag mit.
+- **Heizgrenze im Zählerformular**, auch für Heizöl, Pellets und Zählergruppen.
+- **Sommer-Referenz** der Grundlast-Prüfung unabhängig von der geprüften Grenze
+  (angekündigt als 3.7.1); der Vorschlag darf den Sommer nicht überschätzen;
+  `/forecast` nimmt `?hdd_base=` wie `/consumption`.
+- **Wiederkehrende Monate** (etwa jeder April unter der Erwartung) als eine Zeile
+  in der Analyse.
+
+#### Zwischenablesung prüfen
+
+- Ein falscher Stand zwischen zwei richtigen verschiebt Verbrauch still von
+  einem Monat in den nächsten. Die App findet solche Stände, auch mehrere
+  hintereinander mit demselben Fehler, und fragt unter „Zu tun“: „Ablesung vom …
+  prüfen“, mit gemessen gegen erwartet und der Vermutung. „Stand ist richtig“,
+  „Nur für die Abrechnung“ oder „Korrigieren“, alle mit Rückgängig. Passt der
+  Verbrauch davor und danach gar nicht zusammen, fragt sie auch ohne gemeinsamen
+  Versatz. Wiederkehrende Jahreszeiten gelten nicht als Fehler.
+- **Nur für die Abrechnung:** Rechnung prüfen, Abrechnungsjahr, Kosten und Saldo
+  rechnen mit dem Stand, Monatswerte, Heizmodell und Prognose überspringen ihn;
+  der Verbrauch dazwischen wird nach dem Wetter verteilt.
+- **Doppelt eingetragene Stände** mit „Eine löschen“, und der **Hinweis auf die
+  Analyse-Zäsur**, wenn der Verbrauch ein Jahr und länger auf einem anderen
+  Niveau lag („Zäsur hier setzen“ oder „Nicht jetzt“).
+- In der Liste der Ablesungen die Marken AUFFÄLLIG, DOPPELT, GEPRÜFT und NUR
+  ABRECHNUNG. Keine Zahl ändert sich, solange niemand einen Stand markiert.
+
+#### Auswertungen, die sagen, wie sicher sie sind
+
+- **Energiefluss** mit „≈“ an geschätzten Mengen, dem erfassten Zeitraum und
+  widersprüchlichen Monaten; PV-Tabelle mit „!“ und „*“.
+- Monatswerte verteilt auch nach Tagen, Schätzungen in der Zahl der Ablesungen
+  genannt („8 Ablesungen und 1 Schätzung“), je Zähler sein letztes
+  Ablesedatum, „Kündigung bestätigt?“ statt „Kündigung eilt“ bei eingetragenem
+  Wechsel, „Kündigungsfrist nicht eingetragen“ statt „Jederzeit kündbar“, „rund“
+  ohne Cent, Jahre im Jahresbericht ab der ersten Ablesung.
+
+#### Haushalt aus Dokumenten auf einem bestehenden Haushalt
+
+- Der Entwurf übernimmt den einen aktiven Zähler einer Art und trägt Nummer und
+  Marktlokation nach, erkennt Verträge im Bestand auch ohne Nummer und belegt den
+  Bestand nie vor (angekündigt als 3.7.1).
+- Derselbe Vertrag wird erkannt, auch wenn eine spätere Tarifbestätigung zuerst
+  abgelegt ist oder der Beginn erst über die erste Rechnung feststeht.
+  Bestätigung der Marke und Lieferbeginn-Brief des Stadtwerks wenige Tage
+  auseinander sind ein Vertrag. Bei gleichem Beginn und anderem Versorgernamen
+  fragt der Entwurf „derselbe Versorger?“.
+- **Auslesen hinter einem Webserver mit kurzer Zeitgrenze:** Nach einem `504`
+  wartet die Oberfläche auf das gespeicherte Ergebnis, statt einen Fehler zu
+  zeigen (angekündigt als 3.7.1).
+
+#### Personen und Oberfläche
+
+- **Personen im Haushalt ohne Anmeldung:** Unter Einstellungen → Haushalt &
+  Gebäude legst du Personen an, benennst sie um und löschst sie, in jeder Stufe.
+  Sie stehen unter „Zuständig“ zur Wahl; ein späterer Zugang mit demselben Namen
+  übernimmt sie.
+- **Ersteinrichtung mit Zeichnungen** zu jedem Schritt und jedem
+  Beispielhaushalt, ebenso die leere Übersicht; eine gemeinsame Grundlage für
+  Zeichnungen und Schaltbilder, hell wie dunkel.
+- **Umgebungsname als Abzeichen** neben dem Logo (Einstellungen → Allgemein),
+  etwa „TEST“ für eine Test-Installation (angekündigt als 3.7.1).
+
+#### API und Daten (additiv)
+
+- **Routen** (186 → 195): `GET /api/todo`, `GET`/`PATCH /api/homeassistant/notify`,
+  `POST /api/homeassistant/notify/test`, `POST /api/metering-concept/preview`,
+  `POST /api/metering-concept`, `GET …/meters/{id}/heat-limit`,
+  `GET …/meter-groups/{id}/heat-limit`, `GET …/meters/{id}/reading-checks`;
+  `POST /api/users` mit `has_account: false`.
+- **Daten:** am Zähler `obis`, an Tanks und Zählergruppen `hdd_base_temp`, an
+  Ablesungen `is_verified` und `is_billing_only`, im Abschlagsplan
+  `every_months` und `due_dates`, bei Wasser `schmutzwasser.base_prices`, an
+  Rechnungen `end_reading_on`; Einstellungen `ha_notify_*` und `env_name`;
+  Umgebungsvariable `ET_INBOX_DIR`. Kein neuer Topf im Backup.
+- **Antworten:** `rest_of`, `billed_kwh`, `bridged`, `measured_day_share`,
+  `advance_measured_eur`, `cost_measured`, `advance_dates`, `settle_on`,
+  `billing_period`, `advance_ongoing`, `suggestion_withheld`,
+  `successor_switch`, `blend_effective`, `current_advance_every_months`,
+  `next_advance_dates`, `utility_label` in `/api/summary`, Agenda-Arten
+  `heat_limit`, `reading_check`, `reading_duplicate`, `level_shift`; die
+  Auslesung im Posteingang mit `schema_version` 5.
+
+### Changed
+
+- **Oberfläche:** kein waagrechtes Scrollen mehr unter Zugriff und in der
+  Kopfzeile am iPhone, alle Knöpfe bei Touch 44 px, Fußleiste der Assistenten
+  mittig, einheitliche Leerzustände und Kartentitel; „Wohin geht mein Geld?“
+  zeigt seine Balken auch ohne Bewegung, die Spanne der Saldo-Karte steht am
+  Telefon in Textgröße.
+- **Handbuch:** Anwendungsfall H (Kaskade), die Rest-Abrechnung in der
+  Meter-Topologie, „Ablesung prüfen“ in Grundlagen und „Hinweise erledigen“,
+  Benachrichtigungen in der Anleitung zu Home Assistant, Vertrag aus der
+  Rechnung im Posteingang, neue und erneuerte Bilder in beiden Sprachen, die
+  Grenzen jeder neuen Rechnung offen genannt.
+
+### Fixed
+
+- **Subzähler** ([#40]): Seit v3.1.0 versprach die Doku, der Vertrag des
+  Haushaltszählers rechne nur den Rest, wenn die Wärmepumpe einen eigenen
+  Vertrag hinter ihm hat. Gerechnet hat die App das nie; jetzt tut sie es, und
+  ein Test hält das Beispiel der Doku fest.
+- **Saldo-Karte und Werkstatt** nannten ohne erfasste Rechnung verschiedene
+  Salden und Abrechnungstage; Datumsangaben lagen einen Tag hinter dem Zeitraum.
+- **Kurz vor der Abrechnung** schlug die Karte einen Nachholbetrag vor, der den
+  Fehlbetrag auf ein, zwei Abschläge legte (im Testhaushalt 208 € statt 75 €).
+- **Energiefluss und Jahresbericht** kappten die gemessene Einspeisung und
+  verglichen Teiljahre (Bekannte Grenzen von 3.7.0).
+- **Prognose:** Monate ohne Vorgeschichte bekamen mit dem Knickmodell alle
+  dasselbe Niveau (Mai = Juli), Sommermonate unter dem Knick 80 % davon; die
+  Anzeige nannte 80 % Anteil der Heizkurve, obwohl jeder Monat Saisonprofil
+  rechnete.
+- **Zählergruppe:** Ihre Erwartung kam vom ersten Mitglied statt aus dem
+  Heizmodell der Summe; Gütesperre, Abweichungen und Vorschlag einer Gruppe
+  stimmten nicht.
+- **Haushalt aus Dokumenten:** Derselbe Vertrag stand als neuer Vertrag mit
+  Überschneidung da, wenn eine spätere Tarifbestätigung zuerst abgelegt war; eine
+  Rechnung ohne ihren Vertrag buchte ihr Ergebnis auf den Vertrag, der damals
+  lief.
+- **Wasser:** Die Saldo-Karte nannte „(0 kWh)“ statt der m³.
+- **Grundlast-Prüfung** nicht monoton in der Heizgrenze (Nachmessung zu [#38]).
+- **Stand aus einem Dokument:** Ein Stand, der nicht zwischen die eigenen Stände
+  passt, wird nicht mehr vorbelegt, der Hinweis nennt den Nachbarstand. Einen
+  selbst gemeldeten Stand, den der Versorger auf das Ende des Zeitraums datiert,
+  erkennt der Posteingang als vorhanden; „Rechnung prüfen“ rechnet dann bis zum
+  Ablesetag. Ein gerundeter Stand der Rechnung gilt nicht als Widerspruch.
+- **Abschlag im Rhythmus:** Saldo-Karte, Werkstatt und Bericht verglichen den
+  Vorschlag mit dem Monatsbetrag statt mit der Rate. Bei Abschlägen alle zwei
+  Monate hätte der Vorschlag weniger als die Hälfte ergeben.
+- **Vertrag aus der Rechnung:** Die laut Rechnung schon gezahlten Abschläge kamen
+  nicht in die App, Abrechnungsjahr und Bericht zeigten deshalb eine viel zu hohe
+  Nachzahlung. Der Vorschlag legt sie jetzt als Planzeile an.
+- **Eine Unsicherheit überall:** Übersicht, Werkstatt und Jahresbericht nennen
+  dieselbe Spanne wie die Saldo-Karte; die Ampel sagt bei unsicherer Schätzung
+  „Schätzung unsicher“. Nach Übernahme einer Heizgrenze zeigt die Karte „≈“ mit
+  der Breite je nach Wetter statt eines Cent-Betrags.
+- **Saldo-Karte mit schlecht passendem Heizmodell** rechnet wie die Prognose mit
+  verlässlichen Werten; Sommermonate bekamen dort nur den Grundpreis.
+- **Ablesung prüfen:** Nach „Nur für die Abrechnung“ entstanden neue Befunde aus
+  dem überbrückten Zustand; doppelt eingetragene Stände tragen die Entscheidung
+  jetzt gemeinsam.
+- **Jahresbericht:** Teiljahre wurden wie ganze Jahre verglichen (CO₂, Liter je
+  Person und Tag, kWh je m²), die Kostenzerlegung ging nicht auf, und „Abschlag
+  anpassen“ stand vorn bei einem Vertrag, der bald endet.
+- **Lieferantenwechsel:** Die Abrechnungsperiode endet am Vertragsende statt am
+  alten Stichtag, ohne Stummelperioden.
+- **Rest-Abrechnung sichtbar:** Kachel und Monatstabelle zeigen die abgerechnete
+  Menge. Der Assistent nennt, ab wann der Hausvertrag nur noch den Rest rechnet,
+  und fragt nach dem Einbaudatum.
+- **Heizgrenze-Hinweis** nennt den letzten Tag des Zeitraums und eine Spanne vom
+  kleineren zum größeren Betrag; Einsteiger sehen einen kurzen Satz ohne
+  Fachwörter.
+- Dazu Texte aus dem Skeptiker-Lauf: Grund der Zäsur je Verbrauchsart, Satz zur
+  Wallbox nur mit Wallbox, angenommene Wohnfläche und Personenzahl werden
+  genannt, Wasser-Sparten zeigen ihre Kosten, „Kein Vertrag“ statt „0,00 €“.
+
+### Bekannte Grenzen
+
+- Innerhalb eines Ablesungsabstands verteilt die App gleichmäßig je Tag, nicht
+  nach dem Wetter (nur über einen Stand „nur für die Abrechnung“ hinweg nach dem
+  Wetter).
+- Die Wege über den Supervisor und den Ordner `/share` der App für Home
+  Assistant sowie der E-Mail-Weg über IMAP sind gegen ein nachgebautes Home
+  Assistant geprüft, noch nicht in einem laufenden; die HACS-Integration ist
+  nicht veröffentlicht.
+- MiSpeL (Speicher mit Netz- und Solarstrom) steht nur als Hinweis in der Doku
+  und wird noch nicht gerechnet.
+- Die Prüfung der Zwischenablesungen ist bewusst vorsichtig und übersieht kleine
+  Versätze; bei schlecht passendem Heizmodell meldet sie erst große.
+- Rechnungen eines Stadtwerks ohne gemeinsame Nummer oder gemeinsames Wort mit
+  der Bestätigung der Marke bilden im Entwurf weiter einen eigenen Vertrag (als
+  Frage, nicht vorbelegt).
+
+### Migration
+
+Keine. Schema bleibt 1.8.0; neue Felder sind optional, kein neuer Topf im
+Backup. Webhook-ID und Token der Benachrichtigungen liegen in einer eigenen Datei
+und bleiben bewusst draußen. Benachrichtigungen sind aus, bis ein Verwalter sie
+einschaltet.
+
+### Tests
+
+- **Messkonzepte:** `SubmeterRestBillingTest`, `SubmeterRestConsumersTest`,
+  `SubmeterRestProjectionTest`, `SubmeterRestDocsTest`, `CascadeMeteringTest`,
+  `InboxRegisterTest`, `MeteringConceptServiceTest`, Node-Suite
+  `metering-concepts.test`.
+- **Home Assistant:** `HomeAssistantNotifyTest` und `HomeAssistantEndpointTest`
+  gegen ein nachgebautes Home Assistant über HTTP, `InboxFolderTest`.
+- **Vertrag aus der Rechnung:** `WaterBillContractTest` (Ende-zu-Ende mit
+  Handrechnung), `AdvanceRhythmTest`, `InvoicePricesTest`,
+  `HouseholdDraftAdvanceRhythmTest`, `WaterContractDocsTest`, `RhythmPaidSumTest`.
+- **Auswertung:** `OneProjectionTest`, `SolarFlowHonestyTest`, `ForecastLevelTest`,
+  `EvaluationDetailsTest`, `BillingWindowTest`.
+- **Heizgrenze:** `HeatLimitFollowUpTest`, `ForecastMissingMonthTest`,
+  `ForecastFlatRegressionTest`.
+- **Ablesung prüfen:** `ReadingCheckTest`, `ReadingCheckDocsTest`.
+- **Entwurf, Personen, Oberfläche:** `HouseholdDraftExistingContractsTest`,
+  `PersonWithoutAccountTest`, Node-Suite `illustrations.test`.
+- **Doku:** `DocumentedThresholdsTest` bindet die Zahlen der neuen Anleitungen an
+  die Konstanten.
+- 1749 Testmethoden (+272). Jede neue Regel hat eine Gegenprobe, die sie
+  bricht: 549 in 9 Paketen, alle rot.
+
+### Lessons Learned
+
+- **Eine Zusage ohne Test ist drei Releases lang falsch geblieben.** Die
+  Rest-Abrechnung am Elternzähler stand seit v3.1.0 in der Doku, gerechnet hat
+  sie die App nie. Seitdem prüfen Tests die Beispiele der Doku, indem sie
+  dieselben Zahlen mit der App rechnen.
+- **Eine Projektion statt zweier.** Saldo-Karte und Werkstatt rechneten
+  dieselbe Größe über verschiedene Zeiträume und widersprachen sich sichtbar.
+  Jetzt liest jede Ansicht dieselben Felder des Vertragsstatus.
+- **Vorsicht ist eine Entscheidung.** Die Prüfung der Zwischenablesungen meldet
+  an keinem Beispielhaushalt etwas und übersieht dafür kleine Fehler. Gemessen
+  wurde das an erfundenen Haushalten mit eingebauten Fehlern, nicht am eigenen
+  Modell allein.
+
+[#36]: https://github.com/Bingerminger/energietracker/issues/36
+[#38]: https://github.com/Bingerminger/energietracker/issues/38
+[#40]: https://github.com/Bingerminger/energietracker/issues/40
+
+---
+
+**Vermarktungssatz:** Wärmepumpe mit eigenem Tarif, eine Jahresrechnung im
+Posteingang oder eine Frist, die bald abläuft: Der Energietracker rechnet jeden
+Vertrag nur für das, was er wirklich misst, legt den Vertrag aus der Rechnung an
+und meldet sich selbst in Home Assistant.
+
+---
+
 ## [3.7.0] — 2026-10-22 — Post vom Versorger. Automatisches Einlesen und Verwalten von Dokumenten
 
 MINOR-Release ohne Schemaschritt (bleibt 1.8.0): ein **Posteingang für

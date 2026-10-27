@@ -7,6 +7,413 @@ and [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [3.9.0] — 2026-10-27 — Every contract pays only its share. Metering concepts, Home Assistant and the contract from the bill
+
+MINOR release without a schema step (stays 1.8.0). 3.9.0 contains what was
+announced as 3.7.1 (GitHub [#38]) and 3.8.0 ([#36]); those numbers are dropped.
+New are **metering concepts** ([#40]): if a sub-meter has its own contract, the
+parent meter only bills the remainder, a cascade with heat pump, peak/off-peak
+and solar can be set up, registers carry their OBIS code, and an assistant with
+diagrams creates it all. Energietracker **reports to Home Assistant by
+itself**: deadlines, reminders, warnings and new mail, plus a “To do” sensor. An
+annual bill turns into the **contract with prices and advance payment plan**,
+for water with payments every two months too. The **heating limit** shows where
+it matters, a **mistyped meter reading** stands out, and balance card, annual
+report and forecast workshop calculate from **one** projection. Plus: household
+from documents on an existing household, people in the household without
+sign-in, a setup assistant with drawings and a pass through the whole
+interface. API, CSV format 1, backup format 3.0 and the Docker environment only
+grow additively.
+
+### ⚠️ For existing installations
+
+- **Remainder billing on the parent meter** ([#40]): if a sub-meter has its own
+  contract (or bills through its group’s group contract), costs, contract
+  amount, balance, forecast, tariff comparison, bill check and annual report of
+  the parent meter only bill the remainder from that contract’s start. Up to
+  3.7 the sub-meter’s amount was paid through both contracts, and the monthly
+  total of costs did not include the sub-meter: costs drop on the parent meter
+  and rise in the total of the utility. Efficiency, seasonal performance factor
+  and “electricity by role” use each meter’s own consumption. A sub-meter
+  without its own contract stays a breakdown.
+- **Balance over the running billing period:** balance card, Costs &
+  contracts, annual report, “Where does my money go?” and forecast workshop
+  calculate a running contract over the running billing period, even without a
+  recorded bill. Up to 3.7 the card counted from the contract start without a
+  bill and the workshop the billing year; both named different balances. The
+  settlement date is the **last day** of the period everywhere (`settle_on`, for
+  example 31 December instead of 1 January). If fewer than three advance
+  payments are left before the bill, the card no longer suggests a catch-up
+  amount (`suggested_advance` is then `null`, `suggestion_withheld: "short"`),
+  but the advance that fits going forward.
+- **Advance payments of the measured days:** the “Advances” tile and the monthly
+  table count the advance pro rata by day in the first and last month of a
+  reading series (`advance_measured_eur`), no longer in full.
+- **Interpolated by days too:** a month also counts as interpolated if fewer
+  than half of its days come from intervals of up to 45 days
+  (`measured_day_share`). For meters with few readings, deviations,
+  recommendations, heating model and forecast can change; monthly values and
+  costs stay.
+- **Forecast:** a calendar month without its own history comes from the
+  heating model instead of the regression of monthly totals; if the model is
+  not reliable, with the measured summer base load (`heat_model_summer`),
+  otherwise from interpolated values, which for heating only count from
+  intervals of up to 62 days. Where the segmented model or the sigmoid is flat,
+  the measured seasonal value applies. Without a weather link (electricity,
+  water) and without twelve measured calendar months the annual amount follows
+  the consumption of the last 365 days (`level_last_year`). Forecasts of heating
+  utilities, especially with the segmented model, and of electricity with few
+  readings change. The display names the effective share of the heating curve
+  (`blend_effective`).
+- **Heating limit suggestion** ([#38]): smoothed over 1 °C, without limits where
+  the fit drops many months or overestimates May to September, with a range;
+  the suggestion is the limit that changes least. Suggestions may shift
+  compared with 3.7, mostly 0.5 to 1 °C upwards. The base-load check measures
+  the model’s own base load for the lower bound; at very high heating limits the
+  quality gate now fails where it narrowly passed up to 3.7. Recurring months
+  are a pattern and no longer a recommendation.
+- **Solar energy flow:** the measured feed-in is no longer capped at the
+  interpolated generation (`flows.pv_grid`). The “Solar power” block of the
+  annual report takes all amounts from one period and compares whole years
+  only.
+- **Future contracts** show the unit price and advance of their start instead
+  of “–” (API `null` before).
+- **Inbox:** the browser joins a PDF’s text layer by the position of the
+  characters; lines drawn backwards and pieces without a gap give a different
+  text than before. The reading carries `schema_version` 5; a document read
+  before keeps its reading, “Read again” asks with the new text layer. A reading
+  code only applies to the reading right before it: of “old reading … I · new
+  reading … S” only the new reading is created as estimated. If no contract at
+  all applies at the meter, “Create contract … from this bill” is pre-selected.
+- **Household from documents:** prices, advance payments and bills of a contract
+  that does not exist yet only go with it. A selection without its contract is
+  now refused by `POST /api/inbox/draft/apply` before anything is written
+  (`400 errors.inboxDraft.needs.contract`); up to 3.7 the entries failed one by
+  one, and a bill was created without a contract.
+- **Watched folder:** the app now also reads it without anyone opening it, at
+  most every five minutes after any request (in the Docker image the health
+  check asks every 30 seconds).
+- **Home Assistant app:** it now requests `homeassistant_api` (for notifications
+  through the Supervisor) and the `/share` folder with write access. The watched
+  folder lives there under `/share/energietracker/posteingang`. Notifications
+  stay off until an admin switches them on.
+- **People:** without sign-in, Settings → Access no longer shows a list of
+  people; they are under Household & building. The water field “People in the
+  household” is called “Number of people”.
+- **Catalogues:** new keys in all seven languages; changed among others
+  `assignee.noPeople`, `settings.users.noAccessHint`,
+  `settings.field.wasser_personen_anzahl.label`, `inbox.empty` and the card
+  titles of the settings (icon no longer in the text); removed
+  `settings.users.hintOff`, `settings.users.deleteHintOff`,
+  `contracts.water.apMonthly`.
+- **No new outbound connection without your doing:** notifications only go to
+  the address an admin enters; an address outside the home network only with
+  `https://`.
+
+### Added
+
+#### Metering concepts ([#40])
+
+- **Remainder billing on the parent meter:** a sub-meter with its own contract
+  is deducted day by day, only on days on which its contract runs. The meter,
+  its contract and “Check the bill” say how it was calculated (“300 kWh =
+  500 kWh measured − 200 kWh heat pump”). If sub-meter readings are missing,
+  the app carries its latest daily rate forward for up to 92 days and says so;
+  if it measures more than the parent meter, no negative remainder is billed,
+  and a note asks you to check the readings. When you create a contract on a
+  sub-meter, a sentence says what changes on the parent meter. Not for water
+  (there the garden meter deducts through the waste water).
+- **Cascade with heat pump, peak/off-peak and solar:** described and calculated
+  as use case H; roles follow each meter’s own consumption (the heat pump in
+  front as the remainder, the household behind).
+- **Registers with OBIS code** (1.8.0, 1.8.1, 1.8.2, 2.8.0) on the meter. Home
+  Assistant (meter number plus code) and the inbox assign readings of the same
+  meter number to the matching register, a feed-in register to the solar
+  feed-in.
+- **Assistant “Set up metering concept”** in five steps: what is connected to
+  the electricity supply, how the meters are connected (diagrams for two meters
+  side by side, a sub-meter behind, a cascade or one meter for everything),
+  which meters and which contracts there are. It creates meters, registers,
+  groups and contracts, assigns existing meters instead of creating them twice,
+  leaves running contracts as they are and saves the current state first.
+  Reached from the meters page, Settings → Utilities & billing and the end of
+  the setup assistant.
+
+#### Notifications to Home Assistant ([#36])
+
+- **Energietracker speaks up by itself:** due appointments, deadlines and other
+  “To do” items, warnings and new documents in the inbox, each message only
+  once (a new stage such as “overdue” is a new message), at most five at a
+  time, in the installation’s language. No schedule of its own: the check runs
+  once a day from the time set, after the answer to the first request after it.
+- **Three ways:** in the Home Assistant app through the Supervisor without
+  setup, otherwise by webhook (with a ready-made automation) or with address
+  and token. Settings → Integrations: events, time, “Send a test message”, last
+  delivery. Webhook ID and token stay on the server, not in the settings and
+  not in the backup.
+- **“To do” sensor:** `GET /api/todo` with count, overdue items, the next item
+  and up to 50 items, with a template; every new kind of item counts.
+- **Watched folder** in the Home Assistant app under `/share` (reachable through
+  the Samba share), new environment variable `ET_INBOX_DIR` for a place of your
+  own.
+- **Supplier mail by email** through Home Assistant’s IMAP integration
+  described; a HACS integration is in preparation.
+
+#### Contract from the bill
+
+- If no contract applies at the meter in a bill’s period, the inbox creates it:
+  supplier, contract account, start, **prices per section gross** (rate read per
+  component, never guessed), basic and provision price as the standing charge,
+  energy tax and CO₂ price within the unit price, with a visible breakdown; for
+  water all three components. In the same pass the bill belongs to the new
+  contract and is booked; without the contract booking is locked. A contract of
+  the same supplier that ends earlier gets a follow-up contract as an offer.
+- **Advance payments every two or three months or on fixed dates** for every
+  utility: rhythm and dates from the bill, in the contract form as “Rhythm”.
+  Calendar balance, advance suggestion, forecast, balance history, billing
+  year, “Check the bill” and the key statement count per due date. Monthly
+  stays as before.
+- **Waste water** with a standing charge of its own.
+- **Evidence check:** spaced digits (“3 1 5,5 9 €”) as one number; a reading
+  code applies to its own reading; a reading from a document that does not fit
+  between your own is not pre-selected and names the neighbour; a reading you
+  reported, which the supplier dates to the end of the period, is “already
+  there”, and “Check the bill” calculates up to your reading day. The cloud
+  repeats a truncated answer for PDFs too.
+
+#### Heating limit where it matters ([#38])
+
+- **“Adjust the heating limit” under “To do”** when the heating model fits much
+  better with a different limit: before and after, the effect on the expected
+  balance and advance payment, “Apply (this meter only)” with undo and “Not now”
+  until the next measured month. The same note on the balance card, forecast
+  and workshop when their estimate is uncertain because of a poor fit. At every
+  level; Home Assistant counts the entry.
+- **Heating limit in the meter form**, also for heating oil, pellets and meter
+  groups.
+- **Summer reference** of the base-load check independent of the limit being
+  checked (announced as 3.7.1); the suggestion must not overestimate the
+  summer; `/forecast` takes `?hdd_base=` like `/consumption`.
+- **Recurring months** (such as every April below the expectation) as one line
+  in the analysis.
+
+#### Check intermediate readings
+
+- A wrong reading between two correct ones silently moves consumption from one
+  month to the next. The app finds such readings, also several in a row with
+  the same error, and asks under “To do”: “check the reading of …”, with
+  measured against expected and its guess. “Reading is correct”, “Only for the
+  bill” or “Correct it”, all with undo. If consumption before and after does
+  not add up at all, it asks even without a common offset. Recurring seasons do
+  not count as an error.
+- **Only for the bill:** bill check, billing year, costs and balance use the
+  reading, monthly values, heating model and forecast skip it; the consumption
+  in between is spread by the weather.
+- **Readings entered twice** with “Delete one”, and the **note on the baseline
+  date** when consumption stayed on a different level for a year or more (“Set
+  baseline date here” or “Not now”).
+- In the list of readings the marks UNUSUAL, DUPLICATE, VERIFIED and BILL ONLY.
+  No number changes until someone marks a reading.
+
+#### Evaluations that say how certain they are
+
+- **Energy flow** with “≈” on estimated amounts, the period covered and
+  contradictory months; solar table with “!” and “*”.
+- Monthly values interpolated by days too, estimates named in the number of
+  readings (“8 readings and 1 estimate”), each meter with its own last reading
+  date, “Cancellation confirmed?” instead of “Cancel soon” for a recorded switch,
+  “Notice period not entered” instead of “Cancel at any time”, “about” without
+  cents, years in the annual report from the first reading.
+
+#### Household from documents on an existing household
+
+- The draft takes over the one active meter of a utility and adds number and
+  market location, recognises recorded contracts without a number too and never
+  pre-selects what is already there (announced as 3.7.1).
+- The same contract is recognised even if a later tariff confirmation was filed
+  first or the start is only settled by the first bill. The brand’s
+  confirmation and the municipal utility’s supply start letter a few days apart
+  are one contract. With the same start and another supplier name the draft
+  asks “the same supplier?”.
+- **Reading behind a web server with a short time limit:** after a `504` the
+  interface waits for the saved result instead of showing an error (announced
+  as 3.7.1).
+
+#### People and interface
+
+- **People in the household without sign-in:** under Settings → Household &
+  building you add, rename and delete people, at every level. They can be
+  chosen under “Responsible”; a later account with the same name takes them
+  over.
+- **Setup assistant with drawings** for each step and each sample household,
+  and the empty overview too; one shared basis for drawings and diagrams, light
+  and dark.
+- **Environment name as a badge** next to the logo (Settings → General), such as
+  “TEST” for a test installation (announced as 3.7.1).
+
+#### API and data (additive)
+
+- **Routes** (186 → 195): `GET /api/todo`, `GET`/`PATCH /api/homeassistant/notify`,
+  `POST /api/homeassistant/notify/test`, `POST /api/metering-concept/preview`,
+  `POST /api/metering-concept`, `GET …/meters/{id}/heat-limit`,
+  `GET …/meter-groups/{id}/heat-limit`, `GET …/meters/{id}/reading-checks`;
+  `POST /api/users` with `has_account: false`.
+- **Data:** on the meter `obis`, on tanks and meter groups `hdd_base_temp`, on
+  readings `is_verified` and `is_billing_only`, in the advance payment plan
+  `every_months` and `due_dates`, for water `schmutzwasser.base_prices`, on bills
+  `end_reading_on`; settings `ha_notify_*` and `env_name`; environment variable
+  `ET_INBOX_DIR`. No new store in the backup.
+- **Responses:** `rest_of`, `billed_kwh`, `bridged`, `measured_day_share`,
+  `advance_measured_eur`, `cost_measured`, `advance_dates`, `settle_on`,
+  `billing_period`, `advance_ongoing`, `suggestion_withheld`,
+  `successor_switch`, `blend_effective`, `current_advance_every_months`,
+  `next_advance_dates`, `utility_label` in `/api/summary`, agenda kinds
+  `heat_limit`, `reading_check`, `reading_duplicate`, `level_shift`; the inbox
+  reading with `schema_version` 5.
+
+### Changed
+
+- **Interface:** no more horizontal scrolling under Access and in the header on
+  the iPhone, all buttons 44 px on touch, the assistants’ footer centred,
+  consistent empty states and card titles; “Where does my money go?” shows its
+  bars without motion too, and the balance card’s range uses text size on the
+  phone.
+- **Handbook:** use case H (cascade), remainder billing in the meter topology,
+  “Check a reading” in the basics and in “Ticking off notices”, notifications in
+  the Home Assistant guide, contract from the bill in the inbox guide, new and
+  renewed images in both languages, the limits of every new calculation named
+  openly.
+
+### Fixed
+
+- **Sub-meters** ([#40]): since v3.1.0 the docs promised that the household
+  meter’s contract bills only the remainder when the heat pump has its own
+  contract behind it. The app never calculated that; now it does, and a test
+  holds the example of the docs.
+- **Balance card and workshop** named different balances and settlement dates
+  without a recorded bill; dates lay one day after the period.
+- **Shortly before the bill** the card suggested a catch-up amount that put the
+  shortfall on one or two payments (in the test household €208 instead of €75).
+- **Energy flow and annual report** capped the measured feed-in and compared
+  part years (known limits of 3.7.0).
+- **Forecast:** months without history all got the same level with the
+  segmented model (May = July), summer months below the break point 80 % of it;
+  the display named an 80 % share of the heating curve although every month used
+  the seasonal profile.
+- **Meter group:** its expectation came from the first member instead of the
+  heating model of the sum; quality gate, deviations and suggestion of a group
+  were wrong.
+- **Household from documents:** the same contract showed as a new contract with
+  an overlap when a later tariff confirmation was filed first; a bill without
+  its contract booked its result on the contract that was running then.
+- **Water:** the balance card said “(0 kWh)” instead of the m³.
+- **Base-load check** not monotone in the heating limit (follow-up measurement
+  for [#38]).
+- **Reading from a document:** a reading that does not fit between your own
+  readings is no longer pre-selected, and the note names the neighbouring
+  reading. A reading you reported yourself, dated by the supplier to the end of
+  the period, is recognised as already there; “Check bill” then counts up to the
+  reading day. A rounded reading on the bill is not a conflict.
+- **Advance in a rhythm:** balance card, workshop and report compared the
+  suggestion with the monthly amount instead of the instalment. With advance
+  payments every two months the suggestion would have come out at less than half.
+- **Contract from the bill:** the advance payments already paid according to the
+  bill did not reach the app, so the billing year and the report showed far too
+  high an additional payment. The suggestion now adds them as a plan line.
+- **One uncertainty everywhere:** overview, workshop and annual report name the
+  same range as the balance card; the traffic light says “estimate uncertain”
+  when it is. After applying a heating limit the card shows “≈” with the spread
+  by weather instead of an amount to the cent.
+- **Balance card with a poorly fitting heating model** uses reliable values like
+  the forecast; summer months used to get the base price only.
+- **Check readings:** after “Only for the bill” new findings came out of the
+  bridged state; readings entered twice now share the decision.
+- **Annual report:** partial years were compared like full years (CO₂, litres per
+  person and day, kWh per m²), the cost breakdown did not add up, and “Adjust
+  advance” came first for a contract about to end.
+- **Change of supplier:** the billing period ends with the contract instead of the
+  old reference date, without stub periods.
+- **Rest billing visible:** tile and monthly table show the billed quantity. The
+  assistant says from when the house contract only bills the rest and asks for
+  the installation date.
+- **Heating limit note** names the last day of the period and a range from the
+  smaller to the larger amount; beginners see a short sentence without jargon.
+- Plus wording from the sceptic run: reason for the baseline date per utility,
+  the wallbox sentence only with a wallbox, assumed living area and number of
+  people are named, water sections show their costs, “No contract” instead of
+  “0.00 €”.
+
+### Known limits
+
+- Within a reading interval the app spreads evenly per day, not by the weather
+  (only across a reading “only for the bill” by the weather).
+- The ways through the Supervisor and the `/share` folder of the Home Assistant
+  app and the email way through IMAP are tested against a mock Home Assistant,
+  not yet in a running one; the HACS integration is not published.
+- MiSpeL (storage with grid and solar power) is only a note in the docs and is
+  not calculated yet.
+- The check of intermediate readings is deliberately cautious and misses small
+  offsets; with a poorly fitting heating model it only reports large ones.
+- Bills of a municipal utility without a shared number or word with the brand’s
+  confirmation still form a contract of their own in the draft (as a question,
+  not pre-selected).
+
+### Migration
+
+None. The schema stays 1.8.0; new fields are optional, no new store in the
+backup. Webhook ID and token of the notifications live in a file of their own
+and are deliberately left out. Notifications are off until an admin switches
+them on.
+
+### Tests
+
+- **Metering concepts:** `SubmeterRestBillingTest`, `SubmeterRestConsumersTest`,
+  `SubmeterRestProjectionTest`, `SubmeterRestDocsTest`, `CascadeMeteringTest`,
+  `InboxRegisterTest`, `MeteringConceptServiceTest`, Node suite
+  `metering-concepts.test`.
+- **Home Assistant:** `HomeAssistantNotifyTest` and `HomeAssistantEndpointTest`
+  against a mock Home Assistant over HTTP, `InboxFolderTest`.
+- **Contract from the bill:** `WaterBillContractTest` (end to end with a hand
+  calculation), `AdvanceRhythmTest`, `InvoicePricesTest`,
+  `HouseholdDraftAdvanceRhythmTest`, `WaterContractDocsTest`, `RhythmPaidSumTest`.
+- **Evaluations:** `OneProjectionTest`, `SolarFlowHonestyTest`,
+  `ForecastLevelTest`, `EvaluationDetailsTest`, `BillingWindowTest`.
+- **Heating limit:** `HeatLimitFollowUpTest`, `ForecastMissingMonthTest`,
+  `ForecastFlatRegressionTest`.
+- **Check a reading:** `ReadingCheckTest`, `ReadingCheckDocsTest`.
+- **Draft, people, interface:** `HouseholdDraftExistingContractsTest`,
+  `PersonWithoutAccountTest`, Node suite `illustrations.test`.
+- **Docs:** `DocumentedThresholdsTest` ties the figures of the new guides to the
+  constants.
+- 1749 test methods (+272). Every new rule has a counter-check that
+  breaks it: 549 in 9 packages, all red.
+
+### Lessons learned
+
+- **A promise without a test stayed wrong for three releases.** Remainder
+  billing on the parent meter had been in the docs since v3.1.0; the app never
+  calculated it. Since then tests check the examples of the docs by calculating
+  the same figures with the app.
+- **One projection instead of two.** Balance card and workshop calculated the
+  same figure over different periods and visibly contradicted each other. Now
+  every view reads the same fields of the contract status.
+- **Caution is a decision.** The check of intermediate readings reports nothing
+  for any sample household and misses small errors in return. That was measured
+  on made-up households with built-in errors, not on the app’s own model alone.
+
+[#36]: https://github.com/Bingerminger/energietracker/issues/36
+[#38]: https://github.com/Bingerminger/energietracker/issues/38
+[#40]: https://github.com/Bingerminger/energietracker/issues/40
+
+---
+
+**Marketing sentence:** A heat pump on its own tariff, an annual bill in the
+inbox or a deadline coming up: Energietracker bills every contract only for
+what it really measures, creates the contract from the bill and speaks up in
+Home Assistant by itself.
+
+---
+
 ## [3.7.0] — 2026-10-22 — Mail from your supplier. Reading and managing documents automatically
 
 MINOR release without a schema step (stays 1.8.0): an **inbox for supplier

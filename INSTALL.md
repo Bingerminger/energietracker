@@ -29,7 +29,7 @@ cd energietracker
 energietracker/
 ├── api.php
 ├── index.php
-├── VERSION                ← 3.7.0
+├── VERSION                ← 3.9.0
 ├── public/                ← CSS + JS
 ├── src/                   ← PHP backend
 ├── data/                  ← must be writable

@@ -14,11 +14,11 @@ sample household carried forward to today, in seven languages, nothing to instal
 
 [![CI](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml)
 [![Docker Publish](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml)
-[![Version](https://img.shields.io/badge/version-3.7.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-3.9.0-blue.svg)](CHANGELOG.md)
 [![License: AGPL-3.0-or-later](https://img.shields.io/badge/License-AGPL--3.0--or--later-success.svg)](LICENSE)
 [![PHP](https://img.shields.io/badge/PHP-%E2%89%A5%208.2-777BB4.svg)](composer.json)
 [![Dependencies: 0](https://img.shields.io/badge/dependencies-0-success.svg)](composer.json)
-[![Tests](https://img.shields.io/badge/Tests-1477-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-1749-success.svg)](tests/)
 [![Languages](https://img.shields.io/badge/languages-7-7c5cff.svg)](public/locales/)
 [![Utilities](https://img.shields.io/badge/utilities-9-f59e0b.svg)](docs/en/einstieg/funktionen.md)
 [![Docker](https://img.shields.io/badge/Docker-amd64%20%7C%20arm64-2496ed.svg)](docker-compose.yml)
@@ -157,7 +157,7 @@ classes and says why; it does not convert currencies —
 
 ## Status and outlook
 
-**v3.7.0** is the current version — [CHANGELOG](CHANGELOG.en.md) (German
+**v3.9.0** is the current version — [CHANGELOG](CHANGELOG.en.md) (German
 version: [CHANGELOG.md](CHANGELOG.md)). APIs, CSV formats and the backup format
 change only additively; anything is removed only with a new major version and
 after notice. 3.9.0 contains what was announced as 3.7.1 and 3.8.0: metering
