@@ -28,7 +28,11 @@ data.
 
 ### The steps
 
-The “Set up” dialog has five steps (“Step 1 of 5”):
+The “Set up” dialog has five steps (“Step 1 of 5”). Since **v3.9.0** each
+question has a small drawing next to it (globe, houses, meters, levels, tray),
+and each answer to “Who are you?” shows a small house picture instead of an
+emoji. The pictures are only decoration; the question and the text of the
+answer say everything.
 
 1. **“Language and country”** *(since v3.5.0)* — two choices:
    - **Language:** one of the seven interface languages. Preselected is the
@@ -54,7 +58,7 @@ The “Set up” dialog has five steps (“Step 1 of 5”):
 4. **“How much experience do you have?”** — Beginner, Experienced or Expert
    ([§ 3](#3-experience-levels)).
 5. **“What comes next”** — the summary and one of three ways *(since
-   v3.7.0)*:
+   v3.7.0)*, with electricity since v3.9.0 one of four:
    - **“From documents”** *(recommended)* takes you to the inbox: file supplier
      mail as PDF, have it read, and a draft of your household is built —
      [Household from documents](../anleitungen/haushalt-aus-dokumenten.md).
@@ -64,6 +68,12 @@ The “Set up” dialog has five steps (“Step 1 of 5”):
      (administrators only; members read that an administrator sets it up).
    - **“Enter by hand”** takes you to “Meter readings”: check the meters, add
      the first reading — continue with [Getting started](erste-schritte.md).
+   - **“Set up metering concept”** *(since v3.9.0, only with electricity)*:
+     “For solar, heat pump or EV charger with its own meter: first the layout,
+     then the readings.” Opens the electricity meters page with the assistant
+     that asks about the layout in the meter cabinet and creates meters,
+     registers and contracts
+     ([use case H](../anleitungen/anwendungsfaelle.md#h--cascade-with-heat-pump-htnt-and-solar-v390)).
    - **“Look at it with sample data”** *(administrators only)* loads the
      sample household for your answer in step 2
      ([§ 2](#2-the-sample-households)). The app saves the current state as a

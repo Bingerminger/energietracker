@@ -170,6 +170,26 @@ the group — with one standing charge and, under “Unit price per meter (e.g.
 peak/off-peak)”, the price per register. Balance, forecast and switch then
 calculate for both together
 ([Electricity](../verstehen/02-strom.md#peak-and-off-peak-one-contract-for-a-meter-group-v310)).
+Since v3.9.0 the assistant **“Set up metering concept”** creates this for you,
+also with a heat pump, solar and meters in a row
+([use case H](../anleitungen/anwendungsfaelle.md#h--cascade-with-heat-pump-htnt-and-solar-v390)).
+
+### Why does my household meter cost less since v3.9.0?
+
+Because a sub-meter with its own contract (such as the heat pump behind the
+household meter) is now deducted: the household meter’s contract only bills the
+remainder. Up to v3.7 the app paid for the sub-meter’s amount through both
+contracts. The meter and its contract say how it was calculated, for example
+“300 kWh = 500 kWh measured − 200 kWh heat pump”
+([remainder billing](../verstehen/13-meter-topologie.md#remainder-billing-v390)).
+
+### The app says “check the reading of …”. What should I do?
+
+Compare the reading with the photo or the bill. If it is right, tap “Reading is
+correct”. If the supplier billed with this reading although it skews the months,
+choose “Only for the bill”. If it is mistyped, “Correct it” opens the reading
+with the value that would fit. The app changes nothing on its own
+([Ticking off notices §11](../anleitungen/hinweise-erledigen.md#11-check-a-reading-v390)).
 
 ### How good is my heat pump?
 
@@ -278,6 +298,14 @@ Agency; nothing of yours is sent along. No accounts, no telemetry, no ads.
 
 Yes, in the browser on the home network; as an app on the home screen with
 HTTPS. See [Use on your phone](handy.md).
+
+### Can the app report deadlines to Home Assistant?
+
+Yes, since v3.9.0: Settings → Integrations → “Notifications to Home
+Assistant”. In the Home Assistant app the switch is enough, otherwise a webhook
+or address and token. Due appointments, deadlines, warnings and new mail arrive
+once each, in the installation’s language
+([Home Assistant, step 6](../anleitungen/home-assistant.md#step-6--notifications-to-home-assistant-v390)).
 
 ### Can I see deadlines in my calendar?
 

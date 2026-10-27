@@ -78,7 +78,7 @@ advertising are recognised by the inbox and only filed.
   installation date instead of a second meter being created. A meter is only
   created if something hangs on it (meter reading, contract, bill) — a past
   request to report the reading alone holds no meter.
-- **Existing household, meters without a number** *(3.7.1)*. If you keep your
+- **Existing household, meters without a number** *(3.9.0)*. If you keep your
   meters without a meter number and market location, the recorded data does
   not know the numbers in the documents. The draft then takes over the **one
   active meter of the utility with data** (readings, contracts, bills) if
@@ -125,7 +125,7 @@ advertising are recognised by the inbox and only filed.
     before the start, at the meter of the bill.
   - **End:** if the end in the document is doubtful and there is a following
     contract, the day before its start applies — pre-selected.
-  - **Recorded contracts without a number** *(3.7.1)*: same meter (or its
+  - **Recorded contracts without a number** *(3.9.0)*: same meter (or its
     group), the same supplier and a start on the same day or at most seven
     days off — that is the recorded contract, not a second one. The recorded
     start stays (“Noticed” names both days; confirmation, supply start letter
@@ -143,6 +143,12 @@ advertising are recognised by the inbox and only filed.
     names both. It is not pre-selected. If you tick it, the values add to the
     recorded contract and its name stays. With another contract number in your
     records it stays a conflict.
+  - **Limit** *(3.9.0)*: bills of the municipal utility that does the billing,
+    which share neither a number nor a word in the name with the brand’s
+    confirmation, still form a contract of their own from the first bill. It
+    shows as a question, not pre-selected, and its prices, advance payments and
+    bills are locked until you tick it. Then assign them to the recorded
+    contract by hand.
 - **Price chain.** Confirmation and price changes (valid from) form the chain
   and are pre-selected. A price on a bill is evidence — compared gross: if it
   is printed net with a VAT rate that was read, the draft converts it as the
@@ -163,7 +169,7 @@ advertising are recognised by the inbox and only filed.
   - Closing reading of one bill = opening reading of the next: both readings
     confirmed, one meter reading. If they do not match, both need checking. If
     the same reading is recorded one day off (31 Dec against 1 Jan), it is
-    already there *(3.7.1)*.
+    already there *(3.9.0)*.
   - Gaps and overlaps between successive contracts of the same utility are
     listed under “Noticed” — nothing is corrected. Without an end in the
     documents, a contract ends on the day before the next contract. If an end
@@ -209,7 +215,7 @@ advertising are recognised by the inbox and only filed.
 - **Existing data.** What is already there is “already there” and skipped; a
   “conflict” only overwrites when you confirm the field; “overlap” means new,
   but within the period of another contract; “add to it”: existing, one value
-  is added. **“Add to it” and “overlap” are never pre-selected** *(3.7.1)* —
+  is added. **“Add to it” and “overlap” are never pre-selected** *(3.9.0)* —
   they touch what is already there and are always a question; pre-selected is
   only what is new and changes nothing that exists.
 

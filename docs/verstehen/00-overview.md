@@ -62,7 +62,7 @@ reading_gap_days    = längster Abstand, aus dem der Monat stammt
 **Seit v3.9.0 zählen auch die Tage.** Stammen die meisten Tage eines Monats aus
 einem langen Abstand, ist er verteilt, auch wenn die wenigen gemessenen Tage mehr
 Verbrauch tragen: Im unordentlichen Testhaushalt kam der Dezember 2024 zu 18 von
-31 Tagen aus einem Abstand von 103 Tagen und galt bis v3.8 als gemessen, weil der
+31 Tagen aus einem Abstand von 103 Tagen und galt bis v3.7 als gemessen, weil der
 verteilte Teil die milderen Herbstmonate mitnimmt und damit eine zu niedrige
 Tagesrate hat. So ging er in die Anomalien ein.
 
@@ -87,6 +87,15 @@ Verbrauchsart, Analyse und PV-Übersicht sagen, wenn Monatswerte verteilt sind,
 mit der Zahl der Ablesungen im Zeitraum; Tabellen zeigen „≈“, Diagramme
 schraffierte Säulen.
 
+**Grenze (Stand v3.9.0):** Innerhalb eines Abstands verteilt die App
+gleichmäßig je Tag, nicht nach dem Wetter. Ein Abstand von September bis
+Dezember gibt dem Oktober deshalb zu viel Gas und dem Dezember zu wenig; bei
+der PV bekommt in einem Abstand von Februar bis Juli der März so viel Sonne wie
+der Juni. Nach dem Wetter verteilt sie nur
+über einen Stand „nur für die Abrechnung“ hinweg (unten). Verbrauch allgemein
+nach Wetter zu verteilen ist für eine spätere Version vorgemerkt. Bis dahin
+helfen kürzere Abstände: Jede Ablesung macht die Monate daneben genauer.
+
 ### Ablesung prüfen *(seit v3.9.0)*
 
 Ein falscher Stand zwischen zwei richtigen verschiebt Verbrauch still von einem
@@ -98,8 +107,9 @@ solche Stände und fragt nach. Sie korrigiert nie selbst.
 Wärmepumpe das Heizmodell `a × HGT + c × Tage` mit der Heizgrenze des Zählers (bzw.
 seiner Gruppe), gefittet über die Ablesungsabstände. Bei Strom und Wasser die mittlere
 Tagesmenge der Abstände bis ein halbes Jahr davor und danach. Bei PV, Gartenwasser und
-anderen Zählern mit ausgeprägten Jahreszeiten (der schwächste Monat unter der Hälfte
-des stärksten) dieselben Tage in anderen Jahren. Ebenso bei einer milderen Jahreszeit,
+anderen Zählern mit ausgeprägten Jahreszeiten (die Tagesrate des Sommerhalbjahrs, April
+bis September, und die des Winterhalbjahrs liegen um mehr als das Doppelte auseinander,
+je Halbjahr der Median der Monate) dieselben Tage in anderen Jahren. Ebenso bei einer milderen Jahreszeit,
 die wiederkehrt: Liegt das Sommerhalbjahr in mindestens zwei Jahren gleichsinnig
 mindestens ein Viertel über oder unter den Wintern daneben (gezählt aus Abständen, die
 überwiegend in einer Jahreshälfte liegen), sagt die mittlere Tagesmenge im Winter „zu
@@ -140,8 +150,8 @@ der Hälfte und der danach mindestens beim Doppelten der Erwartung (oder umgekeh
 beide über der Mindestmenge und den Streuungen, fragt die App auch ohne passende Summe.
 Im Block dürfen die Abstände dann weiter in dieselbe Richtung abweichen, nur nicht schon
 zurück. Das ist der Fall, in dem Stände nach und nach falscher werden: In einer
-Nachprüfung lag der Abstand davor bei 0,23×, die beiden im Block bei 0,78× und 0,69×,
-der danach bei 3,67×, und der Überschuss danach war doppelt so groß wie der Mangel
+erfundenen Nachprüfung lag der Abstand davor bei 0,23×, die beiden im Block bei 0,78× und 0,69×,
+der danach bei 4,08×, und der Überschuss danach war rund 2,4-mal so groß wie der Mangel
 davor. Kein gemeinsamer Versatz erklärt das, also schlägt die App keinen Stand vor; der
 Eintrag heißt „Verbrauch vor und nach dem … passt nicht zusammen“, mit denselben
 Knöpfen.
@@ -189,6 +199,17 @@ entfällt der Hinweis. Die Zeit vor einem erkannten Wechsel ist kein Maßstab f�
 einzelne Stände. Bei einer wiederkehrenden Jahreszeit rechnet der Hinweis mit der
 mittleren Tagesmenge über die Zeit danach (über ein ganzes Jahr gleicht sich die
 Jahreszeit aus).
+
+**Grenzen.** Die Prüfung ist bewusst vorsichtig: An keinem Beispielhaushalt und
+nicht am unordentlichen Testhaushalt meldet sie etwas, solange alle Stände
+stimmen. Dafür übersieht sie kleine Fehler. Passt das Heizmodell schlecht (große
+Streuung), fragt sie erst bei großen Versätzen; eine passende Heizgrenze macht
+sie empfindlicher. Bei Strom mit starker Jahreszeit (der Winter unter vier
+Fünfteln des Mittels) zählt nach einem Einzug jeder Winter als Rückkehr zum
+alten, niedrigeren Niveau, dann kommt kein Hinweis auf die Zäsur. In einem
+Monat, den ein Stand „nur für die Abrechnung“ überbrückt, passen Menge und
+Kosten nicht zueinander: Die Menge ist nach dem Wetter verteilt, die Kosten
+rechnen mit dem Stand (`billed_kwh` sagt, womit).
 
 Alle drei Einträge zählen in `/api/todo` und in den Benachrichtigungen an Home
 Assistant mit, in jeder Stufe.
@@ -432,7 +453,7 @@ Die robuste Streuung schwankt bei zwei Jahren Monatswerten um rund ein Fünftel
 ihres Werts; ein Drittel weniger liegt deutlich darüber, und die Prozentpunkte
 verhindern Vorschläge zwischen zwei gut passenden Modellen.
 
-*Seit v3.7.1 (GitHub #38)* muss die vorgeschlagene Grenze außerdem den gemessenen
+*Seit v3.9.0 (GitHub #38, angekündigt als 3.7.1)* muss die vorgeschlagene Grenze außerdem den gemessenen
 Sommer treffen: Ihr Modell darf die Sommermonate der Gütesperre (für jede Grenze
 dieselben, Abschnitt 9) um höchstens 10 % überschätzen (`summer_ok` im Raster).
 Ein einzelner Sommermonat schwankt im Alltag um 10 bis 20 %, das Mittel über die
@@ -588,7 +609,7 @@ Sommerrate (Juni bis August) als Grundlast, wenn sie über c liegt
 Heizmodell kommt er aus der Regression allein (`regression_only`), sonst aus
 dem Tagesmittel aller Monate (`filled`).
 
-Bis v3.8 stand die Regression der Monatssummen vorn. Sie ist nur über Monate
+Bis v3.7 stand die Regression der Monatssummen vorn. Sie ist nur über Monate
 mit Heizgradtagen gefittet und kennt keine Tage; das Knickmodell gab jedem
 Monat unter dem Knick dasselbe Niveau, das der Übergangsmonate (Mai = Juli),
 und die Gerade setzte Sommermonate auf ihren Achsenabschnitt. Bis v2.7 bekam
@@ -630,7 +651,7 @@ Menge bis zu einem Jahr nach.
 **Anteil der Heizkurve (seit v3.9.0).** `blend_weight` ist das Gewicht laut
 Modellgüte, `blend_effective` der Teil der Jahresmenge, der wirklich aus der
 Heizkurve kommt. Monate unter den Punkten der Heizkurve oder bei nicht
-bestandener Gütesperre rechnen mit dem Saisonprofil; bis v3.8 stand dann
+bestandener Gütesperre rechnen mit dem Saisonprofil; bis v3.7 stand dann
 „Anteil Heizkurve 80 %“ neben „Saisonprofil“ in jedem Monat. Ein Monat aus dem
 Heizmodell (`heat_model`) zählt ganz zur Heizkurve.
 
@@ -876,14 +897,14 @@ model_quality    = poor, wenn Verhältnis > 15 % oder Grundlast außerhalb 0,5 �
 detect_floor     = anomaly_threshold × max(σ_robust, 10 % des typischen Monats)
 ```
 
-**Untergrenze mit der Grundlast selbst (seit v3.9.0, GitHub #38).** Bis v3.7.1 maß
+**Untergrenze mit der Grundlast selbst (seit v3.9.0, GitHub #38).** Bis v3.7.0 maß
 auch die Untergrenze die ganze Erwartung der Sommermonate. Bei hohen Heizgrenzen
 fällt `c` auf null, aber die kühlen Sommertage bekommen Heizgradtage, und `a × HGT`
 hob die Erwartung wieder über die Hälfte des Gemessenen. Beim Melder schlug die
 Prüfung in v3.7.0 zwischen 14 und 16,5 °C an und bei 17 bis 18 °C nicht mehr. Die
-feste Sommer-Referenz aus v3.7.1 änderte daran nichts, weil die Erwartung selbst
-nicht monoton in der Grenze ist: Im unordentlichen Testhaushalt schlug sie mit
-v3.7.1 von 12,5 bis 17,5 °C an und bei 18 °C nicht. Jetzt prüft die Untergrenze `c` (`base_load.base_ratio`,
+feste Sommer-Referenz (unten, als 3.7.1 angekündigt) allein änderte daran nichts,
+weil die Erwartung selbst nicht monoton in der Grenze ist: Im unordentlichen
+Testhaushalt schlug sie damit von 12,5 bis 17,5 °C an und bei 18 °C nicht. Jetzt prüft die Untergrenze `c` (`base_load.base_ratio`,
 `base_per_day`), die Obergrenze weiter die ganze Erwartung; die bestandenen Grenzen
 sind ein zusammenhängendes Stück.
 
@@ -895,7 +916,7 @@ und Oktober jedes Jahr unter oder über der Geraden. Die Analyse fasst sie zu ei
 Zeile je Monat zusammen und verweist auf die Heizgrenze; R1 und R4 machen daraus
 keine Empfehlung mehr.
 
-**Sommer für jede Heizgrenze derselbe (seit v3.7.1, GitHub #38).** Bis v3.7.0
+**Sommer für jede Heizgrenze derselbe (seit v3.9.0, GitHub #38, angekündigt als 3.7.1).** Bis v3.7.0
 waren die Sommermonate die mit HGT ≤ `min_hdd_regression` — gerechnet mit der
 Heizgrenze des geprüften Modells. Bei einer niedrigen Grenze zählten so
 Übergangsmonate mit echtem Heizbedarf als Sommer; die Referenz stieg, und ein
@@ -1058,7 +1079,7 @@ Ende der Spanne und zeigt, solange eine Schätzung unsicher ist, kein
 „Abschläge passen“) und Prognose-Werkstatt die Spanne mit dem Grund; das
 Schaubild „Wohin geht mein Geld?“ nennt Kosten und Ergebnis als Spanne.
 
-Bis v3.8 rechneten Werkstatt und Karte den Saldo verschieden. Seit v3.9.0 gibt
+Bis v3.7 rechneten Werkstatt und Karte den Saldo verschieden. Seit v3.9.0 gibt
 es eine Projektion für beide ([unten](#eine-projektion-für-saldo-und-werkstatt-seit-v390)).
 
 **Abgelöst (seit v3.7.0).** Beginnt ein Folgevertrag, während ein Vertrag noch
@@ -1098,7 +1119,7 @@ Ein Datum für alle Ansichten: der **letzte Tag** des Zeitraums (31.12.2026), ni
 der Folgetag. Ein abgelöster Vertrag endet am Tag vor dem Folgevertrag. In einer
 angeschnittenen Periode zählen von den Sonderzahlungen nur zusätzliche
 Abschlagszahlungen; Rück- und Nachzahlungen gleichen eine frühere Abrechnung
-aus. Bis v3.8 zählte die Karte ohne erfasste Rechnung ab Vertragsbeginn: Im
+aus. Bis v3.7 zählte die Karte ohne erfasste Rechnung ab Vertragsbeginn: Im
 unordentlichen Testhaushalt standen so rund 1.163 € Guthaben zum 01.01.2027
 neben 357 € zum 31.12.2026 in der Werkstatt, außerhalb der Spanne der Karte.
 Verträge außerhalb der laufenden Periode (abgerechnet, vergangen) rechnen wie

@@ -185,7 +185,9 @@ Zahl ist. Mehrstellige Zahlen nebeneinander (Spalten einer Tabelle wie
 Zeichen von rechts, liest der Browser die Zeile seit v3.9.0 nach der Lage der
 Zeichen von links nach rechts; ohne das stand „6 5 , 4 3 2 . 1 €“ statt
 „1.234,56 €“ in der Textebene. Ein Dokument, das du davor ausgelesen hast,
-behält seine Auslesung, bis du es neu ausliest.
+behält seine Auslesung, bis du es neu ausliest. Ein Datum mit gesperrten Ziffern
+(„0 1 . 0 4 . 2 0 2 5“) setzt die Prüfung bewusst nicht zusammen; ein solches
+Feld bleibt markiert, bis du es bestätigst.
 
 Ein markiertes Feld **bestätigst** („Stimmt“) oder **korrigierst** du. Ein Tipp
 auf „S. 2“ neben dem Zitat blättert links zur Seite.
@@ -618,14 +620,14 @@ Denkmodus dort ab, falls das Modell einen hat.
 darunter. Hinter einem eigenen Reverse-Proxy dessen Grenze ebenso hoch setzen
 ([Webserver](../betrieb/webserver.md)).
 
-**Webserver mit kurzer Zeitgrenze** *(3.7.1)*. Gibt der Webserver vor PHP
+**Webserver mit kurzer Zeitgrenze** *(3.9.0)*. Gibt der Webserver vor PHP
 früher auf — etwa auf einer Synology nach 60 Sekunden mit `504` —, rechnet PHP
 trotzdem zu Ende und speichert. Die Oberfläche fragt dann alle 5 Sekunden nach
 dem Dokument, bis der Schritt gespeichert ist (höchstens 660 Sekunden ab dem
 Absenden), und zeigt erst danach einen Fehler — ebenso nach einem Netzabbruch,
 im einzelnen Dokument wie beim Auslesen vieler Dokumente. Ohne Warten geht es
 mit einer höheren Zeitgrenze am Webserver
-([Webserver](../betrieb/webserver.md#kurze-zeitgrenze-vor-php-371)).
+([Webserver](../betrieb/webserver.md#kurze-zeitgrenze-vor-php-390)).
 
 ### In der Cloud auslesen
 

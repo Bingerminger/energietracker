@@ -199,7 +199,7 @@ setzt du dieselben Werte:
   Sekunden, wenn die Texterkennung lange rechnen darf — für das Auslesen im
   Posteingang über einen Cloud-Dienst bis zu 660 Sekunden *(v3.7.0)*.
 
-## Kurze Zeitgrenze vor PHP *(3.7.1)*
+## Kurze Zeitgrenze vor PHP *(3.9.0)*
 
 Erkennen und Auslesen im Posteingang rechnen je Schritt bis zu 300 Sekunden
 (eigene KI), mit einem Cloud-Dienst bis zu 600. Gibt ein Webserver oder

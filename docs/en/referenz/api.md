@@ -469,7 +469,7 @@ smoothings (`ma3`/`ma6`/`ma12`).
 | Field per month | Meaning |
 |---|---|
 | `measured_share` | share of the month's consumption from reading intervals of up to 45 days (0 … 1); estimated readings do not measure |
-| `interpolated` | `true` when `measured_share` is below 0.5: the value is spread evenly from a longer interval. Heating oil and pellets: `null` |
+| `interpolated` | `true` when `measured_share` is below 0.5 (since v3.9.0 also when `measured_day_share` is below 0.5, see the v3.9.0 table on evaluations below): the value is spread evenly from a longer interval. Heating oil and pellets: `null` |
 | `reading_gap_days` | longest reading interval the month draws from (`null` when a real reading is missing on one side) |
 | `reading_gap_estimated` | *(v3.7.0)* the month is interpolated with an estimated reading as a support point (each side has its own daily rate) |
 
@@ -513,11 +513,11 @@ intervals between real readings ([Basics §5](../verstehen/00-overview.md#heatin
 
 | Where | Field | Meaning |
 |---|---|---|
-| `…/meters/{id}/consumption?heat_limit=1` | `heat_limit` | heating limit suggestion of the meter: `{current, current_ratio, current_ok, best, best_ratio, suggest, default, own, months, grid: [{base, ratio, base_load_ok, summer_ratio, summer_ok}]}`, `null` without a heating model, below 12 measured months or without the parameter ([Basics §5](../verstehen/00-overview.md#heating-limit-suggestion-since-v370)). *(v3.7.1)* `summer_ratio`: expectation ÷ measured summer (the same months for every limit), `summer_ok`: at most 1.10 — a condition for a suggestion |
-| `anomaly_quality.base_load` | `reference`, `reference_months` | *(v3.7.1)* where the summer months of the base-load check come from: `no_hdd_top` (no degree days at 18 °C) or `window` (June to August), and which they are |
-| `monthly[]` | `hdd_top` | *(v3.7.1)* degree days of the month at 18 °C, independent of the heating limit (summer reference) |
-| `GET …/meters/{id}/forecast` | `?hdd_base=` | *(v3.7.1)* heating limit for this forecast (6 to 22 °C) as with `…/consumption`, without storing it on the meter; outside: 400 |
-| `PATCH …/meters/{id}`, meter | `hdd_base_temp` | this meter's own heating limit in °C (6 to 22, only heating types; up to v3.7.1 only with meter readings, since v3.9.0 also tanks and groups); `null` or empty removes it, then the setting applies |
+| `…/meters/{id}/consumption?heat_limit=1` | `heat_limit` | heating limit suggestion of the meter: `{current, current_ratio, current_ok, best, best_ratio, suggest, default, own, months, grid: [{base, ratio, base_load_ok, summer_ratio, summer_ok}]}`, `null` without a heating model, below 12 measured months or without the parameter ([Basics §5](../verstehen/00-overview.md#heating-limit-suggestion-since-v370)). *(v3.9.0)* `summer_ratio`: expectation ÷ measured summer (the same months for every limit), `summer_ok`: at most 1.10 — a condition for a suggestion |
+| `anomaly_quality.base_load` | `reference`, `reference_months` | *(v3.9.0)* where the summer months of the base-load check come from: `no_hdd_top` (no degree days at 18 °C) or `window` (June to August), and which they are |
+| `monthly[]` | `hdd_top` | *(v3.9.0)* degree days of the month at 18 °C, independent of the heating limit (summer reference) |
+| `GET …/meters/{id}/forecast` | `?hdd_base=` | *(v3.9.0)* heating limit for this forecast (6 to 22 °C) as with `…/consumption`, without storing it on the meter; outside: 400 |
+| `PATCH …/meters/{id}`, meter | `hdd_base_temp` | this meter's own heating limit in °C (6 to 22, only heating types; up to v3.7 only with meter readings, since v3.9.0 also tanks and groups); `null` or empty removes it, then the setting applies |
 | `monthly[]` | `heat_adjusted_basis` | why `heat_adjusted` is what it is: `model`, `summer`, `base_load`, `normal_is_actual` (or `null`) |
 | `regressions.*`, `forecast.regression` | `reason` | with `valid: false`: `too_few_points`, `poor_fit`, `degenerate` |
 | `…/contract-status` | `projection_uncertain` | `{reasons: [factor_clamped \| few_measured \| poor_fit], factor, factor_raw, factor_part, factor_limits, fit_ratio, base_load_per_day, projected_range, suggested_range}` or `null`; then `suggested_advance` is `null`. `factor_part`: which factor is clamped (`base`, `heat`, `both`); `base_load_per_day`: `{model, measured}` when the range uses the measured summer base load; `suggested_range` is `null` if both ends would be equal |
@@ -621,7 +621,7 @@ is uncertain ([Basics §1](../verstehen/00-overview.md#measured-or-interpolated-
 
 - **Balance over the running billing period.** A contract that falls into the
   running billing period calculates balance, costs, advance payments and
-  suggestion over exactly that period, also without a captured bill. Up to v3.8
+  suggestion over exactly that period, also without a captured bill. Up to v3.7
   the card counted from the contract start without a bill (several years), the
   workshop the running billing year. `effective_end` is then the day after the
   end of the period (or the maintained contract end when it comes first); in a
@@ -629,10 +629,10 @@ is uncertain ([Basics §1](../verstehen/00-overview.md#measured-or-interpolated-
   special payments. The workshop (`billing`, `advance`) takes balance, date and
   suggestion from the contract status.
 - **Energy flow without capping.** `flows.pv_grid` is the measured feed-in, also
-  when it is above the (interpolated) generation; up to v3.8 it was
+  when it is above the (interpolated) generation; up to v3.7 it was
   `min(feed-in, generation)`. `eigenverbrauchsquote` refers to the sun in the
   figure.
-- **Future contracts** show the working price and advance payment of their start (up to v3.8 `null`).
+- **Future contracts** show the working price and advance payment of their start (up to v3.7 `null`).
 - **Forecast:** without a weather link and without twelve measured calendar
   months the annual total is that of the last 365 days (warning `level_last_year`).
 
@@ -4479,8 +4479,8 @@ Answer: `summary` (`documents`, `used`, `duplicates`, `without`, `meters`,
 `documents` (per document `state`: `used`, `duplicate` with `duplicate_of` —
 the same older document as `entries[].duplicate_of` in `GET /api/inbox`, even
 if it has already been taken over —, `no_utility`, `no_meter`, `no_start`,
-`meter_choice` *(3.7.1)* — meter open, see `missing` —, `nothing`; plus
-`items`), `findings` (`start_near` *(3.7.1)* — recorded contract with a start
+`meter_choice` *(3.9.0)* — meter open, see `missing` —, `nothing`; plus
+`items`), `findings` (`start_near` *(3.9.0)* — recorded contract with a start
 up to 7 days off, `{provider, from, date}`: start according to the document
 and on record —, `gap`, `overlap`, `falling`,
 `chain_mismatch`, `duplicate`, `no_meter`, `same_supplier` — bills in another
@@ -4493,7 +4493,7 @@ bill, the later version applies — with `params` and `docs`), `missing`
 prices only on bills, still to be confirmed; each with `which`: `wp`, `bp`,
 what is missing after taking over what is pre-selected —,
 `working_price_gap`/`base_price_gap` — a period without a price, `params`
-`{provider, from, to}` —, `meter_choice` *(3.7.1)* — a number or market
+`{provider, from, to}` —, `meter_choice` *(3.9.0)* — a number or market
 location without a recorded meter, and several meters with data are possible,
 the one already has another measuring point or fits only half; `params`
 `{meter, count, meters}`, `docs`, `href` to the first document (choose the
@@ -4523,7 +4523,7 @@ An entry is a group of fields with one tick:
 ```
 
 `kind` in the order of the take-over: `meter` (`action`: `create`, `adopt` —
-the empty default meter —, `existing`; *(3.7.1)* also the one active meter
+the empty default meter —, `existing`; *(3.9.0)* also the one active meter
 with data without number and market location if nothing contradicts; the
 field `serial` then carries `device_id`, the device that ran at the time of the
 number), `meter_change`, `contract`,
@@ -4531,7 +4531,7 @@ number), `meter_change`, `contract`,
 `wp:<date>`, `bp:<date>` per month), `advances` (`ap:<date>`), `readings`
 (`r:<date>`), `bill` (with booking of the result), `gas_factor` (`gf:<date>`),
 `reminder`. `status` of the entry: `new`, `update` (existing, gets added to),
-`exists`, `conflict`, `overlap`; `update` and `overlap` are *(3.7.1)* always
+`exists`, `conflict`, `overlap`; `update` and `overlap` are *(3.9.0)* always
 `check` with the reason `existing_update` or `existing_overlap` and never
 `checked` (pre-selected is only what does not touch the recorded data); a
 contract at an existing meter counts as recorded with the same start or — same
@@ -4592,7 +4592,7 @@ selected → `400 errors.inboxDraft.nothingSelected`; *(3.9.0)* an entry without
 the contract entry named in its `requires` → `400 errors.inboxDraft.needs.contract`,
 also before anything is written. If a bill's contract is missing while taking
 over (it failed), the bill is listed in `failed` with this code and is not
-created; up to 3.8 it was created without a contract and booked its result on
+created; up to 3.7 it was created without a contract and booked its result on
 the contract that ran at the time. First the server makes a
 backup `pre-inbox-…` (Settings → Data, reason “before household from
 documents”). Answer: `applied` (per entry `ref`), `failed` (per entry or field

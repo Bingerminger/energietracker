@@ -69,7 +69,7 @@ hebt. Mehr dazu: [Einrichtung](../einstieg/einrichtung.md).
 
 Unabhängig davon zeigt jedes Gerät nach einem Update einmal „Aktualisiert auf …“ mit Link zu den Release-Notes — ohne Anfrage nach außen.
 
-### Umgebung *(v3.7.1)*
+### Umgebung *(v3.9.0)*
 
 | Schlüssel | Standard | In der App | Wirkung |
 |---|---|---|---|
@@ -141,7 +141,7 @@ mit dem Feld im Fokus.
 
 | Schlüssel | Standard | In der App | Wirkung |
 |---|---|---|---|
-| `wasser_personen_anzahl` | 2 | Anzahl der Personen | Für den Wasser-Spar-Index: Liter je Person und Tag im Vergleich zur Referenz. Seit v3.6.0 ordnet die Karte „Einordnung“ das Wasser erst ein, wenn die Zahl eingetragen ist (s. u.). Bis v3.8 hieß das Feld „Personen im Haushalt“; so heißt seit v3.9.0 die Karte mit den Namen für „Zuständig“. |
+| `wasser_personen_anzahl` | 2 | Anzahl der Personen | Für den Wasser-Spar-Index: Liter je Person und Tag im Vergleich zur Referenz. Seit v3.6.0 ordnet die Karte „Einordnung“ das Wasser erst ein, wenn die Zahl eingetragen ist (s. u.). Bis v3.7 hieß das Feld „Personen im Haushalt“; so heißt seit v3.9.0 die Karte mit den Namen für „Zuständig“. |
 | `wasser_personen_referenz` | 122 | Referenz | BDEW 2024: 122 L je Person und Tag. Bestandsinstallationen behalten den früheren Standard 127, bis sie die neuen Werte übernehmen. |
 | `wasser_sparindex_gut` | 100 | Spar-Index — gut bis | Index ≤ diesem Wert gilt als unauffällig. |
 | `wasser_sparindex_warnung` | 150 | Spar-Index — Warnung ab | Index ≥ diesem Wert zeigt Sparpotenzial an. |
