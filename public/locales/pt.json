@@ -7171,7 +7171,8 @@
         "create_group": "Criar o grupo «{name}» com ambos os registos",
         "reuse_group": "Continuar a usar o grupo «{name}»",
         "create_contract": "Criar o contrato para «{name}»",
-        "skip_contract": "Contrato para «{name}»: mantém-se o contrato em curso «{existing}»."
+        "skip_contract": "Contrato para «{name}»: mantém-se o contrato em curso «{existing}».",
+        "create_reading": "Registar a leitura na instalação: «{name}» {counter} em {date}"
       },
       "detailObis": "registo {obis}",
       "detailParent": "a jusante de «{name}»",
@@ -7189,7 +7190,8 @@
     },
     "setupChoice": {
       "hint": "Para fotovoltaico, bomba de calor ou carregador com contador próprio: primeiro a disposição, depois as leituras."
-    }
+    },
+    "readingNote": "Leitura na instalação"
   },
   "heatLimit": {
     "title": "Ajustar a temperatura base GD: com {best} °C o modelo de aquecimento ajusta-se muito melhor",

@@ -200,10 +200,10 @@ export async function openConceptWizard() {
               <input class="input" type="date" id="cw-inst-${key}" data-slot="${key}" data-field="installed_on" value="${esc(v.installed_on || '')}" aria-describedby="cw-inst-hint-${key}">
               <span class="muted small" id="cw-inst-hint-${key}">${esc(t('concept.meters.installedHint'))}</span>
             </div>
-            <div class="field"${allExisting ? ' hidden' : ''}>
-              <label for="cw-init-${key}">${esc(t('concept.meters.initialCounter'))}</label>
-              <input class="input" id="cw-init-${key}" data-slot="${key}" data-field="initial_counter" value="${esc(v.initial_counter ?? '')}" inputmode="decimal" autocomplete="off">
-            </div>
+            ${regs.map(([r]) => `<div class="field"${(multi ? v.meter_ids?.[r] : v.meter_id) ? ' hidden' : ''}>
+              <label for="cw-init-${key}-${r}">${esc(t('concept.meters.initialCounter'))}${multi ? ` · ${esc(registerLabel(slot, r))}` : ''}</label>
+              <input class="input" id="cw-init-${key}-${r}" data-slot="${key}" data-reg="${r}" data-field="initial_counter" value="${esc(v.initial_counter?.[r] ?? '')}" inputmode="decimal" autocomplete="off">
+            </div>`).join('')}
           </div>
           ${hint ? `<p class="muted small">${esc(hint)}</p>` : ''}
         </fieldset>`;
@@ -253,6 +253,8 @@ export async function openConceptWizard() {
   const actionText = (a) => {
     const name = a.name || '';
     if (a.op === 'activate') return t('concept.summary.op.activate', { list: a.utilities.map(label).join(', ') });
+    // v3.9.0 (Skeptiker R2-1) — der Stand beim Einbau wird eine Ablesung am Einbautag
+    if (a.op === 'create_reading') return t('concept.summary.op.create_reading', { name, counter: fmt.num(a.counter, 1), date: fmt.date(a.date) });
     const details = [];
     if ((a.op === 'create_meter' || a.op === 'update_meter') && a.data?.obis) details.push(t('concept.summary.detailObis', { obis: a.data.obis }));
     if ((a.op === 'create_meter' || a.op === 'update_meter') && a.parent_ref) {
@@ -351,7 +353,12 @@ export async function openConceptWizard() {
       body.addEventListener('input', (e) => {
         const el = e.target;
         if (el.dataset.slot && el.dataset.field === 'name') (state.input[el.dataset.slot] ||= {}).name = el.value;
-        if (el.dataset.slot && ['serial', 'installed_on', 'initial_counter'].includes(el.dataset.field)) (state.input[el.dataset.slot] ||= {})[el.dataset.field] = el.value;
+        if (el.dataset.slot && ['serial', 'installed_on'].includes(el.dataset.field)) (state.input[el.dataset.slot] ||= {})[el.dataset.field] = el.value;
+        // v3.9.0 (Skeptiker R2-1) — Stand beim Einbau je Zählwerk
+        if (el.dataset.slot && el.dataset.field === 'initial_counter') {
+          const v = state.input[el.dataset.slot] ||= {};
+          v.initial_counter = { ...(v.initial_counter || {}), [el.dataset.reg]: el.value };
+        }
         if (el.dataset.slot && el.dataset.field === 'obis') {
           const v = state.input[el.dataset.slot] ||= {};
           v.obis = { ...(v.obis || {}), [el.dataset.reg]: el.value };

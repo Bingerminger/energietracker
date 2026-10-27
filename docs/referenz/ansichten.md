@@ -2126,7 +2126,8 @@ wechseln je Netzbetreiber. Fünf Schritte, „Schritt 2 von 5“ in der Fußleis
    Zählwerke vorbelegt; einen vorhandenen Zähler wählst du aus, statt ihn
    doppelt anzulegen, er erscheint dann unter seinem Namen. Ein neuer Zähler
    bekommt „Eingebaut am“ (leer: ab Beginn seines Vertrags, sonst heute) und
-   den Stand beim Einbau.
+   den Stand beim Einbau, bei HT/NT je Zählwerk. Dieser Stand wird die erste
+   Ablesung am Einbautag; der Verbrauch zählt ab dann.
 4. **Welche Verträge gibt es?** Beginn, Arbeitspreis (bei HT/NT je Zählwerk),
    Grundpreis und Abschlag; leer lassen geht auch. Ein laufender Vertrag an
    einem vorhandenen Zähler steht mit Anbieter und Beginn da und bleibt, wie er

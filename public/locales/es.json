@@ -7171,7 +7171,8 @@
         "create_group": "Crear el grupo «{name}» con ambos registros",
         "reuse_group": "Seguir usando el grupo «{name}»",
         "create_contract": "Crear el contrato para «{name}»",
-        "skip_contract": "Contrato para «{name}»: se mantiene el contrato en curso «{existing}»."
+        "skip_contract": "Contrato para «{name}»: se mantiene el contrato en curso «{existing}».",
+        "create_reading": "Registrar la lectura en la instalación: «{name}» {counter} el {date}"
       },
       "detailObis": "registro {obis}",
       "detailParent": "detrás de «{name}»",
@@ -7189,7 +7190,8 @@
     },
     "setupChoice": {
       "hint": "Para fotovoltaica, bomba de calor o cargador con contador propio: primero la disposición, luego las lecturas."
-    }
+    },
+    "readingNote": "Lectura en la instalación"
   },
   "heatLimit": {
     "title": "Ajustar la temperatura base GD: con {best} °C el modelo de calefacción se ajusta mucho mejor",

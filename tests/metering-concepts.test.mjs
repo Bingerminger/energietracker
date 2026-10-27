@@ -159,6 +159,8 @@ t('Preise mit Komma, Vertrag ohne Eintrag fällt weg (später)', body.contracts.
 const withInstall = C.conceptPayload('behind', { device: 'heat_pump' }, { dev: { name: 'Wärmepumpe', installed_on: '2025-01-01', initial_counter: '1234,5' } }, {});
 t('Einbau und Stand beim Einbau gehen mit (Skeptiker M11), Komma als Dezimalzeichen', withInstall.slots.dev.installed_on === '2025-01-01' && withInstall.slots.dev.initial_counter === 1234.5,
   JSON.stringify(withInstall.slots.dev));
+const perReg = C.conceptPayload('behind', { device: 'heat_pump', tou: 'device' }, { dev: { initial_counter: { ht: '500', nt: '300,5', x: '' } } }, {});
+t('Stand beim Einbau je Zählwerk (Skeptiker R2-1), leere fallen weg', JSON.stringify(perReg.slots.dev.initial_counter) === '{"ht":500,"nt":300.5}', JSON.stringify(perReg.slots.dev));
 t('ohne Einbau kein Feld (der Server nimmt den Vertragsbeginn)', !('installed_on' in C.conceptPayload('single', {}, { main: { name: 'A', installed_on: '', initial_counter: '' } }, {}).slots.main));
 
 console.log('Rest-Hinweis in den Vertragsansichten (Skeptiker N7)');

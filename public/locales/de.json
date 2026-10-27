@@ -7171,7 +7171,8 @@
         "create_group": "Gruppe „{name}“ mit beiden Zählwerken anlegen",
         "reuse_group": "Gruppe „{name}“ weiter nutzen",
         "create_contract": "Vertrag für „{name}“ anlegen",
-        "skip_contract": "Vertrag für „{name}“: Der laufende Vertrag „{existing}“ bleibt."
+        "skip_contract": "Vertrag für „{name}“: Der laufende Vertrag „{existing}“ bleibt.",
+        "create_reading": "Stand beim Einbau erfassen: „{name}“ {counter} am {date}"
       },
       "detailObis": "Zählwerk {obis}",
       "detailParent": "hinter „{name}“",
@@ -7189,7 +7190,8 @@
     },
     "setupChoice": {
       "hint": "Für PV, Wärmepumpe oder Wallbox mit eigenem Zähler: erst den Aufbau, dann die Stände."
-    }
+    },
+    "readingNote": "Stand beim Einbau"
   },
   "heatLimit": {
     "title": "Heizgrenze anpassen: Mit {best} °C passt das Heizmodell deutlich besser",

@@ -308,7 +308,7 @@ final class App
         $this->scenarios = new ScenarioService($this->forecasts, $this->consumption, $this->contracts, $this->meters,
             $this->settings, $this->tariffSwitch, $this->billingPeriods);
         // v3.9.0 (F1032, #40) — Assistent „Messkonzept“: Zähler, Gruppen, Subzähler, Verträge aus dem Aufbau
-        $this->meteringConcepts = new \Energietracker\Services\MeteringConceptService($this->meters, $this->contracts, $this->settings, $this->i18n, $this->backups);
+        $this->meteringConcepts = new \Energietracker\Services\MeteringConceptService($this->meters, $this->contracts, $this->settings, $this->i18n, $this->backups, $this->readings);
         // v3.7.0 — Posteingang: lokal über die Einstellung der Texterkennung;
         // weitere Anbieter melden sich mit $this->inboxProviders->register() an
         $this->inboxProviders = new ProviderRegistry($this->settings, new LocalProvider($this->settings, $this->ocr, $this->i18n));

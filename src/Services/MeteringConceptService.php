@@ -52,6 +52,8 @@ final class MeteringConceptService
         private SettingsService $settings,
         private I18nService $i18n,
         private ?BackupService $backup = null,
+        // v3.9.0 (Skeptiker R2-1) — der Stand beim Einbau wird eine Ablesung am Einbautag
+        private ?ReadingService $readings = null,
     ) {}
 
     /**
@@ -135,11 +137,18 @@ final class MeteringConceptService
             // v3.9.0 (Skeptiker M11) — Einbaudatum und Stand beim Einbau eines neuen Zählers (bis dahin „heute“ und 0)
             $installed = trim((string)($raw['installed_on'] ?? ''));
             if ($installed !== '' && !Dates::isIsoDate($installed)) throw new LocalizedException('errors.concept.field', ['field' => 'installed_on'], 'concept installed');
-            $initial = $raw['initial_counter'] ?? null;
-            if ($initial === '') $initial = null;
-            if ($initial !== null && (!is_numeric($initial) || (float)$initial < 0)) throw new LocalizedException('errors.concept.field', ['field' => 'initial_counter'], 'concept initial');
+            // Stand beim Einbau je Zählwerk: {ht, nt} bzw. eine Zahl für das eine Zählwerk (R2-1: HT und NT
+            // haben verschiedene Stände, eine Zahl für beide wäre falsch)
+            $rawInit = $raw['initial_counter'] ?? null;
+            $initial = [];
+            foreach (array_keys($def['registers']) as $r) {
+                $v = is_array($rawInit) ? ($rawInit[$r] ?? null) : (count($def['registers']) === 1 ? $rawInit : null);
+                if ($v === null || $v === '') continue;
+                if (!is_numeric($v) || (float)$v < 0) throw new LocalizedException('errors.concept.field', ['field' => 'initial_counter'], 'concept initial');
+                $initial[$r] = (float)$v;
+            }
             $s['slots'][$key] = $def + ['name' => mb_substr($name, 0, 80), 'serial' => mb_substr(trim((string)($raw['serial'] ?? '')), 0, 40), 'meter_ids' => $ids,
-                                        'installed_on' => $installed, 'initial_counter' => $initial !== null ? (float)$initial : null];
+                                        'installed_on' => $installed, 'initial_counter' => $initial];
         }
         $used = [];
         foreach ($s['slots'] as $slot) foreach ($slot['meter_ids'] as $id) {
@@ -202,7 +211,7 @@ final class MeteringConceptService
             throw new LocalizedException('errors.concept.' . $p['code'], $p['params'] ?? [], 'concept problem');
         }
         $snapshot = $this->backup?->saveSnapshot('concept_');
-        $created = ['meters' => [], 'groups' => [], 'contracts' => []];
+        $created = ['meters' => [], 'groups' => [], 'contracts' => [], 'readings' => []];
         $ids = [];        // slot|register → Zähler-ID
         $groupOf = [];    // slot → Gruppen-ID
         foreach ($actions as $a) {
@@ -215,6 +224,15 @@ final class MeteringConceptService
                     $m = $this->meters->create($a['utility'], $a['data'] + ($a['parent_ref'] !== null ? ['parent_meter_id' => $ids[$a['parent_ref']]] : []));
                     $ids[$a['ref']] = (string)$m['id'];
                     $created['meters'][] = (string)$m['id'];
+                    break;
+                case 'create_reading':
+                    // v3.9.0 (Skeptiker R2-1) — Stand beim Einbau als Ablesung: Verbrauch ab dem Einbautag.
+                    // Bis dahin lag er nur am Gerät (initial_counter), das die Rechnung erst beim
+                    // Zählertausch liest; der neue Zähler zählte bis zu seinem ersten Stand nichts.
+                    if ($this->readings === null) break;
+                    $r = $this->readings->create($a['utility'], ['meter_id' => $ids[$a['ref']], 'date' => $a['date'], 'counter' => $a['counter'],
+                                                                  'note' => $this->i18n->t('concept.readingNote')]);
+                    $created['readings'][] = (string)$r['id'];
                     break;
                 case 'update_meter':
                     $this->meters->update($a['utility'], $a['meter_id'], $a['data'] + ($a['parent_ref'] !== null ? ['parent_meter_id' => $ids[$a['parent_ref']]] : []));
@@ -303,13 +321,18 @@ final class MeteringConceptService
                 } else {
                     $mName = trim($name . ($multi ? ' ' . $regName[$r] : ''));
                     $data += ['name' => $mName, 'installed_on' => $installedOn];
-                    if ($slot['initial_counter'] !== null) $data['initial_counter'] = $slot['initial_counter'];
+                    if (isset($slot['initial_counter'][$r])) $data['initial_counter'] = $slot['initial_counter'][$r];
                     if ($slot['serial'] !== '') $data['device_serial'] = $slot['serial'];
                     if ($contractIn !== null && $contractIn['start'] < $installedOn) {
                         $notices[] = ['code' => 'before_install', 'slot' => $key, 'name' => $mName, 'installed' => $installedOn, 'start' => $contractIn['start']];
                     }
                     $actions[] = ['op' => 'create_meter', 'utility' => $u, 'slot' => $key, 'register' => $r, 'ref' => $ref, 'name' => $mName,
                                   'parent_ref' => $parentRef, 'data' => $data];
+                    // v3.9.0 (Skeptiker R2-1) — der Stand beim Einbau als erste Ablesung (nicht in der Zukunft)
+                    if (isset($slot['initial_counter'][$r]) && Utilities::isCumulative($u) && $installedOn <= $today) {
+                        $actions[] = ['op' => 'create_reading', 'utility' => $u, 'slot' => $key, 'register' => $r, 'ref' => $ref, 'name' => $mName,
+                                      'date' => $installedOn, 'counter' => $slot['initial_counter'][$r]];
+                    }
                 }
             }
             // v3.9.0 (Skeptiker N16) — eine Stelle mit vorhandenem Zähler heißt wie er (bzw. seine Gruppe)

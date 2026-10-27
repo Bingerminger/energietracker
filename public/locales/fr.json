@@ -7171,7 +7171,8 @@
         "create_group": "Créer le groupe « {name} » avec les deux registres",
         "reuse_group": "Conserver le groupe « {name} »",
         "create_contract": "Créer le contrat pour « {name} »",
-        "skip_contract": "Contrat pour « {name} » : le contrat en cours « {existing} » est conservé."
+        "skip_contract": "Contrat pour « {name} » : le contrat en cours « {existing} » est conservé.",
+        "create_reading": "Saisir l’index à l’installation : « {name} » {counter} le {date}"
       },
       "detailObis": "registre {obis}",
       "detailParent": "en aval de « {name} »",
@@ -7189,7 +7190,8 @@
     },
     "setupChoice": {
       "hint": "Pour le photovoltaïque, une pompe à chaleur ou une borne avec compteur propre : d’abord la disposition, ensuite les relevés."
-    }
+    },
+    "readingNote": "Index à l’installation"
   },
   "heatLimit": {
     "title": "Ajuster la température de base DJU : avec {best} °C, le modèle de chauffage correspond nettement mieux",

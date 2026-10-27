@@ -7171,7 +7171,8 @@
         "create_group": "Creare il gruppo «{name}» con entrambi i registri",
         "reuse_group": "Continuare a usare il gruppo «{name}»",
         "create_contract": "Creare il contratto per «{name}»",
-        "skip_contract": "Contratto per «{name}»: resta il contratto in corso «{existing}»."
+        "skip_contract": "Contratto per «{name}»: resta il contratto in corso «{existing}».",
+        "create_reading": "Inserire la lettura all’installazione: «{name}» {counter} il {date}"
       },
       "detailObis": "registro {obis}",
       "detailParent": "a valle di «{name}»",
@@ -7189,7 +7190,8 @@
     },
     "setupChoice": {
       "hint": "Per fotovoltaico, pompa di calore o wallbox con contatore proprio: prima la disposizione, poi le letture."
-    }
+    },
+    "readingNote": "Lettura all’installazione"
   },
   "heatLimit": {
     "title": "Regolare la temperatura base GG: con {best} °C il modello di riscaldamento si adatta molto meglio",

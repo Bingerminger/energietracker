@@ -7171,7 +7171,8 @@
         "create_group": "Create group “{name}” with both registers",
         "reuse_group": "Keep using group “{name}”",
         "create_contract": "Create contract for “{name}”",
-        "skip_contract": "Contract for “{name}”: the running contract “{existing}” stays."
+        "skip_contract": "Contract for “{name}”: the running contract “{existing}” stays.",
+        "create_reading": "Record the reading at installation: “{name}” {counter} on {date}"
       },
       "detailObis": "register {obis}",
       "detailParent": "behind “{name}”",
@@ -7189,7 +7190,8 @@
     },
     "setupChoice": {
       "hint": "For solar, heat pump or EV charger with its own meter: first the layout, then the readings."
-    }
+    },
+    "readingNote": "Reading at installation"
   },
   "heatLimit": {
     "title": "Adjust the heating limit: with {best} °C the heating model fits much better",

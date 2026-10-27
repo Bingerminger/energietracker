@@ -2050,7 +2050,8 @@ of 5” in the footer:
    codes filled in; you pick an existing meter instead of creating it twice, it
    then appears under its own name. A new meter gets “Installed on” (empty:
    from the start of its contract, otherwise today) and the reading at
-   installation.
+   installation, per register with HT/NT. This reading becomes the first
+   reading on the installation day; consumption counts from then on.
 4. **Which contracts are there?** Start, unit price (per register with HT/NT),
    standing charge and advance; leaving it empty is fine. A running contract on
    an existing meter is shown with provider and start and stays as it is; with

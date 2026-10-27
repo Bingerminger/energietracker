@@ -294,8 +294,13 @@ export function conceptPayload(concept, setup, slotsInput = {}, contractsInput =
     if (v.meter_id) o.meter_id = v.meter_id;
     // v3.9.0 (Skeptiker M11) — Einbau und Stand beim Einbau eines neuen Zählers
     if (v.installed_on) o.installed_on = v.installed_on;
-    if (v.initial_counter !== undefined && v.initial_counter !== null && String(v.initial_counter).trim() !== '') {
-      o.initial_counter = Number(String(v.initial_counter).trim().replace(',', '.'));
+    // je Zählwerk ({one} bzw. {ht, nt}); leere fallen weg
+    const toNum = (x) => Number(String(x).trim().replace(',', '.'));
+    if (v.initial_counter !== undefined && v.initial_counter !== null && typeof v.initial_counter === 'object') {
+      const init = Object.fromEntries(Object.entries(v.initial_counter).filter(([, x]) => x !== null && x !== undefined && String(x).trim() !== '').map(([r, x]) => [r, toNum(x)]));
+      if (Object.keys(init).length) o.initial_counter = init;
+    } else if (v.initial_counter !== undefined && v.initial_counter !== null && String(v.initial_counter).trim() !== '') {
+      o.initial_counter = toNum(v.initial_counter);
     }
     const ids = Object.fromEntries(Object.entries(v.meter_ids || {}).filter(([, id]) => id));
     if (Object.keys(ids).length) o.meter_ids = ids;

@@ -7171,7 +7171,8 @@
         "create_group": "Groep ‘{name}’ met beide telwerken aanmaken",
         "reuse_group": "Groep ‘{name}’ blijven gebruiken",
         "create_contract": "Contract voor ‘{name}’ aanmaken",
-        "skip_contract": "Contract voor ‘{name}’: het lopende contract ‘{existing}’ blijft."
+        "skip_contract": "Contract voor ‘{name}’: het lopende contract ‘{existing}’ blijft.",
+        "create_reading": "Stand bij plaatsing invoeren: ‘{name}’ {counter} op {date}"
       },
       "detailObis": "telwerk {obis}",
       "detailParent": "achter ‘{name}’",
@@ -7189,7 +7190,8 @@
     },
     "setupChoice": {
       "hint": "Voor zonnepanelen, warmtepomp of laadpaal met een eigen meter: eerst de opbouw, dan de standen."
-    }
+    },
+    "readingNote": "Stand bij plaatsing"
   },
   "heatLimit": {
     "title": "Graaddagen-basistemperatuur aanpassen: met {best} °C past het verwarmingsmodel duidelijk beter",
