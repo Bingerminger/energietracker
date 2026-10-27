@@ -414,7 +414,9 @@
       "daysCount": {
         "one": "{days} dag",
         "other": "{days} dagen"
-      }
+      },
+      "noContract": "geen contract",
+      "noContractHint": "Met een contract rekent de app de kosten."
     },
     "cards": {
       "contracts": "📑 Contracten en voorschotten",
@@ -514,6 +516,7 @@
       },
       "suggestOngoing": "Daarna zou ongeveer {amount} in plaats van {current} per maand passend zijn.",
       "sincePeriod": "Gerekend vanaf {date}, het begin van de lopende afrekenperiode tot {until}. Eerdere periodes staan onder afrekenjaar.",
+      "measuredThenEstimatedBase": "gemeten tot {date} ({amount}), daarna geschat: {value} verbruik; plus vastrecht tot vandaag {base}",
       "suggestOngoingEvery": {
         "one": "Daarna zou ongeveer {amount} in plaats van {current} elke maand passend zijn.",
         "other": "Daarna zou ongeveer {amount} in plaats van {current} elke {count} maanden passend zijn."
@@ -4444,7 +4447,7 @@
     },
     "privacy": {
       "title": "Je gegevens",
-      "text": "Alles blijft op je server: geen accounts, geen reclame, geen telemetrie. De app praat alleen met Open-Meteo — bij de dagelijkse weersynchronisatie (alleen de op ongeveer 1 km afgeronde locatie, uit te schakelen onder Instellingen → Weergegevens) en bij het zoeken naar een plaats als je dat gebruikt — en, alleen als je ze invult, met je eigen tekstherkenningsdienst en je evcc in het thuisnetwerk. Tik je op ‘Laden van SMARD’, dan haalt de app de groothandelsprijzen voor stroom op bij de Bundesnetzagentur; daarbij gaat niets van jou naar buiten."
+      "text": "Alles blijft op je server: geen accounts, geen reclame, geen telemetrie. De app praat alleen met Open-Meteo — bij de dagelijkse weersynchronisatie (alleen de op ongeveer 1 km afgeronde locatie, uit te schakelen onder Instellingen → Weergegevens) en bij het zoeken naar een plaats als je dat gebruikt — en, alleen als je ze invult, met je eigen tekstherkenningsdienst en je evcc in het thuisnetwerk. Tik je op ‘Laden van SMARD’, dan haalt de app de groothandelsprijzen voor stroom op bij de Bundesnetzagentur; daarbij gaat niets van jou naar buiten. Meldingen naar Home Assistant gaan pas weg als iemand die de installatie beheert ze aanzet, en alleen naar je eigen Home Assistant: titel en tekst van afspraken, termijnen en waarschuwingen die aan de beurt zijn en de namen van nieuwe documenten. Het lezen in het postvak via een clouddienst staat uit tot iemand die de installatie beheert het aanzet; dan vraagt de app eerst en stuurt het document naar de gekozen dienst, afhankelijk van de aanbieder de pdf of alleen de tekst."
     },
     "onYourBill": "Op je rekening ({country}): “{term}”",
     "cases": {
@@ -6226,7 +6229,8 @@
         "utility": "energie genoemd in het document",
         "single_meter": "enige meter",
         "date": "contract van de leverancier op die dag"
-      }
+      },
+      "applied": "Vastgelegd bij het overnemen."
     },
     "manual": {
       "title": "Met de hand invoeren",
@@ -6632,7 +6636,8 @@
       "energy": "Eenheidsprijs",
       "parts": "uit {parts}",
       "net": "{value} netto + {vat}% btw",
-      "advance": "Voorschot vanaf {from}: {value} per vervaldatum"
+      "advance": "Voorschot vanaf {from}: {value} per vervaldatum",
+      "paid": "Betaalde voorschotten {from} tot {to}: {total} volgens de rekening"
     }
   },
   "inboxCloud": {
@@ -6929,7 +6934,8 @@
       "ready": "Ingesteld: de app leest nu uit met {service}, model {model}.",
       "unavailable": "De instellingen voor uitlezen zijn nu niet bereikbaar. Probeer het zo meteen opnieuw."
     },
-    "requires": "Hoort bij ‘{contract}’ en wordt alleen samen met dit contract overgenomen."
+    "requires": "Hoort bij ‘{contract}’ en wordt alleen samen met dit contract overgenomen.",
+    "existingName": "In je gegevens heet de leverancier ‘{name}’."
   },
   "interpolation": {
     "leadYear": {

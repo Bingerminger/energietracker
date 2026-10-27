@@ -414,7 +414,9 @@
       "daysCount": {
         "one": "{days} day",
         "other": "{days} days"
-      }
+      },
+      "noContract": "no contract",
+      "noContractHint": "With a contract the app calculates the costs."
     },
     "cards": {
       "contracts": "📑 Contracts & advances",
@@ -514,6 +516,7 @@
       },
       "suggestOngoing": "After that, about {amount} instead of {current} a month would be right.",
       "sincePeriod": "Counted from {date}, the start of the current billing period up to {until}. Earlier periods are listed under billing year.",
+      "measuredThenEstimatedBase": "measured up to {date} ({amount}), estimated since: {value} consumption; plus standing charges to date {base}",
       "suggestOngoingEvery": {
         "one": "After that, about {amount} instead of {current} every month would be right.",
         "other": "After that, about {amount} instead of {current} every {count} months would be right."
@@ -4444,7 +4447,7 @@
     },
     "privacy": {
       "title": "Your data",
-      "text": "Everything stays on your server: no accounts, no ads, no telemetry. The app only talks to Open-Meteo — for the daily weather sync (only the location rounded to about 1 km, can be switched off under Settings → Weather data) and for the place search when you use it — and, only if you enter them, to your own text recognition service and your evcc in your home network. When you tap “Load from SMARD”, the app fetches wholesale electricity prices from the Federal Network Agency; nothing of yours is sent."
+      "text": "Everything stays on your server: no accounts, no ads, no telemetry. The app only talks to Open-Meteo — for the daily weather sync (only the location rounded to about 1 km, can be switched off under Settings → Weather data) and for the place search when you use it — and, only if you enter them, to your own text recognition service and your evcc in your home network. When you tap “Load from SMARD”, the app fetches wholesale electricity prices from the Federal Network Agency; nothing of yours is sent. The app only sends notifications to Home Assistant once someone who manages the installation switches them on, and only to your Home Assistant: title and text of due appointments, deadlines and warnings, and the names of new documents. Reading in the inbox through a cloud service is off until someone who manages the installation switches it on; then the app asks first and sends the document to the chosen service, depending on the provider the PDF or only its text."
     },
     "onYourBill": "On your bill ({country}): “{term}”",
     "cases": {
@@ -6226,7 +6229,8 @@
         "utility": "energy named in the document",
         "single_meter": "only meter",
         "date": "the supplier’s contract on that date"
-      }
+      },
+      "applied": "Recorded when taking over."
     },
     "manual": {
       "title": "Enter by hand",
@@ -6632,7 +6636,8 @@
       "energy": "Unit price",
       "parts": "from {parts}",
       "net": "{value} net + {vat}% VAT",
-      "advance": "Advance payment from {from}: {value} per due date"
+      "advance": "Advance payment from {from}: {value} per due date",
+      "paid": "Advance payments made {from} to {to}: {total} according to the bill"
     }
   },
   "inboxCloud": {
@@ -6929,7 +6934,8 @@
       "ready": "Set up: the app now reads with {service}, model {model}.",
       "unavailable": "The reading settings cannot be reached right now. Please try again shortly."
     },
-    "requires": "Belongs to “{contract}” and is only taken over together with this contract."
+    "requires": "Belongs to “{contract}” and is only taken over together with this contract.",
+    "existingName": "In your records the supplier is called “{name}”."
   },
   "interpolation": {
     "leadYear": {

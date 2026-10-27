@@ -414,7 +414,9 @@
       "daysCount": {
         "one": "{days} jour",
         "other": "{days} jours"
-      }
+      },
+      "noContract": "aucun contrat",
+      "noContractHint": "Avec un contrat, l’application calcule les coûts."
     },
     "cards": {
       "contracts": "📑 Contrats et acomptes",
@@ -514,6 +516,7 @@
       },
       "suggestOngoing": "Ensuite, environ {amount} au lieu de {current} par mois seraient adaptés.",
       "sincePeriod": "Calculé à partir du {date}, début de la période de facturation en cours jusqu’au {until}. Les périodes précédentes figurent dans l’année de facturation.",
+      "measuredThenEstimatedBase": "mesuré jusqu’au {date} ({amount}), estimé ensuite : {value} de consommation ; plus abonnements à ce jour {base}",
       "suggestOngoingEvery": {
         "one": "Ensuite, environ {amount} au lieu de {current} chaque mois seraient adaptés.",
         "other": "Ensuite, environ {amount} au lieu de {current} tous les {count} mois seraient adaptés."
@@ -4444,7 +4447,7 @@
     },
     "privacy": {
       "title": "Vos données",
-      "text": "Tout reste sur votre serveur : pas de compte, pas de publicité, pas de télémétrie. L’application ne communique qu’avec Open-Meteo — pour la synchronisation météo quotidienne (seulement la position arrondie à environ 1 km, désactivable sous Paramètres → Données météo) et pour la recherche de lieu quand vous l’utilisez — et, seulement si vous les saisissez, avec votre propre service de reconnaissance de texte et votre evcc dans le réseau domestique. Si vous touchez « Charger depuis SMARD », l’application récupère les prix de gros de l’électricité auprès de la Bundesnetzagentur ; aucune de vos données n’est transmise."
+      "text": "Tout reste sur votre serveur : pas de compte, pas de publicité, pas de télémétrie. L’application ne communique qu’avec Open-Meteo — pour la synchronisation météo quotidienne (seulement la position arrondie à environ 1 km, désactivable sous Paramètres → Données météo) et pour la recherche de lieu quand vous l’utilisez — et, seulement si vous les saisissez, avec votre propre service de reconnaissance de texte et votre evcc dans le réseau domestique. Si vous touchez « Charger depuis SMARD », l’application récupère les prix de gros de l’électricité auprès de la Bundesnetzagentur ; aucune de vos données n’est transmise. Les notifications vers Home Assistant ne partent qu’une fois activées par une personne qui administre l’installation, et uniquement vers votre Home Assistant : titre et texte des rendez-vous, délais et avertissements échus, et noms des nouveaux documents. La lecture dans la boîte de réception par un service cloud est désactivée jusqu’à ce qu’une personne qui administre l’installation l’active ; l’application demande alors d’abord et envoie le document au service choisi, selon le fournisseur le PDF ou seulement son texte."
     },
     "onYourBill": "Sur votre facture ({country}) : « {term} »",
     "cases": {
@@ -6226,7 +6229,8 @@
         "utility": "énergie citée dans le document",
         "single_meter": "compteur unique",
         "date": "contrat du fournisseur à cette date"
-      }
+      },
+      "applied": "Enregistré lors de la reprise."
     },
     "manual": {
       "title": "Saisir à la main",
@@ -6632,7 +6636,8 @@
       "energy": "Prix unitaire",
       "parts": "à partir de {parts}",
       "net": "{value} HT + {vat} % de TVA",
-      "advance": "Acompte à partir du {from} : {value} par échéance"
+      "advance": "Acompte à partir du {from} : {value} par échéance",
+      "paid": "Acomptes versés du {from} au {to} : {total} selon la facture"
     }
   },
   "inboxCloud": {
@@ -6929,7 +6934,8 @@
       "ready": "Configuré : l’application lit désormais avec {service}, modèle {model}.",
       "unavailable": "Les paramètres de lecture sont injoignables pour l’instant. Réessayez dans un instant."
     },
-    "requires": "Fait partie de « {contract} » et n’est repris qu’avec ce contrat."
+    "requires": "Fait partie de « {contract} » et n’est repris qu’avec ce contrat.",
+    "existingName": "Dans vos données, le fournisseur s’appelle « {name} »."
   },
   "interpolation": {
     "leadYear": {

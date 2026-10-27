@@ -302,6 +302,19 @@ Knopfdruck („Von SMARD laden“), der Abruf der Börsenstrompreise von SMARD, 
 Plattform der Bundesnetzagentur; dabei geht nichts von dir mit. Keine Konten,
 keine Telemetrie, keine Werbung.
 
+Zwei weitere Wege sind aus, bis jemand sie einschaltet, der die Installation
+verwaltet:
+
+- **Benachrichtigungen an Home Assistant** *(v3.9.0)*: Titel und Text
+  fälliger Termine, Fristen und Warnungen und die Namen neuer Dokumente, nur an
+  dein Home Assistant (in der App über den Supervisor, sonst an die Adresse,
+  die du einträgst):
+  [Home Assistant, Schritt 6](../anleitungen/home-assistant.md#schritt-6--benachrichtigungen-an-home-assistant-v390).
+- **Auslesen im Posteingang über einen Cloud-Dienst** *(v3.7.0)*: Die App
+  fragt vorher und schickt das Dokument dann an den gewählten Dienst, je nach
+  Anbieter das PDF oder nur seinen Text:
+  [Posteingang → Datenschutz](../anleitungen/posteingang.md#datenschutz-was-wohin-geht).
+
 ### Kann ich die App auf dem iPhone nutzen?
 
 Ja, im Browser im Heimnetz; als App auf dem Home-Bildschirm mit HTTPS. Siehe

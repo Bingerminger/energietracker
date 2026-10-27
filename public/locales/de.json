@@ -414,7 +414,9 @@
       "daysCount": {
         "one": "{days} Tag",
         "other": "{days} Tage"
-      }
+      },
+      "noContract": "kein Vertrag",
+      "noContractHint": "Mit einem Vertrag rechnet die App die Kosten."
     },
     "cards": {
       "contracts": "📑 Verträge & Abschläge",
@@ -514,6 +516,7 @@
       },
       "suggestOngoing": "Danach wären rund {amount} statt {current} im Monat angemessen.",
       "sincePeriod": "Gerechnet ab {date}, dem Beginn der laufenden Abrechnungsperiode bis {until}. Frühere Perioden stehen im Abrechnungsjahr.",
+      "measuredThenEstimatedBase": "gemessen bis {date} ({amount}), danach geschätzt: {value} Verbrauch; dazu Grundpreise bis heute {base}",
       "suggestOngoingEvery": {
         "one": "Danach wären rund {amount} statt {current} jeden Monat angemessen.",
         "other": "Danach wären rund {amount} statt {current} alle {count} Monate angemessen."
@@ -4444,7 +4447,7 @@
     },
     "privacy": {
       "title": "Deine Daten",
-      "text": "Alles bleibt auf deinem Server: keine Konten, keine Werbung, keine Telemetrie. Nach außen spricht die App nur mit Open-Meteo — beim täglichen Wetterabgleich (nur der auf rund 1 km gerundete Standort, abschaltbar unter Einstellungen → Wetterdaten) und bei der Ortssuche, wenn du sie benutzt — und, nur wenn du sie einträgst, mit deinem eigenen Texterkennungsdienst und deinem evcc im Heimnetz. Tippst du auf „Von SMARD laden“, holt die App die Börsenstrompreise der Bundesnetzagentur; dabei geht nichts von dir hinaus."
+      "text": "Alles bleibt auf deinem Server: keine Konten, keine Werbung, keine Telemetrie. Nach außen spricht die App nur mit Open-Meteo — beim täglichen Wetterabgleich (nur der auf rund 1 km gerundete Standort, abschaltbar unter Einstellungen → Wetterdaten) und bei der Ortssuche, wenn du sie benutzt — und, nur wenn du sie einträgst, mit deinem eigenen Texterkennungsdienst und deinem evcc im Heimnetz. Tippst du auf „Von SMARD laden“, holt die App die Börsenstrompreise der Bundesnetzagentur; dabei geht nichts von dir hinaus. Benachrichtigungen an Home Assistant schickt die App erst, wenn jemand sie einschaltet, der die Installation verwaltet, und nur an dein Home Assistant: Titel und Text fälliger Termine, Fristen und Warnungen und die Namen neuer Dokumente. Das Auslesen im Posteingang über einen Cloud-Dienst ist aus, bis es jemand einschaltet, der die Installation verwaltet; dann fragt die App vorher und schickt das Dokument an den gewählten Dienst, je nach Anbieter das PDF oder nur seinen Text."
     },
     "onYourBill": "Auf deiner Rechnung ({country}): „{term}“",
     "cases": {
@@ -6226,7 +6229,8 @@
         "utility": "Energieart im Dokument",
         "single_meter": "einziger Zähler",
         "date": "Vertrag des Versorgers an diesem Tag"
-      }
+      },
+      "applied": "Beim Übernehmen festgehalten."
     },
     "manual": {
       "title": "Von Hand erfassen",
@@ -6632,7 +6636,8 @@
       "energy": "Arbeitspreis",
       "parts": "aus {parts}",
       "net": "{value} netto + {vat} % USt",
-      "advance": "Abschlag ab {from}: {value} je Termin"
+      "advance": "Abschlag ab {from}: {value} je Termin",
+      "paid": "Gezahlte Abschläge {from} bis {to}: {total} laut Rechnung"
     }
   },
   "inboxCloud": {
@@ -6929,7 +6934,8 @@
       "ready": "Eingerichtet: Die App liest jetzt aus mit {service}, Modell {model}.",
       "unavailable": "Die Einstellungen zum Auslesen sind gerade nicht erreichbar. Versuch es gleich noch einmal."
     },
-    "requires": "Gehört zu „{contract}“ und wird nur zusammen mit diesem Vertrag übernommen."
+    "requires": "Gehört zu „{contract}“ und wird nur zusammen mit diesem Vertrag übernommen.",
+    "existingName": "Im Bestand heißt der Versorger „{name}“."
   },
   "interpolation": {
     "leadYear": {

@@ -86,4 +86,21 @@ final class OutboundHostsTest extends TestCase
         self::assertStringContainsString('Jeden dieser Hosts spricht die App nur mit Opt-in an', $flat($de));
         self::assertStringContainsString('The app contacts each of these hosts only with the opt-in', $flat($en));
     }
+
+    /**
+     * v3.9.0 (F1033, Nachauftrag) — Hilfe → „Deine Daten“ nennt in jeder Sprache
+     * jeden Weg nach außen, auch die beiden, die erst ein Verwalter einschaltet:
+     * die Benachrichtigungen an Home Assistant und das Auslesen in der Cloud.
+     */
+    public function testTheHelpPageNamesEveryWayOut(): void
+    {
+        $cloud = ['de' => 'Cloud', 'en' => 'cloud', 'fr' => 'cloud', 'it' => 'cloud', 'es' => 'nube', 'pt' => 'nuvem', 'nl' => 'cloud'];
+        foreach ($cloud as $lang => $word) {
+            $cat = json_decode((string)file_get_contents(dirname(__DIR__, 3) . "/public/locales/$lang.json"), true);
+            $text = (string)($cat['help']['privacy']['text'] ?? '');
+            foreach (['Open-Meteo', 'evcc', 'SMARD', 'Home Assistant', $word, 'PDF'] as $needle) {
+                self::assertStringContainsStringIgnoringCase($needle, $text, "$lang: help.privacy.text nennt „{$needle}“ nicht");
+            }
+        }
+    }
 }

@@ -160,8 +160,10 @@ final class BillVerdictTest extends ServiceTestCase
         $r = $this->bills()->compare('strom', $b['id']);
         self::assertSame('reading_adjacent', $r['boundaries']['end']);
         self::assertNotContains('gaps', $r['reasons']);
-        self::assertSame(1, $this->consumption->billBreakdown('strom', $this->meters->get('strom', $this->meterId), '2025-01-01', '2026-01-01')['totals']['gaps'],
-            'die Rechnung selbst bleibt, wie sie war');
+        // v3.9.0 (Skeptiker M13) — auch die Prüfung selbst: Der Stand am 31.12. ist der Endstand, der eine Tag
+        // danach hat keinen Verbrauch und ist keine Lücke mehr (bis v3.8: 1 Lücke, „dort fehlt der Verbrauch“)
+        $bd = $this->consumption->billBreakdown('strom', $this->meters->get('strom', $this->meterId), '2025-01-01', '2026-01-01');
+        self::assertSame([0, 0.0], [$bd['totals']['gaps'], (float)end($bd['rows'])['kwh']]);
 
         // Gegenprobe: weit weg von beiden Rändern bleibt es geschätzt
         $this->readingsOn(['2024-12-15', '2026-01-15']);
@@ -195,9 +197,11 @@ final class BillVerdictTest extends ServiceTestCase
         $this->contract('Versorger', '2025-01-01', null, ['advance_payments' => [['from' => '2025-01-01', 'amount_eur' => 90.0]]]);
         $this->readingsOn(['2024-12-31', '2025-03-31', '2025-08-15', '2025-12-31']);
         $meter = $this->meters->get('strom', $this->meterId);
+        // v3.9.0 (auswertung, M7) — die erfasste Rechnung erscheint im Stichtag-Hinweis des Vertragsstatus
+        // (`billing_period.last_bill_until`); verglichen wird deshalb mit dem Stand nach dem Erfassen, vor der Prüfung
+        $b = $this->bill('2025-01-01', '2025-12-31', ['energy_kwh' => 3000, 'amount_eur' => 1020]);
         $before = [$this->consumption->forMeter('strom', $meter), $this->consumption->contractStatus('strom', $meter),
                    $this->consumption->billBreakdown('strom', $meter, '2025-01-01', '2026-01-01')];
-        $b = $this->bill('2025-01-01', '2025-12-31', ['energy_kwh' => 3000, 'amount_eur' => 1020]);
         $r = $this->bills()->compare('strom', $b['id']);
         self::assertSame($before[2]['rows'], $r['rows'], 'Zeilen wie billBreakdown()');
         self::assertSame($before[2]['totals']['total'], $r['ours']['total']);

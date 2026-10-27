@@ -233,5 +233,24 @@ t('auch kleine Knöpfe bei Touch 44 px, ein reines Symbol 44 px breit', /\.btn--
   && /\.btn--sm\[aria-label\]:not\(:has\(\*\)\) \{ min-width: 44px;/.test(touch));
 t('Text in der Dialog-Fußleiste mittig zu den Knöpfen', /\} \.modal__foot \{ padding: var\(--sp-4\) var\(--sp-5\);[^}]*align-items: center/.test(C));
 
+// ── v3.9.0 (Paket homeassistant, Nachauftrag) — Kästchen und Radios in Einstellungskarten ──
+console.log('Kästchen in Einstellungskarten (v3.9.0)');
+const checkRule = rule(C, '.settings-field > label.settings-field__check');
+t('Kästchen und Radio: langer Text bricht neben dem Kästchen um (nicht darunter)',
+  /flex-wrap: nowrap/.test(checkRule) && /align-items: center/.test(checkRule)
+  // die allgemeine Regel mit flex-wrap: wrap steht davor, die genauere gewinnt
+  && C.indexOf('.settings-field > label {') < C.indexOf('.settings-field > label.settings-field__check {'), checkRule);
+t('Gruppen in Einstellungskarten ohne Rahmen des Browsers, Legende wie eine Feldbeschriftung',
+  /border: 0/.test(rule(C, 'fieldset.settings-field')) && /padding: 0/.test(rule(C, 'fieldset.settings-field'))
+  && /text-transform: uppercase/.test(rule(C, 'fieldset.settings-field > legend')));
+{
+  const card = read('public/js/components/ha-notify.js');
+  const labels = card.match(/<label[^>]*>\s*<input[^>]*type="(radio|checkbox)"/g) || [];
+  t('Karte Benachrichtigungen: jedes Kästchen und jedes Radio mit settings-field__check',
+    labels.length >= 3 && labels.every(l => /class="settings-field__check"/.test(l)), `${labels.length} Labels`);
+  t('Karte Benachrichtigungen: Gruppen als fieldset.settings-field',
+    (card.match(/<fieldset class="field settings-field"/g) || []).length === 2);
+}
+
 console.log(`\n  forms: ${pass} bestanden, ${fail} fehlgeschlagen`);
 process.exit(fail ? 1 : 0);

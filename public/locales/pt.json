@@ -414,7 +414,9 @@
       "daysCount": {
         "one": "{days} dia",
         "other": "{days} dias"
-      }
+      },
+      "noContract": "sem contrato",
+      "noContractHint": "Com um contrato, a aplicação calcula os custos."
     },
     "cards": {
       "contracts": "📑 Contratos e adiantamentos",
@@ -514,6 +516,7 @@
       },
       "suggestOngoing": "Depois, cerca de {amount} em vez de {current} por mês seriam adequados.",
       "sincePeriod": "Calculado a partir de {date}, início do período de faturação em curso até {until}. Os períodos anteriores estão no ano de faturação.",
+      "measuredThenEstimatedBase": "medido até {date} ({amount}), depois estimado: {value} de consumo; mais termos fixos até hoje {base}",
       "suggestOngoingEvery": {
         "one": "Depois, cerca de {amount} em vez de {current} todos os meses seriam adequados.",
         "other": "Depois, cerca de {amount} em vez de {current} a cada {count} meses seriam adequados."
@@ -4444,7 +4447,7 @@
     },
     "privacy": {
       "title": "Os seus dados",
-      "text": "Tudo fica no seu servidor: sem contas, sem publicidade, sem telemetria. A aplicação só comunica com o Open-Meteo — na sincronização meteorológica diária (apenas a localização arredondada a cerca de 1 km, desativável em Definições → Dados meteorológicos) e na pesquisa de local quando a usa — e, apenas se forem introduzidos, com o serviço próprio de reconhecimento de texto e o evcc na rede doméstica. Ao tocar em «Carregar do SMARD», a aplicação obtém os preços grossistas de eletricidade da Bundesnetzagentur; não é enviado nenhum dado do utilizador."
+      "text": "Tudo fica no seu servidor: sem contas, sem publicidade, sem telemetria. A aplicação só comunica com o Open-Meteo — na sincronização meteorológica diária (apenas a localização arredondada a cerca de 1 km, desativável em Definições → Dados meteorológicos) e na pesquisa de local quando a usa — e, apenas se forem introduzidos, com o serviço próprio de reconhecimento de texto e o evcc na rede doméstica. Ao tocar em «Carregar do SMARD», a aplicação obtém os preços grossistas de eletricidade da Bundesnetzagentur; não é enviado nenhum dado do utilizador. As notificações para o Home Assistant só são enviadas depois de ativadas por quem administra a instalação, e apenas para o Home Assistant desta casa: título e texto de compromissos, prazos e avisos devidos e os nomes dos documentos novos. A leitura na caixa de entrada através de um serviço na nuvem está desativada até ser ativada por quem administra a instalação; nessa altura, a aplicação pergunta antes e envia o documento ao serviço escolhido, conforme o fornecedor o PDF ou apenas o seu texto."
     },
     "onYourBill": "Na sua fatura ({country}): «{term}»",
     "cases": {
@@ -6226,7 +6229,8 @@
         "utility": "energia indicada no documento",
         "single_meter": "contador único",
         "date": "contrato do fornecedor nessa data"
-      }
+      },
+      "applied": "Registado ao adotar."
     },
     "manual": {
       "title": "Introduzir à mão",
@@ -6632,7 +6636,8 @@
       "energy": "Preço unitário",
       "parts": "a partir de {parts}",
       "net": "{value} líquido + {vat}% de IVA",
-      "advance": "Adiantamento a partir de {from}: {value} por vencimento"
+      "advance": "Adiantamento a partir de {from}: {value} por vencimento",
+      "paid": "Adiantamentos pagos de {from} a {to}: {total} segundo a fatura"
     }
   },
   "inboxCloud": {
@@ -6929,7 +6934,8 @@
       "ready": "Configurado: a aplicação lê agora com {service}, modelo {model}.",
       "unavailable": "As definições de leitura não estão acessíveis agora. Tente novamente daqui a pouco."
     },
-    "requires": "Pertence a «{contract}» e só é adotado juntamente com este contrato."
+    "requires": "Pertence a «{contract}» e só é adotado juntamente com este contrato.",
+    "existingName": "Nos dados registados o fornecedor chama-se «{name}»."
   },
   "interpolation": {
     "leadYear": {

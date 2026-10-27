@@ -132,6 +132,60 @@ final class InboxReadingFitTest extends ServiceTestCase
         self::assertSame(['new', true, null], [$r['status'], $r['checked'], $r['detail']]);
     }
 
+    /**
+     * Skeptiker M12 — die Rechnung druckt den Stand gerundet: 1000 im Dokument, 1000,2 bei dir am selben Tag ist
+     * derselbe Stand (auf die Stellen des Dokuments gerundet), kein Widerspruch; 1001 bleibt einer.
+     */
+    public function testARoundedPrintedReadingIsTheSameAsYours(): void
+    {
+        $this->setReadings('wasser', 'm_wasser_default', [
+            ['date' => '2025-08-01', 'counter' => 1000.2, 'device_id' => 'd_w1'],
+            ['date' => '2026-07-30', 'counter' => 1212.0, 'device_id' => 'd_w1'],
+        ]);
+        $old = fn(array $pv) => array_values(array_filter($pv['proposals'], fn($p) => $p['kind'] === 'reading' && $p['data']['date'] === '2025-08-01'))[0];
+        $id = $this->invoice('round', '1215');
+        self::assertSame('exists', $old($this->inbox->preview($id))['status']);
+        $d = $this->draft->draft(null, self::TODAY);
+        $r = array_values(array_filter($d['items'], fn($i) => $i['kind'] === 'readings'))[0];
+        $f = array_values(array_filter($r['fields'], fn($x) => $x['name'] === 'r:2025-08-01'))[0];
+        self::assertSame(['exists', false], [$f['status'], in_array('conflict_existing', $f['reasons'], true)], 'Entwurf: kein „Im Bestand steht etwas anderes“');
+        self::assertTrue(Proposals::sameStand(29310.2, 29310.0));
+        self::assertTrue(Proposals::sameStand(1235.62, 1235.6));
+        self::assertFalse(Proposals::sameStand(1001.0, 1000.0));
+        self::assertFalse(Proposals::sameStand(1000.6, 1000.0), '1000,6 gerundet ist 1001');
+        self::assertFalse(Proposals::sameStand(1235.66, 1235.6));
+    }
+
+    /** Skeptiker M13 — auch beim Gas: die Ablesung am letzten Tag ist der Endstand, der Tag danach keine Lücke. */
+    public function testGasEndReadingOnTheLastDayIsNoGap(): void
+    {
+        $gid = $this->setMeterDevices('gas', [['id' => 'd_g1', 'serial' => null, 'installed_on' => '2020-01-01',
+            'initial_counter' => 0.0, 'removed_on' => null, 'final_counter' => null, 'reason' => null]]);
+        $this->setReadings('gas', $gid, [['date' => '2024-12-31', 'counter' => 1000.0, 'device_id' => 'd_g1'],
+            ['date' => '2025-12-31', 'counter' => 2200.0, 'device_id' => 'd_g1']]);
+        $bd = $this->consumption->billBreakdown('gas', $this->meters->get('gas', $gid), '2025-01-01', '2026-01-01');
+        self::assertSame([0, 0.0], [$bd['totals']['gaps'], (float)end($bd['rows'])['m3']]);
+        // 1200 m³ vom 31.12. bis 31.12. ohne den letzten Tag: 1200 × 364/365
+        self::assertEqualsWithDelta(1200 * 364 / 365, (float)$bd['totals']['m3'], 0.1);
+    }
+
+    /** Skeptiker N15 — „schon vorhanden“, der Versorger heißt im Bestand aber anders: der Name dort wird genannt. */
+    public function testTheDraftNamesTheSupplierAsRecorded(): void
+    {
+        $this->store->write('wasser/contracts.json', []);
+        // derselbe Versorger (Rechtsform zählt nicht), im Bestand ohne „GmbH“ geschrieben
+        $this->contracts->create('wasser', ['meter_id' => 'm_wasser_default', 'provider' => 'Stadtwerke Musterstadt', 'start' => '2025-08-01',
+            'trinkwasser' => ['working_prices' => [['from' => '2025-08-01', 'ct_per_m3' => 200.0]]]]);
+        DraftFixture::add($this->store, fn($b, $n) => $this->inbox->upload($b, $n), 'conf', 'contract_confirmation', [
+            'utility' => 'wasser', 'supplier' => 'Stadtwerke Musterstadt GmbH', 'supply_start' => '01.08.2025', 'meter_number' => 'WZ-4711',
+        ]);
+        $d = $this->draft->draft(null, self::TODAY);
+        $c = array_values(array_filter($d['items'], fn($i) => $i['kind'] === 'contract' && $i['utility'] === 'wasser'));
+        self::assertNotEmpty($c, json_encode(array_column($d['items'], 'kind')));
+        $p = array_values(array_filter($c[0]['fields'], fn($x) => $x['name'] === 'provider'))[0];
+        self::assertSame(['exists', 'Stadtwerke Musterstadt'], [$p['status'], $p['existing_name'] ?? null]);
+    }
+
     public function testTheHouseholdDraftComparesWithYourReadingsToo(): void
     {
         $field = function (string $end): array {

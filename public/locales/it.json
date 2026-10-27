@@ -414,7 +414,9 @@
       "daysCount": {
         "one": "{days} giorno",
         "other": "{days} giorni"
-      }
+      },
+      "noContract": "nessun contratto",
+      "noContractHint": "Con un contratto l’app calcola i costi."
     },
     "cards": {
       "contracts": "📑 Contratti e acconti",
@@ -514,6 +516,7 @@
       },
       "suggestOngoing": "Dopo, circa {amount} invece di {current} al mese sarebbero adeguati.",
       "sincePeriod": "Calcolato dal {date}, inizio del periodo di fatturazione in corso fino al {until}. I periodi precedenti sono nell’anno di fatturazione.",
+      "measuredThenEstimatedBase": "misurato fino al {date} ({amount}), poi stimato: {value} di consumo; in più quote fisse finora {base}",
       "suggestOngoingEvery": {
         "one": "Dopo, circa {amount} invece di {current} ogni mese sarebbero adeguati.",
         "other": "Dopo, circa {amount} invece di {current} ogni {count} mesi sarebbero adeguati."
@@ -4444,7 +4447,7 @@
     },
     "privacy": {
       "title": "I tuoi dati",
-      "text": "Tutto resta sul tuo server: nessun account, nessuna pubblicità, nessuna telemetria. L’app parla solo con Open-Meteo — per l’allineamento meteo giornaliero (solo la posizione arrotondata a circa 1 km, disattivabile in Impostazioni → Dati meteo) e per la ricerca del luogo quando la usi — e, solo se li inserisci, con il tuo servizio di riconoscimento del testo e il tuo evcc nella rete domestica. Se tocchi «Carica da SMARD», l’app scarica i prezzi all’ingrosso dell’elettricità dalla Bundesnetzagentur; nessun tuo dato viene inviato."
+      "text": "Tutto resta sul tuo server: nessun account, nessuna pubblicità, nessuna telemetria. L’app parla solo con Open-Meteo — per l’allineamento meteo giornaliero (solo la posizione arrotondata a circa 1 km, disattivabile in Impostazioni → Dati meteo) e per la ricerca del luogo quando la usi — e, solo se li inserisci, con il tuo servizio di riconoscimento del testo e il tuo evcc nella rete domestica. Se tocchi «Carica da SMARD», l’app scarica i prezzi all’ingrosso dell’elettricità dalla Bundesnetzagentur; nessun tuo dato viene inviato. Le notifiche a Home Assistant partono solo quando chi amministra l’installazione le attiva, e solo verso il tuo Home Assistant: titolo e testo di appuntamenti, scadenze e avvisi dovuti e i nomi dei nuovi documenti. La lettura nella posta in arrivo tramite un servizio cloud è disattivata finché chi amministra l’installazione non la attiva; allora l’app chiede prima e invia il documento al servizio scelto, a seconda del fornitore il PDF o solo il suo testo."
     },
     "onYourBill": "Sulla tua bolletta ({country}): «{term}»",
     "cases": {
@@ -6226,7 +6229,8 @@
         "utility": "energia indicata nel documento",
         "single_meter": "unico contatore",
         "date": "contratto del fornitore in quella data"
-      }
+      },
+      "applied": "Registrato al momento della ripresa."
     },
     "manual": {
       "title": "Inserisci a mano",
@@ -6632,7 +6636,8 @@
       "energy": "Prezzo unitario",
       "parts": "da {parts}",
       "net": "{value} netto + IVA {vat}%",
-      "advance": "Acconto dal {from}: {value} per scadenza"
+      "advance": "Acconto dal {from}: {value} per scadenza",
+      "paid": "Acconti versati dal {from} al {to}: {total} secondo la bolletta"
     }
   },
   "inboxCloud": {
@@ -6929,7 +6934,8 @@
       "ready": "Configurato: ora l’app legge con {service}, modello {model}.",
       "unavailable": "Le impostazioni di lettura non sono raggiungibili adesso. Riprova tra poco."
     },
-    "requires": "Fa parte di «{contract}» e viene ripreso solo insieme a questo contratto."
+    "requires": "Fa parte di «{contract}» e viene ripreso solo insieme a questo contratto.",
+    "existingName": "Nei tuoi dati il fornitore si chiama «{name}»."
   },
   "interpolation": {
     "leadYear": {

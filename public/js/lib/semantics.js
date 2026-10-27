@@ -71,3 +71,12 @@ export function balanceView(v, u, money = fmt.eur) {
     signed: `${credit ? '+' : '−'}${money(amount)}`,
   };
 }
+
+/**
+ * v3.9.0 (Skeptiker N8) — Kachel „Kosten“: Bei einer Art mit Verträgen ohne Vertrag
+ * im Jahr und ohne Kosten heißt es „kein Vertrag“ statt „0,00 €“ (nicht im
+ * Abrechnungsjahr, nicht bei Einspeisung und Lieferungen).
+ */
+export function costWithoutContract({ u, hasContract, cost, billing = false, delivery = false }) {
+  return !billing && !hasContract && !isFeedIn(u) && !delivery && u?.has_contracts !== false && Math.abs(Number(cost) || 0) < 0.005;
+}

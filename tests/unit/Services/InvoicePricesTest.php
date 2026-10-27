@@ -51,6 +51,27 @@ final class InvoicePricesTest extends TestCase
             InvoicePrices::advancePlan($entry), 'alle drei sicher: alle 2 Monate');
     }
 
+    /**
+     * Skeptiker H2 — die laut Rechnung gezahlten Abschläge als Planzeile: gleich hohe datierte Zahlungen an ihren
+     * Terminen (sechs × 133,33 € alle zwei Monate = 800 €), sonst die Summe je Monat (800 € ÷ 12, auf vier Stellen).
+     */
+    public function testThePaidAdvancesOfTheBillBecomeAPlanRow(): void
+    {
+        $paid = fn(array $items, $total) => ['extraction' => ['fields' => [
+            'advances_paid' => ['status' => 'ok', 'items' => array_map(fn($x) => ['value' => ['amount' => $x[0], 'date' => $x[1]], 'status' => 'ok', 'reasons' => []], $items)],
+            'advances_total' => ['value' => $total, 'status' => 'ok', 'reasons' => []]]]];
+        $dates = ['2025-04-15', '2025-06-15', '2025-08-15', '2025-10-15', '2025-12-15', '2026-02-15'];
+        $e = $paid(array_map(fn($d) => [133.33, $d], $dates), 799.98);
+        self::assertSame(['from' => '2025-04-01', 'amount_eur' => 133.33, 'every_months' => 2, 'due_dates' => $dates, 'total' => 799.98],
+            InvoicePrices::paidPlan($e, '2025-04-01', '2026-03-31'));
+        self::assertSame(['from' => '2025-04-01', 'amount_eur' => 66.6667, 'total' => 800.0],
+            InvoicePrices::paidPlan($paid([[800.0, null]], 800.0), '2025-04-01', '2026-03-31'), 'nur die Summe: je Monat');
+        self::assertSame(['from' => '2025-04-01', 'amount_eur' => 66.6667, 'total' => 800.0],
+            InvoicePrices::paidPlan($paid([[400.0, '2025-06-15'], [400.0, '2025-12-15'], [0.0, '2026-02-15']], 800.0), '2025-04-01', '2026-03-31'),
+            'ungleiche Beträge: je Monat');
+        self::assertNull(InvoicePrices::paidPlan($paid([], null), '2025-04-01', '2026-03-31'));
+    }
+
     /** Rhythmus tolerant in den sieben Sprachen der App; Unbekanntes wird nicht geraten. */
     public function testTheRhythmIsReadTolerantlyAndNeverGuessed(): void
     {

@@ -2691,7 +2691,8 @@ gegenüber:
 | `boundaries` | *(v3.7.0)* Ableseart an den Rändern `{start, end}`: `reading` (Ablesung am ersten Tag bzw. am Tag nach dem letzten), `reading_adjacent` (am Tag davor bzw. am letzten Tag), `reading_estimated`, `interpolated` oder `null` (keine Ablesung davor bzw. danach); bei einer Gruppe das schwächste Mitglied |
 | `price_missing_at` | *(v3.7.0)* wo der Preis fehlt: `[{from, to, contract_id, provider?, meter_id?}]`, `to` einschließlich, `contract_id` `null` ohne Vertrag — bei jedem Urteil, also auch bei `check` mit abweichender Menge (die Seite zeigt dann denselben Hinweis samt Sprung zu den Verträgen) |
 | `factor_mismatches` | *(v3.7.0, Gas)* je Tag mit abweichenden Werten `{from, invoice: {zustandszahl, brennwert, kwh_per_m3}, list: {…}}`; leer, wenn die Gas-Umrechnung den Wechsel wie die Rechnung kennt |
-| `rows` | die Abschnitte der Rechnungsprüfung — die Einstufung oben ändert an ihnen nichts |
+| `rows` | die Abschnitte der Rechnungsprüfung — die Einstufung oben ändert an ihnen nichts. *(v3.9.0)* Liegt die letzte Ablesung auf dem letzten Tag, ist sie der Endstand: der eine Tag danach hat die Menge 0 und ist keine Lücke mehr (auch in `bill-check` und im Abrechnungsjahr) |
+| `ours.quantity_until` | *(v3.9.0, additiv)* steht `end_reading_on` an der Rechnung (dein gemeldeter Stand, den der Versorger auf das Zeitraumende datiert), zählen Menge und Arbeitspreis bis zu diesem Tag, feste Kosten über den ganzen Zeitraum |
 
 **Buchen — `POST …/bills/{id}/book`.** Legt das Ergebnis (`invoice.result_eur`)
 als Sonderzahlung (F1003) im Vertrag an: positiv als `nachzahlung_ohne`,
@@ -4463,8 +4464,14 @@ Zeitraum gar kein Vertrag, ist `contract_create`
 Abschnitt (brutto), bei Wasser alle drei Sparten, und den neuen Abschlagsplan;
 `data.for_bill: true` heißt, die Rechnung dieses Durchgangs hängt an ihm
 (`bill` und `bill_book` tragen dann `data.contract_new: true`). `params.lines`
-schlüsselt auf: `{section, kind: working|base|rate|advance, from, value, parts:
-[{label, price, unit, net, vat_pct, gross}], area?, every?, dates?}`. Gilt im
+schlüsselt auf: `{section, kind: working|base|rate|advance|paid, from, value, parts:
+[{label, price, unit, net, vat_pct, gross}], area?, every?, dates?, to?, total?}`;
+`paid` sind die laut Rechnung im Zeitraum gezahlten Abschläge (am Vertrag die
+erste Zeile von `advance_payments`, gleichmäßig je Monat oder an den Terminen der
+Zahlungen, danach eine Zeile mit 0 bis zum neuen Plan). Nach dem Übernehmen
+steht die Zuordnung am neuen Vertrag; eine Zuordnung, die erst das Übernehmen
+gespeichert hat, trägt `auto: true`, die Vorschau dann `assignment_applied: true`
+statt `assignment_saved` (additiv). Gilt im
 Zeitraum ein Vertrag, bleibt es ein Angebot; endet einer desselben Versorgers
 vorher, gibt es einen Folge- bzw. Vorvertrag als Angebot (`label_key`
 `inbox.proposal.contractSpanFromInvoice`, wenn er endet). `bill_book` am neuen
