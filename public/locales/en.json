@@ -211,7 +211,8 @@
       "billOverdueSince": "statutory deadline passed on {date}",
       "billNoDeadline": "no statutory deadline",
       "billAction": "Record bill",
-      "heatLimitAction": "View"
+      "heatLimitAction": "View",
+      "readingCheckAction": "View readings"
     },
     "welcome": {
       "title": "Welcome to Energietracker",
@@ -582,6 +583,17 @@
       "onlyFlagged": {
         "one": "Only flagged ({count})",
         "other": "Only flagged ({count})"
+      },
+      "check": "UNUSUAL",
+      "duplicate": "DUPLICATE",
+      "duplicateTitle": "The same reading on the same day is entered twice. One of them can go.",
+      "billingOnly": "BILL ONLY",
+      "billingOnlyTitle": "Bill and balance use this reading. Monthly values skip it: the consumption from the reading before to the next one is spread by the weather.",
+      "verified": "VERIFIED",
+      "verifiedTitle": "Marked as correct. The check of intermediate readings no longer asks about this reading.",
+      "billingOnlyNote": {
+        "one": "{count} reading counts only for the bill: monthly values skip it.",
+        "other": "{count} readings count only for the bill: monthly values skip them."
       }
     },
     "deliveriesTable": {
@@ -653,7 +665,9 @@
       "validation": "Date and reading are required.",
       "savedNew": "Reading saved",
       "savedEdit": "Reading updated",
-      "confirmLowerOk": "Save anyway"
+      "confirmLowerOk": "Save anyway",
+      "billingOnly": "Only for the bill",
+      "verified": "Reading is correct (do not check again)"
     },
     "deliveryModal": {
       "titleEdit": "Edit delivery · {label}",
@@ -3981,14 +3995,45 @@
     "forgotNamed": "Forgot your password? Someone who manages this installation can reset it under Settings → Access."
   },
   "readingCheck": {
-    "title": "Please check",
+    "title": "Check the reading of {date}",
     "future": "The date {date} is in the future.",
     "sameDay": "There is already a reading for {date} ({counter} {unit}). The new value replaces it.",
     "lower": "The reading is lower than the last one ({last} {unit}). If the meter was replaced, please record it under “Meter swap” – otherwise the analysis shows a decrease.",
     "jump": "Since the last reading that would be {perDay} {unit} per day – usually it is about {typical} {unit}. Typo?",
     "magnitude": "The value is more than ten times the last reading ({last} {unit}). Missing decimal separator?",
     "confirm": "Save anyway",
-    "replace": "Replace"
+    "replace": "Replace",
+    "titleBlock": "Check the readings from {date} to {until}",
+    "before": "Before ({from} to {to}): {measured} measured, about {expected} expected.",
+    "after": "After ({from} to {to}): {measured} measured, about {expected} expected.",
+    "low": {
+      "one": "This reading is probably about {amount} too low.",
+      "other": "These {count} readings are probably all about {amount} too low."
+    },
+    "high": {
+      "one": "This reading is probably about {amount} too high.",
+      "other": "These {count} readings are probably all about {amount} too high."
+    },
+    "verify": {
+      "one": "Reading is correct",
+      "other": "Readings are correct"
+    },
+    "billingOnly": "Only for the bill",
+    "billingOnlyHint": "Bill and balance keep using this reading. Monthly values and the heating model skip it; the consumption in between is spread by the weather.",
+    "correct": "Correct it",
+    "suggested": "A reading of about {counter} would fit.",
+    "useSuggested": "Insert",
+    "toast": {
+      "verified": "Marked as correct. The app will not ask about it again.",
+      "billingOnly": "Only for the bill: monthly values now skip this reading.",
+      "undone": "Undone"
+    },
+    "duplicate": {
+      "title": "Reading of {date} entered twice",
+      "sub": "The same reading twice: {counter}. One is enough.",
+      "delete": "Delete one",
+      "deleted": "Duplicate reading deleted"
+    }
   },
   "format": {
     "decimal": ".",
@@ -4556,7 +4601,12 @@
       "finalBillExpected": "Final bill expected: {label} ({provider}) for {from} – {until}",
       "finalBillOverdue": "Final bill overdue: {label} ({provider}) for {from} – {until} — statutory deadline passed, ask the supplier",
       "cancelConfirm": "{label}: cancellation confirmed? ({provider}, switching to {next})",
-      "heatLimit": "{label}: adjust the heating limit to {best} °C ({meter})"
+      "heatLimit": "{label}: adjust the heating limit to {best} °C ({meter})",
+      "readingCheck": "{label}: check the reading of {date} ({meter})",
+      "readingCheckBlock": "{label}: check the readings from {date} to {until} ({meter})",
+      "readingDuplicate": "{label}: reading of {date} entered twice ({meter})",
+      "levelShiftLess": "{label}: consistently lower consumption since {date}. Set a baseline date? ({meter})",
+      "levelShiftMore": "{label}: consistently higher consumption since {date}. Set a baseline date? ({meter})"
     },
     "subscribe": "Subscribe in your calendar",
     "intro": "Dates, cancellation deadlines, contract ends, price guarantees and due readings as a calendar subscription. The calendar refreshes them every 12 hours.",
@@ -7089,5 +7139,33 @@
     "notNow": "Not now",
     "notNowHint": "Comes back when new months are measured or the suggestion changes.",
     "dismissed": "Hidden until new months are measured or the suggestion changes."
+  },
+  "levelShift": {
+    "titleLess": "Consistently lower consumption since {date}",
+    "titleMore": "Consistently higher consumption since {date}",
+    "textHigher": {
+      "one": "Before that, consumption was consistently about {factor} times today’s for {count} month.",
+      "other": "Before that, consumption was consistently about {factor} times today’s for {count} months."
+    },
+    "textLower": {
+      "one": "Before that, consumption was consistently about {pct} of today’s for {count} month.",
+      "other": "Before that, consumption was consistently about {pct} of today’s for {count} months."
+    },
+    "advice": "That looks like a real change (such as a new heating system or heating differently), not a reading error. A baseline date separates the time before: heating model, forecast and comparisons then use today’s consumption.",
+    "set": "Set baseline date here",
+    "notNow": "Not now",
+    "label": "Consumption changed",
+    "toast": {
+      "set": "Baseline date set to {date}",
+      "dismissed": "Note hidden"
+    },
+    "dialog": {
+      "title": "Set a baseline date",
+      "text": "From this day on, heating model, forecast and comparisons only use the time after it. The end of the unusual period is filled in. If you know the day of the change (such as the heating replacement), enter it.",
+      "date": "From the day",
+      "label": "Label",
+      "confirm": "Set baseline date",
+      "invalid": "Please enter a day."
+    }
   }
 }

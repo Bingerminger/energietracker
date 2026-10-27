@@ -211,7 +211,8 @@
       "billOverdueSince": "gesetzliche Frist am {date} verstrichen",
       "billNoDeadline": "keine gesetzliche Frist",
       "billAction": "Rechnung erfassen",
-      "heatLimitAction": "Ansehen"
+      "heatLimitAction": "Ansehen",
+      "readingCheckAction": "Ablesungen ansehen"
     },
     "welcome": {
       "title": "Willkommen beim Energietracker",
@@ -582,6 +583,17 @@
       "onlyFlagged": {
         "one": "Nur auffällige ({count})",
         "other": "Nur auffällige ({count})"
+      },
+      "check": "AUFFÄLLIG",
+      "duplicate": "DOPPELT",
+      "duplicateTitle": "Derselbe Stand am selben Tag ist zweimal eingetragen. Einer davon kann weg.",
+      "billingOnly": "NUR ABRECHNUNG",
+      "billingOnlyTitle": "Rechnung und Saldo rechnen mit diesem Stand. Die Monatswerte überspringen ihn: Der Verbrauch von der Ablesung davor bis zur nächsten ist nach dem Wetter verteilt.",
+      "verified": "GEPRÜFT",
+      "verifiedTitle": "Als richtig vermerkt. Die Prüfung der Zwischenablesungen fragt bei diesem Stand nicht mehr.",
+      "billingOnlyNote": {
+        "one": "{count} Stand gilt nur für die Abrechnung: Die Monatswerte überspringen ihn.",
+        "other": "{count} Stände gelten nur für die Abrechnung: Die Monatswerte überspringen sie."
       }
     },
     "deliveriesTable": {
@@ -653,7 +665,9 @@
       "validation": "Datum und Zählerstand sind Pflicht.",
       "savedNew": "Ablesung gespeichert",
       "savedEdit": "Ablesung aktualisiert",
-      "confirmLowerOk": "Trotzdem speichern"
+      "confirmLowerOk": "Trotzdem speichern",
+      "billingOnly": "Nur für die Abrechnung",
+      "verified": "Stand ist richtig (nicht mehr prüfen)"
     },
     "deliveryModal": {
       "titleEdit": "Lieferung bearbeiten · {label}",
@@ -3981,14 +3995,45 @@
     "forgotNamed": "Passwort vergessen? Eine Person, die die Installation verwaltet, setzt es unter Einstellungen → Zugriff neu."
   },
   "readingCheck": {
-    "title": "Bitte prüfen",
+    "title": "Ablesung vom {date} prüfen",
     "future": "Das Datum {date} liegt in der Zukunft.",
     "sameDay": "Für den {date} gibt es schon einen Stand ({counter} {unit}). Der neue Wert ersetzt ihn.",
     "lower": "Der Stand ist kleiner als der letzte ({last} {unit}). Wurde der Zähler getauscht, bitte den Tausch unter „Zählertausch“ erfassen – sonst zeigt die Auswertung einen Rückgang.",
     "jump": "Seit der letzten Ablesung wären das {perDay} {unit} pro Tag – sonst sind es etwa {typical} {unit}. Tippfehler?",
     "magnitude": "Der Wert ist mehr als zehnmal so groß wie der letzte Stand ({last} {unit}). Komma vergessen?",
     "confirm": "Trotzdem speichern",
-    "replace": "Ersetzen"
+    "replace": "Ersetzen",
+    "titleBlock": "Ablesungen vom {date} bis {until} prüfen",
+    "before": "Davor ({from} bis {to}): {measured} gemessen, erwartet rund {expected}.",
+    "after": "Danach ({from} bis {to}): {measured} gemessen, erwartet rund {expected}.",
+    "low": {
+      "one": "Der Stand liegt vermutlich um rund {amount} zu niedrig.",
+      "other": "Die {count} Stände liegen vermutlich alle um rund {amount} zu niedrig."
+    },
+    "high": {
+      "one": "Der Stand liegt vermutlich um rund {amount} zu hoch.",
+      "other": "Die {count} Stände liegen vermutlich alle um rund {amount} zu hoch."
+    },
+    "verify": {
+      "one": "Stand ist richtig",
+      "other": "Stände sind richtig"
+    },
+    "billingOnly": "Nur für die Abrechnung",
+    "billingOnlyHint": "Rechnung und Saldo rechnen weiter mit dem Stand. Monatswerte und Heizmodell überspringen ihn, der Verbrauch dazwischen wird nach dem Wetter verteilt.",
+    "correct": "Korrigieren",
+    "suggested": "Passen würde ein Stand von rund {counter}.",
+    "useSuggested": "Einsetzen",
+    "toast": {
+      "verified": "Als richtig vermerkt. Die App fragt hier nicht mehr.",
+      "billingOnly": "Nur für die Abrechnung: Die Monatswerte überspringen den Stand jetzt.",
+      "undone": "Rückgängig gemacht"
+    },
+    "duplicate": {
+      "title": "Ablesung vom {date} doppelt eingetragen",
+      "sub": "Zweimal derselbe Stand: {counter}. Einer genügt.",
+      "delete": "Eine löschen",
+      "deleted": "Doppelte Ablesung gelöscht"
+    }
   },
   "format": {
     "decimal": ",",
@@ -4556,7 +4601,12 @@
       "finalBillExpected": "Schlussrechnung erwartet: {label} ({provider}) für {from} – {until}",
       "finalBillOverdue": "Schlussrechnung überfällig: {label} ({provider}) für {from} – {until} — gesetzliche Frist verstrichen, beim Versorger nachfragen",
       "cancelConfirm": "{label}: Kündigung bestätigt? ({provider}, Wechsel zu {next})",
-      "heatLimit": "{label}: Heizgrenze auf {best} °C anpassen ({meter})"
+      "heatLimit": "{label}: Heizgrenze auf {best} °C anpassen ({meter})",
+      "readingCheck": "{label}: Ablesung vom {date} prüfen ({meter})",
+      "readingCheckBlock": "{label}: Ablesungen vom {date} bis {until} prüfen ({meter})",
+      "readingDuplicate": "{label}: Ablesung vom {date} doppelt eingetragen ({meter})",
+      "levelShiftLess": "{label}: seit {date} dauerhaft weniger Verbrauch. Analyse-Zäsur setzen? ({meter})",
+      "levelShiftMore": "{label}: seit {date} dauerhaft mehr Verbrauch. Analyse-Zäsur setzen? ({meter})"
     },
     "subscribe": "Im Kalender abonnieren",
     "intro": "Termine, Kündigungsstichtage, Vertragsenden, Preisgarantien und fällige Ablesungen als Kalender-Abo. Der Kalender holt sie alle 12 Stunden neu.",
@@ -7089,5 +7139,33 @@
     "notNow": "Nicht jetzt",
     "notNowHint": "Erscheint wieder, wenn neue Monate gemessen sind oder sich der Vorschlag ändert.",
     "dismissed": "Ausgeblendet, bis neue Monate gemessen sind oder sich der Vorschlag ändert."
+  },
+  "levelShift": {
+    "titleLess": "Seit {date} dauerhaft weniger Verbrauch",
+    "titleMore": "Seit {date} dauerhaft mehr Verbrauch",
+    "textHigher": {
+      "one": "Davor lag der Verbrauch {count} Monat lang gleichbleibend rund {factor}-mal so hoch wie heute.",
+      "other": "Davor lag der Verbrauch {count} Monate lang gleichbleibend rund {factor}-mal so hoch wie heute."
+    },
+    "textLower": {
+      "one": "Davor lag der Verbrauch {count} Monat lang gleichbleibend bei rund {pct} von heute.",
+      "other": "Davor lag der Verbrauch {count} Monate lang gleichbleibend bei rund {pct} von heute."
+    },
+    "advice": "Das sieht nach einer echten Änderung aus (etwa eine neue Heizung oder anders geheizt), nicht nach einem Ablesefehler. Eine Analyse-Zäsur trennt die Zeit davor ab: Heizmodell, Prognose und Vergleiche rechnen dann mit dem heutigen Verbrauch.",
+    "set": "Zäsur hier setzen",
+    "notNow": "Nicht jetzt",
+    "label": "Verbrauch geändert",
+    "toast": {
+      "set": "Analyse-Zäsur am {date} gesetzt",
+      "dismissed": "Hinweis ausgeblendet"
+    },
+    "dialog": {
+      "title": "Analyse-Zäsur setzen",
+      "text": "Ab diesem Tag rechnen Heizmodell, Prognose und Vergleiche nur mit der Zeit danach. Vorbelegt ist das Ende der auffälligen Zeit. Kennst du den Tag der Änderung (etwa den Heizungstausch), trag ihn ein.",
+      "date": "Ab dem Tag",
+      "label": "Bezeichnung",
+      "confirm": "Zäsur setzen",
+      "invalid": "Bitte einen Tag eingeben."
+    }
   }
 }

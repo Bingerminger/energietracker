@@ -165,6 +165,19 @@ Jahresauswahl, die Tabelle markiert die Stände („PRÜFEN", „UNPLAUSIBEL");
 ein Verdacht lässt sich mit ✅ bestätigen. Technisch:
 [API-Referenz → `warnings`](../referenz/api.md).
 
+### Ein Stand, der zu niedrig oder zu hoch liegt *(v3.9.0)*
+
+Nicht jeder falsche Stand fällt: Liegt er zwischen zwei richtigen, nur um einen
+Betrag zu niedrig oder zu hoch, ist der Abstand davor zu klein und der danach zu groß.
+Die Summe stimmt, die Monate nicht. Die App erkennt solche Stände (auch mehrere
+hintereinander mit demselben Fehler) und fragt in „Zu tun“ nach: „Ablesung vom …
+prüfen“, in der Liste mit der Marke **AUFFÄLLIG**. Antworten: **Stand ist richtig**,
+**Nur für die Abrechnung** (Rechnung und Saldo rechnen mit dem Stand, die Monatswerte
+überspringen ihn; die Marke **NUR ABRECHNUNG** und das Häkchen im Bearbeiten-Dialog)
+oder **Korrigieren**. Derselbe Stand am selben Tag zweimal heißt „doppelt eingetragen“
+(Marke **DOPPELT**). Wie und ab wann: [Grundlagen → Ablesung prüfen](00-overview.md#ablesung-prüfen-seit-v390),
+die Knöpfe: [Hinweise erledigen](../anleitungen/hinweise-erledigen.md#11-ablesung-prüfen-v390).
+
 ## Viele Werte auf einmal: Zeitreihen aus Portalen *(v3.1.0)*
 
 Die Erfassung ist für einzelne Stände gebaut. Liefert ein Portal viele Werte

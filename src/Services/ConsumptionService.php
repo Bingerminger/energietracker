@@ -2075,6 +2075,22 @@ final class ConsumptionService
     }
 
     /**
+     * v3.9.0 (ablesung-pruefen) — IDs der Ablesungen, die die Rechnung übergeht (verdächtig,
+     * eingeklemmter Ausreißer), dieselbe Prüfung wie plausibleReadings(), ohne die ganze
+     * Monatsrechnung: Die Agenda prüft bei jedem Aufruf alle Zähler (ReadingCheckService).
+     *
+     * @param list<array<string,mixed>>|null $readings die Ablesungen des Zählers, sonst gelesen
+     * @return array<string,true>
+     */
+    public function skippedReadingIds(string $utility, array $meter, ?array $readings = null): array
+    {
+        [, $warnings] = $this->plausibleReadings($readings ?? $this->readings->list($utility, (string)($meter['id'] ?? '')), $meter);
+        $out = [];
+        foreach ($warnings as $w) if (!empty($w['reading_id'])) $out[(string)$w['reading_id']] = true;
+        return $out;
+    }
+
+    /**
      * v2.6.0 — Ablesungen, die in die Rechnung eingehen, und die Warnungen zu
      * denen, die nicht eingehen (Lektion 33: keine stumme Untergrenze).
      *
@@ -2232,8 +2248,57 @@ final class ConsumptionService
             $devicesById[$d['id']] = $d;
         }
 
+        // v2.8.0 — ym → abgedeckte Tagesspannen (`$coverage`)
+        [$monthly, $coverage] = $this->readingMonths($actual, $prices, $devicesById, $meter, $factorOn, $factorBoundaries, $warnKey);
+
+        // v3.9.0 (ablesung-pruefen) — Stände „nur für die Abrechnung“ (`is_billing_only`):
+        // Rechnung, Saldo und Kosten rechnen mit ihnen wie bisher (`$coverage` und `cost`
+        // dieser Rechnung), die Monatswerte überspringen sie. Der Abstand von der Ablesung
+        // davor bis zur nächsten ohne Merker wird nach dem Wetter verteilt; die Monatszeile
+        // trägt dann `bridged` und für die Verträge `_bill_kwh` (s. finishMonthly).
+        $bridges = $this->billingOnlyBridges($actual, $devicesById, $meter);
+        if ($bridges['skip'] !== []) {
+            $analysis = array_values(array_filter($actual, fn($r, $i) => !isset($bridges['skip'][$i]), ARRAY_FILTER_USE_BOTH));
+            $weights = [];
+            $model = null;
+            $exclusion = $this->markBaselineMonths(array_map(fn($ym) => ['ym' => $ym], array_keys($monthly)), $meter);
+            foreach ($bridges['spans'] as [$from, $to]) {
+                $weights["$from|$to"] = $this->bridgeDayWeights($utility, $meter, $from, $to, $hddBase, $model, $exclusion);
+            }
+            [$aMonthly] = $this->readingMonths($analysis, $prices, $devicesById, $meter, $factorOn, $factorBoundaries, null, $weights);
+            foreach ($monthly as $ym => &$row) {
+                $a = $aMonthly[$ym] ?? null;
+                if ($a === null || empty($a['_bridged'])) continue;
+                $row['_bill_kwh'] = $row['kwh'];
+                foreach (['kwh', 'raw', '_measured_kwh', '_measured_days', '_gap_days'] as $k) $row[$k] = $a[$k] ?? 0;
+                if (!empty($a['_gap_est'])) $row['_gap_est'] = true; else unset($row['_gap_est']);
+                $row['bridged'] = true;
+            }
+            unset($row);
+        }
+
+        return $this->finishMonthly($monthly, $coverage, $utility, $meter, $temps, $hddBase);
+    }
+
+    /**
+     * Monatssummen aus aufeinanderfolgenden Ablesungen (aus computeForMeter()
+     * herausgelöst, v3.9.0): je Abstand die Tagesrate, tagesgenau auf Monate und
+     * Faktor-Stichtage verteilt; dazu die Tagesabschnitte (`$coverage`) und die
+     * Buchführung „gemessen“.
+     *
+     * v3.9.0 (ablesung-pruefen) — `$weights` je Abstand („von|bis“): Gewichte je Tag
+     * (Mittel 1) für einen überbrückten Abstand; die Monatszeile trägt dann `_bridged`.
+     * Ohne Eintrag gleichmäßig wie bisher. `$warnKey` null: keine Warnungen (zweiter
+     * Durchlauf ohne die Stände „nur für die Abrechnung“).
+     *
+     * @param array<string,?array<string,float>> $weights
+     * @return array{0: array<string,array<string,mixed>>, 1: array<string,list<array>>}
+     */
+    private function readingMonths(array $actual, array $prices, array $devicesById, array $meter,
+                                   callable $factorOn, callable $factorBoundaries, ?string $warnKey, array $weights = []): array
+    {
         $monthly = [];
-        $coverage = [];   // v2.8.0 — ym → abgedeckte Tagesspannen
+        $coverage = [];
         // v3.7.0 (#37) — je Ablesepaar die Länge des Ablesungsabstands, aus dem es stammt
         $gaps = self::measuringGaps($actual);
         for ($i = 1; $i < count($actual); $i++) {
@@ -2250,7 +2315,7 @@ final class ConsumptionService
                 // v2.6.0 — nicht mehr still: Ein fallender Stand ohne
                 // bestimmbaren Ausreißer ist fast immer ein nicht erfasster
                 // Zählertausch oder Überlauf.
-                if ($consumptionRaw !== null && ($prev['device_id'] ?? null) === ($curr['device_id'] ?? null)) {
+                if ($warnKey !== null && $consumptionRaw !== null && ($prev['device_id'] ?? null) === ($curr['device_id'] ?? null)) {
                     $this->readingWarnings[$warnKey][] = [
                         'type'       => 'decrease',
                         'reading_id' => $curr['id'] ?? null,
@@ -2266,10 +2331,12 @@ final class ConsumptionService
             // in kWh passiert je Segment mit dem dort gültigen Faktor.
             $rawPerDay    = $consumptionRaw / $days;
             $pricePerUnit = (float)($prices[$prev['date']] ?? $prices[$curr['date']] ?? 0);
+            $bridgeKey    = $prev['date'] . '|' . $curr['date'];
+            $bridged      = array_key_exists($bridgeKey, $weights);
 
             foreach ($this->distributeToMonths(
                 $prev['date'], $curr['date'], $rawPerDay, $pricePerUnit,
-                $factorOn, $factorBoundaries($prev['date'], $curr['date'])
+                $factorOn, $factorBoundaries($prev['date'], $curr['date']), $bridged ? $weights[$bridgeKey] : null
             ) as $ym => $v) {
                 if (!isset($monthly[$ym])) {
                     $monthly[$ym] = ['kwh' => 0.0, 'raw' => 0.0, 'days' => 0, 'cost' => 0.0];
@@ -2279,11 +2346,89 @@ final class ConsumptionService
                 $monthly[$ym]['days'] += $v['days'];
                 $monthly[$ym]['cost'] += $v['cost'];
                 self::addMeasured($monthly[$ym], $v, $gaps[$i], !empty($prev['is_estimated']) || !empty($curr['is_estimated']));
+                if ($bridged) $monthly[$ym]['_bridged'] = true;
                 foreach ($v['spans'] as $span) $coverage[$ym][] = $span;
             }
         }
+        return [$monthly, $coverage];
+    }
 
-        return $this->finishMonthly($monthly, $coverage, $utility, $meter, $temps, $hddBase);
+    /**
+     * v3.9.0 (ablesung-pruefen) — Welche Stände „nur für die Abrechnung“ die
+     * Monatswerte überspringen: Läufe aufeinanderfolgender Stände mit Merker, mit
+     * einer Ablesung ohne Merker davor und danach auf demselben Gerät und rechenbaren
+     * Abständen dazwischen. Ein Stand ohne Ablesung danach (oder über einen
+     * Zählertausch) bleibt, wie er ist: Überbrücken geht erst mit einem Stand danach.
+     *
+     * @param list<array<string,mixed>> $actual plausible Ablesungen, nach Datum sortiert
+     * @return array{skip: array<int,true>, spans: list<array{0:string,1:string}>} Indizes in `$actual`, überbrückte Abstände [von, bis)
+     */
+    private function billingOnlyBridges(array $actual, array $devicesById, array $meter): array
+    {
+        $out = ['skip' => [], 'spans' => []];
+        $n = count($actual);
+        $dev = fn(array $r): ?string => $r['device_id'] ?? $this->deviceIdOnDate($meter, (string)$r['date']);
+        for ($i = 1; $i < $n - 1; $i++) {
+            if (empty($actual[$i]['is_billing_only'])) continue;
+            $j = $i;
+            while ($j + 1 < $n && !empty($actual[$j + 1]['is_billing_only'])) $j++;
+            if ($j + 1 >= $n) break;   // kein Stand danach
+            $ok = (string)$actual[$i - 1]['date'] < (string)$actual[$j + 1]['date'];
+            $d0 = $dev($actual[$i - 1]);
+            for ($k = $i; $ok && $k <= $j + 1; $k++) {
+                $raw = $this->consumptionBetween($actual[$k - 1], $actual[$k], $devicesById, $meter);
+                $ok = $dev($actual[$k]) === $d0 && $raw !== null && $raw >= 0;
+            }
+            if ($ok) {
+                for ($k = $i; $k <= $j; $k++) $out['skip'][$k] = true;
+                $out['spans'][] = [(string)$actual[$i - 1]['date'], (string)$actual[$j + 1]['date']];
+            }
+            $i = $j;
+        }
+        return $out;
+    }
+
+    /**
+     * v3.9.0 (ablesung-pruefen) — Gewichte je Tag (Mittel 1) für einen überbrückten
+     * Abstand [from, to): „nach dem Wetter“, also a × Gradtage + c mit dem Heizmodell
+     * aus den Ablesungsabständen (heatIntervalPoints, ohne die Zeit vor der Zäsur) und
+     * der Heizgrenze des Zählers. Tage ohne Temperatur bekommen die Gradtage des
+     * Normals für ihren Monat. Null heißt gleichmäßig wie bisher: keine Heizart, kein
+     * Modell (zu wenig Abstände), ohne Heizsignal oder mit mehr als einem Zehntel
+     * Tagen ohne Temperatur und Normal.
+     *
+     * @param array{a:float,c:float}|false|null $model wird beim ersten Aufruf gerechnet (false = keins)
+     * @param list<array<string,mixed>> $exclusion Monate mit `pre_baseline`
+     * @return array<string,float>|null
+     */
+    private function bridgeDayWeights(string $utility, array $meter, string $from, string $to, float $hddBase, mixed &$model, array $exclusion): ?array
+    {
+        if (!Utilities::isHgtRelevant($utility) || Utilities::isDelivery($utility)) return null;
+        if ($model === null) {
+            $pts = $this->heatIntervalPoints($utility, $meter, $exclusion, $hddBase);
+            $model = count($pts) >= self::MIN_POINTS_REGRESSION ? self::fitHeatPoints($pts) : false;
+        }
+        if ($model === false || $model['a'] <= 0) return null;
+        $temps = $this->temperatures();
+        $normals = $this->hddNormals($hddBase);
+        $hdd = []; $missing = 0;
+        for ($t = strtotime($from . ' 12:00:00'), $e = strtotime($to . ' 00:00:00'); $t < $e; $t += 86400) {
+            $d = date('Y-m-d', $t);
+            if (isset($temps[$d]['avg'])) { $hdd[$d] = max(0.0, $hddBase - (float)$temps[$d]['avg']); continue; }
+            $norm = $normals[(int)date('n', $t)]['mean'] ?? null;
+            if ($norm === null) { $missing++; $hdd[$d] = null; continue; }
+            $hdd[$d] = (float)$norm / (int)date('t', $t);
+        }
+        $n = count($hdd);
+        if ($n === 0 || $missing > $n / 10) return null;
+        $known = array_filter($hdd, fn($v) => $v !== null);
+        $fill = $known !== [] ? array_sum($known) / count($known) : 0.0;
+        $w = [];
+        foreach ($hdd as $d => $h) $w[$d] = $model['a'] * ($h ?? $fill) + $model['c'];
+        $sum = array_sum($w);
+        if ($sum <= 0) return null;
+        foreach ($w as $d => $v) $w[$d] = $v * $n / $sum;
+        return $w;
     }
 
     /**
@@ -2567,6 +2712,15 @@ final class ConsumptionService
         $monthly = $this->enrichWithWeather($monthly, $temps, $hddBase, $coverage);
         $monthly = $this->applyUtilityFields($monthly, $utility, $meter);
         $monthly = $this->applyContracts($monthly, $utility, $meter, $coverage);
+        // v3.9.0 (ablesung-pruefen) — überbrückter Monat: Die Verträge haben mit der Menge
+        // nach dem Stand gerechnet (`_bill_kwh`, Abschnitte aus `$coverage`); sie steht als
+        // `billed_kwh` daneben, wie bei der Rest-Abrechnung. `kwh` ist der Monatswert.
+        foreach ($monthly as &$m) {
+            if (!array_key_exists('_bill_kwh', $m)) continue;
+            if ($utility !== 'wasser' && !array_key_exists('billed_kwh', $m)) $m['billed_kwh'] = round((float)$m['_bill_kwh'], 1);
+            unset($m['_bill_kwh']);
+        }
+        unset($m);
         ksort($monthly);
         $monthly = array_values($monthly);
         // v3.9.0 (L7) — Abschlag der gemessenen Tage am Rand der Ablesungen
@@ -3364,10 +3518,13 @@ final class ConsumptionService
      * fast rauschfreien Daten verwirft er dagegen Monate, die nur 2 % daneben liegen
      * (3,5 × eine winzige Streuung); das ist kein Fehler des Modells.
      *
+     * v3.9.0 (ablesung-pruefen) — öffentlich: Die Prüfung der Zwischenablesungen fittet
+     * dasselbe Modell über Ablesungsabstände ohne die geprüften (ReadingCheckService).
+     *
      * @param list<array{0:float,1:float,2:float,3:float}> $pts  [HGT, Tage, Verbrauch, Gewicht]
      * @return array{a:float,c:float,n:int,resid_sd:float,dropped:list<array{0:float,1:float}>}
      */
-    private static function fitHeatPoints(array $pts): array
+    public static function fitHeatPoints(array $pts): array
     {
         [$a, $c] = self::fitHeatModel($pts);
         $res = [];
@@ -3490,7 +3647,8 @@ final class ConsumptionService
                 if ($raw === null || $raw < 0 || $dev($prev) !== $dev($r)) $ok = false;
                 elseif ($n > 0) $y += $sumKwh((string)$prev['date'], (string)$r['date'], $raw / $n, $factorOn, $bounds((string)$prev['date'], (string)$r['date']));
             }
-            if (!empty($r['is_estimated'])) continue;
+            // v3.9.0 (ablesung-pruefen) — ein Stand „nur für die Abrechnung“ misst so wenig wie ein geschätzter
+            if (!empty($r['is_estimated']) || !empty($r['is_billing_only'])) continue;
             if ($start !== null && $ok && (string)$r['date'] > $start) $out[] = [$start, (string)$r['date'], $y];
             $start = (string)$r['date']; $y = 0.0; $ok = true;
         }
@@ -3822,7 +3980,8 @@ final class ConsumptionService
         } else {
             [$actual] = $this->plausibleReadings($this->readings->list($utility, (string)($meter['id'] ?? '')), $meter);
             $dates = [];
-            foreach ($actual as $r) if (empty($r['is_estimated'])) $dates[] = (string)$r['date'];
+            // v3.9.0 (ablesung-pruefen) — Monatswerte überspringen Stände „nur für die Abrechnung“
+            foreach ($actual as $r) if (empty($r['is_estimated']) && empty($r['is_billing_only'])) $dates[] = (string)$r['date'];
             sort($dates);
             for ($i = 1; $i < count($dates); $i++) $spans[] = [$dates[$i - 1], $dates[$i]];
         }
@@ -4140,6 +4299,11 @@ final class ConsumptionService
      * (`spans`: [[von, bis), …]), damit die Heizgradtage eines Monats nur
      * über die Tage mit Verbrauch summiert werden (CALC-14).
      *
+     * v3.9.0 (ablesung-pruefen) — `$dayWeights` (Tag → Gewicht, Mittel 1 über den
+     * Abstand): ein überbrückter Abstand verteilt nach dem Wetter statt gleichmäßig
+     * (s. bridgeDayWeights). Ohne Gewichte bit-gleich wie bisher.
+     *
+     * @param  array<string,float>|null $dayWeights
      * @return array<string,array{kwh:float,raw:float,days:int,cost:float,spans:list<array{0:string,1:string}>}>
      */
     private function distributeToMonths(
@@ -4149,6 +4313,7 @@ final class ConsumptionService
         float $priceCents,
         callable $factorOn,
         array $boundaries = [],
+        ?array $dayWeights = null,
     ): array {
         $cur = new \DateTime($start);
         $fin = new \DateTime($end);
@@ -4173,6 +4338,13 @@ final class ConsumptionService
                     $out[$ym] = ['kwh' => 0.0, 'raw' => 0.0, 'days' => 0, 'cost' => 0.0, 'spans' => []];
                 }
                 $raw = $rawPerDay * $d;
+                if ($dayWeights !== null) {
+                    $wsum = 0.0;
+                    for ($t = strtotime($cur->format('Y-m-d') . ' 12:00:00'), $te = strtotime($seg->format('Y-m-d') . ' 00:00:00'); $t < $te; $t += 86400) {
+                        $wsum += $dayWeights[date('Y-m-d', $t)] ?? 1.0;
+                    }
+                    $raw = $rawPerDay * $wsum;
+                }
                 $kwh = $raw * $factorOn($cur->format('Y-m-d'));
                 $out[$ym]['kwh']  += $kwh;
                 $out[$ym]['raw']  += $raw;
@@ -4903,7 +5075,8 @@ final class ConsumptionService
             $monthStart  = sprintf('%04d-%02d-01', $y, $mn);
             $nextMonth   = date('Y-m-d', strtotime($monthStart . ' +1 month'));
             $dim         = (int)date('t', strtotime($monthStart));
-            $kwh         = (float)($m['kwh'] ?? 0);
+            // v3.9.0 (ablesung-pruefen) — überbrückt: die Menge nach dem Stand (wie `$coverage`)
+            $kwh         = (float)($m['_bill_kwh'] ?? $m['kwh'] ?? 0);
             $readingCost = (float)($m['cost'] ?? 0);   // aus dem Ablesepreis: Rückfall ohne Vertragspreis
             $spans = $coverage[$ym] ?? [[
                 $monthStart,
@@ -5117,7 +5290,8 @@ final class ConsumptionService
             }
             $y = (int)$m['year']; $mn = (int)$m['month'];
 
-            $m3 = (float)($m['m3'] ?? 0);
+            // v3.9.0 (ablesung-pruefen) — überbrückter Monat: Kosten nach dem Stand (`_bill_kwh` trägt bei Wasser m³)
+            $m3 = (float)($m['_bill_kwh'] ?? $m['m3'] ?? 0);
             $tw = $c['trinkwasser']         ?? [];
             $sw = $c['schmutzwasser']       ?? [];
             $nw = $c['niederschlagswasser'] ?? [];

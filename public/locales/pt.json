@@ -211,7 +211,8 @@
       "billOverdueSince": "prazo legal ultrapassado em {date}",
       "billNoDeadline": "sem prazo legal",
       "billAction": "Registar fatura",
-      "heatLimitAction": "Ver"
+      "heatLimitAction": "Ver",
+      "readingCheckAction": "Ver leituras"
     },
     "welcome": {
       "title": "Bem-vindo ao Energietracker",
@@ -582,6 +583,17 @@
       "onlyFlagged": {
         "one": "Apenas as assinaladas ({count})",
         "other": "Apenas as assinaladas ({count})"
+      },
+      "check": "INVULGAR",
+      "duplicate": "DUPLICADA",
+      "duplicateTitle": "A mesma leitura do mesmo dia está registada duas vezes. Uma delas pode sair.",
+      "billingOnly": "SÓ FATURA",
+      "billingOnlyTitle": "A fatura e o saldo usam esta leitura. Os valores mensais ignoram-na: o consumo da leitura anterior até à seguinte é repartido conforme o tempo.",
+      "verified": "VERIFICADA",
+      "verifiedTitle": "Marcada como correta. A verificação das leituras intermédias já não pergunta por esta leitura.",
+      "billingOnlyNote": {
+        "one": "{count} leitura conta só para a fatura: os valores mensais ignoram-na.",
+        "other": "{count} leituras contam só para a fatura: os valores mensais ignoram-nas."
       }
     },
     "deliveriesTable": {
@@ -653,7 +665,9 @@
       "validation": "A data e a leitura são obrigatórias.",
       "savedNew": "Leitura guardada",
       "savedEdit": "Leitura atualizada",
-      "confirmLowerOk": "Guardar mesmo assim"
+      "confirmLowerOk": "Guardar mesmo assim",
+      "billingOnly": "Só para a fatura",
+      "verified": "A leitura está correta (não verificar mais)"
     },
     "deliveryModal": {
       "titleEdit": "Editar entrega · {label}",
@@ -3981,14 +3995,45 @@
     "forgotNamed": "Esqueceu-se da palavra-passe? Quem administra esta instalação pode redefini-la em Definições → Acesso."
   },
   "readingCheck": {
-    "title": "Verifique",
+    "title": "Verificar a leitura de {date}",
     "future": "A data {date} está no futuro.",
     "sameDay": "Já existe uma leitura para {date} ({counter} {unit}). O novo valor substitui-a.",
     "lower": "A leitura é inferior à última ({last} {unit}). Se o contador foi substituído, registe-o em «Substituição de contador» – caso contrário, a análise mostra uma descida.",
     "jump": "Desde a última leitura seriam {perDay} {unit} por dia – normalmente cerca de {typical} {unit}. Erro de digitação?",
     "magnitude": "O valor é mais de dez vezes a última leitura ({last} {unit}). Esqueceu-se da vírgula?",
     "confirm": "Guardar mesmo assim",
-    "replace": "Substituir"
+    "replace": "Substituir",
+    "titleBlock": "Verificar as leituras de {date} a {until}",
+    "before": "Antes ({from} a {to}): {measured} medidos, cerca de {expected} esperados.",
+    "after": "Depois ({from} a {to}): {measured} medidos, cerca de {expected} esperados.",
+    "low": {
+      "one": "A leitura está provavelmente cerca de {amount} abaixo.",
+      "other": "As {count} leituras estão provavelmente todas cerca de {amount} abaixo."
+    },
+    "high": {
+      "one": "A leitura está provavelmente cerca de {amount} acima.",
+      "other": "As {count} leituras estão provavelmente todas cerca de {amount} acima."
+    },
+    "verify": {
+      "one": "A leitura está correta",
+      "other": "As leituras estão corretas"
+    },
+    "billingOnly": "Só para a fatura",
+    "billingOnlyHint": "A fatura e o saldo continuam a usar esta leitura. Os valores mensais e o modelo de aquecimento ignoram-na; o consumo intermédio é repartido conforme o tempo.",
+    "correct": "Corrigir",
+    "suggested": "Encaixaria uma leitura de cerca de {counter}.",
+    "useSuggested": "Inserir",
+    "toast": {
+      "verified": "Marcada como correta. A aplicação não volta a perguntar.",
+      "billingOnly": "Só para a fatura: os valores mensais passam a ignorar esta leitura.",
+      "undone": "Anulado"
+    },
+    "duplicate": {
+      "title": "Leitura de {date} registada duas vezes",
+      "sub": "Duas vezes a mesma leitura: {counter}. Basta uma.",
+      "delete": "Eliminar uma",
+      "deleted": "Leitura duplicada eliminada"
+    }
   },
   "format": {
     "decimal": ",",
@@ -4556,7 +4601,12 @@
       "finalBillExpected": "Fatura de fecho esperada: {label} ({provider}) para {from} – {until}",
       "finalBillOverdue": "Fatura de fecho em atraso: {label} ({provider}) para {from} – {until} — prazo legal ultrapassado, contacte o fornecedor",
       "cancelConfirm": "{label}: denúncia confirmada? ({provider}, mudança para {next})",
-      "heatLimit": "{label}: ajustar a temperatura base GD para {best} °C ({meter})"
+      "heatLimit": "{label}: ajustar a temperatura base GD para {best} °C ({meter})",
+      "readingCheck": "{label}: verificar a leitura de {date} ({meter})",
+      "readingCheckBlock": "{label}: verificar as leituras de {date} a {until} ({meter})",
+      "readingDuplicate": "{label}: leitura de {date} registada duas vezes ({meter})",
+      "levelShiftLess": "{label}: consumo constantemente mais baixo desde {date}. Definir um corte de referência? ({meter})",
+      "levelShiftMore": "{label}: consumo constantemente mais alto desde {date}. Definir um corte de referência? ({meter})"
     },
     "subscribe": "Subscrever no calendário",
     "intro": "Compromissos, prazos de denúncia, fim de contratos, garantias de preço e leituras pendentes como subscrição de calendário. O calendário atualiza-os a cada 12 horas.",
@@ -7089,5 +7139,33 @@
     "notNow": "Agora não",
     "notNowHint": "Volta a aparecer quando forem medidos novos meses ou a proposta mudar.",
     "dismissed": "Oculto até serem medidos novos meses ou a proposta mudar."
+  },
+  "levelShift": {
+    "titleLess": "Consumo constantemente mais baixo desde {date}",
+    "titleMore": "Consumo constantemente mais alto desde {date}",
+    "textHigher": {
+      "one": "Antes, durante {count} mês, o consumo foi constantemente cerca de {factor} vezes o de hoje.",
+      "other": "Antes, durante {count} meses, o consumo foi constantemente cerca de {factor} vezes o de hoje."
+    },
+    "textLower": {
+      "one": "Antes, durante {count} mês, o consumo foi constantemente cerca de {pct} do de hoje.",
+      "other": "Antes, durante {count} meses, o consumo foi constantemente cerca de {pct} do de hoje."
+    },
+    "advice": "Parece uma mudança real (por exemplo, um novo aquecimento ou outra forma de aquecer), não um erro de leitura. Um corte de referência separa o período anterior: o modelo de aquecimento, a previsão e as comparações passam a usar o consumo atual.",
+    "set": "Definir o corte aqui",
+    "notNow": "Agora não",
+    "label": "Consumo alterado",
+    "toast": {
+      "set": "Corte de referência definido em {date}",
+      "dismissed": "Aviso ocultado"
+    },
+    "dialog": {
+      "title": "Definir um corte de referência",
+      "text": "A partir deste dia, o modelo de aquecimento, a previsão e as comparações só usam o período seguinte. Vem preenchido o fim do período invulgar. Se souber o dia da mudança (por exemplo, a substituição do aquecimento), introduza-o.",
+      "date": "A partir do dia",
+      "label": "Descrição",
+      "confirm": "Definir o corte",
+      "invalid": "Introduza um dia."
+    }
   }
 }

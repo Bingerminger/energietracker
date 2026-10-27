@@ -142,6 +142,8 @@ final class ReadingService
         // Beide nur, wenn gesetzt — bestehende Datensätze bleiben gleich.
         if (in_array($input['source'] ?? null, self::SOURCES, true)) $reading['source'] = $input['source'];
         if (!empty($input['is_suspect'])) $reading['is_suspect'] = true;
+        // v3.9.0 (ablesung-pruefen) — ein Stand von der Rechnung, der die Monatswerte nicht prägen soll
+        if (!empty($input['is_billing_only'])) $reading['is_billing_only'] = true;
         if ($clientRef !== null) $reading['client_ref'] = $clientRef;
         // v3.1.0 (Paket H2, MKT-08) — Foto des Zählerstands als Beleg
         if (!empty($input['attachment_id'])) {
@@ -176,6 +178,7 @@ final class ReadingService
         $found = null;
         foreach ($all as &$r) {
             if (($r['id'] ?? null) !== $id) continue;
+            $before = $r;
             $counterChanged = array_key_exists('counter', $input) && (float)$input['counter'] !== (float)($r['counter'] ?? 0);
             foreach (['date', 'counter', 'price_cents', 'note', 'is_estimated', 'meter_id'] as $f) {
                 if (!array_key_exists($f, $input)) continue;
@@ -192,6 +195,16 @@ final class ReadingService
                 unset($r['is_suspect']);
             }
             if (in_array($input['source'] ?? null, self::SOURCES, true)) $r['source'] = $input['source'];
+            // v3.9.0 (ablesung-pruefen) — „Stand ist richtig“ (`is_verified`: die Prüfung fragt
+            // nie wieder) und „nur für die Abrechnung“ (`is_billing_only`: Rechnung und Saldo
+            // rechnen mit dem Stand, die Monatswerte überspringen ihn). Nur gespeichert, wenn
+            // gesetzt. Wer Stand oder Datum ändert, hat die Bestätigung damit überholt.
+            $dateChanged = array_key_exists('date', $input) && (string)$input['date'] !== (string)($before['date'] ?? '');
+            foreach (['is_verified', 'is_billing_only'] as $flag) {
+                if (!array_key_exists($flag, $input)) continue;
+                if (!empty($input[$flag])) $r[$flag] = true; else unset($r[$flag]);
+            }
+            if (!array_key_exists('is_verified', $input) && ($counterChanged || $dateChanged)) unset($r['is_verified']);
             // v3.1.0 (Paket H2) — Foto setzen, ersetzen oder entfernen
             if (array_key_exists('attachment_id', $input) && ($input['attachment_id'] ?? null) !== ($r['attachment_id'] ?? null)) {
                 if (!empty($r['attachment_id'])) AttachmentService::unlinkRef($this->store, 'reading', (string)$r['id']);
@@ -288,6 +301,8 @@ final class ReadingService
             if (isset($byDate[$date])) {
                 $r = $all[$byDate[$date]];
                 unset($r['is_suspect']);
+                // v3.9.0 (ablesung-pruefen) — ein anderer Stand ist nicht mehr der bestätigte
+                if ((float)($r['counter'] ?? 0) !== $counter) unset($r['is_verified']);
                 $all[$byDate[$date]] = array_merge($r, $fields);
                 $overwritten++;
             } else {

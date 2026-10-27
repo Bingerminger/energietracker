@@ -86,6 +86,87 @@ correct. Utility view, analysis and PV summary say when monthly values are
 interpolated, with the number of readings in the range; tables show “≈”, charts
 hatched bars.
 
+### Check a reading *(since v3.9.0)*
+
+A wrong reading between two correct ones silently moves consumption from one stretch
+to the next. The total is right, but monthly values, billing year, heating model (and
+with it the heating limit suggestion) and forecast are not. The app looks for such
+readings and asks. It never corrects anything by itself.
+
+**Expectation per interval.** For gas, district heating, heat and the electricity of a
+heat pump: the heating model `a × HDD + c × days` with the heating limit of the meter
+(or its group), fitted over the reading intervals. For electricity and water: the mean
+daily amount of the intervals up to half a year before and after. For PV, garden water
+and other meters with marked seasons (the weakest month below half the strongest): the
+same days in other years. An EV charging point is not checked: charging happens when
+the car was driven.
+
+**A candidate** is a reading or a block of up to six consecutive readings (at most half
+a year from the first to the last) where
+
+```text
+interval before  clearly below the expectation   (or above)
+interval after   clearly above the expectation   (or below)
+inside the block every interval normal
+sum              |deviation before + deviation after| ≤ ½ × offset
+neighbours       the interval before the first and the one after the last
+                 do not deviate in the same direction
+offset           (deviation after − deviation before) ÷ 2
+```
+
+**Clearly** means all three at once: measured below 3/4 or above 4/3 of the
+expectation, at least a quarter of a typical month (consumption of the last twelve
+months ÷ 12) and at least three spreads of the model (for the heating model its spread
+per month, scaled to the length of the interval; for other years the spread between the
+years, at least a fifth of the expectation). For the candidate the app computes the
+expectations once more without the checked intervals.
+
+Why: a quick check “below 0.5× or above 2×” flagged eleven intervals in a real
+household, one of which was a wrong reading. Six were short summer intervals with a
+large ratio and few kWh (hence the minimum amount), two were whole years at a different
+level (hence the neighbours and the note on the baseline date below). The real case was
+a block: three readings too low by the same amount, every interval inside the block
+normal. A checker that only looks at neighbouring pairs does not find it. And a
+transposed digit in a winter month (900 of 1,845 kWh) is at 1.49× and 0.43×; the quick
+check would have missed it.
+
+**In “To do”** it then says “Check the reading of …”, with measured against expected
+for the interval before and after and the guess (“probably about 900 m³ too high”); in
+the list the reading carries the mark “UNUSUAL”. Three buttons, all with undo:
+
+- **Reading is correct:** the app never asks about this reading again (`is_verified`).
+  Changing the reading later cancels that.
+- **Only for the bill:** the reading stays for bill and balance (bill check, billing
+  year, costs, advance payments), but monthly values, heating model and forecast skip it
+  (`is_billing_only`). The consumption from the reading before to the next one is spread
+  **by the weather**: per day `a × HDD + c` from the same heating model (evenly for types
+  without a heating model). That fits when the supplier billed with an estimated or wrong
+  reading: their next bill evens it out, and until then the balance follows theirs.
+- **Correct it:** opens the edit dialog with the reading that would fit.
+
+Why a flag of its own rather than “estimated”: `is_estimated` only changes the marker
+(an estimated reading measures nothing, the months next to it count as interpolated);
+the spreading still goes through it. Estimated readings often come from the supplier
+and are usually fine; bridging all of them would have changed monthly values nobody
+touched.
+
+**Entered twice:** the same reading on the same day twice gives “Reading of … entered
+twice” with “Delete one” (the one with a photo is kept, otherwise the one with a note).
+
+**A different level, not a reading error:** if consumption was consistently far above
+or below today for at least a year in a row (every sizeable interval at least a quarter
+above or below, together at least one and a half times), with no counter-movement
+afterwards (at most a tenth of the days afterwards back at the old level), the app
+suggests a [baseline date](#effect-of-a-measure-baseline-date) on the day of the change:
+“Set baseline date here” (a dialog with the end of the unusual period as the day, to
+confirm or change) or “Not now”. Today’s level comes from at least half a year
+after the change. With an effective baseline date only the time after it counts; if it
+is at the change, the note is not shown. The time before a detected change is no
+yardstick for single readings.
+
+All three entries count in `/api/todo` and in the notifications to Home Assistant, at
+every level.
+
 ---
 
 ## 2. Energy conversion

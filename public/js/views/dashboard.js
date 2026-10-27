@@ -10,6 +10,9 @@ import { isPartial, daysInMonth, yoyTrend, lastMonths, shiftYm } from '../lib/ch
 import { toastErr, toastUndo } from '../components/toast.js';
 import { t, tp } from '../lib/i18n.js';
 import { heatLimitFacts, heatLimitEffect, applyHeatLimit, isGroupId } from '../lib/heat-limit.js';   // v3.9.0 (#38)
+// v3.9.0 (ablesung-pruefen) — Zwischenablesung prüfen, doppelt eingetragen, Hinweis auf die Zäsur
+import { readingCheckLines, readingCheckTitle, correctHref, markReadings, deleteDuplicates, levelShiftLines, levelShiftTitle,
+  setBaselineAt, dismissLevelShift } from '../lib/reading-check.js';
 import { loadDemo } from '../lib/demo.js';
 import { tankLevel } from '../lib/tank.js';
 import { info, infoNote } from '../components/info.js';
@@ -448,6 +451,31 @@ export function buildTodo(events, recs, keep = () => true) {
       sub: lines.join(' '), subLines: lines,
       href: e.href, ev: e, action: t('dashboard.todo.heatLimitAction'), heatLimit: { ...h, utility: r.utility, id: r.meter_id, recId: r.recommendation_id } });
   }
+  // v3.9.0 (ablesung-pruefen) — Ablesung prüfen (gemessen gegen erwartet davor und danach;
+  // „Stand ist richtig“, „Nur für die Abrechnung“, „Korrigieren“), doppelt eingetragen
+  // („Eine löschen“) und der Hinweis auf die Analyse-Zäsur („Zäsur setzen“, „Nicht jetzt“)
+  const meterLine = (e) => `${e.params?.label ?? ''} · ${e.params?.meter ?? ''}`;
+  for (const e of due.filter(x => x.kind === 'reading_check')) {
+    const r = e.ref || {};
+    const lines = [meterLine(e), ...readingCheckLines(r)];
+    items.push({ icon: '🔎', tone: 'warn', text: readingCheckTitle(r), sub: lines.join(' '), subLines: lines,
+      href: e.href, ev: e, action: t('dashboard.todo.readingCheckAction'),
+      readingCheck: { kind: 'check', utility: r.utility, meterId: r.meter_id, ids: r.reading_ids || [], count: Number(r.count) || 1 } });
+  }
+  for (const e of due.filter(x => x.kind === 'reading_duplicate')) {
+    const r = e.ref || {};
+    const lines = [meterLine(e), t('readingCheck.duplicate.sub', { counter: `${fmt.num(Number(r.counter), 1)} ${r.unit || ''}`.trim() })];
+    items.push({ icon: '📋', tone: 'warn', text: t('readingCheck.duplicate.title', { date: fmt.date(r.date) }), sub: lines.join(' '), subLines: lines,
+      href: e.href, ev: e, action: t('dashboard.todo.readingCheckAction'),
+      readingCheck: { kind: 'duplicate', utility: r.utility, meterId: r.meter_id, ids: r.delete_ids || [] } });
+  }
+  for (const e of due.filter(x => x.kind === 'level_shift')) {
+    const r = e.ref || {};
+    const lines = [meterLine(e), ...levelShiftLines(r)];
+    items.push({ icon: r.direction === 'higher' ? '📉' : '📈', tone: 'warn', text: levelShiftTitle(r), sub: lines.join(' '), subLines: lines,
+      href: e.href, ev: e, action: t('dashboard.todo.readingCheckAction'),
+      readingCheck: { kind: 'level', utility: r.utility, meterId: r.meter_id, date: r.date } });
+  }
   // Überfälliges zuerst
   const sorted = items.sort((a, b) => (a.tone === 'alert' ? 0 : 1) - (b.tone === 'alert' ? 0 : 1));
   sorted.source = items.source;
@@ -460,7 +488,9 @@ export function buildTodo(events, recs, keep = () => true) {
  * der Haken, wo sich der Hinweis von Hand erledigen lässt.
  */
 function todoItemsHtml(items, { go = true } = {}) {
-  return items.map((x, i) => `<li class="dash-todo__item dash-todo__item--${x.tone}${x.ev?.can_mark_done ? ' dash-todo__item--check' : ''}">
+  // v3.9.0 (ablesung-pruefen) — der Hinweis auf die Zäsur hat „Nicht jetzt“ statt des Hakens
+  const checkable = (x) => x.ev?.can_mark_done && !x.readingCheck;
+  return items.map((x, i) => `<li class="dash-todo__item dash-todo__item--${x.tone}${checkable(x) ? ' dash-todo__item--check' : ''}">
     <a class="dash-todo__link" href="${x.href}">
       <span class="dash-todo__icon" aria-hidden="true">${escapeHtml(x.icon)}</span>
       <span class="dash-todo__text"><strong>${escapeHtml(x.text)}</strong>${x.subLines ? x.subLines.map(s => `<span class="muted">${escapeHtml(s)}</span>`).join('')
@@ -468,10 +498,36 @@ function todoItemsHtml(items, { go = true } = {}) {
       ${go ? `<span class="btn btn--sm btn--ghost dash-todo__go">${escapeHtml(x.action)}</span>` : ''}
       <span class="dash-todo__chev" aria-hidden="true">›</span>
     </a>
-    ${x.ev?.can_mark_done ? `<button type="button" class="btn btn--sm btn--ghost dash-todo__done" data-todo-done="${i}"
+    ${checkable(x) ? `<button type="button" class="btn btn--sm btn--ghost dash-todo__done" data-todo-done="${i}"
       title="${escapeHtml(t('activity.markDone'))}" aria-label="${escapeHtml(t('activity.markDoneNamed', { title: x.text }))}"><span aria-hidden="true">✓</span></button>` : ''}
     ${x.heatLimit ? heatLimitActionsHtml(x, i) : ''}
+    ${x.readingCheck ? readingCheckActionsHtml(x, i) : ''}
   </li>`).join('');
+}
+
+/**
+ * v3.9.0 (ablesung-pruefen) — Knöpfe unter „Ablesung prüfen“, „doppelt eingetragen“ und
+ * dem Hinweis auf die Zäsur (in jeder Stufe, wie beim Heizgrenze-Vorschlag).
+ */
+function readingCheckActionsHtml(x, i) {
+  const rc = x.readingCheck;
+  const attrs = `class="dash-todo__actions" data-role="reading-check-todo" data-kind="${escapeHtml(rc.kind)}" data-meter="${escapeHtml(String(rc.meterId ?? ''))}"`;
+  if (rc.kind === 'check') {
+    return `<div ${attrs}>
+      <button type="button" class="btn btn--sm btn--util" data-rc-verify="${i}">${escapeHtml(tp('readingCheck.verify', rc.count))}</button>
+      <button type="button" class="btn btn--sm btn--ghost" data-rc-billing="${i}" title="${escapeHtml(t('readingCheck.billingOnlyHint'))}">${escapeHtml(t('readingCheck.billingOnly'))}</button>
+      <a class="btn btn--sm btn--ghost" data-rc-correct="${i}" href="${escapeHtml(correctHref(rc.utility, rc.meterId, rc.ids[0] || ''))}">${escapeHtml(t('readingCheck.correct'))}</a>
+    </div>`;
+  }
+  if (rc.kind === 'duplicate') {
+    return `<div ${attrs}>
+      <button type="button" class="btn btn--sm btn--ghost" data-rc-delete="${i}">${escapeHtml(t('readingCheck.duplicate.delete'))}</button>
+    </div>`;
+  }
+  return `<div ${attrs}>
+      <button type="button" class="btn btn--sm btn--util" data-rc-baseline="${i}">${escapeHtml(t('levelShift.set'))}</button>
+      <button type="button" class="btn btn--sm btn--ghost" data-rc-later="${i}">${escapeHtml(t('levelShift.notNow'))}</button>
+    </div>`;
 }
 
 /** v3.9.0 (#38) — „Übernehmen (nur dieser Zähler)“ und „Nicht jetzt“ unter dem Heizgrenze-Eintrag. */
@@ -557,6 +613,19 @@ export function renderTodoBox(box, items) {
       window.dispatchEvent(new CustomEvent('et:badges-refresh'));
     } catch (e) { toastErr(e.message); btn.disabled = false; }
   }));
+  // v3.9.0 (ablesung-pruefen) — die Knöpfe der Prüfung; jeder mit Rückgängig
+  const act = (sel, fn) => box.querySelectorAll(`[${sel}]`).forEach(btn => btn.addEventListener('click', async () => {
+    const rc = list[Number(btn.getAttribute(sel))]?.readingCheck;
+    const ev = list[Number(btn.getAttribute(sel))]?.ev;
+    if (!rc) return;
+    btn.disabled = true;
+    if (!await fn(rc, ev)) btn.disabled = false;
+  }));
+  act('data-rc-verify', (rc) => markReadings({ utility: rc.utility, ids: rc.ids, flag: 'is_verified', onChange: refresh }));
+  act('data-rc-billing', (rc) => markReadings({ utility: rc.utility, ids: rc.ids, flag: 'is_billing_only', onChange: refresh }));
+  act('data-rc-delete', (rc) => deleteDuplicates({ utility: rc.utility, meterId: rc.meterId, ids: rc.ids, onChange: refresh }));
+  act('data-rc-baseline', (rc) => setBaselineAt({ utility: rc.utility, meterId: rc.meterId, date: rc.date, onChange: refresh }));
+  act('data-rc-later', (rc, ev) => ev ? dismissLevelShift({ event: ev, onChange: refresh }) : false);
 }
 
 async function refreshTodo(box) {

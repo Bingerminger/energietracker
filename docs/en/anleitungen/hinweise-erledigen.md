@@ -25,6 +25,8 @@ anything off.
 | a **delivery** of heating oil or pellets, if the stock was low before | “Plan a delivery” |
 | a **service-charge statement** for the period that has ended (tenants) | “Service-charge statement due” |
 | since v3.5.0 a **supplier’s bill** covering a billing period that has ended ([section 9](#9-bill-expected-v350)) | “Bill expected” |
+| since v3.9.0 **“Reading is correct”**, **“Only for the bill”** or a **corrected reading** ([section 11](#11-check-a-reading-v390)) | “Check the reading of …” |
+| since v3.9.0 **deleting** a reading entered twice | “Reading of … entered twice” |
 
 **Follow-on contract with a gap.** If the new contract starts later, the
 reminder stays — and names the gap: “The follow-on contract … only starts on
@@ -66,6 +68,8 @@ The row then disappears; the message at the bottom offers **Undo**.
 | Bill expected *(v3.5.0)* | yes — means “arrived without being recorded”; whoever records the bill has nothing to tick off |
 | Read the meter | no — a meter reading clears it |
 | Service-charge statement due | no — the recorded statement clears it |
+| Check a reading, entered twice *(v3.9.0)* | no: the buttons on the entry settle it ([section 11](#11-check-a-reading-v390)) |
+| Note on the baseline date *(v3.9.0)* | yes, with “Not now” on the entry (no dialog, with undo) |
 
 **A tick applies to this one occurrence.** For a contract that is its end: if
 the contract end changes, the notice is open again — on purpose, it is a new
@@ -356,6 +360,41 @@ are in the language of the interface, date and separators as in the other CSV
 exports ([data export](../referenz/api.md#csv-formats-v310)). Struck-through
 (undone) entries are not included. Free text starting with `=`, `+`, `-` or
 `@` gets an apostrophe in front so Excel does not run it as a formula.
+
+---
+
+## 11. Check a reading *(v3.9.0)*
+
+A wrong reading between two correct ones moves consumption from one month to the
+next. If the app finds such a reading (or several in a row with the same error),
+**“To do”** says “Check the reading of …”, with what was measured and expected in the
+interval before and after and the guess (“probably about 300 m³ too low”). In the list
+of readings the reading carries the mark **UNUSUAL**. How the app spots it is in the
+[Basics](../verstehen/00-overview.md#check-a-reading-since-v390).
+
+| Button | what happens |
+|---|---|
+| **Reading is correct** | The app no longer asks about this reading. The list shows **VERIFIED**. If someone changes the reading later, it asks again. Also in the list (✅ in the row). |
+| **Only for the bill** | The reading stays for bill and balance, monthly values and the heating model skip it: the consumption in between is spread by the weather. That fits when the supplier billed with an estimated or wrong reading. The list shows **BILL ONLY**; the tick can be removed again in the edit dialog. |
+| **Correct it** | opens the edit dialog of the reading with the reading that would fit (“Insert”). Nothing is saved until “Save”. |
+
+All three with **Undo** in the message afterwards.
+
+**Entered twice:** if the same reading on the same day is there twice, **“Delete
+one”** deletes the second (the one with a photo is kept, otherwise the one with a
+note). Undo creates it again.
+
+**A different level:** if consumption was consistently far above or below today for at
+least a year, that is more likely a different consumption (such as a new heating
+system) than a reading error. The app then suggests a
+[baseline date](../verstehen/00-overview.md#effect-of-a-measure-baseline-date):
+**“Set baseline date here”** opens a small dialog: the day is filled in with the end of
+the unusual period (if you know the day of the change, such as the heating replacement,
+enter it), plus a label. **“Set baseline date”** adds it to the meter, **“Not now”**
+ticks the note off. Both with undo.
+
+The entries appear at every level and count in the “To do” sensor of Home Assistant
+(`/api/todo`).
 
 ---
 

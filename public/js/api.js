@@ -191,6 +191,8 @@ export const api = {
     request('POST', `/api/utility/${u}/meters/${meterId}/readings/import-csv${dryRun ? '?dry_run=1' : ''}`, csvText, { raw: true }),
   // F1004 (v1.6.0): Aggregat für die zentrale Zählerstand-Erfassung
   readingsOverview: ()                  => request('GET', '/api/readings-overview'),
+  // v3.9.0 (ablesung-pruefen) — Zwischenablesung prüfen: Befund eines Zählers
+  readingChecks: (u, meterId)          => request('GET', `/api/utility/${u}/meters/${meterId}/reading-checks`),
 
   // Contracts
   contracts:     (u, meterId)          => {

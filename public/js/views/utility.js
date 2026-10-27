@@ -38,6 +38,7 @@ import { bonusOf, bonusItemsOf, bonusLineText } from '../lib/bonus.js';   // v3.
 import { fillHeatLimitSlot, poorFitIn } from '../lib/heat-limit.js';   // v3.9.0 (#38)
 import { advanceAmountText } from '../lib/advance-rhythm.js';   // v3.9.0 (F1034) — Abschlag mit Rhythmus
 import { mergeRestOf, restNoteHtml, restNoteText, subContractHint } from '../lib/rest-billing.js';   // v3.9.0 (F1032, #40)
+import { readingCheckLines, readingCheckTitle, readingCheckIndex, markReadings } from '../lib/reading-check.js';   // v3.9.0 (ablesung-pruefen)
 
 let _chart = null;
 let _stockChart = null;   // v2.10.0 — Bestandsverlauf (Tankbuch)
@@ -65,6 +66,8 @@ const state = {
   // Seite 1 bei den neuesten Einträgen.
   list: { key: '', page: 1, flaggedOnly: false },
   listAllYears: false,
+  // v3.9.0 (ablesung-pruefen) — Befund der Prüfung des gezeigten Zählers (readingCheckIndex)
+  readingChecks: null,
 };
 
 /** Seitengröße gemerkt je Liste (components/pager.js). */
@@ -129,6 +132,16 @@ export async function render(container, params, ctx = {}) {
       // Adresse ohne ?add=… — sonst öffnete Neuladen den Dialog erneut
       syncAddress(utility);
       container.querySelector(target)?.click();
+    }
+    // v3.9.0 (ablesung-pruefen) — „Korrigieren“ aus „Zu tun“: ?edit_reading=<id> öffnet den
+    // Bearbeiten-Dialog dieser Ablesung (mit dem Befund und dem Stand, der passen würde)
+    const editId = ctx.query?.get('edit_reading');
+    if (editId) {
+      syncAddress(utility);
+      const meter = state.meters.find(m => m.id === state.selectedMeterId);
+      const rs = meter ? await api.readings(utility.key, meter.id).catch(() => []) : [];
+      const reading = rs.find(x => x.id === editId);
+      if (reading) openReadingModal(container, utility, meter, reading, rs);
     }
   } catch (e) {
     container.innerHTML = `<div class="status-banner alert"><div class="status-banner__icon">⚠️</div>
@@ -214,6 +227,7 @@ async function rerender(container) {
   // als vermieden, keine Kostenkachel (bis v2.9 als Emission wie ein Verbrauch)
   const isGeneration = u.accounting_kind === 'generation';
   let readings = [], deliveries = [], stockHist = null, pvSummary = null, periods = [];
+  state.readingChecks = null;
   // v3.1.0 (H3, B2) — Zähler mit Verbrauch je Zeitraum: Zeiträume statt Stände
   const isPeriod = !isDelivery && meter.capture === 'period';
   if (isPeriod) {
@@ -225,10 +239,14 @@ async function rerender(container) {
     ]);
   } else {
     // v2.16.0 (Review FE-17, FE-31) — PV-Seiten zeigen den Energiefluss aus der PV-Zusammenfassung
-    [readings, pvSummary] = await Promise.all([
+    // v3.9.0 (ablesung-pruefen) — dazu die Prüfung der Zwischenablesungen (Marken in der Liste)
+    let checksData = null;
+    [readings, pvSummary, checksData] = await Promise.all([
       api.readings(u.key, meter.id),
       isPv(u) ? api.pvSummary().catch(() => null) : null,
+      api.readingChecks(u.key, meter.id).catch(() => null),
     ]);
+    state.readingChecks = { meterId: meter.id, ...readingCheckIndex(checksData) };
   }
   if (my !== rerenderSeq) return;
 
@@ -543,6 +561,7 @@ async function rerender(container) {
           <button class="btn btn-${u.key} btn--sm" id="btn-new-reading">${t('utility.action.newReading')}</button>
         </span>
       </div>
+      ${billingOnlyNoteHtml(readings)}
       <div data-role="list-body"></div>
     </div>
     `}
@@ -1380,8 +1399,14 @@ function readingsEmpty(total, year) {
     </div>`;
 }
 
+/** v3.9.0 (ablesung-pruefen) — Satz über der Liste, wenn Stände „nur für die Abrechnung“ zählen. */
+function billingOnlyNoteHtml(readings) {
+  const n = (readings || []).filter(r => r.is_billing_only).length;
+  return n ? `<p class="muted small" data-role="billing-only-note" style="margin:0 4px 8px">${escapeHtml(tp('utility.readingsTable.billingOnlyNote', n))}</p>` : '';
+}
+
 /** Tabelle der übergebenen Ablesungen (schon gefiltert, sortiert und ggf. eine Seite). */
-function readingsTable(sorted, u, warnByReading = new Map()) {
+function readingsTable(sorted, u, warnByReading = new Map(), checks = state.readingChecks) {
   return `<div class="table-wrap"><table class="table">
     <thead><tr>
       <th scope="col">${t('utility.readingsTable.colDate')}</th>
@@ -1397,13 +1422,23 @@ function readingsTable(sorted, u, warnByReading = new Map()) {
       const flag = r.is_suspect
         ? `<span class="status-pill suspect">${t('utility.readingsTable.suspect')}</span>${infoNote(t('utility.readingsTable.suspect'), t('utility.readingsTable.suspectTitle'))}`
         : warn ? `<span class="status-pill implausible">${t('utility.readingsTable.implausible')}</span>${infoNote(t('utility.readingsTable.implausible'), warningText(warn, u))}` : '';
-      return `<tr data-reading-id="${escapeHtml(r.id)}"${r.is_suspect || warn ? ' class="row--flagged"' : ''}>
-      <td><strong>${fmt.date(r.date)}</strong> ${r.is_future ? `<span class="status-pill future">${t('utility.readingsTable.future')}</span>` : ''} ${r.is_estimated ? `<span class="status-pill" style="background:var(--c-yellow-soft);color:var(--c-yellow)">${t('utility.readingsTable.estimated')}</span>` : ''} ${flag}</td>
+      // v3.9.0 (ablesung-pruefen) — prüfen, doppelt, nur für die Abrechnung, geprüft
+      const check = checks?.byReading?.get(r.id);
+      const dup = checks?.duplicate?.has(r.id);
+      const marks = [
+        check ? `<span class="status-pill implausible" data-role="reading-check-pill">${t('utility.readingsTable.check')}</span>${infoNote(readingCheckTitle(check), readingCheckLines(check).join(' '))}` : '',
+        dup ? `<span class="status-pill implausible" data-role="reading-duplicate-pill">${t('utility.readingsTable.duplicate')}</span>${infoNote(t('utility.readingsTable.duplicate'), t('utility.readingsTable.duplicateTitle'))}` : '',
+        r.is_billing_only ? `<span class="status-pill" data-role="billing-only-pill">${t('utility.readingsTable.billingOnly')}</span>${infoNote(t('utility.readingsTable.billingOnly'), t('utility.readingsTable.billingOnlyTitle'))}` : '',
+        r.is_verified && !check ? `<span class="status-pill" data-role="verified-pill">${t('utility.readingsTable.verified')}</span>${infoNote(t('utility.readingsTable.verified'), t('utility.readingsTable.verifiedTitle'))}` : '',
+      ].filter(Boolean).join(' ');
+      return `<tr data-reading-id="${escapeHtml(r.id)}"${r.is_suspect || warn || check || dup ? ' class="row--flagged"' : ''}>
+      <td><strong>${fmt.date(r.date)}</strong> ${r.is_future ? `<span class="status-pill future">${t('utility.readingsTable.future')}</span>` : ''} ${r.is_estimated ? `<span class="status-pill" style="background:var(--c-yellow-soft);color:var(--c-yellow)">${t('utility.readingsTable.estimated')}</span>` : ''} ${flag} ${marks}</td>
       <td class="num">${fmt.num(r.counter, 1)} ${u.unit}</td>
       <td class="muted" style="font-size:12px">${escapeHtml(r.note || '')}</td>
       <td style="text-align:right;white-space:nowrap">
         ${r.attachment_id ? `<button class="icon-btn icon-btn--thumb" data-action="view-photo" data-id="${escapeHtml(r.id)}" title="${t('readingsEntry.photo.view')}" aria-label="${t('readingsEntry.photo.view')}"><img class="reading-thumb" src="${escapeHtml(api.attachmentUrl(r.attachment_id))}" alt="" loading="lazy" decoding="async"></button>` : ''}
         ${r.is_suspect ? `<button class="icon-btn" data-action="confirm-reading" data-id="${escapeHtml(r.id)}" title="${t('utility.readingsTable.confirmReading')}" aria-label="${t('utility.readingsTable.confirmReading')}"><span aria-hidden="true">✅</span></button>` : ''}
+        ${check ? `<button class="icon-btn" data-action="verify-reading" data-id="${escapeHtml(r.id)}" title="${escapeHtml(tp('readingCheck.verify', check.reading_ids?.length || 1))}" aria-label="${escapeHtml(tp('readingCheck.verify', check.reading_ids?.length || 1))}"><span aria-hidden="true">✅</span></button>` : ''}
         <button class="icon-btn" data-action="edit-reading" data-id="${escapeHtml(r.id)}" title="${t('utility.readingsTable.edit')}" aria-label="${t('utility.readingsTable.edit')}"><span aria-hidden="true">✏️</span></button>
         <button class="icon-btn" data-action="delete-reading" data-id="${escapeHtml(r.id)}" title="${t('utility.readingsTable.delete')}" aria-label="${t('utility.readingsTable.delete')}"><span aria-hidden="true">🗑️</span></button>
       </td>
@@ -1443,7 +1478,9 @@ function wireList(container, { u, meter, isPeriod, rows, total, yr, readings, pe
   const body = card?.querySelector('[data-role="list-body"]');
   if (!body) return;
   const listKey = isPeriod ? PERIODS_PAGER : READINGS_PAGER;
-  const flagged = (r) => !isPeriod && (r.is_suspect || warnByReading.has(r.id));
+  // v3.9.0 (ablesung-pruefen) — „nur auffällige“ zeigt auch „prüfen“ und „doppelt“
+  const checks = state.readingChecks;
+  const flagged = (r) => !isPeriod && (r.is_suspect || warnByReading.has(r.id) || !!checks?.byReading?.has(r.id) || !!checks?.duplicate?.has(r.id));
   const sorted = isPeriod
     ? [...rows].sort((a, b) => b.from.localeCompare(a.from))
     : [...rows].sort((a, b) => b.date.localeCompare(a.date));
@@ -1485,6 +1522,13 @@ function wireList(container, { u, meter, isPeriod, rows, total, yr, readings, pe
       case 'edit-reading':
         openReadingModal(container, u, meter, readings.find(r => r.id === id), readings);
         break;
+      // v3.9.0 (ablesung-pruefen) — „Stand ist richtig“ für den ganzen Befund (Block), mit Rückgängig
+      case 'verify-reading': {
+        const c = checks?.byReading?.get(id);
+        btn.disabled = true;
+        if (!await markReadings({ utility: u.key, ids: c?.reading_ids || [id], flag: 'is_verified', onChange: () => rerender(container) })) btn.disabled = false;
+        break;
+      }
       // v3.1.0 (H2, MKT-08) — Foto zur Ablesung groß ansehen, entfernen
       case 'view-photo': {
         const reading = readings.find(r => r.id === id);
@@ -2346,10 +2390,23 @@ function wireEvents(container, u, meter, readings, contracts, deliveries = [], m
   });
 }
 
+/** v3.9.0 (ablesung-pruefen) — im Bearbeiten-Dialog: warum der Stand auffällt und welcher passen würde. */
+function readingCheckHintHtml(check, reading, u) {
+  const s = (check.suggested || []).find(x => x.id === reading.id);
+  return `<div class="banner banner--info" data-role="reading-check-hint">
+      <p><strong>${escapeHtml(readingCheckTitle(check))}</strong></p>
+      <p class="small">${readingCheckLines(check).map(escapeHtml).join(' ')}</p>
+      ${s ? `<p class="small">${escapeHtml(t('readingCheck.suggested', { counter: `${fmt.num(s.suggested, 1)} ${u.unit}` }))}
+        <button type="button" class="btn btn--sm btn--ghost" data-act="use-suggested" data-value="${escapeHtml(String(s.suggested))}">${escapeHtml(t('readingCheck.useSuggested'))}</button></p>` : ''}
+    </div>`;
+}
+
 // ── Reading modal (add / edit) ──────────────────────────────────────
 function openReadingModal(container, u, meter, reading, readings = []) {
   const isEdit = !!reading;
   const today = todayIso();
+  // v3.9.0 (ablesung-pruefen) — „Korrigieren“: der Befund zu diesem Stand, mit Vorschlag
+  const check = isEdit && state.readingChecks?.meterId === meter.id ? (state.readingChecks.byReading.get(reading.id) ?? null) : null;
   // v2.6.0 — Grundlage der Plausibilitätsprüfung: alle anderen Stände dieses
   // Zählers (ohne den bearbeiteten und ohne unbestätigten Verdacht).
   const others = (readings || []).filter(r => r.id !== reading?.id && !r.is_suspect);
@@ -2381,6 +2438,21 @@ function openReadingModal(container, u, meter, reading, readings = []) {
           <span>${t('utility.readingModal.estimated')}</span>
         </label>
       </div>
+      <!-- v3.9.0 (ablesung-pruefen) — Stand von der Rechnung, der die Monatswerte nicht prägen soll -->
+      <div class="field">
+        <label class="check">
+          <input type="checkbox" name="is_billing_only" ${reading?.is_billing_only ? 'checked' : ''} aria-describedby="rf-billing-hint">
+          <span>${t('utility.readingModal.billingOnly')}</span>
+        </label>
+        <p class="muted small" id="rf-billing-hint" style="margin:2px 0 0">${escapeHtml(t('readingCheck.billingOnlyHint'))}</p>
+      </div>
+      ${isEdit && (reading?.is_verified || check) ? `<div class="field">
+        <label class="check">
+          <input type="checkbox" name="is_verified" ${reading?.is_verified ? 'checked' : ''}>
+          <span>${t('utility.readingModal.verified')}</span>
+        </label>
+      </div>` : ''}
+      ${check ? readingCheckHintHtml(check, reading, u) : ''}
     </form>
   `;
   const footer = `
@@ -2429,6 +2501,12 @@ function openReadingModal(container, u, meter, reading, readings = []) {
       };
       counterEl?.addEventListener('input', updatePreview);
       dateEl?.addEventListener('change', updatePreview);
+      // v3.9.0 (ablesung-pruefen) — den vorgeschlagenen Stand einsetzen (gespeichert wird erst mit „Speichern“)
+      modalEl.querySelector('[data-act="use-suggested"]')?.addEventListener('click', (ev) => {
+        counterEl.value = formatForInput(Number(ev.currentTarget.dataset.value));
+        counterEl.dispatchEvent(new Event('input'));
+        counterEl.focus();
+      });
 
       modalEl.querySelector('[data-act="cancel"]').addEventListener('click', () => close(null));
       const saveBtn = modalEl.querySelector('[data-act="save"]');
@@ -2460,7 +2538,9 @@ function openReadingModal(container, u, meter, reading, readings = []) {
           counter,
           note: form.note.value,
           is_estimated: form.is_estimated.checked,
+          is_billing_only: form.is_billing_only.checked,   // v3.9.0 (ablesung-pruefen)
         };
+        if (form.is_verified) data.is_verified = form.is_verified.checked;
         try {
           if (isEdit)       await api.updateReading(u.key, reading.id, data);
           else if (sameDay) await api.updateReading(u.key, sameDay.id, data);   // ersetzen statt doppeln

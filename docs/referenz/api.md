@@ -13,7 +13,7 @@ Alle Endpunkte unter `/api/…`. Antwort-Hülle einheitlich:
 
 `{utility}` ist eine von: `gas`, `strom`, `wasser`, `fernwaerme`,
 `heizoel`, `pellets`, `pv_einspeisung`, `pv_erzeugung` und seit v3.1.0
-`waerme` (Heizwärme). Stand: **194 Routen**,
+`waerme` (Heizwärme). Stand: **195 Routen**,
 v3.9.0 — `ReleaseConsistencyTest` prüft, dass jede registrierte Route in der
 Tabelle unten steht (DE und EN).
 
@@ -204,7 +204,7 @@ nicht wieder passieren.
 | GET | `/api/utility/{u}/meter-groups/{id}/heat-limit` | *(v3.9.0)* Heizgrenze-Vorschlag der Gruppe, wie beim Zähler |
 | GET | `/api/utility/{u}/readings` | Ablesungen |
 | POST | `/api/utility/{u}/readings` | anlegen; seit v3.1.0 mit `client_ref` (gleiche Kennung am selben Zähler → `200` mit `duplicate: true` statt eines zweiten Stands) und `attachment_id` (Foto) — [s. u.](#ablesungen-client_ref-attachment_id-v310-additiv) |
-| PATCH | `/api/utility/{u}/readings/{id}` | ändern; seit v3.1.0 auch `attachment_id` (`null` löst das Foto); auf einen Zähler mit Verbrauch je Zeitraum umhängen → `400` `errors.reading.periodMeter` |
+| PATCH | `/api/utility/{u}/readings/{id}` | ändern; seit v3.1.0 auch `attachment_id` (`null` löst das Foto); auf einen Zähler mit Verbrauch je Zeitraum umhängen → `400` `errors.reading.periodMeter`; seit v3.9.0 `is_verified` und `is_billing_only` — [s. u.](#ablesungen-is_verified-is_billing_only-v390-additiv) |
 | DELETE | `/api/utility/{u}/readings/{id}` | löschen (ein Foto wird gelöst und nach 24 Stunden aufgeräumt) |
 | POST | `/api/utility/{u}/meters/{id}/readings/import-csv` | CSV-Bulk-Import; `?dry_run=1` liest nur (Vorschau, v2.12.0); seit v3.1.0 Kopfzeilen und Datumsschreibweisen aller Sprachen — s. u. |
 | POST | `/api/utility/{u}/meters/{id}/import-series` | *(v3.1.0)* Zeitreihe aus einem Portal mit Spaltenzuordnung `{csv, mapping}`, zu Tageswerten verdichtet; `?dry_run=1` liest nur — [Zeitreihe importieren](#zeitreihe-importieren-v310); seit v3.3.0 Werte im Takt von 15, 30 oder 60 Minuten zusätzlich je Viertelstunde (`intervals`) |
@@ -216,6 +216,7 @@ nicht wieder passieren.
 | DELETE | `/api/utility/{u}/periods/{id}` | *(v3.1.0)* Zeitraum löschen |
 | POST | `/api/utility/{u}/meters/{id}/periods/import-csv` | *(v3.1.0)* Zeiträume aus CSV (`monat;wert[;notiz]` oder `von;bis;wert[;notiz]`); `?dry_run=1` liest nur |
 | **GET** | **`/api/readings-overview`** | **alle aktiven kumulativen Zähler + letzte Ablesung (F1004, v1.6.0); seit v3.1.0 mit `capture`, `last_period` und `role`** |
+| GET | `/api/utility/{u}/meters/{id}/reading-checks` | *(v3.9.0)* Zwischenablesung prüfen: Stände mit gemeinsamem Versatz (`checks`), doppelt eingetragene (`duplicates`), Hinweis auf die Analyse-Zäsur (`level_shift`) — [Zwischenablesung prüfen](#zwischenablesung-prüfen-v390) |
 | GET | `/api/utility/{u}/deliveries` | Lieferungen (Heizöl/Pellets) |
 | POST | `/api/utility/{u}/deliveries` | anlegen |
 | PATCH | `/api/utility/{u}/deliveries/{id}` | ändern |
@@ -560,6 +561,48 @@ jedem geprüften Jahr auf derselben Seite: ein Muster, kein Ereignis), `hdd_base
 auch an Tanks (Heizöl, Pellets), beim Anlegen eines Zählers und an Zählergruppen
 (`PATCH …/meter-groups/{id}`). Die Agenda kennt die Art `heat_limit` (Empfehlung der
 Kategorie `modell`, `ref` mit `best`, `current`, `range`, `before`, `after`, `effect`).
+
+### Zwischenablesung prüfen *(v3.9.0)*
+
+`GET /api/utility/{u}/meters/{id}/reading-checks` — der Befund eines Zählers mit
+Zählerständen (Methode und Schwellen: [Grundlagen §1](../verstehen/00-overview.md#ablesung-prüfen-seit-v390)).
+Für Zeiträume, Gruppen und Lieferarten leer.
+
+```jsonc
+{ "checks": [ {
+    "uid": "reading_check-gas-m_gas_main-2025-01-01", "kind": "offset",
+    "date": "2025-01-01", "until": "2025-03-01", "count": 3,
+    "reading_ids": ["r1", "r2", "r3"], "direction": "low", "offset": 250.0, "unit": "m³",
+    "basis": "heat_model",
+    "before": { "from": "2024-10-15", "to": "2025-01-01", "days": 78, "measured": 108.0, "expected": 358.0, "ratio": 0.3 },
+    "after":  { "from": "2025-03-01", "to": "2025-05-25", "days": 85, "measured": 489.0, "expected": 239.0, "ratio": 2.04 },
+    "suggested": [ { "id": "r1", "date": "2025-01-01", "counter": 4210.0, "suggested": 4460.0 } ] } ],
+  "duplicates": [ { "uid": "reading_duplicate-gas-m_gas_main-2025-03-01", "date": "2025-03-01",
+    "counter": 4890.0, "unit": "m³", "keep_id": "r7", "delete_ids": ["r8"] } ],
+  "level_shift": null, "basis": "heat_model", "unit": "m³", "billing_only": [] }
+```
+
+| Feld | Bedeutung |
+|---|---|
+| `checks[]` | Stand oder Block aufeinanderfolgender Stände (`count`, `reading_ids`), bei dem der Abstand davor (`before`) und der danach (`after`) entgegengesetzt deutlich von der Erwartung abweichen und ein gemeinsamer Versatz beide erklärt. `direction`: `low` (die Stände sind vermutlich zu niedrig) oder `high`; `offset` in der Zähleinheit; `measured`, `expected` je Abstand in der Zähleinheit, `ratio` = gemessen ÷ erwartet; `suggested[]` der Stand, der passen würde |
+| `basis` | woher die Erwartung kommt: `heat_model` (Heizmodell über die Ablesungsabstände), `mean_rate` (mittlere Tagesmenge ein halbes Jahr davor und danach), `other_years` (dieselben Tage anderer Jahre); `null`: keine Prüfung (zu wenig Abstände, Ladepunkt) |
+| `duplicates[]` | derselbe Stand am selben Tag mehrfach: `keep_id` (mit Foto, sonst mit Notiz, sonst der erste), `delete_ids` |
+| `level_shift` | Hinweis auf die Analyse-Zäsur oder `null`: `{uid, date, from, direction, factor, days, months, basis}`. `direction: "higher"` heißt: Von `from` bis `date` lag der Verbrauch gleichbleibend beim `factor`-Fachen von heute |
+| `billing_only` | IDs der Stände „nur für die Abrechnung“ (`is_billing_only`) |
+
+Die Agenda meldet jeden Befund als Ereignis mit `due_now` (und damit auch in
+[`/api/todo`](#get-apitodo-v390) und an Home Assistant): `reading_check`,
+`reading_duplicate` und `level_shift`, mit `uid` wie oben und den Feldern des
+Befunds in `ref`. Erledigt wird aus den Daten: „Stand ist richtig“
+(`PATCH …/readings/{id}` mit `is_verified: true` je Stand), „nur für die
+Abrechnung“ (`is_billing_only: true`), ein korrigierter Stand oder das Löschen
+einer doppelten Ablesung lassen den Befund fallen. Nur `level_shift` lässt sich
+abhaken (`POST /api/agenda/done`), oder eine Zäsur am Tag `date` setzt ihn außer Kraft.
+
+**Seit v3.9.0, additiv, in `…/consumption` (`monthly[]`):** `bridged: true` an
+Monaten, die über einen Stand „nur für die Abrechnung“ hinweg nach dem Wetter
+verteilt sind; dort trägt `billed_kwh` die Menge, mit der die Verträge rechnen
+(nach dem Stand, wie bei der Rest-Abrechnung), `kwh` den Monatswert.
 
 **Seit v3.9.0 (Auswertung), additiv** — jede Zahl stimmt oder sagt, warum sie
 unsicher ist ([Grundlagen §1](../verstehen/00-overview.md#gemessen-oder-verteilt-seit-v370),
@@ -1678,6 +1721,21 @@ Zwei weitere optionale Felder, ebenfalls nur vorhanden, wenn gesetzt:
   "client_ref": "7d0f6c1e-2b8a-4c55-9e3d-0a1b2c3d4e5f",
   "attachment_id": "att_5f0c2a9e81d34b67" }
 ```
+
+### Ablesungen: `is_verified`, `is_billing_only` *(v3.9.0, additiv)*
+
+Zwei Merker der [Prüfung der Zwischenablesungen](#zwischenablesung-prüfen-v390),
+nur gespeichert, wenn gesetzt (`PATCH` mit `false` entfernt sie):
+
+- `is_verified: true` — „Stand ist richtig“: Die Prüfung fragt bei keinem Block mit
+  diesem Stand wieder. Wer `counter` oder `date` ändert, hebt die Bestätigung auf
+  (auch ein CSV-Import mit anderem Stand am selben Tag).
+- `is_billing_only: true` — „nur für die Abrechnung“: Rechnung prüfen,
+  Abrechnungsjahr, Kosten und Saldo rechnen weiter mit dem Stand; Monatswerte,
+  Heizmodell und Prognose überspringen ihn. Der Verbrauch von der Ablesung davor
+  bis zur nächsten ohne Merker wird nach dem Wetter verteilt (`bridged`). Ohne
+  Ablesung danach (oder über einen Zählertausch) bleibt der Stand in den
+  Monatswerten. Auch beim Anlegen (`POST …/readings`).
 
 ### Zähler: `role`, `capture` *(v3.1.0, additiv)*
 
@@ -3423,6 +3481,9 @@ alles, was schon fällig oder überfällig ist. Sortiert nach Datum, dann Art.
 | `objection_deadline` *(v3.1.0)* | letzter Tag für Einwände gegen eine Abrechnung | Zugang (`received_on`) + 12 Monate | ab 30 Tagen vorher (`severity` dann `due`) |
 | `co2_claim_deadline` *(v3.1.0)* | Etagenheizung zur Miete: Anteil des Vermieters an den CO₂-Kosten einfordern (CO2KostAufG § 6 Abs. 2) — nur mit `case: self_supplied` und Betrag über 0 | `deadline` aus `/api/co2-split`: Rechnungsdatum der Gasrechnung + 12 Monate | ab 30 Tagen vorher (`severity` dann `due`) |
 | `bill_expected` *(v3.5.0)* | Abrechnungszeitraum eines Vertrags beendet, keine Versorgerrechnung erfasst — [Abrechnung erwartet](#abrechnung-erwartet-v350) | Strom/Gas in DE: Ende + 42 Tage (§ 40c Abs. 2 EnWG); sonst Tag nach dem Ende | immer; `severity` `due`, nach der gesetzlichen Frist `overdue` |
+| `reading_check` *(v3.9.0)* | Ablesung (oder Block) prüfen — [Zwischenablesung prüfen](#zwischenablesung-prüfen-v390) | heute | immer, bis „Stand ist richtig“, „nur für die Abrechnung“ oder ein korrigierter Stand ihn erledigt; nicht abhakbar |
+| `reading_duplicate` *(v3.9.0)* | derselbe Stand am selben Tag zweimal eingetragen | heute | immer, bis eine gelöscht ist; nicht abhakbar |
+| `level_shift` *(v3.9.0)* | Verbrauch über mindestens ein Jahr gleichbleibend anders als heute: Hinweis auf die Analyse-Zäsur | heute | bis abgehakt („Nicht jetzt“) oder eine Zäsur nahe `ref.date` gesetzt ist |
 
 **Zeitraum-Zähler *(v3.1.0)*.** Für einen Zähler mit Verbrauch je Zeitraum
 rechnet `reading_due` ab dem Ende des letzten Zeitraums statt ab der letzten

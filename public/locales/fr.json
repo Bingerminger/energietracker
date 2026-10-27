@@ -211,7 +211,8 @@
       "billOverdueSince": "délai légal dépassé le {date}",
       "billNoDeadline": "pas de délai légal",
       "billAction": "Saisir la facture",
-      "heatLimitAction": "Voir"
+      "heatLimitAction": "Voir",
+      "readingCheckAction": "Voir les relevés"
     },
     "welcome": {
       "title": "Bienvenue dans Energietracker",
@@ -582,6 +583,17 @@
       "onlyFlagged": {
         "one": "Seulement les relevés signalés ({count})",
         "other": "Seulement les relevés signalés ({count})"
+      },
+      "check": "INHABITUEL",
+      "duplicate": "EN DOUBLE",
+      "duplicateTitle": "Le même relevé du même jour est saisi deux fois. L’un d’eux peut être supprimé.",
+      "billingOnly": "FACTURE SEULEMENT",
+      "billingOnlyTitle": "La facture et le solde utilisent ce relevé. Les valeurs mensuelles l’ignorent : la consommation entre le relevé précédent et le suivant est répartie selon la météo.",
+      "verified": "VÉRIFIÉ",
+      "verifiedTitle": "Noté comme correct. Le contrôle des relevés intermédiaires ne pose plus de question pour ce relevé.",
+      "billingOnlyNote": {
+        "one": "{count} relevé ne compte que pour la facture : les valeurs mensuelles l’ignorent.",
+        "other": "{count} relevés ne comptent que pour la facture : les valeurs mensuelles les ignorent."
       }
     },
     "deliveriesTable": {
@@ -653,7 +665,9 @@
       "validation": "La date et le relevé sont obligatoires.",
       "savedNew": "Relevé enregistré",
       "savedEdit": "Relevé mis à jour",
-      "confirmLowerOk": "Enregistrer quand même"
+      "confirmLowerOk": "Enregistrer quand même",
+      "billingOnly": "Seulement pour la facture",
+      "verified": "Le relevé est correct (ne plus vérifier)"
     },
     "deliveryModal": {
       "titleEdit": "Modifier la livraison · {label}",
@@ -3981,14 +3995,45 @@
     "forgotNamed": "Mot de passe oublié ? Une personne qui administre cette installation peut le réinitialiser dans Paramètres → Accès."
   },
   "readingCheck": {
-    "title": "Veuillez vérifier",
+    "title": "Vérifier le relevé du {date}",
     "future": "La date {date} est dans le futur.",
     "sameDay": "Il existe déjà un relevé pour le {date} ({counter} {unit}). La nouvelle valeur le remplace.",
     "lower": "L’index est inférieur au dernier ({last} {unit}). Si le compteur a été remplacé, enregistrez-le via « Changement de compteur » – sinon l’analyse affiche une baisse.",
     "jump": "Depuis le dernier relevé, cela ferait {perDay} {unit} par jour – d’habitude environ {typical} {unit}. Faute de frappe ?",
     "magnitude": "La valeur dépasse dix fois le dernier index ({last} {unit}). Virgule oubliée ?",
     "confirm": "Enregistrer quand même",
-    "replace": "Remplacer"
+    "replace": "Remplacer",
+    "titleBlock": "Vérifier les relevés du {date} au {until}",
+    "before": "Avant (du {from} au {to}) : {measured} mesurés, environ {expected} attendus.",
+    "after": "Après (du {from} au {to}) : {measured} mesurés, environ {expected} attendus.",
+    "low": {
+      "one": "Ce relevé est probablement trop bas d’environ {amount}.",
+      "other": "Ces {count} relevés sont probablement tous trop bas d’environ {amount}."
+    },
+    "high": {
+      "one": "Ce relevé est probablement trop haut d’environ {amount}.",
+      "other": "Ces {count} relevés sont probablement tous trop hauts d’environ {amount}."
+    },
+    "verify": {
+      "one": "Le relevé est correct",
+      "other": "Les relevés sont corrects"
+    },
+    "billingOnly": "Seulement pour la facture",
+    "billingOnlyHint": "La facture et le solde continuent d’utiliser ce relevé. Les valeurs mensuelles et le modèle de chauffage l’ignorent ; la consommation entre les deux est répartie selon la météo.",
+    "correct": "Corriger",
+    "suggested": "Un relevé d’environ {counter} conviendrait.",
+    "useSuggested": "Insérer",
+    "toast": {
+      "verified": "Noté comme correct. L’application ne posera plus la question.",
+      "billingOnly": "Seulement pour la facture : les valeurs mensuelles ignorent désormais ce relevé.",
+      "undone": "Annulé"
+    },
+    "duplicate": {
+      "title": "Relevé du {date} saisi deux fois",
+      "sub": "Deux fois le même relevé : {counter}. Un seul suffit.",
+      "delete": "En supprimer un",
+      "deleted": "Relevé en double supprimé"
+    }
   },
   "format": {
     "decimal": ",",
@@ -4556,7 +4601,12 @@
       "finalBillExpected": "Facture de clôture attendue : {label} ({provider}) pour {from} – {until}",
       "finalBillOverdue": "Facture de clôture en retard : {label} ({provider}) pour {from} – {until} — délai légal dépassé, contactez le fournisseur",
       "cancelConfirm": "{label} : résiliation confirmée ? ({provider}, passage à {next})",
-      "heatLimit": "{label} : ajuster la température de base DJU à {best} °C ({meter})"
+      "heatLimit": "{label} : ajuster la température de base DJU à {best} °C ({meter})",
+      "readingCheck": "{label} : vérifier le relevé du {date} ({meter})",
+      "readingCheckBlock": "{label} : vérifier les relevés du {date} au {until} ({meter})",
+      "readingDuplicate": "{label} : relevé du {date} saisi deux fois ({meter})",
+      "levelShiftLess": "{label} : consommation durablement plus faible depuis le {date}. Définir une rupture de référence ? ({meter})",
+      "levelShiftMore": "{label} : consommation durablement plus élevée depuis le {date}. Définir une rupture de référence ? ({meter})"
     },
     "subscribe": "S’abonner dans votre agenda",
     "intro": "Rendez-vous, échéances de résiliation, fins de contrat, garanties de prix et relevés dus sous forme d’abonnement d’agenda. L’agenda les actualise toutes les 12 heures.",
@@ -7089,5 +7139,33 @@
     "notNow": "Pas maintenant",
     "notNowHint": "Réapparaît lorsque de nouveaux mois sont mesurés ou que la proposition change.",
     "dismissed": "Masqué jusqu’à ce que de nouveaux mois soient mesurés ou que la proposition change."
+  },
+  "levelShift": {
+    "titleLess": "Consommation durablement plus faible depuis le {date}",
+    "titleMore": "Consommation durablement plus élevée depuis le {date}",
+    "textHigher": {
+      "one": "Auparavant, la consommation était pendant {count} mois constamment environ {factor} fois celle d’aujourd’hui.",
+      "other": "Auparavant, la consommation était pendant {count} mois constamment environ {factor} fois celle d’aujourd’hui."
+    },
+    "textLower": {
+      "one": "Auparavant, la consommation était pendant {count} mois constamment d’environ {pct} de celle d’aujourd’hui.",
+      "other": "Auparavant, la consommation était pendant {count} mois constamment d’environ {pct} de celle d’aujourd’hui."
+    },
+    "advice": "Cela ressemble à un vrai changement (par exemple un nouveau chauffage ou une autre façon de chauffer), pas à une erreur de relevé. Une rupture de référence sépare la période précédente : le modèle de chauffage, la prévision et les comparaisons utilisent alors la consommation actuelle.",
+    "set": "Définir la rupture ici",
+    "notNow": "Pas maintenant",
+    "label": "Consommation modifiée",
+    "toast": {
+      "set": "Rupture de référence définie au {date}",
+      "dismissed": "Remarque masquée"
+    },
+    "dialog": {
+      "title": "Définir une rupture de référence",
+      "text": "À partir de ce jour, le modèle de chauffage, la prévision et les comparaisons n’utilisent que la période suivante. La fin de la période inhabituelle est préremplie. Si vous connaissez le jour du changement (par exemple le remplacement du chauffage), saisissez-le.",
+      "date": "À partir du jour",
+      "label": "Libellé",
+      "confirm": "Définir la rupture",
+      "invalid": "Veuillez saisir un jour."
+    }
   }
 }

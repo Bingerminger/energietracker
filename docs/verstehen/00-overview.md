@@ -87,6 +87,89 @@ Verbrauchsart, Analyse und PV-Übersicht sagen, wenn Monatswerte verteilt sind,
 mit der Zahl der Ablesungen im Zeitraum; Tabellen zeigen „≈“, Diagramme
 schraffierte Säulen.
 
+### Ablesung prüfen *(seit v3.9.0)*
+
+Ein falscher Stand zwischen zwei richtigen verschiebt Verbrauch still von einem
+Abschnitt in den nächsten. Die Summe stimmt, aber Monatswerte, Abrechnungsjahr,
+Heizmodell (und damit der Heizgrenze-Vorschlag) und Prognose nicht. Die App sucht
+solche Stände und fragt nach. Sie korrigiert nie selbst.
+
+**Erwartung je Abstand.** Bei Gas, Fernwärme, Heizwärme und dem Strom einer
+Wärmepumpe das Heizmodell `a × HGT + c × Tage` mit der Heizgrenze des Zählers (bzw.
+seiner Gruppe), gefittet über die Ablesungsabstände. Bei Strom und Wasser die mittlere
+Tagesmenge der Abstände bis ein halbes Jahr davor und danach. Bei PV, Gartenwasser und
+anderen Zählern mit ausgeprägten Jahreszeiten (der schwächste Monat unter der Hälfte
+des stärksten) dieselben Tage in anderen Jahren. Der Ladepunkt einer Wallbox wird
+nicht geprüft: Geladen wird, wenn gefahren wurde.
+
+**Ein Kandidat** ist ein Stand oder ein Block von bis zu sechs aufeinanderfolgenden
+Ständen (höchstens ein halbes Jahr vom ersten bis zum letzten), bei dem
+
+```text
+Abstand davor   deutlich unter der Erwartung   (bzw. darüber)
+Abstand danach  deutlich über der Erwartung    (bzw. darunter)
+im Block        jeder Abstand normal
+Summe           |Abweichung davor + Abweichung danach| ≤ ½ × Versatz
+Nachbarn        der Abstand vor dem ersten und der nach dem letzten weichen
+                nicht in dieselbe Richtung ab
+Versatz         (Abweichung danach − Abweichung davor) ÷ 2
+```
+
+**Deutlich** heißt alle drei zugleich: gemessen unter 3/4 bzw. über 4/3 der
+Erwartung, mindestens ein Viertel eines typischen Monats (Verbrauch der letzten
+zwölf Monate ÷ 12) und mindestens drei Streuungen des Modells (beim Heizmodell dessen
+Streuung je Monat, auf die Länge des Abstands umgerechnet; bei anderen Jahren die
+Streuung zwischen den Jahren, mindestens ein Fünftel der Erwartung). Für den Kandidaten
+rechnet die App die Erwartungen noch einmal ohne die geprüften Abstände.
+
+Warum so: Eine schnelle Prüfung „unter 0,5× oder über 2×“ meldete an einem echten
+Haushalt elf Abstände, davon war einer ein falscher Stand. Sechs waren kurze Abstände im
+Sommer mit großem Verhältnis und wenigen kWh (deshalb die Mindestmenge), zwei ganze
+Jahre auf anderem Niveau (deshalb die Nachbarn und der Hinweis auf die Zäsur unten). Der
+echte Fall war ein Block: drei Stände um denselben Betrag zu niedrig, im Block jeder
+Abstand normal. Ein Prüfer, der nur Nachbarpaare ansieht, findet ihn nicht. Und ein
+Zahlendreher in einem Wintermonat (900 von 1.845 kWh) liegt bei 1,49× und 0,43×, die
+schnelle Prüfung hätte ihn übersehen.
+
+**In „Zu tun“** steht dann „Ablesung vom … prüfen“ mit gemessen gegen erwartet für
+den Abstand davor und danach und der Vermutung („vermutlich um rund 900 m³ zu hoch“),
+an der Ablesung in der Liste die Marke „AUFFÄLLIG“. Drei Knöpfe, alle mit Rückgängig:
+
+- **Stand ist richtig:** Die App fragt bei diesem Stand nie wieder (`is_verified`). Wer
+  den Stand später ändert, hebt das auf.
+- **Nur für die Abrechnung:** Der Stand bleibt für Rechnung und Saldo (Rechnung prüfen,
+  Abrechnungsjahr, Kosten, Abschläge), aber Monatswerte, Heizmodell und Prognose
+  überspringen ihn (`is_billing_only`). Der Verbrauch von der Ablesung davor bis zur
+  nächsten wird **nach dem Wetter** verteilt: je Tag `a × HGT + c` aus demselben
+  Heizmodell (bei Arten ohne Heizmodell gleichmäßig). So passt das, wenn der Versorger
+  mit einem geschätzten oder falschen Stand abgerechnet hat: Seine nächste Rechnung
+  gleicht es aus, und bis dahin rechnet der Saldo wie er.
+- **Korrigieren:** öffnet den Bearbeiten-Dialog mit dem Stand, der passen würde.
+
+Warum ein eigener Merker und nicht „geschätzt“: `is_estimated` ändert nur die Kennung
+(ein geschätzter Stand misst nichts, die Monate daneben gelten als verteilt), die
+Verteilung geht weiter durch ihn. Geschätzte Stände kommen oft vom Versorger und sind
+meist brauchbar; sie alle zu überbrücken, hätte Monatswerte geändert, die niemand
+angefasst hat.
+
+**Doppelt eingetragen:** Derselbe Stand am selben Tag zweimal ergibt „Ablesung vom …
+doppelt eingetragen“ mit „Eine löschen“ (behalten wird die mit Foto, sonst die mit
+Notiz).
+
+**Anderes Niveau, kein Ablesefehler:** Lag der Verbrauch mindestens ein Jahr am Stück
+gleichbleibend weit über bzw. unter heute (jeder nennenswerte Abstand mindestens ein
+Viertel darüber bzw. darunter, zusammen mindestens das Anderthalbfache), ohne
+Gegenbewegung danach (höchstens ein Zehntel der Tage danach wieder auf dem alten
+Niveau), schlägt die App eine [Analyse-Zäsur](#wirkung-einer-maßnahme-zäsur) am Tag
+des Wechsels vor: „Zäsur hier setzen“ (ein Dialog mit dem Ende der auffälligen Zeit als
+Tag, zum Bestätigen oder Ändern) oder „Nicht jetzt“. Das heutige Niveau kommt aus
+mindestens einem halben Jahr nach dem Wechsel. Mit einer wirksamen Zäsur zählt nur die
+Zeit danach; steht sie am Wechsel, entfällt der Hinweis. Die Zeit vor einem erkannten
+Wechsel ist kein Maßstab für einzelne Stände.
+
+Alle drei Einträge zählen in `/api/todo` und in den Benachrichtigungen an Home
+Assistant mit, in jeder Stufe.
+
 ---
 
 ## 2. Energieumrechnung
