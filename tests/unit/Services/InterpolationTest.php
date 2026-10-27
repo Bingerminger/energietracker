@@ -765,6 +765,9 @@ final class InterpolationTest extends ServiceTestCase
         // v3.9.0 (#38) — additiv: die verworfenen Punkte des Robustheitsschritts; die Rechnung selbst bleibt bit-gleich
         self::assertIsArray($heat['dropped']);
         unset($heat['dropped']);
+        // v3.9.0 (#38, Rückblick) — additiv: Gradtage je Tag der Punkte (ForecastService::HEAT_SUPPORT_MIN)
+        self::assertCount($heat['n'], $heat['hdd_per_day']);
+        unset($heat['hdd_per_day']);
         self::assertSame($want['heat'], $heat, 'bit-gleich');
         self::assertEquals($want['expected'], array_map(fn($m) => [$m['ym'], $m['expected_heat'], $m['heat_adjusted'], $m['regression_point']], $monthly));
         // v3.9.0 (#38) — additiv: Muster wiederkehrender Monate (hier keins)

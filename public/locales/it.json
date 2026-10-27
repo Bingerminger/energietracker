@@ -2889,7 +2889,7 @@
     "method": {
       "seasonal_only": "profilo stagionale",
       "regression_only": "curva di riscaldamento (nessun valore proprio per il mese)",
-      "heat_model": "modello di riscaldamento",
+      "heat_model": "modello di riscaldamento (nessun valore proprio per il mese)",
       "filled": "media giornaliera (nessun valore proprio)",
       "blend": "combinazione: {reg} curva di riscaldamento, {seasonal} profilo stagionale",
       "seasonal_interpolated": "Valori ripartiti (nessun mese misurato)"

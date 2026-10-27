@@ -1061,8 +1061,10 @@ Per forecast month:
 - `working_price_ct` — the applied working price (the headline tariff).
 - `contract_id` — the active contract, or `null` (then fallback to `last_price_ct`).
 - `method` — `blend(reg=…, seasonal=…)`, `seasonal_only`, since v2.8.0 also
-  `regression_only` (calendar month without own history), `heat_model` and
-  `filled`.
+  `regression_only`, `heat_model` and `filled`. A calendar month without own
+  history comes from the heating model since v3.9.0 (`heat_model`), otherwise
+  from the interpolated values (`seasonal_interpolated`), and from the
+  regression (`regression_only`) only without a heating model.
 - `band_low`/`band_high` *(v2.8.0)* — uncertainty band, width
   `confidence_band_sigma` (default 1.28 σ ≈ 80 % of years).
 - `hdd_estimated` — since v2.8.0 the normal heating degree days from the

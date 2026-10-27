@@ -2889,7 +2889,7 @@
     "method": {
       "seasonal_only": "perfil estacional",
       "regression_only": "curva de calefacción (sin valor propio para el mes)",
-      "heat_model": "modelo de calefacción",
+      "heat_model": "modelo de calefacción (sin valor propio para el mes)",
       "filled": "media diaria (sin valor propio)",
       "blend": "mezcla: {reg} curva de calefacción, {seasonal} perfil estacional",
       "seasonal_interpolated": "Valores repartidos (ningún mes medido)"

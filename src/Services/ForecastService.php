@@ -65,6 +65,26 @@ final class ForecastService
      */
     public const BAND_MIN_DOF = 3;
 
+    /**
+     * v3.9.0 (#38, Rückblick) — ein Kalendermonat ohne eigene Historie kommt aus dem
+     * Heizmodell: a × HGT des Klimanormals zur Heizgrenze des Zählers + c × Tage
+     * (`heat_model`). Bis v3.8 kam er zuerst aus der Regression der Monatssummen
+     * (`regression_only`): nur über Monate mit Heizgradtagen gefittet, ohne Tage, darunter
+     * geraten. Das Knickmodell gab jedem Monat unter dem Knick dasselbe Niveau, das der
+     * Übergangsmonate (Mai = Juli); an erfundenen Haushalten ohne gemessenen Mai und Juli
+     * lag die Prognose Mai bis September so im Mittel 65 bis 96 % zu hoch.
+     *
+     * Das gilt, wo das Heizmodell so warme Monate selbst gesehen hat: mindestens
+     * HEAT_SUPPORT_MIN seiner Punkte mit höchstens HEAT_SUPPORT_MARGIN Gradtagen je Tag mehr
+     * als das Normal des Monats. Sonst ist dort die Grundlast c geraten, gefittet nur an Heiz-
+     * und Übergangsmonaten. Im unordentlichen Testhaushalt ohne gemessenen Sommer lag sie je
+     * nach Heizgrenze bei 0,3 bis 8,9 kWh am Tag statt rund 5. Dann nimmt die Prognose die
+     * verteilten Werte desselben Kalendermonats, wenn es sie gibt (`seasonal_interpolated`),
+     * sonst doch das Heizmodell.
+     */
+    public const HEAT_SUPPORT_MIN = 2;
+    public const HEAT_SUPPORT_MARGIN = 0.5;
+
     public function __construct(
         private ConsumptionService $consumption,
         private RegressionService $regression,
@@ -293,7 +313,9 @@ final class ForecastService
             //     fast das ganze Warmwasser — bei echten Daten rund 23 % im Jahr, auch
             //     in der Menge fürs Vergleichsportal
             //   bei nicht bestandener Gütesperre: Der gemessene Monat ist näher als das Modell
-            if ($seasonalVal !== null && $regressionVal !== null && ($poorFit || ($regXMin !== null && $hdd < $regXMin))) {
+            //   v3.9.0 (#38, Rückblick) — und nicht, wo Knick oder Sigmoide flach sind (s. regressionFlat)
+            if ($seasonalVal !== null && $regressionVal !== null
+                && ($poorFit || ($regXMin !== null && $hdd < $regXMin) || self::regressionFlat($reg, $hdd))) {
                 $regressionVal = null;
             }
             $heatVal = ($heat !== null && $hdd !== null)
@@ -305,13 +327,15 @@ final class ForecastService
             } elseif ($seasonalVal !== null) {
                 $blended = $seasonalVal;
                 $method = 'seasonal_only';
-            } elseif ($regressionVal !== null) {
-                // Kalendermonat ohne eigene Historie: das Modell allein
-                $blended = $regressionVal;
-                $method = 'regression_only';
-            } elseif ($heatVal !== null) {
+            } elseif ($heatVal !== null && ($avgInterp[$mn] === null || $this->heatKnows($heat, $hdd / $daysInMonth))) {
+                // v3.9.0 (#38, Rückblick) — Kalendermonat ohne eigene Historie: das Heizmodell,
+                // a × HGT des Normals zur Heizgrenze des Zählers + c × Tage (s. HEAT_SUPPORT_MIN)
                 $blended = $heatVal;
                 $method = 'heat_model';
+            } elseif ($regressionVal !== null && $heatVal === null) {
+                // ohne Heizmodell: die Regression allein (bis v3.8 vor dem Heizmodell, s. HEAT_SUPPORT_MIN)
+                $blended = $regressionVal;
+                $method = 'regression_only';
             } elseif ($avgInterp[$mn] !== null) {
                 // v3.7.0 (#37) — nur verteilte Werte für diesen Kalendermonat
                 $blended = $avgInterp[$mn] * $daysInMonth;
@@ -339,7 +363,9 @@ final class ForecastService
             if ($i < 12) {
                 $annualValue += $blended;
                 // v3.9.0 (L4) — wie viel der Jahresmenge wirklich aus der Heizkurve kommt
-                $regPart += str_starts_with($method, 'blend(') ? $blendW * (float)$regressionVal : ($method === 'regression_only' ? $blended : 0.0);
+                // v3.9.0 (#38, Rückblick) — auch ein Monat aus dem Heizmodell kommt ganz aus der Heizkurve
+                $regPart += str_starts_with($method, 'blend(') ? $blendW * (float)$regressionVal
+                    : (in_array($method, ['regression_only', 'heat_model'], true) ? $blended : 0.0);
                 $bandMonths++;
                 if ($wSd === null && $nSd === null) $bandOk = false;
                 $weatherVar += ($wSd ?? 0.0) ** 2;
@@ -752,6 +778,32 @@ final class ForecastService
             'contract_id'      => (string)array_key_first($byContract),
             'assumed'          => $main['assumed'],
         ];
+    }
+
+    /**
+     * v3.9.0 (#38, Rückblick) — Liegt `$x` dort, wo die Regression flach ist? Das Knickmodell
+     * gibt unter dem Knick das feste Niveau b, die Sigmoide unter θ₀ die Grundlast D
+     * (RegressionService::predict). Gefittet wird b an den Monaten zwischen dem kleinsten Punkt
+     * und dem Knick, den Übergangsmonaten; ein Mischmonat darunter bekam so 80 % dieses Niveaus,
+     * ob Juni oder September. In der Form 15 °C/0,5 der erfundenen Haushalte lagen Juni, August
+     * und September im Mittel 40, 32 und 103 % zu hoch, mit der Geraden 9 % darüber, 8 % darunter,
+     * 18 % darüber. Dort gilt wie unter den Punkten der Kurve der gemessene Saisonwert.
+     */
+    private static function regressionFlat(?array $reg, float $x): bool
+    {
+        return match ($reg['model'] ?? null) {
+            'segmented' => isset($reg['split']) && $x < (float)$reg['split'],
+            'sigmoid'   => isset($reg['theta0']) && $x - (float)$reg['theta0'] <= 1e-6,
+            default     => false,
+        };
+    }
+
+    /** v3.9.0 (#38) — Hat das Heizmodell so warme Monate selbst gesehen? (s. HEAT_SUPPORT_MIN) */
+    private function heatKnows(array $heat, float $hddPerDay): bool
+    {
+        $n = 0;
+        foreach ($heat['hdd_per_day'] ?? [] as $v) if ($v <= $hddPerDay + self::HEAT_SUPPORT_MARGIN) $n++;
+        return $n >= self::HEAT_SUPPORT_MIN;
     }
 
     /** Standardnormalverteilung (Abramowitz/Stegun 26.2.17, Fehler < 7,5·10⁻⁸). */

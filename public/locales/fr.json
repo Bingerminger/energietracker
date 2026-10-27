@@ -2889,7 +2889,7 @@
     "method": {
       "seasonal_only": "profil saisonnier",
       "regression_only": "courbe de chauffe (pas de valeur propre pour le mois)",
-      "heat_model": "modèle de chauffage",
+      "heat_model": "modèle de chauffage (pas de valeur propre pour le mois)",
       "filled": "moyenne journalière (pas de valeur propre)",
       "blend": "mélange : {reg} courbe de chauffe, {seasonal} profil saisonnier",
       "seasonal_interpolated": "Valeurs réparties (aucun mois mesuré)"

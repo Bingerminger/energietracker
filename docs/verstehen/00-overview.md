@@ -456,17 +456,34 @@ nicht, wenn das Heizmodell die Gütesperre nicht besteht (Abschnitt 9) — dann 
 mit Gewicht 0,8 fehlte so fast das ganze Warmwasser, bei echten Daten rund 23 %
 im Jahr, auch in der Menge fürs Vergleichsportal.
 
+Seit v3.9.0 zählt die Regression auch dort nicht, wo sie flach ist: beim
+Knickmodell unter dem Knick (dort rechnet es das feste Niveau b), bei der
+Sigmoide bis θ₀ (dort die Grundlast D). Gefittet ist b an allen Monaten unter
+dem Knick, den Übergangsmonaten; Juni, August und September bekamen so 80 %
+desselben Niveaus, statt ihres gemessenen Saisonwerts.
+
 **Fehlt ein Kalendermonat in der eigenen Historie** (wer im Mai beginnt,
-hat noch keinen Januar), kommt er aus dem Modell allein
-(`regression_only`), sonst aus dem Heizmodell (`heat_model`), sonst aus
-dem Tagesmittel aller Monate (`filled`). Bis v2.7 bekam er 0 Gradtage und
-den Saisonwert 0 — der Januar lag bei weniger als einem Zehntel des
-richtigen Werts. `warnings` meldet
-eine kurze Historie (`history_short`) und fehlendes Klimanormal
-(`no_climate_normal`).
+hat noch keinen Januar), kommt er seit v3.9.0 aus dem Heizmodell
+(`heat_model`): a × Heizgradtage des Klimanormals zur Heizgrenze des
+Zählers + c × Tage. Das gilt, wo das Modell so warme Monate selbst kennt
+(mindestens zwei seiner Punkte mit höchstens 0,5 Gradtagen je Tag mehr als
+das Normal des Monats). Sonst ist die Grundlast c dort geraten, gefittet nur
+an Heiz- und Übergangsmonaten, und die Prognose nimmt die verteilten Werte
+desselben Kalendermonats (`seasonal_interpolated`), wenn es sie gibt. Ohne
+Heizmodell kommt er aus der Regression allein (`regression_only`), sonst aus
+dem Tagesmittel aller Monate (`filled`).
+
+Bis v3.8 stand die Regression der Monatssummen vorn. Sie ist nur über Monate
+mit Heizgradtagen gefittet und kennt keine Tage; das Knickmodell gab jedem
+Monat unter dem Knick dasselbe Niveau, das der Übergangsmonate (Mai = Juli),
+und die Gerade setzte Sommermonate auf ihren Achsenabschnitt. Bis v2.7 bekam
+ein fehlender Monat 0 Gradtage und den Saisonwert 0 — der Januar lag bei
+weniger als einem Zehntel des richtigen Werts. `warnings` meldet eine kurze
+Historie (`history_short`) und fehlendes Klimanormal (`no_climate_normal`).
 
 **Verteilte Monate (seit v3.7.0)** bilden das Saisonprofil nicht. Wurde ein
-Kalendermonat nie gemessen und hilft kein Modell, nimmt die Prognose für ihn
+Kalendermonat nie gemessen und hilft kein Modell (oder kennt das Heizmodell so
+warme Monate nicht, s. o.), nimmt die Prognose für ihn
 die verteilten Werte (`seasonal_interpolated`) — für einen Gartenzähler, der im
 Winter nicht abgelesen wird, ist das besser als das Mittel des ganzen Jahres.
 Der Hinweis `interpolated` nennt die Zahl der verteilten Monate und der
@@ -499,7 +516,8 @@ Menge bis zu einem Jahr nach.
 Modellgüte, `blend_effective` der Teil der Jahresmenge, der wirklich aus der
 Heizkurve kommt. Monate unter den Punkten der Heizkurve oder bei nicht
 bestandener Gütesperre rechnen mit dem Saisonprofil; bis v3.8 stand dann
-„Anteil Heizkurve 80 %“ neben „Saisonprofil“ in jedem Monat.
+„Anteil Heizkurve 80 %“ neben „Saisonprofil“ in jedem Monat. Ein Monat aus dem
+Heizmodell (`heat_model`) zählt ganz zur Heizkurve.
 
 **Temperaturversatz** (What-if): Ein um δ wärmeres Jahr hat genau die
 Heizgradtage der Heizgrenze `T_base - δ`. Mit Klimanormal oder eigener

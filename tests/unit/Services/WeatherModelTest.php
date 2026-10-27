@@ -304,7 +304,9 @@ final class WeatherModelTest extends ServiceTestCase
         $jan = array_values(array_filter($fc['forecast'], fn($m) => $m['month'] === 1))[0];
         $truth = self::A * $this->hddOf('2026-01') + self::C * 31;
         self::assertEqualsWithDelta($truth, $jan['kwh'], 0.1 * $truth, 'Januar aus der Heizkurve, nicht ~0');
-        self::assertSame('regression_only', $jan['method']);
+        // v3.9.0 (#38, Rückblick) — aus dem Heizmodell a × HGT + c × Tage, nicht mehr aus der
+        // Regression der Monatssummen (ForecastService::HEAT_SUPPORT_MIN, ForecastMissingMonthTest)
+        self::assertSame('heat_model', $jan['method']);
         $codes = array_column($fc['warnings'], 'code');
         self::assertContains('history_short', $codes);
         $short = array_values(array_filter($fc['warnings'], fn($w) => $w['code'] === 'history_short'))[0];

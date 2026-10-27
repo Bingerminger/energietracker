@@ -443,16 +443,35 @@ then `seasonal_only` applies. With a convex heating curve the line lay at zero i
 summer; with weight 0.8 almost all the hot water was missing, about 23 % of the
 year with real data, also in the quantity for comparison portals.
 
+Since v3.9.0 the regression also does not count where it is flat: for the
+change-point model below the knee (where it computes the fixed level b), for
+the sigmoid up to θ₀ (where it computes the base load D). b is fitted to all
+months below the knee, the transition months; June, August and September thus
+got 80 % of the same level instead of their measured seasonal value.
+
 **If a calendar month is missing from your own history** (anyone who starts in
-May has no January yet), it comes from the model alone (`regression_only`),
-otherwise from the heating model (`heat_model`), otherwise from the daily mean of
-all months (`filled`). Up to v2.7 it got 0 degree days and the seasonal value 0 —
-January came out at less than a tenth of the correct value. `warnings` reports a
-short history (`history_short`) and a missing climate normal
-(`no_climate_normal`).
+May has no January yet), it comes from the heating model since v3.9.0
+(`heat_model`): a × degree days of the climate normal at the meter's heating
+limit + c × days. That holds where the model knows months this warm itself (at
+least two of its points with at most 0.5 degree days per day more than the
+month's normal). Otherwise the base load c is guessed there, fitted only to
+heating and transition months, and the forecast uses the interpolated values of
+the same calendar month (`seasonal_interpolated`) if there are any. Without a
+heating model it comes from the regression alone (`regression_only`), otherwise
+from the daily mean of all months (`filled`).
+
+Up to v3.8 the regression of the monthly totals came first. It is fitted only
+over months with degree days and knows no days; the change-point model gave
+every month below the knee the same level, that of the transition months (May =
+July), and the straight line put summer months at its intercept. Up to v2.7 a
+missing month got 0 degree days and the seasonal value 0 — January came out at
+less than a tenth of the correct value.
+`warnings` reports a short history (`history_short`) and a missing climate
+normal (`no_climate_normal`).
 
 **Interpolated months (since v3.7.0)** do not form the seasonal profile. If a
-calendar month was never measured and no model helps, the forecast uses the
+calendar month was never measured and no model helps (or the heating model does
+not know months this warm, see above), the forecast uses the
 interpolated values for it (`seasonal_interpolated`) — for a garden meter that is
 not read in winter, that is better than the mean of the whole year. The warning
 `interpolated` names the number of interpolated months and of readings; the daily
@@ -486,7 +505,8 @@ pump), this amount also lags behind by up to a year.
 model quality, `blend_effective` the part of the annual amount that really comes
 from the heating curve. Months below the heating curve's points or with a failed
 quality gate use the seasonal profile; up to v3.8 “heating curve share 80 %”
-then stood next to “seasonal profile” in every month.
+then stood next to “seasonal profile” in every month. A month from the heating
+model (`heat_model`) counts fully towards the heating curve.
 
 **Temperature offset** (what-if): a year that is δ warmer has exactly the heating
 degree days of the heating limit `T_base - δ`. With a climate normal or your own

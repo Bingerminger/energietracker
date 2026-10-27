@@ -3387,7 +3387,12 @@ final class ConsumptionService
         foreach ($pts as [$h, $d, $y, $w]) { $r = $y - ($a * $h + $c * $d); $sq[] = $w * $r * $r; }
         $sd = count($pts) > 2 ? sqrt(array_sum($sq) / (count($pts) - 2)) : 0.0;
         $dropped = array_map(fn($p) => [($a * $p[0] + $c * $p[1]) * sqrt($p[3]), $p[2] * sqrt($p[3])], $out);
-        return ['a' => $a, 'c' => $c, 'n' => count($pts), 'resid_sd' => $sd, 'dropped' => $dropped];
+        // v3.9.0 (#38, Rückblick) — Gradtage je Tag der Punkte, aufsteigend: Wo das Modell keine
+        // so warmen Monate kennt, ist die Grundlast c geraten (ForecastService::HEAT_SUPPORT_MIN)
+        $hddDay = [];
+        foreach ($pts as [$h, $d]) if ($d > 0) $hddDay[] = round($h / $d, 3);
+        sort($hddDay);
+        return ['a' => $a, 'c' => $c, 'n' => count($pts), 'resid_sd' => $sd, 'dropped' => $dropped, 'hdd_per_day' => $hddDay];
     }
 
     /**
