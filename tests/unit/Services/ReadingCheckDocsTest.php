@@ -68,7 +68,7 @@ final class ReadingCheckDocsTest extends TestCase
      * „der schwächste Monat unter der Hälfte des stärksten“. Die Regel vergleicht aber die
      * Mediane der Halbjahre (April bis September gegen Oktober bis März) mit dem Faktor 2.
      * Satz und Regel hier zusammen: Sommer 10 je Tag, Winter 4,9 ist ausgeprägt, 5,1 nicht;
-     * ein einzelner sehr schwacher Wintermonat macht noch keine Jahreszeit (Median).
+     * ein einzelner sehr schwacher Wintermonat macht noch keine Jahreszeit (Median, nicht Mittel).
      */
     public function testMarkedSeasonsCompareTheHalfYearMedians(): void
     {
@@ -87,7 +87,8 @@ final class ReadingCheckDocsTest extends TestCase
         };
         self::assertTrue($seasonal->invoke(null, $months(10.0, 4.9)), 'mehr als das Doppelte: ausgeprägt');
         self::assertFalse($seasonal->invoke(null, $months(10.0, 5.1)), 'knapp unter dem Doppelten: nicht ausgeprägt');
-        self::assertFalse($seasonal->invoke(null, $months(10.0, 6.0, 1.0)), 'ein schwacher Januar allein: nicht ausgeprägt (Median der Halbjahre)');
+        // Winter 5,5 mit einem Januar von 0,5: das Mittel (4,67) läge unter der Hälfte, der Median (5,5) nicht
+        self::assertFalse($seasonal->invoke(null, $months(10.0, 5.5, 0.5)), 'ein schwacher Januar allein: nicht ausgeprägt (Median der Halbjahre)');
         $de = (string)preg_replace('/\s+/u', ' ', self::doc('docs/verstehen/00-overview.md'));
         $en = (string)preg_replace('/\s+/u', ' ', self::doc('docs/en/verstehen/00-overview.md'));
         self::assertStringContainsString('die Tagesrate des Sommerhalbjahrs, April bis September, und die des Winterhalbjahrs liegen um mehr als das Doppelte auseinander, je Halbjahr der Median der Monate', $de);
