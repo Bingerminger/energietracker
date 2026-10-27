@@ -61,7 +61,7 @@ reading_gap_days    = longest interval the month draws from
 **Since v3.9.0 the days count too.** If most days of a month come from a long
 interval, the month is interpolated, even when the few measured days carry more
 consumption: in the messy test household, December 2024 drew 18 of 31 days from
-a 103-day interval and counted as measured up to v3.8, because the spread part
+a 103-day interval and counted as measured up to v3.7, because the spread part
 takes in the milder autumn months and so has a daily rate that is too low. It
 therefore entered the anomalies.
 
@@ -86,6 +86,15 @@ correct. Utility view, analysis and PV summary say when monthly values are
 interpolated, with the number of readings in the range; tables show “≈”, charts
 hatched bars.
 
+**Limit (as of v3.9.0):** within an interval the app spreads evenly per day,
+not by the weather. An interval from September to December therefore gives
+October too much gas and December too little; for PV, in an interval from
+February to July, March gets as much sun as June. It spreads by the weather only
+across a reading marked “only for the
+bill” (below). Spreading consumption by the weather in general is planned for a
+later version. Until then shorter intervals help: every reading makes the
+months next to it more precise.
+
 ### Check a reading *(since v3.9.0)*
 
 A wrong reading between two correct ones silently moves consumption from one stretch
@@ -97,8 +106,9 @@ readings and asks. It never corrects anything by itself.
 heat pump: the heating model `a × HDD + c × days` with the heating limit of the meter
 (or its group), fitted over the reading intervals. For electricity and water: the mean
 daily amount of the intervals up to half a year before and after. For PV, garden water
-and other meters with marked seasons (the weakest month below half the strongest): the
-same days in other years. The same for a milder season that recurs: if the summer half
+and other meters with marked seasons (the daily rate of the summer half, April to
+September, and that of the winter half are more than a factor of two apart, each half
+taken as the median of its months): the same days in other years. The same for a milder season that recurs: if the summer half
 is at least a quarter above or below the winters next to it in at least two years, the
 same way round (counted from intervals that lie mostly in one half of the year), the
 mean daily amount would say “too little” in winter and “too much” in summer although
@@ -138,9 +148,9 @@ check would have missed it.
 the one after at least twice the expectation (or the other way round), both above the
 minimum amount and the spreads, the app asks even without a matching sum. Inside the
 block the intervals may then keep deviating in the same direction, just not already back.
-That is the case of readings getting more and more wrong: in a follow-up check the
+That is the case of readings getting more and more wrong: in a made-up follow-up check the
 interval before was at 0.23×, the two inside the block at 0.78× and 0.69×, the one after
-at 3.67×, and the surplus afterwards was twice the shortfall before. No common offset
+at 4.08×, and the surplus afterwards was about 2.4 times the shortfall before. No common offset
 explains that, so the app suggests no reading; the entry says “Consumption before and
 after … does not add up”, with the same buttons.
 
@@ -194,6 +204,16 @@ then the end of the last interval at the old level. With an effective baseline d
 the time after it counts; if it is at the change, the note is not shown. The time before
 a detected change is no yardstick for single readings. With a recurring season the note
 uses the mean daily amount of the time after (over a whole year the season evens out).
+
+**Limits.** The check is deliberately cautious: it reports nothing for any
+sample household nor for the messy test household as long as all readings are
+right. In return it misses small errors. If the heating model fits poorly
+(large spread), it asks only about large offsets; a suitable heating limit
+makes it more sensitive. For electricity with a strong season (winter below
+four fifths of the mean), every winter after moving in counts as a return to
+the old, lower level, and then no baseline note comes. In a month that a
+reading “only for the bill” bridges, amount and cost do not match: the amount
+is spread by the weather, the cost uses the reading (`billed_kwh` says which).
 
 All three entries count in `/api/todo` and in the notifications to Home Assistant, at
 every level.
@@ -425,7 +445,7 @@ With two years of monthly values the robust spread varies by about a fifth of it
 value; a third less is clearly above that, and the percentage points prevent
 suggestions between two well-fitting models.
 
-*Since v3.7.1 (GitHub #38)* the suggested limit must also match the measured
+*Since v3.9.0 (GitHub #38, announced as 3.7.1)* the suggested limit must also match the measured
 summer: its model may overestimate the summer months of the quality gate (the same
 ones for every limit, section 9) by at most 10 % (`summer_ok` in the grid). A single
 summer month varies by 10 to 20 % in everyday life, the mean over the summers of
@@ -581,7 +601,7 @@ Without a
 heating model it comes from the regression alone (`regression_only`), otherwise
 from the daily mean of all months (`filled`).
 
-Up to v3.8 the regression of the monthly totals came first. It is fitted only
+Up to v3.7 the regression of the monthly totals came first. It is fitted only
 over months with degree days and knows no days; the change-point model gave
 every month below the knee the same level, that of the transition months (May =
 July), and the straight line put summer months at its intercept. Up to v2.7 a
@@ -625,7 +645,7 @@ pump), this amount also lags behind by up to a year.
 **Share of the heating curve (since v3.9.0).** `blend_weight` is the weight by
 model quality, `blend_effective` the part of the annual amount that really comes
 from the heating curve. Months below the heating curve's points or with a failed
-quality gate use the seasonal profile; up to v3.8 “heating curve share 80 %”
+quality gate use the seasonal profile; up to v3.7 “heating curve share 80 %”
 then stood next to “seasonal profile” in every month. A month from the heating
 model (`heat_model`) counts fully towards the heating curve.
 
@@ -871,14 +891,14 @@ model_quality    = poor if ratio > 15 % or base load outside 0.5 … 1.5
 detect_floor     = anomaly_threshold × max(σ_robust, 10 % of the typical month)
 ```
 
-**Lower bound with the base load itself (since v3.9.0, GitHub #38).** Up to v3.7.1
+**Lower bound with the base load itself (since v3.9.0, GitHub #38).** Up to v3.7.0
 the lower bound also measured the whole expectation of the summer months. At high
 heating limits `c` drops to zero, but the cool summer days get degree days, and
 `a × HDD` lifted the expectation back above half of the measurement. For the
 reporter the check failed in v3.7.0 between 14 and 16.5 °C and passed again at 17
-to 18 °C. The fixed summer reference of v3.7.1 did not change that, because the
-expectation itself is not monotone in the limit: in the messy test household it
-failed with v3.7.1 from 12.5 to 17.5 °C and passed at 18 °C. Now the lower bound
+to 18 °C. The fixed summer reference alone (below, announced as 3.7.1) did not
+change that, because the expectation itself is not monotone in the limit: in the
+messy test household it then failed from 12.5 to 17.5 °C and passed at 18 °C. Now the lower bound
 checks `c` (`base_load.base_ratio`, `base_per_day`), the upper bound still the
 whole expectation; the limits that pass form one contiguous range.
 
@@ -890,7 +910,7 @@ above the straight line every year. The analysis combines them into one line per
 month and points to the heating limit; R1 and R4 no longer turn them into
 recommendations.
 
-**The same summer for every heating limit (since v3.7.1, GitHub #38).** Up to v3.7.0
+**The same summer for every heating limit (since v3.9.0, GitHub #38, announced as 3.7.1).** Up to v3.7.0
 the summer months were those with HDD ≤ `min_hdd_regression` — calculated with the
 heating limit of the model under test. With a low limit, shoulder months with real
 heating demand thus counted as summer; the reference rose, and a model with too high
@@ -1049,7 +1069,7 @@ estimate is uncertain, shows no “Advance payments fit”) and forecast worksho
 show the range with the reason; the explainer “Where does my money go?” gives cost
 and result as a range.
 
-Up to v3.8 workshop and card calculated the balance differently. Since v3.9.0
+Up to v3.7 workshop and card calculated the balance differently. Since v3.9.0
 there is one projection for both ([below](#one-projection-for-balance-and-workshop-since-v390)).
 
 **Superseded (since v3.7.0).** If a follow-up contract begins while a contract

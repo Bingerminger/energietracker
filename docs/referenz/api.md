@@ -477,7 +477,7 @@ Monat u. a.: `ym`, `days`, `kwh` *oder* `m3`, `cost`, `avg_temp`,
 | Feld je Monat | Bedeutung |
 |---|---|
 | `measured_share` | Anteil des Monatsverbrauchs aus Ablesungsabständen bis 45 Tage (0 … 1); geschätzte Ablesungen messen nicht |
-| `interpolated` | `true`, wenn `measured_share` unter 0,5 liegt: Der Wert ist aus einem längeren Abstand gleichmäßig verteilt. Heizöl und Pellets: `null` |
+| `interpolated` | `true`, wenn `measured_share` unter 0,5 liegt (seit v3.9.0 auch, wenn `measured_day_share` unter 0,5 liegt, siehe die Tabelle „Seit v3.9.0 (Auswertung)“ unten): Der Wert ist aus einem längeren Abstand gleichmäßig verteilt. Heizöl und Pellets: `null` |
 | `reading_gap_days` | längster Ablesungsabstand, aus dem der Monat stammt (`null`, wenn auf einer Seite eine echte Ablesung fehlt) |
 | `reading_gap_estimated` | *(v3.7.0)* der Monat ist an einer geschätzten Ablesung als Stütze verteilt (je Seite eine eigene Tagesrate) |
 
@@ -522,11 +522,11 @@ Abweichung, die ein typischer Monat mindestens braucht, um gemeldet zu werden
 
 | Wo | Feld | Bedeutung |
 |---|---|---|
-| `…/meters/{id}/consumption?heat_limit=1` | `heat_limit` | Heizgrenze-Vorschlag des Zählers: `{current, current_ratio, current_ok, best, best_ratio, suggest, default, own, months, grid: [{base, ratio, base_load_ok, summer_ratio, summer_ok}]}`, `null` ohne Heizmodell, unter 12 gemessenen Monaten oder ohne den Parameter ([Grundlagen §5](../verstehen/00-overview.md#heizgrenze-vorschlag-seit-v370)). *(v3.7.1)* `summer_ratio`: Erwartung ÷ gemessener Sommer (dieselben Monate für jede Grenze), `summer_ok`: höchstens 1,10 — Bedingung für einen Vorschlag |
-| `anomaly_quality.base_load` | `reference`, `reference_months` | *(v3.7.1)* woher die Sommermonate der Grundlast-Prüfung kommen: `no_hdd_top` (ohne Heizgradtage zu 18 °C) oder `window` (Juni bis August), und welche es sind |
-| `monthly[]` | `hdd_top` | *(v3.7.1)* Heizgradtage des Monats zu 18 °C, unabhängig von der Heizgrenze (Sommer-Referenz) |
-| `GET …/meters/{id}/forecast` | `?hdd_base=` | *(v3.7.1)* Heizgrenze für diese Prognose (6 bis 22 °C) wie bei `…/consumption`, ohne sie am Zähler zu speichern; außerhalb: 400 |
-| `PATCH …/meters/{id}`, Zähler | `hdd_base_temp` | eigene Heizgrenze dieses Zählers in °C (6 bis 22, nur Heizarten; bis v3.7.1 nur mit Zählerständen, seit v3.9.0 auch Tanks und Gruppen); `null` oder leer entfernt sie, dann gilt die Einstellung |
+| `…/meters/{id}/consumption?heat_limit=1` | `heat_limit` | Heizgrenze-Vorschlag des Zählers: `{current, current_ratio, current_ok, best, best_ratio, suggest, default, own, months, grid: [{base, ratio, base_load_ok, summer_ratio, summer_ok}]}`, `null` ohne Heizmodell, unter 12 gemessenen Monaten oder ohne den Parameter ([Grundlagen §5](../verstehen/00-overview.md#heizgrenze-vorschlag-seit-v370)). *(v3.9.0)* `summer_ratio`: Erwartung ÷ gemessener Sommer (dieselben Monate für jede Grenze), `summer_ok`: höchstens 1,10 — Bedingung für einen Vorschlag |
+| `anomaly_quality.base_load` | `reference`, `reference_months` | *(v3.9.0)* woher die Sommermonate der Grundlast-Prüfung kommen: `no_hdd_top` (ohne Heizgradtage zu 18 °C) oder `window` (Juni bis August), und welche es sind |
+| `monthly[]` | `hdd_top` | *(v3.9.0)* Heizgradtage des Monats zu 18 °C, unabhängig von der Heizgrenze (Sommer-Referenz) |
+| `GET …/meters/{id}/forecast` | `?hdd_base=` | *(v3.9.0)* Heizgrenze für diese Prognose (6 bis 22 °C) wie bei `…/consumption`, ohne sie am Zähler zu speichern; außerhalb: 400 |
+| `PATCH …/meters/{id}`, Zähler | `hdd_base_temp` | eigene Heizgrenze dieses Zählers in °C (6 bis 22, nur Heizarten; bis v3.7 nur mit Zählerständen, seit v3.9.0 auch Tanks und Gruppen); `null` oder leer entfernt sie, dann gilt die Einstellung |
 | `monthly[]` | `heat_adjusted_basis` | warum `heat_adjusted` so ist: `model`, `summer`, `base_load`, `normal_is_actual` (oder `null`) |
 | `regressions.*`, `forecast.regression` | `reason` | bei `valid: false`: `too_few_points`, `poor_fit`, `degenerate` |
 | `…/contract-status` | `projection_uncertain` | `{reasons: [factor_clamped \| few_measured \| poor_fit], factor, factor_raw, factor_part, factor_limits, fit_ratio, base_load_per_day, projected_range, suggested_range}` oder `null`; dann ist `suggested_advance` `null`. `factor_part`: welcher Faktor klemmt (`base`, `heat`, `both`); `base_load_per_day`: `{model, measured}`, wenn die Spanne die gemessene Sommer-Grundlast nimmt; `suggested_range` `null`, wenn beide Enden gleich wären |
@@ -636,7 +636,7 @@ unsicher ist ([Grundlagen §1](../verstehen/00-overview.md#gemessen-oder-verteil
 
 - **Saldo über die laufende Abrechnungsperiode.** Ein Vertrag, der in die
   laufende Abrechnungsperiode fällt, rechnet Saldo, Kosten, Abschläge und
-  Vorschlag über genau diese Periode, auch ohne erfasste Rechnung. Bis v3.8
+  Vorschlag über genau diese Periode, auch ohne erfasste Rechnung. Bis v3.7
   zählte die Karte ohne Rechnung ab Vertragsbeginn (mehrere Jahre), die
   Werkstatt das laufende Abrechnungsjahr. `effective_end` ist dann der Tag nach
   dem Periodenende (bzw. das gepflegte Vertragsende, wenn es vorher kommt); in
@@ -644,10 +644,10 @@ unsicher ist ([Grundlagen §1](../verstehen/00-overview.md#gemessen-oder-verteil
   Abschlagszahlungen. Die Werkstatt (`billing`, `advance`) übernimmt Saldo,
   Datum und Vorschlag aus dem Vertragsstatus.
 - **Energiefluss ohne Kappung.** `flows.pv_grid` ist die gemessene Einspeisung,
-  auch wenn sie über der (verteilten) Erzeugung liegt; bis v3.8 galt
+  auch wenn sie über der (verteilten) Erzeugung liegt; bis v3.7 galt
   `min(Einspeisung, Erzeugung)`. `eigenverbrauchsquote` bezieht sich auf die
   Sonne im Bild.
-- **Künftige Verträge** zeigen Arbeitspreis und Abschlag ihres Beginns (bis v3.8 `null`).
+- **Künftige Verträge** zeigen Arbeitspreis und Abschlag ihres Beginns (bis v3.7 `null`).
 - **Prognose:** Ohne Wetterbezug und ohne zwölf gemessene Kalendermonate ist die
   Jahressumme die der letzten 365 Tage (Warnung `level_last_year`).
 
@@ -4557,8 +4557,8 @@ Antwort: `summary` (`documents`, `used`, `duplicates`, `without`, `meters`,
 `documents` (je Dokument `state`: `used`, `duplicate` mit `duplicate_of` —
 dasselbe ältere Dokument wie `entries[].duplicate_of` in `GET /api/inbox`,
 auch wenn es schon übernommen ist —, `no_utility`, `no_meter`, `no_start`,
-`meter_choice` *(3.7.1)* — Zähler offen, siehe `missing` —, `nothing`; dazu
-`items`), `findings` (`start_near` *(3.7.1)* — Vertrag im Bestand mit Beginn
+`meter_choice` *(3.9.0)* — Zähler offen, siehe `missing` —, `nothing`; dazu
+`items`), `findings` (`start_near` *(3.9.0)* — Vertrag im Bestand mit Beginn
 bis 7 Tage daneben, `{provider, from, date}`: Beginn laut Dokument und im
 Bestand —, `gap`, `overlap`, `falling`,
 `chain_mismatch`, `duplicate`, `no_meter`, `same_supplier` — Rechnungen in
@@ -4571,7 +4571,7 @@ und `docs`), `missing` (`advance`, `prices`, `working_price`, `base_price`,
 `prices_unconfirmed` — Preise nur auf Rechnungen, noch zu bestätigen; je mit
 `which`: `wp`, `bp`, was nach dem Übernehmen des Vorbelegten fehlt —,
 `working_price_gap`/`base_price_gap` — ein Abschnitt ohne Preis, `params`
-`{provider, from, to}` —, `meter_choice` *(3.7.1)* — Nummer oder
+`{provider, from, to}` —, `meter_choice` *(3.9.0)* — Nummer oder
 Marktlokation ohne Zähler im Bestand, und mehrere Zähler mit Daten kommen in
 Frage, der eine hat schon eine andere Messstelle oder passt nur halb; `params`
 `{meter, count, meters}`, `docs`, `href` zum ersten Dokument (dort den Zähler
@@ -4601,7 +4601,7 @@ Ein Eintrag ist eine Feldgruppe mit einem Haken:
 ```
 
 `kind` in der Reihenfolge der Übernahme: `meter` (`action`: `create`, `adopt` —
-der leere Standardzähler —, `existing`; *(3.7.1)* auch der eine aktive Zähler
+der leere Standardzähler —, `existing`; *(3.9.0)* auch der eine aktive Zähler
 mit Daten ohne Nummer und Marktlokation, wenn nichts widerspricht; das Feld
 `serial` trägt dann `device_id`, das Gerät, das in der Zeit der Nummer lief), `meter_change`, `contract`,
 `contract_end` (bisheriger Vertrag, nur als Angebot), `prices` (Felder
@@ -4609,7 +4609,7 @@ mit Daten ohne Nummer und Marktlokation, wenn nichts widerspricht; das Feld
 (`r:<Datum>`), `bill` (mit Buchung des Ergebnisses), `gas_factor`
 (`gf:<Datum>`), `reminder`. `status` des Eintrags: `new`, `update` (vorhanden,
 wird ergänzt), `exists`, `conflict`, `overlap`; `update` und `overlap` sind
-*(3.7.1)* immer `check` mit Grund `existing_update` bzw. `existing_overlap` und
+*(3.9.0)* immer `check` mit Grund `existing_update` bzw. `existing_overlap` und
 nie `checked` (vorbelegt ist nur, was den Bestand nicht berührt); ein Vertrag
 am vorhandenen Zähler gilt als vorhanden bei gleichem Beginn oder — gleicher
 Versorger oder gleiche Vertragsnummer — bei einem Beginn bis 7 Tage daneben
@@ -4669,7 +4669,7 @@ etwas geschrieben wird; ohne Auswahl `400 errors.inboxDraft.nothingSelected`;
 *(3.9.0)* ein Eintrag ohne den Vertragseintrag aus seinem `requires` →
 `400 errors.inboxDraft.needs.contract`, ebenfalls bevor etwas geschrieben
 wird. Fehlt einer Rechnung beim Übernehmen ihr Vertrag (gescheitert), steht
-sie in `failed` mit diesem Code und entsteht nicht; bis 3.8 entstand sie ohne
+sie in `failed` mit diesem Code und entsteht nicht; bis 3.7 entstand sie ohne
 Vertrag und buchte ihr Ergebnis auf den Vertrag, der damals lief.
 Vorher legt der Server eine Sicherung `pre-inbox-…` an (Einstellungen → Daten,
 Anlass „vor Haushalt aus Dokumenten“). Antwort: `applied` (je Eintrag `ref`),

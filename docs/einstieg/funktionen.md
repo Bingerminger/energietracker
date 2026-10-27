@@ -36,7 +36,15 @@ unter [Grundlagen & Methodik](../verstehen/00-overview.md).
   Rechnungsprüfung, Abschlag gegen die Prognose, Termin bei der zuständigen
   Person). Die Post kommt auch per Kurzbefehl vom iPhone, über einen überwachten
   Ordner oder per E-Mail über Home Assistant; an jedem Vertrag und Zähler liegt
-  eine Akte mit allen Dokumenten.
+  eine Akte mit allen Dokumenten. Seit v3.9.0 legt eine Jahresrechnung auch
+  den Vertrag an, wenn am Zähler noch keiner gilt: Preise je Abschnitt brutto,
+  bei Wasser alle drei Sparten, dazu der Abschlagsplan; Beträge mit Leerzeichen
+  zwischen den Ziffern liest die Prüfung als eine Zahl.
+- **Ablesung prüfen** (v3.9.0): Ein falscher Stand zwischen zwei richtigen
+  verschiebt Verbrauch still von einem Monat in den nächsten. Die App findet
+  solche Stände, auch doppelt eingetragene, und fragt unter „Zu tun“ nach: „Stand
+  ist richtig“, „Nur für die Abrechnung“ oder „Korrigieren“. Sie korrigiert nie
+  selbst ([Hinweise erledigen](../anleitungen/hinweise-erledigen.md#11-ablesung-prüfen-v390)).
 - **Plausibilitätsprüfung** vor dem Speichern: ein Mehrfaches des üblichen
   Tagesverbrauchs („Komma vergessen?“), ein kleinerer Stand ohne Zählertausch,
   ein Datum in der Zukunft, ein zweiter Stand am selben Tag. Ein Überlauf des
@@ -44,9 +52,15 @@ unter [Grundlagen & Methodik](../verstehen/00-overview.md).
 - **Zählertausch** als eigenes Datenmodell: Ein Zähler bündelt seine Geräte
   mit Seriennummer, Ein- und Ausbau, Anfangs- und Endstand; der Verbrauch
   über den Tausch hinweg stimmt.
-- **Mehrere Zähler** je Verbrauchsart, **Subzähler** (vom Elternzähler
-  abgezogen, keine Doppelzählung) und **Gruppen** (Summe auf der Übersicht) —
-  siehe [Meter-Topologie](../verstehen/13-meter-topologie.md).
+- **Mehrere Zähler** je Verbrauchsart, **Subzähler** (keine Doppelzählung in
+  der Summe; hat der Subzähler einen eigenen Vertrag, rechnet der Vertrag des
+  Elternzählers seit v3.9.0 nur den Rest) und **Gruppen** (Summe auf der
+  Übersicht) — siehe [Meter-Topologie](../verstehen/13-meter-topologie.md).
+- **Messkonzept** (v3.9.0): Ein Assistent fragt nach dem Aufbau im
+  Zählerschrank (ein Zähler, zwei nebeneinander, Subzähler dahinter, Kaskade),
+  zeigt ihn als Schaltbild und legt Zähler, **Zählwerke mit OBIS-Kennzahl**
+  (etwa 1.8.1 für Bezug HT), Gruppen und Verträge an, ohne Doppelte
+  ([Anwendungsfall H](../anleitungen/anwendungsfaelle.md#h--kaskade-mit-wärmepumpe-htnt-und-pv-v390)).
 - **Verbrauch je Zeitraum** (v3.1.0) statt Zählerständen, wo der Verbrauch
   schon fertig vorliegt — etwa die monatliche Verbrauchsinfo für Heizung und
   Warmwasser. Die App verteilt jeden Zeitraum tagesgenau auf die Monate;
@@ -68,7 +82,10 @@ unter [Grundlagen & Methodik](../verstehen/00-overview.md).
   idempotent, mit Token und Zähler-Alias, seit v3.1.0 auch als Stapel zum
   Nachliefern, seit v3.3.0 mit Zeitstempel für den Verbrauch je Viertelstunde)
   und liest Saldo, Prognose und „Tage seit Ablesung“ als
-  Sensoren zurück (`GET /api/summary`) — siehe
+  Sensoren zurück (`GET /api/summary`). Seit v3.9.0 meldet der Energietracker
+  fällige Termine, Fristen, Warnungen und neue Post selbst an Home Assistant,
+  jede Nachricht einmal, und ein Sensor „Zu tun“ zählt die offenen Punkte
+  (`GET /api/todo`) — siehe
   [Home Assistant anbinden](../anleitungen/home-assistant.md). ioBroker,
   Node-RED und openHAB schicken Stände über denselben Weg — siehe
   [Andere Systeme](../anleitungen/andere-systeme.md).
@@ -113,7 +130,9 @@ unter [Grundlagen & Methodik](../verstehen/00-overview.md).
 - **Saldo** je Vertrag, wie die Abrechnung ihn nennt: „Guthaben“ oder
   „Nachzahlung“, nach Kalender bis heute, mit Schätzung ab der letzten
   Ablesung, dazu die **erwartete Abrechnung** am Stichtag und ein
-  **Abschlagsvorschlag**.
+  **Abschlagsvorschlag**. Seit v3.9.0 rechnen Saldo-Karte, Jahresbericht und
+  Prognose-Werkstatt über die laufende Abrechnungsperiode mit demselben
+  Ergebnis, und Abschläge alle zwei oder drei Monate zählen je Termin.
 - **Kündigungsfristen** in Monaten, Wochen oder Tagen: Erinnerung in drei
   Stufen bis zum letzten Kündigungstag, Hinweis auf verpasste Fristen und
   angekündigte Preiserhöhungen (mit Sonderkündigungsrecht in Deutschland).
@@ -127,8 +146,8 @@ unter [Grundlagen & Methodik](../verstehen/00-overview.md).
 - **Verträge & Abschläge** auf einer Seite: alle laufenden Verträge mit
   Kündigungsfrist, Abschlag und zu erwartender Abrechnung.
 - **Wasser** mit drei Komponenten: Trinkwasser, Schmutzwasser (nach
-  Trinkwasser oder eigenem Zähler) und Niederschlagswasser nach versiegelter
-  Fläche.
+  Trinkwasser oder eigenem Zähler, seit v3.9.0 auch mit eigenem Grundpreis) und
+  Niederschlagswasser nach versiegelter Fläche.
 - **Mietverhältnis** (v3.1.0) für alle, die Heizung und Wasser über die
   Nebenkosten zahlen: Vorauszahlung gegen die erwarteten Kosten des laufenden
   Abrechnungszeitraums, mit Einschätzung und passender Vorauszahlung je Monat
@@ -178,7 +197,10 @@ unter [Grundlagen & Methodik](../verstehen/00-overview.md).
 - **Heizgradtage** vom eigenen Standort gegen die Heizgrenze (Standard
   15 °C), dazu ein **Heizmodell** mit Grundlast und die **Wetterbereinigung**:
   „mehr verbraucht oder nur kälter?“ — jeder Monat gegen seine Erwartung bei
-  diesem Wetter.
+  diesem Wetter. Passt das Heizmodell mit einer anderen Heizgrenze deutlich
+  besser, steht das seit v3.9.0 unter „Zu tun“, mit der Wirkung auf Saldo und
+  Abschlag und einem Knopf zum Übernehmen; eine eigene Heizgrenze haben Zähler,
+  Tanks und Zählergruppen.
 - **Fünf Modelle** für Heizgradtage gegen Verbrauch: linear, polynomial,
   robust, segmentiert (mit Knickpunkt aus den Daten) und Sigmoid, mit
   R²-Vergleich.
@@ -282,8 +304,10 @@ unter [Grundlagen & Methodik](../verstehen/00-overview.md).
   Anlass höchstens einmal) — siehe
   [Einrichten und Nutzungsstufen](einrichtung.md#3-nutzungsstufen) und, jede
   Funktion einzeln, [Was kann ich auf welcher Stufe?](../referenz/stufen.md).
-- **Einrichtungsassistent** (v3.2.0) beim ersten Start: drei Fragen, danach
-  passende Verbrauchsarten und Stufe; jederzeit erneut aus den Einstellungen.
+- **Einrichtungsassistent** (v3.2.0) beim ersten Start: vier Fragen (seit
+  v3.5.0 zuerst Sprache und Land), danach passende Verbrauchsarten und Stufe;
+  seit v3.9.0 mit einer kleinen Zeichnung je Schritt. Jederzeit erneut aus den
+  Einstellungen.
 - **Beispieldaten** zum Ausprobieren, ohne die eigenen zu verlieren (vorher
   sichert die App den jetzigen Stand); seit v3.2.0 vier Beispielhaushalte —
   Mietwohnung, Eigentumswohnung mit Fernwärme, Eigenheim klassisch und
@@ -309,7 +333,8 @@ unter [Grundlagen & Methodik](../verstehen/00-overview.md).
   [Sicherheit & Netzbetrieb](../betrieb/sicherheit.md).
 - **Benutzer im Haushalt** (v3.2.0): mit Anmeldung eigene Personen mit Name
   und Passwort oder vom Proxy gemeldet, Rollen Verwaltung und Mitglied,
-  Stufe und Sprache je Person — siehe
+  Stufe und Sprache je Person; seit v3.9.0 Personen für „Zuständig“ auch ohne
+  Anmeldung (Einstellungen → Haushalt & Gebäude) — siehe
   [Benutzer im Haushalt](../anleitungen/benutzer.md).
 - **Diagnose** unter Einstellungen → System und `GET /api/health` für
   Docker-Healthcheck und Uptime-Monitore.

@@ -196,7 +196,7 @@ same values:
   seconds when text recognition may take long — for reading in the inbox via a
   cloud service up to 660 seconds *(v3.7.0)*.
 
-## Short time limit in front of PHP *(3.7.1)*
+## Short time limit in front of PHP *(3.9.0)*
 
 Recognising and reading in the inbox take up to 300 seconds per step (your own
 AI), with a cloud service up to 600. If a web server or reverse proxy in front

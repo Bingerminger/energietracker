@@ -3,7 +3,7 @@
 
 # Energietracker
 
-<p align="center"><img src="docs/assets/promo/banner.png" alt="Energietracker – know your energy costs, save real money: costs and advance payments, usage, contracts and deadlines, solar, battery, heat pump and EV in one self-hosted app" width="860"></p>
+<p align="center"><img src="docs/assets/promo/banner.png" alt="Energietracker – know your energy costs, save real money: costs and advance payments, usage, supplier mail, solar, battery, heat pump and EV, metering concepts and notifications to Home Assistant in one self-hosted app" width="860"></p>
 
 **Home Assistant measures — the Energietracker does the billing.** Meter
 readings in, answers out: Will I get money back? Is my gas bill right? Is
@@ -39,12 +39,17 @@ sample household carried forward to today, in seven languages, nothing to instal
 | What lies ahead? | **Forecast** with an uncertainty band and the cost per month from the valid tariff |
 | How efficient is the house? | **Efficiency** in kWh/m²·yr and a certificate-style figure; with a heat pump the seasonal performance factor |
 | Does my rent prepayment cover it? | **Tenancy**: heating and water against the service charge prepayment, deadlines in the calendar, CO₂ costs shared with the landlord |
+| What does my supplier’s mail say? | **Inbox**: drop a PDF, have it read, check every figure against its quote and take it over; *new in v3.9.0* an annual bill also creates the contract, with prices per section and advance payments every two or three months |
+| Heat pump on its own tariff, peak/off-peak, solar? | **Metering concept** *(new in v3.9.0)*: an assistant asks about the layout in the meter cabinet, draws the diagram and creates meters, registers and contracts; if a sub-meter has its own contract, the parent meter only bills the remainder |
+| Do I have to open the app not to miss anything? | **Notifications to Home Assistant** *(new in v3.9.0)*: deadlines, reminders, warnings and new mail show up in Home Assistant, each only once; plus a “To do” sensor |
+| Is this meter reading right? | **Check a reading** *(new in v3.9.0)*: a mistyped reading between two correct ones would otherwise silently skew the months. The app asks and never corrects on its own |
 
 Nine utilities: gas, electricity, water, district heating, heating oil and
 pellets (with a tank book), PV feed-in and PV generation (self-consumption,
 self-sufficiency, storage) and heat (heat meter or monthly consumption
 information). Plus meter swaps, sub-meters and groups — also with one contract
-for peak and off-peak —, receipts and meter photos, reminders as a calendar
+for peak and off-peak —, registers with OBIS code, people in the household
+without sign-in, receipts and meter photos, reminders as a calendar
 feed, recommendations, a PDF annual report and a summary for Home Assistant —
 and help inside the app with a glossary and an ⓘ next to every key figure.
 → [All features](docs/en/einstieg/funktionen.md) ·
@@ -58,7 +63,8 @@ and help inside the app with a glossary and an ⓘ next to every key figure.
   rented flat or their own house.
 - **Home Assistant users**: Home Assistant pushes the readings, the
   Energietracker works out contracts, advances and forecasts —
-  [guide](docs/en/anleitungen/home-assistant.md).
+  [guide](docs/en/anleitungen/home-assistant.md). Since 3.9.0 it reports
+  deadlines, warnings and new mail back to Home Assistant by itself.
 - **Tinkerers**: open REST API, CSV and JSON backup, no database.
 
 | | Home Assistant (Energy) | Energietracker |
@@ -154,7 +160,13 @@ classes and says why; it does not convert currencies —
 **v3.7.0** is the current version — [CHANGELOG](CHANGELOG.en.md) (German
 version: [CHANGELOG.md](CHANGELOG.md)). APIs, CSV formats and the backup format
 change only additively; anything is removed only with a new major version and
-after notice. 3.7.0 reads your supplier mail: drop a PDF into the inbox, an AI
+after notice. 3.9.0 contains what was announced as 3.7.1 and 3.8.0: metering
+concepts with heat pump, peak/off-peak and solar, where every contract pays only
+for what it really measures; notifications to Home Assistant; the contract from
+the annual bill, for water with advance payments every two months too; checks of
+intermediate readings; one calculation for balance card, workshop and annual
+report; the heating limit where it matters; people in the household without
+sign-in. 3.7.0 reads your supplier mail: drop a PDF into the inbox, an AI
 in your own home network (or, as an experimental opt-in, a cloud service) reads
 it, backs every figure with its quote in the document, and one click takes it
 over — a whole household from a stack of letters, too. Monthly values now say
