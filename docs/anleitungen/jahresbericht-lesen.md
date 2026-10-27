@@ -87,6 +87,20 @@ Jede Ampel trägt ein Symbol **und** ein Wort; die Farbe allein sagt nichts
 Unter der Kosten-Ampel steht immer, wie viel davon an geänderten Preisen und
 wie viel an der verbrauchten Menge liegt.
 
+*(seit v3.9.0)* Verglichen werden nur Verbrauchsarten mit Kosten in beiden Jahren;
+eine neu abgerechnete Art steht getrennt da („Neu abgerechnet und nicht im
+Vergleich: Wasser …“), damit Preis- und Mengeneffekt in der Kostenänderung
+aufgehen. CO₂ vergleicht wie Kosten und Verbrauch nur ganze Jahre beider Seiten;
+ist das Berichtsjahr noch nicht ganz erfasst, sagt die Ampel das statt „für das
+Vorjahr fehlen Daten“. Liter je Person und Tag rechnen über die erfassten Tage,
+die Heizenergie je m² heißt bei einem unvollständigen Jahr „bisher“, und eine nur
+angenommene Personenzahl steht als Annahme da. Ist eine Saldo-Schätzung unsicher,
+urteilt die Ampel „Abrechnung“ nicht: Sie sagt „Schätzung unsicher“ mit der Spanne,
+wie Saldo-Karte, Übersicht und Werkstatt (bis v3.8 nahm sie das ungünstige Ende).
+Endet ein Vertrag bald mit eingetragenem Folgevertrag oder bleiben weniger als
+drei Abschläge bis zur Abrechnung, gibt es statt der Aufgabe „Abschlag anpassen“
+einen Hinweis zur Abrechnung.
+
 ## 4. Aufgaben: Priorität, Betrag, Frist
 
 Jede Aufgabe nennt ihren Grund mit den eigenen Zahlen, was sie bringt oder

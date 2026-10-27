@@ -86,7 +86,8 @@ final class OneProjectionTest extends ServiceTestCase
         // laufende Periode des Stichtags 01.01. (keine Rechnung erfasst), nicht seit 11/2022
         self::assertSame('2022-11-01', $card['start']);
         self::assertSame('2026-01-01', $card['balance_from']);
-        self::assertSame(['from' => '2026-01-01', 'until' => '2026-12-31', 'open_from' => '2026-01-01', 'source' => 'anchor', 'bill_id' => null], $card['billing_period']);
+        self::assertSame(['from' => '2026-01-01', 'until' => '2026-12-31', 'open_from' => '2026-01-01', 'source' => 'anchor', 'bill_id' => null,
+            'anchor' => '01-01', 'suggested_anchor' => null, 'suggested_anchor_source' => null, 'last_bill_until' => null], $card['billing_period']);
         self::assertSame('2026-12-31', $card['settle_on'], 'der letzte Tag, nicht der 01.01.2027 (L1)');
         // Abschläge nach Plan: 150 € für Januar bis Oktober 2026 bis heute, November und Dezember danach
         self::assertSame(1500.0, $card['advance_paid']);
@@ -101,6 +102,13 @@ final class OneProjectionTest extends ServiceTestCase
         // die Spanne der unsicheren Schätzung (Gütesperre) umschließt beide Werte
         [$lo, $hi] = $card['projection_uncertain']['projected_range'];
         self::assertTrue($lo <= $r['billing']['base_end_balance'] && $r['billing']['base_end_balance'] <= $hi);
+        // v3.9.0 (Skeptiker H3) — und die Werkstatt zeigt genau diese Spanne (bis dahin nur den Punktwert)
+        self::assertSame([round($lo, 2), round($hi, 2)], $r['billing']['base_end_range']);
+        self::assertSame($r['billing']['base_end_range'], $r['billing']['scen_end_range'], 'Ausgangsfall: das Szenario verschiebt nichts');
+        $cold = $this->scenario()->compute(['utility' => 'gas', 'meter_id' => $meter['id'], 'winter_pct' => 10], self::TODAY);
+        $shift = $cold['billing']['scen_end_balance'] - $cold['billing']['base_end_balance'];
+        self::assertGreaterThan(0.0, $shift, 'ein kälterer Winter kostet mehr');
+        self::assertEqualsWithDelta([round($lo, 2) + $shift, round($hi, 2) + $shift], $cold['billing']['scen_end_range'], 0.02, 'die Spanne wandert mit');
         // Abrechnungsjahr: dieselbe Periode, gemessen bis zur letzten Ablesung (05.01.2026)
         $bills = new BillService($this->store, $this->meters, $this->contracts, $this->consumption, $this->i18n);
         $bp = (new BillingPeriodService($this->settings, $this->meters, $this->readings, $this->consumption, $bills))->forTarget('gas', $meter, false, self::TODAY);

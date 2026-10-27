@@ -32,7 +32,7 @@ import { docUrl } from '../lib/docs.js';
 // v3.4.0 (N1021) — Vertragsreihenfolge, Blättern, Abrechnungsperiode
 import { groupContracts, phasePill } from '../lib/contract-order.js';
 import { paginate, pagerHtml, wirePager, pageSize, PAGER_THRESHOLD } from '../components/pager.js';
-import { lastClosedPeriod, periodToCheck, calendarYearOf, periodMode, billingApplies, periodName, periodsWithData, pickPeriod, periodRows, refMonth } from '../lib/billing-period.js';
+import { lastClosedPeriod, periodToCheck, calendarYearOf, periodMode, billingApplies, periodName, periodsWithData, pickPeriod, periodRows, refMonth, addDays as addDaysIso, anchorHintText } from '../lib/billing-period.js';
 import { periodModeHtml, wirePeriodMode, calendarOnlyNote } from '../components/period-mode.js';
 import { bonusOf, bonusItemsOf, bonusLineText } from '../lib/bonus.js';   // v3.7.0 (#33)
 import { fillHeatLimitSlot, poorFitIn } from '../lib/heat-limit.js';   // v3.9.0 (#38)
@@ -653,17 +653,15 @@ function periodPills(list, sel, utilityKey) {
 /** v3.6.0 (F1030) — Zeitraum, Grundlage und Stand der gewählten Periode; Vorschlag, wenn der Stichtag nicht zur Rechnung passt. */
 function periodMeta(sel, bp) {
   const parts = [t(sel.source === 'bill' ? 'billing.period.fromBill' : 'billing.period.fromAnchor', { from: fmt.date(sel.from), until: fmt.date(sel.until) })];
-  if (sel.as_of && sel.as_of < sel.until) parts.push(t('billing.period.asOf', { date: fmt.date(sel.as_of) }));
+  // v3.9.0 (Skeptiker N12) — der Tag der Ablesung (as_of ist der letzte gezählte Tag davor)
+  if (sel.as_of && sel.as_of < sel.until) parts.push(t('billing.period.asOfReading', { date: fmt.date(addDaysIso(sel.as_of, 1)) }));
   // v3.6.0 — ohne Schlussrechnung endet die Periode am Lieferantenwechsel
   if (sel.ends_at_switch) parts.push(t('billing.period.switch'));
   if (sel.running) parts.push(t('billing.period.running'));
   else if (!sel.complete) parts.push(t('billing.period.partial'));
   const lastBill = [...(bp?.periods || [])].reverse().find(p => p.source === 'bill');
-  const md = (s) => { const [m, d] = String(s).split('-').map(Number); return new Date(Date.UTC(2000, m - 1, d)).toLocaleDateString(getLocale(), { day: 'numeric', month: 'long', timeZone: 'UTC' }); };
-  // v3.7.0 (#33) — ohne Rechnung kommt der Vorschlag aus den Vertragsbeginnen
-  const text = !bp?.suggested_anchor ? null
-    : bp.suggested_anchor_source === 'contracts' ? t('billing.suggestContracts', { anchor: md(bp.anchor), day: md(bp.suggested_anchor) })
-    : lastBill ? t('billing.suggest', { date: fmt.date(lastBill.until), anchor: md(bp.anchor), day: md(bp.suggested_anchor) }) : null;
+  // v3.7.0 (#33) — ohne Rechnung kommt der Vorschlag aus den Vertragsbeginnen (v3.9.0: lib/billing-period.js)
+  const text = bp ? anchorHintText({ ...bp, last_bill_until: lastBill?.until ?? null }) : null;
   const hint = text ? `<p class="muted small" data-role="anchor-hint" data-source="${escapeHtml(bp.suggested_anchor_source || 'bill')}">${escapeHtml(text)}</p>` : '';
   return `<p class="muted small period-meta" data-role="period-meta">${escapeHtml(parts.join(' · '))}</p>${hint}`;
 }
@@ -846,19 +844,27 @@ function balanceCard(c, u, country = 'DE') {
   const suggestHtml = !isFeedIn && c.suggested_advance != null && c.current_advance_amount != null
       && c.suggested_advance > 0 && Math.abs(proj) > 5
       && Math.abs(c.suggested_advance - c.current_advance_amount) >= 5
-    ? `<p class="balance-suggest">${t('utility.balance.suggestAdvance', { suggested: fmt.eur(c.suggested_advance), current: fmt.eur(c.current_advance_amount) })}</p>`
+    // v3.9.0 (Skeptiker H1) — Beträge im Rhythmus des Plans (je Rate, „alle 2 Monate“)
+    ? `<p class="balance-suggest">${t('utility.balance.suggestAdvance', { suggested: advanceAmountText(c.suggested_advance, c.current_advance_every_months),
+        current: advanceAmountText(c.current_advance_amount, c.current_advance_every_months) })}</p>`
     // v3.9.0 (L12) — kurz vor der Abrechnung kein Nachholbetrag: den Rest gleicht
     // die Abrechnung aus, danach gilt der laufende Bedarf
     : !isFeedIn && c.suggestion_withheld === 'short' && Math.abs(proj) > 5
     ? `<p class="balance-suggest" data-role="balance-short">${escapeHtml(tp('utility.balance.suggestShort', c.months_left, {
         count: c.months_left, date: fmt.date(settle) }) + (c.advance_ongoing != null && c.current_advance_amount != null
         && Math.abs(c.advance_ongoing - c.current_advance_amount) >= 5
-        ? ' ' + t('utility.balance.suggestOngoing', { amount: fmt.eur0(c.advance_ongoing), current: fmt.eur(c.current_advance_amount) }) : ''))}</p>`
+        ? ' ' + (Number(c.current_advance_every_months) > 1
+          // v3.9.0 (Skeptiker H1) — je Rate wie der Plan, nicht „im Monat“
+          ? tp('utility.balance.suggestOngoingEvery', Number(c.current_advance_every_months), { count: Number(c.current_advance_every_months),
+              amount: fmt.eur0(c.advance_ongoing), current: fmt.eur(c.current_advance_amount) })
+          : t('utility.balance.suggestOngoing', { amount: fmt.eur0(c.advance_ongoing), current: fmt.eur(c.current_advance_amount) })) : ''))}</p>`
     : '';
   // v3.7.0 (wirklichkeit-2) — unsichere Schätzung (Kalibrierfaktor klemmt,
   // Heizmodell schlecht): Spanne und Grund statt eines Vorschlags; der Server
   // liefert dann keinen `suggested_advance`
   const unc = !isFeedIn ? c.projection_uncertain : null;
+  // v3.9.0 (Skeptiker M6) — sichere Schätzung mit Breite (Wetter der kommenden Tage, Modell)
+  const band = !isFeedIn && !unc && c.projection_band?.half >= 1 ? c.projection_band : null;
   const uncertainHtml = unc
     ? `<p class="balance-suggest" data-role="balance-uncertain">${escapeHtml(uncertainBalanceText(unc, fmt.date(settle)))}</p>`
     : '';
@@ -945,13 +951,19 @@ function balanceCard(c, u, country = 'DE') {
         <div class="balance-verdict ${unc ? 'balanced' : verdictCls}">
           <div class="balance-verdict__label">${unc ? '↕' : arrow} ${t('utility.balance.verdictLabel')}</div>
           <!-- v3.7.0 (Nachlauf) — unsicher: nur die Spanne, kein Punktwert „≈ X €“ -->
-          <div class="balance-verdict__value"${unc ? ' data-role="verdict-range"' : ''}>${unc ? escapeHtml(uncertainRangeText(unc)) : fmt.eur(Math.abs(proj || 0))}</div>
+          <!-- v3.9.0 (Skeptiker M6) — mit Band (Wetter, Modell): auf den Euro, „≈“ statt Cent -->
+          <div class="balance-verdict__value"${unc ? ' data-role="verdict-range"' : ''}>${unc ? escapeHtml(uncertainRangeText(unc))
+            : band ? `≈ ${fmt.eur0(Math.abs(proj || 0))}` : fmt.eur(Math.abs(proj || 0))}</div>
           <div class="balance-verdict__verdict">${unc ? t('balanceUncertain.verdict') : t('utility.verdict.' + verdict)}</div>
           <div class="balance-verdict__date">${escapeHtml(dateLabel)}</div>
         </div>
       </div>
       ${suggestHtml}
       ${uncertainHtml}
+      ${band ? `<p class="balance-suggest muted" data-role="balance-band">${escapeHtml(tp('utility.balance.band', Number(band.estimated_days) || 0, {
+        range: uncertainRangeText({ projected_range: [band.low, band.high] }), level: fmt.pct((Number(band.level_pct) || 0) / 100, 0), count: Number(band.estimated_days) || 0 }))}</p>` : ''}
+      ${(() => { const h = !isFeedIn ? anchorHintText(c.billing_period) : null;   // v3.9.0 (Skeptiker M7) — der Stichtag-Hinweis auch hier
+        return h ? `<p class="muted small" data-role="card-anchor-hint">${escapeHtml(h)}</p>` : ''; })()}
       ${unc && poorFitIn(unc.reasons) ? '<div data-role="heat-limit-slot"></div>' /* v3.9.0 (#38) — Heizgrenze-Vorschlag, nachgeladen */ : ''}
       ${notesHtml}
       ${isWater && c.components ? renderWaterComponentRow(c.components) : ''}

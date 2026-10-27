@@ -243,7 +243,8 @@
         "more": "{pct} de plus que l’an dernier",
         "less": "{pct} de moins que l’an dernier",
         "same": "à peu près comme l’an dernier",
-        "none": "Pas encore d’année précédente à comparer."
+        "none": "Pas encore d’année précédente à comparer.",
+        "fewMeasured": "Trop peu de mois mesurés pour comparer. Les mois répartis et incomplets ne comptent pas."
       },
       "rent": {
         "title": "Les provisions suffisent-elles ?",
@@ -516,7 +517,15 @@
       },
       "suggestOngoing": "Ensuite, environ {amount} au lieu de {current} par mois seraient adaptés.",
       "sincePeriod": "Calculé à partir du {date}, début de la période de facturation en cours jusqu’au {until}. Les périodes précédentes figurent dans l’année de facturation.",
-      "measuredThenEstimatedBase": "mesuré jusqu’au {date} ({amount}), estimé ensuite : {value} de consommation ; plus abonnements à ce jour {base}"
+      "measuredThenEstimatedBase": "mesuré jusqu’au {date} ({amount}), estimé ensuite : {value} de consommation ; plus abonnements à ce jour {base}",
+      "suggestOngoingEvery": {
+        "one": "Ensuite, environ {amount} au lieu de {current} chaque mois seraient adaptés.",
+        "other": "Ensuite, environ {amount} au lieu de {current} tous les {count} mois seraient adaptés."
+      },
+      "band": {
+        "one": "Selon la météo et l’estimation : {range} ({level}, {count} jour estimé).",
+        "other": "Selon la météo et l’estimation : {range} ({level}, {count} jours estimés)."
+      }
     },
     "contractsTable": {
       "emptyTitle": "Aucun contrat enregistré",
@@ -2925,7 +2934,12 @@
     "annualNoBandFew": "Année : {value} {unit} — sans fourchette, car trop peu de mois sont mesurés pour vérifier le modèle de chauffage.",
     "annualNoBandYears": "Année : {value} {unit} — sans fourchette : l’écart d’un mois d’une année à l’autre n’apparaît qu’avec des mesures sur plus d’une année.",
     "annualBandSpread": "Année : {value} {unit}, dans {level} % des années entre {low} et {high} {unit} — d’après la dispersion des mois au fil des années.",
-    "blendPoorFit": "le modèle de chauffage est peu adapté, chaque mois utilise donc le profil saisonnier"
+    "blendPoorFit": "le modèle de chauffage est peu adapté, chaque mois utilise donc le profil saisonnier",
+    "balanceCard": "Solde au décompte du {date}, comme sur la carte du solde :",
+    "balanceCardNote": {
+      "one": "· La colonne « Solde » ci-dessous ne compte que le {count} mois de prévision à partir de {month}, sans le solde déjà atteint.",
+      "other": "· La colonne « Solde » ci-dessous ne compte que les {count} mois de prévision à partir de {month}, sans le solde déjà atteint."
+    }
   },
   "report": {
     "createdOn": "Créé le {date}",
@@ -2971,7 +2985,7 @@
         "ev_charger": "Borne de recharge"
       },
       "roles": "Au total {total} kWh.",
-      "rolesWithPv": "Au total {total} kWh, autoconsommation solaire comprise. La borne de recharge fait partie de l’électricité du ménage.",
+      "rolesWithPv": "Au total {total} kWh, autoconsommation solaire comprise.",
       "water": {
         "one": "Cela représente environ {liters} litres par jour pour {count} personne.",
         "other": "Cela représente environ {liters} litres par personne et par jour ({count} personnes)."
@@ -2995,7 +3009,20 @@
         "other": "{count} valeurs mensuelles des deux années sont réparties ; les totaux annuels restent mesurés, car des relevés ont été faits au changement d’année."
       },
       "poorFit": "Le modèle de chauffage correspond mal à ce compteur (± {pct} par mois) : le rapport ne compare pas ici en données corrigées du climat et ne signale aucun mois au-dessus de l’attendu — ce serait surtout l’erreur du modèle.",
-      "subMeterOwnContract": "Dont {name} : {value} (sous-compteur, inclus dans le total de « {parent} »). {name} a son propre contrat ; le contrat de « {parent} » ne facture que le reste."
+      "subMeterOwnContract": "Dont {name} : {value} (sous-compteur, inclus dans le total de « {parent} »). {name} a son propre contrat ; le contrat de « {parent} » ne facture que le reste.",
+      "rolesEvNote": "La borne de recharge fait partie de l’électricité du ménage.",
+      "personsAssumed": {
+        "one": "Hypothèse : {count} personne, le nombre n’est pas indiqué dans les paramètres.",
+        "other": "Hypothèse : {count} personnes, le nombre n’est pas indiqué dans les paramètres."
+      },
+      "waterDays": {
+        "one": "Calculé sur {count} jour enregistré.",
+        "other": "Calculé sur {count} jours enregistrés."
+      },
+      "heatDemandPartial": {
+        "one": "Énergie de chauffage jusqu’ici : {value} kWh par m² de surface habitable ({area} m²) sur {count} jour enregistré, pas encore une année entière.",
+        "other": "Énergie de chauffage jusqu’ici : {value} kWh par m² de surface habitable ({area} m²) sur {count} jours enregistrés, pas encore une année entière."
+      }
     },
     "weatherSource": "Températures : Open-Meteo.com (CC BY 4.0), sauf saisie personnelle.",
     "print": {
@@ -3062,7 +3089,8 @@
       "pv": "Gain de l’installation solaire",
       "vsPrevious": "{pct} par rapport à {prev}",
       "noPrevious": "pas de comparaison avec {prev}",
-      "sparkNote": "Lignes dans les vignettes : évolution {from}–{to}."
+      "sparkNote": "Lignes dans les vignettes : évolution {from}–{to}.",
+      "vsPreviousWithout": "{pct} par rapport à {prev}, sans {labels} (nouvellement facturé)"
     },
     "light": {
       "title": {
@@ -3109,6 +3137,11 @@
       "deadlinesNone": {
         "one": "Aucune échéance dans le prochain jour.",
         "other": "Aucune échéance dans les {days} prochains jours."
+      },
+      "costNew": "Nouvellement facturé et hors comparaison : {items}.",
+      "yearIncomplete": {
+        "one": "Seul {count} mois sur 12 de {year} est enregistré. La comparaison avec {prev} viendra quand l’année sera complète.",
+        "other": "Seuls {count} mois sur 12 de {year} sont enregistrés. La comparaison avec {prev} viendra quand l’année sera complète."
       }
     },
     "euro": {
@@ -3164,7 +3197,11 @@
         "reasonCredit": "Au décompte du {date}, un crédit d’{amount} est à prévoir : les acomptes de {advance} par mois dépassent les coûts.",
         "stepRaise": "Un acompte de {new} au lieu de {old} par mois compenserait l’écart ; le fournisseur peut le modifier.",
         "stepLower": "Un acompte de {new} au lieu de {old} par mois suffirait ; le fournisseur peut le modifier.",
-        "stepLowerNoAmount": "L’acompte peut être réduit. Le rapport n’indique pas de montant : les acomptes déjà versés couvrent les coûts jusqu’au décompte."
+        "stepLowerNoAmount": "L’acompte peut être réduit. Le rapport n’indique pas de montant : les acomptes déjà versés couvrent les coûts jusqu’au décompte.",
+        "reasonDueEvery": "D’ici au décompte du {date}, il manquera probablement {amount} : les coûts dépassent les acomptes de {advance} {every}.",
+        "reasonCreditEvery": "Au décompte du {date}, un crédit de {amount} est à prévoir : les acomptes de {advance} {every} dépassent les coûts.",
+        "stepRaiseEvery": "Un acompte de {new} au lieu de {old} {every} compenserait l’écart ; le fournisseur peut le modifier.",
+        "stepLowerEvery": "Un acompte de {new} au lieu de {old} {every} suffirait ; le fournisseur peut le modifier."
       },
       "advanceOk": {
         "title": "Acompte adapté : {label}",
@@ -3315,6 +3352,11 @@
       "cancelConfirm": {
         "title": "Résiliation confirmée ? {label}",
         "reason": "Un contrat chez {next} est enregistré à partir du {start}. Vérifiez que « {provider} » a confirmé la résiliation ; elle doit lui parvenir au plus tard le {date}."
+      },
+      "advanceFinal": {
+        "title": "{label} : le décompte arrive bientôt",
+        "reasonDue": "D’ici au décompte du {date}, il manquera probablement {amount}. D’ici là, presque aucun acompte n’est encore dû, le décompte règle le reste. Il ne vaut pas la peine de modifier l’acompte maintenant.",
+        "reasonCredit": "Au décompte du {date}, un crédit de {amount} est à prévoir. D’ici là, presque aucun acompte n’est encore dû, le décompte règle le reste. Il ne vaut pas la peine de modifier l’acompte maintenant."
       }
     },
     "money": {
@@ -5161,7 +5203,11 @@
         "less": "Consommation {cons}, degrés-jours {hdd} par rapport aux mêmes mois l’an dernier. Corrigé du climat {adj} : vous avez vraiment moins consommé.",
         "more": "Consommation {cons}, degrés-jours {hdd} par rapport aux mêmes mois l’an dernier. Corrigé du climat {adj} : vous avez vraiment plus consommé, ce n’est pas que la météo.",
         "same": "Consommation {cons}, degrés-jours {hdd} par rapport aux mêmes mois l’an dernier. Corrigé du climat {adj} : à peu près pareil, la différence vient de la météo.",
-        "poorFit": "Consommation {cons}, degrés-jours {hdd} par rapport aux mêmes mois l’an dernier. Impossible de dire si vous avez vraiment consommé plus ou moins : le modèle de chauffage correspond mal à ce compteur (± {pct} par mois)."
+        "poorFit": "Consommation {cons}, degrés-jours {hdd} par rapport aux mêmes mois l’an dernier. Impossible de dire si vous avez vraiment consommé plus ou moins : le modèle de chauffage correspond mal à ce compteur (± {pct} par mois).",
+        "noise": {
+          "one": "Mesuré : {cons}, degrés-jours : {hdd}. Corrigé du climat : {adj} ; c’est dans la variation habituelle (jusqu’à ±{noise} sur {count} mois), aucun écart n’est prouvé.",
+          "other": "Mesuré : {cons}, degrés-jours : {hdd}. Corrigé du climat : {adj} ; c’est dans la variation habituelle (jusqu’à ±{noise} sur {count} mois), aucun écart n’est prouvé."
+        }
       },
       "poorFitBadge": "corrigé : non démontrable"
     },
@@ -5751,10 +5797,10 @@
       "none": "Pas encore de période de facturation avec relevés. Elle apparaît dès que deux relevés sont saisis.",
       "fromBill": "Du {from} au {until}, comme sur la facture",
       "fromAnchor": "Du {from} au {until}, selon la date de régularisation",
-      "asOf": "calculé jusqu’au {date} (dernier relevé)",
       "running": "en cours",
       "partial": "période partielle",
-      "switch": "se termine au changement de fournisseur"
+      "switch": "se termine au changement de fournisseur",
+      "asOfReading": "calculé jusqu’au dernier relevé du {date}"
     },
     "suggest": "La dernière facture se termine le {date}, la date de régularisation est le {anchor}. Saisissez le {day} comme date de régularisation dans les paramètres : la période en cours et les suivantes suivront le rythme de la facture.",
     "chart": {

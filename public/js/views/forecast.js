@@ -21,8 +21,9 @@ import { fmt, escapeHtml, parseDecimal, formatForInput } from '../lib/format.js'
 import { makeChart, utilColor, tokenColor, chartTableHtml } from '../components/chart.js';
 import { toastErr, toastOk } from '../components/toast.js';
 import { t, tp } from '../lib/i18n.js';
+import { advanceAmountText } from '../lib/advance-rhythm.js';   // v3.9.0 (Skeptiker H1)
 import { info } from '../components/info.js';
-import { balanceView, isFeedIn } from '../lib/semantics.js';
+import { balanceView, isFeedIn, uncertainRangeText } from '../lib/semantics.js';
 import { DEMO } from '../lib/demo-mode.js';
 import * as S from '../lib/scenario.js';
 import { resultCardHtml, downloadResultCard } from '../components/result-card.js';
@@ -441,7 +442,7 @@ export async function render(container, params = [], ctx = {}) {
       { label: t('scenario.kpi.qty'), value: d.qty_pct != null ? pctSigned(d.qty_pct) : '–' },
     ];
     if (d.co2_kg != null) facts.push({ label: t('scenario.kpi.co2'), value: `${signed(d.co2_kg, fmt.int)} kg` });
-    if (result.advance?.scen_recommended != null) facts.push({ label: t('scenario.kpi.advance'), value: fmt.eur0(result.advance.scen_recommended) });
+    if (result.advance?.scen_recommended != null) facts.push({ label: t('scenario.kpi.advance'), value: advanceAmountText(result.advance.scen_recommended, result.advance.every_months) });   // H1
     return {
       brand: t('scenario.card.brand'), title: name, tone, facts,
       big: tone === 'same' ? '±0' : `${d.cost > 0 ? '+' : '−'}${amount}`,
@@ -488,16 +489,24 @@ export async function render(container, params = [], ctx = {}) {
         esc(tot.delta.qty_pct != null ? pctSigned(tot.delta.qty_pct) : ''), tot.delta.qty > 0 ? 'negative' : tot.delta.qty < 0 ? 'positive' : ''),
       // v3.7.0 (wirklichkeit-2) — Gütesperre: Spanne statt Betrag
       // v3.9.0 (L12) — kurz vor der Abrechnung kein Nachholbetrag, sondern der laufende Bedarf danach
+      // v3.9.0 (Skeptiker H1) — alle Beträge je Rate im Rhythmus des Plans („alle 2 Monate“)
       kpi(t('scenario.kpi.advance'), esc(result.advance.uncertain?.scen_range
           ? t('scenario.kpi.advanceRange', { low: fmt.eur0(result.advance.uncertain.scen_range[0]), high: fmt.eur0(result.advance.uncertain.scen_range[1]) })
-          : result.advance.withheld === 'short' && result.advance.scen_ongoing != null ? fmt.eur(result.advance.scen_ongoing)
-          : fmt.eur(result.advance.scen_recommended)),
-        esc([result.advance.current != null ? t('scenario.kpi.advanceNow', { amount: fmt.eur(result.advance.current) }) : '',
+            + (Number(result.advance.every_months) > 1 ? ' ' + tp('advance.rhythm.every', Number(result.advance.every_months)) : '')
+          : result.advance.withheld === 'short' && result.advance.scen_ongoing != null ? advanceAmountText(result.advance.scen_ongoing, result.advance.every_months)
+          : advanceAmountText(result.advance.scen_recommended, result.advance.every_months)),
+        esc([result.advance.current != null ? t('scenario.kpi.advanceNow', { amount: advanceAmountText(result.advance.current, result.advance.every_months) }) : '',
           result.advance.uncertain ? t('scenario.kpi.advanceUncertain') : '',
           result.advance.withheld === 'short' && !result.advance.uncertain ? t('scenario.kpi.advanceShort', { date: fmt.date(billing?.settle_on || billing?.until) }) : ''].filter(Boolean).join(' · '))),
       // v3.9.0 (L1) — derselbe Abrechnungstag wie die Saldo-Karte
-      ...(balScen ? [kpi(t('scenario.kpi.balance', { date: fmt.date(billing.settle_on || billing.until) }), `<span class="${balScen.cls}">${esc(balScen.word)} ${esc(fmt.eur(balScen.amount))}</span>`,
-        esc(t('scenario.kpi.balanceBase', { amount: balanceView(billing.base_end_balance, u)?.signed ?? '–' })), '', 'advanced')] : []),
+      // v3.9.0 (Skeptiker H3) — unsichere Schätzung der Karte: hier dieselbe Spanne, kein sicherer Betrag
+      ...(balScen ? [kpi(t('scenario.kpi.balance', { date: fmt.date(billing.settle_on || billing.until) }),
+        Array.isArray(billing.scen_end_range)
+          ? `<span data-role="ws-balance-range">${esc(uncertainRangeText({ projected_range: billing.scen_end_range }))}</span>`
+          : `<span class="${balScen.cls}">${esc(balScen.word)} ${esc(fmt.eur(balScen.amount))}</span>`,
+        esc(Array.isArray(billing.base_end_range)
+          ? t('scenario.kpi.balanceBase', { amount: uncertainRangeText({ projected_range: billing.base_end_range }) }) + ' · ' + t('balanceUncertain.verdict')
+          : t('scenario.kpi.balanceBase', { amount: balanceView(billing.base_end_balance, u)?.signed ?? '–' })), '', 'advanced')] : []),
       ...(tot.delta.co2_kg != null ? [kpi(t('scenario.kpi.co2Year'), esc(`${fmt.int(tot.scenario.co2_kg)} kg`),
         esc(`${signed(tot.delta.co2_kg, fmt.int)} kg`), tot.delta.co2_kg > 0 ? 'negative' : tot.delta.co2_kg < 0 ? 'positive' : '', 'advanced')] : []),
     ].join('');
@@ -786,9 +795,12 @@ export async function render(container, params = [], ctx = {}) {
       co2_scenario_eur_t: co2,
     };
     try {
-      const res = await api.forecast(utility.key, meterSel.value, opts);
+      // v3.9.0 (Skeptiker M4) — der Saldo zur Abrechnung kommt aus der Saldo-Karte (Datum, Startsaldo),
+      // nicht aus der Prognose ab null bis zum Ende des Horizonts
+      const [res, card] = await Promise.all([api.forecast(utility.key, meterSel.value, opts),
+        api.contractStatus(utility.key, meterSel.value).then(s => (s?.contracts || []).find(c => c.is_current) || null).catch(() => null)]);
       if (my !== runSeq) return;   // überholt
-      renderResult(utility, res, container);
+      renderResult(utility, res, container, card);
       heatLimitHint('fc', (res.warnings || []).some(w => w.code === 'poor_fit'), 'forecast', utility.consumption_unit);   // v3.9.0 (#38)
     } catch (e) { if (my === runSeq) toastErr(e.message); }
   }
@@ -836,7 +848,7 @@ export async function render(container, params = [], ctx = {}) {
   return () => { clearTimeout(timer); if (chart) { chart.destroy(); chart = null; } };
 }
 
-function renderResult(u, result, container) {
+function renderResult(u, result, container, card = null) {
   // v2.13.0 — nicht `info`: Der Name gehört dem ⓘ-Knopf aus components/info.js,
   // die lokale Variable überschattete ihn und die Tabelle blieb leer
   const infoEl = container.querySelector('#fc-info');
@@ -986,8 +998,19 @@ function renderResult(u, result, container) {
   const hasFinance = fc.some(r => r.advance_estimated != null || r.balance_running != null);
   const lastBalance = fc.length ? fc[fc.length - 1].balance_running : null;
 
+  // v3.9.0 (Skeptiker M4) — mit Vertrag in der laufenden Abrechnung: derselbe Saldo, dasselbe Datum wie
+  // die Saldo-Karte; die Spalte darunter zählt nur die Prognosemonate (bis dahin ein zweiter Saldo ab null)
+  const cardBal = card && card.projected_end_balance != null && (card.settle_on || card.effective_end) ? Number(card.projected_end_balance) : null;
+  const cardUnc = card?.projection_uncertain?.projected_range ? card.projection_uncertain : null;
   tbl.innerHTML = `
-    ${hasFinance && lastBalance != null ? `
+    ${cardBal != null ? `
+      <div class="banner ${cardUnc ? 'banner--info' : cardBal > 5 ? 'banner--warning' : cardBal < -5 ? 'banner--success' : 'banner--info'}"
+           style="margin-bottom: var(--sp-3)" data-role="fc-card-balance">
+        ${escapeHtml(t('forecast.balanceCard', { date: fmt.date(card.settle_on || card.effective_end) }))}
+        <strong>${escapeHtml(cardUnc ? uncertainRangeText(cardUnc) : `${Math.abs(cardBal) < 1 ? t('forecast.balanceBalanced') : (cardBal > 0 ? t('forecast.balanceSurcharge') : t('forecast.balanceCredit'))} ${fmt.eur(Math.abs(cardBal))}`)}</strong>
+        <span class="muted"> ${escapeHtml(tp('forecast.balanceCardNote', fc.length, { count: fc.length, month: fc[0] ? fmt.month(fc[0].ym) : '–' }))}</span>
+      </div>
+    ` : hasFinance && lastBalance != null ? `
       <div class="banner ${lastBalance > 5 ? 'banner--warning' : lastBalance < -5 ? 'banner--success' : 'banner--info'}"
            style="margin-bottom: var(--sp-3)">
         ${t('forecast.balanceLabel')}

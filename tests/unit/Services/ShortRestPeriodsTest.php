@@ -117,11 +117,20 @@ final class ShortRestPeriodsTest extends ServiceTestCase
         self::assertSame('2025-09-01..2026-09-04*', self::spans($early)[count($early) - 1]);
     }
 
-    public function testAProperRestStaysItsOwnPeriod(): void
+    /**
+     * 17 Tage (Stichtag 18.09.) sind kein Kurzrest — ein eigener, kurzer erster Abschnitt.
+     * v3.9.0 (Skeptiker M7) — bis dahin auch im Vertragsjahr 2024/25, das an zwei Wechseln
+     * beginnt und endet: Diese Lieferzeit rechnet der Versorger zum Vertragsende ab, sie ist
+     * eine Periode (SWITCH_PERIOD_MAX_DAYS). Der Rest bleibt, wo die Lieferung nicht an
+     * einem Wechsel endet (der laufende Vertrag ohne Nachfolger).
+     */
+    public function testAProperRestStaysItsOwnPeriodUnlessASwitchEndsTheSupply(): void
     {
-        // 17 Tage (Stichtag 18.09.) sind kein Kurzrest — ein eigener, kurzer erster Abschnitt
         $this->settings->set(['billing_cycle_anchor_strom' => '09-18']);
-        self::assertContains('2024-09-01..2024-09-17', self::spans($this->forMeter()['periods']));
+        $spans = self::spans($this->forMeter()['periods']);
+        self::assertContains('2024-09-01..2025-08-31+S', $spans, 'eine Lieferzeit zwischen zwei Wechseln, Ende = Vertragsende');
+        self::assertNotContains('2024-09-01..2024-09-17', $spans);
+        self::assertContains('2025-09-01..2025-09-17', $spans, 'ohne Wechsel am Ende: der Rest bleibt eigener Abschnitt');
         // passt der Stichtag zu den Verträgen, gibt es keinen Vorschlag
         $this->settings->set(['billing_cycle_anchor_strom' => '09-01']);
         $r = $this->forMeter();

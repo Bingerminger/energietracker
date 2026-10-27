@@ -600,7 +600,10 @@ final class ConsumptionService
                 // Saldo rechnet (laufende Abrechnungsperiode; null außerhalb von ihr)
                 'settle_on'                   => $settleOn ?? self::lastDayOf($effEnd, $hasEnd ? (string)$c['end'] : null),
                 'billing_period'              => $period !== null
-                    ? ['from' => $period['from'], 'until' => $period['until'], 'open_from' => $openFrom, 'source' => $period['source'], 'bill_id' => $period['bill_id']] : null,
+                    ? ['from' => $period['from'], 'until' => $period['until'], 'open_from' => $openFrom, 'source' => $period['source'], 'bill_id' => $period['bill_id'],
+                       // v3.9.0 (Skeptiker M7, additiv) — Stichtag und Vorschlag für den Hinweis an der Karte
+                       'anchor' => $period['anchor'] ?? null, 'suggested_anchor' => $period['suggested_anchor'] ?? null,
+                       'suggested_anchor_source' => $period['suggested_anchor_source'] ?? null, 'last_bill_until' => $period['last_bill_until'] ?? null] : null,
                 'is_current'                  => $isCur,
                 'is_past'                     => $isPast,
                 'is_future'                   => $isFut,
@@ -676,6 +679,9 @@ final class ConsumptionService
                     // v3.7.0 (wirklichkeit-2) — {reasons, factor, factor_raw, factor_part, factor_limits,
                     // fit_ratio, base_load_per_day, projected_range, suggested_range} oder null (additiv)
                     'projection_uncertain'     => $projection['uncertain'],
+                    // v3.9.0 (Skeptiker M6, additiv) — {low, high, half, level_pct, estimated_days, weather, model}
+                    // oder null: Wetter und Modell bei sicherer Schätzung
+                    'projection_band'          => $projection['band'] ?? null,
                     // v3.7.0 (Schritt 3) — wirksamer Faktor; getrennt für Grundlast und Heizanteil (additiv)
                     'projection_factor'        => $projection['factor'],
                     'projection_factor_base'   => $projection['factor_base'],
@@ -1034,8 +1040,21 @@ final class ConsumptionService
             $priceDay = $end !== '' && $endExcl > $end ? $end : $endExcl;
             $fixed = (float)($this->contracts->fixedPerMonthOn($c, $priceDay) ?? 0.0);
             $yearCost = $energy($endExcl, $next) + 12 * $fixed;
-            if ($yearCost > 0) $ongoing = (float)round($yearCost / 12);
+            // v3.9.0 (Skeptiker H1) — mit Rhythmus je Rate wie der Plan (alle 2 Monate: ÷ 6);
+            // bis dahin stand ein Monatsbetrag neben dem Betrag je Termin („76 € statt 165 €“)
+            $perYear = $nowRow !== null && ContractService::hasRhythm($nowRow)
+                ? max(1, count(ContractService::installments($plan, $endExcl, $next))) : 12;
+            if ($yearCost > 0) $ongoing = (float)round($yearCost / $perYear);
         }
+
+        // v3.9.0 (Skeptiker M6) — auch eine sichere Schätzung hat eine Breite: Wetter der noch
+        // kommenden Tage (Streuung der Heizgradtage je Monat im Klimanormal × Heizanteil je
+        // Gradtag) und Streuung des Modells je Monat für jeden geschätzten Tag seit der letzten
+        // Ablesung. Bis dahin verschwand mit bestandener Gütesperre (etwa nach der Heizgrenze)
+        // jede Spanne, der Saldo stand auf den Cent da, auch mit neun geschätzten Monaten.
+        // Kein „unsicher“, kein Wegfall des Vorschlags: eine Spanne neben dem Punktwert.
+        // eigene Methode: ihre Hilfsvariablen dürfen die der Projektion (etwa `$from`) nicht überschreiben
+        $band = $this->projectionBand($meter, $est, $uncertain, $estVolume, $gapFrom, $asOf, $endExcl, $gapEnergy + $remainingEnergy, $projected);
 
         // v2.16.0 (Review FE-31) — dieselbe Rechnung als Monatsreihe für den
         // Saldo-Verlauf: je Monat die Kosten (gemessen, geschätzt, Grundpreis,
@@ -1131,8 +1150,59 @@ final class ConsumptionService
             'advance_ongoing'          => $ongoing,
             'suggestion_withheld'      => $withheld,
             'uncertain'                => $uncertain,
+            'band'                     => $band,   // v3.9.0 (Skeptiker M6)
             'path'                     => $path,
         ];
+    }
+
+    /**
+     * v3.9.0 (Skeptiker M6) — Breite einer sicheren Schätzung (s. balanceProjection), oder null.
+     *
+     * @return array{low:float,high:float,half:float,level_pct:int,estimated_days:int,weather:float,model:float}|null
+     */
+    private function projectionBand(array $meter, ?callable $est, ?array $uncertain, float $estVolume, string $gapFrom, string $asOf,
+        string $endExcl, float $estEnergy, float $projected): ?array
+    {
+        $band = null;
+        $lp = $this->lastProjection;
+        if ($est !== null && $uncertain === null && !empty($lp['trusted']) && is_array($lp['model'] ?? null) && $estVolume > 0) {
+            $model = $lp['model'];
+            $normals = $this->hddNormals($this->hddBaseFor($meter));
+            $varW = 0.0; $varN = 0.0; $estDays = 0;
+            $from = $gapFrom; $future = max($asOf, $gapFrom);
+            for ($t = strtotime(substr($from, 0, 7) . '-01'); $t !== false && date('Y-m-d', $t) < $endExcl; $t = strtotime('+1 month', $t)) {
+                $ms = date('Y-m-d', $t); $me = date('Y-m-d', (int)strtotime('+1 month', $t));
+                $dim = (int)date('t', $t);
+                $days = fn(string $a, string $b): int => max(0, (int)round((strtotime(min($b, $me, $endExcl)) - strtotime(max($a, $ms))) / 86400));
+                $all = $days($from, $endExcl);
+                if ($all <= 0) continue;
+                $estDays += $all;
+                $varN += ((float)($model['resid_sd'] ?? 0.0) * $all / $dim) ** 2;
+                $fut = $days($future, $endExcl);
+                $sd = $normals[(int)date('n', $t)]['sd'] ?? null;
+                if ($fut > 0 && is_numeric($sd)) $varW += ((float)$model['a'] * (float)($lp['heat'] ?? 1.0) * (float)$sd * $fut / $dim) ** 2;
+            }
+            $z = (float)$this->settings->get('confidence_band_sigma', 1.28);
+            $price = $estEnergy / $estVolume;   // € je geschätzter Einheit
+            $half = round($z * sqrt($varW + $varN) * $price, 2);
+            if ($half >= self::BAND_MIN_EUR) {
+                $band = ['low' => round($projected - $half, 2), 'high' => round($projected + $half, 2), 'half' => $half,
+                         'level_pct' => (int)round((2 * (0.5 * (1 + self::erf($z / M_SQRT2))) - 1) * 100), 'estimated_days' => $estDays,
+                         'weather' => round($z * sqrt($varW) * $price, 2), 'model' => round($z * sqrt($varN) * $price, 2)];
+            }
+        }
+        return $band;
+    }
+
+    /** v3.9.0 (Skeptiker M6) — Breite unter einem Euro zeigt die Karte nicht. */
+    public const BAND_MIN_EUR = 1.0;
+
+    /** Fehlerfunktion (Abramowitz/Stegun 7.1.26, Fehler < 1,5·10⁻⁷) für das Niveau des Bands. */
+    private static function erf(float $x): float
+    {
+        $t = 1.0 / (1.0 + 0.3275911 * abs($x));
+        $y = 1.0 - (((((1.061405429 * $t - 1.453152027) * $t) + 1.421413741) * $t - 0.284496736) * $t + 0.254829592) * $t * exp(-$x * $x);
+        return $x >= 0 ? $y : -$y;
     }
 
     /**
@@ -1214,7 +1284,8 @@ final class ConsumptionService
         // Grundlast etwa ein Zehntel des gemessenen Sommers): Der Grundlast-Faktor klemmte an
         // 1,5, der Heizanteil kam aus Übergangsmonaten und drückte den Winter. Dann ein Faktor
         // für das Ganze wie bis Schritt 2 — die Schätzung ist ohnehin als unsicher gekennzeichnet.
-        $splitOk = $heat !== null && ($this->anomalyQuality($utility, $monthly)['model_quality'] ?? null) !== 'poor';
+        $poor = $heat !== null && ($this->anomalyQuality($utility, $monthly)['model_quality'] ?? null) === 'poor';
+        $splitOk = $heat !== null && !$poor;
         // v3.7.0 (#37) — Tagesrate je Kalendermonat aus gemessenen Monaten; nur wo
         // ein Kalendermonat nie gemessen wurde, aus den verteilten (wie die Prognose).
         // Das Mittel aller Monate stimmt auch für verteilte.
@@ -1222,11 +1293,28 @@ final class ConsumptionService
         foreach ($monthly as $m) {
             if (!empty($m['pre_baseline']) || (int)($m['days'] ?? 0) < $minDays) continue;
             $r = (float)($m[$vf] ?? 0) / (int)$m['days'];
-            if (!empty($m['interpolated'])) $interpRates[(int)$m['month']][] = $r;
-            else $rates[(int)$m['month']][] = $r;
+            if (!empty($m['interpolated'])) {
+                $gap = $m['reading_gap_days'] ?? null;
+                $interpRates[(int)$m['month']][] = ['r' => $r, 'short' => is_numeric($gap) && (int)$gap <= ForecastService::INTERP_GAP_MAX_DAYS];
+            } else $rates[(int)$m['month']][] = $r;
             $all[] = $r;
         }
-        foreach ($interpRates as $mo => $list) $rates[$mo] ??= $list;
+        // v3.9.0 (Skeptiker M5) — dieselbe Vertrauensregel wie die Prognose (ForecastService::heatTrusted):
+        // Besteht das Heizmodell die Gütesperre nicht oder liegt seine Grundlast unter der Hälfte der
+        // gemessenen Sommerrate, schätzt die Karte nicht mehr mit ihm, sondern wie die Prognose mit dem
+        // Kalendermonat (gemessen, sonst verteilt aus kurzen Abständen), wo es keinen gibt mit dem
+        // Heizmodell und der gemessenen Sommerrate als Grundlast. Bis dahin lagen Juni bis August im
+        // Testhaushalt bei 0 kWh (nur Grundpreis), gemessen waren 157 bis 187 kWh.
+        $summerList = [];
+        foreach (AnomalyService::SUMMER_REF_MONTHS as $mo) foreach ($rates[$mo] ?? [] as $r) $summerList[] = (float)$r;
+        $summer = $summerList ? array_sum($summerList) / count($summerList) : null;
+        $trusted = $heat !== null && ForecastService::heatTrusted($poor, (float)$heat['c'], $summer);
+        $baseEff = $heat !== null && !$trusted ? max((float)$heat['c'], $summer ?? (float)$heat['c']) : null;
+        foreach ($interpRates as $mo => $list) {
+            if (isset($rates[$mo])) continue;
+            $pick = array_column($heat !== null && !$trusted ? array_filter($list, fn($x) => $x['short']) : $list, 'r');
+            if ($pick !== []) $rates[$mo] = $pick;
+        }
         // v3.7.0 (Schritt 3, N1) — je Kalendermonat wie die Prognose (ohne Wetterbezug ab drei Werten der Median)
         $hgtUtility = Utilities::isHgtRelevant($utility);
         $rates = array_map(fn(array $list): float => (float)self::seasonalRate($list, !$hgtUtility), $rates);
@@ -1248,17 +1336,7 @@ final class ConsumptionService
             empty($m['pre_baseline']) && empty($m['interpolated']) && (int)($m['days'] ?? 0) >= $minDays
             && (string)($m['ym'] ?? '') >= date('Y-m', strtotime(date('Y-m-01') . ' -12 months')))), -6);
         $clamp = fn(?float $r): float => $r === null ? 1.0 : max(self::PROJECTION_FACTOR_MIN, min(self::PROJECTION_FACTOR_MAX, $r));
-        if ($heat !== null && !$splitOk) {
-            // ein Faktor über Grundlast und Heizanteil (Nachlauf, s. o.), gerechnet wie bis Schritt 2
-            $act = $exp = 0.0;
-            foreach ($recent as $m) {
-                $e = $m['expected_heat'] ?? null;
-                if ($e === null || $e <= 0) continue;
-                $act += (float)($m[$vf] ?? 0); $exp += (float)$e;
-            }
-            $rawBase = $rawHeat = count($recent) >= 2 && $exp > 0 ? $act / $exp : null;
-            $fBase = $fHeat = $clamp($rawBase);
-        } elseif ($heat !== null) {
+        if ($heat !== null && $trusted) {
             // v3.7.0 (wirklichkeit-2, Schritt 3) — der Faktor wirkt nur auf den Teil, aus dem
             // er stammt: Monate fast ohne Heizung (Heizanteil der Erwartung unter
             // CALIBRATION_HEAT_SHARE) kalibrieren die Grundlast, Heizmonate den Heizanteil.
@@ -1279,9 +1357,11 @@ final class ConsumptionService
             $rawHeat = $nHeat >= 2 && $heatE > 0 ? ($heatAct - $fBase * $heatBaseE) / $heatE : null;
             $fHeat = $clamp($rawHeat);
         } else {
+            // ohne verlässliches Heizmodell (M5) oder ohne Wetterbezug: ein Faktor gegen den Kalendermonat
             $act = $exp = 0.0;
             foreach ($recent as $m) {
-                $e = isset($rates[(int)$m['month']]) ? $rates[(int)$m['month']] * (int)$m['days'] : null;
+                $e = isset($rates[(int)$m['month']]) ? $rates[(int)$m['month']] * (int)$m['days']
+                    : ($baseEff !== null ? $heat['a'] * (float)($m['hdd'] ?? 0) + $baseEff * (int)$m['days'] : null);
                 if ($e === null || $e <= 0) continue;
                 $act += (float)($m[$vf] ?? 0);
                 $exp += (float)$e;
@@ -1290,23 +1370,24 @@ final class ConsumptionService
             $fBase = $fHeat = $clamp($rawBase);
         }
         $this->lastProjection = ['base' => $fBase, 'heat' => $fHeat, 'raw_base' => $rawBase, 'raw_heat' => $rawHeat, 'model' => $heat,
-            'split' => $splitOk];
+            'split' => $splitOk && $trusted, 'trusted' => $trusted];
 
         // `$opt` (v3.7.0) — für die Spanne einer unsicheren Schätzung: andere Faktoren
         // (`base`, `heat`) oder eine andere Grundlast je Tag (`c`, etwa die gemessene)
-        return function (string $from, string $to, ?array $opt = null) use ($heat, $rates, $overall, $temps, $base, $normals, $fBase, $fHeat): array {
+        return function (string $from, string $to, ?array $opt = null) use ($heat, $trusted, $baseEff, $rates, $overall, $temps, $base, $normals, $fBase, $fHeat): array {
             $fb = (float)($opt['base'] ?? $fBase);
             $fh = (float)($opt['heat'] ?? $fHeat);
-            $c = $heat !== null ? (float)($opt['c'] ?? $heat['c']) : 0.0;
+            $c = $heat !== null ? (float)($opt['c'] ?? ($trusted ? $heat['c'] : $baseEff)) : 0.0;
             $out = [];
             for ($t = strtotime($from . ' 12:00:00'); $t !== false && date('Y-m-d', $t) < $to; $t += 86400) {
                 $d = date('Y-m-d', $t);
                 $mo = (int)date('n', $t);
-                if ($heat !== null) {
+                if ($heat !== null && ($trusted || !isset($rates[$mo]))) {
                     $hdd = isset($temps[$d]['avg'])
                         ? max(0.0, $base - (float)$temps[$d]['avg'])
                         : (($normals[$mo]['mean'] ?? null) !== null ? $normals[$mo]['mean'] / (int)date('t', $t) : 0.0);
-                    $vol = $heat['a'] * $hdd * $fh + $c * $fb;
+                    // nicht verlässlich (M5): nur für Kalendermonate ohne eigenen Wert, mit der Sommerrate als Grundlast
+                    $vol = $trusted ? $heat['a'] * $hdd * $fh + $c * $fb : ($heat['a'] * $hdd + $c) * $fb;
                 } else {
                     $vol = ($rates[$mo] ?? $overall) * $fb;
                 }

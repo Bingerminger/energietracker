@@ -1015,6 +1015,28 @@ Tagesrate eines Kalendermonats kommt aus gemessenen Monaten, solange es welche
 gibt; nur sonst aus verteilten. Das Heizmodell ist dasselbe wie in Abschnitt 5,
 bei wenigen Ablesungen also auch das über die Ablesungsabstände.
 
+**Dieselbe Vertrauensregel wie die Prognose (seit v3.9.0).** Mit dem Heizmodell
+schätzt die Karte nur, wenn es die Gütesperre besteht und seine Grundlast nicht
+unter der Hälfte der gemessenen Sommerrate liegt (wie die Prognose, Abschnitt 6).
+Sonst nimmt sie wie die Prognose den Kalendermonat: gemessen, sonst verteilt aus
+kurzen Abständen; nur wo es keinen gibt, das Heizmodell mit der gemessenen
+Sommerrate als Grundlast. Im unordentlichen Testhaushalt lagen Juni bis August
+bis dahin bei 0 kWh (nur Grundpreis), gemessen waren 157 bis 187 kWh.
+
+**Breite auch bei sicherer Schätzung (seit v3.9.0).** Besteht das Heizmodell die
+Gütesperre, ist die Schätzung nicht „unsicher“, aber nicht genau: Die Karte nennt
+den Saldo auf den Euro („≈“) und daneben eine Breite (`projection_band`, 80 %):
+
+```text
+halbe Breite = 1,28 × √( Σ (a × Faktor_Heizung × σ_HGT,Monat × Anteil künftiger Tage)²
+                        + Σ (σ_Modell × Anteil geschätzter Tage)² ) × Preis je kWh
+```
+
+Das Wetter zählt für die Tage ab heute, die Streuung des Modells für jeden
+geschätzten Tag seit der letzten Ablesung. Bis v3.8 verschwand mit bestandener
+Gütesperre (etwa nach der Heizgrenze) jede Spanne, auch mit neun geschätzten
+Monaten. Der Abschlagsvorschlag bleibt.
+
 **Zwei Faktoren (seit v3.7.0).** Der Faktor wirkt nur auf den Teil, aus dem er
 stammt: Monate, deren Erwartung zu weniger als 30 % aus Heizung besteht,
 kalibrieren die Grundlast (`projection_factor_base`), die übrigen den Heizanteil
@@ -1144,8 +1166,13 @@ den Rest gleicht die Abrechnung ohnehin aus. Stattdessen nennt sie den laufend
 angemessenen Abschlag (`advance_ongoing`):
 
 ```text
-laufend = gerundet( geschätzte Kosten der 12 Monate nach der Abrechnung / 12 )
+laufend = gerundet( geschätzte Kosten der 12 Monate nach der Abrechnung / Raten im Jahr )
 ```
+
+Raten im Jahr: 12 bei monatlichem Abschlag, 6 alle zwei Monate, 4 alle drei
+Monate. *(seit v3.9.0)* Mit Rhythmus gelten Vorschlag und laufender Abschlag je
+Rate, und die Texte nennen den Rhythmus („rund 152 € statt 165 € alle 2 Monate“);
+bis v3.8 stand ein Monatsbetrag neben dem Betrag je Termin.
 
 ### Tagesgenau wie die Rechnung (seit v2.9.0)
 

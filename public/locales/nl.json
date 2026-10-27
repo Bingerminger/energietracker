@@ -243,7 +243,8 @@
         "more": "{pct} meer dan vorig jaar",
         "less": "{pct} minder dan vorig jaar",
         "same": "ongeveer zoals vorig jaar",
-        "none": "Nog geen vorig jaar om te vergelijken."
+        "none": "Nog geen vorig jaar om te vergelijken.",
+        "fewMeasured": "Te weinig gemeten maanden om te vergelijken. Verdeelde en onvolledige maanden tellen niet mee."
       },
       "rent": {
         "title": "Is het voorschot genoeg?",
@@ -516,7 +517,15 @@
       },
       "suggestOngoing": "Daarna zou ongeveer {amount} in plaats van {current} per maand passend zijn.",
       "sincePeriod": "Gerekend vanaf {date}, het begin van de lopende afrekenperiode tot {until}. Eerdere periodes staan onder afrekenjaar.",
-      "measuredThenEstimatedBase": "gemeten tot {date} ({amount}), daarna geschat: {value} verbruik; plus vastrecht tot vandaag {base}"
+      "measuredThenEstimatedBase": "gemeten tot {date} ({amount}), daarna geschat: {value} verbruik; plus vastrecht tot vandaag {base}",
+      "suggestOngoingEvery": {
+        "one": "Daarna zou ongeveer {amount} in plaats van {current} elke maand passend zijn.",
+        "other": "Daarna zou ongeveer {amount} in plaats van {current} elke {count} maanden passend zijn."
+      },
+      "band": {
+        "one": "Afhankelijk van het weer en de schatting {range} ({level}, {count} dag geschat).",
+        "other": "Afhankelijk van het weer en de schatting {range} ({level}, {count} dagen geschat)."
+      }
     },
     "contractsTable": {
       "emptyTitle": "Geen contracten geregistreerd",
@@ -2925,7 +2934,12 @@
     "annualNoBandFew": "Jaar: {value} {unit} — zonder bandbreedte, omdat er te weinig maanden gemeten zijn om het verwarmingsmodel te controleren.",
     "annualNoBandYears": "Jaar: {value} {unit} — zonder bandbreedte: hoe sterk een maand van jaar tot jaar schommelt, blijkt pas uit metingen van meer dan één jaar.",
     "annualBandSpread": "Jaar: {value} {unit}, in {level}% van de jaren tussen {low} en {high} {unit} — naar de spreiding van de maanden over de jaren.",
-    "blendPoorFit": "het verwarmingsmodel past slecht, daarom rekent elke maand met het seizoensprofiel"
+    "blendPoorFit": "het verwarmingsmodel past slecht, daarom rekent elke maand met het seizoensprofiel",
+    "balanceCard": "Saldo bij de afrekening op {date}, zoals op de saldokaart:",
+    "balanceCardNote": {
+      "one": "· De kolom ‘Saldo’ hieronder telt alleen de {count} prognosemaand vanaf {month}, zonder het saldo tot nu toe.",
+      "other": "· De kolom ‘Saldo’ hieronder telt alleen de {count} prognosemaanden vanaf {month}, zonder het saldo tot nu toe."
+    }
   },
   "report": {
     "createdOn": "Gemaakt op {date}",
@@ -2971,7 +2985,7 @@
         "ev_charger": "Laadpaal"
       },
       "roles": "Samen {total} kWh.",
-      "rolesWithPv": "Samen {total} kWh, inclusief zelf gebruikte zonnestroom. De laadpaal is een deel van de huishoudstroom.",
+      "rolesWithPv": "Samen {total} kWh, inclusief zelf gebruikte zonnestroom.",
       "water": {
         "one": "Dat is ongeveer {liters} liter per dag voor {count} persoon.",
         "other": "Dat is ongeveer {liters} liter per persoon per dag ({count} personen)."
@@ -2995,7 +3009,20 @@
         "other": "{count} maandwaarden van de twee jaren zijn verdeeld; de jaartotalen zijn toch gemeten, omdat rond de jaarwisseling is afgelezen."
       },
       "poorFit": "Het verwarmingsmodel past slecht bij deze meter (± {pct} per maand): het rapport vergelijkt hier niet weergecorrigeerd en noemt geen maanden boven de verwachting — beide zouden vooral de fout van het model zijn.",
-      "subMeterOwnContract": "Waarvan {name}: {value} (tussenmeter, inbegrepen in het totaal van ‘{parent}’). {name} heeft een eigen contract; het contract van ‘{parent}’ rekent alleen de rest af."
+      "subMeterOwnContract": "Waarvan {name}: {value} (tussenmeter, inbegrepen in het totaal van ‘{parent}’). {name} heeft een eigen contract; het contract van ‘{parent}’ rekent alleen de rest af.",
+      "rolesEvNote": "De laadpaal is een deel van de huishoudstroom.",
+      "personsAssumed": {
+        "one": "Aangenomen: {count} persoon, het aantal is niet ingevuld bij de instellingen.",
+        "other": "Aangenomen: {count} personen, het aantal is niet ingevuld bij de instellingen."
+      },
+      "waterDays": {
+        "one": "Berekend over {count} geregistreerde dag.",
+        "other": "Berekend over {count} geregistreerde dagen."
+      },
+      "heatDemandPartial": {
+        "one": "Verwarmingsenergie tot nu toe: {value} kWh per m² woonoppervlak ({area} m²) op {count} geregistreerde dag, nog geen heel jaar.",
+        "other": "Verwarmingsenergie tot nu toe: {value} kWh per m² woonoppervlak ({area} m²) op {count} geregistreerde dagen, nog geen heel jaar."
+      }
     },
     "weatherSource": "Temperaturen: Open-Meteo.com (CC BY 4.0), tenzij zelf ingevoerd.",
     "print": {
@@ -3062,7 +3089,8 @@
       "pv": "Opbrengst van de zonnepanelen",
       "vsPrevious": "{pct} ten opzichte van {prev}",
       "noPrevious": "geen vergelijking met {prev}",
-      "sparkNote": "Lijnen in de tegels: verloop {from}–{to}."
+      "sparkNote": "Lijnen in de tegels: verloop {from}–{to}.",
+      "vsPreviousWithout": "{pct} ten opzichte van {prev}, zonder {labels} (nieuw afgerekend)"
     },
     "light": {
       "title": {
@@ -3109,6 +3137,11 @@
       "deadlinesNone": {
         "one": "Geen termijn in de komende dag.",
         "other": "Geen termijn in de komende {days} dagen."
+      },
+      "costNew": "Nieuw afgerekend en niet in de vergelijking: {items}.",
+      "yearIncomplete": {
+        "one": "Van {year} is pas {count} van de 12 maanden geregistreerd. De vergelijking met {prev} volgt zodra het jaar compleet is.",
+        "other": "Van {year} zijn pas {count} van de 12 maanden geregistreerd. De vergelijking met {prev} volgt zodra het jaar compleet is."
       }
     },
     "euro": {
@@ -3164,7 +3197,11 @@
         "reasonCredit": "Bij de afrekening op {date} is een tegoed van {amount} te verwachten: de voorschotten van {advance} per maand liggen boven de kosten.",
         "stepRaise": "Een voorschot van {new} in plaats van {old} per maand vangt dat op; de leverancier kan het aanpassen.",
         "stepLower": "Een voorschot van {new} in plaats van {old} per maand volstaat; de leverancier kan het aanpassen.",
-        "stepLowerNoAmount": "Het voorschot kan omlaag. Het rapport noemt geen bedrag: de betaalde voorschotten dekken de kosten tot de afrekening al."
+        "stepLowerNoAmount": "Het voorschot kan omlaag. Het rapport noemt geen bedrag: de betaalde voorschotten dekken de kosten tot de afrekening al.",
+        "reasonDueEvery": "Tot de afrekening op {date} ontbreekt naar verwachting {amount}: de kosten liggen boven de voorschotten van {advance} {every}.",
+        "reasonCreditEvery": "Bij de afrekening op {date} is een tegoed van {amount} te verwachten: de voorschotten van {advance} {every} liggen boven de kosten.",
+        "stepRaiseEvery": "Een voorschot van {new} in plaats van {old} {every} vangt dat op; de leverancier kan het aanpassen.",
+        "stepLowerEvery": "Een voorschot van {new} in plaats van {old} {every} volstaat; de leverancier kan het aanpassen."
       },
       "advanceOk": {
         "title": "Voorschot klopt: {label}",
@@ -3315,6 +3352,11 @@
       "cancelConfirm": {
         "title": "Opzegging bevestigd? {label}",
         "reason": "Vanaf {start} staat een contract bij {next} ingevoerd. Controleer of ‘{provider}’ de opzegging heeft bevestigd; die moet uiterlijk {date} binnen zijn."
+      },
+      "advanceFinal": {
+        "title": "{label}: de afrekening komt eraan",
+        "reasonDue": "Tot de afrekening op {date} ontbreekt naar verwachting {amount}. Tot dan is er nauwelijks nog een voorschot verschuldigd, de afrekening verrekent de rest. Het voorschot nu aanpassen loont niet.",
+        "reasonCredit": "Bij de afrekening op {date} is een tegoed van {amount} te verwachten. Tot dan is er nauwelijks nog een voorschot verschuldigd, de afrekening verrekent de rest. Het voorschot nu aanpassen loont niet."
       }
     },
     "money": {
@@ -5161,7 +5203,11 @@
         "less": "Verbruik {cons}, graaddagen {hdd} ten opzichte van dezelfde maanden een jaar eerder. Weergecorrigeerd {adj}: je hebt echt minder verbruikt.",
         "more": "Verbruik {cons}, graaddagen {hdd} ten opzichte van dezelfde maanden een jaar eerder. Weergecorrigeerd {adj}: je hebt echt meer verbruikt — niet alleen door het weer.",
         "same": "Verbruik {cons}, graaddagen {hdd} ten opzichte van dezelfde maanden een jaar eerder. Weergecorrigeerd {adj}: ongeveer gelijk — het verschil komt door het weer.",
-        "poorFit": "Verbruik {cons}, graaddagen {hdd} ten opzichte van dezelfde maanden een jaar eerder. Of je echt meer of minder hebt verbruikt, valt niet aan te tonen: het verwarmingsmodel past slecht bij deze meter (± {pct} per maand)."
+        "poorFit": "Verbruik {cons}, graaddagen {hdd} ten opzichte van dezelfde maanden een jaar eerder. Of je echt meer of minder hebt verbruikt, valt niet aan te tonen: het verwarmingsmodel past slecht bij deze meter (± {pct} per maand).",
+        "noise": {
+          "one": "Gemeten {cons}, graaddagen {hdd}. Weergecorrigeerd {adj}: dat valt binnen de gewone schommeling (tot ±{noise} over {count} maand), een verschil is niet aangetoond.",
+          "other": "Gemeten {cons}, graaddagen {hdd}. Weergecorrigeerd {adj}: dat valt binnen de gewone schommeling (tot ±{noise} over {count} maanden), een verschil is niet aangetoond."
+        }
       },
       "poorFitBadge": "gecorrigeerd: niet aantoonbaar"
     },
@@ -5751,10 +5797,10 @@
       "none": "Nog geen afrekenperiode met meterstanden. Die verschijnt zodra er twee standen zijn.",
       "fromBill": "{from} tot en met {until}, zoals op de afrekening",
       "fromAnchor": "{from} tot en met {until}, volgens de afrekendatum",
-      "asOf": "berekend tot {date} (laatste meterstand)",
       "running": "loopt nog",
       "partial": "deelperiode",
-      "switch": "eindigt bij de leverancierswissel"
+      "switch": "eindigt bij de leverancierswissel",
+      "asOfReading": "berekend tot de laatste meterstand op {date}"
     },
     "suggest": "De laatste afrekening eindigt op {date}, de afrekendatum staat op {anchor}. Vul in de instellingen {day} in als afrekendatum, dan volgen de lopende en de volgende periodes het ritme van de afrekening.",
     "chart": {

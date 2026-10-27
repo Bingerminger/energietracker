@@ -243,7 +243,8 @@
         "more": "{pct} more than last year",
         "less": "{pct} less than last year",
         "same": "about the same as last year",
-        "none": "No previous year to compare yet."
+        "none": "No previous year to compare yet.",
+        "fewMeasured": "Too few measured months to compare. Interpolated and partial months do not count."
       },
       "rent": {
         "title": "Does the prepayment cover it?",
@@ -516,7 +517,15 @@
       },
       "suggestOngoing": "After that, about {amount} instead of {current} a month would be right.",
       "sincePeriod": "Counted from {date}, the start of the current billing period up to {until}. Earlier periods are listed under billing year.",
-      "measuredThenEstimatedBase": "measured up to {date} ({amount}), estimated since: {value} consumption; plus standing charges to date {base}"
+      "measuredThenEstimatedBase": "measured up to {date} ({amount}), estimated since: {value} consumption; plus standing charges to date {base}",
+      "suggestOngoingEvery": {
+        "one": "After that, about {amount} instead of {current} every month would be right.",
+        "other": "After that, about {amount} instead of {current} every {count} months would be right."
+      },
+      "band": {
+        "one": "Depending on the weather and the estimate {range} ({level}, {count} day estimated).",
+        "other": "Depending on the weather and the estimate {range} ({level}, {count} days estimated)."
+      }
     },
     "contractsTable": {
       "emptyTitle": "No contracts recorded",
@@ -2925,7 +2934,12 @@
     "annualNoBandFew": "Year: {value} {unit} — without a band, because too few months are measured to check the heating model.",
     "annualNoBandYears": "Year: {value} {unit} — without a band: how much a month varies from year to year only shows with measurements from more than one year.",
     "annualBandSpread": "Year: {value} {unit}, in {level}% of years between {low} and {high} {unit} — from how the months varied over the years.",
-    "blendPoorFit": "the heating model fits poorly, so every month uses the seasonal profile"
+    "blendPoorFit": "the heating model fits poorly, so every month uses the seasonal profile",
+    "balanceCard": "Balance at the bill on {date}, as on the balance card:",
+    "balanceCardNote": {
+      "one": "· The “Balance” column below only counts the {count} forecast month from {month}, without the balance so far.",
+      "other": "· The “Balance” column below only counts the {count} forecast months from {month}, without the balance so far."
+    }
   },
   "report": {
     "createdOn": "Created on {date}",
@@ -2971,7 +2985,7 @@
         "ev_charger": "Wallbox"
       },
       "roles": "Together {total} kWh.",
-      "rolesWithPv": "Together {total} kWh, including self-consumed solar power. The wallbox is part of the household electricity.",
+      "rolesWithPv": "Together {total} kWh, including self-consumed solar power.",
       "water": {
         "one": "That is about {liters} litres a day for {count} person.",
         "other": "That is about {liters} litres per person and day ({count} people)."
@@ -2995,7 +3009,20 @@
         "other": "{count} monthly values of the two years are interpolated; the annual totals are still measured, because readings were taken at the turn of the year."
       },
       "poorFit": "The heating model fits this meter poorly (± {pct} a month): the report makes no weather-adjusted comparison here and names no months above the expectation — both would mainly be the model’s error.",
-      "subMeterOwnContract": "Of which {name}: {value} (sub-meter, included in the total of “{parent}”). {name} has its own contract; the contract of “{parent}” only bills the remainder."
+      "subMeterOwnContract": "Of which {name}: {value} (sub-meter, included in the total of “{parent}”). {name} has its own contract; the contract of “{parent}” only bills the remainder.",
+      "rolesEvNote": "The wallbox is part of the household electricity.",
+      "personsAssumed": {
+        "one": "Assumed: {count} person, the number is not entered in the settings.",
+        "other": "Assumed: {count} people, the number is not entered in the settings."
+      },
+      "waterDays": {
+        "one": "Calculated over {count} recorded day.",
+        "other": "Calculated over {count} recorded days."
+      },
+      "heatDemandPartial": {
+        "one": "Heating energy so far: {value} kWh per m² of living space ({area} m²) on {count} recorded day, not yet a whole year.",
+        "other": "Heating energy so far: {value} kWh per m² of living space ({area} m²) on {count} recorded days, not yet a whole year."
+      }
     },
     "weatherSource": "Temperatures: Open-Meteo.com (CC BY 4.0), unless entered yourself.",
     "print": {
@@ -3062,7 +3089,8 @@
       "pv": "Benefit of the solar system",
       "vsPrevious": "{pct} compared with {prev}",
       "noPrevious": "no comparison with {prev}",
-      "sparkNote": "Lines in the tiles: trend {from}–{to}."
+      "sparkNote": "Lines in the tiles: trend {from}–{to}.",
+      "vsPreviousWithout": "{pct} compared with {prev}, excluding {labels} (newly billed)"
     },
     "light": {
       "title": {
@@ -3109,6 +3137,11 @@
       "deadlinesNone": {
         "one": "No deadline in the next day.",
         "other": "No deadline in the next {days} days."
+      },
+      "costNew": "Newly billed and not in the comparison: {items}.",
+      "yearIncomplete": {
+        "one": "Only {count} of 12 months of {year} are recorded. The comparison with {prev} follows once the year is complete.",
+        "other": "Only {count} of 12 months of {year} are recorded. The comparison with {prev} follows once the year is complete."
       }
     },
     "euro": {
@@ -3164,7 +3197,11 @@
         "reasonCredit": "A credit of {amount} is expected with the bill on {date}: the advance payments of {advance} a month exceed the costs.",
         "stepRaise": "An advance payment of {new} instead of {old} a month would even this out; the supplier can change it.",
         "stepLower": "An advance payment of {new} instead of {old} a month would be enough; the supplier can change it.",
-        "stepLowerNoAmount": "The advance payment can be lowered. The report gives no amount: the payments made already cover the costs up to the bill."
+        "stepLowerNoAmount": "The advance payment can be lowered. The report gives no amount: the payments made already cover the costs up to the bill.",
+        "reasonDueEvery": "By the bill on {date}, a shortfall of {amount} is expected: costs are higher than the advance payments of {advance} {every}.",
+        "reasonCreditEvery": "A credit of {amount} is expected with the bill on {date}: the advance payments of {advance} {every} exceed the costs.",
+        "stepRaiseEvery": "An advance payment of {new} instead of {old} {every} would even this out; the supplier can change it.",
+        "stepLowerEvery": "An advance payment of {new} instead of {old} {every} would be enough; the supplier can change it."
       },
       "advanceOk": {
         "title": "Advance payment fits: {label}",
@@ -3315,6 +3352,11 @@
       "cancelConfirm": {
         "title": "Cancellation confirmed? {label}",
         "reason": "A contract with {next} is entered from {start}. Check that “{provider}” has confirmed the cancellation; it has to reach them by {date}."
+      },
+      "advanceFinal": {
+        "title": "{label}: the bill is due soon",
+        "reasonDue": "By the bill on {date}, a shortfall of {amount} is expected. Hardly any advance payment is due before then, and the bill settles the rest. Changing the advance payment now is not worth it.",
+        "reasonCredit": "A credit of {amount} is expected with the bill on {date}. Hardly any advance payment is due before then, and the bill settles the rest. Changing the advance payment now is not worth it."
       }
     },
     "money": {
@@ -5161,7 +5203,11 @@
         "less": "Consumption {cons}, heating degree days {hdd} compared with the same months a year earlier. Weather-adjusted {adj}: you really used less.",
         "more": "Consumption {cons}, heating degree days {hdd} compared with the same months a year earlier. Weather-adjusted {adj}: you really used more — not just the weather.",
         "same": "Consumption {cons}, heating degree days {hdd} compared with the same months a year earlier. Weather-adjusted {adj}: about the same — the difference is the weather.",
-        "poorFit": "Consumption {cons}, heating degree days {hdd} compared with the same months a year earlier. Whether you really used more or less cannot be shown: the heating model fits this meter poorly (± {pct} a month)."
+        "poorFit": "Consumption {cons}, heating degree days {hdd} compared with the same months a year earlier. Whether you really used more or less cannot be shown: the heating model fits this meter poorly (± {pct} a month).",
+        "noise": {
+          "one": "Measured {cons}, heating degree days {hdd}. Weather-adjusted {adj}: that is within the usual variation (up to ±{noise} over {count} month), so no difference is proven.",
+          "other": "Measured {cons}, heating degree days {hdd}. Weather-adjusted {adj}: that is within the usual variation (up to ±{noise} over {count} months), so no difference is proven."
+        }
       },
       "poorFitBadge": "adjusted: cannot be shown"
     },
@@ -5751,10 +5797,10 @@
       "none": "No billing period with readings yet. It appears once two readings are recorded.",
       "fromBill": "{from} to {until}, as on the bill",
       "fromAnchor": "{from} to {until}, by the settlement date",
-      "asOf": "calculated up to {date} (last reading)",
       "running": "still running",
       "partial": "partial period",
-      "switch": "ends with the change of supplier"
+      "switch": "ends with the change of supplier",
+      "asOfReading": "calculated up to the last reading on {date}"
     },
     "suggest": "The last bill ends on {date}, the settlement date is set to {anchor}. Enter {day} as the settlement date in the settings, and the current and next periods follow the rhythm of the bill.",
     "chart": {

@@ -197,9 +197,11 @@ final class BillVerdictTest extends ServiceTestCase
         $this->contract('Versorger', '2025-01-01', null, ['advance_payments' => [['from' => '2025-01-01', 'amount_eur' => 90.0]]]);
         $this->readingsOn(['2024-12-31', '2025-03-31', '2025-08-15', '2025-12-31']);
         $meter = $this->meters->get('strom', $this->meterId);
+        // v3.9.0 (auswertung, M7) — die erfasste Rechnung erscheint im Stichtag-Hinweis des Vertragsstatus
+        // (`billing_period.last_bill_until`); verglichen wird deshalb mit dem Stand nach dem Erfassen, vor der Prüfung
+        $b = $this->bill('2025-01-01', '2025-12-31', ['energy_kwh' => 3000, 'amount_eur' => 1020]);
         $before = [$this->consumption->forMeter('strom', $meter), $this->consumption->contractStatus('strom', $meter),
                    $this->consumption->billBreakdown('strom', $meter, '2025-01-01', '2026-01-01')];
-        $b = $this->bill('2025-01-01', '2025-12-31', ['energy_kwh' => 3000, 'amount_eur' => 1020]);
         $r = $this->bills()->compare('strom', $b['id']);
         self::assertSame($before[2]['rows'], $r['rows'], 'Zeilen wie billBreakdown()');
         self::assertSame($before[2]['totals']['total'], $r['ours']['total']);

@@ -302,7 +302,12 @@ Gruppenvertrag.
   immer vor. *(v3.7.0)* Liegt der Wechsel nur wenige Tage neben dem Stichtag —
   Stichtag 31-08, neuer Vertrag ab 01.09. —, gibt es keine Periode von einem
   Tag: Reste unter 14 Tagen gehen in die Nachbarperiode auf. Die Summen
-  bleiben dieselben.
+  bleiben dieselben. *(seit v3.9.0)* Beginnt und endet eine Belieferung an
+  einem Lieferantenwechsel und dauert sie höchstens 400 Tage (ein
+  Jahresvertrag), ist sie eine Periode bis zum Vertragsende: Der Versorger
+  rechnet dann mit der Schlussrechnung ab, der Stichtag gilt in ihr nicht.
+  Passt der Stichtag nicht zur letzten Rechnung oder zu den Verträgen, steht
+  der Hinweis auch an der Saldo-Karte und unter „Kosten & Verträge“.
 - **Laufendes Jahr in beiden Ansichten:** Das Kalenderjahr zählt Grundpreis
   und Abschlag des Monats der letzten Ablesung ganz, das Abrechnungsjahr nur
   die Tage bis zur Ablesung; das ⓘ an „Abschläge bis …“ sagt es. Ganze Jahre

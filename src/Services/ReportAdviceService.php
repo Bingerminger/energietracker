@@ -47,6 +47,8 @@ final class ReportAdviceService
     public const ADVANCE_MIN_EUR = 50.0;
     /** Kündigungsstichtag in höchstens so vielen Tagen. */
     public const CANCEL_WINDOW_DAYS = 90;
+    /** v3.9.0 (Skeptiker M15) — Vertrag mit Folgevertrag endet in höchstens so vielen Tagen: keine Abschlagsaufgabe. */
+    public const FINAL_BILL_DAYS = 90;
     /** Heizverbrauch gestiegen ab +5 % (witterungsbereinigt); Erfolg ab −2 %. */
     public const HEATING_RISE_PCT = 5.0;
     public const HEATING_FALL_PCT = -2.0;
@@ -177,6 +179,18 @@ final class ReportAdviceService
         return $days <= self::LIGHT_DEADLINE_DAYS['alert'] ? 'alert' : 'warn';
     }
 
+    /**
+     * v3.9.0 (Skeptiker N17) — warum kein Vergleich: Berichtsjahr erst zum Teil erfasst (laufendes
+     * Jahr) oder Vorjahr unvollständig.
+     */
+    private function noCompareText(array $t, int $year): string
+    {
+        $now = (int)($t['coverage_now'] ?? 12);
+        return $now > 0 && $now < 12
+            ? $this->i18n->tp('report.light.yearIncomplete', $now, ['year' => $year, 'count' => $now, 'prev' => $year - 1])
+            : $this->i18n->t('report.light.noPrevious', ['prev' => $year - 1]);
+    }
+
     /** @return list<array{key:string,level:string,word:string,detail:string,as_of_today:bool}> */
     private function lights(array $f): array
     {
@@ -186,14 +200,21 @@ final class ReportAdviceService
         // Kosten — immer mit Preis- und Mengeneffekt
         $costPct = $t['cost_pct'] ?? null;
         $lv = self::costLevel($costPct);
+        // v3.9.0 (Skeptiker N17) — ohne Vergleich: Fehlt das Vorjahr oder ist das Berichtsjahr selbst
+        // noch nicht ganz erfasst? (bis dahin immer „Für {Vorjahr} fehlen vergleichbare Daten“)
+        $noCompare = $this->noCompareText($t, $year);
+        // v3.9.0 (Skeptiker M3) — neu abgerechnete Arten zählen im Vergleich nicht mit; der Satz nennt sie
+        $new = (array)($t['cost_new'] ?? []);
+        $newText = $new === [] ? '' : ' ' . $this->i18n->t('report.light.costNew', ['items' => implode(', ',
+            array_map(fn($n) => (string)$n['label'] . ' ' . $this->eur((float)$n['amount']), $new))]);
         $out[] = ['key' => 'cost', 'level' => $lv, 'as_of_today' => false,
             'word' => $this->i18n->t("report.light.cost.$lv"),
-            'detail' => $costPct === null ? $this->i18n->t('report.light.noPrevious', ['prev' => $year - 1])
+            'detail' => $costPct === null ? $noCompare
                 : $this->i18n->t('report.light.costDetail', [
                     'pct' => $this->pct((float)$costPct), 'prev' => $year - 1,
                     'price' => $this->signedEur((float)($t['price_effect'] ?? 0)),
                     'volume' => $this->signedEur((float)($t['volume_effect'] ?? 0)),
-                ])];
+                ]) . $newText];
         // Verbrauch — witterungsbereinigt, wenn möglich
         $cPct = $t['consumption_pct'] ?? null;
         $lv = self::consumptionLevel($cPct);
@@ -201,17 +222,20 @@ final class ReportAdviceService
         $cWord = $lv === 'ok' && $cPct !== null && (float)$cPct <= -self::LIGHT_LESS_PCT ? 'report.light.consumption.less' : "report.light.consumption.$lv";
         $out[] = ['key' => 'consumption', 'level' => $lv, 'as_of_today' => false,
             'word' => $this->i18n->t($cWord),
-            'detail' => $cPct === null ? $this->i18n->t('report.light.noPrevious', ['prev' => $year - 1])
+            'detail' => $cPct === null ? $noCompare
                 : $this->i18n->t(!empty($t['consumption_adjusted']) ? 'report.light.consumptionAdjusted' : 'report.light.consumptionRaw',
                     ['pct' => $this->pct((float)$cPct), 'prev' => $year - 1])];
         // Abrechnung — Stand heute, der ungünstigste laufende Vertrag
-        $worst = null; $worstC = null;
+        // v3.9.0 (Skeptiker H3) — eine unsichere Schätzung urteilt nicht: Bis dahin nahm die Ampel
+        // das ungünstige Ende der Spanne („✖ Nachzahlung zu erwarten“), während die Mitte ein
+        // Guthaben war und Karte und Übersicht „unsicher“ sagten. Sie zählt jetzt wie dort als
+        // „unsicher“ mit ihrer Spanne; die Ampel urteilt nur über die sicheren Verträge.
+        $worst = null; $worstC = null; $uncC = null;
         foreach ((array)($f['contracts'] ?? []) as $c) {
             if (empty($c['has_advance']) || ($c['projected_end_balance'] ?? null) === null) continue;
+            if (is_array($c['projection_uncertain'] ?? null)) { $uncC ??= $c; continue; }
             $adv = (float)($c['current_advance'] ?? 0);
-            // v3.7.0 (wirklichkeit-2) — unsichere Schätzung: das ungünstige Ende der Spanne
-            $bal = is_array($c['projection_uncertain'] ?? null) ? max(array_map('floatval', (array)$c['projection_uncertain']['projected_range']))
-                : (float)$c['projected_end_balance'];
+            $bal = (float)$c['projected_end_balance'];
             $ratio = $adv > 0 ? $bal / $adv : ($bal > 0 ? INF : -INF);
             if ($worst === null || $ratio > $worst) { $worst = $ratio; $worstC = $c; }
         }
@@ -219,13 +243,8 @@ final class ReportAdviceService
         // v3.7.0 (wirklichkeit-2, Schritt 3) — „Abschläge passen ✔“ nicht, solange eine
         // Schätzung unsicher ist: dann ohne Haken, mit der Spanne dieses Vertrags
         $word = "report.light.billing.$lv";
-        if ($lv === 'ok') {
-            foreach ((array)($f['contracts'] ?? []) as $c) {
-                if (!empty($c['has_advance']) && ($c['projected_end_balance'] ?? null) !== null && is_array($c['projection_uncertain'] ?? null)) {
-                    $lv = 'none'; $word = 'report.light.billing.uncertain'; $worstC = $c;
-                    break;
-                }
-            }
+        if (($lv === 'ok' || $worstC === null) && $uncC !== null) {
+            $lv = 'none'; $word = 'report.light.billing.uncertain'; $worstC = $uncC;
         }
         $worstUnc = is_array($worstC['projection_uncertain'] ?? null) ? $worstC['projection_uncertain'] : null;
         $out[] = ['key' => 'billing', 'level' => $lv, 'as_of_today' => true,
@@ -280,21 +299,34 @@ final class ReportAdviceService
             $limit = max(self::ADVANCE_MIN_EUR, $adv);
             $date = $this->i18n->date((string)($c['settle_date'] ?? $c['effective_end'] ?? $today));
             $sugg = $c['suggested_advance'] ?? null;
-            if (abs($bal) >= $limit) {
+            // v3.9.0 (Skeptiker M15) — Vertrag endet bald mit eingetragenem Folgevertrag, oder bis zur
+            // Abrechnung bleiben weniger als SUGGEST_MIN_MONTHS Abschläge (L12): Den Abschlag jetzt zu
+            // ändern lohnt nicht, die Abrechnung gleicht den Rest aus. Ein Hinweis statt Aufgabe Nr. 1.
+            $final = (!empty($c['successor']) && ($c['settle_date'] ?? null) !== null && self::days($today, (string)$c['settle_date']) <= self::FINAL_BILL_DAYS)
+                || ($c['suggestion_withheld'] ?? null) === 'short';
+            if ($final && abs($bal) >= $limit) {
+                $out[] = $this->info('advanceFinal', $c['utility'] ?? null, 'report.advice.advanceFinal.title', ['label' => $label],
+                    $bal > 0 ? 'report.advice.advanceFinal.reasonDue' : 'report.advice.advanceFinal.reasonCredit',
+                    ['date' => $date, 'amount' => $this->approx(abs($bal))], true);
+            } elseif (abs($bal) >= $limit) {
                 $due = $bal > 0;
                 $steps = [];
+                // v3.9.0 (Skeptiker H1) — mit Rhythmus gelten die Beträge je Rate („alle 2 Monate“), nicht „im Monat“
+                $every = max(1, (int)($c['advance_every_months'] ?? 1));
+                $ev = $every > 1 ? 'Every' : '';
+                $evp = $every > 1 ? ['every' => $this->i18n->tp('advance.rhythm.every', $every, ['count' => $every])] : [];
                 if ($due && $sugg !== null && (float)$sugg > $adv) {
-                    $steps[] = $this->i18n->t('report.advice.advance.stepRaise', ['new' => $this->eur((float)$sugg), 'old' => $this->eur($adv)]);
+                    $steps[] = $this->i18n->t("report.advice.advance.stepRaise$ev", ['new' => $this->eur((float)$sugg), 'old' => $this->eur($adv)] + $evp);
                 } elseif (!$due && $sugg !== null && (float)$sugg > 0 && (float)$sugg < $adv) {
-                    $steps[] = $this->i18n->t('report.advice.advance.stepLower', ['new' => $this->eur((float)$sugg), 'old' => $this->eur($adv)]);
+                    $steps[] = $this->i18n->t("report.advice.advance.stepLower$ev", ['new' => $this->eur((float)$sugg), 'old' => $this->eur($adv)] + $evp);
                 } elseif (!$due) {
                     // Mangel 11 — Vorschlag ≤ 0: keine Zahl, nur „senken lassen“
                     $steps[] = $this->i18n->t('report.advice.advance.stepLowerNoAmount');
                 }
                 $out[] = $this->task('advance', $c['utility'] ?? null, 'advance|' . ($c['key'] ?? ''),
                     'report.advice.advance.title', ['label' => $label],
-                    $due ? 'report.advice.advance.reasonDue' : 'report.advice.advance.reasonCredit',
-                    ['date' => $date, 'amount' => $this->approx(abs($bal)), 'advance' => $this->eur($adv)],
+                    ($due ? 'report.advice.advance.reasonDue' : 'report.advice.advance.reasonCredit') . $ev,
+                    ['date' => $date, 'amount' => $this->approx(abs($bal)), 'advance' => $this->eur($adv)] + $evp,
                     $this->euro(abs($bal), 'once', 'projected', $due ? 'avoids' : 'refund'),
                     null, $steps, true);
             } else {

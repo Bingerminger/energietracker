@@ -243,7 +243,8 @@
         "more": "{pct} más que el año pasado",
         "less": "{pct} menos que el año pasado",
         "same": "más o menos como el año pasado",
-        "none": "Todavía no hay un año anterior para comparar."
+        "none": "Todavía no hay un año anterior para comparar.",
+        "fewMeasured": "Muy pocos meses medidos para comparar. Los meses repartidos e incompletos no cuentan."
       },
       "rent": {
         "title": "¿Basta el anticipo de gastos?",
@@ -516,7 +517,15 @@
       },
       "suggestOngoing": "Después, unos {amount} en lugar de {current} al mes serían adecuados.",
       "sincePeriod": "Calculado desde el {date}, inicio del periodo de facturación en curso hasta el {until}. Los periodos anteriores están en el año de facturación.",
-      "measuredThenEstimatedBase": "medido hasta el {date} ({amount}), estimado desde entonces: {value} de consumo; más términos fijos hasta hoy {base}"
+      "measuredThenEstimatedBase": "medido hasta el {date} ({amount}), estimado desde entonces: {value} de consumo; más términos fijos hasta hoy {base}",
+      "suggestOngoingEvery": {
+        "one": "Después, unos {amount} en lugar de {current} cada mes serían adecuados.",
+        "other": "Después, unos {amount} en lugar de {current} cada {count} meses serían adecuados."
+      },
+      "band": {
+        "one": "Según el tiempo y la estimación {range} ({level}, {count} día estimado).",
+        "other": "Según el tiempo y la estimación {range} ({level}, {count} días estimados)."
+      }
     },
     "contractsTable": {
       "emptyTitle": "Sin contratos registrados",
@@ -2925,7 +2934,12 @@
     "annualNoBandFew": "Año: {value} {unit}, sin banda, porque hay muy pocos meses medidos para comprobar el modelo de calefacción.",
     "annualNoBandYears": "Año: {value} {unit}, sin banda: cuánto varía un mes de un año a otro solo se ve con mediciones de más de un año.",
     "annualBandSpread": "Año: {value} {unit}; en el {level} % de los años entre {low} y {high} {unit}, según la dispersión de los meses a lo largo de los años.",
-    "blendPoorFit": "el modelo de calefacción encaja mal, por eso cada mes usa el perfil estacional"
+    "blendPoorFit": "el modelo de calefacción encaja mal, por eso cada mes usa el perfil estacional",
+    "balanceCard": "Saldo en la liquidación del {date}, como en la tarjeta de saldo:",
+    "balanceCardNote": {
+      "one": "· La columna «Saldo» de abajo solo cuenta el {count} mes de previsión desde {month}, sin el saldo hasta ahora.",
+      "other": "· La columna «Saldo» de abajo solo cuenta los {count} meses de previsión desde {month}, sin el saldo hasta ahora."
+    }
   },
   "report": {
     "createdOn": "Creado el {date}",
@@ -2971,7 +2985,7 @@
         "ev_charger": "Punto de carga"
       },
       "roles": "En total {total} kWh.",
-      "rolesWithPv": "En total {total} kWh, incluido el autoconsumo solar. El punto de carga forma parte de la electricidad del hogar.",
+      "rolesWithPv": "En total {total} kWh, incluido el autoconsumo solar.",
       "water": {
         "one": "Son unos {liters} litros al día para {count} persona.",
         "other": "Son unos {liters} litros por persona y día ({count} personas)."
@@ -2995,7 +3009,20 @@
         "other": "{count} valores mensuales de los dos años están repartidos; los totales anuales siguen medidos, porque se leyó en el cambio de año."
       },
       "poorFit": "El modelo de calefacción se ajusta mal a este contador (± {pct} al mes): el informe no compara aquí con datos corregidos por clima ni señala meses por encima de lo esperado; ambas cosas serían sobre todo el error del modelo.",
-      "subMeterOwnContract": "De ello, {name}: {value} (subcontador, incluido en el total de «{parent}»). {name} tiene contrato propio; el contrato de «{parent}» solo factura el resto."
+      "subMeterOwnContract": "De ello, {name}: {value} (subcontador, incluido en el total de «{parent}»). {name} tiene contrato propio; el contrato de «{parent}» solo factura el resto.",
+      "rolesEvNote": "El punto de carga forma parte de la electricidad del hogar.",
+      "personsAssumed": {
+        "one": "Supuesto: {count} persona, el número no está indicado en los ajustes.",
+        "other": "Supuesto: {count} personas, el número no está indicado en los ajustes."
+      },
+      "waterDays": {
+        "one": "Calculado sobre {count} día registrado.",
+        "other": "Calculado sobre {count} días registrados."
+      },
+      "heatDemandPartial": {
+        "one": "Energía de calefacción hasta ahora: {value} kWh por m² de superficie útil ({area} m²) en {count} día registrado, todavía no un año entero.",
+        "other": "Energía de calefacción hasta ahora: {value} kWh por m² de superficie útil ({area} m²) en {count} días registrados, todavía no un año entero."
+      }
     },
     "weatherSource": "Temperaturas: Open-Meteo.com (CC BY 4.0), salvo las introducidas por ti.",
     "print": {
@@ -3062,7 +3089,8 @@
       "pv": "Beneficio de la instalación solar",
       "vsPrevious": "{pct} frente a {prev}",
       "noPrevious": "sin comparación con {prev}",
-      "sparkNote": "Líneas en los recuadros: evolución {from}–{to}."
+      "sparkNote": "Líneas en los recuadros: evolución {from}–{to}.",
+      "vsPreviousWithout": "{pct} frente a {prev}, sin {labels} (facturado por primera vez)"
     },
     "light": {
       "title": {
@@ -3109,6 +3137,11 @@
       "deadlinesNone": {
         "one": "Ningún plazo en el próximo día.",
         "other": "Ningún plazo en los próximos {days} días."
+      },
+      "costNew": "Facturado por primera vez y fuera de la comparación: {items}.",
+      "yearIncomplete": {
+        "one": "De {year} solo está registrado {count} mes de 12. La comparación con {prev} llegará cuando el año esté completo.",
+        "other": "De {year} solo están registrados {count} meses de 12. La comparación con {prev} llegará cuando el año esté completo."
       }
     },
     "euro": {
@@ -3164,7 +3197,11 @@
         "reasonCredit": "En la liquidación del {date} se prevén {amount} a favor: los anticipos de {advance} al mes superan los costes.",
         "stepRaise": "Un anticipo de {new} en lugar de {old} al mes compensaría la diferencia; el proveedor puede cambiarlo.",
         "stepLower": "Bastaría un anticipo de {new} en lugar de {old} al mes; el proveedor puede cambiarlo.",
-        "stepLowerNoAmount": "El anticipo puede reducirse. El informe no indica un importe: los anticipos ya pagados cubren los costes hasta la liquidación."
+        "stepLowerNoAmount": "El anticipo puede reducirse. El informe no indica un importe: los anticipos ya pagados cubren los costes hasta la liquidación.",
+        "reasonDueEvery": "Hasta la liquidación del {date} faltarán probablemente {amount}: los costes superan los anticipos de {advance} {every}.",
+        "reasonCreditEvery": "En la liquidación del {date} se prevén {amount} a favor: los anticipos de {advance} {every} superan los costes.",
+        "stepRaiseEvery": "Un anticipo de {new} en lugar de {old} {every} compensaría la diferencia; el proveedor puede cambiarlo.",
+        "stepLowerEvery": "Bastaría un anticipo de {new} en lugar de {old} {every}; el proveedor puede cambiarlo."
       },
       "advanceOk": {
         "title": "Anticipo adecuado: {label}",
@@ -3315,6 +3352,11 @@
       "cancelConfirm": {
         "title": "¿Baja confirmada? {label}",
         "reason": "Desde el {start} hay un contrato con {next}. Comprueba que «{provider}» ha confirmado la baja; debe llegar antes del {date}."
+      },
+      "advanceFinal": {
+        "title": "{label}: la liquidación está cerca",
+        "reasonDue": "Hasta la liquidación del {date} faltarán probablemente {amount}. Hasta entonces apenas vence algún anticipo, la liquidación compensa el resto. No merece la pena cambiar el anticipo ahora.",
+        "reasonCredit": "En la liquidación del {date} se prevén {amount} a favor. Hasta entonces apenas vence algún anticipo, la liquidación compensa el resto. No merece la pena cambiar el anticipo ahora."
       }
     },
     "money": {
@@ -5161,7 +5203,11 @@
         "less": "Consumo {cons}, grados-día {hdd} frente a los mismos meses del año anterior. Corregido por clima {adj}: de verdad has consumido menos.",
         "more": "Consumo {cons}, grados-día {hdd} frente a los mismos meses del año anterior. Corregido por clima {adj}: de verdad has consumido más, no es solo el tiempo.",
         "same": "Consumo {cons}, grados-día {hdd} frente a los mismos meses del año anterior. Corregido por clima {adj}: más o menos igual, la diferencia es el tiempo.",
-        "poorFit": "Consumo {cons}, grados-día {hdd} frente a los mismos meses del año anterior. No se puede demostrar si de verdad consumiste más o menos: el modelo de calefacción se ajusta mal a este contador (± {pct} al mes)."
+        "poorFit": "Consumo {cons}, grados-día {hdd} frente a los mismos meses del año anterior. No se puede demostrar si de verdad consumiste más o menos: el modelo de calefacción se ajusta mal a este contador (± {pct} al mes).",
+        "noise": {
+          "one": "Medido {cons}, grados-día {hdd}. Corregido por clima {adj}: está dentro de la variación habitual (hasta ±{noise} en {count} mes), no hay una diferencia demostrada.",
+          "other": "Medido {cons}, grados-día {hdd}. Corregido por clima {adj}: está dentro de la variación habitual (hasta ±{noise} en {count} meses), no hay una diferencia demostrada."
+        }
       },
       "poorFitBadge": "corregido: no demostrable"
     },
@@ -5751,10 +5797,10 @@
       "none": "Todavía no hay ningún periodo de facturación con lecturas. Aparece cuando haya dos lecturas.",
       "fromBill": "Del {from} al {until}, como en la factura",
       "fromAnchor": "Del {from} al {until}, según la fecha de liquidación",
-      "asOf": "calculado hasta el {date} (última lectura)",
       "running": "en curso",
       "partial": "periodo parcial",
-      "switch": "termina con el cambio de proveedor"
+      "switch": "termina con el cambio de proveedor",
+      "asOfReading": "calculado hasta la última lectura del {date}"
     },
     "suggest": "La última factura termina el {date} y la fecha de liquidación es el {anchor}. Introduce el {day} como fecha de liquidación en la configuración: el periodo en curso y los siguientes seguirán el ritmo de la factura.",
     "chart": {

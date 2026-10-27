@@ -154,6 +154,39 @@ final class ReportAdviceServiceTest extends ServiceTestCase
         self::assertStringContainsString('55 €', $t[0]['steps'][0]);
     }
 
+    /** v3.9.0 (Skeptiker H1) — Abschlag alle zwei Monate: Beträge je Rate mit Rhythmus, nicht „im Monat“. */
+    public function testAdvanceWithARhythmNamesItsRhythm(): void
+    {
+        $t = $this->tasks(self::facts(['contracts' => [self::contract(['projected_end_balance' => 400.0, 'suggested_advance' => 240.0,
+            'current_advance' => 165.0, 'advance_every_months' => 2])]]), 'advance');
+        self::assertCount(1, $t);
+        $plain = fn(string $s): string => (string)preg_replace('/\h/u', ' ', $s);
+        self::assertStringContainsString('von 165 € alle 2 Monate.', $plain($t[0]['reason']));
+        self::assertStringContainsString('240 € statt 165 € alle 2 Monate', $plain($t[0]['steps'][0]));
+        self::assertStringNotContainsString('im Monat', $t[0]['reason'] . $t[0]['steps'][0]);
+    }
+
+    /**
+     * v3.9.0 (Skeptiker M15) — Vertrag endet in 48 Tagen, Folgevertrag eingetragen: keine Aufgabe
+     * „Abschlag anpassen“ auf Platz 1, sondern ein Hinweis zur Abrechnung. Ebenso bei weniger als drei
+     * Abschlägen bis zur Abrechnung (L12). Endet er erst in 200 Tagen, bleibt die Aufgabe.
+     */
+    public function testAContractEndingSoonWithASuccessorGetsAHintNotAnAdvanceTask(): void
+    {
+        $succ = ['contract_id' => 'c2', 'provider' => 'Neu', 'start' => '2026-12-01', 'gap_days' => 0];
+        foreach ([['successor' => $succ, 'settle_date' => '2026-11-30'], ['suggestion_withheld' => 'short']] as $over) {
+            $f = self::facts(['contracts' => [self::contract(['projected_end_balance' => 130.0, 'suggested_advance' => 98.0] + $over)]]);
+            $r = $this->advice()->evaluate($f);
+            self::assertSame([], array_values(array_filter($r['tasks'], fn($x) => $x['rule'] === 'advance')), json_encode($over));
+            $info = array_values(array_filter($r['infos'], fn($x) => $x['rule'] === 'advanceFinal'));
+            self::assertCount(1, $info);
+            self::assertSame($this->i18n->t('report.advice.advanceFinal.reasonDue', ['date' => $this->i18n->date($over['settle_date'] ?? '2026-12-31'),
+                'amount' => $this->advice()->approx(130.0)]), $info[0]['reason']);
+        }
+        $later = self::facts(['contracts' => [self::contract(['projected_end_balance' => 130.0, 'suggested_advance' => 98.0, 'successor' => $succ, 'settle_date' => '2027-05-01'])]]);
+        self::assertCount(1, $this->tasks($later, 'advance'), 'in 200 Tagen lohnt sich die Anpassung');
+    }
+
     // ── Kündigen oder wechseln ───────────────────────────────────────────
 
     public function testCancelWindowAndOffer(): void

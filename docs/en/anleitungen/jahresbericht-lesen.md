@@ -87,6 +87,20 @@ readable in black-and-white print).
 Below the cost light, the report always says how much is due to changed prices
 and how much to the quantity used.
 
+*(since v3.9.0)* Only utilities with costs in both years are compared; a newly
+billed utility is shown separately (“Newly billed and not in the comparison:
+water …”), so that price and quantity effect add up to the change in costs. CO₂
+compares whole years on both sides only, like costs and consumption; if the
+report year is not fully recorded yet, the light says so instead of “data for
+the previous year are missing”. Litres per person and day are calculated over the
+recorded days, heating energy per m² reads “so far” for an incomplete year, and a
+merely assumed number of people is named as an assumption. If a balance estimate
+is uncertain, the “Bill” light gives no verdict: it says “estimate uncertain” with
+the range, like the balance card, the overview and the workshop (up to v3.8 it
+took the unfavourable end). If a contract ends soon with a successor contract
+entered, or fewer than three advance payments are left until the bill, there is a
+hint about the bill instead of the task “Adjust advance payment”.
+
 ## 4. Tasks: priority, amount, deadline
 
 Each task gives its reason with the household’s own figures, what it brings in
