@@ -175,7 +175,9 @@ Notiz).
 gleichbleibend weit über bzw. unter heute (jeder nennenswerte Abstand mindestens ein
 Viertel darüber bzw. darunter, zusammen mindestens das Anderthalbfache), ohne
 Gegenbewegung danach (höchstens ein Zehntel der Tage danach wieder auf dem alten
-Niveau), schlägt die App eine [Analyse-Zäsur](#wirkung-einer-maßnahme-zäsur) am Tag
+Niveau; dafür zählt ein Abstand nur, wenn er selbst oder einer am Stück daneben auch
+um mindestens die Mindestmenge von heute abweicht, ein kurzer Sommerabstand mit wenigen
+kWh mehr ist keine Rückkehr), schlägt die App eine [Analyse-Zäsur](#wirkung-einer-maßnahme-zäsur) am Tag
 des Wechsels vor: „Zäsur hier setzen“ (ein Dialog mit dem Ende der auffälligen Zeit als
 Tag, zum Bestätigen oder Ändern) oder „Nicht jetzt“. Das heutige Niveau kommt aus
 mindestens einem halben Jahr nach dem Wechsel (beim Heizmodell ab vier Abständen, auch
