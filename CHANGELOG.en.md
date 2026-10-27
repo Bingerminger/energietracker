@@ -135,9 +135,19 @@ grow additively.
   side by side, a sub-meter behind, a cascade or one meter for everything),
   which meters and which contracts there are. It creates meters, registers,
   groups and contracts, assigns existing meters instead of creating them twice,
-  leaves running contracts as they are and saves the current state first.
-  Reached from the meters page, Settings → Utilities & billing and the end of
-  the setup assistant.
+  leaves running contracts as they are and saves the current state first. A new
+  meter gets its installation day and the reading at installation as its first
+  reading. Reached from the meters page, Settings → Utilities & billing and the
+  setup assistant.
+- **Right at the start:** whoever picks electricity and solar in the setup
+  assistant gets the step “How are your meters connected?” with a diagram: “One
+  meter per utility” is pre-selected, “Another layout” opens the assistant at the
+  end.
+- **In the showcase and the demo:** the sample household “Just look around
+  first” has a heat pump with its own two-rate meter (peak/off-peak) and a group
+  contract behind the main meter; the main meter visibly bills only the rest. In
+  the public demo the assistant leads up to the summary with pre-computed
+  previews; creating is locked there.
 
 #### Notifications to Home Assistant ([#36])
 
@@ -342,6 +352,19 @@ grow additively.
   the wallbox sentence only with a wallbox, assumed living area and number of
   people are named, water sections show their costs, “No contract” instead of
   “0.00 €”.
+- **Annual report, traffic light:** it took the balance of a recorded follow-up
+  contract and said “advance payments fit” while the running contract expected
+  clearly more; now only running contracts count, and a large credit reads
+  “advance payments higher than needed”. Ranges in the report also run from the
+  smaller to the larger amount.
+- **Average unit price** counted months without a contract and came out too low.
+- **Advance plan from the bill:** up to the first new due date a note says that
+  no advance is entered, instead of a silent 0 €. A truncated reading on the
+  bill is not a conflict.
+- Smaller points: beginners also see the short heating limit sentence at the
+  balance card, the overview shows the new values right after “Apply”, the
+  efficiency tile names the row without a class, and a sentence below the
+  monthly table explains why monthly values and the billed quantity differ.
 
 ### Known limits
 
@@ -385,8 +408,8 @@ them on.
   `PersonWithoutAccountTest`, Node suite `illustrations.test`.
 - **Docs:** `DocumentedThresholdsTest` ties the figures of the new guides to the
   constants.
-- 1750 test methods (+273). Every new rule has a counter-check that
-  breaks it: 549 in 9 packages, all red.
+- 1757 test methods (+280). Every new rule has a counter-check that
+  breaks it: 580 in 9 packages, all red.
 
 ### Lessons learned
 

@@ -18,7 +18,7 @@ Beispielhaushalt, bis heute fortgeschrieben, in sieben Sprachen, ohne Installati
 [![Lizenz: AGPL-3.0-or-later](https://img.shields.io/badge/Lizenz-AGPL--3.0--or--later-success.svg)](LICENSE)
 [![PHP](https://img.shields.io/badge/PHP-%E2%89%A5%208.2-777BB4.svg)](composer.json)
 [![Abhängigkeiten: 0](https://img.shields.io/badge/Abh%C3%A4ngigkeiten-0-success.svg)](composer.json)
-[![Tests](https://img.shields.io/badge/Tests-1750-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-1757-success.svg)](tests/)
 [![Sprachen](https://img.shields.io/badge/Sprachen-7-7c5cff.svg)](public/locales/)
 [![Verbrauchsarten](https://img.shields.io/badge/Verbrauchsarten-9-f59e0b.svg)](docs/einstieg/funktionen.md)
 [![Docker](https://img.shields.io/badge/Docker-amd64%20%7C%20arm64-2496ed.svg)](docker-compose.yml)

@@ -135,9 +135,18 @@ und Docker-Umgebung wachsen nur additiv.
   nebeneinander, Subzähler dahinter, Kaskade oder einen Zähler für alles),
   welche Zähler und welche Verträge gibt es. Er legt Zähler, Zählwerke, Gruppen
   und Verträge an, ordnet vorhandene Zähler zu, statt sie doppelt anzulegen,
-  lässt laufende Verträge stehen und sichert vorher den Stand. Erreichbar über
-  die Zählerseite, Einstellungen → Verbrauchsarten & Abrechnung und das Ende der
+  lässt laufende Verträge stehen und sichert vorher den Stand. Ein neuer Zähler
+  bekommt Einbautag und Stand beim Einbau als erste Ablesung. Erreichbar über
+  die Zählerseite, Einstellungen → Verbrauchsarten & Abrechnung und die
   Ersteinrichtung.
+- **Gleich zu Beginn:** Wer in der Ersteinrichtung Strom und PV wählt, bekommt
+  den Schritt „Wie hängen deine Zähler?“ mit Schaltbild: „Ein Zähler je Art“ ist
+  vorgewählt, „Anderer Aufbau“ öffnet am Ende den Assistenten.
+- **Im Schaufenster und in der Demo:** Der Beispielhaushalt „Erst einmal alles
+  ansehen“ hat eine Wärmepumpe mit eigenem Doppeltarifzähler (HT/NT) und
+  Gruppenvertrag hinter dem Hauptzähler; der Hauptzähler rechnet sichtbar nur den
+  Rest. In der öffentlichen Demo führt der Assistent mit vorberechneten
+  Vorschauen bis zur Zusammenfassung, Anlegen ist dort gesperrt.
 
 #### Benachrichtigungen an Home Assistant ([#36])
 
@@ -344,6 +353,19 @@ und Docker-Umgebung wachsen nur additiv.
 - Dazu Texte aus dem Skeptiker-Lauf: Grund der Zäsur je Verbrauchsart, Satz zur
   Wallbox nur mit Wallbox, angenommene Wohnfläche und Personenzahl werden
   genannt, Wasser-Sparten zeigen ihre Kosten, „Kein Vertrag“ statt „0,00 €“.
+- **Jahresbericht, Ampel:** Sie nahm den Saldo eines eingetragenen Folgevertrags
+  und meldete „Abschläge passen“, während der laufende Vertrag deutlich mehr
+  erwartete; jetzt zählen nur laufende Verträge, und ein großes Guthaben heißt
+  „Abschläge höher als nötig“. Spannen stehen auch im Bericht vom kleineren zum
+  größeren Betrag.
+- **Arbeitspreis im Mittel** zählte Monate ohne Vertrag mit und lag zu niedrig.
+- **Abschlagsplan aus der Rechnung:** Bis zum ersten neuen Termin steht ein
+  Hinweis, dass kein Abschlag eingetragen ist, statt stiller 0 €. Ein
+  abgeschnittener Stand der Rechnung gilt nicht als Widerspruch.
+- Kleinere Punkte: Einsteiger sehen auch an der Saldo-Karte den kurzen Satz zur
+  Heizgrenze, die Übersicht zeigt nach „Übernehmen“ sofort die neuen Werte, die
+  Effizienz-Kachel nennt die Zeile ohne Klasse, und unter der Monatstabelle
+  erklärt ein Satz, warum Monatswerte und abgerechnete Menge auseinanderliegen.
 
 ### Bekannte Grenzen
 
@@ -389,8 +411,8 @@ einschaltet.
   `PersonWithoutAccountTest`, Node-Suite `illustrations.test`.
 - **Doku:** `DocumentedThresholdsTest` bindet die Zahlen der neuen Anleitungen an
   die Konstanten.
-- 1750 Testmethoden (+273). Jede neue Regel hat eine Gegenprobe, die sie
-  bricht: 549 in 9 Paketen, alle rot.
+- 1757 Testmethoden (+280). Jede neue Regel hat eine Gegenprobe, die sie
+  bricht: 580 in 9 Paketen, alle rot.
 
 ### Lessons Learned
 
