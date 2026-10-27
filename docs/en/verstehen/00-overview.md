@@ -456,7 +456,11 @@ limit + c × days. That holds where the model knows months this warm itself (at
 least two of its points with at most 0.5 degree days per day more than the
 month's normal). Otherwise the base load c is guessed there, fitted only to
 heating and transition months, and the forecast uses the interpolated values of
-the same calendar month (`seasonal_interpolated`) if there are any. Without a
+the same calendar month (`seasonal_interpolated`) if there are any. The same
+applies if the heating model fails the quality gate or its base load c lies
+below half the mean daily rate of measured summer months (June to August); the
+quality gate checks the base load only from two summer months on, this check
+already with one. Without a
 heating model it comes from the regression alone (`regression_only`), otherwise
 from the daily mean of all months (`filled`).
 

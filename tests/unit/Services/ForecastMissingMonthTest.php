@@ -44,21 +44,26 @@ final class ForecastMissingMonthTest extends ServiceTestCase
      * @param list<string> $dates     Ablesetage
      * @param float        $winterAdd zusätzlicher Verbrauch je Tag unter 12 °C (Heizung, die die
      *                                Gradtage zu 10 °C nicht erfassen)
+     * @param (callable(float):float)|null $perDay Verbrauch je Tag aus der Tagestemperatur (sonst A, C, $winterAdd)
+     * @param array<int,float>|null        $temp   Temperatur je Kalendermonat (sonst TEMP)
      */
-    private function household(array $dates, string $to, string $model = 'linear', float $winterAdd = 0.0): array
+    private function household(array $dates, string $to, string $model = 'linear', float $winterAdd = 0.0,
+        ?callable $perDay = null, float $limit = 10.0, ?array $temp = null): array
     {
+        $temp ??= self::TEMP;
+        $perDay ??= fn(float $t) => self::A * max(0.0, 10.0 - $t) + self::C + ($t < 12.0 ? $winterAdd : 0.0);
         $this->store->write('settings.json', ['gas_conversion_factors' => [['from' => null, 'kwh_per_m3' => 1.0]],
             'hdd_base_temp' => 15.0, 'forecast_model' => $model]);
         $temps = [];
         for ($t = strtotime('2023-10-01 12:00'); date('Y-m-d', $t) <= $to; $t += 86400) {
-            $a = self::TEMP[(int)date('n', $t)];
+            $a = $temp[(int)date('n', $t)];
             $temps[date('Y-m-d', $t)] = ['avg' => $a, 'min' => $a - 3, 'max' => $a + 3];
         }
         $this->store->write('temperatures.json', $temps);
         $means = [];
         for ($y = 1996; $y <= 2025; $y++) {
             for ($t = strtotime("$y-01-01 12:00"); date('Y', $t) === (string)$y; $t += 86400) {
-                $means[date('Y-m-d', $t)] = self::TEMP[(int)date('n', $t)] + (($y % 3) - 1) * 1.5;
+                $means[date('Y-m-d', $t)] = $temp[(int)date('n', $t)] + (($y % 3) - 1) * 1.5;
             }
         }
         (new ClimateNormalService($this->store, $this->settings))
@@ -66,12 +71,12 @@ final class ForecastMissingMonthTest extends ServiceTestCase
         $id = $this->setMeterDevices('gas', [['id' => 'd1', 'serial' => null, 'installed_on' => '2023-10-01', 'initial_counter' => 0.0,
             'removed_on' => null, 'final_counter' => null, 'reason' => null]]);
         $meters = $this->store->read('gas/meters.json');
-        $meters[0]['hdd_base_temp'] = 10.0;
+        $meters[0]['hdd_base_temp'] = $limit;
         $this->store->write('gas/meters.json', $meters);
         $c = 0.0; $counter = [];
         foreach ($temps as $d => $tt) {
             $counter[$d] = $c;
-            $c += self::A * max(0.0, 10.0 - $tt['avg']) + self::C + ($tt['avg'] < 12.0 ? $winterAdd : 0.0);
+            $c += $perDay((float)$tt['avg']);
         }
         $this->setReadings('gas', $id, array_map(fn($d) => ['date' => $d, 'counter' => $counter[$d], 'device_id' => 'd1'], $dates));
         $this->store->write('gas/contracts.json', []);
@@ -89,11 +94,11 @@ final class ForecastMissingMonthTest extends ServiceTestCase
     }
 
     /** Der Haushalt aus dem Klassenkommentar: Mai und Juli nie gemessen. */
-    private function withoutMayAndJuly(string $model = 'linear'): array
+    private function withoutMayAndJuly(string $model = 'linear', ?callable $perDay = null, float $limit = 10.0, ?array $temp = null): array
     {
         $dates = self::dates('2023-10-01', '2026-04-01', ['2024-05-01', '2024-08-01', '2025-06-01', '2025-07-01', '2025-08-01'],
             ['2025-06-25', '2025-08-12', '2026-04-30']);
-        return $this->household($dates, '2026-04-30', $model);
+        return $this->household($dates, '2026-04-30', $model, 0.0, $perDay, $limit, $temp);
     }
 
     private function forecast(array $meter): array
@@ -180,5 +185,79 @@ final class ForecastMissingMonthTest extends ServiceTestCase
         self::assertSame('seasonal_interpolated', $jul['method']);
         self::assertEqualsWithDelta(186.0, $jul['kwh'], 0.5);
         self::assertEqualsWithDelta(180.0, self::month($fc, '2026-09')['kwh'], 0.5);
+    }
+
+    // ── Heizmodell nicht bestanden, Grundlast zu klein (Nachmessung) ────
+
+    /**
+     * Konvexe Heizkurve zur Grenze 15 °C: je Tag 6 + 0,4 × h² mit h = max(0, 15 − T), September
+     * 15,5 °C (wie Juli und August ohne Gradtage, das Modell kennt also so warme Monate). Die Gerade
+     * a × HGT + c × Tage legt c weit unter die 6 kWh des Sommers, die Gütesperre schlägt an.
+     * Ablesungen wie oben, Mai und Juli also nur verteilt:
+     *
+     *   Mai 2024  aus 01.04.–01.06.: (30 × 25,6 + 31 × 20,4) / 61 = 22,9574 kWh/Tag   (April h = 7)
+     *   Mai 2025  aus 01.05.–25.06.: (31 × 20,4 + 24 × 7,6)  / 55 = 14,8145 kWh/Tag   (Juni h = 2)
+     *   Mai 2026  = (22,9574 + 14,8145) / 2 × 31 = 585,5 kWh
+     *   Juli 2024 aus 01.07.–01.09.: 6,0 kWh/Tag
+     *   Juli 2025 aus 25.06.–12.08.: (6 × 7,6 + 42 × 6) / 48 = 6,2 kWh/Tag
+     *   Juli 2026 = (6,0 + 6,2) / 2 × 31 = 189,1 kWh
+     */
+    public function testAPoorModelWithTooSmallABaseLoadLeavesTheMonthToTheInterpolatedValues(): void
+    {
+        $temp = self::TEMP; $temp[9] = 15.5;
+        $fc = $this->forecast($this->withoutMayAndJuly('linear', fn(float $t) => 6.0 + 0.4 * max(0.0, 15.0 - $t) ** 2, 15.0, $temp));
+        $short = array_values(array_filter($fc['warnings'], fn($w) => $w['code'] === 'history_short'))[0];
+        self::assertSame([5, 7], $short['missing']);
+        self::assertSame('poor', $fc['fit_quality']['model_quality']);
+        self::assertContains('base_load', $fc['fit_quality']['reasons']);
+        // gemessene Sommermonate: Juni 2024 7,6, August 2025 (11 × 6,2 + 20 × 6) / 31 = 6,0645 → Mittel 6,83
+        self::assertLessThan(0.5 * (7.6 + (11 * 6.2 + 20 * 6) / 31) / 2, $fc['heat_model']['c']);
+        $may = self::month($fc, '2026-05');
+        $jul = self::month($fc, '2026-07');
+        self::assertSame(['seasonal_interpolated', 'seasonal_interpolated'], [$may['method'], $jul['method']]);
+        self::assertEqualsWithDelta((1400.4 / 61 + 814.8 / 55) / 2 * 31, $may['kwh'], 0.5);   // 585,5
+        self::assertEqualsWithDelta((6.0 + 6.2) / 2 * 31, $jul['kwh'], 0.5);                 // 189,1
+    }
+
+    public function testWithOneSummerMonthTheBaseLoadIsCheckedBeyondTheQualityGate(): void
+    {
+        // Milder konvex, je Tag 6 + 2 × h + 0,1 × h² (Juni h = 2: 10,4 kWh/Tag), und ohne die Ablesung
+        // vom 12.08.2025: gemessen ist im Sommer nur der Juni 2024. Die Gütesperre besteht, denn sie
+        // prüft die Grundlast erst ab zwei Sommermonaten; diese Prüfung schon mit einem
+        // (c unter 0,5 × 10,4 = 5,2). Juli 2025 aus 25.06.–01.09.: (6 × 10,4 + 62 × 6) / 68 = 6,3882,
+        // Juli 2024 6,0 → Juli 2026 = (6,0 + 6,3882) / 2 × 31 = 192,0
+        $temp = self::TEMP; $temp[9] = 15.5;
+        $dates = self::dates('2023-10-01', '2026-04-01', ['2024-05-01', '2024-08-01', '2025-06-01', '2025-07-01', '2025-08-01'],
+            ['2025-06-25', '2026-04-30']);
+        $fc = $this->forecast($this->household($dates, '2026-04-30', 'linear', 0.0,
+            fn(float $t) => 6.0 + 2.0 * max(0.0, 15.0 - $t) + 0.1 * max(0.0, 15.0 - $t) ** 2, 15.0, $temp));
+        self::assertSame('good', $fc['fit_quality']['model_quality'], 'die Gütesperre kann die Grundlast hier nicht prüfen');
+        self::assertLessThan(0.5 * 10.4, $fc['heat_model']['c']);
+        $jul = self::month($fc, '2026-07');
+        self::assertSame('seasonal_interpolated', $jul['method']);
+        self::assertEqualsWithDelta((6.0 + (6 * 10.4 + 62 * 6) / 68) / 2 * 31, $jul['kwh'], 0.5);
+    }
+
+    public function testTheHeatModelCarriesAMissingMonthOnlyIfItPassesAndItsBaseLoadFitsTheSummer(): void
+    {
+        $trusted = new \ReflectionMethod(ForecastService::class, 'heatTrusted');
+        // gemessene Sommermonate 24 kWh am Tag: ab der Hälfte (12) trägt c, darunter nicht
+        self::assertTrue($trusted->invoke(null, false, 12.0, 24.0));
+        self::assertTrue($trusted->invoke(null, false, 18.0, 24.0));
+        self::assertFalse($trusted->invoke(null, false, 11.9, 24.0));
+        self::assertFalse($trusted->invoke(null, false, 6.0, 24.0), 'wie beim Melder: c bei einem Viertel des Sommers');
+        // Gütesperre nicht bestanden: auch mit passender Grundlast nicht
+        self::assertFalse($trusted->invoke(null, true, 18.0, 24.0));
+        // kein gemessener Sommermonat: nur die Gütesperre
+        self::assertTrue($trusted->invoke(null, false, 6.0, null));
+        self::assertFalse($trusted->invoke(null, true, 6.0, null));
+        self::assertSame(0.5, ForecastService::HEAT_BASE_MIN_SHARE);
+        // der Sommer: Juni bis August; Mai und September mit Heiztagen zählen nicht
+        $summer = new \ReflectionMethod(ForecastService::class, 'summerRate');
+        $rates = array_fill(1, 12, []);
+        $rates[5] = [30.0]; $rates[6] = [20.0, 28.0]; $rates[8] = [24.0]; $rates[9] = [40.0];
+        self::assertSame(24.0, $summer->invoke(null, $rates));   // (20 + 28 + 24) / 3
+        $rates[6] = $rates[8] = [];
+        self::assertNull($summer->invoke(null, $rates));
     }
 }

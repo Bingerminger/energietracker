@@ -1334,7 +1334,7 @@ Additionally per forecast month:
 | `band_low`, `band_high` | uncertainty band (width `confidence_band_sigma`, default 1.28 σ ≈ 80 %) |
 | `hdd_estimated` | normal heating degree days of the month (climate normal, otherwise your own history) |
 | `contract_assumed` | `true` if the last contract continues as an assumption after the end of the contract |
-| `method` | `blend(reg=…, seasonal=…)`, `seasonal_only`, `heat_model` (calendar month without own history, since v3.9.0 before the regression), `seasonal_interpolated` (interpolated values only, or the heating model does not know months this warm), `regression_only` (without a heating model), `filled` |
+| `method` | `blend(reg=…, seasonal=…)`, `seasonal_only`, `heat_model` (calendar month without own history, since v3.9.0 before the regression), `seasonal_interpolated` (interpolated values only, or the heating model does not know months this warm, fails the quality gate or has a base load below half the measured summer), `regression_only` (without a heating model), `filled` |
 
 At the top level:
 

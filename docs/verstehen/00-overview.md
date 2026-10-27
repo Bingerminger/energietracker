@@ -469,7 +469,11 @@ Zählers + c × Tage. Das gilt, wo das Modell so warme Monate selbst kennt
 (mindestens zwei seiner Punkte mit höchstens 0,5 Gradtagen je Tag mehr als
 das Normal des Monats). Sonst ist die Grundlast c dort geraten, gefittet nur
 an Heiz- und Übergangsmonaten, und die Prognose nimmt die verteilten Werte
-desselben Kalendermonats (`seasonal_interpolated`), wenn es sie gibt. Ohne
+desselben Kalendermonats (`seasonal_interpolated`), wenn es sie gibt. Ebenso,
+wenn das Heizmodell die Gütesperre nicht besteht oder seine Grundlast c unter
+der Hälfte der mittleren Tagesrate gemessener Sommermonate (Juni bis August)
+liegt; die Gütesperre prüft die Grundlast erst ab zwei Sommermonaten, diese
+Prüfung schon mit einem. Ohne
 Heizmodell kommt er aus der Regression allein (`regression_only`), sonst aus
 dem Tagesmittel aller Monate (`filled`).
 
