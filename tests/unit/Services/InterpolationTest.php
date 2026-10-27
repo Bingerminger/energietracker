@@ -264,6 +264,24 @@ final class InterpolationTest extends ServiceTestCase
         self::assertEqualsWithDelta(10 / 30, $sep['measured_share'], 0.03);
     }
 
+    /**
+     * v3.9.0 — beide Anteile zählen je für sich (L8): Mehr als die Hälfte der Tage ist
+     * gemessen, aber weniger als die Hälfte des Verbrauchs. Handrechnung (a = 0,3, c = 5,
+     * September 14 °C, Oktober 9, November 4, Dezember 1): 1.–16.9. aus 16 Tagen gemessen,
+     * 16 × 5,3 = 84,8; 17.9.–1.1. ein Abstand von 106 Tagen mit 14 × 5,3 + 31 × 6,8 +
+     * 30 × 8,3 + 31 × 9,2 = 819,2, je Tag 7,728, davon 14 Tage im September = 108,2.
+     * Anteil am Verbrauch 84,8 / 193,0 = 0,439 (verteilt), Anteil der Tage 16 / 30 = 0,533.
+     */
+    public function testTheConsumptionShareDecidesEvenWhenMostDaysAreMeasured(): void
+    {
+        $this->seedTemps('2024-09-01', '2024-12-31');
+        $this->seedReadings('gas', ['2024-09-01', '2024-09-17', '2025-01-01']);
+        $sep = $this->byYm($this->monthly('gas'))['2024-09'];
+        self::assertEqualsWithDelta(84.8 / (84.8 + 14 * 819.2 / 106), $sep['measured_share'], 0.002);
+        self::assertEqualsWithDelta(16 / 30, $sep['measured_day_share'], 0.001);
+        self::assertTrue($sep['interpolated'], 'weniger als die Hälfte des Verbrauchs gemessen: verteilt, auch wenn die meisten Tage gemessen sind');
+    }
+
     /** Zählertausch bleibt eine eigene Kennung: Der Monat des Tauschs ist gemessen und `device_swap`. */
     public function testDeviceSwapKeepsItsOwnMarker(): void
     {
@@ -482,6 +500,9 @@ final class InterpolationTest extends ServiceTestCase
         $by = $this->byYm($this->monthly('strom'));
         self::assertSame(0.0, (float)$by['2024-03']['kwh']);
         self::assertTrue($by['2024-03']['interpolated']);
+        // v3.9.0 — auch der Anteil selbst: ohne Verbrauch der Anteil der Tage, hier 0 von 31
+        // (der ganze März liegt im Abstand 1.2.–1.5., 90 Tage); nicht 1,0 wie „ganz gemessen“
+        self::assertSame(0.0, (float)$by['2024-03']['measured_share']);
         self::assertFalse($by['2024-01']['interpolated']);
     }
 
@@ -594,6 +615,14 @@ final class InterpolationTest extends ServiceTestCase
         self::assertSame('seasonal_interpolated', $byM[1]['method']);
         self::assertLessThan(0.1 * $byM[7]['m3'], $byM[1]['m3'], 'Januar bleibt klein');
         self::assertSame('seasonal_only', $byM[7]['method']);
+        // v3.9.0 — „Verbrauch für N Kalendermonate“ zählt nur gemessene: April bis September
+        // (Abstände von 30 und 31 Tagen); Oktober bis März stammen aus dem Abstand 1.10.–1.4.
+        // (182 bzw. 183 Tage) und füllen das Profil nur auf
+        $short = array_values(array_filter($fc['warnings'], fn($x) => $x['code'] === 'history_short'));
+        self::assertSame(6, $short[0]['months'] ?? null, 'sechs gemessene Kalendermonate');
+        $missing = $short[0]['missing'];
+        sort($missing);
+        self::assertSame([1, 2, 3, 10, 11, 12], $missing);
     }
 
     // ── Gütesperre (#38) ─────────────────────────────────────────────────

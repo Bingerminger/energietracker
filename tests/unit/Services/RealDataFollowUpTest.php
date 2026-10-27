@@ -637,14 +637,28 @@ final class RealDataFollowUpTest extends ServiceTestCase
     public function testNoZeroWidthAdvanceRange(): void
     {
         $meter = $this->quarterlyGas(2000.0);
+        // v3.9.0 — mit Abschlägen bis zur Abrechnung (L12): Sonst gibt es in den letzten zwei
+        // Monaten vor dem Stichtag gar keine Spanne, und die Regel unten bliebe ungeprüft
+        $this->anchorAhead('gas');
         $u = $this->consumption->contractStatus('gas', $meter)['contracts'][0]['projection_uncertain'];
         self::assertLessThan(0, max($u['projected_range']), 'beide Enden Guthaben');
         self::assertNull($u['suggested_range']);
+        // Gegenstück: mit 20 € im Monat gibt es die Spanne, die Regel oben wird also erreicht
+        $c = $this->contracts->list('gas')[0];
+        $this->contracts->update('gas', (string)$c['id'], ['advance_payments' => [['from' => (string)$c['start'], 'amount_eur' => 20]]]);
+        $u = $this->consumption->contractStatus('gas', $meter)['contracts'][0]['projection_uncertain'];
+        self::assertIsArray($u['suggested_range'] ?? null, 'Spanne mit kleinem Abschlag');
+        self::assertLessThan($u['suggested_range'][1], $u['suggested_range'][0]);
         // Werkstatt: dieselbe Regel
         $months = array_fill(0, 12, ['unit' => 0.1]);
         $adv = ScenarioService::uncertainAdvance(['method' => 'year_twelfth', 'months_left' => null, 'current' => 50.0,
             'base_recommended' => 0.0, 'scen_recommended' => 40.0], $months, array_fill(0, 12, 0.0), array_fill(0, 12, 300.0), 0.5, ['few_measured']);
         self::assertSame([null, [25.0, 55.0]], [$adv['uncertain']['base_range'], $adv['uncertain']['scen_range']], 'nichts zu schätzen: keine Spanne; sonst ± die halbe Arbeit');
+        // v3.9.0 (V1) — auch die Spanne aus dem Vertragsstatus (status_*_range): gleiche Enden, keine Spanne
+        $adv = ScenarioService::uncertainAdvance(['method' => 'billing_period', 'months_left' => 5, 'current' => 50.0,
+            'base_recommended' => 0.0, 'scen_recommended' => 0.0, 'status_base_range' => [0.0, 0.0], 'status_scen_range' => [0.0, 0.0]],
+            $months, array_fill(0, 12, 0.0), array_fill(0, 12, 0.0), 0.5, ['few_measured']);
+        self::assertSame([null, null], [$adv['uncertain']['base_range'], $adv['uncertain']['scen_range']], 'Spanne der Karte mit gleichen Enden');
     }
 
     /** Schritt 3 — ein abgerechneter Vertrag, dessen Zeit ganz gemessen ist: nichts zu schätzen, also nicht „unsicher“ mit einer Spanne der Breite null. */
