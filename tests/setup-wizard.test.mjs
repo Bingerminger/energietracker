@@ -395,8 +395,14 @@ for (const [lang, file, head, step, demo] of [['de', 'docs/referenz/ansichten.md
   const sec = d.slice(Math.max(0, d.indexOf(head)));
   t(`${lang}: UI-Referenz §16 mit der Schrittzahl aus dem Code (${nInst}, Demo ${nDemo})`,
     d.includes(head) && sec.includes(`${step} ${nInst}`) && sec.includes(demo.replace('{n}', NUM[lang][nDemo])));
+  // der Weg selbst steht fett in Schritt 5 (Schritt 3 erwähnt ihn seit v3.9.0 nur im Fließtext)
+  const [qo, qc] = lang === 'de' ? ['„', '“'] : ['“', '”'];
   t(`${lang}: UI-Referenz §16 nennt den ersten Schritt und den Weg „${cat(lang).concept.title}“`,
-    sec.includes(cat(lang).setup.region.title) && sec.includes(cat(lang).concept.title));
+    sec.includes(cat(lang).setup.region.title) && sec.includes(`**${qo}${cat(lang).concept.title}${qc}**`));
+  // v3.9.0 (doku, Runde 3) — mit Strom und PV ein Schritt mehr („Wie hängen deine Zähler?“)
+  const nConcept = W.setupSteps(false, ['strom', 'pv_einspeisung']).length;
+  t(`${lang}: UI-Referenz §16 mit Strom und PV ${nConcept} Schritte, der Schritt heißt wie im Katalog`,
+    nConcept === nInst + 1 && sec.includes(`${step} ${nConcept}`) && sec.includes(cat(lang).setup.concept.title));
 }
 
 // ── Demo (eigener Prozess: DEMO wird beim Laden des Moduls bestimmt) ────

@@ -664,6 +664,11 @@ readings are missing, a sentence names the estimated amount or the days without
 a reading; if the sub-meter measures more than its parent in a month, the card
 asks you to check the readings
 ([meter topology](../verstehen/13-meter-topologie.md#remainder-billing-v390)).
+Since v3.9.0 a heat pump with its own HT/NT meter and a group contract hangs
+behind the showcase’s main electricity meter; the picture shows the tile
+“billed … (remainder)”, the sentence on remainder billing and the balance card.
+
+![Electricity view with remainder billing at the main meter](../../ui/screenshots/en/strom-view.png)
 
 **Order and status of the contracts (v3.4.0):** the table runs backwards
 through time, grouped under header rows: **Upcoming**, **Current** (a renewed
@@ -1820,7 +1825,8 @@ may change it
 
 **Metering concept (v3.9.0, Utilities & billing page):** the card 🔌 asks
 “Solar, heat pump or EV charger with its own tariff?” and opens the assistant
-from §12 with **“Set up metering concept”**. It is not part of the public demo.
+from §12 with **“Set up metering concept”**, in the public demo too (where it
+saves nothing).
 
 ![Settings](../../ui/screenshots/en/einstellungen.png)
 
@@ -2067,8 +2073,11 @@ of 5” in the footer:
 The diagrams are line drawings in the colours of the utilities, light and dark;
 a screen reader reads their name (“Diagram: Cascade”). Obstacles (such as a
 meter with sub-meters of its own that is supposed to hang behind another)
-appear in the summary; “Create” is then disabled. It is not part of the public
-demo ([use case H](../anleitungen/anwendungsfaelle.md#h--cascade-with-heat-pump-htnt-and-solar-v390),
+appear in the summary; “Create” is then disabled. In the public demo the
+preview is precomputed for the layout of the sample household. Any other layout
+gives “In the demo the preview is only precomputed for the layout of this sample
+household.”, and “Create” saves nothing
+([use case H](../anleitungen/anwendungsfaelle.md#h--cascade-with-heat-pump-htnt-and-solar-v390),
 [meter topology](../verstehen/13-meter-topologie.md#3-interaction--data-model)).
 
 ![Assistant “Set up metering concept”: choose the layout](../../ui/screenshots/en/messkonzept.png)
@@ -2245,7 +2254,8 @@ household or leads to your own data. Explained in
 - in the **public demo**, as long as this browser has not picked a sample
   household.
 
-**The steps** — the footer shows “Step 1 of 5”, “Back”, “Next” and “Skip”.
+**The steps** — the footer shows “Step 1 of 5” (with electricity and solar
+“Step 1 of 6”), “Back”, “Next” and “Skip”.
 Since v3.9.0 each question has a small line drawing next to it (globe with a
 speech bubble, houses, three meters, steps with a sprout, a sheet going into a
 tray), decoration without a message of its own; on the phone the progress sits
@@ -2284,6 +2294,8 @@ above the buttons:
    **“Let’s go”**.
 
 ![Setup assistant with a drawing](../../ui/screenshots/en/einrichtung.png)
+
+![Step “How are your meters connected?” with “One meter per utility” and “A different layout” (“Step 4 of 6”)](../../ui/screenshots/en/einrichtung-zaehler.png)
 
 | Answer in step 2 | Sample household | Suggested utilities | Level |
 |---|---|---|---|
