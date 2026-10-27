@@ -7868,6 +7868,57 @@
                             "final_counter": null,
                             "reason": null
                         }
+                    ],
+                    "obis": "1.8.0"
+                },
+                {
+                    "id": "m_strom_wp_ht",
+                    "name": "Wärmepumpe HT",
+                    "icon": "♨️",
+                    "created_at": "2025-04-01",
+                    "active": true,
+                    "notes": "Doppeltarifzähler der Hybrid-Wärmepumpe hinter dem Hauptzähler, Zählwerk Hochtarif",
+                    "parent_meter_id": "m_strom_main",
+                    "meter_group_id": "g_strom_wp",
+                    "external_id": null,
+                    "baseline_events": [],
+                    "role": "heat_pump",
+                    "obis": "1.8.1",
+                    "devices": [
+                        {
+                            "id": "d_strom_wp_ht",
+                            "serial": "WP-2025-0471",
+                            "installed_on": "2025-04-01",
+                            "initial_counter": 0,
+                            "removed_on": null,
+                            "final_counter": null,
+                            "reason": null
+                        }
+                    ]
+                },
+                {
+                    "id": "m_strom_wp_nt",
+                    "name": "Wärmepumpe NT",
+                    "icon": "🌙",
+                    "created_at": "2025-04-01",
+                    "active": true,
+                    "notes": "Doppeltarifzähler der Hybrid-Wärmepumpe hinter dem Hauptzähler, Zählwerk Niedertarif",
+                    "parent_meter_id": "m_strom_main",
+                    "meter_group_id": "g_strom_wp",
+                    "external_id": null,
+                    "baseline_events": [],
+                    "role": "heat_pump",
+                    "obis": "1.8.2",
+                    "devices": [
+                        {
+                            "id": "d_strom_wp_nt",
+                            "serial": "WP-2025-0471",
+                            "installed_on": "2025-04-01",
+                            "initial_counter": 0,
+                            "removed_on": null,
+                            "final_counter": null,
+                            "reason": null
+                        }
                     ]
                 }
             ],
@@ -8300,6 +8351,270 @@
                     "note": "",
                     "is_estimated": false,
                     "is_future": false
+                },
+                {
+                    "id": "r_strom_wp_ht_20250401",
+                    "meter_id": "m_strom_wp_ht",
+                    "device_id": "d_strom_wp_ht",
+                    "date": "2025-04-01",
+                    "counter": 0,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_wp_ht_20250422",
+                    "meter_id": "m_strom_wp_ht",
+                    "device_id": "d_strom_wp_ht",
+                    "date": "2025-04-22",
+                    "counter": 28.3,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_wp_ht_20250522",
+                    "meter_id": "m_strom_wp_ht",
+                    "device_id": "d_strom_wp_ht",
+                    "date": "2025-05-22",
+                    "counter": 47.7,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_wp_ht_20250618",
+                    "meter_id": "m_strom_wp_ht",
+                    "device_id": "d_strom_wp_ht",
+                    "date": "2025-06-18",
+                    "counter": 60.2,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_wp_ht_20250720",
+                    "meter_id": "m_strom_wp_ht",
+                    "device_id": "d_strom_wp_ht",
+                    "date": "2025-07-20",
+                    "counter": 75.1,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_wp_ht_20250817",
+                    "meter_id": "m_strom_wp_ht",
+                    "device_id": "d_strom_wp_ht",
+                    "date": "2025-08-17",
+                    "counter": 88.1,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_wp_ht_20250920",
+                    "meter_id": "m_strom_wp_ht",
+                    "device_id": "d_strom_wp_ht",
+                    "date": "2025-09-20",
+                    "counter": 104.4,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_wp_ht_20251019",
+                    "meter_id": "m_strom_wp_ht",
+                    "device_id": "d_strom_wp_ht",
+                    "date": "2025-10-19",
+                    "counter": 130.2,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_wp_ht_20251122",
+                    "meter_id": "m_strom_wp_ht",
+                    "device_id": "d_strom_wp_ht",
+                    "date": "2025-11-22",
+                    "counter": 183.9,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_wp_ht_20251224",
+                    "meter_id": "m_strom_wp_ht",
+                    "device_id": "d_strom_wp_ht",
+                    "date": "2025-12-24",
+                    "counter": 256.6,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_wp_ht_20260125",
+                    "meter_id": "m_strom_wp_ht",
+                    "device_id": "d_strom_wp_ht",
+                    "date": "2026-01-25",
+                    "counter": 338.5,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_wp_ht_20260315",
+                    "meter_id": "m_strom_wp_ht",
+                    "device_id": "d_strom_wp_ht",
+                    "date": "2026-03-15",
+                    "counter": 453.8,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_wp_nt_20250401",
+                    "meter_id": "m_strom_wp_nt",
+                    "device_id": "d_strom_wp_nt",
+                    "date": "2025-04-01",
+                    "counter": 0,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_wp_nt_20250422",
+                    "meter_id": "m_strom_wp_nt",
+                    "device_id": "d_strom_wp_nt",
+                    "date": "2025-04-22",
+                    "counter": 20.5,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_wp_nt_20250522",
+                    "meter_id": "m_strom_wp_nt",
+                    "device_id": "d_strom_wp_nt",
+                    "date": "2025-05-22",
+                    "counter": 34.5,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_wp_nt_20250618",
+                    "meter_id": "m_strom_wp_nt",
+                    "device_id": "d_strom_wp_nt",
+                    "date": "2025-06-18",
+                    "counter": 43.6,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_wp_nt_20250720",
+                    "meter_id": "m_strom_wp_nt",
+                    "device_id": "d_strom_wp_nt",
+                    "date": "2025-07-20",
+                    "counter": 54.4,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_wp_nt_20250817",
+                    "meter_id": "m_strom_wp_nt",
+                    "device_id": "d_strom_wp_nt",
+                    "date": "2025-08-17",
+                    "counter": 63.8,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_wp_nt_20250920",
+                    "meter_id": "m_strom_wp_nt",
+                    "device_id": "d_strom_wp_nt",
+                    "date": "2025-09-20",
+                    "counter": 75.6,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_wp_nt_20251019",
+                    "meter_id": "m_strom_wp_nt",
+                    "device_id": "d_strom_wp_nt",
+                    "date": "2025-10-19",
+                    "counter": 94.3,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_wp_nt_20251122",
+                    "meter_id": "m_strom_wp_nt",
+                    "device_id": "d_strom_wp_nt",
+                    "date": "2025-11-22",
+                    "counter": 133.2,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_wp_nt_20251224",
+                    "meter_id": "m_strom_wp_nt",
+                    "device_id": "d_strom_wp_nt",
+                    "date": "2025-12-24",
+                    "counter": 185.8,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_wp_nt_20260125",
+                    "meter_id": "m_strom_wp_nt",
+                    "device_id": "d_strom_wp_nt",
+                    "date": "2026-01-25",
+                    "counter": 245.1,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
+                },
+                {
+                    "id": "r_strom_wp_nt_20260315",
+                    "meter_id": "m_strom_wp_nt",
+                    "device_id": "d_strom_wp_nt",
+                    "date": "2026-03-15",
+                    "counter": 328.6,
+                    "price_cents": null,
+                    "note": "",
+                    "is_estimated": false,
+                    "is_future": false
                 }
             ],
             "contracts": [
@@ -8498,6 +8813,53 @@
                     "min_term_end": null,
                     "price_guarantee_until": null,
                     "signup_bonus_eur": null
+                },
+                {
+                    "id": "c_strom_wp",
+                    "meter_id": null,
+                    "provider": "Wärmestrom Musterstadt",
+                    "tariff_name": "Wärmepumpe Duo",
+                    "start": "2025-04-01",
+                    "end": null,
+                    "notes": "",
+                    "working_prices": [
+                        {
+                            "from": "2025-04-01",
+                            "ct_per_kwh": 27.4
+                        }
+                    ],
+                    "base_prices": [
+                        {
+                            "from": "2025-04-01",
+                            "eur_per_month": 9.9
+                        }
+                    ],
+                    "advance_payments": [
+                        {
+                            "from": "2025-04-01",
+                            "amount_eur": 25
+                        }
+                    ],
+                    "bonuses": [],
+                    "special_payments": [],
+                    "meter_group_id": "g_strom_wp",
+                    "working_prices_by_meter": {
+                        "m_strom_wp_nt": [
+                            {
+                                "from": "2025-04-01",
+                                "ct_per_kwh": 21.6
+                            }
+                        ]
+                    },
+                    "is_shadow": false,
+                    "shadow_label": null,
+                    "notice_period_months": 1,
+                    "notice_period_days": null,
+                    "notice_mode": null,
+                    "auto_renews": true,
+                    "min_term_end": null,
+                    "price_guarantee_until": null,
+                    "signup_bonus_eur": null
                 }
             ],
             "bills": [
@@ -8520,6 +8882,13 @@
                     "note": "Schlussrechnung nach dem Anbieterwechsel",
                     "attachment_ids": [],
                     "created_at": "2024-01-27T19:12:00+01:00"
+                }
+            ],
+            "meter_groups": [
+                {
+                    "id": "g_strom_wp",
+                    "name": "Wärmepumpe (HT/NT)",
+                    "created_at": "2025-04-01"
                 }
             ]
         },
@@ -10045,7 +10414,8 @@
                             "final_counter": null,
                             "reason": null
                         }
-                    ]
+                    ],
+                    "obis": "2.8.0"
                 }
             ],
             "readings": [

@@ -606,6 +606,9 @@ final class BillingPeriodService
               'bonus' => 0.0, 'cost' => 0.0, 'advances' => 0.0, 'co2_kg' => 0.0, 'gaps' => 0, 'price_missing' => false,
               'bonus_items' => []];
         if ($utility === 'gas') $t['m3'] = 0.0;
+        // v3.9.0 (F1032, Skeptiker M9) — neben der Menge der Verträge die Messung (bei der
+        // Rest-Abrechnung am Elternzähler verschieden): Verbrauch = Messung, abgerechnet = Rest
+        if ($qk === 'kwh') $t['measured_kwh'] = 0.0;
         if ($toExcl <= $from) return $t;
         $moneyIds = array_map(fn($m) => (string)($m['id'] ?? ''), $this->money);
         foreach (array_merge($meters, $this->money) as $m) {
@@ -615,6 +618,7 @@ final class BillingPeriodService
             $moneyOnly = in_array((string)($m['id'] ?? ''), $moneyIds, true);
             if (!$moneyOnly) {
                 $t[$qk] += (float)(($this->measured ? ($bt['measured_kwh'] ?? null) : null) ?? $bt[$qk] ?? 0);
+                if ($qk === 'kwh') $t['measured_kwh'] += (float)($bt['measured_kwh'] ?? $bt[$qk] ?? 0);
                 if ($utility === 'gas') $t['m3'] += (float)($bt['m3'] ?? 0);
             }
             foreach (['energy_cost', 'fixed_cost', 'bonus'] as $k) $t[$k] += (float)($bt[$k] ?? 0);
@@ -636,6 +640,7 @@ final class BillingPeriodService
         }
         foreach (['energy_cost', 'fixed_cost', 'bonus', 'cost', 'advances'] as $k) $t[$k] = round($t[$k], 2);
         $t[$qk] = round($t[$qk], $qk === 'm3' ? 2 : 1);
+        if ($qk === 'kwh') $t['measured_kwh'] = round($t['measured_kwh'], 1);
         if ($utility === 'gas') $t['m3'] = round($t['m3'], 2);
         $t['co2_kg'] = round($t['co2_kg'], 1);
         return $t;
@@ -661,7 +666,7 @@ final class BillingPeriodService
                     'cost' => $s['cost'], 'kwh_cost' => $s['energy_cost'], 'base_price_eur' => $s['fixed_cost'],
                     'bonus_eur' => $s['bonus'], 'advance_eur' => $s['advances'], 'co2_kg' => $s['co2_kg']];
             if ($utility === 'wasser') $row['m3'] = $s['m3'];
-            else $row['kwh'] = $s['kwh'];
+            else { $row['kwh'] = $s['kwh']; $row['measured_kwh'] = $s['measured_kwh']; }
             if ($utility === 'gas') $row['m3'] = $s['m3'];
             $out[] = $row;
             $p = $next;

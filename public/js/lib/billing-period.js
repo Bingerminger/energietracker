@@ -160,16 +160,22 @@ export function periodRows(period, monthly = [], consKey = 'kwh', ref = null) {
   let cum = 0;
   return (period?.months || []).map((r, i) => {
     const cal = byYm.get(r.ym) || {};
-    const q = Number(r[consKey]) || 0;
+    // v3.9.0 (F1032, Skeptiker M9) — Rest-Abrechnung am Elternzähler: Verbrauch = Messung,
+    // die Menge der Verträge als `billed_kwh` (Preis je kWh auf diese Menge)
+    const measured = consKey === 'kwh' && r.measured_kwh != null ? Number(r.measured_kwh) : null;
+    const billed = measured != null && Math.abs(measured - (Number(r.kwh) || 0)) > 0.05 ? Number(r.kwh) || 0 : null;
+    const q = billed != null ? measured : (Number(r[consKey]) || 0);
+    const qPrice = billed ?? q;
     cum += (Number(r.cost) || 0) - (Number(r.advance_eur) || 0);
     return {
       ...r,
+      ...(billed != null ? { kwh: measured, billed_kwh: billed } : {}),
       slot: slotOf(r.month, i, ref ?? first),
       contract_id: cal.contract_id ?? null,
       avg_temp: cal.avg_temp ?? null,
       hdd: cal.hdd != null && cal.days ? cal.hdd * r.days / cal.days : null,
       kwh_per_day: r.days ? q / r.days : null,
-      working_price_ct: q > 0 && r.kwh_cost != null ? r.kwh_cost / q * 100 : null,
+      working_price_ct: qPrice > 0 && r.kwh_cost != null ? r.kwh_cost / qPrice * 100 : null,
       cumulative_balance: Math.round(cum * 100) / 100,
     };
   });

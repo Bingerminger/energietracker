@@ -385,11 +385,14 @@ async function rerender(container) {
   // v3.9.0 (L7) — Kosten und Abschlag der gemessenen Tage am Rand der Ablesungen
   // (sonst stand ein voller Januarabschlag gegen vier Tage Kosten); gleich der Periode im Abrechnungsjahr
   const sumMeasured = (k, fallback) => monthlyYear.reduce((s, m) => s + (Number(m[k] !== undefined && m[k] !== null ? m[k] : m[fallback]) || 0), 0);
-  const totUnit = sum(consKey);
   // v3.9.0 (Skeptiker M9) — die Menge der Verträge (Rest nach Subzählern mit eigenem Vertrag),
-  // damit Menge, Preis und Kosten zueinander passen; nur, wo die Rest-Abrechnung greift
-  const billedYear = monthlyYear.some(m => m.billed_kwh != null)
-    ? monthlyYear.reduce((s, m) => s + (Number(m.billed_kwh != null ? m.billed_kwh : m[consKey]) || 0), 0) : null;
+  // damit Menge, Preis und Kosten zueinander passen; nur, wo die Rest-Abrechnung greift. Im
+  // Abrechnungsjahr trägt die Periode beides: `measured_kwh` (Verbrauch) und `kwh` (Verträge)
+  const periodBilled = billing && consKey === 'kwh' && sel?.measured_kwh != null && Math.abs(Number(sel.measured_kwh) - Number(sel.kwh)) > 0.5;
+  const totUnit = periodBilled ? Number(sel.measured_kwh) : sum(consKey);
+  const billedYear = periodBilled ? Number(sel.kwh)
+    : monthlyYear.some(m => m.billed_kwh != null)
+      ? monthlyYear.reduce((s, m) => s + (Number(m.billed_kwh != null ? m.billed_kwh : m[consKey]) || 0), 0) : null;
   const totCost = billing ? sum('cost') : sumMeasured('cost_measured', 'cost');
   const totDays = sum('days');
   const totCO2  = sum('co2_kg');

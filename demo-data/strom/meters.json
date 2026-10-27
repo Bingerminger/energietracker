@@ -6,12 +6,63 @@
     "created_at": "2023-01-01",
     "active": true,
     "notes": "Keller",
+    "obis": "1.8.0",
     "devices": [
       {
         "id": "d_strom_001",
         "serial": "S-2019-112",
         "installed_on": "2019-05-01",
         "initial_counter": 0.0,
+        "removed_on": null,
+        "final_counter": null,
+        "reason": null
+      }
+    ]
+  },
+  {
+    "id": "m_strom_wp_ht",
+    "name": "Wärmepumpe HT",
+    "icon": "♨️",
+    "created_at": "2025-04-01",
+    "active": true,
+    "notes": "Doppeltarifzähler der Hybrid-Wärmepumpe hinter dem Hauptzähler, Zählwerk Hochtarif",
+    "parent_meter_id": "m_strom_main",
+    "meter_group_id": "g_strom_wp",
+    "external_id": null,
+    "baseline_events": [],
+    "role": "heat_pump",
+    "obis": "1.8.1",
+    "devices": [
+      {
+        "id": "d_strom_wp_ht",
+        "serial": "WP-2025-0471",
+        "installed_on": "2025-04-01",
+        "initial_counter": 0,
+        "removed_on": null,
+        "final_counter": null,
+        "reason": null
+      }
+    ]
+  },
+  {
+    "id": "m_strom_wp_nt",
+    "name": "Wärmepumpe NT",
+    "icon": "🌙",
+    "created_at": "2025-04-01",
+    "active": true,
+    "notes": "Doppeltarifzähler der Hybrid-Wärmepumpe hinter dem Hauptzähler, Zählwerk Niedertarif",
+    "parent_meter_id": "m_strom_main",
+    "meter_group_id": "g_strom_wp",
+    "external_id": null,
+    "baseline_events": [],
+    "role": "heat_pump",
+    "obis": "1.8.2",
+    "devices": [
+      {
+        "id": "d_strom_wp_nt",
+        "serial": "WP-2025-0471",
+        "installed_on": "2025-04-01",
+        "initial_counter": 0,
         "removed_on": null,
         "final_counter": null,
         "reason": null

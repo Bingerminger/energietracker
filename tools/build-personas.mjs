@@ -1883,6 +1883,73 @@ function sparseShowcase(d, textOf) {
   ];
 }
 
+// ═════════════════════════════════════════════════════════════════════════
+// v3.9.0 (Paket messkonzepte, F1032, GitHub #40) — Messkonzept im Schaufenster
+// ═════════════════════════════════════════════════════════════════════════
+//
+// Hinter dem Hauptzähler Strom hängt seit April 2025 eine Hybrid-Wärmepumpe
+// (Warmwasser rund ums Jahr, dazu Heizen neben der Gasheizung) mit eigenem
+// Doppeltarifzähler: die Zählwerke HT (1.8.1) und NT (1.8.2) als Zählergruppe
+// mit einem Gruppenvertrag (Wärmepumpentarif, Preis je Zählwerk). Ab ihrem
+// Vertragsbeginn rechnet der Vertrag des Hauptzählers nur den Rest
+// (Rest-Abrechnung: „… = … gemessen − … Wärmepumpe HT − … Wärmepumpe NT“,
+// Spalte „Abgerechnet“). Der Hauptzähler trägt das Zählwerk 1.8.0, der
+// Einspeisezähler (Zweirichtungszähler) 2.8.0. Die Stände des Hauptzählers
+// bleiben, wie sie sind: Er misst die Wärmepumpe seit April 2025 mit, sie ist
+// klein genug (rund 1.000 kWh im Jahr, im Winter gut die Hälfte des Bezugs),
+// dass der Haushalt jeden Monat den größeren Teil behält. Der erste Stand jedes
+// Zählwerks ist der Stand beim Einbau (0 kWh, neuer Zähler), wie ihn der
+// Assistent „Messkonzept“ anlegt. Backup und Verzeichnisform führen alles.
+
+const WP_GROUP = 'g_strom_wp';
+const WP_START = '2025-04-01';
+const WP_METERS = ['m_strom_wp_ht', 'm_strom_wp_nt'];
+
+/** @param {(file: string) => string} textOf  Inhalt einer Datei der Verzeichnisform (auch schon geänderte) */
+function messkonzeptShowcase(d, textOf) {
+  const strom = d.utilities.strom;
+  strom.meters = strom.meters.filter(m => !WP_METERS.includes(m.id));
+  strom.readings = strom.readings.filter(r => !WP_METERS.includes(r.meter_id));
+  strom.contracts = strom.contracts.filter(c => c.id !== 'c_strom_wp');
+  strom.meters.find(m => m.id === 'm_strom_main').obis = '1.8.0';
+  d.utilities.pv_einspeisung.meters.find(m => m.id === 'm_pv_einspeisung_main').obis = '2.8.0';
+  const mainDates = strom.readings.filter(r => r.meter_id === 'm_strom_main').map(r => r.date).sort();
+  const dates = [WP_START, ...mainDates.filter(x => x > WP_START)];
+  const r = seeded('showcase|messkonzept');
+  // Warmwasser rund ums Jahr (0,8 kWh am Tag), dazu Heizen nach Heizgradtagen; erst ab dem Einbau
+  const total = series(day => (day < WP_START ? 0 : 0.8 + 0.22 * hdd(day) * Math.max(0, 1 + 0.12 * gauss(r))));
+  const ht = series(day => total.get(day) * 0.58), nt = series(day => total.get(day) * 0.42);
+  const mk = (id, name, icon, notes, obis) => meter(id, name, icon, notes, device(`d_${id.slice(2)}`, 'WP-2025-0471', WP_START),
+    { created_at: WP_START, parent_meter_id: 'm_strom_main', meter_group_id: WP_GROUP, role: 'heat_pump', obis });
+  const mHt = mk('m_strom_wp_ht', 'Wärmepumpe HT', '♨️', 'Doppeltarifzähler der Hybrid-Wärmepumpe hinter dem Hauptzähler, Zählwerk Hochtarif', '1.8.1');
+  const mNt = mk('m_strom_wp_nt', 'Wärmepumpe NT', '🌙', 'Doppeltarifzähler der Hybrid-Wärmepumpe hinter dem Hauptzähler, Zählwerk Niedertarif', '1.8.2');
+  const rHt = readings('strom_wp_ht', mHt, dates, ht, 0, 1);
+  const rNt = readings('strom_wp_nt', mNt, dates, nt, 0, 1);
+  const c = contract('c_strom_wp', null, 'Wärmestrom Musterstadt', 'Wärmepumpe Duo', WP_START, null, {
+    wp: wp([WP_START, 27.4]), bp: bp([WP_START, 9.9]), ap: ap([WP_START, 25]), notice: 1, renews: true,
+    extra: { meter_group_id: WP_GROUP, working_prices_by_meter: { [mNt.id]: wp([WP_START, 21.6]) } },
+  });
+  const group = { id: WP_GROUP, name: 'Wärmepumpe (HT/NT)', created_at: WP_START };
+  strom.meters.push(mHt, mNt);
+  strom.readings.push(...rHt, ...rNt);
+  strom.contracts.push(c);
+  strom.meter_groups = [...(strom.meter_groups ?? []).filter(g => g.id !== WP_GROUP), group];
+
+  // Verzeichnisform: Zählwerk an Haupt- und Einspeisezähler als eine Zeile, der Rest angehängt
+  const file = (u, name) => join(ROOT, 'demo-data', u, name);
+  const withObis = (text, after, obis, indent) => (text.includes(`"obis": "${obis}"`) ? text : text.replace(after, `${after}\n${indent}"obis": "${obis}",`));
+  const stromMeters = file('strom', 'meters.json');
+  const feedMeters = file('pv_einspeisung', 'meters.json');
+  const metersText = withObis(textOf(stromMeters), '    "notes": "Keller",', '1.8.0', '    ');
+  return [
+    [stromMeters, appendToDirectoryArray(metersText, '"id": "m_strom_wp_ht"', [mHt, mNt])],
+    [file('strom', 'readings.json'), appendToDirectoryArray(textOf(file('strom', 'readings.json')), '"id": "r_strom_wp_ht_', [...rHt, ...rNt])],
+    [file('strom', 'contracts.json'), appendToDirectoryArray(textOf(file('strom', 'contracts.json')), '"id": "c_strom_wp"', [c])],
+    [file('strom', 'meter_groups.json'), JSON.stringify([group], null, 2) + '\n'],
+    [feedMeters, withObis(textOf(feedMeters), '        "notes": "Zwei-Richtungs-Zähler des Netzbetreibers, Plombiert",', '2.8.0', '        ')],
+  ];
+}
+
 /**
  * Verzeichnisform: Einträge ans Ende eines Arrays (2 Leerzeichen eingerückt wie
  * die Datei), ohne den Rest neu zu schreiben — die Datei hält PHP-Zahlen wie
@@ -2319,11 +2386,16 @@ for (const build of [mieterin, etwFernwaerme, eigenheimKlassisch, eigenheimModer
   // liegt schon die Zuständigkeit, angehängt wird an deren Ergebnis
   const textOf = (file) => respFiles.find(([f]) => f === file)?.[1] ?? readFileSync(file, 'utf8');
   const sparseFiles = sparseShowcase(d, textOf);
+  // v3.9.0 (Paket messkonzepte) — Wärmepumpe mit Doppeltarifzähler hinter dem Hauptzähler, Zählwerke mit OBIS
+  const textOf2 = (file) => sparseFiles.find(([f]) => f === file)?.[1] ?? textOf(file);
+  const conceptFiles = messkonzeptShowcase(d, textOf2);
+  const later = [...sparseFiles, ...conceptFiles];
   // Backup und Verzeichnisform (cp -R demo-data …) führen dieselben Töpfe (DemoServiceTest)
   const files = [
-    ...respFiles.filter(([f]) => !sparseFiles.some(([s]) => s === f)),   // v3.7.0 — Zuständig in der Verzeichnisform
+    ...respFiles.filter(([f]) => !later.some(([s]) => s === f)),   // v3.7.0 — Zuständig in der Verzeichnisform
     ...inboxFiles,
-    ...sparseFiles,
+    ...sparseFiles.filter(([f]) => !conceptFiles.some(([s]) => s === f)),
+    ...conceptFiles,
     [DEMO_FILE, showcaseJson(d)],
     [join(ROOT, 'demo-data', 'reminders.json'), JSON.stringify(d.reminders, null, 4) + '\n'],
     [join(ROOT, 'demo-data', 'activity.json'), JSON.stringify(d.activity, null, 4) + '\n'],
