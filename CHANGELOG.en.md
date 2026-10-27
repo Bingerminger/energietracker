@@ -385,7 +385,7 @@ them on.
   `PersonWithoutAccountTest`, Node suite `illustrations.test`.
 - **Docs:** `DocumentedThresholdsTest` ties the figures of the new guides to the
   constants.
-- 1749 test methods (+272). Every new rule has a counter-check that
+- 1750 test methods (+273). Every new rule has a counter-check that
   breaks it: 549 in 9 packages, all red.
 
 ### Lessons learned

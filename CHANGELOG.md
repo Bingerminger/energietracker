@@ -389,7 +389,7 @@ einschaltet.
   `PersonWithoutAccountTest`, Node-Suite `illustrations.test`.
 - **Doku:** `DocumentedThresholdsTest` bindet die Zahlen der neuen Anleitungen an
   die Konstanten.
-- 1749 Testmethoden (+272). Jede neue Regel hat eine Gegenprobe, die sie
+- 1750 Testmethoden (+273). Jede neue Regel hat eine Gegenprobe, die sie
   bricht: 549 in 9 Paketen, alle rot.
 
 ### Lessons Learned
