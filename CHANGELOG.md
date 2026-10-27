@@ -422,7 +422,7 @@ einschaltet.
 - **Doku:** `DocumentedThresholdsTest` bindet die Zahlen der neuen Anleitungen an
   die Konstanten.
 - 1761 Testmethoden (+284). Jede neue Regel hat eine Gegenprobe, die sie
-  bricht: 598 in 9 Paketen, alle rot.
+  bricht: 599 in 9 Paketen, alle rot.
 
 ### Lessons Learned
 

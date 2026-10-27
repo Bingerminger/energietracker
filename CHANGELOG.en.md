@@ -418,7 +418,7 @@ them on.
 - **Docs:** `DocumentedThresholdsTest` ties the figures of the new guides to the
   constants.
 - 1761 test methods (+284). Every new rule has a counter-check that
-  breaks it: 598 in 9 packages, all red.
+  breaks it: 599 in 9 packages, all red.
 
 ### Lessons learned
 
