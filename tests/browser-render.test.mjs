@@ -1132,7 +1132,8 @@ async function renderView(modPath, params = [], ctx = {}) {
       const val = view.querySelector('.balance-verdict__value')?.textContent.replace(/\s+/g, ' ').trim() || '';
       const band = view.querySelector('[data-role="balance-band"]')?.textContent.replace(/\s+/g, ' ') || '';
       t('M6: Saldo-Karte — „≈ 517 €“ statt Cent und die Breite je nach Wetter', /^≈ 517\s€$/.test(val) && /Je nach Wetter und Schätzung/.test(band)
-        && /562\s€ Guthaben bis \S+ 472\s€ Guthaben/.test(band) && /270 Tage geschätzt/.test(band), `${val} | ${band.slice(0, 160)}`);
+        // zwei Guthaben: vom kleineren zum größeren Betrag (balanceRangeEnds, Paket heizgrenze)
+        && /472\s€ Guthaben bis \S+ 562\s€ Guthaben/.test(band) && /270 Tage geschätzt/.test(band), `${val} | ${band.slice(0, 160)}`);
       const fcv = await renderView(`${ROOT}/views/forecast.js`);
       for (let i = 0; i < 80 && !fcv.view.querySelector('[data-role="fc-card-balance"]'); i++) await new Promise(r => setTimeout(r, 50));
       const fb = fcv.view.querySelector('[data-role="fc-card-balance"]')?.textContent.replace(/\s+/g, ' ') || '';
