@@ -19,7 +19,8 @@ every open item and the rules, earlier concepts in the [archive](roadmap-archiv.
   - Year-on-year comparison and correct labels in billing-year view, no jump to the top when switching
     ([#36](https://github.com/Bingerminger/energietracker/issues/36)).
   - The advance suggestion shortly before the bill, explained more clearly ([#38](https://github.com/Bingerminger/energietracker/issues/38)).
-  - Notifications to Home Assistant also with your own certificate in the home network ([#36](https://github.com/Bingerminger/energietracker/issues/36)).
+  - Notifications to Home Assistant also with your own certificate in the home network, and the “to do”
+    sensor also shows appointments due soon ([#36](https://github.com/Bingerminger/energietracker/issues/36)).
   - Metering cascades per register and with feed-in at every meter ([#40](https://github.com/Bingerminger/energietracker/issues/40)).
   - Two balances on one page that no longer contradict each other ([#49](https://github.com/Bingerminger/energietracker/issues/49), from [discussion #42](https://github.com/Bingerminger/energietracker/discussions/42)).
 - **Smaller fixes:** follow-up contract from the reference date, anomaly on a main meter with sub-meters,
