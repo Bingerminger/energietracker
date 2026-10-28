@@ -22,7 +22,7 @@ allen offenen Punkten und Regeln, frühere Konzepte im [Archiv](roadmap-archiv.m
   - Der Abschlagsvorschlag kurz vor der Abrechnung, klarer erklärt ([#38](https://github.com/Bingerminger/energietracker/issues/38)).
   - Benachrichtigungen an Home Assistant auch mit eigenem Zertifikat im Heimnetz ([#36](https://github.com/Bingerminger/energietracker/issues/36)).
   - Messkonzept als Kaskade je Zählwerk und mit Einspeisung an jedem Zähler ([#40](https://github.com/Bingerminger/energietracker/issues/40)).
-  - Zwei Salden auf einer Seite, die sich nicht mehr widersprechen ([Discussion #42](https://github.com/Bingerminger/energietracker/discussions/42)).
+  - Zwei Salden auf einer Seite, die sich nicht mehr widersprechen ([#49](https://github.com/Bingerminger/energietracker/issues/49), aus [Discussion #42](https://github.com/Bingerminger/energietracker/discussions/42)).
 - **Kleinere Fehler:** Folgevertrag ab Stichtag, Anomalie am Hauptzähler mit Subzählern, Rechnungskorrekturen
   im Posteingang, Anfangsstand einer Rechnung.
 - **Sicherheit:** ein schlankeres Docker-Image, signiert und mit Stückliste der Pakete; klare Fristen in

@@ -21,7 +21,7 @@ every open item and the rules, earlier concepts in the [archive](roadmap-archiv.
   - The advance suggestion shortly before the bill, explained more clearly ([#38](https://github.com/Bingerminger/energietracker/issues/38)).
   - Notifications to Home Assistant also with your own certificate in the home network ([#36](https://github.com/Bingerminger/energietracker/issues/36)).
   - Metering cascades per register and with feed-in at every meter ([#40](https://github.com/Bingerminger/energietracker/issues/40)).
-  - Two balances on one page that no longer contradict each other ([Discussion #42](https://github.com/Bingerminger/energietracker/discussions/42)).
+  - Two balances on one page that no longer contradict each other ([#49](https://github.com/Bingerminger/energietracker/issues/49), from [discussion #42](https://github.com/Bingerminger/energietracker/discussions/42)).
 - **Smaller fixes:** follow-up contract from the reference date, anomaly on a main meter with sub-meters,
   corrected bills in the inbox, the opening reading of a bill.
 - **Security:** a slimmer Docker image, signed and with a list of its packages; clear deadlines in
