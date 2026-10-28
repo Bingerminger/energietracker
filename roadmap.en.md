@@ -1,7 +1,8 @@
 # Energietracker — Roadmap
 
-What comes next, in plain words. The [milestones](https://github.com/Bingerminger/energietracker/milestones)
-on GitHub show where each release stands. You can suggest your own ideas any time under
+What comes next, in plain words. The [project board](https://github.com/users/Bingerminger/projects/1)
+shows what is being worked on, the [milestones](https://github.com/Bingerminger/energietracker/milestones)
+where each release stands. You can suggest your own ideas any time under
 [Discussions → Ideas](https://github.com/Bingerminger/energietracker/discussions/categories/ideas).
 
 *Auf Deutsch:* [roadmap.md](roadmap.md). For contributors: the [planning page](roadmap-planung.md) with

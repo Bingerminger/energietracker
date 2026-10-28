@@ -1,7 +1,8 @@
 # Energietracker — Roadmap
 
-Was als Nächstes kommt, in einfachen Worten. Den aktuellen Stand jedes Releases zeigen die
-[Milestones](https://github.com/Bingerminger/energietracker/milestones) auf GitHub. Eigene Wünsche
+Was als Nächstes kommt, in einfachen Worten. Woran gerade gearbeitet wird, zeigt das
+[Projektboard](https://github.com/users/Bingerminger/projects/1), den Stand jedes Releases die
+[Milestones](https://github.com/Bingerminger/energietracker/milestones). Eigene Wünsche
 kannst du jederzeit unter [Discussions → Ideas](https://github.com/Bingerminger/energietracker/discussions/categories/ideas)
 einreichen.
 
