@@ -180,7 +180,7 @@ Since 3.4.0 the handbook comes from your own server, with a yearly report for
 everyone and a history of who did what. Since 3.3.0 the app values flexibility with
 quarter-hour data, since 3.2.0 there is a setup assistant, experience levels,
 several people per household and evcc. What comes
-next is in the [roadmap](roadmap.md) (in German). Coming from a
+next is in the [roadmap](roadmap.en.md). Coming from a
 private v0.9.0: since 3.4.0 no version reads its backups any more — install
 3.3.0, migrate there, then update.
 

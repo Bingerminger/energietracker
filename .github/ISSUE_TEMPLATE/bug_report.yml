@@ -35,6 +35,14 @@ body:
     attributes:
       label: Gerät und Browser / Device and browser
       placeholder: "iPhone, Safari · Mac, Firefox 142 …"
+  - type: dropdown
+    id: found
+    attributes:
+      label: Gefunden / Found
+      description: Automatisierte Tests und Agenten sind willkommen; bitte dann Schritte und Version genau angeben. / Automated tests and agents are welcome; please give exact steps and the version.
+      options:
+        - Beim Benutzen / While using it
+        - Mit einem automatisierten Test oder Agenten / With an automated test or agent
   - type: textarea
     id: what
     attributes:

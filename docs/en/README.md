@@ -107,7 +107,7 @@ only happens with an opt-in.
 Contributing: [CONTRIBUTING.md](../../CONTRIBUTING.md) ·
 Security issues: [SECURITY.md](../../SECURITY.md) ·
 Version history: [CHANGELOG.md](../../CHANGELOG.md) (in German) ·
-Planning: [roadmap.md](../../roadmap.md) (in German)
+Planning: [roadmap](../../roadmap.en.md)
 
 ---
 
