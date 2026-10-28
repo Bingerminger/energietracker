@@ -18,7 +18,7 @@ every open item and the rules, earlier concepts in the [archive](roadmap-archiv.
   - Reading documents with newer OpenAI models ([#41](https://github.com/Bingerminger/energietracker/issues/41)).
   - Year-on-year comparison and correct labels in billing-year view, no jump to the top when switching
     ([#36](https://github.com/Bingerminger/energietracker/issues/36)).
-  - A fitting advance suggestion shortly before the bill ([#38](https://github.com/Bingerminger/energietracker/issues/38)).
+  - The advance suggestion shortly before the bill, explained more clearly ([#38](https://github.com/Bingerminger/energietracker/issues/38)).
   - Metering cascades per register and with feed-in at every meter ([#40](https://github.com/Bingerminger/energietracker/issues/40)).
   - Two balances on one page that no longer contradict each other ([Discussion #42](https://github.com/Bingerminger/energietracker/discussions/42)).
 - **Smaller fixes:** follow-up contract from the reference date, anomaly on a main meter with sub-meters,
