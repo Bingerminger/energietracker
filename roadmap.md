@@ -20,6 +20,7 @@ allen offenen Punkten und Regeln, frühere Konzepte im [Archiv](roadmap-archiv.m
   - Vorjahresvergleich und richtige Beschriftung im Abrechnungsjahr, kein Sprung nach oben beim
     Umschalten ([#36](https://github.com/Bingerminger/energietracker/issues/36)).
   - Der Abschlagsvorschlag kurz vor der Abrechnung, klarer erklärt ([#38](https://github.com/Bingerminger/energietracker/issues/38)).
+  - Benachrichtigungen an Home Assistant auch mit eigenem Zertifikat im Heimnetz ([#36](https://github.com/Bingerminger/energietracker/issues/36)).
   - Messkonzept als Kaskade je Zählwerk und mit Einspeisung an jedem Zähler ([#40](https://github.com/Bingerminger/energietracker/issues/40)).
   - Zwei Salden auf einer Seite, die sich nicht mehr widersprechen ([Discussion #42](https://github.com/Bingerminger/energietracker/discussions/42)).
 - **Kleinere Fehler:** Folgevertrag ab Stichtag, Anomalie am Hauptzähler mit Subzählern, Rechnungskorrekturen
