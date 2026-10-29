@@ -33,7 +33,7 @@ Energietracker folgt einer klaren Schichtentrennung. Kernprinzip:
 
 Es gibt **keine** Datenbank. Persistenz ist eine Menge von JSON-Dateien
 unter `data/`, geschrieben mit `LOCK_EX` (exklusiver Lock), damit
-parallele Requests sich nicht zerstören. Schema-Stand: **1.7.0**.
+parallele Requests sich nicht zerstören. Schema-Stand: **1.8.0**.
 
 **Stapel (seit v3.1.0).** `JsonStore::batch(fn)` puffert alle Schreibvorgänge
 innerhalb von `fn` im Speicher — Lesen sieht sie schon —, und schreibt am Ende

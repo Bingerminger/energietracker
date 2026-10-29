@@ -4334,7 +4334,7 @@ final class ConsumptionService
         // bekommen hat (Off-by-one in deviceOnDate zur Anlegezeit),
         // ist `prev.counter` der frische Stand des NEUEN Zählers
         // (z.B. 0.1 m³), nicht ein Stand des alten. Folge: partA =
-        // finalOld − prev wird gigantisch (z.B. 17549.38 − 0.1).
+        // finalOld − prev wird gigantisch (z.B. 12345.67 − 0.1).
         //
         // Plausibilitätsregel: ein Reading auf dem alten Gerät muss
         // im Bereich [initial_counter_alt, final_counter_alt] liegen.

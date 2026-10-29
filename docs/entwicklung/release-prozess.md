@@ -256,8 +256,8 @@ abgenommen ist.
   am Tag-1-Check festnageln — nicht „so wirkt es richtig" pro Stelle.
 - **Inhaltliche Plausibilitätsprüfung statt magic numbers (v1.6.1,
   Issue #13).** Erste Verteidigungslinie war ein Cap `total > 100 ×
-  finalOld`. Das hat die echten Daten von Viktor NICHT gefangen,
-  weil 17572 < 100 × 17549. Erst der **inhaltliche** Check „liegt
+  finalOld`. Das hat die echten Daten des Melders NICHT gefangen,
+  weil der neue Stand knapp unter dem Hundertfachen lag. Erst der **inhaltliche** Check „liegt
   `prev.counter` überhaupt im Wertebereich `[initial_counter_alt,
   final_counter_alt]` des angeblich alten Geräts?" griff sauber, weil
   er die URSACHE prüft (device_id-Zuordnung) statt das Symptom

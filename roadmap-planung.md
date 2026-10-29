@@ -49,9 +49,10 @@ früherer Releases stehen unverändert im [Archiv](roadmap-archiv.md); was ausge
   Auswahl mit der Konsequenz jeder Option —, statt sie anzunehmen.
 - **NFRs vor riskanten Refactors:** N-Codes, die ein F-Feature absichern
   (z. B. Unit-Tests vor Topologie-Refactor), kommen vor diesem F-Feature.
-- **Nach Release** wird der Eintrag von „Geplant" in „Bereits ausgeliefert"
-  verschoben, das Detail-Konzept fließt in die Doku, der nächste Slot
-  öffnet sich.
+- **Nach Release** fällt der Abschnitt des ausgelieferten Release hier weg
+  (die Belege stehen im CHANGELOG), Offenes rückt in den nächsten Abschnitt;
+  auf `roadmap.md` und `roadmap.en.md` wandert das Release nach „Zuletzt
+  erschienen“. Das Detail-Konzept fließt in die Doku.
 
 ## Code-Konventionen
 
@@ -101,6 +102,7 @@ alten Eingang sind unverändert übernommen; neue Zeilen tragen das Datum 2026-1
 | — | **Kachel „Abschläge bis …“ gegen Saldo-Karte** (GitHub #49 aus Discussion #42): Die Kachel rechnet das Kalenderjahr bis zur letzten Ablesung, die Saldo-Karte ab Vertragsbeginn bis heute mit Schätzung; mit Vertragsbeginn im Vorjahr zeigen sie verschiedene Vorzeichen, ohne dass man den Grund sieht. Vorschlag: denselben Zeitraum rechnen oder ausdrücklich sagen, wofür die Kachel steht. Entscheidung 2026-10-29 (Rückfrage in #42): Saldo-Karte trennt Gemessenes von Geschätztem; „Aktueller Saldo“ bis zur letzten Ablesung (gemessen), Schätzung bis heute (`measuredThenEstimated`) nur als Zusatzzeile, Prognose bleibt bei „Erwartet bei Abrechnung“; Kachel und Karte enden am selben Tag, Beginn jeweils beschriftet | S | v3.9.0 eine Projektion | Discussion #42, 2026-10-27/29; **zugesagt für v3.10.0** |
 | — | **Kaskade je Zählwerk und Einspeisung in der Kaskade** (GitHub #40, Antworten 2026-10-28): Rest am vorderen Zähler je Zählwerk (HT−HT, NT−NT) statt in Summe; Einspeise-Zählwerk 2.8.0 an jedem Zähler der Kaskade, Eigenverbrauch des Sonnenstroms je Strang aus den Differenzen; Assistent „Messkonzept“ und Doku | M | v3.9.0 Rest-Abrechnung (F1032) | GitHub #40, 2026-10-28 |
 | — | **Code-Scanning und Image** (2026-10-28): drei Befunde `js/incomplete-sanitization` in Testhilfen beheben; Image ohne `supervisor` (fällt mit python3/setuptools weg); Grype nur Befunde mit verfügbarem Fix, Scan direkt nach jedem Release; SBOM, Signatur (cosign) und Herkunftsnachweis am Image; SECURITY.md mit Fristen (critical/high mit Fix → Image-Neubau binnen 7 Tagen) | M | — | Code-Scanning 2026-10-28 |
+| — | **`scripts/init_data.py` entfernen** (Prüfung der Arbeitsunterlagen, 2026-10-29): Der CHANGELOG kündigte das Entfallen für v3.0.0 an, das Skript liegt aber noch im Repo. Entfernen samt Erwähnungen in `docs/betrieb/installation.md` (Tabelle Voraussetzungen, §6) und `docs/entwicklung/architektur.md`, jeweils DE und EN | XS | — | 2026-10-29 |
 | — | **Community auf GitHub** (2026-10-28): kurze Roadmap für Nutzer, Planung und Archiv getrennt; öffentliches Projektboard, Milestone je Release, Status-Labels (zu prüfen, angenommen, geplant, abgelehnt); Wünsche über Discussions → Ideas; Formular für Berichte aus automatisierten Tests; `AGENTS.md`; Release-Zug pflegt Milestone und Board | S–M | — | Planung 2026-10-28 |
 | — | **Danke sagen** (2026-10-28): dezenter Unterstützen-Hinweis in Nutzen-Momenten („Rechnung prüfen“ findet eine Abweichung, eine Frist wurde rechtzeitig gemeldet, Jahresbericht fertig), höchstens einmal im Quartal, abschaltbar, nie in der Demo; Unterstützer auf Wunsch mit Namen in CREDITS und Release-Notes | S | — | Planung 2026-10-28 |
 

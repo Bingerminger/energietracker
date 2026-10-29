@@ -281,17 +281,19 @@ oder Core) oder selbst einbettet, findet die Besonderheiten in der Anleitung
 |-----|-----------|------------|
 | `:X.Y.Z` (z. B. die aktuelle Version aus dem CHANGELOG) | exakt diese Version | **Produktiv** — vorhersehbar |
 | `:X.Y` | neueste X.Y.z | Bugfixes automatisch |
+| `:X` (z. B. `:3`) | neueste X.y.z, ohne Sprung auf eine neue Hauptversion | Neue Funktionen und Fixes automatisch; Voreinstellung der `docker-compose.yml` |
 | `:latest` | immer die neueste | Zum Ausprobieren |
 
-Die mitgelieferte `docker-compose.yml` pinnt eine feste Version.
+Die mitgelieferte `docker-compose.yml` nutzt `:3`.
 
 Seit v3.5.0 gibt es jeden dieser Tags auch ohne root, mit der Endung
-`-rootless` (`X.Y.Z-rootless`, `X.Y-rootless`, `latest-rootless`) —
+`-rootless` (`X.Y.Z-rootless`, `X.Y-rootless`, `X-rootless`, `latest-rootless`) —
 [Ohne root](#ohne-root-v350).
 
 Seit v3.4.0 baut GitHub den neuesten Release-Tag **jede Woche** auf dem
 aktuellen Basis-Image neu (gleicher Code, aktuelle Alpine- und PHP-Pakete) und
-schiebt ihn unter denselben Namen, seit v3.5.0 auch die Variante ohne root.
+schiebt ihn unter denselben Namen (`X.Y.Z`, `X.Y`, `X`, `latest`), seit v3.5.0 auch die
+Variante ohne root.
 Ein festgeschriebener Tag bekommt so Sicherheitsupdates des Unterbaus;
 `docker compose pull` holt sie.
 
@@ -527,7 +529,7 @@ Vorlagen für Unraid, CasaOS und Umbrel.
 
 | | Standard | Ohne root |
 |---|---|---|
-| Tags | `X.Y.Z`, `X.Y`, `latest` | `X.Y.Z-rootless`, `X.Y-rootless`, `latest-rootless` |
+| Tags | `X.Y.Z`, `X.Y`, `X`, `latest` | `X.Y.Z-rootless`, `X.Y-rootless`, `X-rootless`, `latest-rootless` |
 | Benutzer | Start als root; nginx und php-fpm arbeiten als eigene Benutzer | durchgehend UID `10001`, Gruppe `0` |
 | Port im Container | `80` | `8080` |
 | Rechte an `/data` | der Start stellt sie auf `www-data` (UID 82) | der Start stellt nichts um — `/data` muss für UID 10001 beschreibbar sein |

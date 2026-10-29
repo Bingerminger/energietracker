@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Energietracker\Tests\Services;
 
+use Energietracker\Storage\Migrator;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -69,6 +70,31 @@ final class ReleaseConsistencyTest extends TestCase
             explode('.', self::version())[0], $m[1],
             'docker-compose.yml zeigt nicht auf die Hauptversion von VERSION'
         );
+    }
+
+    /**
+     * 2026-10-29 — Die Doku nannte das aktuelle Schema an zwei Stellen veraltet (1.6.0 und 1.7.0),
+     * weil niemand die Angabe beim Schemaschritt mitzog. Jede solche Angabe unter docs/ (DE + EN)
+     * muss Migrator::SCHEMA_VERSION nennen.
+     */
+    public function testDocsNameTheCurrentSchemaVersion(): void
+    {
+        $files = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator(self::root() . '/docs'));
+        $found = [];
+        foreach ($files as $file) {
+            if ($file->getExtension() !== 'md') {
+                continue;
+            }
+            preg_match_all('/(?:Schema-Stand:|Schema level:|aktuelle Schema \(|current schema \()\s*\*\*(\d+\.\d+\.\d+)\*\*/',
+                (string)file_get_contents($file->getPathname()), $m);
+            foreach ($m[1] as $v) {
+                $found[] = substr($file->getPathname(), strlen(self::root()) + 1) . ': ' . $v;
+            }
+        }
+        self::assertGreaterThanOrEqual(6, count($found), 'Schema-Angaben nicht mehr gefunden — Muster anpassen');
+        foreach ($found as $hit) {
+            self::assertStringEndsWith(': ' . Migrator::SCHEMA_VERSION, $hit, "veraltete Schema-Angabe in $hit");
+        }
     }
 
     /** Der CHANGELOG führt das aktuelle Release. */

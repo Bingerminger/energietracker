@@ -72,7 +72,8 @@ final class BackupService
     /**
      * Töpfe je Verbrauchsart. v2.1.2 — deliveries (Heizöl/Pellets) und
      * meter_groups (F1006) fehlten bis dahin. Neue Datentöpfe gehören HIER
-     * ergänzt; BackupCoverageTest prüft das gegen alle Schreibstellen.
+     * ergänzt; BackupSafetyTest::testEveryFileAServiceWritesIsCoveredByTheBackup
+     * prüft das gegen alle Schreibstellen.
      */
     public const UTILITY_POTS = ['meters', 'readings', 'contracts', 'deliveries', 'meter_groups',
         'periods',    // v3.1.0 (H3, B2) — Verbrauch je Zeitraum

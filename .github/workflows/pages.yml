@@ -52,7 +52,7 @@ jobs:
           extensions: mbstring, json
           coverage: none
 
-      - name: Node.js einrichten (20)
+      - name: Node.js einrichten (24)
         uses: actions/setup-node@v7
         with:
           node-version: "24"

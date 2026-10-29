@@ -5,11 +5,13 @@ name: Docker Rebuild
 # docker-publish.yml baut nur beim Taggen. Wer `3.3.0` festschreibt, behielte
 # sonst das Alpine und PHP vom Tag des Releases, samt später behobener Lücken.
 # Dieser Lauf baut denselben Code jede Woche auf dem aktuellen Basis-Image
-# neu (ohne Cache) und schiebt ihn unter denselben Namen (X.Y.Z, X.Y, latest).
+# neu (ohne Cache) und schiebt ihn unter denselben Namen (X.Y.Z, X.Y, X, latest).
 # Danach durchsucht ein Scan das Image nach bekannten Lücken — nicht
 # blockierend; die Treffer erscheinen unter Security → Code scanning.
 # v3.5.0 (N1024) — ebenso die Variante ohne root (X.Y.Z-rootless, X.Y-rootless,
-# latest-rootless), sobald der Release-Tag sie enthält; der Scan prüft beide.
+# X-rootless, latest-rootless), sobald der Release-Tag sie enthält; der Scan prüft beide.
+# 2026-10-29 — X und X-rootless fehlten bis dahin, obwohl docker-compose.yml und
+# INSTALL `:3` empfehlen: Wer `:3` nutzte, bekam die Wochen-Neubauten nicht.
 on:
   schedule:
     - cron: '41 4 * * 2'
@@ -48,6 +50,7 @@ jobs:
           VERSION=${TAG#v}
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "minor=${VERSION%.*}" >> "$GITHUB_OUTPUT"
+          echo "major=${VERSION%%.*}" >> "$GITHUB_OUTPUT"
           # Releases vor v3.5.0 kennen das Ziel `rootless` noch nicht
           if grep -qE '^FROM .+ AS rootless$' Dockerfile; then
             echo "rootless=true" >> "$GITHUB_OUTPUT"
@@ -80,6 +83,7 @@ jobs:
           tags: |
             ghcr.io/bingerminger/energietracker:${{ steps.tag.outputs.version }}
             ghcr.io/bingerminger/energietracker:${{ steps.tag.outputs.minor }}
+            ghcr.io/bingerminger/energietracker:${{ steps.tag.outputs.major }}
             ghcr.io/bingerminger/energietracker:latest
           labels: |
             org.opencontainers.image.title=Energietracker
@@ -102,6 +106,7 @@ jobs:
           tags: |
             ghcr.io/bingerminger/energietracker:${{ steps.tag.outputs.version }}-rootless
             ghcr.io/bingerminger/energietracker:${{ steps.tag.outputs.minor }}-rootless
+            ghcr.io/bingerminger/energietracker:${{ steps.tag.outputs.major }}-rootless
             ghcr.io/bingerminger/energietracker:latest-rootless
           labels: |
             org.opencontainers.image.title=Energietracker

@@ -33,7 +33,7 @@ Energietracker follows a clear separation of layers. The core principle:
 
 There is **no** database. Persistence is a set of JSON files under `data/`,
 written with `LOCK_EX` (an exclusive lock) so that parallel requests do not
-destroy one another. Schema level: **1.7.0**.
+destroy one another. Schema level: **1.8.0**.
 
 **Batches (since v3.1.0).** `JsonStore::batch(fn)` buffers every write inside
 `fn` in memory — reads already see them — and at the end writes each file

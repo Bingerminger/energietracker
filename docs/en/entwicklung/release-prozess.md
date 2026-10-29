@@ -233,7 +233,7 @@ accepted.
   nail it down with a comment at the day-1 check — not "this feels right" per spot.
 - **A content plausibility check instead of magic numbers (v1.6.1, Issue #13).** The
   first line of defence was a cap `total > 100 × finalOld`. It did NOT catch
-  Viktor's real data, because 17572 < 100 × 17549. Only the **content** check "does
+  the reporter's real data, because the new reading stayed just below a hundredfold. Only the **content** check "does
   `prev.counter` even lie in the value range `[initial_counter_old,
   final_counter_old]` of the supposedly old device?" caught it cleanly, because it
   checks the CAUSE (the device_id assignment) instead of the symptom (a large

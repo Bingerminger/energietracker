@@ -277,17 +277,19 @@ installation) or embed it yourself, the specifics are in the
 |-----|-----------|------------|
 | `:X.Y.Z` (e.g. the current version from the CHANGELOG) | exactly this version | **Production** — predictable |
 | `:X.Y` | newest X.Y.z | bugfixes automatically |
+| `:X` (e.g. `:3`) | newest X.y.z, never jumps to a new major version | new features and fixes automatically; default of `docker-compose.yml` |
 | `:latest` | always the newest | for trying out |
 
-The bundled `docker-compose.yml` pins a fixed version.
+The bundled `docker-compose.yml` uses `:3`.
 
 Since v3.5.0 each of these tags also exists without root, with the suffix
-`-rootless` (`X.Y.Z-rootless`, `X.Y-rootless`, `latest-rootless`) —
+`-rootless` (`X.Y.Z-rootless`, `X.Y-rootless`, `X-rootless`, `latest-rootless`) —
 [Without root](#without-root-v350).
 
 Since v3.4.0 GitHub rebuilds the latest release tag **every week** on the
 current base image (same code, current Alpine and PHP packages) and pushes it
-under the same names, since v3.5.0 the variant without root as well. A pinned
+under the same names (`X.Y.Z`, `X.Y`, `X`, `latest`), since v3.5.0 the variant without
+root as well. A pinned
 tag thus receives security updates of the underlying system;
 `docker compose pull` fetches them.
 
@@ -513,7 +515,7 @@ Unraid, CasaOS and Umbrel.
 
 | | Standard | Without root |
 |---|---|---|
-| Tags | `X.Y.Z`, `X.Y`, `latest` | `X.Y.Z-rootless`, `X.Y-rootless`, `latest-rootless` |
+| Tags | `X.Y.Z`, `X.Y`, `X`, `latest` | `X.Y.Z-rootless`, `X.Y-rootless`, `X-rootless`, `latest-rootless` |
 | User | starts as root; nginx and php-fpm work as their own users | UID `10001`, group `0` throughout |
 | Port in the container | `80` | `8080` |
 | Rights on `/data` | the start sets them to `www-data` (UID 82) | the start changes nothing — `/data` must be writable for UID 10001 |

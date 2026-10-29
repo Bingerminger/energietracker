@@ -181,13 +181,32 @@ final class RootlessImageTest extends TestCase
         self::assertSame(2, substr_count($wf, 'no-cache: true'), 'beide ohne Cache auf dem aktuellen Basis-Image');
         self::assertSame(1, preg_match('/target: rootless\n(.*?)labels:/s', $wf, $b));
         preg_match_all('#energietracker:(.+)$#m', $b[1], $t);
-        self::assertSame(['${{ steps.tag.outputs.version }}-rootless', '${{ steps.tag.outputs.minor }}-rootless', 'latest-rootless'], $t[1]);
+        self::assertSame(['${{ steps.tag.outputs.version }}-rootless', '${{ steps.tag.outputs.minor }}-rootless',
+            '${{ steps.tag.outputs.major }}-rootless', 'latest-rootless'], $t[1]);
         self::assertStringContainsString("if: steps.tag.outputs.rootless == 'true'", $wf, 'Releases vor v3.5.0 haben das Ziel nicht');
         // Scan für beide (Matrix), getrennte Kategorien; Standard behält seine
         self::assertStringContainsString('energietracker:${{ needs.rebuild.outputs.version }}${{ matrix.suffix }}', $wf);
         self::assertMatchesRegularExpression('/- variant: standard\n\s+suffix: ""\n\s+category: container-image\n/', $wf);
         self::assertMatchesRegularExpression('/- variant: rootless\n\s+suffix: "-rootless"\n\s+category: container-image-rootless\n/', $wf);
         self::assertStringContainsString('category: ${{ matrix.category }}', $wf);
+
+        // 2026-10-29 — Jeder Tag, den der Publish vergibt, braucht auch den Wochen-Neubau. `X` und
+        // `X-rootless` fehlten, obwohl docker-compose.yml und INSTALL `:3` empfehlen; die Liste oben
+        // hatte den Fehler mit festgeschrieben. Deshalb der Abgleich gegen docker-publish.yml.
+        $publish = self::file('.github/workflows/docker-publish.yml');
+        $output = ['{{version}}' => 'version', '{{major}}.{{minor}}' => 'minor', '{{major}}' => 'major'];
+        preg_match_all('/type=semver,pattern=(\{\{[^,\n]+?)(?:,suffix=(\S+))?$/m', $publish, $semver,
+            PREG_SET_ORDER | PREG_UNMATCHED_AS_NULL);
+        self::assertCount(6, $semver, 'drei Muster je Variante');
+        foreach ($semver as [, $pattern, $suffix]) {
+            self::assertArrayHasKey($pattern, $output);
+            $tag = 'energietracker:${{ steps.tag.outputs.' . $output[$pattern] . ' }}' . ($suffix ?? '');
+            self::assertStringContainsString($tag . "\n", $wf, "Neubau ohne $tag");
+        }
+        preg_match_all('/type=raw,value=(\S+)/', $publish, $raw);
+        foreach ($raw[1] as $name) {
+            self::assertStringContainsString("energietracker:$name\n", $wf, "Neubau ohne $name");
+        }
     }
 
     /** Die CI startet die Variante so, wie die Doku sie zeigt — und prüft, dass nichts als root läuft. */

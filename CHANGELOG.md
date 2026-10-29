@@ -6144,7 +6144,7 @@ löschen und neu anlegen (sie bekommt dann mit v1.6.1 die korrekte
   Felder konsistent mitführen.
 - **Defensive Plausibilitäts-Checks > kosmetische Ausschlag-
   Filter.** Erste Idee war ein „verwerfen wenn `total > 100×
-  finalOld`". Das hat den Bug NICHT gefangen, weil Viktors Werte
+  finalOld`". Das hat den Bug NICHT gefangen, weil die Werte des Melders
   knapp darunter lagen. Erst der **inhaltliche** Check „liegt
   `prev.counter` überhaupt im Wertebereich des angeblich alten
   Geräts" greift, weil er die Ursache (falsche device_id) prüft,
