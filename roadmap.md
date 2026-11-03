@@ -9,7 +9,7 @@ einreichen.
 *In English:* [roadmap.en.md](roadmap.en.md). Für Mitwirkende: die [Planung](roadmap-planung.md) mit
 allen offenen Punkten und Regeln, frühere Konzepte im [Archiv](roadmap-archiv.md).
 
-**Stand:** 03.11.2026 · **Aktuelle Version:** v3.10.0
+**Stand:** 03.11.2026 · **Aktuelle Version:** v3.10.1
 
 ---
 
@@ -75,6 +75,7 @@ erscheint, wenn es fertig und geprüft ist, in der Regel nach ein bis drei Woche
 
 | Version | Datum | Thema |
 |---|---|---|
+| v3.10.1 | 03.11.2026 | Sicherheitskorrekturen im Docker-Image |
 | v3.10.0 | 03.11.2026 | Versprochen und abgesichert: Saldo aus einem Guss, die Zusagen aus #36, #38, #40, #41 und #49, ein schlankeres, signiertes Image |
 | v3.9.0 | 27.10.2026 | Jeder Vertrag zahlt nur seinen Teil: Messkonzepte, Home Assistant, der Vertrag aus der Rechnung |
 | v3.7.0 | 22.10.2026 | Post vom Versorger: Dokumente automatisch einlesen und verwalten |

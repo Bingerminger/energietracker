@@ -286,6 +286,15 @@ jobs:
       - name: Image bauen
         run: docker build -t energietracker:ci .
 
+      # v3.10.1 — keine Sicherheitskorrektur von Alpine liegen lassen: im fertigen Image ist kein Paket
+      # aktualisierbar (3.10.0 hatte curl 8.22.0, obwohl 8.23.0 bereitstand)
+      - name: Alpine-Pakete aktuell
+        run: |
+          set -euo pipefail
+          up=$(docker run --rm --entrypoint sh energietracker:ci -c 'apk update -q >/dev/null && apk list -u 2>/dev/null' || true)
+          if [ -n "$up" ]; then echo "Aktualisierbar im Image:"; echo "$up"; exit 1; fi
+          echo "keine Pakete aktualisierbar"
+
       - name: Container starten
         run: |
           docker run -d --name et -p 8080:80 energietracker:ci

@@ -162,3 +162,7 @@ jobs:
         with:
           sarif_file: ${{ steps.scan.outputs.sarif }}
           category: ${{ matrix.category }}
+          # v3.10.1 — unter main melden (der Tag liegt auf main): Security zeigt sonst bis zum nächsten
+          # Wochen-Neubau die Befunde des alten Image, obwohl das neue Release sie behoben hat
+          ref: refs/heads/main
+          sha: ${{ github.sha }}

@@ -26,7 +26,10 @@ LABEL org.opencontainers.image.title="Energietracker" \
 # eingebaut; docker-php-ext-enable scheiterte dort, deshalb nur, wenn es noch
 # nicht geladen ist. v3.10.0 — kein supervisor mehr (und damit kein python3):
 # weniger Pakete, weniger Befunde im Scan.
-RUN apk add --no-cache nginx \
+# v3.10.1 — `apk upgrade`: das PHP-Basis-Image hinkt den Sicherheitskorrekturen von Alpine
+# hinterher (3.10.0 enthielt curl 8.22.0, Alpine bot 8.23.0); jeder Bau holt sie jetzt nach.
+RUN apk upgrade --no-cache \
+    && apk add --no-cache nginx \
     && if ! php -r 'exit(extension_loaded("Zend OPcache") ? 0 : 1);'; then docker-php-ext-enable opcache; fi
 
 WORKDIR /app

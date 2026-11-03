@@ -184,9 +184,25 @@ final class ImageSupplyChainTest extends TestCase
         $py = [];
         foreach ($it as $f) if (str_ends_with($f->getFilename(), '.py')) $py[] = $f->getPathname();
         self::assertSame([], $py);
-        self::assertDoesNotMatchRegularExpression('/^RUN apk add[^\n]*\b(python3?|py3-|supervisor)\b/m', self::file('Dockerfile'));
+        self::assertDoesNotMatchRegularExpression('/apk add[^\n]*\b(python3?|py3-|supervisor)\b/', self::file('Dockerfile'));
         foreach (['docs/betrieb/installation.md', 'docs/en/betrieb/installation.md', 'docs/entwicklung/architektur.md', 'docs/en/entwicklung/architektur.md'] as $rel) {
             self::assertStringNotContainsString('init_data', self::file($rel), $rel);
         }
+    }
+
+    /**
+     * v3.10.1 — das Image holt die Sicherheitskorrekturen von Alpine selbst (das PHP-Basis-Image hinkte
+     * hinterher: curl 8.22.0 statt 8.23.0), die CI prüft, dass im fertigen Image nichts aktualisierbar ist,
+     * und der Scan nach dem Release meldet unter main, damit Security den aktuellen Stand zeigt.
+     */
+    public function testImageTakesAlpineFixesAndTheScanReportsForMain(): void
+    {
+        $docker = self::file('Dockerfile');
+        self::assertMatchesRegularExpression('/^RUN apk upgrade --no-cache\s*\\\s*\n\s*&& apk add --no-cache nginx/m', $docker);
+        $ci = self::file('.github/workflows/ci.yml');
+        self::assertStringContainsString('name: Alpine-Pakete aktuell', $ci);
+        self::assertStringContainsString("apk list -u", $ci);
+        $pub = self::file('.github/workflows/docker-publish.yml');
+        self::assertMatchesRegularExpression('/category: \$\{\{ matrix\.category \}\}\s*\n(\s*#[^\n]*\n)*\s*ref: refs\/heads\/main\s*\n\s*sha: \$\{\{ github\.sha \}\}/', $pub);
     }
 }

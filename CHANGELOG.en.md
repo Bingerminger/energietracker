@@ -7,6 +7,46 @@ and [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [3.10.1] — 2026-11-03 — Security fixes in the image
+
+PATCH release without a change to the app. The Docker image of 3.10.0 contained curl/libcurl 8.22.0 and
+brotli 1.2.0 although Alpine already offered fixed versions; the scan after the release reported critical
+and high findings with an available fix. According to [SECURITY.md](SECURITY.md) such a finding gets a new
+image within 7 days and the Home Assistant app a new patch version.
+
+### ⚠️ For existing installations
+
+- **Docker:** pull the new image (`:3`, `:3.10`, `:latest` or `:3.10.1`); Home Assistant shows the app update.
+- **Web server without Docker** (Apache, nginx, Synology Web Station): not affected, nothing to do.
+
+### Fixed
+
+- **Image:** the build now takes all Alpine security fixes (`apk upgrade`); this brings curl/libcurl 8.23.0
+  and brotli 1.2.1. The PHP base image lagged behind these fixes.
+- **Code scanning:** two `js/incomplete-sanitization` findings in a test helper.
+
+### Changed
+
+- **CI:** the Docker job checks that no Alpine package can be upgraded in the finished image.
+- **Scan after the release:** results are reported for `main`, so Security shows the state of the current
+  release and no longer that of the last weekly rebuild.
+
+### Migration
+
+None. Schema stays 1.8.0.
+
+### Known limits
+
+- busybox and tar have medium findings without an available fix; they no longer appear in the scan (only
+  findings with a fix) and are taken over once Alpine fixes them.
+
+### Tests
+
+- 1896 test methods (+1): `ImageSupplyChainTest` holds `apk upgrade`, the check in CI and reporting the scan
+  for `main`.
+
+---
+
 ## [3.10.0] — 2026-11-03 — Promised and secured
 
 MINOR release without a schema step (stays 1.8.0). 3.10.0 delivers what was

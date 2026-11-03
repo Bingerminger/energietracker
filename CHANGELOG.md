@@ -6,6 +6,47 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [3.10.1] — 2026-11-03 — Sicherheitskorrekturen im Image
+
+PATCH-Release ohne Änderung an der App. Das Docker-Image von 3.10.0 enthielt curl/libcurl 8.22.0 und
+brotli 1.2.0, obwohl Alpine schon korrigierte Fassungen anbot; der Scan nach dem Release meldete dazu
+kritische und hohe Befunde mit verfügbarer Korrektur. Nach [SECURITY.md](SECURITY.md) bekommt so ein Befund
+binnen 7 Tagen ein neues Image und die App für Home Assistant eine neue Patch-Version.
+
+### ⚠️ Für bestehende Installationen
+
+- **Docker:** neues Image ziehen (`:3`, `:3.10`, `:latest` oder `:3.10.1`); Home Assistant zeigt das Update
+  der App.
+- **Webserver ohne Docker** (Apache, nginx, Synology Web Station): nicht betroffen, nichts zu tun.
+
+### Fixed
+
+- **Image:** Der Bau holt jetzt alle Sicherheitskorrekturen von Alpine (`apk upgrade`); damit curl/libcurl
+  8.23.0 und brotli 1.2.1. Das PHP-Basis-Image hinkte diesen Korrekturen hinterher.
+- **Code-Scanning:** zwei Befunde `js/incomplete-sanitization` in einer Testhilfe.
+
+### Changed
+
+- **CI:** Der Docker-Job prüft, dass im fertigen Image kein Alpine-Paket mehr aktualisierbar ist.
+- **Scan nach dem Release:** Die Ergebnisse erscheinen unter `main`. Security zeigt damit den Stand des
+  aktuellen Release und nicht mehr den des letzten Wochen-Neubaus.
+
+### Migration
+
+Keine. Schema bleibt 1.8.0.
+
+### Bekannte Grenzen
+
+- busybox und tar haben Befunde mittlerer Schwere ohne verfügbare Korrektur; sie erscheinen nicht mehr im
+  Scan (nur Befunde mit Korrektur) und werden mit der Korrektur in Alpine übernommen.
+
+### Tests
+
+- 1896 Testmethoden (+1): `ImageSupplyChainTest` hält `apk upgrade`, die Prüfung in der CI und die Meldung
+  des Scans unter `main` fest.
+
+---
+
 ## [3.10.0] — 2026-11-03 — Versprochen und abgesichert
 
 MINOR-Release ohne Schemaschritt (bleibt 1.8.0). 3.10.0 löst ein, was in

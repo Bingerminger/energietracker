@@ -8,7 +8,7 @@ where each release stands. You can suggest your own ideas any time under
 *Auf Deutsch:* [roadmap.md](roadmap.md). For contributors: the [planning page](roadmap-planung.md) with
 every open item and the rules, earlier concepts in the [archive](roadmap-archiv.md) (both in German).
 
-**As of:** 3 Nov 2026 · **Current version:** v3.10.0
+**As of:** 3 Nov 2026 · **Current version:** v3.10.1
 
 ---
 
@@ -73,6 +73,7 @@ done and tested, usually after one to three weeks.
 
 | Version | Date | Theme |
 |---|---|---|
+| v3.10.1 | 3 Nov 2026 | Security fixes in the Docker image |
 | v3.10.0 | 3 Nov 2026 | Promised and secured: the balance in one piece, the promises from #36, #38, #40, #41 and #49, a slimmer signed image |
 | v3.9.0 | 27 Oct 2026 | Every contract pays only its share: metering concepts, Home Assistant, the contract from the bill |
 | v3.7.0 | 22 Oct 2026 | Mail from your supplier: reading and managing documents automatically |

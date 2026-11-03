@@ -1060,7 +1060,7 @@ async function renderView(modPath, params = [], ctx = {}) {
     const measured = (view.querySelector('[data-role="balance-span"]')?.textContent || '').match(/am (\d{2}\.\d{2}\.(\d{4}))/);
     const expectPartial = !!measured && measured[2] === String(new Date().getFullYear());
     t('utility(gas): Abschlagskachel nennt ihren Stand',
-      expectPartial ? new RegExp(`Abschläge \\d{2}\\.\\d{2}\\.\\d{4} bis ${measured[1].replace(/\./g, '\\.')}`).test(advLabel) : /Abschläge \d{4}/.test(advLabel), advLabel.trim());
+      expectPartial ? new RegExp(`Abschläge \\d{2}\\.\\d{2}\\.\\d{4} bis ${measured[1].replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`).test(advLabel) : /Abschläge \d{4}/.test(advLabel), advLabel.trim());
     // Die Aufschlüsselung der Saldo-Karte ergibt die Summe
     const consumedCol = view.querySelector('.balance-grid > div');
     t('utility(gas): Saldo-Karte schlüsselt die Summe auf',
@@ -1247,7 +1247,7 @@ async function renderView(modPath, params = [], ctx = {}) {
         txt('.balance-grid').slice(0, 220));
       t('#49: Beginn beschriftet, Schätzung bis heute nur als Zusatzzeile', txt('[data-role="balance-span"]') === `Gemessen vom ${fmtMod.fmt.date(`${year}-01-01`)} bis zur letzten Ablesung am ${d}.`
         // M3 — die Zeile rechnet vor: 13,00 € Verbrauch + (115,35 − 110,32) € Grundpreis − (1.000 − 919,35) € Abschläge − 20 € Sonderzahlung
-        && new RegExp(`^Bis heute geschätzt: Guthaben 612,65\\s€\\. Seit der Ablesung am ${d.replace(/\./g, '\\.')} kamen dazu: Verbrauch 13,00\\s€ \\(geschätzt\\) und Grundpreis 5,03\\s€, dagegen Abschläge 80,65\\s€\\. Dazu Sonderzahlungen von 20,00\\s€\\.$`)
+        && new RegExp(`^Bis heute geschätzt: Guthaben 612,65\\s€\\. Seit der Ablesung am ${d.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} kamen dazu: Verbrauch 13,00\\s€ \\(geschätzt\\) und Grundpreis 5,03\\s€, dagegen Abschläge 80,65\\s€\\. Dazu Sonderzahlungen von 20,00\\s€\\.$`)
           .test(txt('[data-role="balance-estimate-today"]'))
         && !/danach geschätzt/.test(view.textContent), `${txt('[data-role="balance-span"]')} | ${txt('[data-role="balance-estimate-today"]')}`);
       t('Wirklichkeitsabgleich: „Erwartet bei Abrechnung“ zählt den Vorvertrag derselben Abrechnung mit',
