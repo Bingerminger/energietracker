@@ -44,7 +44,9 @@ final class HomeTlsTest extends ServiceTestCase
             . "[v3_ca]\nbasicConstraints = critical,CA:TRUE\nkeyUsage = critical,keyCertSign,cRLSign\nsubjectKeyIdentifier = hash\n"
             . "[v3_srv]\nbasicConstraints = CA:FALSE\nkeyUsage = critical,digitalSignature\nextendedKeyUsage = serverAuth\n"
             . "subjectAltName = DNS:ha.test,DNS:ocr.test,IP:127.0.0.1\nsubjectKeyIdentifier = hash\nauthorityKeyIdentifier = keyid\n");
-        $conf = ['config' => $cnf, 'digest_alg' => 'sha256', 'private_key_type' => OPENSSL_KEYTYPE_EC, 'curve_name' => 'prime256v1'];
+        // RSA statt EC: openssl_csr_new mit EC-Schlüssel liefert unter PHP 8.2/8.3 mit OpenSSL 3 auf den
+        // CI-Runnern false (lokal nicht nachstellbar); RSA geht überall
+        $conf = ['config' => $cnf, 'digest_alg' => 'sha256', 'private_key_type' => OPENSSL_KEYTYPE_RSA, 'private_key_bits' => 2048];
         [$ca, $caKey] = self::ca('Musterstadt Test-CA', $conf);
         [$other] = self::ca('Andere Test-CA', $conf);
         $key = openssl_pkey_new($conf);

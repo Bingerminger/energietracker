@@ -156,9 +156,15 @@ final class CountryProfileTest extends ServiceTestCase
         self::assertSame('CHF', $this->settings->get('currency'));
         self::assertSame('Europe/Zurich', $this->settings->get('timezone'));
         self::assertSame('gj', $this->settings->get('gas_cv_unit'));
-        // ältere Namen, die Browser noch anbieten
+        // ältere Namen, die Browser noch anbieten: gespeichert, wie er kommt, wenn das System ihn kennt,
+        // sonst unter dem neuen Namen (v3.10.0: CI-Runner ohne tzdata-legacy kennen Europe/Kiev nicht mehr)
         $this->settings->set(['timezone' => 'Europe/Kiev']);
-        self::assertSame('Europe/Kiev', $this->settings->get('timezone'));
+        $known = in_array('Europe/Kiev', \DateTimeZone::listIdentifiers(\DateTimeZone::ALL_WITH_BC), true);
+        self::assertSame($known ? 'Europe/Kiev' : 'Europe/Kyiv', $this->settings->get('timezone'));
+        self::assertSame('Europe/Kyiv', SettingsService::TIMEZONE_RENAMED['Europe/Kiev']);
+        foreach (SettingsService::TIMEZONE_RENAMED as $old => $new) {
+            self::assertContains($new, \DateTimeZone::listIdentifiers(), "$old → $new ist eine aktuelle Zone");
+        }
     }
 
     private function seedGasYear(): void

@@ -26,6 +26,18 @@ final class SettingsService
      * (CV_UNITS); CountriesTest hält beide Listen gleich.
      */
     public const GAS_CV_UNITS = ['kwh', 'mj', 'gj'];
+
+    /** v3.10.0 — umbenannte Zeitzonen (alter Name → aktueller), für Systeme ohne die alten Verweise */
+    public const TIMEZONE_RENAMED = [
+        'Europe/Kiev'      => 'Europe/Kyiv',
+        'Europe/Uzhgorod'  => 'Europe/Kyiv',
+        'Europe/Zaporozhye' => 'Europe/Kyiv',
+        'Asia/Calcutta'    => 'Asia/Kolkata',
+        'Asia/Saigon'      => 'Asia/Ho_Chi_Minh',
+        'Asia/Katmandu'    => 'Asia/Kathmandu',
+        'Asia/Rangoon'     => 'Asia/Yangon',
+        'America/Buenos_Aires' => 'America/Argentina/Buenos_Aires',
+    ];
     /** v3.2.0 (F1019) — Nutzungsstufen: was die Oberfläche zeigt, nicht was sie rechnet. */
     public const UI_LEVELS = ['beginner', 'advanced', 'expert'];
     /** v3.2.0 (F1018) — Personas des Einrichtungsassistenten (= Beispielhaushalte, showcase = alle Arten). */
@@ -564,6 +576,12 @@ final class SettingsService
             // mit einer Warnung quittieren und still UTC rechnen.
             // v3.1.0 — „keine Angabe" aus der Oberfläche (none/leer) ist null
             if (in_array($k, ['waerme_energietraeger', 'warmwasser_energietraeger', 'setup_persona'], true) && ($v === '' || $v === 'none')) $v = null;
+            // v3.10.0 — umbenannte Zeitzonen: Systeme ohne die alten Verweise (Debian/Ubuntu: tzdata-legacy)
+            // kennen etwa „Europe/Kiev“ nicht mehr, Browser melden ihn teils noch; dann der neue Name
+            if ($k === 'timezone' && is_string($v) && isset(self::TIMEZONE_RENAMED[$v])
+                && !in_array($v, \DateTimeZone::listIdentifiers(\DateTimeZone::ALL_WITH_BC), true)) {
+                $v = self::TIMEZONE_RENAMED[$v];
+            }
             $allowed = match ($k) {
                 'country'     => Countries::codes(),
                 'currency'    => array_keys(Countries::CURRENCIES),
