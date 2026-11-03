@@ -33,7 +33,8 @@ final class HomeTlsEndpointTest extends HttpServerTestCase
     {
         $cnf = $this->caDir . '/openssl.cnf';
         file_put_contents($cnf, "[req]\ndistinguished_name = dn\n[dn]\n[v3_ca]\nbasicConstraints = critical,CA:TRUE\nkeyUsage = critical,keyCertSign\n");
-        $conf = ['config' => $cnf, 'digest_alg' => 'sha256', 'private_key_type' => OPENSSL_KEYTYPE_EC, 'curve_name' => 'prime256v1'];
+        // RSA statt EC: openssl_csr_new mit EC-Schlüssel liefert unter PHP 8.2/8.3 auf den CI-Runnern false
+        $conf = ['config' => $cnf, 'digest_alg' => 'sha256', 'private_key_type' => OPENSSL_KEYTYPE_RSA, 'private_key_bits' => 2048];
         $key = openssl_pkey_new($conf);
         $cert = openssl_csr_sign(openssl_csr_new(['commonName' => 'Musterstadt Test-CA'], $key, $conf), null, $key, 2, $conf + ['x509_extensions' => 'v3_ca'], 1);
         openssl_x509_export($cert, $pem);
