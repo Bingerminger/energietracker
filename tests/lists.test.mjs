@@ -136,6 +136,30 @@ const bp = await import(JS('lib/billing-period.js'));
   t('Monatszeilen: Stelle, Temperatur und Vertrag aus dem Kalendermonat, Saldo fortlaufend', rows[1].slot === 2 && rows[1].avg_temp === 12.5 && rows[1].contract_id === 'c1'
     && rows[1].cumulative_balance === -48 && rows[0].kwh_per_day === 100 / 16 && rows[0].working_price_ct === 25);
   t('Spaltennamen ab dem ersten Monat', bp.slotLabels(13, 4, (m) => m).join() === '4,5,6,7,8,9,10,11,12,1,2,3,4');
+  // v3.10.0 (GitHub #36) — Trend im Abrechnungsjahr gegen dieselbe Spanne davor (vom Server)
+  const run = { from: '2026-01-01', as_of: '2026-02-28', kwh: 600, cost: 190, bonus: 10,
+    prev_same_span: { from: '2025-01-01', until: '2025-02-28', days: 59, kwh: 500, cost: 160, bonus: 0 } };
+  const tr = bp.sameSpanTrend(run, s => s.kwh);
+  t('Abrechnungsjahr: Trend gegen dieselben Tage davor (+20 %), mit beiden Spannen', Math.abs(tr?.pct - 20) < 1e-9
+    && tr.from === '2026-01-01' && tr.until === '2026-02-28' && tr.prevFrom === '2025-01-01' && tr.prevUntil === '2025-02-28');
+  t('Abrechnungsjahr: Kosten ohne Bonus auf beiden Seiten (200 gegen 160 → +25 %)',
+    Math.abs(bp.sameSpanTrend(run, s => s.cost + s.bonus)?.pct - 25) < 1e-9);
+  t('Abrechnungsjahr: ohne Vergleich, ohne Stand oder ohne Menge davor kein Trend',
+    bp.sameSpanTrend({ ...run, prev_same_span: null }, s => s.kwh) === null && bp.sameSpanTrend({ ...run, as_of: null }, s => s.kwh) === null
+    && bp.sameSpanTrend({ ...run, prev_same_span: { ...run.prev_same_span, kwh: 0 } }, s => s.kwh) === null);
+  // Nachtrag #36 — die Grundlage reicht durch: Periode davor oder dieselben Kalendertage ein Jahr früher
+  t('Abrechnungsjahr: Grundlage des Vergleichs (period, calendar; ohne Angabe period)',
+    tr.basis === 'period' && bp.sameSpanTrend({ ...run, prev_same_span: { ...run.prev_same_span, basis: 'calendar' } }, s => s.kwh)?.basis === 'calendar'
+    && bp.sameSpanTrend({ ...run, prev_same_span: { ...run.prev_same_span, basis: 'period' } }, s => s.kwh)?.basis === 'period');
+  // v3.10.0 (Skeptiker N3) — ohne Namen die Daten nur einmal („Abrechnungsjahr 31.08.2026–29.07.2027: 31.08.2026 bis …“)
+  const named = bp.periodWindow({ from: '2025-09-01', until: '2026-08-31', label: '2025/26' });
+  const unnamed = bp.periodWindow({ from: '2026-08-31', until: '2027-07-29', label: null });
+  const cat = JSON.parse(readFileSync(join(ROOT, 'public/locales/de.json'), 'utf8')).billing.dashboard;
+  t('Abrechnungsjahr: Zeile der Übersicht mit Namen, ohne Namen nur die Daten',
+    named.key === 'billing.dashboard.window' && named.params.name === '2025/26'
+    && unnamed.key === 'billing.dashboard.windowUnnamed' && !('name' in unnamed.params)
+    && unnamed.params.from === '2026-08-31' && unnamed.params.until === '2027-07-29'
+    && !cat.windowUnnamed.includes('{name}') && cat.windowUnnamed.includes('{from}'), JSON.stringify(unnamed));
   // v3.6.0 (Paket abrechnung) — Vorschlag für „Rechnung prüfen“
   const ptc = (list, a, d) => { const r = bp.periodToCheck(list, a, d); return `${r.from}..${r.until}`; };
   const billed = [

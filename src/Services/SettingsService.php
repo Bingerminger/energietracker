@@ -217,6 +217,9 @@ final class SettingsService
         'warmwasser_elektrisch'    => false,
         // v3.6.0 — Hinweis auf neue Versionen (GitHub, einmal am Tag); nur auf Wunsch
         'update_check'             => false,
+        // v3.10.0 — Danke sagen: ab und zu (höchstens einmal im Quartal je Gerät) ein Hinweis aufs
+        // Unterstützen, wenn die App gerade geholfen hat; nie in der Demo
+        'support_hint'             => true,
         // v3.7.1 — Umgebungsname als Abzeichen neben dem Logo (etwa „TEST“); leer = keins
         'env_name'                 => '',
 
@@ -238,6 +241,12 @@ final class SettingsService
         'ha_notify_service'        => 'persistent_notification.create',   // oder notify.<name>
         'ha_notify_events'         => ['reminder', 'deadline', 'warning', 'document'],
         'ha_notify_hour'           => 8,              // tägliche Prüfung ab dieser Stunde
+        // ── v3.10.0 (#36) — HTTPS ins Heimnetz mit eigener PKI (Support\HomeTls) ──
+        // Eigenes Stammzertifikat (PEM), zusätzlich zu den Systemzertifikaten und
+        // zu ET_CA_FILE; leer = keins. Ein Zertifikat ist kein Geheimnis (Backup ja).
+        'home_ca_pem'              => '',
+        // „Zertifikat im Heimnetz nicht prüfen“: wirkt nur für Adressen im Heimnetz
+        'home_tls_insecure'        => false,
         // ── v3.7.0 — Flexibilität: eigene Werte statt Beispielwerte (EXAMPLE_VALUES) ──
         // Defaults = FlexibilityInsightService::ASSUMPTIONS/APPLIANCES (Test hält es fest)
         'flex_heat_pump_share_pct'        => 30.0,  // % des Tagesverbrauchs der Wärmepumpe verschiebbar
@@ -638,7 +647,9 @@ final class SettingsService
                 }
                 $v = self::cleanEnvName((string)$v);
             }
-            if ($k === 'warmwasser_elektrisch' || $k === 'update_check') $v = (bool)$v;
+            if ($k === 'warmwasser_elektrisch' || $k === 'update_check' || $k === 'home_tls_insecure' || $k === 'support_hint') $v = (bool)$v;
+            // v3.10.0 (#36) — eigenes Stammzertifikat: nur lesbare Zertifikate, nie ein privater Schlüssel
+            if ($k === 'home_ca_pem') $v = \Energietracker\Support\HomeTls::normalizeSetting($v);
             if (str_starts_with($k, 'billing_cycle_anchor_') && !self::isMonthDay($v)) {
                 throw new \InvalidArgumentException(($this->translator())('errors.settings.valueInvalid', [
                     'key' => $k, 'value' => is_scalar($v) ? (string)$v : gettype($v),

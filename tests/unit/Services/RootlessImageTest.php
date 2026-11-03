@@ -12,9 +12,10 @@ use PHPUnit\Framework\TestCase;
  * Was am laufenden Container zu prüfen ist (Health, Schreiben, keine UID 0,
  * klare Meldung bei fremdem Datenordner), macht der CI-Job `docker`. Hier
  * steht, dass Dockerfile, Konfiguration, Workflows und Doku zueinander passen —
- * und dass die Ersetzungen, mit denen der Bau die nginx- und supervisord-
- * Konfiguration ableitet, an den Dateien im Repo greifen (sonst bräche der
- * Bau erst in der CI ab).
+ * und dass die Ersetzungen, mit denen der Bau die nginx-Konfiguration ableitet,
+ * an den Dateien im Repo greifen (sonst bräche der Bau erst in der CI ab).
+ * Seit v3.10.0 ohne supervisord: Das Startskript (docker/start.sh) ist in beiden
+ * Varianten dasselbe, s. ContainerStartTest.
  */
 final class RootlessImageTest extends TestCase
 {
@@ -100,8 +101,8 @@ final class RootlessImageTest extends TestCase
                 $guards++;
             }
         }
-        self::assertSame(6, $seds, 'drei Ersetzungen in nginx.conf, drei in supervisord.conf');
-        self::assertGreaterThanOrEqual(7, $guards);
+        self::assertSame(3, $seds, 'drei Ersetzungen in nginx.conf');
+        self::assertGreaterThanOrEqual(4, $guards);
 
         $nginx = $files['/etc/nginx/nginx.conf'];
         self::assertSame(1, preg_match_all('/^\s*listen (\d+) default_server;$/m', $nginx, $l));
@@ -117,11 +118,16 @@ final class RootlessImageTest extends TestCase
             'alle Zwischenspeicher — sonst legt nginx den eingebauten Pfad unter /var/lib/nginx an und startet nicht');
         foreach ($tmp as [, , $p]) self::assertStringStartsWith('/tmp/', $p);
 
-        $sup = $files['/etc/supervisord.conf'];
-        self::assertDoesNotMatchRegularExpression('/^user=/m', $sup, 'kein Benutzerwechsel');
-        self::assertMatchesRegularExpression('#^pidfile=/tmp/#m', $sup);
-        self::assertMatchesRegularExpression('#^command=nginx -e /dev/stderr #m', $sup);
-        self::assertMatchesRegularExpression('/^command=php-fpm -F$/m', $sup);
+        // Startskript: dasselbe in beiden Varianten, ohne Benutzerwechsel und ohne PID-Datei;
+        // `nginx -e /dev/stderr`, weil der eingebaute Fehlerpfad ohne root nicht beschreibbar ist.
+        self::assertArrayNotHasKey('/etc/supervisord.conf', $files);
+        self::assertStringNotContainsString('start.sh', $run[1], 'die Stufe rootless ändert das Startskript nicht');
+        $start = self::file('docker/start.sh');
+        self::assertMatchesRegularExpression("#^nginx -e /dev/stderr -g 'daemon off;' &$#m", $start);
+        self::assertMatchesRegularExpression('/^php-fpm -F &$/m', $start);
+        foreach (['su-exec', 'gosu', 'setpriv', 'chown', '.pid'] as $root) {
+            self::assertStringNotContainsString($root, preg_replace('/^\s*#.*$/m', '', $start), "Startskript: $root");
+        }
     }
 
     /** Im Rootless-Zweig des Entrypoints keine root-Schritte; die Weiche ist die Variante. */

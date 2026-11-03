@@ -639,6 +639,22 @@ final class ReportModelService
                     if (empty($c['is_current']) && empty($c['is_future'])) continue;
                     $cid = (string)($c['contract_id'] ?? '');
                     $mid = (string)($target['id'] ?? '');
+                    // v3.10.0 (Wirklichkeitsabgleich) — rechnet eine Abrechnung mehrere Verträge ab
+                    // (ConsumptionService::withSettleTotals), erwartet der Bericht ihre Summe; Spanne
+                    // und Band wandern mit. Der Vertrag selbst bleibt für „Wohin geht mein Geld?“
+                    $own = ['projected_end_balance' => $c['projected_end_balance'] ?? null, 'projection_band' => $c['projection_band'] ?? null,
+                        'projection_uncertain' => $c['projection_uncertain'] ?? null,
+                        // v3.10.0 (Skeptiker H1) — die Summe der Abrechnung für „Wohin geht mein Geld?“ (expectedBalance im Browser)
+                        'settle' => array_intersect_key($c, array_flip(['settle_balance', 'settle_range', 'settle_uncertain', 'settle_parts']))];
+                    if (($c['settle_balance'] ?? null) !== null) {
+                        $c['projected_end_balance'] = $c['settle_balance'];
+                        $sr = is_array($c['settle_range'] ?? null) ? $c['settle_range'] : null;
+                        // v3.10.0 (Skeptiker H1/H3) — die Spanne der Summe; unsicher, wenn ein Teil unsicher ist
+                        $c['projection_uncertain'] = is_array($c['settle_uncertain'] ?? null) ? $c['settle_uncertain'] : null;
+                        $c['projection_band'] = $c['projection_uncertain'] === null && $sr !== null && abs($sr[1] - $sr[0]) >= 2
+                            ? ['low' => $sr[0], 'high' => $sr[1], 'half' => round(($sr[1] - $sr[0]) / 2, 2)] + (array)($c['projection_band'] ?? []) + ['weather' => 0.0]
+                            : null;
+                    }
                     $row = [
                         'key' => "$u|$mid|$cid", 'utility' => $u, 'label' => $label, 'meter_id' => $mid,
                         'meter_name' => (string)($target['name'] ?? $mid), 'provider' => (string)(($c['provider'] ?? '') ?: ($c['tariff_name'] ?? '')),
@@ -662,6 +678,9 @@ final class ReportModelService
                         'advance_every_months' => (int)($c['current_advance_every_months'] ?? 1),
                         // v3.7.0 (wirklichkeit-2) — Saldo-Schätzung unsicher: Spanne statt Vorschlag
                         'projection_uncertain' => $c['projection_uncertain'] ?? null,
+                        // v3.10.0 (R2-3) — Breite einer sicheren Schätzung (dieselbe Quelle wie die Karte)
+                        'projection_band' => $c['projection_band'] ?? null,
+                        'own' => $own,
                         // v3.9.0 (L1) — der letzte Tag des Abrechnungszeitraums, wie überall
                         'settle_date' => $c['settle_on'] ?? ConsumptionService::periodLastDay($c),
                         'balance_path' => $c['balance_path'] ?? null,
@@ -1392,8 +1411,12 @@ final class ReportModelService
                 : ($bal < 0 && ($sugg === null || (float)$sugg <= 0) ? $this->i18n->t('report.money.advanceLower') : null);
             // v3.7.0 (wirklichkeit-2) — unsichere Schätzung: Spanne und Grund statt eines Betrags
             $unc = $c['projection_uncertain'] ?? null;
+            $band = !is_array($unc) && is_array($c['projection_band'] ?? null) ? $c['projection_band'] : null;
             if (is_array($unc)) {
                 [$text, $advText] = $this->advice->uncertainBalance($unc, $date);
+            } elseif ($band !== null) {
+                // v3.10.0 (R2-3) — sichere Schätzung mit Breite: der Satz der Karte („je nach Wetter und Schätzung …“)
+                $text .= ' ' . $this->advice->bandSentence($band);
             }
             $path = [];
             foreach ((array)($c['balance_path'] ?? []) as $pt) {
@@ -1403,14 +1426,19 @@ final class ReportModelService
                 'utility' => $c['utility'], 'label' => $c['label'], 'provider' => $c['provider'], 'meter_name' => $c['meter_name'],
                 'projected_end_balance' => round($bal, 2), 'current_advance' => $adv, 'suggested_advance' => $show ? (float)$sugg : null,
                 'uncertain' => is_array($unc) ? $unc : null,
+                'band' => $band,   // v3.10.0 (R2-3, additiv)
                 'text' => $text, 'advance_text' => $advText, 'path' => $path, 'color' => (string)Utilities::get($c['utility'])['color'],
                 // v3.9.0 (L1) — der Abrechnungstag (letzter Tag des Zeitraums), wie Karte und Werkstatt
                 'settle_on' => $c['settle_date'] ?? null,
+                // v3.10.0 — „Wohin geht mein Geld?“ beschreibt den Vertrag selbst (sein Verlauf endet bei seinem Saldo)
                 'explainer' => ['balance_path' => $c['balance_path'], 'energy_cost_to_date' => $c['energy_cost_to_date'],
-                    'base_to_date' => $c['base_to_date'], 'bonus_to_date' => $c['bonus_to_date'], 'projected_end_balance' => $c['projected_end_balance'],
+                    'base_to_date' => $c['base_to_date'], 'bonus_to_date' => $c['bonus_to_date'],
+                    'projected_end_balance' => $c['own']['projected_end_balance'] ?? $c['projected_end_balance'],
                     'settle_on' => $c['settle_date'] ?? null,
-                    // v3.7.0 (Schritt 3) — „Wohin geht mein Geld?“ zeigt dann die Spanne
-                    'projection_uncertain' => is_array($unc) ? $unc : null],
+                    // v3.7.0 (Schritt 3) — „Wohin geht mein Geld?“ zeigt dann die Spanne; v3.10.0 (Skeptiker H1) — die
+                    // Felder des Vertrags und die Summe der Abrechnung (`settle_*`), das Bild nimmt sie wie die Karte
+                    'projection_uncertain' => $c['own']['projection_uncertain'] ?? null,
+                    'projection_band' => $c['own']['projection_band'] ?? null] + (array)($c['own']['settle'] ?? []),
             ];
             $this->term('balance', 'advance');
         }
@@ -1723,9 +1751,18 @@ final class ReportModelService
         }
         if ($hp <= 0 && $ev <= 0) return null;
         $self = $pvNow !== null ? (float)($pvNow['eigenverbrauch_kwh'] ?? 0) : 0.0;
+        // v3.10.0 (#40) — Einspeisung in der Kaskade: Jeder Strang bekommt seinen Sonnenstrom
+        // (dahinter Erzeugung − Z2, vorn Z2 − Z1, etwa die Wärmepumpe); was übrig bleibt (Monate
+        // ohne alle drei Reihen) wie bisher der Haushalt
+        $selfLeft = $self;
+        foreach ((array)($pvNow['cascade']['strands'] ?? []) as $s) {
+            $v = max(0.0, min((float)($s['kwh'] ?? 0), $selfLeft));
+            $selfLeft -= $v;
+            $bucket((string)($s['role'] ?? 'household'), $v);
+        }
         // Sonnenstrom hinter dem Hauszähler: Haushalt = eigener Bezug + selbst genutzter Sonnenstrom
         // (die Wallbox kann im Sommer mehr messen als der Bezug, deshalb erst hier begrenzt)
-        $rest = max(0.0, $household + $self);
+        $rest = max(0.0, $household + $selfLeft);
         $total = $rest + $ev + $hp;
         $rows = [];
         foreach ([['household', $rest], ['heat_pump', $hp], ['ev_charger', $ev]] as [$role, $v]) {
@@ -1902,7 +1939,9 @@ final class ReportModelService
         $pumps = [];
         foreach ($hp as $p) {
             $months = [];
-            foreach ($p['months'] as $m) $months[] = ['label' => $names[(int)$m['month'] - 1] ?? '', 'value' => (float)$m['cop'], 'prev' => null, 'estimated' => false];
+            // v3.10.0 (Skeptiker M5) — ein Monat mit geschätztem Strom (Kaskade) ohne Arbeitszahl
+            foreach ($p['months'] as $m) $months[] = ['label' => $names[(int)$m['month'] - 1] ?? '', 'value' => $m['cop'] !== null ? (float)$m['cop'] : null,
+                'prev' => null, 'estimated' => !empty($m['estimated'])];
             $pumps[] = ['name' => $p['name'], 'jaz' => $p['jaz'], 'jaz_season' => $p['jaz_season'], 'reference' => $p['reference'],
                 'months' => $months,
                 'sentence' => $this->i18n->t('report.topic.heatPump.sentence', [

@@ -216,6 +216,8 @@ final class BenchmarkService
                 'coverage_days' => $d['coverage_days'],
                 'complete'      => $complete,
             ];
+            // v3.10.0 (Skeptiker N10) — Wärmepumpe vorn in der Kaskade: nur Strom aus dem Netz (additiv)
+            if ($utility === 'strom' && $this->heatPumpGridOnly()) $entry['grid_only'] = true;
             if ($wohnflaeche > 0) {
                 $entry['kwh_per_m2'] = round($sum / $wohnflaeche, 1);
                 $entry['class']      = $scale !== null && $complete ? $this->classify($entry['kwh_per_m2'], $thresholds) : null;
@@ -481,6 +483,24 @@ final class BenchmarkService
             }
         }
         return $out;
+    }
+
+    /**
+     * v3.10.0 (Skeptiker N10) — Hat die Wärmepumpe vorn in der Kaskade ein Einspeisezählwerk an Z2
+     * dahinter, zählen Jahresarbeitszahl und Energiefluss den Sonnenstrom ihres Strangs mit. Die
+     * Effizienz bleibt beim Strom aus dem Netz (dem Rest an Z1) und sagt es (`grid_only`).
+     */
+    private function heatPumpGridOnly(): bool
+    {
+        if (!Utilities::exists('pv_einspeisung')) return false;
+        foreach ($this->meters->list('pv_einspeisung') as $f) {
+            $link = (string)($f['cascade_meter_id'] ?? '');
+            if ($link === '') continue;
+            $z2 = $this->meters->get('strom', $link);
+            $front = $z2 !== null && !empty($z2['parent_meter_id']) ? $this->meters->get('strom', (string)$z2['parent_meter_id']) : null;
+            if ($front !== null && Utilities::roleOf('strom', $front) === 'heat_pump' && MeterService::countsInTotals($front)) return true;
+        }
+        return false;
     }
 
     /**

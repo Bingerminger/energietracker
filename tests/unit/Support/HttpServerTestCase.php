@@ -34,7 +34,7 @@ abstract class HttpServerTestCase extends TestCase
         $this->base = "http://127.0.0.1:$port";
         $all = array_merge(getenv(), ['ET_DATA_DIR' => $this->dataDir, 'ET_LOG_DEST' => 'null'], $env);
         foreach (['ET_AUTH', 'ET_ADMIN_PASSWORD_HASH', 'ET_ALLOWED_HOSTS', 'ET_DEBUG', 'ET_TRUSTED_PROXIES',
-                  'ET_PROXY_USER_HEADER', 'ET_LOCK_WAIT_S'] as $k) {
+                  'ET_PROXY_USER_HEADER', 'ET_LOCK_WAIT_S', 'ET_CA_FILE'] as $k) {
             if (!array_key_exists($k, $env)) unset($all[$k]);
         }
         // v3.4.0 — Größengrenzen wie im Docker-Image (docker/php.ini), damit die

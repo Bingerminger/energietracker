@@ -101,11 +101,19 @@ und Beispiele vorgerechnet — ein Klick zeigt sofort ein Ergebnis.
 
 **Eine Quelle.** Der Ausgangsfall ist die Prognose der nächsten zwölf Monate
 mit allen ihren Regeln: Klimanormal, Heizmodell, Analyse-Zäsur, Verträge
-tagesgenau, Abschläge nach Plan. Die Werkstatt ändert nur Mengen — und beim
-Tarif Preise. Die Kosten eines Monats sind in der Prognose eine lineare
-Funktion der Menge (Arbeitspreis × Menge + Grundpreis − Boni); genau diese
-Funktion bewertet auch die Szenario-Mengen. Ohne Änderung kommt deshalb auf
-den Cent die Prognose heraus.
+tagesgenau, Abschläge nach Plan. Die Menge je Monat schätzt er seit v3.10.0
+wie die Saldo-Karte (je Tag, mit dem Kalibrierfaktor der Karte); Werkstatt und
+Saldo-Verlauf zeigen so dieselben Monatskosten. Bis v3.9 nahm er die
+Monatsmengen der Prognose, bei schlecht passendem Heizmodell rund ein Zehntel
+daneben ([Grundlagen §10](../verstehen/00-overview.md#saldo-aus-einem-guss-seit-v3100)).
+Deshalb heißt die Zeile des Ausgangsfalls „Wie die Saldo-Karte (kalibriert)“.
+Die Tabelle „Prognose im Detail“ auf derselben Seite zeigt weiter die Prognose
+ohne Kalibrierfaktor; liegen beide mindestens 2 % auseinander, sagt ein Satz
+darunter, um wie viel.
+Die Werkstatt ändert nur Mengen — und beim Tarif Preise. Die Kosten eines Monats
+sind in der Prognose eine lineare Funktion der Menge (Arbeitspreis × Menge +
+Grundpreis − Boni); genau diese Funktion bewertet auch die Szenario-Mengen.
+Ohne Änderung kommt deshalb auf den Cent der Ausgangsfall heraus.
 
 **Heizanteil.** Das Heizmodell beschreibt den Verbrauch als a × Heizgradtage
 + c × Tage. Der heizabhängige Teil eines Monats ist a × HGT; nur er reagiert

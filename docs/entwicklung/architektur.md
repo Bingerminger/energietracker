@@ -74,10 +74,10 @@ energietracker/
 ├── data/                   # Laufzeitdaten (nicht im VCS)
 ├── demo-data/              # vollständiger Beispieldatensatz (8 Arten)
 ├── deploy/                 # Vorlagen für Unraid, CasaOS, Umbrel (v3.1.0)
+├── docker/                 # Image: nginx, php-fpm, Entrypoint, start.sh (startet beide, v3.10.0)
 ├── docs/                   # dieses Kompendium
 ├── tests/                  # Test-Harnesses
-├── tools/build-demo.mjs    # öffentliche Demo bauen (v3.0.0, s. § 8)
-└── scripts/init_data.py    # optionaler Excel-Import
+└── tools/build-demo.mjs    # öffentliche Demo bauen (v3.0.0, s. § 8)
 ```
 
 ---
@@ -240,7 +240,7 @@ Die vollständige Routen-Liste steht in der
 | `Http\NotFoundException` | 404 | Ressource fehlt (seit v2.2.1 als Typ statt Textmuster; seit v2.6.0 auch für Datensätze in der URL) |
 | `Http\ConflictException` | 409 | Konflikt, z. B. Sicherungs-Snapshot gescheitert (v2.6.0) |
 | `Storage\StorageCorruptedException` | 503 | Datendatei beschädigt (v2.5.3); seit v3.1.0 übersetzt der ErrorHandler die Meldung (`errors.storage.<art>`), `code` bleibt `errors.storage.corrupted` |
-| `Http\HttpStatusException` | 413, 503 | Körper zu groß (`errors.http.tooLarge`) bzw. Schreibsperre nicht frei (`errors.http.busy`, mit `Retry-After`) — Status, Schlüssel und Kopfzeilen reisen mit (v3.4.0) |
+| `Http\HttpStatusException` | 413, 503 | Körper zu groß (`errors.http.tooLarge`) bzw. Schreibsperre nicht frei (`errors.http.busy`, mit `Retry-After`) — Status, Schlüssel und Kopfzeilen reisen mit (v3.4.0); auch 502/504, wenn ein Cloud-Dienst ablehnt oder nicht antwortet. Seit v3.10.0 bleibt ihr eigener Text auch bei 5xx stehen (keine `error_id`), im Log als `warning` (#41) |
 | sonstige | 500 | unerwarteter Fehler — generische Meldung mit `error_id`, Einzelheiten im Log (v2.6.0) |
 
 Antwort-Hülle einheitlich:

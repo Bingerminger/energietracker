@@ -137,7 +137,8 @@
       },
       "certificateApprox": "Compté en PCI (approximation, le certificat exige le PCS) : {fuels}.",
       "certificateUpcoming": "À partir du {date}, le certificat sur consommation suit une nouvelle méthode (§ 82 GModG) : {basis}, supplément eau chaude {dhw} au lieu de {dhwOld} kWh/m²·an, données sur {required} au lieu de {requiredOld} mois. Cela donnerait {value} kWh/m²·an{cls}.",
-      "incompleteFor": "{names} : les données de {year} ne couvrent pas toute l’année, donc pas de classe. L’indicateur ne vaut que pour la période mesurée."
+      "incompleteFor": "{names} : les données de {year} ne couvrent pas toute l’année, donc pas de classe. L’indicateur ne vaut que pour la période mesurée.",
+      "gridOnly": "Pompe à chaleur : électricité du réseau uniquement. Le coefficient de performance annuel et le flux d’énergie incluent l’électricité solaire autoconsommée, l’efficacité non."
     },
     "tanks": { "title": "Niveaux de cuve" },
     "stromSaldo": {
@@ -184,9 +185,13 @@
       "feedIn": "Injection (12 derniers mois)",
       "generation": "Production (12 derniers mois)",
       "revenue": "Rémunération (12 derniers mois)",
-      "revenueSub": "revenu de l’injection"
+      "revenueSub": "revenu de l’injection",
+      "consumptionSoFar": "Consommation (année de facturation, à ce jour)",
+      "costSoFar": "Coût (année de facturation, à ce jour)",
+      "consumptionPeriod": "Consommation (année de facturation)",
+      "costPeriod": "Coût (année de facturation)"
     },
-    "trend": { "vsPrev": "{span} par rapport aux mêmes mois un an plus tôt", "moreThanPrev": "{pct} % de plus : {span} par rapport aux mêmes mois un an plus tôt", "lessThanPrev": "{pct} % de moins : {span} par rapport aux mêmes mois un an plus tôt" },
+    "trend": { "vsPrev": "{span} par rapport aux mêmes mois un an plus tôt", "moreThanPrev": "{pct} % de plus : {span} par rapport aux mêmes mois un an plus tôt", "lessThanPrev": "{pct} % de moins : {span} par rapport aux mêmes mois un an plus tôt", "vsPrevPeriod": "{span} par rapport à {prev} dans l’année de facturation précédente", "moreThanPrevPeriod": "{pct} % de plus : {span} par rapport à {prev} dans l’année de facturation précédente", "lessThanPrevPeriod": "{pct} % de moins : {span} par rapport à {prev} dans l’année de facturation précédente", "vsCalendarDays": "{span} par rapport aux mêmes jours du calendrier un an plus tôt ({prev})", "moreThanCalendarDays": "{pct} % de plus : {span} par rapport aux mêmes jours du calendrier un an plus tôt ({prev})", "lessThanCalendarDays": "{pct} % de moins : {span} par rapport aux mêmes jours du calendrier un an plus tôt ({prev})", "check": "Vérifier le relevé", "checkLabel": "Forte variation, plus du double ou moins de la moitié de la période de comparaison : veuillez vérifier le relevé" },
     "allRecommendations": "Toutes les recommandations",
     "todo": {
       "title": "À faire",
@@ -409,7 +414,6 @@
       "co2AvoidedSub": "{tons} t de moins que sans PV",
       "co2": "🌍 CO₂ {year}",
       "co2Sub": "{tons} t",
-      "advancesUntil": "💰 Acomptes jusqu’au {date}",
       "balanceShort": "Solde : {value}",
       "generation": "Production",
       "daysCount": {
@@ -418,7 +422,9 @@
       },
       "noContract": "aucun contrat",
       "noContractHint": "Avec un contrat, l’application calcule les coûts.",
-      "billed": "facturé {value} (reste)"
+      "billed": "facturé {value} (reste)",
+      "advancesSpan": "💰 Acomptes du {from} au {date}",
+      "balanceOnCard": "Solde : voir la carte du solde, elle compte à partir du {date}."
     },
     "cards": {
       "contracts": "📑 Contrats et acomptes",
@@ -526,6 +532,28 @@
       "band": {
         "one": "Selon la météo et l’estimation : {range} ({level}, {count} jour estimé).",
         "other": "Selon la météo et l’estimation : {range} ({level}, {count} jours estimés)."
+      },
+      "suggestShortCredit": {
+        "one": "Il ne reste que {count} acompte avant le décompte du {date}. Le décompte rembourse le crédit : inutile de baisser l’acompte maintenant.",
+        "other": "Il ne reste que {count} acomptes avant le décompte du {date}. Le décompte rembourse le crédit : inutile de baisser l’acompte maintenant."
+      },
+      "measuredSpan": "Mesuré du {from} jusqu’au dernier relevé du {until}.",
+      "colConsumedUntil": "Consommé jusqu’au {date}",
+      "colPaidUntil": "Acomptes jusqu’au {date}",
+      "settleWith": "« Attendu à la régularisation » inclut aussi le contrat du {from} au {until} : {balance}. La même facture régularise les deux.",
+      "bandNoWeather": {
+        "one": "Selon l’estimation : {range} ({level}, {count} jour estimé).",
+        "other": "Selon l’estimation : {range} ({level}, {count} jours estimés)."
+      },
+      "measuredAllContracts": "tous les contrats de ce décompte",
+      "estimateTodayParts": "Estimation à ce jour : {balance}. Depuis le relevé du {date} : consommation {energy} (estimée) et abonnement {base}, face à des acomptes de {advance}.",
+      "estimateTodayRefund": "S’y ajoute un remboursement de {value}.",
+      "estimateTodayPaid": "S’y ajoutent des paiements exceptionnels de {value}.",
+      "colBalanceAt": "Solde au {date}",
+      "colBalanceEstimated": "Solde à ce jour (estimé)",
+      "bandFew": {
+        "one": "Trop peu de mois mesurés ; selon l’estimation : {range} ({level}, {count} jour estimé).",
+        "other": "Trop peu de mois mesurés ; selon l’estimation : {range} ({level}, {count} jours estimés)."
       }
     },
     "contractsTable": {
@@ -1200,7 +1228,8 @@
         "other": "{count} appareils"
       },
       "periodTag": "par période",
-      "obis": "Registre {obis}"
+      "obis": "Registre {obis}",
+      "cascade": "Registre dans la cascade"
     },
     "modal": {
       "titleEdit": "Modifier le compteur",
@@ -1418,6 +1447,12 @@
       "suggest": "Proposition d’après les mois mesurés : {best} °C. Un mois s’écarte alors typiquement de {then} d’un mois moyen au lieu de {now}.",
       "use": "Saisir {value} °C",
       "invalid": "Température de base DJU entre {min} et {max} °C, ou laisser vide"
+    },
+    "cascade": {
+      "title": "Injection dans la cascade",
+      "label": "Registre d’injection de",
+      "none": "Raccordement (injection dans le réseau)",
+      "hint": "Si des compteurs sont montés l’un derrière l’autre et qu’un compteur plus en aval compte aussi en sens inverse (2.8.0), choisissez ce compteur ici. Son registre d’injection ne compte pas comme injection dans le réseau. À partir des différences, l’application calcule l’électricité solaire que chaque branche consomme elle-même."
     }
   },
   "settings": {
@@ -1430,7 +1465,8 @@
       "evccEndpoint": "http://192.168.178.30:7070",
       "allowedHosts": "energie.example.org, *.home.arpa",
       "inboxModel": "qwen3.8",
-      "envName": "p. ex. TEST"
+      "envName": "p. ex. TEST",
+      "homeCaPem": "-----BEGIN CERTIFICATE-----"
     },
     "loading": "Chargement…",
     "saved": "Paramètres enregistrés",
@@ -1518,6 +1554,14 @@
       "environment": {
         "title": "Environnement",
         "hint": "Si vous utilisez plusieurs installations (test, maison, location de vacances), vous voyez à côté du logo dans laquelle vous êtes."
+      },
+      "homeTls": {
+        "title": "Connexions dans le réseau domestique",
+        "hint": "Pour Home Assistant, la reconnaissance de texte, la lecture dans le réseau domestique et evcc en https:// avec des certificats que vous avez émis vous-même. Les autres connexions continuent de vérifier uniquement avec les certificats racines habituels."
+      },
+      "thanks": {
+        "title": "Soutenir",
+        "hint": "Lorsque l’application vient de vous aider, une petite ligne avec un lien pour la soutenir apparaît de temps en temps. Au plus une fois par trimestre et par appareil, jamais dans la démo, jamais sous forme de fenêtre qui masque quelque chose."
       }
     },
     "field": {
@@ -1711,6 +1755,18 @@
       "env_name": {
         "label": "Nom de l’environnement",
         "hint": "Jusqu’à 12 caractères, affiché comme badge à côté du logo. Vide : pas de badge."
+      },
+      "home_ca_pem": {
+        "label": "Certificat racine propre (PEM)",
+        "hint": "Le certificat racine avec lequel vous émettez vos propres certificats, à partir de <code>-----BEGIN CERTIFICATE-----</code>. Il s’ajoute aux certificats racines habituels, la vérification reste active. Uniquement le certificat, jamais la clé privée. Un fichier dans le conteneur convient aussi : <code>ET_CA_FILE</code>."
+      },
+      "home_tls_insecure": {
+        "label": "Ne pas vérifier les certificats dans le réseau domestique",
+        "hint": "Uniquement en dernier recours. Sans vérification, quiconque s’intercale sur le réseau peut lire les échanges, y compris le jeton de Home Assistant. Ne s’applique qu’aux adresses du réseau domestique, jamais aux adresses sur Internet. Mieux : saisir votre propre certificat racine."
+      },
+      "support_hint": {
+        "label": "Afficher la note sur le soutien",
+        "hint": "Après qu’« Vérifier une facture » a trouvé un écart, après une échéance réglée avant la date prévue et quand le rapport annuel est prêt."
       }
     },
     "boolActive": "activé",
@@ -1875,7 +1931,9 @@
         "todoDateName": "Energietracker échéance du prochain point",
         "webhookAlias": "Energietracker : transmettre la notification",
         "webhookIdComment": "un ID propre, impossible à deviner",
-        "notifyComment": "ou notify.mobile_app_… pour le téléphone"
+        "notifyComment": "ou notify.mobile_app_… pour le téléphone",
+        "todoUpcomingName": "Energietracker prochain rendez-vous",
+        "todoUpcomingDateName": "Energietracker date du prochain rendez-vous"
       },
       "lastUsed": "Dernière utilisation : {when}",
       "neverUsed": "Rien n’est encore arrivé avec ce jeton.",
@@ -1922,7 +1980,15 @@
       "tempStored": {
         "one": "<strong>{count}</strong> valeur journalière enregistrée.",
         "other": "<strong>{count}</strong> valeurs journalières enregistrées."
-      }
+      },
+      "homeCa": "Certificats racines propres",
+      "homeCaCount": {
+        "one": "{count} certificat",
+        "other": "{count} certificats"
+      },
+      "homeCaFileUnreadable": "ET_CA_FILE illisible",
+      "homeCaFileInvalid": "ET_CA_FILE sans certificat",
+      "homeTlsInsecure": "vérification désactivée dans le réseau domestique"
     },
     "gasFactors": {
       "none": "Aucune entrée — le facteur par défaut s’applique.",
@@ -2503,7 +2569,8 @@
       },
       "r4": {
         "title": "{label} {ym} : anomalie statistique",
-        "detail": "La consommation en {ym} est nettement au-dessus de ce qui est habituel pour ce mois ({sigma}σ). Mérite un coup d’œil."
+        "detail": "La consommation en {ym} est nettement au-dessus de ce qui est habituel pour ce mois ({sigma}σ). Mérite un coup d’œil.",
+        "rest": "La vérification porte sur la consommation propre de ce compteur, sans {names}."
       },
       "r5": {
         "title": "{label} : cuve à {pct} %",
@@ -2942,7 +3009,10 @@
     "balanceCardNote": {
       "one": "· La colonne « Solde » ci-dessous ne compte que le {count} mois de prévision à partir de {month}, sans le solde déjà atteint.",
       "other": "· La colonne « Solde » ci-dessous ne compte que les {count} mois de prévision à partir de {month}, sans le solde déjà atteint."
-    }
+    },
+    "calibrationNote": "Les quantités mensuelles ici sont celles de la prévision. La carte du solde et l’atelier estiment avec le niveau des derniers mois mesurés (facteur de calibrage), environ {pct} {direction} ; c’est pourquoi leurs coûts mensuels diffèrent.",
+    "calibrationMore": "de plus",
+    "calibrationLess": "de moins"
   },
   "report": {
     "createdOn": "Créé le {date}",
@@ -3146,7 +3216,8 @@
       "yearIncomplete": {
         "one": "Seul {count} mois sur 12 de {year} est enregistré. La comparaison avec {prev} viendra quand l’année sera complète.",
         "other": "Seuls {count} mois sur 12 de {year} sont enregistrés. La comparaison avec {prev} viendra quand l’année sera complète."
-      }
+      },
+      "billingBand": "{label} : entre {low} et {high} probables au décompte."
     },
     "euro": {
       "saves": {
@@ -3679,7 +3750,8 @@
       "valueInvalid": "{field} : « {value} » n’est pas une valeur valide",
       "idInvalid": "Identifiant « {id} » invalide – lettres, chiffres, _ et - autorisés (64 caractères au plus).",
       "serialSet": "L’appareil a déjà le numéro {serial}. Un autre compteur est un changement de compteur.",
-      "obisInvalid": "Le registre « {value} » n’est pas un code OBIS. Exemples : 1.8.0, 1.8.1, 2.8.0 ou 1-0:1.8.0."
+      "obisInvalid": "Le registre « {value} » n’est pas un code OBIS. Exemples : 1.8.0, 1.8.1, 2.8.0 ou 1-0:1.8.0.",
+      "cascadeLinkInvalid": "Le compteur « {id} » n’est pas un compteur d’électricité en aval d’un autre compteur"
     },
     "common": {
       "unknownUtility": "Type de consommation inconnu : {utility}",
@@ -3810,7 +3882,9 @@
       "factorMissing": "Une entrée nécessite soit coefficient de correction et pouvoir calorifique, soit un facteur en kWh/m³",
       "factorOutOfRange": "Facteur de conversion {value} invraisemblable — attendu entre 5 et 15 kWh/m³",
       "valueInvalid": "Valeur « {value} » non valide pour {key}",
-      "hostNotListed": "La liste d’hôtes doit contenir le nom sous lequel vous ouvrez l’application en ce moment (« {host} ») – sinon vous vous excluriez vous-même."
+      "hostNotListed": "La liste d’hôtes doit contenir le nom sous lequel vous ouvrez l’application en ce moment (« {host} ») – sinon vous vous excluriez vous-même.",
+      "caInvalid": "Ce n’est pas un certificat lisible. Attendu : du texte PEM de -----BEGIN CERTIFICATE----- à -----END CERTIFICATE-----.",
+      "caPrivateKey": "Le texte contient une clé privée. Saisissez uniquement le certificat, la clé n’a rien à faire ici."
     },
     "billCheck": {
       "gasOnly": "La vérification de facture n’existe que pour le gaz",
@@ -4036,6 +4110,13 @@
       "meterUnknown": "Le compteur « {id} » n’existe pas.",
       "meterTwice": "Le compteur « {id} » est attribué à deux emplacements. Chaque compteur n’apparaît qu’une fois dans le schéma.",
       "chain": "« {name} » a ses propres sous-compteurs et ne peut donc pas être placé en aval d’un autre compteur."
+    },
+    "homeTls": {
+      "issuer": "Energietracker ne connaît pas l’émetteur du certificat de {host}. Si vous l’avez émis vous-même, saisissez votre certificat racine dans Paramètres → Expert → Connexions dans le réseau domestique.",
+      "name": "Le certificat de {host} ne correspond pas à cette adresse. Saisissez l’adresse telle qu’elle figure dans le certificat, par exemple le nom au lieu de l’adresse IP. Un certificat racine propre n’y change rien.",
+      "expired": "Le certificat de {host} a expiré ou n’est pas encore valide. Renouvelez-le sur l’appareil ou vérifiez l’heure des deux appareils.",
+      "file": "Energietracker ne peut pas lire les certificats racines. Vérifiez le fichier de ET_CA_FILE ou une liste de certificats montée : chemin, contenu et droits de lecture. Paramètres → Système indique si ET_CA_FILE est lisible.",
+      "other": "La connexion chiffrée vers {host} échoue à cause du certificat. Vérifiez l’adresse et le certificat. Si vous l’avez émis vous-même, saisissez votre certificat racine dans Paramètres → Expert → Connexions dans le réseau domestique."
     }
   },
   "login": {
@@ -4974,7 +5055,8 @@
     "noHeatMeter": "Le coefficient annuel nécessite un compteur de chaleur sur la pompe : compteur de chaleur avec le rôle « Chaleur produite par la pompe à chaleur », lié à ce compteur d’électricité.",
     "notLinked": "Le compteur de chaleur n’est encore lié à aucun compteur d’électricité de la pompe (fenêtre du compteur).",
     "noOverlap": "Cette année, aucun mois n’a de valeurs à la fois pour le compteur de chaleur et celui d’électricité.",
-    "reference": "Pour situer : essai terrain « WP-QS im Bestand » (Fraunhofer ISE, 2025) — air/eau en moyenne {air}, eau glycolée/eau {ground}. La prise en compte de la résistance d’appoint et de l’eau chaude dépend de l’emplacement des compteurs."
+    "reference": "Pour situer : essai terrain « WP-QS im Bestand » (Fraunhofer ISE, 2025) — air/eau en moyenne {air}, eau glycolée/eau {ground}. La prise en compte de la résistance d’appoint et de l’eau chaude dépend de l’emplacement des compteurs.",
+    "cascadeEstimated": "≈ : ces mois-là, l’électricité solaire de la pompe à chaleur n’est pas mesurée (relevés répartis dans la cascade). Aucun coefficient mensuel n’y figure ; le coefficient annuel couvre tous les mois."
   },
   "pv": {
     "battery": {
@@ -4998,7 +5080,20 @@
     "plugIn": {
       "assumed": "Kit solaire : autoconsommation supposée à {pct} % de la production (paramètres)."
     },
-    "hint51": "En service depuis le 25/02/2025 : pas de rémunération de l’injection pendant les périodes de prix de gros négatifs – sous 100 kW, à partir de l’année qui suit l’installation d’un compteur communicant (§ 51 EEG). Une durée d’aide prolongée compense en partie."
+    "hint51": "En service depuis le 25/02/2025 : pas de rémunération de l’injection pendant les périodes de prix de gros négatifs – sous 100 kW, à partir de l’année qui suit l’installation d’un compteur communicant (§ 51 EEG). Une durée d’aide prolongée compense en partie.",
+    "cascade": {
+      "title": "Électricité solaire par branche {year}",
+      "hint": "Autoconsommée, d’après les registres d’injection des compteurs montés l’un derrière l’autre : ce qu’un compteur plus en aval compte en sens inverse au-delà du compteur en amont a été consommé par la branche entre les deux.",
+      "months": {
+        "one": "Calculé sur {n} mois avec les trois registres.",
+        "other": "Calculé sur {n} mois avec les trois registres."
+      },
+      "inconsistent": "En {list}, un compteur plus en amont a compté plus en sens inverse que le compteur en aval. Vérifiez les relevés.",
+      "estimated": {
+        "one": "Dont {n} mois issu de relevés répartis ; la répartition entre les branches y est estimée.",
+        "other": "Dont {n} mois issus de relevés répartis ; la répartition entre les branches y est estimée."
+      }
+    }
   },
   "comparison": {
     "title": "Comparaison {year}",
@@ -5110,7 +5205,9 @@
       "even": "un solde presque nul",
       "text": "D’ici la facture du {date}, vous payez {paid} d’acomptes ; consommation et abonnement coûteront probablement {cost}. Résultat : {result}.",
       "uncertain": "entre {low} et {high}, selon l’estimation",
-      "costRange": "entre {low} et {high}"
+      "costRange": "entre {low} et {high}",
+      "withBand": "{result} ({band})",
+      "settledWith": "Cela inclut le contrat du {from} au {until} du même décompte, avec {balance}."
     },
     "energy": {
       "title": "Flux d’énergie dans la maison",
@@ -5308,7 +5405,9 @@
         "heatPump": "Pompe à chaleur ou borne de recharge : la confirmation du tarif spécial"
       },
       "docsReader": "La lecture a besoin d’un service – dans le réseau domestique ou dans le cloud. Configurez-le directement ici ; vous pouvez aussi déposer des documents avant.",
-      "docsReaderMember": "La lecture a besoin d’un service ; un administrateur peut le configurer. Vous pouvez déjà déposer des documents."
+      "docsReaderMember": "La lecture a besoin d’un service ; un administrateur peut le configurer. Vous pouvez déjà déposer des documents.",
+      "saldo": "Avec des relevés et un contrat avec acompte, chaque type de consommation affiche son solde : mesuré jusqu’au dernier relevé, estimé à ce jour et attendu à la régularisation.",
+      "saldoDemo": "La page de chaque type de consommation affiche son solde : mesuré jusqu’au dernier relevé, estimé à ce jour et attendu à la régularisation."
     },
     "skip": "Passer",
     "back": "Retour",
@@ -5824,7 +5923,8 @@
     },
     "dashboard": {
       "window": "Année de facturation {name} : du {from} au {until}",
-      "costSub": "Acomptes versés {advances}"
+      "costSub": "Acomptes versés {advances}",
+      "windowUnnamed": "Année de facturation du {from} au {until}"
     },
     "analysis": {
       "title": "Années de facturation comparées"
@@ -5902,7 +6002,7 @@
     },
     "model": {
       "label": "Modèle de prévision",
-      "standard": "Corrigé du climat (prévision)",
+      "standard": "Comme la carte du solde (calibré)",
       "last_year": "Comme l’an dernier",
       "trend": "Tendance prolongée",
       "unavailable": "pas assez de données (deux années complètes nécessaires)"
@@ -6348,7 +6448,9 @@
       "reading_old_estimated": "Relevé initial estimé",
       "water_prices": "Prix de l’eau",
       "advance_new_dates": "Échéances du nouvel acompte",
-      "advance_new_every": "Rythme du nouvel acompte"
+      "advance_new_every": "Rythme du nouvel acompte",
+      "invoice_number": "Numéro de facture",
+      "corrects_invoice": "Référence à une facture antérieure"
     },
     "reason": {
       "empty": "Manquant, mais nécessaire",
@@ -6441,7 +6543,9 @@
       "contractSpanFromInvoice": "Créer le contrat {provider} du {from} au {to} d’après cette facture",
       "waterWorking": "{section} à partir du {from} : {value} (d’après la facture)",
       "waterBase": "Abonnement {section} à partir du {from} : {value} par mois (d’après la facture)",
-      "waterRate": "{section} à partir du {from} : {value} par m² et par an pour {area} m² (d’après la facture)"
+      "waterRate": "{section} à partir du {from} : {value} par m² et par an pour {area} m² (d’après la facture)",
+      "billCorrection": "Reprendre la facture rectificative du {from} au {to} : {result} au lieu de {before}",
+      "billRebook": "Remplacer la comptabilisation : {result} au lieu de {before}"
     },
     "detail": {
       "reading": "Enregistré : {counter}.",
@@ -6456,14 +6560,18 @@
       "serial": "Le compteur installé est {serial}.",
       "readingReported": "Votre relevé du {date} ({counter}) : le fournisseur date le relevé transmis à la fin de la période.",
       "readingBelow": "Inférieur à votre relevé de {counter} du {date}.",
-      "readingAbove": "Supérieur à votre relevé de {counter} du {date}."
+      "readingAbove": "Supérieur à votre relevé de {counter} du {date}.",
+      "readingBefore": "Votre relevé du {date} ({counter}) est le même : l’ancien relevé de la facture est votre relevé juste avant.",
+      "billCorrected": "Une version antérieure de {amount} est enregistrée. Ses valeurs sont remplacées, l’ancien document reste comme justificatif.",
+      "billBooked": "Comptabilisé jusqu’ici : {before}."
     },
     "pstatus": {
       "new": "nouveau",
       "exists": "déjà présent",
       "conflict": "contradiction",
       "overlap": "chevauchement",
-      "check": "à vérifier"
+      "check": "à vérifier",
+      "replaces": "remplace"
     },
     "applyButton": {
       "one": "Reprendre {count} modification",
@@ -6505,7 +6613,9 @@
         "offQuantity": "La consommation de la facture s’écarte de {pct} % de vos relevés.",
         "noCompare": "La facture n’indique ni consommation ni montant – rien à comparer.",
         "noPrices": "La facture du {from} au {to} : des prix manquent dans le contrat – l’application ne peut pas recalculer le montant.",
-        "offQuantityNoPrices": "La consommation de la facture s’écarte de {pct} % de vos relevés, et des prix manquent dans le contrat – l’application ne peut pas recalculer le montant."
+        "offQuantityNoPrices": "La consommation de la facture s’écarte de {pct} % de vos relevés, et des prix manquent dans le contrat – l’application ne peut pas recalculer le montant.",
+        "correction": "Facture rectificative du {from} au {to} : elle remplace la facture enregistrée, le résultat devient {result} au lieu de {balance}. Reprenez-la et l’application la vérifie avec vos données.",
+        "correctionBooked": "Facture rectificative du {from} au {to} : elle remplace la facture enregistrée et comptabilisée, le résultat devient {result} au lieu de {balance}, et la comptabilisation change aussi. Reprenez-la et l’application la vérifie avec vos données."
       },
       "advance": {
         "ok": "Le nouvel acompte de {amount} correspond à votre consommation.",
@@ -7082,7 +7192,9 @@
       "other": "Pendant {days} jours, il manque un relevé du sous-compteur. Ce contrat y facture tout."
     },
     "short": "Certains mois, le sous-compteur mesure plus que le compteur en amont ({kwh}). Vérifiez les relevés. Un reste négatif n’est pas facturé.",
-    "contractHint": "« {parent} » mesure aussi « {name} ». Avec un contrat propre, le contrat de « {parent} » ne facture plus que le reste à partir de son début : mesuré là moins « {name} »."
+    "contractHint": "« {parent} » mesure aussi « {name} ». Avec un contrat propre, le contrat de « {parent} » ne facture plus que le reste à partir de son début : mesuré là moins « {name} ».",
+    "registerPart": "{name} {rest} = {measured} − {deducted}",
+    "formulaRegisters": "{rest}, par registre {parts}"
   },
   "concept": {
     "slotName": {
@@ -7099,7 +7211,8 @@
       "feed": "Injection",
       "gen": "Production PV",
       "bat_in": "Batterie charge",
-      "bat_out": "Batterie décharge"
+      "bat_out": "Batterie décharge",
+      "feed_house": "Injection foyer"
     },
     "regShort": {
       "ht": "HP",
@@ -7164,7 +7277,8 @@
       "batteryHint": "Charge et décharge de la batterie, souvent fournies par l’onduleur.",
       "installedOn": "Installé le",
       "installedHint": "Vide : à partir du début de son contrat, sinon à partir d’aujourd’hui.",
-      "initialCounter": "Index à l’installation"
+      "initialCounter": "Index à l’installation",
+      "cascadeFeedHint": "Le registre d’injection de « {name} » : même numéro, compteur propre sous l’injection. Il ne compte pas comme injection dans le réseau. À partir des différences, l’application calcule l’électricité solaire que chaque branche consomme elle-même."
     },
     "contracts": {
       "title": "Quels contrats y a-t-il ?",
@@ -7199,7 +7313,8 @@
       "restFrom": "À partir du {date}, le contrat de « {parent} » ne facture plus que le reste : mesuré là moins « {sub} ».",
       "restFromPast": "Rétroactivement à partir du {date}, le contrat de « {parent} » ne facture plus que le reste : mesuré là moins « {sub} ». Les coûts, le solde et l’acompte suggéré de ce contrat changent aussi pour les mois depuis le {date}.",
       "beforeInstall": "« {name} » n’est installé qu’à partir du {installed}, alors que son contrat commence le {start}. Jusqu’à l’installation, l’application ne déduit rien.",
-      "detailInstalled": "installé le {date}"
+      "detailInstalled": "installé le {date}",
+      "detailCascade": "registre d’injection de {name}"
     },
     "done": "Schéma de comptage configuré. Ensuite : saisir le premier relevé de chaque compteur.",
     "entry": {
@@ -7279,5 +7394,17 @@
       "textOther": "À partir de ce jour, la prévision et les comparaisons n’utilisent que la période suivante. La fin de la période inhabituelle est préremplie. Si vous connaissez le jour du changement (par exemple l’emménagement), saisissez-le."
     },
     "adviceOther": "Cela ressemble à un vrai changement (par exemple un emménagement, une période inoccupée, des travaux ou un autre appareil), pas à une erreur de relevé. Une rupture de référence sépare la période précédente : la prévision et les comparaisons utilisent alors la consommation actuelle."
+  },
+  "thanks": {
+    "off": "Ne plus afficher",
+    "offDone": "La note ne s’affichera plus. Vous pouvez la réactiver dans les paramètres."
+  },
+  "balanceBand": {
+    "short": "selon la météo et l’estimation : {range}",
+    "shortNoWeather": "selon l’estimation : {range}",
+    "sentence": "Selon la météo et l’estimation, entre {low} et {high}.",
+    "sentenceNoWeather": "Selon l’estimation, entre {low} et {high}.",
+    "shortFew": "trop peu de mois mesurés ; selon l’estimation : {range}",
+    "sentenceFew": "Trop peu de mois mesurés ; selon l’estimation, entre {low} et {high}."
   }
 }

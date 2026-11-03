@@ -28,10 +28,20 @@ const stamp = (iso) => {
   return !d || Number.isNaN(d.getTime()) ? '–' : d.toLocaleString(intlLocale(), { dateStyle: 'short', timeStyle: 'short' });
 };
 
+// v3.10.0 (#36, Skeptiker N8) — Zertifikatsfehler je Art mit eigenem Rat (wie HomeTls::CERT_ERRORS)
+const CERT_REASONS = {
+  tlsIssuer: 'errors.homeTls.issuer',
+  tlsName: 'errors.homeTls.name',
+  tlsExpired: 'errors.homeTls.expired',
+  tlsFile: 'errors.homeTls.file',
+  tlsOther: 'errors.homeTls.other',
+};
+
 /** Grund eines Fehlschlags in Worten (Fehlercodes von NotifyTransport). */
 export function reasonText(r) {
   if (!r?.error) return '';
   if (r.error === 'http' && r.status === 401) return t('settings.haNotify.error.unauthorized');
+  if (CERT_REASONS[r.error]) return t(CERT_REASONS[r.error], { host: 'Home Assistant' });
   const text = t(`settings.haNotify.error.${r.error}`, { status: r.status ?? '' });
   return text === `settings.haNotify.error.${r.error}` ? t('settings.haNotify.error.network') : text;
 }

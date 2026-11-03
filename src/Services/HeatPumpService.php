@@ -33,6 +33,7 @@ final class HeatPumpService
     public function forYear(int $year): array
     {
         $pumps = [];
+        $cascade = null; $cascadeRead = false;
         foreach ($this->meters->list('waerme') as $hm) {
             if (Utilities::roleOf('waerme', $hm) !== 'heat_pump_output') continue;
             $ids = array_values(array_filter((array)($hm['heat_pump_meter_ids'] ?? []), 'is_string'));
@@ -48,6 +49,24 @@ final class HeatPumpService
                     $elec[$ym]['n'] = ($elec[$ym]['n'] ?? 0) + ((int)($r['days'] ?? 0) > 0 ? 1 : 0);
                 }
             }
+            // v3.10.0 (#40) — Einspeisung in der Kaskade: Der Rest an Z1 ist nur der Strom aus dem
+            // Netz. Mit Einspeise-Zählwerken an Z1 und Z2 kommt der Sonnenstrom ihres Strangs dazu
+            // (Z2 − Z1), einmal je Monat, auch wenn HT und NT je ein Zähler sind
+            if (!$cascadeRead) { $cascade = $this->cascade(); $cascadeRead = true; }
+            $share = CascadeFeed::shareFor($cascade, $ids);
+            foreach ($share as $ym => $kwh) {
+                if (isset($elec[$ym])) $elec[$ym]['kwh'] += $kwh;
+            }
+            // v3.10.0 (Entscheidung des Maintainers) — für die Jahressummen (Strom, Jahresarbeitszahl)
+            // in verteilten Monaten der unbegrenzte Sonnenstrom: Über eine Lücke stimmt die Summe dann
+            // genau. Die Tabelle zeigt den Monat weiter begrenzt und als geschätzt.
+            $shareSum = CascadeFeed::shareFor($cascade, $ids, true);
+            foreach ($elec as $ym => $e) $elec[$ym]['sum'] = $e['kwh'] + ($shareSum[$ym] ?? 0.0) - ($share[$ym] ?? 0.0);
+            // v3.10.0 (Skeptiker M5) — ist der Sonnenstrom des Strangs in einem Monat nicht gemessen
+            // (verteilt, auf null begrenzt, nicht von allen drei Zählwerken abgedeckt), ist der Strom
+            // dieses Monats geschätzt: keine Arbeitszahl je Monat (eine Lücke an Z2 ergab 12,8). Die
+            // Jahresarbeitszahl rechnet weiter über alle Monate (über eine Lücke stimmt die Summe).
+            $estimated = CascadeFeed::estimatedFor($cascade, $ids);
             $months = [];
             foreach ($this->consumption->forMeter('waerme', $hm) as $h) {
                 $ym = (string)$h['ym'];
@@ -55,11 +74,18 @@ final class HeatPumpService
                 // beide Seiten mit Werten; bei mehreren Stromzählern alle
                 if (($elec[$ym]['n'] ?? 0) < count($ids) || ($elec[$ym]['kwh'] ?? 0) <= 0) continue;
                 $heat = (float)($h['kwh'] ?? 0);
+                $est = isset($estimated[$ym]);
                 $months[] = ['ym' => $ym, 'month' => (int)$h['month'], 'heat_kwh' => round($heat, 1), 'elec_kwh' => round($elec[$ym]['kwh'], 1),
-                             'cop' => round($heat / $elec[$ym]['kwh'], 2), 'hdd' => isset($h['hdd']) ? round((float)$h['hdd'], 1) : null];
+                             '_sum' => (float)($elec[$ym]['sum'] ?? $elec[$ym]['kwh']),
+                             'cop' => $est ? null : round($heat / $elec[$ym]['kwh'], 2), 'hdd' => isset($h['hdd']) ? round((float)$h['hdd'], 1) : null]
+                            + ($est ? ['estimated' => true] : []);
             }
             $sum = fn(array $ms, string $k) => array_sum(array_column($ms, $k));
             $season = array_values(array_filter($months, fn($m) => in_array($m['month'], self::SEASON, true)));
+            // Jahressummen mit `_sum` (s. o.), die Monatszeilen ohne das Hilfsfeld
+            $elecYear = max(0.0, $sum($months, '_sum'));
+            $elecSeason = max(0.0, $sum($season, '_sum'));
+            $months = array_map(fn($m) => array_diff_key($m, ['_sum' => 1]), $months);
             $pumps[] = [
                 'heat_meter_id'      => (string)$hm['id'],
                 'name'               => (string)($hm['name'] ?? $hm['id']),
@@ -68,13 +94,22 @@ final class HeatPumpService
                 'months'             => $months,
                 'months_covered'     => count($months),
                 'heat_kwh'           => round($sum($months, 'heat_kwh'), 1),
-                'elec_kwh'           => round($sum($months, 'elec_kwh'), 1),
-                'jaz'                => $sum($months, 'elec_kwh') > 0 ? round($sum($months, 'heat_kwh') / $sum($months, 'elec_kwh'), 2) : null,
-                'jaz_heating_season' => $sum($season, 'elec_kwh') > 0 ? round($sum($season, 'heat_kwh') / $sum($season, 'elec_kwh'), 2) : null,
+                'elec_kwh'           => round($elecYear, 1),
+                'jaz'                => $elecYear > 0 ? round($sum($months, 'heat_kwh') / $elecYear, 2) : null,
+                'jaz_heating_season' => $elecSeason > 0 ? round($sum($season, 'heat_kwh') / $elecSeason, 2) : null,
                 'by_hdd'             => array_values(array_map(fn($m) => ['ym' => $m['ym'], 'hdd' => $m['hdd'], 'cop' => $m['cop']],
-                                            array_filter($months, fn($m) => $m['hdd'] !== null))),
+                                            array_filter($months, fn($m) => $m['hdd'] !== null && $m['cop'] !== null))),
             ];
         }
         return ['year' => $year, 'pumps' => $pumps, 'reference' => self::FIELD_TEST];
+    }
+
+    /** v3.10.0 (#40) — Kaskade mit Einspeise-Zählwerken, nur wenn es eins hinter dem Netzanschluss gibt. */
+    private function cascade(): ?array
+    {
+        $has = array_filter($this->meters->list('pv_einspeisung'), fn($m) => !empty($m['cascade_meter_id']));
+        if ($has === []) return null;
+        return CascadeFeed::compute($this->consumption->forUtility('strom'), $this->consumption->forUtility('pv_einspeisung'),
+            $this->consumption->forUtility('pv_erzeugung'));
     }
 }

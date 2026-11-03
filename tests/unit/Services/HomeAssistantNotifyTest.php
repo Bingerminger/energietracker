@@ -445,6 +445,45 @@ final class HomeAssistantNotifyTest extends ServiceTestCase
         self::assertSame(0, Todo::summary([])['count']);
     }
 
+    /**
+     * v3.10.0 (#36) — Der Sensor zeigt auch das Kommende: `soon` zählt, was im
+     * Vorlauf „bald fällig“ (hier 14 Tage) fällig wird, `next_upcoming` ist das
+     * nächste noch nicht fällige Ereignis, auch jenseits des Vorlaufs. `count`
+     * bleibt bei den fälligen Punkten (Automationen auf „> 0“ stimmen weiter).
+     * Fester Stichtag 10.03.2026, Erwartungen von Hand.
+     */
+    public function testToDoAlsoShowsWhatIsComing(): void
+    {
+        $upcoming = function (string $kind, string $uid, int $days): array {
+            $e = $this->event($kind, $uid, $days, 'upcoming');
+            $e['due_now'] = false;
+            return $e;
+        };
+        $doneLater = $upcoming('reminder', 'reminder-done', 1);
+        $doneLater['done'] = ['auto' => false];
+        $events = [
+            $this->event('reading_due', 'reading-a', 0, 'due'),
+            $upcoming('reminder', 'reminder-wartung', 2),        // „Heizung Wartung“ in zwei Tagen
+            $upcoming('cancel_by', 'cancel_by-c1', 14),          // genau am Ende des Vorlaufs: zählt
+            $upcoming('term_end', 'term_end-c1', 15),            // einen Tag danach: nicht mehr
+            $upcoming('price_increase', 'price-x', 200),
+            $doneLater,                                          // erledigt zählt nie
+        ];
+        $t = Todo::summary($events, 'et_0123456789abcdef', '2026-03-10', 14);
+        self::assertSame(1, $t['count'], 'Zustand: nur das Fällige');
+        self::assertSame(2, $t['soon'], 'in zwei Tagen und am 14. Tag');
+        self::assertSame(['uid' => 'reminder-wartung', 'kind' => 'reminder', 'title' => 'Titel reminder-wartung',
+            'date' => '2026-03-12', 'severity' => 'upcoming', 'href' => '#/'], $t['next_upcoming']);
+        self::assertSame(3, Todo::summary($events, '', '2026-03-10', 30)['soon'], 'der Vorlauf kommt aus der Einstellung');
+        self::assertSame(0, Todo::summary($events, '', '2026-03-10', 0)['soon']);
+        // nur Fälliges oder gar nichts: kein nächster Termin
+        self::assertNull(Todo::summary([$this->event('reading_due', 'reading-a', 0, 'due')], '', '2026-03-10')['next_upcoming']);
+        self::assertSame([0, null], [Todo::summary([], '', '2026-03-10')['soon'], Todo::summary([], '', '2026-03-10')['next_upcoming']]);
+        // gleiches Datum: nach Art, dann UID (stabil)
+        $same = Todo::summary([$upcoming('term_end', 'z', 3), $upcoming('cancel_by', 'y', 3)], '', '2026-03-10');
+        self::assertSame('y', $same['next_upcoming']['uid']);
+    }
+
     // ── über echtes HTTP ─────────────────────────────────────────────
 
     public function testOverHttpToTheFakeHomeAssistant(): void

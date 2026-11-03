@@ -14,11 +14,11 @@ Beispielhaushalt, bis heute fortgeschrieben, in sieben Sprachen, ohne Installati
 
 [![CI](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml)
 [![Docker Publish](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml)
-[![Version](https://img.shields.io/badge/version-3.9.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-3.10.0-blue.svg)](CHANGELOG.md)
 [![Lizenz: AGPL-3.0-or-later](https://img.shields.io/badge/Lizenz-AGPL--3.0--or--later-success.svg)](LICENSE)
 [![PHP](https://img.shields.io/badge/PHP-%E2%89%A5%208.2-777BB4.svg)](composer.json)
 [![Abhängigkeiten: 0](https://img.shields.io/badge/Abh%C3%A4ngigkeiten-0-success.svg)](composer.json)
-[![Tests](https://img.shields.io/badge/Tests-1762-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-1895-success.svg)](tests/)
 [![Sprachen](https://img.shields.io/badge/Sprachen-7-7c5cff.svg)](public/locales/)
 [![Verbrauchsarten](https://img.shields.io/badge/Verbrauchsarten-9-f59e0b.svg)](docs/einstieg/funktionen.md)
 [![Docker](https://img.shields.io/badge/Docker-amd64%20%7C%20arm64-2496ed.svg)](docker-compose.yml)
@@ -32,7 +32,7 @@ Beispielhaushalt, bis heute fortgeschrieben, in sieben Sprachen, ohne Installati
 | Frage | Antwort in der App |
 |---|---|
 | Was wäre, wenn …? | **Prognose-Werkstatt** *(neu in v3.6.0)*: Regler für Winter, Dämmung, Raumtemperatur und Tarif — sofort sehen, was ein kalter Winter kostet oder die Dämmung bringt; Rangliste, beste Kombination unter einem Budget, Ergebnis als Bild oder PDF |
-| Bekomme ich Geld zurück? | **Saldo** je Vertrag nach Kalender, erwartete Abrechnung und Abschlagsvorschlag — „Guthaben“ oder „Nachzahlung“ wie auf der Rechnung |
+| Bekomme ich Geld zurück? | **Saldo** je Vertrag nach Kalender, erwartete Abrechnung und Abschlagsvorschlag — „Guthaben“ oder „Nachzahlung“ wie auf der Rechnung; *neu in v3.10.0* **Saldo aus einem Guss**: gemessen bis zur letzten Ablesung, geschätzt bis heute und erwartet bei Abrechnung getrennt, mit ehrlicher Spanne, auch über zwei Verträge einer Abrechnung |
 | Stimmt meine Jahresabrechnung? | **Rechnungsprüfung** für Gas, Strom, Wasser und Fernwärme: je Abschnitt nachgerechnet, gegen die Rechnung gehalten, das Ergebnis als Sonderzahlung gebucht |
 | Soll ich wechseln? | **Wechselentscheidung** mit Kündigungsfrist, Kosten ab dem zweiten Jahr und Gewinnschwelle |
 | Mehr verbraucht oder nur kälter? | **Wetterbereinigung** mit Heizgradtagen vom eigenen Standort und einem Heizmodell |
@@ -40,8 +40,8 @@ Beispielhaushalt, bis heute fortgeschrieben, in sieben Sprachen, ohne Installati
 | Wie effizient ist das Haus? | **Effizienz** in kWh/m²·a und eine energieausweis-nahe Kennzahl; mit Wärmepumpe die Jahresarbeitszahl |
 | Reicht die Vorauszahlung zur Miete? | **Mietverhältnis**: Heizung und Wasser gegen die Nebenkostenvorauszahlung, Fristen im Kalender, CO₂-Kosten mit dem Vermieter teilen |
 | Was steht in der Post vom Versorger? | **Posteingang**: PDF ablegen, auslesen lassen, jede Zahl mit ihrer Belegstelle prüfen und übernehmen; *neu in v3.9.0* legt eine Jahresrechnung auch den Vertrag an, mit Preisen je Abschnitt und Abschlägen alle zwei oder drei Monate |
-| Wärmepumpe mit eigenem Tarif, HT/NT, PV? | **Messkonzept** *(neu in v3.9.0)*: ein Assistent fragt nach dem Aufbau im Zählerschrank, zeichnet das Schaltbild und legt Zähler, Zählwerke und Verträge an; hat ein Subzähler einen eigenen Vertrag, rechnet der Elternzähler nur den Rest |
-| Muss ich die App öffnen, um nichts zu verpassen? | **Benachrichtigungen an Home Assistant** *(neu in v3.9.0)*: Fristen, Termine, Warnungen und neue Post erscheinen in Home Assistant, jede nur einmal; dazu ein Sensor „Zu tun“ |
+| Wärmepumpe mit eigenem Tarif, HT/NT, PV? | **Messkonzept** *(neu in v3.9.0)*: ein Assistent fragt nach dem Aufbau im Zählerschrank, zeichnet das Schaltbild und legt Zähler, Zählwerke und Verträge an; hat ein Subzähler einen eigenen Vertrag, rechnet der Elternzähler nur den Rest, seit v3.10.0 je Zählwerk und mit dem Sonnenstrom je Strang |
+| Muss ich die App öffnen, um nichts zu verpassen? | **Benachrichtigungen an Home Assistant** *(neu in v3.9.0)*: Fristen, Termine, Warnungen und neue Post erscheinen in Home Assistant, jede nur einmal; dazu ein Sensor „Zu tun“, seit v3.10.0 mit dem nächsten Termin und auch über HTTPS mit eigenem Stammzertifikat |
 | Stimmt dieser Zählerstand? | **Ablesung prüfen** *(neu in v3.9.0)*: Ein vertippter Stand zwischen zwei richtigen verzieht sonst still die Monate. Die App fragt nach und korrigiert nie selbst |
 
 Neun Verbrauchsarten: Gas, Strom, Wasser, Fernwärme, Heizöl und Pellets (mit
@@ -78,7 +78,7 @@ Hilfe in der App mit Glossar und ⓘ an jeder Kennzahl.
 ## Schnellstart
 
 ```bash
-docker run -d --name energietracker -p 8080:80 \
+docker run -d --name energietracker --restart unless-stopped -p 8080:80 \
   -v energietracker-data:/data \
   ghcr.io/bingerminger/energietracker:3
 ```
@@ -159,9 +159,13 @@ er ohne Klassen und sagt warum; Währungen rechnet er nicht um —
 
 ## Stand und Ausblick
 
-**v3.9.0** ist die aktuelle Version — [CHANGELOG](CHANGELOG.md). Schnittstellen,
+**v3.10.0** ist die aktuelle Version — [CHANGELOG](CHANGELOG.md). Schnittstellen,
 CSV-Formate und das Backup-Format ändern sich nur additiv; entfernt wird erst
-mit einer neuen Hauptversion und nach Ankündigung. 3.9.0 enthält, was als
+mit einer neuen Hauptversion und nach Ankündigung. 3.10.0 rechnet den Saldo aus
+einem Guss: gemessen bis zur letzten Ablesung, geschätzt bis heute und erwartet
+bei der Abrechnung, jeweils mit ehrlicher Spanne und überall gleich; dazu
+Home Assistant über HTTPS mit eigenem Stammzertifikat, der Rest je Zählwerk in
+der Kaskade und ein schlankeres, signiertes Image. 3.9.0 enthält, was als
 3.7.1 und 3.8.0 angekündigt war: Messkonzepte mit Wärmepumpe, HT/NT und PV, bei
 denen jeder Vertrag nur bezahlt, was er wirklich misst; Benachrichtigungen an
 Home Assistant; der Vertrag aus der Jahresrechnung, auch für Wasser mit

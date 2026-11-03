@@ -11,7 +11,7 @@
 
 import { api } from '../api.js';
 import { getUtility } from '../state.js';
-import { fmt, escapeHtml } from '../lib/format.js';
+import { fmt, escapeHtml, todayIso } from '../lib/format.js';
 import { t } from '../lib/i18n.js';
 import { advanceAmountText } from '../lib/advance-rhythm.js';   // v3.9.0 (Skeptiker H1)
 import { renderError } from '../components/error.js';
@@ -134,7 +134,7 @@ export function scenarioHtml({ cur, r, u, meters = [], contracts = [], cardId = 
     brand: t('scenario.card.brand'), title: name, tone,
     big: tone === 'same' ? '±0' : `${d.cost > 0 ? '+' : '−'}${amount}`,
     sentence: tone === 'same' ? t('scenario.card.same', { name }) : t(tone === 'more' ? 'scenario.card.more' : 'scenario.card.less', { name, amount }),
-    facts: [], footer: t('scenario.card.footer', { from: fmt.month(r.from), to: fmt.month(r.to), date: fmt.date(new Date().toISOString().slice(0, 10)) }),
+    facts: [], footer: t('scenario.card.footer', { from: fmt.month(r.from), to: fmt.month(r.to), date: fmt.date(todayIso()) }),   // v3.10.0 (Skeptiker N6) — Ortszeit
   }, cardId);
   const row = (label, base, scen, delta) => `<tr><th scope="row">${esc(label)}</th><td class="num">${esc(base)}</td><td class="num">${esc(scen)}</td><td class="num">${esc(delta)}</td></tr>`;
   const bal = (v) => { const b = balanceView(v, u); return b ? `${b.word} ${fmt.eur(b.amount)}` : '–'; };

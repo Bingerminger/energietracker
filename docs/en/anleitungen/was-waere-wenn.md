@@ -104,11 +104,19 @@ precomputed — one click shows a result straight away.
 
 **One source.** The baseline is the forecast for the next twelve months with
 all its rules: climate normal, heating model, analysis baseline, contracts to
-the day, advance payments by plan. The workshop changes only quantities — and
-prices for the tariff. In the forecast the cost of a month is a linear
-function of the quantity (unit price × quantity + standing charge − bonuses);
-exactly this function also values the scenario quantities. Without a change
-you therefore get the forecast to the cent.
+the day, advance payments by plan. Since v3.10.0 it estimates the quantity per
+month like the balance card (per day, with the card’s calibration factor); the
+workshop and the balance path therefore show the same monthly costs. Up to v3.9
+it took the forecast’s monthly quantities, about a tenth off with a poorly
+fitting heating model ([basics §10](../verstehen/00-overview.md#balance-in-one-piece-since-v3100)).
+That is why the baseline row reads “Like the balance card (calibrated)”. The
+table “Forecast in detail” on the same page still shows the forecast without
+the calibration factor; if the two differ by at least 2 %, a sentence below it
+says by how much.
+The workshop changes only quantities — and prices for the tariff. In the
+forecast the cost of a month is a linear function of the quantity (unit price ×
+quantity + standing charge − bonuses); exactly this function also values the
+scenario quantities. Without a change you therefore get the baseline to the cent.
 
 **Heating part.** The heating model describes consumption as a × heating
 degree days + c × days. The heating-dependent part of a month is a × HDD;

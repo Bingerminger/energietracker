@@ -535,4 +535,25 @@ final class FlexibilityInsightTest extends ServiceTestCase
         self::assertContains('prices', $x['missing']);
         self::assertSame('tou', $x['signal'], 'ohne Börsenpreise die Zeitfenster der Wärmepumpe');
     }
+
+    /**
+     * v3.10.0 (#40) — Ein Einspeisezählwerk hinter dem Netzanschluss (Kaskade, `cascade_meter_id`) zählt
+     * nicht als Einspeisung ins Netz: 1,4 kWh je Viertelstunde mittags an der Wallbox ändern nichts,
+     * eingespeist bleiben 12 × 1,3 kWh am Tag, selbst genutzt 12 × 0,2 kWh.
+     */
+    public function testAFeedRegisterInTheCascadeIsNotFeedIn(): void
+    {
+        [$hh, $wb] = $this->household();
+        $this->solarHousehold($hh);
+        $z2 = (string)$this->meters->create('pv_einspeisung', ['name' => 'Zählwerk Z2', 'installed_on' => '2024-01-01', 'cascade_meter_id' => $wb])['id'];
+        $f = [];
+        for ($t = $this->at('2025-01-01 00:00'); $t < $this->at('2025-02-01 00:00'); $t += 900) {
+            $h = (int)(new \DateTimeImmutable('@' . $t))->setTimezone(new \DateTimeZone('Europe/Berlin'))->format('G');
+            $f[$t] = $h >= 11 && $h < 14 ? 1.4 : 0.0;
+        }
+        $this->iv->mergeEnergy('pv_einspeisung', $z2, $f, 'test');
+        $s = $this->compute()['solar'];
+        self::assertEqualsWithDelta(31 * 12 * 1.3, $s['feed_kwh'], 0.01);
+        self::assertEqualsWithDelta(31 * 12 * 0.2, $s['self_kwh'], 0.01);
+    }
 }

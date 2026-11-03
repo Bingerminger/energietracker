@@ -163,7 +163,11 @@ months); an incomplete year gets no class but a note instead. Since v3.5.0
 the ⓘ also names the basis (net or gross calorific value) and the months the
 procedure in force requires; up to 31 Dec 2026 a line below says what the new
 procedure changes from 2027 and which figure it would give
-([Fundamentals §7](../verstehen/00-overview.md#7-efficiency-class)). The PV card
+([Fundamentals §7](../verstehen/00-overview.md#7-efficiency-class)). If the heat
+pump sits at the front of a cascade with a feed-in register on Z2, the card
+says since v3.10.0 “Heat pump: grid electricity only …”: efficiency does not
+count the solar power used directly, the seasonal performance factor and the
+energy flow do. The PV card
 additionally shows the **self-consumption savings** and, as long as fewer than
 twelve months have data from all three meters, over how many months the rates
 are calculated. Since
@@ -172,6 +176,56 @@ elsewhere the card shows kWh/m²·yr and gives the reason ([country profiles](..
 Since v2.11.0 a due reminder reads "overdue by 65 days" instead of "now". The
 header action "Temperatures" is gone; "Add" sits globally in the top bar or
 the tab bar.
+
+**Billing year in the overview (v3.10.0, GitHub #36):** In billing years the
+tiles read “Consumption (billing year so far)” and “Cost (billing year so
+far)”. They count from the start of the current period up to the last
+reading. If the period shown is calculated to its end (the new billing year
+has no reading yet), they read “(billing year)”. The arrow next to them
+compares with the same span of the period before: the same number of days
+from its start, so from the start of the billing year to the last reading
+against the same days one billing year earlier. Compared with the whole
+previous year, every tile would show a big minus after two months. The
+tooltip names both spans with dates; a period calculated to its end faces the
+whole period before. Sometimes the comparison with the period before would
+not be fair: there is no whole period before, a period before starts more
+than 31 days away from “one year earlier” (for example after a change of
+supplier in the middle of the year, its days would fall in another season),
+or it is shorter than the span. Then the arrow compares the same calendar days
+a year earlier: the same span, shifted by one year, whatever period and
+supplier it falls in. The tooltip then says “compared with the same calendar
+days a year earlier” and names both spans. A 29 February becomes 28 February;
+a span across 29 February is therefore one day shorter a year earlier. There
+is no arrow with fewer than 14 days since the start, and when the data only
+start after the first of these calendar days (no data in the previous year,
+no comparison). The arrow compares costs without the bonus, as the
+tile shows them; if a working price is missing in either span, the amount gets
+no arrow. The server calculates the spans (`prev_same_span` in
+[`…/billing-periods`](api.md#billing-periods-v360)). Up to v3.9 the tiles said
+“last 12 months”, and there was no arrow in billing years.
+
+![Overview in billing years: tiles “billing year so far” with trend arrows; for electricity the period is younger than 14 days, so there is no arrow](../../ui/screenshots/en/uebersicht-abrechnungsjahr.png)
+
+**Changed a lot: check the reading (v3.10.0):** If it is more than double or
+less than half of the comparison period, the tile shows “Check the reading”
+instead of a percentage, a link to the utility with its readings; the
+beginner overview does the same. This applies in calendar and billing years.
+A household rarely changes that much from one year to the next, whereas a
+wrong digit in a meter reading quickly gives “▲ 1,382 %”. It is the same limit
+as the second stage of “Check the reading” under “To do”. If consumption
+really is that different (heat pump, electric car, moving out), a
+[baseline date](../verstehen/00-overview.md#effect-of-a-measure-baseline-date) helps.
+
+**Switching without a jump (v3.10.0, GitHub #36):** The switch *Calendar year
+· Billing year* and the level choice at the top right redraw the page in
+place. The current content stays until the new one is ready, without
+“Loading …”, and the page stays where it was, also further down at
+electricity or water. The charts stay until then too, and the overview only
+swaps once its parts loaded afterwards (charts, “Your lever”) are there.
+Focus stays on the switch. This applies in the overview, the consumption view
+and the analysis; the analysis keeps the selected utility and meter. Up to
+v3.9 the switch drew the page as if opening a new one and jumped to the top,
+and the analysis started again with the first utility.
 
 **"To do" (v2.12.0)** sits at the top: overdue and due reminders, meters whose
 last reading is older than set under Settings → General → *Warn after*, notice
@@ -590,7 +644,7 @@ contract; a renewal or a follow-up contract of the same supplier without a gap
 does not split ([Annual bill](../anleitungen/jahresabrechnung.md#8-afterwards)).
 In the **current year** the calendar year counts the standing charge and
 advance payment of the month of the last reading in full, the billing year
-only the days up to the reading; the ⓘ next to “Advances up to …” explains
+only the days up to the reading; the ⓘ next to “Advances … to …” explains
 it. Whole years are the same in both views.
 
 **Balance over time (v2.16.0):** below the figures of the balance card stand the
@@ -614,13 +668,18 @@ estimated. "Advance paid" counts the advances as they were debited. If the
 expected balance deviates noticeably, the card suggests an advance (since
 v3.9.0 not shortly before the bill, see below). The KPI
 tiles, by contrast, sum up the months that have been read; if the last reading in
-the current year is some time back, the tile is labelled "Advances up to
-‹date›". The **Contracts & advances** table lists per contract tariff, advance,
+the current year is some time back, the tile has been labelled "Advances ‹start›
+to ‹date›" since v3.10.0 (before: "Advances up to ‹date›"). The **Contracts & advances** table lists per contract tariff, advance,
 consumed, paid, bonus, **special payments** (since v2.5.1: net from the
 customer's perspective; since v2.13.0 the items expand instead of sitting in
 the tooltip; gas/electricity/district heating, since v3.5.0 water too), balance today and
 expected balance. The standing charge is spelled out ("standing charge
-12.95 €/month" instead of "13 € base").
+12.95 €/month" instead of "13 € base"). A future contract shows its expected
+balance with “≈” if it starts within the running billing period. *(since
+v3.10.0)* If it starts on the next anchor date or later, it belongs to no bill
+that is due: the column shows “–”, and its settlement day is the last day of its
+own first period. Up to v3.9 an open-ended successor from the anchor date showed
+“≈” with about one day of cost, settled the day before it started.
 
 **Balance after the last booked bill (v3.6.0):** if the contract runs on beyond
 a recorded supplier bill whose result is booked, the balance card, the balance
@@ -639,7 +698,8 @@ the **last day** of the period (“next settlement: 31/12/2026”, not 1 January
 If fewer than three advance payments are left before the bill, the card no
 longer suggests a higher advance but says: “Only 2 advance payments are left
 before the bill on …. The bill settles the rest, so there is no need to raise
-the advance now.” If the ongoing amount differs, it adds “After that, about …
+the advance now.” With a credit it says since v3.10.0 (#38) “The bill pays out
+the credit, so there is no need to lower the advance now.” If the ongoing amount differs, it adds “After that, about …
 instead of … a month would be right.” (with a rhythm “… every 2 months would be
 right.”). Up to v3.7 the card counted from the
 contract start without a bill and named the day after
@@ -650,6 +710,31 @@ estimate about … to about … (80 %, … days estimated).” With an uncertain
 estimate it stays a range with its reason
 ([basics §10](../verstehen/00-overview.md#10-balance-to-date)). Without a
 contract the “Costs” tile has shown “no contract” instead of €0.00 since v3.9.0.
+
+**Measured and estimated kept apart (v3.10.0, GitHub #49):** the card’s
+balance only counts up to the last reading: above the card it says “Measured
+from ‹start› up to the last reading on ‹date›”, the columns read “Consumed up to
+‹date›”, “Advances up to ‹date›” and “Balance on ‹date›” (only when the reading
+is from today, “Current balance”). The estimate up to today is a second line
+below it and works from the measured balance to today’s figure: “Estimated up
+to today: … Since the reading on …: consumption … (estimated) and standing
+charge …, against advances …”, plus special payments since the reading. The
+forecast stays under “Expected at settlement”. Without a measured day in the
+period (for example a new contract without its own reading) the column reads
+“Balance today (estimated)”. The tile “Advances … to …” and the card end on the
+same day and name their start (calendar year or billing period, or the balance
+from the contract or period start). If the same bill settles another contract
+of the same supplier (tariff change within the period), “Expected at
+settlement” includes it, and a sentence names its period and balance (with “≈”
+if it is mostly estimated, as a range if it is uncertain); measured and up to
+today the card then counts both contracts. If the
+card’s balance only starts within the calendar-year tile (cut-off date, contract
+change), the tile shows “Balance: see the balance card, it counts from …”
+instead of a second balance. The monthly average of the “Costs” tile counts a
+started month by its days and is left out below four weeks. The width of a reliable estimate also shows for
+electricity and water since v3.10.0 (“Depending on the estimate …”) and on the
+beginner overview, “Where does my money go?”, Costs & contracts and in the annual
+report ([basics §10](../verstehen/00-overview.md#balance-in-one-piece-since-v3100)).
 
 **Advance payments with a rhythm (v3.9.0):** if the supplier collects the
 advance every two or three months or on fixed dates, the card names the amount
@@ -810,7 +895,10 @@ appears there ([Charging record](../anleitungen/ladestrom-nachweis.md)).
 the card **“Heat pump {year}”** follows with an ⓘ: “Seasonal performance
 factor” (“from … months with both meters”), “Heating season (Oct–Apr)”, “Heat
 / electricity” in kWh and a table per month with heat, electricity and
-performance factor; below it the field-test values for context. If the heat
+performance factor; below it the field-test values for context. Since v3.10.0
+a month in which the heat pump’s solar power in the cascade is not measured
+shows ≈ at the electricity and “–” instead of a performance factor, with a
+sentence below the table. If the heat
 meter, the link or a common month is missing, the card says so
 ([Heat §7](../verstehen/15-waerme.md#7-seasonal-performance-factor-of-the-heat-pump-v310)).
 
@@ -1587,7 +1675,7 @@ Since v2.12.0 **nine sub-pages** instead of one long page:
 | Data | CSV export (spreadsheet in the default language or format 1), backup & restore with snapshots, demo data; link to the annual report | Beginner |
 | Integrations | Home Assistant integration; since v3.9.0 “Notifications to Home Assistant” | Experienced |
 | Access | since v3.4.0 “Security check” (does the web server serve `data/`?, proxy header, open operation without a host list), sign-in & access with “Sign out everywhere”, since v3.2.0 “Users and roles”, embedding, since v3.4.0 “Host names” | Expert |
-| Expert | since v3.7.0 at the top the “Reading documents” card (Local \| Cloud), since v3.1.0 receipts (storage limit) and text recognition in the home network, since v3.2.0 “evcc in your home network”; below, collapsed (“Show calculation parameters”) and with a warning: regression, forecast model, anomaly and recommendation thresholds, since v3.1.0 CO₂ price | Expert |
+| Expert | since v3.7.0 at the top the “Reading documents” card (Local \| Cloud), since v3.1.0 receipts (storage limit) and text recognition in the home network, since v3.2.0 “evcc in your home network”, since v3.10.0 “Connections in the home network”; below, collapsed (“Show calculation parameters”) and with a warning: regression, forecast model, anomaly and recommendation thresholds, since v3.1.0 CO₂ price | Expert |
 | System | version, licence, since v3.4.0 “Support Energietracker”, security check (v3.4.0), system diagnostics | Expert |
 
 Each page saves through a bar at the bottom ("Discard" · "Save") that appears
@@ -1609,6 +1697,20 @@ most 12 rem wide.
 Energietracker”, a small card links to Buy Me a Coffee
 (`buymeacoffee.com/bingerminger`, opens a new tab). Support is voluntary; the
 app stays the same and nothing depends on it.
+
+**Saying thanks (v3.10.0):** When the app has just helped, a quiet line with
+the same text and link appears now and then: when “Check a bill” finds a
+deviation while comparing with the bill (verdict “check”; the line sits with
+some space at the end of the result, and it is left out if the deviation may
+come from gaps in your own data: time without a reading or contract, missing
+prices), when you mark an appointment as done before its due date (under “To
+do” or in the appointments) and when the annual report is done, that is after
+printing or “save as PDF” or after “Download annual report” (not already when
+opening it, not on paper). At most once a quarter per device: after a note, at least 92 days pass
+before the next one. Never in the demo and never as a dialog that covers
+anything. “Don’t show again” switches it off, as does the setting *Show the
+note about supporting* under Settings → General
+([`support_hint`](einstellungen.md#support-v3100)).
 
 **Since v2.13.0:** 18 more fields carry a hint on what they do. The card of
 billing dates lists the **PV feed-in** (its remuneration is calculated up to
@@ -1754,6 +1856,19 @@ only addresses in your own network. Left empty, fetching stays off — the CSV
 file from evcc always works. With an address, the card “Charging sessions from
 evcc” shows the button “Fetch from evcc” (§3,
 [Charging sessions from evcc](../anleitungen/evcc.md)).
+
+**Connections in the home network (v3.10.0, Expert page):** the 🔐 group sits
+next to evcc, before the collapsed part, for Home Assistant, text recognition,
+reading in the home network and evcc over `https://` with self-issued
+certificates. **“Own root certificate (PEM)”** is a text field for the text
+from `-----BEGIN CERTIFICATE-----`; it applies in addition to the usual root
+certificates, and a private key is refused. The switch **“Do not check
+certificates in the home network”** is the fallback, with a warning in orange.
+The system diagnostics name in the row “Own root certificates” how many apply
+and whether the file from `ET_CA_FILE` can be read. Only admins change either
+([Home Assistant, HTTPS with your own certificate](../anleitungen/home-assistant.md#https-with-your-own-certificate-v3100)).
+
+![Connections in the home network](../../ui/screenshots/en/einstellungen-heimnetz.png)
 
 **CO₂ price (v3.1.0, Expert page, under “Show calculation parameters”):** the
 group 🏷️ with “CO₂ price per year” — a table year → €/t with delete per row and
@@ -2008,6 +2123,13 @@ capacity (kWh)” with hints. For heat with the role “Heat pump output” the
 choice **“Heat pump electricity meter”** — electricity meters with the heat
 pump role to tick.
 
+**Feed-in in the cascade in the meter dialog (v3.10.0):** for solar feed-in,
+from “Experienced” on, the field group **“Feed-in in the cascade”** with the
+choice **“Feed-in register of”**: “Grid connection (feed-in to the grid)” or an
+electricity meter behind another one. The meter card then carries the tag
+“Register in the cascade”; the meter does not count as feed-in to the grid
+([use case H](../anleitungen/anwendungsfaelle.md#feed-in-in-the-cascade)).
+
 **Import time series (v3.1.0):** every meter card of a utility with meter
 readings carries the button **“Import time series”**. The dialog “Time series
 from a portal — …” shows the first lines after “Choose file” and asks for
@@ -2124,6 +2246,14 @@ data allows:
 
 - **“Battery {year}”** — “Charged”, “Discharged”, “Efficiency” with “Losses …
   kWh” and “Full cycles” (only with a storage capacity);
+- **“Solar power per branch {year}”** *(v3.10.0, only with a feed-in register
+  in the cascade)* — per branch the role (“Household”, “Heat pump (heating
+  electricity)”) with the solar power used directly and the meter’s name, below
+  it what it is calculated from and over how many months; if a branch is
+  estimated in distributed months, ≈ stands in front of the value with the
+  sentence “Of these, … months come from distributed readings …”; a note names
+  months in which all readings are measured and a meter further forward still
+  counted more backwards than the one behind;
 - **“Payback”** — “Investment”, “Benefit so far” with “recently … a year” and
   “Paid back since” or “Paid back probably” with “about … years”, below it what
   the benefit includes and what it does not;

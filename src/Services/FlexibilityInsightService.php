@@ -147,7 +147,9 @@ final class FlexibilityInsightService
         $gen = $this->sumSeries('pv_erzeugung', $year, fn($m) => Utilities::roleOf('pv_erzeugung', $m) === 'generation', $n);
         $charge = $this->sumSeries('pv_erzeugung', $year, fn($m) => Utilities::roleOf('pv_erzeugung', $m) === 'battery_charge', $n);
         $discharge = $this->sumSeries('pv_erzeugung', $year, fn($m) => Utilities::roleOf('pv_erzeugung', $m) === 'battery_discharge', $n);
-        $feed = $this->sumSeries('pv_einspeisung', $year, fn($m) => true, $n);
+        // v3.10.0 (#40) — Einspeisung nur aus Zählern, die in Summen zählen: Das Einspeisezählwerk eines
+        // Zählers hinter dem Netzanschluss (Kaskade) zählt nicht ins Netz (MeterService::countsInTotals)
+        $feed = $this->sumSeries('pv_einspeisung', $year, fn($m) => MeterService::countsInTotals($m), $n);
 
         // Hausanschluss: Stromzähler ohne Elternzähler mit der Rolle Haushalt;
         // Sonnenstrom erreicht ihn und seine Subzähler, nicht eine Wärmepumpe

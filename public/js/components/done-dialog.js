@@ -11,6 +11,7 @@ import { toastUndo, toastOk, toastErr } from './toast.js';
 import { showFieldError } from '../lib/form.js';
 import { t } from '../lib/i18n.js';
 import { escapeHtml as esc, todayIso } from '../lib/format.js';
+import { offerThanks, doneInTime } from '../lib/thanks.js';   // v3.10.0 — Danke sagen
 
 /**
  * Dialog öffnen. `submit(values)` speichert ({done_on, note, attachment_id,
@@ -83,20 +84,28 @@ export function openDoneDialog({ title, cancelOption = false, hint = '', submit 
  * Ein Agenda-Ereignis abhaken (POST /api/agenda/done). `onChange` läuft nach
  * dem Abhaken und nach „Rückgängig".
  *
+ * v3.10.0 — `thanksAfter`: vor dem Fälligkeitstag erledigt, dann darf hinter diesem
+ * Element der Danke-Hinweis erscheinen (lib/thanks.js).
+ *
  * @returns {Promise<object|null>} Antwort des Servers, null bei Abbruch
  */
-export async function markEventDone(ev, { title, onChange } = {}) {
+export async function markEventDone(ev, { title, onChange, thanksAfter = null } = {}) {
   const label = title || ev.title || '';
+  let doneOn = null;
   const res = await openDoneDialog({
     title: label,
     cancelOption: ev.kind === 'cancel_by',
     // v3.5.0 (F1029) — abhaken heißt hier: Die Rechnung kam, wird aber nicht erfasst
     hint: ev.kind === 'bill_expected' ? t('activity.dialog.billWithout') : '',
-    submit: (v) => api.agendaDone({ uid: ev.uid, occurrence: ev.occurrence, done_on: v.done_on, note: v.note,
-      attachment_id: v.attachment_id, cancelled: v.cancelled }),
+    submit: (v) => {
+      doneOn = v.done_on;
+      return api.agendaDone({ uid: ev.uid, occurrence: ev.occurrence, done_on: v.done_on, note: v.note,
+        attachment_id: v.attachment_id, cancelled: v.cancelled });
+    },
   });
   if (!res) return null;
   onChange?.();
+  if (thanksAfter && doneInTime(ev.date, doneOn)) offerThanks(thanksAfter, 'deadline', { where: 'after' });
   if (res.activity_id) {
     toastUndo(t('activity.toast.done', { title: label }), async () => {
       try {

@@ -505,6 +505,27 @@ async function renderView(modPath, params = [], ctx = {}) {
     await api.clearActivity();
   } catch (e) { t('F1024: Haken und Verlauf', false, e.message); }
 
+  // v3.10.0 — Danke sagen: ein Termin vor seinem Fälligkeitstag erledigt → die Zeile unter „Zu tun“
+  try {
+    const { api } = await import(`${ROOT}/api.js`);
+    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+    const click = (el) => el?.dispatchEvent(new global.window.MouseEvent('click', { bubbles: true }));
+    await api.clearActivity();
+    const { view } = await renderView(`${ROOT}/views/dashboard.js`);
+    try { global.localStorage?.removeItem('et-thanks-shown'); global.window.localStorage?.removeItem('et-thanks-shown'); } catch { /* ohne Speicher: nie gezeigt */ }
+    await sleep(100);
+    click(view.querySelector('.dash-todo [data-todo-done]'));
+    await sleep(50);
+    const modal = global.document.querySelector('#modal-root');
+    modal.querySelector('#dd-date').value = '2001-01-01';   // vor jedem Fälligkeitstag
+    click(modal.querySelector('[data-act="save"]'));
+    for (let i = 0; i < 40 && !view.querySelector('.thanks-note[data-thanks="deadline"]'); i++) await sleep(50);
+    const note = view.querySelector('.thanks-note[data-thanks="deadline"]');
+    t('dashboard (v3.10.0): vor dem Fälligkeitstag erledigt → Danke-Hinweis unter „Zu tun“',
+      !!note && !!note.previousElementSibling?.matches('[data-role="todo"]'));
+    await api.clearActivity();
+  } catch (e) { t('dashboard (v3.10.0): Danke-Hinweis nach Frist', false, e.message); }
+
   // ── v3.5.0 (F1028) — Zuständig: Feld im Dialog, Chip und Filter in Terminen und „Zu tun“;
   //    (F1029) Abrechnung erwartet → Rechnung prüfen mit offenem Abschnitt; Verlauf als CSV ──
   try {
@@ -694,6 +715,13 @@ async function renderView(modPath, params = [], ctx = {}) {
     const splitOpt = view.querySelector('[data-key="segmented_split_mode"] option[value="auto"]');
     t('settings/experte: Split-Modus übersetzt', !!splitOpt && splitOpt.textContent.trim() !== 'auto', splitOpt?.textContent);
     t('settings/experte: Breite des Prognosebands', !!view.querySelector('[data-key="confidence_band_sigma"]'));
+    // v3.10.0 (#36) — Verbindungen im Heimnetz: Stammzertifikat als Textfeld, „nicht prüfen“ aus und mit Warnung
+    const pem = view.querySelector('textarea[data-key="home_ca_pem"]');
+    t('settings/experte: eigenes Stammzertifikat als mehrzeiliges Feld, ohne Rechtschreibprüfung',
+      !!pem && pem.value === '' && pem.getAttribute('spellcheck') === 'false' && !pem.closest('details.settings-expert'));
+    const insecure = view.querySelector('input[data-key="home_tls_insecure"]');
+    t('settings/experte: „Zertifikat im Heimnetz nicht prüfen“ standardmäßig aus, mit Warnung',
+      !!insecure && insecure.checked === false && !!view.querySelector('#set-home_tls_insecure-hint.settings-card__hint--warn'));
     // v3.7.0 — Karte „Auslesen“: Umschalter Lokal | Cloud (die Wahl ist `inbox_provider`),
     // Lokal mit den gemeinsamen Feldern der Texterkennung, Cloud mit Voreinstellungen und
     // „experimentell“; eigene Speichern-Taste (nicht die Speicherleiste)
@@ -753,6 +781,10 @@ async function renderView(modPath, params = [], ctx = {}) {
   try {
     const view = await settingsPage('system');
     t('settings/system: Version und Diagnose', /Energietracker \d+\.\d+/.test(view.textContent) && !!view.querySelector('.diag-grid'));
+    // v3.10.0 (#36) — eigene Stammzertifikate in der Diagnose (ohne eigenes: 0, kein Pfad)
+    const caRow = [...view.querySelectorAll('.diag-grid dt')].find(dt => dt.textContent === 'Eigene Stammzertifikate');
+    t('settings/system: Diagnose nennt die eigenen Stammzertifikate',
+      !!caRow && caRow.nextElementSibling?.textContent.trim() === '0 Zertifikate', caRow?.nextElementSibling?.textContent);
   } catch (e) { t('settings/system: render', false, e.message); }
 
   try {
@@ -1022,11 +1054,13 @@ async function renderView(modPath, params = [], ctx = {}) {
     // v2.8.0 — Kachel und Saldo-Karte widersprechen sich nicht: Liegt die
     // letzte Ablesung im laufenden Jahr zurück, nennt die Abschlagskachel
     // ihren Stand (die Karte rechnet nach Kalender bis heute)
+    // v3.10.0 (#49) — die Karte nennt Beginn und letzte Ablesung („Gemessen vom … bis zur letzten Ablesung am …“),
+    // die Kachel ihren Beginn und denselben letzten Tag („Abschläge 01.01.2026 bis …“)
     const advLabel = [...view.querySelectorAll('.kpi__label')].map(e => e.textContent).find(s => /Abschläge/.test(s)) || '';
-    const measured = view.textContent.match(/gemessen bis (\d{2}\.\d{2}\.(\d{4}))/);
+    const measured = (view.querySelector('[data-role="balance-span"]')?.textContent || '').match(/am (\d{2}\.\d{2}\.(\d{4}))/);
     const expectPartial = !!measured && measured[2] === String(new Date().getFullYear());
     t('utility(gas): Abschlagskachel nennt ihren Stand',
-      expectPartial ? advLabel.includes('bis ' + measured[1]) : /Abschläge \d{4}/.test(advLabel), advLabel.trim());
+      expectPartial ? new RegExp(`Abschläge \\d{2}\\.\\d{2}\\.\\d{4} bis ${measured[1].replace(/\./g, '\\.')}`).test(advLabel) : /Abschläge \d{4}/.test(advLabel), advLabel.trim());
     // Die Aufschlüsselung der Saldo-Karte ergibt die Summe
     const consumedCol = view.querySelector('.balance-grid > div');
     t('utility(gas): Saldo-Karte schlüsselt die Summe auf',
@@ -1068,6 +1102,28 @@ async function renderView(modPath, params = [], ctx = {}) {
     t('billCheck(strom): Formular „Laut Rechnung" ohne CO₂-Felder', !!view.querySelector('#bi-form') && !view.querySelector('#bi-co2kg'));
   } catch (e) { t('billCheck(strom): render', false, e.message); }
 
+  // v3.10.0 — Danke sagen: Der Vergleich mit der Rechnung findet eine Abweichung → die Zeile mit dem Link darunter
+  try {
+    const post = (path, body) => fetch(`${HOST}${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(r => r.json());
+    const sm = (await (await fetch(`${HOST}/api/utility/strom/meters`)).json()).data[0];
+    const bill = (await post('/api/utility/strom/bills', { meter_id: sm.id, period_from: '2025-01-01', period_to: '2025-12-31',
+      invoice: { energy_kwh: 1, amount_eur: 1 } })).data;
+    localStorage.removeItem('et-thanks-shown');
+    const { view } = await renderView(`${ROOT}/views/bill-check.js`, [],
+      { query: new URLSearchParams(`utility=strom&meter=${encodeURIComponent(sm.id)}&from=2025-01-01&to=2026-01-01`) });
+    for (let i = 0; i < 40 && !view.querySelector(`[data-bill-check="${bill.id}"]`); i++) await new Promise(r => setTimeout(r, 100));
+    view.querySelector(`[data-bill-check="${bill.id}"]`)?.click();
+    for (let i = 0; i < 40 && !view.querySelector('[data-role="bills"] .thanks-note'); i++) await new Promise(r => setTimeout(r, 100));
+    const cmp = view.querySelector('[data-role="bill-compare"]');
+    const check = (await (await fetch(`${HOST}/api/utility/strom/bills/${encodeURIComponent(bill.id)}/check`)).json()).data;
+    // Skeptiker N11 — mit Abstand am Ende des Ergebnisses, nicht direkt unter der Abweichung
+    const note = cmp?.nextElementSibling;
+    t('billCheck (v3.10.0): Abweichung gefunden → Danke-Hinweis mit Abstand nach dem Ergebnis', !!cmp?.querySelector('.badge--warning')
+      && check.verdict === 'check' && !!note?.matches('.thanks-note.thanks-note--apart[data-thanks="bill_check"]')
+      && !!note.querySelector('a[data-support-link]') && !cmp.querySelector('.thanks-note'), `${check.reasons.join(',')} · ${cmp?.textContent.trim().slice(0, 80)}`);
+    await fetch(`${HOST}/api/utility/strom/bills/${encodeURIComponent(bill.id)}`, { method: 'DELETE' });
+  } catch (e) { t('billCheck (v3.10.0): Danke-Hinweis', false, e.message); }
+
   // v3.4.0 (N1021) — über „Kosten → Rechnung prüfen“ (ohne Parameter): Die
   // Seite rechnet sofort mit der letzten abgeschlossenen Abrechnungsperiode.
   // Bis v3.3 blieb das Ergebnis leer, bis jemand „Nachrechnen“ drückte.
@@ -1103,7 +1159,8 @@ async function renderView(modPath, params = [], ctx = {}) {
         const res = await realFetch(input, init);
         if (!/\/api\/utility\/wasser\/meters\/[^/?]+\/contract-status/.test(String(input))) return res;
         const body = await res.json();
-        for (const c of body?.data?.contracts || []) if (c.is_current) Object.assign(c, { estimated_cost_to_date: 12.34, measured_until: '2026-03-15', actual_m3: 128.4, actual_kwh: 0 });
+        // v3.10.0 (#49) — ohne `balance_measured` (ältere Server, kein gemessener Tag im Zeitraum): die Zeile wie bisher
+        for (const c of body?.data?.contracts || []) if (c.is_current) Object.assign(c, { estimated_cost_to_date: 12.34, measured_until: '2026-03-15', actual_m3: 128.4, actual_kwh: 0, balance_measured: null });
         return new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
       };
       const { view } = await renderView(`${ROOT}/views/utility.js`, ['wasser']);
@@ -1123,7 +1180,8 @@ async function renderView(modPath, params = [], ctx = {}) {
         const res = await realFetch(input, init);
         if (!/\/api\/utility\/gas\/meters\/[^/?]+\/contract-status/.test(String(input))) return res;
         const body = await res.json();
-        for (const c of body?.data?.contracts || []) if (c.is_current) Object.assign(c, { projection_uncertain: null, projected_end_balance: -517.43, settle_on: '2026-12-31',
+        for (const c of body?.data?.contracts || []) if (c.is_current) Object.assign(c, { projection_uncertain: null, projected_end_balance: -517.43, settle_on: '2026-12-31', settle_balance: null,
+          projection_factor: 1.12,   // v3.10.0 (Skeptiker M4) — Kalibrierfaktor der Karte
           projection_band: { low: -562.43, high: -472.43, half: 45.0, level_pct: 80, estimated_days: 270, weather: 40.0, model: 20.6 } });
         return new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
       };
@@ -1138,8 +1196,130 @@ async function renderView(modPath, params = [], ctx = {}) {
       for (let i = 0; i < 80 && !fcv.view.querySelector('[data-role="fc-card-balance"]'); i++) await new Promise(r => setTimeout(r, 50));
       const fb = fcv.view.querySelector('[data-role="fc-card-balance"]')?.textContent.replace(/\s+/g, ' ') || '';
       t('M4: Prognose — Saldo zur Abrechnung wie die Karte (Datum, Betrag), Spalte nur Prognosemonate', /Saldo zur Abrechnung am 31\.12\.2026/.test(fb)
-        && /517,43\s€/.test(fb) && /ohne den bisherigen Stand/.test(fb) && !/Ende des Horizonts/.test(fcv.view.querySelector('#fc-table')?.textContent || ''), fb.slice(0, 200));
+        // v3.10.0 — mit Breite wie die Karte: „≈ 517 €“ und der Satz der Breite
+        && /≈ 517\s€/.test(fb) && /je nach Wetter und Schätzung/.test(fb) && /ohne den bisherigen Stand/.test(fb) && !/Ende des Horizonts/.test(fcv.view.querySelector('#fc-table')?.textContent || ''), fb.slice(0, 200));
+      // v3.10.0 (Skeptiker M4) — der Unterschied zur Werkstatt in einem Satz, die Werkstatt heißt „wie die Saldo-Karte“
+      const cal = fcv.view.querySelector('[data-role="fc-calibration-note"]')?.textContent || '';
+      t('M4: Prognose im Detail erklärt den Kalibrierfaktor (rund 12 % mehr), die Werkstatt heißt „Wie die Saldo-Karte (kalibriert)“',
+        /rund 12\s%\smehr/.test(cal) && /Werkstatt/.test(cal)
+        && [...fcv.view.querySelectorAll('#ws-model option')].some(o => o.value === 'standard' && o.textContent === 'Wie die Saldo-Karte (kalibriert)'), cal);
     } catch (e) { t('M6/M4: Band und Saldo der Karte', false, e.stack || e.message); }
+    finally { global.fetch = realFetch; }
+  }
+
+  // v3.10.0 (#49, Discussion #42) — Saldo-Karte: „Aktueller Saldo“ bis zur letzten Ablesung (gemessen), die
+  // Schätzung bis heute als Zusatzzeile, Beginn beschriftet; die Kachel „Abschläge … bis …“ endet am selben Tag.
+  // Dazu eine Abrechnung über zwei Verträge (Wirklichkeitsabgleich). Erfundene Werte; der Tag der Ablesung ist gestern,
+  // damit die Kachel im laufenden Jahr steht (am 1. Januar gilt das Vorjahr, dann ohne Kachel-Prüfung).
+  {
+    const realFetch = global.fetch;
+    const iso = (d) => d.toISOString().slice(0, 10);
+    const today = new Date(); today.setUTCHours(12, 0, 0, 0);
+    const until = iso(new Date(today.getTime() - 86400000));
+    const year = until.slice(0, 4);
+    try {
+      global.fetch = async (input, init) => {
+        const res = await realFetch(input, init);
+        if (!/\/api\/utility\/gas\/meters\/[^/?]+\/contract-status/.test(String(input))) return res;
+        const body = await res.json();
+        for (const c of body?.data?.contracts || []) if (c.is_current) Object.assign(c, {
+          projection_uncertain: null, projection_band: null, measured_until: until, current_balance: -612.65, estimated_cost_to_date: 13.0,
+          // v3.10.0 (Skeptiker M3) — Stand heute: Grundpreis, Abschläge und eine Nachzahlung seit der Ablesung
+          base_to_date: 115.35, bonus_to_date: 0, advance_paid: 1000.0, special_payment_net: -20.0,
+          balance_as_of: iso(today), balance_from: `${year}-01-01`, start: `${year}-01-01`, billing_period: null, special_payments_count: 0,
+          balance_measured: { from: `${year}-01-01`, until, energy_cost: 279.0, base: 110.32, bonus: 0, cost: 389.32, advance: 919.35, special_net: 0, balance: -530.03 },
+          projected_end_balance: -67.2, settle_balance: -174.2, settle_verdict: 'refund', settle_range: null, verdict: 'refund',
+          settle_parts: [{ contract_id: 'c_other', provider: 'Gas Musterstadt', from: `${Number(year) - 1}-07-01`, until: `${year}-06-30`, balance: -107.0, is_current: false },
+                         { contract_id: c.contract_id, provider: 'Gas Musterstadt', from: `${year}-07-01`, until: `${year}-12-31`, balance: -67.2, is_current: true }],
+        });
+        return new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      };
+      const fmtMod = await import(`${ROOT}/lib/format.js`);
+      const { view } = await renderView(`${ROOT}/views/utility.js`, ['gas']);
+      await new Promise(r => setTimeout(r, 500));
+      const txt = (sel) => view.querySelector(sel)?.textContent.replace(/\s+/g, ' ').trim() || '';
+      const d = fmtMod.fmt.date(until);
+      // v3.10.0 (Skeptiker M3) — liegt die Ablesung zurück, heißt die Spalte „Saldo am ‹Ablesung›“
+      t('#49/M3: „Saldo am ‹Ablesung›“ = gemessen bis zur letzten Ablesung (Guthaben 530,03 €), Spalten bis zum selben Tag',
+        /530,03\s€/.test(txt('[data-role="balance-current"]')) && /389,32\s€/.test(txt('[data-role="balance-measured-cost"]'))
+        && txt('[data-role="balance-current-label"]').startsWith(`Saldo am ${d}`)
+        && view.textContent.includes(`Verbraucht bis ${d}`) && view.textContent.includes(`Abschläge bis ${d}`) && /919,35\s€/.test(view.querySelector('.balance-grid')?.textContent || ''),
+        txt('.balance-grid').slice(0, 220));
+      t('#49: Beginn beschriftet, Schätzung bis heute nur als Zusatzzeile', txt('[data-role="balance-span"]') === `Gemessen vom ${fmtMod.fmt.date(`${year}-01-01`)} bis zur letzten Ablesung am ${d}.`
+        // M3 — die Zeile rechnet vor: 13,00 € Verbrauch + (115,35 − 110,32) € Grundpreis − (1.000 − 919,35) € Abschläge − 20 € Sonderzahlung
+        && new RegExp(`^Bis heute geschätzt: Guthaben 612,65\\s€\\. Seit der Ablesung am ${d.replace(/\./g, '\\.')} kamen dazu: Verbrauch 13,00\\s€ \\(geschätzt\\) und Grundpreis 5,03\\s€, dagegen Abschläge 80,65\\s€\\. Dazu Sonderzahlungen von 20,00\\s€\\.$`)
+          .test(txt('[data-role="balance-estimate-today"]'))
+        && !/danach geschätzt/.test(view.textContent), `${txt('[data-role="balance-span"]')} | ${txt('[data-role="balance-estimate-today"]')}`);
+      t('Wirklichkeitsabgleich: „Erwartet bei Abrechnung“ zählt den Vorvertrag derselben Abrechnung mit',
+        /174,20\s€/.test(txt('.balance-verdict__value')) && /zählt auch den Vertrag vom .* mit: Guthaben 107,00\s€/.test(view.textContent),
+        txt('.balance-verdict__value'));
+      const label = txt('[data-role="kpi-advances-label"]');
+      t('#49: Kachel nennt Beginn und denselben letzten Tag wie die Karte', until.slice(0, 4) !== iso(today).slice(0, 4)
+        || label.includes(`Abschläge ${fmtMod.fmt.date(`${year}-01-01`)} bis ${d}`), label);
+    } catch (e) { t('#49: Saldo-Karte gemessen/geschätzt', false, e.stack || e.message); }
+    finally { global.fetch = realFetch; }
+  }
+
+  // v3.10.0 (Skeptiker M2, H3) — beginnt der Saldo der Karte (Tarifwechsel, Stichtag) innerhalb der Kachel, steht dort
+  // kein zweiter „Saldo“, sondern ab wann die Karte zählt; ohne gemessenen Tag heißt die Spalte „Saldo heute (geschätzt)“.
+  // Erfundene Werte: Karte ab gestern, letzte Ablesung vor ihrem Beginn (am 1. Januar ohne Kachel-Prüfung)
+  {
+    const realFetch = global.fetch;
+    const iso = (d) => d.toISOString().slice(0, 10);
+    const today = new Date(); today.setUTCHours(12, 0, 0, 0);
+    const from = iso(new Date(today.getTime() - 86400000));
+    const year = from.slice(0, 4);
+    try {
+      global.fetch = async (input, init) => {
+        const res = await realFetch(input, init);
+        if (!/\/api\/utility\/gas\/meters\/[^/?]+\/contract-status/.test(String(input))) return res;
+        const body = await res.json();
+        for (const c of body?.data?.contracts || []) if (c.is_current) Object.assign(c, { balance_measured: null, settle_balance: null,
+          measured_until: from, balance_from: from, start: from, balance_as_of: iso(today), cost_to_date: 12.0, current_balance: -88.0 });
+        return new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      };
+      const fmtMod = await import(`${ROOT}/lib/format.js`);
+      const { view } = await renderView(`${ROOT}/views/utility.js`, ['gas']);
+      await new Promise(r => setTimeout(r, 500));
+      const txt = (sel) => view.querySelector(sel)?.textContent.replace(/\s+/g, ' ').trim() || '';
+      t('H3: ohne gemessenen Tag „Saldo heute (geschätzt)“ statt „Aktueller Saldo“', txt('[data-role="balance-current-label"]').startsWith('Saldo heute (geschätzt)')
+        && !view.querySelector('[data-role="balance-span"]'), txt('[data-role="balance-current-label"]'));
+      const label = txt('[data-role="kpi-advances-label"]');
+      t('M2: Kachel über den Beginn der Karte hinweg — kein zweiter Saldo, sondern ab wann die Karte zählt',
+        from <= `${year}-01-01` || !/ bis /.test(label)
+          || (txt('[data-role="kpi-balance-card"]') === `Saldo: siehe Saldo-Karte, sie rechnet ab ${fmtMod.fmt.date(from)}.` && !view.querySelector('[data-role="kpi-balance"]')),
+        `${label} | ${txt('[data-role="kpi-balance-card"]')}`);
+    } catch (e) { t('M2/H3: Kachel und Karte', false, e.stack || e.message); }
+    finally { global.fetch = realFetch; }
+  }
+
+  // v3.10.0 (Skeptiker H3) — Tarifwechsel ohne neue Ablesung: gemessen über beide Verträge (SettleSumTest: Saldo am 05.01.
+  // −7,35 €), bis heute die Summe (−552,25 €), der Vorvertrag überwiegend geschätzt mit „≈“. Erfundene Werte
+  {
+    const realFetch = global.fetch;
+    try {
+      global.fetch = async (input, init) => {
+        const res = await realFetch(input, init);
+        if (!/\/api\/utility\/gas\/meters\/[^/?]+\/contract-status/.test(String(input))) return res;
+        const body = await res.json();
+        for (const c of body?.data?.contracts || []) if (c.is_current) Object.assign(c, { balance_measured: null, balance_as_of: '2026-10-20',
+          projection_uncertain: null, projection_band: null, projected_end_balance: -400.0, settle_balance: -560.0, settle_verdict: 'refund', settle_range: null,
+          settle_uncertain: null,
+          settle_measured: { from: '2026-01-01', until: '2026-01-05', energy_cost: 4.0, base: 1.55, bonus: 0, cost: 5.55, advance: 12.9, special_net: 0, balance: -7.35 },
+          settle_today: { balance: -552.25, cost: 447.75, energy_estimated: 328.4, base: 115.35, bonus: 0, advance: 1000.0, special_net: 0 },
+          settle_parts: [{ contract_id: 'c_a', provider: 'Gas Musterstadt', from: '2026-01-01', until: '2026-03-31', balance: -174.0, is_current: false, uncertain: false, range: null, estimated_share: 0.956 },
+                         { contract_id: c.contract_id, provider: 'Gas Musterstadt', from: '2026-04-01', until: '2026-12-31', balance: -386.0, is_current: true, uncertain: false, range: null, estimated_share: 1 }] });
+        return new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      };
+      const { view } = await renderView(`${ROOT}/views/utility.js`, ['gas']);
+      await new Promise(r => setTimeout(r, 500));
+      const txt = (sel) => view.querySelector(sel)?.textContent.replace(/\s+/g, ' ').trim() || '';
+      t('H3: Saldo am Tag der Ablesung über beide Verträge, bis heute die Summe, Vorvertrag mit „≈“',
+        txt('[data-role="balance-current-label"]').startsWith('Saldo am 05.01.2026') && /7,35\s€/.test(txt('[data-role="balance-current"]'))
+        && /^Bis heute geschätzt: Guthaben 552,25\s€\. Seit der Ablesung am 05\.01\.2026 kamen dazu: Verbrauch 328,40\s€ \(geschätzt\) und Grundpreis 113,80\s€, dagegen Abschläge 987,10\s€\.$/.test(txt('[data-role="balance-estimate-today"]'))
+        && /zählt auch den Vertrag vom 01\.01\.2026 bis 31\.03\.2026 mit: ≈ Guthaben 174\s€/.test(view.textContent)
+        && txt('.balance-col__sub') === 'alle Verträge dieser Abrechnung', `${txt('[data-role="balance-current-label"]')} | ${txt('[data-role="balance-estimate-today"]')}`);
+    } catch (e) { t('H3: Summe gemessen', false, e.stack || e.message); }
     finally { global.fetch = realFetch; }
   }
 
@@ -1155,7 +1335,7 @@ async function renderView(modPath, params = [], ctx = {}) {
         if (/\/api\/utility\/strom\/meters\/[^/?]+\/contract-status/.test(url)) {
           const body = await res.json();
           for (const c of body?.data?.contracts || []) if (c.is_current) Object.assign(c, { suggested_advance: null, suggestion_withheld: 'short', months_left: 2,
-            advance_ongoing: 75, current_advance_amount: 165, current_advance_every_months: 2, projected_end_balance: 120, projection_uncertain: null, settle_on: '2026-12-31',
+            advance_ongoing: 75, current_advance_amount: 165, current_advance_every_months: 2, projected_end_balance: 120, projection_uncertain: null, settle_on: '2026-12-31', settle_balance: null,
             // M7 — der Stichtag passt nicht zur letzten Rechnung (erfunden)
             billing_period: { from: '2026-01-01', until: '2026-12-31', open_from: '2026-01-01', source: 'anchor', bill_id: null, anchor: '01-01',
               suggested_anchor: '04-01', suggested_anchor_source: 'bill', last_bill_until: '2026-03-31' } });
@@ -1188,6 +1368,31 @@ async function renderView(modPath, params = [], ctx = {}) {
       t('H3: Werkstatt — Saldo zur Abrechnung als Spanne mit „unsicher“', /768\s€ Guthaben bis \S+ 3\s€ Nachzahlung/.test(kb) && /unsicher/.test(kb)
         && !!fv.view.querySelector('[data-role="ws-balance-range"]'), kb.slice(0, 200));
     } catch (e) { t('H1: Abschlag im Rhythmus', false, e.stack || e.message); }
+    finally { global.fetch = realFetch; }
+  }
+
+  // v3.10.0 (#38) — kurz vor der Abrechnung mit Guthaben: „nicht senken“ statt „nicht erhöhen“ (erfundene Werte)
+  {
+    const realFetch = global.fetch;
+    const reply = (body) => new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    try {
+      global.fetch = async (input, init) => {
+        const res = await realFetch(input, init);
+        if (/\/api\/utility\/strom\/meters\/[^/?]+\/contract-status/.test(String(input))) {
+          const body = await res.json();
+          for (const c of body?.data?.contracts || []) if (c.is_current) Object.assign(c, { suggested_advance: null, suggestion_withheld: 'short', months_left: 2,
+            advance_ongoing: 40, current_advance_amount: 50, current_advance_every_months: null, projected_end_balance: -120, projection_uncertain: null, settle_on: '2026-12-31' });
+          return reply(body);
+        }
+        return res;
+      };
+      const { view } = await renderView(`${ROOT}/views/utility.js`, ['strom']);
+      await new Promise(r => setTimeout(r, 500));
+      const short = view.querySelector('[data-role="balance-short"]')?.textContent.replace(/\s+/g, ' ') || '';
+      t('#38: Saldo-Karte mit Guthaben kurz vor der Abrechnung — „nicht senken“, laufend 40 € statt 50 €',
+        /bleiben nur noch 2 Abschläge\. Das Guthaben zahlt die Abrechnung aus; dafür musst du den Abschlag jetzt nicht senken\./.test(short)
+        && !/nicht erhöhen/.test(short) && /rund 40\s€ statt 50,00\s€ im Monat/.test(short), short.slice(0, 260));
+    } catch (e) { t('#38: Guthaben kurz vor der Abrechnung', false, e.stack || e.message); }
     finally { global.fetch = realFetch; }
   }
 
@@ -1486,6 +1691,36 @@ async function renderView(modPath, params = [], ctx = {}) {
       t('report-print: PDF mit derselben Auswahl (Jahr, Anhang, Abrechnungsjahre, Flexibilität, Teilbericht)',
         [`year=${year}`, 'detail=1', 'billing=1', 'flex=1', 'utilities=gas,strom', 'lang='].every(p => href.includes(p)), href);
       t('report-print: Szenario nicht im PDF (gibt es nur in der Druckansicht)', !/scenario/.test(href), href);
+    }
+    {
+      // v3.10.0 — Danke sagen: Der Jahresbericht steht → einmal die Zeile mit dem Link, im selben Quartal nicht wieder
+      await i18n.initI18n('de');
+      localStorage.removeItem('et-thanks-shown');
+      const one = await renderView(`${ROOT}/views/report-print.js`, [], { query: new URLSearchParams(`year=${year}`) });
+      await new Promise(r => setTimeout(r, 250));
+      // Skeptiker N11 — nicht schon beim Öffnen, erst wenn der Bericht fertig ist (gedruckt bzw. als PDF geholt)
+      t('report-print (Skeptiker N11): beim Öffnen noch kein Danke-Hinweis', !one.view.querySelector('.thanks-note'));
+      global.window.dispatchEvent(new global.window.Event('afterprint'));
+      await new Promise(r => setTimeout(r, 250));
+      const note = one.view.querySelector('.thanks-note[data-thanks="report"]');
+      t('report-print (v3.10.0): nach dem Drucken Danke-Hinweis unter der Werkzeugleiste, nicht im Druck', !!note && note.classList.contains('no-print')
+        && !!note.previousElementSibling?.matches('.view-header') && !note.closest('.report-print')
+        && !!note.querySelector('a[href="https://buymeacoffee.com/bingerminger"][target="_blank"]'));
+      const two = await renderView(`${ROOT}/views/report-print.js`, [], { query: new URLSearchParams(`year=${year}`) });
+      await new Promise(r => setTimeout(r, 250));
+      two.view.querySelector('#print-pdf')?.dispatchEvent(new global.window.Event('click'));
+      global.window.dispatchEvent(new global.window.Event('afterprint'));
+      await new Promise(r => setTimeout(r, 250));
+      t('report-print (v3.10.0): im selben Quartal kein zweites Mal', !two.view.querySelector('.thanks-note'));
+      // die PDF-Datei holen zählt ebenfalls als fertig
+      localStorage.removeItem('et-thanks-shown');
+      const three = await renderView(`${ROOT}/views/report-print.js`, [], { query: new URLSearchParams(`year=${year}`) });
+      await new Promise(r => setTimeout(r, 250));
+      const pdf = three.view.querySelector('#print-pdf');
+      pdf?.addEventListener('click', (e) => e.preventDefault());   // kein Download im Test
+      pdf?.dispatchEvent(new global.window.MouseEvent('click', { bubbles: true, cancelable: true }));
+      await new Promise(r => setTimeout(r, 250));
+      t('report-print (Skeptiker N11): nach „Jahresbericht herunterladen“ der Danke-Hinweis', !pdf || !!three.view.querySelector('.thanks-note[data-thanks="report"]'));
     }
     // v3.1.0 (I18N-18) — Hauptansichten in fr und en: kein Rohschlüssel, kein „undefined"
     for (const lang of ['fr', 'en']) {
@@ -1938,8 +2173,15 @@ async function renderView(modPath, params = [], ctx = {}) {
     }
     // v3.6.0 (abrplus) — gerechnet bis zur letzten Ablesung: ⓘ „Laufendes Jahr“ an der Abschlagskachel
     const advLabel = view.querySelector('.kpi.c-yellow .kpi__label');
-    t('abrechnungsjahr(gas): ⓘ „Laufendes Jahr“ an „Abschläge bis …“', /Abschläge bis/.test(advLabel?.textContent || '')
+    // v3.10.0 (#49) — mit Beginn: „Abschläge ‹Periodenbeginn› bis ‹letzte Ablesung›“
+    t('abrechnungsjahr(gas): ⓘ „Laufendes Jahr“ an „Abschläge … bis …“', /Abschläge \d{2}\.\d{2}\.\d{4} bis \d{2}\.\d{2}\.\d{4}/.test(advLabel?.textContent || '')
       && !!advLabel?.querySelector('[data-glossary="runningYear"]'), advLabel?.textContent);
+    // v3.10.0 (Skeptiker N2) — die Kachel nennt denselben Tag wie „gerechnet bis zur letzten Ablesung am …“ und die Karte
+    {
+      const meta = (view.querySelector('[data-role="period-meta"]')?.textContent || '').match(/letzten Ablesung am (\d{2}\.\d{2}\.\d{4})/);
+      const tileDate = (advLabel?.textContent || '').match(/ bis (\d{2}\.\d{2}\.\d{4})/);
+      t('N2: Abrechnungsjahr — Kachel und „gerechnet bis“ nennen denselben Tag', !meta || (!!tileDate && tileDate[1] === meta[1]), `${tileDate?.[1]} | ${meta?.[1]}`);
+    }
     const [mc] = chartOn('month-chart');
     const labels = (mc?.config?.data?.datasets || []).map(d => d.label);
     t('abrechnungsjahr(gas): Diagramm vergleicht mit der Vorperiode', labels.some(l => /^Vorperiode /.test(l)), labels.join(', '));
@@ -1985,8 +2227,8 @@ async function renderView(modPath, params = [], ctx = {}) {
     const cal = await renderView(`${ROOT}/views/utility.js`, ['gas']);
     await new Promise(r => setTimeout(r, 900));
     const label = cal.view.querySelector('.kpi.c-yellow .kpi__label');
-    const until = /Abschläge bis/.test(label?.textContent || '');
-    t('kalenderjahr(gas): ⓘ „Laufendes Jahr“ genau an „Abschläge bis …“', !!label && until === !!label.querySelector('[data-glossary="runningYear"]'), label?.textContent);
+    const until = /Abschläge \d{2}\.\d{2}\.\d{4} bis/.test(label?.textContent || '');   // v3.10.0 (#49) — mit Beginn
+    t('kalenderjahr(gas): ⓘ „Laufendes Jahr“ genau an „Abschläge … bis …“', !!label && until === !!label.querySelector('[data-glossary="runningYear"]'), label?.textContent);
     localStorage.setItem('et-period-mode', 'billing');
     const oil = await renderView(`${ROOT}/views/utility.js`, ['heizoel']);
     await new Promise(r => setTimeout(r, 700));
@@ -2005,6 +2247,54 @@ async function renderView(modPath, params = [], ctx = {}) {
     const gasWin = view.querySelector('.card[data-utility="gas"] .dash-window')?.textContent || '';
     t('abrechnungsjahr(Übersicht): Umschalter und laufende Periode je Art', !!view.querySelector('.dash-period-mode [data-period-mode="billing"][aria-pressed="true"]')
       && /^Abrechnungsjahr \d{4}\/\d{2}: /.test(gasWin), gasWin);
+    // v3.10.0 (GitHub #36) — Beschriftung seit Beginn des Abrechnungsjahrs; Pfeil gegen dieselbe Spanne davor
+    // (Gas: Lieferantenwechsel, die Periode davor beginnt in einer anderen Jahreszeit → seit dem Nachtrag zu #36
+    // dieselben Kalendertage ein Jahr früher; Strom: Stichtag 01-01 → die Periode davor)
+    const de = (iso) => iso.split('-').reverse().join('.');
+    const chartData = await import(`${ROOT}/lib/chart-data.js`);
+    let compared = 0;
+    const basisOf = {};
+    for (const [u, q] of [['gas', 'kwh'], ['strom', 'kwh']]) {
+      const gp = (await (await fetch(`${HOST}/api/utility/${u}/billing-periods`)).json()).data.periods.filter(p => p.days > 0).pop();
+      const card = view.querySelector(`.card[data-utility="${u}"]`);
+      const labels = [...card.querySelectorAll('.kpi__label')].map(l => l.textContent.trim());
+      const sofar = gp.as_of < gp.until;
+      t(`abrechnungsjahr(Übersicht, #36, ${u}): Kacheln „bisher im Abrechnungsjahr“ statt „letzte 12 Monate“`,
+        labels.length === 2 && labels.every(l => sofar ? /\(bisher im Abrechnungsjahr\)$/.test(l) : /\(Abrechnungsjahr\)$/.test(l)), labels.join(' | '));
+      const s = gp.prev_same_span;
+      const signed = s ? (gp[q] / s[q] - 1) * 100 : null;
+      const pct = s ? Math.abs(signed) : null;
+      // v3.10.0 (Skeptiker M1) — mehr als doppelt bzw. weniger als halb so viel: „Ablesung prüfen“ statt Prozent
+      if (s && chartData.trendNeedsCheck(signed)) {
+        const chk = card.querySelector('.kpi__value [data-role="trend-check"]');
+        t(`abrechnungsjahr(Übersicht, #36, ${u}): stark verändert → „Ablesung prüfen“ statt Prozent`, !!chk
+          && chk.getAttribute('href') === `#/utility/${u}` && !/%/.test(chk.textContent) && !card.querySelector('.kpi__trend--danger, .kpi__trend--success'),
+          `${signed.toFixed(0)} % · ${chk?.outerHTML.slice(0, 120)}`);
+        basisOf[u] = s.basis;
+        compared++;
+        continue;
+      }
+      const arrow = card.querySelector('.kpi__value .kpi__trend');
+      if (s && pct >= 0.5) compared++;
+      const label = arrow?.getAttribute('aria-label') || '';
+      const shown = Number((label.match(/^([\d.]+)\s*%/)?.[1] || 'NaN').replace(/\./g, ''));   // „2.611 %“ (geschütztes Leerzeichen) → 2611
+      basisOf[u] = s?.basis ?? null;
+      const named = s?.basis === 'calendar'
+        ? label.includes(`gegenüber denselben Kalendertagen ein Jahr früher (${de(s.from)} – ${de(s.until)})`)
+          && Math.abs(s.days - gp.days) <= 1 && s.from.slice(5) === gp.from.slice(5)   // ±1: der 29. Februar
+        : label.includes(`${de(s?.from || '')} – ${de(s?.until || '')} im Abrechnungsjahr davor`) && (s?.days === gp.days || s?.whole);
+      t(`abrechnungsjahr(Übersicht, #36, ${u}): Pfeil gegen dieselben Tage (${s?.basis ?? 'ohne'})`,
+        s && pct >= 0.5 ? Math.abs(shown - pct) <= 0.5 && named
+        : !arrow, `${label || 'kein Pfeil'} · berechnet ${pct?.toFixed(1)} % aus ${gp[q]} gegen ${s?.[q]} · Tage ${gp.days}/${s?.days}`);
+    }
+    t('abrechnungsjahr(Übersicht, #36): mindestens eine Art mit Vergleich (sonst prüft der Pfeil nichts)', compared > 0, `${compared}`);
+    // Nachtrag #36 — Gas wechselt in den Beispieldaten mitten im Jahr den Lieferanten: Pfeil gegen dieselben Kalendertage
+    t('abrechnungsjahr(Übersicht, #36): Gas nach dem Lieferantenwechsel gegen dieselben Kalendertage ein Jahr früher, Strom gegen die Periode davor',
+      basisOf.gas === 'calendar' && basisOf.strom === 'period', JSON.stringify(basisOf));
+    // v3.10.0 (#36) — am Ort neu gezeichnet: fertig erst, wenn auch die Schaubilder stehen (kein „Lädt …“ nach dem Tausch)
+    const ip = await renderView(`${ROOT}/views/dashboard.js`, [], { inPlace: true });
+    t('abrechnungsjahr(Übersicht, #36): am Ort neu gezeichnet ohne „Lädt …“ im fertigen Inhalt',
+      !!ip.view.querySelector('[data-role="explainers"]') && !ip.view.querySelector('.loading'), ip.view.querySelector('.loading')?.parentElement?.className || '');
   } catch (e) { t('abrechnungsjahr(Übersicht): F1', false, e.message); }
 
   try {
@@ -2015,6 +2305,25 @@ async function renderView(modPath, params = [], ctx = {}) {
     t('abrechnungsjahr(Analyse): Vergleich nach Perioden', /Abrechnungsjahre im Vergleich/.test(view.textContent) && series.some(l => /^\d{4}\/\d{2}$/.test(l))
       && /^Sep/.test(yc?.config?.data?.labels?.[0] || ''),`${series.join(', ')} · ${yc?.config?.data?.labels?.[0]}`);
   } catch (e) { t('abrechnungsjahr(Analyse): F1', false, e.message); }
+
+  // v3.10.0 (GitHub #36) — Analyse: am Ort neu gezeichnet (Kalender-/Abrechnungsjahr) bleiben Art und Zähler;
+  // bis v3.9 begann sie wieder mit der ersten Art
+  try {
+    const mod = await import(`${ROOT}/views/analysis.js?t=keep${Date.now()}`);
+    const fresh = async (ctx) => { freshDom(); const v = global.document.getElementById('view'); await mod.render(v, [], ctx); return v; };
+    let v = await fresh({});
+    const sel = v.querySelector('#util-select');
+    const other = [...sel.options].map(o => o.value).find(k => k !== sel.value);
+    sel.value = other;
+    sel.dispatchEvent(new global.window.Event('change'));
+    await new Promise(r => setTimeout(r, 700));
+    v = await fresh({ inPlace: true });
+    const kept = v.querySelector('#util-select')?.value;
+    v = await fresh({});
+    const nav = v.querySelector('#util-select')?.value;
+    t('abrechnungsjahr(Analyse, #36): am Ort neu gezeichnet bleibt die gewählte Art, eine Navigation beginnt vorn',
+      !!other && kept === other && nav === v.querySelector('#util-select option')?.value && nav !== other, `${other}: ${kept} / ${nav}`);
+  } catch (e) { t('abrechnungsjahr(Analyse, #36): Auswahl', false, e.message); }
 
   // v3.6.0 (Paket abrechnung) — Zählergruppen der Übersicht in derselben Periode
   // (Summe vom Server, ohne den Subzähler); Saldo nach einer gebuchten Rechnung
@@ -2032,6 +2341,30 @@ async function renderView(modPath, params = [], ctx = {}) {
     t('abrechnungsjahr(Übersicht): Zählergruppe in derselben Periode wie die Karte, ohne Subzähler', !!want
       && val.startsWith(`${Math.round(want.m3)} m³`) && val.includes(String(want.cost.toFixed(2)).replace('.', ',')), `${val} · ${want?.m3} m³ ${want?.cost} €`);
   } catch (e) { t('abrechnungsjahr(Übersicht): Gruppen', false, e.message); }
+
+  // v3.10.0 (Skeptiker M1) — erfundener Fehlablesefall: heute ein Wasserstand mit einer Ziffer zu viel
+  // (9.000 m³ mehr). Statt „▲ 1.382 %“ steht „Ablesung prüfen“ mit dem Weg zu den Ablesungen
+  try {
+    const wm = (await (await fetch(`${HOST}/api/utility/wasser/meters`)).json()).data.find(m => !m.parent_meter_id && (m.active ?? true));
+    const rs = (await (await fetch(`${HOST}/api/utility/wasser/readings?meter_id=${encodeURIComponent(wm.id)}`)).json()).data || [];
+    const lastR = [...rs].sort((a, b) => a.date.localeCompare(b.date)).pop();
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const typo = (await (await send('POST', '/api/utility/wasser/readings', { meter_id: wm.id, date: today, counter: Number(lastR.counter) + 9000 })).json()).data;
+    try {
+      const gp = (await (await fetch(`${HOST}/api/utility/wasser/billing-periods`)).json()).data.periods.filter(p => p.days > 0).pop();
+      const { view } = await renderView(`${ROOT}/views/dashboard.js`);
+      await new Promise(r => setTimeout(r, 900));
+      const card = view.querySelector('.card[data-utility="wasser"]');
+      const chk = card?.querySelector('.kpi__value [data-role="trend-check"]');
+      t('Übersicht (Skeptiker M1): falsche Ziffer → „Ablesung prüfen“ statt Prozentpfeil, mit Weg zu den Ablesungen',
+        !!gp?.prev_same_span && gp.m3 > 2 * gp.prev_same_span.m3 && !!chk && chk.getAttribute('href') === '#/utility/wasser'
+        && chk.textContent.trim() === 'Ablesung prüfen' && /mehr als doppelt/.test(chk.getAttribute('aria-label') || '')
+        && !/\d\s*%/.test(card.querySelector('.kpi__value')?.textContent || ''), `${gp?.m3} gegen ${gp?.prev_same_span?.m3} · ${chk?.outerHTML.slice(0, 160)}`);
+    } finally {
+      if (typo?.id) await fetch(`${HOST}/api/utility/wasser/readings/${encodeURIComponent(typo.id)}`, { method: 'DELETE' });
+    }
+  } catch (e) { t('Übersicht (Skeptiker M1): Fehlablesefall', false, e.message); }
 
   try {
     const fb = (await (await fetch(`${HOST}/api/utility/fernwaerme/bills`)).json()).data[0];
@@ -2125,6 +2458,20 @@ async function renderView(modPath, params = [], ctx = {}) {
     const urow = ub.textContent.replace(/\s+/g, ' ');
     t('H3: Einsteiger — Spanne der Karte statt „rund 532 € zurück“', /768\s€ Guthaben bis \S+ 3\s€ Nachzahlung \(unsicher\)/.test(urow)
       && !/532/.test(urow) && !!ub.querySelector('[data-role="money-uncertain"]') && !ub.querySelector('.success-text, .danger-text'), urow);
+    // v3.10.0 (Skeptiker v3.9.0, R2-3) — sichere Schätzung mit Breite: dieselbe Breite wie an der Karte (Strom ohne Wetterteil);
+    // rechnet eine Abrechnung zwei Verträge ab, die Summe (Wirklichkeitsabgleich)
+    const bb = global.document.createElement('ul');
+    bb.innerHTML = beginnerMoneyLines([
+      { utility: 'strom', name: 'Haushalt', contract: { ...c(-78.5, '2026-12-31', '2027-01-01'),
+        projection_band: { low: -91.99, high: -65.01, half: 13.49, level_pct: 80, estimated_days: 365, weather: 0, model: 13.49 } } },
+      { utility: 'gas', name: 'Gaszähler', contract: { ...c(-67.2, '2026-12-31', '2027-01-01'), settle_balance: -174.2, settle_range: [-190.2, -158.2],
+        projection_band: { low: -83.2, high: -51.2, half: 16.0, level_pct: 80, estimated_days: 200, weather: 12.0, model: 10.6 } } },
+    ], byKey).join('');
+    const brows = [...bb.querySelectorAll('li')].map(li => li.textContent.replace(/\s+/g, ' ').trim());
+    t('R2-3: Einsteiger — Strom mit Breite ohne Wetter, Gas mit Wetter; die Summe einer Abrechnung', brows.length === 2
+      && /rund 79\s€ zurück · je nach Schätzung \S+ 65\s€ Guthaben bis \S+ 92\s€ Guthaben/.test(brows[0])
+      && /rund 174\s€ zurück · je nach Wetter und Schätzung \S+ 158\s€ Guthaben bis \S+ 190\s€ Guthaben/.test(brows[1])
+      && bb.querySelectorAll('[data-role="money-band"]').length === 2, brows.join(' | '));
     t('L2/L1: „rund“ ohne Cent, bis zum letzten Tag', rows[2].includes(fmtMod.fmt.eur0(369.91).replace(/\s+/g, ' ')) && !rows[2].includes('369,91')
       && rows.every(r => r.includes(fmtMod.fmt.date('2026-12-31')) && !r.includes(fmtMod.fmt.date('2027-01-01'))), rows[2]);
   } catch (e) { t('Einsteiger: Muss ich nachzahlen?', false, e.stack || e.message); }
@@ -2815,6 +3162,46 @@ async function renderView(modPath, params = [], ctx = {}) {
     const listAfter = (await (await fetch(`${HOST}/api/inbox`)).json()).data.entries.find(e => e.id === id);
     t('inbox/betrieb: die Liste trägt die gespeicherte Kernaussage samt Prüfung', listAfter?.gist?.key === gk && !!listAfter.gist.check?.bill_id, JSON.stringify(listAfter?.gist?.check || {}));
 
+    // v3.10.0 (Skeptiker N7) — Rechnungskorrektur in der Vorschau, als erfundener Fall auf der echten Antwort
+    // (die Demo hat keine Korrektur im Posteingang): Die Kernaussage nennt Ersetzen, Zeitraum, Ergebnis und
+    // Buchung; die Vorschläge tragen „ersetzt“ statt „Widerspruch“ und sind angehakt.
+    {
+      const realFetch = global.fetch;
+      try {
+        const own = new RegExp(`/api/inbox/${id}(\\?|$)`);
+        global.fetch = async (input, init) => {
+          const res = await realFetch(input, init);
+          if (!own.test(String(input)) || (init?.method && init.method !== 'GET')) return res;
+          const body = await res.json();
+          const d = body?.data;
+          for (const p of d?.proposals || []) {
+            if (p.kind === 'bill') Object.assign(p, { status: 'conflict', replaces: true, checked: true, check: false, reasons: [], label_key: 'inbox.proposal.billCorrection',
+              params: { from: '2025-01-01', to: '2025-12-31', result: -20, before: -548.54 }, detail: { bill_id: 'b_korr', special_payment_id: 'sp_korr', invoice: { amount_eur: 1000 } } });
+            if (p.kind === 'bill_book') Object.assign(p, { status: 'conflict', replaces: true, checked: true, check: false, reasons: [], label_key: 'inbox.proposal.billRebook',
+              params: { result: -20, before: -548.54 }, detail: { bill_id: 'b_korr', special_payment_id: 'sp_korr', before: -548.54 } });
+          }
+          if (d) d.gist = { key: 'inbox.gist.invoice.correctionBooked', params: { from: '2025-01-01', to: '2025-12-31', balance: -548.54, result: -20 },
+            figure: { kind: 'result', value: -20, tone: 'good' }, action: null, details: [] };
+          return new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
+        };
+        const kv = (await renderView(`${ROOT}/views/inbox.js`, [id], { query: new URLSearchParams() })).view;
+        for (let i = 0; i < 60 && !kv.querySelector('#inbox-gist [data-role="gist-text"]'); i++) await new Promise(r => setTimeout(r, 50));
+        const kg = kv.querySelector('#inbox-gist [data-role="gist-text"]')?.textContent.replace(/\s+/g, ' ').trim() || '';
+        t('N7: Kernaussage der Rechnungskorrektur nennt Ersetzen, Zeitraum, Ergebnis und Buchung (nicht erst unter „Mehr dazu“)',
+          /^Rechnungskorrektur 01\.01\.2025 bis 31\.12\.2025: Sie ersetzt die erfasste und gebuchte Rechnung, das Ergebnis wird Guthaben 20,00 € statt Guthaben 548,54 €, und die Buchung ändert sich mit\./.test(kg), kg);
+        const kp = [...kv.querySelectorAll('#inbox-proposals .inbox-proposal')];
+        const corrP = kp.find(p => /Rechnungskorrektur 01\.01\.2025 bis 31\.12\.2025 übernehmen/.test(p.textContent));
+        const rebP = kp.find(p => /Buchung ersetzen/.test(p.textContent));
+        const badge = (p) => p?.querySelector('.badge')?.textContent.trim();
+        t('Rechnungskorrektur: Abzeichen „ersetzt“ statt „Widerspruch“, angehakt, frühere Fassung als Beleg genannt',
+          badge(corrP) === 'ersetzt' && badge(rebP) === 'ersetzt' && !kp.some(p => /Widerspruch/.test(p.textContent))
+          && !!corrP?.querySelector('input')?.checked && !!rebP?.querySelector('input')?.checked
+          && /frühere Fassung über 1\.000,00\s€/.test(corrP?.textContent || '') && /Gebucht ist bisher: Guthaben 548,54\s€/.test(rebP?.textContent || ''),
+          [corrP, rebP].map(p => p?.textContent.replace(/\s+/g, ' ').trim()).join(' | '));
+      } catch (e) { t('N7: Rechnungskorrektur in der Vorschau', false, e.stack || e.message); }
+      finally { global.fetch = realFetch; }
+    }
+
     // v3.7.0 (Paket betrieb) — Akte am Zähler: das übernommene Dokument mit seiner Kernaussage, die Rechnung nicht doppelt
     st.invalidateUtilities();
     const mv = await renderView(`${ROOT}/views/meters.js`, ['gas'], { query: new URLSearchParams() });
@@ -3125,17 +3512,21 @@ async function renderView(modPath, params = [], ctx = {}) {
     t('Zusatzbefund: Prognose Strom mit Jahresablesungen — Jahresmenge der letzten 365 Tage (1.100 kWh) mit Hinweis',
       /Die Jahresmenge folgt dem Verbrauch der letzten 365 Tage \(1\.100\skWh, März 2025 bis [^)]*2026\)/.test(fcInfo()), fcInfo().replace(/\s+/g, ' ').slice(0, 400));
     if (yearly) await fetch(`${HOST}/api/utility/strom/meters/${yearly}`, { method: 'DELETE' });
-    // v3.9.0 (L15) — künftiger Vertrag: Preis und Abschlag seines Beginns statt „–“, der erwartete Saldo mit ≈ und Legende
-    const fut = (await (await post('/utility/gas/contracts', { meter_id: 'm_gas_main', provider: 'Künftig Testgas', start: '2027-06-01',
-      working_prices: [{ from: '2027-06-01', ct_per_kwh: 9.87 }], base_prices: [{ from: '2027-06-01', eur_per_month: 14 }],
-      advance_payments: [{ from: '2027-06-01', amount_eur: 111 }] })).json())?.data;
+    // v3.9.0 (L15) — künftiger Vertrag: Preis und Abschlag seines Beginns statt „–“.
+    // v3.10.0 — beginnt er erst im nächsten Abrechnungsjahr (Stichtag 01.01.), gehört er zu keiner anstehenden
+    // Abrechnung: erwarteter Saldo „–“ ohne ≈ und ohne Legende (bis v3.9 „≈“ mit rund einem Tag Kosten).
+    // Der Beginn hängt am heutigen Jahr, damit der Fall in jedem Jahr derselbe bleibt (Lektion 86).
+    const nextYear = new Date().getFullYear() + 1;
+    const fut = (await (await post('/utility/gas/contracts', { meter_id: 'm_gas_main', provider: 'Künftig Testgas', start: `${nextYear}-06-01`,
+      working_prices: [{ from: `${nextYear}-06-01`, ct_per_kwh: 9.87 }], base_prices: [{ from: `${nextYear}-06-01`, eur_per_month: 14 }],
+      advance_payments: [{ from: `${nextYear}-06-01`, amount_eur: 111 }] })).json())?.data;
     const fg = await renderView(`${ROOT}/views/utility.js`, ['gas'], { query: new URLSearchParams('meter=m_gas_main') });
     for (let i = 0; i < 60 && !fg.view.querySelector('.contracts-table'); i++) await sleep(50);
     const futRow = [...fg.view.querySelectorAll('.contracts-table tr')].find(r => r.textContent.includes('Künftig Testgas'));
     const futText = futRow?.textContent.replace(/\s+/g, ' ') || '';
-    t('L15: künftiger Vertrag mit Arbeitspreis und Abschlag seines Beginns, Saldo mit ≈ und Legende', !!futRow && /9,87/.test(futText) && /111/.test(futText)
-      && /≈/.test(futRow.querySelector('[data-role="expected-future"]')?.textContent || '')
-      && !!fg.view.querySelector('[data-role="future-legend"]'), futText.slice(0, 300));
+    t('L15 + v3.10.0: künftiger Vertrag im nächsten Abrechnungsjahr mit Arbeitspreis und Abschlag seines Beginns, Saldo „–“ ohne ≈ und ohne Legende',
+      !!futRow && /9,87/.test(futText) && /111/.test(futText) && !/≈/.test(futText) && /–\s*$/.test(futText.trim())
+      && !fg.view.querySelector('[data-role="expected-future"]') && !fg.view.querySelector('[data-role="future-legend"]'), futText.slice(0, 300));
     if (fut?.id) await fetch(`${HOST}/api/utility/gas/contracts/${fut.id}`, { method: 'DELETE' });
 
     // ── wirklichkeit-2 (Punkt 1) — Heizgrenze-Vorschlag: ein Zähler, der genau unter 10,5 °C heizt ──
@@ -3539,10 +3930,13 @@ async function renderView(modPath, params = [], ctx = {}) {
       t(`gruppe (${h.tag}): „Kosten & Verträge“ — Mitglieder in einer Zeile mit dem Gruppenvertrag und „Über die Gruppe …“`, !!row && memberRows.length === 1 && memberRows[0] === row
         && h.members.every(id => row.querySelector('.contract-overview__meter')?.textContent.includes(nameOf(id)))
         && row.querySelector('.contract-overview__name')?.textContent.includes(h.contract)
-        && new RegExp(`Über die Gruppe „${h.groupName.replace(/[()]/g, '\\$&')}“`).test(row.querySelector('[data-role="overview-group-note"]')?.textContent || ''), rowText.slice(0, 220));
+        && (row.querySelector('[data-role="overview-group-note"]')?.textContent || '').includes(`Über die Gruppe „${h.groupName}“`), rowText.slice(0, 220));
       t(`gruppe (${h.tag}): kein „Vertrag anlegen“ an den Mitgliedern, Saldo genau einmal`, !memberRows.some(r => /Kein laufender Vertrag/.test(r.textContent))
         && row?.querySelectorAll('.contract-overview__expected').length === 1 && rows.filter(r => r.textContent.includes(h.contract)).length === 1
-        && !!gc && (gc.projected_end_balance == null || !!gc.projection_uncertain || rowText.includes(Math.abs(gc.projected_end_balance).toFixed(2).replace('.', ','))),
+        // v3.10.0 (R2-3) — mit Breite der Schätzung auf den Euro („≈ 291 €“) wie die Saldo-Karte
+        && !!gc && (gc.projected_end_balance == null || !!gc.projection_uncertain
+          || (gc.projection_band?.half >= 1 ? new RegExp(`≈ ${Math.round(Math.abs(gc.settle_balance ?? gc.projected_end_balance))}\\s€`).test(rowText)
+            : rowText.includes(Math.abs(gc.projected_end_balance).toFixed(2).replace('.', ',')))),
         `${gc?.projected_end_balance} | ${rowText.slice(0, 160)}`);
       if (h.without) {
         const lone = rows.find(r => r.querySelector('.contract-overview__meter')?.textContent.includes(nameOf(h.without)));
@@ -3554,7 +3948,7 @@ async function renderView(modPath, params = [], ctx = {}) {
       const note = uv.view.textContent.replace(/\s+/g, ' ');
       const kpi = uv.view.querySelector('[data-role="kpi-cost"]')?.textContent || '';
       t(`gruppe (${h.tag}): Verbrauchsseite des Mitglieds — Saldo-Karte über den Gruppenvertrag, Kosten-Kachel ohne „kein Vertrag“`,
-        new RegExp(`Gruppenvertrag „${h.groupName.replace(/[()]/g, '\\$&')}“`).test(note) && !!uv.view.querySelector('.balance-verdict__value') && /€/.test(kpi) && !/kein Vertrag/i.test(kpi),
+        note.includes(`Gruppenvertrag „${h.groupName}“`) &&!!uv.view.querySelector('.balance-verdict__value') && /€/.test(kpi) && !/kein Vertrag/i.test(kpi),
         `${kpi.trim().slice(0, 60)} | ${uv.view.querySelector('.balance-verdict__value')?.textContent.trim()}`);
       // „Bekomme ich Geld zurück?“ (Einsteiger): der Gruppenvertrag einmal, mit dem Saldo aus contract-status
       const sum = (await send('GET', '/summary')).data;
@@ -3565,6 +3959,86 @@ async function renderView(modPath, params = [], ctx = {}) {
         && sum.meters.filter(m => h.members.includes(m.meter_id)).every(m => m.contract === null && m.group_contract?.contract?.contract_id === gc?.contract_id), lines.join(' | ').slice(0, 260));
     }
   } catch (e) { t('gruppe: Gruppenvertrag an den Mitgliedern', false, e.stack || e.message); }
+
+  // ── 26c. v3.10.0 (#40) — Einspeisung in der Kaskade: Zählerdialog, Zählerkarte, Sonnenstrom je Strang ──
+  // Im Schaufenster ein zweites Einspeisezählwerk am Zähler „Wärmepumpe HT“ (hinter dem Hauptzähler);
+  // zwei Stände über 2025, damit die Monate von Erzeugung, Einspeisung und Zählwerk zusammen abgedeckt sind
+  try {
+    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+    const send = async (method, path, body) => (await fetch(`${HOST}/api${path}`, { method, headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined })).json();
+    await send('POST', '/demo/import', { force: true });   // das Schaufenster
+    (await import(`${ROOT}/state.js`)).invalidateSettings?.();
+    const mv = await renderView(`${ROOT}/views/meters.js`, ['pv_einspeisung']);
+    await sleep(300);
+    mv.view.querySelector('[data-action="new-meter"]')?.click();
+    await sleep(400);
+    const sel = global.document.querySelector('#modal-root #mf-cascade');
+    const opts = sel ? [...sel.options].map(o => o.value) : [];
+    t('kaskade: Zählerdialog der Einspeisung mit „Einspeisezählwerk von“, nur Stromzähler hinter einem anderen',
+      !!sel && !sel.disabled && opts[0] === '' && opts.includes('m_strom_wp_ht') && !opts.includes('m_strom_main')
+      && /Einspeisung in der Kaskade/.test(sel.closest('fieldset')?.textContent || ''), `${!!sel} ${opts.join(',')}`);
+    // speichern: die Verbindung kommt an
+    const form = global.document.querySelector('#modal-root #meter-form');
+    if (form && sel) {
+      // JSDOM kennt `form.<name>` nicht (Browser: benannte Felder des Formulars, auch `name`); hier nachgebildet
+      for (const el of form.querySelectorAll('[name]')) Object.defineProperty(form, el.getAttribute('name'), { value: el, configurable: true });
+      form.querySelector('[name="name"]').value = 'Testzählwerk Dialog';
+      sel.value = 'm_strom_wp_nt';
+      global.document.querySelector('#modal-root [data-act="save"]')?.click();
+    }
+    let saved = null;
+    for (let i = 0; i < 20 && !saved; i++) {
+      await sleep(250);
+      saved = ((await send('GET', '/utility/pv_einspeisung/meters')).data || []).find(m => m.name === 'Testzählwerk Dialog') || null;
+    }
+    t('kaskade: Zählerdialog speichert „Einspeisezählwerk von“', saved?.cascade_meter_id === 'm_strom_wp_nt',
+      `${JSON.stringify(saved?.cascade_meter_id ?? null)} ${(global.document.querySelector('#toast-stack')?.textContent || '').trim().slice(0, 160)}`);
+    global.document.querySelectorAll('.modal [data-act="cancel"]').forEach(b => b.click());
+    if (saved?.id) await send('DELETE', `/utility/pv_einspeisung/meters/${saved.id}`);
+    const created = await send('POST', '/utility/pv_einspeisung/meters', { name: 'Testzählwerk Z2', installed_on: '2024-12-01', obis: '2.8.0', cascade_meter_id: 'm_strom_wp_ht' });
+    const fid = created?.data?.id;
+    const pv0 = (await send('GET', '/pv-summary')).data;
+    const y25 = (pv0?.yearly || []).find(y => y.year === 2025);
+    const mid = Math.round(((y25?.einspeisung_kwh || 0) + (y25?.erzeugung_kwh || 0)) / 2);
+    for (const [date, counter] of [['2025-01-01', 0], ['2026-01-01', mid]]) await send('POST', '/utility/pv_einspeisung/readings', { meter_id: fid, date, counter });
+    const pv1 = (await send('GET', '/pv-summary')).data;
+    const y1 = (pv1?.yearly || []).find(y => y.year === 2025);
+    t('kaskade: Einspeisung ins Netz bleibt, das Zählwerk zählt nicht zusätzlich', !!fid && Math.abs((y1?.einspeisung_kwh ?? -1) - (y25?.einspeisung_kwh ?? -2)) < 0.2,
+      `${y25?.einspeisung_kwh} → ${y1?.einspeisung_kwh}`);
+    t('kaskade: /pv-summary nennt den Sonnenstrom je Strang (dahinter und vorn)', y1?.cascade?.months > 0
+      && (y1.cascade.strands || []).map(s => s.position).join() === 'behind,front', JSON.stringify(y1?.cascade)?.slice(0, 200));
+    const mv2 = await renderView(`${ROOT}/views/meters.js`, ['pv_einspeisung']);
+    await sleep(300);
+    t('kaskade: Zählerkarte mit „Zählwerk in der Kaskade“', [...mv2.view.querySelectorAll('[data-role="cascade-tag"]')].some(x => /Zählwerk in der Kaskade/.test(x.textContent)));
+    const uv = await renderView(`${ROOT}/views/utility.js`, ['pv_erzeugung'], { query: new URLSearchParams('year=2025') });
+    await sleep(700);
+    const card = uv.view.querySelector('[data-role="pv-cascade"]');
+    const kpis = card ? [...card.querySelectorAll('[data-strand]')].map(k => k.querySelector('.kpi__label')?.textContent) : [];
+    t('kaskade: PV-Erzeugung zeigt „Sonnenstrom je Strang 2025“ mit beiden Strängen nach Rolle', !!card && /Sonnenstrom je Strang 2025/.test(card.textContent)
+      && kpis.join('|') === 'Wärmepumpe (Heizstrom)|Haushalt' && /Gerechnet aus \d+ Monat/.test(card.textContent), `${kpis.join('|')} ${card?.textContent.replace(/\s+/g, ' ').slice(0, 200)}`);
+    // v3.10.0 (Skeptiker M5) — das Zählwerk ist nur zweimal abgelesen, jeder Monat verteilt: ≈ an den
+    // Strängen, der Satz „geschätzt“, keine Warnung „bitte die Ablesungen prüfen“
+    const vals = card ? [...card.querySelectorAll('[data-strand] .kpi__value')].map(v => v.textContent.trim()) : [];
+    t('kaskade: verteilte Monate mit ≈ und „geschätzt“, ohne Warnung', vals.length === 2 && vals.every(v => v.startsWith('≈'))
+      && /geschätzt/.test(card?.querySelector('[data-role="pv-cascade-estimated"]')?.textContent || '') && !card.querySelector('.banner--warning'),
+      `${vals.join(' | ')} ${card?.querySelector('.banner--warning')?.textContent || ''}`);
+    // Wärmepumpe: ein geschätzter Monat ohne Arbeitszahl, mit ≈ am Strom und einem Satz
+    const U = await import(`${ROOT}/views/utility.js?t=${Date.now()}`);
+    const hpHtml = U.heatPumpCardHtml({ jaz: 3.0, jaz_heating_season: null, months_covered: 2, heat_kwh: 3000, elec_kwh: 950, linked: true,
+      months: [{ ym: '2025-07', heat_kwh: 1500, elec_kwh: 450, cop: null, estimated: true }, { ym: '2025-05', heat_kwh: 1500, elec_kwh: 500, cop: 3.0 }] }, null, 2025);
+    const hpBox = global.document.createElement('div');
+    hpBox.innerHTML = hpHtml;
+    const estRow = hpBox.querySelector('tr[data-estimated]');
+    t('kaskade: Arbeitszahl je Monat nur gemessen, geschätzter Monat mit ≈ und „–“', !!estRow && /≈/.test(estRow.children[2].textContent)
+      && estRow.children[3].textContent.trim() === '–' && hpBox.querySelectorAll('tr[data-estimated]').length === 1
+      && /nicht gemessen/.test(hpBox.querySelector('[data-role="hp-estimated"]')?.textContent || ''), estRow?.textContent.replace(/\s+/g, ' '));
+    // N10 — Effizienz: der Satz „aus dem Netz“, nur mit grid_only
+    const D = await import(`${ROOT}/views/dashboard.js?t=${Date.now()}`);
+    t('kaskade: Effizienz sagt „nur Strom aus dem Netz“ (Wärmepumpe vorn in der Kaskade)',
+      /aus dem Netz/.test(D.efficiencyGridOnlyText({ per_source: [{ utility: 'strom', grid_only: true }] }))
+      && D.efficiencyGridOnlyText({ per_source: [{ utility: 'strom' }] }) === '');
+    await send('POST', '/demo/import', { force: true });
+  } catch (e) { t('kaskade: Einspeisung in der Kaskade', false, e.stack || e.message); }
 
   // ── 27. v3.9.0 (F1032, #40) — Assistent „Messkonzept“: Einstieg, Schaltbilder, Vorschau, Anlegen ──
   try {

@@ -176,6 +176,12 @@ export function proposalText(p, { unit = '' } = {}) {
     if (rhythm) return `${t(p.label_key, a)}, ${rhythm}`;
   }
   if (p.kind === 'bill' || p.kind === 'bill_book') a.result = resultText(p.params?.result) || '–';
+  // v3.10.0 — Rechnungskorrektur: das bisherige Ergebnis (0 € ist ein Ergebnis, kein „–“)
+  if ((p.kind === 'bill' || p.kind === 'bill_book') && p.params && 'before' in p.params) {
+    const money0 = (v) => (v !== null && v !== undefined && Number(v) === 0 ? fmt.money(0) : (resultText(v) || '–'));
+    a.before = money0(p.params.before);
+    a.result = money0(p.params.result);
+  }
   if (p.kind === 'gas_factor') { a.z = fmt.dec(a.z, 4); a.hs = fmt.dec(a.hs, 3); a.factor = fmt.dec(a.factor, 4); }
   if (p.kind === 'contract_start' && typeof p.params?.old === 'string') a.old = fmt.date(p.params.old);
   if (p.kind === 'contract_ids') a.ids = ['contract_number', 'customer_number'].filter(k => a[k]).map(k => `${fieldLabel(k)} ${a[k]}`).join(', ');
@@ -191,13 +197,19 @@ export function detailText(p, { unit = '' } = {}) {
       const c = (v) => `${fmt.dec(v, 3)}${unit ? ` ${unit}` : ''}`;
       // v3.9.0 — dein gemeldeter Stand, vom Versorger auf das Zeitraumende datiert; ein Stand, der nicht zwischen deine passt
       if (d.reported_on) return t('inbox.detail.readingReported', { date: fmt.date(d.reported_on), counter: c(d.counter) });
+      // v3.10.0 — Anfangsstand der Rechnung = deine Ablesung kurz davor (etwa am Vortag)
+      if (d.same_on) return t('inbox.detail.readingBefore', { date: fmt.date(d.same_on), counter: c(d.counter) });
       if (d.neighbor) return t(d.neighbor.side === 'prev' ? 'inbox.detail.readingBelow' : 'inbox.detail.readingAbove', { date: fmt.date(d.neighbor.date), counter: c(d.neighbor.counter) });
       return d.counter !== undefined ? t('inbox.detail.reading', { counter: c(d.counter) }) : '';
     }
     case 'contract_price': case 'contract_base_price': case 'contract_advance': case 'contract_water_price':
       return d.value !== undefined ? t('inbox.detail.row', { value: rowValue(p.kind, d.value, p.data?.key) }) : '';
     case 'bill': return d.period_from ? t('inbox.detail.billOverlap', { from: fmt.date(d.period_from), to: fmt.date(d.period_to) })
+      // v3.10.0 — Rechnungskorrektur: die erfasste Fassung wird ersetzt, ihr Dokument bleibt als Beleg
+      : p.replaces ? t('inbox.detail.billCorrected', { amount: fmt.money(d.invoice?.amount_eur) })
       : t('inbox.detail.bill', { amount: fmt.money(d.invoice?.amount_eur) });
+    case 'bill_book': return d.before !== undefined && d.before !== null
+      ? t('inbox.detail.billBooked', { before: Number(d.before) === 0 ? fmt.money(0) : resultText(d.before) }) : '';
     case 'contract_create': return d.start ? t('inbox.detail.contract', { provider: d.provider || '–', from: fmt.date(d.start), to: d.end ? fmt.date(d.end) : '…' }) : '';
     case 'contract_end': return d.end ? t('inbox.detail.end', { date: fmt.date(d.end) }) : '';
     case 'contract_start': return d.start ? t('inbox.detail.start', { date: fmt.date(d.start) }) : '';
@@ -232,8 +244,9 @@ export function gistParams(key, params = {}) {
   const a = { ...params };
   for (const k of ['date', 'start', 'last', 'from', 'to']) if (k in a) a[k] = typeof a[k] === 'string' && a[k] ? fmt.date(a[k]) : '–';
   for (const k of ['amount', 'diff', 'recommended', 'theirs', 'ours']) if (k in a) a[k] = typeof a[k] === 'number' ? fmt.money(a[k]) : '–';
-  if ('balance' in a) a.balance = typeof a.balance === 'number' ? (resultText(a.balance) || fmt.money(0)) : '–';
-  if ('result' in a) a.result = typeof a.result === 'number' ? (resultText(a.result) || fmt.money(0)) : '–';
+  // v3.10.0 (Skeptiker N7) — 0 € ist weder Nachzahlung noch Guthaben (Rechnungskorrektur auf 0 €)
+  if ('balance' in a) a.balance = typeof a.balance === 'number' ? (a.balance === 0 ? fmt.money(0) : resultText(a.balance)) : '–';
+  if ('result' in a) a.result = typeof a.result === 'number' ? (a.result === 0 ? fmt.money(0) : resultText(a.result)) : '–';
   if (String(key).endsWith('.workingPrice')) { a.old = ct(params.old); a.new = ct(params.new); }
   else if (String(key).endsWith('.basePrice')) {
     a.old = params.old === null || params.old === undefined ? '–' : fmt.money(params.old);

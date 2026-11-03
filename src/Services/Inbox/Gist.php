@@ -191,7 +191,13 @@ final class Gist
         }
         $details = [];
         $params = ['from' => $from, 'to' => $to];
-        if ($cmp === null) {
+        if ($cmp === null && !empty($bill['replaces'])) {
+            // v3.10.0 (Skeptiker N7) — Rechnungskorrektur (Proposals::correctionOf): die Kernaussage sagt selbst,
+            // dass sie die erfasste Rechnung des Zeitraums ersetzt und wie sich das Ergebnis ändert (bis dahin
+            // stand das nur unter „Mehr dazu“); war sie gebucht, ändert sich die Buchung mit
+            $key = !empty($bill['detail']['special_payment_id']) ? 'inbox.gist.invoice.correctionBooked' : 'inbox.gist.invoice.correction';
+            $params['balance'] = isset($bill['params']['before']) ? (float)$bill['params']['before'] : null;
+        } elseif ($cmp === null) {
             $key = 'inbox.gist.invoice.pending';
         } elseif ($cmp['verdict'] === 'ok') {
             $key = 'inbox.gist.invoice.ok';

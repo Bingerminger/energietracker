@@ -161,6 +161,23 @@ the letter or bill, a heading like “Rechnungskorrektur”, also from the page
 header): they put the post in order and show a correction as such. If they are
 missing, that is no flag.
 
+**Corrected bill** *(since v3.10.0)*. On a bill the app also reads the invoice
+number and a reference to an earlier invoice (“ersetzt Rechnung Nr. …”). If a
+bill with other values is already recorded for the same meter and exactly the
+same period, the new document is a correction if it is not older than the
+recorded version and one of these applies: it names an earlier invoice, it has a
+different invoice number than the document of the recorded one, it was issued
+later, or its title or file name says “Korrektur”. Then “Take over the corrected
+bill … instead of …” is ticked in advance, with the badge “replaces”, and the
+gist at the top says so right away: “Corrected bill … to …: it replaces the
+recorded bill, the result becomes … instead of …” (if it was booked, also that the
+booking changes with it). If
+the recorded bill was already booked, “Replace the booking: … instead of …”
+replaces the old special payment with the new result (at €0 it goes away). The
+earlier document stays on the bill as a receipt. Without any of these signs it
+stays a conflict that you tick yourself. In the draft “Household from documents”
+a correction has replaced the first version since v3.7.0.
+
 The flags follow what is in the app today, and they also apply to documents
 you read before this version. Only the quotes are checked while reading: a
 reading made before keeps its quote check until you read the document again.
@@ -217,7 +234,14 @@ neighbour is named below it (“Lies below your reading of … on …”). If th
 value is already recorded on an earlier day of the billing period and the bill
 states it on the last day of the period, it is the reading you reported, which
 the supplier dates to the end of the period: “already there”, and “Check bill”
-counts the quantity up to the day you read the meter. A reading the document
+counts the quantity up to the day you read the meter. *(since v3.10.0)* The same
+goes for the opening reading of a bill: if the same reading is your last one
+before it and lies at most three days before the bill’s date (such as the annual
+reading on the day before the period starts), it is “already there” (“Your
+reading of … is the same”), with no meter exchange in between; no second reading
+with zero consumption is created. Three days, because without a reading at the
+start of the period “Check bill” spreads the days in between evenly: for an
+annual bill that is at most 3 of 365 days, below the 1 % tolerance. A reading the document
 prints with fewer digits is the same as yours if yours, rounded or cut to those
 digits, matches (29,310 in the document, 29,310.2 in your records; 26,845 in the
 document, 26,845.5 in your records). Only your reading is cut: if the document
@@ -744,6 +768,16 @@ side without input and only save the local fields open to them.
 | Redirects | enter the address the redirect points to |
 | Answer incomplete | try again; for very long documents a shorter PDF helps |
 | List not loaded | enter the model name by hand, as the service names it |
+
+Since v3.10.0 a refusal by the service shows only its reason, no longer also
+as “Internal error” with a pointer to the server log
+([#41](https://github.com/Bingerminger/energietracker/issues/41)). Newer
+models of some OpenAI-compatible services only accept their own temperature
+and only `max_completion_tokens` instead of `max_tokens`. If the service
+refuses for that reason and names the parameter in its answer (`error.param`),
+the app asks **once** more without the temperature or with
+`max_completion_tokens`. Services that accept both get the same request as
+before.
 
 What each service sees and how the connection is checked:
 [Security & network operation](../betrieb/sicherheit.md#reading-in-the-cloud-v370).

@@ -76,6 +76,21 @@ final class HomeAssistantEndpointTest extends HttpServerTestCase
         self::assertSame('Rauchmelder prüfen', $t['next']['title'], 'Überfälliges zuerst');
         self::assertSame('overdue', $t['next']['severity']);
         self::assertSame(1, $t['overdue']);
+        // v3.10.0 (#36) — ein Termin in fünf Tagen: nicht in `count`, aber in `soon` und als nächster Termin.
+        // Abstände mit Puffer: der Testprozess rechnet in UTC, der Server in der Zeitzone der Installation;
+        // zwischen Mitternacht und 01:00 MEZ liegen die Kalendertage einen Tag auseinander.
+        $soon = $t['soon'];
+        $inFive = date('Y-m-d', strtotime('+5 days'));
+        $this->json('POST', '/api/reminders', ['title' => 'Heizung Wartung', 'category' => 'custom', 'next_due' => $inFive]);
+        $t = $this->json('GET', '/api/todo');
+        self::assertSame([4, $soon + 1], [$t['count'], $t['soon']]);
+        self::assertSame(['Heizung Wartung', $inFive, 'upcoming'],
+            [$t['next_upcoming']['title'] ?? null, $t['next_upcoming']['date'] ?? null, $t['next_upcoming']['severity'] ?? null]);
+        self::assertSame(['uid', 'kind', 'title', 'date', 'severity', 'href'], array_keys($t['next_upcoming']));
+        // der Vorlauf kommt aus der Einstellung „bald fällig“: mit zwei Tagen liegt der Termin außerhalb
+        $this->json('PATCH', '/api/settings', ['reminder_warn_days_before' => 2]);
+        $t = $this->json('GET', '/api/todo');
+        self::assertSame([$soon, 'Heizung Wartung'], [$t['soon'], $t['next_upcoming']['title'] ?? null], 'nicht mehr bald, aber weiter der nächste Termin');
         // /api/summary additiv: der Name der Verbrauchsart (HACS-Integration benennt so die Geräte)
         $labels = array_column($this->json('GET', '/api/summary')['meters'], 'utility_label', 'utility');
         self::assertSame('Strom', $labels['strom'] ?? null);

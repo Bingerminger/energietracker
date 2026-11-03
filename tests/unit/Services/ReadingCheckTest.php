@@ -730,6 +730,48 @@ final class ReadingCheckTest extends ServiceTestCase
         self::assertNull($this->checks()->forMeter('gas', $meter)['level_shift']);
     }
 
+    /**
+     * v3.10.0 (Skeptiker M1) — erfundener Fehlablesefall: Strom, 10 kWh am Tag, monatlich
+     * abgelesen bis 01.01.2026, dann eine lange Pause und ein einziger Stand am 30.10.2026 mit
+     * einer falschen Ziffer (30.000 kWh zu viel; 302 Tage × 10 kWh = 3.020 kWh wären richtig).
+     * Bis v3.9 hieß das „seit 01.01.2026 dauerhaft mehr Verbrauch … Zäsur setzen?“ auf Grundlage
+     * dieses einen Stands. Ein Stand nach dem Sprung bestätigt kein neues Niveau.
+     */
+    public function testOneWrongReadingAfterALongPauseIsNoLevelShift(): void
+    {
+        $meter = $this->meterAt('strom', fn(string $d) => 10.0, [...self::firsts('2024-01', '2026-01'), '2026-10-30']);
+        $all = $this->store->read('strom/readings.json', []);
+        foreach ($all as &$r) if ($r['date'] === '2026-10-30') $r['counter'] += 30000.0;
+        unset($r);
+        $this->store->write('strom/readings.json', $all);
+        self::assertNull($this->checks()->forMeter('strom', $this->meters->list('strom')[0], '2026-11-03')['level_shift']);
+    }
+
+    /**
+     * Gegenstück: Ab 01.01.2026 wirklich doppelt so viel (20 kWh am Tag), abgelesen am
+     * 30.10. und 30.11.2026. Zwei Stände nach dem Wechsel, der zweite schließt einen Abstand
+     * ganz auf dem neuen Niveau: Jetzt ist es ein anderer Verbrauch, der Hinweis kommt.
+     */
+    public function testTwoReadingsAfterAJumpConfirmTheNewLevel(): void
+    {
+        $dates = [...self::firsts('2024-01', '2026-01'), '2026-10-30'];
+        $rate = fn(string $d) => $d < '2026-01-01' ? 10.0 : 20.0;
+        $this->meterAt('strom', $rate, $dates);
+        self::assertNull($this->checks()->forMeter('strom', $this->meters->list('strom')[0], '2026-12-15')['level_shift'],
+            'ein Stand danach: noch keine Bestätigung');
+        $this->store->write('strom/meters.json', []);
+        $this->store->write('strom/readings.json', []);
+        $this->meterAt('strom', $rate, [...$dates, '2026-11-30']);
+        $s = $this->checks()->forMeter('strom', $this->meters->list('strom')[0], '2026-12-15')['level_shift'];
+        self::assertNotNull($s, 'zwei Stände danach bestätigen das neue Niveau');
+        self::assertSame(['2026-01-01', 'lower'], [$s['date'], $s['direction']]);
+        // Lektion 31: die Doku nennt die Zahl der Stände (DE und EN)
+        $words = [2 => ['zwei', 'two'], 3 => ['drei', 'three']][ReadingCheckService::LEVEL_AFTER_READINGS];
+        $flat = fn(string $rel) => (string)preg_replace('/\s+/u', ' ', (string)file_get_contents(dirname(__DIR__, 3) . '/' . $rel));
+        self::assertStringContainsString("mindestens {$words[0]} Ablesungen nach dem Wechsel", $flat('docs/verstehen/00-overview.md'));
+        self::assertStringContainsString("at least {$words[1]} readings after the change", $flat('docs/en/verstehen/00-overview.md'));
+    }
+
     // ── 4  doppelt ──────────────────────────────────────────────────────
 
     /** Derselbe Tag, derselbe Stand zweimal: ein Eintrag, behalten wird der mit Notiz. */

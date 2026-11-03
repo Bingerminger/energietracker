@@ -88,7 +88,7 @@ deine Home-Assistant-Instanz mit dem Dialog und der Adresse
 ```yaml
 image: ghcr.io/bingerminger/energietracker   # dasselbe Image wie mit Docker
 arch: [aarch64, amd64]
-init: false            # das Image bringt supervisord mit
+init: false            # das Startskript des Images ist PID 1
 ingress: true
 ingress_port: 80       # nginx im Image
 ingress_stream: true   # Uploads über 16 MiB (Backups mit Belegen)
@@ -125,7 +125,9 @@ Rollen änderst du unter Einstellungen → Zugriff. Eine Person wird über die
 Kennung des HA-Benutzers geführt, eine Umbenennung in Home Assistant macht
 keine neue. Der Gesundheitscheck des Images (`/api/health`) ist zugleich die
 Überwachung der App: Mit „Watchdog“ startet Home Assistant sie bei einem
-Fehler neu.
+Fehler neu. Seit v3.10.0 endet die App, wenn nginx oder php-fpm im Image
+ausfällt (bis v3.9 startete `supervisord` den Dienst im Container neu); zurück
+kommt sie dann über den Watchdog. Lass ihn deshalb eingeschaltet.
 
 **Zählerstände aus Home Assistant in die App.** Die Schritte 1 bis 5 unten
 gelten unverändert, nur die Adresse ist eine andere: Home Assistant erreicht
@@ -379,6 +381,13 @@ rest:
         value_template: "{{ value_json.data.meters | selectattr('key', 'eq', 'strom.m_strom_default') | map(attribute='contract.balance', default=none) | first }}"
         device_class: monetary
         unit_of_measurement: "EUR"
+        json_attributes_path: "$.data.meters[?(@.key == 'strom.m_strom_default')].contract"
+        json_attributes:
+          - projected_end_balance
+          - projected_end_balance_total
+          - projected_end_range_total
+          - measured_balance
+          - measured_until
       - name: "Strom – Prognose 12 Monate"
         unique_id: energietracker_strom_m_strom_default_forecast_12m
         value_template: "{{ value_json.data.meters | selectattr('key', 'eq', 'strom.m_strom_default') | map(attribute='forecast_12m.value', default=none) | first }}"
@@ -400,6 +409,32 @@ rest:
 - **Saldo** hat das Vorzeichen der API: positiv = Nachzahlung, negativ =
   Guthaben (bei der PV-Einspeisung: positiv = Auszahlung). Die Einheit `EUR`
   steht für die Währung deiner Einstellungen.
+- *(v3.10.0)* **Erwartet bei Abrechnung als Attribute:** Der Saldo-Sensor trägt
+  zwei Attribute aus dem Vertrag seines Zählers. `projected_end_balance` ist
+  der erwartete Saldo des laufenden Vertrags zur nächsten Abrechnung, wie
+  bisher. `projected_end_balance_total` ist der Betrag, den die Saldo-Karte
+  zeigt: Rechnet eine Abrechnung mehrere Verträge ab (Tarifwechsel beim selben
+  Versorger), die Summe ihrer erwarteten Salden, sonst derselbe Wert wie
+  `projected_end_balance`. Der Zustand des Sensors bleibt der Saldo bis heute;
+  bestehende Automationen laufen weiter. In einer Vorlage:
+  `{{ state_attr('sensor.strom_saldo', 'projected_end_balance_total') }}`.
+  Vorlagen, die du vor v3.10.0 kopiert hast, haben keine Attribute; es genügt,
+  die Zeilen `json_attributes_path` und `json_attributes` zu ergänzen.
+- *(v3.10.0)* **Welcher Saldo ist welcher:** Der **Zustand** des Sensors ist der
+  Saldo **bis heute**, die Tage seit der letzten Ablesung geschätzt (wie die
+  Zusatzzeile „Bis heute geschätzt“ der Karte). `measured_balance` ist der
+  gemessene Saldo zur letzten Ablesung am Tag `measured_until`, wie „Saldo am …“
+  bzw. „Aktueller Saldo“ der Karte (bei mehreren Verträgen einer Abrechnung die
+  Summe). Ist die Schätzung unsicher, zeigt die Karte unter „Erwartet bei
+  Abrechnung“ nur eine Spanne; dann steht sie in `projected_end_range_total`
+  (`[von, bis]`, sonst leer); `projected_end_balance_total` ist dann nur ein
+  einzelner Wert der Schätzung, maßgeblich ist die Spanne.
+- *(v3.10.0)* **Grenzen der Attribute:** Der Pfad in `json_attributes_path` ist
+  gegen die JSONPath-Auswertung nachgerechnet, die Home Assistant benutzt, in
+  einem laufenden Home Assistant aber noch nicht geprüft; Rückmeldungen sind
+  willkommen. Ohne laufenden Vertrag schreibt Home Assistant bei jeder Abfrage
+  die Warnung „JSON result was not a dictionary“ ins Protokoll; der Zustand des
+  Sensors stimmt trotzdem.
 - Ein Sensor zeigt „unbekannt“, wenn es den Wert nicht gibt — etwa ohne
   laufenden Vertrag oder bevor die Prognose genug Daten hat.
 - *(v3.4.0)* **Erledigtes zählt nicht mit:** `agenda.due`, `agenda.overdue`
@@ -537,6 +572,70 @@ Companion-App auf dem Handy. Beide nehmen `title` und `message`.
 > App für Home Assistant. Kommt dort etwas nicht an, nennt „Testnachricht
 > senden“ den Grund; Rückmeldungen aus echten Installationen sind willkommen.
 
+### HTTPS mit eigenem Zertifikat *(v3.10.0)*
+
+Läuft Home Assistant über `https://` mit einem Zertifikat, das du selbst
+ausgestellt hast (mit einem eigenen Stammzertifikat; Fachleute sagen „eigene
+PKI“), kennt der Energietracker dessen Aussteller nicht. „Testnachricht
+senden“ meldet dann, dass er den Aussteller nicht kennt
+([#36](https://github.com/Bingerminger/energietracker/issues/36)). Zwei Wege:
+
+**1. Eigenes Stammzertifikat (empfohlen).** Die Prüfung bleibt an, deine
+selbst ausgestellten Zertifikate werden anerkannt. Das Stammzertifikat gilt
+**zusätzlich** zu den üblichen Stammzertifikaten; öffentliche Ziele
+funktionieren weiter.
+
+- **In der App:** Einstellungen → Experte → 🔐 Verbindungen im Heimnetz →
+  „Eigenes Stammzertifikat (PEM)“. Den Text der Datei deines
+  Root-Zertifikats einfügen, ab `-----BEGIN CERTIFICATE-----` bis
+  `-----END CERTIFICATE-----`, und speichern. Nur das Zertifikat, nie den
+  privaten Schlüssel (den lehnt die App ab).
+- **Als Datei im Container:** die Datei nur lesend einhängen und ihren Pfad in
+  `ET_CA_FILE` nennen, etwa
+  `-v $PWD/meine-root-ca.pem:/certs/meine-root-ca.pem:ro` und
+  `-e ET_CA_FILE=/certs/meine-root-ca.pem`. Beide Wege lassen sich kombinieren.
+- Unter Einstellungen → System (Diagnose) steht, wie viele eigene
+  Stammzertifikate gelten und ob die Datei aus `ET_CA_FILE` lesbar ist.
+
+**2. Zertifikat im Heimnetz nicht prüfen (Notlösung).** Derselbe Abschnitt,
+Schalter „Zertifikat im Heimnetz nicht prüfen“, standardmäßig aus. Über diese
+Verbindung geht dein Home-Assistant-Token; ohne Prüfung kann ihn mitlesen, wer
+sich im Netz dazwischenhängt. Der Schalter wirkt nur für Adressen im Heimnetz
+(entschieden an der aufgelösten Adresse, etwa `192.168.178.10`), für einen
+Fernzugang über das Internet nie.
+
+**Übergangsweg mit 3.9.x.** Bis zum Update hilft ein eigenes Bündel: eine
+Datei mit den üblichen Stammzertifikaten und deinem eigenen, nur lesend an die
+Stelle `/etc/ssl/certs/ca-certificates.crt` im Container gehängt.
+
+```bash
+docker cp energietracker:/etc/ssl/certs/ca-certificates.crt .
+cat ca-certificates.crt meine-root-ca.pem > bundle.pem
+docker run ... -v $PWD/bundle.pem:/etc/ssl/certs/ca-certificates.crt:ro ...
+```
+
+Geprüft mit dem Image 3.9.0: ohne Bündel „unable to get local issuer
+certificate“, mit Bündel erreicht der Energietracker den Server mit eigener
+CA, auch ohne root und als `:ro`-Einhängung; öffentliche Ziele funktionieren
+weiter. Das Bündel **ersetzt** die Liste des Images: nach größeren Updates
+neu zusammenstellen. Ab 3.10.0 lieber Weg 1 nehmen und das Bündel wieder
+entfernen.
+
+Dieselben Einstellungen gelten für alle Verbindungen ins Heimnetz: die
+[Texterkennung](texterkennung.md), das Auslesen im
+[Posteingang](posteingang.md) mit einem eigenen Dienst und
+[evcc](evcc.md).
+
+**Was die Meldung rät.** Scheitert die Verbindung am Zertifikat, sagt die
+App, woran (entschieden am Fehlercode, nicht am Wortlaut):
+
+| Meldung | Was tun |
+|---|---|
+| Aussteller nicht bekannt | Weg 1: dein Stammzertifikat eintragen |
+| Zertifikat passt nicht zu dieser Adresse | Die Adresse so eintragen, wie sie im Zertifikat steht, etwa den Namen statt der IP-Adresse. Ein eigenes Stammzertifikat hilft hier nicht. |
+| Abgelaufen oder noch nicht gültig | Zertifikat erneuern, Uhrzeit beider Geräte prüfen |
+| Stammzertifikate nicht lesbar | Die Datei aus `ET_CA_FILE` oder ein eingehängtes Bündel prüfen: Pfad, Inhalt, Leserechte für den Benutzer des Containers |
+
 ### Webhook
 
 1. In Home Assistant eine neue Automation anlegen, „In YAML bearbeiten“
@@ -589,8 +688,11 @@ Was der Webhook bekommt (JSON; in der Automation unter `trigger.json`):
 `GET /api/todo` liefert die Liste „Zu tun“: wie viele Punkte fällig sind, wie
 viele davon überfällig oder dringend, und den nächsten. Jeder fällige Punkt
 zählt, auch eine Art, die neu dazukommt. Drei fällige Ablesungen sind drei
-Punkte (die Übersicht fasst sie in einer Zeile zusammen). Die Felder stehen in
-der [API-Referenz](../referenz/api.md#get-apitodo-v390).
+Punkte (die Übersicht fasst sie in einer Zeile zusammen). Seit v3.10.0 zeigt
+der Sensor auch das Kommende: wie viele Termine bald fällig werden und den
+nächsten Termin mit Datum, auch wenn er noch nicht fällig ist
+([#36](https://github.com/Bingerminger/energietracker/issues/36)). Die Felder
+stehen in der [API-Referenz](../referenz/api.md#get-apitodo-v390).
 
 Die Vorlage steht in den Einstellungen unter Integrationen (Karte
 „Home-Assistant-Anbindung einrichten“, Abschnitt Sensor „Zu tun“). In die
@@ -609,6 +711,8 @@ rest:
         json_attributes_path: "$.data"
         json_attributes:
           - overdue
+          - soon
+          - next_upcoming
           - items
       - name: "Energietracker nächster Punkt"
         unique_id: energietracker_todo_next
@@ -617,13 +721,29 @@ rest:
         unique_id: energietracker_todo_next_date
         value_template: "{{ value_json.data.next.date if value_json.data.next else none }}"
         device_class: date
+      - name: "Energietracker nächster Termin"
+        unique_id: energietracker_todo_upcoming
+        value_template: "{{ value_json.data.next_upcoming.title if value_json.data.next_upcoming else '-' }}"
+      - name: "Energietracker nächster Termin am"
+        unique_id: energietracker_todo_upcoming_date
+        value_template: "{{ value_json.data.next_upcoming.date if value_json.data.next_upcoming else none }}"
+        device_class: date
 ```
 
-- **Zu tun:** die Anzahl, dazu die Attribute `overdue` und `items` (je Punkt
-  `title`, `date`, `kind`, `severity`).
+- **Zu tun:** die Anzahl der fälligen Punkte, dazu die Attribute `overdue`,
+  `soon` (wie viele Termine in den nächsten Tagen fällig werden, *v3.10.0*),
+  `next_upcoming` (der nächste Termin, *v3.10.0*) und `items` (je Punkt
+  `title`, `date`, `kind`, `severity`). Der Zustand bleibt die Zahl der
+  fälligen Punkte, Automationen auf „größer 0“ stimmen weiter.
 - **nächster Punkt:** der Titel des ersten Punkts (überfällig zuerst, dann
   dringend, dann nach Datum); „-“, wenn nichts zu tun ist.
 - **nächster Punkt fällig:** sein Datum; „unbekannt“, wenn nichts zu tun ist.
+- **nächster Termin** *(v3.10.0)*: der Titel des nächsten Termins, der noch
+  nicht fällig ist (etwa „Heizung Wartung“ in zwei Tagen), auch wenn er weiter
+  weg liegt; „-“, wenn keiner im Kalender steht.
+- **nächster Termin am** *(v3.10.0)*: sein Datum.
+- `soon` zählt mit demselben Vorlauf wie „bald fällig“ in der App
+  (Einstellung `reminder_warn_days_before`, Standard 14 Tage).
 - Mit eingeschalteter Anmeldung braucht der Sensor den Lese-Schlüssel aus
   Schritt 5 (`energietracker_read`). Ohne Anmeldung die Zeilen `headers:` und
   `Authorization: …` weglassen.
@@ -948,6 +1068,7 @@ die Seitenleiste von Home Assistant), gilt seit v3.1.0 das Folgende. Die
 | Testnachricht: „Home Assistant lehnt ab (401)“ *(v3.9.0)* | Ziel „Adresse und Token“: Der Token ist falsch oder gelöscht. Im Profil von Home Assistant unter Sicherheit einen neuen erzeugen und eintragen. |
 | Testnachricht: „nicht erreichbar“ oder „Name lässt sich nicht auflösen“ | Adresse prüfen. Aus einem Container löst sich ein Name mit `.local` oft nicht auf; dann die IP-Adresse eintragen. |
 | Testnachricht: „Status 400“ | Die Aktion gibt es in Home Assistant nicht (etwa ein Tippfehler in `notify.mobile_app_…`). |
+| Testnachricht: Aussteller des Zertifikats nicht bekannt, Zertifikat passt nicht zur Adresse, abgelaufen oder Stammzertifikate nicht lesbar *(v3.10.0)* | Home Assistant läuft über `https://` mit einem selbst ausgestellten Zertifikat. Was je Meldung zu tun ist: [HTTPS mit eigenem Zertifikat](#https-mit-eigenem-zertifikat-v3100). |
 | Testnachricht kommt an, sonst nichts | Geprüft wird einmal am Tag ab der eingestellten Uhrzeit, und jede Nachricht kommt nur einmal. Auf einem Webserver ohne Docker braucht es nach dieser Uhrzeit eine Anfrage, etwa vom [Sensor „Zu tun“](#sensor-zu-tun-v390). |
 | Webhook: in Home Assistant kommt nichts an | Webhook-ID in Karte und Automation verschieden, oder die Automation läuft im Modus `single` (dann gehen Nachrichten kurz nacheinander verloren). Die Vorlage mit `mode: queued` nehmen. |
 

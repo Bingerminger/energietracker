@@ -140,6 +140,14 @@ final class ReadingCheckService
     public const LEVEL_AFTER_BACK = 0.1;
 
     /**
+     * v3.10.0 (Skeptiker M1) — „Dauerhaft“ erst, wenn mindestens so viele Ablesungen nach dem
+     * Wechsel liegen: Die zweite schließt einen Abstand, der ganz nach dem Wechsel liegt, und
+     * bestätigt so das neue Niveau. Bis dahin reichte ein einziger Stand nach langer Pause; ein
+     * Stand mit einer falschen Ziffer wurde zu „seit … dauerhaft mehr Verbrauch“.
+     */
+    public const LEVEL_AFTER_READINGS = 2;
+
+    /**
      * Heutiges Niveau bei Heizarten: Heizmodell über mindestens so viele Stücke nach dem
      * Wechsel (statt der acht der Monatsregression). Nach einem Wechsel liegen oft nur
      * anderthalb Jahre mit Abständen von zwei, drei Monaten vor; mit acht Stücken fiel der
@@ -973,6 +981,10 @@ final class ReadingCheckService
                 $date ??= $c['to'];
             }
             if ($dir === 0 || $runFrom === null || $date === null || $se <= 0) continue;
+            // v3.10.0 (Skeptiker M1) — das neue Niveau bestätigen mindestens zwei Stände danach
+            $readingsAfter = 0;
+            foreach ($points as $pt) if ((string)($pt['date'] ?? '') > $date) $readingsAfter++;
+            if ($readingsAfter < self::LEVEL_AFTER_READINGS) continue;
             $span = self::days($runFrom, $date);
             $ratio = $sm / $se;
             if ($span < self::LEVEL_MIN_DAYS || ($dir > 0 ? $ratio < self::LEVEL_RATIO : $ratio > 1 / self::LEVEL_RATIO)) continue;

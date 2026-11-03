@@ -28,7 +28,9 @@ use Energietracker\Support\LocalizedException;
  * `tou` (HT/NT: none, all, device). Ein Zähler mit HT/NT sind zwei Zähler je
  * Zählwerk (1.8.1, 1.8.2) in einer Gruppe mit Gruppenvertrag und Preis je
  * Zählwerk; ein Subzähler hängt je Zählwerk am gleichnamigen Zählwerk seines
- * Elternzählers.
+ * Elternzählers. v3.10.0 (#40): In der Kaskade mit PV hängt die Anlage hinter
+ * Z2, jeder Zähler hat sein Einspeise-Zählwerk 2.8.0 (Z1 `feed`, Z2
+ * `feed_house` mit `cascade_meter_id`, Z3 die Erzeugung).
  *
  * Auf einem bestehenden Haushalt keine Doppelten: Jede Stelle (`slot`) kann
  * einen vorhandenen Zähler bekommen (`meter_id` bzw. `meter_ids` je
@@ -88,12 +90,20 @@ final class MeteringConceptService
         }
         if ($s['pv']) {
             $out['feed'] = ['utility' => 'pv_einspeisung', 'role' => null, 'parent' => null, 'registers' => ['one' => '2.8.0'], 'contract' => 'feed'];
-            $out['gen'] = ['utility' => 'pv_erzeugung', 'role' => null, 'parent' => null, 'registers' => ['one' => ''], 'contract' => null];
+            // v3.10.0 (#40) — Kaskade: Die PV hängt hinter Z2, jeder Zähler zählt rückwärts (2.8.0). Z2 bekommt
+            // ein eigenes Einspeise-Zählwerk (nicht in Summen, `cascade` = die Stelle, an der es sitzt), und Z3,
+            // die Erzeugung, zählt mit 2.8.0 den ganzen Sonnenstrom. Daraus der Sonnenstrom je Strang (CascadeFeed).
+            if ($s['concept'] === 'cascade') {
+                $out['feed_house'] = ['utility' => 'pv_einspeisung', 'role' => null, 'parent' => null, 'cascade' => 'house', 'registers' => ['one' => '2.8.0'], 'contract' => null];
+            }
+            $out['gen'] = ['utility' => 'pv_erzeugung', 'role' => null, 'parent' => null, 'registers' => ['one' => $s['concept'] === 'cascade' ? '2.8.0' : ''], 'contract' => null];
             if ($s['battery']) {
                 $out['bat_in'] = ['utility' => 'pv_erzeugung', 'role' => 'battery_charge', 'parent' => null, 'registers' => ['one' => ''], 'contract' => null];
                 $out['bat_out'] = ['utility' => 'pv_erzeugung', 'role' => 'battery_discharge', 'parent' => null, 'registers' => ['one' => ''], 'contract' => null];
             }
         }
+        foreach ($out as &$slot) $slot += ['cascade' => null];
+        unset($slot);
         return $out;
     }
 
@@ -190,7 +200,7 @@ final class MeteringConceptService
         $slots = [];
         foreach ($s['slots'] as $key => $slot) {
             $run = $st['running'][$key] ?? null;
-            $slots[$key] = ['utility' => $slot['utility'], 'role' => $slot['role'], 'parent' => $slot['parent'], 'registers' => $slot['registers'],
+            $slots[$key] = ['utility' => $slot['utility'], 'role' => $slot['role'], 'parent' => $slot['parent'], 'cascade' => $slot['cascade'], 'registers' => $slot['registers'],
                             'contract' => $slot['contract'] !== null && Utilities::hasContracts($slot['utility']) ? $slot['contract'] : null,
                             'name' => $this->slotName($s, $key), 'default_name' => $this->slotName($s, $key, true),
                             'display_name' => $st['display'][$key] ?? $this->slotName($s, $key),
@@ -221,7 +231,8 @@ final class MeteringConceptService
                     $this->settings->set(['active_utilities' => array_values(array_unique(array_merge($active, $a['utilities'])))]);
                     break;
                 case 'create_meter':
-                    $m = $this->meters->create($a['utility'], $a['data'] + ($a['parent_ref'] !== null ? ['parent_meter_id' => $ids[$a['parent_ref']]] : []));
+                    $m = $this->meters->create($a['utility'], $a['data'] + ($a['parent_ref'] !== null ? ['parent_meter_id' => $ids[$a['parent_ref']]] : [])
+                        + (($a['cascade_ref'] ?? null) !== null ? ['cascade_meter_id' => $ids[$a['cascade_ref']]] : []));
                     $ids[$a['ref']] = (string)$m['id'];
                     $created['meters'][] = (string)$m['id'];
                     break;
@@ -235,7 +246,8 @@ final class MeteringConceptService
                     $created['readings'][] = (string)$r['id'];
                     break;
                 case 'update_meter':
-                    $this->meters->update($a['utility'], $a['meter_id'], $a['data'] + ($a['parent_ref'] !== null ? ['parent_meter_id' => $ids[$a['parent_ref']]] : []));
+                    $this->meters->update($a['utility'], $a['meter_id'], $a['data'] + ($a['parent_ref'] !== null ? ['parent_meter_id' => $ids[$a['parent_ref']]] : [])
+                        + (($a['cascade_ref'] ?? null) !== null ? ['cascade_meter_id' => $ids[$a['cascade_ref']]] : []));
                     $ids[$a['ref']] = $a['meter_id'];
                     break;
                 case 'create_group':
@@ -283,9 +295,10 @@ final class MeteringConceptService
         $missing = array_values(array_diff(array_merge(['strom'], $need), $active));
         if ($missing !== []) $actions[] = ['op' => 'activate', 'utilities' => $missing];
         $today = date('Y-m-d');
-        // Eltern vor Kindern
+        // Eltern vor Kindern; v3.10.0 — das Einspeise-Zählwerk in der Kaskade nach seiner Stelle
         $order = array_keys($s['slots']);
-        usort($order, fn($a, $b) => ($s['slots'][$a]['parent'] !== null) <=> ($s['slots'][$b]['parent'] !== null));
+        $late = fn(string $k) => $s['slots'][$k]['parent'] !== null || $s['slots'][$k]['cascade'] !== null;
+        usort($order, fn($a, $b) => $late($a) <=> $late($b));
         // Namenszusatz je Zählwerk in der Sprache der Installation (HT/NT, HP/HC, F1/F23 …)
         $regName = ['ht' => $this->i18n->t('concept.regShort.ht'), 'nt' => $this->i18n->t('concept.regShort.nt'), 'one' => ''];
         foreach ($order as $key) {
@@ -294,6 +307,8 @@ final class MeteringConceptService
             $name = $this->slotName($s, $key);
             $multi = count($slot['registers']) > 1;
             $parent = $slot['parent'] !== null ? $s['slots'][$slot['parent']] : null;
+            // v3.10.0 (#40) — Einspeise-Zählwerk in der Kaskade: am ersten Zählwerk seiner Stelle (Z2 HT bzw. Z2)
+            $cascadeRef = $slot['cascade'] !== null ? $slot['cascade'] . '|' . array_key_first($s['slots'][$slot['cascade']]['registers']) : null;
             $contractIn = $s['contracts'][$key] ?? null;
             // Einbau: eingegeben, sonst der Beginn des Vertrags dieser Stelle (höchstens heute), sonst heute
             $installedOn = $slot['installed_on'] !== '' ? $slot['installed_on']
@@ -317,7 +332,7 @@ final class MeteringConceptService
                     if ($parentRef === null && !empty($m['parent_meter_id'])) $data['parent_meter_id'] = null;
                     if ($parentRef !== null && $this->hasChildren($u, $existingId)) $problems[] = ['code' => 'chain', 'slot' => $key, 'params' => ['name' => (string)$m['name']]];
                     $actions[] = ['op' => 'update_meter', 'utility' => $u, 'slot' => $key, 'register' => $r, 'ref' => $ref, 'meter_id' => $existingId,
-                                  'name' => (string)$m['name'], 'parent_ref' => $parentRef, 'data' => $data];
+                                  'name' => (string)$m['name'], 'parent_ref' => $parentRef, 'cascade_ref' => $cascadeRef, 'data' => $data];
                 } else {
                     $mName = trim($name . ($multi ? ' ' . $regName[$r] : ''));
                     $data += ['name' => $mName, 'installed_on' => $installedOn];
@@ -327,7 +342,7 @@ final class MeteringConceptService
                         $notices[] = ['code' => 'before_install', 'slot' => $key, 'name' => $mName, 'installed' => $installedOn, 'start' => $contractIn['start']];
                     }
                     $actions[] = ['op' => 'create_meter', 'utility' => $u, 'slot' => $key, 'register' => $r, 'ref' => $ref, 'name' => $mName,
-                                  'parent_ref' => $parentRef, 'data' => $data];
+                                  'parent_ref' => $parentRef, 'cascade_ref' => $cascadeRef, 'data' => $data];
                     // v3.9.0 (Skeptiker R2-1) — der Stand beim Einbau als erste Ablesung (nicht in der Zukunft)
                     if (isset($slot['initial_counter'][$r]) && Utilities::isCumulative($u) && $installedOn <= $today) {
                         $actions[] = ['op' => 'create_reading', 'utility' => $u, 'slot' => $key, 'register' => $r, 'ref' => $ref, 'name' => $mName,

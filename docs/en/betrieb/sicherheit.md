@@ -216,6 +216,18 @@ Copying (token, YAML, annual consumption) works without HTTPS since v2.11.0;
 the app has a fallback for it. A reverse proxy with a certificate unlocks
 the rest, for example the Synology with Let's Encrypt, or Caddy.
 
+**Connections from the app into the home network** *(v3.10.0)*. When the app
+itself talks to a service in the home network over `https://` (Home
+Assistant, text recognition, reading in the home network, evcc), it checks
+that service's certificate. For certificates you issued yourself there is your own root
+certificate (file `ET_CA_FILE` or setting `home_ca_pem`), in addition to the
+system's root certificates, and as a fallback the switch `home_tls_insecure`
+(“Do not check certificates in the home network”). It only works for
+addresses in the home network, decided by the resolved address the app then
+also connects to. Without checking, anyone who gets in between on the network
+can read along, including a token. Details:
+[Settings](../referenz/einstellungen.md#connections-in-the-home-network-v3100).
+
 ## 8. Host names and embedding
 
 A **host list** (opt-in) protects against *DNS rebinding*: a foreign page
@@ -439,7 +451,10 @@ documents — reading and taking over work as above.
 - `ET_DEBUG=1` writes file, line and exception type into error responses — set
   it only briefly for troubleshooting, never permanently in open operation.
 - A `500` names an error ID (`error_id`); the log holds the same ID (Docker:
-  `docker logs energietracker`).
+  `docker logs energietracker`). Since v3.10.0 only for unexpected errors:
+  when a service refuses or does not answer (such as `502` or `504` when
+  reading in the cloud), its reason is in the answer and in the log as
+  `warning`, without an error ID.
 - Snapshots and backups contain all user data. `data/auth.json` (password hash,
   token hashes, keys) is **not** part of the backup — after a move, set up
   sign-in and the token again.
@@ -517,10 +532,22 @@ the current base image (same code, new packages; since v3.5.0 both variants)
 and scans the images for known vulnerabilities. A pinned tag such as `3.4.0` thus receives security updates of
 Alpine and PHP without anything in the app changing.
 
+**Signed and checked *(v3.10.0)*.** Every published image is signed with
+cosign, every weekly rebuild too; a software bill of materials (SBOM) and a
+provenance attestation are attached. The image is scanned right after every
+release and after every rebuild; only vulnerabilities with an available fix
+are reported. For a critical or high vulnerability with a fix the image is
+rebuilt within 7 days ([SECURITY.md](../../../SECURITY.md)), and the Home
+Assistant app gets a new patch version, so that Home Assistant fetches the
+rebuilt image. The image no
+longer contains Python or supervisord. How to check:
+[Docker → Checking signature and SBOM](docker.md#checking-signature-and-sbom-v3100).
+
 ## 14. Found a vulnerability?
 
 Please do **not** report it as a public issue, but as described in
-[`SECURITY.md`](../../../SECURITY.md).
+[`SECURITY.md`](../../../SECURITY.md). You will receive an acknowledgement of
+receipt within 7 days.
 
 ---
 

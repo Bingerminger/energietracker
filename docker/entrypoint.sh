@@ -1,7 +1,8 @@
 #!/bin/sh
 # Energietracker — Container-Entrypoint (N1005).
 # Stellt sicher, dass das gemountete Datenvolume für www-data schreibbar ist,
-# und startet danach den eigentlichen Prozess (supervisord).
+# und startet danach den eigentlichen Prozess (seit v3.10.0 docker/start.sh,
+# vorher supervisord).
 set -e
 
 # v3.5.0 (N1024) — Image ohne root (Dockerfile, Stufe `rootless`): Die Weiche

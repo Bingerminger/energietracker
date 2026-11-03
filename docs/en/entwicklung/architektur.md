@@ -74,10 +74,10 @@ energietracker/
 ├── data/                   # runtime data (not in VCS)
 ├── demo-data/              # complete example dataset (8 utilities)
 ├── deploy/                 # templates for Unraid, CasaOS, Umbrel (v3.1.0)
+├── docker/                 # image: nginx, php-fpm, entrypoint, start.sh (starts both, v3.10.0)
 ├── docs/                   # this compendium
 ├── tests/                  # test harnesses
-├── tools/build-demo.mjs    # build the public demo (v3.0.0, see § 8)
-└── scripts/init_data.py    # optional Excel import
+└── tools/build-demo.mjs    # build the public demo (v3.0.0, see § 8)
 ```
 
 ---
@@ -236,7 +236,7 @@ The full route list is in the [API reference](../referenz/api.md).
 | `Http\NotFoundException` | 404 | resource missing (a type instead of a text pattern since v2.2.1; since v2.6.0 also for records addressed in the URL) |
 | `Http\ConflictException` | 409 | conflict, e.g. the safety snapshot failed (v2.6.0) |
 | `Storage\StorageCorruptedException` | 503 | data file corrupt (v2.5.3); since v3.1.0 the ErrorHandler translates the message (`errors.storage.<kind>`), `code` stays `errors.storage.corrupted` |
-| `Http\HttpStatusException` | 413, 503 | body too large (`errors.http.tooLarge`) or write lock not free (`errors.http.busy`, with `Retry-After`) — status, key and headers travel with it (v3.4.0) |
+| `Http\HttpStatusException` | 413, 503 | body too large (`errors.http.tooLarge`) or write lock not free (`errors.http.busy`, with `Retry-After`) — status, key and headers travel with it (v3.4.0); also 502/504 when a cloud service refuses or does not answer. Since v3.10.0 its own text stays even for 5xx (no `error_id`), logged as `warning` (#41) |
 | other | 500 | unexpected error — generic message with `error_id`, details in the log (v2.6.0) |
 
 A uniform response envelope: `{ "success": true, "data": … }` or

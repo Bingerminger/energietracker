@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Energietracker\Services\HomeAssistant;
 
 use Energietracker\Services\OcrService;
+use Energietracker\Support\HomeTls;
 use Energietracker\Support\Outbound;
 
 /**
@@ -19,9 +20,12 @@ use Energietracker\Support\Outbound;
  *   - Link-local (169.254.0.0/16, fe80::/10) und unspezifizierte Adressen
  *     nie: dort antworten bei gemieteten Servern die Metadatendienste.
  *   - Antwort höchstens 1 MB (Support\Outbound), Zeitgrenze TIMEOUT.
+ *   - v3.10.0 (#36): HTTPS mit eigener PKI über Support\HomeTls (eigenes
+ *     Stammzertifikat zusätzlich, „nicht prüfen“ nur im Heimnetz).
  *
  * Ergebnis: {ok, status, error} mit `error` aus dns, address, insecure,
- * timeout, network, http, noTransport, url.
+ * timeout, network, http, noTransport, url und (v3.10.0) den Zertifikatsfehlern
+ * aus HomeTls::CERT_ERRORS (tlsIssuer, tlsName, tlsExpired, tlsFile, tlsOther).
  */
 final class NotifyTransport
 {
@@ -115,12 +119,18 @@ final class NotifyTransport
         if ($ip !== null && !filter_var($host, FILTER_VALIDATE_IP)) {
             $opts[CURLOPT_RESOLVE] = [$host . ':' . $port . ':' . (str_contains($ip, ':') ? "[$ip]" : $ip)];
         }
+        // v3.10.0 (#36) — eigenes Stammzertifikat bzw. „nicht prüfen“ (nur Heimnetz)
+        $opts += HomeTls::curlOptions($ip, $host);
         $ch = curl_init($url);
         curl_setopt_array($ch, $opts);
         curl_exec($ch);
         $errno = curl_errno($ch);
         $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        if ($errno) return ['ok' => false, 'http_code' => null, 'error_code' => $errno === CURLE_OPERATION_TIMEDOUT ? 'timeout' : 'network'];
+        if ($errno) {
+            $error = $errno === CURLE_OPERATION_TIMEDOUT ? 'timeout'
+                : (HomeTls::certError($errno, (int)curl_getinfo($ch, CURLINFO_SSL_VERIFYRESULT)) ?? 'network');
+            return ['ok' => false, 'http_code' => null, 'error_code' => $error];
+        }
         if ($code < 200 || $code >= 300) return ['ok' => false, 'http_code' => $code, 'error_code' => 'http'];
         return ['ok' => true, 'http_code' => $code, 'error_code' => null];
     }

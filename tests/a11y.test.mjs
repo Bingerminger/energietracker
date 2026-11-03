@@ -596,8 +596,11 @@ const freePort = () => new Promise((res, rej) => {
           }
         }
       }
+      // Doppelte IDs über den Wert vergleichen statt über einen zusammengesetzten
+      // Selektor: so muss keine ID für CSS maskiert werden.
+      const allIds = [...doc.querySelectorAll('[id]')].map(e => e.id);
       for (const el of m.querySelectorAll('[id]')) {
-        if (doc.querySelectorAll(`[id="${el.id.replace(/"/g, '\\"')}"]`).length > 1) V.ids.push(`${label}: #${el.id}`);
+        if (allIds.filter(id => id === el.id).length > 1) V.ids.push(`${label}: #${el.id}`);
       }
       // Fehlermeldungen: Live-Region
       for (const el of m.querySelectorAll('.field-error, .form-error, [data-role$="-msg"], [data-role="error"]')) {

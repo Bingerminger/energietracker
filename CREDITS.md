@@ -65,6 +65,15 @@ Modernisation Act (GModG, called GEG until July 2026). Sources and years are lis
 [calculation overview](docs/en/verstehen/00-overview.md) and in the
 [country profiles](docs/en/verstehen/14-laenderprofile.md).
 
+## Supporters
+
+Thanks to everyone who supports Energietracker voluntarily, for example via
+[Buy Me a Coffee](https://buymeacoffee.com/bingerminger). Names appear here
+only if someone explicitly asks for it. If you would like to be named, say so
+with the name you want in the message that comes with your support or in an
+[issue](https://github.com/Bingerminger/energietracker/issues). Nobody is
+listed yet.
+
 ---
 
 <a id="deutsch"></a>
@@ -127,3 +136,12 @@ Emissionsfaktoren von BAFA und Umweltbundesamt, die Effizienzklassen dem
 Gebäudemodernisierungsgesetz (GModG, bis Juli 2026 GEG). Quellen und Jahre stehen in Abschnitt 8 (CO₂) der
 [Rechenübersicht](docs/verstehen/00-overview.md) und bei den
 [Länderprofilen](docs/verstehen/14-laenderprofile.md).
+
+### Unterstützer
+
+Danke an alle, die den Energietracker freiwillig unterstützen, etwa über
+[Buy Me a Coffee](https://buymeacoffee.com/bingerminger). Namen stehen hier
+nur, wenn jemand es ausdrücklich möchte. Wer genannt werden will, schreibt den
+Wunsch mit dem gewünschten Namen in die Nachricht zur Unterstützung oder in ein
+[Issue](https://github.com/Bingerminger/energietracker/issues). Bisher steht
+hier noch niemand.

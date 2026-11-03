@@ -545,19 +545,22 @@ Drei Zähler hängen hintereinander
    └──────────┬──────────┘
               ├────────────────── Wärmepumpe   = Z1 − Z2 (je HT und NT), eigener Tarif
    ┌──────────┴──────────┐
-   │ Z2  Haushalt        │  HT (1.8.1) · NT (1.8.2), eigener Tarif
+   │ Z2  Haushalt        │  HT (1.8.1) · NT (1.8.2), eigener Tarif · Einspeisung (2.8.0)
    └──────────┬──────────┘
-              ├────────────────── Haushalt
+              ├────────────────── Haushalt mit Wallbox
               │
    ┌──────────┴──────────┐
-   │ Z3  PV-Erzeugung    │  Eigenverbrauch = Z3 − Einspeisung
+   │ Z3  PV-Erzeugung    │  Einspeisung (2.8.0) = der ganze Sonnenstrom
    └──────────┬──────────┘
               PV-Anlage
 ```
 
 Drei Verträge: Wärmepumpe (HT/NT), Haushalt (HT/NT) und die Einspeisevergütung.
 Z1 misst alles, was durch den Netzanschluss geht. Die Wärmepumpe hat keinen
-eigenen Zähler: Ihr Strom ist der **Rest** von Z1 nach Abzug von Z2.
+eigenen Zähler: Ihr Strom ist der **Rest** von Z1 nach Abzug von Z2, und zwar
+**je Zählwerk** wie beim Versorger: HT minus HT, NT minus NT. Alle drei Zähler
+zählen rückwärts (2.8.0): Z3 den ganzen Sonnenstrom, Z2 das, was der Haushalt
+davon übrig lässt, Z1 das, was nach der Wärmepumpe ins Netz geht.
 
 **Wie das heißt.** Die Namen der Messkonzepte wechseln je Netzbetreiber. Der
 Verband der Bayerischen Energie- und Wasserwirtschaft nennt diesen Aufbau
@@ -582,7 +585,9 @@ Messkonzept**. Antworten: PV-Anlage, „Wärmepumpe mit Wärmepumpentarif“, HT
 „Ja, an jedem Bezugszähler“, Aufbau **Kaskade**. Er legt die Zähler je Zählwerk
 mit OBIS-Kennzahl an, dazu beide Gruppen, die Einspeisung, die PV-Erzeugung und
 die drei Verträge; vorhandene Zähler ordnest du zu, statt sie doppelt
-anzulegen. Vorher sichert die App den Stand als Snapshot. Von Hand geht es so:
+anzulegen. Seit v3.10.0 legt er auch das Einspeisezählwerk von Z2 an und gibt
+der PV-Erzeugung (Z3) die Kennzahl 2.8.0; das Schaltbild zeigt die PV-Anlage
+hinter Z2. Vorher sichert die App den Stand als Snapshot. Von Hand geht es so:
 
 1. Unter **Einstellungen → Verbrauchsarten & Abrechnung → Aktive
    Verbrauchsarten** Strom, PV-Einspeisung und PV-Erzeugung aktivieren.
@@ -595,7 +600,10 @@ anzulegen. Vorher sichert die App den Stand als Snapshot. Von Hand geht es so:
    Z1 HT und NT, „Z2 Haushalt“ mit Z2 HT und NT
    ([Meter-Topologie](../verstehen/13-meter-topologie.md#2-zählergruppen)).
 3. Unter PV-Einspeisung den Zähler „Z1 Einspeisung“, unter PV-Erzeugung
-   „Z3 PV-Erzeugung“ anlegen.
+   „Z3 PV-Erzeugung“ anlegen. Zählt auch Z2 rückwärts *(v3.10.0)*: unter
+   PV-Einspeisung einen zweiten Zähler „Z2 Einspeisung“ (Zählwerk 2.8.0) und
+   dort unter **Einspeisung in der Kaskade → Einspeisezählwerk von** „Z2
+   Haushalt HT“ wählen. Er zählt dann nicht als Einspeisung ins Netz.
 4. Verträge: ein **Gruppenvertrag** an „Z1 Wärmepumpe“ mit dem Arbeitspreis je
    Zählwerk (HT, NT), einer an „Z2 Haushalt“, und die Einspeisevergütung an
    „Z1 Einspeisung“.
@@ -614,10 +622,14 @@ Einspeisevergütung 250 × 8 ct                                 20,00 € Erlös
 Eigenverbrauch 600 − 250 = 350 kWh · Autarkie 350 / (350 + 700) = 33 %
 ```
 
-- Der Vertrag der Wärmepumpe rechnet nur den **Rest**. Am Zähler, an der
-  Saldo-Karte und in „Rechnung prüfen“ steht, wie: „450 kWh = 700 kWh gemessen
-  − 150 kWh Z2 Haushalt HT − 100 kWh Z2 Haushalt NT“
-  ([Rest-Abrechnung](../verstehen/13-meter-topologie.md#rest-abrechnung-v390)).
+- Der Vertrag der Wärmepumpe rechnet nur den **Rest**, je Zählwerk zu seinem
+  Preis. Am Zähler, an der Saldo-Karte und in „Rechnung prüfen“ steht, wie:
+  „450 kWh, je Zählwerk HT 250 kWh = 400 kWh − 150 kWh · NT 200 kWh = 300 kWh
+  − 100 kWh“ ([Rest-Abrechnung](../verstehen/13-meter-topologie.md#rest-abrechnung-v390)).
+  Misst Z2 HT in einem Monat mehr als Z1 HT, rechnet HT dort 0 kWh und der
+  Hinweis bittet, die Ablesungen zu prüfen; NT wird davon nicht kleiner
+  *(v3.10.0)*. Auch der Mischpreis aus HT und NT (Prognose, Saldo-Schätzung,
+  Tarifvergleich) richtet sich nach dem Rest je Zählwerk.
 - Die Summe Strom ist der Netzbezug an Z1 (700 kWh, Z2 nicht zusätzlich), die
   Kosten die beider Verträge.
 - Eigenverbrauch und Autarkie rechnen mit Z1 als Netzbezug, der Einspeisung an
@@ -625,11 +637,59 @@ Eigenverbrauch 600 − 250 = 350 kWh · Autarkie 350 / (350 + 700) = 33 %
 - Jahresarbeitszahl, Effizienz und „Strom nach Rollen“ im Jahresbericht nehmen
   für die Wärmepumpe den Rest, nicht die ganze Messung von Z1.
 
+<a id="einspeisung-in-der-kaskade"></a>
+**Einspeisung an jedem Zähler** *(v3.10.0)*. Zählen auch Z2 und Z3 rückwärts,
+rechnet die App aus den Differenzen, wie viel Sonnenstrom jeder Strang selbst
+genutzt hat (erfundene Werte eines Monats, die Zahlen von oben):
+
+<!-- doc-claim: cascade-feed-example (CascadeFeedTest) -->
+```text
+Einspeisezählwerke 2.8.0: Z3 600 kWh · Z2 400 kWh · Z1 250 kWh
+
+Haushalt     Z3 − Z2 = 600 kWh − 400 kWh = 200 kWh Sonnenstrom selbst genutzt
+Wärmepumpe   Z2 − Z1 = 400 kWh − 250 kWh = 150 kWh Sonnenstrom selbst genutzt
+zusammen                           350 kWh (Erzeugung − Einspeisung ins Netz)
+
+Wärmepumpe gesamt  450 kWh Rest aus dem Netz + 150 kWh Sonne = 600 kWh
+Haushalt gesamt    250 kWh aus dem Netz      + 200 kWh Sonne = 450 kWh
+```
+
+- Die Einspeisung ins Netz und die Vergütung bleiben bei Z1 (250 kWh); das
+  Zählwerk von Z2 zählt nicht zusätzlich.
+- Unter **PV-Erzeugung** zeigt die Karte **Sonnenstrom je Strang** die
+  Jahreswerte. Der Energiefluss zeigt die Wärmepumpe mit 600 kWh (Rest plus
+  Sonne), „Strom nach Rollen“ im Jahresbericht gibt jedem Strang seinen
+  Sonnenstrom, und die Jahresarbeitszahl teilt die Wärme durch den ganzen Strom
+  der Wärmepumpe (600 kWh statt 450 kWh im Monat).
+- Gerechnet wird nur in Monaten, die alle drei Zählwerke abdecken. Liegt ein
+  Strang unter null, rechnet er dort 0 kWh.
+- **Gemessen oder geschätzt** *(v3.10.0)*: Ist ein Stand in
+  einem Monat verteilt, etwa weil Z3 nur vierteljährlich abgelesen wird oder an
+  Z2 eine Ablesung fehlt, ist die Aufteilung auf die Monate geschätzt. Die
+  Karte setzt dann ≈ vor den Strang und sagt, wie viele Monate verteilt sind;
+  die Wärmepumpe zeigt für diese Monate ≈ am Strom und keine Arbeitszahl, die
+  Jahresarbeitszahl rechnet weiter über alle Monate. „Bitte die Ablesungen
+  prüfen“ meldet die Karte nur, wenn alle Stände des Monats gemessen sind und
+  ein Zähler weiter vorn trotzdem mehr zurückzählt als der dahinter.
+- **Jahreswerte über eine Lücke genau** *(v3.10.0)*: Im Monat steht ein Strang
+  nie unter null. Für die Jahreswerte (Sonnenstrom je Strang im Jahr,
+  Jahresarbeitszahl, Wärmepumpe im Energiefluss des Jahres) zählt ein
+  verteilter Monat aber mit seinem vollen Wert, auch unter null: Die Verteilung
+  schiebt nur Menge zwischen den Monaten einer Lücke hin und her, und so stimmt
+  die Summe genau. Ein gemessener Widerspruch zählt dagegen mit 0 und bleibt
+  gemeldet; er ist ein Ablesefehler und wird nicht mit anderen Monaten
+  verrechnet.
+- Die Effizienzkennzahl zählt die Wärmepumpe vorn weiter nur mit dem Strom aus
+  dem Netz und sagt das an der Kachel („Wärmepumpe: nur Strom aus dem Netz“).
+
 **Grenzen.**
 
-- Z2 misst nur den Bezug. Fließt Sonnenstrom vom Haushalt zur Wärmepumpe
-  zurück, misst das kein Zähler. Die App ordnet den selbst genutzten
-  Sonnenstrom im Jahresbericht dem Haushalt zu.
+- Ohne Einspeisezählwerk an Z2 misst kein Zähler, wie viel Sonnenstrom zur
+  Wärmepumpe fließt. Dann ordnet die App den selbst genutzten Sonnenstrom im
+  Jahresbericht dem Haushalt zu, wie bis v3.9.0.
+- Die App rechnet eine Kaskade mit einem Zähler hinter Z1 (Z2) und der
+  PV-Anlage dahinter. Hängt die PV-Anlage direkt hinter Z1, zählt Z2 nichts
+  zurück; ein Einspeisezählwerk an Z2 ist dann nicht nötig.
 - Speicher, die Netz- und Solarstrom mischen (MiSpeL), rechnet die App noch
   nicht. Was die Festlegung erlaubt, steht unter
   [G → Rechtslage kurz](#rechtslage-kurz-stand-9-oktober-2026).

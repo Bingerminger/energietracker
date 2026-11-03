@@ -6,7 +6,7 @@ import { api } from '../api.js';
 import { getUtilities, getSettings } from '../state.js';
 import { fmt, escapeHtml, todayIso } from '../lib/format.js';
 import { makeChart, chartColor, withAlpha, tokenColor, chartTableHtml } from '../components/chart.js';
-import { isPartial, daysInMonth, yoyTrend, lastMonths, shiftYm } from '../lib/chart-data.js';
+import { isPartial, daysInMonth, yoyTrend, lastMonths, shiftYm, trendNeedsCheck } from '../lib/chart-data.js';
 import { toastErr, toastUndo } from '../components/toast.js';
 import { t, tp } from '../lib/i18n.js';
 import { heatLimitFacts, heatLimitEffect, heatLimitBeginnerLines, applyHeatLimit, isGroupId, heatLimitLaterUntil } from '../lib/heat-limit.js';   // v3.9.0 (#38)
@@ -16,9 +16,9 @@ import { readingCheckLines, readingCheckTitle, correctHref, markReadings, delete
 import { loadDemo } from '../lib/demo.js';
 import { tankLevel } from '../lib/tank.js';
 import { info, infoNote } from '../components/info.js';
-import { isFeedIn, isGeneration, isPv, moreIsBetter, uncertainRangeText } from '../lib/semantics.js';
+import { isFeedIn, isGeneration, isPv, moreIsBetter, uncertainRangeText, expectedBalance, bandText } from '../lib/semantics.js';
 import { setupSteps, setupListHtml } from '../lib/onboarding.js';
-import { periodMode, periodName, pickPeriod, periodsWithData, addDays as addDaysIso } from '../lib/billing-period.js';   // v3.6.0 (F1030)
+import { periodMode, periodName, pickPeriod, periodsWithData, addDays as addDaysIso, sameSpanTrend, periodWindow } from '../lib/billing-period.js';   // v3.6.0 (F1030), v3.10.0 (#36)
 import { bonusOf, bonusItemsOf, bonusLineText } from '../lib/bonus.js';   // v3.7.0 (#33)
 import { periodModeHtml, wirePeriodMode } from '../components/period-mode.js';
 // v3.2.0 (F1019, F1020) — Einsteiger-Übersicht, Schaubilder, Vorschlag zum Hochstufen
@@ -36,7 +36,7 @@ import { welcomeArt } from '../lib/illustrations.js';   // v3.9.0 (Paket oberfla
 // v3.9.0 (Skeptiker R2-5) — der Kasten der Übersicht, damit „Übernehmen“ der Heizgrenze sie ganz neu zeichnet
 let dashRoot = null;
 
-export async function render(container) {
+export async function render(container, _params = [], ctx = {}) {
   dashRoot = container;
   container.innerHTML = `<div class="loading">${t('dashboard.loading')}</div>`;
   const [allUtilities, settings] = await Promise.all([getUtilities(), getSettings()]);
@@ -148,6 +148,7 @@ export async function render(container) {
           <div class="kpi__sub">${t('dashboard.efficiency.perSource', { area: eff.wohnflaeche_m2 })}</div>
         `}
         ${eff.area_assumed ? areaAssumedHtml(eff.wohnflaeche_m2) : ''}
+        ${efficiencyGridOnlyText(eff) ? `<p class="muted dash-eff__note" data-role="eff-grid-only">${escapeHtml(efficiencyGridOnlyText(eff))}</p>` : ''}
         ${eff.certificate ? certificateHtml(eff, utilities) : ''}
         ${efficiencyIncompleteText(eff) ? `<p class="muted dash-eff__note" data-role="eff-incomplete">${escapeHtml(efficiencyIncompleteText(eff))}</p>` : ''}
         ${eff.scale_note ? `<p class="muted dash-eff__note">${escapeHtml(eff.scale_note)}</p>` : ''}
@@ -302,11 +303,16 @@ export async function render(container) {
   // v3.2.0 — Schaubilder (seit v3.7.0 ab Erfahren) und Vorschlag zum Hochstufen nachladen;
   // beides darf den ersten Inhalt nicht aufhalten
   if (hasAnyData) {
+    const later = [];
     const exBox = container.querySelector('[data-role="explainers"]');
-    if (exBox) loadExplainers(utilities, exBox).catch(() => { exBox.closest('section')?.remove(); });
+    if (exBox) later.push(loadExplainers(utilities, exBox).catch(() => { exBox.closest('section')?.remove(); }));
     const hintBox = container.querySelector('[data-role="level-hint"]');
-    if (hintBox) levelSuggestion(utilities).then(html => { if (hintBox.isConnected) { hintBox.innerHTML = html; bindLevelHint(hintBox); } }).catch(() => {});
-    loadLeverTile(container, utilities);   // v3.6.0 — „Dein Hebel“, nachgeladen
+    if (hintBox) later.push(levelSuggestion(utilities).then(html => { if (hintBox.isConnected) { hintBox.innerHTML = html; bindLevelHint(hintBox); } }).catch(() => {}));
+    later.push(loadLeverTile(container, utilities));   // v3.6.0 — „Dein Hebel“, nachgeladen
+    // v3.10.0 (GitHub #36) — beim Neuzeichnen am Ort (Stufe, Kalender-/Abrechnungsjahr) erst
+    // fertig melden, wenn auch das Nachgeladene steht: sonst stünde nach dem Tausch „Lädt …“
+    // da, und was über der Leseposition wächst, schöbe die Seite (Safari hält sie nicht fest)
+    if (ctx.inPlace) await Promise.all(later);
   }
 
   // v2.16.0 (Review FE-17) — kleine Vielfache: je Karte ein eigener Verlauf mit
@@ -346,9 +352,9 @@ function leverSlotHtml(variant = 'full') {
 
 function loadLeverTile(container, utilities) {
   const slot = container.querySelector('[data-role="flex-lever-slot"]');
-  if (!slot || !utilities.some(u => u.key === 'strom')) { slot?.remove(); return; }
+  if (!slot || !utilities.some(u => u.key === 'strom')) { slot?.remove(); return null; }
   const year = new Date().getFullYear() - 1;
-  api.flexibilitySummary(year).then(r => {
+  return api.flexibilitySummary(year).then(r => {
     if (!slot.isConnected) return;
     const html = leverTileHtml(r?.summary, { beginner: slot.dataset.variant === 'beginner' });
     if (html) slot.outerHTML = html; else slot.remove();
@@ -552,6 +558,14 @@ function readingCheckActionsHtml(x, i) {
  * mit den Namen genau dieser Quellen. Bis dahin stand der allgemeine Satz des Servers („… keine
  * Klasse“) unter allen Zeilen, auch unter Gas mit Klasse. Leer, wenn alle Quellen vollständig sind.
  */
+/**
+ * v3.10.0 (Skeptiker N10) — Wärmepumpe vorn in der Kaskade: Die Effizienz zählt nur den Strom aus dem
+ * Netz, Jahresarbeitszahl und Energiefluss auch den selbst genutzten Sonnenstrom (`grid_only`).
+ */
+export function efficiencyGridOnlyText(eff) {
+  return (eff?.per_source || []).some(s => s.grid_only) ? t('dashboard.efficiency.gridOnly') : '';
+}
+
 export function efficiencyIncompleteText(eff) {
   const names = (eff?.per_source || []).filter(s => s.complete === false).map(s => s.label).filter(Boolean);
   return names.length ? t('dashboard.efficiency.incompleteFor', { names: names.join(', '), year: eff.year }) : '';
@@ -615,7 +629,8 @@ export function renderTodoBox(box, items) {
   box.querySelectorAll('[data-todo-done]').forEach(btn => btn.addEventListener('click', async () => {
     const x = shown[Number(btn.dataset.todoDone)];
     if (!x?.ev) return;
-    if (await markEventDone(x.ev, { title: x.text, onChange: refresh })) btn.closest('li')?.remove();
+    // v3.10.0 — vor dem Fälligkeitstag erledigt: Danke-Hinweis unter der Liste
+    if (await markEventDone(x.ev, { title: x.text, onChange: refresh, thanksAfter: box })) btn.closest('li')?.remove();
   }));
   // v3.9.0 (#38) — Heizgrenze übernehmen (mit Rückgängig) oder für diesen Datenstand ausblenden
   const list = full ? shown : items;
@@ -696,10 +711,19 @@ function renderUtilityCard({ utility, consumption, billing = null, groups = null
   const bonusText = withBonus ? bonusLineText(billing ? billing.bonus_items : bonusItemsOf(last12), bonus) : '';
   const costRows = withBonus ? monthly.map(m => ({ ...m, cost_without_bonus: (Number(m.cost) || 0) + (Number(m.bonus_eur) || 0) })) : monthly;
   const within = last12.map(m => m.ym);
-  const trendCons = billing ? null : yoyTrend(monthly, sumKey, { months: 12, minMonths: 6, within });
-  const trendCost = billing ? null : yoyTrend(costRows, withBonus ? 'cost_without_bonus' : 'cost', { months: 12, minMonths: 6, within });
+  // v3.10.0 (GitHub #36) — im Abrechnungsjahr dieselbe Spanne der Periode davor (Server);
+  // bis v3.9 stand dort kein Pfeil, ein angefangenes Jahr gegen ein ganzes wäre unfair
+  const spanCost = (s) => (Number(s.cost) || 0) + (withBonus ? Number(s.bonus) || 0 : 0);
+  const trendCons = billing ? sameSpanTrend(billing, s => s[sumKey]) : yoyTrend(monthly, sumKey, { months: 12, minMonths: 6, within });
+  const trendCost = billing
+    ? (billing.price_missing || billing.prev_same_span?.price_missing ? null : sameSpanTrend(billing, spanCost))
+    : yoyTrend(costRows, withBonus ? 'cost_without_bonus' : 'cost', { months: 12, minMonths: 6, within });
+  // v3.10.0 (Skeptiker M1) — Weg zu den Ablesungen, wenn der Trend eher nach einem falschen Stand aussieht
+  const checkHref = `#/utility/${encodeURIComponent(utility.key)}`;
+  // v3.10.0 (Skeptiker N3) — ohne Namen nur die Daten, sonst stünden sie doppelt da
+  const win2 = billing ? periodWindow(billing, fmt.date) : null;
   const windowText = billing
-    ? t('billing.dashboard.window', { name: periodName(billing, fmt.date), from: fmt.date(billing.from), until: fmt.date(billing.until) })
+    ? t(win2.key, win2.params)
       + (billing.as_of && billing.as_of < billing.until ? ' · ' + t('billing.period.asOfReading', { date: fmt.date(addDaysIso(billing.as_of, 1)) }) : '')
     : win ? t('dashboard.card.window', { from: fmt.month(win.from), to: fmt.month(win.to) })
     + (win.partialLast ? ' · ' + t('dashboard.card.partial', { month: fmt.month(win.to), days: win.lastDays, total: win.lastTotal }) : '') : '';
@@ -711,7 +735,13 @@ function renderUtilityCard({ utility, consumption, billing = null, groups = null
   const feedIn = isFeedIn(utility);
   const generation = isGeneration(utility);
   const better = moreIsBetter(utility);
-  const valueLabel = t(feedIn ? 'dashboard.kpi.feedIn' : generation ? 'dashboard.kpi.generation' : 'dashboard.kpi.consumption');
+  // v3.10.0 (GitHub #36) — im Abrechnungsjahr zählen die Kacheln seit dessen Beginn, nicht 12 Monate
+  // (Einspeisung und Erzeugung haben kein Abrechnungsjahr); ganz gerechnet „im Abrechnungsjahr“
+  const sofar = !!billing && !!billing.as_of && billing.as_of < billing.until;
+  const valueLabel = t(feedIn ? 'dashboard.kpi.feedIn' : generation ? 'dashboard.kpi.generation'
+    : !billing ? 'dashboard.kpi.consumption' : sofar ? 'dashboard.kpi.consumptionSoFar' : 'dashboard.kpi.consumptionPeriod');
+  const costLabel = t(feedIn ? 'dashboard.kpi.revenue'
+    : !billing ? 'dashboard.kpi.cost' : sofar ? 'dashboard.kpi.costSoFar' : 'dashboard.kpi.costPeriod');
 
   return `
     <div class="card" data-utility="${utility.key}">
@@ -726,12 +756,12 @@ function renderUtilityCard({ utility, consumption, billing = null, groups = null
       <div class="grid grid-2 dash-util-kpis">
         <div class="kpi">
           <div class="kpi__label">${valueLabel}</div>
-          <div class="kpi__value">${fmt.num(totalCons, 0)} ${trendBadge(trendCons, better)}</div>
+          <div class="kpi__value">${fmt.num(totalCons, 0)} ${trendBadge(trendCons, better, checkHref)}</div>
           <div class="kpi__sub">${utility.consumption_unit}</div>
         </div>
         ${generation ? '' : `<div class="kpi">
-          <div class="kpi__label">${t(feedIn ? 'dashboard.kpi.revenue' : 'dashboard.kpi.cost')}</div>
-          <div class="kpi__value">${noContract ? '<span class="kpi__empty" aria-hidden="true">—</span>' : `${fmt.eur(totalCost)} ${trendBadge(trendCost, better)}`}</div>
+          <div class="kpi__label">${costLabel}</div>
+          <div class="kpi__value">${noContract ? '<span class="kpi__empty" aria-hidden="true">—</span>' : `${fmt.eur(totalCost)} ${trendBadge(trendCost, better, checkHref)}`}</div>
           <div class="kpi__sub">${noContract ? t('dashboard.kpi.noContract') : billing ? escapeHtml(t('billing.dashboard.costSub', { advances: fmt.eur(billing.advances) })) : t(feedIn ? 'dashboard.kpi.revenueSub' : 'dashboard.kpi.costSub')}</div>
           ${bonusText && !noContract ? `<div class="kpi__sub kpi__bonus" data-role="kpi-bonus">${escapeHtml(bonusText)}</div>` : ''}
         </div>`}
@@ -798,21 +828,44 @@ function groupBreakdown(consumption, sumKey, utility, billing = null) {
 // B — kleiner Trend-Indikator. Mehr Verbrauch/Kosten = ungünstig (danger ▲),
 // weniger = gut (success ▼). v2.15.0 — `trend` aus yoyTrend(): dieselben
 // vollen Monate des Vorjahres. Leer, wenn kein belastbarer Vergleich möglich ist.
-function trendBadge(trend, moreIsGood = false) {
+function trendBadge(trend, moreIsGood = false, checkHref = null) {
   if (!trend) return '';
   const pct = trend.pct;
   if (!isFinite(pct) || Math.abs(pct) < 0.5) return '';
+  // v3.10.0 (Skeptiker M1) — mehr als doppelt bzw. weniger als halb so viel: eher eine falsche
+  // Ablesung als ein anderer Verbrauch; statt „▲ 1.382 %“ der Weg zu den Ablesungen
+  if (trendNeedsCheck(pct)) {
+    const label = escapeHtml(t('dashboard.trend.checkLabel'));
+    const text = escapeHtml(t('dashboard.trend.check'));
+    return checkHref
+      ? `<a class="kpi__trend kpi__trend--check" href="${escapeHtml(checkHref)}" title="${label}" aria-label="${label}" data-role="trend-check">${text}</a>`
+      : `<span class="kpi__trend kpi__trend--check" title="${label}" aria-label="${label}" data-role="trend-check">${text}</span>`;
+  }
   const up = pct > 0;
   // v2.13.0 (Review FE-06) — bei Einspeisung und Erzeugung ist mehr gut
   const tone = up === moreIsGood ? 'success' : 'danger';
   const arrow = up ? '▲' : '▼';
-  const span = trend.months.length > 1
-    ? `${fmt.month(trend.months[0])} – ${fmt.month(trend.months[trend.months.length - 1])}` : fmt.month(trend.months[0]);
-  const title = escapeHtml(t('dashboard.trend.vsPrev', { span }));
   const pctStr = fmt.num(Math.abs(pct), 0);
   // A11y: Pfeil + Farbe sind rein visuell — der aria-label nennt Richtung
   // und Bezug im Klartext; der Pfeil-Glyph bleibt aus dem Accessibility-Tree.
-  const label = escapeHtml(t(up ? 'dashboard.trend.moreThanPrev' : 'dashboard.trend.lessThanPrev', { pct: pctStr, span }));
+  let title, label;
+  if (trend.prevFrom) {
+    // v3.10.0 (GitHub #36) — Abrechnungsjahr: beide Spannen mit Datum (sameSpanTrend)
+    const p = { pct: pctStr, span: `${fmt.date(trend.from)} – ${fmt.date(trend.until)}`, prev: `${fmt.date(trend.prevFrom)} – ${fmt.date(trend.prevUntil)}` };
+    // Nachtrag #36 — ohne fairen Vergleich mit der Periode davor: dieselben Kalendertage ein Jahr früher
+    if (trend.basis === 'calendar') {
+      title = escapeHtml(t('dashboard.trend.vsCalendarDays', p));
+      label = escapeHtml(t(up ? 'dashboard.trend.moreThanCalendarDays' : 'dashboard.trend.lessThanCalendarDays', p));
+    } else {
+      title = escapeHtml(t('dashboard.trend.vsPrevPeriod', p));
+      label = escapeHtml(t(up ? 'dashboard.trend.moreThanPrevPeriod' : 'dashboard.trend.lessThanPrevPeriod', p));
+    }
+  } else {
+    const span = trend.months.length > 1
+      ? `${fmt.month(trend.months[0])} – ${fmt.month(trend.months[trend.months.length - 1])}` : fmt.month(trend.months[0]);
+    title = escapeHtml(t('dashboard.trend.vsPrev', { span }));
+    label = escapeHtml(t(up ? 'dashboard.trend.moreThanPrev' : 'dashboard.trend.lessThanPrev', { pct: pctStr, span }));
+  }
   return `<span class="kpi__trend kpi__trend--${tone}" title="${title}" aria-label="${label}">` +
     `<span aria-hidden="true">${arrow} ${pctStr} %</span></span>`;
 }
@@ -1075,18 +1128,24 @@ export function beginnerMoneyLines(meters, byKey) {
   return withContract.map(m => {
     const u0 = byKey.get(m.utility);
     const u = perUtility.get(m.utility) > 1 && m.name ? { ...u0, label: `${u0.label} (${m.name})` } : u0;
-    const v = Number(m.contract.projected_end_balance);
+    // v3.10.0 — eine Quelle mit der Saldo-Karte (expectedBalance): Summe einer Abrechnung über
+    // mehrere Verträge, Spanne bzw. Breite der Schätzung
+    const exp = expectedBalance(m.contract);
+    const v = exp.value;
     // v3.9.0 (Skeptiker H3) — dieselbe Unsicherheit wie die Saldo-Karte: Spanne statt eines sicheren Betrags
-    const unc = Array.isArray(m.contract.projection_uncertain?.projected_range) ? m.contract.projection_uncertain : null;
+    const unc = exp.unc;
     const credit = !unc && v < 0, even = !unc && Math.abs(v) < 1;
     const text = unc ? `${uncertainRangeText(unc)} (${t('balanceUncertain.verdict')})`
       : even ? t('dashboard.beginner.money.even')
       // v3.9.0 (L2) — „rund“ nur mit gerundeter Zahl
       : t(credit ? 'dashboard.beginner.money.credit' : 'dashboard.beginner.money.due', { amount: fmt.eur0(Math.abs(v)) });
+    // v3.10.0 (Skeptiker v3.9.0, R2-3) — auch eine sichere Schätzung hat eine Breite, wie an der Karte
+    const band = !unc ? bandText(exp.band) : '';
     // v3.9.0 (L1) — der letzte Tag des Abrechnungszeitraums, wie überall
     const until = m.contract.period_last_day || m.contract.period_end;
     return `<li class="dash-answer__row"><span aria-hidden="true">${escapeHtml(u.icon)}</span>
       <span><strong>${escapeHtml(u.label)}:</strong> <span class="${even || unc ? '' : credit ? 'success-text' : 'danger-text'}"${unc ? ' data-role="money-uncertain"' : ''}>${escapeHtml(text)}</span>
+      ${band ? `<span class="muted small" data-role="money-band"> · ${escapeHtml(band)}</span>` : ''}
       ${until ? `<span class="muted small"> · ${escapeHtml(t('dashboard.beginner.money.until', { date: fmt.date(until) }))}</span>` : ''}</span></li>`;
   });
 }
@@ -1122,6 +1181,11 @@ async function renderBeginner(container, { utilities, datasets, todo, settings }
     if (!trend) {
       return `<li class="dash-answer__row"><span aria-hidden="true">${escapeHtml(u.icon)}</span>
         <span><strong>${escapeHtml(u.label)}:</strong> <span class="muted">${escapeHtml(t(beginnerTrendNoneKey(monthly)))}</span></span></li>`;
+    }
+    // v3.10.0 (Skeptiker M1) — so stark verändert, dass eher eine Ablesung falsch ist
+    if (trendNeedsCheck(trend.pct)) {
+      return `<li class="dash-answer__row"><span aria-hidden="true">${escapeHtml(u.icon)}</span>
+        <span><strong>${escapeHtml(u.label)}:</strong> <a href="#/utility/${encodeURIComponent(u.key)}" data-role="trend-check">${escapeHtml(t('dashboard.trend.checkLabel'))}</a></span></li>`;
     }
     const good = moreIsBetter(u) ? trend.pct > 0 : trend.pct < 0;
     const same = Math.abs(trend.pct) < 2;

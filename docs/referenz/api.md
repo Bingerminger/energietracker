@@ -166,7 +166,7 @@ nicht wieder passieren.
 | GET | `/api/auth/keys` | API-Schlüssel (ohne Klartext) *(v2.6.0)*; seit v3.2.0 nur Verwalter |
 | POST | `/api/auth/keys` | Schlüssel erzeugen `{name, scope: read\|admin\|calendar\|inbox}`; Klartext einmalig *(v2.6.0; `calendar` seit v3.1.0, `inbox` seit v3.7.0)*; seit v3.2.0 nur Verwalter |
 | DELETE | `/api/auth/keys/{id}` | Schlüssel widerrufen *(v2.6.0)*; seit v3.2.0 nur Verwalter |
-| GET | `/api/diagnostics` | Systemstatus, Schreibrechte, Schema; seit v3.4.0 `security` (Anmeldemodus, Proxy-Kopfzeile, Hostlisten, `notices`: `proxy_header`, `open_without_hosts` samt Vorschlag `host`) |
+| GET | `/api/diagnostics` | Systemstatus, Schreibrechte, Schema; seit v3.4.0 `security` (Anmeldemodus, Proxy-Kopfzeile, Hostlisten, `notices`: `proxy_header`, `open_without_hosts` samt Vorschlag `host`); seit v3.10.0 `home_tls` (eigene Stammzertifikate: `ca_file` `off`/`ok`/`unreadable`/`invalid`, `ca_file_certs`, `ca_settings_certs`, `system_bundle`, `insecure_local`; ohne Pfad) |
 | GET | `/api/utilities` | Liste der Verbrauchsarten + Konfiguration; seit v2.13.0 je Art `has_contracts`, `has_advance_payment_contracts` und `accounting_kind` (`consumption`, `feed_in`, `generation`); seit v3.1.0 `meter_roles` bei Arten mit Zählerrollen und `supports_bill_check` (Rechnungsprüfung möglich: Gas, Strom, Wasser, Fernwärme); seit v3.5.0 `has_special_payments` (Sonderzahlungen am Vertrag: Gas, Strom, Wasser, Fernwärme — [#34](https://github.com/Bingerminger/energietracker/issues/34)); `has_advance_payment_contracts` bleibt ohne Wasser (Saldo nach Kalender, Gruppenvertrag) |
 | GET | `/api/manifest` | *(v3.1.0)* Web-App-Manifest in einer Sprache (`?lang=`, sonst Sprache des Geräts bzw. der Installation); ohne Anmeldung erreichbar, enthält keine Daten. Klasse C |
 | GET | `/api/docs` | *(v3.4.0)* Eine Seite der Dokumentation dieses Release: `?path=` (`README.md`, `en/anleitungen/kalender.md`, `root/CHANGELOG.md`) → `{path, lang, mirror, root_files, markdown}`; nur aus der Freigabeliste — [Doku in der App](#doku-in-der-app-get-apidocs-v340). Klasse C |
@@ -293,7 +293,7 @@ nicht wieder passieren.
 | PATCH | `/api/activity/{id}` | *(v3.4.0)* Notiz ändern `{note}` (bis 500 Zeichen) |
 | GET | `/api/calendar.ics` | *(v3.1.0)* Dieselben Ereignisse als Kalender-Abo (iCalendar, 365 Tage) — [Kalender](#get-apicalendarics-v310); *(v3.7.0)* `?person=<id>` nur, was bei dieser Person liegt |
 | GET | `/api/summary` | *(v3.1.0)* Kennzahlen je Zähler für Home Assistant und Skripte, `?utility=&meter=` — [Kennzahlen](#get-apisummary-v310) |
-| GET | `/api/todo` | *(v3.9.0)* die Liste „Zu tun“ für einen Sensor: `count`, `overdue`, `next`, `items` — [Zu tun](#get-apitodo-v390) |
+| GET | `/api/todo` | *(v3.9.0)* die Liste „Zu tun“ für einen Sensor: `count`, `overdue`, `next`, `items`; *(v3.10.0)* `soon`, `next_upcoming` — [Zu tun](#get-apitodo-v390) |
 | GET | `/api/homeassistant/notify` | *(v3.9.0)* Stand der Benachrichtigungen an Home Assistant, ohne Webhook-ID und Token — [Benachrichtigungen](#benachrichtigungen-an-home-assistant-v390). Klasse C |
 | PATCH | `/api/homeassistant/notify` | *(v3.9.0)* Benachrichtigungen speichern und einschalten (nur Verwalter) |
 | POST | `/api/homeassistant/notify/test` | *(v3.9.0)* Testnachricht an das eingestellte Ziel, `{ok, status, error, target}` (nur Verwalter) |
@@ -631,7 +631,7 @@ unsicher ist ([Grundlagen §1](../verstehen/00-overview.md#gemessen-oder-verteil
 | `GET /api/readings-overview` | `first_date` | erste echte Ablesung des Zählers (Jahresauswahl des Berichts) |
 | `GET /api/reports/yearly` | `model.topics.pv.notes`, `.estimated` | Notizen zum Sonnenstrom-Block (Zeitraum, verteilt, widersprüchlich, kein Vergleich); `estimated`: der Block steht auf verteilten Monaten (≈, „geschätzt“ statt „gemessen“) |
 | `POST /api/forecast/scenario` | `advance.base_ongoing`, `.scen_ongoing`, `.withheld` | wie `advance_ongoing` und `suggestion_withheld` der Karte; das Szenario verschiebt den laufenden Abschlag um seine Monatskosten |
-| `…/contract-status` | `projection_band` | *(Skeptiker-Lauf)* bei sicherer Schätzung mit Heizmodell `{low, high, half, level_pct, estimated_days, weather, model}`: Breite aus dem Wetter der kommenden Tage und der Streuung des Modells, sonst `null` (unter 1 € nicht) |
+| `…/contract-status` | `projection_band` | bei sicherer Schätzung mit Heizmodell `{low, high, half, level_pct, estimated_days, weather, model}`: Breite aus dem Wetter der kommenden Tage und der Streuung des Modells, sonst `null` (unter 1 € nicht) |
 | `…/contract-status` | `billing_period.anchor`, `.suggested_anchor`, `.suggested_anchor_source`, `.last_bill_until` | Stichtag und Vorschlag wie unter „Abrechnungsjahr“, für den Hinweis an Karte und „Kosten & Verträge“ |
 | `…/contract-status` | `advance_ongoing` | mit Abschlagsrhythmus je Rate (Jahreskosten ÷ Raten im Jahr), sonst je Monat |
 | `POST /api/forecast/scenario` | `advance.every_months`, `billing.advance_every_months`, `billing.base_end_range`, `billing.scen_end_range` | Rhythmus der Beträge (je Rate); Spanne der Karte bei unsicherer Schätzung, im Szenario verschoben wie der Punktwert (sonst `null`) |
@@ -656,6 +656,38 @@ unsicher ist ([Grundlagen §1](../verstehen/00-overview.md#gemessen-oder-verteil
 - **Künftige Verträge** zeigen Arbeitspreis und Abschlag ihres Beginns (bis v3.7 `null`).
 - **Prognose:** Ohne Wetterbezug und ohne zwölf gemessene Kalendermonate ist die
   Jahressumme die der letzten 365 Tage (Warnung `level_last_year`).
+
+**Geänderte Werte (v3.10.0):** Ein künftiger Vertrag, der am nächsten Stichtag
+oder später (und nach der laufenden Abrechnungsperiode) beginnt, gehört zu keiner
+anstehenden Abrechnung: `effective_end` ist der nächste Stichtag nach seinem
+Beginn (bzw. sein gepflegtes Ende), `settle_on` der Tag davor, also der letzte Tag
+seiner ersten eigenen Periode; `projected_end_balance` und `verdict` sind `null`.
+Bis v3.9 bekam ein unbefristeter Folgevertrag ab dem nächsten Stichtag diesen
+Stichtag als `effective_end` (seinen eigenen Beginn), `settle_on` lag vor dem
+Beginn, und der erwartete Saldo war rund ein Tag Kosten. Ein Wechsel vor dem
+Stichtag rechnet wie bisher bis zum Stichtag.
+
+**Seit v3.10.0 (Saldo aus einem Guss), additiv** — gemessen und geschätzt getrennt,
+eine Breite für alle Ansichten
+([Grundlagen §10](../verstehen/00-overview.md#saldo-aus-einem-guss-seit-v3100)):
+
+| Wo | Feld | Bedeutung |
+|---|---|---|
+| `…/contract-status` | `balance_measured` | *(GitHub #49)* `{from, until, energy_cost, base, bonus, cost, advance, special_net, balance}`: der Saldo bis zur letzten Ablesung (`until`, exklusiv), nur Gemessenes; Abschläge anteilig nach Tagen wie `advance_measured_eur`, Sonderzahlungen vor `until`. `null` ohne Ablesung im Zeitraum des Saldos. `current_balance` bleibt der Stand heute mit Schätzung |
+| `…/contract-status` | `settle_balance`, `settle_verdict`, `settle_range`, `settle_parts` | nur, wenn dieselbe Abrechnung (`settle_on`, laufende Periode) mehrere Verträge abrechnet (Tarifwechsel beim selben Versorger): Summe der erwarteten Salden, Urteil mit denselben Schwellen wie `verdict`, Spanne aus den Spannen bzw. Bändern aller Teile (sonst `null`), je Vertrag `{contract_id, provider, from, until, balance, is_current}`. `suggested_advance` des laufenden Vertrags rechnet dann mit der Summe |
+| `…/contract-status` | `settle_measured`, `settle_today`, `settle_uncertain`, `settle_parts[].range`, `.uncertain`, `.estimated_share` | mit `settle_balance`: gemessener Saldo über alle Teile der Abrechnung (Felder wie `balance_measured`, `null` ohne gemessenen Tag), Stand heute über alle Teile `{balance, cost, energy_estimated, base, bonus, advance, special_net}`, die Unsicherheit der Summe (wie `projection_uncertain`, Spanne `settle_range`) oder `null`; je Teil Spanne bzw. Band, unsicher, Anteil geschätzter Arbeitskosten. `settle_range` ist die Summe der Spannen aller Teile |
+| `…/contract-status` | `projection_band` | auch ohne verlässliches Heizmodell (Strom, Wasser): Breite aus der Streuung gemessener Monate je Kalendermonat, mindestens 10 % der geschätzten Menge je Monat; `weather` ist dann `0`, `few_measured` `true`, wenn nur die Untergrenze trägt |
+| `GET /api/summary` | `meters[].contract.measured_balance`, `.measured_until`, `.projected_end_range_total` | *(für Home Assistant)* gemessener Saldo zur letzten Ablesung und ihr Tag (Summe der Abrechnung); Spanne des erwarteten Saldos, wenn die Karte nur sie zeigt, sonst `null`. `balance` bleibt der Stand heute |
+| `…/consumption` (Summe der Art) | `monthly_total[].cost_measured` | Kosten der gemessenen Tage (Grundpreis im angebrochenen Monat anteilig); die Strom-Saldo-Übersicht rechnet damit |
+| `GET /api/summary` | `meters[].contract.projection_band`, `.balance_measured`, `.settle_balance`, `.settle_range` | wie im Vertragsstatus (Einsteiger-Übersicht, Home Assistant) |
+| `GET /api/summary` | `meters[].contract.projected_end_balance_total` | immer gefüllt: `settle_balance`, sonst `projected_end_balance` (Attribut des Saldo-Sensors in Home Assistant; `projected_end_balance` bleibt unverändert) |
+| `GET /api/reports/yearly` | Geld: `balances[].band`, `balances[].explainer.projection_band` | Breite der sicheren Schätzung; der Satz zum Saldo nennt sie („Je nach Wetter und Schätzung zwischen … und …“) |
+
+**Geänderte Werte (v3.10.0):** Die Prognose-Werkstatt schätzt die Mengen des
+Ausgangsfalls je Monat wie die Saldo-Karte (Tagesschätzung mit Kalibrierfaktor);
+`months[].base_qty` und `base_cost` weichen dadurch von den Monatsmengen der
+Prognose ab, wo der Faktor nicht 1 ist. Der Bericht erwartet bei einer
+Abrechnung über mehrere Verträge ihre Summe.
 
 **Seit v2.8.0** zählen `hdd` nur die Tage mit Verbrauch; `temp_days` sagt,
 für wie viele davon Temperaturen vorliegen. Bei HGT-relevanten Arten mit
@@ -1020,6 +1052,7 @@ Regel greift:
 | ebenda, `…/contract-status` (je Vertrag), `…/bill-check` (`totals`) | `rest_of` | `{measured, submeters: [{meter_id, name, kwh}], rest}`, dazu nur wenn es sie gibt `estimated_kwh` (letzte Tagesrate des Subzählers fortgeschrieben, höchstens 92 Tage), `open_days` (Tage ohne Stand des Subzählers), `short_kwh` (Rest unter null, nicht berechnet) |
 | `…/bill-check`, Zeilen und `totals` | `measured_kwh`, `submeter_kwh` | Messung und Abzug je Abschnitt; `kwh` ist dort die Menge des Vertrags |
 | `…/forecast`, Prognosemonate | `billed_kwh`, `deducted_kwh`, `rest_of` | Kosten und Abschlag rechnen mit `billed_kwh`; `kwh` bleibt die Prognose der Messung |
+| Gruppe (Monatszeile, `…/contract-status`, Gruppen-`bill-check`), seit v3.10.0 | `rest_of.registers` | je Zählwerk (Mitglied) `{meter_id, name, obis, measured, deducted, rest}`, `short_kwh` nur mit Rest unter null. Gerechnet wird je Zählwerk (HT − HT, NT − NT, jedes zu seinem Preis); ein Zählwerk unter null zählt nicht gegen ein anderes. Der Mischpreis der Gruppe (Prognose, Saldo-Schätzung, Tarifvergleich) ist mit dieser Menge je Zählwerk gewichtet |
 
 Summen über Zähler (`…/consumption` der Art `monthly_total`, Abrechnungsjahr
 der Art, Jahresbericht, PDF, CSV) zählen die **Menge** weiter nur aus Zählern
@@ -1852,7 +1885,11 @@ je Netzbetreiber). Körper beider Routen:
 | `contracts.<stelle>` | `provider`, `start`, `ct`, `ct_nt` (HT/NT), `base` und `advance` je Monat; leer bleibt die Stelle ohne Vertrag |
 
 Stellen: `main` (vorn bzw. Hauszähler), `house` (Kaskade: Haushalt), `dev`
-(Gerät), `feed`, `gen`, `bat_in`, `bat_out`. Mit HT/NT wird eine Stelle zu je
+(Gerät), `feed`, `feed_house` (seit v3.10.0, Kaskade mit PV: Einspeisezählwerk
+von Z2 mit [`cascade_meter_id`](#einspeisung-in-der-kaskade-v3100-additiv);
+`gen` bekommt dort die Kennzahl `2.8.0`), `gen`, `bat_in`, `bat_out`. Die
+Vorschau nennt je Stelle `cascade` (Stelle, an der das Zählwerk sitzt, sonst
+`null`) und je Zähler-Schritt `cascade_ref`. Mit HT/NT wird eine Stelle zu je
 einem Zähler pro Zählwerk in einer Gruppe mit Gruppenvertrag und Preis je
 Zählwerk; ein Subzähler hängt je Zählwerk am gleichnamigen Zählwerk seines
 Elternzählers. Die Kaskade setzt die Rollen nach dem eigenen Verbrauch: vorn
@@ -2331,6 +2368,34 @@ Die Einstellung `co2_pv_avoided` (g/kWh) ersetzt für PV-Erzeugung und
 Gutschriften des Direktvermarkters an der Einspeisung:
 [Verträge](#verträge-reduziertes-netzentgelt-preismodell-gutschriften-v310-additiv).
 
+### Einspeisung in der Kaskade *(v3.10.0, additiv)*
+
+Zählen in der Kaskade (#40) auch die Zähler hinter dem Netzanschluss rückwärts
+(2.8.0), ist das Einspeisezählwerk von Z2 ein Zähler der PV-Einspeisung mit
+`cascade_meter_id` ([Datenmodell](datenmodell.md)). Es zählt nicht in Summen.
+**`GET /api/pv-summary`** je Monatszeile zusätzlich `cascade`, `null` ohne ein
+solches Zählwerk oder wenn Erzeugung, Einspeisung ins Netz und das Zählwerk den
+Monat nicht über denselben Zeitraum abdecken:
+
+| Feld | Bedeutung |
+|---|---|
+| `feed_kwh` | Einspeisung an Z2 |
+| `strands` | `[{position, role, name, meter_ids, kwh}]`: `behind` (Strang hinter Z2, Rolle von Z2, `kwh` = Erzeugung − Einspeisung an Z2) und `front` (Strang zwischen Z1 und Z2, Rolle von Z1, `kwh` = Einspeisung an Z2 − Einspeisung ins Netz), selbst genutzter Sonnenstrom, nie unter null |
+| `inconsistent` | ein Strang lag unter null (mehr als 0,5 kWh), obwohl seine beiden Reihen den Monat messen: meist ein Ablesefehler |
+| `interpolated` | eine der drei Reihen ist in diesem Monat verteilt |
+| `clamped` | ein Strang lag unter null und ist auf 0 gesetzt (gemessen oder verteilt) |
+| `strands[].estimated` | der Strang ist geschätzt: eine seiner zwei Reihen verteilt (dahinter Erzeugung und Z2, vorn Z2 und Z1) oder er ist auf 0 gesetzt |
+
+Je Jahreszeile `cascade`: `{months, feed_kwh, strands, inconsistent_months,
+interpolated_months}` über die Monate mit `cascade`, sonst `null`; je Strang
+`estimated_months` (Monate, in denen er geschätzt ist; die Karte setzt dann ≈). Die
+Jahreswerte zählen einen verteilten Monat mit seinem unbegrenzten Wert (auch unter
+null), damit die Summe über eine Lücke genau stimmt, einen gemessenen Widerspruch mit 0;
+die Monatszeile zeigt immer den begrenzten Wert. Mit diesen
+Werten rechnen `heat_pump_kwh` und der Energiefluss, die Jahresarbeitszahl
+(`GET /api/heat-pump`: Strom der Wärmepumpe = Rest + Sonnenstrom ihres Strangs)
+und „Strom nach Rollen“ im Jahresbericht.
+
 ### Schaubilder: Energiefluss und Zeitstrahl *(v3.4.0, additiv)*
 
 **`GET /api/pv-summary`**, je Monatszeile zusätzlich:
@@ -2338,7 +2403,7 @@ Gutschriften des Direktvermarkters an der Einspeisung:
 | Feld | Bedeutung |
 |---|---|
 | `battery` | `{charged_kwh, discharged_kwh}` des Monats; `null` ohne Speicherzähler |
-| `heat_pump_kwh` | Verbrauch der Stromzähler mit der Rolle `heat_pump` im Monat (auch als Subzähler); `null` ohne solchen Zähler |
+| `heat_pump_kwh` | Verbrauch der Stromzähler mit der Rolle `heat_pump` im Monat (auch als Subzähler); `null` ohne solchen Zähler. Seit v3.10.0 je Zähler der eigene Verbrauch (ohne seine Subzähler, wie in der Kaskade) und mit Einspeisezählwerken in der Kaskade dazu der Sonnenstrom seines Strangs |
 | `ev_charger_kwh` | dasselbe für die Rolle `ev_charger` (Wallbox) |
 | `flow` | Energiefluss des Monats (s. u.); `null`, wenn der Monat nicht abgedeckt ist (`covered: false`) |
 
@@ -2619,6 +2684,7 @@ Vertragsende (`ends_at_switch: true`); der Stichtag teilt sie nicht.
 | `periods[].balance` | `cost − advances − extra_advances`; positiv = Nachzahlung. Rück- und Nachzahlungen gleichen eine frühere Abrechnung aus und zählen nicht mit |
 | `periods[].invoice` | nur bei `bill`: `amount_eur`, `advances_paid_eur`, `result_eur`, `energy_kwh` bzw. `volume_m3` der Rechnung |
 | `periods[].months[]` | nur mit `?months=1`: Kalendermonate, erster und letzter als Teilmonat (`ym`, `from`, `until`, `days`, Menge, `cost`, `kwh_cost`, `base_price_eur`, `bonus_eur`, `advance_eur`, `co2_kg`) |
+| `periods[].prev_same_span` | *(v3.10.0, additiv, GitHub #36)* nur an der jüngsten Periode mit Daten: der Vergleich für den Trendpfeil im Abrechnungsjahr (`from`, `until` einschließlich, `days`, Menge wie oben, `cost`, `bonus`, `price_missing`, `whole`, `basis`). `basis: "period"`: dieselbe Spanne der Periode davor, gleich viele Tage ab deren Beginn; `whole: true`, wenn die Periode bis zu ihrem Ende gerechnet ist, dann die ganze Periode davor. Gibt die Periode davor keinen fairen Vergleich her (sie fehlt, ist nur ein Teil, beginnt mehr als 31 Tage neben „ein Jahr früher“, etwa nach einem Lieferantenwechsel mitten im Jahr, oder ist kürzer als die Spanne), gilt `basis: "calendar"`: dieselben Kalendertage ein Jahr früher, unabhängig von Perioden und Lieferant; ein 29. Februar wird dort zum 28. Februar. `null` unter 14 Tagen oder wenn die Daten erst nach dem Beginn dieser Kalendertage anfangen. Die Übersicht zeigt daraus den Trendpfeil im Abrechnungsjahr |
 
 Subzähler zählen in der ganzen Art nicht mit (sie stecken im Elternzähler),
 eine Gruppe ist die Summe ihrer Mitglieder; feste Kosten und Abschläge eines
@@ -2931,7 +2997,10 @@ mehrere summiert ergäben eine unsinnige Klasse. `primary` =
 verbrauchsstärkste Quelle, `combined` = Summe (nur bei bewusst
 kombiniertem Heizbetrieb sinnvoll, `note` weist darauf hin). Die
 Top-Level-Felder sind rückwärtskompatible Aliase und spiegeln seit
-v1.4.0 die **primäre** Quelle.
+v1.4.0 die **primäre** Quelle. Seit v3.10.0 trägt der Eintrag `strom` additiv
+`grid_only: true`, wenn die Wärmepumpe vorn in einer Kaskade mit
+Einspeisezählwerk an Z2 hängt: Die Effizienz zählt dann nur ihren Strom aus dem
+Netz, Jahresarbeitszahl und Energiefluss auch den selbst genutzten Sonnenstrom.
 
 *(v3.6.0)* `area_assumed`: `true`, wenn `wohnflaeche_m2` nur der Standard ist
 (nie eingetragen). Kennzahl und Klasse rechnen weiter damit; die Übersicht und
@@ -3043,6 +3112,15 @@ Beispiel: 9.000 kWh Wärme / 2.500 kWh Strom = JAZ 3,6
 
 Gezählt werden nur Monate, in denen **beide** Seiten Werte haben (bei mehreren
 Stromzählern alle). `jaz_heating_season` rechnet über Oktober bis April.
+Seit v3.10.0 zählt in der Kaskade der Sonnenstrom des Strangs mit
+([Einspeisung in der Kaskade](#einspeisung-in-der-kaskade-v3100-additiv)); ist er
+in einem Monat nicht gemessen (verteilt, auf 0 gesetzt oder nicht von allen
+drei Zählwerken abgedeckt), trägt der Monat `estimated: true` und `cop: null`
+und fehlt in `by_hdd`. `jaz` und `jaz_heating_season` rechnen weiter über alle
+Monate; ihr Strom (und `elec_kwh` des Jahres) zählt einen verteilten Monat mit dem
+unbegrenzten Sonnenstrom, damit die Summe über eine Lücke genau stimmt. Die
+Monatszeilen zeigen den begrenzten Wert, ihre Summe kann deshalb vom Jahreswert
+abweichen.
 `reference` sind die Mittelwerte des Fraunhofer-Feldtests „WP-QS im Bestand“
 (2025) zur Einordnung. Eine Arbeitszahl wird **nicht** witterungsbereinigt;
 `by_hdd` zeigt, wie sie mit den Heizgradtagen schwankt. Welche Energie
@@ -3754,7 +3832,7 @@ Je Zähler:
 | `capture` | *(v3.1.0)* Erfassungsart: `counter` (Zählerstände) oder `period` (Verbrauch je Zeitraum) |
 | `utility_label` | *(v3.9.0)* Name der Verbrauchsart in der Sprache der Anfrage (ohne `X-ET-Language` die der Installation), etwa „Strom“ |
 | `month_to_date`, `year_to_date` | Verbrauch des laufenden Monats bzw. Jahres in `consumption_unit`, `estimated: true` = enthält geschätzte Tage; `null` ohne Daten im Jahr |
-| `contract` | laufender Vertrag (Arten mit Verträgen), sonst `null`: Preise und Abschlag, `balance` und `projected_end_balance` mit dem Vorzeichen von `contract-status` (positiv = Nachzahlung, bei der Einspeisung = Auszahlung), `verdict`, `period_end`, *(v3.7.0, additiv)* `period_last_day`, `cancel_by`, `days_to_cancel`, `price_increase_from`. `period_end` ist bei einem Vertrag mit gepflegtem Ende dieses Ende (einschließlich), sonst der Stichtag der nächsten Abrechnung — der **erste Tag der nächsten Periode**; so bleibt es für bestehende Sensoren. `period_last_day` ist immer der **letzte Tag** der Periode: das Ende selbst bzw. der Tag vor dem Stichtag (Stichtag 01-09: `period_end` 2027-09-01, `period_last_day` 2027-08-31). Seit v3.4.0 sind `cancel_by` und `days_to_cancel` `null`, wenn der Vertrag keinen datierten Stichtag hat (weiterlaufend, unbefristet, jederzeit kündbar — bis v3.3 stand dort jeden Tag „heute“) oder ein Folgevertrag lückenlos anschließt |
+| `contract` | laufender Vertrag (Arten mit Verträgen), sonst `null`: Preise und Abschlag, `balance` und `projected_end_balance` mit dem Vorzeichen von `contract-status` (positiv = Nachzahlung, bei der Einspeisung = Auszahlung), `verdict`, `period_end`, *(v3.7.0, additiv)* `period_last_day`, `cancel_by`, `days_to_cancel`, `price_increase_from`. *(v3.10.0, additiv)* `projected_end_balance_total` ist immer gefüllt: der erwartete Saldo der ganzen Abrechnung wie auf der Saldo-Karte, also die Summe `settle_balance`, wenn eine Abrechnung mehrere Verträge abrechnet (Tarifwechsel beim selben Versorger), sonst derselbe Wert wie `projected_end_balance`; `projected_end_balance` bleibt der Wert des Vertrags. Die Home-Assistant-Vorlage führt beide als Attribute des Saldo-Sensors. `period_end` ist bei einem Vertrag mit gepflegtem Ende dieses Ende (einschließlich), sonst der Stichtag der nächsten Abrechnung — der **erste Tag der nächsten Periode**; so bleibt es für bestehende Sensoren. `period_last_day` ist immer der **letzte Tag** der Periode: das Ende selbst bzw. der Tag vor dem Stichtag (Stichtag 01-09: `period_end` 2027-09-01, `period_last_day` 2027-08-31). Seit v3.4.0 sind `cancel_by` und `days_to_cancel` `null`, wenn der Vertrag keinen datierten Stichtag hat (weiterlaufend, unbefristet, jederzeit kündbar — bis v3.3 stand dort jeden Tag „heute“) oder ein Folgevertrag lückenlos anschließt |
 | `forecast_12m` | Prognose der nächsten zwölf Monate: `value` in `consumption_unit`, `cost` (bei reiner Erzeugung `null`), `low`/`high` = Jahresband; `null` bei Heizöl/Pellets oder ohne gültige Prognose |
 | `tank` | Heizöl/Pellets: `stock`, `capacity`, `unit`, `percent`, `estimated_from`; sonst `null` |
 | `group_contract` | *(v3.9.0, additiv, letzter Schlüssel des Eintrags)* rechnet der Zähler über den laufenden Vertrag seiner Gruppe: `group_id`, `name` (der Gruppe) und `contract` in derselben Form wie oben; sonst `null`. `contract` bleibt an einem Mitglied ohne eigenen Vertrag `null`. Saldo und Abschläge gehören der Gruppe: Wer über Zähler summiert, zählt sie je `group_id` einmal |
@@ -3791,16 +3869,21 @@ Stabilitätsklasse A mit eigener Versionsnummer `todo_version` (heute `1`).
       "date": "2026-11-01", "severity": "overdue", "href": "#/reminders" },
     { "uid": "reading-strom-m_strom_main", "kind": "reading_due", "title": "Strom: Zählerstand ablesen (Hauptzähler)",
       "date": "2026-11-03", "severity": "due", "href": "#/zaehlerstaende?meter=m_strom_main" }
-  ]
+  ],
+  "soon": 1,
+  "next_upcoming": { "uid": "reminder-r_3c4d", "kind": "reminder", "title": "Heizung Wartung",
+                     "date": "2026-11-05", "severity": "upcoming", "href": "#/reminders" }
 }}
 ```
 
 | Feld | Bedeutung |
 |---|---|
-| `count` | Zahl der fälligen Punkte |
+| `count` | Zahl der fälligen Punkte (der Zustand des Sensors) |
 | `overdue` | davon überfällig oder dringend (wie `agenda.overdue` in `/api/summary`) |
 | `next` | der erste Punkt der Reihenfolge, sonst `null` |
 | `items[]` | die Punkte, höchstens 50: überfällig, dann dringend, dann fällig; darin nach Datum, dann nach Art und `uid`. Je Punkt `uid`, `kind` (Art wie in der Agenda), `title` (in der Sprache der Anfrage, ohne `X-ET-Language` die der Installation), `date`, `severity`, `href` (Sprung in die App) |
+| `soon` | *(v3.10.0)* Zahl der Ereignisse, die noch nicht fällig sind und in den nächsten Tagen fällig werden: Datum ab heute bis heute plus `reminder_warn_days_before` (Standard 14), ohne Erledigtes. Zählt nicht in `count` |
+| `next_upcoming` | *(v3.10.0)* das nächste Ereignis, das noch nicht fällig ist (Datum ab heute, auch nach dem Vorlauf, im Kalender bis ein Jahr voraus), sonst `null`; Felder wie in `items[]`. Bei gleichem Datum nach Art, dann `uid` |
 | `instance_id` | Kennung dieser Installation, wie in `/api/summary` |
 
 **Zugang** wie `/api/summary`: ohne Anmeldung offen, mit Anmeldung ein
@@ -3843,7 +3926,10 @@ Verwalter), `POST /api/homeassistant/notify/test` schickt eine Testnachricht
 Die Testnachricht antwortet `200` mit `{ok, status, error, target}`; `error`
 ist `incomplete`, `url`, `dns`, `address` (link-local, gesperrt), `insecure`
 (öffentliche Adresse ohne `https://`), `timeout`, `network`, `http` (dann
-`status` von Home Assistant) oder `noTransport`. Wann was gesendet wird:
+`status` von Home Assistant) oder `noTransport`; *(v3.10.0)* scheitert die
+Verbindung am Zertifikat, statt `network` die Art: `tlsIssuer` (Aussteller
+unbekannt), `tlsName` (Zertifikat passt nicht zur Adresse), `tlsExpired`,
+`tlsFile` (Stammzertifikate nicht lesbar) oder `tlsOther`. Wann was gesendet wird:
 [Home Assistant, Schritt 6](../anleitungen/home-assistant.md#schritt-6--benachrichtigungen-an-home-assistant-v390).
 
 ### Erledigt mit Verlauf *(v3.4.0)*
@@ -3883,7 +3969,9 @@ haben kein `cancel_by`-Ereignis mehr (`switchTiming` liefert dort weiter „heut
 für die Wechselplanung). R6 bzw. `r_price_increase` und R5 tragen additiv
 `evidence.contract_id`, `evidence.deadline` (Stichtag, Vertragsende bzw. Tag
 der Erhöhung) bzw. `evidence.anchor` (letzte Lieferung). Von Hand abgehakt
-erscheinen sie für dieses Vorkommen nicht mehr.
+erscheinen sie für dieses Vorkommen nicht mehr. *(v3.10.0, additiv)* R4
+(statistische Anomalie) an einem Elternzähler prüft seinen eigenen Verbrauch und
+trägt `evidence.without_submeters` (Namen der abgezogenen Subzähler).
 
 **`POST /api/agenda/done`** `{uid, occurrence?, done_on?, note?, attachment_id?, cancelled?}`
 
@@ -4358,7 +4446,7 @@ braucht den Satz des Vertragspreises: aus einem Dokument am Vertrag
 Preises oder im Feld `vat_pct`) oder aus derselben Rechnung. Saldo und Prognose
 rechnen weiter mit den Bruttopreisen des Vertrags. Hilfsfelder (`basis`,
 `vat_pct`, `base_price_basis`, `base_price_vat_pct`, `vat_pct` der Bestätigung)
-markieren nie. Die Auslesung trägt `schema_version` **5**; an dieser Version
+markieren nie. Die Auslesung trägt `schema_version` **6**; an dieser Version
 hängt der Zwischenspeicher. Ein Dokument, das mit einer älteren Version
 ausgelesen ist, behält seine Auslesung, bis du es neu ausliest: Netto erkennt
 die App dort aus dem Zitat, nach den neuen Feldern fragt erst das neue Auslesen
@@ -4519,6 +4607,31 @@ als eine Zahl, wenn jede Ziffer einzeln steht. Ein Ablesecode gilt für den
 Stand direkt davor: `estimated_ends` je Eintrag von `meter_readings` ist
 `[alt, neu]` und sagt, welcher Stand geschätzt ist (`estimated` heißt weiter:
 mindestens einer); angelegt wird nur dieser als geschätzt.
+
+*(v3.10.0, `schema_version` 6)* **Rechnungskorrektur.** Neue Hilfsfelder der
+Rechnung (ohne Marke): `invoice_number` (Rechnungsnummer) und
+`corrects_invoice` (Bezug auf eine frühere Rechnung, die das Dokument
+korrigiert oder ersetzt). Steht am Zähler schon eine Rechnung für genau diesen
+Zeitraum mit anderen Werten (`bill` mit `status: conflict`), ist das Dokument
+eine Korrektur, wenn es nicht nachweislich älter ist und eines zutrifft
+(`correction`, Liste der Gründe): `reference` (es nennt eine frühere Rechnung),
+`number` (andere Rechnungsnummer als das Dokument, aus dem die erfasste stammt),
+`later` (ausgestellt nach der erfassten: ihr `issued_on`, sonst das Datum ihrer
+Dokumente, sonst der Tag, an dem sie erfasst wurde), `marked` (Titel oder
+Dateiname nennt „Korrektur“, „korrigiert“ oder „berichtigt“, nicht
+„Korrekturfaktor“). Dann trägt `bill` `replaces: true`, `label_key`
+`inbox.proposal.billCorrection` und `params.before` (das bisherige Ergebnis) und
+ist vorab angehakt. War die Rechnung gebucht und ändert sich das Ergebnis, kommt
+`bill_book` mit `status: conflict`, `data.rebook: true`, `replaces: true`,
+`label_key` `inbox.proposal.billRebook` und `detail {bill_id,
+special_payment_id, before}`: Das Übernehmen entfernt die alte Sonderzahlung aus
+dem Vertrag und bucht das neue Ergebnis (bei 0 € keine). Vor dem Übernehmen sagt
+die Kernaussage selbst, dass die Korrektur die erfasste Rechnung des Zeitraums
+ersetzt und wie sich das Ergebnis ändert: `gist.key`
+`inbox.gist.invoice.correction` bzw. `inbox.gist.invoice.correctionBooked` (war
+sie gebucht), `params {from, to, balance, result}` mit `balance` = bisheriges
+Ergebnis. Ohne eines dieser Zeichen
+bleibt es wie bisher ein Widerspruch, nicht angehakt.
 
 **Ändern — `PATCH /api/inbox/{id}`** mit `assignment`, `edits`
 (`{feld: wert}` bestätigt oder korrigiert; `null` nimmt zurück), `type`

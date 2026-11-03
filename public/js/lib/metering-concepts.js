@@ -10,7 +10,8 @@
 //   behind        Gerät als Subzähler hinter dem Hauszähler
 //   cascade       vorn misst alles, dahinter der Haushalt; das Gerät ist der Rest
 //
-// Stellen: main, house (Kaskade), dev, feed, gen, bat_in, bat_out. Die
+// Stellen: main, house (Kaskade), dev, feed, feed_house (Kaskade mit PV, v3.10.0),
+// gen, bat_in, bat_out. Die
 // Schaltbilder zeichnen Leitungen von links (Netz) nach rechts (Verbraucher),
 // Abzweige als Knoten, unter jedem Zähler seine Zählwerke. Farben nur über die
 // Klassen .ill-* (hell und dunkel), Beschriftung aus den Katalogen.
@@ -66,7 +67,9 @@ export function defaultRegisters(concept, setup) {
   if (concept === 'side_by_side' || concept === 'behind') out.dev = tou(all || dev);
   if (s.pv) {
     out.feed = { one: '2.8.0' };
-    out.gen = { one: '' };
+    // v3.10.0 (#40) — Kaskade: Z2 und Z3 zählen rückwärts (2.8.0), die PV hängt hinter Z2
+    if (concept === 'cascade') out.feed_house = { one: '2.8.0' };
+    out.gen = { one: concept === 'cascade' ? '2.8.0' : '' };
     if (s.battery) { out.bat_in = { one: '' }; out.bat_out = { one: '' }; }
   }
   return out;
@@ -86,6 +89,7 @@ export function slotTags(concept, setup) {
   if (concept === 'side_by_side' || concept === 'behind') tags.dev = `Z${n++}`;
   if (s.pv) {
     tags.feed = tags.main;
+    if (concept === 'cascade') tags.feed_house = tags.house;   // v3.10.0 — zweites Zählwerk von Z2
     tags.gen = `Z${n++}`;
     if (s.battery) { tags.bat_in = tags.bat_out = `Z${n++}`; }
   }
@@ -131,13 +135,15 @@ export function schematic(concept, setup, { registers = null, title = '' } = {})
   let body = '';
   const meter = (x, y, key, list) => shapes.meter(x, y - MW / 2, { w: MW, h: MW, label: tags[key] || '', util: key === 'gen' || key === 'bat_in' ? 'pv' : 'strom' })
     + shapes.registers(x + 2, y + MW / 2 + 3, list);
-  const load = (kind, y) => {
-    if (kind === 'house') return shapes.house(LOAD, y - 30, 48, 44);
-    if (kind === 'pv') return shapes.panel(LOAD + 4, y + 8, 30) + shapes.sun(LOAD + 50, y - 16, 4.5);
-    if (kind === 'battery') return shapes.battery(LOAD + 2, y - 13, { w: 16, h: 26 });
-    return device === 'wallbox' ? shapes.wallbox(LOAD + 4, y - 13, { w: 18, h: 26 }) : shapes.heatpump(LOAD, y - 14, { w: 40, h: 28 });
+  // dx: Last weiter rechts (Kaskade mit PV: hinter dem Zähler Z3 bzw. dem Speicherzähler)
+  const load = (kind, y, dx = 0) => {
+    const L = LOAD + dx;
+    if (kind === 'house') return shapes.house(L, y - 30, 48, 44);
+    if (kind === 'pv') return shapes.panel(L + 4, y + 8, 30) + shapes.sun(L + 50, y - 16, 4.5);
+    if (kind === 'battery') return shapes.battery(L + 2, y - 13, { w: 16, h: 26 });
+    return device === 'wallbox' ? shapes.wallbox(L + 4, y - 13, { w: 18, h: 26 }) : shapes.heatpump(L, y - 14, { w: 40, h: 28 });
   };
-  const loadX = (kind) => (kind === 'pv' ? LOAD + 8 : kind === 'house' ? LOAD + 4 : kind === 'battery' ? LOAD + 2 : kind === 'device' && device === 'wallbox' ? LOAD + 4 : LOAD);
+  const loadX = (kind, dx = 0) => dx + (kind === 'pv' ? LOAD + 8 : kind === 'house' ? LOAD + 4 : kind === 'battery' ? LOAD + 2 : kind === 'device' && device === 'wallbox' ? LOAD + 4 : LOAD);
   /** Abzweig von der Sammelleitung bei x0 zur Last, mit Zähler oder ohne. */
   const tap = (x0, tp, y) => {
     let out = '';
@@ -164,6 +170,35 @@ export function schematic(concept, setup, { registers = null, title = '' } = {})
     if (feedY >= top && feedY <= bottom) nodes.add(feedY);
     return shapes.bus(x, top, bottom, { nodes: [...nodes] });
   };
+
+  if (concept === 'cascade' && s.pv) {
+    // v3.10.0 (#40) — Kaskade mit PV: Netz → Z1 → Abzweig Gerät (der Rest Z1 − Z2) und Z2 →
+    // Haushalt, PV hinter Z3, Speicher. Z1, Z2 und Z3 zählen rückwärts (2.8.0); aus den
+    // Differenzen der Sonnenstrom je Strang
+    const X2 = M2 + MW + 14, MX = X2 + 10, DX = MX + MW + 8 - (LOAD + 4);
+    const inner = [{ kind: 'house', meter: null }, { kind: 'pv', meter: 'gen' }, ...(s.battery ? [{ kind: 'battery', meter: 'bat_in' }] : [])];
+    const ys2 = inner.map((_, i) => TOP + i * ROW);
+    const yDev = ys2[ys2.length - 1] + ROW;
+    const yM = (ys2[0] + yDev) / 2;
+    const z2Chips = [...chips('house'), ...chips('feed_house')];
+    body += shapes.grid(14, yM + 17) + shapes.wire([[22, yM], [40, yM]], { strong: true });
+    body += meter(40, yM, 'main', mainChips);
+    body += shapes.wire([[40 + MW, yM], [BUS, yM]], { strong: true });
+    body += shapes.arrow(BUS - 6, yM - 8, 40 + MW + 6, yM - 8);   // Einspeisung zurück ins Netz
+    body += bus(BUS, [ys2[0], yDev], yM);
+    body += shapes.wire([[BUS, ys2[0]], [M2, ys2[0]]]) + meter(M2, ys2[0], 'house', z2Chips) + shapes.wire([[M2 + MW, ys2[0]], [X2, ys2[0]]]);
+    body += bus(X2, ys2, ys2[0]);
+    inner.forEach((tp, i) => {
+      const y = ys2[i];
+      if (tp.meter) body += shapes.wire([[X2, y], [MX, y]]) + meter(MX, y, tp.meter, chips(tp.meter)) + shapes.wire([[MX + MW, y], [loadX(tp.kind, DX), y]]) + load(tp.kind, y, DX);
+      else body += shapes.wire([[X2, y], [loadX(tp.kind), y]]) + load(tp.kind, y);
+    });
+    body += shapes.wire([[BUS, yDev], [loadX('device'), yDev]]) + load('device', yDev);
+    body += shapes.caption(LOAD + 20, yDev + 24, `${tags.main} − ${tags.house}`);
+    const below = (y, list) => y + MW / 2 + 3 + list.length * 12;
+    const h = Math.ceil(Math.max(yDev + 30, below(yM, mainChips), below(ys2[0], z2Chips), below(ys2[1], chips('gen'))) + 6);
+    return svg(body, { viewBox: `0 0 284 ${h}`, title: title || t('concept.art.title', { name: layoutTitle(concept) }), className: 'ill--concept' });
+  }
 
   if (!side) {
     // Netz → Z1 → Sammelleitung → Abzweige
@@ -265,8 +300,10 @@ export function suggestAssignments(slots, meters) {
         && (!roleOf(m) || roleOf(m) === slot.role || (slot.role === 'household' && roleOf(m) === 'household'))));
       continue;
     }
-    // Einspeisung, Erzeugung, Speicher: nach Rolle (Erzeugung: Rolle „generation“ oder keine)
-    assign(key, slot, list.filter(m => (slot.role ? roleOf(m) === slot.role : !roleOf(m) || roleOf(m) === 'generation')));
+    // Einspeisung, Erzeugung, Speicher: nach Rolle (Erzeugung: Rolle „generation“ oder keine);
+    // v3.10.0 — Einspeisung ins Netz ohne, das Zählwerk in der Kaskade mit Verbindung zu einem Stromzähler
+    const casc = (m) => slot.utility !== 'pv_einspeisung' || !!m.cascade_meter_id === !!slot.cascade;
+    assign(key, slot, list.filter(m => casc(m) && (slot.role ? roleOf(m) === slot.role : !roleOf(m) || roleOf(m) === 'generation')));
   }
   return out;
 }
@@ -277,7 +314,7 @@ export function suggestAssignments(slots, meters) {
  * Assistent Namen, Zuordnung und Zählwerke neu, statt alte Eingaben zu behalten.
  */
 export function slotSignature(slots) {
-  return JSON.stringify(Object.entries(slots || {}).map(([k, s]) => [k, s.utility, s.role || null, s.parent || null, Object.keys(s.registers || {})]));
+  return JSON.stringify(Object.entries(slots || {}).map(([k, s]) => [k, s.utility, s.role || null, s.parent || null, s.cascade || null, Object.keys(s.registers || {})]));
 }
 
 /**
@@ -326,11 +363,13 @@ export function initialInput(slots, suggested = {}) {
  */
 export function wizardPayload(concept, setup, slotsInput = {}, contractsInput = {}, meters = {}) {
   const input = { ...slotsInput };
-  if (input.feed && !input.feed.serial?.trim() && !input.feed.meter_id) {
-    const ids = [slotsInput.main?.meter_id, ...Object.values(slotsInput.main?.meter_ids || {})].filter(Boolean);
+  // die Einspeisung von Z1 und (Kaskade, v3.10.0) das Einspeise-Zählwerk von Z2: Nummer des vorhandenen Zählers
+  for (const [feed, of] of [['feed', 'main'], ['feed_house', 'house']]) {
+    if (!input[feed] || input[feed].serial?.trim() || input[feed].meter_id) continue;
+    const ids = [slotsInput[of]?.meter_id, ...Object.values(slotsInput[of]?.meter_ids || {})].filter(Boolean);
     const m = (meters.strom || []).find(x => ids.includes(x.id));
     const dev = m?.devices?.find(d => !d.removed_on) || m?.devices?.[m.devices.length - 1];
-    if (dev?.serial) input.feed = { ...input.feed, serial: dev.serial };
+    if (dev?.serial) input[feed] = { ...input[feed], serial: dev.serial };
   }
   return conceptPayload(concept, setup, input, contractsInput);
 }
@@ -364,6 +403,7 @@ export function conceptPayload(concept, setup, slotsInput = {}, contractsInput =
     slots[key] = o;
   }
   if (slots.feed && !slots.feed.serial && slots.main?.serial) slots.feed.serial = slots.main.serial;
+  if (slots.feed_house && !slots.feed_house.serial && slots.house?.serial) slots.feed_house.serial = slots.house.serial;   // v3.10.0
   const num = (x) => (x === '' || x == null ? null : Number(String(x).replace(',', '.')));
   const contracts = {};
   for (const [key, c] of Object.entries(contractsInput)) {

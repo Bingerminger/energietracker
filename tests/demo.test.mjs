@@ -251,6 +251,13 @@ function serve(dir, port) {
         const head = pdfRes?.ok ? Buffer.from(await pdfRes.arrayBuffer()).subarray(0, 5).toString() : '';
         t('Posteingang in der Demo: das Beispieldokument liegt als Datei bereit', head === '%PDF-', href);
       }
+      // v3.10.0 — Danke sagen: nie in der Demo, auch nicht beim fertigen Jahresbericht
+      if (r === '#/report/print') {
+        await sleep(150);
+        w.dispatchEvent(new w.Event('afterprint'));   // Skeptiker N11: der Moment ist „gedruckt“
+        await sleep(150);
+        t('Danke-Hinweis: nie in der Demo', !!view.querySelector('.report-print') && !w.document.querySelector('.thanks-note'));
+      }
       if (r === '#/settings/system') {
         const link = view.querySelector('[data-source-link]')?.getAttribute('href') || '';
         t('System: Link auf den Quellcode dieser Version', link.endsWith(`/tree/v${meta.version}`), link);
@@ -282,6 +289,20 @@ function serve(dir, port) {
     t(`${routes.length} Seiten ohne fehlende Antworten`, misses.length === 0, misses.slice(0, 8).join(' · '));
     const newErrors = errors.slice(before);
     t('keine Fehler beim Durchklicken', newErrors.length === 0, newErrors.slice(0, 5).join(' | '));
+
+    // v3.10.0 (Hauptfunktion „Saldo aus einem Guss“, #49) — im Schaufenster an jedem Tag sichtbar: Gas wird
+    // höchstens bis zwölf Tage vor dem Bautag abgelesen; die Saldo-Karte zeigt den gemessenen Saldo mit Beginn
+    // und Ende und die Schätzung bis heute als Zusatzzeile (vorberechnete Antworten)
+    {
+      w.location.hash = '#/utility/gas?meter=m_gas_main';
+      await settle();
+      const view = w.document.getElementById('view');
+      const span = view.querySelector('[data-role="balance-span"]')?.textContent || '';
+      const est = view.querySelector('[data-role="balance-estimate-today"]')?.textContent || '';
+      t('Schaufenster: Saldo-Karte Gas trennt Gemessenes (bis zur letzten Ablesung) und Geschätztes (bis heute)',
+        /bis zur letzten Ablesung am/.test(span) && /^Bis heute geschätzt:/.test(est.trim()) && !!view.querySelector('[data-role="balance-current"]'),
+        `${span} | ${est.trim().slice(0, 120)}`);
+    }
 
     // v3.9.0 (F1032) — Messkonzept im Schaufenster: Wärmepumpe mit Doppeltarifzähler hinter dem
     // Hauptzähler. Rest-Hinweis und Spalte „Abgerechnet“ am Hauptzähler, Zählwerke an den Zählern,

@@ -30,7 +30,8 @@ final class MeteringConceptServiceTest extends ServiceTestCase
         return [
             'concept' => 'cascade', 'device' => 'heat_pump', 'pv' => true, 'battery' => false, 'tou' => 'all',
             'slots' => ['main' => ['name' => 'Z1', 'serial' => 'TEST-Z1'], 'house' => ['name' => 'Z2', 'serial' => 'TEST-Z2'],
-                        'feed' => ['name' => 'Z1 Einspeisung', 'serial' => 'TEST-Z1'], 'gen' => ['name' => 'Z3 PV']],
+                        'feed' => ['name' => 'Z1 Einspeisung', 'serial' => 'TEST-Z1'], 'gen' => ['name' => 'Z3 PV'],
+                        'feed_house' => ['name' => 'Z2 Einspeisung', 'serial' => 'TEST-Z2']],
             'contracts' => [
                 'main'  => ['provider' => 'Versorger A', 'start' => '2024-01-01', 'ct' => 30, 'ct_nt' => 20, 'base' => 10],
                 'house' => ['provider' => 'Versorger B', 'start' => '2024-01-01', 'ct' => 35, 'ct_nt' => 25, 'base' => 12],
@@ -48,7 +49,12 @@ final class MeteringConceptServiceTest extends ServiceTestCase
         self::assertSame([], $preview['problems']);
         self::assertSame($before, count($this->meters->list('strom')), 'die Vorschau schreibt nichts');
         $ops = array_count_values(array_column($preview['actions'], 'op'));
-        self::assertSame(['activate' => 1, 'create_meter' => 6, 'create_group' => 2, 'create_contract' => 3], $ops);
+        // v3.10.0 (#40) — dazu das Einspeise-Zählwerk von Z2 (sieben Zähler)
+        self::assertSame(['activate' => 1, 'create_meter' => 7, 'create_group' => 2, 'create_contract' => 3], $ops);
+        self::assertSame('house', $preview['slots']['feed_house']['cascade']);
+        self::assertSame(['one' => '2.8.0'], $preview['slots']['gen']['registers'], 'Z3 zählt rückwärts den ganzen Sonnenstrom');
+        $order = array_values(array_unique(array_column(array_filter($preview['actions'], fn($a) => $a['op'] === 'create_meter'), 'slot')));
+        self::assertLessThan(array_search('feed_house', $order, true), array_search('house', $order, true), 'erst Z2, dann sein Zählwerk');
 
         $res = $this->svc()->apply(self::cascadeInput());
         self::assertNotNull($res['snapshot'], 'vorher ein Snapshot');
@@ -63,6 +69,13 @@ final class MeteringConceptServiceTest extends ServiceTestCase
         self::assertSame('TEST-Z1', $strom['Z1 HT']['devices'][0]['serial']);
         self::assertSame($strom['Z1 HT']['meter_group_id'], $strom['Z1 NT']['meter_group_id']);
         self::assertSame('2.8.0', $this->meters->list('pv_einspeisung')[0]['obis'] ?? null);
+        // v3.10.0 (#40) — Einspeisung an jedem Zähler der Kaskade: Z1 ins Netz, Z2 am ersten Zählwerk von Z2, Z3 die Erzeugung
+        $feed = array_column($this->meters->list('pv_einspeisung'), null, 'name');
+        self::assertArrayNotHasKey('cascade_meter_id', $feed['Z1 Einspeisung'], 'die Einspeisung ins Netz');
+        self::assertSame($strom['Z2 HT']['id'], $feed['Z2 Einspeisung']['cascade_meter_id'] ?? null);
+        self::assertSame('2.8.0', $feed['Z2 Einspeisung']['obis'] ?? null);
+        self::assertSame('TEST-Z2', $feed['Z2 Einspeisung']['devices'][0]['serial']);
+        self::assertSame('2.8.0', $this->meters->list('pv_erzeugung')[0]['obis'] ?? null);
 
         // Stände wie im Issue: der Assistent hat genau den Aufbau gebaut, der 125 € und 89,50 € rechnet
         $per = ['Z1 HT' => 400.0, 'Z1 NT' => 300.0, 'Z2 HT' => 150.0, 'Z2 NT' => 100.0];

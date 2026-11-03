@@ -9,13 +9,15 @@ use Energietracker\Services\AgendaService;
 use Energietracker\Services\HomeAssistant\Todo;
 use Energietracker\Services\HomeAssistantNotifyService;
 use Energietracker\Services\InstanceService;
+use Energietracker\Services\SettingsService;
 
 /**
  * v3.9.0 (F1033, GitHub #36) — Home Assistant: Sensor „Zu tun“ und
  * Benachrichtigungen.
  *
  *   GET   /api/todo                       fällige Punkte aus „Zu tun“: Anzahl,
- *                                         überfällig, nächster Punkt, Liste (Klasse A)
+ *                                         überfällig, nächster Punkt, Liste (Klasse A);
+ *                                         v3.10.0 bald fällig und nächster Termin
  *   GET   /api/homeassistant/notify       Stand der Benachrichtigungen, nie
  *                                         Webhook-ID oder Token (`has_webhook`, `has_token`)
  *   PATCH /api/homeassistant/notify       speichern, nur Verwalter (App::adminOnly)
@@ -27,11 +29,15 @@ final class HomeAssistantController
         private HomeAssistantNotifyService $notify,
         private AgendaService $agenda,
         private InstanceService $instance,
+        private SettingsService $settings,
     ) {}
 
     public function todo(Request $req): never
     {
-        Response::json(Todo::summary($this->agenda->events(HomeAssistantNotifyService::HORIZON_DAYS), $this->instance->id()));
+        // v3.10.0 (#36) — dazu `soon` im Vorlauf „bald fällig“ und `next_upcoming`
+        $today = date('Y-m-d');
+        Response::json(Todo::summary($this->agenda->events(HomeAssistantNotifyService::HORIZON_DAYS, $today), $this->instance->id(),
+            $today, (int)$this->settings->get('reminder_warn_days_before', 14)));
     }
 
     public function show(Request $req): never

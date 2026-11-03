@@ -168,7 +168,10 @@ unvollständiges Jahr bekommt keine Klasse, sondern einen Hinweis. Seit v3.5.0
 nennt das ⓘ auch die Basis (Heizwert oder Brennwert) und die Monate, die das
 geltende Verfahren verlangt; bis 31.12.2026 steht darunter, was sich mit dem
 neuen Verfahren ab 2027 ändert und welche Zahl es ergäbe
-([Grundlagen §7](../verstehen/00-overview.md#7-effizienzklasse)). Die
+([Grundlagen §7](../verstehen/00-overview.md#7-effizienzklasse)). Hängt die
+Wärmepumpe vorn in einer Kaskade mit Einspeisezählwerk an Z2, sagt die Karte
+seit v3.10.0 „Wärmepumpe: nur Strom aus dem Netz …“: Die Effizienz zählt den
+selbst genutzten Sonnenstrom nicht, Jahresarbeitszahl und Energiefluss schon. Die
 PV-Karte zeigt zusätzlich die **Ersparnis durch Eigenverbrauch** und, solange
 weniger als zwölf Monate Daten aller drei Zähler haben, über wie viele Monate
 die Quoten rechnen. Seit v2.7.0 steht
@@ -177,6 +180,59 @@ Karte kWh/m²·a und nennt den Grund ([Länderprofile](../verstehen/14-laenderpr
 Seit v2.11.0 heißt ein fälliger Termin „seit 65 Tagen überfällig" statt
 „jetzt". Die Kopf-Aktion „Temperaturen" entfällt; „Erfassen" steht global in
 der Kopfleiste bzw. der Tab-Leiste.
+
+**Abrechnungsjahr in der Übersicht (v3.10.0, GitHub #36):** Im
+Abrechnungsjahr heißen die Kacheln „Verbrauch (bisher im Abrechnungsjahr)“
+und „Kosten (bisher im Abrechnungsjahr)“. Sie zählen vom Beginn der laufenden
+Periode bis zur letzten Ablesung. Ist die gezeigte Periode bis zu ihrem Ende
+gerechnet (im neuen Abrechnungsjahr gibt es noch keine Ablesung), steht dort
+„(Abrechnungsjahr)“. Der Pfeil daneben vergleicht mit derselben Spanne der
+Periode davor: gleich viele Tage ab ihrem Beginn, also vom Beginn des
+Abrechnungsjahrs bis zur letzten Ablesung gegen dieselben Tage ein
+Abrechnungsjahr früher. Mit dem ganzen Vorjahr verglichen stünde nach zwei
+Monaten überall ein dickes Minus. Der Tooltip nennt beide Spannen mit Datum;
+eine bis zum Ende gerechnete Periode steht der ganzen Periode davor gegenüber.
+Manchmal wäre der Vergleich mit der Periode davor nicht fair: Es gibt keine
+ganze Periode davor, eine Periode davor beginnt mehr als 31 Tage neben „ein
+Jahr früher“ (etwa nach einem Lieferantenwechsel mitten im Jahr, ihre Tage
+lägen in einer anderen Jahreszeit), oder sie ist kürzer als die Spanne. Dann
+vergleicht der Pfeil dieselben Kalendertage ein Jahr früher: dieselbe Spanne,
+um ein Jahr verschoben, gleich in welcher Periode und bei welchem Lieferanten
+sie liegt. Der Tooltip sagt dann „gegenüber denselben Kalendertagen ein Jahr
+früher“ und nennt beide Spannen. Ein 29. Februar wird dabei zum 28. Februar;
+eine Spanne über den 29. Februar ist ein Jahr früher also einen Tag kürzer.
+Kein Pfeil gibt es bei weniger als 14 Tagen seit Beginn und wenn die Daten
+erst nach dem Beginn dieser Kalendertage anfangen (ohne Daten im Vorjahr kein
+Vergleich). Die
+Kosten vergleicht der Pfeil ohne Bonus, wie die Kachel sie zeigt; fehlt in
+einer der beiden Spannen ein Arbeitspreis, bekommt der Betrag keinen Pfeil.
+Die Spannen rechnet der Server (`prev_same_span` in
+[`…/billing-periods`](api.md#abrechnungsperioden-v360)). Bis v3.9 stand dort
+„letzte 12 Monate“, und einen Pfeil gab es im Abrechnungsjahr nicht.
+
+![Übersicht im Abrechnungsjahr: Kacheln „bisher im Abrechnungsjahr“ mit Trendpfeil; beim Strom ist die Periode jünger als 14 Tage, darum ohne Pfeil](../ui/screenshots/uebersicht-abrechnungsjahr.png)
+
+**Stark verändert: Ablesung prüfen (v3.10.0):** Ist es mehr als doppelt oder
+weniger als halb so viel wie im Vergleichszeitraum, steht statt einer
+Prozentzahl „Ablesung prüfen“, ein Link zur Verbrauchsart mit ihren
+Ablesungen; in der Einsteiger-Übersicht ebenso. Das gilt im Kalender- wie im
+Abrechnungsjahr. Ein Haushalt ändert sich von einem Jahr aufs andere selten so
+stark, eine falsche Ziffer im Zählerstand ergibt dagegen schnell „▲ 1.382 %“.
+Es ist dieselbe Grenze wie die zweite Stufe von „Ablesung prüfen“ unter „Zu
+tun“. Ist der Verbrauch wirklich so anders (Wärmepumpe, E-Auto, Auszug),
+hilft eine [Analyse-Zäsur](../verstehen/00-overview.md#wirkung-einer-maßnahme-zäsur).
+
+**Umschalten ohne Sprung (v3.10.0, GitHub #36):** Der Umschalter
+*Kalenderjahr · Abrechnungsjahr* und die Wahl der Stufe oben rechts zeichnen
+die Seite an Ort und Stelle neu. Der bisherige Inhalt bleibt stehen, bis der
+neue fertig ist, ohne „Lädt …“, und die Seite bleibt, wo sie war, auch weiter
+unten bei Strom oder Wasser. Auch die Schaubilder bleiben bis dahin stehen,
+und die Übersicht tauscht erst, wenn ihre nachgeladenen Teile (Schaubilder,
+„Dein Hebel“) da sind. Der Fokus bleibt am Umschalter. Das gilt in der
+Übersicht, der Verbrauchsansicht und der Analyse; die Analyse behält dabei die
+gewählte Verbrauchsart und den Zähler. Bis v3.9 zeichnete der Umschalter die
+Seite wie beim Öffnen einer neuen und sprang an den Anfang, die Analyse begann
+wieder mit der ersten Art.
 
 **„Zu tun" (v2.12.0)** steht oben: überfällige und fällige Termine, Zähler,
 deren letzte Ablesung länger zurückliegt als unter Einstellungen → Allgemein →
@@ -606,7 +662,7 @@ Vertrag; eine Verlängerung oder ein Folgevertrag desselben Versorgers ohne
 Lücke teilt nicht ([Jahresabrechnung](../anleitungen/jahresabrechnung.md#8-danach)).
 Im **laufenden Jahr** zählt das Kalenderjahr Grundpreis und Abschlag des
 Monats der letzten Ablesung ganz, das Abrechnungsjahr nur die Tage bis zur
-Ablesung; das ⓘ an „Abschläge bis …“ erklärt es. Ganze Jahre sind in beiden
+Ablesung; das ⓘ an „Abschläge … bis …“ erklärt es. Ganze Jahre sind in beiden
 Ansichten gleich.
 
 **Saldo-Verlauf (v2.16.0):** Unter den Zahlen der Saldo-Karte stehen die
@@ -630,13 +686,20 @@ bezahlt" zählt die Abschläge, wie sie abgebucht wurden. Weicht der erwartete
 Saldo spürbar ab, schlägt die Karte einen Abschlag vor (seit v3.9.0 nicht kurz
 vor der Abrechnung, unten). Die KPI-Kacheln
 summieren dagegen die abgelesenen Monate; liegt die letzte Ablesung im
-laufenden Jahr zurück, heißt die Kachel „Abschläge bis ‹Datum›". Die Tabelle
+laufenden Jahr zurück, heißt die Kachel seit v3.10.0 „Abschläge ‹Beginn› bis
+‹Datum›" (vorher „Abschläge bis ‹Datum›"). Die Tabelle
 **Verträge & Abschläge** führt je Vertrag Tarif, Abschlag, Verbraucht,
 Bezahlt, Bonus, **Sonderzahlungen** (seit v2.5.1: Netto aus Kundensicht;
 seit v2.13.0 die Einzelposten zum Aufklappen statt im Tooltip; bei
 Gas/Strom/Fernwärme, seit v3.5.0 auch Wasser) sowie Saldo heute und
 erwarteten Saldo. Der Grundpreis
-steht ausgeschrieben da („Grundpreis 12,95 €/Monat“ statt „13 € GP“).
+steht ausgeschrieben da („Grundpreis 12,95 €/Monat“ statt „13 € GP“). Ein
+künftiger Vertrag zeigt den erwarteten Saldo mit „≈“, wenn er noch in der
+laufenden Abrechnungsperiode beginnt. *(seit v3.10.0)* Beginnt er am nächsten
+Stichtag oder später, gehört er zu keiner anstehenden Abrechnung: Die Spalte
+zeigt „–“, sein Abrechnungstag ist der letzte Tag seiner ersten eigenen
+Periode. Bis v3.9 stand dort für einen unbefristeten Folgevertrag ab dem
+Stichtag „≈“ mit rund einem Tag Kosten, abgerechnet am Tag vor seinem Beginn.
 
 **Saldo nach der letzten gebuchten Rechnung (v3.6.0):** Läuft der Vertrag
 über eine erfasste Versorgerrechnung hinaus, deren Ergebnis gebucht ist,
@@ -656,7 +719,9 @@ die Prognose-Werkstatt zeigen denselben Saldo zum selben Tag. Das Datum ist der
 1. Januar). Bleiben bis zur Abrechnung weniger als drei Abschläge, schlägt die
 Karte keinen höheren Abschlag mehr vor, sondern sagt: „Bis zur Abrechnung am …
 bleiben nur noch 2 Abschläge. Den Rest gleicht die Abrechnung aus; dafür musst
-du den Abschlag jetzt nicht erhöhen.“ Weicht der laufend passende Abschlag ab,
+du den Abschlag jetzt nicht erhöhen.“ Bei einem Guthaben heißt es seit v3.10.0
+(#38) „Das Guthaben zahlt die Abrechnung aus; dafür musst du den Abschlag jetzt
+nicht senken.“ Weicht der laufend passende Abschlag ab,
 folgt „Danach wären rund … statt … im Monat angemessen.“ (mit Rhythmus „… alle
 2 Monate angemessen.“). Bis v3.7 zählte die
 Karte ohne Rechnung ab Vertragsbeginn und nannte den Folgetag
@@ -666,6 +731,32 @@ Euro da, und ein Satz nennt die Breite: „Je nach Wetter und Schätzung ca. …
 ca. … (80 %, … Tage geschätzt).“ Bei unsicherer Schätzung bleibt es bei der
 Spanne mit Grund ([Grundlagen §10](../verstehen/00-overview.md#10-saldo-bis-heute)).
 Ohne Vertrag zeigt die Kachel „Kosten“ seit v3.9.0 „kein Vertrag“ statt 0,00 €.
+
+**Gemessen und geschätzt getrennt (v3.10.0, GitHub #49):** Der Saldo der
+Karte zählt nur bis zur letzten Ablesung: Über der Karte steht „Gemessen vom
+‹Beginn› bis zur letzten Ablesung am ‹Datum›“, die Spalten heißen „Verbraucht
+bis ‹Datum›“, „Abschläge bis ‹Datum›“ und „Saldo am ‹Datum›“ (nur wenn heute
+abgelesen ist, „Aktueller Saldo“). Die Schätzung bis heute steht als
+Zusatzzeile darunter und rechnet vom gemessenen Saldo zum Stand heute vor:
+„Bis heute geschätzt: … Seit der Ablesung am … kamen dazu: Verbrauch …
+(geschätzt) und Grundpreis …, dagegen Abschläge …“, dazu Sonderzahlungen seit
+der Ablesung. Die Prognose bleibt bei „Erwartet bei Abrechnung“. Ohne
+gemessenen Tag im Zeitraum (etwa ein neuer Vertrag ohne eigene Ablesung) heißt
+die Spalte „Saldo heute (geschätzt)“. Kachel „Abschläge … bis …“ und Karte
+enden am selben Tag und nennen ihren Beginn (Kalenderjahr oder
+Abrechnungsperiode bzw. Saldo ab Vertragsbeginn oder Periodenbeginn). Rechnet
+dieselbe Abrechnung einen weiteren Vertrag desselben Versorgers ab
+(Tarifwechsel in der Periode), zählt „Erwartet bei Abrechnung“ ihn mit, und ein
+Satz nennt Zeitraum und Saldo (mit „≈“, wenn er überwiegend geschätzt ist, als
+Spanne, wenn er unsicher ist); gemessen und bis heute rechnet die Karte dann
+über beide Verträge. Beginnt der Saldo der Karte erst innerhalb der Kachel des
+Kalenderjahres (Stichtag, Vertragswechsel), steht dort statt eines zweiten
+Saldos „Saldo: siehe Saldo-Karte, sie rechnet ab …“. Das Monatsmittel der Kachel
+„Kosten“ zählt einen angebrochenen Monat nach seinen Tagen und fehlt unter vier
+Wochen. Die Breite einer sicheren
+Schätzung steht seit v3.10.0 auch bei Strom und Wasser („Je nach Schätzung …“)
+und an Einsteiger-Übersicht, „Wohin geht mein Geld?“, Kosten & Verträge und im
+Jahresbericht ([Grundlagen §10](../verstehen/00-overview.md#saldo-aus-einem-guss-seit-v3100)).
 
 **Abschlag im Rhythmus (v3.9.0):** Zieht der Versorger den Abschlag alle zwei
 oder drei Monate oder zu festen Terminen ein, nennt die Karte den Betrag je
@@ -838,7 +929,9 @@ Meldung ([Ladestrom-Nachweis](../anleitungen/ladestrom-nachweis.md)).
 Wärmepumpe“ folgt die Karte **„Wärmepumpe {Jahr}“** mit ⓘ: „Jahresarbeitszahl“
 („aus … Monaten mit beiden Zählern“), „Heizperiode (Okt.–Apr.)“, „Wärme /
 Strom“ in kWh und eine Tabelle je Monat mit Wärme, Strom und Arbeitszahl; darunter
-die Werte des Feldtests zur Einordnung. Fehlt der Wärmezähler, die Verknüpfung
+die Werte des Feldtests zur Einordnung. Seit v3.10.0 zeigt ein Monat, in dem der
+Sonnenstrom der Wärmepumpe in der Kaskade nicht gemessen ist, ≈ am Strom und
+„–“ statt einer Arbeitszahl, mit einem Satz unter der Tabelle. Fehlt der Wärmezähler, die Verknüpfung
 oder ein gemeinsamer Monat, sagt die Karte das
 ([Heizwärme §7](../verstehen/15-waerme.md#7-jahresarbeitszahl-der-wärmepumpe-v310)).
 
@@ -1629,7 +1722,7 @@ Seit v2.12.0 **neun Unterseiten** statt einer langen Seite:
 | Daten | CSV-Export (Tabelle in der Standardsprache oder Format 1), Backup & Wiederherstellung mit Snapshots, Demo-Daten; Verweis zum Jahresbericht | Einsteiger |
 | Integrationen | Home-Assistant-Anbindung; seit v3.9.0 „Benachrichtigungen an Home Assistant“ | Erfahren |
 | Zugriff | seit v3.4.0 „Sicherheits-Check“ (liefert der Webserver `data/` aus?, Proxy-Kopfzeile, offener Betrieb ohne Hostliste), Anmeldung & Zugriff mit „Überall abmelden“, seit v3.2.0 „Benutzer und Rechte“, Einbetten, seit v3.4.0 „Hostnamen“ | Experte |
-| Experte | seit v3.7.0 oben die Karte „Auslesen“ (Lokal \| Cloud), seit v3.1.0 Belege (Speichergrenze) und Texterkennung im Heimnetz, seit v3.2.0 „evcc im Heimnetz“; darunter eingeklappt („Rechenparameter anzeigen“) und mit Warnung: Regression, Prognosemodell, Anomalie- und Empfehlungsschwellen, seit v3.1.0 CO₂-Preis | Experte |
+| Experte | seit v3.7.0 oben die Karte „Auslesen“ (Lokal \| Cloud), seit v3.1.0 Belege (Speichergrenze) und Texterkennung im Heimnetz, seit v3.2.0 „evcc im Heimnetz“, seit v3.10.0 „Verbindungen im Heimnetz“; darunter eingeklappt („Rechenparameter anzeigen“) und mit Warnung: Regression, Prognosemodell, Anomalie- und Empfehlungsschwellen, seit v3.1.0 CO₂-Preis | Experte |
 | System | Version, Lizenz, seit v3.4.0 „Energietracker unterstützen“, Sicherheits-Check (v3.4.0), System-Diagnose | Experte |
 
 Gespeichert wird je Seite über eine Leiste unten („Verwerfen" · „Speichern"),
@@ -1652,6 +1745,21 @@ Zahlenfelder in breiten Karten sind höchstens 12 rem breit.
 „Über den Energietracker“ eine kleine Karte mit einem Link zu Buy Me a Coffee
 (`buymeacoffee.com/bingerminger`, öffnet einen neuen Tab). Die Unterstützung
 ist freiwillig; die App bleibt dieselbe, nichts hängt daran.
+
+**Danke sagen (v3.10.0):** Hat die App gerade geholfen, erscheint ab und zu
+eine ruhige Zeile mit demselben Text und Link: wenn „Rechnung prüfen“ beim
+Vergleich mit der Rechnung eine Abweichung findet (Urteil „prüfen“; die Zeile
+steht mit Abstand am Ende des Ergebnisses, und sie fehlt, wenn die Abweichung
+aus eigenen Datenlücken stammen kann: Zeit ohne Ablesung oder Vertrag,
+fehlende Preise), wenn du einen Termin vor seinem Fälligkeitstag als erledigt
+markierst (unter „Zu tun“ oder in den Terminen) und wenn der Jahresbericht
+fertig ist, also nach dem Drucken bzw. „als PDF sichern“ oder nach
+„Jahresbericht herunterladen“ (nicht schon beim Öffnen, nicht auf dem
+Papier). Höchstens einmal im Quartal je Gerät: Nach einem
+Hinweis vergehen mindestens 92 Tage bis zum nächsten. Nie in der Demo und nie
+als Dialog, der etwas verdeckt. „Nicht mehr zeigen“ schaltet ihn ab, ebenso
+die Einstellung *Hinweis aufs Unterstützen zeigen* unter Einstellungen →
+Allgemein ([`support_hint`](einstellungen.md#unterstützen-v3100)).
 
 **Seit v2.13.0:** 18 Felder mehr tragen einen Hinweis, was sie bewirken. Die
 Karte der Abrechnungsstichtage führt die **PV-Einspeisung** (ihre Vergütung
@@ -1803,6 +1911,19 @@ und Texterkennung vor dem eingeklappten Teil. Ihr Feld **„Adresse von evcc“*
 eigenen Netz. Leer bleibt der Abruf aus — die CSV-Datei aus evcc geht immer.
 Mit Adresse zeigt die Karte „Ladevorgänge aus evcc“ den Knopf „Von evcc
 abrufen“ (§3, [Ladevorgänge aus evcc](../anleitungen/evcc.md)).
+
+**Verbindungen im Heimnetz (v3.10.0, Seite Experte):** Die Gruppe 🔐 steht
+neben evcc vor dem eingeklappten Teil, für Home Assistant, Texterkennung, das
+Auslesen im Heimnetz und evcc über `https://` mit selbst ausgestellten
+Zertifikaten. **„Eigenes Stammzertifikat (PEM)“** ist ein Textfeld für den
+Text ab `-----BEGIN CERTIFICATE-----`; es gilt zusätzlich zu den üblichen
+Stammzertifikaten, ein privater Schlüssel wird abgelehnt. Der Schalter
+**„Zertifikat im Heimnetz nicht prüfen“** ist die Notlösung, mit Warnung in
+Orange. Die System-Diagnose nennt in der Zeile „Eigene Stammzertifikate“, wie
+viele gelten und ob die Datei aus `ET_CA_FILE` lesbar ist. Nur Verwalter
+ändern beides ([Home Assistant, HTTPS mit eigenem Zertifikat](../anleitungen/home-assistant.md#https-mit-eigenem-zertifikat-v3100)).
+
+![Verbindungen im Heimnetz](../ui/screenshots/einstellungen-heimnetz.png)
 
 **CO₂-Preis (v3.1.0, Seite Experte, unter „Rechenparameter anzeigen“):** Die
 Gruppe 🏷️ mit „CO₂-Preis je Jahr“ — einer Tabelle Jahr → €/t mit Löschen je
@@ -2084,6 +2205,13 @@ Einspeisezähler)“, „Investition (brutto)“, „In Betrieb seit“ und
 „Wärmemenge der Wärmepumpe“ die Auswahl **„Stromzähler der Wärmepumpe“** —
 Stromzähler mit der Rolle Wärmepumpe zum Ankreuzen.
 
+**Einspeisung in der Kaskade im Zählerdialog (v3.10.0):** Bei PV-Einspeisung
+ab „Erfahren“ die Feldgruppe **„Einspeisung in der Kaskade“** mit der Auswahl
+**„Einspeisezählwerk von“**: „Hausanschluss (Einspeisung ins Netz)“ oder ein
+Stromzähler hinter einem anderen. Die Zählerkarte trägt dann das Schild
+„Zählwerk in der Kaskade“; der Zähler zählt nicht als Einspeisung ins Netz
+([Use-Case H](../anleitungen/anwendungsfaelle.md#einspeisung-in-der-kaskade)).
+
 **Zeitreihe importieren (v3.1.0):** Jede Zählerkarte einer Art mit
 Zählerständen trägt den Knopf **„Zeitreihe importieren“**. Der Dialog
 „Zeitreihe aus einem Portal — …“ zeigt nach „Datei wählen“ die ersten Zeilen
@@ -2202,6 +2330,14 @@ zeigt, wo die Daten es hergeben:
 
 - **„Speicher {Jahr}“** — „Geladen“, „Entladen“, „Wirkungsgrad“ mit „Verluste
   … kWh“ und „Vollzyklen“ (nur mit Speicherkapazität);
+- **„Sonnenstrom je Strang {Jahr}“** *(v3.10.0, nur mit Einspeisezählwerk in
+  der Kaskade)* — je Strang die Rolle („Haushalt“, „Wärmepumpe (Heizstrom)“)
+  mit dem selbst genutzten Sonnenstrom und dem Namen des Zählers, darunter,
+  woraus gerechnet wird und aus wie vielen Monaten; ist ein Strang in
+  verteilten Monaten geschätzt, steht ≈ vor dem Wert und der Satz „Davon sind …
+  Monate aus verteilten Ablesungen …“; ein Hinweis nennt Monate, in denen alle
+  Stände gemessen sind und ein Zähler weiter vorn trotzdem mehr zurückzählte als
+  der dahinter;
 - **„Amortisation“** — „Investition“, „Nutzen bisher“ mit „zuletzt … im Jahr“
   und „Zurück seit“ bzw. „Zurück voraussichtlich“ mit „rund … Jahre“, darunter,
   was der Nutzen enthält und was nicht;

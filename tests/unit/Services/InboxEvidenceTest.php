@@ -497,7 +497,7 @@ final class InboxEvidenceTest extends TestCase
         }
         // v3.9.0 (F1032) — dazu das Zählwerk je Stand (`obis`, `register`); Version 5 für das ganze Release
         self::assertSame(['meter_number', 'reading_old', 'reading_old_date', 'reading_new', 'reading_new_date', 'estimated', 'obis', 'register'], array_keys(InboxSchema::fields('invoice')['meter_readings']['items']));
-        self::assertSame(5, InboxSchema::forProvider('invoice')['version'], 'v3.9.0 (F1034): Wasserpreise, Abschlagstermine, Bestandteile des Arbeitspreises; (F1032) Zählwerk je Stand');
+        self::assertSame(6, InboxSchema::forProvider('invoice')['version'], 'v3.9.0 (F1034): Wasserpreise, Abschlagstermine, Bestandteile des Arbeitspreises; (F1032) Zählwerk je Stand; v3.10.0: Rechnungsnummer und Bezug');
         // erfundene Rechnungskorrektur: Titel nur im Seitenkopf, Briefdatum
         $pages = ["Rechnungskorrektur · Seite 1 von 2\nStadtwerke Musterstadt GmbH · Musterstadt, den 20.03.2026\nAbrechnungszeitraum: 01.01.2025 bis 31.12.2025\n"
             . "Zähler TEST-4711-01        Anfangsstand 12.345 m³ am 31.12.2024        Endstand 12.910 m³ am 14.05.2025\n"

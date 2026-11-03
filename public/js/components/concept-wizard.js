@@ -164,6 +164,7 @@ export async function openConceptWizard() {
         const multi = regs.length > 1;
         const allExisting = regs.every(([r]) => (multi ? v.meter_ids?.[r] : v.meter_id));
         const hint = key === 'feed' ? t('concept.meters.sameDevice', { name: shownName('main') })
+          : key === 'feed_house' ? t('concept.meters.cascadeFeedHint', { name: shownName('house') })   // v3.10.0 (#40)
           : key === 'gen' ? t('concept.meters.genHint') : key.startsWith('bat_') ? t('concept.meters.batteryHint') : '';
         return `<fieldset class="concept-slot" data-slot="${key}">
           <legend><span class="concept-tag">${esc(tg[key] || '')}</span> ${esc(shownName(key))}${utilSuffix(key)}</legend>
@@ -252,6 +253,11 @@ export async function openConceptWizard() {
       const parentAction = state.preview.actions.find(x => x.ref === a.parent_ref);
       details.push(t('concept.summary.detailParent', { name: parentAction?.name || state.slots[pk]?.name || pk }));
     }
+    // v3.10.0 (#40) — Einspeise-Zählwerk in der Kaskade: an welchem Zähler es sitzt
+    if ((a.op === 'create_meter' || a.op === 'update_meter') && a.cascade_ref) {
+      const [ck] = a.cascade_ref.split('|');
+      details.push(t('concept.summary.detailCascade', { name: shownName(ck) || ck }));
+    }
     if (a.op === 'create_meter' && a.data?.installed_on) details.push(t('concept.summary.detailInstalled', { date: fmt.date(a.data.installed_on) }));
     if ((a.op === 'create_meter' || a.op === 'update_meter') && a.data?.role) {
       const r = t(`meters.roles.${a.utility}.${a.data.role}`);
@@ -268,11 +274,13 @@ export async function openConceptWizard() {
     const p = state.preview;
     const regs = Object.fromEntries(Object.entries(p.slots).map(([k, s]) => [k, s.registers]));
     const tg = tags();
-    const legend = Object.entries(p.slots).filter(([k]) => k !== 'feed' && k !== 'bat_out').map(([k, s]) => {
+    // Einspeise-Zählwerke stehen beim Zähler, an dem sie sitzen (Z1: feed, Z2 in der Kaskade: feed_house)
+    const second = { main: 'feed', house: 'feed_house', bat_in: 'bat_out' };
+    const legend = Object.entries(p.slots).filter(([k]) => !Object.values(second).includes(k)).map(([k, s]) => {
       const names = [shownName(k)];
-      if (k === 'main' && p.slots.feed) names.push(shownName('feed'));
-      if (k === 'bat_in' && p.slots.bat_out) names.push(shownName('bat_out'));
-      const codes = [...Object.values(s.registers), ...(k === 'main' && p.slots.feed ? Object.values(p.slots.feed.registers) : [])].filter(Boolean);
+      const extra = second[k] && p.slots[second[k]] ? second[k] : null;
+      if (extra) names.push(shownName(extra));
+      const codes = [...Object.values(s.registers), ...(extra && extra !== 'bat_out' ? Object.values(p.slots[extra].registers) : [])].filter(Boolean);
       return `<li><span class="concept-tag">${esc(tg[k] || '')}</span> ${esc(names.join(', '))}${codes.length ? ` <span class="muted small">${esc(codes.join(', '))}</span>` : ''}</li>`;
     }).join('');
     return `

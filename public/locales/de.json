@@ -137,7 +137,8 @@
       },
       "certificateApprox": "Nach Heizwert gerechnet (Näherung, der Ausweis verlangt den Brennwert): {fuels}.",
       "certificateUpcoming": "Ab {date} gilt für den Verbrauchsausweis ein neues Verfahren (§ 82 GModG): {basis}, Warmwasser-Zuschlag {dhw} statt {dhwOld} kWh/m²·a, Daten über {required} statt {requiredOld} Monate. Damit wären es {value} kWh/m²·a{cls}.",
-      "incompleteFor": "{names}: Für {year} liegen nicht für das ganze Jahr Daten vor, deshalb keine Klasse. Die Kennzahl gilt nur für den gemessenen Zeitraum."
+      "incompleteFor": "{names}: Für {year} liegen nicht für das ganze Jahr Daten vor, deshalb keine Klasse. Die Kennzahl gilt nur für den gemessenen Zeitraum.",
+      "gridOnly": "Wärmepumpe: nur Strom aus dem Netz. Den selbst genutzten Sonnenstrom zählen Jahresarbeitszahl und Energiefluss mit, die Effizienz nicht."
     },
     "tanks": { "title": "Tank-Bestände" },
     "stromSaldo": {
@@ -184,9 +185,13 @@
       "feedIn": "Einspeisung (letzte 12 Monate)",
       "generation": "Erzeugung (letzte 12 Monate)",
       "revenue": "Vergütung (letzte 12 Monate)",
-      "revenueSub": "Erlös aus der Einspeisung"
+      "revenueSub": "Erlös aus der Einspeisung",
+      "consumptionSoFar": "Verbrauch (bisher im Abrechnungsjahr)",
+      "costSoFar": "Kosten (bisher im Abrechnungsjahr)",
+      "consumptionPeriod": "Verbrauch (Abrechnungsjahr)",
+      "costPeriod": "Kosten (Abrechnungsjahr)"
     },
-    "trend": { "vsPrev": "{span} gegenüber denselben Monaten ein Jahr zuvor", "moreThanPrev": "{pct} % mehr: {span} gegenüber denselben Monaten ein Jahr zuvor", "lessThanPrev": "{pct} % weniger: {span} gegenüber denselben Monaten ein Jahr zuvor" },
+    "trend": { "vsPrev": "{span} gegenüber denselben Monaten ein Jahr zuvor", "moreThanPrev": "{pct} % mehr: {span} gegenüber denselben Monaten ein Jahr zuvor", "lessThanPrev": "{pct} % weniger: {span} gegenüber denselben Monaten ein Jahr zuvor", "vsPrevPeriod": "{span} gegenüber {prev} im Abrechnungsjahr davor", "moreThanPrevPeriod": "{pct} % mehr: {span} gegenüber {prev} im Abrechnungsjahr davor", "lessThanPrevPeriod": "{pct} % weniger: {span} gegenüber {prev} im Abrechnungsjahr davor", "vsCalendarDays": "{span} gegenüber denselben Kalendertagen ein Jahr früher ({prev})", "moreThanCalendarDays": "{pct} % mehr: {span} gegenüber denselben Kalendertagen ein Jahr früher ({prev})", "lessThanCalendarDays": "{pct} % weniger: {span} gegenüber denselben Kalendertagen ein Jahr früher ({prev})", "check": "Ablesung prüfen", "checkLabel": "Stark verändert, mehr als doppelt oder weniger als halb so viel wie im Vergleichszeitraum: bitte die Ablesung prüfen" },
     "allRecommendations": "Alle Empfehlungen",
     "todo": {
       "title": "Zu tun",
@@ -409,7 +414,6 @@
       "co2AvoidedSub": "{tons} t weniger als ohne PV",
       "co2": "🌍 CO₂ {year}",
       "co2Sub": "{tons} t",
-      "advancesUntil": "💰 Abschläge bis {date}",
       "balanceShort": "Saldo: {value}",
       "generation": "Erzeugung",
       "daysCount": {
@@ -418,7 +422,9 @@
       },
       "noContract": "kein Vertrag",
       "noContractHint": "Mit einem Vertrag rechnet die App die Kosten.",
-      "billed": "abgerechnet {value} (Rest)"
+      "billed": "abgerechnet {value} (Rest)",
+      "advancesSpan": "💰 Abschläge {from} bis {date}",
+      "balanceOnCard": "Saldo: siehe Saldo-Karte, sie rechnet ab {date}."
     },
     "cards": {
       "contracts": "📑 Verträge & Abschläge",
@@ -526,6 +532,28 @@
       "band": {
         "one": "Je nach Wetter und Schätzung {range} ({level}, {count} Tag geschätzt).",
         "other": "Je nach Wetter und Schätzung {range} ({level}, {count} Tage geschätzt)."
+      },
+      "suggestShortCredit": {
+        "one": "Bis zur Abrechnung am {date} bleibt nur noch {count} Abschlag. Das Guthaben zahlt die Abrechnung aus; dafür musst du den Abschlag jetzt nicht senken.",
+        "other": "Bis zur Abrechnung am {date} bleiben nur noch {count} Abschläge. Das Guthaben zahlt die Abrechnung aus; dafür musst du den Abschlag jetzt nicht senken."
+      },
+      "measuredSpan": "Gemessen vom {from} bis zur letzten Ablesung am {until}.",
+      "colConsumedUntil": "Verbraucht bis {date}",
+      "colPaidUntil": "Abschläge bis {date}",
+      "settleWith": "„Erwartet bei Abrechnung“ zählt auch den Vertrag vom {from} bis {until} mit: {balance}. Dieselbe Abrechnung rechnet beide ab.",
+      "bandNoWeather": {
+        "one": "Je nach Schätzung {range} ({level}, {count} Tag geschätzt).",
+        "other": "Je nach Schätzung {range} ({level}, {count} Tage geschätzt)."
+      },
+      "measuredAllContracts": "alle Verträge dieser Abrechnung",
+      "estimateTodayParts": "Bis heute geschätzt: {balance}. Seit der Ablesung am {date} kamen dazu: Verbrauch {energy} (geschätzt) und Grundpreis {base}, dagegen Abschläge {advance}.",
+      "estimateTodayRefund": "Dazu eine Rückzahlung von {value}.",
+      "estimateTodayPaid": "Dazu Sonderzahlungen von {value}.",
+      "colBalanceAt": "Saldo am {date}",
+      "colBalanceEstimated": "Saldo heute (geschätzt)",
+      "bandFew": {
+        "one": "Zu wenige gemessene Monate, je nach Schätzung {range} ({level}, {count} Tag geschätzt).",
+        "other": "Zu wenige gemessene Monate, je nach Schätzung {range} ({level}, {count} Tage geschätzt)."
       }
     },
     "contractsTable": {
@@ -1200,7 +1228,8 @@
         "other": "{count} Geräte"
       },
       "periodTag": "je Zeitraum",
-      "obis": "Zählwerk {obis}"
+      "obis": "Zählwerk {obis}",
+      "cascade": "Zählwerk in der Kaskade"
     },
     "modal": {
       "titleEdit": "Zähler bearbeiten",
@@ -1418,6 +1447,12 @@
       "suggest": "Vorschlag aus den gemessenen Monaten: {best} °C. Ein Monat weicht dann typisch um {then} eines mittleren Monats ab statt um {now}.",
       "use": "{value} °C eintragen",
       "invalid": "Heizgrenze zwischen {min} und {max} °C oder leer lassen"
+    },
+    "cascade": {
+      "title": "Einspeisung in der Kaskade",
+      "label": "Einspeisezählwerk von",
+      "none": "Hausanschluss (Einspeisung ins Netz)",
+      "hint": "Hängen Zähler hintereinander und zählt auch ein Zähler weiter hinten rückwärts (2.8.0), wähle hier diesen Zähler. Sein Einspeisezählwerk zählt nicht als Einspeisung ins Netz. Aus den Differenzen rechnet die App, wie viel Sonnenstrom jeder Strang selbst nutzt."
     }
   },
   "settings": {
@@ -1430,7 +1465,8 @@
       "evccEndpoint": "http://192.168.178.30:7070",
       "allowedHosts": "energie.example.org, *.home.arpa",
       "inboxModel": "qwen3.8",
-      "envName": "z. B. TEST"
+      "envName": "z. B. TEST",
+      "homeCaPem": "-----BEGIN CERTIFICATE-----"
     },
     "loading": "Lädt …",
     "saved": "Einstellungen gespeichert",
@@ -1518,6 +1554,14 @@
       "environment": {
         "title": "Umgebung",
         "hint": "Wer mehrere Installationen betreibt (Test, Haus, Ferienwohnung), sieht neben dem Logo, in welcher er gerade ist."
+      },
+      "homeTls": {
+        "title": "Verbindungen im Heimnetz",
+        "hint": "Für Home Assistant, Texterkennung, das Auslesen im Heimnetz und evcc über https:// mit Zertifikaten, die du selbst ausgestellt hast. Andere Verbindungen prüfen weiter nur gegen die üblichen Stammzertifikate."
+      },
+      "thanks": {
+        "title": "Unterstützen",
+        "hint": "Hat dir die App gerade geholfen, erscheint ab und zu eine kleine Zeile mit einem Link zum Unterstützen. Höchstens einmal im Quartal je Gerät, nie in der Demo, nie als Fenster, das etwas verdeckt."
       }
     },
     "field": {
@@ -1711,6 +1755,18 @@
       "env_name": {
         "label": "Umgebungsname",
         "hint": "Bis 12 Zeichen, erscheint als Abzeichen neben dem Logo. Leer: kein Abzeichen."
+      },
+      "home_ca_pem": {
+        "label": "Eigenes Stammzertifikat (PEM)",
+        "hint": "Das Stammzertifikat, mit dem du deine Zertifikate selbst ausstellst, ab <code>-----BEGIN CERTIFICATE-----</code>. Es gilt zusätzlich zu den üblichen Stammzertifikaten, die Prüfung bleibt an. Nur das Zertifikat, nie den privaten Schlüssel. Als Datei im Container geht es auch: <code>ET_CA_FILE</code>."
+      },
+      "home_tls_insecure": {
+        "label": "Zertifikat im Heimnetz nicht prüfen",
+        "hint": "Nur als Notlösung. Ohne Prüfung kann mitlesen, wer sich im Netz dazwischenhängt, auch den Token für Home Assistant. Wirkt nur für Adressen im Heimnetz, nie für Adressen im Internet. Besser: das eigene Stammzertifikat eintragen."
+      },
+      "support_hint": {
+        "label": "Hinweis aufs Unterstützen zeigen",
+        "hint": "Nach einer gefundenen Abweichung in „Rechnung prüfen“, nach einer Frist, die du vor dem Fälligkeitstag erledigt hast, und beim fertigen Jahresbericht."
       }
     },
     "boolActive": "aktiv",
@@ -1875,7 +1931,9 @@
         "todoDateName": "Energietracker nächster Punkt fällig",
         "webhookAlias": "Energietracker: Benachrichtigung weitergeben",
         "webhookIdComment": "eigene, nicht erratbare ID",
-        "notifyComment": "oder notify.mobile_app_… fürs Handy"
+        "notifyComment": "oder notify.mobile_app_… fürs Handy",
+        "todoUpcomingName": "Energietracker nächster Termin",
+        "todoUpcomingDateName": "Energietracker nächster Termin am"
       },
       "lastUsed": "Zuletzt verwendet: {when}",
       "neverUsed": "Mit diesem Token ist noch nichts angekommen.",
@@ -1922,7 +1980,15 @@
       "tempStored": {
         "one": "<strong>{count}</strong> Tageswert gespeichert.",
         "other": "<strong>{count}</strong> Tageswerte gespeichert."
-      }
+      },
+      "homeCa": "Eigene Stammzertifikate",
+      "homeCaCount": {
+        "one": "{count} Zertifikat",
+        "other": "{count} Zertifikate"
+      },
+      "homeCaFileUnreadable": "ET_CA_FILE nicht lesbar",
+      "homeCaFileInvalid": "ET_CA_FILE ohne Zertifikat",
+      "homeTlsInsecure": "Prüfung im Heimnetz aus"
     },
     "gasFactors": {
       "none": "Noch kein Eintrag — es gilt der Standardfaktor.",
@@ -2503,7 +2569,8 @@
       },
       "r4": {
         "title": "{label} {ym}: statistische Anomalie",
-        "detail": "Der Verbrauch im {ym} liegt deutlich über dem, was für diesen Monat üblich ist ({sigma}σ). Lohnt einen prüfenden Blick."
+        "detail": "Der Verbrauch im {ym} liegt deutlich über dem, was für diesen Monat üblich ist ({sigma}σ). Lohnt einen prüfenden Blick.",
+        "rest": "Geprüft ist der eigene Verbrauch dieses Zählers, ohne {names}."
       },
       "r5": {
         "title": "{label}: Tank bei {pct} %",
@@ -2942,7 +3009,10 @@
     "balanceCardNote": {
       "one": "· Die Spalte „Saldo“ darunter zählt nur den {count} Prognosemonat ab {month}, ohne den bisherigen Stand.",
       "other": "· Die Spalte „Saldo“ darunter zählt nur die {count} Prognosemonate ab {month}, ohne den bisherigen Stand."
-    }
+    },
+    "calibrationNote": "Die Monatsmengen hier sind die der Prognose. Saldo-Karte und Werkstatt schätzen mit dem Niveau der letzten gemessenen Monate (Kalibrierfaktor), rund {pct} {direction}; darum weichen ihre Monatskosten ab.",
+    "calibrationMore": "mehr",
+    "calibrationLess": "weniger"
   },
   "report": {
     "createdOn": "Erstellt am {date}",
@@ -3146,7 +3216,8 @@
       "yearIncomplete": {
         "one": "{year} ist erst zu {count} von 12 Monaten erfasst. Verglichen wird mit {prev}, sobald das Jahr vollständig ist.",
         "other": "{year} ist erst zu {count} von 12 Monaten erfasst. Verglichen wird mit {prev}, sobald das Jahr vollständig ist."
-      }
+      },
+      "billingBand": "{label}: zur Abrechnung voraussichtlich zwischen {low} und {high}."
     },
     "euro": {
       "saves": {
@@ -3679,7 +3750,8 @@
       "valueInvalid": "{field}: „{value}“ ist kein gültiger Wert",
       "idInvalid": "Ungültige Kennung „{id}“ – erlaubt sind Buchstaben, Ziffern, _ und - (höchstens 64 Zeichen).",
       "serialSet": "Das Gerät hat schon die Nummer {serial}. Ein anderer Zähler ist ein Zählertausch.",
-      "obisInvalid": "Zählwerk „{value}“ ist keine OBIS-Kennzahl. Beispiele: 1.8.0, 1.8.1, 2.8.0 oder 1-0:1.8.0."
+      "obisInvalid": "Zählwerk „{value}“ ist keine OBIS-Kennzahl. Beispiele: 1.8.0, 1.8.1, 2.8.0 oder 1-0:1.8.0.",
+      "cascadeLinkInvalid": "Zähler „{id}“ ist kein Stromzähler hinter einem anderen Zähler"
     },
     "common": {
       "unknownUtility": "Unbekannte Verbrauchsart: {utility}",
@@ -3810,7 +3882,9 @@
       "factorMissing": "Ein Eintrag braucht entweder Zustandszahl und Brennwert oder einen Faktor in kWh/m³",
       "factorOutOfRange": "Umrechnungsfaktor {value} ist unplausibel — erwartet wird 5 bis 15 kWh/m³",
       "valueInvalid": "Ungültiger Wert „{value}“ für {key}",
-      "hostNotListed": "Die Hostliste muss den Namen enthalten, unter dem du die App gerade aufrufst („{host}“) – sonst sperrst du dich aus."
+      "hostNotListed": "Die Hostliste muss den Namen enthalten, unter dem du die App gerade aufrufst („{host}“) – sonst sperrst du dich aus.",
+      "caInvalid": "Das ist kein lesbares Zertifikat. Erwartet wird PEM-Text von -----BEGIN CERTIFICATE----- bis -----END CERTIFICATE-----.",
+      "caPrivateKey": "Der Text enthält einen privaten Schlüssel. Trag nur das Zertifikat ein, der Schlüssel gehört nicht hierher."
     },
     "billCheck": {
       "gasOnly": "Die Rechnungsprüfung gibt es nur für Gas",
@@ -4036,6 +4110,13 @@
       "meterUnknown": "Den Zähler „{id}“ gibt es nicht.",
       "meterTwice": "Der Zähler „{id}“ ist zwei Stellen zugeordnet. Jeder Zähler steht nur einmal im Schaltbild.",
       "chain": "„{name}“ hat selbst Subzähler und kann deshalb nicht hinter einem anderen Zähler hängen."
+    },
+    "homeTls": {
+      "issuer": "Der Energietracker kennt den Aussteller des Zertifikats von {host} nicht. Hast du das Zertifikat selbst ausgestellt, trag dein Stammzertifikat unter Einstellungen → Experte → Verbindungen im Heimnetz ein.",
+      "name": "Das Zertifikat von {host} passt nicht zu dieser Adresse. Trag die Adresse so ein, wie sie im Zertifikat steht, etwa den Namen statt der IP-Adresse. Ein eigenes Stammzertifikat hilft hier nicht.",
+      "expired": "Das Zertifikat von {host} ist abgelaufen oder noch nicht gültig. Erneuere es dort oder prüfe die Uhrzeit beider Geräte.",
+      "file": "Der Energietracker kann die Stammzertifikate nicht lesen. Prüfe die Datei aus ET_CA_FILE oder eine eingehängte Zertifikatsliste: Pfad, Inhalt und Leserechte. Unter Einstellungen → System steht, ob ET_CA_FILE lesbar ist.",
+      "other": "Die verschlüsselte Verbindung zu {host} scheitert am Zertifikat. Prüfe die Adresse und das Zertifikat. Hast du es selbst ausgestellt, trag dein Stammzertifikat unter Einstellungen → Experte → Verbindungen im Heimnetz ein."
     }
   },
   "login": {
@@ -4974,7 +5055,8 @@
     "noHeatMeter": "Für die Jahresarbeitszahl braucht es einen Wärmezähler der Wärmepumpe: Heizwärme-Zähler mit der Rolle „Wärmemenge der Wärmepumpe“, verknüpft mit diesem Stromzähler.",
     "notLinked": "Der Wärmezähler ist noch mit keinem Stromzähler der Wärmepumpe verknüpft (Zählerdialog).",
     "noOverlap": "In diesem Jahr gibt es keinen Monat, in dem Wärme- und Stromzähler beide Werte haben.",
-    "reference": "Zur Einordnung: Feldtest „WP-QS im Bestand“ (Fraunhofer ISE, 2025) — Luft/Wasser im Mittel {air}, Sole/Wasser {ground}. Ob der Heizstab und das Warmwasser mitzählen, hängt davon ab, wo die Zähler sitzen."
+    "reference": "Zur Einordnung: Feldtest „WP-QS im Bestand“ (Fraunhofer ISE, 2025) — Luft/Wasser im Mittel {air}, Sole/Wasser {ground}. Ob der Heizstab und das Warmwasser mitzählen, hängt davon ab, wo die Zähler sitzen.",
+    "cascadeEstimated": "≈: In diesen Monaten ist der Sonnenstrom der Wärmepumpe nicht gemessen (verteilte Ablesungen in der Kaskade). Eine Arbeitszahl je Monat steht dort nicht; die Jahresarbeitszahl rechnet über alle Monate."
   },
   "pv": {
     "battery": {
@@ -4998,7 +5080,20 @@
     "plugIn": {
       "assumed": "Balkonkraftwerk: Eigenverbrauch angenommen mit {pct} % der Erzeugung (Einstellungen)."
     },
-    "hint51": "In Betrieb seit dem 25.02.2025: Für Zeiten mit negativem Börsenpreis gibt es keine Einspeisevergütung – unter 100 kW ab dem Jahr nach dem Einbau eines intelligenten Messsystems (§ 51 EEG). Zum Teil ausgeglichen wird das durch eine längere Förderdauer."
+    "hint51": "In Betrieb seit dem 25.02.2025: Für Zeiten mit negativem Börsenpreis gibt es keine Einspeisevergütung – unter 100 kW ab dem Jahr nach dem Einbau eines intelligenten Messsystems (§ 51 EEG). Zum Teil ausgeglichen wird das durch eine längere Förderdauer.",
+    "cascade": {
+      "title": "Sonnenstrom je Strang {year}",
+      "hint": "Selbst genutzt, aus den Einspeisezählwerken der Zähler hintereinander: Was ein Zähler weiter hinten mehr zurückzählt als der Zähler davor, hat der Strang dazwischen selbst verbraucht.",
+      "months": {
+        "one": "Gerechnet aus {n} Monat mit allen drei Zählwerken.",
+        "other": "Gerechnet aus {n} Monaten mit allen drei Zählwerken."
+      },
+      "inconsistent": "In {list} zählte ein Zähler weiter vorn mehr zurück als der Zähler dahinter. Bitte die Ablesungen prüfen.",
+      "estimated": {
+        "one": "Davon ist {n} Monat aus verteilten Ablesungen, die Aufteilung auf die Stränge ist dort geschätzt.",
+        "other": "Davon sind {n} Monate aus verteilten Ablesungen, die Aufteilung auf die Stränge ist dort geschätzt."
+      }
+    }
   },
   "comparison": {
     "title": "Einordnung {year}",
@@ -5110,7 +5205,9 @@
       "even": "ziemlich genau ausgeglichen",
       "text": "Bis zur Abrechnung am {date} zahlst du {paid} Abschläge; Verbrauch und Grundpreis kosten voraussichtlich {cost}. Das ergibt {result}.",
       "uncertain": "je nach Schätzung zwischen {low} und {high}",
-      "costRange": "{low} bis {high}"
+      "costRange": "{low} bis {high}",
+      "withBand": "{result} ({band})",
+      "settledWith": "Darin steckt der Vertrag vom {from} bis {until} derselben Abrechnung mit {balance}."
     },
     "energy": {
       "title": "Energiefluss im Haus",
@@ -5308,7 +5405,9 @@
         "heatPump": "Wärmepumpe oder Wallbox: die Bestätigung des Sondertarifs"
       },
       "docsReader": "Zum Auslesen braucht es einen Dienst – im Heimnetz oder in der Cloud. Richte ihn gleich hier ein; ablegen kannst du auch vorher schon.",
-      "docsReaderMember": "Zum Auslesen braucht es einen Dienst; einrichten kann ihn ein Verwalter. Ablegen kannst du schon jetzt."
+      "docsReaderMember": "Zum Auslesen braucht es einen Dienst; einrichten kann ihn ein Verwalter. Ablegen kannst du schon jetzt.",
+      "saldo": "Mit Zählerständen und einem Vertrag mit Abschlag zeigt jede Verbrauchsart ihren Saldo: gemessen bis zur letzten Ablesung, geschätzt bis heute und erwartet zur Abrechnung.",
+      "saldoDemo": "Auf der Seite jeder Verbrauchsart steht der Saldo: gemessen bis zur letzten Ablesung, geschätzt bis heute und erwartet zur Abrechnung."
     },
     "skip": "Überspringen",
     "back": "Zurück",
@@ -5824,7 +5923,8 @@
     },
     "dashboard": {
       "window": "Abrechnungsjahr {name}: {from} bis {until}",
-      "costSub": "Abschläge bisher {advances}"
+      "costSub": "Abschläge bisher {advances}",
+      "windowUnnamed": "Abrechnungsjahr {from} bis {until}"
     },
     "analysis": {
       "title": "Abrechnungsjahre im Vergleich"
@@ -5902,7 +6002,7 @@
     },
     "model": {
       "label": "Prognosemodell",
-      "standard": "Witterungsbereinigt (Prognose)",
+      "standard": "Wie die Saldo-Karte (kalibriert)",
       "last_year": "Wie im Vorjahr",
       "trend": "Trend fortgeschrieben",
       "unavailable": "zu wenig Daten (zwei volle Jahre nötig)"
@@ -6348,7 +6448,9 @@
       "reading_old_estimated": "Anfangsstand geschätzt",
       "water_prices": "Wasserpreise",
       "advance_new_dates": "Termine des neuen Abschlags",
-      "advance_new_every": "Rhythmus des neuen Abschlags"
+      "advance_new_every": "Rhythmus des neuen Abschlags",
+      "invoice_number": "Rechnungsnummer",
+      "corrects_invoice": "Bezug auf frühere Rechnung"
     },
     "reason": {
       "empty": "Fehlt, wird aber gebraucht",
@@ -6441,7 +6543,9 @@
       "contractSpanFromInvoice": "Vertrag {provider} vom {from} bis {to} aus dieser Rechnung anlegen",
       "waterWorking": "{section} ab {from}: {value} (aus der Rechnung)",
       "waterBase": "Grundpreis {section} ab {from}: {value} pro Monat (aus der Rechnung)",
-      "waterRate": "{section} ab {from}: {value} je m² und Jahr für {area} m² (aus der Rechnung)"
+      "waterRate": "{section} ab {from}: {value} je m² und Jahr für {area} m² (aus der Rechnung)",
+      "billCorrection": "Rechnungskorrektur {from} bis {to} übernehmen: {result} statt {before}",
+      "billRebook": "Buchung ersetzen: {result} statt {before}"
     },
     "detail": {
       "reading": "Erfasst ist {counter}.",
@@ -6456,14 +6560,18 @@
       "serial": "Eingebaut ist Zähler {serial}.",
       "readingReported": "Dein Stand vom {date} ({counter}): Der Versorger datiert den gemeldeten Stand auf das Ende des Zeitraums.",
       "readingBelow": "Liegt unter deinem Stand {counter} vom {date}.",
-      "readingAbove": "Liegt über deinem Stand {counter} vom {date}."
+      "readingAbove": "Liegt über deinem Stand {counter} vom {date}.",
+      "readingBefore": "Dein Stand vom {date} ({counter}) ist derselbe: Der Anfangsstand der Rechnung ist deine Ablesung davor.",
+      "billCorrected": "Erfasst ist eine frühere Fassung über {amount}. Ihre Werte werden ersetzt, das frühere Dokument bleibt als Beleg.",
+      "billBooked": "Gebucht ist bisher: {before}."
     },
     "pstatus": {
       "new": "neu",
       "exists": "schon vorhanden",
       "conflict": "Widerspruch",
       "overlap": "Überschneidung",
-      "check": "prüfen"
+      "check": "prüfen",
+      "replaces": "ersetzt"
     },
     "applyButton": {
       "one": "{count} Änderung übernehmen",
@@ -6505,7 +6613,9 @@
         "offQuantity": "Der Verbrauch auf der Abrechnung weicht um {pct} % von deinen Zählerständen ab.",
         "noCompare": "Die Abrechnung nennt weder Verbrauch noch Betrag – es gibt nichts zu vergleichen.",
         "noPrices": "Die Abrechnung {from} bis {to}: Im Vertrag fehlen Preise – den Betrag kann die App nicht nachrechnen.",
-        "offQuantityNoPrices": "Der Verbrauch auf der Abrechnung weicht um {pct} % von deinen Zählerständen ab, und im Vertrag fehlen Preise – den Betrag kann die App nicht nachrechnen."
+        "offQuantityNoPrices": "Der Verbrauch auf der Abrechnung weicht um {pct} % von deinen Zählerständen ab, und im Vertrag fehlen Preise – den Betrag kann die App nicht nachrechnen.",
+        "correction": "Rechnungskorrektur {from} bis {to}: Sie ersetzt die erfasste Rechnung, das Ergebnis wird {result} statt {balance}. Übernimm sie, dann prüft die App sie gegen deine Daten.",
+        "correctionBooked": "Rechnungskorrektur {from} bis {to}: Sie ersetzt die erfasste und gebuchte Rechnung, das Ergebnis wird {result} statt {balance}, und die Buchung ändert sich mit. Übernimm sie, dann prüft die App sie gegen deine Daten."
       },
       "advance": {
         "ok": "Der neue Abschlag von {amount} passt zu deinem Verbrauch.",
@@ -7082,7 +7192,9 @@
       "other": "An {days} Tagen fehlt ein Stand des Subzählers. Dort rechnet dieser Vertrag alles."
     },
     "short": "In einzelnen Monaten misst der Subzähler mehr als der Zähler davor ({kwh}). Bitte die Ablesungen prüfen. Ein Rest unter null wird nicht berechnet.",
-    "contractHint": "„{parent}“ misst „{name}“ mit. Mit einem eigenen Vertrag rechnet der Vertrag von „{parent}“ ab dessen Beginn nur noch den Rest: gemessen dort minus „{name}“."
+    "contractHint": "„{parent}“ misst „{name}“ mit. Mit einem eigenen Vertrag rechnet der Vertrag von „{parent}“ ab dessen Beginn nur noch den Rest: gemessen dort minus „{name}“.",
+    "registerPart": "{name} {rest} = {measured} − {deducted}",
+    "formulaRegisters": "{rest}, je Zählwerk {parts}"
   },
   "concept": {
     "slotName": {
@@ -7099,7 +7211,8 @@
       "feed": "Einspeisung",
       "gen": "PV-Erzeugung",
       "bat_in": "Speicher Ladung",
-      "bat_out": "Speicher Entladung"
+      "bat_out": "Speicher Entladung",
+      "feed_house": "Einspeisung Haushalt"
     },
     "regShort": {
       "ht": "HT",
@@ -7164,7 +7277,8 @@
       "batteryHint": "Ladung und Entladung des Speichers, oft aus dem Wechselrichter.",
       "installedOn": "Eingebaut am",
       "installedHint": "Leer: ab Beginn seines Vertrags, sonst ab heute.",
-      "initialCounter": "Stand beim Einbau"
+      "initialCounter": "Stand beim Einbau",
+      "cascadeFeedHint": "Das Einspeisezählwerk von „{name}“: gleiche Zählernummer, eigener Zähler unter Einspeisung. Es zählt nicht als Einspeisung ins Netz. Aus den Differenzen rechnet die App den Sonnenstrom, den jeder Strang selbst nutzt."
     },
     "contracts": {
       "title": "Welche Verträge gibt es?",
@@ -7199,7 +7313,8 @@
       "restFrom": "Ab {date} rechnet der Vertrag von „{parent}“ nur noch den Rest: gemessen dort minus „{sub}“.",
       "restFromPast": "Rückwirkend ab {date} rechnet der Vertrag von „{parent}“ nur noch den Rest: gemessen dort minus „{sub}“. Kosten, Saldo und Abschlagsvorschlag dieses Vertrags ändern sich damit auch für die Monate seit {date}.",
       "beforeInstall": "„{name}“ ist erst ab {installed} eingebaut, sein Vertrag beginnt schon am {start}. Bis zum Einbau zieht die App nichts ab.",
-      "detailInstalled": "eingebaut am {date}"
+      "detailInstalled": "eingebaut am {date}",
+      "detailCascade": "Einspeisezählwerk von {name}"
     },
     "done": "Messkonzept eingerichtet. Als Nächstes: den ersten Stand je Zähler erfassen.",
     "entry": {
@@ -7279,5 +7394,17 @@
       "textOther": "Ab diesem Tag rechnen Prognose und Vergleiche nur mit der Zeit danach. Vorbelegt ist das Ende der auffälligen Zeit. Kennst du den Tag der Änderung (etwa den Einzug), trag ihn ein."
     },
     "adviceOther": "Das sieht nach einer echten Änderung aus (etwa Einzug, Leerstand, Umbau oder ein anderes Gerät), nicht nach einem Ablesefehler. Eine Analyse-Zäsur trennt die Zeit davor ab: Prognose und Vergleiche rechnen dann mit dem heutigen Verbrauch."
+  },
+  "thanks": {
+    "off": "Nicht mehr zeigen",
+    "offDone": "Der Hinweis erscheint nicht mehr. In den Einstellungen kannst du ihn wieder einschalten."
+  },
+  "balanceBand": {
+    "short": "je nach Wetter und Schätzung {range}",
+    "shortNoWeather": "je nach Schätzung {range}",
+    "sentence": "Je nach Wetter und Schätzung zwischen {low} und {high}.",
+    "sentenceNoWeather": "Je nach Schätzung zwischen {low} und {high}.",
+    "shortFew": "zu wenige gemessene Monate, je nach Schätzung {range}",
+    "sentenceFew": "Zu wenige gemessene Monate, je nach Schätzung zwischen {low} und {high}."
   }
 }

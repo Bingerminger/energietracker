@@ -151,6 +151,18 @@ globalThis.fetch = async (url, init) => {
     sum.summary_version === 1 && /^et_[0-9a-f]{16}$/.test(sum.instance_id || '') && sm && 'contract' in sm
       && 'forecast_12m' in sm && 'days_since_reading' in sm && typeof sum.agenda?.due === 'number',
     `${(sum.meters || []).length} Zähler`);
+  // v3.10.0 — die Einsteiger-Übersicht liest dieselbe Breite und Summe wie die Saldo-Karte (eine Quelle)
+  const smc = (sum.meters || []).map(m => m.contract).filter(Boolean);
+  check('GET /api/summary → contract.projection_band, balance_measured, settle_balance, settle_range',
+    // v3.10.0 (Skeptiker M3, N9) — für Home Assistant: gemessener Saldo und Spanne als eigene Felder
+    smc.length > 0 && smc.every(c => ['projection_band', 'balance_measured', 'settle_balance', 'settle_range', 'measured_balance', 'measured_until',
+      'projected_end_range_total'].every(k => k in c)),
+    `${smc.length} Verträge`);
+  // v3.10.0 (Nachtrag) — Attribut des Saldo-Sensors in Home Assistant: immer gefüllt, wo es einen erwarteten Saldo gibt
+  check('GET /api/summary → contract.projected_end_balance_total (Summe, sonst projected_end_balance)',
+    smc.every(c => 'projected_end_balance_total' in c
+      && c.projected_end_balance_total === (c.settle_balance ?? c.projected_end_balance ?? null)),
+    smc.map(c => `${c.projected_end_balance}/${c.settle_balance}/${c.projected_end_balance_total}`).join(' '));
   const ics = await fetch(`${BASE}/api/calendar.ics`);
   const icsBody = await ics.text();
   check('GET /api/calendar.ics → text/calendar, BEGIN:VCALENDAR',
@@ -790,6 +802,14 @@ globalThis.fetch = async (url, init) => {
         && !!curC && (curC.projection_uncertain === null
           || (Array.isArray(curC.projection_uncertain.reasons) && curC.projection_uncertain.projected_range?.length === 2 && curC.suggested_advance === null)),
       JSON.stringify(curC?.projection_uncertain ?? null));
+    // v3.10.0 (#49) — gemessener Saldo: die Felder, die Saldo-Karte und Übersicht lesen; endet an der letzten
+    // Ablesung, Teile ergeben die Summe
+    const bm = curC?.balance_measured;
+    check('contract-status(gas): balance_measured {from, until, energy_cost, base, bonus, cost, advance, special_net, balance}',
+      !!curC && 'balance_measured' in curC && (bm === null || (['from', 'until', 'energy_cost', 'base', 'bonus', 'cost', 'advance', 'special_net', 'balance'].every(k => k in bm)
+        && bm.until <= curC.balance_as_of && bm.until === (curC.measured_until < curC.balance_as_of ? curC.measured_until : curC.balance_as_of)
+        && Math.abs(bm.energy_cost + bm.base - bm.bonus - bm.cost) < 0.02 && Math.abs(bm.cost - bm.advance + bm.special_net - bm.balance) < 0.02)),
+      JSON.stringify(bm ?? null));
     // v3.4.0 (F1026) — Zeitstrahl: Mindestlaufzeit, Preisgarantie, Verlängerung
     check('contract-status(gas): min_term_end, price_guarantee_until, auto_renews (bool)',
       (cs.contracts || []).every(c => 'min_term_end' in c && 'price_guarantee_until' in c && typeof c.auto_renews === 'boolean'),

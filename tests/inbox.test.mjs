@@ -230,6 +230,21 @@ console.log('Vertrag aus der Rechnung (vertrag-aus-rechnung)');
   t('Abschlagsänderung mit Rhythmus', /, alle 2 Monate, am 15\.05\.2026$/.test(adv), adv);
   const rep = I.detailText({ kind: 'reading', detail: { reported_on: '2026-07-20', counter: 1210 } }, { unit: 'm³' });
   t('Stand: dein gemeldeter Stand, auf das Zeitraumende datiert', rep === 'Dein Stand vom 20.07.2026 (1.210 m³): Der Versorger datiert den gemeldeten Stand auf das Ende des Zeitraums.', rep);
+  // v3.10.0 — Rechnungskorrektur: Werte und Buchung ersetzen, mit dem bisherigen Ergebnis (0 € ist ein Ergebnis)
+  const corr = sp(I.proposalText({ kind: 'bill', label_key: 'inbox.proposal.billCorrection', params: { from: '2025-01-01', to: '2025-12-31', result: -30, before: 30 } }));
+  t('Rechnungskorrektur: neues Ergebnis statt des bisherigen', corr === 'Rechnungskorrektur 01.01.2025 bis 31.12.2025 übernehmen: Guthaben 30,00 € statt Nachzahlung 30,00 €', corr);
+  const rebook = sp(I.proposalText({ kind: 'bill_book', label_key: 'inbox.proposal.billRebook', params: { result: 0, before: 30 } }));
+  t('Buchung ersetzen: auf 0 €', rebook === 'Buchung ersetzen: 0,00 € statt Nachzahlung 30,00 €', rebook);
+  const corrDetail = sp(I.detailText({ kind: 'bill', replaces: true, detail: { bill_id: 'b1', invoice: { amount_eur: 870 } } }));
+  t('Rechnungskorrektur: die erfasste Fassung bleibt als Beleg', corrDetail === 'Erfasst ist eine frühere Fassung über 870,00 €. Ihre Werte werden ersetzt, das frühere Dokument bleibt als Beleg.', corrDetail);
+  const bookedDetail = sp(I.detailText({ kind: 'bill_book', detail: { bill_id: 'b1', special_payment_id: 'sp1', before: 30 } }));
+  t('Buchung ersetzen: was bisher gebucht ist', bookedDetail === 'Gebucht ist bisher: Nachzahlung 30,00 €.', bookedDetail);
+  // v3.10.0 (Skeptiker N7) — Kernaussage einer Rechnungskorrektur, auch auf 0 € (weder Nachzahlung noch Guthaben)
+  const kg = sp(I.gistLine('inbox.gist.invoice.correction', { from: '2025-01-01', to: '2025-12-31', balance: 30, result: 0 }));
+  t('Kernaussage Rechnungskorrektur: ersetzt, Zeitraum, Ergebnis 0,00 € statt Nachzahlung', kg.startsWith('Rechnungskorrektur 01.01.2025 bis 31.12.2025: Sie ersetzt die erfasste Rechnung, das Ergebnis wird 0,00 € statt Nachzahlung 30,00 €.'), kg);
+  // v3.10.0 — Anfangsstand der Rechnung = deine Ablesung am Vortag
+  const before = I.detailText({ kind: 'reading', detail: { same_on: '2024-12-31', counter: 1000 } }, { unit: 'm³' });
+  t('Anfangsstand: dein Stand vom Vortag ist derselbe', before === 'Dein Stand vom 31.12.2024 (1.000 m³) ist derselbe: Der Anfangsstand der Rechnung ist deine Ablesung davor.', before);
   const below = I.detailText({ kind: 'reading', detail: { neighbor: { side: 'prev', date: '2026-07-30', counter: 1212 } } }, { unit: 'm³' });
   t('Stand: liegt unter deinem Stand (mit Tag)', below === 'Liegt unter deinem Stand 1.212 m³ vom 30.07.2026.', below);
   // Skeptiker H2, N15, N8 — gezahlte Abschläge im Vorschlag, Name im Bestand, „kein Vertrag“ statt 0,00 €

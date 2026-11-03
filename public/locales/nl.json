@@ -137,7 +137,8 @@
       },
       "certificateApprox": "Gerekend op onderste verbrandingswaarde (benadering, het label vraagt de bovenste): {fuels}.",
       "certificateUpcoming": "Vanaf {date} volgt het verbruikslabel een nieuwe methode (§ 82 GModG): {basis}, toeslag warm water {dhw} in plaats van {dhwOld} kWh/m²·j, gegevens over {required} in plaats van {requiredOld} maanden. Dat geeft dan {value} kWh/m²·j{cls}.",
-      "incompleteFor": "{names}: voor {year} zijn er geen gegevens over het hele jaar, dus geen klasse. Het kengetal geldt alleen voor de gemeten periode."
+      "incompleteFor": "{names}: voor {year} zijn er geen gegevens over het hele jaar, dus geen klasse. Het kengetal geldt alleen voor de gemeten periode.",
+      "gridOnly": "Warmtepomp: alleen stroom van het net. Seizoensprestatiefactor en energiestroom tellen de zelf verbruikte zonnestroom mee, de efficiëntie niet."
     },
     "tanks": { "title": "Tankniveaus" },
     "stromSaldo": {
@@ -184,9 +185,13 @@
       "feedIn": "Teruglevering (laatste 12 maanden)",
       "generation": "Opwek (laatste 12 maanden)",
       "revenue": "Vergoeding (laatste 12 maanden)",
-      "revenueSub": "opbrengst uit teruglevering"
+      "revenueSub": "opbrengst uit teruglevering",
+      "consumptionSoFar": "Verbruik (afrekenjaar tot nu toe)",
+      "costSoFar": "Kosten (afrekenjaar tot nu toe)",
+      "consumptionPeriod": "Verbruik (afrekenjaar)",
+      "costPeriod": "Kosten (afrekenjaar)"
     },
-    "trend": { "vsPrev": "{span} vergeleken met dezelfde maanden een jaar eerder", "moreThanPrev": "{pct}% meer: {span} vergeleken met dezelfde maanden een jaar eerder", "lessThanPrev": "{pct}% minder: {span} vergeleken met dezelfde maanden een jaar eerder" },
+    "trend": { "vsPrev": "{span} vergeleken met dezelfde maanden een jaar eerder", "moreThanPrev": "{pct}% meer: {span} vergeleken met dezelfde maanden een jaar eerder", "lessThanPrev": "{pct}% minder: {span} vergeleken met dezelfde maanden een jaar eerder", "vsPrevPeriod": "{span} vergeleken met {prev} in het vorige afrekenjaar", "moreThanPrevPeriod": "{pct}% meer: {span} vergeleken met {prev} in het vorige afrekenjaar", "lessThanPrevPeriod": "{pct}% minder: {span} vergeleken met {prev} in het vorige afrekenjaar", "vsCalendarDays": "{span} vergeleken met dezelfde kalenderdagen een jaar eerder ({prev})", "moreThanCalendarDays": "{pct}% meer: {span} vergeleken met dezelfde kalenderdagen een jaar eerder ({prev})", "lessThanCalendarDays": "{pct}% minder: {span} vergeleken met dezelfde kalenderdagen een jaar eerder ({prev})", "check": "Meterstand controleren", "checkLabel": "Sterk veranderd, meer dan het dubbele of minder dan de helft van de vergelijkingsperiode: controleer de meterstand" },
     "allRecommendations": "Alle aanbevelingen",
     "todo": {
       "title": "Te doen",
@@ -409,7 +414,6 @@
       "co2AvoidedSub": "{tons} t minder dan zonder PV",
       "co2": "🌍 CO₂ {year}",
       "co2Sub": "{tons} t",
-      "advancesUntil": "💰 Voorschotten t/m {date}",
       "balanceShort": "Saldo: {value}",
       "generation": "Opwekking",
       "daysCount": {
@@ -418,7 +422,9 @@
       },
       "noContract": "geen contract",
       "noContractHint": "Met een contract rekent de app de kosten.",
-      "billed": "afgerekend {value} (rest)"
+      "billed": "afgerekend {value} (rest)",
+      "advancesSpan": "💰 Voorschotten {from} tot {date}",
+      "balanceOnCard": "Saldo: zie de saldokaart, die telt vanaf {date}."
     },
     "cards": {
       "contracts": "📑 Contracten en voorschotten",
@@ -526,6 +532,28 @@
       "band": {
         "one": "Afhankelijk van het weer en de schatting {range} ({level}, {count} dag geschat).",
         "other": "Afhankelijk van het weer en de schatting {range} ({level}, {count} dagen geschat)."
+      },
+      "suggestShortCredit": {
+        "one": "Tot de afrekening op {date} rest nog maar {count} voorschot. De afrekening betaalt het tegoed terug, dus het voorschot hoeft nu niet omlaag.",
+        "other": "Tot de afrekening op {date} resten nog maar {count} voorschotten. De afrekening betaalt het tegoed terug, dus het voorschot hoeft nu niet omlaag."
+      },
+      "measuredSpan": "Gemeten van {from} tot de laatste meterstand op {until}.",
+      "colConsumedUntil": "Verbruikt tot {date}",
+      "colPaidUntil": "Voorschotten tot {date}",
+      "settleWith": "‘Verwacht bij eindafrekening’ telt ook het contract van {from} tot {until} mee: {balance}. Dezelfde afrekening rekent beide af.",
+      "bandNoWeather": {
+        "one": "Afhankelijk van de schatting {range} ({level}, {count} dag geschat).",
+        "other": "Afhankelijk van de schatting {range} ({level}, {count} dagen geschat)."
+      },
+      "measuredAllContracts": "alle contracten van deze afrekening",
+      "estimateTodayParts": "Geschat tot vandaag: {balance}. Sinds de meterstand op {date}: verbruik {energy} (geschat) en vastrecht {base}, tegenover voorschotten van {advance}.",
+      "estimateTodayRefund": "Daarbij een terugbetaling van {value}.",
+      "estimateTodayPaid": "Daarbij extra betalingen van {value}.",
+      "colBalanceAt": "Saldo op {date}",
+      "colBalanceEstimated": "Saldo vandaag (geschat)",
+      "bandFew": {
+        "one": "Te weinig gemeten maanden, afhankelijk van de schatting {range} ({level}, {count} dag geschat).",
+        "other": "Te weinig gemeten maanden, afhankelijk van de schatting {range} ({level}, {count} dagen geschat)."
       }
     },
     "contractsTable": {
@@ -1200,7 +1228,8 @@
         "other": "{count} apparaten"
       },
       "periodTag": "per periode",
-      "obis": "Telwerk {obis}"
+      "obis": "Telwerk {obis}",
+      "cascade": "Telwerk in de cascade"
     },
     "modal": {
       "titleEdit": "Meter bewerken",
@@ -1418,6 +1447,12 @@
       "suggest": "Voorstel uit de gemeten maanden: {best} °C. Een maand wijkt dan doorgaans {then} van een gemiddelde maand af in plaats van {now}.",
       "use": "{value} °C invullen",
       "invalid": "Graaddagen-basistemperatuur tussen {min} en {max} °C, of leeg laten"
+    },
+    "cascade": {
+      "title": "Teruglevering in de cascade",
+      "label": "Terugleveringstelwerk van",
+      "none": "Netaansluiting (teruglevering aan het net)",
+      "hint": "Hangen meters achter elkaar en telt ook een meter verder achter terug (2.8.0), kies dan hier die meter. Het terugleveringstelwerk telt niet als teruglevering aan het net. Uit de verschillen berekent de app hoeveel zonnestroom elke tak zelf verbruikt."
     }
   },
   "settings": {
@@ -1430,7 +1465,8 @@
       "evccEndpoint": "http://192.168.178.30:7070",
       "allowedHosts": "energie.example.org, *.home.arpa",
       "inboxModel": "qwen3.8",
-      "envName": "bijv. TEST"
+      "envName": "bijv. TEST",
+      "homeCaPem": "-----BEGIN CERTIFICATE-----"
     },
     "loading": "Laden…",
     "saved": "Instellingen opgeslagen",
@@ -1518,6 +1554,14 @@
       "environment": {
         "title": "Omgeving",
         "hint": "Wie meerdere installaties gebruikt (test, huis, vakantiewoning), ziet naast het logo in welke hij zit."
+      },
+      "homeTls": {
+        "title": "Verbindingen in het thuisnetwerk",
+        "hint": "Voor Home Assistant, tekstherkenning, uitlezen in het thuisnetwerk en evcc via https:// met certificaten die je zelf hebt uitgegeven. Andere verbindingen controleren nog steeds alleen met de gebruikelijke basiscertificaten."
+      },
+      "thanks": {
+        "title": "Steunen",
+        "hint": "Heeft de app je net geholpen, dan verschijnt af en toe een kleine regel met een link om hem te steunen. Hooguit één keer per kwartaal per apparaat, nooit in de demo, nooit als venster dat iets afdekt."
       }
     },
     "field": {
@@ -1711,6 +1755,18 @@
       "env_name": {
         "label": "Naam van de omgeving",
         "hint": "Tot 12 tekens, verschijnt als badge naast het logo. Leeg: geen badge."
+      },
+      "home_ca_pem": {
+        "label": "Eigen basiscertificaat (PEM)",
+        "hint": "Het basiscertificaat waarmee je je eigen certificaten uitgeeft, vanaf <code>-----BEGIN CERTIFICATE-----</code>. Het geldt naast de gebruikelijke basiscertificaten, de controle blijft aan. Alleen het certificaat, nooit de privésleutel. Een bestand in de container kan ook: <code>ET_CA_FILE</code>."
+      },
+      "home_tls_insecure": {
+        "label": "Certificaten in het thuisnetwerk niet controleren",
+        "hint": "Alleen als noodoplossing. Zonder controle kan iedereen die zich in het netwerk ertussen plaatst meelezen, ook de token voor Home Assistant. Werkt alleen voor adressen in het thuisnetwerk, nooit voor adressen op internet. Beter: je eigen basiscertificaat invullen."
+      },
+      "support_hint": {
+        "label": "Melding over steunen tonen",
+        "hint": "Nadat ‘Rekening controleren’ een afwijking heeft gevonden, na een termijn die je vóór de vervaldatum hebt afgehandeld en als het jaarverslag klaar is."
       }
     },
     "boolActive": "aan",
@@ -1875,7 +1931,9 @@
         "todoDateName": "Energietracker volgend punt uiterlijk",
         "webhookAlias": "Energietracker: melding doorgeven",
         "webhookIdComment": "eigen ID die niet te raden is",
-        "notifyComment": "of notify.mobile_app_… voor je telefoon"
+        "notifyComment": "of notify.mobile_app_… voor je telefoon",
+        "todoUpcomingName": "Energietracker volgende afspraak",
+        "todoUpcomingDateName": "Energietracker volgende afspraak op"
       },
       "lastUsed": "Laatst gebruikt: {when}",
       "neverUsed": "Met dit token is nog niets binnengekomen.",
@@ -1922,7 +1980,15 @@
       "tempStored": {
         "one": "<strong>{count}</strong> dagwaarde opgeslagen.",
         "other": "<strong>{count}</strong> dagwaarden opgeslagen."
-      }
+      },
+      "homeCa": "Eigen basiscertificaten",
+      "homeCaCount": {
+        "one": "{count} certificaat",
+        "other": "{count} certificaten"
+      },
+      "homeCaFileUnreadable": "ET_CA_FILE niet leesbaar",
+      "homeCaFileInvalid": "ET_CA_FILE zonder certificaat",
+      "homeTlsInsecure": "controle in het thuisnetwerk uit"
     },
     "gasFactors": {
       "none": "Nog geen item — de standaardfactor geldt.",
@@ -2503,7 +2569,8 @@
       },
       "r4": {
         "title": "{label} {ym}: statistische afwijking",
-        "detail": "Het verbruik in {ym} ligt duidelijk boven wat voor deze maand gebruikelijk is ({sigma}σ). Het bekijken waard."
+        "detail": "Het verbruik in {ym} ligt duidelijk boven wat voor deze maand gebruikelijk is ({sigma}σ). Het bekijken waard.",
+        "rest": "Gecontroleerd is het eigen verbruik van deze meter, zonder {names}."
       },
       "r5": {
         "title": "{label}: tank op {pct}%",
@@ -2942,7 +3009,10 @@
     "balanceCardNote": {
       "one": "· De kolom ‘Saldo’ hieronder telt alleen de {count} prognosemaand vanaf {month}, zonder het saldo tot nu toe.",
       "other": "· De kolom ‘Saldo’ hieronder telt alleen de {count} prognosemaanden vanaf {month}, zonder het saldo tot nu toe."
-    }
+    },
+    "calibrationNote": "De maandhoeveelheden hier zijn die van de prognose. De saldokaart en de werkplaats schatten met het niveau van de laatste gemeten maanden (kalibratiefactor), ongeveer {pct} {direction}; daarom wijken hun maandkosten af.",
+    "calibrationMore": "meer",
+    "calibrationLess": "minder"
   },
   "report": {
     "createdOn": "Gemaakt op {date}",
@@ -3146,7 +3216,8 @@
       "yearIncomplete": {
         "one": "Van {year} is pas {count} van de 12 maanden geregistreerd. De vergelijking met {prev} volgt zodra het jaar compleet is.",
         "other": "Van {year} zijn pas {count} van de 12 maanden geregistreerd. De vergelijking met {prev} volgt zodra het jaar compleet is."
-      }
+      },
+      "billingBand": "{label}: bij de afrekening waarschijnlijk tussen {low} en {high}."
     },
     "euro": {
       "saves": {
@@ -3679,7 +3750,8 @@
       "valueInvalid": "{field}: ‘{value}’ is geen geldige waarde",
       "idInvalid": "Ongeldige id ‘{id}’ – toegestaan zijn letters, cijfers, _ en - (hoogstens 64 tekens).",
       "serialSet": "Het apparaat heeft al nummer {serial}. Een andere meter is een meterwissel.",
-      "obisInvalid": "Telwerk ‘{value}’ is geen OBIS-code. Voorbeelden: 1.8.0, 1.8.1, 2.8.0 of 1-0:1.8.0."
+      "obisInvalid": "Telwerk ‘{value}’ is geen OBIS-code. Voorbeelden: 1.8.0, 1.8.1, 2.8.0 of 1-0:1.8.0.",
+      "cascadeLinkInvalid": "Meter ‘{id}’ is geen stroommeter achter een andere meter"
     },
     "common": {
       "unknownUtility": "Onbekende verbruikssoort: {utility}",
@@ -3810,7 +3882,9 @@
       "factorMissing": "Een item heeft óf volumeherleidingsfactor en calorische waarde nodig, óf een factor in kWh/m³",
       "factorOutOfRange": "Omrekeningsfactor {value} is onwaarschijnlijk — verwacht wordt 5 tot 15 kWh/m³",
       "valueInvalid": "Ongeldige waarde ‘{value}’ voor {key}",
-      "hostNotListed": "De hostlijst moet de naam bevatten waaronder je de app nu opent (‘{host}’) – anders sluit je jezelf buiten."
+      "hostNotListed": "De hostlijst moet de naam bevatten waaronder je de app nu opent (‘{host}’) – anders sluit je jezelf buiten.",
+      "caInvalid": "Dit is geen leesbaar certificaat. Verwacht wordt PEM-tekst van -----BEGIN CERTIFICATE----- tot -----END CERTIFICATE-----.",
+      "caPrivateKey": "De tekst bevat een privésleutel. Vul alleen het certificaat in, de sleutel hoort hier niet."
     },
     "billCheck": {
       "gasOnly": "De factuurcontrole is alleen beschikbaar voor gas",
@@ -4036,6 +4110,13 @@
       "meterUnknown": "De meter ‘{id}’ bestaat niet.",
       "meterTwice": "De meter ‘{id}’ is aan twee plaatsen toegewezen. Elke meter staat maar één keer in het schema.",
       "chain": "‘{name}’ heeft zelf tussenmeters en kan daarom niet achter een andere meter hangen."
+    },
+    "homeTls": {
+      "issuer": "Energietracker kent de uitgever van het certificaat van {host} niet. Heb je het zelf uitgegeven, vul dan je basiscertificaat in onder Instellingen → Expert → Verbindingen in het thuisnetwerk.",
+      "name": "Het certificaat van {host} past niet bij dit adres. Vul het adres in zoals het in het certificaat staat, bijvoorbeeld de naam in plaats van het IP-adres. Een eigen basiscertificaat helpt hier niet.",
+      "expired": "Het certificaat van {host} is verlopen of nog niet geldig. Vernieuw het daar of controleer de klok van beide apparaten.",
+      "file": "Energietracker kan de basiscertificaten niet lezen. Controleer het bestand uit ET_CA_FILE of een gekoppelde certificatenlijst: pad, inhoud en leesrechten. Instellingen → Systeem toont of ET_CA_FILE leesbaar is.",
+      "other": "De versleutelde verbinding met {host} mislukt door het certificaat. Controleer het adres en het certificaat. Heb je het zelf uitgegeven, vul dan je basiscertificaat in onder Instellingen → Expert → Verbindingen in het thuisnetwerk."
     }
   },
   "login": {
@@ -4974,7 +5055,8 @@
     "noHeatMeter": "Voor de seizoensprestatiefactor is een warmtemeter op de warmtepomp nodig: een warmtemeter met de rol ‘Warmte van de warmtepomp’, gekoppeld aan deze stroommeter.",
     "notLinked": "De warmtemeter is nog niet gekoppeld aan een stroommeter van de warmtepomp (meterdialoog).",
     "noOverlap": "Dit jaar is er geen maand waarin warmte- en stroommeter allebei waarden hebben.",
-    "reference": "Ter vergelijking: praktijktest ‘WP-QS im Bestand’ (Fraunhofer ISE, 2025) — lucht/water gemiddeld {air}, bodem/water {ground}. Of het verwarmingselement en warm water meetellen, hangt af van waar de meters zitten."
+    "reference": "Ter vergelijking: praktijktest ‘WP-QS im Bestand’ (Fraunhofer ISE, 2025) — lucht/water gemiddeld {air}, bodem/water {ground}. Of het verwarmingselement en warm water meetellen, hangt af van waar de meters zitten.",
+    "cascadeEstimated": "≈: in deze maanden is de zonnestroom van de warmtepomp niet gemeten (verdeelde standen in de cascade). Daar staat geen maandelijkse prestatiefactor; de seizoensprestatiefactor rekent over alle maanden."
   },
   "pv": {
     "battery": {
@@ -4998,7 +5080,20 @@
     "plugIn": {
       "assumed": "Plug-in-zonnepaneel: eigen verbruik aangenomen op {pct}% van de opwek (instellingen)."
     },
-    "hint51": "In bedrijf sinds 25-02-2025: geen terugleververgoeding voor periodes met een negatieve groothandelsprijs – onder 100 kW vanaf het jaar na plaatsing van een slimme meter (§ 51 EEG). Een langere subsidieduur compenseert dat deels."
+    "hint51": "In bedrijf sinds 25-02-2025: geen terugleververgoeding voor periodes met een negatieve groothandelsprijs – onder 100 kW vanaf het jaar na plaatsing van een slimme meter (§ 51 EEG). Een langere subsidieduur compenseert dat deels.",
+    "cascade": {
+      "title": "Zonnestroom per tak {year}",
+      "hint": "Zelf verbruikt, uit de terugleveringstelwerken van de meters achter elkaar: wat een meter verder achter meer terugtelt dan de meter ervoor, heeft de tak daartussen zelf verbruikt.",
+      "months": {
+        "one": "Berekend uit {n} maand met alle drie de telwerken.",
+        "other": "Berekend uit {n} maanden met alle drie de telwerken."
+      },
+      "inconsistent": "In {list} telde een meter verder vooraan meer terug dan de meter erachter. Controleer de standen.",
+      "estimated": {
+        "one": "Daarvan komt {n} maand uit verdeelde standen; de verdeling over de takken is daar geschat.",
+        "other": "Daarvan komen {n} maanden uit verdeelde standen; de verdeling over de takken is daar geschat."
+      }
+    }
   },
   "comparison": {
     "title": "Vergelijking {year}",
@@ -5110,7 +5205,9 @@
       "even": "vrijwel precies quitte",
       "text": "Tot de afrekening op {date} betaal je {paid} aan voorschotten; verbruik en vastrecht kosten naar verwachting {cost}. Dat geeft {result}.",
       "uncertain": "tussen {low} en {high}, afhankelijk van de schatting",
-      "costRange": "{low} tot {high}"
+      "costRange": "{low} tot {high}",
+      "withBand": "{result} ({band})",
+      "settledWith": "Daarin zit het contract van {from} tot {until} van dezelfde afrekening met {balance}."
     },
     "energy": {
       "title": "Energiestroom in huis",
@@ -5308,7 +5405,9 @@
         "heatPump": "Warmtepomp of laadpaal: de bevestiging van het speciale tarief"
       },
       "docsReader": "Uitlezen heeft een dienst nodig – in het thuisnetwerk of in de cloud. Stel die hier meteen in; opbergen kan ook al eerder.",
-      "docsReaderMember": "Uitlezen heeft een dienst nodig; een beheerder kan die instellen. Opbergen kan nu al."
+      "docsReaderMember": "Uitlezen heeft een dienst nodig; een beheerder kan die instellen. Opbergen kan nu al.",
+      "saldo": "Met meterstanden en een contract met voorschot toont elke verbruikssoort zijn saldo: gemeten tot de laatste meterstand, geschat tot vandaag en verwacht bij de eindafrekening.",
+      "saldoDemo": "De pagina van elke verbruikssoort toont het saldo: gemeten tot de laatste meterstand, geschat tot vandaag en verwacht bij de eindafrekening."
     },
     "skip": "Overslaan",
     "back": "Terug",
@@ -5824,7 +5923,8 @@
     },
     "dashboard": {
       "window": "Afrekenjaar {name}: {from} tot en met {until}",
-      "costSub": "Voorschotten tot nu toe {advances}"
+      "costSub": "Voorschotten tot nu toe {advances}",
+      "windowUnnamed": "Afrekenjaar {from} tot en met {until}"
     },
     "analysis": {
       "title": "Afrekenjaren vergeleken"
@@ -5902,7 +6002,7 @@
     },
     "model": {
       "label": "Prognosemodel",
-      "standard": "Weergecorrigeerd (prognose)",
+      "standard": "Zoals de saldokaart (gekalibreerd)",
       "last_year": "Zoals vorig jaar",
       "trend": "Trend doorgetrokken",
       "unavailable": "te weinig gegevens (twee volle jaren nodig)"
@@ -6348,7 +6448,9 @@
       "reading_old_estimated": "Beginstand geschat",
       "water_prices": "Waterprijzen",
       "advance_new_dates": "Vervaldata van het nieuwe voorschot",
-      "advance_new_every": "Ritme van het nieuwe voorschot"
+      "advance_new_every": "Ritme van het nieuwe voorschot",
+      "invoice_number": "Rekeningnummer",
+      "corrects_invoice": "Verwijzing naar eerdere rekening"
     },
     "reason": {
       "empty": "Ontbreekt, maar is nodig",
@@ -6441,7 +6543,9 @@
       "contractSpanFromInvoice": "Contract {provider} van {from} tot {to} uit deze rekening aanmaken",
       "waterWorking": "{section} vanaf {from}: {value} (uit de rekening)",
       "waterBase": "Vastrecht {section} vanaf {from}: {value} per maand (uit de rekening)",
-      "waterRate": "{section} vanaf {from}: {value} per m² per jaar voor {area} m² (uit de rekening)"
+      "waterRate": "{section} vanaf {from}: {value} per m² per jaar voor {area} m² (uit de rekening)",
+      "billCorrection": "Gecorrigeerde rekening {from} t/m {to} overnemen: {result} in plaats van {before}",
+      "billRebook": "Boeking vervangen: {result} in plaats van {before}"
     },
     "detail": {
       "reading": "Vastgelegd: {counter}.",
@@ -6456,14 +6560,18 @@
       "serial": "Geplaatst is meter {serial}.",
       "readingReported": "Je stand van {date} ({counter}): de leverancier dateert de doorgegeven stand op het einde van de periode.",
       "readingBelow": "Ligt onder je stand van {counter} op {date}.",
-      "readingAbove": "Ligt boven je stand van {counter} op {date}."
+      "readingAbove": "Ligt boven je stand van {counter} op {date}.",
+      "readingBefore": "Je stand van {date} ({counter}) is dezelfde: de vorige meterstand op de rekening is je stand van kort ervoor.",
+      "billCorrected": "Er staat een eerdere versie van {amount}. De waarden worden vervangen, het eerdere document blijft als bewijsstuk.",
+      "billBooked": "Tot nu toe geboekt: {before}."
     },
     "pstatus": {
       "new": "nieuw",
       "exists": "al aanwezig",
       "conflict": "tegenstrijdig",
       "overlap": "overlap",
-      "check": "controleren"
+      "check": "controleren",
+      "replaces": "vervangt"
     },
     "applyButton": {
       "one": "{count} wijziging overnemen",
@@ -6505,7 +6613,9 @@
         "offQuantity": "Het verbruik op de rekening wijkt {pct}% af van je meterstanden.",
         "noCompare": "De rekening noemt geen verbruik en geen bedrag – er valt niets te vergelijken.",
         "noPrices": "De rekening {from} tot {to}: in het contract ontbreken prijzen – de app kan het bedrag niet narekenen.",
-        "offQuantityNoPrices": "Het verbruik op de rekening wijkt {pct}% af van je meterstanden en in het contract ontbreken prijzen – de app kan het bedrag niet narekenen."
+        "offQuantityNoPrices": "Het verbruik op de rekening wijkt {pct}% af van je meterstanden en in het contract ontbreken prijzen – de app kan het bedrag niet narekenen.",
+        "correction": "Gecorrigeerde rekening {from} tot {to}: hij vervangt de vastgelegde rekening, het resultaat wordt {result} in plaats van {balance}. Neem hem over en de app controleert hem met je gegevens.",
+        "correctionBooked": "Gecorrigeerde rekening {from} tot {to}: hij vervangt de vastgelegde en geboekte rekening, het resultaat wordt {result} in plaats van {balance}, en de boeking verandert mee. Neem hem over en de app controleert hem met je gegevens."
       },
       "advance": {
         "ok": "Het nieuwe voorschot van {amount} past bij je verbruik.",
@@ -7082,7 +7192,9 @@
       "other": "Op {days} dagen ontbreekt een stand van de tussenmeter. Daar rekent dit contract alles af."
     },
     "short": "In sommige maanden meet de tussenmeter meer dan de meter ervoor ({kwh}). Controleer de standen. Een rest onder nul wordt niet afgerekend.",
-    "contractHint": "‘{parent}’ meet ‘{name}’ mee. Met een eigen contract rekent het contract van ‘{parent}’ vanaf het begin alleen nog de rest af: daar gemeten min ‘{name}’."
+    "contractHint": "‘{parent}’ meet ‘{name}’ mee. Met een eigen contract rekent het contract van ‘{parent}’ vanaf het begin alleen nog de rest af: daar gemeten min ‘{name}’.",
+    "registerPart": "{name} {rest} = {measured} − {deducted}",
+    "formulaRegisters": "{rest}, per telwerk {parts}"
   },
   "concept": {
     "slotName": {
@@ -7099,7 +7211,8 @@
       "feed": "Teruglevering",
       "gen": "Opwek zonnepanelen",
       "bat_in": "Accu laden",
-      "bat_out": "Accu ontladen"
+      "bat_out": "Accu ontladen",
+      "feed_house": "Teruglevering huishouden"
     },
     "regShort": {
       "ht": "piek",
@@ -7164,7 +7277,8 @@
       "batteryHint": "Laden en ontladen van de accu, vaak uit de omvormer.",
       "installedOn": "Geplaatst op",
       "installedHint": "Leeg: vanaf het begin van zijn contract, anders vanaf vandaag.",
-      "initialCounter": "Stand bij plaatsing"
+      "initialCounter": "Stand bij plaatsing",
+      "cascadeFeedHint": "Het terugleveringstelwerk van ‘{name}’: zelfde meternummer, eigen meter onder teruglevering. Het telt niet als teruglevering aan het net. Uit de verschillen berekent de app de zonnestroom die elke tak zelf verbruikt."
     },
     "contracts": {
       "title": "Welke contracten zijn er?",
@@ -7199,7 +7313,8 @@
       "restFrom": "Vanaf {date} rekent het contract van ‘{parent}’ alleen nog de rest af: daar gemeten min ‘{sub}’.",
       "restFromPast": "Met terugwerkende kracht vanaf {date} rekent het contract van ‘{parent}’ alleen nog de rest af: daar gemeten min ‘{sub}’. Kosten, saldo en voorgesteld voorschot van dit contract veranderen daardoor ook voor de maanden sinds {date}.",
       "beforeInstall": "‘{name}’ is pas vanaf {installed} geplaatst, maar zijn contract begint op {start}. Tot de plaatsing trekt de app niets af.",
-      "detailInstalled": "geplaatst op {date}"
+      "detailInstalled": "geplaatst op {date}",
+      "detailCascade": "terugleveringstelwerk van {name}"
     },
     "done": "Meetopstelling ingericht. Daarna: de eerste stand per meter invoeren.",
     "entry": {
@@ -7279,5 +7394,17 @@
       "textOther": "Vanaf deze dag rekenen prognose en vergelijkingen alleen met de tijd daarna. Het einde van de opvallende periode is ingevuld. Weet je de dag van de verandering (bijvoorbeeld de verhuizing), vul die dan in."
     },
     "adviceOther": "Dat lijkt op een echte verandering (bijvoorbeeld een verhuizing, leegstand, een verbouwing of een ander apparaat), niet op een afleesfout. Een peilmoment scheidt de tijd daarvoor af: prognose en vergelijkingen rekenen dan met het huidige verbruik."
+  },
+  "thanks": {
+    "off": "Niet meer tonen",
+    "offDone": "De melding verschijnt niet meer. Je kunt hem in de instellingen weer aanzetten."
+  },
+  "balanceBand": {
+    "short": "afhankelijk van het weer en de schatting {range}",
+    "shortNoWeather": "afhankelijk van de schatting {range}",
+    "sentence": "Afhankelijk van het weer en de schatting tussen {low} en {high}.",
+    "sentenceNoWeather": "Afhankelijk van de schatting tussen {low} en {high}.",
+    "shortFew": "te weinig gemeten maanden, afhankelijk van de schatting {range}",
+    "sentenceFew": "Te weinig gemeten maanden, afhankelijk van de schatting tussen {low} en {high}."
   }
 }

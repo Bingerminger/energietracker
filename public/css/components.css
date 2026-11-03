@@ -131,6 +131,8 @@
 .input.invalid:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 25%, transparent); }
 
 .input--text { font-family: var(--font-sans); }
+/* v3.10.0 — Zertifikat im PEM-Format: feste Breite, kleiner */
+.input--mono { font-family: var(--font-mono); font-size: var(--fs-xs); }
 
 textarea.input { min-height: 80px; resize: vertical; }
 .input[type="checkbox"], .input[type="radio"] { width: auto; min-height: 0; }
@@ -1223,6 +1225,9 @@ fieldset.settings-field > legend {
 }
 .kpi__trend--danger  { color: var(--danger);  background: var(--danger-soft); }
 .kpi__trend--success { color: var(--success); background: var(--success-soft); }
+/* v3.10.0 (Skeptiker M1) — statt eines Prozentpfeils: Ablesung prüfen (Link zu den Ablesungen) */
+.kpi__trend--check   { color: var(--warning); background: var(--warning-soft); text-decoration: none; }
+a.kpi__trend--check:hover, a.kpi__trend--check:focus-visible { text-decoration: underline; }
 
 /* v2.0.0 (UX) — Leerwert (z.B. Kosten ohne hinterlegten Tarif): gedämpfter
    Gedankenstrich statt „€0.00", damit „kein Tarif" nicht wie echte 0 € wirkt. */
@@ -2174,6 +2179,17 @@ fieldset.settings-field > legend {
 .release-notice__text { flex: 1; min-width: 0; }
 .release-notice__text p { margin: 0 0 var(--sp-1); }
 .release-notice__text p:last-child { margin-bottom: 0; }
+/* v3.10.0 — Danke sagen (lib/thanks.js): eine ruhige Zeile im Inhalt, kein Dialog */
+.thanks-note {
+  display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: center; justify-content: space-between;
+  margin: var(--sp-3) 0; padding: var(--sp-2) var(--sp-3);
+  border: 1px dashed var(--border-2); border-radius: var(--r-md);
+  color: var(--text-2); font-size: var(--fs-sm);
+}
+.thanks-note__text { margin: 0; flex: 1 1 18rem; min-width: 0; }
+/* Skeptiker N11 — mit Abstand am Ende eines Ergebnisses, nicht direkt unter einer Zahl */
+.thanks-note--apart { margin-top: var(--sp-6); }
+.thanks-note__actions { display: flex; gap: var(--sp-1); }
 /* v3.5.1 — gleiche Schriftgröße wie die übrigen Hinweise unter Zugriff */
 .security-check__item { position: relative; padding-left: 1.6em; font-size: var(--fs-sm); }
 .security-check__item::before { content: '…'; position: absolute; left: 0; font-weight: 700; }

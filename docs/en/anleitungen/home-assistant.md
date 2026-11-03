@@ -87,7 +87,7 @@ Assistant instance with the dialog and the address
 ```yaml
 image: ghcr.io/bingerminger/energietracker   # the same image as with Docker
 arch: [aarch64, amd64]
-init: false            # the image brings supervisord
+init: false            # the image's start script is PID 1
 ingress: true
 ingress_port: 80       # nginx in the image
 ingress_stream: true   # uploads above 16 MiB (backups with receipts)
@@ -123,7 +123,10 @@ Every Home Assistant user sees the sidebar entry; you change roles under
 Settings → Access. A person is kept by the ID of the HA user, so renaming the
 user in Home Assistant does not create a new one. The image’s health check
 (`/api/health`) is also the app’s monitoring: with “Watchdog” on, Home
-Assistant restarts it when the check fails.
+Assistant restarts it when the check fails. Since v3.10.0 the app ends when
+nginx or php-fpm inside the image fails (up to v3.9 `supervisord` restarted the
+service inside the container); it then comes back through the watchdog. So keep
+it switched on.
 
 **Readings from Home Assistant into the app.** Steps 1 to 5 below apply
 unchanged; only the address differs: Home Assistant reaches the app inside its
@@ -376,6 +379,13 @@ rest:
         value_template: "{{ value_json.data.meters | selectattr('key', 'eq', 'strom.m_strom_default') | map(attribute='contract.balance', default=none) | first }}"
         device_class: monetary
         unit_of_measurement: "EUR"
+        json_attributes_path: "$.data.meters[?(@.key == 'strom.m_strom_default')].contract"
+        json_attributes:
+          - projected_end_balance
+          - projected_end_balance_total
+          - projected_end_range_total
+          - measured_balance
+          - measured_until
       - name: "Electricity – Forecast 12 months"
         unique_id: energietracker_strom_m_strom_default_forecast_12m
         value_template: "{{ value_json.data.meters | selectattr('key', 'eq', 'strom.m_strom_default') | map(attribute='forecast_12m.value', default=none) | first }}"
@@ -396,6 +406,31 @@ rest:
 - **Balance** has the sign of the API: positive = additional payment, negative =
   credit (for PV feed-in: positive = payout). The unit `EUR` stands for the
   currency of your settings.
+- *(v3.10.0)* **Expected at billing as attributes:** the balance sensor carries
+  two attributes from the contract of its meter. `projected_end_balance` is the
+  expected balance of the current contract at the next bill, as before.
+  `projected_end_balance_total` is the amount the balance card shows: if one
+  bill settles several contracts (a tariff change with the same supplier), the
+  sum of their expected balances, otherwise the same value as
+  `projected_end_balance`. The state of the sensor stays the balance so far;
+  existing automations keep working. In a template:
+  `{{ state_attr('sensor.electricity_balance', 'projected_end_balance_total') }}`.
+  Templates copied before v3.10.0 have no attributes; adding the lines
+  `json_attributes_path` and `json_attributes` is enough.
+- *(v3.10.0)* **Which balance is which:** the sensor’s **state** is the balance
+  **up to today**, with the days since the last reading estimated (like the
+  second line “Estimated up to today” on the card). `measured_balance` is the
+  measured balance at the last reading on the day `measured_until`, like
+  “Balance on …” or “Current balance” on the card (the sum when one bill settles
+  several contracts). If the estimate is uncertain, the card shows only a range
+  under “Expected at settlement”; it is then in `projected_end_range_total`
+  (`[from, to]`, otherwise empty); `projected_end_balance_total` is then just a
+  single value of the estimate, the range is what counts.
+- *(v3.10.0)* **Limits of the attributes:** the path in `json_attributes_path`
+  has been checked against the JSONPath evaluation Home Assistant uses, not yet
+  in a running Home Assistant; feedback is welcome. Without a current contract
+  Home Assistant logs a warning “JSON result was not a dictionary” on every
+  update; the sensor’s state stays correct.
 - A sensor shows “unknown” when the value does not exist — for example without a
   current contract or before the forecast has enough data.
 - *(v3.4.0)* **Done items do not count:** `agenda.due`, `agenda.overdue` and
@@ -531,6 +566,68 @@ phone. Both take `title` and `message`.
 > Assistant app. If something does not arrive there, “Send a test message”
 > names the reason; reports from real installations are welcome.
 
+### HTTPS with your own certificate *(v3.10.0)*
+
+If Home Assistant runs over `https://` with a certificate you issued yourself
+(with your own root certificate; experts call this “your own PKI”),
+Energietracker does not know its issuer. “Send a test message” then reports
+that it does not know the issuer
+([#36](https://github.com/Bingerminger/energietracker/issues/36)). Two ways:
+
+**1. Your own root certificate (recommended).** Checking stays on and the
+certificates you issued yourself are accepted. The root certificate applies
+**in addition** to the usual root certificates; public destinations keep
+working.
+
+- **In the app:** Settings → Expert → 🔐 Connections in the home network →
+  “Own root certificate (PEM)”. Paste the text of your root certificate file,
+  from `-----BEGIN CERTIFICATE-----` to `-----END CERTIFICATE-----`, and save.
+  Only the certificate, never the private key (the app refuses it).
+- **As a file in the container:** mount the file read-only and name its path
+  in `ET_CA_FILE`, for example
+  `-v $PWD/my-root-ca.pem:/certs/my-root-ca.pem:ro` and
+  `-e ET_CA_FILE=/certs/my-root-ca.pem`. Both ways can be combined.
+- Settings → System (diagnostics) shows how many own root certificates apply
+  and whether the file from `ET_CA_FILE` is readable.
+
+**2. Do not check certificates in the home network (fallback).** Same
+section, switch “Do not check certificates in the home network”, off by
+default. Your Home Assistant token goes over this connection; without
+checking, anyone who gets in between on the network can read it. The switch
+only works for addresses in the home network (decided by the resolved
+address, such as `192.168.178.10`), never for remote access over the
+internet.
+
+**Interim way with 3.9.x.** Until the update, your own bundle helps: a file
+with the usual root certificates and your own, mounted read-only at
+`/etc/ssl/certs/ca-certificates.crt` in the container.
+
+```bash
+docker cp energietracker:/etc/ssl/certs/ca-certificates.crt .
+cat ca-certificates.crt my-root-ca.pem > bundle.pem
+docker run ... -v $PWD/bundle.pem:/etc/ssl/certs/ca-certificates.crt:ro ...
+```
+
+Tested with image 3.9.0: without the bundle “unable to get local issuer
+certificate”, with the bundle Energietracker reaches the server with its own
+CA, also without root and as a `:ro` mount; public destinations keep working.
+The bundle **replaces** the image's list: put it together again after larger
+updates. From 3.10.0 on, prefer way 1 and remove the bundle again.
+
+The same settings apply to all connections into the home network:
+[text recognition](texterkennung.md), reading in the [inbox](posteingang.md)
+with your own service, and [evcc](evcc.md).
+
+**What the message advises.** If the connection fails because of the
+certificate, the app says why (decided by the error code, not the wording):
+
+| Message | What to do |
+|---|---|
+| Issuer not known | Way 1: enter your root certificate |
+| Certificate does not match this address | Enter the address as it appears in the certificate, for example the name instead of the IP address. Your own root certificate does not help here. |
+| Expired or not valid yet | Renew the certificate, check the clock of both devices |
+| Root certificates not readable | Check the file from `ET_CA_FILE` or a mounted bundle: path, content, read permission for the container's user |
+
 ### Webhook
 
 1. In Home Assistant, create a new automation, choose “Edit in YAML” and
@@ -583,8 +680,11 @@ What the webhook receives (JSON; in the automation under `trigger.json`):
 `GET /api/todo` returns the “To do” list: how many items are due, how many of
 them are overdue or urgent, and the next one. Every due item counts, also a
 kind that is added later. Three due readings are three items (the overview
-combines them in one line). The fields are in the
-[API reference](../referenz/api.md#get-apitodo-v390).
+combines them in one line). Since v3.10.0 the sensor also shows what is
+coming: how many appointments become due soon and the next appointment with
+its date, even if it is not due yet
+([#36](https://github.com/Bingerminger/energietracker/issues/36)). The fields
+are in the [API reference](../referenz/api.md#get-apitodo-v390).
 
 The template is in the settings under Integrations (card “Set up the Home
 Assistant integration”, section “To do” sensor). Into `configuration.yaml`:
@@ -602,6 +702,8 @@ rest:
         json_attributes_path: "$.data"
         json_attributes:
           - overdue
+          - soon
+          - next_upcoming
           - items
       - name: "Energietracker next item"
         unique_id: energietracker_todo_next
@@ -610,13 +712,29 @@ rest:
         unique_id: energietracker_todo_next_date
         value_template: "{{ value_json.data.next.date if value_json.data.next else none }}"
         device_class: date
+      - name: "Energietracker next appointment"
+        unique_id: energietracker_todo_upcoming
+        value_template: "{{ value_json.data.next_upcoming.title if value_json.data.next_upcoming else '-' }}"
+      - name: "Energietracker next appointment on"
+        unique_id: energietracker_todo_upcoming_date
+        value_template: "{{ value_json.data.next_upcoming.date if value_json.data.next_upcoming else none }}"
+        device_class: date
 ```
 
-- **to do:** the number, plus the attributes `overdue` and `items` (per item
-  `title`, `date`, `kind`, `severity`).
+- **to do:** the number of due items, plus the attributes `overdue`, `soon`
+  (how many appointments become due in the next days, *v3.10.0*),
+  `next_upcoming` (the next appointment, *v3.10.0*) and `items` (per item
+  `title`, `date`, `kind`, `severity`). The state stays the number of due
+  items, so automations on “greater than 0” keep working.
 - **next item:** the title of the first item (overdue first, then urgent, then
   by date); “-” when there is nothing to do.
 - **next item due:** its date; “unknown” when there is nothing to do.
+- **next appointment** *(v3.10.0)*: the title of the next appointment that is
+  not due yet (such as “Boiler service” in two days), even if it is further
+  away; “-” when there is none in the calendar.
+- **next appointment on** *(v3.10.0)*: its date.
+- `soon` counts with the same lead time as “due soon” in the app (setting
+  `reminder_warn_days_before`, default 14 days).
 - With sign-in switched on the sensor needs the read key from step 5
   (`energietracker_read`). Without sign-in, leave out the lines `headers:` and
   `Authorization: …`.
@@ -937,6 +1055,7 @@ Assistant sidebar), the following applies since v3.1.0. The
 | Test message: “Home Assistant refuses (401)” *(v3.9.0)* | Destination “Address and token”: the token is wrong or deleted. Create a new one in your Home Assistant profile under Security and enter it. |
 | Test message: “cannot be reached” or “name cannot be resolved” | Check the address. From inside a container a name ending in `.local` often does not resolve; then enter the IP address. |
 | Test message: “status 400” | The action does not exist in Home Assistant (for example a typo in `notify.mobile_app_…`). |
+| Test message: issuer of the certificate unknown, certificate does not match the address, expired, or root certificates not readable *(v3.10.0)* | Home Assistant runs over `https://` with a certificate you issued yourself. What to do for each message: [HTTPS with your own certificate](#https-with-your-own-certificate-v3100). |
 | The test message arrives, nothing else | The check runs once a day from the time set, and each message comes only once. On a web server without Docker a request after that time is needed, for example from the [“To do” sensor](#to-do-sensor-v390). |
 | Webhook: nothing arrives in Home Assistant | Different webhook IDs in the card and the automation, or the automation runs in mode `single` (then messages in quick succession are lost). Use the template with `mode: queued`. |
 

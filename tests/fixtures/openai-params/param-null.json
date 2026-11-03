@@ -1,0 +1,8 @@
+{
+  "error": {
+    "message": "This model does not support the requested temperature setting.",
+    "type": "invalid_request_error",
+    "param": null,
+    "code": null
+  }
+}

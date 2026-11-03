@@ -75,6 +75,33 @@ final class DemoDataAlignerTest extends TestCase
         self::assertSame($demo['temperatures'], $out['temperatures']);
     }
 
+    /**
+     * v3.10.0 (Schaufenster, #49) — Gas wächst im Schaufenster nur bis zwölf Tage vor heute: Die
+     * Saldo-Karte zeigt zu jedem Zeitpunkt den gemessenen Saldo und die Schätzung bis heute.
+     * Jeder Tag eines Jahres: die letzte Ablesung liegt mindestens zwölf Tage zurück; Strom
+     * (ohne Vorgabe) wächst wie bisher bis heute.
+     */
+    public function testShowcaseGasStopsTwelveDaysBeforeToday(): void
+    {
+        $demo = self::demo();
+        self::assertSame(['gas' => 12], $demo['demo_align']['reading_lag_days'] ?? null);
+        $ref = DemoDataAligner::referenceDate($demo);
+        foreach ([200, 230, 260, 290, 320, 350, 380] as $days) {
+            $today = self::plusDays($ref, $days);
+            $out = DemoDataAligner::align($demo, $today);
+            $gas = self::readingsOf($out, 'gas', 'm_gas_main');
+            $last = $gas[count($gas) - 1]['date'];
+            self::assertLessThanOrEqual(self::plusDays($today, -12), $last, "heute $today");
+            self::assertGreaterThan(self::plusDays($today, -12 - 120), $last, "heute $today: weiter abgelesen");
+        }
+        $plain = $demo;
+        unset($plain['demo_align']['reading_lag_days']);
+        $a = DemoDataAligner::align($plain, self::plusDays($ref, 260));
+        $b = DemoDataAligner::align($demo, self::plusDays($ref, 260));
+        self::assertSame(self::readingsOf($a, 'strom', 'm_strom_main'), self::readingsOf($b, 'strom', 'm_strom_main'), 'andere Arten unverändert');
+        self::assertArrayNotHasKey('demo_align', $b, 'die Vorgabe wird nicht eingespielt');
+    }
+
     public function testReadingsGrowUntilTodayWithLastYearsConsumption(): void
     {
         $demo = self::demo();

@@ -22,6 +22,7 @@ import { info } from '../components/info.js';
 import { periodToCheck, exclusiveEnd, addDays } from '../lib/billing-period.js';
 import { attachmentNames, attachmentLinksHtml } from '../lib/attachments.js';   // v3.7.0
 import { restNoteHtml } from '../lib/rest-billing.js';   // v3.9.0 (F1032, #40) — Menge = Rest
+import { offerThanks, compareThanks } from '../lib/thanks.js';   // v3.10.0 — Danke sagen
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -506,6 +507,10 @@ async function showCompare(container, u, id) {
       </table></div>
       ${(c.reasons || []).length ? `<ul class="muted small">${c.reasons.map(r => `<li>${escapeHtml(t('billCheck.reason.' + r))}</li>`).join('')}</ul>` : ''}
       ${compareNotesHtml(c, u)}`;
+    // v3.10.0 — die Prüfung hat eine Abweichung gefunden: ein Nutzen-Moment. Skeptiker N11: mit
+    // Abstand am Ende des Ergebnisses (nicht direkt unter der Abweichung) und nicht, wenn sie aus
+    // eigenen Lücken stammen kann
+    if (compareThanks(c)) offerThanks(el, 'bill_check', { where: 'after', apart: true });
   } catch (e) { el.innerHTML = ''; toastErr(e.message); }
 }
 

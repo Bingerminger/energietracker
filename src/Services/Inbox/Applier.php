@@ -158,6 +158,11 @@ final class Applier
             }
         }
         if ($id === null) throw new LocalizedException('errors.inbox.billMissing', [], 'book without bill');
+        // v3.10.0 — Rechnungskorrektur: die Buchung folgt dem neuen Ergebnis (alte Sonderzahlung weg, neue gebucht)
+        if (!empty($p['data']['rebook'])) {
+            $this->bills->rebook($u, $id);
+            return ['type' => 'bill', 'utility' => $u, 'id' => $id];
+        }
         // v3.7.0 (treffsicher) — ohne zugeordneten Vertrag nur an einen Vertrag des
         // Versorgers dieser Rechnung, der ihren Zeitraum abrechnet; sonst ablehnen,
         // nie still an den eines anderen Lieferanten

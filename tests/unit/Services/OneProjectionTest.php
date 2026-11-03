@@ -185,8 +185,11 @@ final class OneProjectionTest extends ServiceTestCase
 
     // ── L12: kurz vor der Abrechnung kein Nachholbetrag ─────────────────
 
-    /** 100 kWh je Monat zu 30 ct + 10 € Grundpreis = 40 € Kosten, Abschlag 30 €: 10 € Fehlbetrag je Monat. */
-    private function flatStrom(string $anchor): array
+    /**
+     * 100 kWh je Monat zu 30 ct + 10 € Grundpreis = 40 € Kosten, Abschlag 30 €: 10 € Fehlbetrag je Monat.
+     * v3.10.0 (#38) — mit `$advance` 50 € stattdessen 10 € Guthaben je Monat.
+     */
+    private function flatStrom(string $anchor, float $advance = 30.0): array
     {
         $this->settings->set(['billing_cycle_anchor_strom' => $anchor]);
         $meterId = $this->setMeterDevices('strom', [['id' => 'd1', 'serial' => null, 'installed_on' => '2025-01-01', 'initial_counter' => 0.0,
@@ -196,8 +199,80 @@ final class OneProjectionTest extends ServiceTestCase
         $this->setReadings('strom', $meterId, $rows);   // bis 01.10.2026
         $this->contracts->create('strom', ['meter_id' => $meterId, 'provider' => 'Werk', 'start' => '2025-01-01',
             'working_prices' => [['from' => '2025-01-01', 'ct_per_kwh' => 30.0]], 'base_prices' => [['from' => '2025-01-01', 'eur_per_month' => 10.0]],
-            'advance_payments' => [['from' => '2025-01-01', 'amount_eur' => 30.0]]]);
+            'advance_payments' => [['from' => '2025-01-01', 'amount_eur' => $advance]]]);
         return $this->consumption->contractStatus('strom', $this->meters->get('strom', $meterId), self::TODAY)['contracts'][0];
+    }
+
+    /**
+     * v3.10.0 (#38, Zusage an den Melder) — die Regel gilt für beide Vorzeichen: Auch ein Guthaben wird
+     * kurz vor der Abrechnung nicht auf ein, zwei Abschläge verteilt (50 € + (−120 €) ÷ 2 = −10 €, also 0 €).
+     */
+    public function testTwoAdvancesBeforeTheBillWithACreditGetNoCatchUpEither(): void
+    {
+        // Stichtag 01.01.: Abrechnung am 31.12.2026, danach noch die Abschläge November und Dezember
+        $c = $this->flatStrom('01-01', 50.0);
+        self::assertSame(2, $c['months_left']);
+        // Guthaben 2026: 12 × (40 € − 50 €) = −120 €
+        self::assertEqualsWithDelta(-120.0, $c['projected_end_balance'], 0.5);
+        self::assertSame('refund', $c['verdict']);
+        self::assertNull($c['suggested_advance'], 'kein Abschlag von 0 € für die letzten zwei Monate');
+        self::assertSame('short', $c['suggestion_withheld']);
+        // laufend angemessen: 100 kWh × 30 ct + 10 € = 40 € im Monat
+        self::assertSame(40.0, $c['advance_ongoing']);
+    }
+
+    /**
+     * v3.10.0 (#38, Antwort an den Melder) — der laufend angemessene Abschlag folgt den Raten je Jahr des
+     * Plans: zehn Termine (Februar bis November) statt zwölf Monate heben ihn bei denselben Kosten.
+     */
+    public function testTheOngoingAdvanceFollowsTheInstalmentsPerYearOfThePlan(): void
+    {
+        $this->settings->set(['billing_cycle_anchor_strom' => '01-01']);
+        $meterId = $this->setMeterDevices('strom', [['id' => 'd1', 'serial' => null, 'installed_on' => '2025-01-01', 'initial_counter' => 0.0,
+            'removed_on' => null, 'final_counter' => null, 'reason' => null]]);
+        $rows = [];
+        for ($i = 0; $i <= 21; $i++) $rows[] = ['date' => date('Y-m-d', strtotime("2025-01-01 +$i months")), 'counter' => 100.0 * $i, 'device_id' => 'd1'];
+        $this->setReadings('strom', $meterId, $rows);
+        $dates = [];
+        for ($m = 2; $m <= 11; $m++) $dates[] = sprintf('2025-%02d-15', $m);
+        $this->contracts->create('strom', ['meter_id' => $meterId, 'provider' => 'Werk', 'start' => '2025-01-01',
+            'working_prices' => [['from' => '2025-01-01', 'ct_per_kwh' => 30.0]], 'base_prices' => [['from' => '2025-01-01', 'eur_per_month' => 10.0]],
+            'advance_payments' => [['from' => '2025-01-01', 'amount_eur' => 48.0, 'due_dates' => $dates]]]);
+        $c = $this->consumption->contractStatus('strom', $this->meters->get('strom', $meterId), self::TODAY)['contracts'][0];
+        // 2027: 12 × 100 kWh × 30 ct + 12 × 10 € = 480 € auf zehn Termine = 48 € (monatlich wären es 40 €)
+        self::assertSame(48.0, $c['advance_ongoing']);
+        // bis zur Abrechnung bleibt der Termin 15.11.: kein Nachholbetrag (2026: 480 € Kosten, 10 × 48 € gezahlt)
+        self::assertSame(1, $c['months_left']);
+        self::assertEqualsWithDelta(0.0, $c['projected_end_balance'], 0.5);
+        // so steht es in der Doku (verstehen, Abschnitt Abschlag)
+        $de = (string)preg_replace('/\s+/u', ' ', (string)file_get_contents(dirname(__DIR__, 3) . '/docs/verstehen/00-overview.md'));
+        $en = (string)preg_replace('/\s+/u', ' ', (string)file_get_contents(dirname(__DIR__, 3) . '/docs/en/verstehen/00-overview.md'));
+        self::assertStringContainsString('Zehn Termine statt zwölf Monate heben den laufenden Abschlag (480 € im Jahr: 48 € statt 40 €)', $de);
+        self::assertStringContainsString('Ten due dates instead of twelve months raise the ongoing advance (€480 a year: €48 instead of €40)', $en);
+    }
+
+    /** v3.10.0 (#38) — genau drei Abschläge: Die Grenze ist streng, verteilt wird noch, auch ein Guthaben. */
+    public function testExactlyThreeAdvancesBeforeTheBillSpreadACredit(): void
+    {
+        // Stichtag 01.02.: Periode 01.02.2026–31.01.2027, danach noch November, Dezember, Januar
+        $c = $this->flatStrom('02-01', 50.0);
+        self::assertSame(3, $c['months_left']);
+        self::assertNull($c['suggestion_withheld']);
+        // Guthaben der Periode: 12 × (40 € − 50 €) = −120 € → 50 € + (−120 €) ÷ 3 = 10 €
+        self::assertEqualsWithDelta(-120.0, $c['projected_end_balance'], 0.5);
+        self::assertSame(10.0, $c['suggested_advance']);
+        self::assertSame(40.0, $c['advance_ongoing']);
+        // die Doku (verstehen, Abschnitt Abschlag) rechnet genau dieses Beispiel vor (Lektion 99)
+        $want = [40, 50, 12, 40, 50, (int)round(-$c['projected_end_balance']), (int)$c['advance_ongoing'], 50, (int)round(-$c['projected_end_balance']),
+            $c['months_left'], (int)$c['suggested_advance']];
+        foreach (['docs/verstehen/00-overview.md', 'docs/en/verstehen/00-overview.md'] as $rel) {
+            $text = (string)file_get_contents(dirname(__DIR__, 3) . '/' . $rel);
+            $pos = strpos($text, '<!-- doc-claim: advance-short-credit');
+            self::assertNotFalse($pos, "$rel: Beispiel fehlt");
+            self::assertSame(1, preg_match('/```text\n(.*?)```/s', substr($text, (int)$pos), $m), "$rel: Codeblock fehlt");
+            preg_match_all('/\d+/', $m[1], $n);
+            self::assertSame($want, array_map('intval', $n[0]), $rel);
+        }
     }
 
     public function testTwoAdvancesBeforeTheBillGetNoCatchUpButTheOngoingAmount(): void

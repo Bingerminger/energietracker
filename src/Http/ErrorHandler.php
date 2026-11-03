@@ -30,28 +30,92 @@ final class ErrorHandler
      * Zeile steht unter derselben ID im Log. Bis v2.5.3 ging sie an jeden
      * Client — bei TypeErrors mit absolutem Pfad und Benutzernamen.
      *
-     * @param array<string,mixed> $detail
+     * v3.10.0 (#41) — was verdeckt wird, entscheidet payload(): eine
+     * erwartete Ausnahme mit eigenem Katalogtext (HttpStatusException, etwa die
+     * Absage eines Cloud-Diensts mit 502) bleibt stehen, auch bei 5xx;
+     * Fehler-ID und Verweis aufs Server-Log gibt es nur bei unerwarteten.
+     *
+     * v3.10.0 (Skeptiker) — Nach einem fatalen Fehler (etwa dem Zeitlimit)
+     * hat PHP selbst schon „HTTP/1.0 500 …“ gesetzt; PHP 8.5 warnt dann bei
+     * http_response_code(). Der Fehler-Handler machte daraus eine Ausnahme
+     * mitten in der Fehlerantwort, und die Antwort blieb leer (seit v2.6.0,
+     * sichtbar ab PHP 8.5). Jetzt setzt header() den Status mit, und eine
+     * Warnung während der Antwort geht nur noch ins PHP-Log.
+     *
+     * @param array<string,mixed> $payload aus payload()
+     * @param array<string,string> $headers zusätzliche Kopfzeilen (Retry-After)
      */
-    private static function respond(int $status, string $message, array $detail, string $errorId, ?string $code = null): void
+    private static function respond(int $status, array $payload, array $headers = []): void
     {
-        while (ob_get_level() > 0) ob_end_clean();
-        $public = $message;
-        if ($status >= 500 && $status !== 503) {
-            $public = self::$translate
-                ? (self::$translate)('errors.http.internal', ['id' => $errorId])
-                : "Internal error ({$errorId})";
+        set_error_handler(static fn(): bool => false);   // keine Ausnahme mehr aus einer Warnung, PHP protokolliert sie
+        try {
+            while (ob_get_level() > 0) ob_end_clean();
+            if (!headers_sent()) {
+                foreach ($headers as $k => $v) header($k . ': ' . $v);
+                header('Content-Type: application/json; charset=utf-8', true, $status);
+                header('Vary: X-ET-Language, Accept-Language');
+                header('Cache-Control: no-cache, no-store, must-revalidate');
+            }
+            echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE);
+        } finally {
+            restore_error_handler();
         }
-        $code ??= Response::codeFor($status >= 500 && $status !== 503 ? $public : $message, $status);
-        if (!headers_sent()) {
-            http_response_code($status);
-            header('Content-Type: application/json; charset=utf-8');
-            header('Vary: X-ET-Language, Accept-Language');
-            header('Cache-Control: no-cache, no-store, must-revalidate');
-        }
-        $payload = ['success' => false, 'error' => $public, 'code' => $code];
-        if ($status >= 500 && $status !== 503) $payload['error_id'] = $errorId;
+    }
+
+    /**
+     * v3.10.0 (#41) — Körper der Fehlerantwort, ohne Ausgabe (testbar).
+     * Verdeckt wird ein 5xx außer 503, und nur mit Fehler-ID.
+     *
+     * @param array<string,mixed> $detail
+     * @return array<string,mixed>
+     */
+    public static function payload(int $status, string $message, array $detail, ?string $errorId, ?string $code = null): array
+    {
+        $masked = $errorId !== null && $status >= 500 && $status !== 503;
+        $public = !$masked ? $message
+            : (self::$translate ? (self::$translate)('errors.http.internal', ['id' => $errorId]) : "Internal error ({$errorId})");
+        $payload = ['success' => false, 'error' => $public, 'code' => $code ?? Response::codeFor($public, $status)];
+        if ($masked) $payload['error_id'] = $errorId;
         if (Response::debug()) $payload['detail'] = $detail + ['message' => $message];
-        echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE);
+        return $payload;
+    }
+
+    /**
+     * v3.10.0 (#41) — Antwort und Log-Eintrag zu einer Ausnahme, ohne Ausgabe.
+     * Eine HttpStatusException trägt einen Katalogschlüssel und einen eigenen
+     * Text (ohne Pfade): Sie ist erwartet (der Dienst lehnt ab, die Sperre
+     * ist belegt …), steht als `warning` im Log und bekommt keine Fehler-ID.
+     * Alles andere bleibt wie bisher: `error` im Log, 5xx verdeckt mit ID.
+     *
+     * @return array{status:int, payload:array<string,mixed>, headers:array<string,string>, level:string, context:array<string,mixed>}
+     */
+    public static function describe(\Throwable $e, string $errorId): array
+    {
+        $status = self::statusFor($e);
+        $expected = $e instanceof HttpStatusException;
+        $detail = ['file' => basename($e->getFile()), 'line' => $e->getLine(), 'type' => $e::class];
+        $code = $e instanceof \Energietracker\Storage\StorageCorruptedException ? 'errors.storage.corrupted' : null;
+        $message = $e->getMessage();
+        $headers = [];
+        // v3.1.0 (Review I18N-14) — Schlüssel statt Rohtext: in der Sprache der Anfrage
+        // v3.4.0 (N1020) — 413/503 mit Schlüssel und Kopfzeilen (Retry-After)
+        if ($e instanceof HttpStatusException) {
+            $code = $e->key;
+            if (self::$translate) $message = (self::$translate)($e->key, $e->params);
+            $headers = $e->headers;
+        } elseif ($e instanceof \Energietracker\Support\LocalizedException) {
+            $code = $e->key;
+            if (self::$translate) $message = (self::$translate)($e->key, $e->params);
+        } elseif ($e instanceof \Energietracker\Storage\StorageCorruptedException && self::$translate) {
+            $message = (self::$translate)('errors.storage.' . $e->kind, ['file' => $e->dataFile, 'copy' => (string)$e->copy]);
+        }
+        return [
+            'status'  => $status,
+            'payload' => self::payload($status, $message, $detail, $expected ? null : $errorId, $code),
+            'headers' => $headers,
+            'level'   => $expected ? Logger::WARNING : Logger::ERROR,
+            'context' => $detail + ['status' => $status] + ($expected ? ['code' => $code] : ['error_id' => $errorId]),
+        ];
     }
 
     /**
@@ -79,25 +143,9 @@ final class ErrorHandler
         });
 
         set_exception_handler(function (\Throwable $e): void {
-            $status  = self::statusFor($e);
-            $errorId = 'err_' . bin2hex(random_bytes(4));
-            $detail  = ['file' => basename($e->getFile()), 'line' => $e->getLine(), 'type' => $e::class];
-            self::$logger?->error($e->getMessage(), $detail + ['status' => $status, 'error_id' => $errorId]);
-            $code = $e instanceof \Energietracker\Storage\StorageCorruptedException ? 'errors.storage.corrupted' : null;
-            $message = $e->getMessage();
-            // v3.1.0 (Review I18N-14) — Schlüssel statt Rohtext: in der Sprache der Anfrage
-            // v3.4.0 (N1020) — 413/503 mit Schlüssel und Kopfzeilen (Retry-After)
-            if ($e instanceof HttpStatusException) {
-                $code = $e->key;
-                if (self::$translate) $message = (self::$translate)($e->key, $e->params);
-                if (!headers_sent()) foreach ($e->headers as $k => $v) header($k . ': ' . $v);
-            } elseif ($e instanceof \Energietracker\Support\LocalizedException) {
-                $code = $e->key;
-                if (self::$translate) $message = (self::$translate)($e->key, $e->params);
-            } elseif ($e instanceof \Energietracker\Storage\StorageCorruptedException && self::$translate) {
-                $message = (self::$translate)('errors.storage.' . $e->kind, ['file' => $e->dataFile, 'copy' => (string)$e->copy]);
-            }
-            self::respond($status, $message, $detail, $errorId, $code);
+            $d = self::describe($e, 'err_' . bin2hex(random_bytes(4)));
+            self::$logger?->log($d['level'], $e->getMessage(), $d['context']);
+            self::respond($d['status'], $d['payload'], $d['headers']);
             exit;
         });
 
@@ -114,7 +162,7 @@ final class ErrorHandler
             ]);
             // Die Meldung eines fatalen Fehlers enthält oft absolute Pfade —
             // an den Client geht nur die generische Meldung mit ID.
-            self::respond(500, (string)$e['message'], ['file' => basename((string)$e['file']), 'line' => $e['line']], $errorId);
+            self::respond(500, self::payload(500, (string)$e['message'], ['file' => basename((string)$e['file']), 'line' => $e['line']], $errorId));
         });
     }
 

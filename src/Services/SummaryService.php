@@ -203,6 +203,23 @@ final class SummaryService
                 'projection_uncertain'      => $c['projection_uncertain'] ?? null,
                 'balance'                   => $c['current_balance'] ?? null,
                 'projected_end_balance'     => $c['projected_end_balance'] ?? null,
+                // v3.10.0 (additiv) — Breite der sicheren Schätzung (eine Quelle mit der Saldo-Karte),
+                // Saldo bis zur letzten Ablesung (#49) und die Summe einer Abrechnung über mehrere Verträge
+                'projection_band'           => $c['projection_band'] ?? null,
+                'balance_measured'          => $c['balance_measured'] ?? null,
+                'settle_balance'            => $c['settle_balance'] ?? null,
+                'settle_range'              => $c['settle_range'] ?? null,
+                // v3.10.0 (Nachtrag, additiv) — für Home Assistant immer gefüllt: die Summe einer Abrechnung
+                // über mehrere Verträge (wie die Saldo-Karte), sonst derselbe Wert wie `projected_end_balance`
+                'projected_end_balance_total' => $c['settle_balance'] ?? $c['projected_end_balance'] ?? null,
+                // v3.10.0 (Skeptiker N9, additiv) — ist die Schätzung unsicher, zeigt die Karte nur die Spanne:
+                // [von, bis] des erwarteten Saldos (Summe der Abrechnung), sonst null
+                'projected_end_range_total'   => ($c['settle_balance'] ?? null) !== null
+                    ? ($c['settle_uncertain']['projected_range'] ?? null) : ($c['projection_uncertain']['projected_range'] ?? null),
+                // v3.10.0 (Skeptiker M3, additiv) — `balance` bleibt der Stand heute (mit Schätzung); daneben der
+                // gemessene Saldo zur letzten Ablesung wie „Saldo am …“ der Karte (Summe der Abrechnung)
+                'measured_balance'            => ($c['settle_measured'] ?? $c['balance_measured'] ?? null)['balance'] ?? null,
+                'measured_until'              => ($c['settle_measured'] ?? $c['balance_measured'] ?? null)['until'] ?? null,
                 'verdict'                   => $c['verdict'] ?? null,
                 'balance_as_of'             => $c['balance_as_of'] ?? null,
                 // Bei offenen Verträgen der Stichtag (erster Tag der nächsten Periode) —

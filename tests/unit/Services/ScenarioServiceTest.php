@@ -119,9 +119,14 @@ final class ScenarioServiceTest extends ServiceTestCase
     {
         $r = $this->scenario();
         $fc = $this->forecast->forMeter('gas', $this->meters->get('gas', $this->meterId), ['forecast_months' => 12]);
-        self::assertEqualsWithDelta(array_sum(array_column($fc['forecast'], 'kwh')), $r['totals']['base']['qty'], 0.5);
-        self::assertEqualsWithDelta(array_sum(array_column($fc['forecast'], 'cost_estimated')), $r['totals']['base']['cost'], 0.05,
-            'fester Teil + Preis je Einheit ergibt genau die Kosten der Prognose');
+        // v3.10.0 (M4-Rest) — die Mengen schätzt die Werkstatt wie die Saldo-Karte (je Tag, mit Kalibrierfaktor);
+        // im sauberen Testhaushalt liegen sie fast auf der Prognose (Faktor ≈ 1)
+        $card = $this->consumption->estimatedMonths('gas', $this->meters->get('gas', $this->meterId), array_column($fc['forecast'], 'ym'));
+        self::assertEqualsWithDelta(array_sum($card), $r['totals']['base']['qty'], 0.5);
+        self::assertEqualsWithDelta(array_sum(array_column($fc['forecast'], 'kwh')), $r['totals']['base']['qty'], 0.005 * $r['totals']['base']['qty']);
+        $fixed = array_sum(array_column($fc['forecast'], 'fixed_eur'));
+        self::assertEqualsWithDelta($fixed + array_sum(array_map(fn($row) => $row['unit_eur'] * $card[$row['ym']], $fc['forecast'])), $r['totals']['base']['cost'], 0.05,
+            'fester Teil + Preis je Einheit mal Menge der Karte');
         self::assertSame($r['totals']['base'], $r['totals']['scenario']);
         self::assertSame(0.0, $r['totals']['delta']['cost']);
         foreach ($fc['forecast'] as $row) {
@@ -435,5 +440,36 @@ final class ScenarioServiceTest extends ServiceTestCase
         $heat = [['qty' => 300.0, 'heat_share' => 0.5, 'hdd_delta' => -1000.0, 'days' => 30]];
         self::assertSame([150.0], ScenarioService::quantities($heat, [300.0], ['heat_a' => 1.0, 'hdd' => true]));
         self::assertSame([300.0], ScenarioService::quantities($heat, [300.0], ['heat_a' => 1.0, 'hdd' => false]), 'ohne Schalter keine Verschiebung');
+    }
+
+    /**
+     * v3.10.0 (Skeptiker v3.9.0, M4-Rest) — dieselben Monatskosten in Saldo-Karte und Werkstatt, am
+     * unordentlichen Testhaushalt (Heizmodell passt schlecht, die Karte kalibriert): Je Monat, der ganz
+     * nach heute liegt, ist der Zuwachs der Kosten im Saldo-Verlauf der Karte die Ausgangsfall-Zeile
+     * der Werkstatt. Bis v3.9 rechnete die Werkstatt mit den Monatsmengen der Prognose (ohne Faktor).
+     */
+    public function testMonthlyCostsMatchTheBalanceCard(): void
+    {
+        $h = json_decode((string)file_get_contents(dirname(__DIR__, 2) . '/fixtures/messy-household/household.json'), true, 512, JSON_THROW_ON_ERROR);
+        $this->store->write('settings.json', $h['settings']);
+        $this->store->write('temperatures.json', $h['temperatures']);
+        foreach (['gas', 'strom', 'wasser'] as $u) foreach (['meters', 'readings', 'contracts'] as $pot) $this->store->write("$u/$pot.json", []);
+        foreach ($h['utilities'] as $u => $pots) foreach ($pots as $pot => $rows) $this->store->write("$u/$pot.json", $rows);
+        $today = '2026-10-26';
+        $meter = $this->meters->list('gas')[0];
+        $card = array_values(array_filter($this->consumption->contractStatus('gas', $meter, $today)['contracts'], fn($c) => !empty($c['is_current'])))[0];
+        $r = $this->svc->compute(['utility' => 'gas', 'meter_id' => $meter['id']], $today);
+        $inc = []; $prev = null;
+        foreach ($card['balance_path'] as $p) {
+            if ($prev !== null && !empty($p['future'])) $inc[$p['ym']] = (float)$p['cost'] - $prev;
+            $prev = (float)$p['cost'];
+        }
+        $compared = 0;
+        foreach ($r['months'] as $m) {
+            if (!isset($inc[$m['ym']])) continue;
+            self::assertEqualsWithDelta($inc[$m['ym']], $m['base_cost'], 0.05, $m['ym']);
+            $compared++;
+        }
+        self::assertGreaterThanOrEqual(2, $compared, 'November und Dezember 2026');
     }
 }

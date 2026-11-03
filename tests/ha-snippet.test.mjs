@@ -102,6 +102,22 @@ for (const file of DOCS) {
   if (sensors) sameLines(sensorNorm(sensors), appSensors, `${file}: Sensoren wie in der App`);
 }
 ok(haRestSensorYaml('x', []).includes("selectattr('key', 'eq', 'strom.m_strom_default')"), 'App: Sensor-Vorlage ohne Zähler zeigt ein Beispiel');
+// v3.10.0 (Nachtrag) — der Saldo bleibt der Zustand (bestehende Automationen), dazu als Attribute der
+// erwartete Saldo des Vertrags und die Summe einer Abrechnung über mehrere Verträge, je Zähler über seinen Schlüssel
+{
+  const two = haRestSensorYaml('x', [{ key: 'strom.m_a', name: 'A', unit: 'kWh', hasContract: true },
+    { key: 'gas.m_b', name: 'B', unit: 'kWh', hasContract: false }]).split('\n');
+  const at = two.findIndex(l => l.includes('unique_id: energietracker_strom_m_a_balance'));
+  const block = two.slice(at, at + 9).map(l => l.trim());
+  ok(block[1] === `value_template: "{{ value_json.data.meters | selectattr('key', 'eq', 'strom.m_a') | map(attribute='contract.balance', default=none) | first }}"`,
+    'Saldo-Sensor: Zustand bleibt contract.balance');
+  ok(block[4] === `json_attributes_path: "$.data.meters[?(@.key == 'strom.m_a')].contract"`, `Saldo-Sensor: Attribute aus dem Vertrag des eigenen Zählers (${block[4]})`);
+  ok(block[5] === 'json_attributes:' && block[6] === '- projected_end_balance' && block[7] === '- projected_end_balance_total',
+    'Saldo-Sensor: Attribute projected_end_balance und projected_end_balance_total');
+  ok(two.filter(l => l.includes('json_attributes_path')).length === 1, 'ohne Vertrag kein Saldo-Sensor und keine Attribute');
+  ok(!haRestSensorYaml('x', [{ key: "strom.m_a')] evil", name: 'A', unit: 'kWh', hasContract: true }]).includes("m_a')]"),
+    'Saldo-Sensor: der Schlüssel im JSONPath ist gefiltert');
+}
 
 // v3.9.0 (F1033) — Sensor „Zu tun“ und Automation für den Webhook: Doku wie App.
 // Namen, Alias und Webhook-ID sind übersetzt bzw. eigene und werden neutralisiert.
@@ -127,6 +143,11 @@ for (const file of DOCS) {
   ok(todo.includes('{{ value_json.data.count }}'), 'Zu tun: Anzahl aus data.count');
   ok(todo.includes("value_json.data.next.title if value_json.data.next else '-'"), 'Zu tun: ohne nächsten Punkt kein Template-Fehler');
   ok(todo.includes('device_class: date'), 'Zu tun: Fälligkeit als Datum');
+  // v3.10.0 (#36) — auch das Kommende: Attribute und der nächste noch nicht fällige Termin
+  ok(todo.includes('          - soon') && todo.includes('          - next_upcoming'), 'Zu tun: Attribute soon und next_upcoming');
+  ok(todo.includes("value_json.data.next_upcoming.title if value_json.data.next_upcoming else '-'"), 'Zu tun: nächster Termin ohne Template-Fehler');
+  ok(todo.includes('value_json.data.next_upcoming.date if value_json.data.next_upcoming else none'), 'Zu tun: Datum des nächsten Termins');
+  ok(todo.includes('value_template: "{{ value_json.data.count }}"'), 'Zu tun: Zustand bleibt die Zahl der fälligen Punkte');
 }
 ok(haReadSecretYaml().startsWith('energietracker_read: "Bearer etk_'), 'App: Lese-Schlüssel als ganzer Header-Wert');
 

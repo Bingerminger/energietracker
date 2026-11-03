@@ -685,8 +685,8 @@ abgenommen ist.
 - **Ein dokumentierter Befehl muss einmal gelaufen sein (v2.14.0).** Die
   Installationsanleitung empfahl `python3 scripts/init_data.py --help`. Das
   Skript kannte keine Optionen: Der Aufruf startete den Import und schrieb nach
-  `./data`. Jetzt antwortet `--help` vor jedem Import, und das Skript ist als
-  veraltet gekennzeichnet.
+  `./data`. Danach antwortete `--help` vor jedem Import, und das Skript war als
+  veraltet gekennzeichnet; mit v3.10.0 ist es entfernt.
 - **Eine Übersetzung braucht ein Glossar (v2.14.0).** Im englischen Katalog
   hieß der Arbeitspreis „working price“ und „energy price“, der Grundpreis
   „base price“ und „base charge“ — vier Wörter für zwei Dinge, und die Doku

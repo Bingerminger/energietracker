@@ -93,7 +93,9 @@ final class PvSummaryService
         // v3.4.0 (F1026) — je Monat Speicher und die Verbraucher Wärmepumpe und
         // Wallbox (Rollen der Stromzähler): Grundlage für den Energiefluss
         $battery = $this->roleKwhByMonth($erzeugung, 'pv_erzeugung', ['battery_charge', 'battery_discharge']);
-        $devices = $this->roleKwhByMonth($strom, 'strom', ['heat_pump', 'ev_charger']);
+        // v3.10.0 (#40) — Einspeisung in der Kaskade: Sonnenstrom je Strang aus den Einspeise-Zählwerken
+        $cascade = CascadeFeed::compute($strom, $einspeisung, $erzeugung);
+        $devices = $this->deviceKwhByMonth($strom, $cascade);
 
         foreach ($byYm as $ym => &$row) {
             // Quoten nur, wo alle drei Zähler Daten haben: Ein Erzeugungszähler
@@ -149,6 +151,8 @@ final class PvSummaryService
             // die Monate (Eigenverbrauch, Autarkie, Ersparnis) eine Schätzung
             $row['interpolated'] = !empty($interp[$ym]);
             $row['interpolated_series'] = array_keys($interp[$ym] ?? []);
+            // v3.10.0 (#40) — selbst genutzter Sonnenstrom je Strang der Kaskade (additiv, sonst null)
+            $row['cascade'] = $row['covered'] ? self::cascadeRow($cascade, $ym) : null;
         }
         unset($row);
         ksort($byYm);
@@ -169,6 +173,7 @@ final class PvSummaryService
                     '_ev' => 0.0, '_erz' => 0.0, '_bez' => 0.0, '_flow' => null,
                     'savings_eur' => null, 'feed_in_revenue_eur' => 0.0,
                     'heat_pump_kwh' => null, 'ev_charger_kwh' => null,
+                    'cascade' => null,            // v3.10.0 (#40)
                     'months_interpolated' => 0,   // v3.7.0 (#39)
                     '_period' => ['from' => null, 'to' => null, 'interpolated_months' => 0, 'interpolated_series' => [],
                                   'feed_above_generation' => [], 'partial' => [], 'generation_kwh' => 0.0],
@@ -195,8 +200,17 @@ final class PvSummaryService
             $y['erzeugung_kwh']    += $row['erzeugung_kwh'];
             $y['months_with_data']++;
             $y['feed_in_revenue_eur'] += (float)$row['feed_in_revenue_eur'];
+            if ($row['cascade'] !== null) $y['cascade'] = self::addCascade($y['cascade'], $row['cascade'], (string)$row['ym'], (array)($cascade['monthly'][$row['ym']] ?? []));
             foreach (['heat_pump_kwh', 'ev_charger_kwh'] as $k) {
                 if ($row[$k] !== null) $y[$k] = ($y[$k] ?? 0.0) + $row[$k];
+            }
+            // v3.10.0 — Jahressumme über eine Lücke genau: in verteilten Monaten der unbegrenzte
+            // Sonnenstrom des Strangs statt des auf null begrenzten der Monatszeile
+            foreach (['heat_pump', 'ev_charger'] as $role) {
+                $a = (float)($devices['sum_adj'][$row['ym']][$role] ?? 0.0);
+                if ($a === 0.0) continue;
+                if ($row[$role . '_kwh'] !== null) $y[$role . '_kwh'] += $a;
+                if ($row['covered'] && $row['flow'] !== null) $y['_flow_adj'][$role] = ($y['_flow_adj'][$role] ?? 0.0) + $a;
             }
             if ($row['covered']) {
                 $y['months_covered']++;
@@ -219,6 +233,12 @@ final class PvSummaryService
             // v3.4.0 (F1026) — Autarkie aus dem Energiefluss derselben Monate wie
             // das Schaubild; Speicherverluste zählen nicht als selbst genutzt
             $y['flow'] = $covered && $y['_flow'] !== null ? self::finishFlow($y['_flow'], $y['months_covered']) : null;
+            foreach ((array)($y['_flow_adj'] ?? []) as $role => $a) {
+                if ($y['flow'] !== null && ($y['flow'][$role] ?? null) !== null) $y['flow'][$role] = round(max(0.0, (float)$y['flow'][$role] + $a), 1);
+            }
+            // v3.10.0 — die Jahressumme eines Strangs nie unter null (sie ist über eine Lücke genau)
+            if ($y['cascade'] !== null) foreach ($y['cascade']['strands'] as &$st) $st['kwh'] = round(max(0.0, (float)$st['kwh']), 1);
+            unset($st);
             // v3.9.0 (V4) — Eigenverbrauchsquote gegen die Sonne des Bildes (selbst
             // genutzt + eingespeist): ohne Widerspruch dieselbe Erzeugung wie bisher, in
             // einem Monat mit mehr Einspeisung als Erzeugung mindestens die Einspeisung
@@ -226,7 +246,7 @@ final class PvSummaryService
             $y['eigenverbrauchsquote'] = $covered && $genFlow > 0.1 ? round($y['_ev'] / $genFlow, 4) : null;
             $y['autarkiequote'] = $y['flow']['autarky'] ?? null;
             foreach (['bezug_kwh', 'einspeisung_kwh', 'erzeugung_kwh'] as $k) $y[$k] = round($y[$k], 1);
-            foreach (['heat_pump_kwh', 'ev_charger_kwh'] as $k) $y[$k] = $y[$k] !== null ? round($y[$k], 1) : null;
+            foreach (['heat_pump_kwh', 'ev_charger_kwh'] as $k) $y[$k] = $y[$k] !== null ? round(max(0.0, $y[$k]), 1) : null;
             $y['feed_in_revenue_eur'] = round($y['feed_in_revenue_eur'], 2);
             $y['savings_eur'] = $y['savings_eur'] !== null ? round($y['savings_eur'], 2) : null;
             $y['pv_benefit_eur'] = $y['savings_eur'] !== null ? round($y['savings_eur'] + $y['feed_in_revenue_eur'], 2) : null;
@@ -241,7 +261,7 @@ final class PvSummaryService
                 'feed_above_generation' => $p['feed_above_generation'], 'partial' => $p['partial'],
                 'generation_kwh' => round($p['generation_kwh'], 1),
             ] : null;
-            unset($y['_ev'], $y['_erz'], $y['_bez'], $y['_flow'], $y['_period']);
+            unset($y['_ev'], $y['_erz'], $y['_bez'], $y['_flow'], $y['_period'], $y['_flow_adj']);
         }
         unset($y);
         ksort($yearly);
@@ -398,6 +418,97 @@ final class PvSummaryService
         if (count($days) < 2) return [];
         $max = max($days);
         return array_values(array_keys(array_filter($days, fn($d) => $d < self::SAME_SPAN_SHARE * $max)));
+    }
+
+    /**
+     * v3.10.0 (#40) — Sonnenstrom je Strang eines Monats für die API: Einspeisung an Z2,
+     * je Strang (dahinter, vorn) Rolle, Name, Zähler und selbst genutzte kWh. Null ohne
+     * Kaskade oder ohne alle drei Reihen in diesem Monat.
+     *
+     * @param array<string,mixed>|null $cascade CascadeFeed::compute()
+     * @return array<string,mixed>|null
+     */
+    private static function cascadeRow(?array $cascade, string $ym): ?array
+    {
+        $m = $cascade['monthly'][$ym] ?? null;
+        if ($m === null || empty($m['covered'])) return null;
+        $strands = [];
+        foreach (['behind' => 'behind_kwh', 'front' => 'front_kwh'] as $pos => $field) {
+            $strands[] = ['position' => $pos, 'role' => $cascade[$pos]['role'], 'name' => $cascade[$pos]['name'],
+                          'meter_ids' => $cascade[$pos]['meter_ids'], 'kwh' => (float)$m[$field],
+                          'estimated' => (bool)$m[$pos . '_estimated']];   // v3.10.0 (Skeptiker M5)
+        }
+        return ['feed_kwh' => (float)$m['feed_kwh'], 'strands' => $strands, 'inconsistent' => (bool)$m['inconsistent'],
+                'interpolated' => (bool)$m['interpolated'], 'clamped' => (bool)$m['clamped']];   // v3.10.0 (Skeptiker M5)
+    }
+
+    /**
+     * v3.10.0 (#40) — Strangwerte eines Jahres: Summe der Monate mit allen Reihen. Summiert wird
+     * der Wert für Jahressummen aus CascadeFeed (`$m`, verteilt unbegrenzt), damit die Summe über
+     * eine Lücke genau stimmt; die Monatszeile zeigt weiter den begrenzten.
+     */
+    private static function addCascade(?array $acc, array $c, string $ym, array $m = []): array
+    {
+        if ($acc === null) {
+            $acc = ['months' => 0, 'feed_kwh' => 0.0,
+                    'strands' => array_map(fn($s) => ['kwh' => 0.0, 'estimated_months' => 0] + array_diff_key($s, ['estimated' => 1]), $c['strands']),
+                    'inconsistent_months' => [], 'interpolated_months' => 0];
+        }
+        $acc['months']++;
+        $acc['feed_kwh'] = round($acc['feed_kwh'] + $c['feed_kwh'], 1);
+        foreach ($c['strands'] as $i => $s) {
+            $add = (float)($m[$s['position'] . '_sum_kwh'] ?? $s['kwh']);
+            $acc['strands'][$i]['kwh'] = round((float)$acc['strands'][$i]['kwh'] + $add, 1);
+            // v3.10.0 (Skeptiker M5) — Monate, in denen dieser Strang geschätzt ist (≈ an der Karte)
+            if (!empty($s['estimated'])) $acc['strands'][$i]['estimated_months']++;
+        }
+        if ($c['inconsistent']) $acc['inconsistent_months'][] = $ym;
+        if ($c['interpolated']) $acc['interpolated_months']++;
+        return $acc;
+    }
+
+    /**
+     * v3.10.0 (#40) — Wärmepumpe und Wallbox je Monat für den Energiefluss: der eigene
+     * Verbrauch (ein Zähler vorn in der Kaskade misst den Strang dahinter mit; bis v3.9 stand
+     * dort die ganze Messung von Z1) und, mit Einspeise-Zählwerken in der Kaskade, der
+     * Sonnenstrom ihres Strangs. Ohne Kaskade wie bisher.
+     *
+     * v3.10.0 — `sum_adj`: je Monat und Rolle, was die Jahressumme statt des begrenzten Werts
+     * zählt (verteilte Monate unbegrenzt, s. CascadeFeed::compute()).
+     *
+     * @param array<string,mixed>|null $cascade
+     * @return array{has:bool,roles:array<string,bool>,kwh:array<string,array<string,float>>,sum_adj:array<string,array<string,float>>}
+     */
+    private function deviceKwhByMonth(array $strom, ?array $cascade): array
+    {
+        $roles = ['heat_pump', 'ev_charger'];
+        $out = $this->roleKwhByMonth($strom, 'strom', $roles);
+        foreach ($strom['meters'] ?? [] as $pm) {
+            $role = \Energietracker\Config\Utilities::roleOf('strom', $pm['meter'] ?? []);
+            $id = (string)($pm['meter']['id'] ?? '');
+            if (!in_array($role, $roles, true) || $id === '') continue;
+            foreach ($strom['meters'] as $sub) {
+                if ((string)($sub['meter']['parent_meter_id'] ?? '') !== $id) continue;
+                foreach ($sub['monthly'] ?? [] as $m) {
+                    $ym = (string)($m['ym'] ?? '');
+                    if (isset($out['kwh'][$ym][$role])) $out['kwh'][$ym][$role] = max(0.0, $out['kwh'][$ym][$role] - (float)($m['kwh'] ?? 0));
+                }
+            }
+        }
+        if ($cascade !== null) {
+            foreach (['front', 'behind'] as $pos) {
+                $role = $cascade[$pos]['role'];
+                if (!isset($out['roles'][$role])) continue;
+                $sum = CascadeFeed::shareFor($cascade, $cascade[$pos]['meter_ids'], true);
+                foreach (CascadeFeed::shareFor($cascade, $cascade[$pos]['meter_ids']) as $ym => $kwh) {
+                    $out['kwh'][$ym][$role] = ($out['kwh'][$ym][$role] ?? 0.0) + $kwh;
+                    $d = (float)($sum[$ym] ?? $kwh) - $kwh;
+                    if (abs($d) > 1e-9) $out['sum_adj'][$ym][$role] = ($out['sum_adj'][$ym][$role] ?? 0.0) + $d;
+                }
+            }
+        }
+        $out['sum_adj'] ??= [];
+        return $out;
     }
 
     /** Wärmepumpe und Wallbox eines Monats am Fluss (null ohne Zähler dieser Rolle). */

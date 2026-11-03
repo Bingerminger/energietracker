@@ -516,6 +516,59 @@ jobs:
           grep -q '"wohnflaeche_m2":93' /tmp/settings-gid0.json
           echo "Meldung, eigene UID und Gruppe 0 ok"
 
+      # v3.10.0 — ohne supervisord: docker/start.sh ist PID 1, reicht das
+      # Stoppsignal an php-fpm und nginx weiter und beendet den Container,
+      # sobald einer der beiden Dienste endet (Neustart über die restart-Policy
+      # bzw. den Watchdog von Home Assistant). Für beide Varianten:
+      # `docker stop` (SIGQUIT, STOPSIGNAL des Basis-Images) endet schnell mit 0
+      # (ohne Handler wartete Docker die volle Frist und schickte SIGKILL, Exit
+      # 137); endet nginx oder php-fpm, endet der Container mit Fehlercode;
+      # supervisord und python3 fehlen.
+      - name: Startskript (Stoppsignal, beendeter Dienst)
+        run: |
+          set -euo pipefail
+          start_et() {
+            docker run -d --name et-start -p 127.0.0.1:8085:"$2" "$1" >/dev/null
+            for i in $(seq 1 30); do
+              if curl -sf http://127.0.0.1:8085/api/health >/dev/null 2>&1; then return 0; fi
+              sleep 1
+            done
+            docker logs et-start; return 1
+          }
+          for variant in "energietracker:ci 80" "energietracker:ci-rootless 8080"; do
+            set -- $variant
+            echo "== $1"
+            docker run --rm --entrypoint sh "$1" -c 'command -v supervisord python3 python || true' > /tmp/start-cmds.txt
+            if [ -s /tmp/start-cmds.txt ]; then cat /tmp/start-cmds.txt; echo "supervisord/python im Image"; exit 1; fi
+            # Stoppsignal: schnell und sauber
+            start_et "$1" "$2"
+            docker exec et-start cat /proc/1/cmdline | tr '\0' ' ' > /tmp/pid1.txt
+            grep -q 'start.sh' /tmp/pid1.txt
+            t0=$(date +%s)
+            docker stop -t 30 et-start >/dev/null
+            t1=$(date +%s)
+            echo "docker stop: $((t1 - t0)) s"
+            test $((t1 - t0)) -lt 10
+            test "$(docker inspect -f '{{.State.ExitCode}}' et-start)" = "0"
+            docker logs et-start > /tmp/start.log 2>&1
+            grep -q '"signal":"QUIT"' /tmp/start.log
+            docker rm et-start >/dev/null
+            # Ein Dienst endet von selbst: der Container endet mit Fehlercode
+            for service in nginx php-fpm; do
+              start_et "$1" "$2"
+              # der älteste Prozess des Dienstes = sein Master (busybox-pgrep, ohne -x)
+              docker exec et-start pgrep -o "$service" > /tmp/svc.pid
+              docker exec et-start kill -TERM "$(cat /tmp/svc.pid)"
+              code=$(timeout 20 docker wait et-start)
+              echo "$service beendet → Exit $code"
+              test "$code" != "0"
+              docker logs et-start > /tmp/start.log 2>&1
+              grep -q "\"service\":\"$service\"" /tmp/start.log
+              docker rm et-start >/dev/null
+            done
+          done
+          echo "Startskript ok"
+
       - name: Container-Logs (Diagnose)
         if: always()
         run: |
@@ -524,9 +577,10 @@ jobs:
           docker logs et-rootless || true
           docker logs et-rootless-foreign || true
           docker logs et-rootless-gid0 || true
+          docker logs et-start || true
 
       - name: Aufräumen
         if: always()
         run: |
-          docker rm -f et et-hardened et-rootless et-rootless-foreign et-rootless-gid0 || true
+          docker rm -f et et-hardened et-rootless et-rootless-foreign et-rootless-gid0 et-start || true
           docker volume rm etdata-hardened etdata-rootless etdata-gid0 || true

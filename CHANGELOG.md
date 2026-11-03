@@ -6,6 +6,401 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [3.10.0] — 2026-11-03 — Versprochen und abgesichert
+
+MINOR-Release ohne Schemaschritt (bleibt 1.8.0). 3.10.0 löst ein, was in
+[#36], [#38], [#40], [#41] und [#49] (aus Discussion [#42]) zugesagt war. Die
+Hauptfunktion ist der **Saldo aus einem Guss**: Die Saldo-Karte trennt, was bis
+zur letzten Ablesung gemessen ist, was bis heute geschätzt ist und was bei der
+Abrechnung zu erwarten ist, mit einer ehrlichen Spanne auch für Strom und
+Wasser; rechnet eine Abrechnung zwei Verträge desselben Versorgers ab, zeigt
+jede Ansicht die Summe. Home Assistant spricht der Energietracker jetzt auch
+über **HTTPS mit selbst ausgestellten Zertifikaten** an, und der Sensor „Zu tun“
+nennt den nächsten Termin. Im **Abrechnungsjahr** zeigt die Übersicht
+Trendpfeile, das Umschalten springt nicht mehr nach oben. In der **Kaskade**
+([#40]) rechnet die App den Rest je Zählwerk mit passendem Mischpreis und zeigt
+den Sonnenstrom je Strang. Das **Docker-Image** kommt ohne supervisord und
+Python aus, ist signiert und wird nach jedem Release auf Lücken geprüft. API,
+CSV-Format 1, Backup-Format 3.0 und Docker-Umgebung wachsen nur additiv.
+
+### ⚠️ Für bestehende Installationen
+
+- **Image ohne supervisord:** Ein kleines Startskript startet nginx und php-fpm.
+  Fällt einer der beiden Dienste aus, endet der Container mit einem Fehlercode,
+  statt den Dienst intern neu zu starten. Zurück kommt er über die
+  restart-Policy: `--restart unless-stopped` bei `docker run` (alle Beispiele und
+  die Unraid-Vorlage tragen sie jetzt), `restart: unless-stopped` in Compose
+  (die mitgelieferten Vorlagen hatten es schon), in der App für Home Assistant
+  über den **Watchdog**, den du eingeschaltet lassen solltest. `docker stop`
+  endet sofort mit Exit-Code 0.
+- **„Saldo am ‹Datum›“ statt „Aktueller Saldo“** ([#49]): Die Saldo-Karte zählt
+  nur noch bis zur letzten Ablesung und nennt deren Tag; der Stand bis heute
+  steht als Zeile darunter und rechnet vor, was seit der Ablesung dazukam. Bei
+  seltenem Ablesen kann der gemessene Saldo ein anderes Vorzeichen haben als der
+  Stand bis heute. Der Sensor „Saldo“ in Home Assistant bleibt der Stand bis
+  heute.
+- **Eine Abrechnung über zwei Verträge:** Wechselt der Vertrag in der laufenden
+  Abrechnungsperiode beim selben Versorger, erwarten Karte, Kosten & Verträge,
+  Übersicht, Werkstatt und Jahresbericht die Summe beider Verträge, und der
+  Abschlagsvorschlag rechnet mit ihr; ist ein Teil unsicher, gibt es nur eine
+  Spanne. `projected_end_balance` bleibt je Vertrag, die Summe steht in
+  `settle_balance` bzw. für Home Assistant in `projected_end_balance_total`.
+- **Breiteres Schätzband bei seltenem Ablesen:** Die Breite kommt nur noch aus
+  gemessenen Monaten und ist je Monat mindestens 10 % der geschätzten Menge. Wer
+  einmal im Jahr abliest, sieht eine deutlich breitere Spanne als bisher, und
+  Strom und Wasser haben jetzt ebenfalls eine.
+- **Folgevertrag ab dem nächsten Stichtag:** Er gehört zu keiner anstehenden
+  Abrechnung. Die Vertragsliste zeigt „–“ statt „≈“, `projected_end_balance` und
+  `verdict` sind dort `null`, sein Abrechnungstag ist das Ende seiner ersten
+  eigenen Periode.
+- **Kaskade mit HT/NT** ([#40]): Der Mischpreis aus HT und NT (Prognose,
+  Saldo-Schätzung, Abschlagsvorschlag, Tarifvergleich, Werkstatt) richtet sich
+  nach dem Rest je Zählwerk statt nach der Messung; die Beträge ändern sich
+  leicht. Mit einem Einspeisezählwerk an Z2 zählen Energiefluss,
+  Jahresarbeitszahl und „Strom nach Rollen“ den selbst genutzten Sonnenstrom der
+  Wärmepumpe mit.
+- **Trendpfeile:** Im Abrechnungsjahr vergleichen sie dieselbe Spanne der
+  Periode davor bzw. dieselben Kalendertage ein Jahr früher. Mehr als doppelt
+  oder weniger als halb so viel wie im Vergleichszeitraum zeigt in beiden
+  Jahresarten „Ablesung prüfen“ statt einer Prozentzahl.
+- **Analyse-Zäsur:** „Dauerhaft mehr bzw. weniger Verbrauch“ schlägt die App
+  erst vor, wenn mindestens zwei Ablesungen nach dem Wechsel vorliegen; ein
+  einzelner Stand mit einer falschen Ziffer reicht nicht mehr.
+- **Empfehlung „statistische Anomalie“:** Ein Elternzähler wird mit seinem
+  eigenen Verbrauch ohne Subzähler geprüft. Ein Ausschlag der Wallbox erscheint
+  nur noch an der Wallbox, nicht mehr am Hauszähler.
+- **Prognose-Werkstatt:** Der Ausgangsfall schätzt je Monat wie die Saldo-Karte
+  (mit Kalibrierfaktor) und heißt „Wie die Saldo-Karte (kalibriert)“;
+  `months[].base_qty` und `base_cost` weichen dadurch von der Prognose ab, wo
+  der Faktor nicht 1 ist.
+- **Fehlermeldungen von Fremddiensten:** Lehnt ein Cloud-Dienst beim Auslesen ab
+  oder antwortet nicht, steht nur sein Grund da, ohne Fehler-ID und ohne
+  „Interner Fehler“; im Protokoll als `warning` statt `error`. Wer das Protokoll
+  nach `error` filtert, sieht diese Fälle dort nicht mehr.
+- **Home Assistant:** Der Saldo-Sensor der Vorlage trägt neue Attribute
+  (`projected_end_balance`, `projected_end_balance_total`,
+  `projected_end_range_total`, `measured_balance`, `measured_until`); sein Wert
+  bleibt unverändert. Eine früher kopierte Vorlage bekommt sie mit den Zeilen
+  `json_attributes_path` und `json_attributes`. Die Testnachricht meldet einen
+  Zertifikatsfehler mit
+  seiner Art (`tlsIssuer`, `tlsName`, …) statt `network`.
+- **Entfernt:** `scripts/init_data.py` (der alte Excel-Import aus v1.0.0, seit
+  v2.14.0 als veraltet gekennzeichnet) und `requirements.txt`. Der CSV-Import in
+  der App kann alles, was das Skript konnte.
+- **Signatur:** Images ab 3.10.0 sind mit cosign signiert; ältere Tags bleiben
+  unsigniert. Prüfen geht mit cosign 3 oder neuer.
+
+### Added
+
+#### Saldo aus einem Guss ([#49], Discussion [#42])
+
+- **Gemessen und geschätzt getrennt:** Über der Saldo-Karte steht „Gemessen vom
+  ‹Beginn› bis zur letzten Ablesung am ‹Datum›“, die Spalten heißen „Verbraucht
+  bis ‹Datum›“, „Abschläge bis ‹Datum›“ und „Saldo am ‹Datum›“. Die Zeile „Bis
+  heute geschätzt: …“ rechnet vor, was seit der Ablesung dazukam (Verbrauch
+  geschätzt, Grundpreis, dagegen Abschläge und Sonderzahlungen). Ohne
+  gemessenen Tag heißt die Spalte „Saldo heute (geschätzt)“.
+- **Kachel und Karte enden am selben Tag:** Die Kachel heißt „Abschläge ‹Beginn›
+  bis ‹Datum›“; mit Vertragsbeginn am 1. Januar und ohne Sonderzahlungen zeigen
+  beide denselben Saldo. Beginnt der Saldo der Karte erst innerhalb des
+  Kalenderjahres (Stichtag, Vertragswechsel), sagt die Kachel „Saldo: siehe
+  Saldo-Karte, sie rechnet ab …“ statt eines zweiten Saldos.
+- **Eine Abrechnung, mehrere Verträge:** Rechnet dieselbe Abrechnung einen
+  Vorvertrag desselben Versorgers mit ab, nennt die Karte ihn mit Zeitraum und
+  Saldo (mit „≈“, wenn er überwiegend geschätzt ist, als Spanne, wenn er
+  unsicher ist), und gemessen wie bis heute rechnet sie über beide. Dieselbe
+  Summe zeigen Kosten & Verträge, Einsteiger-Übersicht, „Wohin geht mein Geld?“,
+  der Satz über „Prognose im Detail“, der Heizgrenze-Hinweis, die Werkstatt, der
+  Jahresbericht und Home Assistant.
+- **Spanne überall:** Auch Strom, Wasser und Heizarten ohne verlässliches
+  Heizmodell haben eine Breite der Schätzung („Je nach Schätzung …“, mit zu
+  wenigen gemessenen Monaten „Zu wenige gemessene Monate, …“). Sie steht an
+  Saldo-Karte, Einsteiger-Übersicht, „Wohin geht mein Geld?“, Kosten & Verträge,
+  im Jahresbericht und in dessen „Auf einen Blick“.
+- **Werkstatt wie die Karte:** Der Ausgangsfall der Prognose-Werkstatt hat
+  dieselben Monatskosten wie der Saldo-Verlauf der Karte. Unter „Prognose im
+  Detail“ sagt ein Satz, um wie viel der Kalibrierfaktor die Mengen der Karte
+  verschiebt (ab 2 %).
+- **Im Schaufenster und in der Demo** ist Gas zwölf Tage vor heute abgelesen,
+  damit der gemessene Saldo und die Schätzung bis heute zu sehen sind; der
+  letzte Schritt der Ersteinrichtung erklärt die drei Salden in einem Satz.
+
+#### Home Assistant und Heimnetz ([#36])
+
+- **HTTPS mit eigenem Stammzertifikat:** Home Assistant, Texterkennung, Auslesen
+  im Heimnetz und evcc erkennen Zertifikate an, die du selbst ausgestellt hast:
+  als Datei im Container (`ET_CA_FILE`) oder unter Einstellungen → Experte →
+  „Verbindungen im Heimnetz“. Das Stammzertifikat gilt zusätzlich zu den
+  üblichen, die Prüfung bleibt an. Als Notlösung „Zertifikat im Heimnetz nicht
+  prüfen“: standardmäßig aus, mit Warnung, nur für Adressen im Heimnetz. Die
+  System-Diagnose nennt die eigenen Stammzertifikate.
+- **Meldung je Zertifikatsfehler:** Aussteller unbekannt, Zertifikat passt nicht
+  zur Adresse, abgelaufen oder Stammzertifikate nicht lesbar, jeweils mit dem
+  passenden Rat; entschieden am Fehlercode, nicht am Wortlaut.
+- **Sensor „Zu tun“ zeigt das Kommende:** `/api/todo` liefert zusätzlich `soon`
+  (bald fällig, mit dem Vorlauf der App) und `next_upcoming` (den nächsten
+  Termin mit Datum, auch wenn er noch nicht fällig ist). Der Zustand bleibt die
+  Zahl der fälligen Punkte; die Vorlage hat zwei neue Sensoren.
+- **Erwartet bei Abrechnung in Home Assistant:** Der Saldo-Sensor trägt die
+  Summe der Abrechnung (`projected_end_balance_total`), die Spanne, wenn die
+  Karte nur sie zeigt (`projected_end_range_total`), und den gemessenen Saldo
+  mit seinem Tag (`measured_balance`, `measured_until`).
+
+#### Abrechnungsjahr in der Übersicht ([#36])
+
+- **Trendpfeile im Abrechnungsjahr:** Die Kacheln „Verbrauch“ und „Kosten
+  (bisher im Abrechnungsjahr)“ vergleichen vom Beginn der Periode bis zur
+  letzten Ablesung mit denselben Tagen der Periode davor. Gibt die Periode davor
+  keinen fairen Vergleich her (etwa nach einem Lieferantenwechsel mitten im
+  Jahr), vergleicht der Pfeil dieselben Kalendertage ein Jahr früher. Der
+  Tooltip nennt beide Zeiträume; unter 14 Tagen gibt es keinen Pfeil.
+- **„Ablesung prüfen“ statt ▲ 1.382 %:** Ist es mehr als doppelt oder weniger
+  als halb so viel wie im Vergleichszeitraum, steht ein Link zur Verbrauchsart
+  statt einer Prozentzahl, im Kalender- wie im Abrechnungsjahr und in der
+  Einsteiger-Übersicht.
+
+#### Kaskade ([#40])
+
+- **Einspeisung in der Kaskade:** Zählen auch die Zähler hinter dem
+  Netzanschluss rückwärts (2.8.0), bekommt das Einspeisezählwerk von Z2 unter
+  PV-Einspeisung „Einspeisung in der Kaskade → Einspeisezählwerk von“. Es zählt
+  nicht als Einspeisung ins Netz. Aus den Differenzen rechnet die App, wie viel
+  Sonnenstrom Haushalt (Z3 − Z2) und Wärmepumpe (Z2 − Z1) selbst nutzen; die
+  Karte „Sonnenstrom je Strang“ unter PV-Erzeugung zeigt es, mit „≈“ für Monate
+  aus verteilten Ablesungen. Die Tabelle der Wärmepumpe zeigt in solchen Monaten
+  „≈“ am Strom und keine Arbeitszahl.
+- **Assistent „Messkonzept“:** In der Kaskade mit PV legt er das
+  Einspeisezählwerk von Z2 an, gibt der PV-Erzeugung (Z3) die Kennzahl 2.8.0 und
+  zeichnet die Anlage hinter Z2.
+
+#### Posteingang
+
+- **Rechnungskorrektur erkannt:** Die Auslesung liest Rechnungsnummer
+  (`invoice_number`) und einen Bezug auf eine frühere Rechnung
+  (`corrects_invoice`); Auslese-Schema 6.
+
+#### Image, Sicherheit und Mitmachen
+
+- **Signierte Images:** Jedes veröffentlichte Image (Release und wöchentlicher
+  Neubau, Standard und ohne root) ist mit cosign ohne Schlüssel signiert;
+  Stückliste und Herkunftsnachweis hängen weiter am Image. Prüfanleitung unter
+  „Docker-Betrieb“ und in SECURITY.md.
+- **Prüfung auf Lücken direkt nach jedem Release.** SECURITY.md nennt Fristen:
+  Eingangsbestätigung einer Meldung binnen 7 Tagen; eine kritische oder hohe
+  Lücke mit Korrektur bekommt binnen 7 Tagen ein neues Image, und die App für
+  Home Assistant eine neue Patch-Version, damit sie es holt.
+- **`AGENTS.md`** für Beitragende, die mit KI-Agenten arbeiten; CONTRIBUTING
+  erklärt Wünsche (Discussions → Ideas), Board, Milestones und Status-Labels.
+- **Danke sagen:** Hat die App gerade geholfen („Rechnung prüfen“ findet eine
+  Abweichung, ein Termin ist vor dem Fälligkeitstag erledigt, der Jahresbericht
+  ist gedruckt oder heruntergeladen), erscheint höchstens einmal im Quartal je
+  Gerät eine ruhige Zeile mit einem Link zum Unterstützen. Kein Dialog, nie in
+  der Demo, abschaltbar (`support_hint`). CREDITS.md hat einen Abschnitt
+  „Unterstützer“.
+
+#### API und Daten (additiv)
+
+- **Keine neue Route.**
+- **Daten:** am Zähler der PV-Einspeisung `cascade_meter_id`; Einstellungen
+  `home_ca_pem`, `home_tls_insecure` (beide nur Verwalter) und `support_hint`;
+  Umgebungsvariable `ET_CA_FILE`. Kein neuer Topf im Backup.
+- **Antworten:** im Vertragsstatus `balance_measured`, `settle_balance`,
+  `settle_verdict`, `settle_range`, `settle_parts`, `settle_measured`,
+  `settle_today`, `settle_uncertain`, `projection_band` auch ohne Heizmodell
+  (mit `few_measured`); `/api/summary` je Vertrag `projected_end_balance_total`,
+  `projected_end_range_total`, `measured_balance`, `measured_until`,
+  `projection_band`, `balance_measured`, `settle_balance`, `settle_range`;
+  `periods[].prev_same_span` (mit `basis`) in den Abrechnungsperioden;
+  `/api/todo` `soon`, `next_upcoming`; `/api/diagnostics` `home_tls`;
+  `rest_of.registers` an Gruppen; `/api/pv-summary` `cascade`; Monate der
+  Wärmepumpe mit `estimated`; Effizienz `strom.grid_only`; Empfehlung R4
+  `evidence.without_submeters`; `monthly_total[].cost_measured` in der Summe
+  der Art; im Posteingang `replaces`, `correction`, `bill_book.data.rebook`,
+  `detail.same_on` und die Auslesung mit `schema_version` 6.
+
+### Changed
+
+- **Rest je Zählwerk** ([#40]): Je Zählwerk abgerechnet hat die App schon seit
+  v3.9.0 (HT minus HT, NT minus NT, ein Zählwerk unter null zählt nicht gegen
+  das andere). Neu ist, dass der Hinweis zur Rest-Abrechnung jedes Zählwerk
+  nennt („450 kWh, je Zählwerk HT 250 kWh = 400 kWh − 150 kWh · NT 200 kWh =
+  300 kWh − 100 kWh“, `rest_of.registers`) und dass der Mischpreis der Gruppe
+  mit dem Rest je Zählwerk gewichtet ist.
+- **Effizienz in der Kaskade:** Mit Einspeisezählwerk an Z2 zählt die
+  Effizienzkennzahl die Wärmepumpe weiter nur mit dem Strom aus dem Netz und
+  sagt das an der Kachel; Jahresarbeitszahl und Energiefluss zählen den selbst
+  genutzten Sonnenstrom mit.
+- **Abschlagsvorschlag kurz vor der Abrechnung** ([#38]): Die Regel ist
+  geblieben und jetzt für Nachzahlung und Guthaben beschrieben, mit „genau drei“
+  Abschlägen und den Raten je Jahr laut Abschlagsplan, samt Rechenbeispiel.
+- **Umschalten ohne Sprung** ([#36]): Kalender- und Abrechnungsjahr sowie die
+  Stufe zeichnen die Seite an Ort und Stelle neu, ohne „Lädt …“; Leseposition,
+  Fokus und Schaubilder bleiben, die Analyse behält Art und Zähler.
+- **Image:** ohne supervisord, Python und setuptools; die Prüfung auf Lücken
+  meldet nur noch Befunde, für die es eine Korrektur gibt; `docker/login-action`
+  4.7.0 ([#50]); PHPUnit bleibt bei 11 (PHPUnit 12 verlangt PHP 8.3).
+- **Handbuch:** Saldo aus einem Guss in den Grundlagen, Einspeisung in der
+  Kaskade in Anwendungsfall H, HTTPS mit eigenem Zertifikat in der Anleitung zu
+  Home Assistant, Rechnungskorrektur und Anfangsstand im Posteingang, Signatur
+  und Startskript unter Docker-Betrieb; neue und erneuerte Bilder in beiden
+  Sprachen.
+
+### Fixed
+
+- **Leere Antwort nach einer Zeitüberschreitung unter PHP 8.5:** Setzte PHP nach
+  einem fatalen Fehler selbst die Statuszeile, warf die Fehlerbehandlung beim
+  Antworten eine Warnung als Ausnahme, und die Antwort blieb leer. Der Aufruf
+  stammt aus v2.6.0, sichtbar wurde es mit PHP 8.5, also im Docker-Image. Jetzt
+  kommt auch dann eine Fehlermeldung mit Fehler-ID.
+- **Absage eines Diensts als „Interner Fehler“** ([#41]): Lehnt ein Cloud-Dienst
+  ab oder antwortet er nicht, steht nur sein Grund da.
+- **Neuere OpenAI-Modelle beim Auslesen** ([#41]): Lehnt der Dienst
+  `temperature` oder `max_tokens` ab und nennt den Parameter, fragt die App
+  einmal ohne Temperatur bzw. mit `max_completion_tokens` nach. Dienste, die
+  beides nehmen, bekommen dieselbe Anfrage wie bisher.
+- **Erwartet bei Abrechnung mit zwei Verträgen:** Wechselte der Vertrag in der
+  laufenden Abrechnungsperiode beim selben Versorger, zählte „Erwartet bei
+  Abrechnung“ nur den laufenden Vertrag; jetzt zeigt eine Abrechnung über zwei
+  Verträge ihre Summe.
+- **Energiefluss der Wärmepumpe in der Kaskade** ([#40], seit v3.9.0): Er zeigte
+  die ganze Messung des vorderen Zählers samt Haushalt, jetzt ihren eigenen
+  Verbrauch.
+- **Saldo-Karte bei Guthaben** ([#38]): Kurz vor der Abrechnung riet sie auch
+  bei einem Guthaben, den Abschlag „nicht zu erhöhen“; jetzt „nicht senken“.
+- **„Danach angemessen“ aus einem endenden Vertrag:** Endet der Vertrag zur
+  Abrechnung und ist ein Folgevertrag eingetragen, nennt die Karte keinen
+  laufenden Abschlag aus den alten Preisen mehr.
+- **Folgevertrag ab dem nächsten Stichtag:** Er rechnete am Tag vor seinem
+  Beginn ab, mit einem erwarteten Saldo von rund einem Tag Kosten.
+- **Anfangsstand einer Rechnung am Vortag:** Ist derselbe Stand deine Ablesung
+  bis drei Tage vor dem Tag der Rechnung, ist er im Posteingang „schon
+  vorhanden“; bisher entstand ein zweiter Stand mit 0 Verbrauch.
+- **Rechnungskorrektur im laufenden Posteingang:** Sie wurde nur am Titel
+  erkannt und ersetzte eine schon gebuchte Rechnung nicht. Jetzt ersetzt sie die
+  erfasste Rechnung desselben Zählers und Zeitraums samt Buchung, vorab
+  angehakt und mit „ersetzt“; erkannt an Bezug, Rechnungsnummer,
+  Ausstellungsdatum oder Titel; eine nachweislich ältere Fassung ersetzt nichts.
+  Die Kernaussage sagt, was sich am Ergebnis ändert.
+- **Anomalie am Elternzähler:** Ein Ausschlag eines Subzählers erschien auch am
+  Elternzähler, der ihn mitmisst. Monate, in denen ein Subzähler nicht ganz
+  gemessen ist, zählen dort nicht mit, und der Text nennt die abgezogenen
+  Subzähler.
+- **Beschriftung im Abrechnungsjahr** ([#36]): Die Kacheln der Übersicht hießen
+  „letzte 12 Monate“, zählten aber seit Beginn des Abrechnungsjahrs.
+- **Analyse:** Beim Umschalten von Kalender- und Abrechnungsjahr begann sie
+  wieder mit der ersten Verbrauchsart.
+- **Ein Tag Unterschied:** Die Kachel im Abrechnungsjahr nennt den Tag der
+  Ablesung wie Karte und Übersicht.
+- **Abrechnungsjahr ohne Namen** stand doppelt da („… 31.08.2026–29.07.2027:
+  31.08.2026 bis 29.07.2027“).
+- **Monatsmittel der Kachel „Kosten“** zählt einen angebrochenen Monat nach
+  seinen Tagen und fehlt unter vier Wochen (bisher etwa „ø 37,40 €/Monat“ aus
+  vier Tagen).
+- **Strom-Saldo-Übersicht** rechnete im angebrochenen Monat den vollen
+  Grundpreis.
+- **„Erstellt am“** der Ergebniskarten in Werkstatt, Szenario-Druck und
+  Flexibilität stand kurz nach Mitternacht auf dem Vortag (UTC statt Ortszeit).
+- **Code-Scanning:** drei Befunde (unvollständige Maskierung) in Testhilfen.
+- **TRADEMARKS.md** sagte, der Energietracker verbinde sich nicht mit OpenAI;
+  seit dem Auslesen in der Cloud (v3.7.0, Opt-in) stimmte das nicht, und die
+  Anbieter fehlten.
+
+### Bekannte Grenzen
+
+- Die Attribute des Saldo-Sensors sind gegen die JSONPath-Auswertung
+  nachgerechnet, die Home Assistant benutzt, aber noch nicht in einem laufenden
+  Home Assistant geprüft. Ohne laufenden Vertrag schreibt Home Assistant bei
+  jeder Abfrage eine Warnung ins Protokoll; der Zustand stimmt.
+- `ET_CA_FILE` ist gegen einen echten TLS-Server geprüft, im fertigen Image erst
+  mit der Abnahme dieses Release. Die App für Home Assistant bietet `ET_CA_FILE` nicht als Option
+  an; dort genügt die Einstellung in der App.
+- Mit einer anderen TLS-Bibliothek als OpenSSL meldet die App eine
+  Namensabweichung als allgemeinen Zertifikatsfehler.
+- In der Kaskade zählt die Effizienzkennzahl für die Wärmepumpe nur den Strom
+  aus dem Netz; Jahresarbeitszahl und Energiefluss zählen den Sonnenstrom mit.
+  Die App rechnet eine Kaskadenstelle (Z2); mehrere Zähler hinter Z1 mit eigener
+  Einspeisung und den Eigenbedarf des Wechselrichters an Z3 rechnet sie nicht
+  getrennt. Über eine Ablesungslücke rechnet die Jahresarbeitszahl genau; Monate
+  ohne gemessenen Sonnenstrom zeigen keine eigene Arbeitszahl.
+- „Prognose im Detail“ zeigt die Prognose ohne Kalibrierfaktor, der Ausgangsfall
+  der Werkstatt rechnet mit ihm; ein Satz nennt den Unterschied ab 2 %.
+- Überschneiden sich zwei Verträge laut Eintrag (ein alter läuft über den Beginn
+  eines neuen hinaus), warnt die App noch nicht; Vertragsliste und
+  Abrechnungsjahr behandeln das Ende des alten verschieden.
+- Der Danke-Hinweis merkt sich den Tag je Gerät im Browser; in einem Haushalt
+  mit mehreren Geräten kann er je Gerät einmal im Quartal erscheinen.
+
+### Migration
+
+Keine. Schema bleibt 1.8.0; neue Felder sind optional, kein neuer Topf im
+Backup (die neuen Einstellungen liegen in `settings.json`; ein Stammzertifikat
+ist kein Geheimnis und steht im Backup). Das **Auslese-Schema des Posteingangs**
+steigt von 5 auf 6: Ein Dokument, das vor 3.10.0 ausgelesen wurde, behält seine
+Auslesung; beim nächsten Neu-Auslesen trifft der Zwischenspeicher einmal nicht,
+und erst dann kommen Rechnungsnummer und Bezug dazu. Für Docker: die
+restart-Policy setzen (siehe oben).
+
+### Tests
+
+- **Saldo:** `BalanceMeasuredTest`, `PeriodEndEstimateTest`, `SettleSumTest`,
+  `SummarySettleTotalTest`, `ProjectionBandRatesTest`, `OneProjectionTest`,
+  `ScenarioServiceTest`, Node-Suiten `explainer`, `chart`, `ha-snippet`.
+- **Abrechnungsjahr und Oberfläche:** `SameSpanTrendTest`, `ReadingCheckTest`,
+  `SupportHintSettingTest`, Node-Suiten `router`, `lists`, `release-notice`,
+  `scenario`.
+- **Heimnetz und Fehler:** `HomeTlsTest` und `HomeTlsEndpointTest` gegen einen
+  echten TLS-Testserver mit im Test erzeugter CA, `OpenAiParamRetryTest` mit
+  aufgezeichneten erfundenen Antworten, `ErrorHandlerTest`,
+  `ErrorHandlerFatalTest` gegen einen echten `php -S`.
+- **Kaskade:** `CascadeFeedTest`, `CascadeFeedEstimatedTest`,
+  `MeteringConceptServiceTest`, `FlexibilityInsightTest`, Node-Suite
+  `metering-concepts`.
+- **Korrekturen:** `InboxStartReadingTest`, `InboxBillCorrectionTest`,
+  `AnomalyParentRestTest`, `EvaluationDetailsTest`.
+- **Image:** `ContainerStartTest` (Startskript mit nachgebauten Diensten unter
+  `/bin/sh`), `ImageSupplyChainTest`, `TrademarksTest`; in der CI ein Schritt,
+  der beide Varianten des Images stoppt und einen Dienst beendet.
+- **Doku:** `DocumentedThresholdsTest` bindet die Zahlen der neuen Sätze an den
+  Code (Vorlauf, Horizont, Grenze des Trendpfeils, Kalibrier-Satz, Monatsmittel,
+  Netze des Heimnetzes, Arten eines Zertifikatsfehlers); `ContainerStartTest`
+  sucht die restart-Policy in allen Beispielen der Doku. Die Rechenbeispiele der
+  Grundlagen rechnen Tests mit der App nach.
+- 1895 Testmethoden (+133). Jede neue Regel hat eine Gegenprobe, die sie
+  bricht: 300 in 8 Paketen, alle rot.
+
+### Lessons Learned
+
+- **Ein Saldo braucht sein Datum.** „Aktueller Saldo“ war bei seltenem Ablesen
+  ein monatealter Stand, und die Schätzung bis heute hatte kein eigenes Wort.
+  Jetzt nennt jede Zahl ihren Tag, und die Zeile bis heute rechnet vor.
+- **Die Breite folgte der Ablesedichte, nicht der Unsicherheit.** Aus
+  gleichmäßig verteilten Monaten kam fast keine Streuung, wer einmal im Jahr
+  ablas, bekam die sicherste Aussage. Gefunden wurde das an einem erfundenen
+  Haushalt mit seltenen Ablesungen, nicht an den Beispieldaten, die monatlich
+  ablesen.
+- **Eine Summe muss jede Ansicht erreichen.** Die Summe zweier Verträge stand
+  erst an fünf Stellen, an mehreren anderen nicht, eine davon mit dem Satz „wie
+  die Saldo-Karte“. Seitdem lesen alle Ansichten dieselbe Funktion.
+
+[#36]: https://github.com/Bingerminger/energietracker/issues/36
+[#38]: https://github.com/Bingerminger/energietracker/issues/38
+[#40]: https://github.com/Bingerminger/energietracker/issues/40
+[#41]: https://github.com/Bingerminger/energietracker/issues/41
+[#42]: https://github.com/Bingerminger/energietracker/discussions/42
+[#49]: https://github.com/Bingerminger/energietracker/issues/49
+[#50]: https://github.com/Bingerminger/energietracker/pull/50
+
+---
+
+**Vermarktungssatz:** Ein Saldo, eine Wahrheit: Der Energietracker zeigt, was
+gemessen ist, was geschätzt ist und was dich bei der Abrechnung erwartet, mit
+ehrlicher Spanne, spricht Home Assistant auch über HTTPS mit deinem eigenen
+Zertifikat an und kommt als schlankes, signiertes Image.
+
+---
+
+---
+
 ## [3.9.0] — 2026-10-27 — Jeder Vertrag zahlt nur seinen Teil. Messkonzepte, Home Assistant und der Vertrag aus der Rechnung
 
 MINOR-Release ohne Schemaschritt (bleibt 1.8.0). 3.9.0 enthält, was als 3.7.1

@@ -52,6 +52,11 @@ Elternzählers rechnet, hängt davon ab, ob der Subzähler einen eigenen Vertrag
 > und der Haushaltsvertrag rechnet die 300 kWh. Die 120 kWh sind nur die
 > Aufschlüsselung, wie viel davon die Wärmepumpe war.
 
+Die Empfehlung „statistische Anomalie“ prüft den Elternzähler seit v3.10.0 mit
+seinem **eigenen Verbrauch** (hier 180 kWh), mit oder ohne eigenen Vertrag des
+Subzählers: Ein Ausschlag der Wallbox steht dann nur an der Wallbox
+([Grundlagen §9](00-overview.md#9-anomalien)).
+
 ### Rest-Abrechnung *(v3.9.0)*
 
 Hat der Subzähler einen **eigenen Vertrag** (auch einen Gruppenvertrag seiner
@@ -94,6 +99,14 @@ Summe der Verbrauchsart             500 kWh                               140 �
   Elternzähler, stimmt meist eine Ablesung nicht. Der Elternvertrag rechnet
   diesen Monat nicht negativ ab (0 kWh, 0 € Arbeitspreis), der Hinweis nennt die
   Menge (`short_kwh`) und bittet, die Ablesungen zu prüfen.
+- **Je Zählwerk** *(v3.10.0)*: Hat der Elternzähler mehrere Zählwerke (HT und
+  NT, je ein Zähler in einer Gruppe), rechnet die App den Rest je Zählwerk wie
+  der Versorger: HT minus HT, NT minus NT, jedes zu seinem Preis. Ein Zählwerk
+  unter null wird nicht gegen ein anderes verrechnet. Der Hinweis nennt jedes
+  Zählwerk („450 kWh, je Zählwerk HT 250 kWh = 400 kWh − 150 kWh · NT 200 kWh =
+  300 kWh − 100 kWh“, `rest_of.registers`). Der Mischpreis der Gruppe für
+  Prognose, Saldo-Schätzung und Tarifvergleich ist mit dem Rest je Zählwerk
+  gewichtet, nicht mit der Messung.
 - **Nicht bei Wasser:** Dort zieht der Gartenzähler seit v3.1.0 über das
   Schmutzwasser ab (Basis „Trinkwasser minus Abzugszähler“).
 
@@ -231,6 +244,13 @@ Gruppenvertrag, zählt sein Geld trotzdem mit, und der Elternzähler rechnet nur
 den Rest. In der Kaskade (Zählwerke HT und NT je als eigener Zähler) hängt jedes
 Zählwerk des hinteren Zählers am gleichnamigen Zählwerk des vorderen: HT hinter
 HT, NT hinter NT.
+
+Zählt in der Kaskade auch der hintere Zähler rückwärts (2.8.0), ist sein
+Einspeisezählwerk ein Zähler unter PV-Einspeisung mit **Einspeisezählwerk von**
+(`cascade_meter_id`, *v3.10.0*). Er zählt nicht in Summen: Ins Netz geht nur,
+was der vordere Zähler zählt. Aus den Differenzen rechnet die App den
+Sonnenstrom, den jeder Strang selbst nutzt
+([Use-Case H](../anleitungen/anwendungsfaelle.md#einspeisung-in-der-kaskade)).
 
 Der Assistent **Messkonzept einrichten** *(v3.9.0)* legt das nach diesen Regeln
 an: Er fragt nach dem Aufbau (ein Zähler für alles, zwei Zähler nebeneinander,

@@ -259,6 +259,7 @@ function renderMeterCard(meter, u, groups, isSub) {
           ${gName ? `<span class="tag tag--util">${t('meters.card.group', { name: escapeHtml(gName) })}</span>` : ''}
           ${meter.capture === 'period' ? `<span class="tag">${t('meters.card.periodTag')}</span>` : ''}
           ${meter.obis ? `<span class="tag" data-role="obis-tag">${escapeHtml(t('meters.card.obis', { obis: meter.obis }))}</span>` : ''}
+          ${meter.cascade_meter_id ? `<span class="tag" data-role="cascade-tag">${escapeHtml(t('meters.card.cascade'))}</span>` : ''}
           ${roleOf(u, meter) && roleOf(u, meter) !== u.meter_roles[0] ? `<span class="tag">${escapeHtml(t(`meters.roles.${u.key}.${roleOf(u, meter)}`))}</span>` : ''}
           ${chipHtml(meter)}
         </div>
@@ -483,6 +484,19 @@ async function openMeterModal(u, existing, allMeters = [], groups = []) {
           <div data-role="hp-list" class="check-grid muted small">${t('meters.heatPumpLink.loading')}</div>
           <p class="fgroup__hint">${t('meters.heatPumpLink.hint')}</p>
         </fieldset>` : ''}
+        ${u.key === 'pv_einspeisung' ? `
+        <!-- v3.10.0 (#40) — Einspeise-Zählwerk eines Zählers hinter dem Netzanschluss (Kaskade) -->
+        <fieldset class="fgroup" data-role="cascade-link" data-min-level="advanced"><legend>${t('meters.cascade.title')}</legend>
+          <div class="fgrid">
+            <div class="field">
+              <label for="mf-cascade">${t('meters.cascade.label')}</label>
+              <select class="input" id="mf-cascade" aria-describedby="mf-cascade-hint" disabled>
+                <option value="">${t('meters.cascade.none')}</option>
+              </select>
+            </div>
+          </div>
+          <p class="fgroup__hint" id="mf-cascade-hint">${t('meters.cascade.hint')}</p>
+        </fieldset>` : ''}
         ${heatLimitFieldsetHtml(u, existing, defaultHddBase)}
         <fieldset class="fgroup" data-section="baseline" data-min-level="expert">
           <legend>${t('meters.baseline.title')}</legend>
@@ -594,6 +608,16 @@ async function openMeterModal(u, existing, allMeters = [], groups = []) {
               : escapeHtml(t('meters.heatPumpLink.none'));
           }).catch(() => { hpList.textContent = t('meters.heatPumpLink.none'); });
         }
+        // v3.10.0 (#40) — Einspeisung: die Stromzähler hinter einem anderen (Zählwerke von Z2) zur Auswahl
+        const cascadeSel = modalEl.querySelector('#mf-cascade');
+        if (cascadeSel) {
+          api.meters('strom').then(list => {
+            const cur = existing?.cascade_meter_id || '';
+            cascadeSel.insertAdjacentHTML('beforeend', list.filter(m => m.parent_meter_id)
+              .map(m => `<option value="${escapeHtml(m.id)}" ${m.id === cur ? 'selected' : ''}>${escapeHtml(m.name)}</option>`).join(''));
+            cascadeSel.disabled = false;
+          }).catch(() => {});
+        }
         // Felder der PV-Anlage und der Wärmepumpe (nur, wo es sie gibt)
         const energyFields = (f) => {
           const out = {};
@@ -609,6 +633,8 @@ async function openMeterModal(u, existing, allMeters = [], groups = []) {
           if (u.key === 'waerme' && hpList) {
             out.heat_pump_meter_ids = [...modalEl.querySelectorAll('[data-hp-meter]:checked')].map(b => b.getAttribute('data-hp-meter'));
           }
+          // v3.10.0 (#40) — nur, wenn die Liste geladen ist (sonst bliebe die Verbindung still weg); leer entfernt sie
+          if (cascadeSel && !cascadeSel.disabled) out.cascade_meter_id = cascadeSel.value || null;
           return out;
         };
 

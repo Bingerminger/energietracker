@@ -14,7 +14,7 @@
         "extraction": {
             "provider": "local",
             "model": "qwen3.8",
-            "schema_version": 5,
+            "schema_version": 6,
             "type": "invoice",
             "fields": {
                 "utility": {
@@ -266,6 +266,26 @@
                     "page": 1,
                     "status": "ok",
                     "reasons": []
+                },
+                "invoice_number": {
+                    "value": null,
+                    "raw": null,
+                    "quote": null,
+                    "page": null,
+                    "status": "empty",
+                    "reasons": [
+                        "missing"
+                    ]
+                },
+                "corrects_invoice": {
+                    "value": null,
+                    "raw": null,
+                    "quote": null,
+                    "page": null,
+                    "status": "empty",
+                    "reasons": [
+                        "missing"
+                    ]
                 },
                 "gas_factors": {
                     "value": [

@@ -26,7 +26,11 @@ sponsorship or endorsement by the respective owners.
 | **Ollama** | Ollama, Inc. | optional text recognition in the home network |
 | **LM Studio** | Element Labs, Inc. | optional text recognition in the home network |
 | **LocalAI** | the LocalAI project | optional text recognition in the home network |
-| **OpenAI** | OpenAI | only as the name of an interface (“OpenAI-compatible”); the Energietracker does not connect to OpenAI |
+| **OpenAI** | OpenAI | name of an interface (“OpenAI-compatible”) for text recognition in the home network; since 3.7.0 also one of the services for reading documents in the cloud (opt-in, off by default) |
+| **Claude**, **Anthropic** | Anthropic PBC | optional reading of documents in the cloud (opt-in, off by default, since 3.7.0) |
+| **Mistral** | Mistral AI | optional reading of documents in the cloud (opt-in, preset address) |
+| **OpenRouter** | OpenRouter, Inc. | optional reading of documents in the cloud (opt-in, preset address) |
+| **Gemini** | Google LLC | optional reading of documents in the cloud (opt-in, preset address) |
 | **Llama** | Meta Platforms, Inc. | example of a vision model for text recognition |
 | **Qwen** | Alibaba Cloud | example of a vision model for text recognition |
 

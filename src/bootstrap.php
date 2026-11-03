@@ -156,6 +156,12 @@ final class App
 
         $this->store        = new JsonStore($dataDir);
         $this->settings     = new SettingsService($this->store);
+        // v3.10.0 (#36) — HTTPS ins Heimnetz: eigenes Stammzertifikat (Datei ET_CA_FILE und
+        // Einstellung home_ca_pem, zusätzlich zu den Systemzertifikaten) und „nicht prüfen“ nur im Heimnetz
+        \Energietracker\Support\HomeTls::configure(fn(): array => [
+            'pem'      => (string)$this->settings->get('home_ca_pem', ''),
+            'insecure' => (bool)$this->settings->get('home_tls_insecure', false),
+        ], getenv('ET_CA_FILE') ?: null);
         // v2.7.0 — Zeitzone aus dem Länderprofil („heute" für Ablesungen,
         // Fälligkeiten, Open-Meteo). Ein unlesbarer Wert lässt Berlin stehen.
         $tz = (string)$this->settings->get('timezone', 'Europe/Berlin');
@@ -726,7 +732,9 @@ final class App
         // v3.7.0 — `inbox_provider`: wohin Versorgerpost zum Auslesen geht; (Paket cloud) ob Dokumente in die Cloud gehen
         'inbox_provider', 'inbox_cloud_enabled', 'inbox_cloud_provider', 'inbox_cloud_endpoint', 'inbox_cloud_model',
         // v3.9.0 (F1033) — ob und wohin Benachrichtigungen an Home Assistant gehen
-        'ha_notify_enabled', 'ha_notify_target', 'ha_notify_url', 'ha_notify_service'];
+        'ha_notify_enabled', 'ha_notify_target', 'ha_notify_url', 'ha_notify_service',
+        // v3.10.0 (#36) — wem Verbindungen ins Heimnetz vertrauen und ob sie prüfen
+        'home_ca_pem', 'home_tls_insecure'];
 
     /** v3.2.0 — Person dieser Anfrage (öffentlich, mit Einstellungen), sonst null. */
     public function currentUser(): ?array
@@ -1120,7 +1128,7 @@ final class App
         $r->get('/api/summary',       fn($req) => $agCtrl->summary($req));
         // v3.9.0 (F1033, #36) — Sensor „Zu tun“ und Benachrichtigungen an Home Assistant
         // (PATCH und Test nur Verwalter, adminOnly)
-        $haCtrl = new \Energietracker\Controllers\HomeAssistantController($this->haNotify, $this->agenda, $this->instance);
+        $haCtrl = new \Energietracker\Controllers\HomeAssistantController($this->haNotify, $this->agenda, $this->instance, $this->settings);
         $r->get('/api/todo',                         fn($req) => $haCtrl->todo($req));
         $r->get('/api/homeassistant/notify',         fn($req) => $haCtrl->show($req));
         $r->patch('/api/homeassistant/notify',       fn($req) => $haCtrl->update($req));

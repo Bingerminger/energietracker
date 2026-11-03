@@ -638,8 +638,9 @@ accepted.
   one of them — otherwise the transition becomes permanent.
 - **A documented command must have run once (v2.14.0).** The installation guide
   recommended `python3 scripts/init_data.py --help`. The script knew no options:
-  the call started the import and wrote to `./data`. Now `--help` answers before
-  any import, and the script is marked as deprecated.
+  the call started the import and wrote to `./data`. After that `--help`
+  answered before any import and the script was marked as deprecated; v3.10.0
+  removed it.
 - **A translation needs a glossary (v2.14.0).** In the English catalogue the
   unit price was called "working price" and "energy price", the standing charge
   "base price" and "base charge" — four words for two things, and the

@@ -666,11 +666,13 @@ function proposalsHtml(pv, unit) {
         const parent = p.requires ? list.find(x => x.id === p.requires) : null;
         const blocked = !!parent && !parent.checked;
         const dep = parent ? ` data-requires="${esc(parent.id)}"${p.checked_with ? ' data-checked-with="1"' : ''}` : '';
+        // v3.10.0 — Rechnungskorrektur: „ersetzt“ statt „Widerspruch“ (Feld `replaces`, nie am Text)
+        const st = p.status === 'conflict' && p.replaces ? 'replaces' : p.status;
         return `<li class="inbox-proposal inbox-proposal--${esc(p.status)}${p.check ? ' inbox-proposal--check' : ''}">
           <label><input type="checkbox" data-proposal="${esc(p.id)}"${dep}${p.checked && !blocked ? ' checked' : ''}${exists || DEMO || blocked ? ' disabled' : ''}>
             <span class="inbox-proposal__text">${esc(proposalText(p, { unit }))}</span></label>
           ${parent ? `<p class="inbox-proposal__detail" data-role="requires">${esc(t('inbox.proposal.requiresContract'))}</p>` : ''}
-          <span class="badge ${{ new: 'badge--info', exists: 'badge--success', conflict: 'badge--danger', overlap: 'badge--warning' }[p.status] || ''}">${esc(t('inbox.pstatus.' + p.status))}</span>
+          <span class="badge ${{ new: 'badge--info', exists: 'badge--success', conflict: 'badge--danger', overlap: 'badge--warning', replaces: 'badge--info' }[st] || ''}">${esc(t('inbox.pstatus.' + st))}</span>
           ${p.check ? `<span class="badge badge--warning">${esc(t('inbox.pstatus.check'))}</span>` : ''}
           ${detail ? `<p class="inbox-proposal__detail">${esc(detail)}</p>` : ''}
           ${proposalLines(p).length ? `<ul class="inbox-proposal__lines" data-role="lines">${proposalLines(p).map(l => `<li>${esc(l)}</li>`).join('')}</ul>` : ''}

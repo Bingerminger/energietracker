@@ -203,7 +203,10 @@ kWh mehr ist keine Rückkehr), schlägt die App eine [Analyse-Zäsur](#wirkung-e
 des Wechsels vor: „Zäsur hier setzen“ (ein Dialog mit dem Ende der auffälligen Zeit als
 Tag, zum Bestätigen oder Ändern) oder „Nicht jetzt“. Das heutige Niveau kommt aus
 mindestens einem halben Jahr nach dem Wechsel (beim Heizmodell ab vier Abständen, auch
-wenn danach erst wenige Ablesungen vorliegen). Ein gleitender Übergang ist erlaubt:
+wenn danach erst wenige Ablesungen vorliegen). *(v3.10.0)* „Dauerhaft“ sagt die App erst,
+wenn mindestens zwei Ablesungen nach dem Wechsel vorliegen: Die zweite schließt einen
+Abstand ganz auf dem neuen Niveau und bestätigt es so. Ein einzelner Stand nach langer
+Pause, etwa mit einer falschen Ziffer, ist keine Bestätigung. Ein gleitender Übergang ist erlaubt:
 Direkt vor der Zeit danach darf ein einzelner Abstand zwischen altem und heutigem
 Niveau liegen, der Tag des Wechsels ist dann das Ende des letzten Abstands auf altem
 Niveau. Mit einer wirksamen Zäsur zählt nur die Zeit danach; steht sie am Wechsel,
@@ -987,6 +990,14 @@ einer Zählergruppe, etwa HT und NT einer Wärmepumpe, prüft R4 als Gruppe mit
 einer Empfehlung je Gruppe; hat eine Art mehrere Zähler oder Gruppen, nennt
 der Titel den Namen („Strom · Wärmepumpe Okt. 2025: …“).
 
+**Seit v3.10.0 prüft R4 einen Elternzähler mit seinem eigenen Verbrauch**
+(gemessen minus seine Subzähler, auch ohne eigenen Vertrag; messende Rollen wie
+der Speicher zählen nicht). Bis dahin erschien ein Ausschlag der Wallbox auch am
+Hauszähler, der sie mitmisst. Den Subzähler prüft R4 an ihm selbst, und der Text
+am Elternzähler sagt, ohne welche Subzähler gerechnet ist. Ein Monat, in dem ein
+eingebauter Subzähler nicht an allen Tagen des Elternzählers gemessen ist (Einbau
+mitten im Monat, fehlende Ablesung), zählt dort nicht mit; sein Rest wäre zu hoch.
+
 Anomalien sind Hinweise, keine Urteile — ein Umzug, eine neue
 Wärmepumpe oder ein defekter Zähler erzeugen sie gleichermaßen.
 
@@ -1179,10 +1190,154 @@ angemessenen Abschlag (`advance_ongoing`):
 laufend = gerundet( geschätzte Kosten der 12 Monate nach der Abrechnung / Raten im Jahr )
 ```
 
-Raten im Jahr: 12 bei monatlichem Abschlag, 6 alle zwei Monate, 4 alle drei
-Monate. *(seit v3.9.0)* Mit Rhythmus gelten Vorschlag und laufender Abschlag je
+*(Beschreibung seit v3.10.0, #38)* Die Regel gilt für Nachzahlung und Guthaben
+gleich. Ein Guthaben auf ein, zwei Abschläge verteilt, drückt sie fast auf null,
+obwohl die Abrechnung den Rest ohnehin ausgleicht und danach wieder der laufende
+Bedarf gilt. Das Vorzeichen der Prognose bestimmt nur die Richtung des
+Vorschlags, nicht, ob es einen gibt. Bei genau drei Abschlägen verteilt die
+Karte noch: Die Grenze ist streng, erst darunter fällt der Vorschlag weg.
+
+<!-- doc-claim: advance-short-credit (OneProjectionTest) -->
+```text
+Kosten 40 € im Monat, Abschlag 50 €   Guthaben der Periode 12 × (40 € − 50 €) = −120 €
+zwei Abschläge bis zur Abrechnung    kein Vorschlag, laufend 40 €
+genau drei Abschläge                 50 € + (−120 €) ÷ 3 = 10 €
+```
+
+Raten im Jahr: so viele, wie der Abschlagsplan im Jahr nach der Abrechnung
+vorsieht, also 12 bei monatlichem Abschlag, 6 alle zwei Monate, 4 alle drei
+Monate und bei eingetragenen Terminen deren Zahl. Zehn Termine statt zwölf
+Monate heben den laufenden Abschlag (480 € im Jahr: 48 € statt 40 €); zwischen
+Plänen mit verschiedener Zahl von Raten ist er deshalb nicht vergleichbar.
+*(seit v3.9.0)* Mit Rhythmus gelten Vorschlag und laufender Abschlag je
 Rate, und die Texte nennen den Rhythmus („rund 152 € statt 165 € alle 2 Monate“);
 bis v3.7 stand ein Monatsbetrag neben dem Betrag je Termin.
+
+### Saldo aus einem Guss *(seit v3.10.0)*
+
+**Gemessen und geschätzt getrennt (GitHub #49).** Der Saldo der Karte zählt
+nur, was bis zur letzten Ablesung gemessen ist (`balance_measured`), und heißt
+„Saldo am ‹Ablesung›“ (ist heute abgelesen, „Aktueller Saldo“). Die Schätzung
+bis heute steht als Zusatzzeile darunter, die Prognose bleibt bei „Erwartet bei
+Abrechnung“:
+
+```text
+gemessen bis    = letzte Ablesung (exklusiv, wie die Monatszeilen)
+Kosten          = Arbeitspreis der gemessenen Monatszeilen
+                + Grundpreis tagesgenau [Saldo ab, letzte Ablesung)
+                - Boni der Monate mit gemessenen Tagen
+Abschläge       = Plan anteilig nach Tagen (der angebrochene Monat nur zum gemessenen Teil);
+                  Raten mit Rhythmus ganz, wenn ihr Tag vor der Ablesung liegt
+Saldo am …      = Kosten - Abschläge + Sonderzahlungen vor der Ablesung
+Zusatzzeile     = Saldo heute (current_balance) = Saldo am …
+                  + geschätzter Verbrauch + Grundpreis − Abschläge + Sonderzahlungen seit der Ablesung
+```
+
+Die Zusatzzeile rechnet so vom gemessenen Saldo zum Stand heute vor („Bis heute
+geschätzt: … Seit der Ablesung am … kamen dazu: Verbrauch … (geschätzt) und
+Grundpreis …, dagegen Abschläge …“). Ohne gemessenen Tag im Zeitraum (etwa ein
+neuer Vertrag ohne eigene Ablesung) heißt die Spalte „Saldo heute (geschätzt)“.
+
+Die Kachel „Abschläge … bis …“ rechnet die Monatszeilen des Kalender- bzw.
+Abrechnungsjahres bis zur letzten Ablesung. Karte und Kachel enden damit am
+selben Tag und nennen beide ihren Beginn („Gemessen vom 01.01.2026 bis zur
+letzten Ablesung am 07.10.2026“, „Abschläge 01.01.2026 bis 07.10.2026“).
+Beginnt der Vertrag am 1. Januar und gibt es keine Sonderzahlungen, sind beide
+gleich; sonst unterscheiden sie sich nur im Beginn. Beginnt der Saldo der Karte
+(Stichtag, Vertragswechsel, Rechnung) erst innerhalb der Kachel des
+Kalenderjahres, zeigt die Kachel keinen zweiten „Saldo“, sondern „Saldo: siehe
+Saldo-Karte, sie rechnet ab …“. Bis v3.9 rechnete die Karte
+ab Vertragsbeginn bis heute mit geschätzten Tagen, die Kachel das Kalenderjahr
+bis zur Ablesung; mit einem Vertragsbeginn im Vorjahr standen zwei Salden mit
+verschiedenem Vorzeichen nebeneinander (Discussion #42). Erfundenes Beispiel
+(`BalanceMeasuredTest`): 10 kWh am Tag, 10 ct, Grundpreis 12 €, Abschlag 100 €,
+Vertrag ab 01.01.2026, letzte Ablesung 07.10.2026:
+
+<!-- doc-claim: balance-measured-example (BalanceMeasuredTest) -->
+```text
+Arbeitspreis  279 Tage × 10 kWh × 0,10 €   = 279,00 €
+Grundpreis    9 × 12 € + 12 € × 6/31       = 110,32 €
+Abschläge     9 × 100 € + 100 € × 6/31     = 919,35 €
+Saldo am 07.10. (ohne Sonderzahlungen)     = −530,03 € (Guthaben), wie die Kachel
+```
+
+**Breite überall (seit v3.10.0).** Auch ohne verlässliches Heizmodell (Strom,
+Wasser, Heizarten nach M5) hat eine sichere Schätzung eine Breite: die Streuung
+der **gemessenen** Monatsmengen je Kalendermonat um den Wert, mit dem geschätzt
+wird, mindestens aber 10 % der geschätzten Menge je Monat (dieselbe Untergrenze
+wie das Band der Prognose und die Anomalie-Erkennung).
+
+```text
+σ_Monat       = √( Σ ((Rate − Rate des Kalendermonats) × Tage des Monats)² / Σ (Jahre je Monat − 1) )
+                nur gemessene Monate; verteilte (lange Ablesungsabstände) streuen nicht
+je Monat      = max(σ_Monat × Faktor × Anteil geschätzter Tage, 10 % der geschätzten Menge des Monats)
+halbe Breite  = 1,28 × √( Σ je Monat² ) × Preis je Einheit
+```
+
+Ohne Wetterteil heißt der Satz „Je nach Schätzung …“. Ohne gemessene Streuung
+(ein Jahr je Kalendermonat, oder nur verteilte Monate) trägt nur die
+Untergrenze; der Satz sagt dann „Zu wenige gemessene Monate, je nach Schätzung
+…“. Verteilte Monate zählen nicht als Streuung, weil gleichmäßig verteilte
+Werte kaum streuen: Wer einmal im Jahr abliest, bekäme sonst fast keine Breite,
+obwohl fast ein Jahr geschätzt ist. Erfundene Beispiele
+(`ProjectionBandRatesTest`), das ganze Jahr geschätzt, 10 ct:
+
+<!-- doc-claim: rates-band-example (ProjectionBandRatesTest) -->
+```text
+8, 14 und 11 kWh am Tag in drei Jahren, monatlich abgelesen:
+  1,28 × 3 × √11.111 × 0,10 € = 40,48 € (Streuung über der Untergrenze)
+10,9, 11,1 und 11,0 kWh am Tag, monatlich oder einmal im Jahr abgelesen:
+  1,28 × 1,1 × √11.111 × 0,10 € = 14,84 € (Untergrenze, bei beiden gleich)
+```
+Dieselbe Breite (`projection_band`, eine Quelle) zeigen Saldo-Karte,
+Einsteiger-Übersicht („Bekomme ich Geld zurück?“), „Wohin geht mein Geld?“,
+Kosten & Verträge und der Jahresbericht („Je nach Wetter und Schätzung zwischen …
+und …“). Bis v3.9 stand das Band nur an der Karte und nur für Heizarten.
+
+**Monatskosten wie die Karte (seit v3.10.0).** Die Werkstatt schätzt ihren
+Ausgangsfall je Monat mit derselben Tagesschätzung wie die Saldo-Karte
+(Kalibrierfaktor eingeschlossen, `estimatedMonths`). Bis v3.9 nahm sie die
+Monatsmengen der Prognose ohne Faktor; bei schlecht passendem Heizmodell lagen
+die Monatskosten rund ein Zehntel neben dem Saldo-Verlauf der Karte. Die Tabelle
+„Prognose im Detail“ bleibt die Prognose mit ihren eigenen Regeln. Damit beide
+nicht gleich heißen, steht der Ausgangsfall der Werkstatt als „Wie die
+Saldo-Karte (kalibriert)“ da, und unter „Prognose im Detail“ sagt ein Satz, um
+wie viel der Kalibrierfaktor die Mengen der Karte verschiebt (ab 2 %).
+
+**Eine Abrechnung, mehrere Verträge (seit v3.10.0).** Wechselt der Vertrag in
+der laufenden Abrechnungsperiode beim selben Versorger (neuer Tarif, Preisstand
+als neuer Vertrag), rechnet eine Rechnung zum Periodenende beide Teile ab. Die
+Karte zeigt unter „Erwartet bei Abrechnung“ dann die Summe (`settle_balance`)
+und nennt den anderen Vertrag mit Zeitraum und Saldo; der Abschlagsvorschlag
+rechnet mit der Summe. Bis v3.9 fehlte der Teil des Vorvertrags; einen Tag vor
+dem Periodenende lag die Schätzung so um seinen ganzen Saldo neben der
+Rechnung, obwohl fast alle Tage gemessen waren. Erfundenes Beispiel
+(`PeriodEndEstimateTest`): 10 kWh am Tag, Vertrag A bis 30.06. zu 10 ct, B ab
+01.07. zu 12 ct, je 60 € Abschlag und 12 € Grundpreis:
+
+<!-- doc-claim: settle-example (PeriodEndEstimateTest) -->
+```text
+Rechnung 2025 = 181 × 1,00 € + 184 × 1,20 € + 12 × 12 € − 12 × 60 € = −174,20 €
+bis v3.9      = nur B: 220,80 € + 72 € − 360 €                       =  −67,20 €
+```
+
+Dieselbe Summe nehmen alle Ansichten (`expectedBalance`): Karte, Kosten &
+Verträge, Einsteiger-Übersicht, „Wohin geht mein Geld?“, der Satz über der
+„Prognose im Detail“, der Heizgrenze-Hinweis, die Werkstatt, Jahresbericht und
+Home Assistant (`projected_end_balance_total`). Gemessen und bis heute rechnet
+die Karte dann ebenfalls über alle Verträge der Abrechnung (`settle_measured`,
+`settle_today`). Die Spanne der Summe entsteht aus den Spannen bzw. Bändern
+aller Teile (`settle_range`); ist ein Teil unsicher, ist es die Summe
+(`settle_uncertain`, dann kein einzelner Abschlagsvorschlag). Ist ein anderer
+Vertrag überwiegend geschätzt, steht sein Saldo mit „≈“, ist er unsicher, als
+Spanne. Endet der Vertrag zur Abrechnung und ist ein Folgevertrag eingetragen,
+nennt die Karte keinen „danach angemessenen“ Abschlag aus seinen Preisen mehr.
+
+Geprüft und ohne Abweichung: Preisänderungen im Vertrag (Arbeitspreis,
+Grundpreis, Abschlag) und ein Preiswechsel zwischen zwei Ablesungen. Wie ein
+Versorger eine ungleichmäßige Menge auf Preisabschnitte verteilt (etwa nach
+Gradtagen), lässt sich ohne die Rechnung nicht prüfen; die App verteilt nach
+ihrem Tagesgewicht.
 
 ### Tagesgenau wie die Rechnung (seit v2.9.0)
 

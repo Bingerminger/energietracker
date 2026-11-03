@@ -1,0 +1,8 @@
+{
+  "error": {
+    "message": "Invalid parameter: 'response_format' of type 'json_object' is not supported with this model.",
+    "type": "invalid_request_error",
+    "param": "response_format",
+    "code": null
+  }
+}

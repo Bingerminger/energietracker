@@ -258,15 +258,20 @@ final class ReportAdviceService
         $worstUnc = is_array($worstC['projection_uncertain'] ?? null) ? $worstC['projection_uncertain'] : null;
         // v3.9.0 (Skeptiker R2-4) — die Enden in Lesereihenfolge wie Saldo-Karte und Heizgrenze
         $ends = $worstUnc !== null ? self::balanceRangeEnds((array)$worstUnc['projected_range']) : null;
+        // v3.10.0 (Skeptiker N12) — „Auf einen Blick“ mit der Breite einer sicheren Schätzung wie Karte und Satz darunter
+        $band = $worstUnc === null && is_array($worstC['projection_band'] ?? null) && (float)($worstC['projection_band']['half'] ?? 0) >= 1
+            ? self::balanceRangeEnds([(float)$worstC['projection_band']['low'], (float)$worstC['projection_band']['high']]) : null;
         $out[] = ['key' => 'billing', 'level' => $lv, 'as_of_today' => true,
             'word' => $this->i18n->t($word),
             'detail' => $worstC === null ? $this->i18n->t('report.light.billingNone')
                 : ($ends !== null
                     ? $this->i18n->t('balanceUncertain.light', ['label' => (string)$worstC['label'],
                         'low' => $this->balanceWord($ends[0]), 'high' => $this->balanceWord($ends[1])])
+                    : ($band !== null ? $this->i18n->t('report.light.billingBand', ['label' => (string)$worstC['label'],
+                        'low' => $this->balanceWord($band[0]), 'high' => $this->balanceWord($band[1])])
                     : $this->i18n->t((float)$worstC['projected_end_balance'] > 0 ? 'report.light.billingDue' : 'report.light.billingCredit', [
                         'label' => (string)$worstC['label'], 'amount' => $this->approx(abs((float)$worstC['projected_end_balance'])),
-                    ]))];
+                    ])))];
         // Fristen — Stand heute
         $next = null; $nextE = null;
         foreach ((array)($f['agenda'] ?? []) as $e) {
@@ -747,6 +752,23 @@ final class ReportAdviceService
         $s = $unc['suggested_range'] ?? null;
         $adv = is_array($s) ? $this->i18n->t('balanceUncertain.advance', ['low' => $this->eur((float)$s[0]), 'high' => $this->eur((float)$s[1])]) : null;
         return [$text, $adv];
+    }
+
+    /**
+     * v3.10.0 (Skeptiker v3.9.0, R2-3) — Breite einer sicheren Schätzung (`projection_band`) als
+     * Satz, dieselben Wörter wie an der Saldo-Karte: „Je nach Wetter und Schätzung zwischen
+     * ca. 480 € und ca. 550 € Guthaben.“ Ohne Wetterteil (Strom, Wasser, Rest schon vergangen)
+     * „Je nach Schätzung …“.
+     *
+     * @param array<string,mixed> $band {low, high, weather, …}
+     */
+    public function bandSentence(array $band): string
+    {
+        [$lo, $hi] = self::balanceRangeEnds([(float)($band['low'] ?? 0), (float)($band['high'] ?? 0)]);
+        // v3.10.0 (Skeptiker H2) — ohne gemessene Streuung nur die Untergrenze: der Satz sagt es
+        return $this->i18n->t(!empty($band['few_measured']) ? 'balanceBand.sentenceFew'
+            : ((float)($band['weather'] ?? 0) > 0 ? 'balanceBand.sentence' : 'balanceBand.sentenceNoWeather'),
+            ['low' => $this->balanceWord($lo), 'high' => $this->balanceWord($hi)]);
     }
 
     /**

@@ -220,9 +220,11 @@ export async function openSetupWizard({ session = null, firstRun = false } = {})
   const finishStep = () => {
     const p = persona(state.persona);
     const name = t(`setup.persona.${p.key}.title`);
+    // v3.10.0 (Hauptfunktion „Saldo aus einem Guss“) — früh gesagt, was der Saldo jeder Art zeigt
+    const saldo = `<p class="muted small" data-role="setup-saldo">${esc(t(DEMO ? 'setup.finish.saldoDemo' : 'setup.finish.saldo'))}</p>`;
     if (DEMO) {
       return `<h3 class="setup__question">${esc(t('setup.finish.title'))}</h3>
-        <p>${esc(t('setup.finish.demoPublic', { persona: name }))}</p>`;
+        <p>${esc(t('setup.finish.demoPublic', { persona: name }))}</p>${saldo}`;
     }
     // v3.7.0 — drei Wege: aus Dokumenten (empfohlen), von Hand, Beispielhaushalt (nur Verwalter)
     const choice = (value, icon, title, hint, extra = '') => `
@@ -250,6 +252,7 @@ export async function openSetupWizard({ session = null, firstRun = false } = {})
         ${canLoadDemo ? choice('demo', '🧪', t('setup.finish.demo'), t('setup.finish.demoHint', { persona: name })) : ''}
       </div>
       ${docsBox}
+      ${saldo}
       ${canLoadDemo ? `<label class="settings-field__check setup-update-check">
         <input type="checkbox" name="setup-update-check" ${state.updateCheck ? 'checked' : ''}>
         ${esc(t('setup.finish.updateCheck'))}</label>` : ''}`;

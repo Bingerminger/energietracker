@@ -11,7 +11,7 @@ stable: anything is removed only with a new major version and after notice — t
 deprecated ones are at the end.
 
 Since v3.2.0 a household can have several people with roles
-([Users in the household](../anleitungen/benutzer.md)). Fourteen keys can then
+([Users in the household](../anleitungen/benutzer.md)). Sixteen keys can then
 only be changed by admins, because they make the app talk to other addresses,
 let it be embedded, block names, shorten the history or send documents to the
 cloud: `frame_ancestors`, `ocr_endpoint`, `evcc_endpoint`, (since v3.4.0)
@@ -19,8 +19,9 @@ cloud: `frame_ancestors`, `ocr_endpoint`, `evcc_endpoint`, (since v3.4.0)
 where supplier mail goes to be read, and `inbox_cloud_enabled`,
 `inbox_cloud_provider`, `inbox_cloud_endpoint` and `inbox_cloud_model`, (since
 v3.9.0) `ha_notify_enabled`, `ha_notify_target`, `ha_notify_url` and
-`ha_notify_service`, whether and where notifications to Home Assistant go. A
-member who sends one of them gets `403` `errors.auth.adminOnly`; members may
+`ha_notify_service`, whether and where notifications to Home Assistant go,
+(since v3.10.0) `home_ca_pem` and `home_tls_insecure`, whom connections into
+the home network trust. A member who sends one of them gets `403` `errors.auth.adminOnly`; members may
 change every other key. Without sign-in the restriction does not apply.
 
 The defaults apply to a new installation in Germany. Another country sets its
@@ -67,6 +68,12 @@ level stays reachable and shows a note whose one click raises the level. More:
 | `update_check` | off | Tell me about new versions | Once a day the server asks GitHub for the newest published version (`GET /api/update-check`); if it is newer, a note with a link to the release notes appears until you close it for that version. GitHub only sees the server’s address. When switched off, no request goes out. Setup suggests it; existing installations stay off until someone switches it on. |
 
 Independently of this, every device shows “Updated to …” once after an update, with a link to the release notes — without any request going out.
+
+### Support *(v3.10.0)*
+
+| Key | Default | In the app | Effect |
+|---|---|---|---|
+| `support_hint` | on | Show the note about supporting | When the app has just helped (“Check a bill” finds a deviation, an appointment is done before its due date, the annual report is printed or downloaded), a quiet line with a link to Buy Me a Coffee appears ([Views](ansichten.md)). At most once a quarter per device (the browser remembers the day), never in the demo, no dialog. “Don’t show again” in the line switches the setting off. |
 
 ### Environment *(v3.9.0)*
 
@@ -336,6 +343,20 @@ backup, never in the browser). When what is sent:
 | `ha_notify_service` | `persistent_notification.create` | Action in Home Assistant | For Supervisor and token: `persistent_notification.create` or `notify.<name>` (for example `notify.mobile_app_…`). Admins only. |
 | `ha_notify_events` | all | What to report? | Subset of `reminder` (appointments), `deadline` (deadlines and other items from “To do”), `warning` (warnings), `document` (new documents in the inbox). |
 | `ha_notify_hour` | `8` | Daily check from | Hour (0 to 23) from which the daily check runs, with the first request after it. |
+
+### Connections in the home network *(v3.10.0)*
+
+Settings → Expert → 🔐 Connections in the home network. For Home Assistant,
+text recognition, reading in the home network and evcc over `https://` with
+certificates you issued yourself ([#36](https://github.com/Bingerminger/energietracker/issues/36)).
+The cloud services and the public services (weather, exchange prices, update
+notice) keep checking only against the system's root certificates. Guide:
+[Home Assistant, HTTPS with your own certificate](../anleitungen/home-assistant.md#https-with-your-own-certificate-v3100).
+
+| Key | Default | In the app | Effect |
+|---|---|---|---|
+| `home_ca_pem` | empty | Own root certificate (PEM) | The root certificate you issue your own certificates with, as PEM text (`-----BEGIN CERTIFICATE-----` …), several are fine. It applies **in addition** to the system's root certificates and to the file from `ET_CA_FILE`; checking stays on. Only the certificates themselves are stored; a private key or an unreadable block is refused (`errors.settings.caPrivateKey`, `errors.settings.caInvalid`). A certificate is not a secret, it is part of the backup. Admins only. |
+| `home_tls_insecure` | off | Do not check certificates in the home network | Fallback: connections to addresses in the home network do not check the certificate (neither issuer nor name). Without checking, anyone who gets in between on the network can read along, including the Home Assistant token. Decided by the address the app connects to (after name resolution): home network means 127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 100.64.0.0/10, `::1` and `fc00::/7`. No effect for any other address. Admins only. |
 
 ### Inbox: reading in the cloud *(v3.7.0)*
 

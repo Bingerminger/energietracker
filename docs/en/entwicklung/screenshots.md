@@ -87,7 +87,8 @@ instance with sign-in switched on.
 | `willkommen.png` | Overview without data | `#/dashboard`, empty directory | 1440 × 900 | ✓ |
 | `zaehlerstaende.png` | Meter-reading capture | `#/zaehlerstaende` | 1440 × 1500 | ✓ |
 | `pruefung-zaehlerstand.png` | Question on a jump | capture with a conspicuous value → “Save all” | 1440 × 900 | — |
-| `gas-view.png` | Consumption gas | `#/utility/gas` | 1440 × 1500 | ✓ |
+| `gas-view.png` | Consumption gas, balance card measured and up to today (v3.10.0) | `#/utility/gas`, calendar year | 1440 × 1500 | ✓ |
+| `uebersicht-abrechnungsjahr.png` | Overview in billing years with trend arrows (v3.10.0) | `#/dashboard`, `localStorage['et-period-mode'] = 'billing'`; switch down to the second card | detail | ✓ |
 | `strom-view.png` | Consumption electricity with remainder billing at the main meter (v3.9.0) | `#/utility/strom` | 1440 × 1500 | ✓ |
 | `heizoel-view.png` | Consumption heating oil | `#/utility/heizoel` | 1440 × 1500 | ✓ |
 | `pv.png` | PV feed-in with energy flow | `#/utility/pv_einspeisung` | 1440 × 1280 | ✓ |
@@ -98,7 +99,7 @@ instance with sign-in switched on.
 | `navigation-iphone.png` | Overview on the iPhone | `#/dashboard` | 375 × 812 | ✓ |
 | `erfassen-iphone.png` | Add sheet on the iPhone | ＋ Add | 375 × 812 | ✓ |
 | `analyse.png` | Analysis | `#/analysis` | 1440 × 1500 | ✓ |
-| `prognose.png` | Forecast workshop (v3.6.0) | `#/forecast`, example “Cold winter” clicked | 1440 × 1500 | ✓ |
+| `prognose.png` | Forecast workshop (v3.6.0), baseline “Like the balance card (calibrated)” (v3.10.0) | `#/forecast`, example “Cold winter” clicked | 1440 × 1500 | ✓ |
 | `jahresbericht.png` | Print view of the annual report (v3.4.0) | `#/report/print?year=2025` | 1440 × 1500 | ✓ |
 | `tarifvergleich.png` | Tariff switch | `#/tariffs` | 1440 × 1522 | ✓ |
 | `empfehlungen.png` | Recommendations | `#/recommendations` | 1440 × 1500 | ✓ |
@@ -119,6 +120,7 @@ instance with sign-in switched on.
 | `ha-benachrichtigungen.png` | Card “Notifications to Home Assistant” (v3.9.0) | `#/settings/integrations`, target webhook with an address from `192.168.178.x`, switched off | detail (window 1440 × 2600, full page, so the fixed top bar does not cover the title) | ✓ |
 | `messkonzept.png` | Assistant “Set up metering concept”, step “How are the meters connected?” (v3.9.0) | `#/utility/strom/meters?concept=1`: heat pump, HT/NT on every import meter, solar, then “Cascade” | 1440 × 900 | ✓ |
 | `ablesung-pruefen.png` | “To do” with “Check the reading of …” (v3.9.0) | sample data, one winter reading of the main gas meter lowered by 100 m³ (only in the capture instance) | detail | ✓ |
+| `einstellungen-heimnetz.png` | Card “Connections in the home network” (v3.10.0) | `#/settings/expert` | detail (window 1440 × 2600) | ✓ |
 
 A test checks that every linked image exists ([Tests](tests.md)).
 

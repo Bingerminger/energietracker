@@ -14,11 +14,11 @@ sample household carried forward to today, in seven languages, nothing to instal
 
 [![CI](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml)
 [![Docker Publish](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml)
-[![Version](https://img.shields.io/badge/version-3.9.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-3.10.0-blue.svg)](CHANGELOG.md)
 [![License: AGPL-3.0-or-later](https://img.shields.io/badge/License-AGPL--3.0--or--later-success.svg)](LICENSE)
 [![PHP](https://img.shields.io/badge/PHP-%E2%89%A5%208.2-777BB4.svg)](composer.json)
 [![Dependencies: 0](https://img.shields.io/badge/dependencies-0-success.svg)](composer.json)
-[![Tests](https://img.shields.io/badge/Tests-1762-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-1895-success.svg)](tests/)
 [![Languages](https://img.shields.io/badge/languages-7-7c5cff.svg)](public/locales/)
 [![Utilities](https://img.shields.io/badge/utilities-9-f59e0b.svg)](docs/en/einstieg/funktionen.md)
 [![Docker](https://img.shields.io/badge/Docker-amd64%20%7C%20arm64-2496ed.svg)](docker-compose.yml)
@@ -32,7 +32,7 @@ sample household carried forward to today, in seven languages, nothing to instal
 | Question | Answer in the app |
 |---|---|
 | What if …? | **Forecast workshop** *(new in v3.6.0)*: sliders for winter, insulation, room temperature and tariff — see at once what a cold winter costs or insulation brings; ranking, best combination within a budget, result as an image or PDF |
-| Will I get money back? | **Balance** per contract by calendar, the expected bill and a suggested advance — "credit" or "additional payment", as on the bill |
+| Will I get money back? | **Balance** per contract by calendar, the expected bill and a suggested advance — "credit" or "additional payment", as on the bill; *new in v3.10.0* **balance in one piece**: measured up to the last reading, estimated up to today and expected at settlement kept apart, with an honest range, also across two contracts of one bill |
 | Is my annual bill right? | **Bill check** for gas, electricity, water and district heating: recalculated per section, held against the bill, the result booked as a special payment |
 | Should I switch? | **Switch decision** with notice period, cost from year two and break-even |
 | Used more, or just colder? | **Weather adjustment** with heating degree days from your own location and a heating model |
@@ -40,8 +40,8 @@ sample household carried forward to today, in seven languages, nothing to instal
 | How efficient is the house? | **Efficiency** in kWh/m²·yr and a certificate-style figure; with a heat pump the seasonal performance factor |
 | Does my rent prepayment cover it? | **Tenancy**: heating and water against the service charge prepayment, deadlines in the calendar, CO₂ costs shared with the landlord |
 | What does my supplier’s mail say? | **Inbox**: drop a PDF, have it read, check every figure against its quote and take it over; *new in v3.9.0* an annual bill also creates the contract, with prices per section and advance payments every two or three months |
-| Heat pump on its own tariff, peak/off-peak, solar? | **Metering concept** *(new in v3.9.0)*: an assistant asks about the layout in the meter cabinet, draws the diagram and creates meters, registers and contracts; if a sub-meter has its own contract, the parent meter only bills the remainder |
-| Do I have to open the app not to miss anything? | **Notifications to Home Assistant** *(new in v3.9.0)*: deadlines, reminders, warnings and new mail show up in Home Assistant, each only once; plus a “To do” sensor |
+| Heat pump on its own tariff, peak/off-peak, solar? | **Metering concept** *(new in v3.9.0)*: an assistant asks about the layout in the meter cabinet, draws the diagram and creates meters, registers and contracts; if a sub-meter has its own contract, the parent meter only bills the remainder, since v3.10.0 per register and with the solar power per branch |
+| Do I have to open the app not to miss anything? | **Notifications to Home Assistant** *(new in v3.9.0)*: deadlines, reminders, warnings and new mail show up in Home Assistant, each only once; plus a “To do” sensor, since v3.10.0 with the next appointment and also over HTTPS with your own root certificate |
 | Is this meter reading right? | **Check a reading** *(new in v3.9.0)*: a mistyped reading between two correct ones would otherwise silently skew the months. The app asks and never corrects on its own |
 
 Nine utilities: gas, electricity, water, district heating, heating oil and
@@ -78,7 +78,7 @@ and help inside the app with a glossary and an ⓘ next to every key figure.
 ## Quick start
 
 ```bash
-docker run -d --name energietracker -p 8080:80 \
+docker run -d --name energietracker --restart unless-stopped -p 8080:80 \
   -v energietracker-data:/data \
   ghcr.io/bingerminger/energietracker:3
 ```
@@ -157,10 +157,14 @@ classes and says why; it does not convert currencies —
 
 ## Status and outlook
 
-**v3.9.0** is the current version — [CHANGELOG](CHANGELOG.en.md) (German
+**v3.10.0** is the current version — [CHANGELOG](CHANGELOG.en.md) (German
 version: [CHANGELOG.md](CHANGELOG.md)). APIs, CSV formats and the backup format
 change only additively; anything is removed only with a new major version and
-after notice. 3.9.0 contains what was announced as 3.7.1 and 3.8.0: metering
+after notice. 3.10.0 calculates the balance in one piece: measured up to the
+last reading, estimated up to today and expected at the bill, each with an
+honest range and the same everywhere; plus Home Assistant over HTTPS with your
+own root certificate, the remainder per register in the cascade and a slimmer,
+signed image. 3.9.0 contains what was announced as 3.7.1 and 3.8.0: metering
 concepts with heat pump, peak/off-peak and solar, where every contract pays only
 for what it really measures; notifications to Home Assistant; the contract from
 the annual bill, for water with advance payments every two months too; checks of

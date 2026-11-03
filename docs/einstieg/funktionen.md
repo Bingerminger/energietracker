@@ -61,6 +61,9 @@ unter [Grundlagen & Methodik](../verstehen/00-overview.md).
   zeigt ihn als Schaltbild und legt Zähler, **Zählwerke mit OBIS-Kennzahl**
   (etwa 1.8.1 für Bezug HT), Gruppen und Verträge an, ohne Doppelte
   ([Anwendungsfall H](../anleitungen/anwendungsfaelle.md#h--kaskade-mit-wärmepumpe-htnt-und-pv-v390)).
+  Seit v3.10.0 rechnet der Rest je Zählwerk (HT minus HT, NT minus NT), und
+  zählen in der Kaskade auch die hinteren Zähler rückwärts, zeigt die App den
+  **Sonnenstrom je Strang** (Haushalt, Wärmepumpe).
 - **Verbrauch je Zeitraum** (v3.1.0) statt Zählerständen, wo der Verbrauch
   schon fertig vorliegt — etwa die monatliche Verbrauchsinfo für Heizung und
   Warmwasser. Die App verteilt jeden Zeitraum tagesgenau auf die Monate;
@@ -85,7 +88,9 @@ unter [Grundlagen & Methodik](../verstehen/00-overview.md).
   Sensoren zurück (`GET /api/summary`). Seit v3.9.0 meldet der Energietracker
   fällige Termine, Fristen, Warnungen und neue Post selbst an Home Assistant,
   jede Nachricht einmal, und ein Sensor „Zu tun“ zählt die offenen Punkte
-  (`GET /api/todo`) — siehe
+  (`GET /api/todo`, seit v3.10.0 auch mit dem nächsten Termin). Seit v3.10.0
+  geht das auch über HTTPS mit selbst ausgestellten Zertifikaten (eigenes
+  Stammzertifikat) — siehe
   [Home Assistant anbinden](../anleitungen/home-assistant.md). ioBroker,
   Node-RED und openHAB schicken Stände über denselben Weg — siehe
   [Andere Systeme](../anleitungen/andere-systeme.md).
@@ -128,11 +133,15 @@ unter [Grundlagen & Methodik](../verstehen/00-overview.md).
   Nachzahlung, freiwillige Abschlagszahlung) — siehe
   [Sonderzahlungen](../verstehen/10-sonderzahlungen.md).
 - **Saldo** je Vertrag, wie die Abrechnung ihn nennt: „Guthaben“ oder
-  „Nachzahlung“, nach Kalender bis heute, mit Schätzung ab der letzten
-  Ablesung, dazu die **erwartete Abrechnung** am Stichtag und ein
-  **Abschlagsvorschlag**. Seit v3.9.0 rechnen Saldo-Karte, Jahresbericht und
-  Prognose-Werkstatt über die laufende Abrechnungsperiode mit demselben
-  Ergebnis, und Abschläge alle zwei oder drei Monate zählen je Termin.
+  „Nachzahlung“, nach Kalender, dazu die **erwartete Abrechnung** am Stichtag
+  und ein **Abschlagsvorschlag**. Seit v3.9.0 rechnen Saldo-Karte, Jahresbericht
+  und Prognose-Werkstatt über die laufende Abrechnungsperiode mit demselben
+  Ergebnis, und Abschläge alle zwei oder drei Monate zählen je Termin. Seit
+  v3.10.0 trennt die Karte Gemessenes und Geschätztes: „Saldo am ‹Datum›“ bis
+  zur letzten Ablesung, die Schätzung bis heute als eigene Zeile, „Erwartet bei
+  Abrechnung“ mit einer Spanne auch für Strom und Wasser. Rechnet eine
+  Abrechnung zwei Verträge desselben Versorgers ab, zeigen alle Ansichten die
+  Summe ([#49](https://github.com/Bingerminger/energietracker/issues/49)).
 - **Kündigungsfristen** in Monaten, Wochen oder Tagen: Erinnerung in drei
   Stufen bis zum letzten Kündigungstag, Hinweis auf verpasste Fristen und
   angekündigte Preiserhöhungen (mit Sonderkündigungsrecht in Deutschland).
@@ -320,7 +329,9 @@ unter [Grundlagen & Methodik](../verstehen/00-overview.md).
   JSON-Dateien; Chart.js und die Schriften liegen im Repository.
 - **Docker** (amd64 und arm64, mit PHP 8.5) oder jeder Webserver mit PHP —
   siehe [Installation](../betrieb/installation.md); Vorlagen für Synology,
-  Unraid, CasaOS und Umbrel unter [Docker-Betrieb](../betrieb/docker.md).
+  Unraid, CasaOS und Umbrel unter [Docker-Betrieb](../betrieb/docker.md). Seit
+  v3.10.0 ist jedes Image signiert, ohne Python und nach jedem Release auf
+  bekannte Lücken geprüft.
 - **Backup** als eine JSON-Datei (Format 3.0), vor dem Einspielen geprüft und
   als Vorschau gezeigt; automatische Snapshots vor jedem Import. Seit v3.1.0
   mit den Fotos.

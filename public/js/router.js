@@ -151,11 +151,67 @@ function updateTitle(host) {
 }
 
 /**
+ * v3.10.0 (GitHub #36) — Neuzeichnen am Ort: Der alte Inhalt bleibt stehen, der
+ * neue entsteht verborgen darunter (`.view-host--pending`: Höhe 0, unsichtbar,
+ * aber mit Breite, damit Schaubilder ihre Größe finden). Die IDs des alten
+ * Inhalts werden gelöst, sonst fände `getElementById` der neuen Ansicht das alte
+ * Element. Zurück kommt der Tausch: alter Inhalt weg, Scrollposition wie vorher,
+ * Fokus auf denselben Umschalter. Ohne alten Inhalt null (dann wie Navigation).
+ * @returns {null|(() => void)}
+ */
+function holdInPlace(container, host) {
+  const old = [...container.children];
+  if (!old.length) return null;
+  const y = window.scrollY || 0;
+  const active = document.activeElement;
+  const mode = container.contains(active) ? active.closest('[data-period-mode]')?.dataset.periodMode : null;
+  for (const el of old) {
+    el.removeAttribute('id');
+    el.querySelectorAll('[id]').forEach(n => n.removeAttribute('id'));
+  }
+  host.classList.add('view-host--pending');
+  host.setAttribute('aria-hidden', 'true');
+  container.append(host);
+  return () => {
+    host.classList.remove('view-host--pending');
+    host.removeAttribute('aria-hidden');
+    container.replaceChildren(host);
+    window.scrollTo(0, y);
+    if (mode) host.querySelector(`[data-period-mode="${mode}"]`)?.focus({ preventScroll: true });
+  };
+}
+
+/**
+ * v3.10.0 (GitHub #36) — Schaubilder des alten Inhalts als Bild festhalten: Das
+ * Aufräumen der alten Ansicht (Chart.js `destroy`) leert ihre Zeichenflächen und
+ * setzt ihre Größe zurück. Die Seite würde kürzer, der Browser verschöbe die
+ * Leseposition, und die Schaubilder wären leer, solange der neue Inhalt entsteht.
+ */
+function freezeCanvases(root) {
+  for (const c of root.querySelectorAll('canvas')) {
+    const r = c.getBoundingClientRect();
+    if (!r.width || !r.height) continue;
+    try {
+      const img = document.createElement('img');
+      img.src = c.toDataURL();
+      img.alt = '';
+      img.style.cssText = `display:block;width:${r.width}px;height:${r.height}px`;
+      c.replaceWith(img);
+    } catch { /* ohne Bild bleibt die Zeichenfläche, wie sie ist */ }
+  }
+}
+
+/**
  * @param {HTMLElement} container  #view
  * @param {{routes?: Array, views?: Object}} [opts]  für Tests austauschbar
  */
 export function startRouter(container, { routes = ROUTES, views = VIEWS } = {}) {
-  const handle = async (isInitialLoad = false) => {
+  /**
+   * @param {boolean} isInitialLoad
+   * @param {{inPlace?: boolean}} [opts]  v3.10.0 (GitHub #36) — dieselbe Seite neu zeichnen
+   *   (Stufe, Kalender-/Abrechnungsjahr): kein „Lädt…“, kein Sprung nach oben
+   */
+  const handle = async (isInitialLoad = false, { inPlace = false } = {}) => {
     const token = ++navSeq;
     const { path, query } = parseHash(window.location.hash || '#/dashboard');
     const match = resolve(path, routes);
@@ -163,6 +219,8 @@ export function startRouter(container, { routes = ROUTES, views = VIEWS } = {}) 
     // Alte Ansicht abbauen, bevor die neue startet. Offene Dialoge gehören
     // zur alten Ansicht (v2.5.3, FE-09).
     closeAllModals('navigation');
+    // v3.10.0 (#36) — am Ort: Schaubilder festhalten, bevor das Aufräumen sie leert
+    if (inPlace) freezeCanvases(container);
     if (current) {
       current.controller.abort();
       runCleanup(current.cleanup);
@@ -174,11 +232,13 @@ export function startRouter(container, { routes = ROUTES, views = VIEWS } = {}) 
 
     const host = document.createElement('div');
     host.className = 'view-host';
-    container.replaceChildren(host);
+    const swap = inPlace ? holdInPlace(container, host) : null;
+    if (!swap) container.replaceChildren(host);
 
     if (!match || !views[match.view]) {
       host.innerHTML = `<div class="banner banner--warning">${escapeHtml(t('errors.view.unknownRoute', { hash: window.location.hash }))}</div>`;
       document.title = 'Energietracker';
+      swap?.();
       return;
     }
     const { view, params } = match;
@@ -222,9 +282,11 @@ export function startRouter(container, { routes = ROUTES, views = VIEWS } = {}) 
     try {
       const mod = await def.load();
       if (token !== navSeq) return;                 // überholt, bevor das Modul da war
-      const cleanup = await mod.render(body, params, { query, signal: controller.signal });
+      // v3.10.0 (#36) — `inPlace`: Die Ansicht darf Nachgeladenes abwarten, bevor sie fertig meldet
+      const cleanup = await mod.render(body, params, { query, signal: controller.signal, inPlace: !!swap });
       if (token !== navSeq) { runCleanup(cleanup); return; }   // verlassen, während sie lud
       entry.cleanup = typeof cleanup === 'function' ? cleanup : null;
+      swap?.();
       updateTitle(host);
       if (isInitialLoad) prefetch(views);
       // A11y: bei echter Navigation (nicht beim Erst-Laden) den Fokus in den
@@ -232,7 +294,8 @@ export function startRouter(container, { routes = ROUTES, views = VIEWS } = {}) 
       // landen statt am Seitenanfang. #view trägt tabindex="-1".
       // v2.5.3 (UI-06) — preventScroll und gezielt scrollen: Der Browser
       // scrollte den Fokus unter die klebende Kopfleiste.
-      if (!isInitialLoad) {
+      // v3.10.0 (#36) — beim Neuzeichnen am Ort nicht: Seite und Fokus bleiben, wo sie sind
+      if (!isInitialLoad && !swap) {
         container.focus({ preventScroll: true });
         const topbarH = document.querySelector('.topbar')?.offsetHeight || 0;
         const top = container.getBoundingClientRect().top + window.scrollY - topbarH;
@@ -242,14 +305,17 @@ export function startRouter(container, { routes = ROUTES, views = VIEWS } = {}) 
       if (token !== navSeq) return;
       console.error(e);
       renderError(body, e, () => handle(false));
+      swap?.();
       updateTitle(host);
     }
   };
   window.addEventListener('hashchange', () => handle(false));
   // v3.2.0 — andere Stufe: Tabs und Ansicht neu
-  window.addEventListener('et:levelchange', () => handle(false));
+  // v3.10.0 (GitHub #36) — beide am Ort: Bis v3.9 zeichneten sie wie eine Navigation
+  // („Lädt…“, Sprung an den Anfang), auch weiter unten bei Strom oder Wasser
+  window.addEventListener('et:levelchange', () => handle(false, { inPlace: true }));
   // v3.6.0 (F1030) — Kalenderjahr / Abrechnungsjahr umgeschaltet: Ansicht neu
-  window.addEventListener('et:periodmode', () => handle(false));
+  window.addEventListener('et:periodmode', () => handle(false, { inPlace: true }));
   handle(true);
   return { reload: () => handle(false) };
 }

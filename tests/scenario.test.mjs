@@ -95,5 +95,12 @@ const { resultCardHtml } = await import(`${JS}/components/result-card.js`);
 const html = resultCardHtml({ brand: 'B', title: '<b>x</b>', tone: 'more', big: '+214 €', sentence: 'Ein kalter Winter kostet dich 214 € mehr im Jahr.', facts: [{ label: 'CO₂', value: '+90 kg' }], footer: 'F' });
 t('Ergebniskarte: Satz als Beschriftung, Werte escaped', html.includes('ws-card--more') && html.includes('<figcaption') && html.includes('&lt;b&gt;x&lt;/b&gt;') && !html.includes('<b>x</b>'));
 
+// v3.10.0 (Skeptiker N6) — „erstellt am“ der Ergebniskarten in Ortszeit: `toISOString()` ist UTC und
+// zeigte kurz nach Mitternacht (Sommerzeit bis 02:00) den Vortag
+for (const f of ['views/forecast.js', 'views/scenario-print.js', 'views/flexibility.js']) {
+  const src = readFileSync(resolve(JS, f), 'utf8');
+  t(`${f}: Datum der Ergebniskarte in Ortszeit (todayIso)`, !/new Date\(\)\.toISOString\(\)\.slice\(0, 10\)/.test(src) && /date: fmt\.date\(todayIso\(\)\)/.test(src));
+}
+
 console.log(`\nscenario.test: ${pass} bestanden, ${fail} fehlgeschlagen`);
 process.exit(fail ? 1 : 0);

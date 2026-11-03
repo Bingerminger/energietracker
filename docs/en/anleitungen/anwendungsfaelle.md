@@ -545,19 +545,22 @@ rate (HT/NT). Three meters hang one behind the other
    └──────────┬──────────┘
               ├────────────────── Heat pump    = Z1 − Z2 (per HT and NT), own tariff
    ┌──────────┴──────────┐
-   │ Z2  household       │  HT (1.8.1) · NT (1.8.2), own tariff
+   │ Z2  household       │  HT (1.8.1) · NT (1.8.2), own tariff · feed-in (2.8.0)
    └──────────┬──────────┘
-              ├────────────────── Household
+              ├────────────────── Household with EV charger
               │
    ┌──────────┴──────────┐
-   │ Z3  solar output    │  self-consumption = Z3 − feed-in
+   │ Z3  solar output    │  feed-in (2.8.0) = all of the solar power
    └──────────┬──────────┘
               Solar system
 ```
 
 Three contracts: heat pump (HT/NT), household (HT/NT) and the feed-in tariff.
 Z1 measures everything that passes the grid connection. The heat pump has no
-meter of its own: its electricity is the **remainder** of Z1 after deducting Z2.
+meter of its own: its electricity is the **remainder** of Z1 after deducting Z2,
+**per register** as the supplier bills it: HT minus HT, NT minus NT. All three
+meters count backwards (2.8.0): Z3 all of the solar power, Z2 what the
+household leaves of it, Z1 what goes to the grid after the heat pump.
 
 **What it is called.** The names of metering concepts vary by grid operator.
 The Bavarian energy and water industry association (VBEW) calls this setup
@@ -581,8 +584,10 @@ Fastest with the **Set up metering concept** assistant *(v3.9.0)*: under
 concept**. Answers: solar system, “Heat pump with a heat pump tariff”, HT/NT
 “Yes, on every import meter”, layout **Cascade**. It creates the meters per
 register with OBIS code, both groups, feed-in, solar generation and the three
-contracts; existing meters you assign instead of creating them twice. Before
-that the app saves a snapshot. By hand it goes like this:
+contracts; existing meters you assign instead of creating them twice. Since
+v3.10.0 it also creates the feed-in register of Z2 and gives solar generation
+(Z3) the code 2.8.0; the diagram shows the solar system behind Z2. Before that
+the app saves a snapshot. By hand it goes like this:
 
 1. Under **Settings → Utilities & billing → Active utilities** activate
    electricity, solar feed-in and solar generation.
@@ -595,7 +600,10 @@ that the app saves a snapshot. By hand it goes like this:
    Z1 HT and NT, “Z2 household” with Z2 HT and NT
    ([meter topology](../verstehen/13-meter-topologie.md#2-meter-groups)).
 3. Under solar feed-in create the meter “Z1 feed-in”, under solar generation
-   “Z3 solar output”.
+   “Z3 solar output”. If Z2 also counts backwards *(v3.10.0)*: under solar
+   feed-in a second meter “Z2 feed-in” (register 2.8.0), and there under
+   **Feed-in in the cascade → Feed-in register of** choose “Z2 household HT”.
+   It then does not count as feed-in to the grid.
 4. Contracts: a **group contract** on “Z1 heat pump” with the unit price per
    register (HT, NT), one on “Z2 household”, and the feed-in tariff on
    “Z1 feed-in”.
@@ -614,10 +622,14 @@ Feed-in tariff 250 × 8 ct                                      20.00 € revenu
 Self-consumption 600 − 250 = 350 kWh · self-sufficiency 350 / (350 + 700) = 33 %
 ```
 
-- The heat pump contract only bills the **remainder**. The meter, the balance
-  card and the bill check say how: “450 kWh = 700 kWh measured − 150 kWh Z2
-  household HT − 100 kWh Z2 household NT”
-  ([remainder billing](../verstehen/13-meter-topologie.md#remainder-billing-v390)).
+- The heat pump contract only bills the **remainder**, each register at its
+  own price. The meter, the balance card and the bill check say how: “450 kWh,
+  per register HT 250 kWh = 400 kWh − 150 kWh · NT 200 kWh = 300 kWh −
+  100 kWh” ([remainder billing](../verstehen/13-meter-topologie.md#remainder-billing-v390)).
+  If Z2 HT measures more than Z1 HT in a month, HT bills 0 kWh there and the
+  note asks you to check the readings; NT does not get smaller because of it
+  *(v3.10.0)*. The blended price of HT and NT (forecast, balance estimate,
+  tariff comparison) also follows the remainder per register.
 - The electricity total is the grid import at Z1 (700 kWh, Z2 not on top),
   the costs are those of both contracts.
 - Self-consumption and self-sufficiency use Z1 as grid import, the feed-in at
@@ -625,11 +637,59 @@ Self-consumption 600 − 250 = 350 kWh · self-sufficiency 350 / (350 + 700) = 3
 - Seasonal performance factor, efficiency and “electricity by role” in the
   annual report take the remainder for the heat pump, not all of Z1.
 
+<a id="feed-in-in-the-cascade"></a>
+**Feed-in at every meter** *(v3.10.0)*. If Z2 and Z3 also count backwards, the
+app calculates from the differences how much solar power each branch used
+itself (invented values for one month, the figures from above):
+
+<!-- doc-claim: cascade-feed-example (CascadeFeedTest) -->
+```text
+Feed-in registers 2.8.0: Z3 600 kWh · Z2 400 kWh · Z1 250 kWh
+
+Household    Z3 − Z2 = 600 kWh − 400 kWh = 200 kWh solar power used directly
+Heat pump    Z2 − Z1 = 400 kWh − 250 kWh = 150 kWh solar power used directly
+together                           350 kWh (generation − feed-in to the grid)
+
+Heat pump total  450 kWh remainder from the grid + 150 kWh solar = 600 kWh
+Household total  250 kWh from the grid           + 200 kWh solar = 450 kWh
+```
+
+- Feed-in to the grid and the feed-in tariff stay with Z1 (250 kWh); the
+  register of Z2 does not count on top.
+- Under **Solar generation** the card **Solar power per branch** shows the
+  yearly figures. The energy flow shows the heat pump with 600 kWh (remainder
+  plus solar), “electricity by role” in the annual report gives each branch its
+  solar power, and the seasonal performance factor divides the heat by all of
+  the heat pump’s electricity (600 kWh instead of 450 kWh a month).
+- Only months covered by all three registers count. If a branch is below zero,
+  it gets 0 kWh there.
+- **Measured or estimated** *(v3.10.0)*: if a reading is
+  distributed in a month, for example because Z3 is read only quarterly or a
+  reading is missing at Z2, the split between the months is an estimate. The
+  card then puts ≈ in front of the branch and says how many months are
+  distributed; the heat pump shows ≈ at the electricity for those months and no
+  performance factor, the seasonal performance factor still covers all months.
+  The card only says “Please check the readings” if all readings of the month
+  are measured and a meter further forward still counts more backwards than the
+  one behind it.
+- **Yearly figures exact across a gap** *(v3.10.0)*: in a month a branch is
+  never below zero. For the yearly figures (solar power per branch in the year,
+  seasonal performance factor, heat pump in the yearly energy flow) a
+  distributed month counts with its full value, even below zero: distribution
+  only shifts amounts between the months of a gap, and this way the sum is
+  exact. A measured contradiction, by contrast, counts as 0 and stays reported;
+  it is a reading error and is not offset against other months.
+- The efficiency figure still counts the front heat pump with grid electricity
+  only and says so on the tile (“Heat pump: grid electricity only”).
+
 **Limits.**
 
-- Z2 only measures import. If solar power flows back from the household to the
-  heat pump, no meter measures it. The annual report assigns self-consumed
-  solar power to the household.
+- Without a feed-in register on Z2 no meter measures how much solar power goes
+  to the heat pump. Then the annual report assigns self-consumed solar power to
+  the household, as up to v3.9.0.
+- The app calculates a cascade with one meter behind Z1 (Z2) and the solar
+  system behind it. If the solar system hangs directly behind Z1, Z2 counts
+  nothing backwards; a feed-in register on Z2 is then not needed.
 - Storage that mixes grid and solar power (MiSpeL) is not calculated by the
   app yet. What the determination allows is under
   [G → the legal situation in brief](#the-legal-situation-in-brief-as-of-9-october-2026).

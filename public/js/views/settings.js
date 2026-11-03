@@ -51,6 +51,10 @@ const GROUPS = [
   { gkey: 'updates', page: 'general', icon: '🆕', fields: [
     { key: 'update_check', type: 'bool' },
   ]},
+  // v3.10.0 — Danke sagen: Hinweis aufs Unterstützen in Nutzen-Momenten (lib/thanks.js)
+  { gkey: 'thanks', page: 'general', icon: '☕', fields: [
+    { key: 'support_hint', type: 'bool' },
+  ]},
   // v3.7.1 — Umgebungsname als Abzeichen neben dem Logo (Test, Haus …); leer = keins
   { gkey: 'environment', page: 'general', icon: '🏷️', fields: [
     { key: 'env_name', type: 'text', maxlength: 12, placeholderKey: 'settings.placeholder.envName' },
@@ -197,6 +201,12 @@ const GROUPS = [
   // v3.2.0 (F1022) — Ladevorgänge aus evcc abrufen, nur im Heimnetz
   { gkey: 'evcc', page: 'expert', icon: '🚗', visible: true, fields: [
     { key: 'evcc_endpoint', type: 'text', placeholderKey: 'settings.placeholder.evccEndpoint' },
+  ]},
+  // v3.10.0 (#36) — HTTPS ins Heimnetz mit eigener PKI (Home Assistant, Texterkennung,
+  // Auslesen, evcc): eigenes Stammzertifikat zusätzlich, „nicht prüfen“ nur im Heimnetz
+  { gkey: 'homeTls', page: 'expert', icon: '🔐', visible: true, fields: [
+    { key: 'home_ca_pem', type: 'textarea', placeholderKey: 'settings.placeholder.homeCaPem' },
+    { key: 'home_tls_insecure', type: 'bool', warn: true },
   ]},
   // Der Standort steht seit v2.12.0 nur noch bei den Wetterdaten (temperatures.js).
 ];
@@ -1845,7 +1855,8 @@ function renderField(f, value, settings = {}) {
   const hintVal = t(hintKey);
   const hasHint = hintVal !== hintKey;
   const hintId  = fieldId + '-hint';
-  const hint = hasHint ? `<span class="settings-field__hint" id="${hintId}">${hintVal}</span>` : '';
+  // v3.10.0 — `warn`: der Hinweis ist eine Warnung (etwa „Zertifikat nicht prüfen“)
+  const hint = hasHint ? `<span class="settings-field__hint${f.warn ? ' settings-card__hint--warn' : ''}" id="${hintId}">${hintVal}</span>` : '';
   const describedBy = hasHint ? ` aria-describedby="${hintId}"` : '';
   const unit = f.unitKey ? t(f.unitKey) : f.unit;
   // v2.2.0 — Platzhalter mit deutschem Text („TT-MM", „z. B. 1998") laufen
@@ -1895,6 +1906,15 @@ function renderField(f, value, settings = {}) {
       <input class="input input--text" type="text" id="${fieldId}" data-key="${f.key}" data-type="datemd"
              value="${escapeHtml(disp)}" ${placeholder ? `placeholder="${escapeHtml(placeholder)}"` : ''}${describedBy}>
       <div class="field-error" id="${fieldId}-err" role="alert" hidden></div>
+      ${hint}
+    </div>`;
+  }
+  // v3.10.0 (#36) — mehrzeiliger Text (Zertifikat im PEM-Format); ohne Rechtschreibprüfung
+  if (f.type === 'textarea') {
+    return `<div class="field settings-field">
+      ${labelHtml}
+      <textarea class="input input--text input--mono" id="${fieldId}" data-key="${f.key}" rows="5" spellcheck="false" autocomplete="off"
+                ${placeholder ? `placeholder="${escapeHtml(placeholder)}"` : ''}${describedBy}>${escapeHtml(value ?? '')}</textarea>
       ${hint}
     </div>`;
   }
@@ -2277,6 +2297,7 @@ function renderDiagnostics(d) {
         ${renderDiagRow(t('settings.diag.dataDir'),       d.data_dir,       'mono path')}
         ${renderDiagRow(t('settings.diag.writable'), renderBool(d.data_dir_writable))}
         ${renderDiagRow(t('settings.diag.curl'),     renderBool(d.curl_available))}
+        ${d.home_tls ? renderDiagRow(t('settings.diag.homeCa'), homeTlsText(d.home_tls)) : ''}
         ${renderDiagRow(t('settings.diag.timezone'),      d.time_zone,      'mono')}
         ${renderDiagRow(t('settings.diag.serverTime'),    fmt.date(String(d.now).slice(0,10)) + ' ' + String(d.now).slice(11,19), 'mono')}        ${renderDiagRow(t('settings.diag.migrationNeeded'), renderBool(d.migration_needed, /*inverted*/ true))}
       </dl>
@@ -2313,6 +2334,17 @@ function renderDiagnostics(d) {
       </div>
     </div>
   `;
+}
+
+// v3.10.0 (#36) — eigene Stammzertifikate (ET_CA_FILE und Einstellung), Datei
+// nicht lesbar, Prüfung im Heimnetz aus: eine Zeile, ohne Pfad
+function homeTlsText(h) {
+  const n = (h.ca_file_certs || 0) + (h.ca_settings_certs || 0);
+  const parts = [tp('settings.diag.homeCaCount', n, { count: fmt.int(n) })];
+  if (h.ca_file === 'unreadable') parts.push(t('settings.diag.homeCaFileUnreadable'));
+  if (h.ca_file === 'invalid') parts.push(t('settings.diag.homeCaFileInvalid'));
+  if (h.insecure_local) parts.push(t('settings.diag.homeTlsInsecure'));
+  return parts.join(' · ');
 }
 
 // v3.4.0 (N1020) — Werte werden escaped; fertiges HTML (renderBool) kommt als

@@ -128,7 +128,7 @@ docker compose up -d        # … und damit neu starten
 ## Variante B — `docker run` (ohne Compose)
 
 ```bash
-docker run -d --name energietracker -p 8080:80 \
+docker run -d --name energietracker --restart unless-stopped -p 8080:80 \
   -v "$PWD/data:/data" \
   ghcr.io/bingerminger/energietracker:3
 ```
@@ -139,6 +139,7 @@ Zeile für Zeile:
 |------|-----------|
 | `-d` | im Hintergrund (detached) |
 | `--name energietracker` | **fester Container-Name** |
+| `--restart unless-stopped` | startet den Container nach einem Neustart des Rechners und nach einer Störung wieder, außer du hast ihn selbst gestoppt (seit v3.10.0 endet der Container, wenn nginx oder php-fpm ausfällt, s. [Eigenes Image bauen](#eigenes-image-bauen-optional)) |
 | `-p 8080:80` | Host-Port 8080 → Container-Port 80 |
 | `-v "$PWD/data:/data"` | Daten-Volume (siehe oben) |
 | `…/energietracker:3` | das Image samt Tag: `:3` bleibt bei der neuesten 3.x und springt nicht ungefragt auf eine neue Hauptversion; `:latest` immer das Neueste, `:3.5.1` eine feste Version |
@@ -362,6 +363,7 @@ docker run -e ET_LOG_LEVEL=debug …   # bzw. in docker-compose.yml unter enviro
 | `ET_ALLOWED_HOSTS` | *(leer = alle)* | *(v2.6.0)* erlaubte Hostnamen, kommagetrennt, `*.domain` möglich; andere → 421. IP-Adressen und `localhost` immer. Seit v3.4.0 auch in den Einstellungen (`allowed_hosts`); beide Listen gelten |
 | `ET_LOCK_WAIT_S` | `15` | *(v3.4.0)* wie lange eine schreibende Anfrage auf die Schreibsperre wartet (1–120 s), danach `503` mit `Retry-After` |
 | `ET_INBOX_DIR` | *(leer = `<dataDir>/posteingang`)* | *(v3.9.0)* eigener [überwachter Ordner](../anleitungen/posteingang.md#überwachter-ordner) für den Posteingang, absoluter Pfad, auch außerhalb des Datenverzeichnisses (die App für Home Assistant setzt `/share/energietracker/posteingang`). Das Image legt ihn beim Start an und gibt ihn `www-data`; ohne root (Variante `rootless`) muss er für den Benutzer des Containers beschreibbar sein |
+| `ET_CA_FILE` | *(leer)* | *(v3.10.0)* eigenes Stammzertifikat (PEM-Datei im Container, auch mehrere Zertifikate) für Verbindungen ins Heimnetz: Home Assistant, Texterkennung, Auslesen im Heimnetz, evcc. Gilt **zusätzlich** zu den Stammzertifikaten des Images, die Prüfung bleibt an; die Datei nur lesend einhängen. Dasselbe geht in den Einstellungen (`home_ca_pem`), siehe [Home Assistant, HTTPS mit eigenem Zertifikat](../anleitungen/home-assistant.md#https-mit-eigenem-zertifikat-v3100) |
 | `ET_FRAME_ANCESTORS` | *(leer)* | *(v2.6.0)* Ursprünge, die die App einbetten dürfen (z. B. das Home-Assistant-Dashboard) |
 | `ET_DEBUG` | *(leer)* | *(v2.6.0)* `1` = Datei/Zeile in Fehlerantworten — nur kurz zur Fehlersuche |
 
@@ -414,7 +416,7 @@ docker compose pull && docker compose up -d
 # docker run
 docker pull ghcr.io/bingerminger/energietracker:X.Y.Z
 docker rm -f energietracker
-docker run -d --name energietracker -p 8080:80 \
+docker run -d --name energietracker --restart unless-stopped -p 8080:80 \
   -v "$PWD/data:/data" ghcr.io/bingerminger/energietracker:X.Y.Z
 ```
 
@@ -462,14 +464,57 @@ Wer den Code selbst angepasst hat, baut lokal:
 
 ```bash
 docker build -t energietracker .
-docker run -d --name energietracker -p 8080:80 \
+docker run -d --name energietracker --restart unless-stopped -p 8080:80 \
   -v "$PWD/data:/data" energietracker
 ```
 
-Das Image bündelt nginx + php-fpm (von `supervisord` zusammengehalten) und
-nutzt für den Container-`HEALTHCHECK` den Endpoint `GET /api/health`. php-fpm
-lauscht seit v3.4.0 nur auf `127.0.0.1:9000` (eigene Pool-Datei
-`zzz-energietracker.conf`); andere Container erreichen FastCGI nicht.
+Das Image bündelt nginx + php-fpm und nutzt für den Container-`HEALTHCHECK`
+den Endpoint `GET /api/health`. php-fpm lauscht seit v3.4.0 nur auf
+`127.0.0.1:9000` (eigene Pool-Datei `zzz-energietracker.conf`); andere
+Container erreichen FastCGI nicht.
+
+**Start und Stopp (seit v3.10.0):** Beide Dienste startet ein kleines
+Shell-Skript (`docker/start.sh`), bis v3.9 war es `supervisord`. Damit
+entfallen `supervisor` und Python im Image. Das Skript
+
+- reicht das Stoppsignal an nginx und php-fpm weiter: `docker stop` endet nach
+  einem Augenblick mit Exit-Code 0, nicht erst nach der Frist von Docker;
+- beendet den Container mit einem Fehlercode, sobald einer der beiden Dienste
+  endet. Im Log steht dann `"msg":"Dienst beendet, Container endet"` mit dem
+  Namen des Dienstes. Neu startet ihn Docker über die restart-Policy
+  (`restart: unless-stopped` in der `docker-compose.yml`, `--restart
+  unless-stopped` bei `docker run`), in Home Assistant der Watchdog der App.
+  Bis v3.9 startete `supervisord` den Dienst im Container neu.
+
+---
+
+## Signatur und Stückliste prüfen *(v3.10.0)*
+
+Seit v3.10.0 ist jedes veröffentlichte Image signiert, auch jeder
+wöchentliche Neubau. Die Signatur entsteht ohne Schlüssel mit
+[cosign](https://docs.sigstore.dev/): Das Zertifikat nennt den GitHub-Workflow,
+der das Image gebaut hat, und die Signatur steht im öffentlichen
+Transparenzprotokoll (Rekor). Prüfen mit cosign 3 oder neuer:
+
+```bash
+cosign verify ghcr.io/bingerminger/energietracker:3 \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  --certificate-identity-regexp '^https://github\.com/Bingerminger/energietracker/\.github/workflows/docker-(publish|rebuild)\.yml@refs/'
+```
+
+Dasselbe gilt für jeden anderen Tag, auch `-rootless`. Ohne Treffer bricht
+cosign mit einer Fehlermeldung ab; Images vor v3.10.0 sind nicht signiert.
+
+Stückliste (SBOM) und Herkunftsnachweis hängen seit v2.6.0 am Image:
+
+```bash
+docker buildx imagetools inspect ghcr.io/bingerminger/energietracker:3 --format '{{ json .SBOM }}'
+docker buildx imagetools inspect ghcr.io/bingerminger/energietracker:3 --format '{{ json .Provenance }}'
+```
+
+Nach jedem Release und jedem wöchentlichen Neubau prüft GitHub das Image auf
+bekannte Lücken (Grype, nur Befunde mit verfügbarer Korrektur). Fristen und
+Meldeweg: [SECURITY.md](../../SECURITY.md).
 
 ---
 
@@ -630,6 +675,7 @@ schreiben …“. Nach dem `chown` genügt ein Neuladen der Seite.
 | Daten weg nach `docker rm` | Kein `-v`-Volume gemountet. Immer `-v "$PWD/data:/data"` oder ein Named Volume. |
 | Docker Desktop: Container bleibt auf „Created“, Fehler `mounts denied` bzw. „HTTP 500“ | Der Datenordner ist unter Settings → Resources → File sharing nicht freigegeben. Freigeben oder ein Named Volume nehmen: `-v energietracker-data:/data`. |
 | Port 8080 belegt | Anderen Host-Port wählen, z. B. `-p 9000:80`. |
+| Container steht auf „Exited“ mit einem Fehlercode, im Log „Dienst beendet, Container endet“ | nginx oder php-fpm ist ausgefallen; der Container endet dann absichtlich (seit v3.10.0). Mit `--restart unless-stopped` bzw. `restart: unless-stopped` startet Docker ihn wieder. Steht der Fehler vor dieser Zeile im Log, ist er die Ursache. |
 | „403/Permission denied" auf `data` | Der Container setzt die Rechte beim Start; bei eigenem Host-Ordner ggf. Schreibrechte prüfen. |
 | Unraid: nach *New Permissions* „Daten nicht schreibbar“ | Container neu starten — er stellt `/data` wieder auf `www-data` (UID 82). |
 | Ohne root: im Log „Datenverzeichnis nicht beschreibbar“, `/api/health` mit `503` | Der Datenordner gehört nicht der UID des Containers (10001). `sudo chown -R 10001:0 <Ordner>` oder ein Named Volume — [Ohne root](#ohne-root-v350). |

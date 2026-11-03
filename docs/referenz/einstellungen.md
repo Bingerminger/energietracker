@@ -11,7 +11,7 @@ Schlüssel bleiben stabil: Entfernt wird erst mit einer neuen Hauptversion und
 nach Ankündigung — die veralteten stehen am Ende.
 
 Seit v3.2.0 kann ein Haushalt mehrere Personen mit Rollen haben
-([Benutzer im Haushalt](../anleitungen/benutzer.md)). Vierzehn Schlüssel ändern
+([Benutzer im Haushalt](../anleitungen/benutzer.md)). Sechzehn Schlüssel ändern
 dann nur Verwalter, weil die App mit ihnen andere Adressen anspricht, sich
 einbetten lässt, Namen sperrt, den Verlauf kürzt oder Dokumente in die Cloud
 schickt: `frame_ancestors`, `ocr_endpoint`, `evcc_endpoint`, (seit v3.4.0)
@@ -19,7 +19,9 @@ schickt: `frame_ancestors`, `ocr_endpoint`, `evcc_endpoint`, (seit v3.4.0)
 wohin Versorgerpost zum Auslesen geht, und `inbox_cloud_enabled`,
 `inbox_cloud_provider`, `inbox_cloud_endpoint` und `inbox_cloud_model`, (seit
 v3.9.0) `ha_notify_enabled`, `ha_notify_target`, `ha_notify_url` und
-`ha_notify_service`, ob und wohin Benachrichtigungen an Home Assistant gehen. Ein
+`ha_notify_service`, ob und wohin Benachrichtigungen an Home Assistant gehen,
+(seit v3.10.0) `home_ca_pem` und `home_tls_insecure`, wem Verbindungen ins
+Heimnetz vertrauen. Ein
 Mitglied, das einen davon mitschickt, bekommt `403` `errors.auth.adminOnly`;
 alle anderen Schlüssel dürfen auch Mitglieder ändern. Ohne Anmeldung gilt die
 Einschränkung nicht.
@@ -68,6 +70,12 @@ hebt. Mehr dazu: [Einrichtung](../einstieg/einrichtung.md).
 | `update_check` | aus | Auf neue Versionen hinweisen | Einmal am Tag fragt der Server bei GitHub die neueste veröffentlichte Version ab (`GET /api/update-check`); ist sie neuer, erscheint ein Hinweis mit Link zu den Release-Notes, bis du ihn für diese Version schließt. GitHub sieht nur die Adresse des Servers. Ausgeschaltet geht keine Anfrage hinaus. Die Einrichtung schlägt den Hinweis vor; bestehende Installationen bleiben aus, bis jemand ihn einschaltet. |
 
 Unabhängig davon zeigt jedes Gerät nach einem Update einmal „Aktualisiert auf …“ mit Link zu den Release-Notes — ohne Anfrage nach außen.
+
+### Unterstützen *(v3.10.0)*
+
+| Schlüssel | Standard | In der App | Wirkung |
+|---|---|---|---|
+| `support_hint` | an | Hinweis aufs Unterstützen zeigen | Hat die App gerade geholfen („Rechnung prüfen“ findet eine Abweichung, ein Termin ist vor dem Fälligkeitstag erledigt, der Jahresbericht ist gedruckt oder heruntergeladen), erscheint eine ruhige Zeile mit Link zu Buy Me a Coffee ([Ansichten](ansichten.md)). Höchstens einmal im Quartal je Gerät (den Tag merkt sich der Browser), nie in der Demo, kein Dialog. „Nicht mehr zeigen“ in der Zeile schaltet die Einstellung aus. |
 
 ### Umgebung *(v3.9.0)*
 
@@ -338,6 +346,20 @@ Server (nicht im Backup, nie im Browser). Wann was gesendet wird:
 | `ha_notify_service` | `persistent_notification.create` | Aktion in Home Assistant | Für Supervisor und Token: `persistent_notification.create` oder `notify.<name>` (etwa `notify.mobile_app_…`). Nur Verwalter. |
 | `ha_notify_events` | alle | Was melden? | Teilmenge von `reminder` (Termine), `deadline` (Fristen und weitere Punkte aus „Zu tun“), `warning` (Warnungen), `document` (neue Dokumente im Posteingang). |
 | `ha_notify_hour` | `8` | Tägliche Prüfung ab | Stunde (0 bis 23), ab der die tägliche Prüfung läuft, mit der ersten Anfrage danach. |
+
+### Verbindungen im Heimnetz *(v3.10.0)*
+
+Einstellungen → Experte → 🔐 Verbindungen im Heimnetz. Für Home Assistant,
+Texterkennung, das Auslesen im Heimnetz und evcc über `https://` mit selbst
+ausgestellten Zertifikaten ([#36](https://github.com/Bingerminger/energietracker/issues/36)). Die
+Cloud-Dienste und die öffentlichen Dienste (Wetter, Börsenpreise,
+Update-Hinweis) prüfen weiter nur gegen die Stammzertifikate des Systems.
+Anleitung: [Home Assistant, HTTPS mit eigenem Zertifikat](../anleitungen/home-assistant.md#https-mit-eigenem-zertifikat-v3100).
+
+| Schlüssel | Standard | In der App | Wirkung |
+|---|---|---|---|
+| `home_ca_pem` | leer | Eigenes Stammzertifikat (PEM) | Das Stammzertifikat, mit dem du deine Zertifikate selbst ausstellst, als PEM-Text (`-----BEGIN CERTIFICATE-----` …), auch mehrere. Es gilt **zusätzlich** zu den Stammzertifikaten des Systems und zur Datei aus `ET_CA_FILE`; die Prüfung bleibt an. Gespeichert werden nur die Zertifikate selbst; ein privater Schlüssel oder ein unlesbarer Block wird abgelehnt (`errors.settings.caPrivateKey`, `errors.settings.caInvalid`). Ein Zertifikat ist kein Geheimnis, es steht im Backup. Nur Verwalter. |
+| `home_tls_insecure` | aus | Zertifikat im Heimnetz nicht prüfen | Notlösung: Verbindungen zu Adressen im Heimnetz prüfen das Zertifikat nicht (weder Aussteller noch Namen). Ohne Prüfung kann mitlesen, wer sich im Netz dazwischenhängt, auch den Token für Home Assistant. Entschieden wird an der Adresse, mit der die App verbindet (nach der Namensauflösung): Heimnetz sind 127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 100.64.0.0/10, `::1` und `fc00::/7`. Für jede andere Adresse wirkungslos. Nur Verwalter. |
 
 ### Posteingang: Auslesen in der Cloud *(v3.7.0)*
 

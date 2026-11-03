@@ -16,6 +16,24 @@ Thanks for joining in! What helps most:
 Please do **not** report security issues as an issue, but as described in
 [SECURITY.md](SECURITY.md).
 
+Working with an AI coding agent? [AGENTS.md](AGENTS.md) sums up what it needs
+to know: running the tests, conventions, no user data, no third-party packages.
+
+## Ideas, plans and status
+
+- **Ideas and wishes** go to
+  [Discussions → Ideas](https://github.com/Bingerminger/energietracker/discussions/categories/ideas);
+  everyone can vote with 👍 there. Bugs go into an issue (form “Report a bug”).
+- **What is planned** shows on the
+  [project board](https://github.com/users/Bingerminger/projects/1) and in the
+  [milestones](https://github.com/Bingerminger/energietracker/milestones), one
+  per release. The [roadmap](roadmap.en.md) sums it up.
+- **Status labels** on issues: `status: triage` (being assessed),
+  `status: accepted` (accepted, not yet scheduled), `status: planned`
+  (scheduled for a release, see the milestone), `status: declined` (declined,
+  with a reason). `found-by-automation` marks reports from an automated test
+  or an agent.
+
 ## Setting up
 
 PHP 8.2 or newer is enough to run it (the CI checks 8.2 to 8.5), without

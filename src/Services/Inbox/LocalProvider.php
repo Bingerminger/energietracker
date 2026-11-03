@@ -208,7 +208,8 @@ final class LocalProvider implements ExtractionProvider
             if (($resp['http_code'] ?? null) === 404 && preg_match('/model.*not found|not found.*model/i', $err)) {
                 throw new LocalizedException('errors.inbox.modelMissing', ['model' => $model], 'inbox: model missing');
             }
-            $key = ($resp['error_code'] ?? '') === 'timeout' ? 'errors.ocr.timeout' : 'errors.ocr.unreachable';
+            \Energietracker\Support\HomeTls::throwIfCertificate($resp, $url);   // v3.10.0 (#36)
+            $key =($resp['error_code'] ?? '') === 'timeout' ? 'errors.ocr.timeout' : 'errors.ocr.unreachable';
             throw new LocalizedException($key, ['seconds' => $timeout, 'code' => (string)($resp['http_code'] ?? '')], 'inbox request failed');
         }
         $json = json_decode((string)$resp['body'], true);

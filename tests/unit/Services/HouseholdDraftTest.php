@@ -955,6 +955,13 @@ final class HouseholdDraftTest extends ServiceTestCase
         $this->tenantInvoice('rg-x', '01.04.2025', '31.12.2025', '2000', '3500', ['document_date' => '20.02.2026', 'total_amount' => '830,00', 'result_amount' => '230,00']);
         $this->tenantInvoice('rg-y', '01.04.2025', '31.12.2025', '2000', '3500', ['document_date' => '15.01.2026']);
         self::assertSame([830.0, false], [$total()['value'], $total()['check']], 'Ausstellungsdatum');
+        // v3.10.0 — der Bezug auf eine frühere Rechnung (`corrects_invoice`), ohne Titel, Datei und Datum
+        $this->resetInbox();
+        $this->tenantConfirmation('c1', ['supply_start' => '01.04.2025']);
+        $this->tenantInvoice('rg-m', '01.04.2025', '31.12.2025', '2000', '3500', ['corrects_invoice' => 'R-1000', 'invoice_number' => 'R-1001',
+            'total_amount' => '840,00', 'result_amount' => '240,00']);
+        $this->tenantInvoice('rg-n', '01.04.2025', '31.12.2025', '2000', '3500', ['invoice_number' => 'R-1000']);
+        self::assertSame([840.0, false], [$total()['value'], $total()['check']], 'Bezug');
     }
 
     public function testAnotherRateOnTheStartDayReplacesTheStartRow(): void

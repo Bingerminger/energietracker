@@ -77,10 +77,29 @@ const views = {
     } }) },
   failing: { section: 'overview', load: async () => ({
     render: () => { calls.failRenders++; throw new Error('kaputt'); } }) },
+  // v3.10.0 (GitHub #36) — eine Ansicht wie die Übersicht: leert sich zuerst („Lädt…“), sucht ihre Elemente über die ID
+  place: { section: 'overview', load: async () => ({
+    render: async (c, _p, ctx) => {
+      const n = ++calls.placeRenders;
+      calls.inPlace.push(!!ctx?.inPlace);
+      c.innerHTML = '<div class="loading">Lädt Platz</div>';
+      await sleep(100);
+      c.innerHTML = `<h1>Platz ${n}</h1><p id="mark">${n}</p><button type="button" data-period-mode="billing">B</button><canvas></canvas>`;
+      if (document.getElementById('mark') === c.querySelector('#mark')) calls.ownId++;
+      // ein Schaubild wie Chart.js: Größe und Bild nur im Browser, hier gestellt; das Aufräumen leert es
+      const cv = c.querySelector('canvas');
+      cv.getBoundingClientRect = () => ({ width: 120, height: 40, top: 0, left: 0, right: 120, bottom: 40 });
+      cv.toDataURL = () => `data:image/png;base64,UGxhdHo${n}`;
+      return () => { calls.cleanedVisible += document.contains(cv) ? 1 : 0; };
+    } }) },
 };
+calls.placeRenders = 0;
+calls.ownId = 0;
+calls.inPlace = [];
+calls.cleanedVisible = 0;
 const routes = [
   [/^\/start$/, 'start'], [/^\/slow$/, 'slow'], [/^\/fast$/, 'fast'],
-  [/^\/fetching$/, 'fetching'], [/^\/failing$/, 'failing'],
+  [/^\/fetching$/, 'fetching'], [/^\/failing$/, 'failing'], [/^\/place$/, 'place'],
 ];
 const view = document.getElementById('view');
 console.error = () => {};   // der Router protokolliert den absichtlichen Fehler
@@ -168,6 +187,42 @@ t('Schließen per Knopf hinterlässt keinen History-Eintrag', history.length ===
 history.back();
 await sleep(80);
 t('… und Zurück führt zur vorigen Seite', view.textContent.includes('Start'), view.textContent.trim());
+
+// 9. v3.10.0 (GitHub #36) — Kalender-/Abrechnungsjahr und Stufe umschalten zeichnet am Ort neu:
+// kein „Lädt…“, der alte Inhalt bleibt stehen, bis der neue da ist, die Seite springt nicht nach oben
+location.hash = '#/place';
+await sleep(350);
+const scrolls = [];
+dom.window.scrollTo = (_x, y) => { scrolls.push(y); };
+Object.defineProperty(dom.window, 'scrollY', { value: 640, configurable: true, writable: true });
+const shownHosts = () => [...view.children].filter(h => !h.classList.contains('view-host--pending'));
+view.querySelector('[data-period-mode="billing"]')?.focus();
+for (const [ev, before, after] of [['et:periodmode', 1, 2], ['et:levelchange', 2, 3]]) {
+  scrolls.length = 0;
+  window.dispatchEvent(new CustomEvent(ev));
+  await sleep(60);
+  const shown = shownHosts();
+  t(`${ev}: alter Inhalt bleibt stehen, kein „Lädt…“`, shown.length === 1 && shown[0].textContent.includes(`Platz ${before}`)
+    && !shown[0].querySelector('.loading'), shown.map(h => h.textContent.trim()).join(' | '));
+  t(`${ev}: der neue entsteht verborgen`, !!view.querySelector('.view-host--pending[aria-hidden="true"]'));
+  t(`${ev}: Schaubild des alten Inhalts als Bild festgehalten`, !shown[0]?.querySelector('canvas')
+    && shown[0]?.querySelector('img')?.getAttribute('src') === `data:image/png;base64,UGxhdHo${before}`);
+  await sleep(300);
+  t(`${ev}: danach nur der neue Inhalt`, view.children.length === 1 && view.textContent.includes(`Platz ${after}`)
+    && !view.querySelector('.view-host--pending, [aria-hidden]'), view.textContent.trim());
+  t(`${ev}: die Seite bleibt, wo sie war`, scrolls.length > 0 && scrolls.every(y => y === 640), scrolls.join(','));
+}
+t('Umschalten: die Ansicht findet ihre Elemente über die ID im neuen Inhalt', calls.ownId === 3, `${calls.ownId}×`);
+t('Umschalten: die Ansicht weiß, dass sie am Ort neu zeichnet (Navigation nicht)', calls.inPlace.join() === 'false,true,true', calls.inPlace.join());
+t('Umschalten: das Aufräumen leert kein sichtbares Schaubild', calls.cleanedVisible === 0, `${calls.cleanedVisible}×`);
+t('Umschalten: der Fokus bleibt am Umschalter', document.activeElement?.dataset?.periodMode === 'billing' && view.contains(document.activeElement));
+// eine Navigation während des Neuzeichnens gewinnt
+window.dispatchEvent(new CustomEvent('et:periodmode'));
+await sleep(30);
+location.hash = '#/start';
+await sleep(400);
+t('Navigation während des Neuzeichnens: die neue Seite steht allein', view.children.length === 1 && view.textContent.includes('Start')
+  && !view.textContent.includes('Platz'), view.textContent.trim());
 
 console.log(`\n  router.test: ${pass} bestanden, ${fail} fehlgeschlagen`);
 process.exit(fail ? 1 : 0);

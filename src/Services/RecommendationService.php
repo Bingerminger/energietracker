@@ -395,12 +395,17 @@ final class RecommendationService
      *   - Mitglieder einer Zählergruppe (HT/NT einer Wärmepumpe) prüft die Regel als Gruppe,
      *     eine Empfehlung je Gruppe statt je Zählwerk mit gleichem Text (`all()`).
      *   - `$named`: Hat die Art mehrere Zähler bzw. Gruppen, nennt der Titel den Namen.
+     *
+     * v3.10.0 — ein Elternzähler mit seinem eigenen Verbrauch (Rest, ownMonths): Bis dahin prüfte die
+     * Regel ihn mit seinen Subzählern, und ein Ausschlag eines Subzählers (etwa der Wallbox) erschien
+     * auch am Elternzähler. Den Subzähler prüft die Regel an ihm selbst.
      */
     private function ruleAnomaly(string $utility, array $meter, array $monthly, bool $named = false): array
     {
         if (Utilities::isHgtRelevant($utility) || Utilities::isDelivery($utility)) return [];
         // PV: ein ertragreicher Monat ist kein Warnsignal
         if (Utilities::isFeedIn($utility) || Utilities::isGenerationOnly($utility)) return [];
+        [$monthly, $without] = $this->ownMonths($utility, $meter, $monthly);
         $label = $this->utilLabel($utility) . ($named && (string)($meter['name'] ?? '') !== '' ? ' · ' . $meter['name'] : '');
         $out = [];
         foreach ($this->anomalies()->detect($utility, $monthly) as $a) {
@@ -412,12 +417,68 @@ final class RecommendationService
                 'r4', [$utility, $meter['id'], $a['ym']],
                 'info', 'anomalie',
                 $this->i18n->t('recommendations.engine.r4.title', ['label' => $label, 'ym' => $this->i18n->month($a['ym'])]),
-                $this->i18n->t('recommendations.engine.r4.detail', ['ym' => $this->i18n->month($a['ym']), 'sigma' => $this->i18n->number(abs((float)$a['z_score']), 1)]),
+                $this->i18n->t('recommendations.engine.r4.detail', ['ym' => $this->i18n->month($a['ym']), 'sigma' => $this->i18n->number(abs((float)$a['z_score']), 1)])
+                    // v3.10.0 — geprüft ist der eigene Verbrauch: welche Subzähler nicht mitzählen
+                    . ($without !== [] ? ' ' . $this->i18n->t('recommendations.engine.r4.rest', ['names' => implode(', ', $without)]) : ''),
                 ['utility' => $utility, 'meter_id' => $meter['id'], 'ym' => $a['ym'],
                  'meter' => (string)($meter['name'] ?? ''), 'is_group' => !empty($meter['is_group'])]
+                 + ($without !== [] ? ['without_submeters' => $without] : [])   // v3.10.0, additiv
             );
         }
         return $out;
+    }
+
+    /**
+     * v3.10.0 — Monatszeilen mit dem eigenen Verbrauch eines Elternzählers (Rest): gemessen minus
+     * seine Subzähler (ohne messende Rollen, MeterService::ROLES_OUTSIDE_TOTALS); für eine Gruppe
+     * die Subzähler ihrer Mitglieder, die nicht selbst Mitglied sind. Unabhängig davon, ob ein
+     * Subzähler einen eigenen Vertrag hat: Für die Anomalie zählt, was der Zähler selbst verbraucht.
+     *
+     * Ein Monat fällt weg, wenn ein vorhandener Subzähler (eingebaut, nicht ausgebaut) in ihm nicht
+     * oder nur an einem Teil der Tage des Elternzählers gemessen ist (Einbau mitten im Monat, Lücke):
+     * Sein Rest wäre um den ungemessenen Teil zu hoch. Verteilte und Tauschmonate eines Subzählers
+     * übertragen ihre Kennung (AnomalyService::validMonths lässt sie aus). Ohne Subzähler unverändert.
+     *
+     * @param list<array<string,mixed>> $monthly
+     * @return array{0: list<array<string,mixed>>, 1: list<string>} Zeilen, Namen der abgezogenen Subzähler
+     */
+    private function ownMonths(string $utility, array $meter, array $monthly): array
+    {
+        $isGroup = !empty($meter['is_group']);
+        $parents = $isGroup ? array_map(fn($m) => (string)($m['id'] ?? ''), $this->meters->groupSumMembers($utility, (string)$meter['id']))
+            : [(string)($meter['id'] ?? '')];
+        $members = $isGroup ? array_map('strval', (array)($meter['members'] ?? [])) : [];
+        $subs = array_values(array_filter($this->meters->list($utility), fn($s) => in_array((string)($s['parent_meter_id'] ?? ''), $parents, true)
+            && !in_array((string)($s['id'] ?? ''), $members, true) && !in_array($s['role'] ?? null, MeterService::ROLES_OUTSIDE_TOTALS, true)));
+        if ($subs === []) return [$monthly, []];
+        $vf = $this->valueField($utility);
+        $series = [];
+        foreach ($subs as $s) {
+            $rows = array_column($this->consumption->forMeter($utility, $s), null, 'ym');
+            $devs = array_values((array)($s['devices'] ?? []));
+            $first = $devs !== [] ? substr(min(array_map(fn($d) => (string)($d['installed_on'] ?? '9999-12'), $devs)), 0, 7) : '9999-12';
+            $removed = $devs !== [] ? substr((string)($devs[count($devs) - 1]['removed_on'] ?? ''), 0, 7) : '';
+            // außer Betrieb ohne Ausbau: vorhanden bis zum letzten gemessenen Monat
+            if ($removed === '' && !MeterService::inService($s)) $removed = $rows !== [] ? (string)max(array_keys($rows)) : $first;
+            $series[] = ['rows' => $rows, 'from' => $first, 'until' => $removed];
+        }
+        $out = [];
+        foreach ($monthly as $row) {
+            $ym = (string)($row['ym'] ?? '');
+            $take = 0.0;
+            foreach ($series as $s) {
+                $r = $s['rows'][$ym] ?? null;
+                $present = $s['from'] <= $ym && ($s['until'] === '' || $s['until'] >= $ym);
+                if ($r === null && !$present) continue;   // noch nicht eingebaut oder schon ausgebaut
+                if ($r === null || (int)($r['days'] ?? 0) < (int)($row['days'] ?? 0)) continue 2;   // nicht ganz gemessen: Rest unbekannt
+                $take += (float)($r[$vf] ?? 0.0);
+                if (!empty($r['interpolated'])) $row['interpolated'] = true;
+                if (!empty($r['device_swap'])) $row['device_swap'] = true;
+            }
+            $row[$vf] = round((float)($row[$vf] ?? 0.0) - $take, 3);
+            $out[] = $row;
+        }
+        return [$out, array_map(fn($s) => (string)(($s['name'] ?? '') ?: ($s['id'] ?? '')), $subs)];
     }
 
     /**

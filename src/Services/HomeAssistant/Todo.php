@@ -35,15 +35,39 @@ final class Todo
     }
 
     /**
+     * v3.10.0 (#36) — was noch nicht fällig ist, aber kommt: nicht `due_now`,
+     * nicht erledigt, Datum ab heute; nach Datum, dann Art und UID.
+     *
+     * @param list<array<string,mixed>> $events
+     * @return list<array<string,mixed>>
+     */
+    public static function upcoming(array $events, string $today): array
+    {
+        $coming = array_values(array_filter($events, fn($e) => is_array($e) && empty($e['due_now']) && empty($e['done'])
+            && (string)($e['date'] ?? '') >= $today));
+        usort($coming, fn($a, $b) => [(string)$a['date'], (string)($a['kind'] ?? ''), (string)($a['uid'] ?? '')]
+            <=> [(string)$b['date'], (string)($b['kind'] ?? ''), (string)($b['uid'] ?? '')]);
+        return $coming;
+    }
+
+    /**
      * Antwort von `GET /api/todo` (Klasse A: Schlüssel bleiben, neue kommen dazu).
+     *
+     * v3.10.0 (#36) — dazu `soon` (Zahl der Ereignisse, die in den nächsten
+     * `$soonDays` Tagen fällig werden, Einstellung `reminder_warn_days_before`)
+     * und `next_upcoming` (das nächste noch nicht fällige Ereignis, auch
+     * jenseits des Vorlaufs). `count` bleibt die Zahl der fälligen Punkte.
      *
      * @param list<array<string,mixed>> $events
      * @return array<string,mixed>
      */
-    public static function summary(array $events, string $instanceId = ''): array
+    public static function summary(array $events, string $instanceId = '', ?string $today = null, int $soonDays = 14): array
     {
+        $today ??= date('Y-m-d');
         $due = self::due($events);
         $items = array_map(self::item(...), array_slice($due, 0, self::MAX_ITEMS));
+        $coming = self::upcoming($events, $today);
+        $soonUntil = date('Y-m-d', (int)strtotime($today . ' +' . max(0, $soonDays) . ' days'));
         return [
             'todo_version' => self::VERSION,
             'instance_id'  => $instanceId,
@@ -52,6 +76,8 @@ final class Todo
             'overdue'      => count(array_filter($due, fn($e) => in_array($e['severity'] ?? '', ['overdue', 'urgent'], true))),
             'next'         => $items[0] ?? null,
             'items'        => $items,
+            'soon'         => count(array_filter($coming, fn($e) => (string)$e['date'] <= $soonUntil)),
+            'next_upcoming' => $coming !== [] ? self::item($coming[0]) : null,
         ];
     }
 

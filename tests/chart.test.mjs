@@ -81,6 +81,19 @@ t('Trend: kein Vorjahr → keiner', data.yoyTrend(series.slice(6), 'kwh', { mont
 t('Trend: zu wenige Paare → keiner', data.yoyTrend(series, 'kwh', { months: 3, minMonths: 4 }) === null);
 const trWin = data.yoyTrend(series, 'kwh', { months: 12, minMonths: 2, within: ['2025-10', '2025-11'] });
 t('Trend: nur im Fenster', trWin && trWin.months.join() === '2025-10,2025-11', trWin ? trWin.months.join() : 'null');
+// v3.10.0 (Skeptiker M1) — ab dem Doppelten bzw. der Hälfte „Ablesung prüfen“ statt Prozent (falsche Ziffer: +1.382 %)
+t('Trend: ab Faktor 2 (+100 % / −50 %) Ablesung prüfen, darunter Pfeil',
+  data.TREND_CHECK_FACTOR === 2 && data.trendNeedsCheck(100) && data.trendNeedsCheck(1382) && data.trendNeedsCheck(-50) && data.trendNeedsCheck(-100)
+  && !data.trendNeedsCheck(99) && !data.trendNeedsCheck(-49) && !data.trendNeedsCheck(0) && !data.trendNeedsCheck(null) && !data.trendNeedsCheck(NaN));
+{
+  const cat = JSON.parse(readFileSync(resolve(__dir, '..', 'public', 'locales', 'de.json'), 'utf8'));
+  const label = cat.dashboard.trend.checkLabel || '';
+  t('Trend: der Text nennt die Grenze des Faktors (doppelt, halb)', data.TREND_CHECK_FACTOR === 2 && /doppelt/.test(label) && /halb/.test(label), label);
+  const flat = (rel) => readFileSync(resolve(__dir, '..', rel), 'utf8').replace(/\s+/g, ' ');
+  t('Trend: die Doku nennt dieselbe Grenze (DE, EN)', data.TREND_CHECK_FACTOR === 2
+    && flat('docs/referenz/ansichten.md').includes('mehr als doppelt oder weniger als halb so viel wie im Vergleichszeitraum')
+    && flat('docs/en/referenz/ansichten.md').includes('more than double or less than half of the comparison period'));
+}
 
 // v3.7.0 (#37) — ein verteilter Monat ergibt keinen Trend: Paare nur aus gemessenen Monaten
 t('isInterpolated: nur mit Kennung vom Server', data.isInterpolated({ interpolated: true }) && !data.isInterpolated({ interpolated: null }) && !data.isInterpolated({}));
@@ -194,6 +207,15 @@ t('Datentabelle: aufklappbar, Kopf, Zeilen', !!box.querySelector('details.chart-
   && box.querySelectorAll('thead th').length === 2 && !!box.querySelector('caption'));
 t('Datentabelle: escaped und „–“ für leere Werte', !box.querySelector('b') && box.querySelectorAll('tbody tr')[1].lastElementChild.textContent === '–');
 t('Datentabelle: nichts ohne Zeilen', chart.chartTableHtml({ columns: ['x'], rows: [] }) === '');
+
+// v3.10.0 (Skeptiker N4) — Monatsmittel der Kachel „Kosten“ nach gemessenen Monatsanteilen
+{
+  const year = Array.from({ length: 12 }, (_, i) => ({ ym: `2025-${String(i + 1).padStart(2, '0')}`, days: data.daysInMonth(`2025-${String(i + 1).padStart(2, '0')}`) }));
+  t('N4: ganzes Jahr wie bisher ÷ 12', Math.abs(data.perMonthAverage(year, 1200) - 100) < 1e-9);
+  // 31 Tage Januar + 14 Tage Februar: 1 + 14/28 = 1,5 Monate → 90 € ÷ 1,5 = 60 € (bis dahin 90 € ÷ 2 Zeilen = 45 €)
+  t('N4: angebrochener Monat nach Tagen', Math.abs(data.perMonthAverage([{ ym: '2026-01', days: 31 }, { ym: '2026-02', days: 14 }], 90) - 60) < 1e-9);
+  t('N4: aus vier Tagen kein Monatsmittel', data.perMonthAverage([{ ym: '2026-01', days: 4 }], 37.4) === null);
+}
 
 console.log(`\n  chart.test: ${pass} bestanden, ${fail} fehlgeschlagen`);
 process.exit(fail ? 1 : 0);

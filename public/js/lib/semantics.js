@@ -72,6 +72,47 @@ export function balanceRangeEnds(r) {
   return hi < 0 ? [hi, lo] : [lo, hi];
 }
 
+/**
+ * v3.10.0 (Skeptiker v3.9.0, R2-3; Wirklichkeitsabgleich) — der erwartete Saldo zur Abrechnung,
+ * eine Quelle für Saldo-Karte, Einsteiger-Übersicht und Vertragsübersicht: die Summe einer
+ * Abrechnung über mehrere Verträge (`settle_balance`), sonst der Vertrag selbst; dazu die Spanne
+ * einer unsicheren Schätzung (`unc`) oder die Breite einer sicheren (`band`, ab 1 €), beide um
+ * die übrigen Verträge verschoben (`settle_range`). Positiv = Nachzahlung.
+ *
+ * @param {object|null|undefined} c  Zeile des Vertragsstatus (oder `contract` der Übersicht)
+ * @returns {{value: number, unc: object|null, band: object|null, settled: boolean}|null}
+ */
+export function expectedBalance(c) {
+  if (!c || c.projected_end_balance == null || !Number.isFinite(Number(c.projected_end_balance))) return null;
+  const settled = c.settle_balance != null && Number.isFinite(Number(c.settle_balance));
+  // v3.10.0 (Skeptiker H3) — die Spanne der Summe aus allen Teilen (`settle_range`); unsicher, wenn ein Teil
+  // unsicher ist (`settle_uncertain`). Ältere Server ohne `settle_uncertain`: die Unsicherheit des Vertrags selbst
+  const sr = settled && Array.isArray(c.settle_range) && c.settle_range.length === 2 ? c.settle_range.map(Number) : null;
+  const own = Array.isArray(c.projection_uncertain?.projected_range) ? c.projection_uncertain : null;
+  const unc0 = settled && 'settle_uncertain' in c ? (Array.isArray(c.settle_uncertain?.projected_range) ? c.settle_uncertain : null) : own;
+  const unc = unc0 && sr ? { ...unc0, projected_range: sr } : unc0;
+  const ownBand = Number(c.projection_band?.half) >= 1 ? c.projection_band : null;
+  const band = unc ? null
+    : sr && Math.abs(sr[1] - sr[0]) >= 2 ? { level_pct: 80, estimated_days: 0, weather: 0, ...(ownBand || {}), low: sr[0], high: sr[1], half: (sr[1] - sr[0]) / 2 }
+    : settled ? null : ownBand;
+  return { value: settled ? Number(c.settle_balance) : Number(c.projected_end_balance), unc, band, settled };
+}
+
+/**
+ * v3.10.0 (R2-3) — die Breite einer sicheren Schätzung als kurzer Zusatz, dieselben Wörter
+ * wie die Spanne: „je nach Wetter und Schätzung ca. 480 € bis ca. 550 € Guthaben“; ohne
+ * Wetterteil (Strom, Wasser) „je nach Schätzung …“; ohne gemessene Streuung (H2) „zu wenige
+ * gemessene Monate, je nach Schätzung …“. Leer ohne Band.
+ * @param {object|null|undefined} band  `projection_band` bzw. `expectedBalance().band`
+ * @returns {string}
+ */
+export function bandText(band) {
+  const range = band ? uncertainRangeText({ projected_range: [band.low, band.high] }) : '';
+  if (!range) return '';
+  if (band.few_measured) return t('balanceBand.shortFew', { range });
+  return t(Number(band.weather) > 0 ? 'balanceBand.short' : 'balanceBand.shortNoWeather', { range });
+}
+
 export function balanceView(v, u, money = fmt.eur) {
   const n = Number(v);
   if (v == null || !Number.isFinite(n)) return null;

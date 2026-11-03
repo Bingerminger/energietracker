@@ -165,6 +165,9 @@ if (DEMO_RUN) {
   q('input[name="setup-persona"][value="mieterin"]').click(); await tick();
   next(); q('input[name="setup-level"][value="beginner"]')?.click(); await tick();
   next(); await tick();
+  // v3.10.0 — die Hauptfunktion früh: „So geht es weiter“ sagt, wo der Saldo steht und was er zeigt
+  t('Demo: Schluss nennt den Saldo (gemessen, geschätzt, erwartet)', q('[data-role="setup-saldo"]')?.textContent === i18n.t('setup.finish.saldoDemo')
+    && /reading/.test(q('[data-role="setup-saldo"]')?.textContent || ''), q('[data-role="setup-saldo"]')?.textContent);
   calls.length = 0;
   next(); await tick(80);
   t('Demo: Sprache je Gerät gemerkt (et-demo-lang)', localStorage.getItem('et-demo-lang') === 'en', localStorage.getItem('et-demo-lang'));
@@ -267,6 +270,10 @@ const walk = async () => {
   q('input[name="setup-start"][value="own"]')?.click(); await tick();
 };
 await walk();
+// v3.10.0 — die Hauptfunktion früh: was der Saldo jeder Verbrauchsart zeigt, schon vor dem ersten Stand
+t('Schluss nennt den Saldo: gemessen bis zur letzten Ablesung, geschätzt bis heute, erwartet zur Abrechnung',
+  /letzten Ablesung/.test(q('[data-role="setup-saldo"]')?.textContent || '') && /Abrechnung/.test(q('[data-role="setup-saldo"]')?.textContent || ''),
+  q('[data-role="setup-saldo"]')?.textContent);
 calls.length = 0;
 next(); await tick(120);
 const patch = writes().find(c => c.path === '/api/settings' && 'setup_pending' in (c.body || {}));

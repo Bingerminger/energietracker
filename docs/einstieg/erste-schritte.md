@@ -21,7 +21,7 @@ Energietracker läuft lokal — kein Cloud-Konto, keine Datenbank. Die schnellst
 Variante ist Docker:
 
 ```bash
-docker run -d --name energietracker -p 8080:80 \
+docker run -d --name energietracker --restart unless-stopped -p 8080:80 \
   -v "$PWD/data:/data" \
   ghcr.io/bingerminger/energietracker:3
 ```

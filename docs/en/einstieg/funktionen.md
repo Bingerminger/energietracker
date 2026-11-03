@@ -60,6 +60,9 @@ The detailed feature overview. What the views look like is shown in the
   shows it as a diagram and creates meters, **registers with OBIS code** (such
   as 1.8.1 for import HT), groups and contracts, without duplicates
   ([use case H](../anleitungen/anwendungsfaelle.md#h--cascade-with-heat-pump-htnt-and-solar-v390)).
+  Since v3.10.0 the remainder is billed per register (HT minus HT, NT minus
+  NT), and if the meters further back in a cascade also count backwards, the
+  app shows the **solar power per branch** (household, heat pump).
 - **Consumption per period** (v3.1.0) instead of meter readings, where the
   consumption already comes ready-made — such as the monthly consumption
   information for heating and hot water. The app spreads each period over the
@@ -84,7 +87,9 @@ The detailed feature overview. What the views look like is shown in the
   sensors (`GET /api/summary`). Since v3.9.0 Energietracker reports due
   appointments, deadlines, warnings and new mail to Home Assistant by itself,
   each message once, and a “To do” sensor counts the open items
-  (`GET /api/todo`) — see
+  (`GET /api/todo`, since v3.10.0 also with the next appointment). Since
+  v3.10.0 this also works over HTTPS with self-issued certificates (your own
+  root certificate) — see
   [Connect Home Assistant](../anleitungen/home-assistant.md). ioBroker,
   Node-RED and openHAB send readings the same way — see
   [Other systems](../anleitungen/andere-systeme.md).
@@ -128,11 +133,15 @@ The detailed feature overview. What the views look like is shown in the
   back-payment, voluntary advance) — see
   [Special payments](../verstehen/10-sonderzahlungen.md).
 - **Balance** per contract, in the words of the bill: "credit" or "additional
-  payment", by calendar up to today, estimated from the last reading on, plus
-  the **expected bill** on the billing date and a **suggested advance**. Since
-  v3.9.0 balance card, annual report and forecast workshop calculate over the
-  running billing period with the same result, and advance payments every two
-  or three months count per due date.
+  payment", by calendar, plus the **expected bill** on the billing date and a
+  **suggested advance**. Since v3.9.0 balance card, annual report and forecast
+  workshop calculate over the running billing period with the same result, and
+  advance payments every two or three months count per due date. Since v3.10.0
+  the card keeps measured and estimated apart: “Balance on ‹date›” up to the
+  last reading, the estimate up to today as a line of its own, “Expected at
+  settlement” with a range for electricity and water too. If one bill settles
+  two contracts of the same supplier, every view shows the sum
+  ([#49](https://github.com/Bingerminger/energietracker/issues/49)).
 - **Notice periods** in months, weeks or days: reminders in three stages up to
   the last day to cancel, notes on missed deadlines and announced price
   increases (with the special right to cancel in Germany).
@@ -320,7 +329,9 @@ The detailed feature overview. What the views look like is shown in the
   files; Chart.js and the fonts ship with the repository.
 - **Docker** (amd64 and arm64, with PHP 8.5) or any web server with PHP — see
   [Installation](../betrieb/installation.md); templates for Synology, Unraid,
-  CasaOS and Umbrel under [Docker operation](../betrieb/docker.md).
+  CasaOS and Umbrel under [Docker operation](../betrieb/docker.md). Since
+  v3.10.0 every image is signed, comes without Python and is checked for known
+  vulnerabilities after every release.
 - **Backup** as one JSON file (format 3.0), checked and previewed before it is
   applied; automatic snapshots before every import. Since v3.1.0 including the
   photos.

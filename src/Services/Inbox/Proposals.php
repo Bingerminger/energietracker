@@ -12,6 +12,7 @@ use Energietracker\Services\ReadingService;
 use Energietracker\Services\ReminderService;
 use Energietracker\Services\ResponsibilityService;
 use Energietracker\Services\SettingsService;
+use Energietracker\Support\Dates;
 
 /**
  * v3.7.0 (Posteingang) — aus der Auslesung die vorgeschlagenen Änderungen,
@@ -564,7 +565,9 @@ final class Proposals
             }
             $p['hints'] = $hints;
             $p['open'] = array_values((array)($p['open'] ?? []));
-            $p['checked'] = $p['status'] === 'new' || $p['status'] === 'overlap' ? !$p['check'] && empty($p['optional']) : false;
+            // v3.10.0 — eine erkannte Rechnungskorrektur (`replaces`) ist vorab angehakt wie etwas Neues
+            $p['checked'] = $p['status'] === 'new' || $p['status'] === 'overlap' || ($p['status'] === 'conflict' && !empty($p['replaces']))
+                ? !$p['check'] && empty($p['optional']) : false;
             $p['id'] = 'p_' . substr(sha1($p['kind'] . '|' . json_encode($p['data'], JSON_UNESCAPED_UNICODE)), 0, 12);
         }
         unset($p);
@@ -657,13 +660,30 @@ final class Proposals
             }
             [$status, $detail] = $this->compareBill($u, (string)$m['id'], $from, $to, $inv);
             $core = ['period_from', 'period_to', 'consumption', 'total_amount', 'result_amount', 'result_kind', 'advances_total', 'advances_paid'];
-            $bill = self::p('bill', 'bill', ['from' => $from, 'to' => $to, 'result' => $inv['result_eur'] ?? null],
+            // v3.10.0 — Rechnungskorrektur: eine spätere Fassung der erfassten Rechnung desselben Zählers und
+            // Zeitraums (correctionOf) ersetzt ihre Werte, vorab angehakt (`replaces`), und ihre Buchung
+            $old = $status === 'conflict' && !empty($detail['bill_id']) ? $this->billOrNull($u, (string)$detail['bill_id']) : null;
+            $correction = $old !== null ? $this->correctionOf($e, $old) : null;
+            $before = $old !== null && isset($old['invoice']['result_eur']) ? (float)$old['invoice']['result_eur'] : null;
+            $bill = self::p('bill', $correction !== null ? 'billCorrection' : 'bill',
+                ['from' => $from, 'to' => $to, 'result' => $inv['result_eur'] ?? null] + ($correction !== null ? ['before' => $before] : []),
                 $data, ['period_from', 'period_to', 'consumption', 'total_amount', 'result_amount', 'result_kind', 'advances_total', 'advances_paid', 'kind'], $status,
-                ['core' => $core, 'open' => self::openPoints($e, ['consumption', 'total_amount'], $withheld)]);
+                ['core' => $core, 'open' => self::openPoints($e, ['consumption', 'total_amount'], $withheld)]
+                + ($correction !== null ? ['replaces' => true, 'correction' => $correction] : []));
             $bill['detail'] = $detail;
             $out[] = $bill;
-            if (isset($inv['result_eur']) && (float)$inv['result_eur'] != 0.0 && Utilities::hasSpecialPayments($u)) {
-                $booked = $detail !== null && !empty($detail['special_payment_id']);
+            $booked = $detail !== null && !empty($detail['special_payment_id']);
+            $newResult = isset($inv['result_eur']) ? (float)$inv['result_eur'] : null;
+            if ($correction !== null && $booked && $newResult !== null && Utilities::hasSpecialPayments($u)) {
+                // v3.10.0 — die gebuchte Rechnung bekommt ein anderes Ergebnis (auch 0 €): Buchung ersetzen;
+                // dasselbe Ergebnis ist schon gebucht
+                $same = $newResult !== null && $before !== null && abs($newResult - $before) < 0.005;
+                $out[] = self::p('bill_book', $same ? 'billBook' : 'billRebook', ['result' => $newResult, 'before' => $before],
+                    ['period_from' => $from, 'period_to' => $to] + ($same ? [] : ['rebook' => true]),
+                    $bill['sources'], $same ? 'exists' : 'conflict',
+                    ['core' => $core, 'detail' => ['bill_id' => (string)$detail['bill_id'], 'special_payment_id' => (string)$detail['special_payment_id'], 'before' => $before]]
+                    + ($same ? [] : ['replaces' => true]));
+            } elseif ($newResult !== null && $newResult != 0.0 && Utilities::hasSpecialPayments($u)) {
                 // Buchen setzt die Rechnung voraus: dieselben Quellen, also dieselbe Marke
                 // v3.7.0 (treffsicher) — ohne Vertrag dieses Versorgers nur als Angebot: Gebucht
                 // wird dann am Vertrag aus dem Dokument (anhaken) oder gar nicht (Applier::book)
@@ -1291,10 +1311,18 @@ final class Proposals
         $m = $c['meter'];
         if ($m === null || !Utilities::isCumulative($c['u']) || ($m['capture'] ?? 'counter') === 'period') return null;
         $status = 'new'; $detail = null;
-        foreach ($this->readings->list($c['u'], (string)$m['id']) as $r) {
+        $stock = $this->readings->list($c['u'], (string)$m['id']);
+        foreach ($stock as $r) {
             if (($r['date'] ?? '') !== $date) continue;
             if (self::sameStand((float)$r['counter'], $value)) { $status = 'exists'; break; }   // v3.9.0 (Skeptiker M12) — auch gerundet gedruckt
             $status = 'conflict'; $detail = ['reading_id' => (string)$r['id'], 'counter' => (float)$r['counter']];
+        }
+        // v3.10.0 — der Anfangsstand (`$optional`) ist oft deine Ablesung kurz davor, etwa die Jahresablesung am
+        // Vortag des Periodenbeginns: schon vorhanden (vom Tag deiner Ablesung), kein zweiter Stand mit 0 Verbrauch
+        if ($optional && $status === 'new' && ($same = self::sameStandBefore($stock, $m, $date, $value)) !== null) {
+            $status = 'exists';
+            $detail = ['same_on' => $same, 'counter' => $value];
+            $optional = false;
         }
         if ($optional && $status === 'new' && $this->fitsBetween($c['u'], $m, $date, $value, $extra)) $optional = false;
         // v3.9.0 — dein gemeldeter Stand, vom Versorger auf das Zeitraumende datiert: schon vorhanden (vom Tag
@@ -1659,6 +1687,41 @@ final class Proposals
     }
 
     /**
+     * v3.10.0 — so viele Tage vor dem Anfangsstand einer Rechnung darf derselbe Stand liegen, um als
+     * vorhanden zu gelten. Drei Tage decken die Ablesung am Vortag und ein (langes) Wochenende ab; über
+     * drei Tage derselbe Stand heißt 0 Verbrauch, im bewohnten Haushalt also dieselbe Ablesung, umdatiert.
+     * Mehr nicht: Ohne Stand am Periodenbeginn verteilt die App die Tage dazwischen gleichmäßig, und
+     * „Rechnung prüfen“ zählt für eine Jahresrechnung höchstens 3 von 365 Tagen weniger (unter 1 %,
+     * BillService::OK_PCT). Mit einer Woche wären es fast 2 %, die Rechnung stünde auf „prüfen“.
+     */
+    public const START_READING_DAYS = 3;
+
+    /**
+     * v3.10.0 — Der Tag deines letzten Stands vor `$date`, wenn er höchstens START_READING_DAYS Tage
+     * davor liegt, derselbe ist (sameStand) und kein Zählertausch dazwischen liegt (Einbau eines weiteren
+     * Geräts oder Ausbau, `$bounds` weitere Tauschtage); sonst null. Für den Anfangsstand einer Rechnung im
+     * Posteingang (readingAt) und im Entwurf des Haushalts (HouseholdDraft).
+     *
+     * @param iterable<array<string,mixed>> $stock Stände des Zählers im Bestand
+     * @param list<?string> $bounds
+     */
+    public static function sameStandBefore(iterable $stock, array $meter, string $date, float $value, array $bounds = []): ?string
+    {
+        $prev = null;
+        foreach ($stock as $r) {
+            if (!empty($r['is_future']) || !is_numeric($r['counter'] ?? null)) continue;
+            $d = (string)($r['date'] ?? '');
+            if ($d < $date && ($prev === null || $d > $prev['date'])) $prev = ['date' => $d, 'counter' => (float)$r['counter']];
+        }
+        if ($prev === null || $prev['date'] < date('Y-m-d', (int)strtotime("$date -" . self::START_READING_DAYS . ' days'))) return null;
+        foreach (array_values((array)($meter['devices'] ?? [])) as $i => $dev) {
+            $bounds = [...$bounds, $i > 0 ? ($dev['installed_on'] ?? null) : null, $dev['removed_on'] ?? null];
+        }
+        foreach ($bounds as $b) if (is_string($b) && $b !== '' && $b > $prev['date'] && $b <= $date) return null;
+        return self::sameStand($prev['counter'], $value) ? $prev['date'] : null;
+    }
+
+    /**
      * v3.9.0 (Skeptiker M12) — Ist dein Stand derselbe wie der des Dokuments? Auch, wenn das Dokument ihn auf
      * weniger Stellen gedruckt hat: 29.310 kWh im Dokument und 29.310,2 kWh bei dir sind derselbe Stand (dein
      * Stand auf die Stellen des Dokuments gerundet, höchstens drei).
@@ -1802,6 +1865,58 @@ final class Proposals
             }
         }
         return $out;
+    }
+
+    /** v3.10.0 — die erfasste Rechnung oder null (gelöscht zwischen Vorschau und Abgleich). */
+    private function billOrNull(string $u, string $id): ?array
+    {
+        try { return $this->bills->get($u, $id); } catch (\Throwable) { return null; }
+    }
+
+    /**
+     * v3.10.0 — Ist das Dokument eine spätere Fassung (Rechnungskorrektur) der erfassten Rechnung `$b`
+     * desselben Zählers und Zeitraums mit anderen Werten (compareBill: `conflict`)? Im Entwurf ersetzt
+     * eine Korrektur die Erstfassung seit v3.7.0 (HouseholdDraft::markCorrections); im laufenden
+     * Posteingang blieb sie ein Widerspruch, und eine gebuchte Rechnung behielt ihr altes Ergebnis.
+     * Erkannt an Feldern, nie an einem übersetzten Text. Gründe:
+     *   reference  das Dokument nennt eine frühere Rechnung, die es korrigiert oder ersetzt (`corrects_invoice`);
+     *   number     eine andere Rechnungsnummer (`invoice_number`) als das Dokument, aus dem die erfasste stammt;
+     *   later      ausgestellt (`document_date`) nach der erfassten Fassung: ihr `issued_on`, sonst das Datum
+     *              der Dokumente an ihr (`bill_origins`, je Beleg), sonst nach dem Tag, an dem sie erfasst wurde;
+     *   marked     als Korrektur betitelt (`document_title` oder Dateiname: „Korrektur“, „korrigiert“,
+     *              „berichtigt“, nicht „Korrekturfaktor“).
+     * Ist das Dokument nachweislich älter als die erfasste Fassung, ist es die frühere: keine Korrektur.
+     *
+     * @param array<string,mixed> $e Eintrag, mit `bill_origins` (InboxService) je Beleg {document_date, invoice_number}
+     * @param array<string,mixed> $b erfasste Rechnung
+     * @return list<string>|null Gründe oder null
+     */
+    private function correctionOf(array $e, array $b): ?array
+    {
+        $origins = [];
+        foreach ((array)($b['attachment_ids'] ?? []) as $att) {
+            $o = $e['bill_origins'][(string)$att] ?? null;
+            if (is_array($o) && (string)$att !== (string)($e['attachment_id'] ?? '')) $origins[] = $o;
+        }
+        $own = self::value($e, 'document_date');
+        $own = is_string($own) && Dates::isIsoDate($own) ? $own : null;
+        $issued = (string)($b['issued_on'] ?? '');
+        if ($issued === '') {
+            $dates = array_values(array_filter(array_column($origins, 'document_date'), fn($d) => is_string($d) && Dates::isIsoDate($d)));
+            $issued = $dates !== [] ? (string)max($dates) : '';
+        }
+        if ($own !== null && $issued !== '' && $own < $issued) return null;
+        $why = [];
+        $ref = self::value($e, 'corrects_invoice');
+        if (is_string($ref) && trim($ref) !== '') $why[] = 'reference';
+        $num = self::value($e, 'invoice_number');
+        $nums = array_values(array_filter(array_column($origins, 'invoice_number'), fn($n) => is_string($n) && trim($n) !== ''));
+        if (is_string($num) && trim($num) !== '' && $nums !== [] && array_filter($nums, fn($n) => self::sameId((string)$n, $num)) === []) $why[] = 'number';
+        $recorded = substr((string)($b['created_at'] ?? ''), 0, 10);
+        if ($own !== null && ($issued !== '' ? $own > $issued : (Dates::isIsoDate($recorded) && $own > $recorded))) $why[] = 'later';
+        $title = self::value($e, 'document_title');
+        if (preg_match('/korrektur(?!faktor)|korrigiert|berichtig/iu', (is_string($title) ? $title : '') . ' ' . (string)($e['name'] ?? ''))) $why[] = 'marked';
+        return $why === [] ? null : $why;
     }
 
     /** @return array{0: string, 1: ?array} */

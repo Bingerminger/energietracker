@@ -795,6 +795,15 @@ final class InboxService
     private function withDuplicates(array $e, array $dups): array
     {
         $e['duplicates_applied'] = array_merge(...array_map(fn($d) => array_values((array)($d['applied'] ?? [])), [[], ...$dups]));
+        // v3.10.0 — Rechnungskorrektur (Proposals::correctionOf): Datum und Rechnungsnummer der anderen
+        // ausgelesenen Rechnungen je Beleg, damit eine erfasste Rechnung ihre Fassung kennt
+        $origins = [];
+        foreach ($this->all() as $x) {
+            $att = (string)($x['attachment_id'] ?? '');
+            if (($x['id'] ?? null) === ($e['id'] ?? null) || $att === '' || ($x['type'] ?? '') !== 'invoice' || !is_array($x['extraction']['fields'] ?? null)) continue;
+            $origins[$att] = ['document_date' => Proposals::value($x, 'document_date'), 'invoice_number' => Proposals::value($x, 'invoice_number')];
+        }
+        $e['bill_origins'] = $origins;
         return $e;
     }
 

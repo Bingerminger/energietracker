@@ -221,6 +221,17 @@ Kopieren (Token, YAML, Jahresverbrauch) geht seit v2.11.0 auch ohne HTTPS;
 die App hat dafür einen Rückfall. Ein Reverse-Proxy mit Zertifikat schaltet
 den Rest frei, etwa die Synology mit Let's Encrypt oder Caddy.
 
+**Verbindungen der App ins Heimnetz** *(v3.10.0)*. Spricht die App selbst
+einen Dienst im Heimnetz über `https://` an (Home Assistant, Texterkennung,
+Auslesen im Heimnetz, evcc), prüft sie dessen Zertifikat. Für selbst
+ausgestellte Zertifikate gibt es ein eigenes Stammzertifikat (Datei `ET_CA_FILE` oder Einstellung
+`home_ca_pem`), zusätzlich zu den Stammzertifikaten des Systems, und als
+Notlösung den Schalter `home_tls_insecure` („Zertifikat im Heimnetz nicht
+prüfen“). Der wirkt nur für Adressen im Heimnetz, entschieden an der
+aufgelösten Adresse, mit der die App dann auch verbindet. Ohne Prüfung kann
+mitlesen, wer sich im Netz dazwischenhängt, auch einen Token. Einzelheiten:
+[Einstellungen](../referenz/einstellungen.md#verbindungen-im-heimnetz-v3100).
+
 ## 8. Hostnamen und Einbetten
 
 Eine **Hostliste** (opt-in) schützt gegen *DNS-Rebinding*: Eine fremde
@@ -454,7 +465,10 @@ legen nur ab — gelesen und übernommen wird wie oben.
 - `ET_DEBUG=1` schreibt Datei, Zeile und Ausnahmetyp in Fehlerantworten —
   nur kurzzeitig zur Fehlersuche setzen, nie dauerhaft im offenen Betrieb.
 - Ein `500` nennt eine Fehler-ID (`error_id`); dieselbe ID steht im
-  Protokoll (Docker: `docker logs energietracker`).
+  Protokoll (Docker: `docker logs energietracker`). Seit v3.10.0 nur bei
+  unerwarteten Fehlern: Lehnt ein Dienst ab oder antwortet nicht (etwa `502`
+  oder `504` beim Auslesen in der Cloud), steht sein Grund in der Antwort und
+  im Protokoll als `warning`, ohne Fehler-ID.
 - Snapshots und Backups enthalten alle Nutzdaten. `data/auth.json` (Passwort-
   Hash, Token-Hashes, Schlüssel) ist **nicht** Teil des Backups — nach einem
   Umzug Anmeldung und Token neu einrichten.
@@ -534,10 +548,22 @@ auf dem aktuellen Basis-Image neu (gleicher Code, neue Pakete; seit v3.5.0
 beide Varianten) und prüft die Images auf bekannte Lücken. Ein festgeschriebener Tag wie `3.4.0` bekommt so
 Sicherheitsupdates von Alpine und PHP, ohne dass sich an der App etwas ändert.
 
+**Signiert und geprüft *(v3.10.0)*.** Jedes veröffentlichte Image ist mit
+cosign signiert, auch jeder wöchentliche Neubau; Stückliste (SBOM) und
+Herkunftsnachweis hängen am Image. Geprüft wird es direkt nach jedem Release
+und nach jedem Neubau, gemeldet werden nur Lücken, für die es eine Korrektur
+gibt. Bei einer kritischen oder hohen Lücke mit Korrektur wird das Image
+binnen 7 Tagen neu gebaut ([SECURITY.md](../../SECURITY.md)), und die App in
+Home Assistant bekommt eine neue Patch-Version, damit Home Assistant das neu
+gebaute Image holt. Das Image
+enthält kein Python mehr und kein supervisord. Prüfen:
+[Docker-Betrieb → Signatur und Stückliste prüfen](docker.md#signatur-und-stückliste-prüfen-v3100).
+
 ## 14. Sicherheitslücke gefunden?
 
 Bitte **nicht** als öffentliches Issue melden, sondern wie in
-[`SECURITY.md`](../../SECURITY.md) beschrieben.
+[`SECURITY.md`](../../SECURITY.md) beschrieben. Du bekommst binnen 7 Tagen
+eine Eingangsbestätigung.
 
 ---
 

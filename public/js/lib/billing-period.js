@@ -115,6 +115,18 @@ export function periodName(p, fmtDate = (d) => d) {
   return p.label || `${fmtDate(p.from)}–${fmtDate(p.until)}`;
 }
 
+/**
+ * v3.10.0 (Skeptiker N3) — Zeile über den Kacheln der Übersicht: mit Namen
+ * „Abrechnungsjahr 2025/26: 01.09.2025 bis 31.08.2026“, ohne Namen nur die Daten.
+ * Bis dahin stand für den Namen `periodName()` ein, also dieselben Daten zweimal.
+ * @returns {{key: string, params: object}} Katalogschlüssel und Werte für t()
+ */
+export function periodWindow(p, fmtDate = (d) => d) {
+  const dates = { from: fmtDate(p?.from), until: fmtDate(p?.until) };
+  return p?.label ? { key: 'billing.dashboard.window', params: { name: p.label, ...dates } }
+    : { key: 'billing.dashboard.windowUnnamed', params: dates };
+}
+
 /** Perioden mit Daten (die laufende ohne Ablesung fällt weg). */
 export function periodsWithData(periods) {
   return (Array.isArray(periods) ? periods : []).filter(p => Number(p?.days) > 0);
@@ -124,6 +136,26 @@ export function periodsWithData(periods) {
 export function pickPeriod(periods, from = null) {
   const list = periodsWithData(periods);
   return list.find(p => p.from === from) || list[list.length - 1] || null;
+}
+
+/**
+ * v3.10.0 (GitHub #36) — Trend im Abrechnungsjahr: die Periode gegen dieselbe
+ * Spanne der Periode davor (`prev_same_span`, rechnet der Server). Null ohne
+ * fairen Vergleich, dann kein Pfeil (wie im Kalenderjahr ohne Vorjahr).
+ * Nachtrag #36: `basis` sagt, wogegen verglichen wird — `period` (dieselbe
+ * Spanne der Periode davor) oder `calendar` (dieselben Kalendertage ein Jahr
+ * früher, wenn die Periode davor keinen fairen Vergleich hergibt).
+ * @param {object} p  Periode mit `as_of` und `prev_same_span`
+ * @param {(span: object) => number} value  Wert einer Spanne, etwa `s => s.kwh`
+ * @returns {{pct: number, from: string, until: string, prevFrom: string, prevUntil: string, basis: string}|null}
+ */
+export function sameSpanTrend(p, value) {
+  const prev = p?.prev_same_span;
+  if (!prev || !p.as_of) return null;
+  const now = Number(value(p)), before = Number(value(prev));
+  if (!Number.isFinite(now) || !Number.isFinite(before) || before <= 0) return null;
+  return { pct: (now - before) / before * 100, from: p.from, until: p.as_of, prevFrom: prev.from, prevUntil: prev.until,
+    basis: prev.basis === 'calendar' ? 'calendar' : 'period' };
 }
 
 /** Erster Monat des Abrechnungsjahrs (1–12): Beginn der jüngsten Periode. */

@@ -16,6 +16,26 @@ Danke fürs Mitmachen! Am meisten helfen:
 Sicherheitslücken bitte **nicht** als Issue, sondern wie in
 [SECURITY.md](SECURITY.md) beschrieben melden.
 
+Du arbeitest mit einem KI-Agenten für Code? [AGENTS.md](AGENTS.md) fasst
+zusammen, was er wissen muss: Tests ausführen, Konventionen, keine
+Nutzerdaten, keine Fremdpakete (auf Englisch).
+
+## Wünsche, Planung und Status
+
+- **Ideen und Wünsche** gehören unter
+  [Discussions → Ideas](https://github.com/Bingerminger/energietracker/discussions/categories/ideas);
+  dort kann jeder mit 👍 abstimmen. Fehler gehören in ein Issue (Formular
+  „Fehler melden“).
+- **Was geplant ist**, zeigen das
+  [Projektboard](https://github.com/users/Bingerminger/projects/1) und die
+  [Milestones](https://github.com/Bingerminger/energietracker/milestones), einer
+  je Release. Die [Roadmap](roadmap.md) fasst es zusammen.
+- **Status-Labels** an Issues: `status: triage` (wird geprüft),
+  `status: accepted` (angenommen, noch ohne Release), `status: planned` (für
+  einen Release geplant, siehe Milestone), `status: declined` (abgelehnt, mit
+  Begründung). `found-by-automation` kennzeichnet Meldungen aus einem
+  automatisierten Test oder von einem Agenten.
+
 ## Einrichten
 
 PHP ab 8.2 genügt zum Laufen (die CI prüft 8.2 bis 8.5), ohne Composer,

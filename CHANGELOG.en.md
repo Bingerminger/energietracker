@@ -7,6 +7,398 @@ and [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [3.10.0] — 2026-11-03 — Promised and secured
+
+MINOR release without a schema step (stays 1.8.0). 3.10.0 delivers what was
+promised in [#36], [#38], [#40], [#41] and [#49] (from discussion [#42]). The
+main feature is the **balance in one piece**: the balance card keeps apart what
+is measured up to the last reading, what is estimated up to today and what to
+expect at settlement, with an honest range for electricity and water too; if one
+bill settles two contracts of the same supplier, every view shows the sum.
+Energietracker now also reaches Home Assistant over **HTTPS with self-issued
+certificates**, and the “To do” sensor names the next appointment. In **billing
+years** the overview shows trend arrows, and switching no longer jumps to the
+top. In the **cascade** ([#40]) the app bills the remainder per register with
+the matching blended price and shows the solar power per branch. The **Docker
+image** no longer needs supervisord or Python, is signed and is scanned after
+every release. API, CSV format 1, backup format 3.0 and the Docker environment
+only grow additively.
+
+### ⚠️ For existing installations
+
+- **Image without supervisord:** a small start script runs nginx and php-fpm.
+  If one of the two services fails, the container ends with an error code
+  instead of restarting the service inside. It comes back through the restart
+  policy: `--restart unless-stopped` with `docker run` (all examples and the
+  Unraid template now carry it), `restart: unless-stopped` in Compose (the
+  bundled templates already had it), and in the Home Assistant app through the
+  **watchdog**, which you should keep switched on. `docker stop` ends at once
+  with exit code 0.
+- **“Balance on ‹date›” instead of “Current balance”** ([#49]): the balance card
+  now only counts up to the last reading and names its day; the figure up to
+  today is a line below it and works out what came in since the reading. With
+  rare readings the measured balance can have the opposite sign to the figure up
+  to today. The “Balance” sensor in Home Assistant stays the figure up to today.
+- **One bill across two contracts:** if the contract changes within the running
+  billing period at the same supplier, card, Costs & contracts, overview,
+  workshop and annual report expect the sum of both contracts, and the advance
+  suggestion uses it; if one part is uncertain, there is only a range.
+  `projected_end_balance` stays per contract, the sum is in `settle_balance` and
+  for Home Assistant in `projected_end_balance_total`.
+- **Wider estimate band with rare readings:** the width now comes only from
+  measured months and is at least 10 % of the estimated quantity per month.
+  Whoever reads once a year sees a clearly wider range than before, and
+  electricity and water now have one too.
+- **Successor contract from the next cut-off date:** it belongs to no upcoming
+  bill. The contract list shows “–” instead of “≈”, `projected_end_balance` and
+  `verdict` are `null` there, and its settlement day is the end of its own first
+  period.
+- **Cascade with HT/NT** ([#40]): the blended HT/NT price (forecast, balance
+  estimate, advance suggestion, tariff comparison, workshop) follows the
+  remainder per register instead of the measurement; the amounts change
+  slightly. With a feed-in register on Z2, energy flow, seasonal performance
+  factor and “electricity by role” include the heat pump’s own solar power.
+- **Trend arrows:** in billing years they compare the same span of the previous
+  period or the same calendar days a year earlier. More than double or less than
+  half of the comparison period shows “Check the reading” instead of a
+  percentage, in calendar and billing years alike.
+- **Analysis baseline date:** the app only suggests “permanently more or less
+  consumption” once at least two readings follow the change; a single reading
+  with a wrong digit is no longer enough.
+- **“Statistical anomaly” recommendation:** a parent meter is checked with its
+  own consumption without its sub-meters. A wallbox spike only shows at the
+  wallbox, no longer at the house meter.
+- **Forecast workshop:** the baseline estimates each month like the balance card
+  (with the calibration factor) and is called “Like the balance card
+  (calibrated)”; `months[].base_qty` and `base_cost` therefore differ from the
+  forecast where the factor is not 1.
+- **Errors from third-party services:** if a cloud service refuses or does not
+  answer while reading a document, only its reason is shown, without an error
+  ID and without “Internal error”; it is logged as `warning` instead of `error`.
+  If you filter the log for `error`, you no longer see these cases there.
+- **Home Assistant:** the template’s balance sensor carries new attributes
+  (`projected_end_balance`, `projected_end_balance_total`,
+  `projected_end_range_total`, `measured_balance`, `measured_until`); its value
+  stays the same. A template copied earlier gets them with the lines
+  `json_attributes_path` and `json_attributes`. The test message reports a
+  certificate error with its kind (`tlsIssuer`, `tlsName`, …) instead of
+  `network`.
+- **Removed:** `scripts/init_data.py` (the old Excel import from v1.0.0, marked
+  deprecated since v2.14.0) and `requirements.txt`. The CSV import in the app
+  does everything the script did.
+- **Signature:** images from 3.10.0 on are signed with cosign; older tags stay
+  unsigned. Verifying needs cosign 3 or newer.
+
+### Added
+
+#### Balance in one piece ([#49], discussion [#42])
+
+- **Measured and estimated kept apart:** above the balance card it says
+  “Measured from ‹start› up to the last reading on ‹date›”, the columns read
+  “Consumed up to ‹date›”, “Advances up to ‹date›” and “Balance on ‹date›”. The
+  line “Estimated up to today: …” works out what came in since the reading
+  (estimated consumption, standing charge, against advances and special
+  payments). Without a measured day the column reads “Balance today
+  (estimated)”.
+- **Tile and card end on the same day:** the tile reads “Advances ‹start› to
+  ‹date›”; with a contract starting on 1 January and no special payments both
+  show the same balance. If the card’s balance only starts within the calendar
+  year (cut-off date, contract change), the tile says “Balance: see the balance
+  card, it counts from …” instead of a second balance.
+- **One bill, several contracts:** if the same bill also settles an earlier
+  contract of the same supplier, the card names it with its period and balance
+  (with “≈” if it is mostly estimated, as a range if it is uncertain), and counts
+  measured and up to today across both. Costs & contracts, the beginner
+  overview, “Where does my money go?”, the sentence above “Forecast in detail”,
+  the heat-limit hint, the workshop, the annual report and Home Assistant show
+  the same sum.
+- **A range everywhere:** electricity, water and heating types without a
+  trustworthy heating model have an estimate width too (“Depending on the
+  estimate …”, with too few measured months “Too few measured months, …”). It
+  appears on the balance card, the beginner overview, “Where does my money go?”,
+  Costs & contracts, in the annual report and its “At a glance”.
+- **Workshop like the card:** the forecast workshop’s baseline has the same
+  monthly costs as the card’s balance path. Below “Forecast in detail” a
+  sentence says by how much the calibration factor shifts the card’s quantities
+  (from 2 %).
+- **In the showcase and the demo** gas is read twelve days before today, so the
+  measured balance and the estimate up to today are both visible; the last step
+  of the first-run setup explains the three balances in one sentence.
+
+#### Home Assistant and home network ([#36])
+
+- **HTTPS with your own root certificate:** Home Assistant, text recognition,
+  reading in the home network and evcc accept certificates you issued yourself:
+  as a file in the container (`ET_CA_FILE`) or under Settings → Expert →
+  “Connections in the home network”. The root certificate applies in addition
+  to the usual ones, checking stays on. As a fallback, “Do not check
+  certificates in the home network”: off by default, with a warning, only for
+  addresses in the home network. The system diagnostics name your own root
+  certificates.
+- **One message per certificate error:** issuer unknown, certificate does not
+  match the address, expired, or root certificates not readable, each with the
+  matching advice; decided by the error code, not the wording.
+- **“To do” sensor shows what is coming:** `/api/todo` also returns `soon` (due
+  soon, with the app’s lead time) and `next_upcoming` (the next appointment with
+  its date, even if it is not due yet). The state stays the number of due items;
+  the template has two new sensors.
+- **Expected at settlement in Home Assistant:** the balance sensor carries the
+  sum of the bill (`projected_end_balance_total`), the range when the card only
+  shows that (`projected_end_range_total`), and the measured balance with its
+  day (`measured_balance`, `measured_until`).
+
+#### Billing years on the overview ([#36])
+
+- **Trend arrows in billing years:** the tiles “Consumption” and “Cost (billing
+  year so far)” compare from the start of the period up to the last reading
+  with the same days of the previous period. If the previous period gives no
+  fair comparison (for example after a change of supplier in the middle of the
+  year), the arrow compares the same calendar days a year earlier. The tooltip
+  names both periods; below 14 days there is no arrow.
+- **“Check the reading” instead of ▲ 1,382 %:** if it is more than double or
+  less than half of the comparison period, the tile shows a link to the utility
+  instead of a percentage, in calendar and billing years and in the beginner
+  overview.
+
+#### Cascade ([#40])
+
+- **Feed-in in the cascade:** if the meters behind the grid connection also
+  count backwards (2.8.0), the feed-in register of Z2 gets “Feed-in in the
+  cascade → feed-in register of” under solar feed-in. It does not count as
+  feed-in to the grid. From the differences the app calculates how much solar
+  power the household (Z3 − Z2) and the heat pump (Z2 − Z1) use themselves; the
+  card “Solar power per branch” under solar generation shows it, with “≈” for
+  months from spread-out readings. The heat pump table shows “≈” on electricity
+  and no performance factor for such months.
+- **“Metering concept” assistant:** in a cascade with solar it creates the
+  feed-in register of Z2, gives solar generation (Z3) the code 2.8.0 and draws
+  the system behind Z2.
+
+#### Inbox
+
+- **Corrected bill recognised:** extraction reads the invoice number
+  (`invoice_number`) and a reference to an earlier bill (`corrects_invoice`);
+  extraction schema 6.
+
+#### Image, security and contributing
+
+- **Signed images:** every published image (release and weekly rebuild,
+  standard and rootless) is signed with keyless cosign; the SBOM and provenance
+  stay attached. How to verify: “Docker operation” and SECURITY.md.
+- **Vulnerability scan right after every release.** SECURITY.md names
+  deadlines: acknowledgement of a report within 7 days; a critical or high
+  vulnerability with a fix gets a new image within 7 days, and the Home
+  Assistant app a new patch version so that it fetches it.
+- **`AGENTS.md`** for contributors working with AI agents; CONTRIBUTING explains
+  ideas (Discussions → Ideas), board, milestones and status labels.
+- **Saying thanks:** when the app has just helped (“Check a bill” finds a
+  deviation, an appointment is done before its due date, the annual report is
+  printed or downloaded), a quiet line with a link to support the project
+  appears at most once a quarter per device. No dialog, never in the demo, can
+  be switched off (`support_hint`). CREDITS.md has a “Supporters” section.
+
+#### API and data (additive)
+
+- **No new route.**
+- **Data:** on solar feed-in meters `cascade_meter_id`; settings `home_ca_pem`,
+  `home_tls_insecure` (both admins only) and `support_hint`; environment
+  variable `ET_CA_FILE`. No new store in the backup.
+- **Responses:** in the contract status `balance_measured`, `settle_balance`,
+  `settle_verdict`, `settle_range`, `settle_parts`, `settle_measured`,
+  `settle_today`, `settle_uncertain`, `projection_band` also without a heating
+  model (with `few_measured`); `/api/summary` per contract
+  `projected_end_balance_total`, `projected_end_range_total`,
+  `measured_balance`, `measured_until`, `projection_band`, `balance_measured`,
+  `settle_balance`, `settle_range`; `periods[].prev_same_span` (with `basis`) in
+  the billing periods; `/api/todo` `soon`, `next_upcoming`; `/api/diagnostics`
+  `home_tls`; `rest_of.registers` on groups; `/api/pv-summary` `cascade`; heat
+  pump months with `estimated`; efficiency `strom.grid_only`; recommendation R4
+  `evidence.without_submeters`; `monthly_total[].cost_measured` in the
+  utility’s total; in the inbox `replaces`, `correction`,
+  `bill_book.data.rebook`, `detail.same_on` and the extraction with
+  `schema_version` 6.
+
+### Changed
+
+- **Remainder per register** ([#40]): the app has billed per register since
+  v3.9.0 (HT minus HT, NT minus NT, a register below zero does not count against
+  the other). New is that the remainder note names each register (“450 kWh, per
+  register HT 250 kWh = 400 kWh − 150 kWh · NT 200 kWh = 300 kWh − 100 kWh”,
+  `rest_of.registers`) and that the group’s blended price is weighted with the
+  remainder per register.
+- **Efficiency in the cascade:** with a feed-in register on Z2 the efficiency
+  figure still counts the heat pump only with electricity from the grid and
+  says so on the tile; seasonal performance factor and energy flow include the
+  solar power used directly.
+- **Advance suggestion shortly before the bill** ([#38]): the rule stays and is
+  now described for amounts due and credits, with “exactly three” payments and
+  the installments per year according to the payment plan, including a worked
+  example.
+- **Switching without a jump** ([#36]): calendar and billing year and the level
+  redraw the page in place, without “Loading …”; reading position, focus and
+  charts stay, the analysis keeps utility and meter.
+- **Image:** without supervisord, Python and setuptools; the scan only reports
+  findings that have a fix; `docker/login-action` 4.7.0 ([#50]); PHPUnit stays
+  on 11 (PHPUnit 12 needs PHP 8.3).
+- **Manual:** balance in one piece in the basics, feed-in in the cascade in use
+  case H, HTTPS with your own certificate in the Home Assistant guide, corrected
+  bills and opening readings in the inbox, signature and start script under
+  Docker operation; new and renewed pictures in both languages.
+
+### Fixed
+
+- **Empty response after a timeout under PHP 8.5:** if PHP set the status line
+  itself after a fatal error, the error handler turned a warning into an
+  exception while answering, and the response stayed empty. The call dates from
+  v2.6.0 and became visible with PHP 8.5, that is in the Docker image. Now an
+  error message with an error ID comes back in that case too.
+- **A service’s refusal shown as “Internal error”** ([#41]): if a cloud service
+  refuses or does not answer, only its reason is shown.
+- **Newer OpenAI models when reading documents** ([#41]): if the service refuses
+  `temperature` or `max_tokens` and names the parameter, the app asks once more
+  without the temperature or with `max_completion_tokens`. Services that take
+  both get the same request as before.
+- **Expected at settlement with two contracts:** if the contract changed within
+  the running billing period at the same supplier, “Expected at settlement” only
+  counted the current contract; a bill across two contracts now shows their sum.
+- **Heat pump energy flow in the cascade** ([#40], since v3.9.0): it showed the
+  whole measurement of the front meter including the household, now its own
+  consumption.
+- **Balance card with a credit** ([#38]): shortly before the bill it advised
+  “no need to raise” the advance even with a credit; now “no need to lower”.
+- **“After that … would be right” from an ending contract:** if the contract
+  ends at the bill and a successor is entered, the card no longer names an
+  ongoing advance from the old prices.
+- **Successor contract from the next cut-off date:** it settled on the day
+  before it started, with an expected balance of about one day of cost.
+- **Opening reading of a bill on the day before:** if the same reading is yours
+  up to three days before the bill’s date, the inbox treats it as “already
+  there”; until now a second reading with zero consumption was created.
+- **Corrected bill in the running inbox:** it was only recognised by its title
+  and did not replace a bill that was already booked. Now it replaces the
+  recorded bill of the same meter and period including its booking, ticked in
+  advance and marked “replaces”; recognised by reference, invoice number, issue
+  date or title; a version that is demonstrably older replaces nothing. The
+  summary says what changes in the result.
+- **Anomaly at the parent meter:** a sub-meter’s spike also showed at the parent
+  meter that measures it too. Months in which a sub-meter is not fully measured
+  do not count there, and the text names the deducted sub-meters.
+- **Labels in billing years** ([#36]): the overview tiles said “last 12
+  months” but counted from the start of the billing year.
+- **Analysis:** switching between calendar and billing year started again with
+  the first utility.
+- **One day apart:** the tile in billing years names the day of the reading like
+  the card and the overview.
+- **A billing year without a name** was labelled twice (“… 31/08/2026–29/07/2027:
+  31/08/2026 to 29/07/2027”).
+- **Monthly average of the “Cost” tile** counts a started month by its days and
+  is left out below four weeks (until now for example “avg €37.40/month” from four
+  days).
+- **Electricity balance overview** charged the full standing charge in the
+  started month.
+- **“Created on”** of the result cards in the workshop, scenario print and
+  flexibility showed the day before shortly after midnight (UTC instead of local
+  time).
+- **Code scanning:** three findings (incomplete escaping) in test helpers.
+- **TRADEMARKS.md** said Energietracker does not connect to OpenAI; since cloud
+  reading (v3.7.0, opt-in) that was wrong, and the providers were missing.
+
+### Known limits
+
+- The balance sensor’s attributes have been checked against the JSONPath
+  evaluation Home Assistant uses, but not yet in a running Home Assistant.
+  Without a current contract Home Assistant logs a warning on every update; the
+  state is correct.
+- `ET_CA_FILE` is tested against a real TLS server, in the finished image only
+  with the acceptance of this release. The Home Assistant app does not offer `ET_CA_FILE` as an option;
+  the setting in the app is enough there.
+- With a TLS library other than OpenSSL the app reports a name mismatch as a
+  general certificate error.
+- In the cascade the efficiency figure counts only grid electricity for the heat
+  pump; seasonal performance factor and energy flow include the solar power. The
+  app calculates one cascade point (Z2); several meters behind Z1 with their own
+  feed-in and the inverter’s own consumption at Z3 are not calculated
+  separately. Across a gap in the readings the seasonal performance factor is
+  exact; months without measured solar power show no performance factor of their
+  own.
+- “Forecast in detail” shows the forecast without the calibration factor, the
+  workshop’s baseline uses it; a sentence names the difference from 2 %.
+- If two contracts overlap according to their entries (an old one runs past the
+  start of a new one), the app does not warn yet; contract list and billing year
+  treat the old one’s end differently.
+- The thank-you hint remembers its day per device in the browser; in a household
+  with several devices it can appear once a quarter on each.
+
+### Migration
+
+None. The schema stays 1.8.0; new fields are optional, no new store in the
+backup (the new settings live in `settings.json`; a root certificate is not a
+secret and is part of the backup). The **inbox extraction schema** goes from 5
+to 6: a document read before 3.10.0 keeps its extraction; on the next re-read
+the cache misses once, and only then do invoice number and reference come in.
+For Docker: set the restart policy (see above).
+
+### Tests
+
+- **Balance:** `BalanceMeasuredTest`, `PeriodEndEstimateTest`, `SettleSumTest`,
+  `SummarySettleTotalTest`, `ProjectionBandRatesTest`, `OneProjectionTest`,
+  `ScenarioServiceTest`, Node suites `explainer`, `chart`, `ha-snippet`.
+- **Billing years and interface:** `SameSpanTrendTest`, `ReadingCheckTest`,
+  `SupportHintSettingTest`, Node suites `router`, `lists`, `release-notice`,
+  `scenario`.
+- **Home network and errors:** `HomeTlsTest` and `HomeTlsEndpointTest` against a
+  real TLS test server with a CA generated in the test, `OpenAiParamRetryTest`
+  with recorded invented answers, `ErrorHandlerTest`, `ErrorHandlerFatalTest`
+  against a real `php -S`.
+- **Cascade:** `CascadeFeedTest`, `CascadeFeedEstimatedTest`,
+  `MeteringConceptServiceTest`, `FlexibilityInsightTest`, Node suite
+  `metering-concepts`.
+- **Corrections:** `InboxStartReadingTest`, `InboxBillCorrectionTest`,
+  `AnomalyParentRestTest`, `EvaluationDetailsTest`.
+- **Image:** `ContainerStartTest` (start script with stand-in services under
+  `/bin/sh`), `ImageSupplyChainTest`, `TrademarksTest`; in CI a step that stops
+  both image variants and ends a service.
+- **Documentation:** `DocumentedThresholdsTest` binds the numbers of the new
+  sentences to the code (lead time, horizon, trend arrow limit, calibration
+  sentence, monthly average, home network ranges, kinds of certificate error);
+  `ContainerStartTest` looks for the restart policy in every example of the
+  documentation. Tests recalculate the worked examples of the basics with the
+  app.
+- 1895 test methods (+133). Every new rule has a counter-check that breaks it:
+  300 in 8 packages, all red.
+
+### Lessons learned
+
+- **A balance needs its date.** With rare readings “Current balance” was a
+  figure months old, and the estimate up to today had no word of its own. Now
+  every figure names its day, and the line up to today works it out.
+- **The width followed the reading density, not the uncertainty.** Evenly
+  spread months hardly scatter, so whoever read once a year got the most
+  certain statement. This was found with an invented household with rare
+  readings, not with the sample data, which is read monthly.
+- **A sum has to reach every view.** The sum of two contracts first appeared in
+  five places and not in several others, one of them with the sentence “like
+  the balance card”. Since then all views read the same function.
+
+[#36]: https://github.com/Bingerminger/energietracker/issues/36
+[#38]: https://github.com/Bingerminger/energietracker/issues/38
+[#40]: https://github.com/Bingerminger/energietracker/issues/40
+[#41]: https://github.com/Bingerminger/energietracker/issues/41
+[#42]: https://github.com/Bingerminger/energietracker/discussions/42
+[#49]: https://github.com/Bingerminger/energietracker/issues/49
+[#50]: https://github.com/Bingerminger/energietracker/pull/50
+
+---
+
+**Marketing sentence:** One balance, one truth: Energietracker shows what is
+measured, what is estimated and what to expect at settlement, with an honest
+range, reaches Home Assistant over HTTPS with your own certificate and comes as
+a slim, signed image.
+
+---
+
+---
+
 ## [3.9.0] — 2026-10-27 — Every contract pays only its share. Metering concepts, Home Assistant and the contract from the bill
 
 MINOR release without a schema step (stays 1.8.0). 3.9.0 contains what was

@@ -119,7 +119,28 @@ final class SubmeterRest
     }
 
     /**
+     * v3.10.0 (GitHub #40) — Rest je Zählwerk: Der Hinweis eines Mitglieds einer Gruppe
+     * (HT, NT) bekommt seine Zeile `registers` (Zähler, Kennzahl, gemessen, abgezogen,
+     * Rest, Rest unter null). Gerechnet wird ohnehin je Zählwerk (HT − HT, NT − NT, jedes
+     * zu seinem Preis, keines unter null); die Zeilen zeigen es, statt nur die Summe.
+     *
+     * @param array<string,mixed> $restOf Hinweis des Mitglieds
+     * @param array<string,mixed> $meter  das Mitglied (Zählwerk)
+     * @return array<string,mixed>
+     */
+    public static function asRegister(array $restOf, array $meter): array
+    {
+        $deducted = array_sum(array_map(fn($s) => (float)($s['kwh'] ?? 0), (array)($restOf['submeters'] ?? [])));
+        $reg = ['meter_id' => (string)($meter['id'] ?? ''), 'name' => (string)($meter['name'] ?? ($meter['id'] ?? '')),
+                'obis' => MeterService::obisKey($meter['obis'] ?? null) ?? '', 'measured' => round((float)($restOf['measured'] ?? 0), 1),
+                'deducted' => round($deducted, 1), 'rest' => round((float)($restOf['rest'] ?? 0), 1)];
+        if ((float)($restOf['short_kwh'] ?? 0) > 0.05) $reg['short_kwh'] = round((float)$restOf['short_kwh'], 1);
+        return $restOf + ['registers' => [$reg]];
+    }
+
+    /**
      * Zwei Hinweise zusammenzählen (Gruppe aus Mitgliedern, Jahr aus Monaten).
+     * Zeilen je Zählwerk (`registers`) werden je Zähler zusammengezählt.
      *
      * @param array<string,mixed>|null $acc
      * @param array<string,mixed> $add
@@ -128,6 +149,17 @@ final class SubmeterRest
     public static function mergeRestOf(?array $acc, array $add): array
     {
         if ($acc === null) return $add;
+        $regs = [];
+        foreach ([$acc, $add] as $r) {
+            foreach ((array)($r['registers'] ?? []) as $g) {
+                $id = (string)$g['meter_id'];
+                $q = $regs[$id] ?? ['meter_id' => $id, 'name' => (string)$g['name'], 'obis' => (string)($g['obis'] ?? ''), 'measured' => 0.0, 'deducted' => 0.0, 'rest' => 0.0];
+                foreach (['measured', 'deducted', 'rest'] as $k) $q[$k] = round($q[$k] + (float)($g[$k] ?? 0), 1);
+                $short = (float)($q['short_kwh'] ?? 0) + (float)($g['short_kwh'] ?? 0);
+                if ($short > 0.05) $q['short_kwh'] = round($short, 1);
+                $regs[$id] = $q;
+            }
+        }
         $by = [];
         foreach ([$acc, $add] as $r) {
             foreach ((array)($r['submeters'] ?? []) as $s) {
@@ -143,6 +175,6 @@ final class SubmeterRest
         }
         $open = (int)($acc['open_days'] ?? 0) + (int)($add['open_days'] ?? 0);
         if ($open > 0) $out['open_days'] = $open;
-        return $out;
+        return $regs === [] ? $out : $out + ['registers' => array_values($regs)];
     }
 }

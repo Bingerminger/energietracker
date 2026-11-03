@@ -96,10 +96,11 @@ final class HomeAssistantAppDocsTest extends TestCase
         sort($documented);
         self::assertSame($published, $documented, 'arch der App = Plattformen des Images');
 
-        // init: false, weil das Image seinen eigenen Prozesswächter mitbringt
+        // init: false, weil das Image seinen eigenen PID 1 mitbringt: das Startskript, das
+        // Signale weiterreicht und verwaiste Prozesse abholt (seit v3.10.0, vorher supervisord)
         self::assertSame('false', $cfg['init']);
-        self::assertMatchesRegularExpression('/^CMD \["supervisord"/m', $dockerfile);
-        self::assertStringContainsString('exec "$@"', self::read('docker/entrypoint.sh'), 'supervisord wird PID 1');
+        self::assertMatchesRegularExpression('#^CMD \["/usr/local/bin/start\.sh"\]$#m', $dockerfile);
+        self::assertStringContainsString('exec "$@"', self::read('docker/entrypoint.sh'), 'das Startskript wird PID 1');
 
         // Überwachung: Der Supervisor beobachtet den HEALTHCHECK des Images (watchdog ist überholt)
         self::assertMatchesRegularExpression('#HEALTHCHECK[\s\S]*?/api/health#', $dockerfile);

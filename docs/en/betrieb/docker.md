@@ -126,7 +126,7 @@ docker compose up -d        # … and restart with it
 ## Variant B — `docker run` (without Compose)
 
 ```bash
-docker run -d --name energietracker -p 8080:80 \
+docker run -d --name energietracker --restart unless-stopped -p 8080:80 \
   -v "$PWD/data:/data" \
   ghcr.io/bingerminger/energietracker:3
 ```
@@ -137,6 +137,7 @@ Line by line:
 |------|-----------|
 | `-d` | in the background (detached) |
 | `--name energietracker` | **fixed container name** |
+| `--restart unless-stopped` | starts the container again after a reboot and after a failure, unless you stopped it yourself (since v3.10.0 the container ends when nginx or php-fpm fails, see [Building your own image](#building-your-own-image-optional)) |
 | `-p 8080:80` | host port 8080 → container port 80 |
 | `-v "$PWD/data:/data"` | data volume (see above) |
 | `…/energietracker:3` | the image including the tag: `:3` stays on the newest 3.x and never jumps to a new major version unasked; `:latest` is always the newest, `:3.5.1` a fixed version |
@@ -356,6 +357,7 @@ docker run -e ET_LOG_LEVEL=debug …   # or in docker-compose.yml under environm
 | `ET_ALLOWED_HOSTS` | *(empty = all)* | *(v2.6.0)* allowed host names, comma-separated, `*.domain` possible; others → 421. IP addresses and `localhost` always. Since v3.4.0 also in the settings (`allowed_hosts`); both lists apply |
 | `ET_LOCK_WAIT_S` | `15` | *(v3.4.0)* how long a writing request waits for the write lock (1–120 s), then `503` with `Retry-After` |
 | `ET_INBOX_DIR` | *(empty = `<dataDir>/posteingang`)* | *(v3.9.0)* your own [watched folder](../anleitungen/posteingang.md#watched-folder) for the inbox, absolute path, also outside the data directory (the Home Assistant app sets `/share/energietracker/posteingang`). The image creates it at start and hands it to `www-data`; without root (variant `rootless`) it must be writable for the container’s user |
+| `ET_CA_FILE` | *(empty)* | *(v3.10.0)* your own root certificate (PEM file in the container, several certificates are fine) for connections into the home network: Home Assistant, text recognition, reading in the home network, evcc. Applies **in addition** to the image's root certificates, checking stays on; mount the file read-only. The same works in the settings (`home_ca_pem`), see [Home Assistant, HTTPS with your own certificate](../anleitungen/home-assistant.md#https-with-your-own-certificate-v3100) |
 | `ET_FRAME_ANCESTORS` | *(empty)* | *(v2.6.0)* origins allowed to embed the app (e.g. the Home Assistant dashboard) |
 | `ET_DEBUG` | *(empty)* | *(v2.6.0)* `1` = file/line in error responses — only briefly for troubleshooting |
 
@@ -405,7 +407,7 @@ docker compose pull && docker compose up -d
 # docker run
 docker pull ghcr.io/bingerminger/energietracker:X.Y.Z
 docker rm -f energietracker
-docker run -d --name energietracker -p 8080:80 \
+docker run -d --name energietracker --restart unless-stopped -p 8080:80 \
   -v "$PWD/data:/data" ghcr.io/bingerminger/energietracker:X.Y.Z
 ```
 
@@ -449,14 +451,59 @@ If you have adapted the code yourself, build locally:
 
 ```bash
 docker build -t energietracker .
-docker run -d --name energietracker -p 8080:80 \
+docker run -d --name energietracker --restart unless-stopped -p 8080:80 \
   -v "$PWD/data:/data" energietracker
 ```
 
-The image bundles nginx + php-fpm (held together by `supervisord`) and uses the
-endpoint `GET /api/health` for the container `HEALTHCHECK`. Since v3.4.0
-php-fpm listens only on `127.0.0.1:9000` (own pool file
-`zzz-energietracker.conf`); other containers cannot reach FastCGI.
+The image bundles nginx + php-fpm and uses the endpoint `GET /api/health` for
+the container `HEALTHCHECK`. Since v3.4.0 php-fpm listens only on
+`127.0.0.1:9000` (own pool file `zzz-energietracker.conf`); other containers
+cannot reach FastCGI.
+
+**Start and stop (since v3.10.0):** a small shell script (`docker/start.sh`)
+starts both services; up to v3.9 it was `supervisord`. So `supervisor` and
+Python are no longer in the image. The script
+
+- passes the stop signal on to nginx and php-fpm: `docker stop` ends after a
+  moment with exit code 0, not only after Docker's grace period;
+- ends the container with an error code as soon as one of the two services
+  ends. The log then shows `"msg":"Dienst beendet, Container endet"` (service
+  ended, container ends) with the name of the service. Docker restarts it
+  through the restart policy (`restart: unless-stopped` in
+  `docker-compose.yml`, `--restart unless-stopped` with `docker run`), in Home
+  Assistant the app's watchdog does. Up to v3.9 `supervisord` restarted the
+  service inside the container.
+
+---
+
+## Checking signature and SBOM *(v3.10.0)*
+
+Since v3.10.0 every published image is signed, every weekly rebuild too. The
+signature is made without a key using [cosign](https://docs.sigstore.dev/):
+the certificate names the GitHub workflow that built the image, and the
+signature is recorded in the public transparency log (Rekor). Check it with
+cosign 3 or newer:
+
+```bash
+cosign verify ghcr.io/bingerminger/energietracker:3 \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  --certificate-identity-regexp '^https://github\.com/Bingerminger/energietracker/\.github/workflows/docker-(publish|rebuild)\.yml@refs/'
+```
+
+The same works for every other tag, `-rootless` included. Without a match
+cosign stops with an error message; images before v3.10.0 are not signed.
+
+Software bill of materials (SBOM) and provenance attestation have been part of
+the image since v2.6.0:
+
+```bash
+docker buildx imagetools inspect ghcr.io/bingerminger/energietracker:3 --format '{{ json .SBOM }}'
+docker buildx imagetools inspect ghcr.io/bingerminger/energietracker:3 --format '{{ json .Provenance }}'
+```
+
+After every release and every weekly rebuild GitHub checks the image for known
+vulnerabilities (Grype, only findings with an available fix). Deadlines and how
+to report: [SECURITY.md](../../../SECURITY.md).
 
 ---
 
@@ -616,6 +663,7 @@ not change it).
 | Data gone after `docker rm` | No `-v` volume mounted. Always `-v "$PWD/data:/data"` or a named volume. |
 | Docker Desktop: container stays "Created", error `mounts denied` or "HTTP 500" | The data folder is not shared under Settings → Resources → File sharing. Share it or use a named volume: `-v energietracker-data:/data`. |
 | Port 8080 occupied | Choose another host port, e.g. `-p 9000:80`. |
+| Container shows "Exited" with an error code, log says "Dienst beendet, Container endet" | nginx or php-fpm failed; the container then ends on purpose (since v3.10.0). With `--restart unless-stopped` or `restart: unless-stopped` Docker starts it again. An error just before that line in the log is the cause. |
 | "403/Permission denied" on `data` | The container sets the permissions on start; with your own host folder, check the write permissions if needed. |
 | Unraid: “data not writable” after *New Permissions* | Restart the container — it hands `/data` back to `www-data` (UID 82). |
 | Without root: log says “Datenverzeichnis nicht beschreibbar”, `/api/health` answers `503` | The data folder does not belong to the container's UID (10001). `sudo chown -R 10001:0 <folder>` or a named volume — [Without root](#without-root-v350). |

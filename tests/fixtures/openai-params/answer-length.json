@@ -1,0 +1,12 @@
+{
+  "id": "chatcmpl-test-0001",
+  "object": "chat.completion",
+  "model": "example-model-2026",
+  "choices": [
+    {
+      "index": 0,
+      "finish_reason": "length",
+      "message": { "role": "assistant", "content": "{\"type\": \"price_ch" }
+    }
+  ]
+}

@@ -149,4 +149,27 @@ final class InboxCloudEndpointTest extends HttpServerTestCase
         self::assertSame(200, $ok['status'], $ok['body']);
         self::assertStringNotContainsString(self::KEY, $this->request('GET', '/api/inbox/cloud', $member)['body']);
     }
+
+    /**
+     * v3.10.0 (#41) — Scheitert der Dienst (hier: der Name löst sich nicht auf,
+     * `.invalid` nach RFC 2606), sieht der Client nur dessen Grund: 502 mit
+     * eigenem Text, ohne „Interner Fehler“ und ohne Fehler-ID; das Log führt
+     * es als Warnung, nicht als `error`.
+     */
+    public function testARefusedServiceShowsItsOwnReasonNotAnInternalError(): void
+    {
+        $this->startServer(['language' => 'de'], ['ET_LOG_DEST' => 'file', 'ET_LOG_LEVEL' => 'debug']);
+        $set = $this->patch('/api/inbox/cloud', ['provider' => 'openai', 'endpoint' => 'https://llm.invalid/v1', 'api_key' => 'sk-oa-test-0123456789']);
+        self::assertSame(200, $set['status'], $set['body']);
+        $r = $this->request('GET', '/api/inbox/cloud/models');
+        $body = json_decode($r['body'], true);
+        self::assertSame([502, 'errors.inboxCloud.unreachable'], [$r['status'], $body['code'] ?? null], $r['body']);
+        self::assertStringContainsString('llm.invalid', (string)$body['error'], 'der Grund mit dem Namen des Diensts');
+        self::assertStringNotContainsString('Interner Fehler', (string)$body['error']);
+        self::assertArrayNotHasKey('error_id', $body);
+        $lines = array_values(array_filter(array_map(fn($l) => json_decode($l, true), file($this->dataDir . '/logs/app.log') ?: []),
+            fn($l) => is_array($l) && ($l['ctx']['code'] ?? '') === 'errors.inboxCloud.unreachable'));
+        self::assertCount(1, $lines, 'ein Eintrag im Log');
+        self::assertSame('warning', $lines[0]['level']);
+    }
 }

@@ -52,7 +52,9 @@ final class StromSaldoService
             if ($ym === '') continue;
             $byYm[$ym] = $this->emptyRow($ym);
             $byYm[$ym]['bezug_kwh']  = (float)($m['kwh']  ?? 0);
-            $byYm[$ym]['bezug_cost'] = (float)($m['cost'] ?? 0);
+            // v3.10.0 (Skeptiker N5) — wie die Kachel „Kosten“: im angebrochenen Monat der Grundpreis nur der gemessenen
+            // Tage (bis dahin ein voller Monat Grundpreis für 12 Tage)
+            $byYm[$ym]['bezug_cost'] = (float)($m['cost_measured'] ?? $m['cost'] ?? 0);
         }
         foreach ($pv['monthly_total'] ?? [] as $m) {
             $ym = (string)($m['ym'] ?? '');

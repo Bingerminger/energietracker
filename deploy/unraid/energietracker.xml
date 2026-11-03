@@ -26,7 +26,7 @@
   <Screenshot>https://raw.githubusercontent.com/Bingerminger/energietracker/main/docs/ui/screenshots/en/zaehler-vertraege.png</Screenshot>
   <Screenshot>https://raw.githubusercontent.com/Bingerminger/energietracker/main/docs/ui/screenshots/en/prognose.png</Screenshot>
   <Screenshot>https://raw.githubusercontent.com/Bingerminger/energietracker/main/docs/ui/screenshots/en/tarifvergleich.png</Screenshot>
-  <ExtraParams/>
+  <ExtraParams>--restart unless-stopped</ExtraParams>
   <PostArgs/>
   <CPUset/>
   <DonateText/>
@@ -43,5 +43,6 @@
   <Config Name="Allowed hosts (ET_ALLOWED_HOSTS)" Target="ET_ALLOWED_HOSTS" Default="" Mode="" Description="Optional. Comma-separated host names the app answers to, *.example.org allowed (protection against DNS rebinding). IP addresses and localhost always work. Empty = all." Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
   <Config Name="Write lock wait (ET_LOCK_WAIT_S)" Target="ET_LOCK_WAIT_S" Default="15" Mode="" Description="Optional. Seconds a writing request waits for the write lock (1–120); after that it answers 503 with Retry-After." Type="Variable" Display="advanced" Required="false" Mask="false">15</Config>
   <Config Name="Inbox folder (ET_INBOX_DIR)" Target="ET_INBOX_DIR" Default="" Mode="" Description="Optional (3.9.0). Absolute path of the watched inbox folder inside the container; empty = /data/posteingang. Map a share to that path to drop supplier PDFs from the network." Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
+  <Config Name="Own root certificate (ET_CA_FILE)" Target="ET_CA_FILE" Default="" Mode="" Description="Optional (3.10.0). Path of a PEM file inside the container with the root certificate of your own PKI, for HTTPS connections into the home network (Home Assistant, text recognition, evcc). Applies in addition to the image's certificates; map the file read-only. The same works in the app settings." Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
   <Config Name="Frame ancestors (ET_FRAME_ANCESTORS)" Target="ET_FRAME_ANCESTORS" Default="" Mode="" Description="Optional. Origins allowed to embed the app, e.g. http://homeassistant.local:8123 for a Home Assistant webpage card." Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
 </Container>

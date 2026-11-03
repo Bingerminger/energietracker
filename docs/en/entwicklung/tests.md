@@ -410,8 +410,8 @@ image has to provide for it:
   unreadable file of the app's own still does.
 - `HomeAssistantAppDocsTest` — the `config.yaml` excerpt in the guide is the
   same in DE and EN and matches the image: port (`EXPOSE`, nginx), data path,
-  image name and platforms from `docker-publish.yml`, `init: false` to
-  supervisord, `HEALTHCHECK` on `/api/health`; the app reads every variable,
+  image name and platforms from `docker-publish.yml`, `init: false` to the
+  start script as PID 1, `HEALTHCHECK` on `/api/health`; the app reads every variable,
   `ET_AUTH` is a valid mode.
 - `tests/ha-snippet.test.mjs` — `haBaseUrl()` and `haUrl()`: under Ingress the
   app's host name instead of `/api/hassio_ingress/<token>/`, otherwise the page
@@ -420,6 +420,23 @@ image has to provide for it:
 - In CI the Docker job starts the image the way the Supervisor does (the app's
   environment, volume `/data`, `options.json` written as root before the second
   start) and waits for “healthy”.
+
+**Image and supply chain (v3.10.0):**
+
+- `ContainerStartTest` — the start script `docker/start.sh` (instead of
+  supervisord) with stand-in services under the system shell (dash in CI,
+  locally also `ET_TEST_SH=/bin/dash`): SIGTERM, SIGINT and SIGQUIT
+  (`docker stop`) end both services quickly with 0; when one service ends, the
+  script stops the other and ends with an error code. Also: no supervisor and
+  no Python in the image, one `CMD` for both targets, `--restart
+  unless-stopped` in every `docker run` example and in the templates.
+- `ImageSupplyChainTest` — signature by digest (keyless cosign) at release and
+  weekly rebuild, scan right after the release with fixable findings only,
+  verification commands in the docs and `SECURITY.md` matching the workflows,
+  PHPUnit stays on 11.
+- In CI the Docker job checks both variants with the image's busybox shell:
+  `docker stop` ends within seconds with 0, a stopped nginx or php-fpm ends the
+  container with an error code.
 
 **Quarter hours and flexibility (v3.3.0):**
 

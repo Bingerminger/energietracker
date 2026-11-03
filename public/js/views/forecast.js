@@ -17,13 +17,13 @@
 
 import { api } from '../api.js';
 import { activeUtilities, getSettings } from '../state.js';
-import { fmt, escapeHtml, parseDecimal, formatForInput } from '../lib/format.js';
+import { fmt, escapeHtml, parseDecimal, formatForInput, todayIso } from '../lib/format.js';
 import { makeChart, utilColor, tokenColor, chartTableHtml } from '../components/chart.js';
 import { toastErr, toastOk } from '../components/toast.js';
 import { t, tp } from '../lib/i18n.js';
 import { advanceAmountText } from '../lib/advance-rhythm.js';   // v3.9.0 (Skeptiker H1)
 import { info } from '../components/info.js';
-import { balanceView, isFeedIn, uncertainRangeText } from '../lib/semantics.js';
+import { balanceView, isFeedIn, uncertainRangeText, expectedBalance, bandText } from '../lib/semantics.js';
 import { DEMO } from '../lib/demo-mode.js';
 import * as S from '../lib/scenario.js';
 import { resultCardHtml, downloadResultCard } from '../components/result-card.js';
@@ -451,7 +451,8 @@ export async function render(container, params = [], ctx = {}) {
         ? t(`scenario.preset.${activePreset}.sentence`, { amount })
         : tone === 'same' ? t('scenario.card.same', { name })
         : t(tone === 'more' ? 'scenario.card.more' : 'scenario.card.less', { name, amount }),
-      footer: t('scenario.card.footer', { from: fmt.month(result.from), to: fmt.month(result.to), date: fmt.date(new Date().toISOString().slice(0, 10)) }),
+      // v3.10.0 (Skeptiker N6) — „erstellt am“ in Ortszeit (UTC zeigte kurz nach Mitternacht den Vortag)
+      footer: t('scenario.card.footer', { from: fmt.month(result.from), to: fmt.month(result.to), date: fmt.date(todayIso()) }),
     };
   }
 
@@ -1001,16 +1002,27 @@ function renderResult(u, result, container, card = null) {
 
   // v3.9.0 (Skeptiker M4) — mit Vertrag in der laufenden Abrechnung: derselbe Saldo, dasselbe Datum wie
   // die Saldo-Karte; die Spalte darunter zählt nur die Prognosemonate (bis dahin ein zweiter Saldo ab null)
-  const cardBal = card && card.projected_end_balance != null && (card.settle_on || card.effective_end) ? Number(card.projected_end_balance) : null;
-  const cardUnc = card?.projection_uncertain?.projected_range ? card.projection_uncertain : null;
+  // v3.10.0 (Skeptiker H1) — „wie die Saldo-Karte“ heißt: dieselbe Quelle (expectedBalance), also auch die Summe
+  // einer Abrechnung über mehrere Verträge mit ihrer Spanne bzw. Breite
+  const cardExp = card && (card.settle_on || card.effective_end) ? expectedBalance(card) : null;
+  const cardBal = cardExp ? cardExp.value : null;
+  const cardUnc = cardExp?.unc || null;
+  // v3.10.0 (Skeptiker M4) — die Monatsmengen hier sind die der Prognose; Saldo-Karte und Werkstatt-Ausgangsfall
+  // schätzen mit dem Kalibrierfaktor der letzten Monate. Ein Satz sagt es, wo er spürbar von 1 abweicht
+  const factor = Number(card?.projection_factor);
+  const calibNote = Number.isFinite(factor) && factor > 0 && Math.abs(factor - 1) >= 0.02
+    ? `<p class="muted small" data-role="fc-calibration-note">${escapeHtml(t('forecast.calibrationNote', { pct: fmt.pct(Math.abs(factor - 1), 0),
+        direction: t(factor > 1 ? 'forecast.calibrationMore' : 'forecast.calibrationLess') }))}</p>` : '';
   tbl.innerHTML = `
     ${cardBal != null ? `
       <div class="banner ${cardUnc ? 'banner--info' : cardBal > 5 ? 'banner--warning' : cardBal < -5 ? 'banner--success' : 'banner--info'}"
            style="margin-bottom: var(--sp-3)" data-role="fc-card-balance">
         ${escapeHtml(t('forecast.balanceCard', { date: fmt.date(card.settle_on || card.effective_end) }))}
-        <strong>${escapeHtml(cardUnc ? uncertainRangeText(cardUnc) : `${Math.abs(cardBal) < 1 ? t('forecast.balanceBalanced') : (cardBal > 0 ? t('forecast.balanceSurcharge') : t('forecast.balanceCredit'))} ${fmt.eur(Math.abs(cardBal))}`)}</strong>
+        <strong>${escapeHtml(cardUnc ? uncertainRangeText(cardUnc) : `${Math.abs(cardBal) < 1 ? t('forecast.balanceBalanced') : (cardBal > 0 ? t('forecast.balanceSurcharge') : t('forecast.balanceCredit'))} ${cardExp.band ? `≈ ${fmt.eur0(Math.abs(cardBal))}` : fmt.eur(Math.abs(cardBal))}`)}</strong>
+        ${!cardUnc && cardExp.band ? `<span class="muted" data-role="fc-card-band"> (${escapeHtml(bandText(cardExp.band))})</span>` : ''}
         <span class="muted"> ${escapeHtml(tp('forecast.balanceCardNote', fc.length, { count: fc.length, month: fc[0] ? fmt.month(fc[0].ym) : '–' }))}</span>
       </div>
+      ${calibNote}
     ` : hasFinance && lastBalance != null ? `
       <div class="banner ${lastBalance > 5 ? 'banner--warning' : lastBalance < -5 ? 'banner--success' : 'banner--info'}"
            style="margin-bottom: var(--sp-3)">

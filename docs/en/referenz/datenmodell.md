@@ -209,6 +209,9 @@ same identifier.
   // v3.1.0, heat with role heat_pump_output only, optional:
   "heat_pump_meter_ids": ["m_wp_strom"], // electricity meters of the heat pump (role heat_pump)
 
+  // v3.10.0, only for solar feed-in, optional — feed-in register in the cascade:
+  "cascade_meter_id": "m_strom_z2ht",    // electricity meter behind another one where it sits
+
   // v3.7.0, optional — missing = nobody responsible:
   "assignee_id": "u_3f9a1c2e"            // person from the register of people
 }
@@ -241,6 +244,16 @@ it rejects anything else (`errors.meter.obisInvalid`). A meter with several
 registers (HT/NT, import/feed-in) becomes one meter per register with the same
 device number; the inbox and the Home Assistant input assign readings with it
 ([API](api.md#meters-obis-v390-additive)).
+
+**Feed-in register in the cascade (`cascade_meter_id`, v3.10.0).** Only for
+`pv_einspeisung`: the electricity meter where this feed-in register sits, such
+as the first register of Z2. It must be an electricity meter behind another one
+(`parent_meter_id`), otherwise `errors.meter.cascadeLinkInvalid`; empty removes
+the field. Such a meter does not count in totals
+(`MeterService::countsInTotals`): only what the front meter counts goes to the
+grid. From the differences `GET /api/pv-summary` calculates the solar power per
+branch ([API](api.md#feed-in-in-the-cascade-v3100-additive)). Like every other
+meter it is fully in the backup.
 
 **Role (`role`, v3.1.0).** What a meter measures, for the utilities that know
 roles. The first is the default and is **not** stored — a meter without `role`
@@ -1081,7 +1094,7 @@ file is created with the first document, no schema step.
   "queued_at": null,           // only when queued: order of the queue
   "type": "invoice",           // document type, see below; type_confidence 0–1 or null
   "extraction": {              // the checked result, null before reading
-    "provider": "local", "model": "qwen3.8", "schema_version": 5, "type": "invoice",
+    "provider": "local", "model": "qwen3.8", "schema_version": 6, "type": "invoice",
     "fields": {
       "consumption": { "value": 10450, "raw": "10.450", "quote": "Verbrauch: 945,6 m³ = 10.540 kWh",
                        "page": 1, "status": "check", "reasons": ["value_not_in_quote"] }
@@ -1090,7 +1103,7 @@ file is created with the first document, no schema step.
     "flags": 3, "seconds": 74.2, "extracted_at": "…",
     "text": { "chars": 1180, "kept": [1, 2], "dropped": [3], "truncated": false }   // terms pages not sent
   },
-  "cache": { "local|qwen3.8|5": { … } },   // raw answers per provider, model and schema version (at most three)
+  "cache": { "local|qwen3.8|6": { … } },   // raw answers per provider, model and schema version (at most three)
   "assignment": null,          // {utility, meter_id, contract_id} — set by the user, otherwise the prefill applies
   "edits": {},                 // confirmed or corrected field values, {field: value}
   "applied": [],               // [{id, kind, key, ref, at}] — what was taken over
@@ -1147,6 +1160,10 @@ file is created with the first document, no schema step.
   and `estimated_ends`, with a number from the header line `number_from:
   header`; `estimated_by` also knows `mark` (footnote). The cache key ends in
   `|4` since then; readings with `|3` stay until the document is read again.
+- **Invoice number and reference** *(v3.10.0, `schema_version` 6)*: the bill
+  carries `invoice_number` and `corrects_invoice` (helper fields, never
+  flagged), for corrected bills in the running inbox ([API](api.md)). The cache
+  key ends in `|6`; older readings stay until the document is read again.
 - **Duplicates:** a second document with the same `sha256` is rejected with
   `409` (`errors.inbox.duplicate`, the existing entry under `detail.existing`).
   Documents with the same content in different files are recognised by the

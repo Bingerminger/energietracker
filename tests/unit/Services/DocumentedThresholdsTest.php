@@ -53,6 +53,11 @@ final class DocumentedThresholdsTest extends TestCase
         $span = (int)round(PvSummaryService::SAME_SPAN_SHARE * 100);
         $rest = ConsumptionService::REST_EXTRAPOLATE_DAYS;
         $supply = BillingPeriodService::SWITCH_PERIOD_MAX_DAYS;   // v3.9.0 (auswertung, Skeptiker M7)
+        $start = \Energietracker\Services\Inbox\Proposals::START_READING_DAYS;   // v3.10.0 (korrekturen)
+        $warn = (int)self::defaults()['reminder_warn_days_before'];             // v3.10.0 (doku)
+        $calib = self::calibrationNotePct();
+        $feedDe = str_replace('.', ',', (string)PvSummaryService::FEED_ABOVE_GEN_KWH);
+        $weeks = intdiv(self::monthlyAverageMinDays(), 7);
         $W = self::WORDS;
         return [
             'HA: höchstens fünf je Lauf' => ['docs/anleitungen/home-assistant.md', 'docs/en/anleitungen/home-assistant.md',
@@ -78,7 +83,9 @@ final class DocumentedThresholdsTest extends TestCase
             'Prognose: Grundlast mindestens die Hälfte des Sommers' => ['docs/verstehen/00-overview.md', 'docs/en/verstehen/00-overview.md',
                 ['unter der Hälfte der mittleren Tagesrate gemessener Sommermonate'], ['below half the mean daily rate of measured summer months']],
             'Saldo: kein Nachholbetrag unter drei Abschlägen' => ['docs/verstehen/00-overview.md', 'docs/en/verstehen/00-overview.md',
-                ['Bleiben weniger als ' . $W['de'][$sug] . ' Abschläge bis zur Abrechnung'], ['With fewer than ' . $W['en'][$sug] . ' advance payments left until the bill']],
+                // v3.10.0 (#38) — dazu „genau drei“: die Grenze ist streng
+                ['Bleiben weniger als ' . $W['de'][$sug] . ' Abschläge bis zur Abrechnung', 'Bei genau ' . $W['de'][$sug] . ' Abschlägen verteilt die Karte noch'],
+                ['With fewer than ' . $W['en'][$sug] . ' advance payments left until the bill', 'With exactly ' . $W['en'][$sug] . ' payments left the card still spreads']],
             'PV: derselbe Zeitraum ab 90 % der Tage' => ['docs/verstehen/12-pv.md', 'docs/en/verstehen/12-pv.md',
                 ["weniger als $span % der Tage der längsten Reihe"], ["fewer than $span % of the days of the longest series"]],
             'PV: widersprüchlich ab 0,5 kWh' => ['docs/verstehen/12-pv.md', 'docs/en/verstehen/12-pv.md',
@@ -91,7 +98,51 @@ final class DocumentedThresholdsTest extends TestCase
                 ["höchstens $supply Tage dauert"], ["lasts at most $supply days"]],
             'Rhythmus: ein Termin bis drei Tage daneben' => ['docs/anleitungen/posteingang.md', 'docs/en/anleitungen/posteingang.md',
                 ['ein Termin darf bis zu drei Tage verschoben sein'], ['a date may be shifted by up to three days']],
+            // v3.10.0 (korrekturen) — Anfangsstand einer Rechnung = deine Ablesung kurz davor
+            'Posteingang: Anfangsstand bis drei Tage davor' => ['docs/anleitungen/posteingang.md', 'docs/en/anleitungen/posteingang.md',
+                ['höchstens ' . $W['de'][$start] . ' Tage vor dem Tag der Rechnung', 'höchstens ' . $start . ' von 365 Tagen, unter der Toleranz von 1 %'],
+                ['at most ' . $W['en'][$start] . ' days before the bill’s date', 'at most ' . $start . ' of 365 days, below the 1 % tolerance']],
+            // v3.10.0 (doku) — Sätze der Pakete v3.10.0, die beim Gegenlesen an keinem Test hingen
+            'Sensor „Zu tun“: bald fällig mit dem Vorlauf der App' => ['docs/referenz/api.md', 'docs/en/referenz/api.md',
+                ["`reminder_warn_days_before` (Standard $warn), ohne Erledigtes"], ["`reminder_warn_days_before` (default $warn), without what is done"]],
+            'Sensor „Zu tun“: Vorlauf in der Anleitung' => ['docs/anleitungen/home-assistant.md', 'docs/en/anleitungen/home-assistant.md',
+                ["`reminder_warn_days_before`, Standard $warn Tage"], ["`reminder_warn_days_before`, default $warn days"]],
+            'Sensor „Zu tun“: nächster Termin bis ein Jahr voraus' => ['docs/referenz/api.md', 'docs/en/referenz/api.md',
+                [HomeAssistantNotifyService::HORIZON_DAYS === 365 ? 'im Kalender bis ein Jahr voraus' : 'HORIZON_DAYS geändert'],
+                [HomeAssistantNotifyService::HORIZON_DAYS === 365 ? 'in the calendar up to one year ahead' : 'HORIZON_DAYS changed']],
+            'Kaskade: Widerspruch erst ab 0,5 kWh unter null' => ['docs/referenz/api.md', 'docs/en/referenz/api.md',
+                ["ein Strang lag unter null (mehr als $feedDe kWh)"], ['a branch was below zero (by more than ' . PvSummaryService::FEED_ABOVE_GEN_KWH . ' kWh)']],
+            'Werkstatt: Satz zum Kalibrierfaktor ab 2 %' => ['docs/verstehen/00-overview.md', 'docs/en/verstehen/00-overview.md',
+                ["die Mengen der Karte verschiebt (ab $calib %)"], ["shifts the card’s quantities (from $calib %)"]],
+            'Werkstatt-Anleitung: Satz zum Kalibrierfaktor ab 2 %' => ['docs/anleitungen/was-waere-wenn.md', 'docs/en/anleitungen/was-waere-wenn.md',
+                ["liegen beide mindestens $calib % auseinander"], ["if the two differ by at least $calib %"]],
+            'Kachel „Kosten“: Monatsmittel erst ab vier Wochen' => ['docs/referenz/ansichten.md', 'docs/en/referenz/ansichten.md',
+                ['nach seinen Tagen und fehlt unter ' . $W['de'][$weeks] . ' Wochen'], ['by its days and is left out below ' . $W['en'][$weeks] . ' weeks']],
+            'Heimnetz: Adressen, für die „nicht prüfen“ wirkt' => ['docs/referenz/einstellungen.md', 'docs/en/referenz/einstellungen.md',
+                ['127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 100.64.0.0/10, `::1` und `fc00::/7`. Für jede andere Adresse wirkungslos.'],
+                ['127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 100.64.0.0/10, `::1` and `fc00::/7`. No effect for any other address.']],
+            'Trendpfeil: dieselbe Grenze wie „Ablesung prüfen“' => ['docs/referenz/ansichten.md', 'docs/en/referenz/ansichten.md',
+                ['Es ist dieselbe Grenze wie die zweite Stufe von „Ablesung prüfen“'], ['It is the same limit as the second stage of “Check the reading”']],
         ];
+    }
+
+    private static function js(string $rel): string
+    {
+        return (string)file_get_contents(dirname(__DIR__, 3) . '/' . $rel);
+    }
+
+    /** Schwelle des Satzes unter „Prognose im Detail“ (forecast.js, |Faktor − 1| ≥ …) in Prozent. */
+    private static function calibrationNotePct(): int
+    {
+        preg_match('/Math\.abs\(factor - 1\) >= (0\.\d+)/', self::js('public/js/views/forecast.js'), $m);
+        return isset($m[1]) ? (int)round((float)$m[1] * 100) : -1;
+    }
+
+    /** Mindestzahl Tage für das Monatsmittel der Kachel „Kosten“ (chart-data.js, perMonthAverage). */
+    private static function monthlyAverageMinDays(): int
+    {
+        preg_match('/return days >= (\d+) && months > 0/', self::js('public/js/lib/chart-data.js'), $m);
+        return isset($m[1]) ? (int)$m[1] : -1;
     }
 
     /** @param list<string> $de @param list<string> $en */
@@ -122,6 +173,20 @@ final class DocumentedThresholdsTest extends TestCase
         }
     }
 
+    /** v3.10.0 (doku) — die Arten eines Zertifikatsfehlers, die die Testnachricht als `error` meldet, stehen in der API-Referenz. */
+    public function testTheCertificateErrorKindsAreDocumented(): void
+    {
+        foreach (['docs/referenz/api.md' => 'Die Testnachricht antwortet', 'docs/en/referenz/api.md' => 'The test message answers'] as $rel => $head) {
+            $d = self::flat($rel);
+            $at = (int)strpos($d, $head);
+            self::assertGreaterThan(0, $at, "$rel: Liste der Fehler der Testnachricht fehlt");
+            $list = substr($d, $at, 700);
+            foreach (array_keys(\Energietracker\Support\HomeTls::CERT_ERRORS) as $kind) {
+                self::assertStringContainsString("`$kind`", $list, "$rel: `$kind` fehlt bei der Testnachricht");
+            }
+        }
+    }
+
     /** Die Werte selbst, damit die Sätze oben nicht still mit einer anderen Zahl weiterleben. */
     public function testTheConstantsBehindTheSentences(): void
     {
@@ -138,9 +203,30 @@ final class DocumentedThresholdsTest extends TestCase
         self::assertSame(0.9, PvSummaryService::SAME_SPAN_SHARE);
         self::assertSame(0.5, PvSummaryService::FEED_ABOVE_GEN_KWH);
         self::assertSame(92, ConsumptionService::REST_EXTRAPOLATE_DAYS);
+        // v3.10.0 — Anfangsstand: drei Tage, und so viele Tage einer Jahresrechnung bleiben unter der Toleranz (1 %)
+        self::assertSame(3, \Energietracker\Services\Inbox\Proposals::START_READING_DAYS);
+        self::assertLessThanOrEqual((new \ReflectionClassConstant(\Energietracker\Services\BillService::class, 'OK_PCT'))->getValue(),
+            \Energietracker\Services\Inbox\Proposals::START_READING_DAYS / 365 * 100);
         // Rhythmus aus Terminen: drei Tage daneben passen noch, vier nicht
         self::assertSame(2, InvoicePrices::rhythmOfDates(['2026-01-15', '2026-03-18', '2026-05-15']));
         self::assertNull(InvoicePrices::rhythmOfDates(['2026-01-15', '2026-03-19', '2026-05-15']));
+        // v3.10.0 (doku) — die Zahlen hinter den neuen Sätzen
+        self::assertSame(14, self::defaults()['reminder_warn_days_before']);
+        self::assertSame(365, HomeAssistantNotifyService::HORIZON_DAYS);
+        self::assertSame(2, self::calibrationNotePct(), 'forecast.js: Schwelle des Kalibrier-Satzes nicht gefunden');
+        self::assertSame(28, self::monthlyAverageMinDays(), 'chart-data.js: Mindesttage des Monatsmittels nicht gefunden');
+        // Trendpfeil „Ablesung prüfen“ ab Faktor 2 = zweite Stufe der Ablesungsprüfung
+        preg_match('/export const TREND_CHECK_FACTOR = (\d+(?:\.\d+)?);/', self::js('public/js/lib/chart-data.js'), $tf);
+        self::assertSame(\Energietracker\Services\ReadingCheckService::STRONG_RATIO, (float)($tf[1] ?? -1),
+            'Trendpfeil und Ablesungsprüfung sollen dieselbe Grenze haben (Doku sagt es)');
+        // „Nicht prüfen“ wirkt genau für die Netze der Doku: Rand innen, Nachbar außen
+        $local = [['127.0.0.1', '127.255.255.255'], ['10.0.0.0', '10.255.255.255'], ['172.16.0.0', '172.31.255.255'],
+                  ['192.168.0.0', '192.168.255.255'], ['100.64.0.0', '100.127.255.255'], ['::1'], ['fc00::1', 'fdff:ffff::1']];
+        foreach (array_merge(...$local) as $ip) self::assertTrue(\Energietracker\Services\OcrService::isLocalIp($ip), "$ip gehört zum Heimnetz");
+        foreach (['126.255.255.255', '11.0.0.0', '172.15.255.255', '172.32.0.0', '192.167.255.255', '192.169.0.0',
+                  '100.63.255.255', '100.128.0.0', '169.254.1.1', '8.8.8.8', 'fe80::1', '2001:db8::1'] as $ip) {
+            self::assertFalse(\Energietracker\Services\OcrService::isLocalIp($ip), "$ip gehört nicht zum Heimnetz");
+        }
         // Gesundheitscheck des Images alle 30 Sekunden (Doku Home Assistant und Posteingang)
         $docker = (string)file_get_contents(dirname(__DIR__, 3) . '/Dockerfile');
         self::assertSame(2, substr_count($docker, 'HEALTHCHECK --interval=30s'), 'beide Varianten des Images');

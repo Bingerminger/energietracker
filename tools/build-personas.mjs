@@ -1645,8 +1645,18 @@ function showcase() {
   d.activity = log.entries;
   // Stichtag Strom relativ zu heute: die Jahresabrechnung des laufenden Vertrags ist
   // immer seit drei Wochen „erwartet“ (DemoDataAligner, wird nicht eingespielt)
-  d.demo_align = { billing_anchor_days_ago: { strom: 21 } };
+  d.demo_align = { billing_anchor_days_ago: { strom: 21 }, ...showcaseReadingLag() };
   return d;
+}
+
+/**
+ * v3.10.0 (Hauptfunktion „Saldo aus einem Guss“, #49) — Gas wird im Schaufenster höchstens bis
+ * zwölf Tage vor heute abgelesen (DemoDataAligner, `reading_lag_days`). So zeigt die Saldo-Karte
+ * zu jedem Zeitpunkt beides: „Aktueller Saldo“ bis zur letzten Ablesung und die Schätzung bis
+ * heute als Zusatzzeile — auch in der Pages-Demo, die beim Bau bis heute fortschreibt.
+ */
+function showcaseReadingLag() {
+  return { reading_lag_days: { gas: 12 } };
 }
 
 // ═════════════════════════════════════════════════════════════════════════

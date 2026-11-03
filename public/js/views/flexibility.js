@@ -27,7 +27,7 @@
 // zur Grundlage). Die Sätze stehen in lib/flex-text.js.
 // =====================================================================
 import { api } from '../api.js';
-import { fmt, escapeHtml } from '../lib/format.js';
+import { fmt, escapeHtml, todayIso } from '../lib/format.js';
 import { toastErr, toastOk } from '../components/toast.js';
 import { confirmModal } from '../components/modal.js';
 import { t } from '../lib/i18n.js';
@@ -162,7 +162,7 @@ function cardSpec(ins, year) {
     big: fmt.eur0(s.eur),
     sentence: t(s.real ? 'flex.card.real' : 'flex.card.dynamic'),
     facts: facts.slice(0, 3),
-    footer: t(ins.signal === 'spot' ? 'flex.card.footer' : 'flex.card.footerOwn', { year, date: fmt.date(new Date().toISOString().slice(0, 10)) }),
+    footer: t(ins.signal === 'spot' ? 'flex.card.footer' : 'flex.card.footerOwn', { year, date: fmt.date(todayIso()) }),   // v3.10.0 (Skeptiker N6) — Ortszeit
   };
 }
 

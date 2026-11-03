@@ -59,6 +59,11 @@ t('Speicher nur mit PV, HT/NT am Gerät nur mit Gerät, unbekanntes Gerät fäll
 console.log('Kürzel wie im Issue');
 const tc = C.slotTags('cascade', { device: 'heat_pump', pv: true, tou: 'all' });
 t('Kaskade: Z1 vorn (Zweirichtung, auch die Einspeisung), Z2 Haushalt, Z3 PV', tc.main === 'Z1' && tc.feed === 'Z1' && tc.house === 'Z2' && tc.gen === 'Z3', JSON.stringify(tc));
+t('Kaskade (v3.10.0): das Einspeisezählwerk von Z2 trägt dessen Kürzel', tc.feed_house === 'Z2' && !('feed_house' in C.slotTags('behind', { device: 'heat_pump', pv: true })));
+t('Kaskade mit PV: Z2 und Z3 zählen rückwärts (2.8.0), sonst bleibt die Erzeugung ohne Kennzahl',
+  JSON.stringify(C.defaultRegisters('cascade', { device: 'heat_pump', pv: true, tou: 'all' }).feed_house) === '{"one":"2.8.0"}'
+  && C.defaultRegisters('cascade', { device: 'heat_pump', pv: true }).gen.one === '2.8.0' && C.defaultRegisters('behind', { device: 'heat_pump', pv: true }).gen.one === ''
+  && !('feed_house' in C.defaultRegisters('cascade', { device: 'heat_pump' })));
 const tb = C.slotTags('behind', { device: 'ev_charger', pv: true, battery: true });
 t('dahinter mit Speicher: Z2 Gerät, Z3 PV, Z4 Speicher (Ladung und Entladung)', tb.dev === 'Z2' && tb.gen === 'Z3' && tb.bat_in === 'Z4' && tb.bat_out === 'Z4', JSON.stringify(tb));
 t('Vorbelegung der Zählwerke wie der Server (HT/NT nur am Gerät)', JSON.stringify(C.defaultRegisters('behind', { device: 'heat_pump', tou: 'device' }))
@@ -88,7 +93,12 @@ t('Kaskade mit PV: Pfeil der Einspeisung zum Netz, Wärmepumpe, Sonne', casc.que
   && !!casc.querySelector('.ill-c-waerme') && !!casc.querySelector('.ill-c-pv'));
 // Knoten: wo drei Leitungen sich treffen (Zuleitung + innere Abzweige)
 const nodes = (html) => parse(html).querySelectorAll('circle.ill-node').length;
-t('Knoten an jedem Abzweig (Kaskade mit PV: einer, die Zuleitung trifft die PV-Zeile)', nodes(svgs[7][2]) === 1, String(nodes(svgs[7][2])));
+// v3.10.0 (#40) — Kaskade mit PV: die Anlage hinter Z2; Knoten am Abzweig Gerät/Z2 und hinter Z2 (Haushalt/PV)
+t('Knoten an jedem Abzweig (Kaskade mit PV: vorn Gerät und Z2, hinter Z2 Haushalt und PV)', nodes(svgs[7][2]) === 2, String(nodes(svgs[7][2])));
+t('Kaskade mit PV: Einspeisezählwerk 2.8.0 an Z1, Z2 und Z3', texts(casc).filter(x => x === '2.8.0').length === 3, texts(casc).join(' '));
+const cx = (label) => Number([...casc.querySelectorAll('text')].find(x => x.textContent === label)?.getAttribute('x'));
+t('Kaskade mit PV: Z3 (PV) sitzt hinter Z2, nicht neben ihm', cx('Z3') > cx('Z2') && cx('Z2') > cx('Z1'), `${cx('Z1')} ${cx('Z2')} ${cx('Z3')}`);
+t('Kaskade ohne PV: Bild wie bisher (Z2 am Abzweig, kein Einspeisezählwerk)', !texts(parse(svgs[8][2])).includes('2.8.0') && nodes(svgs[8][2]) === 1, String(nodes(svgs[8][2])));
 t('Knoten (dahinter mit PV und Speicher: Zuleitung + zwei innere Abzweige)', nodes(svgs[6][2]) === 3, String(nodes(svgs[6][2])));
 t('Knoten (nebeneinander: am Netz, an Z1 zu Haushalt und PV)', nodes(svgs[4][2]) === 2, String(nodes(svgs[4][2])));
 t('ein Zähler ohne PV: keine Sammelleitung, kein Knoten', nodes(svgs[0][2]) === 0 && !parse(svgs[0][2]).querySelector('path.ill-accent'));
@@ -131,6 +141,13 @@ const tou = C.suggestAssignments(slotsCascade, {
 });
 t('HT/NT je Zählwerk (Kennzahl oder Name), Haushalt dahinter, Einspeisung, Erzeugung ohne den Speicher',
   JSON.stringify(tou) === JSON.stringify({ main: { meter_ids: { ht: 'a', nt: 'b' } }, feed: { meter_id: 'f' }, gen: { meter_id: 'g' }, house: { meter_ids: { ht: 'c', nt: 'd' } } }), JSON.stringify(tou));
+// v3.10.0 (#40) — Einspeisung ins Netz und das Zählwerk von Z2 nicht verwechseln
+const withFeed2 = C.suggestAssignments({ ...slotsCascade, feed_house: { utility: 'pv_einspeisung', role: null, parent: null, cascade: 'house', registers: { one: '2.8.0' } } }, {
+  pv_einspeisung: [{ id: 'f2', name: 'Z2 Einspeisung', cascade_meter_id: 'c' }, { id: 'f', name: 'Einspeisung' }],
+});
+t('Kaskade: Einspeisung ins Netz ohne Verbindung, das Zählwerk von Z2 mit (v3.10.0)', withFeed2.feed?.meter_id === 'f' && withFeed2.feed_house?.meter_id === 'f2', JSON.stringify(withFeed2));
+const onlyGrid = C.suggestAssignments({ feed_house: { utility: 'pv_einspeisung', role: null, parent: null, cascade: 'house', registers: { one: '2.8.0' } } }, { pv_einspeisung: [{ id: 'f', name: 'Einspeisung' }] });
+t('… die Einspeisung ins Netz wird nicht das Zählwerk von Z2', JSON.stringify(onlyGrid) === '{}', JSON.stringify(onlyGrid));
 const two = C.suggestAssignments({ main: { utility: 'strom', role: 'household', parent: null, registers: { one: '1.8.0' } } }, { strom: [{ id: 'm1', name: 'A' }, { id: 'm2', name: 'B' }] });
 t('nicht eindeutig (zwei Zähler): keine Vorauswahl', JSON.stringify(two) === '{}');
 const side = C.suggestAssignments({ main: { utility: 'strom', role: 'household', parent: null, registers: { one: '1.8.0' } },
@@ -140,6 +157,8 @@ t('nebeneinander: Hauszähler und Zähler mit der Rolle des Geräts (inaktive z�
 
 const sig = (concept, setup) => C.slotSignature(Object.fromEntries(Object.entries(C.defaultRegisters(concept, setup)).map(([k, r]) => [k,
   { utility: k === 'feed' ? 'pv_einspeisung' : k === 'gen' || k.startsWith('bat_') ? 'pv_erzeugung' : 'strom', role: k === 'dev' ? setup.device : null, parent: concept === 'behind' && k === 'dev' ? 'main' : null, registers: r }])));
+t('Kennung der Stellen: auch die Kaskaden-Stelle zählt (v3.10.0)', C.slotSignature({ a: { utility: 'pv_einspeisung', registers: { one: '2.8.0' } } })
+  !== C.slotSignature({ a: { utility: 'pv_einspeisung', cascade: 'house', registers: { one: '2.8.0' } } }));
 t('Eingaben bleiben nur bei gleichen Stellen (anderes Gerät, HT/NT oder Aufbau: neu vorbelegt)',
   sig('behind', { device: 'heat_pump' }) === sig('behind', { device: 'heat_pump' })
   && sig('behind', { device: 'heat_pump' }) !== sig('behind', { device: 'ev_charger' })
@@ -153,6 +172,11 @@ const body = C.conceptPayload('cascade', { device: 'heat_pump', pv: true, tou: '
 t('Aufbau, Namen ohne Leerraum, leere Kennzahl fällt weg', body.concept === 'cascade' && body.tou === 'all' && body.pv === true && body.slots.main.name === 'Z1'
   && JSON.stringify(body.slots.main.obis) === '{"ht":"1.8.1"}', JSON.stringify(body.slots.main));
 t('Einspeisung ohne eigene Nummer: die von Z1 (Zweirichtungszähler)', body.slots.feed.serial === 'TEST-1');
+const body2 = C.conceptPayload('cascade', { device: 'heat_pump', pv: true, tou: 'all' }, { house: { serial: 'TEST-2' }, feed_house: { name: 'Z2 Einspeisung' } }, {});
+t('Kaskade (v3.10.0): das Einspeisezählwerk von Z2 bekommt dessen Nummer', body2.slots.feed_house.serial === 'TEST-2', JSON.stringify(body2.slots.feed_house));
+const wb2 = C.wizardPayload('cascade', { device: 'heat_pump', pv: true, tou: 'all' }, { house: { meter_ids: { ht: 'h1', nt: 'h2' } }, feed_house: { name: 'Z2 Einspeisung', serial: '' } }, {},
+  { strom: [{ id: 'h1', devices: [{ id: 'd', serial: 'TEST-Z2', removed_on: null }] }] });
+t('… auch vom vorhandenen Zähler Z2 (erstes Zählwerk)', wb2.slots.feed_house.serial === 'TEST-Z2', JSON.stringify(wb2.slots.feed_house));
 t('vorhandener Zähler je Zählwerk, leere Auswahl fällt weg', JSON.stringify(body.slots.house) === '{"meter_ids":{"ht":"c"}}', JSON.stringify(body.slots.house));
 t('Preise mit Komma, Vertrag ohne Eintrag fällt weg (später)', body.contracts.main.ct === 30.5 && body.contracts.main.ct_nt === 20 && !('house' in body.contracts), JSON.stringify(body.contracts));
 
@@ -178,6 +202,14 @@ const cs = [{ meter_id: 's' }, { meter_id: 'b', is_shadow: true }, { meter_group
 t('Subzähler mit eigenem Vertrag ziehen ab, ein Angebot nicht', JSON.stringify(RB.deductingSubNames({ meter_id: 'p' }, ms, cs)) === '["Wärmepumpe"]');
 t('Gruppenvertrag: Subzähler der Mitglieder mit Gruppenvertrag ihrer Gruppe', JSON.stringify(RB.deductingSubNames({ meter_group_id: 'G' }, ms, cs)) === '["Haus HT"]');
 t('Wasser rechnet keinen Rest', RB.deductingSubNames({ meter_id: 'p' }, ms, cs, 'wasser').length === 0);
+// v3.10.0 (#40) — Rest je Zählwerk: HT − HT, NT − NT, ein Zählwerk unter null zählt mit 0
+const regRest = { measured: 400, rest: 150, submeters: [{ meter_id: 'h1', name: 'Haus HT', kwh: 150 }, { meter_id: 'h2', name: 'Haus NT', kwh: 100 }],
+  registers: [{ meter_id: 'g1', name: 'Z1 HT', obis: '1.8.1', measured: 100, deducted: 150, rest: -50, short_kwh: 50 }, { meter_id: 'g2', name: 'Z1 NT', obis: '1.8.2', measured: 300, deducted: 100, rest: 200 }] };
+const rf = RB.restFormula(regRest);
+t('Rest je Zählwerk: abgerechnet 200 kWh (HT 0, NT 200), nicht 150 in Summe', /^200\s?kWh, je Zählwerk HT 0\s?kWh = 100\s?kWh − 150\s?kWh · NT 200\s?kWh = 300\s?kWh − 100\s?kWh$/.test(rf), rf);
+const mr = RB.mergeRestOf([regRest, regRest]);
+t('Monate zusammen: je Zählwerk zusammengezählt', mr.registers.length === 2 && mr.registers[0].rest === -100 && mr.registers[0].short_kwh === 100 && mr.registers[1].measured === 600, JSON.stringify(mr.registers));
+t('ein Zählwerk: Formel wie bisher', /gemessen/.test(RB.restFormula({ measured: 500, rest: 300, submeters: [{ meter_id: 's', name: 'WP', kwh: 200 }] })));
 
 console.log('Assistent');
 const W = await import(`${JS}/components/concept-wizard.js`);

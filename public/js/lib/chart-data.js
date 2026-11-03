@@ -17,6 +17,21 @@ export function daysInMonth(ym) {
   return new Date(y, m, 0).getDate();   // Tag 0 des Folgemonats = letzter Tag
 }
 
+/**
+ * v3.10.0 (Skeptiker N4) — Monatsmittel der Kachel „Kosten“: über die gemessenen Monatsanteile (ein
+ * angebrochener Monat zählt nach seinen Tagen, ganze Monate je 1); aus weniger als vier Wochen keins.
+ * Bis dahin teilte die Kachel durch die Zahl der Monatszeilen („ø 37,40 €/Monat“ aus vier Tagen).
+ * @param {Array<{ym: string, days?: number}>} rows  Monatszeilen
+ * @param {number} cost  Kosten der Zeilen
+ * @returns {number|null}
+ */
+export function perMonthAverage(rows, cost) {
+  const list = Array.isArray(rows) ? rows : [];
+  const days = list.reduce((s, r) => s + (Number(r.days) || 0), 0);
+  const months = list.reduce((s, r) => { const dim = daysInMonth(r.ym); return s + Math.min(1, (Number(r.days) || dim) / dim); }, 0);
+  return days >= 28 && months > 0 ? cost / months : null;
+}
+
 /** Deckt die Monatszeile den Monat nur zum Teil ab (`days` kleiner als der Monat)? */
 export function isPartial(row) {
   const d = Number(row?.days);
@@ -75,6 +90,24 @@ export function yoyTrend(rows, key, { months = 3, minMonths = months, adjustedKe
   const pct = (current - previous) / previous * 100;
   if (!Number.isFinite(pct)) return null;
   return { pct, months: pairs.map(([a]) => a.ym), adjusted, current, previous };
+}
+
+/**
+ * v3.10.0 (Skeptiker M1) — Ab diesem Faktor zeigt die Übersicht statt eines
+ * Prozentpfeils „Ablesung prüfen“: mehr als doppelt bzw. weniger als halb so viel
+ * wie im Vergleichszeitraum. Dieselbe Grenze wie die zweite Stufe der
+ * Ablesungsprüfung (ReadingCheckService::STRONG_RATIO). Ein Haushalt ändert sich
+ * von einem Jahr aufs andere selten so stark; eine falsche Ziffer im Zählerstand
+ * ergibt dagegen schnell das Zehnfache („▲ 1.382 %“). Echte Sprünge (Wärmepumpe,
+ * E-Auto, Auszug) sind selten und ein Fall für die Analyse-Zäsur.
+ */
+export const TREND_CHECK_FACTOR = 2;
+
+/** Ist ein Trend (Prozent gegenüber dem Vergleichszeitraum) so stark, dass eher die Ablesung zu prüfen ist? */
+export function trendNeedsCheck(pct) {
+  if (pct == null || !Number.isFinite(Number(pct))) return false;
+  const ratio = 1 + Number(pct) / 100;
+  return ratio >= TREND_CHECK_FACTOR || ratio <= 1 / TREND_CHECK_FACTOR;
 }
 
 /** Die jüngsten `n` Monatszeilen mit Anfang, Ende und ob der letzte Monat unvollständig ist. */

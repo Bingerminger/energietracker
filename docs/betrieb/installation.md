@@ -23,7 +23,6 @@ genügt ein PHP-fähiger Webserver und ein Browser.
 | PHP-Erweiterungen | `json`, `mbstring` *(optional)* | dito | JSON-Speicher; `iconv` für PDF-Umlaute; `curl` für die Texterkennung (v3.1.0) |
 | Webserver | PHP built-in server | Apache/nginx | Auslieferung |
 | Browser | aktueller Chromium/Firefox/Safari | dito | SPA-Frontend (ES-Module) |
-| Python | — | — | nicht nötig; nur das veraltete `scripts/init_data.py` braucht es (§6) |
 
 Es werden **keine** PHP-Pakete via Composer benötigt. Der PDF-Bericht
 wird von einem eigenen, eingebauten PDF-Writer erzeugt — kein mPDF,
@@ -31,8 +30,8 @@ kein `gd`. `iconv` (Teil der meisten PHP-Distributionen) wird für die
 korrekte Umlaut-Darstellung im PDF genutzt; fehlt es, bleibt der Bericht
 funktionsfähig, Umlaute werden dann vereinfacht.
 
-Bestandsdaten kommen als CSV über die App herein (§6); Python ist dafür
-nicht nötig.
+Bestandsdaten kommen als CSV über die App herein (§6). Python braucht der
+Energietracker nicht, auch nicht im Docker-Image (seit v3.10.0).
 
 ---
 
@@ -182,11 +181,10 @@ Alte Zählerstände kommen am besten als **CSV** in die App: je Zähler über
 Vorschau vor dem Schreiben); Temperaturen unter Einstellungen → Wetterdaten.
 Aus Excel: Blatt als CSV speichern.
 
-> **`scripts/init_data.py` ist veraltet** (seit v2.14.0 so gekennzeichnet,
-> entfällt mit v3.0.0). Das Skript stammt aus v1.0.0: Es kennt nur Gas und
-> Strom, schreibt fest nach `./data` (ohne `ET_DATA_DIR`, also nicht in einen
-> Container) und braucht Python mit `openpyxl`. Bis v2.13 stand hier
-> `init_data.py --help` — das startete den Import.
+> Den alten Excel-Import aus v1.0.0 (ein Python-Skript, seit v2.14.0 als
+> veraltet gekennzeichnet) gibt es seit v3.10.0 nicht mehr. Der CSV-Import
+> kann mehr: alle Verbrauchsarten, eine Vorschau und den Weg in einen
+> Container.
 
 ---
 

@@ -90,15 +90,24 @@ final class ReportLightAndPriceTest extends ServiceTestCase
         $cur = array_values(array_filter($status, fn($c) => !empty($c['is_current'])))[0];
         $next = array_values(array_filter($status, fn($c) => !empty($c['is_future'])))[0];
         self::assertEqualsWithDelta(-60.0, (float)$cur['projected_end_balance'], 1.0, 'Handrechnung laufender Vertrag');
-        // der Folgevertrag trägt einen eigenen Saldo (hier ein Tag Kosten ohne Abschlag, Nachzahlung);
-        // mit 10 € Abschlag ist sein Verhältnis höher als das des laufenden Vertrags
-        self::assertGreaterThan(0.0, (float)$next['projected_end_balance']);
+        // der Folgevertrag beginnt am nächsten Stichtag: Bis v3.9 trug er einen eigenen Saldo (ein Tag
+        // Kosten ohne Abschlag, Nachzahlung, „abgerechnet“ am Tag vor seinem Beginn), dessen Verhältnis
+        // höher war als das des laufenden Vertrags. Seit v3.10.0 hat er keinen erwarteten Saldo, er
+        // rechnet erst Ende 2027 ab; die Ampel nimmt weiter nur den laufenden Vertrag.
+        self::assertNull($next['projected_end_balance']);
+        self::assertSame('2027-12-31', $next['settle_on']);
 
         $m = $this->reportServices()['model']->build(2025, ['today' => '2026-10-15']);
         $light = array_column($m['headline']['lights'], null, 'key')['billing'];
         self::assertSame(['ok', $this->i18n->t('report.light.billing.ok')], [$light['level'], $light['word']]);
-        self::assertSame($this->i18n->t('report.light.billingCredit', ['label' => 'Strom', 'amount' => $this->advice()->approx(abs((float)$cur['projected_end_balance']))]),
+        // v3.10.0 (Skeptiker N12) — mit Breite der sicheren Schätzung die Spanne wie Karte und Satz darunter
+        $band = $cur['projection_band'] ?? null;
+        $word = fn(float $v) => $this->i18n->t($v > 0 ? 'balanceUncertain.due' : 'balanceUncertain.credit', ['amount' => $this->advice()->approx(abs($v))]);
+        self::assertSame($band !== null
+            ? $this->i18n->t('report.light.billingBand', ['label' => 'Strom', 'low' => $word(max($band['low'], $band['high'])), 'high' => $word(min($band['low'], $band['high']))])
+            : $this->i18n->t('report.light.billingCredit', ['label' => 'Strom', 'amount' => $this->advice()->approx(abs((float)$cur['projected_end_balance']))]),
             $light['detail'], 'der Saldo des laufenden Vertrags, nicht der des Folgevertrags');
+        self::assertNotNull($band, 'Strom monatlich abgelesen: Breite aus der Untergrenze');
     }
 
     /**

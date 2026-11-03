@@ -431,7 +431,7 @@ was das Image dafür können muss:
 - `HomeAssistantAppDocsTest` — der Auszug der `config.yaml` in der Anleitung
   ist in DE und EN gleich und passt zum Image: Port (`EXPOSE`, nginx),
   Datenpfad, Image-Name und Plattformen aus `docker-publish.yml`,
-  `init: false` zu supervisord, `HEALTHCHECK` auf `/api/health`; jede
+  `init: false` zum Startskript als PID 1, `HEALTHCHECK` auf `/api/health`; jede
   Variable liest die App, `ET_AUTH` ist ein gültiger Modus.
 - `tests/ha-snippet.test.mjs` — `haBaseUrl()` und `haUrl()`: unter Ingress
   der Hostname der App statt `/api/hassio_ingress/<token>/`, sonst die Adresse
@@ -440,6 +440,23 @@ was das Image dafür können muss:
 - In der CI startet der Docker-Job das Image wie der Supervisor (Umgebung der
   App, Volume `/data`, `options.json` als root vor dem zweiten Start) und
   wartet auf „healthy“.
+
+**Image und Lieferkette (v3.10.0):**
+
+- `ContainerStartTest` — das Startskript `docker/start.sh` (statt supervisord)
+  mit nachgebauten Diensten unter der Shell des Systems (in der CI dash, lokal
+  auch `ET_TEST_SH=/bin/dash`): SIGTERM, SIGINT und SIGQUIT (`docker stop`)
+  beenden beide Dienste schnell mit 0; endet ein Dienst, beendet das Skript
+  den anderen und endet mit Fehlercode. Dazu: kein supervisor und kein Python
+  im Image, ein `CMD` für beide Ziele, `--restart unless-stopped` in jedem
+  `docker run`-Beispiel und in den Vorlagen.
+- `ImageSupplyChainTest` — Signatur per Digest (cosign ohne Schlüssel) beim
+  Release und beim Wochen-Neubau, Scan direkt nach dem Release mit nur
+  behebbaren Befunden, Prüfbefehle in Doku und `SECURITY.md` passend zu den
+  Workflows, PHPUnit bleibt bei 11.
+- In der CI prüft der Docker-Job beide Varianten mit der busybox-Shell des
+  Images: `docker stop` endet in Sekunden mit 0, ein beendetes nginx oder
+  php-fpm beendet den Container mit Fehlercode.
 
 **Viertelstunden und Flexibilität (v3.3.0):**
 

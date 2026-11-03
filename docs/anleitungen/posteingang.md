@@ -166,6 +166,23 @@ Rechnungsdatum, Überschrift wie „Rechnungskorrektur“, auch aus dem Seitenko
 Sie ordnen die Post zeitlich und zeigen eine Korrektur als solche. Fehlen sie,
 ist das keine Marke.
 
+**Rechnungskorrektur** *(seit v3.10.0)*. An der Rechnung liest die App auch die
+Rechnungsnummer und einen Bezug auf eine frühere Rechnung („ersetzt Rechnung
+Nr. …“). Steht für denselben Zähler und genau denselben Zeitraum schon eine
+Rechnung mit anderen Werten da, ist das neue Dokument eine Korrektur, wenn es
+nicht älter ist als die erfasste Fassung und eines zutrifft: Es nennt eine
+frühere Rechnung, es hat eine andere Rechnungsnummer als das Dokument der
+erfassten, es ist später ausgestellt, oder Titel bzw. Dateiname sagen
+„Korrektur“. Dann steht „Rechnungskorrektur … übernehmen: … statt …“ vorab
+angehakt da, mit dem Abzeichen „ersetzt“, und gleich die Kernaussage oben sagt
+es: „Rechnungskorrektur … bis …: Sie ersetzt die erfasste Rechnung, das Ergebnis
+wird … statt …“ (war sie gebucht, auch, dass sich die Buchung mitändert). War die erfasste Rechnung
+schon gebucht, ersetzt „Buchung ersetzen: … statt …“ die alte Sonderzahlung
+durch das neue Ergebnis (bei 0 € entfällt sie). Das frühere Dokument bleibt als
+Beleg an der Rechnung. Ohne eines dieser Zeichen bleibt es ein Widerspruch, den
+du selbst anhakst. Im Entwurf „Haushalt aus Dokumenten“ ersetzt eine Korrektur
+die Erstfassung schon seit v3.7.0.
+
 Die Marken richten sich nach dem, was heute in der App steht, und gelten auch
 für Dokumente, die du vor diesem Stand ausgelesen hast. Nur die Belegstellen
 prüft die App beim Auslesen: Eine frühere Auslesung behält ihre Prüfung der
@@ -226,7 +243,14 @@ angehakt, und darunter steht der Nachbar („Liegt unter deinem Stand … vom �
 Steht derselbe Wert schon an einem früheren Tag im Abrechnungszeitraum und der
 Stand der Rechnung am letzten Tag des Zeitraums, ist das dein gemeldeter Stand,
 den der Versorger auf das Zeitraumende datiert: „schon vorhanden“, und „Rechnung
-prüfen“ rechnet die Menge bis zu deinem Ablesetag. Ein Stand, den das Dokument
+prüfen“ rechnet die Menge bis zu deinem Ablesetag. *(seit v3.10.0)* Ebenso der
+Anfangsstand einer Rechnung: Ist derselbe Stand dein letzter davor und liegt er
+höchstens drei Tage vor dem Tag der Rechnung (etwa die Jahresablesung am Vortag
+des Periodenbeginns), ist er „schon vorhanden“ („Dein Stand vom … ist
+derselbe“), ohne Zählertausch dazwischen; es entsteht kein zweiter Stand mit 0
+Verbrauch. Drei Tage, weil „Rechnung prüfen“ ohne Stand am Periodenbeginn die
+Tage dazwischen gleichmäßig verteilt: Bei einer Jahresrechnung sind das
+höchstens 3 von 365 Tagen, unter der Toleranz von 1 %. Ein Stand, den das Dokument
 auf weniger Stellen druckt, ist derselbe wie deiner, wenn deiner auf diese
 Stellen gerundet oder abgeschnitten passt (29.310 im Dokument, 29.310,2 bei dir;
 26.845 im Dokument, 26.845,5 bei dir). Gekürzt wird nur dein Stand: Hat das
@@ -758,6 +782,15 @@ ihnen offenstehen.
 | Leitet weiter | die Adresse eintragen, auf die weitergeleitet wird |
 | Antwort unvollständig | noch einmal; bei sehr langen Dokumenten hilft ein kürzeres PDF |
 | Liste nicht geladen | den Namen des Modells von Hand eintragen, so wie der Dienst ihn nennt |
+
+Seit v3.10.0 erscheint eine Absage des Diensts nur mit ihrem Grund, nicht mehr
+zusätzlich als „Interner Fehler“ mit Verweis aufs Server-Log
+([#41](https://github.com/Bingerminger/energietracker/issues/41)). Neuere
+Modelle mancher OpenAI-kompatibler Dienste nehmen nur ihre eigene Temperatur
+und statt `max_tokens` nur `max_completion_tokens`. Lehnt der Dienst deshalb
+ab und nennt den Parameter in seiner Antwort (`error.param`), fragt die App
+**einmal** ohne Temperatur bzw. mit `max_completion_tokens` nach. Dienste, die
+beides nehmen, bekommen dieselbe Anfrage wie bisher.
 
 Was jeder Dienst sieht und wie die Verbindung geprüft wird:
 [Sicherheit & Netzbetrieb](../betrieb/sicherheit.md#auslesen-in-der-cloud-v370).

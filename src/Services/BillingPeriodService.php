@@ -74,6 +74,22 @@ final class BillingPeriodService
      */
     public const SWITCH_PERIOD_MAX_DAYS = 400;
 
+    /**
+     * v3.10.0 (GitHub #36) — Trend im Abrechnungsjahr erst ab so vielen Tagen der
+     * Periode: Bei wenigen Tagen entscheidet der Ablesetag über den Prozentwert.
+     */
+    public const SAME_SPAN_MIN_DAYS = 14;
+
+    /**
+     * v3.10.0 (GitHub #36) — Die Periode davor dient als Vergleich, wenn sie
+     * höchstens so viele Tage neben „ein Jahr früher“ beginnt (Rechnungen
+     * schwanken um ein paar Tage, wie BillExpectedService::TOLERANCE_DAYS).
+     * Beginnt sie deutlich anders, etwa nach einem Lieferantenwechsel mitten im
+     * Jahr, lägen dieselben Tage in einer anderen Jahreszeit; dann vergleicht der
+     * Pfeil dieselben Kalendertage ein Jahr früher (sameSpan, `basis` = `calendar`).
+     */
+    public const SAME_SPAN_ALIGN_DAYS = 31;
+
     public function __construct(
         private SettingsService $settings,
         private MeterService $meters,
@@ -273,6 +289,13 @@ final class BillingPeriodService
             if ($withMonths) $p['months'] = $this->months($utility, $meters, $monthly, $p['from'], $toExcl, $starts);
         }
         unset($p);
+        // v3.10.0 (GitHub #36) — die jüngste Periode mit Daten (die der Übersicht) gegen dieselbe
+        // Spanne der Periode davor; dieselben Bausteine, solange money/measured noch gelten
+        $last = null;
+        foreach ($periods as $i => $p) if ((int)($p['days'] ?? 0) > 0) $last = $i;
+        if ($last !== null) {
+            $periods[$last]['prev_same_span'] = $this->sameSpan($utility, $meters, $monthly, $periods[$last], $periods[$last - 1] ?? null, $starts, $start);
+        }
         $this->money = [];
         $this->measured = false;
         $out['periods'] = $periods;
@@ -588,6 +611,71 @@ final class BillingPeriodService
             }
         }
         return array_map(fn($v) => round($v, 2), $s);
+    }
+
+    /**
+     * v3.10.0 (GitHub #36) — Vergleich im Abrechnungsjahr: dieselbe Spanne der
+     * Periode davor, gleich viele Tage ab ihrem Beginn. Die laufende Periode zählt
+     * bis zur letzten Ablesung (`as_of`), verglichen wird also mit denselben Tagen
+     * ein Abrechnungsjahr früher, nicht mit dem ganzen Vorjahr. Ist die Periode bis
+     * zu ihrem Ende gerechnet, steht die ganze Periode davor gegenüber.
+     *
+     * Fehlt dieser faire Vergleich, weil es keine Periode davor gibt, weil sie
+     * nur ein Teil ist (Beginn der Daten), weil sie nicht etwa ein Jahr früher
+     * beginnt (SAME_SPAN_ALIGN_DAYS, etwa nach einem Lieferantenwechsel mitten
+     * im Jahr) oder weil sie kürzer ist als die Spanne, vergleicht der Pfeil
+     * dieselben Kalendertage ein Jahr früher (`basis` = `calendar`, sonst
+     * `period`), unabhängig von Perioden und Lieferant. Kein Vergleich (null),
+     * wenn die Spanne kürzer ist als SAME_SPAN_MIN_DAYS oder die Daten erst nach
+     * dem Beginn dieser Kalendertage anfangen.
+     *
+     * @param array<string,mixed>      $p
+     * @param array<string,mixed>|null $prev
+     * @param array<string,string>     $starts
+     * @param string|null              $dataFrom erster Tag mit Daten (nach einer Zäsur deren Tag)
+     * @return array<string,mixed>|null von, bis (einschließlich), Tage, ganz?, Grundlage, Menge, Kosten, Bonus, Preis fehlt
+     */
+    private function sameSpan(string $utility, array $meters, array $monthly, array $p, ?array $prev, array $starts, ?string $dataFrom): ?array
+    {
+        $n = (int)($p['days'] ?? 0);
+        if ($p['as_of'] === null || $n < self::SAME_SPAN_MIN_DAYS) return null;
+        $whole = $p['as_of'] >= $p['until'];
+        $from = null; $toExcl = null; $basis = 'period';
+        if ($prev !== null && !empty($prev['complete'])
+            && abs(self::days(self::yearEarlier((string)$p['from']), (string)$prev['from'])) <= self::SAME_SPAN_ALIGN_DAYS) {
+            $prevEnd = self::addDays((string)$prev['until'], 1);
+            if ($whole || self::days((string)$prev['from'], $prevEnd) >= $n) {
+                $from = (string)$prev['from'];
+                $toExcl = $whole ? $prevEnd : self::addDays($from, $n);
+            }
+        }
+        if ($from === null) {
+            // v3.10.0 (Nachtrag #36) — Rückfall: dieselben Kalendertage ein Jahr früher
+            $from = self::yearEarlier((string)$p['from']);
+            if ($dataFrom === null || $dataFrom > $from) return null;
+            $toExcl = self::addDays(self::yearEarlier((string)($whole ? $p['until'] : $p['as_of'])), 1);
+            $basis = 'calendar';
+        }
+        $s = $this->sums($utility, $meters, $monthly, $from, $toExcl, $starts);
+        $qk = $utility === 'wasser' ? 'm3' : 'kwh';
+        return ['from' => $from, 'until' => self::addDays($toExcl, -1), 'whole' => $whole, 'basis' => $basis]
+            + array_intersect_key($s, array_flip(['days', $qk, 'measured_kwh', 'm3', 'cost', 'bonus', 'price_missing']));
+    }
+
+    /**
+     * v3.10.0 (Nachtrag #36) — Dasselbe Kalenderdatum ein Jahr früher. Den
+     * 29. Februar gibt es dann nicht: Er wird zum 28. Februar (PHPs
+     * `modify('-1 year')` machte daraus den 1. März, Lektion 26). Eine Spanne
+     * über den 29. Februar ist ein Jahr früher deshalb einen Tag kürzer, eine
+     * Spanne über den 28. Februar eines Schaltjahrs davor einen Tag länger:
+     * verglichen werden dieselben Kalendertage.
+     */
+    public static function yearEarlier(string $date): string
+    {
+        [$y, $m, $d] = array_map('intval', explode('-', $date));
+        $y--;
+        $d = min($d, (int)date('t', mktime(12, 0, 0, $m, 1, $y)));
+        return sprintf('%04d-%02d-%02d', $y, $m, $d);
     }
 
     /**

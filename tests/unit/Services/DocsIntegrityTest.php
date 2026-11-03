@@ -30,7 +30,8 @@ final class DocsIntegrityTest extends TestCase
         $root = self::root();
         $files = [];
         foreach (['README.md', 'README.de.md', 'INSTALL.md', 'INSTALL.de.md', 'CHANGELOG.md', 'SECURITY.md',
-                  'CONTRIBUTING.md', 'CONTRIBUTING.de.md', 'roadmap.md', 'demo-data/README.md', 'tests/README.md'] as $f) {
+                  'CONTRIBUTING.md', 'CONTRIBUTING.de.md', 'roadmap.md', 'demo-data/README.md', 'tests/README.md',
+                  'AGENTS.md', 'TRADEMARKS.md'] as $f) {
             if (is_file("$root/$f")) $files[] = $f;
         }
         $it = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator("$root/docs", \FilesystemIterator::SKIP_DOTS));

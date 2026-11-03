@@ -15,7 +15,9 @@ use Energietracker\Support\LocalizedException;
  *
  * Der Dienst bekommt nur die Textebene, die der Browser aus dem PDF liest;
  * Belegstellen liefert das Modell als Zitat mit, der Posteingang prüft sie
- * gegen den Text. `temperature: 0`, Antwort als JSON-Objekt.
+ * gegen den Text. `temperature: 0`, Antwort als JSON-Objekt. v3.10.0 (#41):
+ * Lehnt ein Modell `temperature` oder `max_tokens` ab, einmal ohne bzw. mit
+ * `max_completion_tokens` (send()).
  */
 final class OpenAiCompatibleProvider implements ExtractionProvider
 {
@@ -31,6 +33,14 @@ final class OpenAiCompatibleProvider implements ExtractionProvider
     private $resolver;
     /** @var array<string,string> */
     private array $types = CloudPrompt::DEFAULT_TYPES;
+    /**
+     * v3.10.0 (#41) — gelernt aus einer Absage des Diensts (400 mit
+     * `error.param`): ohne `temperature` bzw. das Budget als
+     * `max_completion_tokens`. Gilt für diese Instanz, also eine Anfrage an
+     * den Energietracker (Art und Felder eines Dokuments fragen nur einmal).
+     */
+    private bool $sendTemperature = true;
+    private string $budgetParam = 'max_tokens';
 
     public function __construct(
         private CloudConfig $config,
@@ -137,23 +147,23 @@ final class OpenAiCompatibleProvider implements ExtractionProvider
         $timeout = $this->config->timeout();
         $request = fn(?int $maxTokens): string => (string)json_encode([
             'model' => $model,
-            'temperature' => 0,
+        ] + ($this->sendTemperature ? ['temperature' => 0] : []) + [
             'response_format' => ['type' => 'json_object'],
             'messages' => [
                 ['role' => 'system', 'content' => CloudPrompt::SYSTEM],
                 ['role' => 'user', 'content' => $prompt . "\n\n<document>\n" . $text . "\n</document>"],
             ],
-        ] + ($maxTokens !== null ? ['max_tokens' => $maxTokens] : []), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
+        ] + ($maxTokens !== null ? [$this->budgetParam => $maxTokens] : []), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
         $headers = ['Content-Type: application/json', 'Authorization: Bearer ' . $key];
         $t0 = hrtime(true);
-        $resp = ($this->transport)($url, $headers, $request(null), $timeout, $ip);
+        $resp = $this->send($url, $headers, $request, null, $timeout, $ip, $t0);
         if (!$resp['ok']) CloudHttp::fail($resp, $timeout, $this->destination(), $key);
         $json = json_decode((string)$resp['body'], true);
         // v3.7.0 (treffsicher, Nachbesserung 5) — am Antwortbudget abgeschnitten (`length`): einmal mit
         // ausdrücklich großem Budget, in der übrigen Zeit des Zeitlimits; dann erst die Meldung „unvollständig“
         $left = $timeout - (int)ceil((hrtime(true) - $t0) / 1e9);
         if (is_array($json) && ($json['choices'][0]['finish_reason'] ?? '') === 'length' && $left >= self::RETRY_MIN_SECONDS) {
-            $resp = ($this->transport)($url, $headers, $request(self::RETRY_MAX_TOKENS), $left, $ip);
+            $resp = $this->send($url, $headers, $request, self::RETRY_MAX_TOKENS, $left, $ip, hrtime(true));
             if (!$resp['ok']) CloudHttp::fail($resp, $left, $this->destination(), $key);
             $json = json_decode((string)$resp['body'], true);
         }
@@ -168,5 +178,46 @@ final class OpenAiCompatibleProvider implements ExtractionProvider
         $content = (string)($choice['message']['content'] ?? '');
         if (trim($content) === '') throw new HttpStatusException(502, 'errors.inboxCloud.badAnswer', [], [], 'openai answer without content');
         return ['content' => $content, 'model' => is_string($json['model'] ?? null) && $json['model'] !== '' ? $json['model'] : $model, 'seconds' => $seconds];
+    }
+
+    /**
+     * v3.10.0 (#41) — eine Anfrage. Neuere Modelle nehmen nur ihre
+     * Standard-Temperatur und statt `max_tokens` nur `max_completion_tokens`;
+     * sie antworten mit 400 und nennen den Parameter in `error.param`. Dann
+     * einmal angepasst wiederholen, in der übrigen Zeit. Entschieden wird am
+     * Feld der Antwort, nie am Meldungstext und ohne Liste von Modellnamen;
+     * ein Dienst, der beide Parameter nimmt, bekommt dieselbe Anfrage wie bisher.
+     *
+     * @param list<string> $headers
+     * @param callable(?int): string $request
+     * @return array{ok:bool, status:?int, body:?string, error:?string}
+     */
+    private function send(string $url, array $headers, callable $request, ?int $maxTokens, int $timeout, ?string $ip, int|float $t0): array
+    {
+        $resp = ($this->transport)($url, $headers, $request($maxTokens), $timeout, $ip);
+        $param = $resp['ok'] ? null : self::rejectedParam($resp);
+        if ($param === 'temperature' && $this->sendTemperature) {
+            $this->sendTemperature = false;
+        } elseif ($param === 'max_tokens' && $maxTokens !== null && $this->budgetParam === 'max_tokens') {
+            $this->budgetParam = 'max_completion_tokens';
+        } else {
+            return $resp;
+        }
+        $left = $timeout - (int)ceil((hrtime(true) - $t0) / 1e9);
+        return $left >= 1 ? ($this->transport)($url, $headers, $request($maxTokens), $left, $ip) : $resp;
+    }
+
+    /**
+     * v3.10.0 (#41) — welchen Parameter der Dienst ablehnt: `error.param` einer
+     * Antwort mit 400 (Form der OpenAI-Schnittstelle), sonst null.
+     *
+     * @param array{status?:?int, body?:?string} $resp
+     */
+    public static function rejectedParam(array $resp): ?string
+    {
+        if ((int)($resp['status'] ?? 0) !== 400) return null;
+        $j = json_decode((string)($resp['body'] ?? ''), true);
+        $param = is_array($j) && is_array($j['error'] ?? null) ? ($j['error']['param'] ?? null) : null;
+        return is_string($param) && $param !== '' ? $param : null;
     }
 }

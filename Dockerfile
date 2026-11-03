@@ -1,6 +1,7 @@
 # Energietracker — Single-Container-Image (N1005, v1.7.3).
 #
-# nginx + php-fpm in einem Image, von supervisord zusammengehalten.
+# nginx + php-fpm in einem Image, gestartet von docker/start.sh (v3.10.0;
+# bis v3.9 hielt supervisord beide zusammen und brachte python3 mit).
 # Bewusst ein Container für einen reibungslosen Self-Hosting-Start:
 #   docker run -p 8080:80 -v ./data:/data ghcr.io/bingerminger/energietracker
 #
@@ -20,23 +21,24 @@ LABEL org.opencontainers.image.title="Energietracker" \
       org.opencontainers.image.licenses="AGPL-3.0-or-later" \
       org.opencontainers.image.source="https://github.com/Bingerminger/energietracker"
 
-# nginx + supervisor für den Single-Container-Betrieb; OPcache ist im Image
-# enthalten und wird nur eingeschaltet (v2.6.0). v3.4.0 — ab PHP 8.5 ist
-# OPcache fest eingebaut; docker-php-ext-enable scheiterte dort, deshalb nur,
-# wenn es noch nicht geladen ist.
-RUN apk add --no-cache nginx supervisor \
+# nginx für den Single-Container-Betrieb; OPcache ist im Image enthalten und
+# wird nur eingeschaltet (v2.6.0). v3.4.0 — ab PHP 8.5 ist OPcache fest
+# eingebaut; docker-php-ext-enable scheiterte dort, deshalb nur, wenn es noch
+# nicht geladen ist. v3.10.0 — kein supervisor mehr (und damit kein python3):
+# weniger Pakete, weniger Befunde im Scan.
+RUN apk add --no-cache nginx \
     && if ! php -r 'exit(extension_loaded("Zend OPcache") ? 0 : 1);'; then docker-php-ext-enable opcache; fi
 
 WORKDIR /app
 
 # Laufzeit-Konfiguration zuerst (bessere Layer-Caches).
 COPY docker/nginx.conf       /etc/nginx/nginx.conf
-COPY docker/supervisord.conf /etc/supervisord.conf
 COPY docker/php-fpm-app.conf /usr/local/etc/php-fpm.d/zz-app.conf
 # v3.4.0 (N1020) — php-fpm nur auf 127.0.0.1 (lädt nach zz-docker.conf des Basis-Images)
 COPY docker/php-fpm-listen.conf /usr/local/etc/php-fpm.d/zzz-energietracker.conf
 COPY docker/php.ini          /usr/local/etc/php/conf.d/zz-energietracker.ini
 COPY docker/entrypoint.sh    /usr/local/bin/entrypoint.sh
+COPY docker/start.sh         /usr/local/bin/start.sh
 
 # Anwendungscode (Dev-/VCS-Ballast hält .dockerignore raus).
 COPY . /app
@@ -44,7 +46,7 @@ COPY . /app
 # v2.6.0 — Der Code gehört root und ist für PHP nur lesbar; schreibbar ist
 # allein /data. Bis v2.5.3 gehörte /app www-data — PHP hätte den eigenen Code
 # überschreiben können.
-RUN chmod +x /usr/local/bin/entrypoint.sh \
+RUN chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/start.sh \
     && chown -R root:root /app \
     && chmod -R a+rX,go-w /app
 
@@ -53,8 +55,13 @@ ENV ET_DATA_DIR=/data \
     ET_LOG_DEST=stderr \
     ET_LOG_LEVEL=info
 
+# entrypoint.sh übergibt mit exec an start.sh: Das Startskript ist PID 1,
+# reicht das Stoppsignal (SIGQUIT von `docker stop`, STOPSIGNAL des
+# Basis-Images; SIGTERM, SIGINT) an php-fpm und nginx weiter und beendet den
+# Container, sobald einer der beiden Dienste endet (Neustart über die
+# restart-Policy).
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
-CMD ["supervisord", "-c", "/etc/supervisord.conf"]
+CMD ["/usr/local/bin/start.sh"]
 
 
 # ─── Variante ohne root (N1024, v3.5.0) ─────────────────────────────────────
@@ -72,13 +79,14 @@ CMD ["supervisord", "-c", "/etc/supervisord.conf"]
 # `read_only: true` als tmpfs.
 FROM base AS rootless
 
-# nginx und supervisord: dieselben Dateien wie im Standard-Image, nur Port
-# 8080, PID-Dateien und Zwischenspeicher unter /tmp, kein Benutzerwechsel.
-# Abgeleitet statt kopiert, damit die Sperrregeln (data/, src/, Doku …) nicht
-# auseinanderlaufen. Greift eine Ersetzung nicht, bricht der Bau ab (grep);
-# RootlessImageTest prüft dieselben Ersetzungen an den Dateien im Repo.
-# `nginx -e`: das Fehlerprotokoll schon vor dem Lesen der Konfiguration nach
-# stderr — der eingebaute Pfad unter /var/lib/nginx gehört dem Benutzer nginx.
+# nginx: dieselbe Datei wie im Standard-Image, nur Port 8080, PID-Datei und
+# Zwischenspeicher unter /tmp. Abgeleitet statt kopiert, damit die Sperrregeln
+# (data/, src/, Doku …) nicht auseinanderlaufen. Greift eine Ersetzung nicht,
+# bricht der Bau ab (grep); RootlessImageTest prüft dieselben Ersetzungen an
+# den Dateien im Repo. Das Startskript (start.sh) ist in beiden Varianten
+# dasselbe: `nginx -e /dev/stderr` schreibt das Fehlerprotokoll schon vor dem
+# Lesen der Konfiguration nach stderr — der eingebaute Pfad unter
+# /var/lib/nginx gehört dem Benutzer nginx.
 # php-fpm: ohne root sind `user`/`group` des Pools wirkungslos (nur Hinweise
 # im Log) — entfernt.
 COPY docker/nginx-rootless.conf /etc/nginx/energietracker-rootless.conf
@@ -87,19 +95,11 @@ RUN sed -i \
         -e 's|^http {$|http { include /etc/nginx/energietracker-rootless.conf;|' \
         -e 's|^        listen 80 default_server;$|        listen 8080 default_server;|' \
         /etc/nginx/nginx.conf \
-    && sed -i \
-        -e '/^user=root$/d' \
-        -e 's|^pidfile=/run/supervisord\.pid$|pidfile=/tmp/supervisord.pid|' \
-        -e 's|^command=nginx -g "daemon off;"$|command=nginx -e /dev/stderr -g "daemon off;"|' \
-        /etc/supervisord.conf \
     && sed -i -e '/^user = /d' -e '/^group = /d' /usr/local/etc/php-fpm.d/www.conf \
     && grep -qx 'pid /tmp/nginx.pid;' /etc/nginx/nginx.conf \
     && grep -qx 'http { include /etc/nginx/energietracker-rootless.conf;' /etc/nginx/nginx.conf \
     && grep -qx '        listen 8080 default_server;' /etc/nginx/nginx.conf \
     && ! grep -q 'listen 80 ' /etc/nginx/nginx.conf \
-    && ! grep -q '^user=' /etc/supervisord.conf \
-    && grep -qx 'pidfile=/tmp/supervisord.pid' /etc/supervisord.conf \
-    && grep -qx 'command=nginx -e /dev/stderr -g "daemon off;"' /etc/supervisord.conf \
     && mkdir -p /data \
     && chown 10001:0 /data \
     && chmod 775 /data

@@ -5,6 +5,7 @@ namespace Energietracker\Services;
 
 use Energietracker\Storage\JsonStore;
 use Energietracker\Support\LocalizedException;
+use Energietracker\Support\HomeTls;
 use Energietracker\Support\Outbound;
 
 /**
@@ -102,6 +103,7 @@ final class EvccService
         $url = $base . '/api/sessions';
         $ip = $this->checkLocal($url);
         $r = ($this->transport)($url, 30, $ip);
+        if (!$r['ok']) HomeTls::throwIfCertificate($r, $url);   // v3.10.0 (#36)
         if (!$r['ok']) throw new LocalizedException('errors.evcc.unreachable', ['code' => (string)($r['http_code'] ?? $r['error_code'] ?? '')], 'evcc unreachable');
         $json = json_decode((string)$r['body'], true);
         if (is_array($json) && isset($json['result']) && is_array($json['result'])) $json = $json['result'];   // ältere evcc: {result: […]}
@@ -401,11 +403,17 @@ final class EvccService
         if ($ip !== null && !filter_var($host, FILTER_VALIDATE_IP)) {
             $opts[CURLOPT_RESOLVE] = [$host . ':' . $port . ':' . (str_contains($ip, ':') ? "[$ip]" : $ip)];
         }
+        // v3.10.0 (#36) — eigenes Stammzertifikat bzw. „nicht prüfen“ (nur Heimnetz)
+        $opts += HomeTls::curlOptions($ip, $host);
         curl_setopt_array($ch, $opts);
         curl_exec($ch);
         $errno = curl_errno($ch);
         $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        if ($errno) return ['ok' => false, 'body' => null, 'http_code' => null, 'error_code' => $errno === CURLE_OPERATION_TIMEDOUT ? 'timeout' : 'network'];
+        if ($errno) {
+            $error = $errno === CURLE_OPERATION_TIMEDOUT ? 'timeout'
+                : (HomeTls::certError($errno, (int)curl_getinfo($ch, CURLINFO_SSL_VERIFYRESULT)) ?? 'network');
+            return ['ok' => false, 'body' => null, 'http_code' => null, 'error_code' => $error];
+        }
         if ($code < 200 || $code >= 300) return ['ok' => false, 'body' => is_string($body) ? $body : null, 'http_code' => $code, 'error_code' => 'http'];
         return ['ok' => true, 'body' => (string)$body, 'http_code' => $code, 'error_code' => null];
     }

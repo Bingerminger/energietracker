@@ -78,7 +78,9 @@ const freePort = () => new Promise((res, rej) => {
   // Kein Wetterabgleich beim Start (ginge ins Netz)
   const settingsFile = join(dataDir, 'settings.json');
   const settings = JSON.parse(readFileSync(settingsFile, 'utf8'));
-  writeFileSync(settingsFile, JSON.stringify({ ...settings, weather_auto_fill: false, setup_pending: false, ui_level: 'expert' }));
+  // v3.10.0 — mehrzeiliges Feld (Stammzertifikat): ein Wert, der das Textfeld schließen will
+  writeFileSync(settingsFile, JSON.stringify({ ...settings, weather_auto_fill: false, setup_pending: false, ui_level: 'expert',
+    home_ca_pem: `</textarea>${PAYLOAD}` }));
 
   const port = await freePort();
   const proc = spawn('php', ['-S', `127.0.0.1:${port}`, 'router.php'], {

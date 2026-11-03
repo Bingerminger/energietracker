@@ -115,6 +115,16 @@ export function haRestSensorYaml(baseUrl, meters) {
         `        value_template: ${q(pick(m.key, 'contract.balance'))}`,
         '        device_class: monetary',
         '        unit_of_measurement: "EUR"',
+        // v3.10.0 (Nachtrag) — Attribute aus dem Vertrag dieses Zählers: erwarteter Saldo des
+        // Vertrags (wie bisher) und die Summe, wenn eine Abrechnung mehrere Verträge abrechnet
+        `        json_attributes_path: ${q(`$.data.meters[?(@.key == '${key(m.key)}')].contract`)}`,
+        '        json_attributes:',
+        '          - projected_end_balance',
+        '          - projected_end_balance_total',
+        // v3.10.0 (Skeptiker M3, N9) — Spanne, wo die Karte nur sie zeigt; gemessener Saldo zur letzten Ablesung
+        '          - projected_end_range_total',
+        '          - measured_balance',
+        '          - measured_until',
       );
     }
     lines.push(
@@ -137,6 +147,8 @@ export function haRestSensorYaml(baseUrl, meters) {
  * v3.9.0 (F1033) — Sensor „Zu tun“ auf `GET /api/todo`: Anzahl (mit den
  * Punkten als Attribut), nächster Punkt und sein Datum. Ohne fälligen Punkt
  * zeigt der zweite „-“, der dritte „unbekannt“.
+ * v3.10.0 (#36) — auch das Kommende: Attribute `soon` (bald fällig) und
+ * `next_upcoming`, dazu der nächste Termin und sein Datum (noch nicht fällig).
  *
  * @param {string} baseUrl
  */
@@ -154,6 +166,8 @@ export function haTodoSensorYaml(baseUrl) {
     '        json_attributes_path: "$.data"',
     '        json_attributes:',
     '          - overdue',
+    '          - soon',
+    '          - next_upcoming',
     '          - items',
     `      - name: ${q(t('settings.ha.yaml.todoNextName'))}`,
     '        unique_id: energietracker_todo_next',
@@ -161,6 +175,13 @@ export function haTodoSensorYaml(baseUrl) {
     `      - name: ${q(t('settings.ha.yaml.todoDateName'))}`,
     '        unique_id: energietracker_todo_next_date',
     '        value_template: "{{ value_json.data.next.date if value_json.data.next else none }}"',
+    '        device_class: date',
+    `      - name: ${q(t('settings.ha.yaml.todoUpcomingName'))}`,
+    '        unique_id: energietracker_todo_upcoming',
+    `        value_template: "{{ value_json.data.next_upcoming.title if value_json.data.next_upcoming else '-' }}"`,
+    `      - name: ${q(t('settings.ha.yaml.todoUpcomingDateName'))}`,
+    '        unique_id: energietracker_todo_upcoming_date',
+    '        value_template: "{{ value_json.data.next_upcoming.date if value_json.data.next_upcoming else none }}"',
     '        device_class: date',
   ].join('\n');
 }

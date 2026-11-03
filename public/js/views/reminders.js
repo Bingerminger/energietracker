@@ -13,6 +13,7 @@ import { emptyHtml } from '../lib/empty.js';   // v3.9.0 — einheitlicher Leerz
 import { ingressHost, haUrl } from '../lib/ha-snippet.js';
 // v3.4.0 (F1024) — Erledigt mit Verlauf
 import { openDoneDialog } from '../components/done-dialog.js';
+import { offerThanks, doneInTime } from '../lib/thanks.js';   // v3.10.0 — Danke sagen
 import { whenWho } from '../lib/activity.js';
 // v3.5.0 (F1028) — Zuständig: Chip, Filter, Auswahl im Dialog
 import { ownAssigneeOf, assigneeNames, anyAssigned, chipHtml, filterHtml, bindFilter, filterNoteHtml,
@@ -111,9 +112,12 @@ async function draw(container) {
     b.addEventListener('click', async () => {
       const prev = list.find(r => r.id === b.dataset.done);
       const title = prev?.title || '';
+      let doneOn = null;
       // v3.4.0 (F1024) — kleiner Dialog: Datum (rückdatierbar), Notiz, Beleg; ein Eintrag im Verlauf
-      const res = await openDoneDialog({ title, submit: (v) => api.reminderDone(prev.id, v.done_on,
-        { note: v.note, attachmentId: v.attachment_id }) });
+      const res = await openDoneDialog({ title, submit: (v) => {
+        doneOn = v.done_on;
+        return api.reminderDone(prev.id, v.done_on, { note: v.note, attachmentId: v.attachment_id });
+      } });
       if (!res) return;
       // v2.12.0 (Review UI-22) — mit Namen, nächstem Termin und „Rückgängig"
       const msg = res?.active === false
@@ -133,6 +137,8 @@ async function draw(container) {
       });
       badgesChanged();
       await draw(container);
+      // v3.10.0 — vor dem Fälligkeitstag erledigt: Danke-Hinweis unter der Überschrift
+      if (doneInTime(prev?.next_due, doneOn)) offerThanks(container.querySelector('.view-header'), 'deadline', { where: 'after' });
     }));
   container.querySelectorAll('[data-del]').forEach(b =>
     b.addEventListener('click', async () => {

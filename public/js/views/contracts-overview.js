@@ -18,7 +18,7 @@ import { t, tp } from '../lib/i18n.js';
 // v3.4.0 (F1024) — Folgevertrag und Verlauf je Vertrag
 import { openModal } from '../components/modal.js';
 import { entryTitle, reasonText, whenWho } from '../lib/activity.js';
-import { uncertainRangeText } from '../lib/semantics.js';   // v3.7.0 (Nachlauf)
+import { uncertainRangeText, expectedBalance, bandText } from '../lib/semantics.js';   // v3.7.0 (Nachlauf)
 import { advanceAmountText } from '../lib/advance-rhythm.js';   // v3.9.0 (F1034) — Abschlag mit Rhythmus
 import { restNoteText } from '../lib/rest-billing.js';   // v3.9.0 (Skeptiker N7) — Rest-Abrechnung am Elternvertrag
 // v3.7.0 — Zuständig: Vertrag, sonst Zähler; Filter wie in „Zu tun“ (je Gerät gemerkt)
@@ -240,20 +240,24 @@ function meterBlock(u, meter, contracts, showMeter, who = {}, group = null, mete
       : t('contractsOverview.advance', { amount: fmt.eur(c.current_advance_amount) })));
   }
 
-  const verdict = c.verdict;
+  // v3.10.0 — dieselbe Quelle wie die Saldo-Karte (expectedBalance): Summe einer Abrechnung über
+  // mehrere Verträge, Spanne bzw. Breite der Schätzung
+  const exp = expectedBalance(c);
+  const verdict = c.settle_verdict || c.verdict;
   const good = verdict === 'refund' || verdict === 'payout';
   const bad = verdict === 'surcharge' || verdict === 'reclaim';
   // v3.7.0 (Nachlauf vor dem Release) — unsichere Schätzung: die Spanne der Saldo-Karte statt eines Betrags
-  const expected = c.projected_end_balance != null && c.projection_uncertain
+  const expected = exp && exp.unc
     ? `<div class="contract-overview__expected" data-role="expected-range">
         ${escapeHtml(t('contractsOverview.expected', { date: fmt.date(c.settle_on || c.effective_end) }))}
-        <strong>${escapeHtml(uncertainRangeText(c.projection_uncertain))}</strong> <span class="muted">(${escapeHtml(t('balanceUncertain.verdict'))})</span>
+        <strong>${escapeHtml(uncertainRangeText(exp.unc))}</strong> <span class="muted">(${escapeHtml(t('balanceUncertain.verdict'))})</span>
       </div>`
-    : c.projected_end_balance != null && verdict
+    : exp && verdict
     ? `<div class="contract-overview__expected">
         ${escapeHtml(t('contractsOverview.expected', { date: fmt.date(c.settle_on || c.effective_end) }))}
         <strong class="${good ? 'success-text' : bad ? 'danger-text' : ''}">${escapeHtml(t('utility.verdict.' + verdict))} ${
-          verdict === 'balanced' ? '' : fmt.eur(Math.abs(c.projected_end_balance))}</strong>
+          verdict === 'balanced' ? '' : exp.band ? `≈ ${fmt.eur0(Math.abs(exp.value))}` : fmt.eur(Math.abs(exp.value))}</strong>
+        ${exp.band ? `<span class="muted small" data-role="expected-band">${escapeHtml(bandText(exp.band))}</span>` : ''}
       </div>`
     : '';
   // v3.9.0 (Skeptiker M7) — passt der Stichtag nicht zur letzten Rechnung: derselbe Hinweis wie an der Karte

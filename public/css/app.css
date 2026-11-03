@@ -303,6 +303,9 @@ html[data-level="advanced"] [data-min-level="expert"] { display: none !important
   display: flex; align-items: center; justify-content: center;
   height: 240px; color: var(--text-3); font-style: italic;
 }
+/* v3.10.0 (GitHub #36) — Neuzeichnen am Ort (router.js holdInPlace): der neue Inhalt
+   entsteht unter dem alten, ohne Höhe und unsichtbar, aber in voller Breite */
+.view-host--pending { height: 0; overflow: hidden; visibility: hidden; }
 
 /* ── View header (title + subtitle + actions) ───────────────────── */
 .view-header {

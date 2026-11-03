@@ -29,6 +29,7 @@ import { resultCardHtml } from '../components/result-card.js';
 import { getUtility } from '../state.js';
 import * as S from '../lib/scenario.js';
 import { scenarioHtml } from './scenario-print.js';
+import { offerThanks } from '../lib/thanks.js';   // v3.10.0 — Danke sagen
 
 const esc = escapeHtml;
 
@@ -113,6 +114,15 @@ export async function render(container, params, ctx) {
     </article>`;
   playExplainers(container);
   if (scenario) appendScenario(container.querySelector('[data-role="rp-scenario"]'), scenario);
+  // v3.10.0 — Danke-Hinweis unter der Werkzeugleiste (nicht im Druck). Skeptiker N11: erst, wenn
+  // der Bericht fertig ist, also nach dem Drucken (auch „als PDF sichern“) bzw. dem Herunterladen
+  // der PDF-Datei; beim Öffnen stand er sonst schon über dem Bericht
+  let thank = null;
+  if ((m.pages || []).length) {
+    thank = () => offerThanks(container.querySelector('.view-header'), 'report', { where: 'after' });
+    window.addEventListener('afterprint', thank, { once: true });
+    container.querySelector('#print-pdf')?.addEventListener('click', thank, { once: true });
+  }
 
   container.querySelector('#print-now')?.addEventListener('click', () => window.print());
   // Jahr und Anhang direkt; der Teilbericht bleibt dabei erhalten
@@ -130,6 +140,8 @@ export async function render(container, params, ctx) {
   container.querySelector('#print-options')?.addEventListener('click', () => {
     openReportDialog({ mode: 'print', initial: { year, detail, billing, flex, scenario, utilities: utilities.length ? utilities : null } });
   });
+  // Lektion 43: der Listener am Fenster geht mit der Ansicht
+  return () => { if (thank) window.removeEventListener('afterprint', thank); };
 }
 
 // ── Bausteine ────────────────────────────────────────────────────────

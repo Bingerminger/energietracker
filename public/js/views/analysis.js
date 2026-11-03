@@ -28,8 +28,11 @@ import { heatLimitFacts, applyHeatLimit } from '../lib/heat-limit.js';   // v3.9
 const monthNames = () => monthShortNames();
 
 let charts = [];
+// v3.10.0 (GitHub #36) — Auswahl (Art, Zähler) über das Neuzeichnen am Ort hinweg: Kalender-/
+// Abrechnungsjahr umschalten ließ die Analyse bei Strom wieder mit der ersten Art beginnen
+let lastPick = null;
 
-export async function render(container) {
+export async function render(container, _params = [], ctx = {}) {
   container.innerHTML = `<div class="loading">${t('analysis.loading')}</div>`;
   // v2.2.0 — wie Dashboard und Seitenleiste nur die aktiven Verbrauchsarten.
   const utilities = await activeUtilities();
@@ -54,6 +57,8 @@ export async function render(container) {
   const utilSel  = container.querySelector('#util-select');
   const meterSel = container.querySelector('#meter-select');
   const body     = container.querySelector('#analysis-body');
+  let keep = ctx.inPlace && lastPick && utilities.some(u => u.key === lastPick.utility) ? lastPick : null;
+  if (keep) utilSel.value = keep.utility;
 
   async function reload() {
     destroyCharts();
@@ -61,6 +66,9 @@ export async function render(container) {
     body.innerHTML = `<div class="loading">${t('analysis.loading')}</div>`;
     const meters = await api.meters(utility.key);
     meterSel.innerHTML = meters.map(m => `<option value="${escapeHtml(m.id)}">${escapeHtml(m.name)}</option>`).join('');
+    if (keep?.meter && meters.some(m => m.id === keep.meter)) meterSel.value = keep.meter;
+    keep = null;
+    lastPick = { utility: utilSel.value, meter: meterSel.value };
     if (!meters.length) { body.innerHTML = `<p class="muted">${t('analysis.noMeters')}</p>`; return; }
     await renderForMeter(utility, meterSel.value || meters[0].id, body);
   }
@@ -68,6 +76,7 @@ export async function render(container) {
   utilSel.addEventListener('change', reload);
   meterSel.addEventListener('change', async () => {
     const utility = utilities.find(u => u.key === utilSel.value);
+    lastPick = { utility: utilSel.value, meter: meterSel.value };
     destroyCharts();
     body.innerHTML = `<div class="loading">${t('analysis.loading')}</div>`;
     await renderForMeter(utility, meterSel.value, body);

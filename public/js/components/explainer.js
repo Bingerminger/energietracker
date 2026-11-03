@@ -29,7 +29,7 @@ import { t, tp } from '../lib/i18n.js';
 import { fmt, escapeHtml, todayIso } from '../lib/format.js';
 import { lastMonths, yoyTrend, isPartial, daysInMonth } from '../lib/chart-data.js';
 import { energyFigureHtml, bindEnergyFigure, startEnergyFigure } from './energy-flow.js';
-import { balanceRangeEnds } from '../lib/semantics.js';   // v3.9.0 — Spanne in Lesereihenfolge
+import { balanceRangeEnds, bandText, expectedBalance, uncertainRangeText } from '../lib/semantics.js';   // v3.9.0 — Spanne in Lesereihenfolge
 
 const esc = escapeHtml;
 const W = 320;
@@ -98,16 +98,22 @@ export function moneyHtml(row, { color, utilityLabel = null } = {}) {
   const x0 = 0;
   const w = (v) => Math.max(0, v / max * W);
   const c = color || 'var(--accent)';
-  const balance = Number(row.projected_end_balance);
+  // v3.10.0 (Skeptiker H1) — dieselbe Quelle wie die Saldo-Karte (expectedBalance): rechnet eine Abrechnung
+  // mehrere Verträge ab, ihre Summe mit ihrer Spanne; die Balken bleiben die des laufenden Vertrags
+  const exp = expectedBalance(row);
+  const balance = exp ? exp.value : Number(row.projected_end_balance);
   // positiv = Nachzahlung (Kosten über dem Bezahlten), negativ = Guthaben
   const credit = balance < 0;
   const word = (v) => Math.abs(v) < 1 ? t('explainer.money.even')
     : t(v < 0 ? 'explainer.money.credit' : 'explainer.money.due', { amount: fmt.eur0(Math.abs(v)) });   // v3.9.0 (L2) — „rund“ ohne Cent
   // v3.7.0 (wirklichkeit-2, Schritt 3) — unsichere Schätzung (projection_uncertain):
   // Kosten und Ergebnis als Spanne, keine Lücke, die einen Punktwert behauptet
-  const range = Array.isArray(row.projection_uncertain?.projected_range) ? row.projection_uncertain.projected_range.map(Number) : null;
+  const range = Array.isArray(exp?.unc?.projected_range) ? exp.unc.projected_range.map(Number) : null;
   const ends = range ? balanceRangeEnds(range) : null;
-  const result = range ? t('explainer.money.uncertain', { low: word(ends[0]), high: word(ends[1]) }) : word(balance);
+  // v3.10.0 (Skeptiker v3.9.0, R2-3) — sichere Schätzung mit Breite (`projection_band`): dazu der Zusatz der Karte
+  const band = !range && exp?.band ? bandText(exp.band) : '';
+  const result = range ? t('explainer.money.uncertain', { low: word(ends[0]), high: word(ends[1]) })
+    : band ? t('explainer.money.withBand', { result: word(balance), band }) : word(balance);
   const costText = range
     ? t('explainer.money.costRange', { low: fmt.eur0(Math.max(0, cost + Math.min(...range) - balance)), high: fmt.eur0(Math.max(0, cost + Math.max(...range) - balance)) })
     : fmt.eur(cost);
@@ -129,9 +135,12 @@ export function moneyHtml(row, { color, utilityLabel = null } = {}) {
     ${gapW > 2 ? `<rect class="ex-fade ${credit ? 'ex-gap--credit' : 'ex-gap--due'}" style="--d:1s" x="${gapX.toFixed(1)}" y="${credit ? 38 : 82}" width="${gapW.toFixed(1)}" height="5" rx="2.5"/>` : ''}
     ${leg.svg}`;
   // v3.9.0 (L1) — der Abrechnungstag des Vertragsstatus (letzter Tag des Zeitraums), sonst das Ende des letzten Monats
+  // v3.10.0 (H1) — mit der Summe sagt ein Satz, welcher weitere Vertrag in „Das ergibt“ steckt (Balken: nur dieser Vertrag)
+  const others = exp?.settled && Array.isArray(row.settle_parts) ? row.settle_parts.filter(p => !p.is_current && p.contract_id !== row.contract_id) : [];
   const caption = t('explainer.money.text', {
     date: fmt.date(row.settle_on || `${end.ym}-${String(daysInMonth(end.ym)).padStart(2, '0')}`), paid: fmt.eur(paid), cost: costText, result,
-  });
+  }) + others.map(p => ' ' + t('explainer.money.settledWith', { from: fmt.date(p.from), until: fmt.date(p.until),
+    balance: p.uncertain && Array.isArray(p.range) ? uncertainRangeText({ projected_range: p.range }) : word(Number(p.balance)) })).join('');
   // v3.9.0 (Skeptiker N10) — auf der Übersicht mit der Verbrauchsart (dort steht nur ein Vertrag)
   return figure('ex-money', utilityLabel ? `${t('explainer.money.title')} · ${utilityLabel}` : t('explainer.money.title'), { h: 96 + leg.h + 4, body }, caption);
 }

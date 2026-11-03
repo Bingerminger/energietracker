@@ -9,27 +9,24 @@ einreichen.
 *In English:* [roadmap.en.md](roadmap.en.md). Für Mitwirkende: die [Planung](roadmap-planung.md) mit
 allen offenen Punkten und Regeln, frühere Konzepte im [Archiv](roadmap-archiv.md).
 
-**Stand:** 28.10.2026 · **Aktuelle Version:** v3.9.0
+**Stand:** 03.11.2026 · **Aktuelle Version:** v3.10.0
 
 ---
 
-## Jetzt in Arbeit: v3.10.0 — Versprochen und abgesichert
+## Jetzt in Arbeit: v3.11.0 — Deine Rechte als Kunde
 
-- **Was wir euch zugesagt haben:**
-  - Auslesen mit neueren OpenAI-Modellen ([#41](https://github.com/Bingerminger/energietracker/issues/41)).
-  - Vorjahresvergleich und richtige Beschriftung im Abrechnungsjahr, kein Sprung nach oben beim
-    Umschalten ([#36](https://github.com/Bingerminger/energietracker/issues/36)).
-  - Der Abschlagsvorschlag kurz vor der Abrechnung, klarer erklärt ([#38](https://github.com/Bingerminger/energietracker/issues/38)).
-  - Benachrichtigungen an Home Assistant auch mit eigenem Zertifikat im Heimnetz, und der Sensor „Zu tun“
-    zeigt auch bald fällige Termine ([#36](https://github.com/Bingerminger/energietracker/issues/36)).
-  - Messkonzept als Kaskade je Zählwerk und mit Einspeisung an jedem Zähler ([#40](https://github.com/Bingerminger/energietracker/issues/40)).
-  - Zwei Salden auf einer Seite, die sich nicht mehr widersprechen ([#49](https://github.com/Bingerminger/energietracker/issues/49), aus [Discussion #42](https://github.com/Bingerminger/energietracker/discussions/42)).
-- **Kleinere Fehler:** Folgevertrag ab Stichtag, Anomalie am Hauptzähler mit Subzählern, Rechnungskorrekturen
-  im Posteingang, Anfangsstand einer Rechnung.
-- **Sicherheit:** ein schlankeres Docker-Image, signiert und mit Stückliste der Pakete; klare Fristen in
-  [SECURITY.md](SECURITY.md).
-- **Mitmachen:** Wünsche über Discussions, sichtbarer Stand je Release, ein Dank an alle, die das Projekt
-  unterstützen.
+Geplant für den **17.11.2026**.
+
+- **Prüfungen mit Quelle:** Kommt die Rechnung zu spät? Ist der Abschlag deutlich zu hoch? Darfst du nach
+  einer Preiserhöhung kündigen, und bis wann? Fehlt ein Bonus? Wurde geschätzt, obwohl du abgelesen hast?
+  Liegt das Entgelt für den Messstellenbetrieb über der gesetzlichen Grenze? Läuft die Frist für einen
+  Widerspruch gegen den Gebührenbescheid?
+- **Der passende Brief:** Widerspruch, Sonderkündigung, Antrag auf Anpassung des Abschlags oder Rückfrage zur
+  Schätzung als Vorlage, mit den Zahlen aus der Prüfung.
+- **Preisänderung im Posteingang:** neue Preise und Stichtag aus dem Schreiben übernehmen, die Wirkung auf
+  Kosten und Abschlag sehen, die Frist für die Kündigung als Termin.
+- **Verträge, die sich widersprechen,** meldet die App, und die Fristen von Mietverhältnissen landen bei der
+  zuständigen Person.
 
 ---
 
@@ -40,7 +37,6 @@ erscheint, wenn es fertig und geprüft ist, in der Regel nach ein bis drei Woche
 
 | Version | Thema | Worum es geht |
 |---|---|---|
-| **v3.11.0** | **Deine Rechte als Kunde** | Der Energietracker prüft, ob Fristen und Regeln eingehalten werden: Kommt die Rechnung zu spät? Ist der Abschlag zu hoch? Darfst du nach einer Preiserhöhung kündigen, und bis wann? Fehlt ein Bonus? Wurde geschätzt, obwohl du abgelesen hast? Ist das Entgelt für den Messstellenbetrieb zu hoch? Läuft die Frist für einen Widerspruch gegen den Gebührenbescheid? Dazu der passende Brief als Vorlage. |
 | **v3.12.0** | **Energietracker für deine KI** | Wer eine KI nutzt, schließt sie über MCP an den Energietracker an: „Hier ist meine Gasrechnung, trag sie ein und sag mir, ob sie stimmt.“ Der Energietracker bleibt die Akte und rechnet, jede Zahl mit Herkunft. Dazu die Home-Assistant-Integration über HACS. |
 | **v3.13.0** | **Lange Verläufe und Umzug** | Viele Jahre Daten bleiben schnell, Verbrauch zwischen zwei Ablesungen wird nach dem Wetter verteilt, und wer aus einer anderen App kommt, bringt seine Historie mit. |
 | **v3.14.0** | **Für alle verständlich** | Anleitungen auf Französisch, Italienisch, Spanisch, Portugiesisch und Niederländisch, Länderprofile für Österreich und die Schweiz. |
@@ -79,6 +75,7 @@ erscheint, wenn es fertig und geprüft ist, in der Regel nach ein bis drei Woche
 
 | Version | Datum | Thema |
 |---|---|---|
+| v3.10.0 | 03.11.2026 | Versprochen und abgesichert: Saldo aus einem Guss, die Zusagen aus #36, #38, #40, #41 und #49, ein schlankeres, signiertes Image |
 | v3.9.0 | 27.10.2026 | Jeder Vertrag zahlt nur seinen Teil: Messkonzepte, Home Assistant, der Vertrag aus der Rechnung |
 | v3.7.0 | 22.10.2026 | Post vom Versorger: Dokumente automatisch einlesen und verwalten |
 | v3.6.0 | 20.10.2026 | Was wäre wenn, und wie auf der Rechnung |

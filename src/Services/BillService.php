@@ -439,6 +439,28 @@ final class BillService
     }
 
     /**
+     * v3.10.0 — Rechnungskorrektur: Die Buchung folgt dem neuen Ergebnis der Rechnung. Die bisherige
+     * Sonderzahlung (`special_payment_id`) verschwindet aus ihrem Vertrag, danach bucht book() das
+     * Ergebnis neu; ist es 0 €, bleibt die Rechnung ungebucht. Hat jemand die Sonderzahlung schon
+     * entfernt, wird nur neu gebucht.
+     *
+     * @return array<string,mixed> die Rechnung
+     */
+    public function rebook(string $utility, string $id): array
+    {
+        $b = $this->get($utility, $id);
+        $spId = (string)($b['special_payment_id'] ?? '');
+        if ($spId !== '' && !empty($b['contract_id']) && ($c = $this->contracts->get($utility, (string)$b['contract_id'])) !== null) {
+            $all = (array)($c['special_payments'] ?? []);
+            $kept = array_values(array_filter($all, fn($sp) => (string)($sp['id'] ?? '') !== $spId));
+            if (count($kept) !== count($all)) $this->contracts->update($utility, (string)$c['id'], ['special_payments' => $kept]);
+        }
+        $b = $this->update($utility, $id, ['special_payment_id' => null]);
+        $result = $b['invoice']['result_eur'] ?? null;
+        return is_numeric($result) && (float)$result != 0.0 ? $this->book($utility, $id) : $b;
+    }
+
+    /**
      * v3.7.0 (treffsicher) — Der Vertrag einer Rechnung, wenn sie keinen nennt:
      *   1. der Vertrag, der am letzten Tag des Zeitraums gilt
      *      (ContractService::resolveForDate, also auch ein weiterlaufender),

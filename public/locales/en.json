@@ -137,7 +137,8 @@
       },
       "certificateApprox": "Counted on net calorific value (an approximation, the certificate requires gross): {fuels}.",
       "certificateUpcoming": "From {date} the consumption certificate follows a new procedure (§ 82 GModG): {basis}, hot water surcharge {dhw} instead of {dhwOld} kWh/m²·yr, data over {required} instead of {requiredOld} months. That would give {value} kWh/m²·yr{cls}.",
-      "incompleteFor": "{names}: there is no data for the whole of {year}, so no class. The figure only covers the measured period."
+      "incompleteFor": "{names}: there is no data for the whole of {year}, so no class. The figure only covers the measured period.",
+      "gridOnly": "Heat pump: grid electricity only. The seasonal performance factor and the energy flow include the solar power used directly, efficiency does not."
     },
     "tanks": { "title": "Tank levels" },
     "stromSaldo": {
@@ -184,9 +185,13 @@
       "feedIn": "Feed-in (last 12 months)",
       "generation": "Generation (last 12 months)",
       "revenue": "Remuneration (last 12 months)",
-      "revenueSub": "revenue from feed-in"
+      "revenueSub": "revenue from feed-in",
+      "consumptionSoFar": "Consumption (billing year so far)",
+      "costSoFar": "Cost (billing year so far)",
+      "consumptionPeriod": "Consumption (billing year)",
+      "costPeriod": "Cost (billing year)"
     },
-    "trend": { "vsPrev": "{span} compared with the same months a year earlier", "moreThanPrev": "{pct}% more: {span} compared with the same months a year earlier", "lessThanPrev": "{pct}% less: {span} compared with the same months a year earlier" },
+    "trend": { "vsPrev": "{span} compared with the same months a year earlier", "moreThanPrev": "{pct}% more: {span} compared with the same months a year earlier", "lessThanPrev": "{pct}% less: {span} compared with the same months a year earlier", "vsPrevPeriod": "{span} compared with {prev} in the previous billing year", "moreThanPrevPeriod": "{pct}% more: {span} compared with {prev} in the previous billing year", "lessThanPrevPeriod": "{pct}% less: {span} compared with {prev} in the previous billing year", "vsCalendarDays": "{span} compared with the same calendar days a year earlier ({prev})", "moreThanCalendarDays": "{pct}% more: {span} compared with the same calendar days a year earlier ({prev})", "lessThanCalendarDays": "{pct}% less: {span} compared with the same calendar days a year earlier ({prev})", "check": "Check the reading", "checkLabel": "Changed a lot, more than double or less than half of the comparison period: please check the reading" },
     "allRecommendations": "All recommendations",
     "todo": {
       "title": "To do",
@@ -409,7 +414,6 @@
       "co2AvoidedSub": "{tons} t less than without PV",
       "co2": "🌍 CO₂ {year}",
       "co2Sub": "{tons} t",
-      "advancesUntil": "💰 Advances up to {date}",
       "balanceShort": "Balance: {value}",
       "generation": "Generation",
       "daysCount": {
@@ -418,7 +422,9 @@
       },
       "noContract": "no contract",
       "noContractHint": "With a contract the app calculates the costs.",
-      "billed": "billed {value} (remainder)"
+      "billed": "billed {value} (remainder)",
+      "advancesSpan": "💰 Advances {from} to {date}",
+      "balanceOnCard": "Balance: see the balance card, it counts from {date}."
     },
     "cards": {
       "contracts": "📑 Contracts & advances",
@@ -526,6 +532,28 @@
       "band": {
         "one": "Depending on the weather and the estimate {range} ({level}, {count} day estimated).",
         "other": "Depending on the weather and the estimate {range} ({level}, {count} days estimated)."
+      },
+      "suggestShortCredit": {
+        "one": "Only {count} advance payment is left before the bill on {date}. The bill pays out the credit, so there is no need to lower the advance now.",
+        "other": "Only {count} advance payments are left before the bill on {date}. The bill pays out the credit, so there is no need to lower the advance now."
+      },
+      "measuredSpan": "Measured from {from} up to the last reading on {until}.",
+      "colConsumedUntil": "Consumed up to {date}",
+      "colPaidUntil": "Advances up to {date}",
+      "settleWith": "“Expected at settlement” also includes the contract from {from} to {until}: {balance}. The same bill settles both.",
+      "bandNoWeather": {
+        "one": "Depending on the estimate {range} ({level}, {count} day estimated).",
+        "other": "Depending on the estimate {range} ({level}, {count} days estimated)."
+      },
+      "measuredAllContracts": "all contracts of this bill",
+      "estimateTodayParts": "Estimated up to today: {balance}. Since the reading on {date}: consumption {energy} (estimated) and standing charge {base}, against advances {advance}.",
+      "estimateTodayRefund": "Plus a refund of {value}.",
+      "estimateTodayPaid": "Plus special payments of {value}.",
+      "colBalanceAt": "Balance on {date}",
+      "colBalanceEstimated": "Balance today (estimated)",
+      "bandFew": {
+        "one": "Too few measured months, depending on the estimate {range} ({level}, {count} day estimated).",
+        "other": "Too few measured months, depending on the estimate {range} ({level}, {count} days estimated)."
       }
     },
     "contractsTable": {
@@ -1200,7 +1228,8 @@
         "other": "{count} devices"
       },
       "periodTag": "per period",
-      "obis": "Register {obis}"
+      "obis": "Register {obis}",
+      "cascade": "Register in the cascade"
     },
     "modal": {
       "titleEdit": "Edit meter",
@@ -1418,6 +1447,12 @@
       "suggest": "Suggestion from the measured months: {best} °C. A month then typically deviates by {then} of an average month instead of {now}.",
       "use": "Enter {value} °C",
       "invalid": "Heating limit between {min} and {max} °C, or leave it empty"
+    },
+    "cascade": {
+      "title": "Feed-in in the cascade",
+      "label": "Feed-in register of",
+      "none": "Grid connection (feed-in to the grid)",
+      "hint": "If meters are connected one behind the other and a meter further back also counts backwards (2.8.0), choose that meter here. Its feed-in register does not count as feed-in to the grid. From the differences the app calculates how much solar power each branch uses itself."
     }
   },
   "settings": {
@@ -1430,7 +1465,8 @@
       "evccEndpoint": "http://192.168.178.30:7070",
       "allowedHosts": "energie.example.org, *.home.arpa",
       "inboxModel": "qwen3.8",
-      "envName": "e.g. TEST"
+      "envName": "e.g. TEST",
+      "homeCaPem": "-----BEGIN CERTIFICATE-----"
     },
     "loading": "Loading…",
     "saved": "Settings saved",
@@ -1518,6 +1554,14 @@
       "environment": {
         "title": "Environment",
         "hint": "If you run several installations (test, home, holiday flat), you see next to the logo which one you are in."
+      },
+      "homeTls": {
+        "title": "Connections in the home network",
+        "hint": "For Home Assistant, text recognition, reading in the home network and evcc over https:// with certificates you issued yourself. Other connections keep checking only against the usual root certificates."
+      },
+      "thanks": {
+        "title": "Support",
+        "hint": "When the app has just helped you, a small line with a link to support it appears now and then. At most once a quarter per device, never in the demo, never as a window that covers anything."
       }
     },
     "field": {
@@ -1711,6 +1755,18 @@
       "env_name": {
         "label": "Environment name",
         "hint": "Up to 12 characters, shown as a badge next to the logo. Empty: no badge."
+      },
+      "home_ca_pem": {
+        "label": "Own root certificate (PEM)",
+        "hint": "The root certificate you issue your own certificates with, starting with <code>-----BEGIN CERTIFICATE-----</code>. It applies in addition to the usual root certificates, checking stays on. Only the certificate, never the private key. A file in the container works too: <code>ET_CA_FILE</code>."
+      },
+      "home_tls_insecure": {
+        "label": "Do not check certificates in the home network",
+        "hint": "Only as a fallback. Without checking, anyone who gets in between on the network can read along, including the Home Assistant token. Only works for addresses in the home network, never for addresses on the internet. Better: enter your own root certificate."
+      },
+      "support_hint": {
+        "label": "Show the note about supporting",
+        "hint": "After “Check a bill” finds a deviation, after a deadline you completed before its due date, and when the annual report is ready."
       }
     },
     "boolActive": "on",
@@ -1875,7 +1931,9 @@
         "todoDateName": "Energietracker next item due",
         "webhookAlias": "Energietracker: pass on the notification",
         "webhookIdComment": "your own ID that cannot be guessed",
-        "notifyComment": "or notify.mobile_app_… for your phone"
+        "notifyComment": "or notify.mobile_app_… for your phone",
+        "todoUpcomingName": "Energietracker next appointment",
+        "todoUpcomingDateName": "Energietracker next appointment on"
       },
       "lastUsed": "Last used: {when}",
       "neverUsed": "Nothing has arrived with this token yet.",
@@ -1922,7 +1980,15 @@
       "tempStored": {
         "one": "<strong>{count}</strong> daily value stored.",
         "other": "<strong>{count}</strong> daily values stored."
-      }
+      },
+      "homeCa": "Own root certificates",
+      "homeCaCount": {
+        "one": "{count} certificate",
+        "other": "{count} certificates"
+      },
+      "homeCaFileUnreadable": "ET_CA_FILE not readable",
+      "homeCaFileInvalid": "ET_CA_FILE without a certificate",
+      "homeTlsInsecure": "checking in the home network off"
     },
     "gasFactors": {
       "none": "No entry yet — the default factor applies.",
@@ -2503,7 +2569,8 @@
       },
       "r4": {
         "title": "{label} {ym}: statistical anomaly",
-        "detail": "Consumption in {ym} is well above what is usual for this month ({sigma}σ). Worth a closer look."
+        "detail": "Consumption in {ym} is well above what is usual for this month ({sigma}σ). Worth a closer look.",
+        "rest": "This checks the meter’s own consumption, without {names}."
       },
       "r5": {
         "title": "{label}: tank at {pct}%",
@@ -2942,7 +3009,10 @@
     "balanceCardNote": {
       "one": "· The “Balance” column below only counts the {count} forecast month from {month}, without the balance so far.",
       "other": "· The “Balance” column below only counts the {count} forecast months from {month}, without the balance so far."
-    }
+    },
+    "calibrationNote": "The monthly quantities here are the forecast’s. The balance card and the workshop estimate with the level of the last measured months (calibration factor), about {pct} {direction}; that is why their monthly costs differ.",
+    "calibrationMore": "more",
+    "calibrationLess": "less"
   },
   "report": {
     "createdOn": "Created on {date}",
@@ -3146,7 +3216,8 @@
       "yearIncomplete": {
         "one": "Only {count} of 12 months of {year} are recorded. The comparison with {prev} follows once the year is complete.",
         "other": "Only {count} of 12 months of {year} are recorded. The comparison with {prev} follows once the year is complete."
-      }
+      },
+      "billingBand": "{label}: between {low} and {high} expected with the bill."
     },
     "euro": {
       "saves": {
@@ -3679,7 +3750,8 @@
       "valueInvalid": "{field}: “{value}” is not a valid value",
       "idInvalid": "Invalid identifier “{id}” – letters, digits, _ and - are allowed (at most 64 characters).",
       "serialSet": "The device already has the number {serial}. Another meter is a meter swap.",
-      "obisInvalid": "Register “{value}” is not an OBIS code. Examples: 1.8.0, 1.8.1, 2.8.0 or 1-0:1.8.0."
+      "obisInvalid": "Register “{value}” is not an OBIS code. Examples: 1.8.0, 1.8.1, 2.8.0 or 1-0:1.8.0.",
+      "cascadeLinkInvalid": "Meter “{id}” is not an electricity meter behind another meter"
     },
     "common": {
       "unknownUtility": "Unknown utility: {utility}",
@@ -3810,7 +3882,9 @@
       "factorMissing": "An entry needs either volume correction factor and calorific value, or a factor in kWh/m³",
       "factorOutOfRange": "Conversion factor {value} is implausible — expected 5 to 15 kWh/m³",
       "valueInvalid": "Invalid value “{value}” for {key}",
-      "hostNotListed": "The host list must include the name you are using right now (“{host}”) – otherwise you would lock yourself out."
+      "hostNotListed": "The host list must include the name you are using right now (“{host}”) – otherwise you would lock yourself out.",
+      "caInvalid": "This is not a readable certificate. Expected is PEM text from -----BEGIN CERTIFICATE----- to -----END CERTIFICATE-----.",
+      "caPrivateKey": "The text contains a private key. Enter only the certificate, the key does not belong here."
     },
     "billCheck": {
       "gasOnly": "Bill verification is only available for gas",
@@ -4036,6 +4110,13 @@
       "meterUnknown": "The meter “{id}” does not exist.",
       "meterTwice": "The meter “{id}” is assigned to two places. Each meter appears only once in the diagram.",
       "chain": "“{name}” has sub-meters of its own and so cannot sit behind another meter."
+    },
+    "homeTls": {
+      "issuer": "Energietracker does not know who issued the certificate of {host}. If you issued it yourself, enter your root certificate under Settings → Expert → Connections in the home network.",
+      "name": "The certificate of {host} does not match this address. Enter the address as it appears in the certificate, for example the name instead of the IP address. Your own root certificate does not help here.",
+      "expired": "The certificate of {host} has expired or is not valid yet. Renew it there or check the clock of both devices.",
+      "file": "Energietracker cannot read the root certificates. Check the file from ET_CA_FILE or a mounted certificate list: path, content and read permission. Settings → System shows whether ET_CA_FILE is readable.",
+      "other": "The encrypted connection to {host} fails because of the certificate. Check the address and the certificate. If you issued it yourself, enter your root certificate under Settings → Expert → Connections in the home network."
     }
   },
   "login": {
@@ -4974,7 +5055,8 @@
     "noHeatMeter": "The seasonal performance factor needs a heat meter on the heat pump: a heat meter with the role “Heat pump output”, linked to this electricity meter.",
     "notLinked": "The heat meter is not linked to a heat pump electricity meter yet (meter dialog).",
     "noOverlap": "This year there is no month in which both the heat and the electricity meter have values.",
-    "reference": "For context: field test “WP-QS im Bestand” (Fraunhofer ISE, 2025) — air/water on average {air}, brine/water {ground}. Whether the backup heater and hot water count depends on where the meters sit."
+    "reference": "For context: field test “WP-QS im Bestand” (Fraunhofer ISE, 2025) — air/water on average {air}, brine/water {ground}. Whether the backup heater and hot water count depends on where the meters sit.",
+    "cascadeEstimated": "≈: in these months the heat pump’s solar power is not measured (distributed readings in the cascade). No monthly performance factor is shown there; the seasonal performance factor covers all months."
   },
   "pv": {
     "battery": {
@@ -4998,7 +5080,20 @@
     "plugIn": {
       "assumed": "Plug-in solar: self-consumption assumed at {pct}% of generation (settings)."
     },
-    "hint51": "In operation since 25 Feb 2025: no feed-in tariff for periods with a negative wholesale price – below 100 kW from the year after a smart metering system is installed (§ 51 EEG). A longer funding period partly offsets this."
+    "hint51": "In operation since 25 Feb 2025: no feed-in tariff for periods with a negative wholesale price – below 100 kW from the year after a smart metering system is installed (§ 51 EEG). A longer funding period partly offsets this.",
+    "cascade": {
+      "title": "Solar power per branch {year}",
+      "hint": "Used yourself, from the feed-in registers of the meters one behind the other: what a meter further back counts backwards beyond the meter in front of it was used by the branch in between.",
+      "months": {
+        "one": "Calculated from {n} month with all three registers.",
+        "other": "Calculated from {n} months with all three registers."
+      },
+      "inconsistent": "In {list} a meter further forward counted more backwards than the meter behind it. Please check the readings.",
+      "estimated": {
+        "one": "Of these, {n} month comes from distributed readings; the split between the branches is estimated there.",
+        "other": "Of these, {n} months come from distributed readings; the split between the branches is estimated there."
+      }
+    }
   },
   "comparison": {
     "title": "Benchmark {year}",
@@ -5110,7 +5205,9 @@
       "even": "almost exactly even",
       "text": "By the bill on {date} you pay {paid} in advance payments; consumption and standing charge will probably cost {cost}. That makes {result}.",
       "uncertain": "anything between {low} and {high}, depending on the estimate",
-      "costRange": "{low} to {high}"
+      "costRange": "{low} to {high}",
+      "withBand": "{result} ({band})",
+      "settledWith": "This includes the contract from {from} to {until} of the same bill with {balance}."
     },
     "energy": {
       "title": "Energy flow in the house",
@@ -5308,7 +5405,9 @@
         "heatPump": "Heat pump or wallbox: the confirmation of the special tariff"
       },
       "docsReader": "Reading needs a service – in your home network or in the cloud. Set it up right here; you can file documents before that too.",
-      "docsReaderMember": "Reading needs a service; an administrator can set it up. You can already file documents."
+      "docsReaderMember": "Reading needs a service; an administrator can set it up. You can already file documents.",
+      "saldo": "With meter readings and a contract with advance payments, every utility shows its balance: measured up to the last reading, estimated up to today and expected at settlement.",
+      "saldoDemo": "Each utility’s page shows its balance: measured up to the last reading, estimated up to today and expected at settlement."
     },
     "skip": "Skip",
     "back": "Back",
@@ -5824,7 +5923,8 @@
     },
     "dashboard": {
       "window": "Billing year {name}: {from} to {until}",
-      "costSub": "Advance payments so far {advances}"
+      "costSub": "Advance payments so far {advances}",
+      "windowUnnamed": "Billing year {from} to {until}"
     },
     "analysis": {
       "title": "Billing years compared"
@@ -5902,7 +6002,7 @@
     },
     "model": {
       "label": "Forecast model",
-      "standard": "Weather-adjusted (forecast)",
+      "standard": "Like the balance card (calibrated)",
       "last_year": "Same as last year",
       "trend": "Trend continued",
       "unavailable": "not enough data (two full years needed)"
@@ -6348,7 +6448,9 @@
       "reading_old_estimated": "Initial reading estimated",
       "water_prices": "Water prices",
       "advance_new_dates": "Due dates of the new advance payment",
-      "advance_new_every": "Rhythm of the new advance payment"
+      "advance_new_every": "Rhythm of the new advance payment",
+      "invoice_number": "Invoice number",
+      "corrects_invoice": "Refers to earlier bill"
     },
     "reason": {
       "empty": "Missing, but needed",
@@ -6441,7 +6543,9 @@
       "contractSpanFromInvoice": "Create the contract {provider} from {from} to {to} from this bill",
       "waterWorking": "{section} from {from}: {value} (from the bill)",
       "waterBase": "Standing charge {section} from {from}: {value} per month (from the bill)",
-      "waterRate": "{section} from {from}: {value} per m² and year for {area} m² (from the bill)"
+      "waterRate": "{section} from {from}: {value} per m² and year for {area} m² (from the bill)",
+      "billCorrection": "Take over the corrected bill {from} to {to}: {result} instead of {before}",
+      "billRebook": "Replace the booking: {result} instead of {before}"
     },
     "detail": {
       "reading": "Recorded: {counter}.",
@@ -6456,14 +6560,18 @@
       "serial": "The installed meter is {serial}.",
       "readingReported": "Your reading of {date} ({counter}): the supplier dates the reading you reported to the end of the period.",
       "readingBelow": "Lies below your reading of {counter} on {date}.",
-      "readingAbove": "Lies above your reading of {counter} on {date}."
+      "readingAbove": "Lies above your reading of {counter} on {date}.",
+      "readingBefore": "Your reading of {date} ({counter}) is the same: the opening reading of the bill is your reading just before.",
+      "billCorrected": "An earlier version for {amount} is recorded. Its values are replaced, the earlier document stays as a receipt.",
+      "billBooked": "Booked so far: {before}."
     },
     "pstatus": {
       "new": "new",
       "exists": "already there",
       "conflict": "conflict",
       "overlap": "overlap",
-      "check": "check"
+      "check": "check",
+      "replaces": "replaces"
     },
     "applyButton": {
       "one": "Take over {count} change",
@@ -6505,7 +6613,9 @@
         "offQuantity": "The consumption on the bill differs from your readings by {pct}%.",
         "noCompare": "The bill states neither consumption nor amount – there is nothing to compare.",
         "noPrices": "The bill {from} to {to}: the contract lacks prices – the app cannot recalculate the amount.",
-        "offQuantityNoPrices": "The consumption on the bill differs from your readings by {pct}%, and the contract lacks prices – the app cannot recalculate the amount."
+        "offQuantityNoPrices": "The consumption on the bill differs from your readings by {pct}%, and the contract lacks prices – the app cannot recalculate the amount.",
+        "correction": "Corrected bill {from} to {to}: it replaces the recorded bill, the result becomes {result} instead of {balance}. Take it over and the app checks it against your data.",
+        "correctionBooked": "Corrected bill {from} to {to}: it replaces the recorded and booked bill, the result becomes {result} instead of {balance}, and the booking changes with it. Take it over and the app checks it against your data."
       },
       "advance": {
         "ok": "The new advance payment of {amount} fits your consumption.",
@@ -7082,7 +7192,9 @@
       "other": "On {days} days there is no sub-meter reading. There this contract bills everything."
     },
     "short": "In some months the sub-meter measures more than the meter in front of it ({kwh}). Please check the readings. A remainder below zero is not billed.",
-    "contractHint": "“{parent}” also measures “{name}”. With its own contract, the contract of “{parent}” only bills the remainder from its start: measured there minus “{name}”."
+    "contractHint": "“{parent}” also measures “{name}”. With its own contract, the contract of “{parent}” only bills the remainder from its start: measured there minus “{name}”.",
+    "registerPart": "{name} {rest} = {measured} − {deducted}",
+    "formulaRegisters": "{rest}, per register {parts}"
   },
   "concept": {
     "slotName": {
@@ -7099,7 +7211,8 @@
       "feed": "Feed-in",
       "gen": "Solar generation",
       "bat_in": "Battery charging",
-      "bat_out": "Battery discharging"
+      "bat_out": "Battery discharging",
+      "feed_house": "Feed-in household"
     },
     "regShort": {
       "ht": "HT",
@@ -7164,7 +7277,8 @@
       "batteryHint": "Battery charging and discharging, often from the inverter.",
       "installedOn": "Installed on",
       "installedHint": "Empty: from the start of its contract, otherwise from today.",
-      "initialCounter": "Reading at installation"
+      "initialCounter": "Reading at installation",
+      "cascadeFeedHint": "The feed-in register of “{name}”: same meter number, own meter under feed-in. It does not count as feed-in to the grid. From the differences the app calculates the solar power each branch uses itself."
     },
     "contracts": {
       "title": "Which contracts are there?",
@@ -7199,7 +7313,8 @@
       "restFrom": "From {date} the contract of “{parent}” only bills the remainder: measured there minus “{sub}”.",
       "restFromPast": "Retroactively from {date} the contract of “{parent}” only bills the remainder: measured there minus “{sub}”. Costs, balance and suggested advance of this contract also change for the months since {date}.",
       "beforeInstall": "“{name}” is only installed from {installed}, but its contract starts on {start}. Until the installation the app deducts nothing.",
-      "detailInstalled": "installed on {date}"
+      "detailInstalled": "installed on {date}",
+      "detailCascade": "feed-in register of {name}"
     },
     "done": "Metering concept set up. Next: add the first reading for each meter.",
     "entry": {
@@ -7279,5 +7394,17 @@
       "textOther": "From this day on, forecast and comparisons only use the time after it. The end of the unusual period is filled in. If you know the day of the change (such as moving in), enter it."
     },
     "adviceOther": "That looks like a real change (such as moving in, a vacancy, a renovation or a different appliance), not a reading error. A baseline date separates the time before: forecast and comparisons then use today’s consumption."
+  },
+  "thanks": {
+    "off": "Don’t show again",
+    "offDone": "The note won’t appear again. You can switch it back on in the settings."
+  },
+  "balanceBand": {
+    "short": "depending on the weather and the estimate {range}",
+    "shortNoWeather": "depending on the estimate {range}",
+    "sentence": "Depending on the weather and the estimate, between {low} and {high}.",
+    "sentenceNoWeather": "Depending on the estimate, between {low} and {high}.",
+    "shortFew": "too few measured months, depending on the estimate {range}",
+    "sentenceFew": "Too few measured months, depending on the estimate between {low} and {high}."
   }
 }

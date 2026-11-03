@@ -17,14 +17,14 @@ import { getUtilities, getSettings } from '../state.js';
 import { tankLevel } from '../lib/tank.js';
 import { fmt, escapeHtml, todayIso, parseDecimal, formatForInput, monthShortNames } from '../lib/format.js';
 import { makeChart, utilColor, tokenColor, chartColor, withAlpha, chartTableHtml, hatchFill } from '../components/chart.js';
-import { isPartial, daysInMonth, yoyTrend, seriesSummary } from '../lib/chart-data.js';
+import { isPartial, daysInMonth, yoyTrend, seriesSummary, perMonthAverage } from '../lib/chart-data.js';
 import { isInterpolated, interpolationNote, markTitle, MARK } from '../lib/interpolation.js';   // v3.7.0 (#37, #39)
 import { openModal, confirmModal, guardSubmit } from '../components/modal.js';
 import { showFieldError } from '../lib/form.js';
 import { toastOk, toastErr } from '../components/toast.js';
 import { t, tp, getCurrencyMinor, getCurrencySymbol, getLocale } from '../lib/i18n.js';
 import { info, infoNote } from '../components/info.js';
-import { isFeedIn as feedInKind, isGeneration as generationKind, isPv, usesGasFactors, balanceView, moreIsBetter, uncertainRangeText, costWithoutContract, balanceRangeEnds } from '../lib/semantics.js';
+import { isFeedIn as feedInKind, isGeneration as generationKind, isPv, usesGasFactors, balanceView, moreIsBetter, uncertainRangeText, costWithoutContract, balanceRangeEnds, expectedBalance, bandText } from '../lib/semantics.js';
 import { typicalPerDay, checkReading, confirmIssues, issueText, deviceChangedBetween } from '../lib/plausibility.js';
 // v3.2.0 (F1020) — Schaubilder zu dieser Verbrauchsart
 import { moneyHtml, energyHtml, weatherHtml, timelineHtml, playExplainers } from '../components/explainer.js';
@@ -423,6 +423,22 @@ async function rerender(container) {
   const partialYear = billing ? !!sel.as_of && sel.as_of < sel.until
     : !!measuredUntil && String(yr) === todayIso().slice(0, 4)
     && measuredUntil < todayIso() && measuredUntil.startsWith(String(yr));
+  // v3.10.0 (#49, Discussion #42) — die Kachel nennt auch ihren Beginn: Kalenderjahr ab dem
+  // 1. Januar (oder der ersten Ablesung danach), im Abrechnungsjahr der Periodenbeginn. Sie
+  // endet wie „Aktueller Saldo“ der Saldo-Karte an der letzten Ablesung.
+  const firstReading = sortedReadings.length ? sortedReadings[sortedReadings.length - 1].date : null;
+  const tileFrom = billing ? sel.from
+    : (firstReading && firstReading > `${yr}-01-01` ? firstReading : `${yr}-01-01`);
+  // v3.10.0 (Skeptiker N2) — dasselbe Datum wie die Karte: der Tag der Ablesung (`as_of` ist der letzte gezählte Tag davor)
+  const tileUntil = billing && measuredUntil ? addDaysIso(measuredUntil, 1) : measuredUntil;
+  // v3.10.0 (Skeptiker M2) — beginnt der Saldo der Karte (Stichtag, Vertragswechsel, Rechnung) erst innerhalb der
+  // Kachel, rechnet sie über einen Zeitraum, den keine Abrechnung abrechnet: dann keine zweite Zeile „Saldo“,
+  // sondern der Hinweis, ab wann die Karte zählt (nur im Kalenderjahr; das Abrechnungsjahr ist die Periode)
+  const cardFrom = currentContract?.balance_from || currentContract?.start || null;
+  const tileEnd = partialYear ? tileUntil : `${yr}-12-31`;
+  const tileCrosses = !billing && !!cardFrom && cardFrom > tileFrom && cardFrom <= (tileEnd || '');
+  // v3.10.0 (Skeptiker N4) — Monatsmittel über gemessene Monatsanteile, unter vier Wochen keins (lib/chart-data.js)
+  const perMonthCost = perMonthAverage(monthlyYear, costShown);
 
   // ── Render whole page ───────────────────────────────────────────
   container.innerHTML = `
@@ -459,19 +475,20 @@ async function rerender(container) {
           ? `<div class="kpi__value" data-role="kpi-cost">${escapeHtml(t('utility.kpi.noContract'))}</div>
         <div class="kpi__sub"><a href="#/utility/${encodeURIComponent(u.key)}/contracts">${escapeHtml(t('utility.kpi.noContractHint'))}</a></div>`
           : `<div class="kpi__value ${isFeedIn ? 'success-text' : ''}" data-role="kpi-cost">${fmt.eur(costShown)}</div>
-        <div class="kpi__sub">${t('utility.kpi.perMonth', { value: fmt.eur(monthlyYear.length ? costShown / monthlyYear.length : 0) })}</div>`}
+        ${perMonthCost != null ? `<div class="kpi__sub" data-role="kpi-per-month">${t('utility.kpi.perMonth', { value: fmt.eur(perMonthCost) })}</div>` : ''}`}
         ${bonusText ? `<div class="kpi__sub kpi__bonus" data-role="kpi-bonus">${escapeHtml(bonusText)}</div>` : ''}
       </div>`}
       ${hasContract && !isFeedIn ? `
         <div class="kpi c-yellow">
           <!-- v3.6.0 — im laufenden Jahr rechnen Kalender- und Abrechnungsjahr den
                angebrochenen Monat verschieden (ganz bzw. tagesgenau): ein Satz dazu -->
-          <div class="kpi__label">${partialYear ? t('utility.kpi.advancesUntil', { date: fmt.date(measuredUntil) }) : t('utility.kpi.advances', { year: yrLabel })}${billingOk && partialYear ? info('runningYear') : ''}</div>
+          <div class="kpi__label" data-role="kpi-advances-label">${partialYear ? escapeHtml(t('utility.kpi.advancesSpan', { from: fmt.date(tileFrom), date: fmt.date(tileUntil) })) : t('utility.kpi.advances', { year: yrLabel })}${billingOk && partialYear ? info('runningYear') : ''}</div>
           <div class="kpi__value">${fmt.eur(totAdv)}</div>
           <!-- v2.13.0 (Review UI-18) — Kundensicht: „Guthaben 75,29 €" statt „−75,29 €" -->
-          <div class="kpi__sub ${yearBalanceView?.credit ? 'positive' : (yearBalanceView?.credit === false ? 'negative' : '')}">
+          ${tileCrosses ? `<div class="kpi__sub muted" data-role="kpi-balance-card">${escapeHtml(t('utility.kpi.balanceOnCard', { date: fmt.date(cardFrom) }))}</div>`
+          : `<div class="kpi__sub ${yearBalanceView?.credit ? 'positive' : (yearBalanceView?.credit === false ? 'negative' : '')}" data-role="kpi-balance">
             ${t(partialYear ? 'utility.kpi.balanceShort' : 'utility.kpi.yearBalance', { value: `${yearBalanceView.word} ${fmt.eur(yearBalanceView.amount)}` })}${info('balance')}
-          </div>
+          </div>`}
         </div>
       ` : ''}
       <div class="kpi c-blue">
@@ -801,11 +818,25 @@ function balanceCard(c, u, country = 'DE') {
   // Verdict-Farben und Saldo-Vorzeichen-Deutung kippen: positiver Saldo
   // ist gut (grün), nicht warnend (rot).
   const isFeedIn = u.accounting_kind === 'feed_in';
-  const cur = c.current_balance;
-  const proj = c.projected_end_balance;
+  // v3.10.0 (#49, Discussion #42) — „Aktueller Saldo“ bis zur letzten Ablesung, nur Gemessenes
+  // (`balance_measured`); die Schätzung bis heute steht als Zusatzzeile darunter. Ältere Server
+  // und Zeiträume ohne Ablesung: wie bisher bis heute mit Schätzung
+  // v3.10.0 (Wirklichkeitsabgleich) — rechnet eine Abrechnung mehrere Verträge ab, erwartet die
+  // Karte ihre Summe (`settle_balance`); Spanne und Band wandern mit (expectedBalance)
+  const exp = expectedBalance(c);
+  // v3.10.0 (Skeptiker H3) — dann auch gemessen und bis heute über alle Verträge dieser Abrechnung
+  // (`settle_measured`, `settle_today`); ohne gemessenen Tag heißt die Spalte „Saldo heute (geschätzt)“
+  const settledSum = !isFeedIn && !!exp?.settled && 'settle_measured' in c;
+  const meas0 = settledSum ? c.settle_measured : c.balance_measured;
+  const meas = !isFeedIn && meas0 && meas0.until ? meas0 : null;
+  const today = settledSum && c.settle_today ? c.settle_today : { balance: c.current_balance, energy_estimated: c.estimated_cost_to_date,
+    base: c.base_to_date, bonus: c.bonus_to_date, advance: c.advance_paid, special_net: c.special_payment_net };
+  const cur = meas ? meas.balance : today.balance;
+  const estimatedOnly = !isFeedIn && !meas && c.cost_to_date != null;
+  const proj = exp ? exp.value : c.projected_end_balance;
   // N1007 — verdict ist jetzt ein stabiler Key (surcharge|refund|payout|reclaim|balanced).
   // Logik (Farbe/Pfeil) auf dem Key, Anzeige lokalisiert über t('utility.verdict.<key>').
-  const verdict = c.verdict;
+  const verdict = (!isFeedIn && c.settle_verdict) || c.verdict;
   const verdictCls = { refund: 'refund', payout: 'refund', surcharge: 'surcharge', reclaim: 'surcharge', balanced: 'balanced' }[verdict] || 'balanced';
   const arrow = { refund: '↓', payout: '↓', surcharge: '↑', reclaim: '↑', balanced: '→' }[verdict] || '→';
   const curView = balanceView(cur, u);
@@ -831,15 +862,16 @@ function balanceCard(c, u, country = 'DE') {
     : tp('utility.balance.consumedMonths', c.months_actual, { months: c.months_actual, kwh: fmt.int(c.actual_kwh) });
   // v2.8.0 (CALC-02) — Kosten bis heute: gemessen bis zur letzten Ablesung,
   // danach geschätzt (Wetter, Saison). Ältere Server liefern nur actual_cost.
-  const costToDate = c.cost_to_date ?? c.actual_cost;
-  const estimated = (c.estimated_cost_to_date || 0) > 0.005 && c.measured_until;
+  const costToDate = meas ? meas.cost : settledSum && c.settle_today ? c.settle_today.cost : (c.cost_to_date ?? c.actual_cost);
+  const estimated = !meas && !settledSum && (c.estimated_cost_to_date || 0) > 0.005 && c.measured_until;
   const measuredSub = estimated
     // v3.9.0 (auswertung, Nachtrag) — die Einheit aus der SSOT (Wasser m³, bis v3.8 „(0 kWh)“)
     // v3.9.0 (Skeptiker M14) — Wasser: der Satz nennt neben dem geschätzten Verbrauch die Grundpreise bis heute
     ? t(isWater && c.base_to_date > 0 ? 'utility.balance.measuredThenEstimatedBase' : 'utility.balance.measuredThenEstimated', { date: fmt.date(c.measured_until), value: fmt.eur(c.estimated_cost_to_date),
       base: fmt.eur(c.base_to_date),
       amount: u.consumption_unit === 'kWh' ? fmt.unit(c.actual_kwh, u.consumption_unit, 0) : fmt.unit(c.actual_m3 || 0, u.consumption_unit, 1) })
-    : consumedSub;
+    // v3.10.0 (H3) — die Summe über die Verträge dieser Abrechnung: Monate und Menge des einen Vertrags passen nicht
+    : settledSum ? t('utility.balance.measuredAllContracts') : consumedSub;
   // Die Teile der Summe (energy/base/bonus_to_date) — ältere Server liefern
   // nur die gemessenen Monate
   const hasParts = c.energy_cost_to_date != null && c.base_to_date != null;
@@ -852,9 +884,12 @@ function balanceCard(c, u, country = 'DE') {
         current: advanceAmountText(c.current_advance_amount, c.current_advance_every_months) })}</p>`
     // v3.9.0 (L12) — kurz vor der Abrechnung kein Nachholbetrag: den Rest gleicht
     // die Abrechnung aus, danach gilt der laufende Bedarf
+    // v3.10.0 (#38) — beide Vorzeichen: bei einem Guthaben „nicht senken“ statt „nicht erhöhen“
     : !isFeedIn && c.suggestion_withheld === 'short' && Math.abs(proj) > 5
-    ? `<p class="balance-suggest" data-role="balance-short">${escapeHtml(tp('utility.balance.suggestShort', c.months_left, {
-        count: c.months_left, date: fmt.date(settle) }) + (c.advance_ongoing != null && c.current_advance_amount != null
+    ? `<p class="balance-suggest" data-role="balance-short">${escapeHtml((proj < 0
+        ? tp('utility.balance.suggestShortCredit', c.months_left, { count: c.months_left, date: fmt.date(settle) })
+        : tp('utility.balance.suggestShort', c.months_left, { count: c.months_left, date: fmt.date(settle) }))
+        + (c.advance_ongoing != null && c.current_advance_amount != null
         && Math.abs(c.advance_ongoing - c.current_advance_amount) >= 5
         ? ' ' + (Number(c.current_advance_every_months) > 1
           // v3.9.0 (Skeptiker H1) — je Rate wie der Plan, nicht „im Monat“
@@ -865,9 +900,9 @@ function balanceCard(c, u, country = 'DE') {
   // v3.7.0 (wirklichkeit-2) — unsichere Schätzung (Kalibrierfaktor klemmt,
   // Heizmodell schlecht): Spanne und Grund statt eines Vorschlags; der Server
   // liefert dann keinen `suggested_advance`
-  const unc = !isFeedIn ? c.projection_uncertain : null;
+  const unc = !isFeedIn ? (exp?.unc ?? null) : null;
   // v3.9.0 (Skeptiker M6) — sichere Schätzung mit Breite (Wetter der kommenden Tage, Modell)
-  const band = !isFeedIn && !unc && c.projection_band?.half >= 1 ? c.projection_band : null;
+  const band = !isFeedIn && !unc ? (exp?.band ?? null) : null;
   const uncertainHtml = unc
     ? `<p class="balance-suggest" data-role="balance-uncertain">${escapeHtml(uncertainBalanceText(unc, fmt.date(settle)))}</p>`
     : '';
@@ -882,6 +917,18 @@ function balanceCard(c, u, country = 'DE') {
       : t('utility.balance.sinceBill', { date: fmt.date(c.balance_from) }));
   }
   if (c.renewed) notes.push(t('utility.balance.renewed', { date: fmt.date(c.end) }));
+  // v3.10.0 (Wirklichkeitsabgleich) — dieselbe Abrechnung rechnet weitere Verträge ab (Tarifwechsel
+  // beim selben Versorger): „Erwartet bei Abrechnung“ zählt sie mit, hier stehen Zeitraum und Saldo
+  if (!isFeedIn && exp?.settled && Array.isArray(c.settle_parts)) {
+    for (const p of c.settle_parts.filter(x => x.contract_id !== c.contract_id)) {
+      const v = balanceView(p.balance, u);
+      // v3.10.0 (Skeptiker H3) — unsicher: die Spanne; überwiegend geschätzt: „≈“ auf den Euro
+      const rough = p.uncertain || Number(p.estimated_share) > 0.5;
+      const balance = p.uncertain && Array.isArray(p.range) ? uncertainRangeText({ projected_range: p.range })
+        : !v ? '–' : v.credit === null ? v.word : rough ? `≈ ${v.word} ${fmt.eur0(v.amount)}` : `${v.word} ${fmt.eur(v.amount)}`;
+      notes.push(t('utility.balance.settleWith', { from: fmt.date(p.from), until: fmt.date(p.until), balance }));
+    }
+  }
   // v3.7.0 (wirklichkeit-2) — ohne Arbeitspreis: dieselbe Aussage wie im Abrechnungsjahr
   if (c.price_missing) notes.push(t('priceMissing.contract'));
   // v3.9.0 (F1032, #40) — Rest-Abrechnung: wie der Vertrag rechnet (gemessen − Subzähler)
@@ -899,13 +946,14 @@ function balanceCard(c, u, country = 'DE') {
 
   // Breakdown row: for water we want three component pills, for gas/strom the
   // simple verbrauch+grundpreis+bonus line.
-  const breakdownHtml = isWater && c.components
+  const breakdownHtml = isWater && c.components && !meas   // v3.10.0 — die Sparten zählen bis heute, der Wert bis zur Ablesung
     ? renderWaterBreakdown(c.components, c.actual_bonus_total)
     : (() => {
         const parts = [];
-        const energy = hasParts ? c.energy_cost_to_date : c.actual_kwh_cost;
-        const base   = hasParts ? c.base_to_date : c.actual_base_total;
-        const bonus  = hasParts ? c.bonus_to_date : c.actual_bonus_total;
+        // v3.10.0 (#49) — die Teile des gemessenen Saldos
+        const energy = meas ? meas.energy_cost : hasParts ? c.energy_cost_to_date : c.actual_kwh_cost;
+        const base   = meas ? meas.base : hasParts ? c.base_to_date : c.actual_base_total;
+        const bonus  = meas ? meas.bonus : hasParts ? c.bonus_to_date : c.actual_bonus_total;
         if (energy != null) parts.push(t('utility.balance.breakdownConsumption', { value: fmt.eur(energy) }));
         if (base > 0)       parts.push(t('utility.balance.breakdownBase', { value: fmt.eur(base) }));
         if (bonus > 0)      parts.push(t('utility.balance.breakdownBonus', { value: fmt.eur(bonus) }));
@@ -924,20 +972,47 @@ function balanceCard(c, u, country = 'DE') {
     ? `<div class="balance-col__breakdown">${spParts.join(' ')}</div>`
     : '';
 
+  // v3.10.0 (#49) — Beginn und Ende des gemessenen Saldos; die Schätzung bis heute als Zusatzzeile
+  const untilTxt = meas ? fmt.date(meas.until) : '';
+  const spanHtml = meas
+    ? `<p class="muted small" data-role="balance-span">${escapeHtml(t('utility.balance.measuredSpan', { from: fmt.date(meas.from), until: untilTxt }))}</p>` : '';
+  // v3.10.0 (Skeptiker M3) — die Zusatzzeile rechnet vom gemessenen Saldo zum Stand heute vor: geschätzter
+  // Verbrauch und Grundpreis seit der Ablesung, dagegen die Abschläge (und Sonderzahlungen) seither
+  const dated = !!meas && meas.until < (c.balance_as_of || '');
+  const todayView = dated ? balanceView(today.balance, u) : null;
+  const num = (v) => Number(v) || 0;
+  const since = dated ? {
+    energy: num(today.energy_estimated),
+    base: num(today.base) - num(today.bonus) - (num(meas.base) - num(meas.bonus)),
+    advance: num(today.advance) - num(meas.advance),
+    special: num(today.special_net) - num(meas.special_net),
+  } : null;
+  const estimateHtml = todayView
+    ? `<p class="balance-suggest muted" data-role="balance-estimate-today">${escapeHtml(t('utility.balance.estimateTodayParts', {
+        balance: todayView.credit === null ? todayView.word : `${todayView.word} ${fmt.eur(todayView.amount)}`, date: untilTxt,
+        energy: fmt.eur(since.energy), base: fmt.eur(since.base), advance: fmt.eur(since.advance) })
+        + (Math.abs(since.special) >= 0.005 ? ' ' + t(since.special > 0 ? 'utility.balance.estimateTodayRefund' : 'utility.balance.estimateTodayPaid',
+          { value: fmt.eur(Math.abs(since.special)) }) : ''))}</p>` : '';
+  // v3.10.0 (M3) — „Saldo am ‹Ablesung›“, wenn sie zurückliegt; ohne gemessenen Tag „Saldo heute (geschätzt)“ (H3)
+  const balanceLabel = isFeedIn ? t('utility.balance.colClaimFeedIn')
+    : dated ? escapeHtml(t('utility.balance.colBalanceAt', { date: untilTxt }))
+    : estimatedOnly ? escapeHtml(t('utility.balance.colBalanceEstimated')) : t('utility.balance.colBalance');
+
   return `
     <div class="card card--${u.key}">
       <div class="card__title">${t('utility.balance.title', { name: escapeHtml(c.provider || c.tariff_name || '–') })}</div>
-      <div class="muted num" style="font-size:11px;margin-bottom:14px">${escapeHtml(tariffText)}</div>
+      <div class="muted num" style="font-size:11px;margin-bottom:${meas ? 4 : 14}px">${escapeHtml(tariffText)}</div>
+      ${spanHtml}
       <div class="balance-grid">
         <div>
-          <div class="balance-col__label">${isFeedIn ? t('utility.balance.colConsumedFeedIn') : t('utility.balance.colConsumed')}</div>
-          <div class="balance-col__value">${fmt.eur(costToDate)}</div>
+          <div class="balance-col__label">${isFeedIn ? t('utility.balance.colConsumedFeedIn') : meas ? escapeHtml(t('utility.balance.colConsumedUntil', { date: untilTxt })) : t('utility.balance.colConsumed')}</div>
+          <div class="balance-col__value"${meas ? ' data-role="balance-measured-cost"' : ''}>${fmt.eur(costToDate)}</div>
           ${breakdownHtml}
           <div class="balance-col__sub">${measuredSub}</div>
         </div>
         <div>
-          <div class="balance-col__label">${isFeedIn ? t('utility.balance.colPaidFeedIn') : t('utility.balance.colPaid')}</div>
-          <div class="balance-col__value">${isFeedIn ? '–' : fmt.eur(c.advance_paid)}</div>
+          <div class="balance-col__label">${isFeedIn ? t('utility.balance.colPaidFeedIn') : meas ? escapeHtml(t('utility.balance.colPaidUntil', { date: untilTxt })) : t('utility.balance.colPaid')}</div>
+          <div class="balance-col__value">${isFeedIn ? '–' : fmt.eur(meas ? meas.advance : settledSum && c.settle_today ? c.settle_today.advance : c.advance_paid)}</div>
           <div class="balance-col__sub">${isFeedIn ? t('utility.balance.paidViaGrid') : (c.current_advance_amount != null ? (Number(c.current_advance_every_months) > 1
             ? t('utility.balance.paidCurrentEvery', { value: advanceAmountText(c.current_advance_amount, c.current_advance_every_months) })
             : t('utility.balance.paidCurrent', { value: fmt.eur(c.current_advance_amount) })) : t('utility.balance.paidCurrentNone'))}</div>
@@ -945,11 +1020,14 @@ function balanceCard(c, u, country = 'DE') {
           ${!isFeedIn && specialHtml ? `<div class="balance-col__sub" style="margin-top:6px">${tp('utility.balance.specialCount', spCount)}</div>${specialHtml}` : ''}
         </div>
         <div>
-          <div class="balance-col__label">${isFeedIn ? t('utility.balance.colClaimFeedIn') : t('utility.balance.colBalance')}${info('balance')}</div>
+          <div class="balance-col__label" data-role="balance-current-label">${balanceLabel}${info('balance')}</div>
           <!-- v2.13.0 (Review UI-18) — Kundensicht ohne Vorzeichen; die Farbe
                folgt der Bedeutung (bis v2.12 hieß die rote Klasse „positive") -->
-          <div class="balance-col__value ${curView?.credit ? 'balance-col__value--credit' : curView?.credit === false ? 'balance-col__value--due' : ''}">${fmt.eur(curView ? curView.amount : cur)}</div>
-          <div class="balance-col__sub">${isFeedIn ? (cur > 0 ? t('utility.balance.subCredit') : cur < 0 ? t('utility.balance.subReclaim') : t('utility.balance.subBalanced')) : (cur > 0 ? t('utility.balance.subUnderpaid') : cur < 0 ? t('utility.balance.subOverpaid') : t('utility.balance.subBalanced'))}</div>
+          <div class="balance-col__value ${curView?.credit ? 'balance-col__value--credit' : curView?.credit === false ? 'balance-col__value--due' : ''}" data-role="balance-current">${fmt.eur(curView ? curView.amount : cur)}</div>
+          <div class="balance-col__sub">${isFeedIn ? (cur > 0 ? t('utility.balance.subCredit') : cur < 0 ? t('utility.balance.subReclaim') : t('utility.balance.subBalanced'))
+            // v3.10.0 (M3) — zum Tag der Ablesung nur das Wort („bisher zu viel gezahlt“ stimmt heute nicht mehr)
+            : dated && curView ? curView.word
+            : (cur > 0 ? t('utility.balance.subUnderpaid') : cur < 0 ? t('utility.balance.subOverpaid') : t('utility.balance.subBalanced'))}</div>
         </div>
         <div class="balance-verdict ${unc ? 'balanced' : verdictCls}">
           <div class="balance-verdict__label">${unc ? '↕' : arrow} ${t('utility.balance.verdictLabel')}</div>
@@ -961,10 +1039,17 @@ function balanceCard(c, u, country = 'DE') {
           <div class="balance-verdict__date">${escapeHtml(dateLabel)}</div>
         </div>
       </div>
+      ${estimateHtml}
       ${suggestHtml}
       ${uncertainHtml}
-      ${band ? `<p class="balance-suggest muted" data-role="balance-band">${escapeHtml(tp('utility.balance.band', Number(band.estimated_days) || 0, {
-        range: uncertainRangeText({ projected_range: [band.low, band.high] }), level: fmt.pct((Number(band.level_pct) || 0) / 100, 0), count: Number(band.estimated_days) || 0 }))}</p>` : ''}
+      <!-- v3.10.0 (R2-3) — ohne Wetterteil (Strom, Wasser) „Je nach Schätzung …“ -->
+      ${band ? (() => {
+        const n = Number(band.estimated_days) || 0;
+        const p = { range: uncertainRangeText({ projected_range: [band.low, band.high] }), level: fmt.pct((Number(band.level_pct) || 0) / 100, 0), count: n };
+        // v3.10.0 (Skeptiker H2) — ohne gemessene Streuung nur die Untergrenze: das sagt der Satz
+        return `<p class="balance-suggest muted" data-role="balance-band">${escapeHtml(band.few_measured ? tp('utility.balance.bandFew', n, p)
+          : Number(band.weather) > 0 ? tp('utility.balance.band', n, p) : tp('utility.balance.bandNoWeather', n, p))}</p>`;
+      })() : ''}
       ${(() => { const h = !isFeedIn ? anchorHintText(c.billing_period) : null;   // v3.9.0 (Skeptiker M7) — der Stichtag-Hinweis auch hier
         return h ? `<p class="muted small" data-role="card-anchor-hint">${escapeHtml(h)}</p>` : ''; })()}
       ${unc && poorFitIn(unc.reasons) ? '<div data-role="heat-limit-slot"></div>' /* v3.9.0 (#38) — Heizgrenze-Vorschlag, nachgeladen */ : ''}
@@ -1227,8 +1312,9 @@ function contractsTable(contracts, u) {
         ${showSpecial ? specialCell(c) : ''}
         ${balCell(cur)}
         ${c.projection_uncertain ? `<td class="num muted" data-role="expected-range">${escapeHtml(uncertainRangeText(c.projection_uncertain))}</td>`
-          // v3.9.0 (L15) — künftiger Vertrag: der erwartete Saldo ist eine Schätzung (≈, Legende)
-          : c.is_future ? balCell(proj, true).replace(/^<td([^>]*)>/, '<td$1 data-role="expected-future"><span aria-hidden="true">≈ </span>') : balCell(proj, true)}
+          // v3.9.0 (L15) — künftiger Vertrag: der erwartete Saldo ist eine Schätzung (≈, Legende);
+          // v3.10.0 — beginnt er erst nach der laufenden Periode, gibt es keinen (–, ohne ≈)
+          : c.is_future && proj != null ? balCell(proj, true).replace(/^<td([^>]*)>/, '<td$1 data-role="expected-future"><span aria-hidden="true">≈ </span>') : balCell(proj, true)}
       </tr>`;
   };
   const anyFuture = contracts.some(c => c.is_future && c.projected_end_balance != null && !c.projection_uncertain);
@@ -1831,7 +1917,7 @@ function pickLoadpoint(names) {
 }
 
 // v3.1.0 (H7, MKT-18) — Jahresarbeitszahl: Wärme ÷ Strom der Wärmepumpe
-function heatPumpCardHtml(p, ref, year) {
+export function heatPumpCardHtml(p, ref, year) {
   if (!p) return `<div class="card"><h2 class="card__title">${escapeHtml(t('heatPump.title', { year }))}${info('jaz')}</h2>
     <p class="muted">${escapeHtml(t('heatPump.noHeatMeter'))}</p></div>`;
   return `<div class="card">
@@ -1847,8 +1933,10 @@ function heatPumpCardHtml(p, ref, year) {
       <div class="table-wrap"><table class="table table--compact"><thead><tr>
         <th scope="col">${escapeHtml(t('heatPump.month'))}</th><th scope="col" class="num">${escapeHtml(t('heatPump.heat'))}</th>
         <th scope="col" class="num">${escapeHtml(t('heatPump.elec'))}</th><th scope="col" class="num">${escapeHtml(t('heatPump.cop'))}</th></tr></thead>
-        <tbody>${p.months.map(m => `<tr><td>${escapeHtml(fmt.month(m.ym))}</td><td class="num">${fmt.int(m.heat_kwh)}</td><td class="num">${fmt.int(m.elec_kwh)}</td><td class="num">${fmt.num(m.cop, 1)}</td></tr>`).join('')}</tbody>
-      </table></div>` : `<p class="muted">${escapeHtml(t(p.linked ? 'heatPump.noOverlap' : 'heatPump.notLinked'))}</p>`}
+        <tbody>${p.months.map(m => `<tr${m.estimated ? ' data-estimated="1"' : ''}><td>${escapeHtml(fmt.month(m.ym))}</td><td class="num">${fmt.int(m.heat_kwh)}</td>
+          <td class="num">${m.estimated ? '≈ ' : ''}${fmt.int(m.elec_kwh)}</td><td class="num">${m.cop != null ? fmt.num(m.cop, 1) : '–'}</td></tr>`).join('')}</tbody>
+      </table></div>
+      ${p.months.some(m => m.estimated) ? `<p class="muted small" data-role="hp-estimated">${escapeHtml(t('heatPump.cascadeEstimated'))}</p>` : ''}` : `<p class="muted">${escapeHtml(t(p.linked ? 'heatPump.noOverlap' : 'heatPump.notLinked'))}</p>`}
     <p class="muted small">${escapeHtml(t('heatPump.reference', { air: fmt.num(ref?.air_water ?? 3.4, 1), ground: fmt.num(ref?.ground_water ?? 4.3, 1) }))}</p>
   </div>`;
 }
@@ -1868,6 +1956,20 @@ function pvExtrasHtml(pv, year) {
           <div class="kpi__sub">${escapeHtml(t('pv.battery.losses', { kwh: fmt.int(b.losses_kwh) }))}</div></div>` : ''}
         ${b.full_cycles != null ? `<div class="kpi"><div class="kpi__label">${escapeHtml(t('pv.battery.cycles'))}</div><div class="kpi__value">${fmt.num(b.full_cycles, 0)}</div></div>` : ''}
       </div></div>`);
+  }
+  // v3.10.0 (#40) — Einspeisung in der Kaskade: selbst genutzter Sonnenstrom je Strang
+  const c = y?.cascade;
+  if (c && c.months > 0) {
+    // v3.10.0 (Skeptiker M5) — aus verteilten Monaten ist die Aufteilung geschätzt: ≈ und ein Satz
+    const est = (c.interpolated_months || 0) > 0;
+    const kpi = (st) => `<div class="kpi" data-strand="${escapeHtml(st.position)}"><div class="kpi__label">${escapeHtml(t(`meters.roles.strom.${st.role}`))}</div>
+        <div class="kpi__value">${(st.estimated_months || 0) > 0 ? '≈ ' : ''}${fmt.int(st.kwh)} kWh</div><div class="kpi__sub">${escapeHtml(st.name)}</div></div>`;
+    parts.push(`<div class="card" data-role="pv-cascade"><h2 class="card__title">${escapeHtml(t('pv.cascade.title', { year }))}</h2>
+      <div class="kpi-grid">${c.strands.map(kpi).join('')}</div>
+      <p class="muted small">${escapeHtml(t('pv.cascade.hint'))} ${escapeHtml(tp('pv.cascade.months', c.months, { n: c.months }))}${est
+        ? ` <span data-role="pv-cascade-estimated">${escapeHtml(tp('pv.cascade.estimated', c.interpolated_months, { n: c.interpolated_months }))}</span>` : ''}</p>
+      ${(c.inconsistent_months || []).length ? `<p class="banner banner--warning small">${escapeHtml(t('pv.cascade.inconsistent', { list: c.inconsistent_months.map(ym => fmt.month(ym)).join(', ') }))}</p>` : ''}
+    </div>`);
   }
   const p = pv.payback;
   if (p) {

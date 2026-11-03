@@ -78,6 +78,7 @@ final class DemoDataAligner
     public static function align(array $payload, string $today): array
     {
         $ref = self::referenceDate($payload);
+        $lag = self::readingLag($payload);   // v3.10.0 — vor alignBillingAnchors, das `demo_align` entfernt
         $payload = self::alignBillingAnchors($payload, $today);
         $shift = self::reminderShift($payload['reminders'] ?? [], $today);
         $payload['reminders'] = self::alignReminders($payload['reminders'] ?? [], $shift, $today);
@@ -94,7 +95,8 @@ final class DemoDataAligner
             if (!is_array($data)) continue;
             $meters = is_array($data['meters'] ?? null) ? $data['meters'] : [];
             if (is_array($data['readings'] ?? null)) {
-                $data['readings'] = self::extendReadings($data['readings'], $meters, $horizon);
+                $data['readings'] = self::extendReadings($data['readings'], $meters,
+                    isset($lag[$u]) ? max($ref, self::addDays($horizon, -$lag[$u])) : $horizon);
             }
             if (is_array($data['deliveries'] ?? null)) {
                 $data['deliveries'] = self::extendEvents($data['deliveries'], $ref, $horizon);
@@ -121,6 +123,23 @@ final class DemoDataAligner
                 $payload['intervals'], $payload['interval_files'], $ref, $today, self::timezone($payload));
         }
         return $payload;
+    }
+
+    /**
+     * v3.10.0 (Schaufenster „Saldo aus einem Guss“, #49) — `demo_align.reading_lag_days` =
+     * {Verbrauchsart: Tage}: Die Stände dieser Art wachsen nur bis so viele Tage vor heute. So
+     * liegt zwischen letzter Ablesung und heute immer eine Lücke, und die Saldo-Karte zeigt zu
+     * jedem Zeitpunkt beides: den gemessenen Saldo und die Schätzung bis heute.
+     *
+     * @return array<string,int>
+     */
+    private static function readingLag(array $payload): array
+    {
+        $out = [];
+        foreach ((array)($payload['demo_align']['reading_lag_days'] ?? []) as $u => $days) {
+            if (is_string($u) && \Energietracker\Config\Utilities::exists($u) && is_int($days) && $days >= 1 && $days <= 60) $out[$u] = $days;
+        }
+        return $out;
     }
 
     /**

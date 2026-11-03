@@ -63,10 +63,16 @@ namespace Energietracker\Services\Inbox;
  * mehreren Zählwerken auf der Rechnung (HT/NT, Bezug/Einspeisung), ordnet
  * Proposals jeden Stand dem Zähler mit diesem Zählwerk zu. Die Version bleibt
  * für das ganze Release 5.
+ *
+ * v3.10.0 (korrekturen) — VERSION 6: an der Rechnung `invoice_number`
+ * (Rechnungsnummer) und `corrects_invoice` (Bezug auf eine frühere Rechnung, die
+ * das Dokument korrigiert oder ersetzt), beide Hilfsangaben ohne Marke. Daran
+ * erkennt der laufende Posteingang eine Rechnungskorrektur (Proposals::correctionOf).
+ * Der Zwischenspeicher der Version 5 trifft nicht mehr.
  */
 final class InboxSchema
 {
-    public const VERSION = 5;
+    public const VERSION = 6;
 
     public const TYPES = [
         'invoice', 'contract_confirmation', 'price_change', 'cancellation', 'supply_start',
@@ -306,6 +312,10 @@ final class InboxSchema
                 'market_location'  => self::MALO,
                 'contract_number'  => self::CONTRACT_NUMBER,
                 'customer_number'  => self::CUSTOMER_NUMBER,
+                // v3.10.0 — Rechnungskorrektur im laufenden Posteingang: Nummer und Bezug als Hilfsangaben
+                // (Proposals::correctionOf), nie eine Marke
+                'invoice_number'   => ['kind' => 'text', 'helper' => true, 'desc' => 'number of this invoice as printed (Rechnungsnummer, Belegnummer); empty if none is printed'],
+                'corrects_invoice' => ['kind' => 'text', 'helper' => true, 'desc' => 'number or date of an earlier invoice that this document corrects, cancels or replaces, as printed (Bezug, ersetzt Rechnung Nr. …, Korrektur zur Rechnung vom …); empty if the document does not refer to an earlier invoice'],
                 'gas_factors'      => ['kind' => 'list', 'desc' => 'gas only: conversion factors per period (Zustandszahl, Brennwert)',
                     'items' => ['from' => ['kind' => 'date', 'desc' => 'start of the period'], 'to' => ['kind' => 'date', 'desc' => 'end of the period'],
                                 'z' => ['kind' => 'number', 'desc' => 'Zustandszahl, e.g. 0,9512'], 'hs' => ['kind' => 'number', 'desc' => 'Brennwert in kWh/m³, e.g. 11,25']]],

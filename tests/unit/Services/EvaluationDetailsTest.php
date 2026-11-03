@@ -85,6 +85,65 @@ final class EvaluationDetailsTest extends ServiceTestCase
             (float)$future['current_advance_amount']]);
     }
 
+    /**
+     * v3.10.0 (Befund aus v3.9.0, Paket auswertung) — unbefristeter Folgevertrag ab dem nächsten Stichtag
+     * (Strom, Stichtag 01.01., laufende Periode 2026). Bis v3.9: `effective_end` 2027-01-01 = sein Beginn,
+     * `settle_on` 2026-12-31 vor seinem Beginn, Saldo rund ein Tag Kosten (2,42 € Nachzahlung), in der
+     * Vertragsliste „≈ … erwartet“. Jetzt: Abrechnungstag am Ende seiner ersten eigenen Periode, kein
+     * erwarteter Saldo (er gehört zu keiner anstehenden Abrechnung).
+     */
+    public function testAnOpenSuccessorFromTheNextAnchorSettlesAtTheEndOfItsOwnFirstPeriod(): void
+    {
+        $this->messy();
+        $meter = $this->meters->list('strom')[0];
+        $this->contracts->create('strom', ['meter_id' => $meter['id'], 'provider' => 'Neuversorger', 'start' => '2027-01-01',
+            'working_prices' => [['from' => '2027-01-01', 'ct_per_kwh' => 30.0]], 'base_prices' => [['from' => '2027-01-01', 'eur_per_month' => 12.0]],
+            'advance_payments' => [['from' => '2027-01-01', 'amount_eur' => 70.0]]]);
+        $rows = $this->consumption->contractStatus('strom', $meter, self::TODAY)['contracts'];
+        $future = array_values(array_filter($rows, fn($c) => !empty($c['is_future'])))[0];
+        self::assertSame(['2028-01-01', '2027-12-31'], [$future['effective_end'], $future['settle_on']], 'nie vor dem eigenen Beginn');
+        self::assertNull($future['projected_end_balance'], 'bis v3.9 rund ein Tag Kosten');
+        self::assertNull($future['verdict']);
+        self::assertNull($future['billing_period']);
+        self::assertSame(0.0, $future['current_balance']);
+        // der laufende Vertrag rechnet weiter bis zum Stichtag ab (unverändert)
+        $cur = array_values(array_filter($rows, fn($c) => !empty($c['is_current'])))[0];
+        self::assertSame(['2026-12-31', '2026-12-31'], [$cur['superseded_on'], $cur['settle_on']]);
+        self::assertNotNull($cur['projected_end_balance']);
+    }
+
+    /** v3.10.0 — beginnt er später im Jahr, gilt dasselbe: der nächste Stichtag nach seinem Beginn. */
+    public function testAnOpenSuccessorLaterInTheNextYearSettlesAtTheFollowingAnchor(): void
+    {
+        $this->messy();
+        $meter = $this->meters->list('strom')[0];
+        $this->settings->set(['billing_cycle_anchor_strom' => '04-01']);
+        // Stichtag 01.04.: laufende Periode 01.04.2026–31.03.2027; der Folgevertrag beginnt am 01.05.2027
+        $this->contracts->create('strom', ['meter_id' => $meter['id'], 'provider' => 'Neuversorger', 'start' => '2027-05-01',
+            'working_prices' => [['from' => '2027-05-01', 'ct_per_kwh' => 30.0]], 'advance_payments' => [['from' => '2027-05-01', 'amount_eur' => 70.0]]]);
+        $future = array_values(array_filter($this->consumption->contractStatus('strom', $meter, self::TODAY)['contracts'], fn($c) => !empty($c['is_future'])))[0];
+        self::assertSame(['2028-04-01', '2028-03-31'], [$future['effective_end'], $future['settle_on']]);
+        self::assertNull($future['projected_end_balance']);
+    }
+
+    /**
+     * v3.10.0 — Gegenstück: Ein Wechsel vor dem Stichtag (01.12.2026, Stichtag 01.01.) rechnet weiter
+     * mit ≈ bis zum Stichtag ab (L15); der Wechsel schneidet die laufende Periode am 30.11.
+     */
+    public function testAFutureContractInsideTheRunningPeriodKeepsItsExpectedBalance(): void
+    {
+        $this->messy();
+        $meter = $this->meters->list('strom')[0];
+        $this->contracts->create('strom', ['meter_id' => $meter['id'], 'provider' => 'Neuversorger', 'start' => '2026-12-01',
+            'working_prices' => [['from' => '2026-12-01', 'ct_per_kwh' => 30.0]], 'base_prices' => [['from' => '2026-12-01', 'eur_per_month' => 12.0]],
+            'advance_payments' => [['from' => '2026-12-01', 'amount_eur' => 70.0]]]);
+        $future = array_values(array_filter($this->consumption->contractStatus('strom', $meter, self::TODAY)['contracts'], fn($c) => !empty($c['is_future'])))[0];
+        self::assertSame('2026-12-31', $future['settle_on']);
+        self::assertSame('2026-12-01', $future['billing_period']['open_from'] ?? $future['balance_from']);
+        self::assertNotNull($future['projected_end_balance']);
+        self::assertNotNull($future['verdict']);
+    }
+
     // ── L17: weniger verbraucht, als Einsparung nicht belegbar ──────────
 
     /** Strom am Monatsersten abgelesen: 2024 je 300 kWh, 2025 je 246 kWh (−18 %). */

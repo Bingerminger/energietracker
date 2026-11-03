@@ -211,6 +211,9 @@ Kennung.
   // v3.1.0, nur bei Heizwärme mit Rolle heat_pump_output, optional:
   "heat_pump_meter_ids": ["m_wp_strom"], // Stromzähler der Wärmepumpe (Rolle heat_pump)
 
+  // v3.10.0, nur bei PV-Einspeisung, optional — Einspeisezählwerk in der Kaskade:
+  "cascade_meter_id": "m_strom_z2ht",    // Stromzähler hinter einem anderen, an dem es sitzt
+
   // v3.7.0, optional — fehlt = niemand zuständig:
   "assignee_id": "u_3f9a1c2e"            // Person aus dem Personenverzeichnis
 }
@@ -243,6 +246,16 @@ Falsches lehnt sie ab (`errors.meter.obisInvalid`). Ein Zähler mit mehreren
 Zählwerken (HT/NT, Bezug/Einspeisung) wird je Zählwerk ein Zähler mit derselben
 Gerätenummer; Posteingang und Home-Assistant-Eingang ordnen damit Stände zu
 ([API](api.md#zähler-obis-v390-additiv)).
+
+**Einspeisezählwerk in der Kaskade (`cascade_meter_id`, v3.10.0).** Nur bei
+`pv_einspeisung`: der Stromzähler, an dem dieses Einspeisezählwerk sitzt, etwa
+das erste Zählwerk von Z2. Er muss ein Stromzähler hinter einem anderen sein
+(`parent_meter_id`), sonst `errors.meter.cascadeLinkInvalid`; leer entfernt das
+Feld. Ein solcher Zähler zählt nicht in Summen (`MeterService::countsInTotals`):
+Ins Netz geht nur, was der vordere Zähler zählt. Aus den Differenzen rechnet
+`GET /api/pv-summary` den Sonnenstrom je Strang
+([API](api.md#einspeisung-in-der-kaskade-v3100-additiv)). Der Zähler steht wie
+jeder andere vollständig im Backup.
 
 **Rolle (`role`, v3.1.0).** Was ein Zähler misst, bei den Arten, die Rollen
 kennen. Die erste ist der Standard und wird **nicht** gespeichert — ein Zähler
@@ -1092,7 +1105,7 @@ Eine Liste; die Datei entsteht mit dem ersten Dokument, kein Schema-Schritt.
   "queued_at": null,           // nur vorgemerkt: Reihenfolge der Warteschlange
   "type": "invoice",           // Dokumentart, s. u.; type_confidence 0–1 oder null
   "extraction": {              // das geprüfte Ergebnis, null vor dem Auslesen
-    "provider": "local", "model": "qwen3.8", "schema_version": 5, "type": "invoice",
+    "provider": "local", "model": "qwen3.8", "schema_version": 6, "type": "invoice",
     "fields": {
       "consumption": { "value": 10450, "raw": "10.450", "quote": "Verbrauch: 945,6 m³ = 10.540 kWh",
                        "page": 1, "status": "check", "reasons": ["value_not_in_quote"] }
@@ -1101,7 +1114,7 @@ Eine Liste; die Datei entsteht mit dem ersten Dokument, kein Schema-Schritt.
     "flags": 3, "seconds": 74.2, "extracted_at": "…",
     "text": { "chars": 1180, "kept": [1, 2], "dropped": [3], "truncated": false }   // AGB-Seiten nicht gesendet
   },
-  "cache": { "local|qwen3.8|5": { … } },   // Rohantworten je Anbieter, Modell und Schema-Version (höchstens drei)
+  "cache": { "local|qwen3.8|6": { … } },   // Rohantworten je Anbieter, Modell und Schema-Version (höchstens drei)
   "assignment": null,          // {utility, meter_id, contract_id} — vom Nutzer gesetzt, sonst gilt die Vorbelegung
   "edits": {},                 // bestätigte oder korrigierte Feldwerte, {feld: wert}
   "applied": [],               // [{id, kind, key, ref, at}] — was übernommen wurde
@@ -1161,6 +1174,11 @@ Eine Liste; die Datei entsteht mit dem ersten Dokument, kein Schema-Schritt.
   Kopfzeile `number_from: header`; `estimated_by` kennt zusätzlich `mark`
   (Fußnote). Der Schlüssel des Zwischenspeichers endet seither auf `|4`;
   Auslesungen mit `|3` bleiben stehen, bis das Dokument neu ausgelesen wird.
+- **Rechnungsnummer und Bezug** *(v3.10.0, `schema_version` 6)*: die Rechnung
+  trägt `invoice_number` und `corrects_invoice` (Hilfsfelder ohne Marke), für
+  die Rechnungskorrektur im laufenden Posteingang ([API](api.md)). Der
+  Schlüssel des Zwischenspeichers endet auf `|6`; ältere Auslesungen bleiben
+  stehen, bis das Dokument neu ausgelesen wird.
 - **Doppel:** Ein zweites Dokument mit derselben `sha256` lehnt die API mit
   `409` ab (`errors.inbox.duplicate`, der vorhandene Eintrag unter
   `detail.existing`). Inhaltsgleiche Dokumente in verschiedenen Dateien

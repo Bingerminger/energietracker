@@ -508,6 +508,29 @@ t('Geld: 0 € Abschläge werden genannt', parse(EXTREME['Geld ohne Abschläge (
     .querySelector('.explainer__text')?.textContent || '';
   t('L1: Geld — Abrechnung am letzten Tag des Zeitraums (settle_on)', cap.includes(`am ${fmt.date('2027-02-14')}`) && !cap.includes(fmt.date('2027-02-28')), cap);
 }
+// v3.10.0 (Skeptiker v3.9.0, R2-3) — sichere Schätzung mit Breite: „Wohin geht mein Geld?“ nennt sie wie die Karte
+{
+  const row = { balance_path: [{ ym: '2026-01', paid: 100, cost: 90 }, { ym: '2026-12', paid: 1400, cost: 1300 }],
+    energy_cost_to_date: 700, base_to_date: 300, bonus_to_date: 0, projected_end_balance: -100, settle_on: '2026-12-31' };
+  const cap = (band) => parse(EX.moneyHtml({ ...row, projection_band: band })).querySelector('.explainer__text')?.textContent.replace(/\s+/g, ' ') || '';
+  const w = cap({ low: -130, high: -70, half: 30, level_pct: 80, estimated_days: 120, weather: 20, model: 22 });
+  const n = cap({ low: -130, high: -70, half: 30, level_pct: 80, estimated_days: 120, weather: 0, model: 30 });
+  t('R2-3: Geld — Breite mit Wetter', /Das ergibt rund 100\s€ Guthaben \(je nach Wetter und Schätzung \S+ 70\s€ Guthaben bis \S+ 130\s€ Guthaben\)/.test(w), w);
+  t('R2-3: Geld — Strom und Wasser ohne Wetterteil', /\(je nach Schätzung \S+ 70\s€/.test(n) && !/Wetter/.test(n), n);
+  t('R2-3: Geld — unter einem Euro keine Breite', !/je nach/.test(cap({ low: -100.4, high: -99.6, half: 0.4, weather: 0 })));
+  // v3.10.0 (Skeptiker H2) — ohne gemessene Streuung sagt der Satz es
+  t('H2: Geld — „zu wenige gemessene Monate“', /\(zu wenige gemessene Monate, je nach Schätzung \S+ 70\s€/.test(cap({ low: -130, high: -70, half: 30, weather: 0, few_measured: true })));
+  // v3.10.0 (Skeptiker H1/H3) — Abrechnung über zwei Verträge: Ergebnis wie die Karte (Summe, Spanne aus beiden Teilen),
+  // ein Satz nennt den Vorvertrag; ist er unsicher, mit seiner Spanne
+  const sum = parse(EX.moneyHtml({ ...row, contract_id: 'b', settle_balance: -174.2, settle_range: [-260, -90],
+    settle_uncertain: { reasons: ['poor_fit'], fit_ratio: 0.2, projected_range: [-260, -90] },
+    settle_parts: [{ contract_id: 'a', from: '2026-01-01', until: '2026-03-31', balance: -107, is_current: false, uncertain: true, range: [-190, -30] },
+                   { contract_id: 'b', from: '2026-04-01', until: '2026-12-31', balance: -67.2, is_current: true, uncertain: false, range: null }] }))
+    .querySelector('.explainer__text')?.textContent.replace(/\s+/g, ' ') || '';
+  t('H1: Geld — die Summe der Abrechnung mit ihrer Spanne, kein Punktwert des einen Vertrags', /zwischen rund 90\s€ Guthaben und rund 260\s€ Guthaben/.test(sum)
+    && /Darin steckt der Vertrag vom 01\.01\.2026 bis 31\.03\.2026 derselben Abrechnung mit \S+ 30\s€ Guthaben bis \S+ 190\s€ Guthaben\./.test(sum)
+    && !/rund 100\s€ Guthaben\./.test(sum), sum);
+}
 // v3.9.0 (A1) — meldet der Beobachter ein Bild nie als sichtbar, steht nach zwei Sekunden das Endbild
 {
   const prevIO = globalThis.IntersectionObserver;

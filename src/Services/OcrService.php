@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Energietracker\Services;
 
+use Energietracker\Support\HomeTls;
 use Energietracker\Support\LocalizedException;
 use Energietracker\Support\Outbound;
 
@@ -87,6 +88,7 @@ final class OcrService
         $resp = ($this->transport)($url, (string)json_encode($body, JSON_UNESCAPED_SLASHES), $timeout, $ip);
         $ms = (int)round((hrtime(true) - $t0) / 1e6);
         if (!$resp['ok']) {
+            HomeTls::throwIfCertificate($resp, $url);   // v3.10.0 (#36)
             $key = ($resp['error_code'] ?? '') === 'timeout' ? 'errors.ocr.timeout' : 'errors.ocr.unreachable';
             throw new LocalizedException($key, ['seconds' => $timeout, 'code' => (string)($resp['http_code'] ?? '')], 'OCR request failed');
         }
@@ -246,7 +248,8 @@ final class OcrService
         $ip = $this->checkLocal($url);
         $resp = self::curlPost($url, null, 10, $ip);
         if (!$resp['ok']) {
-            $key = ($resp['error_code'] ?? '') === 'timeout' ? 'errors.ocr.timeout' : 'errors.ocr.unreachable';
+            HomeTls::throwIfCertificate($resp, $url);   // v3.10.0 (#36)
+            $key =($resp['error_code'] ?? '') === 'timeout' ? 'errors.ocr.timeout' : 'errors.ocr.unreachable';
             throw new LocalizedException($key, ['seconds' => 10, 'code' => (string)($resp['http_code'] ?? '')], 'OCR check failed');
         }
         try {
@@ -280,12 +283,16 @@ final class OcrService
         if ($ip !== null && !filter_var($host, FILTER_VALIDATE_IP)) {
             $opts[CURLOPT_RESOLVE] = [$host . ':' . $port . ':' . (str_contains($ip, ':') ? "[$ip]" : $ip)];
         }
+        // v3.10.0 (#36) — eigenes Stammzertifikat bzw. „nicht prüfen“ (nur Heimnetz)
+        $opts += HomeTls::curlOptions($ip, $host);
         curl_setopt_array($ch, $opts);
         curl_exec($ch);
         $errno = curl_errno($ch);
         $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
         if ($errno) {
-            return ['ok' => false, 'body' => null, 'http_code' => null, 'error_code' => $errno === CURLE_OPERATION_TIMEDOUT ? 'timeout' : 'network'];
+            $error = $errno === CURLE_OPERATION_TIMEDOUT ? 'timeout'
+                : (HomeTls::certError($errno, (int)curl_getinfo($ch, CURLINFO_SSL_VERIFYRESULT)) ?? 'network');
+            return ['ok' => false, 'body' => null, 'http_code' => null, 'error_code' => $error];
         }
         if ($code < 200 || $code >= 300) return ['ok' => false, 'body' => is_string($body) ? $body : null, 'http_code' => $code, 'error_code' => 'http'];
         return ['ok' => true, 'body' => (string)$body, 'http_code' => $code, 'error_code' => null];

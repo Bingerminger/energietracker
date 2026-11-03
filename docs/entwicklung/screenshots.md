@@ -87,7 +87,8 @@ entstehen in einer eigenen Instanz mit eingeschalteter Anmeldung.
 | `willkommen.png` | Übersicht ohne Daten | `#/dashboard`, leeres Verzeichnis | 1440 × 900 | ✓ |
 | `zaehlerstaende.png` | Zählerstand-Erfassung | `#/zaehlerstaende` | 1440 × 1500 | ✓ |
 | `pruefung-zaehlerstand.png` | Rückfrage bei einem Sprung | Erfassung mit auffälligem Wert → „Alle speichern“ | 1440 × 900 | — |
-| `gas-view.png` | Verbrauch Gas | `#/utility/gas` | 1440 × 1500 | ✓ |
+| `gas-view.png` | Verbrauch Gas, Saldo-Karte gemessen und bis heute (v3.10.0) | `#/utility/gas`, Kalenderjahr | 1440 × 1500 | ✓ |
+| `uebersicht-abrechnungsjahr.png` | Übersicht im Abrechnungsjahr mit Trendpfeilen (v3.10.0) | `#/dashboard`, `localStorage['et-period-mode'] = 'billing'`; Umschalter bis zur zweiten Karte | Ausschnitt | ✓ |
 | `strom-view.png` | Verbrauch Strom mit Rest-Abrechnung am Hauptzähler (v3.9.0) | `#/utility/strom` | 1440 × 1500 | ✓ |
 | `heizoel-view.png` | Verbrauch Heizöl | `#/utility/heizoel` | 1440 × 1500 | ✓ |
 | `pv.png` | PV-Einspeisung mit Energiefluss | `#/utility/pv_einspeisung` | 1440 × 1280 | ✓ |
@@ -98,7 +99,7 @@ entstehen in einer eigenen Instanz mit eingeschalteter Anmeldung.
 | `navigation-iphone.png` | Übersicht am iPhone | `#/dashboard` | 375 × 812 | ✓ |
 | `erfassen-iphone.png` | Erfassen-Blatt am iPhone | ＋ Erfassen | 375 × 812 | ✓ |
 | `analyse.png` | Analyse | `#/analysis` | 1440 × 1500 | ✓ |
-| `prognose.png` | Prognose-Werkstatt (v3.6.0) | `#/forecast`, Beispiel „Kalter Winter“ angeklickt | 1440 × 1500 | ✓ |
+| `prognose.png` | Prognose-Werkstatt (v3.6.0), Ausgangsfall „Wie die Saldo-Karte (kalibriert)“ (v3.10.0) | `#/forecast`, Beispiel „Kalter Winter“ angeklickt | 1440 × 1500 | ✓ |
 | `jahresbericht.png` | Druckansicht des Jahresberichts (v3.4.0) | `#/report/print?year=2025` | 1440 × 1500 | ✓ |
 | `tarifvergleich.png` | Wechsel prüfen | `#/tariffs` | 1440 × 1522 | ✓ |
 | `empfehlungen.png` | Empfehlungen | `#/recommendations` | 1440 × 1500 | ✓ |
@@ -119,6 +120,7 @@ entstehen in einer eigenen Instanz mit eingeschalteter Anmeldung.
 | `ha-benachrichtigungen.png` | Karte „Benachrichtigungen an Home Assistant“ (v3.9.0) | `#/settings/integrations`, Ziel Webhook mit Adresse aus `192.168.178.x`, ausgeschaltet | Ausschnitt (Fenster 1440 × 2600, ganze Seite, damit die feste Kopfleiste den Titel nicht verdeckt) | ✓ |
 | `messkonzept.png` | Assistent „Messkonzept einrichten“, Schritt „Wie hängen die Zähler?“ (v3.9.0) | `#/utility/strom/meters?concept=1`: Wärmepumpe, HT/NT an jedem Bezugszähler, PV, dann „Kaskade“ | 1440 × 900 | ✓ |
 | `ablesung-pruefen.png` | „Zu tun“ mit „Ablesung vom … prüfen“ (v3.9.0) | Beispieldaten, ein Winterstand des Hauptzählers Gas um 100 m³ abgesenkt (nur in der Aufnahme-Instanz) | Ausschnitt | ✓ |
+| `einstellungen-heimnetz.png` | Karte „Verbindungen im Heimnetz“ (v3.10.0) | `#/settings/expert` | Ausschnitt (Fenster 1440 × 2600) | ✓ |
 
 Ein Test prüft, dass jedes verlinkte Bild existiert
 ([Tests](tests.md)).

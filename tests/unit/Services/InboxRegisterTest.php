@@ -291,6 +291,6 @@ final class InboxRegisterTest extends ServiceTestCase
         $p = $s->preview($e['id']);
         $fromItems = array_filter($p['proposals'], fn($x) => $x['kind'] === 'reading' && in_array('meter_readings', (array)$x['sources'], true));
         self::assertSame([], array_values($fromItems), 'dieselbe Nummer dreimal ohne Zählwerk: kein Vorschlag aus den Ständen je Zähler (wie bisher)');
-        self::assertSame(5, InboxSchema::VERSION, 'Schema mit Zählwerk je Stand');
+        self::assertGreaterThanOrEqual(5, InboxSchema::VERSION, 'Schema mit Zählwerk je Stand (seit 5)');
     }
 }

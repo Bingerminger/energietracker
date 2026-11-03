@@ -200,7 +200,10 @@ suggests a [baseline date](#effect-of-a-measure-baseline-date) on the day of the
 “Set baseline date here” (a dialog with the end of the unusual period as the day, to
 confirm or change) or “Not now”. Today’s level comes from at least half a year
 after the change (for the heating model from four intervals on, even if only a few
-readings exist after it). A gradual transition is allowed: right before the time after,
+readings exist after it). *(v3.10.0)* The app says “permanently” only once there are at
+least two readings after the change: the second closes an interval entirely at the new
+level and so confirms it. A single reading after a long pause, for example with a wrong
+digit, is no confirmation. A gradual transition is allowed: right before the time after,
 a single interval may lie between the old and today’s level; the day of the change is
 then the end of the last interval at the old level. With an effective baseline date only
 the time after it counts; if it is at the change, the note is not shown. The time before
@@ -970,6 +973,14 @@ meter group, such as HT and NT of a heat pump, are checked by R4 as the group,
 with one recommendation per group; if a utility has several meters or groups,
 the title names it (“Electricity · Heat pump Oct 2025: …”).
 
+**Since v3.10.0, R4 checks a parent meter with its own consumption** (measured
+minus its sub-meters, also without a contract of their own; measuring roles such
+as the battery do not count). Until then a spike of the wallbox also showed at
+the house meter that measures it too. R4 checks the sub-meter on its own, and the
+text at the parent meter says which sub-meters it leaves out. A month in which an
+installed sub-meter is not measured on all days of the parent meter (installed
+mid-month, a missing reading) does not count there; its remainder would be too high.
+
 Anomalies are hints, not judgements — a move, a new heat pump or a faulty meter
 produce them alike.
 
@@ -1160,10 +1171,154 @@ forward (`advance_ongoing`):
 ongoing = rounded( estimated cost of the 12 months after the bill / installments per year )
 ```
 
-Installments per year: 12 for a monthly advance, 6 every two months, 4 every
-three months. *(since v3.9.0)* With a rhythm, suggestion and ongoing advance apply
+*(described since v3.10.0, #38)* The rule is the same for an amount due and a
+credit. A credit spread over one or two payments pushes them close to zero,
+although the bill settles the rest anyway and the ongoing need applies again
+afterwards. The sign of the projection only decides the direction of the
+suggestion, not whether there is one. With exactly three payments left the card
+still spreads: the bound is strict, the suggestion only goes away below it.
+
+<!-- doc-claim: advance-short-credit (OneProjectionTest) -->
+```text
+cost €40 a month, advance €50        credit of the period 12 × (€40 − €50) = −€120
+two payments left until the bill     no suggestion, ongoing €40
+exactly three payments               €50 + (−€120) ÷ 3 = €10
+```
+
+Installments per year: as many as the payment plan has in the year after the
+bill, so 12 for a monthly advance, 6 every two months, 4 every three months and,
+with entered due dates, their number. Ten due dates instead of twelve months
+raise the ongoing advance (€480 a year: €48 instead of €40); it is therefore not
+comparable between plans with a different number of installments.
+*(since v3.9.0)* With a rhythm, suggestion and ongoing advance apply
 per installment, and the texts name the rhythm (“about €152 instead of €165 every
 2 months”); up to v3.7 a monthly amount stood next to the amount per due date.
+
+### Balance in one piece *(since v3.10.0)*
+
+**Measured and estimated kept apart (GitHub #49).** The card’s balance only
+counts what is measured up to the last reading (`balance_measured`) and reads
+“Balance on ‹reading›” (with a reading from today, “Current balance”). The
+estimate up to today is a second line below it; the forecast stays under
+“Expected at settlement”:
+
+```text
+measured until  = last reading (exclusive, like the monthly rows)
+cost            = working price of the measured monthly rows
+                + standing charge day-exact [balance from, last reading)
+                - bonuses of the months with measured days
+advances        = plan pro rata by days (the started month only for its measured part);
+                  installments with a rhythm in full if their day is before the reading
+balance on …    = cost - advances + special payments before the reading
+second line     = balance today (current_balance) = balance on …
+                  + estimated consumption + standing charge − advances + special payments since the reading
+```
+
+The second line thus works from the measured balance to today (“Estimated up to
+today: … Since the reading on …: consumption … (estimated) and standing charge
+…, against advances …”). Without a measured day in the period (for example a new
+contract without its own reading) the column reads “Balance today (estimated)”.
+
+The tile “Advances … to …” adds up the monthly rows of the calendar or billing
+year up to the last reading. Card and tile therefore end on the same day and both
+name their start (“Measured from 01/01/2026 up to the last reading on
+07/10/2026”, “Advances 01/01/2026 to 07/10/2026”). If the contract starts on
+1 January and there are no special payments, both are equal; otherwise they only
+differ in their start. If the card’s balance (cut-off date, contract change, bill)
+only starts within the calendar-year tile, the tile shows no second “balance” but
+“Balance: see the balance card, it counts from …”. Up to v3.9 the card counted from the contract start up to
+today with estimated days, the tile the calendar year up to the reading; with a
+contract that started the year before, two balances with opposite signs stood
+side by side (discussion #42). Invented example (`BalanceMeasuredTest`): 10 kWh a
+day, 10 ct, standing charge €12, advance €100, contract from 01/01/2026, last
+reading 07/10/2026:
+
+<!-- doc-claim: balance-measured-example (BalanceMeasuredTest) -->
+```text
+working price  279 days × 10 kWh × €0.10     = €279.00
+standing       9 × €12 + €12 × 6/31          = €110.32
+advances       9 × €100 + €100 × 6/31        = €919.35
+balance on 07/10 (without special payments)  = −€530.03 (credit), like the tile
+```
+
+**Width everywhere (since v3.10.0).** A reliable estimate has a width even
+without a trustworthy heating model (electricity, water, heating types after M5):
+the spread of the **measured** monthly quantities per calendar month around the
+value the estimate uses, but at least 10 % of the estimated quantity per month
+(the same floor as the forecast band and the anomaly detection).
+
+```text
+σ_month    = √( Σ ((rate − rate of the calendar month) × days of the month)² / Σ (years per month − 1) )
+             measured months only; spread-out months (long reading gaps) do not scatter
+per month  = max(σ_month × factor × share of estimated days, 10 % of the month’s estimated quantity)
+half width = 1.28 × √( Σ per month² ) × price per unit
+```
+
+Without a weather part the sentence reads “Depending on the estimate …”. Without a
+measured spread (one year per calendar month, or only spread-out months) only the
+floor counts; the sentence then reads “Too few measured months, depending on the
+estimate …”. Spread-out months do not count as spread, because evenly spread
+values hardly scatter: whoever reads once a year would otherwise get almost no
+width although almost a year is estimated. Invented examples
+(`ProjectionBandRatesTest`), the whole year estimated, 10 ct:
+
+<!-- doc-claim: rates-band-example (ProjectionBandRatesTest) -->
+```text
+8, 14 and 11 kWh a day in three years, read monthly:
+  1.28 × 3 × √11,111 × €0.10 = €40.48 (spread above the floor)
+10.9, 11.1 and 11.0 kWh a day, read monthly or once a year:
+  1.28 × 1.1 × √11,111 × €0.10 = €14.84 (floor, the same for both)
+```
+
+The same width (`projection_band`, one source) appears on the balance card, the
+beginner overview (“Will I get money back?”), “Where does my money go?”,
+Costs & contracts and the annual report (“Depending on the weather and the
+estimate, between … and …”). Up to v3.9 the band was only on the card and only
+for heating types.
+
+**Monthly costs like the card (since v3.10.0).** The workshop estimates its base
+case per month with the same daily estimate as the balance card (calibration
+factor included, `estimatedMonths`). Up to v3.9 it took the forecast’s monthly
+quantities without the factor; with a poorly fitting heating model the monthly
+costs were about a tenth off the card’s balance path. The table “Forecast in
+detail” stays the forecast with its own rules. So that both are not called the
+same, the workshop’s base case reads “Like the balance card (calibrated)”, and a
+sentence under “Forecast in detail” says by how much the calibration factor
+shifts the card’s quantities (from 2 %).
+
+**One bill, several contracts (since v3.10.0).** If the contract changes within
+the running billing period at the same supplier (new tariff, price status as a
+new contract), one bill at the end of the period settles both parts. The card then
+shows the sum under “Expected at settlement” (`settle_balance`) and names the
+other contract with its period and balance; the advance suggestion uses the sum.
+Up to v3.9 the part of the earlier contract was missing; one day before the end
+of the period the estimate was off the bill by that whole balance, although
+almost all days were measured. Invented example (`PeriodEndEstimateTest`): 10 kWh
+a day, contract A until 30/06 at 10 ct, B from 01/07 at 12 ct, €60 advance and
+€12 standing charge each:
+
+<!-- doc-claim: settle-example (PeriodEndEstimateTest) -->
+```text
+bill 2025  = 181 × €1.00 + 184 × €1.20 + 12 × €12 − 12 × €60 = −€174.20
+up to v3.9 = only B: €220.80 + €72 − €360                    =  −€67.20
+```
+
+All views take the same sum (`expectedBalance`): card, Costs & contracts, beginner
+overview, “Where does my money go?”, the sentence above “Forecast in detail”, the
+heat-limit hint, the workshop, the annual report and Home Assistant
+(`projected_end_balance_total`). The card then also counts measured and up to
+today across all contracts of the bill (`settle_measured`, `settle_today`). The
+range of the sum is built from the ranges or bands of all parts (`settle_range`);
+if one part is uncertain, so is the sum (`settle_uncertain`, then no single advance
+suggestion). If another contract is mostly estimated, its balance shows with “≈”,
+if it is uncertain, as a range. If the contract ends at the bill and a successor
+is entered, the card no longer names an advance “right after that” from its
+prices.
+
+Checked without a difference: price changes within the contract (working price,
+standing charge, advance) and a price change between two readings. How a supplier
+splits an uneven quantity across price sections (for example by degree days)
+cannot be checked without the bill; the app splits by its daily weight.
 
 ### Day-exact like the bill (since v2.9.0)
 

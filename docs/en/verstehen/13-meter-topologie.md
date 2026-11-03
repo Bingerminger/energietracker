@@ -52,6 +52,11 @@ contract bills depends on whether the submeter has a contract of its own:
 > and the household contract bills the 300 kWh. The 120 kWh are only the
 > breakdown of how much of it was the heat pump.
 
+Since v3.10.0 the “statistical anomaly” recommendation checks the parent meter
+with its **own consumption** (here 180 kWh), whether or not the sub-meter has a
+contract of its own: a spike of the wallbox then shows only at the wallbox
+([basics §9](00-overview.md#9-anomalies)).
+
 ### Remainder billing *(v3.9.0)*
 
 If the submeter has a **contract of its own** (also a group contract of its
@@ -94,6 +99,14 @@ Utility total                        500 kWh                                140 
   in a month, a reading is usually wrong. The parent contract does not bill that
   month negatively (0 kWh, 0 € unit price); the note gives the amount
   (`short_kwh`) and asks you to check the readings.
+- **Per register** *(v3.10.0)*: if the parent meter has several registers (HT
+  and NT, each a meter in a group), the app bills the remainder per register as
+  the supplier does: HT minus HT, NT minus NT, each at its own price. A register
+  below zero is not offset against another. The note names each register
+  (“450 kWh, per register HT 250 kWh = 400 kWh − 150 kWh · NT 200 kWh =
+  300 kWh − 100 kWh”, `rest_of.registers`). The group’s blended price for
+  forecast, balance estimate and tariff comparison is weighted with the
+  remainder per register, not with the measurement.
 - **Not for water:** there the garden meter has been deducted through the waste
   water since v3.1.0 (basis “drinking water minus deduction meters”).
 
@@ -234,6 +247,13 @@ contract, its money still counts, and the parent meter only bills the
 remainder. In the cascade (registers HT and NT each as a meter of its own) each
 register of the rear meter hangs on the matching register of the front one: HT
 behind HT, NT behind NT.
+
+If the rear meter in the cascade also counts backwards (2.8.0), its feed-in
+register is a meter under solar feed-in with **Feed-in register of**
+(`cascade_meter_id`, *v3.10.0*). It does not count in totals: only what the
+front meter counts goes to the grid. From the differences the app calculates
+the solar power each branch uses itself
+([use case H](../anleitungen/anwendungsfaelle.md#feed-in-in-the-cascade)).
 
 The **Set up metering concept** assistant *(v3.9.0)* creates this by these
 rules: it asks about the layout (one meter for everything, two meters side by

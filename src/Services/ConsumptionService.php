@@ -186,6 +186,8 @@ final class ConsumptionService
                 $totals[$ym]['kwh']  += (float)($m['kwh']  ?? 0);
                 $totals[$ym]['m3']   += (float)($m['m3']   ?? 0);
                 $totals[$ym]['cost'] += (float)($m['cost'] ?? 0);
+                // v3.10.0 (Skeptiker N5, additiv) — Kosten der gemessenen Tage (Grundpreis im angebrochenen Monat anteilig)
+                $totals[$ym]['cost_measured'] = round((float)($totals[$ym]['cost_measured'] ?? 0.0) + (float)($m['cost_measured'] ?? $m['cost'] ?? 0), 2);
                 $totals[$ym]['days'] = max($totals[$ym]['days'], (int)($m['days'] ?? 0));
                 foreach (['advance_eur', 'monthly_balance', 'cumulative_balance', 'co2_kg'] as $f) {
                     if (($m[$f] ?? null) !== null) {
@@ -239,6 +241,10 @@ final class ConsumptionService
             // Tage ohne eigenen Vertrag rechnet der Elternzähler brutto — ihr Ablesepreis zählt dort
             $own = (float)($m['cost'] ?? 0.0) - (float)($m['uncontracted_cost'] ?? 0.0);
             $totals[$ym]['cost'] = round((float)($totals[$ym]['cost'] ?? 0.0) + $own, 2);
+            if (isset($totals[$ym]['cost_measured'])) {   // v3.10.0 (N5) — dasselbe für die gemessenen Tage
+                $totals[$ym]['cost_measured'] = round((float)$totals[$ym]['cost_measured'] + (float)($m['cost_measured'] ?? $m['cost'] ?? 0.0)
+                    - (float)($m['uncontracted_cost'] ?? 0.0), 2);
+            }
             foreach (['advance_eur', 'monthly_balance', 'cumulative_balance'] as $f) {
                 if (($m[$f] ?? null) !== null) $totals[$ym][$f] = round((float)($totals[$ym][$f] ?? 0.0) + (float)$m[$f], 2);
             }
@@ -351,14 +357,26 @@ final class ConsumptionService
             // die gesamte Restlaufzeit hochgerechnet (z.B. „+10.756 €
             // erwartet"), was als „nächste Abrechnung" grob irreführend ist.
             $hasEnd  = !empty($c['end']) && !$renewed;
+            // v3.10.0 — ein künftiger Vertrag, der am nächsten Stichtag oder später beginnt (und
+            // nach der laufenden Abrechnungsperiode), gehört zu keiner anstehenden Abrechnung: Sein
+            // Abrechnungstag ist der letzte Tag seiner ersten eigenen Periode (nächster Stichtag nach
+            // seinem Beginn), ein erwarteter Saldo entfällt. Bis v3.9 bekam ein unbefristeter
+            // Folgevertrag ab dem nächsten Stichtag diesen Stichtag als Ende, `settle_on` lag vor
+            // seinem Beginn, der Saldo war rund ein Tag Kosten, und die Vertragsliste zeigte ihn
+            // als „≈ … erwartet“. Ein Wechsel vor dem Stichtag (der neue Versorger rechnet bis zum
+            // Stichtag ab) bleibt wie bisher.
+            $cStart = (string)($c['start'] ?? '');
+            $laterPeriod = $isFut && Dates::isIsoDate($cStart) && $cStart >= $this->nextBillingAnchor($utility, $today)
+                && ($running === null || $cStart > (string)$running['until']);
+            $anchorFrom = $laterPeriod ? (new \DateTimeImmutable($cStart))->modify('+1 day')->format('Y-m-d') : $today;
             $effEnd  = $isFeedIn
                 ? min(
                     $hasEnd ? $c['end'] : '9999-12-31',
-                    $this->nextBillingAnchor($utility, $today)
+                    $this->nextBillingAnchor($utility, $anchorFrom)
                   )
                 : ($hasEnd
                     ? $c['end']
-                    : $this->nextBillingAnchor($utility, $today));
+                    : $this->nextBillingAnchor($utility, $anchorFrom));
 
             // v3.6.0 (F1030) — Saldo bis zur nächsten Abrechnung: Was eine
             // erfasste und gebuchte Rechnung schon abgerechnet hat, zählt im
@@ -495,11 +513,14 @@ final class ConsumptionService
             // Project balance to contract end:
             //   project remaining months at the current avg cost / monthly advance.
             //   for past contracts: projected = current.
-            $projected = $currentBalance;
+            // v3.10.0 — nach der laufenden Periode beginnend: kein erwarteter Saldo (s. oben, `$laterPeriod`)
+            $projected = $laterPeriod ? null : $currentBalance;
             $projection = null;
             // v3.7.0 (#34-Nachzug) — auch Wasser mit Abschlägen: Saldo nach Kalender mit
             // Abschlagsvorschlag und Saldo-Verlauf (Jahresbericht: Saldo und Abschlags-Rat)
-            if (Utilities::hasAdvancePaymentContracts($utility) || self::waterWithAdvances($utility, $c)) {
+            if ($laterPeriod) {
+                // nichts zu projizieren: Der Vertrag rechnet erst in einer späteren Periode ab
+            } elseif (Utilities::hasAdvancePaymentContracts($utility) || self::waterWithAdvances($utility, $c)) {
                 // v2.8.0 (Review CALC-02) — Saldo nach Kalender statt nach
                 // Ablesemonaten, Hochrechnung mit Wetter statt Durchschnitt.
                 $projection = $this->balanceProjection($utility, $meter, $c, $monthly, $today, $effEnd, $spSummary['net'], $renewed, $isCur,
@@ -521,7 +542,9 @@ final class ConsumptionService
             // N1007 (v2.0.0): verdict als stabiler Sprach-Key statt deutschem
             // String. Das Frontend nutzt den Key für Logik (Farbe/Pfeil) und
             // zeigt das lokalisierte Label via t('utility.verdict.<key>').
-            if ($isFeedIn) {
+            if ($projected === null) {
+                $verdict = null;   // v3.10.0 — ohne erwarteten Saldo kein Urteil
+            } elseif ($isFeedIn) {
                 $verdict = $projected > 5 ? 'payout'
                          : ($projected < -5 ? 'reclaim' : 'balanced');
             } else {
@@ -682,6 +705,9 @@ final class ConsumptionService
                     // v3.9.0 (Skeptiker M6, additiv) — {low, high, half, level_pct, estimated_days, weather, model}
                     // oder null: Wetter und Modell bei sicherer Schätzung
                     'projection_band'          => $projection['band'] ?? null,
+                    // v3.10.0 (#49, additiv) — {from, until, energy_cost, base, bonus, cost, advance, special_net,
+                    // balance}: der Saldo bis zur letzten Ablesung, nur Gemessenes (null ohne Ablesung im Zeitraum)
+                    'balance_measured'         => $projection['measured'] ?? null,
                     // v3.7.0 (Schritt 3) — wirksamer Faktor; getrennt für Grundlast und Heizanteil (additiv)
                     'projection_factor'        => $projection['factor'],
                     'projection_factor_base'   => $projection['factor_base'],
@@ -690,6 +716,12 @@ final class ConsumptionService
                     // nur beim laufenden Vertrag (additiv)
                     'balance_path'             => $projection['path'],
                 ];
+            }
+            // v3.10.0 (Skeptiker N1) — endet der Vertrag spätestens zur Abrechnung und ist ein Folgevertrag
+            // eingetragen, gilt danach dessen Preis und Abschlag: kein „Danach wären rund … angemessen“
+            // aus den Preisen dieses Vertrags
+            if ($projection !== null && $successor !== null && !$renewed && !empty($c['end']) && (string)$c['end'] <= (string)$row['settle_on']) {
+                $row['advance_ongoing'] = null;
             }
             // v3.9.0 (F1032, #40) — wie gerechnet wird, wenn ein Subzähler einen eigenen Vertrag hat:
             // gemessen − Subzähler = Rest, über den Zeitraum, den dieser Saldo zählt (additiv)
@@ -747,6 +779,7 @@ final class ConsumptionService
 
         // Sort by start ascending so the table reads chronologically
         usort($out, fn($a, $b) => strcmp($a['start'] ?? '', $b['start'] ?? ''));
+        $out = self::withSettleTotals($out, $isFeedIn);   // v3.10.0 (Wirklichkeitsabgleich)
 
         // v3.1.0 (H6, #17) — Mitglied einer Gruppe mit Gruppenvertrag: Verweis darauf (additiv)
         $res = ['contracts' => $out];
@@ -760,6 +793,114 @@ final class ConsumptionService
             }
         }
         return $res;
+    }
+
+    /**
+     * v3.10.0 (Wirklichkeitsabgleich 2026-10-27) — eine Abrechnung, mehrere Verträge: Wechselt
+     * der Vertrag in der laufenden Abrechnungsperiode beim selben Versorger (neuer Tarif,
+     * Preisstand als neuer Vertrag), rechnet die eine Rechnung zum Periodenende beide Teile ab
+     * (`settle_on` gleich, s. contractStatus). Bis v3.9 zeigte die Saldo-Karte als „Erwartet
+     * bei Abrechnung“ nur den Teil des laufenden Vertrags; einen Tag vor dem Periodenende lag
+     * die Schätzung so um den ganzen Saldo des Vorvertrags neben der Rechnung, obwohl fast alle
+     * Tage gemessen waren (nachgebaut in PeriodEndEstimateTest). Die Werkstatt summierte die
+     * Teile schon (ScenarioService::billingFromStatus).
+     *
+     * Je Zeile einer solchen Gruppe (additiv): `settle_balance` (Summe der erwarteten Salden),
+     * `settle_verdict` (dieselben Schwellen wie `verdict`), `settle_range` (Spanne bzw. Band des
+     * laufenden Vertrags um die übrigen Teile verschoben, sonst null) und `settle_parts`
+     * (je Teil Vertrag, Versorger, Zeitraum, Saldo). Der laufende Vertrag rechnet seinen
+     * Abschlagsvorschlag dann aus der Summe (Abschlag + Summe ÷ Abschläge bis dahin), wie die
+     * Werkstatt. `projected_end_balance` bleibt der Saldo des einzelnen Vertrags.
+     *
+     * @param list<array<string,mixed>> $rows Zeilen des Vertragsstatus
+     * @return list<array<string,mixed>>
+     */
+    public static function withSettleTotals(array $rows, bool $isFeedIn = false): array
+    {
+        $groups = [];
+        foreach ($rows as $i => $r) {
+            if (!is_array($r['billing_period'] ?? null) || empty($r['settle_on']) || ($r['projected_end_balance'] ?? null) === null) continue;
+            $groups[(string)$r['settle_on']][] = $i;
+        }
+        foreach ($groups as $idx) {
+            if (count($idx) < 2) continue;
+            $sum = 0.0; $lo = 0.0; $hi = 0.0; $parts = []; $unc = null; $ranged = false;
+            // v3.10.0 (Skeptiker H3) — gemessen bis zur letzten Ablesung und Stand heute über alle Teile
+            $meas = null; $today = ['balance' => 0.0, 'cost' => 0.0, 'energy_estimated' => 0.0, 'base' => 0.0, 'bonus' => 0.0, 'advance' => 0.0, 'special_net' => 0.0];
+            foreach ($idx as $i) {
+                $r = $rows[$i];
+                $p = (float)$r['projected_end_balance'];
+                $range = self::rowRange($r);
+                $sum += $p;
+                $lo += $range !== null ? min($range) : $p;
+                $hi += $range !== null ? max($range) : $p;
+                $ranged = $ranged || $range !== null;
+                if (is_array($r['projection_uncertain'] ?? null) && ($unc === null || !empty($r['is_current']))) $unc = $r['projection_uncertain'];
+                $energy = (float)($r['energy_cost_to_date'] ?? 0.0);
+                $parts[] = ['contract_id' => $r['contract_id'] ?? null, 'provider' => (string)($r['provider'] ?? ''),
+                    'from' => $r['balance_from'] ?? $r['start'] ?? null,
+                    'until' => min((string)$r['settle_on'], (string)($r['superseded_on'] ?? $r['end'] ?? $r['settle_on'])),
+                    'balance' => round($p, 2), 'is_current' => !empty($r['is_current']),
+                    // v3.10.0 (H3) — wie sicher der Teil ist: Spanne bzw. Band, unsicher, Anteil geschätzter Arbeitskosten
+                    'range' => $range !== null ? [round(min($range), 2), round(max($range), 2)] : null,
+                    'uncertain' => is_array($r['projection_uncertain'] ?? null),
+                    'estimated_share' => $energy > 0.005 ? round(min(1.0, (float)($r['estimated_cost_to_date'] ?? 0.0) / $energy), 3) : 0.0];
+                if (is_array($r['balance_measured'] ?? null)) {
+                    $m = $r['balance_measured'];
+                    $meas ??= ['from' => $m['from'], 'until' => $m['until'], 'energy_cost' => 0.0, 'base' => 0.0, 'bonus' => 0.0, 'cost' => 0.0,
+                        'advance' => 0.0, 'special_net' => 0.0, 'balance' => 0.0];
+                    $meas['from'] = min($meas['from'], $m['from']);
+                    $meas['until'] = max($meas['until'], $m['until']);
+                    foreach (['energy_cost', 'base', 'bonus', 'cost', 'advance', 'special_net', 'balance'] as $k) $meas[$k] += (float)$m[$k];
+                }
+                foreach (['balance' => 'current_balance', 'cost' => 'cost_to_date', 'energy_estimated' => 'estimated_cost_to_date', 'base' => 'base_to_date',
+                          'bonus' => 'bonus_to_date', 'advance' => 'advance_paid', 'special_net' => 'special_payment_net'] as $k => $f) {
+                    $today[$k] += (float)($r[$f] ?? 0.0);
+                }
+            }
+            $sum = round($sum, 2);
+            $range = $ranged ? [round($lo, 2), round($hi, 2)] : null;
+            if ($meas !== null) foreach ($meas as $k => $v) if (is_float($v)) $meas[$k] = round($v, 2);
+            $today = array_map(fn($v) => round($v, 2), $today);
+            foreach ($idx as $i) {
+                $r = &$rows[$i];
+                $r['settle_balance'] = $sum;
+                // dieselben Schlüssel wie `verdict`: Einspeisung zahlt aus bzw. fordert zurück
+                $r['settle_verdict'] = $isFeedIn
+                    ? ($sum > 5 ? 'payout' : ($sum < -5 ? 'reclaim' : 'balanced'))
+                    : ($sum > 5 ? 'surcharge' : ($sum < -5 ? 'refund' : 'balanced'));
+                // v3.10.0 (H3) — die Spanne der Summe aus allen Teilen (bis dahin nur die des laufenden Vertrags, verschoben)
+                $r['settle_range'] = $range;
+                $r['settle_parts'] = $parts;
+                $r['settle_measured'] = $meas;
+                $r['settle_today'] = $today;
+                // ist ein Teil unsicher, ist es die Summe (Gründe des laufenden Vertrags, sonst des ersten unsicheren)
+                $r['settle_uncertain'] = $unc !== null ? ['projected_range' => $range] + $unc : null;
+                // der Vorschlag aus der Summe (gleiche Formel wie balanceProjection); unsicher: nur die Spanne
+                $left = (int)($r['months_left'] ?? 0);
+                if (!empty($r['is_current']) && $left >= 1 && ($r['current_advance_amount'] ?? null) !== null) {
+                    $ap = (float)$r['current_advance_amount'];
+                    $sugg = $r['settle_uncertain'] !== null && $range !== null
+                        ? [max(0.0, round($ap + $range[0] / $left)), max(0.0, round($ap + $range[1] / $left))] : null;
+                    if ($r['settle_uncertain'] !== null) {
+                        $r['settle_uncertain']['suggested_range'] = ($r['suggestion_withheld'] ?? null) === 'short' || $sugg === null || $sugg[0] === $sugg[1] ? null : $sugg;
+                        $r['suggested_advance'] = null;
+                    } elseif (($r['suggested_advance'] ?? null) !== null) {
+                        $r['suggested_advance'] = max(0.0, round($ap + $sum / $left));
+                    }
+                }
+                unset($r);
+            }
+        }
+        return $rows;
+    }
+
+    /** v3.10.0 — Spanne einer unsicheren Schätzung, sonst das Band einer sicheren, sonst null. @return array{0:float,1:float}|null */
+    private static function rowRange(array $r): ?array
+    {
+        if (is_array($r['projection_uncertain']['projected_range'] ?? null)) return array_map('floatval', array_values($r['projection_uncertain']['projected_range']));
+        if (is_array($r['projection_band'] ?? null)) return [(float)$r['projection_band']['low'], (float)$r['projection_band']['high']];
+        return null;
     }
 
     /**
@@ -986,6 +1127,8 @@ final class ConsumptionService
 
         $costToDate = $measuredEnergy + $gapEnergy + $baseToDate - $bonusToDate;
         $current    = round($costToDate - $advToDate + $specialNet, 2);
+        // v3.10.0 (#49) — derselbe Saldo nur über die gemessenen Tage (bis zur letzten Ablesung)
+        $measured = $this->measuredBalance($utility, $c, $plan, $start, $asOf, $measuredUntil, $measuredEnergy, $payments);
         $restCost   = $remainingEnergy + $baseRest - $bonusRest;
         $projected  = round($current + $restCost - $advRest, 2);
 
@@ -1152,6 +1295,59 @@ final class ConsumptionService
             'uncertain'                => $uncertain,
             'band'                     => $band,   // v3.9.0 (Skeptiker M6)
             'path'                     => $path,
+            'measured'                 => $measured,   // v3.10.0 (#49)
+        ];
+    }
+
+    /**
+     * v3.10.0 (#49, Discussion #42) — der Saldo bis zur letzten Ablesung, nur Gemessenes:
+     * Arbeitspreis der Monatszeilen dieses Vertrags (sie enden an der letzten Ablesung),
+     * Grundpreis tagesgenau über [Beginn, Ablesung), Boni der Monate mit gemessenen Tagen,
+     * Abschläge nach Plan anteilig nach Tagen (der angebrochene Monat nur zum gemessenen Teil,
+     * wie die Kachel „Abschläge bis …“, `advance_measured_eur`; Raten mit Rhythmus ganz an
+     * ihrem Tag, wenn er vor der Ablesung liegt), Sonderzahlungen vor der Ablesung.
+     * Endet wie die Kachel am Tag der letzten Ablesung (exklusiv, wie die Monatszeilen).
+     * Bis v3.9 rechnete „Aktueller Saldo“ die Tage seit der letzten Ablesung geschätzt mit;
+     * neben der Kachel standen dann zwei Salden mit verschiedenem Vorzeichen.
+     * Null ohne Ablesung im Zeitraum des Saldos.
+     *
+     * @param list<array<string,mixed>> $payments Sonderzahlungen, die im Saldo zählen
+     * @return array{from:string,until:string,energy_cost:float,base:float,bonus:float,cost:float,advance:float,special_net:float,balance:float}|null
+     */
+    private function measuredBalance(string $utility, array $c, array $plan, string $start, string $asOf, ?string $measuredUntil,
+        float $measuredEnergy, array $payments): ?array
+    {
+        if ($measuredUntil === null) return null;
+        $until = min($measuredUntil, $asOf);
+        if ($until <= $start) return null;
+        $base = $bonus = $adv = 0.0;
+        // nur Monate mit gemessenen Tagen (bis zum Monat des letzten gemessenen Tags)
+        for ($t = strtotime(substr($start, 0, 7) . '-01'); $t !== false && date('Y-m-d', $t) < $until; $t = strtotime('+1 month', $t)) {
+            $dim   = (int)date('t', $t);
+            $cFrom = max(date('Y-m-d', $t), $start);
+            $cTo   = min(date('Y-m-d', (int)strtotime('+1 month', $t)), $until);
+            $cDays = max(0, (int)round((strtotime($cTo) - strtotime($cFrom)) / 86400));
+            if ($cDays === 0) continue;
+            $segments = $this->contracts->segmentsBetween([$c], $cFrom, $cTo);
+            foreach ($segments as $seg) {
+                if ($seg['contract'] === null) continue;
+                $bp = $this->contracts->fixedPerMonthOn($c, ContractService::priceDate($seg));
+                if ($bp !== null) $base += $bp * $seg['days'] / $dim;
+            }
+            $bonus += $this->contracts->bonusForMonth($c, (int)date('Y', $t), (int)date('n', $t));
+            $apDate = $segments !== [] ? ContractService::priceDate($segments[0]) : $cFrom;
+            $adv += ContractService::advanceIn($plan, $apDate, $cFrom, $cTo, min(1.0, $cDays / $dim), $dim) ?? 0.0;
+        }
+        $special = Utilities::hasSpecialPayments($utility)
+            ? (float)$this->contracts->specialPaymentSummary(['special_payments' => array_values(array_filter($payments,
+                fn($sp) => is_array($sp) && (string)($sp['date'] ?? '') < $until))])['net']
+            : 0.0;
+        $cost = $measuredEnergy + $base - $bonus;
+        return [
+            'from' => $start, 'until' => $until,
+            'energy_cost' => round($measuredEnergy, 2), 'base' => round($base, 2), 'bonus' => round($bonus, 2),
+            'cost' => round($cost, 2), 'advance' => round($adv, 2), 'special_net' => round($special, 2),
+            'balance' => round($cost - $adv + $special, 2),
         ];
     }
 
@@ -1165,9 +1361,18 @@ final class ConsumptionService
     {
         $band = null;
         $lp = $this->lastProjection;
-        if ($est !== null && $uncertain === null && !empty($lp['trusted']) && is_array($lp['model'] ?? null) && $estVolume > 0) {
-            $model = $lp['model'];
-            $normals = $this->hddNormals($this->hddBaseFor($meter));
+        // v3.10.0 (R2-3) — ohne verlässliches Heizmodell (Strom, Wasser, M5) die Streuung je
+        // Kalendermonat (`rate_sd`, mal Kalibrierfaktor); dann ohne Wetterteil
+        $heatBand = !empty($lp['trusted']) && is_array($lp['model'] ?? null);
+        $rateSd = $heatBand ? null : ($lp['rate_sd'] ?? null);
+        // v3.10.0 (Skeptiker H2) — ohne Heizmodell mindestens die Streuung, unter der auch die Anomalie-Erkennung
+        // nichts meldet (10 % der geschätzten Menge je Monat, AnomalyService::noiseFloor, wie das Band der
+        // Prognose). Bis dahin folgte die Breite der Ablesedichte: Wer einmal im Jahr ablas, hatte nur verteilte
+        // Monate ohne Streuung und bekam ±1 € bei 354 geschätzten Tagen. Ohne gemessene Streuung trägt nur diese
+        // Untergrenze; das Band sagt es dann (`few_measured`, „zu wenige gemessene Monate“)
+        if ($est !== null && $uncertain === null && $estVolume > 0) {
+            $model = $heatBand ? $lp['model'] : ['resid_sd' => (float)($rateSd ?? 0.0) * (float)($lp['base'] ?? 1.0), 'a' => 0.0];
+            $normals = $heatBand ? $this->hddNormals($this->hddBaseFor($meter)) : [];
             $varW = 0.0; $varN = 0.0; $estDays = 0;
             $from = $gapFrom; $future = max($asOf, $gapFrom);
             for ($t = strtotime(substr($from, 0, 7) . '-01'); $t !== false && date('Y-m-d', $t) < $endExcl; $t = strtotime('+1 month', $t)) {
@@ -1177,7 +1382,9 @@ final class ConsumptionService
                 $all = $days($from, $endExcl);
                 if ($all <= 0) continue;
                 $estDays += $all;
-                $varN += ((float)($model['resid_sd'] ?? 0.0) * $all / $dim) ** 2;
+                $sdN = (float)($model['resid_sd'] ?? 0.0) * $all / $dim;
+                if (!$heatBand) $sdN = max($sdN, AnomalyService::noiseFloor((float)array_sum($est(max($from, $ms), min($me, $endExcl))), 0.0));
+                $varN += $sdN ** 2;
                 $fut = $days($future, $endExcl);
                 $sd = $normals[(int)date('n', $t)]['sd'] ?? null;
                 if ($fut > 0 && is_numeric($sd)) $varW += ((float)$model['a'] * (float)($lp['heat'] ?? 1.0) * (float)$sd * $fut / $dim) ** 2;
@@ -1188,7 +1395,9 @@ final class ConsumptionService
             if ($half >= self::BAND_MIN_EUR) {
                 $band = ['low' => round($projected - $half, 2), 'high' => round($projected + $half, 2), 'half' => $half,
                          'level_pct' => (int)round((2 * (0.5 * (1 + self::erf($z / M_SQRT2))) - 1) * 100), 'estimated_days' => $estDays,
-                         'weather' => round($z * sqrt($varW) * $price, 2), 'model' => round($z * sqrt($varN) * $price, 2)];
+                         'weather' => round($z * sqrt($varW) * $price, 2), 'model' => round($z * sqrt($varN) * $price, 2),
+                         // v3.10.0 (H2, additiv) — ohne gemessene Streuung je Kalendermonat nur die Untergrenze
+                         'few_measured' => !$heatBand && $rateSd === null];
             }
         }
         return $band;
@@ -1196,6 +1405,13 @@ final class ConsumptionService
 
     /** v3.9.0 (Skeptiker M6) — Breite unter einem Euro zeigt die Karte nicht. */
     public const BAND_MIN_EUR = 1.0;
+
+    /**
+     * v3.10.0 (R2-3) — Freiheitsgrade, ab denen die Streuung je Kalendermonat trägt (je Monat
+     * mit n Jahren n − 1): mindestens zwei Kalendermonate aus zwei Jahren. Mit einem Jahr
+     * gibt es keine Streuung, dann kein Band.
+     */
+    public const RATE_SD_MIN_DOF = 2;
 
     /** Fehlerfunktion (Abramowitz/Stegun 7.1.26, Fehler < 1,5·10⁻⁷) für das Niveau des Bands. */
     private static function erf(float $x): float
@@ -1310,6 +1526,9 @@ final class ConsumptionService
         $summer = $summerList ? array_sum($summerList) / count($summerList) : null;
         $trusted = $heat !== null && ForecastService::heatTrusted($poor, (float)$heat['c'], $summer);
         $baseEff = $heat !== null && !$trusted ? max((float)$heat['c'], $summer ?? (float)$heat['c']) : null;
+        // v3.10.0 (Skeptiker H2) — die Streuung nur aus gemessenen Monaten: verteilte Monate tragen die
+        // gleichmäßige Tagesrate eines langen Abstands und streuen nicht
+        $measuredRates = $rates;
         foreach ($interpRates as $mo => $list) {
             if (isset($rates[$mo])) continue;
             $pick = array_column($heat !== null && !$trusted ? array_filter($list, fn($x) => $x['short']) : $list, 'r');
@@ -1317,6 +1536,17 @@ final class ConsumptionService
         }
         // v3.7.0 (Schritt 3, N1) — je Kalendermonat wie die Prognose (ohne Wetterbezug ab drei Werten der Median)
         $hgtUtility = Utilities::isHgtRelevant($utility);
+        // v3.10.0 (Skeptiker v3.9.0, R2-3) — Streuung je Kalendermonat (Monatsmenge um den Wert, mit dem
+        // geschätzt wird): die Breite der Schätzung ohne verlässliches Heizmodell (Strom, Wasser, M5)
+        $ssq = 0.0; $dof = 0;
+        foreach ($measuredRates as $mo => $list) {
+            if (count($list) < 2) continue;
+            $center = (float)self::seasonalRate($list, !$hgtUtility);
+            $dimMo = (int)date('t', (int)mktime(0, 0, 0, (int)$mo, 1, 2001));
+            foreach ($list as $r) $ssq += (((float)$r - $center) * $dimMo) ** 2;
+            $dof += count($list) - 1;
+        }
+        $rateSd = $dof >= self::RATE_SD_MIN_DOF ? sqrt($ssq / $dof) : null;
         $rates = array_map(fn(array $list): float => (float)self::seasonalRate($list, !$hgtUtility), $rates);
         if ($heat === null && $all === []) return null;
         $overall = $all ? array_sum($all) / count($all) : 0.0;
@@ -1370,7 +1600,7 @@ final class ConsumptionService
             $fBase = $fHeat = $clamp($rawBase);
         }
         $this->lastProjection = ['base' => $fBase, 'heat' => $fHeat, 'raw_base' => $rawBase, 'raw_heat' => $rawHeat, 'model' => $heat,
-            'split' => $splitOk && $trusted, 'trusted' => $trusted];
+            'split' => $splitOk && $trusted, 'trusted' => $trusted, 'rate_sd' => $rateSd];
 
         // `$opt` (v3.7.0) — für die Spanne einer unsicheren Schätzung: andere Faktoren
         // (`base`, `heat`) oder eine andere Grundlast je Tag (`c`, etwa die gemessene)
@@ -1396,6 +1626,30 @@ final class ConsumptionService
             }
             return $out;
         };
+    }
+
+    /**
+     * v3.10.0 (Skeptiker v3.9.0, M4-Rest) — die Monatsmengen, mit denen die Saldo-Karte schätzt
+     * (volumeEstimator: je Tag, mit Kalibrierfaktor), für ganze Kalendermonate. Die Werkstatt
+     * rechnet ihren Ausgangsfall damit: Bis v3.9 zeigte ihre Tabelle die Monatsmengen der
+     * Prognose (ohne Kalibrierfaktor), die Karte rechnete je Tag mit Faktor; bei schlecht
+     * passendem Heizmodell lagen die Monatskosten rund ein Zehntel auseinander. Null ohne
+     * Schätzung (weniger als zwei Ablesungen).
+     *
+     * @param list<string> $yms Monate (YYYY-MM)
+     * @return array<string,float>|null Monat → Menge in der Verbrauchseinheit
+     */
+    public function estimatedMonths(string $utility, array $meter, array $yms): ?array
+    {
+        $vf = ((Utilities::get($utility)['consumption_unit'] ?? '') === 'kWh') ? 'kwh' : 'm3';
+        $est = $this->volumeEstimator($utility, $this->forMeter($utility, $meter), $vf, $meter);
+        if ($est === null) return null;
+        $out = [];
+        foreach ($yms as $ym) {
+            if (!preg_match('/^\d{4}-\d{2}$/', (string)$ym)) continue;
+            $out[$ym] = (float)array_sum($est($ym . '-01', date('Y-m-d', (int)strtotime($ym . '-01 +1 month'))));
+        }
+        return $out;
     }
 
     /**
@@ -1641,13 +1895,20 @@ final class ConsumptionService
         $now = $cur($meter);
         $then = $cur($other);
         if ($now === null || $then === null) return null;
-        $facts = fn(array $c) => [
-            'balance'       => isset($c['projected_end_balance']) ? round((float)$c['projected_end_balance'], 2) : null,
-            'balance_range' => $c['projection_uncertain']['projected_range'] ?? null,
-            'advance'       => isset($c['suggested_advance']) ? (float)$c['suggested_advance'] : null,
-            'advance_range' => $c['projection_uncertain']['suggested_range'] ?? null,
-            'uncertain'     => isset($c['projection_uncertain']) ? (array)($c['projection_uncertain']['reasons'] ?? []) : [],
-        ];
+        // v3.10.0 (Skeptiker H1) — rechnet die Abrechnung mehrere Verträge ab, die Summe wie die Saldo-Karte
+        // (`settle_*`, beide Seiten mit derselben Heizgrenze für alle Teile)
+        $facts = function (array $c): array {
+            $settled = ($c['settle_balance'] ?? null) !== null;
+            $unc = $settled ? ($c['settle_uncertain'] ?? null) : ($c['projection_uncertain'] ?? null);
+            $bal = $settled ? $c['settle_balance'] : ($c['projected_end_balance'] ?? null);
+            return [
+                'balance'       => $bal !== null ? round((float)$bal, 2) : null,
+                'balance_range' => is_array($unc) ? ($unc['projected_range'] ?? null) : null,
+                'advance'       => isset($c['suggested_advance']) ? (float)$c['suggested_advance'] : null,
+                'advance_range' => is_array($unc) ? ($unc['suggested_range'] ?? null) : null,
+                'uncertain'     => is_array($unc) ? (array)($unc['reasons'] ?? []) : [],
+            ];
+        };
         return [
             'contract_id'     => (string)$now['contract_id'],
             // v3.9.0 (Skeptiker M10, Regel L1) — der letzte Tag des Zeitraums wie auf der Saldo-Karte
@@ -2667,7 +2928,8 @@ final class ConsumptionService
             foreach ($this->forMeter($utility, $member, $memberBase) as $r) {
                 $ym = (string)$r['ym'];
                 if (array_key_exists('billed_kwh', $r)) $billed[$ym] = true;
-                if (isset($r['rest_of'])) $restOf[$ym] = SubmeterRest::mergeRestOf($restOf[$ym] ?? null, $r['rest_of']);
+                // v3.10.0 (#40) — je Zählwerk (HT, NT) eine Zeile im Hinweis, gerechnet wird ohnehin je Mitglied
+                if (isset($r['rest_of'])) $restOf[$ym] = SubmeterRest::mergeRestOf($restOf[$ym] ?? null, SubmeterRest::asRegister($r['rest_of'], $member));
                 $markers[$ym] = self::accumulateMarker($markers[$ym] ?? null, $r, $vfG);
                 if (!isset($rows[$ym])) {
                     $rows[$ym] = $r;
@@ -3175,7 +3437,8 @@ final class ConsumptionService
             fn($m) => !in_array((string)($m['id'] ?? ''), $sumIds, true) && $this->isDeductingSubmeter($utility, $m))));
         foreach ($members as $m) {
             $b = $this->billBreakdown($utility, $m, $from, $to);
-            if (isset($b['totals']['rest_of'])) $restOf = SubmeterRest::mergeRestOf($restOf, $b['totals']['rest_of']);
+            // v3.10.0 (#40) — je Zählwerk (Mitglied) eine Zeile im Hinweis
+            if (isset($b['totals']['rest_of'])) $restOf = SubmeterRest::mergeRestOf($restOf, SubmeterRest::asRegister($b['totals']['rest_of'], $m));
             foreach ($b['rows'] as $r) $rows[] = $r + ['meter_id' => (string)$m['id'], 'meter_name' => (string)($m['name'] ?? $m['id'])];
             $t = $b['totals'];
             $tot['days'] = max($tot['days'], (int)($t['days'] ?? 0));
@@ -4904,7 +5167,7 @@ final class ConsumptionService
             foreach ($this->meters->groupSumMembers($utility, (string)$meter['id']) as $m) {
                 $subs = array_values(array_filter($this->deductingSubmeters($utility, $m), fn($s) => !in_array((string)$s['meter']['id'], $memberIds, true)));
                 $r = $this->restBreakdownWith($utility, $m, $subs, $from, $toExcl);
-                if ($r !== null) $acc = SubmeterRest::mergeRestOf($acc, $r);
+                if ($r !== null) $acc = SubmeterRest::mergeRestOf($acc, SubmeterRest::asRegister($r, $m));   // v3.10.0 (#40) — je Zählwerk
             }
             return $acc;
         }
@@ -5148,7 +5411,9 @@ final class ConsumptionService
         $kwh = [];
         foreach ($this->meters->groupMembers($utility, (string)$meter['id']) as $m) {
             $rows = array_slice($this->forMeter($utility, $m), -12);
-            $kwh[(string)$m['id']] = array_sum(array_map(fn($r) => (float)($r['kwh'] ?? 0), $rows));
+            // v3.10.0 (#40) — gewichtet mit der Menge, die der Vertrag je Zählwerk rechnet: In der Kaskade
+            // der Rest (HT − HT, NT − NT), nicht die Messung, die den Haushalt dahinter mitzählt
+            $kwh[(string)$m['id']] = array_sum(array_map(fn($r) => self::billedQuantity($r), $rows));
         }
         $total = array_sum($kwh);
         $dates = array_column((array)($c['working_prices'] ?? []), 'from');

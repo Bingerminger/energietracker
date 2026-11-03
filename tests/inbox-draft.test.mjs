@@ -160,6 +160,9 @@ try {
     === 'Strom: Für N nennt vom 01.04.2024 bis 31.03.2025 kein Dokument einen Arbeitspreis.');
   t('Grund: Stand nach einem Tausch ohne Endstand', /erst den Tausch eintragen/.test(L.reasonText(['swap_open'])));
   t('Herkunft: Kennung aus dem jüngsten Dokument', /jüngsten Dokument/.test(L.basisText({ name: 'customer_number', hint: 'newest' })));
+  // v3.10.0 — Anfangsstand der Rechnung = deine Ablesung kurz davor
+  t('Entwurf: Anfangsstand nennt deinen Stand vom Tag davor', /^Dein Stand vom 29\.12\.2024 \(1\.000\) ist derselbe/.test(L.basisText({ name: 'r:2025-01-01', value: 1000, same_on: '2024-12-29' })),
+    L.basisText({ name: 'r:2025-01-01', value: 1000, same_on: '2024-12-29' }));
   // Nachbesserung 4 — Basis eines Nettopreises (eine Hilfe für Vorschau und Entwurf), Zweitarifzähler, Tausch zu prüfen
   const P = await import(JS('lib/price-basis.js'));
   t('Preisbasis: netto mit Satz = brutto, wie der Server rechnet', P.grossOf(0.3, 19) === 0.357

@@ -29,7 +29,7 @@ cd energietracker
 energietracker/
 ├── api.php
 ├── index.php
-├── VERSION                ← 3.9.0
+├── VERSION                ← 3.10.0
 ├── public/                ← CSS + JS
 ├── src/                   ← PHP backend
 ├── data/                  ← must be writable
@@ -103,6 +103,7 @@ docker compose up -d        # → http://localhost:8080
 
 ```bash
 docker run -d --name energietracker \
+  --restart unless-stopped \
   -p 8080:80 \
   -v "$PWD/data:/data" \
   ghcr.io/bingerminger/energietracker:3
@@ -118,7 +119,7 @@ docker run -d --name energietracker \
 
 ```bash
 docker build -t energietracker .
-docker run -d --name energietracker -p 8080:80 -v "$PWD/data:/data" energietracker
+docker run -d --name energietracker --restart unless-stopped -p 8080:80 -v "$PWD/data:/data" energietracker
 ```
 
 Configuration via environment variables (`docker run -e …` resp. `environment:`

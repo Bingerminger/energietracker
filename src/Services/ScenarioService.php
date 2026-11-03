@@ -267,6 +267,23 @@ final class ScenarioService
             ];
         }
 
+        // v3.10.0 (Skeptiker v3.9.0, M4-Rest) — eine Rechnung für die Monatskosten: Der Ausgangsfall
+        // schätzt je Monat wie die Saldo-Karte (Tagesschätzung mit Kalibrierfaktor) statt mit den
+        // Monatsmengen der Prognose; das Band der Prognose wandert relativ mit
+        $cardQty = $this->consumption->estimatedMonths($utility, $meter, array_column($months, 'ym'));
+        if ($cardQty !== null) {
+            foreach ($months as &$m) {
+                $q = $cardQty[$m['ym']] ?? null;
+                if ($q === null) continue;
+                $ratio = $m['qty'] > 0 ? $q / $m['qty'] : null;
+                $m['qty'] = $q;
+                foreach (['band_low', 'band_high'] as $k) {
+                    if ($m[$k] !== null) $m[$k] = $ratio !== null ? (float)$m[$k] * $ratio : null;
+                }
+            }
+            unset($m);
+        }
+
         // Raumtemperatur: Heizgradtage bei verschobener Heizgrenze (eigenes Modell)
         $hddBase = (float)($fc['hdd_base'] ?? $this->settings->get('hdd_base_temp', 15.0));
         $roomOk = $hasHeat && count($this->consumption->hddNormals($hddBase)) === 12;
@@ -776,7 +793,10 @@ final class ScenarioService
     {
         try {
             foreach ($consumption->contractStatus($utility, $meter, $today)['contracts'] ?? [] as $c) {
-                if (!empty($c['is_current'])) return is_array($c['projection_uncertain'] ?? null) ? $c['projection_uncertain'] : null;
+                if (empty($c['is_current'])) continue;
+                // v3.10.0 (Skeptiker H3) — eine Abrechnung über mehrere Verträge ist unsicher, wenn ein Teil es ist
+                if (($c['settle_balance'] ?? null) !== null && array_key_exists('settle_uncertain', $c)) return is_array($c['settle_uncertain']) ? $c['settle_uncertain'] : null;
+                return is_array($c['projection_uncertain'] ?? null) ? $c['projection_uncertain'] : null;
             }
         } catch (\Throwable) { /* ohne Vertragsstatus: nur die Gründe der Prognose */ }
         return null;
@@ -906,12 +926,16 @@ final class ScenarioService
             $delta += ((float)$scenCost[$i] - (float)$baseCost[$i]) * $frac;
         }
         $last = end($months);
-        $unc = is_array($cur['projection_uncertain'] ?? null) ? $cur['projection_uncertain'] : null;
+        // v3.10.0 (Skeptiker H1/H3) — rechnet die Abrechnung mehrere Verträge ab, die Unsicherheit der Summe
+        // (`settle_uncertain`, Spanne aus allen Teilen) wie die Karte
+        $settled = ($cur['settle_balance'] ?? null) !== null && array_key_exists('settle_uncertain', $cur);
+        $unc = $settled ? (is_array($cur['settle_uncertain']) ? $cur['settle_uncertain'] : null)
+            : (is_array($cur['projection_uncertain'] ?? null) ? $cur['projection_uncertain'] : null);
         // v3.9.0 (Skeptiker H3) — dieselbe Unsicherheit wie die Karte: deren Spanne um den Saldo
         // der übrigen Zeilen ergänzt, das Szenario verschiebt sie wie den Punktwert
         $range = null;
         if ($unc !== null && is_array($unc['projected_range'] ?? null) && count($unc['projected_range']) === 2) {
-            $mid = (float)($cur['projected_end_balance'] ?? 0.0);
+            $mid = (float)($settled ? $cur['settle_balance'] : ($cur['projected_end_balance'] ?? 0.0));
             $r = array_map('floatval', $unc['projected_range']);
             $range = [round($base + min($r) - $mid, 2), round($base + max($r) - $mid, 2)];
         }

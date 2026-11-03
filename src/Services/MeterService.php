@@ -821,6 +821,8 @@ final class MeterService
      *                 (Amortisation, § 51 EEG), battery_capacity_kwh (Vollzyklen)
      *   waerme        heat_pump_meter_ids: Stromzähler der Wärmepumpe (Rolle
      *                 heat_pump) für die Jahresarbeitszahl
+     *   pv_einspeisung cascade_meter_id (v3.10.0): Stromzähler hinter dem
+     *                 Netzanschluss, an dem dieses Einspeise-Zählwerk sitzt
      * Leer bzw. false entfernt das Feld.
      */
     private function applyEnergyFields(string $utility, array &$meter, array $input): void
@@ -845,6 +847,19 @@ final class MeterService
                 elseif (!Dates::isIsoDate($v)) throw new LocalizedException('errors.meter.valueInvalid', ['field' => 'commissioned_on', 'value' => $v], 'commissioned_on');
                 else $meter['commissioned_on'] = $v;
             }
+        }
+        // v3.10.0 (GitHub #40) — Einspeise-Zählwerk eines Zählers hinter dem Netzanschluss (Kaskade):
+        // der Stromzähler, an dem es sitzt (ein Zählwerk von Z2, also ein Subzähler). Es zählt nicht
+        // in Summen (countsInTotals), ins Netz geht nur, was der vordere Zähler zählt; aus der
+        // Differenz rechnet CascadeFeed den Sonnenstrom je Strang. Leer entfernt die Verbindung.
+        if ($utility === 'pv_einspeisung' && array_key_exists('cascade_meter_id', $input)) {
+            $id = trim((string)($input['cascade_meter_id'] ?? ''));
+            if ($id === '') { unset($meter['cascade_meter_id']); return; }
+            $m = $this->get('strom', $id);
+            if ($m === null || empty($m['parent_meter_id'])) {
+                throw new LocalizedException('errors.meter.cascadeLinkInvalid', ['id' => mb_substr($id, 0, 40)], 'cascade link');
+            }
+            $meter['cascade_meter_id'] = $id;
         }
         if ($utility === 'waerme' && array_key_exists('heat_pump_meter_ids', $input)) {
             $ids = array_values(array_unique(array_filter(array_map('strval', (array)($input['heat_pump_meter_ids'] ?? [])), fn($x) => $x !== '')));
@@ -1065,12 +1080,15 @@ final class MeterService
      * `countsInTotals()`: gehört ein Zähler in Summen? Subzähler nie — sie sind
      * im Elternzähler schon enthalten (F1006). Seit v3.1.0 (H3, B9) auch nicht
      * Zähler mit einer Rolle aus ROLES_OUTSIDE_TOTALS: Sie messen Energie, die
-     * nicht Verbrauch bzw. Erzeugung der Art ist. `inService()`: ist er in Betrieb?
+     * nicht Verbrauch bzw. Erzeugung der Art ist. Seit v3.10.0 (#40) auch nicht
+     * ein Einspeise-Zählwerk hinter dem Netzanschluss (`cascade_meter_id`): Ins
+     * Netz geht nur, was der vordere Zähler zählt. `inService()`: ist er in Betrieb?
      */
     public static function countsInTotals(array $meter): bool
     {
         return ($meter['parent_meter_id'] ?? null) === null
-            && !in_array($meter['role'] ?? null, self::ROLES_OUTSIDE_TOTALS, true);
+            && !in_array($meter['role'] ?? null, self::ROLES_OUTSIDE_TOTALS, true)
+            && empty($meter['cascade_meter_id']);
     }
 
     /**

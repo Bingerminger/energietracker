@@ -72,6 +72,8 @@ final class DiagnosticsService
         $info['migration_needed'] = (new Migrator($this->store))->needsMigration();
         // v3.4.0 (N1020) — additiv: Hinweise zu Proxy-Kopfzeile und Hostliste
         $info['security'] = $this->security !== null ? ($this->security)() : null;
+        // v3.10.0 (#36) — additiv: eigene Stammzertifikate (ET_CA_FILE, Einstellung) und „nicht prüfen“
+        $info['home_tls'] = \Energietracker\Support\HomeTls::status();
 
         return $info;
     }

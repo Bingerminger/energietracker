@@ -662,7 +662,8 @@ final class HouseholdDraft
      * Rechnungskorrektur: zwei Rechnungen derselben Messstelle für denselben
      * Zeitraum, eine als Korrektur gekennzeichnet („Korrektur“, „korrigiert“,
      * „berichtigt“ im Namen oder in einer Belegstelle) oder mit späterem Datum
-     * in ihren Belegstellen. Die spätere Fassung gilt (ihre Werte, vorgewählt);
+     * in ihren Belegstellen; v3.10.0 auch mit Bezug auf eine frühere Rechnung
+     * (`corrects_invoice`). Die spätere Fassung gilt (ihre Werte, vorgewählt);
      * die frühere ist nur Beleg — sie bringt keine Ablesungen, Preise oder
      * Abschläge. Ohne Kennzeichen und Datum bleibt es eine Entscheidung.
      *
@@ -687,6 +688,9 @@ final class HouseholdDraft
                 $top = array_keys(array_filter($dated, fn($x) => $x === $max));
                 if (count($top) === 1) $current = (string)$top[0];
             }
+            // 1b. v3.10.0 — genau eines nennt eine frühere Rechnung, die es korrigiert oder ersetzt (`corrects_invoice`)
+            $refs = array_values(array_filter($list, fn($id) => is_string($r = $this->val($id, 'corrects_invoice')) && trim($r) !== ''));
+            if ($current === null && count($refs) === 1) $current = (string)$refs[0];
             // 2. als Korrektur gekennzeichnet (Dateiname, Titel, Belegstelle)
             $marked = array_values(array_filter($list, fn($id) => $this->correctionMark($id)));
             if ($current === null && count($marked) === 1) $current = $marked[0];
@@ -1378,6 +1382,12 @@ final class HouseholdDraft
         foreach (array_column($list, 'o') as $o) {
             foreach ((array)($o['src'] ?? []) as $s) {
                 $doc = (string)($s['doc'] ?? '');
+                // v3.10.0 — Anfangsstand einer Rechnung: derselbe Stand höchstens drei Tage davor ist deine Ablesung
+                // (wie Proposals::readingAt; den Vortag fängt schon der Abgleich einen Tag daneben)
+                if (($this->docs[$doc]['type'] ?? '') === 'invoice' && $this->date($doc, 'period_from') === $date
+                    && ($same = Proposals::sameStandBefore($existing, $meter, $date, $value, array_column($mp['changes'], 'date'))) !== null) {
+                    return ['status' => 'exists', 'same_on' => $same] + $f;
+                }
                 if (($this->docs[$doc]['type'] ?? '') !== 'invoice' || $this->date($doc, 'period_to') !== $date) continue;
                 $from = $this->date($doc, 'period_from') ?? $date;
                 $best = null;
