@@ -451,6 +451,19 @@ export function buildTodo(events, recs, keep = () => true) {
         : t('dashboard.todo.billNoDeadline'),
       href: e.href, ev: e, action: t('dashboard.todo.billAction') });
   }
+  // v3.11.0 (F1035) — Deine Rechte als Kunde: Titel des Befunds (wie die Empfehlung), mit Frist darunter; abhakbar
+  for (const e of due.filter(x => x.kind === 'rights')) {
+    const rec = recById.get(e.ref?.recommendation_id);
+    items.push({ icon: '⚖️', tone: e.severity === 'urgent' || e.severity === 'overdue' ? 'alert' : 'warn', text: rec?.title ?? e.title,
+      sub: e.ref?.deadline ? t('rights.deadline', { date: fmt.date(e.ref.deadline) }) : '',
+      recId: e.ref?.recommendation_id, href: e.href, ev: e, action: t('dashboard.todo.rightsAction') });
+  }
+  // v3.11.0 (D, #54) — Verträge widersprechen sich: Titel der Empfehlung, Sprung zu den Verträgen (dort Ende setzen oder „Beides stimmt“)
+  for (const e of due.filter(x => x.kind === 'contract_conflict')) {
+    const rec = recById.get(e.ref?.recommendation_id);
+    items.push({ icon: '📄', tone: 'warn', text: rec?.title ?? e.title, sub: rec?.detail ?? '',
+      recId: e.ref?.recommendation_id, href: e.href, ev: e, action: t('dashboard.todo.contractAction') });
+  }
   // v3.9.0 (#38) — Heizgrenze anpassen: Vorher/Nachher und Wirkung, „Übernehmen“ und „Nicht jetzt“
   for (const e of due.filter(x => x.kind === 'heat_limit')) {
     const r = e.ref || {};

@@ -23,6 +23,35 @@ import { periodToCheck, exclusiveEnd, addDays } from '../lib/billing-period.js';
 import { attachmentNames, attachmentLinksHtml } from '../lib/attachments.js';   // v3.7.0
 import { restNoteHtml } from '../lib/rest-billing.js';   // v3.9.0 (F1032, #40) — Menge = Rest
 import { offerThanks, compareThanks } from '../lib/thanks.js';   // v3.10.0 — Danke sagen
+import { letterButton, bindLetterButtons, rightsFooterHtml } from '../lib/letter.js';   // v3.11.0 (F1035) — Rechte als Kunde
+
+/** v3.11.0 (Paket rechnung) — Arten eines Postens (BillService::ITEM_KINDS), „Sonstiges“ zuerst wie bisher. */
+const ITEM_KINDS = ['other', 'levy', 'fee', 'credit', 'metering'];
+
+/** v3.11.0 (Paket rechnung) — Befunde „Deine Rechte als Kunde“ einer Art (GET /api/rights, gefiltert im Browser wie in der Pages-Demo). */
+async function rightsOf(utility) {
+  const r = await api.rights().catch(() => null);
+  return (r?.findings || []).filter(f => f.utility === utility && f.bill_id);
+}
+
+/**
+ * v3.11.0 (Paket rechnung) — die Hinweise zu einer Rechnung: Titel, Text, Fußzeile mit den
+ * Normen als Link, „Brief entwerfen“. „Rechnung prüfen“ zeigt alle, auch außerhalb des Fensters
+ * von „Zu tun“ (Grundsatz 5).
+ */
+export function billRightsHtml(findings) {
+  if (!findings.length) return '';
+  return `<div class="bill-rights" data-role="bill-rights">
+    <h4 class="settings-subhead">${escapeHtml(t('rights.title'))}</h4>
+    ${findings.map(f => `<div class="banner banner--${f.severity === 'warning' ? 'warning' : 'info'}" data-role="bill-right" data-check="${escapeHtml(f.check)}">
+      <p><strong>${escapeHtml(f.title)}</strong></p>
+      <p>${escapeHtml(f.text)}</p>
+      ${f.deadline ? `<p class="small">${escapeHtml(t('rights.deadline', { date: fmt.date(f.deadline) }))}</p>` : ''}
+      ${rightsFooterHtml(f)}
+      ${letterButton(f)}
+    </div>`).join('')}
+  </div>`;
+}
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -125,6 +154,8 @@ async function draw(container, sel) {
       ${sel.period ? '' : `<p class="muted small" data-role="period-hint">${escapeHtml(t('billCheck.periodDefault'))}</p>`}
       <div id="bc-result"></div>
     </div>
+    <!-- v3.11.0 (Nachprüfung NP6) — ohne erfasste Rechnung sichtbar, nicht im zugeklappten Abschnitt -->
+    <p class="muted small" data-role="rights-no-bill" hidden></p>
     <details class="card bill-capture" data-role="bills"><summary class="card__title">${escapeHtml(t('billCheck.invoice.capture'))}</summary></details>`;
 
   const readPeriod = () => ({
@@ -312,6 +343,15 @@ async function drawBills(container, u, meter, readPeriod) {
   const water = u.key === 'wasser';
   const bills = await api.bills(u.key, meter.id).catch(() => []);
   const docNames = await attachmentNames(bills);   // v3.7.0 — Dateinamen der Belege
+  const rights = bills.length ? await rightsOf(u.key) : [];   // v3.11.0 (Paket rechnung)
+  // v3.11.0 (Skeptiker M7, Nachprüfung NP6) — ohne Rechnung über dem zugeklappten Abschnitt: Die Rechte-Prüfungen
+  // laufen ab der ersten erfassten Rechnung (nur, wo die App Regeln kennt: `enabled`)
+  const noBill = container.querySelector('[data-role="rights-no-bill"]');
+  if (noBill) {
+    const on = !bills.length && (await api.rights().catch(() => null))?.enabled !== false;
+    noBill.hidden = !on;
+    noBill.innerHTML = on ? `${escapeHtml(t('billCheck.rightsNoBill'))} <a href="#/inbox">${escapeHtml(t('billCheck.rightsInbox'))}</a>` : '';
+  }
   el.innerHTML = `
     <summary class="card__title">${escapeHtml(t('billCheck.invoice.capture'))}${bills.length ? ` <span class="muted small" data-role="bill-count">· ${escapeHtml(tp('billCheck.invoice.captured', bills.length))}</span>` : ''}</summary>
     <h2 class="settings-subhead">${t('billCheck.invoice.title')}${info('utilityStatement')}</h2>
@@ -321,6 +361,12 @@ async function drawBills(container, u, meter, readPeriod) {
       <!-- v3.4.0 (N1021) — Formularraster wie in den Dialogen -->
       <div class="fgrid">
         <div class="field field--s"><label for="bi-issued">${t('billCheck.invoice.issued')}</label><input class="input" id="bi-issued" name="issued_on" type="date"></div>
+        <!-- v3.11.0 (Paket rechnung) — Zugang der Rechnung: Frist des Versorgers (A1) -->
+        <div class="field field--s"><label for="bi-received">${t('billCheck.invoice.received')}</label><input class="input" id="bi-received" name="received_on" type="date" aria-describedby="bi-received-hint">
+          <small class="settings-field__hint" id="bi-received-hint">${t('billCheck.invoice.receivedHint')}</small></div>
+        <!-- v3.11.0 (integration) — Rechnungsnummer: Bezug in den Briefen zu dieser Rechnung -->
+        <div class="field field--s"><label for="bi-number">${t('billCheck.invoice.number')}</label><input class="input" id="bi-number" name="invoice_number" type="text" maxlength="80" autocomplete="off" aria-describedby="bi-number-hint">
+          <small class="settings-field__hint" id="bi-number-hint">${t('billCheck.invoice.numberHint')}</small></div>
         <div class="field field--s"><label for="bi-qty">${water ? t('billCheck.invoice.m3') : t('billCheck.invoice.kwh')}</label><input class="input" id="bi-qty" name="qty" type="text" inputmode="decimal"></div>
         <div class="field field--s"><label for="bi-amount">${t('billCheck.invoice.amount')}</label><input class="input" id="bi-amount" name="amount" type="text" inputmode="decimal"></div>
         <div class="field field--s"><label for="bi-adv">${t('billCheck.invoice.advances')}</label><input class="input" id="bi-adv" name="advances" type="text" inputmode="decimal"></div>
@@ -329,10 +375,38 @@ async function drawBills(container, u, meter, readPeriod) {
         <div class="field field--s"><label for="bi-co2kg">${t('co2split.statement.emissions')}</label><input class="input" id="bi-co2kg" name="co2_kg" type="text" inputmode="decimal"></div>
         <div class="field field--s"><label for="bi-co2eur">${t('billCheck.invoice.co2Cost')}</label><input class="input" id="bi-co2eur" name="co2_eur" type="text" inputmode="decimal"></div>` : ''}
       </div>
+      <!-- v3.11.0 (Paket rechnung) — die Rechnung nennt einen Stand geschätzt (A5) -->
+      <fieldset class="fgroup" data-role="bill-estimated"><legend>${t('billCheck.invoice.estimated')}</legend>
+        <div class="fgrid">
+          <div class="field field--s"><label class="check"><input type="checkbox" name="est_start"> ${t('billCheck.invoice.estimatedStart')}</label></div>
+          <div class="field field--s"><label class="check"><input type="checkbox" name="est_end"> ${t('billCheck.invoice.estimatedEnd')}</label></div>
+          <!-- v3.11.0 (Skeptiker M5) — der geschätzte Endstand an der Rechnung, keine Ablesung -->
+          <div class="field field--s"><label for="bi-est-value">${t('billCheck.invoice.estimatedValue', { unit: escapeHtml(u.unit || '') })}</label><input class="input" id="bi-est-value" name="est_value" type="text" inputmode="decimal"></div>
+          <div class="field field--s"><label for="bi-est-on">${t('billCheck.invoice.estimatedOn')}</label><input class="input" id="bi-est-on" name="est_on" type="date"></div>
+        </div>
+        <p class="fgroup__hint">${t('billCheck.invoice.estimatedHint')}</p>
+      </fieldset>
       <fieldset class="fgroup"><legend>${t('billCheck.invoice.items')}</legend>
         <button type="button" class="btn btn--ghost btn--sm fgroup__add" data-add-item>${t('billCheck.invoice.addItem')}</button>
-        <div class="rowlist rowlist--label" data-items></div>
+        <div class="rowlist rowlist--item" data-items></div>
       </fieldset>
+      ${water ? `
+      <!-- v3.11.0 (Paket rechnung) — Gebührenbescheid einer Behörde oder Gemeinde (A7) -->
+      <fieldset class="fgroup" data-role="bill-notice"><legend>${t('billCheck.invoice.notice')}</legend>
+        <div class="fgrid">
+          <div class="field field--full"><label class="check"><input type="checkbox" name="notice_public"> ${t('billCheck.invoice.noticePublic')}</label></div>
+          <div class="field field--s"><label for="bi-notice-dated">${t('billCheck.invoice.noticeDated')}</label><input class="input" id="bi-notice-dated" name="notice_dated" type="date"></div>
+          <div class="field field--s"><label for="bi-notice-served">${t('billCheck.invoice.noticeServed')}</label><input class="input" id="bi-notice-served" name="notice_served" type="date"></div>
+          <div class="field"><label for="bi-notice-remedy">${t('billCheck.invoice.noticeRemedy')}</label>
+            <select class="input" id="bi-notice-remedy" name="notice_remedy" aria-describedby="bi-notice-remedy-hint">
+              <option value="">${t('billCheck.invoice.notStated')}</option>
+              <option value="objection">${t('inbox.option.objection')}</option>
+              <option value="action">${t('inbox.option.action')}</option>
+            </select>
+            <small class="settings-field__hint" id="bi-notice-remedy-hint">${t('billCheck.invoice.noticeRemedyHint')}</small></div>
+          <div class="field"><label for="bi-notice-file">${t('billCheck.invoice.noticeFile')}</label><input class="input input--text" id="bi-notice-file" name="notice_file" type="text" maxlength="80"></div>
+        </div>
+      </fieldset>` : ''}
       <div class="fgrid">
         <div class="field field--full">
           <label class="btn btn--ghost btn--sm"><span aria-hidden="true">📄</span> ${t('billCheck.invoice.attach')}
@@ -346,15 +420,23 @@ async function drawBills(container, u, meter, readPeriod) {
         <button type="button" class="btn btn--ghost" id="bi-cancel" hidden>${t('common.cancel')}</button>
       </div>
     </form>
-    <div data-role="bill-list">${billList(bills, water, docNames)}</div>
+    <div data-role="bill-list">${billList(bills, water, docNames, rights)}</div>
     <div data-role="bill-compare"></div>`;
 
   let attachments = [];
   let editing = null;   // v3.2.0 — Rechnung, die gerade bearbeitet wird
   // v3.4.0 (N1021) — Bezeichnung | Betrag | ✕ im Zeilenraster
+  // v3.11.0 (Paket rechnung) — dazu Art, netto/brutto und Steuersatz als Felder (bis zur Basis nur
+  // weitergereicht): Gutschrift (Bonus, A4) und Messstellenbetrieb (A6) trägt man hier von Hand ein
+  const opt = (v, cur, label) => `<option value="${escapeHtml(v)}"${v === cur ? ' selected' : ''}>${escapeHtml(label)}</option>`;
   const itemRow = (it = {}) => `<div class="rowlist__row bill-item">
       <div class="field"><label>${t('billCheck.invoice.itemLabel')}</label><input class="input input--text" data-i="label" type="text" maxlength="120" value="${escapeHtml(it.label ?? '')}"></div>
       <div class="field"><label>${t('billCheck.invoice.itemAmount')}</label><input class="input" data-i="amount_eur" type="text" inputmode="decimal" value="${escapeHtml(formatForInput(it.amount_eur))}"></div>
+      <div class="field"><label>${t('billCheck.invoice.itemKind')}</label><select class="input" data-i="kind">
+        ${ITEM_KINDS.map(k => opt(k, ITEM_KINDS.includes(it.kind) ? it.kind : 'other', t('billCheck.invoice.itemKinds.' + k))).join('')}</select></div>
+      <div class="field"><label>${t('billCheck.invoice.itemBasis')}</label><select class="input" data-i="basis">
+        ${opt('', it.basis || '', t('billCheck.invoice.notStated'))}${opt('net', it.basis || '', t('inbox.option.net'))}${opt('gross', it.basis || '', t('inbox.option.gross'))}</select></div>
+      <div class="field"><label>${t('billCheck.invoice.itemVat')}</label><input class="input" data-i="vat_pct" type="text" inputmode="decimal" value="${escapeHtml(formatForInput(it.vat_pct))}"></div>
       <button type="button" class="btn btn--danger btn--icon rowlist__del" data-del-item title="${escapeHtml(t('tenancy.form.removeRow'))}" aria-label="${escapeHtml(t('tenancy.form.removeRow'))}"><span aria-hidden="true">×</span></button>
     </div>`;
   el.querySelector('[data-add-item]').addEventListener('click', () => el.querySelector('[data-items]').insertAdjacentHTML('beforeend', itemRow()));
@@ -378,17 +460,36 @@ async function drawBills(container, u, meter, readPeriod) {
       const invoice = { amount_eur: n(f.amount.value), advances_paid_eur: n(f.advances.value), result_eur: n(f.result.value) };
       invoice[water ? 'volume_m3' : 'energy_kwh'] = n(f.qty.value);
       Object.keys(invoice).forEach(k => invoice[k] == null && delete invoice[k]);
+      const val = (r, k) => r.querySelector(`[data-i="${k}"]`)?.value ?? '';
       data = {
         meter_id: meter.id, period_from: readPeriod().from, period_to: readPeriod().until, issued_on: f.issued_on.value || null,
+        received_on: f.received_on.value || null,   // v3.11.0 (Paket rechnung) — leer entfernt
+        invoice_number: f.invoice_number.value.trim() || null,   // v3.11.0 (integration) — leer entfernt
         invoice,
-        items: [...el.querySelectorAll('.bill-item')].map(r => ({ label: r.querySelector('[data-i="label"]').value, amount_eur: n(r.querySelector('[data-i="amount_eur"]').value) ?? 0 })),
+        // v3.11.0 (Paket rechnung) — Art, netto/brutto und Satz aus den Feldern der Zeile (leer: ohne Angabe)
+        items: [...el.querySelectorAll('.bill-item')].map(r => ({ label: val(r, 'label'), amount_eur: n(val(r, 'amount_eur')) ?? 0,
+          kind: val(r, 'kind') || 'other', ...(val(r, 'basis') ? { basis: val(r, 'basis') } : {}),
+          ...(n(val(r, 'vat_pct')) != null ? { vat_pct: n(val(r, 'vat_pct')) } : {}) })),
         co2: f.co2_kg ? { emissions_kg: n(f.co2_kg.value), cost_eur: n(f.co2_eur.value) } : null,
+        // v3.11.0 (Paket rechnung) — geschätzte Ränder (ohne Haken: Feld leer) und Gebührenbescheid (nur Wasser)
+        reading_estimated: f.est_start.checked || f.est_end.checked || n(f.est_value.value) != null
+          ? { start: f.est_start.checked, end: f.est_end.checked || n(f.est_value.value) != null } : null,
+        // v3.11.0 (Skeptiker M5) — geschätzter Endstand an der Rechnung (ohne Tag: Ende des Zeitraums)
+        estimated_end_reading: n(f.est_value.value) != null ? { value: n(f.est_value.value), on: f.est_on.value || null } : null,
+        ...(f.notice_public ? { notice: f.notice_public.checked ? { public_law: true, dated_on: f.notice_dated.value || null,
+          served_on: f.notice_served.value || null, remedy: f.notice_remedy.value || null, file_number: f.notice_file.value.trim() || null } : null } : {}),
         attachment_ids: attachments,
       };
     } catch (err) { toastErr(err.message); return; }
     try {
       const b = editing ? await api.updateBill(u.key, editing.id, data) : await api.createBill(u.key, data);
       toastOk(t(editing ? 'billCheck.updated' : 'billCheck.saved'));
+      // v3.11.0 (Skeptiker M5) — der geschätzte Endstand passt nicht zu deinen Ablesungen (Zähler liefe rückwärts)
+      if ((b.warnings || []).includes('estimated_reading_backwards') && b.estimated_reading_neighbor) {
+        // v3.11.0 (Nachprüfung, klein) — Stand mit Tausenderpunkt wie überall („1.593 m³“), nicht wie im Eingabefeld
+        toastErr(t('billCheck.estimatedBackwards', { date: fmt.date(b.estimated_reading_neighbor.date),
+          counter: fmt.dec(b.estimated_reading_neighbor.counter, 3), unit: u.unit || '' }));
+      }
       await drawBills(container, u, meter, readPeriod);
       showCompare(container, u, b.id);
     } catch (err) { toastErr(err.message); }
@@ -407,6 +508,19 @@ async function drawBills(container, u, meter, readPeriod) {
       showBillPeriod(container);
     }
     f.issued_on.value = b.issued_on || '';
+    f.received_on.value = b.received_on || '';   // v3.11.0 (Paket rechnung)
+    f.invoice_number.value = b.invoice_number || '';   // v3.11.0 (integration)
+    f.est_start.checked = !!b.reading_estimated?.start;
+    f.est_end.checked = !!b.reading_estimated?.end;
+    f.est_value.value = v(b.estimated_end_reading?.value);   // v3.11.0 (Skeptiker M5)
+    f.est_on.value = b.estimated_end_reading?.on || '';
+    if (f.notice_public) {
+      f.notice_public.checked = !!b.notice?.public_law;
+      f.notice_dated.value = b.notice?.dated_on || '';
+      f.notice_served.value = b.notice?.served_on || '';
+      f.notice_remedy.value = b.notice?.remedy || '';
+      f.notice_file.value = b.notice?.file_number || '';
+    }
     f.qty.value = v(water ? b.invoice?.volume_m3 : b.invoice?.energy_kwh);
     f.amount.value = v(b.invoice?.amount_eur);
     f.advances.value = v(b.invoice?.advances_paid_eur);
@@ -455,8 +569,12 @@ function showBillPeriod(container) {
 
 // v3.7.0 — die Belege je Rechnung über lib/attachments.js: 📄 mit Dateinamen im
 // aria-label. Bis dahin hieß der Link, der den Beleg öffnet, „Rechnung anhängen“.
-function billList(bills, water, docNames = new Map()) {
+function billList(bills, water, docNames = new Map(), rights = []) {
+  // v3.11.0 (Skeptiker M7) — ohne Rechnung sagt eine leere Liste nicht „alles in Ordnung“; der Satz zu den
+  // Rechte-Prüfungen steht seit der Nachprüfung (NP6) über dem Abschnitt (drawBills), sichtbar auch zugeklappt
   if (!bills.length) return `<p class="muted">${t('billCheck.noBills')}</p>`;
+  // v3.11.0 (Paket rechnung) — Hinweise zu deinen Rechten je Rechnung; „Vergleichen“ zeigt sie
+  const nRights = (b) => rights.filter(f => f.bill_id === b.id).length;
   return `<div class="table-wrap"><table class="table table--compact">
     <thead><tr>
       <th scope="col">${t('utility.billCheck.col.period')}</th>
@@ -466,7 +584,7 @@ function billList(bills, water, docNames = new Map()) {
       <th scope="col"><span class="sr-only">${t('common.actions')}</span></th>
     </tr></thead>
     <tbody>${bills.map(b => `<tr>
-      <td>${fmt.date(b.period_from)} – ${fmt.date(b.period_to)}</td>
+      <td>${fmt.date(b.period_from)} – ${fmt.date(b.period_to)}${nRights(b) ? ` <span class="tag tag--warning" data-role="bill-rights-count">⚖️ ${escapeHtml(tp('billCheck.rightsCount', nRights(b)))}</span>` : ''}</td>
       <td class="num">${fmt.num(water ? b.invoice?.volume_m3 : b.invoice?.energy_kwh, water ? 2 : 0)}</td>
       <td class="num">${eur(b.invoice?.amount_eur)}</td>
       <td class="num">${eur(b.invoice?.result_eur)}</td>
@@ -487,7 +605,8 @@ async function showCompare(container, u, id) {
   if (!el) return;
   el.innerHTML = `<div class="loading">${t('common.loading')}</div>`;
   try {
-    const c = await api.billCompare(u.key, id);
+    const [c, rights] = await Promise.all([api.billCompare(u.key, id), rightsOf(u.key)]);
+    const mine = rights.filter(f => f.bill_id === id);   // v3.11.0 (Paket rechnung)
     const water = u.key === 'wasser';
     const q = water ? 'm3' : 'kwh';
     const unit = water ? 'm³' : 'kWh';
@@ -506,7 +625,9 @@ async function showCompare(container, u, id) {
         </tbody>
       </table></div>
       ${(c.reasons || []).length ? `<ul class="muted small">${c.reasons.map(r => `<li>${escapeHtml(t('billCheck.reason.' + r))}</li>`).join('')}</ul>` : ''}
-      ${compareNotesHtml(c, u)}`;
+      ${compareNotesHtml(c, u)}
+      ${billRightsHtml(mine)}`;
+    bindLetterButtons(el, (fid) => mine.find(f => f.id === fid) || null);
     // v3.10.0 — die Prüfung hat eine Abweichung gefunden: ein Nutzen-Moment. Skeptiker N11: mit
     // Abstand am Ende des Ergebnisses (nicht direkt unter der Abweichung) und nicht, wenn sie aus
     // eigenen Lücken stammen kann

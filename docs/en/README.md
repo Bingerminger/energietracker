@@ -43,6 +43,7 @@ only happens with an opt-in.
 | [Connect Home Assistant](anleitungen/home-assistant.md) | As an app in Home Assistant OS (since v3.5.0); push readings automatically: token, meter alias, REST command, quarter hours with a timestamp; balance and forecast back as sensors, backfilling after an outage; *since v3.9.0* notifications to Home Assistant and the “To do” sensor |
 | [ioBroker, Node-RED, openHAB](anleitungen/andere-systeme.md) | Send readings from other systems: the common contract and one recipe each |
 | [Deadlines and dates in your calendar](anleitungen/kalender.md) | Calendar subscription in Apple Calendar, Thunderbird and Google Calendar |
+| [Writing a letter](anleitungen/brief-schreiben.md) | *New in v3.11.0:* a letter for a note “Your rights as a customer”: five fixed templates, always in German, prefilled from contract and meter, as PDF for a window envelope or as text; nothing stored; mark as sent |
 | [Ticking off notices and the history](anleitungen/hinweise-erledigen.md) | What clears itself (follow-on contract, reading, delivery), ticking off by hand with date, note and receipt, undo, the “Done” tab, who appears in the history, retention and privacy; *since v3.9.0* “Check a reading” |
 | [Text recognition in the home network](anleitungen/texterkennung.md) | Let a photo suggest the meter reading: set up Ollama or LM Studio, privacy, troubleshooting |
 | [Inbox: let the app read supplier mail](anleitungen/posteingang.md) | *New in v3.7.0:* file a PDF (on the iPad from the Files app), read it locally with qwen3.8, check every value against its quote, take it over with one click; enter by hand next to the document, many at once, privacy; reading in the cloud as an opt-in — Claude (Anthropic) or an OpenAI-compatible service, key, what leaves, limits |
@@ -64,6 +65,7 @@ only happens with an opt-in.
 | [PV feed-in & generation](verstehen/12-pv.md) | Remuneration, self-consumption, self-sufficiency, battery, plug-in solar, payback |
 | [Heat](verstehen/15-waerme.md) | Heat in the home, consumption per period, meter roles, CO₂ approximation, hot-water heat, seasonal performance factor of the heat pump |
 | [CO₂ price in fuel](verstehen/16-co2-preis.md) | The CO₂ price (BEHG) in gas, heating oil and district heating: shown, not added; factors, price per year, scenario |
+| [Your rights as a customer](verstehen/17-rechte.md) | *New in v3.11.0:* what the app checks (bill came late, advance payment too high, special termination, bonus, estimate, metering charge, fee assessment), how and with which limits, plus the letters; a note, not legal advice |
 | [Special payments](verstehen/10-sonderzahlungen.md) | Refund and back-payment, voluntary advance, effect on the balance |
 | [Meter-reading capture](verstehen/11-zaehlerstaende.md) | Capture in one pass, plausibility, direct link, photo and queue |
 | [Meter topology](verstehen/13-meter-topologie.md) | Sub-meters, meter groups and the group contract; *since v3.9.0* remainder billing on the parent meter, cascade and the “metering concept” assistant |
@@ -81,6 +83,7 @@ only happens with an opt-in.
 | [API reference](referenz/api.md) | All routes with status codes and stability promise (checked against the code by a test) |
 | [API examples](referenz/api-beispiele.md) | Detailed requests and responses of the most used endpoints |
 | [Data model](referenz/datenmodell.md) | JSON schemas, storage, schema migration |
+| [Legal basis](referenz/rechtsgrundlagen.md) | *New in v3.11.0:* every legal statement of the app with norm, source, date checked and status, plus deadlines and price caps for metering (checked against the code by a test) |
 
 ## 🛠️ Operation — *install and keep it running*
 

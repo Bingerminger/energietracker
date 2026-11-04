@@ -14,11 +14,11 @@ Beispielhaushalt, bis heute fortgeschrieben, in sieben Sprachen, ohne Installati
 
 [![CI](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml)
 [![Docker Publish](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml)
-[![Version](https://img.shields.io/badge/version-3.10.1-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-3.11.0-blue.svg)](CHANGELOG.md)
 [![Lizenz: AGPL-3.0-or-later](https://img.shields.io/badge/Lizenz-AGPL--3.0--or--later-success.svg)](LICENSE)
 [![PHP](https://img.shields.io/badge/PHP-%E2%89%A5%208.2-777BB4.svg)](composer.json)
 [![Abhängigkeiten: 0](https://img.shields.io/badge/Abh%C3%A4ngigkeiten-0-success.svg)](composer.json)
-[![Tests](https://img.shields.io/badge/Tests-1896-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-2088-success.svg)](tests/)
 [![Sprachen](https://img.shields.io/badge/Sprachen-7-7c5cff.svg)](public/locales/)
 [![Verbrauchsarten](https://img.shields.io/badge/Verbrauchsarten-9-f59e0b.svg)](docs/einstieg/funktionen.md)
 [![Docker](https://img.shields.io/badge/Docker-amd64%20%7C%20arm64-2496ed.svg)](docker-compose.yml)
@@ -159,9 +159,15 @@ er ohne Klassen und sagt warum; Währungen rechnet er nicht um —
 
 ## Stand und Ausblick
 
-**v3.10.1** ist die aktuelle Version — [CHANGELOG](CHANGELOG.md). Schnittstellen,
+**v3.11.0** ist die aktuelle Version — [CHANGELOG](CHANGELOG.md). Schnittstellen,
 CSV-Formate und das Backup-Format ändern sich nur additiv; entfernt wird erst
-mit einer neuen Hauptversion und nach Ankündigung. 3.10.0 rechnet den Saldo aus
+mit einer neuen Hauptversion und nach Ankündigung. 3.11.0 kennt deine Rechte
+als Kunde: sieben Prüfungen mit Quelle (Rechnung zu spät, Abschlag zu hoch,
+Sonderkündigung nach einer Preiserhöhung, fehlender Bonus, Schätzung trotz
+eigener Ablesung, Messentgelt über der Obergrenze, Frist beim
+Gebührenbescheid), fünf Briefe als Text und PDF, Preisänderungsschreiben im
+Posteingang mit Termin und ein Hinweis, wenn sich Verträge widersprechen.
+3.10.0 rechnet den Saldo aus
 einem Guss: gemessen bis zur letzten Ablesung, geschätzt bis heute und erwartet
 bei der Abrechnung, jeweils mit ehrlicher Spanne und überall gleich; dazu
 Home Assistant über HTTPS mit eigenem Stammzertifikat, der Rest je Zählwerk in

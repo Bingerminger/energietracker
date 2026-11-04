@@ -163,7 +163,8 @@ The detailed feature overview. What the views look like is shown in the
   estimate, not a service charge statement); service charge statements with a
   PDF, from which the app takes over prices and the new prepayment; the
   deadlines for the statement and for objections in the calendar — see
-  [As a tenant](../anleitungen/mieter.md).
+  [As a tenant](../anleitungen/mieter.md). Since v3.11.0 with a responsible
+  person on the tenancy for these deadlines.
 - **Sharing CO₂ costs** (v3.1.0, Germany, rented homes): the landlord’s share
   under the CO2KostAufG — worked out with your own gas boiler, with a letter as
   a PDF and the deadline in the calendar; with central heating the heating cost
@@ -194,7 +195,28 @@ The detailed feature overview. What the views look like is shown in the
   last reading to copy — what the new supplier asks for.
 - **Price increase** in the running contract (v3.1.0, Germany): a
   recommendation with the special right to terminate and an entry under “To
-  do”; when saving a contract, a note if the minimum term runs beyond 24 months.
+  do”; since v3.11.0 only for electricity and gas, with the rule by type of
+  supply and a deadline on the day before the increase. When saving an
+  electricity or gas contract, a note if the minimum term runs beyond 24 months
+  (district heating: beyond ten years).
+- **Advance payment clearly too high** (v3.11.0, Germany): a note with a letter
+  if the instalment is more than 20% and at least 10 € above what the
+  consumption of the last billing period and the current prices give, and the
+  forecast agrees.
+- **Your rights as a customer** (v3.11.0, Germany): the app checks bills,
+  advance payments and price changes for what you are entitled to: bill came
+  late, advance payment too high, special termination with a date, missing
+  bonus, estimate despite your own reading, metering charge above the cap,
+  deadline for a fee assessment. Every note names the norm with source and date,
+  is a note, not legal advice, and offers a letter as PDF or text where it fits.
+  See [Your rights as a customer](../verstehen/17-rechte.md),
+  [Legal basis](../referenz/rechtsgrundlagen.md) and
+  [Writing a letter](../anleitungen/brief-schreiben.md).
+- **Contracts contradict each other** (v3.11.0): if a contract runs into a later
+  one according to its entry, or probably carries the tariff of another utility,
+  the app says so on the contract card, under “To do” and in the billing year,
+  with “Set the end of … to …” and “Both are right”. See
+  [Views](../referenz/ansichten.md#12-meters--contracts--incl-topology-f1006).
 
 ## Understand and look ahead
 

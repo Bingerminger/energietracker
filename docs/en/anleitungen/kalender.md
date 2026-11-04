@@ -23,7 +23,7 @@ sees, as all-day events of the next 365 days, plus anything already due:
 | “…: last day to cancel (provider)” | on the cancellation deadline of a current or future contract — the contract needs a notice period and a fixed end for this. Since v3.4.0 no longer for contracts that renew, have no end or can be cancelled at any time: their “last day” was always today and moved through the calendar every day |
 | “…: contract ends (provider)” | on the fixed contract end; not for contracts that renew |
 | “…: price guarantee ends (provider)” | on the last day of the price guarantee |
-| “…: price increase (provider) — check special termination” | on the day of a recorded price increase; since v3.1.0 also under “To do” while the recommendation “price increase” for it stands (in Germany) |
+| “…: price increase (provider)” | on the day of a recorded price increase; whether and how you can terminate is told, since v3.11.0, by the deadline “special termination possible as of …” on the day before (electricity and gas, in Germany, under “To do” 14 days ahead) |
 | “Heating oil: plan a delivery (…)” | today, as long as the stock is low (heating oil, pellets) |
 | “Bill expected: Electricity (supplier) for …” or “Final bill expected: …” *(v3.5.0)* | after a billing period has ended without a recorded supplier’s bill — for electricity and gas on the day of the statutory deadline (end + 42 days, § 40c(2) EnWG; after that “overdue”), for district heating and water on the day after the end (no statutory deadline) — see [Ticking off notices](hinweise-erledigen.md#9-bill-expected-v350) |
 | “Service charge statement up to … due: …” *(v3.1.0)* | only with “I live: in a rented home” — end of the last completed billing period plus 12 months (German Civil Code, BGB § 556 (3)), as long as no statement is recorded for that period |
@@ -47,7 +47,10 @@ the installation** (Settings → General), because calendars send no language.
 
 **Responsible *(v3.5.0)*:** if someone is responsible for a reminder, the
 entry’s description carries the line **“Responsible: name”** (after a person
-was deleted possibly “former member”). The calendar is the same for everyone
+was deleted possibly “former member”). If the responsibility comes from
+elsewhere, it says so behind the name: “(via the contract)”, “(via the meter)”
+and *(v3.11.0)* for the deadlines of the service charge statement and the CO₂
+refund “(via the tenancy)”. The calendar is the same for everyone
 in the household; nobody is notified —
 [Responsible for reminders](hinweise-erledigen.md#8-responsible-for-reminders-v350).
 
@@ -134,7 +137,8 @@ under Configuration → Network (for example `8095`) and replace the start up to
   Calendar and Thunderbird let you choose the interval yourself. Changes in
   the app appear with the next fetch.
 - **Advance reminder.** Dates, cancellation deadlines, contract ends, price
-  guarantees and price increases carry a reminder as many days before as set
+  guarantees, price increases and *(v3.11.0)* the deadlines from “Your rights as
+  a customer” (special termination, fee assessment) carry a reminder as many days before as set
   under Settings → General → Reminders → “Reminder “due soon” from”
   (default 14). `0` switches it off. Due readings and deliveries have no advance
   reminder — they are on today’s date anyway. The deadlines of the service

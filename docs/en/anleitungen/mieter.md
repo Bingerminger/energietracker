@@ -275,6 +275,12 @@ With your own gas boiler a third one is added since v3.1.0: “CO₂ cost {year}
 last day to claim the landlord’s share of …” — twelve months after the date of
 the gas bill ([Share CO₂ costs](co2-aufteilung.md#7-deadline-in-the-calendar)).
 
+**Responsible** *(v3.11.0)*: in the tenancy form you choose a person under
+“Responsible”; the three deadlines go to them, under “To do” and in the calendar
+with “via the tenancy”. Without a choice, the person on the tenancy’s first heat
+meter applies, otherwise nobody
+([Responsible for reminders](hinweise-erledigen.md#8-responsible-for-reminders-v350)).
+
 None of them has an advance reminder of its own in the calendar. The app only
 calculates the dates; whether and how a deadline applies in a particular case it
 does not judge. Tenants’ associations or legal advice can help with questions.

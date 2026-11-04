@@ -238,6 +238,33 @@ final class MessyHouseholdTest extends ServiceTestCase
      * = 5.400 € wie 36 Monate × 150 €; bis 30.09.2025 ebenfalls zwölf Raten (die vom 01.08. ist bezahlt),
      * monatlich aber erst 35 × 150 = 5.250 €.
      */
+    /**
+     * v3.11.0 (Paket vertrag, A2) — „Abschlag deutlich zu hoch“ am unordentlichen Haushalt: Lücken, eine
+     * geschätzte Ablesung und die konvexe Heizkurve dürfen den gepflegten Abschlag nicht zum Fehlalarm machen;
+     * der Rückgriff auf die eigenen Ablesungen nimmt nur Perioden ohne verteilte Monate (2024 und 2025 haben
+     * welche), also schweigt die Prüfung auch bei einem dreifachen Abschlag, statt aus Lücken zu urteilen.
+     */
+    public function testAdvanceCheckStaysQuietOnMessyData(): void
+    {
+        $bills = new \Energietracker\Services\BillService($this->store, $this->meters, $this->contracts, $this->consumption, $this->i18n);
+        $checks = new \Energietracker\Services\Rights\ContractChecks($this->contracts, $this->meters, $this->consumption, $bills,
+            new \Energietracker\Services\BillingPeriodService($this->settings, $this->meters, $this->readings, $this->consumption, $bills), $this->i18n);
+        self::assertSame([], $checks->advanceHigh('2025-06-10', 'DE'), 'gepflegter Abschlag 150 €');
+        $this->contracts->update('gas', 'c_gas_messy', ['advance_payments' => [['from' => '2022-11-01', 'amount_eur' => 450]]]);
+        self::assertSame([], $checks->advanceHigh('2025-06-10', 'DE'), 'ohne abgerechneten Zeitraum ohne Lücken kein Urteil');
+        // mit einer erfassten Jahresrechnung (erfunden: 9.000 kWh im Jahr 2024) gibt es eine Grundlage
+        $bills->create('gas', ['meter_id' => $this->meter('gas')['id'], 'kind' => 'annual', 'period_from' => '2024-01-01',
+            'period_to' => '2024-12-31', 'issued_on' => '2025-02-10', 'invoice' => ['energy_kwh' => 9000, 'amount_eur' => 1170]]);
+        $f = $checks->advanceHigh('2025-06-10', 'DE');
+        $status = $this->consumption->contractStatus('gas', $this->meter('gas'), '2025-06-10')['contracts'][0];
+        // Mitte 2025 ist die Prognose sicher; Rechnung und Prognose halten 450 € beide für viel zu hoch:
+        // 2024 hat 366 Tage: 9.000 × 365/366 = 8.975,4 kWh × 0,112 = 1.005,25 € + 12 × 13,50 = 1.167,25 € ÷ 12 = 97,27 €
+        self::assertNull($status['projection_uncertain']);
+        self::assertCount(1, $f);
+        self::assertSame(['bill', 97.27, 352.73], [$f[0]['facts']['basis'], $f[0]['facts']['measure_eur'], $f[0]['amount_eur']]);
+        self::assertTrue(\Energietracker\Services\Rights\ContractChecks::tooHigh(450.0, (float)$status['advance_ongoing']));
+    }
+
     public function testAQuarterlyAdvanceChangesOnlyWhatIsPaid(): void
     {
         $at = fn(string $day) => $this->consumption->contractStatus('gas', $this->meter('gas'), $day)['contracts'][0];

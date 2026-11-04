@@ -90,6 +90,10 @@ jobs:
           node tests/scenario.test.mjs
           # v3.7.0 — Posteingang: Texte, Warteschlange, Textebene mit dem mitgelieferten pdf.js
           node tests/inbox.test.mjs
+          # v3.11.0 (F1035, F1036) — Rechte als Kunde: „Brief entwerfen“, Fußzeile mit Quellen, „Zu tun“, Empfehlungen
+          node tests/rights.test.mjs
+          # v3.11.0 (F1036) — Dialog „Brief entwerfen“: Vorbelegung, Pflichtbestätigung, nichts gespeichert, PDF
+          node tests/letters.test.mjs
 
       - name: Demo-Daten vorbereiten
         run: cp -r demo-data /tmp/etdata

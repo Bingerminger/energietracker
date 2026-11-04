@@ -459,6 +459,38 @@ async function openMeterModal(u, existing, allMeters = [], groups = []) {
           </div>
           <p class="fgroup__hint" id="mf-malo-hint">${t('meters.modal.maloHint')}</p>
         </fieldset>`}
+        ${u.key === 'strom' ? `
+        <!-- v3.11.0 (Paket rechnung) — Messeinrichtung und Messstellenbetreiber: Obergrenze des Messentgelts (A6) -->
+        <fieldset class="fgroup" data-role="metering">
+          <legend>${t('meters.metering.title')}</legend>
+          <div class="fgrid">
+            <div class="field">
+              <label for="mf-metering-device">${t('meters.metering.device')}</label>
+              <select class="input" id="mf-metering-device" name="metering_device">
+                ${['', 'conventional', 'mme', 'imsys'].map(v => `<option value="${v}" ${(existing?.metering_device || '') === v ? 'selected' : ''}>${escapeHtml(t('meters.metering.' + (v || 'unknown')))}</option>`).join('')}
+              </select>
+            </div>
+            <div class="field">
+              <label for="mf-msb">${t('meters.metering.operator')}</label>
+              <select class="input" id="mf-msb" name="msb_basic">
+                ${[['', 'unknown'], ['1', 'basic'], ['0', 'competitive']].map(([v, k]) => `<option value="${v}" ${(existing?.msb_basic === true ? '1' : existing?.msb_basic === false ? '0' : '') === v ? 'selected' : ''}>${escapeHtml(t('meters.metering.' + k))}</option>`).join('')}
+              </select>
+            </div>
+          </div>
+          <p class="fgroup__hint">${t('meters.metering.hint')}</p>
+        </fieldset>` : ''}
+        ${u.key === 'pv_einspeisung' ? `
+        <!-- v3.11.0 (Paket rechnung) — Leistung der Anlage: Fallgruppe beim Messentgelt (A6) -->
+        <fieldset class="fgroup" data-role="pv-kw">
+          <legend>${t('meters.metering.title')}</legend>
+          <div class="fgrid">
+            <div class="field field--s">
+              <label for="mf-pv-kw">${t('meters.pvKw.label')}</label>
+              <input class="input" id="mf-pv-kw" name="pv_kw" type="text" inputmode="decimal" autocomplete="off" value="${escapeHtml(formatForInput(existing?.pv_kw))}" aria-describedby="mf-pv-kw-hint">
+              <small class="settings-field__hint" id="mf-pv-kw-hint">${t('meters.pvKw.hint')}</small>
+            </div>
+          </div>
+        </fieldset>` : ''}
         ${u.key === 'pv_erzeugung' ? `
         <!-- v3.1.0 (H7, CALC-29) — Balkonkraftwerk, Amortisation, Speicher
              v3.7.0 — ab Erfahren (bis v3.6 Experte), wie Speicher und Amortisation in der Verbrauchsansicht -->
@@ -635,6 +667,17 @@ async function openMeterModal(u, existing, allMeters = [], groups = []) {
           }
           // v3.10.0 (#40) — nur, wenn die Liste geladen ist (sonst bliebe die Verbindung still weg); leer entfernt sie
           if (cascadeSel && !cascadeSel.disabled) out.cascade_meter_id = cascadeSel.value || null;
+          // v3.11.0 (Paket rechnung) — Messstellenbetrieb (Strom) und Leistung der Anlage (Einspeisung); leer entfernt
+          const dev = f.querySelector('[name="metering_device"]'), msb = f.querySelector('[name="msb_basic"]'), kw = f.querySelector('[name="pv_kw"]');
+          if (dev && msb) {
+            out.metering_device = dev.value || null;
+            out.msb_basic = msb.value === '' ? null : msb.value === '1';
+          }
+          if (kw) {
+            const raw = kw.value.trim();
+            out.pv_kw = raw === '' ? null : parseDecimal(raw);
+            if (raw !== '' && !(out.pv_kw > 0)) throw new Error(t('common.invalidNumber', { example: formatForInput(9.8) }));
+          }
           return out;
         };
 

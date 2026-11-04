@@ -52,6 +52,14 @@ final class TenancyService
         $this->activity = $activity;
     }
 
+    /** v3.11.0 (E) — Zuständigkeit (`assignee_id`) gegen das Personenverzeichnis prüfen. */
+    private ?ResponsibilityService $responsibility = null;
+
+    public function attachResponsibility(ResponsibilityService $responsibility): void
+    {
+        $this->responsibility = $responsibility;
+    }
+
     // ── Mietverhältnisse ─────────────────────────────────────────────────
 
     /** @return list<array<string,mixed>> */
@@ -73,7 +81,7 @@ final class TenancyService
     /** @return array<string,mixed> */
     public function create(array $input): array
     {
-        $t = ['id' => 't_' . bin2hex(random_bytes(6))] + $this->normalizeTenancy($input, null);
+        $t = $this->withAssignee(['id' => 't_' . bin2hex(random_bytes(6))] + $this->normalizeTenancy($input, null), $input, null);
         $all = $this->store->read('tenancies.json', []);
         if (!is_array($all)) $all = [];
         $all[] = $t;
@@ -88,11 +96,33 @@ final class TenancyService
         if (!is_array($all)) $all = [];
         foreach ($all as $i => $t) {
             if (!is_array($t) || ($t['id'] ?? null) !== $id) continue;
-            $all[$i] = array_merge($t, $this->normalizeTenancy($input, $t));
+            $all[$i] = $this->withAssignee(array_merge($t, $this->normalizeTenancy($input, $t)), $input,
+                is_string($t['assignee_id'] ?? null) ? $t['assignee_id'] : null);   // v3.11.0 (E)
             $this->store->write('tenancies.json', array_values($all));
             return $all[$i];
         }
         throw new NotFoundException($this->i18n->t('errors.tenancy.notFound'));
+    }
+
+    /**
+     * v3.11.0 (E) — zuständige Person aus der Eingabe (fehlt = unverändert, null oder leer =
+     * niemand), wie am Vertrag: Nebenkosten- und CO₂-Fristen landen bei ihr (AgendaService).
+     *
+     * @param array<string,mixed> $t
+     * @param array<string,mixed> $input
+     * @return array<string,mixed>
+     */
+    private function withAssignee(array $t, array $input, ?string $current): array
+    {
+        if (!array_key_exists('assignee_id', $input)) return $t;
+        $id = ($this->responsibility ?? new ResponsibilityService($this->store))->checkInput($input['assignee_id'], $current);
+        return ResponsibilityService::apply($t, $id);
+    }
+
+    /** v3.11.0 (E) — Mietverhältnis für die Antwort der API: dazu `assignee`, `assignee_former`, `assignee_deleted`. */
+    public function forApi(array $t): array
+    {
+        return $this->responsibility?->decorate($t) ?? $t;
     }
 
     /** Löscht das Mietverhältnis samt seinen Abrechnungen (Belege werden frei). */

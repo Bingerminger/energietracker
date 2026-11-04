@@ -1960,6 +1960,81 @@ function messkonzeptShowcase(d, textOf) {
   ];
 }
 
+// ═════════════════════════════════════════════════════════════════════════
+// v3.11.0 (F1035, F1036, Paket doku) — „Deine Rechte als Kunde“ im Schaufenster
+// ═════════════════════════════════════════════════════════════════════════
+//
+// Drei Fälle, die in Demo und Pages-Demo zu jedem Zeitpunkt zu sehen sind:
+// - Sonderkündigung (A3): Der laufende Stromvertrag ist ein Sondervertrag; der
+//   Versorger hat mit Schreiben eine Erhöhung des Arbeitspreises angekündigt.
+//   `demo_align.price_change_days_ahead` legt sie immer zwölf Tage nach heute:
+//   Der Termin steht unter „Zu tun“, die Empfehlung „Rechte“ bietet den Brief an.
+// - Gebührenbescheid (A7): Die Wassergebühren 2024 kamen als Bescheid mit
+//   Rechtsbehelfsbelehrung „Widerspruch“; `demo_align.fee_notice_days_ago` macht
+//   ihn immer zehn Tage alt, die Frist läuft also noch. Die Abrechnung 2025 fehlt
+//   weiter bewusst („Abrechnung erwartet“, PersonaUseCasesTest).
+// - Verträge widersprechen sich (D, #54): Der Wasservertrag 2024 ist bis Mitte
+//   2025 eingetragen, obwohl ab 2025 schon der Folgevertrag gilt. Die Zahlen
+//   bleiben gleich (der spätere Beginn gewinnt); die App fragt nach dem Ende.
+// - Abschlag deutlich zu hoch (A2, Skeptiker N11): steht ohne eigene Daten schon
+//   da — der laufende Gasvertrag verlangt 130 € je Rate, die letzte abgeschlossene
+//   Abrechnungsperiode aus den Ablesungen ergibt rund 81 €. Wie jede A2-Meldung
+//   schweigt sie in den letzten zwei Monaten vor dem Stichtag 01.01. (weniger als
+//   drei Raten); ShowcaseAdvanceHighTest hält beides fest.
+// Rechnungsbefunde (A1, A4–A6) brauchen Rechnungen der jüngsten Perioden; die
+// Stromrechnungen folgen dem Stichtag (ein Jahr zurück), Gas bräuchte die
+// Umrechnung je Zeitraum — sie stehen in Tests und Doku, nicht im Schaufenster.
+
+const RIGHTS_PRICE = { from: '2026-07-01', ct_per_kwh: 34.9, announced_on: '2026-05-20', vat_pct: 19 };
+
+/** Text der Verzeichnisform im Block eines Eintrags ändern (einmal; schon geändert: unverändert). */
+function inDirectoryBlock(source, idMarker, find, replace) {
+  const at = source.indexOf(idMarker);
+  if (at < 0) throw new Error(`Verzeichnisform: ${idMarker} fehlt`);
+  const next = source.indexOf('"id": "', at + idMarker.length);
+  const block = source.slice(at, next < 0 ? source.length : next);
+  if (block.includes(replace)) return source;
+  const hit = block.indexOf(find);
+  if (hit < 0) throw new Error(`Verzeichnisform: ${find} fehlt in ${idMarker}`);
+  return source.slice(0, at + hit) + replace + source.slice(at + hit + find.length);
+}
+
+/** @param {(file: string) => string} textOf  Inhalt einer Datei der Verzeichnisform (auch schon geänderte) */
+function rightsShowcase(d, textOf) {
+  const u = d.utilities;
+  // A3 — Sondervertrag mit angekündigter Erhöhung
+  const cStrom = u.strom.contracts.find(c => c.id === 'c_strom_004');
+  cStrom.working_prices = cStrom.working_prices.filter(e => !e.announced_on);
+  cStrom.working_prices.push({ ...RIGHTS_PRICE });
+  cStrom.supply_kind = 'special';
+  // A7 — Wassergebühren 2024 als Bescheid (die Abrechnung 2025 fehlt bewusst: „Abrechnung erwartet“)
+  const cWasser = u.wasser.contracts.find(c => c.id === 'c_wasser_haupt_2024');
+  const sorted = (mid) => u.wasser.readings.filter(r => r.meter_id === mid).sort((a, b) => (a.date < b.date ? -1 : 1));
+  const ws = waterSettle(cWasser, linearKwh(sorted('m_wasser_haupt')), linearKwh(sorted('m_wasser_garten')), '2024-01-01', '2025-01-01');
+  const bill = supplierBill('showcase|bill|wasser-2024', 'm_wasser_haupt', cWasser, 'annual', '2024-01-01', '2025-01-01', '2026-05-21', ws,
+    { water: true, note: 'Gebührenbescheid der Gemeinde' });
+  bill.notice = { public_law: true, dated_on: '2026-05-21', remedy: 'objection', file_number: 'KZ 2025-4711' };
+  u.wasser.bills = [...(u.wasser.bills ?? []).filter(b => !b.notice), bill];
+  // D — Wasservertrag 2024 laut Eintrag bis Mitte 2025
+  u.wasser.contracts.find(c => c.id === 'c_wasser_haupt_2024').end = '2025-06-30';
+  d.demo_align = { ...d.demo_align, price_change_days_ahead: { strom: { c_strom_004: 12 } },
+    fee_notice_days_ago: { wasser: { [bill.id]: 10 } } };
+
+  // Verzeichnisform: nur die drei Stellen, der Rest bleibt byte-gleich
+  const file = (k, name) => join(ROOT, 'demo-data', k, name);
+  let strom = textOf(file('strom', 'contracts.json'));
+  strom = inDirectoryBlock(strom, '"id": "c_strom_004"', '    "tariff_name": "Strom Direkt 12 — 2026",\n',
+    '    "tariff_name": "Strom Direkt 12 — 2026",\n    "supply_kind": "special",\n');
+  strom = inDirectoryBlock(strom, '"id": "c_strom_004"', '        "ct_per_kwh": 31.5\n      }\n',
+    `        "ct_per_kwh": 31.5\n      },\n${JSON.stringify(RIGHTS_PRICE, null, 2).split('\n').map(l => '      ' + l).join('\n')}\n`);
+  const wasser = inDirectoryBlock(textOf(file('wasser', 'contracts.json')), '"id": "c_wasser_haupt_2024"',
+    '    "end": "2024-12-31",\n', '    "end": "2025-06-30",\n');
+  return [
+    [file('strom', 'contracts.json'), strom],
+    [file('wasser', 'contracts.json'), wasser],
+  ];
+}
+
 /**
  * Verzeichnisform: Einträge ans Ende eines Arrays (2 Leerzeichen eingerückt wie
  * die Datei), ohne den Rest neu zu schreiben — die Datei hält PHP-Zahlen wie
@@ -2399,13 +2474,17 @@ for (const build of [mieterin, etwFernwaerme, eigenheimKlassisch, eigenheimModer
   // v3.9.0 (Paket messkonzepte) — Wärmepumpe mit Doppeltarifzähler hinter dem Hauptzähler, Zählwerke mit OBIS
   const textOf2 = (file) => sparseFiles.find(([f]) => f === file)?.[1] ?? textOf(file);
   const conceptFiles = messkonzeptShowcase(d, textOf2);
-  const later = [...sparseFiles, ...conceptFiles];
+  // v3.11.0 (Paket doku) — Sonderkündigung, Gebührenbescheid, widersprüchlicher Vertrag
+  const textOf3 = (file) => conceptFiles.find(([f]) => f === file)?.[1] ?? textOf2(file);
+  const rightsFiles = rightsShowcase(d, textOf3);
+  const later = [...sparseFiles, ...conceptFiles, ...rightsFiles];
   // Backup und Verzeichnisform (cp -R demo-data …) führen dieselben Töpfe (DemoServiceTest)
   const files = [
     ...respFiles.filter(([f]) => !later.some(([s]) => s === f)),   // v3.7.0 — Zuständig in der Verzeichnisform
     ...inboxFiles,
-    ...sparseFiles.filter(([f]) => !conceptFiles.some(([s]) => s === f)),
-    ...conceptFiles,
+    ...sparseFiles.filter(([f]) => !conceptFiles.some(([s]) => s === f) && !rightsFiles.some(([s]) => s === f)),
+    ...conceptFiles.filter(([f]) => !rightsFiles.some(([s]) => s === f)),
+    ...rightsFiles,
     [DEMO_FILE, showcaseJson(d)],
     [join(ROOT, 'demo-data', 'reminders.json'), JSON.stringify(d.reminders, null, 4) + '\n'],
     [join(ROOT, 'demo-data', 'activity.json'), JSON.stringify(d.activity, null, 4) + '\n'],

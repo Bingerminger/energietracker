@@ -47,7 +47,7 @@ final class ContractController
         $meterId = $req->queryParam('meter_id');
         $list = $this->contracts->list($utility, $meterId);
         $all = $meterId === null ? $list : $this->contracts->list($utility);
-        $out = $this->contracts->withPhase($list, $all);
+        $out = $this->contracts->withConflicts($utility, $this->contracts->withPhase($list, $all));   // v3.11.0 (D, #54)
         Response::json($this->responsibility?->decorateAll($out) ?? $out);
     }
 
@@ -62,13 +62,14 @@ final class ContractController
     public function create(Request $req): never
     {
         $c = $this->contracts->create($req->param('utility'), (array)$req->body);
-        Response::json($this->out($c), 201);
+        // v3.11.0 (D, #54) — widerspricht er einem anderen: Hinweis `contract_conflict` (nicht blockierend)
+        Response::json($this->out($this->contracts->withConflictWarnings((string)$req->param('utility'), $c)), 201);
     }
 
     public function update(Request $req): never
     {
         $c = $this->contracts->update($req->param('utility'), $req->param('id'), (array)$req->body);
-        Response::json($this->out($c));
+        Response::json($this->out($this->contracts->withConflictWarnings((string)$req->param('utility'), $c)));
     }
 
     public function destroy(Request $req): never

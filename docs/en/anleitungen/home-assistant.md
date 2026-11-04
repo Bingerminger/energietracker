@@ -587,6 +587,21 @@ working.
   in `ET_CA_FILE`, for example
   `-v $PWD/my-root-ca.pem:/certs/my-root-ca.pem:ro` and
   `-e ET_CA_FILE=/certs/my-root-ca.pem`. Both ways can be combined.
+  With Docker Compose *(v3.11.0, GitHub #36)*:
+
+  ```yaml
+  services:
+    energietracker:
+      image: ghcr.io/bingerminger/energietracker:3
+      volumes:
+        - ./certs/my-root-ca.pem:/certs/my-root-ca.pem:ro
+      environment:
+        ET_CA_FILE: /certs/my-root-ca.pem
+  ```
+
+  The file must be readable for the user inside the container, for example with
+  `chmod 644 certs/my-root-ca.pem`. Mount only the certificate, never the
+  private key.
 - Settings → System (diagnostics) shows how many own root certificates apply
   and whether the file from `ET_CA_FILE` is readable.
 

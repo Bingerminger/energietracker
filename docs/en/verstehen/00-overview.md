@@ -1344,10 +1344,26 @@ part.
 successor starting, the app keeps calculating with its last prices and advances
 (`contract_assumed`) — just as the supplier does. Up to v2.8, consumption after
 a forgotten contract end cost €0. Anyone who has cancelled clears the "Renews
-unless cancelled" checkbox on the contract (`auto_renews: false`). Since March
-2022 a contract that runs on can be cancelled any time with at most one month's
-notice (§ 309 Nr. 9 BGB); the balance card says so, and the balance runs up to
-the next billing date.
+unless cancelled" checkbox on the contract (`auto_renews: false`). The balance
+runs up to the next billing date. Since v3.11.0 a price change entered after the
+end (for example from a price change letter) applies during the extension as
+well, together with a new advance payment; without such an entry the last
+prices remain. How and with what notice an extended contract can be cancelled
+is set out in the contract; the app names no notice period for it (not reliably
+documented for electricity and gas, [legal basis no. 59](../referenz/rechtsgrundlagen.md#contract-term)).
+District heating is extended by five years each time under § 32 AVBFernwärmeV
+unless cancelled nine months before expiry; the balance card then names the end
+of the current extension and the day by which the cancellation must arrive.
+Since the follow-up review for v3.11.0 this applies before the end as well: if
+no notice period is entered on a district heating contract, the cancellation
+date is the end minus nine months (`cancel_by`, with reminder and date); once it
+has passed, the balance card, timeline, overview and “Check switch” name the
+extension (`renewal_term` {until, cancel_by}) instead of a switch at the end of
+the term. An entered notice period takes precedence. If a follow-up contract is
+entered, the extended contract only runs until it starts (`switch_date`), with no
+end of an extension. In basic supply (electricity, gas) the app names the two
+weeks’ notice from § 20 StromGVV or GasGVV after the end (`notice_basis:
+basic_supply`, [legal basis no. 26](../referenz/rechtsgrundlagen.md#price-changes-and-termination)).
 
 ### Cancellation deadline and reminder (since v2.9.0)
 
@@ -1365,9 +1381,12 @@ German *Grundversorgung*, with two weeks' notice). The three reminder levels
 **cancellation deadline**, no longer to the contract end: with one month's
 notice, two of the three reminders used to arrive after the deadline. If the
 deadline has been missed, the card says so (`cancel_missed`). A price increase
-entered for the future appears as a note — in Germany together with the special
-right to cancel (*Sonderkündigungsrecht*) effective on the day of the increase
-(§ 41 Abs. 5 EnWG).
+entered for the future appears as a note; in Germany, since v3.11.0, with the
+rule by type of utility and supply (`price_increase.notes`): special right to
+cancel (*Sonderkündigungsrecht*) as of the day of the increase for electricity
+and gas (special contract § 41(5) EnWG, basic supply § 5(3) StromGVV or
+GasGVV), none for a pure change of VAT (§ 41(6) EnWG) and none for district
+heating (§ 24(4) AVBFernwärmeV).
 
 ---
 

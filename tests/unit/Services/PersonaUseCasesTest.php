@@ -471,8 +471,11 @@ final class PersonaUseCasesTest extends ServiceTestCase
         foreach ($p['utilities'] as $u => $b) {
             if (!empty($b['bills'])) self::assertSame($b['bills'], $dir("$u/bills.json"), "Rechnungen $u");
         }
-        // die Wasserabrechnung 2025 fehlt bewusst („Abrechnung erwartet“)
-        self::assertSame([], $p['utilities']['wasser']['bills'] ?? []);
+        // die Wasserabrechnung 2025 fehlt bewusst („Abrechnung erwartet“); v3.11.0 (Paket doku): da ist
+        // nur der Gebührenbescheid 2024 („Deine Rechte als Kunde“, Frist relativ zu heute)
+        $water = $p['utilities']['wasser']['bills'] ?? [];
+        self::assertSame([], array_values(array_filter($water, fn($b) => $b['period_to'] > '2024-12-31')), 'keine Wasserabrechnung 2025');
+        self::assertSame([true], array_map(fn($b) => $b['notice']['public_law'] ?? null, $water), 'ein Gebührenbescheid');
     }
 
     /**

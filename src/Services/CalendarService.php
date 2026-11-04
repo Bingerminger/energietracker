@@ -16,7 +16,8 @@ namespace Energietracker\Services;
  * v3.7.0 — `?person=<id>`: nur, was bei dieser Person liegt (eigene oder
  * geerbte Zuständigkeit, ResponsibilityService::belongsTo); der Kalendername
  * nennt die Person. Geerbte Zuständigkeit steht mit „(über den Vertrag)“
- * bzw. „(über den Zähler)“ in DESCRIPTION.
+ * bzw. „(über den Zähler)“ in DESCRIPTION, v3.11.0 Mietfristen mit „(über das
+ * Mietverhältnis)“.
  */
 final class CalendarService
 {
@@ -30,6 +31,17 @@ final class CalendarService
 
     /** Arten mit Vorab-Erinnerung (VALARM) im Kalender. */
     private const ALARM_KINDS = ['reminder', 'cancel_by', 'term_end', 'price_guarantee_end', 'price_increase'];
+
+    /**
+     * Vorab-Erinnerung? Die Arten oben; v3.11.0 (integration) dazu ein Befund von „Deine Rechte
+     * als Kunde“ mit Frist (`rights`, `ref.deadline`: Sonderkündigung, Gebührenbescheid) — eine
+     * Frist wie der Kündigungsstichtag. Hinweise ohne Frist bekommen keine.
+     */
+    private static function alarms(array $e): bool
+    {
+        return in_array($e['kind'], self::ALARM_KINDS, true)
+            || ($e['kind'] === 'rights' && is_string($e['ref']['deadline'] ?? null) && $e['ref']['deadline'] !== '');
+    }
     /** v3.4.0 (F1024) — Vorsatz für erledigte Ereignisse. */
     public const DONE_MARK = '✓ ';
 
@@ -83,15 +95,17 @@ final class CalendarService
                 ? (!empty($e['assignee_deleted']) ? $this->i18n->t('people.deletedName', ['name' => $e['assignee']]) : $e['assignee'])
                 : (!empty($e['assignee_former']) ? $this->i18n->t('activity.by.former') : null);
             // v3.7.0 — geerbt: „(über den Vertrag)“ bzw. „(über den Zähler)“
+            // v3.11.0 (integration) — Mietfristen über das Mietverhältnis: „(über das Mietverhältnis)“
             $key = match ($e['assignee_source'] ?? null) {
                 'contract' => 'calendar.assigneeContract',
                 'meter'    => 'calendar.assigneeMeter',
+                'tenancy'  => 'calendar.assigneeTenancy',
                 default    => 'calendar.assignee',
             };
             if ($who !== null) $lines[] = 'DESCRIPTION:' . self::text($this->i18n->t($key, ['name' => $who]));
             $lines[] = 'CATEGORIES:' . strtoupper((string)$e['kind']);
             $lines[] = 'TRANSP:TRANSPARENT';
-            if ($warn > 0 && !$done && in_array($e['kind'], self::ALARM_KINDS, true)) {
+            if ($warn > 0 && !$done && self::alarms($e)) {
                 $lines[] = 'BEGIN:VALARM';
                 $lines[] = 'ACTION:DISPLAY';
                 $lines[] = 'DESCRIPTION:' . self::text((string)$e['title']);

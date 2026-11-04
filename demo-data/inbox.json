@@ -14,7 +14,7 @@
         "extraction": {
             "provider": "local",
             "model": "qwen3.8",
-            "schema_version": 6,
+            "schema_version": 7,
             "type": "invoice",
             "fields": {
                 "utility": {
@@ -425,6 +425,87 @@
                         "missing"
                     ],
                     "items": []
+                },
+                "basic_supply": {
+                    "value": null,
+                    "raw": null,
+                    "quote": null,
+                    "page": null,
+                    "status": "empty",
+                    "reasons": [
+                        "missing"
+                    ]
+                },
+                "credits": {
+                    "value": [],
+                    "raw": null,
+                    "quote": null,
+                    "page": null,
+                    "status": "empty",
+                    "reasons": [
+                        "missing"
+                    ],
+                    "items": []
+                },
+                "metering_fee": {
+                    "value": null,
+                    "raw": null,
+                    "quote": null,
+                    "page": null,
+                    "status": "empty",
+                    "reasons": [
+                        "missing"
+                    ]
+                },
+                "metering_fee_basis": {
+                    "value": null,
+                    "raw": null,
+                    "quote": null,
+                    "page": null,
+                    "status": "empty",
+                    "reasons": [
+                        "missing"
+                    ]
+                },
+                "metering_fee_vat_pct": {
+                    "value": null,
+                    "raw": null,
+                    "quote": null,
+                    "page": null,
+                    "status": "empty",
+                    "reasons": [
+                        "missing"
+                    ]
+                },
+                "fee_notice": {
+                    "value": null,
+                    "raw": null,
+                    "quote": null,
+                    "page": null,
+                    "status": "empty",
+                    "reasons": [
+                        "missing"
+                    ]
+                },
+                "remedy": {
+                    "value": null,
+                    "raw": null,
+                    "quote": null,
+                    "page": null,
+                    "status": "empty",
+                    "reasons": [
+                        "missing"
+                    ]
+                },
+                "file_number": {
+                    "value": null,
+                    "raw": null,
+                    "quote": null,
+                    "page": null,
+                    "status": "empty",
+                    "reasons": [
+                        "missing"
+                    ]
                 },
                 "document_date": {
                     "value": null,

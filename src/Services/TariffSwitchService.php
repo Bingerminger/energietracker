@@ -69,6 +69,7 @@ final class TariffSwitchService
         private MeterService $meters,
         private I18nService $i18n,
         private ?MarketPriceService $market = null,   // v3.1.0 (H6, MKT-12)
+        private ?SettingsService $settings = null,    // v3.11.0 (Nachprüfung) — Land für switchTiming
     ) {}
 
     /**
@@ -124,8 +125,9 @@ final class TariffSwitchService
         // Preisen des auslaufenden Vertrags weiter.
         $chain   = $this->bindingChain($real, $today);
         // v2.9.0 (Review CALC-10) — kein Vertrag läuft heute, aber einer ist
-        // ohne Kündigung abgelaufen: Er läuft weiter und ist jederzeit mit
-        // höchstens einem Monat Frist kündbar. Bisher hieß das hier „kein Vertrag".
+        // ohne Kündigung abgelaufen: Er läuft weiter. Bisher hieß das hier „kein Vertrag".
+        // v3.11.0 (Skeptiker H3) — ohne Frist laut Vertrag kein Wechseltermin aus einer
+        // angenommenen Monatsfrist mehr: der Platzhalter (nächster Monatserster) unten.
         $renewed = false;
         if ($chain === []) {
             $r = $this->contracts->resolveForDate($real, $today);
@@ -136,7 +138,11 @@ final class TariffSwitchService
         }
         $current = $chain ? $chain[0] : null;
         $last    = $chain ? $chain[count($chain) - 1] : null;
-        $timing  = $last ? $this->contracts->switchTiming($last, $today, $renewed) : null;
+        // v3.11.0 (Nachprüfung NP3, NP4) — mit dem Land (Fernwärme nach § 32 AVBFernwärmeV, Grundversorgung) und,
+        // verlängert, dem Tag vor dem Folgevertrag (wie der Vertragsstatus)
+        $country = $this->settings !== null ? (string)$this->settings->get('country', 'DE') : null;
+        $renewedUntil = $renewed && $last ? ($this->contracts->coverageOf($last, $real)['to'] ?? null) : null;
+        $timing  = $last ? $this->contracts->switchTiming($last, $today, $renewed, $utility, $country, $renewedUntil) : null;
 
         $override = trim((string)($opts['switch_date'] ?? ''));
         if ($override !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $override)) {
@@ -224,6 +230,8 @@ final class TariffSwitchService
                 'cancel_by'            => $timing['cancel_by'] ?? null,
                 'days_to_cancel'       => $timing['days_to_cancel'] ?? null,
                 'basis'                => $timing['basis'] ?? 'unknown',
+                // v3.11.0 (Nachprüfung NP3, additiv) — Fernwärme ohne Frist: Verlängerung nach § 32 AVBFernwärmeV
+                'renewal_term'         => $timing['renewal_term'] ?? null,
                 // Folgevertrag bereits abgeschlossen?
                 'bound_until'          => count($chain) > 1 ? ($last['end'] ?? null) : null,
                 'follow_up'            => count($chain) > 1 ? [

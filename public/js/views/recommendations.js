@@ -8,6 +8,8 @@ import { t } from '../lib/i18n.js';
 import { escapeHtml as esc, fmt } from '../lib/format.js';
 import { isHeatLimitRec, heatLimitLaterUntil } from '../lib/heat-limit.js';   // v3.9.0 (Skeptiker N5)
 import { AREA_LINKS } from '../lib/area-assumed.js';                         // v3.9.0 (Skeptiker N6)
+import { letterButton, bindLetterButtons, findingOfRec, rightsFooterHtml } from '../lib/letter.js';   // v3.11.0 (F1035, F1036)
+import { docUrl } from '../lib/docs.js';                                       // v3.11.0 (doku)
 
 const SEV_CLS = { urgent: 'danger', warning: 'warning', info: 'info' };
 const sevLabel = (k) => t('recommendations.sev.' + k);
@@ -30,6 +32,13 @@ export async function render(container) {
   } catch (e) {
     container.innerHTML = `<div class="banner banner--error">${t('recommendations.loadError', { msg: esc(e.message || e) })}</div>`;
     return;
+  }
+  // v3.11.0 (Skeptiker M7) — ohne erfasste Rechnung prüft „Deine Rechte“ fast nichts; das sagt die Seite,
+  // statt mit einer leeren Liste „alles in Ordnung“ anzudeuten (nur ohne Rechte-Hinweis, nur im Land mit Regeln)
+  let rightsNoBill = false;
+  if (!recs.some(r => r.category === 'recht')) {
+    const rr = await api.rights().catch(() => null);
+    rightsNoBill = !!rr?.enabled && rr?.bills_recorded === 0;
   }
 
   const draw = () => {
@@ -54,10 +63,13 @@ export async function render(container) {
       ${list.length === 0
         ? `<div class="banner banner--info">${tooLittleData ? esc(t('recommendations.emptyNoData')) : filterSev === 'all' ? t('recommendations.emptyAll') : t(`recommendations.emptyFiltered.${filterSev}`)}</div>`
         : `<div class="rec-list">${list.map(card).join('')}</div>`}
+      ${rightsNoBill ? `<p class="muted small" data-role="rights-no-bill" style="margin-top:var(--sp-4)">${esc(t('recommendations.rightsNoBill'))} <a href="#/bill-check">${esc(t('recommendations.rightsNoBillLink'))}</a></p>` : ''}
     `;
 
     container.querySelectorAll('.seg__btn').forEach(b =>
       b.addEventListener('click', () => { filterSev = b.dataset.sev; draw(); }));
+    // v3.11.0 (F1036) — „Brief entwerfen“ an Befunden „Deine Rechte als Kunde“
+    bindLetterButtons(container, (id) => findingOfRec(recs.find(r => r.evidence?.finding_id === id)));
 
     container.querySelectorAll('[data-dismiss]').forEach(b =>
       b.addEventListener('click', async () => {
@@ -120,11 +132,12 @@ function card(r) {
   const label = heat ? t('heatLimit.notNow') : until ? t('recommendations.dismissUntil', { date: fmt.date(until) }) : t('recommendations.dismiss');
   const aria = heat ? t('heatLimit.notNowNamed', { title: r.title })
     : until ? t('recommendations.dismissUntilNamed', { title: r.title, date: fmt.date(until) }) : t('recommendations.dismissNamed', { title: r.title });
+  const rights = r.category === 'recht';   // v3.11.0 (F1035) — Rechte als Kunde
   return `
-    <div class="rec-card rec-card--${cls}">
+    <div class="rec-card rec-card--${cls}"${rights ? ` data-role="rights-card" data-check="${esc(r.evidence?.check || '')}"` : ''}>
       <div class="rec-card__head">
         <span class="badge badge--${cls}">${sevLabel(sevKey)}</span>
-        <span class="rec-card__cat">${esc(catLabel(r.category))}</span>
+        <span class="rec-card__cat">${esc(catLabel(r.category))}${rights && r.evidence?.check ? ` · ${esc(checkLabel(r.evidence.check))}` : ''}</span>
         <!-- v2.11.0 (Review UI-26) — sichtbarer Text statt „✕": Das Kreuz sah
              nach „löschen" aus und blendete doch nur 30 Tage aus -->
         <button type="button" class="btn btn--ghost btn--sm rec-card__dismiss" data-dismiss="${esc(r.id)}"
@@ -133,6 +146,22 @@ function card(r) {
       <div class="rec-card__title">${esc(r.title)}</div>
       <div class="rec-card__detail">${esc(r.detail)}${r.evidence?.area_assumed
         ? ` <a href="${AREA_LINKS.household}" data-role="area-assumed-link">${esc(t('area.enterHousehold'))}</a>` : ''}</div>
+      ${rights ? rightsExtrasHtml(r) : ''}
     </div>`;
+}
+
+/** v3.11.0 (F1035) — Name einer Prüfung („Rechnung kam spät“), sonst der Schlüssel. */
+const checkLabel = (k) => { const v = t('rights.check.' + k); return v === 'rights.check.' + k ? k : v; };
+
+/**
+ * v3.11.0 (F1035) — unter dem Befund: Fußzeile mit den Normen als Link, darunter „Brief entwerfen“
+ * und (Paket doku) „Was die App prüft“: das Handbuch an der Stelle dieser Prüfung
+ * (`rights-<prüfung>`, Unterstrich als Bindestrich: der Renderer erlaubt in `<a id>` nur [a-z0-9-]).
+ */
+function rightsExtrasHtml(r) {
+  const letter = letterButton(findingOfRec(r));
+  const check = r.evidence?.check;
+  const doc = check ? `<a href="${esc(docUrl('rights', 'rights-' + String(check).replaceAll('_', '-')))}" data-role="rights-doc">${esc(t('rights.docLink'))}</a>` : '';
+  return `${rightsFooterHtml(r.evidence)}${letter || doc ? `<div class="rec-card__actions">${letter}${doc}</div>` : ''}`;
 }
 

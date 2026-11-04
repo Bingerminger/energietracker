@@ -55,8 +55,10 @@ final class InboxServiceTest extends ServiceTestCase
 
     private function makeInbox(): InboxService
     {
-        $s = new InboxService($this->store, $this->i18n, $this->att, $this->registry,
-            new Proposals($this->meters, $this->contracts, $this->readings, $this->bills, $this->reminders, $this->settings),
+        $proposals = new Proposals($this->meters, $this->contracts, $this->readings, $this->bills, $this->reminders, $this->settings);
+        // v3.11.0 — fester Tag vor der Preisänderung der Fixture (01.04.2026): ein vergangener Termin entsteht nicht mehr
+        $proposals->setToday('2026-03-01');
+        $s = new InboxService($this->store, $this->i18n, $this->att, $this->registry, $proposals,
             new Applier($this->meters, $this->contracts, $this->readings, $this->bills, $this->reminders, $this->settings, $this->i18n));
         $s->attachActivity($this->activity);
         return $s;
@@ -142,7 +144,7 @@ final class InboxServiceTest extends ServiceTestCase
         self::assertSame('invoice', $e['type']);
         self::assertSame('local', $e['extraction']['provider']);
         self::assertSame('fake-1', $e['extraction']['model']);
-        self::assertSame(6, $e['extraction']['schema_version'], 'v3.7.0 (treffsicher): 2 Netto und Steuersatz je Preis, 3 Briefdatum, Titel, Stände je Zähler, 4 Beschreibungen (Nummer, Zeiträume, Schätzung); v3.9.0: 5 Wasserpreise, Abschlagstermine, Bestandteile, Zählwerk je Stand; v3.10.0: 6 Rechnungsnummer und Bezug');
+        self::assertSame(7, $e['extraction']['schema_version'], 'v3.7.0 (treffsicher): 2 Netto und Steuersatz je Preis, 3 Briefdatum, Titel, Stände je Zähler, 4 Beschreibungen (Nummer, Zeiträume, Schätzung); v3.9.0: 5 Wasserpreise, Abschlagstermine, Bestandteile, Zählwerk je Stand; v3.10.0: 6 Rechnungsnummer und Bezug; v3.11.0: 7 Rechte als Kunde (Grundversorgung, Gutschriften, Messentgelt, Bescheid, Abschlag im Preisschreiben)');
         self::assertSame([3], $e['extraction']['text']['dropped'], 'AGB-Seite nicht gesendet');
         self::assertStringNotContainsString('Geltungsbereich', $this->local->lastText);
         self::assertSame('invoice', $this->local->lastSchema['type']);

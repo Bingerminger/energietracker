@@ -371,6 +371,25 @@ Bei `docker run` mit `-e NAME=wert`, bei Compose unter `environment:`.
 Was die Anmeldung bewirkt und wann du sie brauchst:
 [Sicherheit & Netzbetrieb](sicherheit.md).
 
+**Eigenes Stammzertifikat mit Docker Compose** *(v3.11.0, GitHub #36)*: Die
+Datei unter `volumes:` nur lesend einhängen und ihren Pfad in `ET_CA_FILE`
+nennen.
+
+```yaml
+services:
+  energietracker:
+    image: ghcr.io/bingerminger/energietracker:3
+    volumes:
+      - ./certs/meine-root-ca.pem:/certs/meine-root-ca.pem:ro
+    environment:
+      ET_CA_FILE: /certs/meine-root-ca.pem
+```
+
+Die Datei muss für den Benutzer im Container lesbar sein, etwa mit
+`chmod 644 certs/meine-root-ca.pem` (auch in der Variante ohne root). Häng nur
+das Zertifikat ein, nie den privaten Schlüssel. Ob die App die Datei lesen
+kann, zeigt die Diagnose unter Einstellungen → System.
+
 **PHP-Einstellungen (seit v2.6.0):** Das Image bringt eine eigene `php.ini`
 mit — `max_execution_time` 120 s, Fehlerausgabe aus, OPcache an. Seit v3.4.0
 läuft es auf **PHP 8.5** (OPcache ist dort fest eingebaut). Seit v3.1.0

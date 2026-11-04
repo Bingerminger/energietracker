@@ -269,7 +269,9 @@ Verträge zeigen die Person.
 | Kündigungsfrist, Vertragsende, Preisgarantie, Preiserhöhung | Vertrag | Zähler des Vertrags | niemand |
 | Abrechnung erwartet | Vertrag | Zähler des Vertrags | niemand |
 | Ablesung fällig, Bestand niedrig (Tank) | Zähler | – | niemand |
-| Nebenkosten- und CO₂-Fristen (Mietwohnung) | – | – | niemand |
+| Nebenkosten- und CO₂-Fristen (Mietwohnung) | *(v3.11.0)* Mietverhältnis | erster Wärmezähler des Mietverhältnisses | niemand |
+| *(v3.11.0)* Deine Rechte als Kunde (Sonderkündigung, Gebührenbescheid …) | Vertrag (bei einer Rechnung: Vertrag der Rechnung) | Zähler des Vertrags | niemand |
+| *(v3.11.0)* Verträge widersprechen sich | Vertrag | Zähler des Vertrags | niemand |
 
 Eine eigene Zuständigkeit am Termin geht immer vor — auch eine gelöschte
 Person oder „ehemalige Person“, bis jemand neu einträgt. Ein Gruppenvertrag

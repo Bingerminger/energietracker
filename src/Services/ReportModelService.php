@@ -667,6 +667,8 @@ final class ReportModelService
                         'is_open_ended' => !empty($c['is_open_ended']), 'renewed' => !empty($c['renewed']),
                         'cancel_by' => $c['cancel_by'] ?? null, 'days_to_cancel' => $c['days_to_cancel'] ?? null,
                         'cancel_missed' => !empty($c['cancel_missed']), 'switch_date' => $c['switch_date'] ?? null,
+                        // v3.11.0 (Nachprüfung NP3) — Fernwärme ohne Frist: Verlängerung nach § 32 AVBFernwärmeV
+                        'renewal_term' => $c['renewal_term'] ?? null,
                         // v3.9.0 (L14) — Folgevertrag bei einem anderen Versorger
                         'successor' => $c['successor'] ?? null, 'successor_switch' => !empty($c['successor_switch']),
                         'price_increase' => $c['price_increase'] ?? null,
@@ -1305,7 +1307,9 @@ final class ReportModelService
     private function agendaSection(array $events, array $contracts): array
     {
         $rows = [];
-        $events = array_values(array_filter($events, fn($e) => !in_array((string)($e['kind'] ?? ''), self::AGENDA_NOT_DATES, true)));
+        // v3.11.0 (F1035) — ein Befund „Rechte als Kunde“ ist nur mit Frist ein Termin (A3, A7)
+        $events = array_values(array_filter($events, fn($e) => !in_array((string)($e['kind'] ?? ''), self::AGENDA_NOT_DATES, true)
+            && !(($e['kind'] ?? '') === 'rights' && empty($e['ref']['deadline']))));
         // fällige Ablesungen in einer Zeile statt einer je Zähler
         $readings = array_values(array_filter($events, fn($e) => ($e['kind'] ?? '') === 'reading_due' && !empty($e['due_now'])));
         if (count($readings) > 1) {

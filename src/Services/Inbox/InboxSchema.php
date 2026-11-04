@@ -69,10 +69,21 @@ namespace Energietracker\Services\Inbox;
  * das Dokument korrigiert oder ersetzt), beide Hilfsangaben ohne Marke. Daran
  * erkennt der laufende Posteingang eine Rechnungskorrektur (Proposals::correctionOf).
  * Der Zwischenspeicher der Version 5 trifft nicht mehr.
+ *
+ * v3.11.0 (F1035, Paket basis) — VERSION 7: alle Felder für „Deine Rechte als Kunde“ in
+ * einem Schritt (damit die Pakete rechnung und posteingang das Schema nicht beide ändern):
+ * an der Rechnung `basic_supply` (Grundversorgung, § 40 Abs. 2 Satz 1 Nr. 13 EnWG),
+ * `credits` (Gutschriften wie Boni, A4), `metering_fee` mit `metering_fee_basis` und
+ * `metering_fee_vat_pct` (Messstellenbetrieb, A6), `fee_notice`, `remedy`, `file_number`
+ * (Gebührenbescheid, A7); an der Preisänderung `basic_supply`, `advance_new`,
+ * `advance_new_from` (C); an der Vertragsbestätigung `basic_supply`. Alles Hilfs- oder
+ * Zusatzfelder ohne Kernfeld-Marke; NEEDS bleibt. Schon ausgelesene Dokumente behalten ihre
+ * Auslesung, erst ein erneutes Auslesen fragt nach den neuen Feldern (Entscheidung 13a).
+ * Der Zwischenspeicher der Version 6 trifft nicht mehr.
  */
 final class InboxSchema
 {
-    public const VERSION = 6;
+    public const VERSION = 7;
 
     public const TYPES = [
         'invoice', 'contract_confirmation', 'price_change', 'cancellation', 'supply_start',
@@ -265,6 +276,14 @@ final class InboxSchema
         'desc' => 'how often the new advance payment is due, as printed: monthly (monatlich), bimonthly (alle zwei Monate), quarterly (vierteljährlich); null if not printed'];
 
     /**
+     * v3.11.0 (F1035) — Grundversorgung oder Sondervertrag, wie das Dokument es nennt (Hilfsfeld,
+     * keine Marke). Die Rechnung muss es angeben (§ 40 Abs. 2 Satz 1 Nr. 13 EnWG); daraus wird
+     * `supply_kind` am Vertrag (Entscheidung 6a).
+     */
+    private const BASIC_SUPPLY = ['kind' => 'bool', 'aux' => true,
+        'desc' => 'true if the document says you are supplied under basic supply (Grundversorgung, Grundversorgungstarif, allgemeine Preise der Grundversorgung); false if it says the contract is outside basic supply (Sondervertrag, Sonderkunde, außerhalb der Grundversorgung); null if it does not say; put the words into the quote'];
+
+    /**
      * Felder einer Art (leer für die Arten, die nur erkannt werden).
      *
      * @return array<string,array<string,mixed>>
@@ -330,6 +349,24 @@ final class InboxSchema
                 'base_price_basis' => ['desc' => 'standing charge: ' . self::PRICE_BASIS['desc']] + self::PRICE_BASIS,
                 'base_price_vat_pct' => ['desc' => 'standing charge: ' . self::VAT_PCT['desc']] + self::VAT_PCT,
                 'water_prices'     => self::WATER_PRICES,   // v3.9.0 (F1034)
+                // v3.11.0 (F1035) — Rechte als Kunde: Grundversorgung, Gutschriften (A4), Messstellenbetrieb (A6),
+                // Gebührenbescheid (A7); keine Kernfelder
+                'basic_supply'     => self::BASIC_SUPPLY,
+                'credits'          => ['kind' => 'list', 'desc' => 'credits on the bill other than paid advance payments and other than the overall result, one item per line (Gutschrift, Bonus, Neukundenbonus, Treuebonus, Sofortbonus, Prämie)',
+                    'items' => ['label' => ['kind' => 'text', 'aux' => true, 'desc' => 'name of the credit as printed'],
+                                'amount' => ['kind' => 'money', 'desc' => 'amount of the credit in EUR as printed, positive'],
+                                // `credit_other`, nicht `other`: die Auswahl `other` heißt in der Oberfläche „Aufschlag“ (PRICE_PART)
+                                'kind' => ['kind' => 'enum', 'options' => ['bonus', 'credit_other'], 'aux' => true,
+                                    'hints' => ['bonus' => ['bonus', 'prämie', 'praemie']],
+                                    'desc' => 'bonus if the line is a bonus (Bonus, Neukundenbonus, Treuebonus, Prämie), credit_other for any other credit']]],
+                'metering_fee'     => ['kind' => 'money', 'desc' => 'charge for metering in this billing period in EUR as printed, the line total, not a yearly price (Messstellenbetrieb, Entgelt für den Messstellenbetrieb, Messentgelt, Messung, Zählermiete); null if it is not printed as its own line'],
+                'metering_fee_basis' => ['desc' => 'metering charge: ' . self::PRICE_BASIS['desc']] + self::PRICE_BASIS,
+                'metering_fee_vat_pct' => ['desc' => 'metering charge: ' . self::VAT_PCT['desc']] + self::VAT_PCT,
+                'fee_notice'       => ['kind' => 'bool', 'aux' => true, 'desc' => 'water and waste water only: true if the document is an official fee assessment of a public authority or municipal body with instructions on legal remedies (Gebührenbescheid, Abgabenbescheid, Bescheid, Rechtsbehelfsbelehrung); false for an ordinary bill of a company'],
+                'remedy'           => ['kind' => 'enum', 'options' => ['objection', 'action'], 'aux' => true,
+                    'hints' => ['objection' => ['widerspruch'], 'action' => ['klage']],
+                    'desc' => 'fee assessments only: the legal remedy named in the instructions on legal remedies (Rechtsbehelfsbelehrung): objection (Widerspruch) or action (Klage); null if none is printed'],
+                'file_number'      => ['kind' => 'text', 'helper' => true, 'desc' => 'fee assessments only: file or cash reference of the notice as printed (Aktenzeichen, Kassenzeichen, Bescheidnummer); empty if none is printed'],
             ],
             'contract_confirmation' => [
                 'utility'          => self::UTILITY_FIELD,
@@ -349,6 +386,7 @@ final class InboxSchema
                 'market_location'  => self::MALO,
                 'contract_number'  => self::CONTRACT_NUMBER,
                 'customer_number'  => self::CUSTOMER_NUMBER,
+                'basic_supply'     => self::BASIC_SUPPLY,   // v3.11.0 (F1035)
             ],
             'price_change' => [
                 'utility'          => self::UTILITY_FIELD,
@@ -364,6 +402,11 @@ final class InboxSchema
                 'special_termination_until' => ['kind' => 'date', 'desc' => 'special right of termination until (Sonderkündigungsrecht bis)'],
                 'contract_number'  => self::CONTRACT_NUMBER,
                 'customer_number'  => self::CUSTOMER_NUMBER,
+                // v3.11.0 (F1035, C) — Grundversorgung, neuer Abschlag im Schreiben (A2: Anpassung um den
+                // Vomhundertsatz der Preisänderung, § 13 Abs. 2 GVV)
+                'basic_supply'     => self::BASIC_SUPPLY,
+                'advance_new'      => ['kind' => 'money', 'desc' => 'new advance payment per due date if the letter states one (neuer Abschlag, Abschlagsbetrag ab); null if none is stated'],
+                'advance_new_from' => ['kind' => 'date', 'desc' => 'date from which that new advance payment applies, or its first due date (ab, fällig ab)'],
             ],
             'cancellation' => [
                 'utility'          => self::UTILITY_FIELD,

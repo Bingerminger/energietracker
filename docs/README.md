@@ -2,7 +2,7 @@
 
 [English](en/README.md) · **Deutsch**
 
-> Dokumentation zu Energietracker **v3.10.1**, geordnet nach dem, was du
+> Dokumentation zu Energietracker **v3.11.0**, geordnet nach dem, was du
 > vorhast. Deutsch ist die maßgebliche Fassung, Englisch der vollständige
 > Spiegel; die übrigen Oberflächensprachen haben die Hilfe in der App.
 >
@@ -43,6 +43,7 @@ eigene OpenAI-kompatible Adresse; experimentell) geht nur mit einem Opt-in.
 | [Home Assistant anbinden](anleitungen/home-assistant.md) | Als App in Home Assistant OS (seit v3.5.0); Zählerstände automatisch pushen: Token, Zähler-Alias, REST-Command, Viertelstunden mit Zeitstempel; Saldo und Prognose als Sensoren zurück, Nachliefern nach einem Ausfall; *seit v3.9.0* Benachrichtigungen an Home Assistant und der Sensor „Zu tun“ |
 | [ioBroker, Node-RED, openHAB](anleitungen/andere-systeme.md) | Zählerstände aus anderen Systemen senden: gemeinsamer Vertrag und je ein Rezept |
 | [Fristen und Termine im Kalender](anleitungen/kalender.md) | Kalender-Abo in Apple Kalender, Thunderbird und Google Kalender |
+| [Einen Brief schreiben](anleitungen/brief-schreiben.md) | *Neu in v3.11.0:* Brief zu einem Hinweis „Deine Rechte als Kunde“: fünf feste Vorlagen, immer Deutsch, vorbelegt aus Vertrag und Zähler, als PDF für den Fensterumschlag oder als Text; nichts gespeichert; als verschickt markieren |
 | [Hinweise erledigen und der Verlauf](anleitungen/hinweise-erledigen.md) | Was sich von selbst erledigt (Folgevertrag, Ablesung, Lieferung), von Hand abhaken mit Datum, Notiz und Beleg, Rückgängig, Tab „Erledigt“, wer im Verlauf steht, Aufbewahrung und Datenschutz; *seit v3.9.0* „Ablesung prüfen“ |
 | [Texterkennung im Heimnetz](anleitungen/texterkennung.md) | Zählerstand vom Foto vorschlagen lassen: Ollama oder LM Studio einrichten, Datenschutz, Fehlersuche |
 | [Posteingang: Versorgerpost auslesen lassen](anleitungen/posteingang.md) | *Neu in v3.7.0:* PDF ablegen (am iPad aus der Dateien-App), lokal mit qwen3.8 auslesen, jede Angabe mit Belegstelle prüfen, mit einem Klick übernehmen; von Hand erfassen neben dem Dokument, viele auf einmal, Datenschutz; in der Cloud auslesen als Opt-in — Claude (Anthropic) oder ein OpenAI-kompatibler Dienst, Schlüssel, was hinausgeht, Grenzen |
@@ -64,6 +65,7 @@ eigene OpenAI-kompatible Adresse; experimentell) geht nur mit einem Opt-in.
 | [PV-Einspeisung & Erzeugung](verstehen/12-pv.md) | Vergütung, Eigenverbrauch, Autarkie, Speicher, Balkonkraftwerk, Amortisation |
 | [Heizwärme](verstehen/15-waerme.md) | Wärme in der Wohnung, Verbrauch je Zeitraum, Zählerrollen, CO₂-Näherung, Warmwasser-Wärme, Jahresarbeitszahl der Wärmepumpe |
 | [CO₂-Preis im Brennstoff](verstehen/16-co2-preis.md) | Der CO₂-Preis (BEHG) in Gas, Heizöl und Fernwärme: Ausweis statt Aufschlag, Faktoren, Preis je Jahr, Szenario |
+| [Deine Rechte als Kunde](verstehen/17-rechte.md) | *Neu in v3.11.0:* was die App prüft (Rechnung kam spät, Abschlag zu hoch, Sonderkündigung, Bonus, Schätzung, Messentgelt, Gebührenbescheid), wie und mit welchen Grenzen, dazu die Briefe; Hinweis, keine Rechtsberatung |
 | [Sonderzahlungen](verstehen/10-sonderzahlungen.md) | Rück- und Nachzahlung, Abschlagszahlung, Wirkung auf den Saldo |
 | [Zählerstand-Erfassung](verstehen/11-zaehlerstaende.md) | Erfassung in einem Durchgang, Plausibilität, Direktsprung, Foto und Warteschlange |
 | [Meter-Topologie](verstehen/13-meter-topologie.md) | Subzähler, Zählergruppen und der Gruppenvertrag; *seit v3.9.0* Rest-Abrechnung am Elternzähler, Kaskade und der Assistent „Messkonzept“ |
@@ -81,6 +83,7 @@ eigene OpenAI-kompatible Adresse; experimentell) geht nur mit einem Opt-in.
 | [API-Referenz](referenz/api.md) | Alle Routen mit Statuscodes und Stabilitätszusage (von einem Test gegen den Code geprüft) |
 | [API-Beispiele](referenz/api-beispiele.md) | Ausführliche Anfragen und Antworten der meistgenutzten Endpunkte |
 | [Datenmodell](referenz/datenmodell.md) | JSON-Schemata, Speicherung, Schema-Migration |
+| [Rechtsgrundlagen](referenz/rechtsgrundlagen.md) | *Neu in v3.11.0:* jede Rechtsaussage der App mit Norm, Quelle, Stand und Status, dazu Fristen und Preisobergrenzen im Messstellenbetrieb (von einem Test gegen den Code geprüft) |
 
 ## 🛠️ Betrieb — *installieren und am Laufen halten*
 

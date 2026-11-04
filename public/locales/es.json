@@ -218,7 +218,8 @@
       "billNoDeadline": "sin plazo legal",
       "billAction": "Registrar factura",
       "heatLimitAction": "Ver",
-      "readingCheckAction": "Ver lecturas"
+      "readingCheckAction": "Ver lecturas",
+      "rightsAction": "Ver"
     },
     "welcome": {
       "title": "Bienvenido a Energietracker",
@@ -301,7 +302,8 @@
       "notePlaceholder": "opcional",
       "addNote": "+ Nota",
       "hideNote": "− Ocultar nota",
-      "otherDate": "Otra fecha"
+      "otherDate": "Otra fecha",
+      "reported": "comunicada al proveedor"
     },
     "status": {
       "saving": "Guardando…",
@@ -490,12 +492,11 @@
       "gpPlus": " + {value} término fijo",
       "suggestAdvance": "Con un anticipo de {suggested} en lugar de {current}, la liquidación quedaría en torno a ±0.",
       "measuredThenEstimated": "medido hasta el {date} ({amount}), estimado desde entonces: {value}",
-      "renewed": "El plazo terminó el {date}. Sin cancelación, el contrato continúa con los últimos precios y se puede cancelar en cualquier momento con un preaviso de un mes como máximo.",
-      "cancelMissed": "Plazo de cancelación del {date} vencido: el contrato no termina el {end}, sino que continúa; después se puede cancelar con un preaviso de un mes como máximo.",
+      "renewed": "El plazo terminó el {date}. Sin cancelación, el contrato continúa; cómo y con qué preaviso puedes cancelarlo lo indica el contrato.",
+      "cancelMissed": "Fecha límite de cancelación {date} vencida: el contrato no termina el {end}, sino que continúa. Por cuánto tiempo y con qué preaviso lo indica el contrato.",
       "priceIncrease": "Subida de precios a partir del {date}: {what}.",
       "piWorking": "precio unitario {from} → {to} {minor}/kWh",
       "piBase": "término fijo {from} → {to} {cur}/mes",
-      "priceIncreaseDe": "Hasta entonces existe un derecho especial de cancelación con efecto en la fecha de la subida (§ 41 apdo. 5 EnWG).",
       "pathTitle": "Costes y anticipos en el periodo de facturación",
       "pathCost": "Costes acumulados",
       "pathPaid": "Pagado: anticipos y pagos extraordinarios",
@@ -554,7 +555,11 @@
       "bandFew": {
         "one": "Demasiados pocos meses medidos; según la estimación {range} ({level}, {count} día estimado).",
         "other": "Demasiados pocos meses medidos; según la estimación {range} ({level}, {count} días estimados)."
-      }
+      },
+      "renewedHeat": "El plazo terminó el {date}. Si un contrato de calefacción urbana no se cancela nueve meses antes de su vencimiento, se prorroga cada vez cinco años (§ 32 AVBFernwärmeV). Salvo que tu contrato diga otra cosa, dura hasta el {until}; la cancelación por escrito debe llegar al proveedor a más tardar el {cancel}.",
+      "cancelMissedHeat": "Fecha de cancelación del {date} vencida: si un contrato de calefacción urbana no se cancela nueve meses antes de su vencimiento, se prorroga cinco años (§ 32 AVBFernwärmeV). Salvo que tu contrato diga otra cosa, continúa después del {end} hasta el {until}; la próxima cancelación por escrito debe llegar al proveedor a más tardar el {cancel}.",
+      "renewedSuccessor": "El plazo terminó el {date}. Sin cancelación, el contrato continúa hasta que empiece el contrato siguiente, el {start}.",
+      "renewedBasic": "El plazo terminó el {date}. En el suministro básico puedes cancelar en cualquier momento con dos semanas de preaviso en forma de texto (§ 20 {gvv}); cancelado hoy, el contrato termina como pronto el {earliest}."
     },
     "contractsTable": {
       "emptyTitle": "Sin contratos registrados",
@@ -573,7 +578,7 @@
       "periodOpen": "{start} → en curso",
       "gpSuffix": "término fijo {value} {cur}/mes",
       "colSpecial": "Pagos extraordinarios",
-      "hint": "Bono = abonos del contrato (bono inmediato, de cambio, de nuevo cliente). Pagos extraordinarios = devoluciones (+), pagos adicionales y anticipos extra (−) fuera del plan de anticipos; ambos entran en el saldo. Toca para ver las partidas; se gestionan en la administración de contratos.",
+      "hint": "Bono = abonos del contrato (bono inmediato, de cambio, de nuevo cliente), contados el día del abono dentro del periodo de la fila. Pagos extraordinarios = devoluciones (+), pagos adicionales y anticipos extra (−) fuera del plan de anticipos; ambos entran en el saldo. Toca para ver las partidas; se gestionan en la administración de contratos.",
       "colEarned": "Remuneración",
       "colReceived": "Recibido",
       "futureLegend": "≈ Contrato futuro: el saldo previsto es una estimación desde el inicio del contrato con sus precios, su anticipo y tu consumo hasta ahora."
@@ -916,7 +921,8 @@
       "valuesOn": "a {date}",
       "noValues": "Aún no hay precios",
       "since": "desde {year}",
-      "advanceValueEvery": "Anticipo {value}"
+      "advanceValueEvery": "Anticipo {value}",
+      "nextValues": "a partir del {date}: {values}"
     },
     "summary": {
       "twPrices": {
@@ -958,7 +964,9 @@
       "copyStart": "Desde el inicio",
       "copyStartTitle": "Poner la fecha de esta fila en el inicio del contrato",
       "removeRow": "Quitar fila",
-      "setStartFirst": "Establece primero la fecha de inicio del contrato"
+      "setStartFirst": "Establece primero la fecha de inicio del contrato",
+      "announcedOn": "Carta del",
+      "vatPct": "IVA %"
     },
     "kinds": {
       "rueckzahlung_mit": "Devolución (afecta a los anticipos)",
@@ -1008,12 +1016,20 @@
       },
       "noticeModeHint": "Automático: al final del plazo; sin fin, en cualquier momento a fin de mes. El suministro básico, por ejemplo, se puede cancelar en cualquier momento con dos semanas de preaviso.",
       "autoRenews": "Se prorroga si no se cancela",
-      "autoRenewsHint": "Tras el final, el contrato continúa con los últimos precios hasta que se cancele — entonces con un preaviso de un mes como máximo. Desmarcar si ya se ha cancelado.",
+      "autoRenewsHint": "Tras el final, el contrato continúa hasta que se cancele; el preaviso lo indica el contrato. Desmárcalo cuando esté cancelado.",
       "groupTargets": "Grupos de contadores (un contrato para todos)",
       "section": {
         "contract": "Contrato",
         "term": "Duración y cancelación"
-      }
+      },
+      "supplyKind": "Tipo de suministro",
+      "supplyKindHint": "Figura en la factura. De ello depende qué reglas valen para cambios de precio y rescisión.",
+      "supplyKindOption": {
+        "unknown": "sin indicar",
+        "basic": "Suministro básico",
+        "special": "Contrato especial"
+      },
+      "priceOriginHint": "Si el proveedor cambia los precios, indica en «Carta del» la fecha de su carta. Así la aplicación distingue un cambio de precio de un escalón acordado; con el tipo de IVA reconoce un simple cambio de impuesto."
     },
     "delete": { "title": "¿Eliminar el contrato?", "confirm": "Eliminar", "deleted": "Contrato eliminado", "messageNamed": "¿Eliminar de forma permanente el contrato «{name}»? Se pierden sus precios, anticipos y bonificaciones." },
     "deleteContract": "Eliminar contrato",
@@ -1099,7 +1115,9 @@
       "hint": "Aparece en la factura o en la hoja de precios del proveedor de calor. El término de potencia y el alquiler del contador cuentan como costes fijos; el factor de CO₂ de la red sustituye al valor general de la calefacción urbana."
     },
     "hint": {
-      "termOver24": "Aviso: la permanencia mínima supera los 24 meses. En Alemania, una duración inicial tan larga no es válida para consumidores (§ 309 n.º 9 BGB)."
+      "termOver24": "Aviso: la permanencia mínima supera los 24 meses. Para electricidad y gas, el § 309 n.º 9 BGB limita a 24 meses la duración inicial en contratos con consumidores de condiciones predefinidas; si se aplica a tu contrato está por comprobar (§ 310 apdo. 2 BGB). Comprueba el dato en el contrato.",
+      "termOver10y": "Aviso: la permanencia mínima supera los diez años. Para la calefacción urbana el reglamento prevé como máximo diez años (§ 32 AVBFernwärmeV). Comprueba el dato en el contrato.",
+      "conflict": "Este contrato contradice a otro. El aviso está en la tarjeta del contrato."
     },
     "groupPrices": {
       "title": "Precio unitario por contador (p. ej. punta/valle)",
@@ -1145,7 +1163,8 @@
       "current": "ACTIVO",
       "renewed": "PRORROGADO",
       "past": "FINALIZADO",
-      "shadow": "OFERTA"
+      "shadow": "OFERTA",
+      "superseded": "SUSTITUIDO"
     },
     "phaseGroup": {
       "future": "Futuros",
@@ -1173,7 +1192,21 @@
       "dueDates": "Vencimientos según la factura: {dates}, después cada año en los mismos días",
       "none": "Del {from} al {to}: ningún anticipo registrado. Si pagaste en ese periodo, introduce aquí el importe.",
       "noneOpen": "Desde el {from} ningún anticipo registrado."
-    }
+    },
+    "coverage": {
+      "superseded": "Sustituido: rige hasta el {date}",
+      "renewed": "Renovado desde el {date}",
+      "renewedUntil": "Renovado hasta el {date}"
+    },
+    "conflict": {
+      "fixEnd": "Fijar el fin de «{name}» el {date}",
+      "bothRight": "Ambos son correctos",
+      "fixed": "Fin guardado.",
+      "dismissed": "Aviso ocultado.",
+      "check": "Revisar contratos"
+    },
+    "assumedPeriod": "Supuesto: del {from} al {until}, la app sigue con «{name}», aunque según lo registrado «{other}» dura hasta el {otherEnd}.",
+    "advanceVsCost": "Los anticipos son unas {factor} veces los costes. ¿Son correctos el contrato y los precios?"
   },
   "meters": {
     "loading": "Cargando…",
@@ -1453,6 +1486,22 @@
       "label": "Registro de vertido de",
       "none": "Acometida (vertido a la red)",
       "hint": "Si los contadores están conectados uno detrás de otro y un contador más atrás también cuenta hacia atrás (2.8.0), elige aquí ese contador. Su registro de vertido no cuenta como vertido a la red. A partir de las diferencias, la app calcula cuánta electricidad solar consume cada ramal."
+    },
+    "metering": {
+      "title": "Medición",
+      "device": "Equipo de medida",
+      "unknown": "no lo sé",
+      "conventional": "contador convencional (de disco)",
+      "mme": "equipo de medida moderno (contador digital)",
+      "imsys": "sistema de medida inteligente (contador con comunicación)",
+      "operator": "Operador de medida",
+      "basic": "operador por defecto (no elegido por ti)",
+      "competitive": "elegido libremente",
+      "hint": "Para el aviso sobre el coste de medición en «Tus derechos como cliente»: el límite legal depende del equipo de medida y solo se aplica al operador de medida por defecto."
+    },
+    "pvKw": {
+      "label": "Potencia de la instalación (kW)",
+      "hint": "Para el límite del coste de medición del contador de electricidad (instalaciones de más de 7 kW)."
     }
   },
   "settings": {
@@ -2270,6 +2319,22 @@
       "handedOverRecords": {
         "one": "{count} contador o contrato ahora es tuyo.",
         "other": "{count} contadores y contratos ahora son tuyos."
+      },
+      "handoverRecordsTenancy": {
+        "one": "{count} contador, contrato o alquiler pasa a {to}.",
+        "other": "{count} contadores, contratos y alquileres pasan a {to}."
+      },
+      "handoverRecordsTenancyNobody": {
+        "one": "{count} contador, contrato o alquiler se queda con la persona, con «(perfil eliminado)», hasta que alguien se haga cargo.",
+        "other": "{count} contadores, contratos y alquileres se quedan con la persona, con «(perfil eliminado)», hasta que alguien se haga cargo."
+      },
+      "handoverRecordsTenancyFormer": {
+        "one": "{count} contador, contrato o alquiler muestra entonces «antiguo miembro».",
+        "other": "{count} contadores, contratos y alquileres muestran entonces «antiguo miembro»."
+      },
+      "handedOverRecordsTenancy": {
+        "one": "{count} contador, contrato o alquiler ahora es tuyo.",
+        "other": "{count} contadores, contratos y alquileres ahora son tuyos."
       }
     },
     "securityCheck": {
@@ -2546,11 +2611,11 @@
     "loading": "Cargando las recomendaciones…",
     "loadError": "No se pudieron cargar las recomendaciones: {msg}",
     "title": "Recomendaciones",
-    "subtitle": "Indicaciones estadísticas a partir de tus propios datos — sin fuentes externas.",
+    "subtitle": "Indicaciones a partir de tus propios datos. Las indicaciones sobre tus derechos citan además leyes y centros de consumidores como fuentes.",
     "filterAll": "Todas ({count})",
     "filterGroupLabel": "Filtrar por urgencia",
     "sev": { "urgent": "Urgente", "warning": "Atención", "info": "Nota" },
-    "cat": { "effizienz": "Eficiencia", "vertrag": "Contrato", "bestand": "Existencias", "anomalie": "Anomalía", "trend": "Tendencia", "modell": "Modelo de calefacción" },
+    "cat": { "effizienz": "Eficiencia", "vertrag": "Contrato", "bestand": "Existencias", "anomalie": "Anomalía", "trend": "Tendencia", "modell": "Modelo de calefacción", "recht": "Derechos" },
     "emptyAll": "Sin recomendaciones — todo en orden.",
     "dismiss": "Ocultar durante 30 días",
     "error": "Error: {msg}",
@@ -2598,7 +2663,8 @@
         "gap": {
           "one": "El contrato siguiente «{provider}» no empieza hasta el {date} – entretanto {count} día sin contrato.",
           "other": "El contrato siguiente «{provider}» no empieza hasta el {date} – entretanto {count} días sin contrato."
-        }
+        },
+        "gapCovered": "El contrato siguiente «{provider}» empieza el {date}; hasta entonces este contrato continúa sin cancelación."
       },
       "r7": {
         "title": "{label}: clase de eficiencia {class} ({kwh} kWh/m²·a)",
@@ -2615,6 +2681,22 @@
         "baseLoad": "Hoy estima la carga base de verano en {now} {unit} al día, con {best} °C en {then}; se midieron {measured}.",
         "scope": "La temperatura solo vale para este contador y solo se aplica cuando haces clic.",
         "scopeGroup": "La temperatura solo vale para este grupo de contadores y solo se aplica cuando haces clic."
+      },
+      "rContractConflict": {
+        "title": "{label}: contratos que se contradicen",
+        "overlap": "Según lo registrado, «{a}» dura hasta el {aEnd}, pero desde el {bStart} rige «{b}». La app calcula con «{b}» desde el {bStart}. ¿Es correcto el fin de «{a}»?",
+        "nested": "«{b}» termina el {bEnd}, «{a}» está registrado hasta el {aEnd}. Después, la app sigue con «{b}». ¿Qué contrato rige después?",
+        "nestedCancelled": "«{b}» termina el {bEnd} y no se renueva, «{a}» está registrado hasta el {aEnd}. Para el tiempo posterior, la app no usa ningún contrato. ¿Qué contrato rige después?",
+        "foreignTitle": "{label}: ¿es «{b}» una tarifa de otro suministro?",
+        "foreignCopy": "Proveedor, tarifa y precio unitario coinciden con un contrato de {other}.",
+        "foreignDocument": "La bandeja de entrada asigna el documento correspondiente a {other}.",
+        "foreignPrice": "El precio unitario es unas {factor} veces el de tus otros contratos de este contador.",
+        "foreignAsk": "¿Es correcto el suministro?",
+        "advanceTitle": "{label}: anticipos unas {factor} veces los costes",
+        "advance": "En el año de facturación del {from} al {until}, frente a {advances} de anticipos solo hay {cost} de costes. ¿Son correctos el contrato y los precios?",
+        "foreignName": "Proveedor y tarifa coinciden con un contrato de {other}, y el precio unitario está en su mismo orden.",
+        "advanceOf": "En el año de facturación del {from} al {until} ({contract}), frente a {advances} de anticipos solo hay {cost} de costes. ¿Son correctos el contrato y los precios?",
+        "advanceAlso": "Encaja con esto: en el año de facturación del {from} al {until}, frente a {advances} de anticipos solo hay {cost} de costes, unas {factor} veces más."
       }
     },
     "dismissedNamed": "«{title}» oculto durante 30 días",
@@ -2628,7 +2710,9 @@
     },
     "dismissUntil": "Ocultar hasta el {date}",
     "dismissUntilNamed": "Ocultar hasta el {date}: {title}",
-    "dismissedUntilNamed": "«{title}» oculto hasta el {date}"
+    "dismissedUntilNamed": "«{title}» oculto hasta el {date}",
+    "rightsNoBill": "Todavía no hay indicaciones sobre tus derechos como cliente: la mayoría de las comprobaciones necesitan una factura registrada. Registra la factura anual y la aplicación revisa plazo, bonificación, estimación y coste de medición.",
+    "rightsNoBillLink": "Comprobar factura"
   },
   "tariff": {
     "loading": "Cargando…",
@@ -2745,7 +2829,11 @@
         "one": "{first} + {count} contrato consecutivo",
         "other": "{first} + {count} contratos consecutivos"
       },
-      "portal": "Comparador oficial de ofertas ({country}) ↗"
+      "portal": "Comparador oficial de ofertas ({country}) ↗",
+      "renewedSince": "prorrogado desde el {date}",
+      "renewedNotice": "Plazo de preaviso según el contrato. Aquí no se puede calcular una fecha a partir de él; la fecha de cambio de arriba es estimada hasta que la introduzcas.",
+      "basicNotice": "Suministro básico: cancelable en cualquier momento con dos semanas de preaviso (§ 20 {gvv}).",
+      "renewsUntil": "Sin cancelación, el contrato se prorroga hasta el {until} (§ 32 AVBFernwärmeV); la próxima fecha de cancelación es el {cancel}."
     },
     "retro": {
       "heading": "Retrospectiva de meses reales",
@@ -3297,8 +3385,7 @@
         "title": "Subida de precio: {label}",
         "reason": "A partir del {date} rigen nuevos precios. {parts}",
         "reasonWp": "El precio unitario sube de {old} a {new} ct/{unit}.",
-        "reasonBp": "El término fijo sube de {old} a {new} al mes.",
-        "legalDe": "En Alemania, una subida de precio da un derecho de rescisión extraordinario en la fecha del cambio (§ 41 apdo. 5 EnWG)."
+        "reasonBp": "El término fijo sube de {old} a {new} al mes."
       },
       "heatingRise": {
         "title": "Calefacción al alza: {label}",
@@ -3766,7 +3853,8 @@
       "counterInvalid": "Lectura no válida «{value}»: se espera un número igual o mayor que 0.",
       "dateInvalid": "Fecha de lectura no válida «{date}»: se espera AAAA-MM-DD.",
       "clientRefInvalid": "Identificador de registro no válido (client_ref): de 8 a 64 caracteres entre letras, cifras y guion.",
-      "periodMeter": "Este contador registra el consumo por periodo – introduce un periodo en lugar de una lectura."
+      "periodMeter": "Este contador registra el consumo por periodo – introduce un periodo en lugar de una lectura.",
+      "reportedOnInvalid": "Fecha de comunicación no válida «{date}». Se espera AAAA-MM-DD."
     },
     "contract": {
       "noContracts": "{label}: no se pueden crear contratos (suministro solo estadístico).",
@@ -3978,7 +4066,8 @@
       "noResult": "La factura no indica ni pago adicional ni saldo a favor – no hay nada que registrar",
       "noContract": "No hay ningún contrato para el periodo del {from} al {to} – añade uno primero",
       "periodInvalid": "El periodo «{from}» – «{to}» no es válido",
-      "amountInvalid": "El importe «{value}» no es un número válido"
+      "amountInvalid": "El importe «{value}» no es un número válido",
+      "valueInvalid": "{field}: «{value}» no es un valor válido"
     },
     "marketPrices": {
       "noRows": "El archivo no contiene precios mayoristas — se espera una descarga de SMARD o líneas como 2025-01;114,14",
@@ -4117,6 +4206,15 @@
       "expired": "El certificado de {host} ha caducado o aún no es válido. Renuévalo allí o comprueba la hora de ambos equipos.",
       "file": "Energietracker no puede leer los certificados raíz. Comprueba el archivo de ET_CA_FILE o una lista de certificados montada: ruta, contenido y permisos de lectura. Ajustes → Sistema indica si ET_CA_FILE es legible.",
       "other": "La conexión cifrada con {host} falla por el certificado. Comprueba la dirección y el certificado. Si lo emitiste tú, introduce tu certificado raíz en Ajustes → Experto → Conexiones en la red doméstica."
+    },
+    "letter": {
+      "formatInvalid": "Formato desconocido «{value}» (text o pdf)",
+      "findingNotFound": "Este aviso ya no existe. Recarga la página.",
+      "kindInvalid": "Plantilla de carta desconocida «{value}»",
+      "notOffered": "Para este aviso no hay esta carta",
+      "confirmRequired": "Confirma primero que la instrucción sobre recursos dice «Widerspruch» (recurso administrativo)",
+      "fieldInvalid": "«{field}» es demasiado largo o no es válido (como máximo 6 líneas de 60 caracteres)",
+      "deadlinePassed": "El plazo para un recurso ha vencido; la aplicación no redacta una carta para ello"
     }
   },
   "login": {
@@ -4237,7 +4335,10 @@
     "advanceEvery": "Anticipo {amount}",
     "noNotice": "Plazo de baja no registrado",
     "earliestEnd": "Se puede dar de baja como pronto el {date}",
-    "viaGroup": "A través del grupo «{name}»: el saldo y los anticipos valen para todo el grupo."
+    "viaGroup": "A través del grupo «{name}»: el saldo y los anticipos valen para todo el grupo.",
+    "renewedNotice": "Preaviso según el contrato",
+    "cancelMissedHeat": "Fecha de cancelación del {date} vencida, prorrogado hasta el {until}",
+    "renewedBasic": "Suministro básico: cancelable en cualquier momento con dos semanas de preaviso"
   },
   "billCheck": {
     "noMeter": "La revisión recalcula la factura anual de gas, electricidad, agua y calefacción urbana. Crea primero un contador.",
@@ -4274,7 +4375,35 @@
         "one": "{count} registrada",
         "other": "{count} registradas"
       },
-      "period": "Periodo como arriba: del {from} al {to}, incluido."
+      "period": "Periodo como arriba: del {from} al {to}, incluido.",
+      "received": "Recibida el (opcional)",
+      "receivedHint": "El día en que recibiste la factura. La aplicación lo usa para comprobar el plazo del proveedor.",
+      "estimated": "Estimada según la factura",
+      "estimatedStart": "Lectura inicial",
+      "estimatedEnd": "Lectura final",
+      "estimatedHint": "Si la factura indica la lectura final como estimada, introdúcela aquí, no como lectura. La aplicación la compara con tus propias lecturas; no cuenta en tu consumo.",
+      "itemKind": "Tipo",
+      "itemKinds": {
+        "levy": "Cargo",
+        "fee": "Tasa",
+        "credit": "Abono",
+        "metering": "Medición",
+        "other": "Otro"
+      },
+      "itemBasis": "neto/bruto",
+      "itemVat": "Tipo de IVA (%)",
+      "notStated": "sin indicar",
+      "notice": "Liquidación de tasas (agua, aguas residuales)",
+      "noticePublic": "La factura es una liquidación de una administración o un ayuntamiento con pie de recursos",
+      "noticeDated": "Liquidación del",
+      "noticeServed": "Notificada el (solo con acuse de notificación)",
+      "noticeRemedy": "Recurso indicado en el pie de recursos",
+      "noticeRemedyHint": "Solo si allí pone «recurso administrativo» la aplicación ofrece una carta de recurso.",
+      "noticeFile": "Número de expediente o de pago",
+      "number": "Número de factura",
+      "numberHint": "Opcional. Las cartas sobre esta factura lo citan como referencia.",
+      "estimatedValue": "Lectura final estimada ({unit})",
+      "estimatedOn": "Lectura final al"
     },
     "saved": "Factura guardada",
     "book": "Registrar como pago extraordinario",
@@ -4316,7 +4445,14 @@
     },
     "factorMismatch": {
       "line": "Desde el {from}: {invoice} kWh/m³ según la factura ({z} × {hs}), {list} kWh/m³ en los ajustes"
-    }
+    },
+    "rightsCount": {
+      "one": "{count} aviso sobre tus derechos",
+      "other": "{count} avisos sobre tus derechos"
+    },
+    "estimatedBackwards": "La lectura final estimada no encaja con tu lectura del {date} ({counter} {unit}): el contador iría hacia atrás. Revisa la factura y la lectura.",
+    "rightsNoBill": "La aplicación revisa las indicaciones sobre tus derechos como cliente (plazo, bonificación, estimación, coste de medición) a partir de la primera factura registrada. Introdúcela abajo o súbela:",
+    "rightsInbox": "Bandeja de entrada"
   },
   "glossary": {
     "hdd": {
@@ -4646,7 +4782,8 @@
     "readOnly": "En la demo no se guarda nada. Con tu propia instalación registras tus datos.",
     "unavailable": "Este análisis no está precalculado en la demo; funciona con tu propia instalación.",
     "scenarioPresetsOnly": "En la demo solo están precalculados los escenarios de ejemplo.",
-    "conceptPresetsOnly": "En la demo, la vista previa solo está precalculada para la disposición de este hogar de ejemplo."
+    "conceptPresetsOnly": "En la demo, la vista previa solo está precalculada para la disposición de este hogar de ejemplo.",
+    "letterPresetsOnly": "En la demo solo está precalculado el primer borrador de la carta. Los cambios y el PDF requieren tu propia instalación."
   },
   "manifest": {
     "description": "Consumo, costes y contratos de electricidad, gas, agua, calefacción urbana, gasóleo, pellets y fotovoltaica, en tu propio servidor, con el correo del proveedor leído en local y la nube solo si la quieres.",
@@ -4742,7 +4879,7 @@
       "cancelBy": "{label}: último día para cancelar ({provider})",
       "termEnd": "{label}: fin del contrato ({provider})",
       "priceGuaranteeEnd": "{label}: fin de la garantía de precio ({provider})",
-      "priceIncrease": "{label}: subida de precio ({provider}) — comprueba la cancelación",
+      "priceIncrease": "{label}: subida de precio ({provider})",
       "readingDue": "{label}: leer el contador ({meter})",
       "tankReorder": "{label}: planificar una entrega ({meter})",
       "tenancyStatementDue": "Liquidación de gastos hasta el {period} pendiente: {label}",
@@ -4760,7 +4897,8 @@
       "levelShiftLess": "{label}: consumo constantemente menor desde el {date}. ¿Fijar un corte de referencia? ({meter})",
       "levelShiftMore": "{label}: consumo constantemente mayor desde el {date}. ¿Fijar un corte de referencia? ({meter})",
       "readingMismatch": "{label}: el consumo antes y después del {date} no cuadra ({meter})",
-      "readingMismatchBlock": "{label}: el consumo antes del {date} y después del {until} no cuadra ({meter})"
+      "readingMismatchBlock": "{label}: el consumo antes del {date} y después del {until} no cuadra ({meter})",
+      "contractConflict": "{label}: revisar contratos"
     },
     "subscribe": "Suscribirse en el calendario",
     "intro": "Citas, plazos de cancelación, fin de contratos, garantías de precio y lecturas pendientes como suscripción de calendario. El calendario los actualiza cada 12 horas.",
@@ -4782,7 +4920,8 @@
     "onlyMine": "Solo lo que me corresponde",
     "onlyMineHint": "El enlace muestra entonces solo los plazos y citas de los que eres responsable, también a través de un contrato o contador.",
     "webcalLabel": "Dirección de suscripción para apps de calendario (webcal)",
-    "httpsLabel": "La misma dirección como enlace https"
+    "httpsLabel": "La misma dirección como enlace https",
+    "assigneeTenancy": "Responsable: {name} (a través del alquiler)"
   },
   "tenancy": {
     "title": "Alquiler",
@@ -5335,7 +5474,7 @@
       "anytime": "cancelable en cualquier momento",
       "textMissed": "Contrato desde el {start}. El plazo para cancelar venció el {cancel}; sin cancelación continúa después del {end}.",
       "textNoRenew": "Contrato desde el {start}; termina el {end} sin que tengas que cancelarlo.",
-      "textRenewed": "Contrato desde el {start}. El plazo terminó el {term}; desde entonces continúa y se puede cancelar en cualquier momento: cancelado hoy, termina como pronto el {end}.",
+      "textRenewed": "Contrato desde el {start}. Su plazo terminó el {term}; desde entonces continúa hasta que lo canceles. El preaviso lo indica el contrato.",
       "textAnytime": "Contrato desde el {start}; continúa hasta que lo canceles. Puedes cancelarlo en cualquier momento: cancelado hoy, termina como pronto el {end}.",
       "textMinTerm": "Contrato desde el {start}, con permanencia mínima: cancelado hoy, termina como pronto el {end}.",
       "textMinTermUntil": "La permanencia mínima termina el {date}.",
@@ -5346,7 +5485,12 @@
       "gap": {
         "one": "Entre ambos queda {count} día sin contrato.",
         "other": "Entre ambos quedan {count} días sin contrato."
-      }
+      },
+      "textRenewedHeat": "Contrato desde el {start}. Su plazo terminó el {term}. Sin cancelación nueve meses antes del vencimiento, un contrato de calefacción urbana se prorroga cada vez cinco años (§ 32 AVBFernwärmeV); salvo que tu contrato diga otra cosa, dura hasta el {end} y la cancelación por escrito debe llegar al proveedor a más tardar el {cancel}.",
+      "textMissedHeat": "Contrato desde el {start}. El plazo para cancelar venció el {cancel}. Sin cancelación nueve meses antes de su vencimiento, un contrato de calefacción urbana se prorroga cinco años (§ 32 AVBFernwärmeV); salvo que tu contrato diga otra cosa, dura hasta el {until}, y la próxima cancelación debe llegar al proveedor a más tardar el {next}.",
+      "textHeatNotice": "No hay plazo de preaviso indicado; la aplicación cuenta nueve meses antes del vencimiento (§ 32 AVBFernwärmeV). Sin cancelación, el contrato se prorroga hasta el {until}.",
+      "textRenewedSuccessor": "Contrato desde el {start}. El plazo terminó el {term}; desde entonces continúa sin cancelación.",
+      "textRenewedBasic": "Contrato desde el {start}. El plazo terminó el {term}; en el suministro básico se puede cancelar en cualquier momento con dos semanas de preaviso. Cancelado hoy, termina como pronto el {end}."
     }
   },
   "setup": {
@@ -5888,9 +6032,11 @@
     "noPeople": "Añade personas en Ajustes → Hogar y edificio.",
     "via": {
       "contract": "a través del contrato",
-      "meter": "a través del contador"
+      "meter": "a través del contador",
+      "tenancy": "a través del alquiler"
     },
-    "inheritsMeter": "Si está vacío, responsable: {name} (a través del contador)."
+    "inheritsMeter": "Si está vacío, responsable: {name} (a través del contador).",
+    "hintTenancy": "La liquidación de gastos, las reclamaciones y los costes de CO₂ van a esta persona. Si está vacío, se aplica la persona del contador de calor. No se avisa a nadie."
   },
   "notice": {
     "updated": "Actualizado a la versión {version}.",
@@ -6216,7 +6362,9 @@
       "specialTermination": "Derecho de rescisión extraordinario {provider} hasta el {date}",
       "followUp": "Contratar el siguiente contrato (fin del suministro {provider} el {end})",
       "dunning": "Aclarar la reclamación de pago «{name}»",
-      "document": "Resolver el documento «{name}»"
+      "document": "Resolver el documento «{name}»",
+      "specialTerminationLegal": "Rescisión extraordinaria {provider} posible, recepción a más tardar el {date}",
+      "specialTerminationLetter": "Rescisión extraordinaria {provider} posible, recepción a más tardar el {date} (según la carta {letter}, por ley {legal})"
     },
     "title": "Bandeja de entrada",
     "subtitle": "Guarda en PDF el correo del suministrador, haz que se lea, revísalo y adóptalo.",
@@ -6450,7 +6598,15 @@
       "advance_new_dates": "Vencimientos del nuevo anticipo",
       "advance_new_every": "Ritmo del nuevo anticipo",
       "invoice_number": "Número de factura",
-      "corrects_invoice": "Referencia a una factura anterior"
+      "corrects_invoice": "Referencia a una factura anterior",
+      "basic_supply": "Suministro básico",
+      "credits": "Abonos",
+      "metering_fee": "Coste de medición",
+      "metering_fee_basis": "Medición neto o bruto",
+      "metering_fee_vat_pct": "Tipo de IVA de la medición",
+      "fee_notice": "Liquidación de tasas",
+      "remedy": "Recurso indicado",
+      "file_number": "Número de expediente"
     },
     "reason": {
       "empty": "Falta, pero se necesita",
@@ -6500,7 +6656,11 @@
       "energy": "Precio unitario",
       "energy_tax": "Impuesto sobre la energía",
       "co2": "Precio del CO₂",
-      "other": "Recargo"
+      "other": "Recargo",
+      "bonus": "Bonificación",
+      "credit_other": "otro abono",
+      "objection": "Recurso administrativo",
+      "action": "Recurso judicial"
     },
     "item": {
       "gasFactor": "del {from} al {to}: coeficiente de corrección {z} × poder calorífico {hs} kWh/m³",
@@ -6545,7 +6705,11 @@
       "waterBase": "Término fijo {section} desde el {from}: {value} al mes (de la factura)",
       "waterRate": "{section} desde el {from}: {value} por m² y año para {area} m² (de la factura)",
       "billCorrection": "Tomar la factura rectificativa del {from} al {to}: {result} en lugar de {before}",
-      "billRebook": "Sustituir la contabilización: {result} en lugar de {before}"
+      "billRebook": "Sustituir la contabilización: {result} en lugar de {before}",
+      "reminderSpecialTerminationLegal": "Recordatorio: rescisión extraordinaria posible, recepción a más tardar el {date}",
+      "reminderSpecialTerminationLetter": "Recordatorio: rescisión extraordinaria, recepción a más tardar el {date} (según la carta {letter}, por ley {legal})",
+      "supplyKindBasic": "Anotar el tipo de suministro en el contrato: suministro básico (según la factura)",
+      "supplyKindSpecial": "Anotar el tipo de suministro en el contrato: contrato especial (según la factura)"
     },
     "detail": {
       "reading": "Registrada: {counter}.",
@@ -6695,7 +6859,35 @@
         "minTerm": "Permanencia mínima hasta el {date}.",
         "guarantee": "Garantía de precio hasta el {date}.",
         "dunning": "La aplicación no lee las reclamaciones de pago; el recordatorio te avisa para aclarar el pago.",
-        "advanceBasisRate": "Encajarían unos {recommended} por vencimiento; con el nuevo anticipo la factura acabaría con: {balance}."
+        "advanceBasisRate": "Encajarían unos {recommended} por vencimiento; con el nuevo anticipo la factura acabaría con: {balance}.",
+        "range": "Según el tiempo y el consumo, entre {low} y {high} al año.",
+        "yearAfter": "Un año a los nuevos precios: unos {amount}, es decir, unos {recommended} al mes.",
+        "yearAfterRate": "Un año a los nuevos precios: unos {amount}, es decir, unos {recommended} por vencimiento."
+      },
+      "rights": {
+        "terminationSpecial": "Puedes rescindir el contrato sin preaviso con efecto el {date}. La rescisión debe llegar al proveedor a más tardar el {deadline}.",
+        "terminationBasic": "En el suministro básico puedes rescindir con efecto el {date}; la rescisión debe llegar al proveedor a más tardar el {deadline}. Si no, puedes rescindir en cualquier momento con dos semanas de preaviso.",
+        "terminationUnknown": "Tras una subida de precios puedes rescindir sin preaviso con efecto el {date}. La rescisión debe llegar al proveedor a más tardar el {deadline}. En el suministro básico también puedes rescindir en cualquier momento con dos semanas de preaviso. La factura indica si estás en el suministro básico.",
+        "terminationPassed": "La rescisión con efecto el {date} solo era posible hasta el {deadline}.",
+        "letterEarlier": "La carta indica el {letter} como plazo. Por ley basta con que la rescisión llegue a más tardar el {deadline}; el proveedor no puede fijar un plazo propio más corto.",
+        "letterLater": "La carta indica el {letter} como plazo. Vas sobre seguro si la rescisión llega al proveedor a más tardar el {deadline}.",
+        "vatOnly": "Solo cambia el IVA; el precio neto sigue igual. Con un contrato especial esto no da derecho de rescisión extraordinario.",
+        "vatOnlyBasic": "Solo cambia el IVA; el precio neto sigue igual. En el suministro básico puedes rescindir en cualquier momento con dos semanas de preaviso.",
+        "lateSpecial": {
+          "one": "La carta está fechada {days} día antes del cambio. Con un contrato especial la ley exige al menos un mes. Pide asesoramiento si quieres que revisen la subida.",
+          "other": "La carta está fechada {days} días antes del cambio. Con un contrato especial la ley exige al menos un mes. Pide asesoramiento si quieres que revisen la subida."
+        },
+        "lateBasic": {
+          "one": "La carta está fechada {days} día antes del cambio. En el suministro básico la ley exige un aviso con al menos seis semanas de antelación. Pide asesoramiento si quieres que revisen la subida.",
+          "other": "La carta está fechada {days} días antes del cambio. En el suministro básico la ley exige un aviso con al menos seis semanas de antelación. Pide asesoramiento si quieres que revisen la subida."
+        },
+        "announcedAfter": "La carta está fechada el {date}, no antes del día del cambio. Un cambio de precios debe anunciarse con antelación. Pide asesoramiento si quieres que revisen la subida.",
+        "monthStart": "En el suministro básico los cambios de precio entran en vigor a principio de mes; esta carta indica el {date}.",
+        "heat": "Los precios de la calefacción urbana cambian según la cláusula de revisión de tu contrato; los factores de cálculo deben figurar. El reglamento en general no prevé un derecho de rescisión extraordinario como para la electricidad y el gas.",
+        "guarantee": "Para el contrato hay registrada una garantía de precio hasta el {date}. Comprueba si la subida está excluida de ella (a menudo impuestos y cargos).",
+        "advanceBasic": "El anticipo sube un {advance_pct} %, los costes según la previsión un {cost_pct} %. En el suministro básico el proveedor puede ajustar el anticipo tras un cambio de precios en el porcentaje de ese cambio.",
+        "advanceSpecial": "El anticipo sube un {advance_pct} %, los costes según la previsión un {cost_pct} %. El anticipo se basa en el consumo de la última facturación; el proveedor debe tener en cuenta de forma adecuada un consumo creíblemente menor.",
+        "advanceUnknown": "El anticipo sube un {advance_pct} %, los costes según la previsión un {cost_pct} %. Un anticipo se basa en el consumo; en el suministro básico el proveedor puede ajustarlo tras un cambio de precios en el porcentaje de ese cambio."
       }
     },
     "channels": {
@@ -6747,7 +6939,9 @@
       "unsure": "Leído con dudas, no se adopta: {fields}",
       "netPrice": "Neto según la factura, convertido a bruto con el tipo de IVA indicado (la app usa precios brutos).",
       "vatChanged": "Mismo precio que en el contrato, solo cambia el tipo de IVA – la nueva línea de precio rige desde el día que la factura indica para ella.",
-      "rhythmConflict": "El ritmo indicado en la factura no coincide con los vencimientos. Se adoptan los vencimientos, compruébalo."
+      "rhythmConflict": "El ritmo indicado en la factura no coincide con los vencimientos. Se adoptan los vencimientos, compruébalo.",
+      "perMeter": "El contrato tiene precios unitarios por contador (por ejemplo punta y valle). Comprueba a qué contador se aplica este precio; se adopta para el contador asignado.",
+      "advanceFromPrice": "La carta no dice desde cuándo se aplica el nuevo anticipo. Se supone el día del cambio de precios."
     },
     "duplicate": {
       "text": "Probablemente el mismo documento que «{name}» (guardado el {date}). Adopta solo uno; el otro puedes borrarlo.",
@@ -7406,5 +7600,141 @@
     "sentenceNoWeather": "Según la estimación, entre {low} y {high}.",
     "shortFew": "demasiados pocos meses medidos; según la estimación {range}",
     "sentenceFew": "Demasiados pocos meses medidos; según la estimación, entre {low} y {high}."
+  },
+  "rights": {
+    "title": "Tus derechos como cliente",
+    "footer": "Aviso, no es asesoramiento jurídico. Base: {norms} (consultado el {date}).",
+    "notAdvice": "Aviso, no es asesoramiento jurídico.",
+    "helpEnergy": "Ayuda: centro de asesoramiento al consumidor (Verbraucherzentrale), órgano de arbitraje de la energía (Schlichtungsstelle Energie).",
+    "help": "Ayuda: centro de asesoramiento al consumidor (Verbraucherzentrale).",
+    "deadline": "Plazo: {date}",
+    "check": {
+      "bill_late": "Factura con retraso",
+      "advance_high": "Anticipo claramente demasiado alto",
+      "special_termination": "Cambio de precio: rescisión extraordinaria",
+      "bonus_missing": "Bonificación no abonada",
+      "estimate_despite_reading": "Estimación pese a tu propia lectura",
+      "metering_cap": "Coste de medición por encima del límite",
+      "fee_notice_deadline": "Plazo para una liquidación de tasas"
+    },
+    "priceNote": {
+      "special": "Puedes rescindir el contrato sin preaviso con efecto el día del cambio de precio; la rescisión debe llegar al proveedor antes de esa fecha (§ 41 apdo. 5 EnWG).",
+      "basic": "En el suministro básico puedes rescindir con efecto el día del cambio de precio (§ 5 apdo. 3 {gvv}) y, si no, en cualquier momento con dos semanas de preaviso (§ 20 {gvv}).",
+      "unknown": "Con un contrato especial puedes rescindir sin preaviso con efecto el día del cambio de precio (§ 41 apdo. 5 EnWG), y en el suministro básico también (§ 5 apdo. 3 {gvv}). La factura indica si estás en el suministro básico.",
+      "stepped": "Solo vale si el proveedor cambia los precios, no para un precio escalonado ya acordado al firmar el contrato. Indica en el precio la fecha de la carta y la aplicación lo sabrá.",
+      "vat": "Solo cambia el IVA. Si el proveedor lo repercute sin cambios, en un contrato especial no surge un derecho de rescisión extraordinario (§ 41 apdo. 6 EnWG).",
+      "heat": "Los precios de la calefacción urbana cambian según la cláusula de revisión de tu contrato; los factores de cálculo deben indicarse (§ 24 apdo. 4 AVBFernwärmeV). A diferencia de la electricidad y el gas, el reglamento no prevé en general un derecho de rescisión extraordinario por ello."
+    },
+    "special_termination": {
+      "title": "{label}: rescisión extraordinaria posible el {valid_from}",
+      "titleMaybe": "{label}: los precios suben el {valid_from}, ¿rescisión extraordinaria posible?",
+      "text": "{provider} cambia los precios el {valid_from}: {what}. {note}",
+      "wp": "precio unitario {old} → {new} ct/{unit}",
+      "bp": "término fijo {old} → {new} al mes",
+      "lateSpecial": "La carta es del {announced_on} y el cambio rige desde el {valid_from}; la ley exige para ello al menos un mes de antelación.",
+      "lateBasic": "La carta es del {announced_on} y el cambio rige desde el {valid_from}; en el suministro básico la ley exige al menos seis semanas de antelación.",
+      "monthStart": "En el suministro básico la ley prevé cambios de precio a principio de mes; este rige desde el {valid_from}.",
+      "adviceCheck": "Pide asesoramiento si quieres que se revise la subida.",
+      "guarantee": "Para este contrato hay registrada una garantía de precio hasta el {date}. Comprueba si la subida está excluida de ella (a menudo impuestos y cargos).",
+      "letterDate": "Según la carta, la rescisión debe llegar antes del {letter}; según la ley basta con que llegue antes del {legal}. El plazo aquí es la fecha más temprana."
+    },
+    "advance_high": {
+      "title": "{label}: anticipo muy por encima del consumo",
+      "text": "Tu anticipo de {rate} supera en un {over_pct} % el importe que resulta de tu consumo en el último periodo de facturación ({qty} {unit}, del {period_from} al {period_to}) y de los precios actuales: unos {measure_eur}. También la previsión de la aplicación considera adecuados unos {ongoing_eur}. Los anticipos se basan en este consumo; si demuestras de forma creíble un consumo bastante menor, debe tenerse en cuenta adecuadamente ({norm}). Puedes solicitar un ajuste.",
+      "textFrom": "Tu anticipo de {rate} supera en un {over_pct} % el importe que resulta de tu consumo en el último periodo de facturación ({qty} {unit}, del {period_from} al {period_to}) y de los precios a partir del {next_due}: unos {measure_eur}. También la previsión de la aplicación considera adecuados unos {ongoing_eur}. Los anticipos se basan en este consumo; si demuestras de forma creíble un consumo bastante menor, debe tenerse en cuenta adecuadamente ({norm}). Puedes solicitar un ajuste.",
+      "rateFrom": "{amount} a partir del {date}"
+    },
+    "late": {
+      "title": "{label}: la factura hasta el {period_to} llegó {days_late} días después del plazo",
+      "text": "La factura del {period_from} al {period_to} estaba disponible el {bill_date}, {days_late} días después de vencer el plazo legal el {deadline}. El plazo: seis semanas tras el fin del periodo de facturación; en una factura de cierre, tras el fin del suministro. La ley no prevé consecuencias para el importe facturado. Puedes reclamar el retraso al proveedor; debe responder en cuatro semanas.",
+      "textIssued": "La factura del {period_from} al {period_to} tiene fecha del {bill_date}, {days_late} días después de vencer el plazo legal el {deadline}. El plazo: seis semanas tras el fin del periodo de facturación; en una factura de cierre, tras el fin del suministro. La ley no prevé consecuencias para el importe facturado. Puedes reclamar el retraso al proveedor; debe responder en cuatro semanas."
+    },
+    "bonus": {
+      "title": "{label}: bonificación de {amount_eur} no encontrada",
+      "text": "Según el contrato «{tariff}», te corresponde una bonificación de {amount_eur}. En la factura del {period_from} al {period_to} no encontramos ningún abono de ese importe. Revisa las condiciones de la bonificación en el contrato (a menudo: doce meses de suministro). Si falta, puedes reclamarla al proveedor. Si llegó por otra vía, por ejemplo por transferencia o con una factura posterior, marca este aviso como hecho.",
+      "textPortal": "El contrato «{tariff}» incluye una bonificación de {amount_eur} (tipo: otra bonificación). En la factura del {period_from} al {period_to} no encontramos ningún abono de ese importe. Si no la paga el proveedor sino, por ejemplo, un comparador, dirígete a él. Si ya llegó, marca este aviso como hecho."
+    },
+    "estimate": {
+      "title": "{label}: la factura estima la lectura final al {period_to} pese a la tuya",
+      "titleEur": "{label}: la factura estima la lectura final al {period_to}, unos {delta_eur} de diferencia",
+      "text": "La factura indica como estimada la lectura final al {period_to}: {bill_counter} {unit}. Tú mismo leíste el contador el {own_date} ({own_counter} {unit}); proyectada al {period_to}, son {own_projected} {unit}. ¿Comunicaste la lectura? El proveedor solo puede estimar si, pese a la obligación correspondiente, no se transmitió ninguna lectura o si no pudo determinar el consumo por motivos que no le son imputables. Puedes pedir que explique la estimación por escrito y gratis. También puedes pedir al proveedor que vuelva a calcular con tu lectura. La diferencia: {delta_qty} {cunit}.",
+      "textReported": "La factura indica como estimada la lectura final al {period_to}: {bill_counter} {unit}. Tú mismo leíste el contador el {own_date} ({own_counter} {unit}) y comunicaste la lectura el {reported_on}; proyectada al {period_to}, son {own_projected} {unit}. El proveedor solo puede estimar si, pese a la obligación correspondiente, no se transmitió ninguna lectura o si no pudo determinar el consumo por motivos que no le son imputables. Puedes pedir que explique la estimación por escrito y gratis. También puedes pedir al proveedor que vuelva a calcular con tu lectura. La diferencia: {delta_qty} {cunit}.",
+      "textHeat": "La factura indica como estimada la lectura final al {period_to}: {bill_counter} {unit}. Tú mismo leíste el contador el {own_date} ({own_counter} {unit}); proyectada al {period_to}, son {own_projected} {unit}. El proveedor puede estimar, a partir de la última lectura, mientras su encargado no pueda acceder al local para leer el contador. Comunícale tu lectura y pregunta por la estimación. La diferencia: {delta_qty} {cunit}.",
+      "textReportedBasic": "La factura indica como estimada la lectura final al {period_to}: {bill_counter} {unit}. Tú mismo leíste el contador el {own_date} ({own_counter} {unit}) y comunicaste la lectura el {reported_on}; proyectada al {period_to}, son {own_projected} {unit}. El proveedor solo puede estimar si, pese a la obligación correspondiente, no se transmitió ninguna lectura o si no pudo determinar el consumo por motivos que no le son imputables. Puedes pedir que explique la estimación por escrito y gratis, y una corrección con tu lectura. La diferencia: {delta_qty} {cunit}.",
+      "textNotice": "La factura indica como estimada la lectura final al {period_to}: {bill_counter} {unit}. Tú mismo leíste el contador el {own_date} ({own_counter} {unit}); proyectada al {period_to}, son {own_projected} {unit}. La factura es una liquidación de tasas: las objeciones van por el recurso que indica la instrucción sobre recursos. Su plazo termina como pronto el {deadline}; una consulta informal no lo preserva. La diferencia: {delta_qty} {cunit}.",
+      "textNoticeExpired": "La factura indica como estimada la lectura final al {period_to}: {bill_counter} {unit}. Tú mismo leíste el contador el {own_date} ({own_counter} {unit}); proyectada al {period_to}, son {own_projected} {unit}. La factura es una liquidación de tasas: las objeciones van por el recurso. Según el cálculo de la aplicación, su plazo venció el {deadline}; consulta la indicación sobre la liquidación de tasas. La diferencia: {delta_qty} {cunit}."
+    },
+    "metering": {
+      "title": "{label}: coste de medición por encima del límite, unos {over_eur} al año",
+      "textMme": "Por la medición, la factura del {period_from} al {period_to} cobra el equivalente a {year_eur} al año (bruto). Para un equipo de medida moderno, la ley alemana de operación de puntos de medida fija un límite de {cap_eur} al año. Se aplica al operador de medida por defecto; uno elegido libremente no está obligado. Los servicios adicionales, como una instalación a petición tuya, pueden costar aparte. Pregunta al operador de medida.",
+      "textImsys": "Por la medición, la factura del {period_from} al {period_to} cobra el equivalente a {year_eur} al año (bruto). Para un sistema de medida inteligente, la ley alemana de operación de puntos de medida fija en tu grupo un límite de {cap_eur} al año. La aplicación te clasifica según unos {kwh_year} kWh al año, un control según el § 14a EnWG y la potencia de tu instalación FV; el operador de medida puede usar otros valores. El límite se aplica al operador de medida por defecto; uno elegido libremente no está obligado. Los servicios adicionales, como una instalación a petición tuya, pueden costar aparte. Pregunta al operador de medida."
+    },
+    "feeNotice": {
+      "title": "{label}: liquidación de tasas del {dated_on}, recurso hasta el {deadline}",
+      "text": "Liquidación de tasas del {dated_on}: cabe recurso contra ella en el plazo de un mes desde la notificación. Si llegó por correo, se considera notificada el cuarto día tras el envío; el plazo vence entonces, como pronto, el {deadline}. Si el final cae en sábado, domingo o festivo, el plazo no vence hasta el siguiente día hábil; aquí ya está incluido, con los festivos que rigen en toda Alemania. La aplicación no conoce los festivos que solo rigen en tu estado federado; si uno cae ese día, el plazo corre hasta el siguiente día hábil. Si procede recurso administrativo o demanda, lo indica el pie de recursos al final de la liquidación. El recurso no aplaza el pago.",
+      "textServed": "Liquidación de tasas del {dated_on}, notificada el {served_on}: cabe recurso contra ella en el plazo de un mes desde la notificación; el plazo vence el {deadline}. Si el final cae en sábado, domingo o festivo, el plazo no vence hasta el siguiente día hábil; aquí ya está incluido, con los festivos que rigen en toda Alemania. La aplicación no conoce los festivos que solo rigen en tu estado federado; si uno cae ese día, el plazo corre hasta el siguiente día hábil. Si procede recurso administrativo o demanda, lo indica el pie de recursos al final de la liquidación. El recurso no aplaza el pago.",
+      "titleExpired": "{label}: liquidación de tasas del {dated_on}, plazo vencido el {deadline}",
+      "textExpired": "Liquidación de tasas del {dated_on}: según el cálculo de la aplicación, el plazo para un recurso, un mes desde la notificación, venció el {deadline}; un sábado, domingo o festivo nacional al final ya está incluido. La aplicación no conoce los festivos que solo rigen en tu estado federado; si uno caía ese día, el plazo corría hasta el siguiente día hábil. Si faltaba la instrucción sobre recursos o era incorrecta, rige un plazo de un año. Busca asesoramiento si aún quieres impugnar la liquidación.",
+      "textExpiredLong": "Liquidación de tasas del {dated_on}: según el cálculo de la aplicación, el plazo para un recurso, un mes desde la notificación, venció el {deadline}; un sábado, domingo o festivo nacional al final ya está incluido. La aplicación no conoce los festivos que solo rigen en tu estado federado; si uno caía ese día, el plazo corría hasta el siguiente día hábil. Busca asesoramiento si aún quieres impugnar la liquidación."
+    },
+    "docLink": "Qué comprueba la app"
+  },
+  "letters": {
+    "button": "Redactar una carta",
+    "buttonNamed": "Redactar una carta: {title}",
+    "kind": {
+      "special_termination": "Rescisión extraordinaria",
+      "advance_adjustment": "Solicitud de ajuste del anticipo",
+      "estimate_query": "Consulta sobre la estimación",
+      "complaint": "Reclamación sobre una factura",
+      "objection": "Recurso contra una liquidación"
+    },
+    "dialog": {
+      "title": "Redactar una carta: {kind}",
+      "german": "La carta está en alemán porque la leerán proveedores y autoridades en Alemania. Revísala y complétala antes de enviarla.",
+      "sender": "Remitente (nombre y dirección)",
+      "recipient": "Destinatario (nombre y dirección)",
+      "recipientHint": "La dirección figura en la carta o factura a la que respondes.",
+      "place": "Lugar",
+      "remember": "Recordar el remitente en este dispositivo",
+      "rememberHint": "Se guarda solo en este navegador, no en la aplicación. Desmarca la casilla para borrarlo.",
+      "refs": "Referencias",
+      "confirmObjection": "La instrucción sobre recursos al final de la liquidación dice «Widerspruch» (recurso administrativo).",
+      "confirmFirst": "Confirma primero lo que dice la instrucción sobre recursos. Si menciona una demanda judicial (Klage), esta carta no sirve; busca asesoramiento.",
+      "objectionForm": "Firma el recurso y envíalo por correo postal o entrégalo en la autoridad. Un simple correo electrónico no basta.",
+      "deadline": "Envíala de modo que llegue a más tardar el {date} (plazo indicado en el aviso).",
+      "preview": "Vista previa",
+      "gaps": {
+        "one": "Falta todavía un dato; aparece como […] en la carta.",
+        "other": "Faltan todavía {count} datos; aparecen como […] en la carta."
+      },
+      "copy": "Copiar texto",
+      "copied": "Carta copiada",
+      "copyFailed": "No se puede copiar. Selecciona el texto en la vista previa.",
+      "pdf": "Descargar PDF",
+      "sent": "Marcar como enviada",
+      "sentNote": "Carta enviada: {kind}",
+      "sentHint": "Indica la fecha en que enviaste la carta. Puedes adjuntar la carta como comprobante."
+    },
+    "ref": {
+      "customer_number": "Número de cliente",
+      "contract_number": "Número de contrato",
+      "meter_serial": "Número de contador",
+      "malo_id": "Ubicación de mercado (MaLo)",
+      "supply_address": "Dirección de suministro",
+      "invoice_number": "Número de factura",
+      "file_number": "Número de expediente o de pago"
+    },
+    "extra": {
+      "reading_value": "Lectura del contador para la factura final (opcional)",
+      "reading_date": "leída el",
+      "amount_eur": "Anticipo deseado en {cur}",
+      "reasons": "Motivos (opcional, p. ej. menos personas en el hogar)",
+      "attach_photo": "Mencionar la foto de la lectura como anexo",
+      "note": "Añadido (opcional)",
+      "levy": "Liquidación relativa a (p. ej. tasas de alcantarillado 2026)",
+      "reason": "Fundamentación (opcional, si no la carta indica que se enviará después)",
+      "suspend": "Solicitar también la suspensión de la ejecución (opcional)"
+    }
   }
 }

@@ -365,6 +365,24 @@ With `docker run` via `-e NAME=value`, with Compose under `environment:`.
 What sign-in does and when you need it:
 [Security & network operation](sicherheit.md).
 
+**Your own root certificate with Docker Compose** *(v3.11.0, GitHub #36)*:
+mount the file read-only under `volumes:` and name its path in `ET_CA_FILE`.
+
+```yaml
+services:
+  energietracker:
+    image: ghcr.io/bingerminger/energietracker:3
+    volumes:
+      - ./certs/my-root-ca.pem:/certs/my-root-ca.pem:ro
+    environment:
+      ET_CA_FILE: /certs/my-root-ca.pem
+```
+
+The file must be readable for the user inside the container, for example with
+`chmod 644 certs/my-root-ca.pem` (also in the variant without root). Mount only
+the certificate, never the private key. The diagnostics under Settings → System
+show whether the app can read the file.
+
 **PHP settings (since v2.6.0):** the image ships its own `php.ini` —
 `max_execution_time` 120 s, error display off, OPcache on. Since v3.4.0 it runs
 on **PHP 8.5** (OPcache is built in there). Since v3.1.0

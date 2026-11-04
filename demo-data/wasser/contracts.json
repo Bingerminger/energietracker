@@ -57,7 +57,7 @@
     "provider": "Wasserwerke Musterstadt",
     "tariff_name": "Trink-, Schmutz- und Niederschlagswasser 2024",
     "start": "2024-01-01",
-    "end": "2024-12-31",
+    "end": "2025-06-30",
     "notes": "Tarifanpassung 2024",
     "trinkwasser": {
       "working_prices": [

@@ -34,7 +34,7 @@ final class Applier
     // nach dem Tauschtag einer Rechnung gehören zum neuen Gerät (ReadingService nach Datum)
     // v3.9.0 (F1034) — der Vertrag aus der Rechnung vor Rechnung und Buchung (beide hängen an ihm);
     // Preiszeilen der Wasser-Bestandteile wie die übrigen Preise
-    private const ORDER = ['meter_ids', 'contract_create', 'contract_start', 'contract_ids', 'contract_price', 'contract_base_price',
+    private const ORDER = ['meter_ids', 'contract_create', 'contract_start', 'contract_ids', 'contract_supply_kind', 'contract_price', 'contract_base_price',
         'contract_water_price',
         'contract_advance', 'contract_end', 'meter_change', 'reading', 'bill', 'bill_book', 'gas_factor', 'reminder'];
 
@@ -83,6 +83,9 @@ final class Applier
                     'contract_start' => $this->contractPatch($u, (string)$d['contract_id'], ['start' => $d['start']], $type === 'supply_start' ? $att : ''),
                     'contract_ids' => $this->contractPatch($u, (string)$d['contract_id'],
                         array_intersect_key($d, array_flip(['contract_number', 'customer_number']))),
+                    // v3.11.0 (integration) — Versorgungsart laut Rechnung (vorgeschlagen nur, wenn am Vertrag keine steht;
+                    // steht inzwischen eine da, ist der Vorschlag überholt und InboxService::apply lehnt ab)
+                    'contract_supply_kind' => $this->contractPatch($u, (string)$d['contract_id'], ['supply_kind' => (string)$d['supply_kind']]),
                     'contract_price', 'contract_base_price', 'contract_advance', 'contract_water_price' => $this->priceRow($u, $d,
                         in_array($type, ['price_change', 'advance_change'], true) ? $att : ''),
                     'meter_ids' => $this->meterPatch($u, (string)$d['meter_id'], ['malo_id' => $d['malo_id']]),
@@ -92,9 +95,14 @@ final class Applier
                     // eine Art, die diese Version nicht kennt: Die Vorschau stammt von woanders
                     default => throw new LocalizedException('errors.inbox.proposalStale', [], 'proposal kind ' . $p['kind']),
                 };
-                if (is_array($ref) && isset($ref['bill_id'])) $ref = ['type' => 'bill', 'utility' => $u, 'id' => $ref['bill_id']];
+                $warn = [];
+                if (is_array($ref) && isset($ref['bill_id'])) {
+                    // v3.11.0 (Nachprüfung NP5, additiv) — Warnung zum geschätzten Endstand am angewandten Vorschlag
+                    $warn = array_intersect_key($ref, ['warnings' => 1, 'estimated_reading_neighbor' => 1]);
+                    $ref = ['type' => 'bill', 'utility' => $u, 'id' => $ref['bill_id']];
+                }
                 if ($p['kind'] === 'contract_create' && !empty($d['for_bill'])) $forBill = (string)$ref['id'];
-                $res['applied'][] = ['id' => $p['id'], 'kind' => $p['kind'], 'ref' => $ref, 'key' => self::key($p)];
+                $res['applied'][] = ['id' => $p['id'], 'kind' => $p['kind'], 'ref' => $ref, 'key' => self::key($p)] + $warn;
             } catch (\Throwable $e) {
                 $msg = $e instanceof LocalizedException ? $this->i18n->t($e->key, $e->params) : $e->getMessage();
                 $res['failed'][] = ['id' => $p['id'], 'kind' => $p['kind'], 'error' => $msg,
@@ -142,11 +150,49 @@ final class Applier
             $old = $this->bills->get($u, (string)$p['detail']['bill_id']);
             $ids = array_values(array_unique([...(array)($old['attachment_ids'] ?? []), ...(array)$d['attachment_ids']]));
             $b = $this->bills->update($u, (string)$old['id'], ['invoice' => $d['invoice'], 'kind' => $d['kind'], 'attachment_ids' => $ids]
-                + (empty($old['contract_id']) ? $own : []) + (isset($d['end_reading_on']) ? ['end_reading_on' => $d['end_reading_on']] : []));   // v3.9.0
+                + (empty($old['contract_id']) ? $own : []) + (isset($d['end_reading_on']) ? ['end_reading_on' => $d['end_reading_on']] : [])   // v3.9.0
+                + self::rightsPatch($old, $d, !empty($p['replaces'])));
+
         } else {
             $b = $this->bills->create($u, $own + $d);
         }
-        return ['bill_id' => (string)$b['id']];
+        // v3.11.0 (Nachprüfung NP5) — dieselbe Regel wie beim Speichern im Formular (BillController): Der geschätzte
+        // Endstand liefe gegen eine eigene Ablesung rückwärts → `warnings` und der Nachbar (gespeichert wird trotzdem)
+        $w = $this->bills->withEstimateWarnings($u, $b, $this->readings);
+        return ['bill_id' => (string)$b['id']] + (isset($w['estimated_reading_neighbor'])
+            ? ['warnings' => $w['warnings'], 'estimated_reading_neighbor' => $w['estimated_reading_neighbor']] : []);
+    }
+
+    /**
+     * v3.11.0 (F1035, Paket rechnung) — eine neue Fassung der erfassten Rechnung (Widerspruch im
+     * Bestand, etwa eine Rechnungskorrektur): Was sie zu den Rechten sagt, gilt jetzt —
+     * geschätzte Ränder (eine Korrektur ohne Schätzung nimmt sie zurück), Gutschriften
+     * und Messentgelt (ersetzen die Posten dieser Art, andere Posten bleiben) und ein neuer
+     * Bescheid. Das Rechnungsdatum bleibt das der ersten Fassung, wenn es eine Korrektur ist
+     * (`replaces`): Die Frist des § 40c EnWG betrifft die erste Fassung (A1). Sonst ergänzt es
+     * ein fehlendes Datum.
+     *
+     * @param array<string,mixed> $old die erfasste Rechnung
+     * @param array<string,mixed> $d   Daten des Vorschlags
+     * @return array<string,mixed>
+     */
+    private static function rightsPatch(array $old, array $d, bool $correction): array
+    {
+        // ohne Angabe im Dokument nimmt nur eine Korrektur die Schätzung zurück
+        $out = isset($d['reading_estimated']) || $correction ? ['reading_estimated' => $d['reading_estimated'] ?? null] : [];
+        // v3.11.0 (Skeptiker M5) — der geschätzte Endstand laut Rechnung (eine Korrektur ohne ihn nimmt ihn zurück)
+        if (isset($d['estimated_end_reading']) || $correction) $out['estimated_end_reading'] = $d['estimated_end_reading'] ?? null;
+        if (isset($d['items']) && is_array($d['items'])) {
+            $kinds = array_unique(array_column($d['items'], 'kind'));
+            $kept = array_values(array_filter((array)($old['items'] ?? []), fn($x) => is_array($x) && !in_array($x['kind'] ?? 'other', $kinds, true)));
+            $out['items'] = [...$kept, ...$d['items']];
+        }
+        if (isset($d['notice'])) $out['notice'] = $d['notice'];
+        if (!$correction && empty($old['issued_on']) && isset($d['issued_on'])) $out['issued_on'] = $d['issued_on'];
+        // v3.11.0 (integration) — Rechnungsnummer: die der geltenden Fassung (eine Korrektur trägt ihre eigene,
+        // Briefe beziehen sich auf sie); sonst ergänzt sie eine fehlende
+        if (isset($d['invoice_number']) && ($correction || empty($old['invoice_number']))) $out['invoice_number'] = $d['invoice_number'];
+        return $out;
     }
 
     private function book(string $u, array $p, ?array $billRef, array $entry): array

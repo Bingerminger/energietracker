@@ -227,8 +227,10 @@ export function weatherHtml(monthly, { quality } = {}) {
 //   befristet          Kündigen bis (cancel_by) → Ende (end); Stichtag verpasst
 //                      → eigener Text; verlängert sich nicht (auto_renews:
 //                      false) → kein Stichtag, endet ohnehin
-//   verlängert         Laufzeit abgelaufen, läuft weiter (renewed): jederzeit
-//                      kündbar, frühestens Ende = switch_date − 1
+//   verlängert         Laufzeit abgelaufen, läuft weiter (renewed): ohne Termin,
+//                      die Frist steht im Vertrag (v3.11.0, Skeptiker H3); Fernwärme
+//                      (`renewal_term`, § 32 AVBFernwärmeV): Ende der Verlängerung
+//                      = switch_date − 1, kündigen bis cancel_by
 //   unbefristet        jederzeit kündbar, frühestens Ende = switch_date − 1
 //                      (mit Mindestlaufzeit deren Ende); ohne Frist kein Termin
 // Dazu Mindestlaufzeit, Preisgarantie (Band auf der Achse), Preiserhöhung und
@@ -247,7 +249,15 @@ const addDays = (iso, n) => isoOf(dayNum(iso) + n);
 function timelineKind(row) {
   const basis = row.notice_basis || null;
   const earliest = isDate(row.switch_date) ? addDays(row.switch_date, -1) : null;
-  if ((row.renewed || basis === 'renewed') && earliest) return { kind: 'renewed', earliest };
+  // v3.11.0 (Skeptiker H3) — verlängert: Fernwärme nach § 32 AVBFernwärmeV mit Ende der Verlängerung
+  // und Kündigungstag (`renewal_term`); sonst ohne Termin („Frist steht im Vertrag“), nicht mehr
+  // „jederzeit kündbar“ mit berechnetem frühestem Ende
+  if (basis === 'renewal_term' && earliest && isDate(row.cancel_by)) return { kind: 'renewedTerm', earliest };
+  // v3.11.0 (Nachprüfung) — Grundversorgung: jederzeit mit zwei Wochen Frist, frühestes Ende = switch_date − 1;
+  // mit Folgevertrag (NP4) läuft er nur bis dahin weiter, ohne „bis du kündigst“
+  if (row.renewed && basis === 'basic_supply' && earliest) return { kind: 'renewedBasic', earliest };
+  if (row.renewed && row.successor && isDate(row.successor.start)) return { kind: 'renewedSuccessor', earliest: null };
+  if (row.renewed || basis === 'renewed') return { kind: 'renewed', earliest: null };
   if (row.is_open_ended || basis === 'open_ended' || basis === 'min_term') {
     if (!earliest) return { kind: 'running', earliest: null };
     return { kind: basis === 'min_term' ? 'minTerm' : 'anytime', earliest };
@@ -268,16 +278,19 @@ function timelineKind(row) {
 export function timelineHtml(row, today = todayIso()) {
   if (!isDate(row?.start) || !isDate(today)) return '';
   const { kind, earliest } = timelineKind(row);
-  const anytime = kind === 'renewed' || kind === 'anytime' || kind === 'minTerm';
-  const end = anytime ? earliest : (isDate(row.end) && kind !== 'running' ? row.end : null);
+  const anytime = kind === 'anytime' || kind === 'minTerm' || kind === 'renewedBasic';
+  const renewedKind = kind === 'renewed' || kind === 'renewedTerm' || kind === 'renewedBasic' || kind === 'renewedSuccessor';
+  const end = anytime || kind === 'renewedTerm' ? earliest : (isDate(row.end) && kind !== 'running' && !renewedKind ? row.end : null);
   const succ = row.successor && isDate(row.successor.start) ? row.successor : null;
+  // v3.11.0 (Skeptiker N10) — eine Lücke, die die Verlängerung ohne Kündigung füllt, ist keine
+  const gapDays = succ && !succ.gap_covered ? Number(succ.gap_days) || 0 : 0;
 
   const marks = [{ key: 'start', date: row.start }];
-  if (kind === 'renewed' && isDate(row.end)) marks.push({ key: 'termEnd', date: row.end });
+  if (renewedKind && isDate(row.end)) marks.push({ key: 'termEnd', date: row.end });
   if (isDate(row.min_term_end) && row.min_term_end !== end && row.min_term_end !== row.end) marks.push({ key: 'minTerm', date: row.min_term_end });
   if (isDate(row.price_guarantee_until)) marks.push({ key: 'guarantee', date: row.price_guarantee_until });
   if (isDate(row.price_increase?.from)) marks.push({ key: 'price', date: row.price_increase.from });
-  if (kind === 'fixed' || kind === 'missed') marks.push({ key: kind === 'missed' ? 'missed' : 'cancel', date: row.cancel_by });
+  if (kind === 'fixed' || kind === 'missed' || kind === 'renewedTerm') marks.push({ key: kind === 'missed' ? 'missed' : 'cancel', date: row.cancel_by });
   if (end) marks.push({ key: anytime ? 'earliest' : 'end', date: end });
   if (succ) marks.push({ key: 'successor', date: succ.start });
 
@@ -322,7 +335,7 @@ export function timelineHtml(row, today = todayIso()) {
   // Folgevertrag: eigene Strecke ab seinem Beginn, eine Lücke davor gestrichelt
   if (succ) {
     ranges.push(`<line class="ex-fade ex-range--next" style="--d:1s" x1="${xs(succ.start)}" y1="${A}" x2="${(W - PAD).toFixed(1)}" y2="${A}"/>`);
-    if (end && Number(succ.gap_days) > 0) ranges.push(`<line class="ex-fade ex-range--gap" style="--d:1s" x1="${xs(addDays(end, 1))}" y1="${A}" x2="${xs(succ.start)}" y2="${A}"/>`);
+    if (end && gapDays > 0) ranges.push(`<line class="ex-fade ex-range--gap" style="--d:1s" x1="${xs(addDays(end, 1))}" y1="${A}" x2="${xs(succ.start)}" y2="${A}"/>`);
   }
   const cutLeft = dayNum(row.start) < w0, cutRight = days.some(d => d > w1);
   const markSvg = items.filter(it => it.key !== 'today').map((it) => {
@@ -351,22 +364,30 @@ export function timelineHtml(row, today = todayIso()) {
   const p = { start: D(row.start), end: end ? D(end) : '–', cancel: isDate(row.cancel_by) ? D(row.cancel_by) : '–' };
   const base = {
     fixed: () => t('explainer.timeline.text', p),
-    missed: () => t('explainer.timeline.textMissed', p),
+    // v3.11.0 (Nachprüfung NP3) — Fernwärme ohne eingetragene Frist: Verlängerung nach § 32 AVBFernwärmeV
+    missed: () => row.renewal_term && isDate(row.renewal_term.until)
+      ? t('explainer.timeline.textMissedHeat', { ...p, until: D(row.renewal_term.until), next: D(row.renewal_term.cancel_by) })
+      : t('explainer.timeline.textMissed', p),
     noRenew: () => t('explainer.timeline.textNoRenew', p),
     noNotice: () => t('explainer.timeline.textNoNotice', p),
     renewed: () => t('explainer.timeline.textRenewed', { ...p, term: D(row.end) }),
+    renewedTerm: () => t('explainer.timeline.textRenewedHeat', { ...p, term: D(row.end) }),
+    renewedBasic: () => t('explainer.timeline.textRenewedBasic', { ...p, term: D(row.end) }),
+    renewedSuccessor: () => t('explainer.timeline.textRenewedSuccessor', { ...p, term: D(row.end) }),
     anytime: () => t('explainer.timeline.textAnytime', p),
     minTerm: () => t('explainer.timeline.textMinTerm', p),
     running: () => t('explainer.timeline.textRunning', p),
   }[kind]();
   const extra = [];
+  // v3.11.0 (Nachprüfung NP3) — der Kündigungstag stammt aus § 32 AVBFernwärmeV (keine Frist eingetragen)
+  if (kind === 'fixed' && row.renewal_term && isDate(row.renewal_term.until)) extra.push(t('explainer.timeline.textHeatNotice', { until: D(row.renewal_term.until) }));
   if (marks.some(m => m.key === 'minTerm') && dayNum(row.min_term_end) >= now) extra.push(t('explainer.timeline.textMinTermUntil', { date: D(row.min_term_end) }));
   if (isDate(row.price_guarantee_until) && dayNum(row.price_guarantee_until) >= now) extra.push(t('explainer.timeline.textGuarantee', { date: D(row.price_guarantee_until) }));
   if (isDate(row.price_increase?.from)) extra.push(t('explainer.timeline.textPrice', { date: D(row.price_increase.from) }));
   if (succ) {
     extra.push(succ.provider ? t('explainer.timeline.textSuccessor', { provider: succ.provider, start: D(succ.start) })
       : t('explainer.timeline.textSuccessorPlain', { start: D(succ.start) }));
-    if (Number(succ.gap_days) > 0) extra.push(tp('explainer.timeline.gap', Number(succ.gap_days)));
+    if (gapDays > 0) extra.push(tp('explainer.timeline.gap', gapDays));
   }
   return figure('ex-timeline', t('explainer.timeline.title'), { h: H, body }, [base, ...extra].join(' '));
 }

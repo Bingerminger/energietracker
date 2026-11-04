@@ -297,7 +297,7 @@ final class ResponsibilityTest extends ServiceTestCase
     {
         [$m, $c] = $this->seed(['assignee_id' => 'u_anna'], ['assignee_id' => 'u_anna']);
         $other = $this->meters->create('gas', ['name' => 'Gas', 'assignee_id' => 'u_ben']);
-        self::assertSame(['meters' => 1, 'contracts' => 1], $this->resp->countFor('u_anna'), 'Vorschau für den Dialog');
+        self::assertSame(['meters' => 1, 'contracts' => 1, 'tenancies' => 0], $this->resp->countFor('u_anna'), 'Vorschau für den Dialog');   // v3.11.0 (E) — dazu Mietverhältnisse
 
         unset($this->people['u_anna']);
         $this->gone['u_anna'] = 'Anna';

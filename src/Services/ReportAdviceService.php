@@ -387,8 +387,9 @@ final class ReportAdviceService
             $out[] = $this->info('cancelMissed', $c['utility'] ?? null, 'report.advice.cancelMissed.title', ['label' => $label],
                 'report.advice.cancelMissed.reason', ['provider' => $provider,
                     // das Vertragsende (wie bisher `effective_end` eines befristeten Vertrags; die
-                    // Abrechnungsperiode kann seit v3.9.0 früher enden)
-                    'end' => $this->i18n->date((string)($c['end'] ?? $c['effective_end'] ?? $today))], true);
+                    // Abrechnungsperiode kann seit v3.9.0 früher enden); v3.11.0 (Nachprüfung NP3) — Fernwärme
+                    // nach § 32 AVBFernwärmeV: das Ende der Verlängerung, die ohne Kündigung folgt
+                    'end' => $this->i18n->date((string)($c['renewal_term']['until'] ?? $c['end'] ?? $c['effective_end'] ?? $today))], true);
         }
         // Preiserhöhung
         $pi = $c['price_increase'] ?? null;
@@ -409,7 +410,11 @@ final class ReportAdviceService
             }
             $steps = [];
             // Rechtshinweis nur, wo Code und Katalog ihn schon führen (Deutschland)
-            if (($f['country'] ?? 'DE') === 'DE') $steps[] = $this->i18n->t('report.advice.priceIncrease.legalDe');
+            // v3.11.0 (F1035, Paket vertrag, B1/B3/B4) — die Sätze nach Verbrauchs- und Versorgungsart aus dem
+            // Vertragsstatus (`price_increase.notes`), dieselben wie Saldo-Karte und Prüfung A3
+            if (($f['country'] ?? 'DE') === 'DE') {
+                foreach (\Energietracker\Services\Rights\ContractChecks::noteParts($pi, (string)($c['utility'] ?? '')) as [$k, $p]) $steps[] = $this->i18n->t($k, $p);
+            }
             $out[] = $this->task('priceIncrease', $c['utility'] ?? null, (string)($c['rec_price'] ?? ''),
                 'report.advice.priceIncrease.title', ['label' => $label],
                 'report.advice.priceIncrease.reason', ['date' => $this->i18n->date((string)$pi['from']), 'parts' => implode(' ', $parts)],

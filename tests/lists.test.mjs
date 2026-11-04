@@ -71,6 +71,12 @@ const bp = await import(JS('lib/billing-period.js'));
   t('ohne Phase gilt ein Vertrag als aktuell', order.phaseOf({}) === 'current' && order.groupOf({ phase: 'renewed' }) === 'current');
   t('Jahre am Eintrag', order.yearsOf(list[2]).span === '2023' && order.yearsOf(list[5]).span === '2024–2025' && order.yearsOf(list[1]).since === '2022');
   t('Statusmarke aus der Phase', /class="status-pill active" data-phase="renewed"/.test(order.phasePill({ phase: 'renewed' })));
+  // v3.11.0 (Skeptiker N9) — abgelöst vor dem eingetragenen Ende: „Abgelöst“ und das wirksame Ende, nicht „Beendet 2024–2029“
+  const sup = { phase: 'past', start: '2024-01-01', end: '2029-12-31', coverage: { superseded_on: '2025-12-31' } };
+  const pill = order.phasePill(sup);
+  t('abgelöst: eigene Marke, Jahre bis zum wirksamen Ende', /data-phase="past"/.test(pill) && /ABGELÖST|contracts\.phase\.superseded/.test(pill)
+    && order.yearsOf(sup).span === '2024–2025' && order.supersededOn(sup) === '2025-12-31', pill);
+  t('abgelöst am Ende selbst (lückenlos): weiter „Beendet“', order.supersededOn({ phase: 'past', start: '2024-01-01', end: '2025-12-31', coverage: { superseded_on: '2025-12-31' } }) === null);
 }
 
 {

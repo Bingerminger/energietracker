@@ -15,19 +15,20 @@ final class TenancyController
 {
     public function __construct(private TenancyService $tenancies, private TenancyBudgetService $budget) {}
 
+    // v3.11.0 (E) — Antworten mit Zuständigkeit (`assignee`, `assignee_former`, `assignee_deleted`)
     public function index(Request $req): never
     {
-        Response::json($this->tenancies->list());
+        Response::json(array_map(fn($t) => $this->tenancies->forApi($t), $this->tenancies->list()));
     }
 
     public function create(Request $req): never
     {
-        Response::json($this->tenancies->create((array)$req->body), 201);
+        Response::json($this->tenancies->forApi($this->tenancies->create((array)$req->body)), 201);
     }
 
     public function update(Request $req): never
     {
-        Response::json($this->tenancies->update((string)$req->param('id'), (array)$req->body));
+        Response::json($this->tenancies->forApi($this->tenancies->update((string)$req->param('id'), (array)$req->body)));
     }
 
     public function destroy(Request $req): never

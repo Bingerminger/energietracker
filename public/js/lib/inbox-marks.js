@@ -52,5 +52,8 @@ export function proposalNotes(p) {
   else if (group(p?.hints, 'net_price').length) out.push(t('inbox.note.netPrice'));
   // v3.9.0 (F1034) — Rhythmus laut Rechnung gegen ihre Termine
   if (group(p?.hints, 'rhythm_conflict').length) out.push(t('inbox.note.rhythmConflict'));
+  // v3.11.0 (F1035, C) — Preisänderung: Zweitarif (Preis je Zähler), Abschlag ohne eigenen Tag
+  if (group(p?.hints, 'per_meter').length) out.push(t('inbox.note.perMeter'));
+  if (group(p?.hints, 'from_price_change').length) out.push(t('inbox.note.advanceFromPrice'));
   return out;
 }

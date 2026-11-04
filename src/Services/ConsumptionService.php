@@ -319,6 +319,9 @@ final class ConsumptionService
         }
 
         $out = [];
+        // v3.11.0 (D, #54) — abgelöst und fortgeschrieben aus einer Quelle (ContractService::coverage),
+        // derselben wie Vertragsliste und Abrechnungsjahr
+        $coverage = $this->contracts->coverage($contracts);
         foreach ($contracts as $c) {
             $cid     = $c['id'];
             $mList   = $byContract[$cid] ?? [];
@@ -329,20 +332,17 @@ final class ConsumptionService
             // zählten seine Abschläge im Saldo bis heute weiter — der Saldo lag um
             // etwa einen Jahresbetrag zu günstig. Gespeichert bleibt das Ende, wie es ist.
             $storedEnd = $c['end'] ?? null;
-            $supersededOn = self::supersededOn($c, $contracts);
+            $supersededOn = $coverage[(string)$cid]['superseded_on'] ?? null;
             if ($supersededOn !== null) $c['end'] = $supersededOn;
             $isCur   = ($c['start'] ?? '9999') <= $today && (empty($c['end']) || $c['end'] >= $today);
             $isPast  = !empty($c['end']) && $c['end'] < $today;
             $isFut   = ($c['start'] ?? '9999') > $today;
             $isOpen  = empty($storedEnd);
             // v2.9.0 (Review CALC-10) — abgelaufen, aber ohne Nachfolger und
-            // nicht gekündigt: Der Vertrag läuft weiter (§ 309 Nr. 9 BGB).
+            // nicht gekündigt: Der Vertrag läuft weiter (v3.11.0: zu den Preisen, die
+            // eingetragen sind, auch nach dem Ende; Kündigungsfrist laut Vertrag).
             // Er zählt dann als laufend, bis zur nächsten Abrechnung.
-            $renewed = false;
-            if ($isPast && ContractService::renews($c)) {
-                $r = $this->contracts->resolveForDate($contracts, $today);
-                $renewed = $r !== null && $r['assumed'] && ($r['contract']['id'] ?? null) === $cid;
-            }
+            $renewed = $isPast && ContractService::coveredOn($coverage[(string)$cid] ?? null, $today) === true;
             if ($renewed) {
                 $isCur = true;
                 $isPast = false;
@@ -421,7 +421,7 @@ final class ConsumptionService
                 : $isCur && $settledFrom !== null && $settledFrom > $balanceFrom && $settledFrom <= $today;
             if ($windowed) {
                 $balanceFrom = $period !== null ? $openFrom : $settledFrom;
-                $mList = self::rowsFrom($mList, $balanceFrom);
+                $mList = self::rowsFrom($mList, $balanceFrom, $c);
             }
             // v3.9.0 (V1) — in einer angeschnittenen Abrechnungsperiode zählt von den
             // Sonderzahlungen nur die zusätzliche Abschlagszahlung: Rück- und
@@ -572,7 +572,10 @@ final class ConsumptionService
             // nicht zum Vertragsende: Mit einem Monat Frist kamen zwei der drei
             // Erinnerungen nach dem Stichtag, mit drei Monaten alle drei. Ohne
             // gepflegte Frist bleibt es beim Vertragsende.
-            $timing = $this->contracts->switchTiming($c, $today, $renewed);
+            // v3.11.0 (Skeptiker H3) — mit Verbrauchsart und Land: Fernwärme nach § 32 AVBFernwärmeV
+            // v3.11.0 (Nachprüfung NP4) — verlängert bis zum Folgevertrag (coverage `to`): dann gilt er, kein § 32-Ende
+            $timing = $this->contracts->switchTiming($c, $today, $renewed, $utility, (string)$this->settings->get('country', 'DE'),
+                $renewed ? ($coverage[(string)$cid]['to'] ?? null) : null);
             $remindBasis = null;
             $ref = null;
             $cancelMissed = false;
@@ -662,8 +665,12 @@ final class ConsumptionService
                 'notice_basis'                => $timing['basis'],
                 'remind_basis'                => $remindBasis,
                 'cancel_missed'               => $cancelMissed,
+                // v3.11.0 (Nachprüfung NP3, additiv) — Fernwärme ohne eingetragene Frist: die Verlängerung nach
+                // § 32 AVBFernwärmeV, die ohne Kündigung folgt {until, cancel_by}; sonst null
+                'renewal_term'                => $timing['renewal_term'] ?? null,
+                // v3.11.0 (Skeptiker H1) — bis zum letzten Tag, an dem er abrechnet (Verlängerung eingeschlossen)
                 'price_increase'              => $isCur && !$isFeedIn && $utility !== 'wasser'
-                    ? $this->upcomingPriceIncrease($c, $today) : null,
+                    ? $this->upcomingPriceIncrease($c, $today, $utility, $coverage[(string)$cid] ?? null) : null,
                 // v3.4.0 (F1026) — für den Zeitstrahl „Vertrag auf einen Blick“
                 // (additiv): Mindestlaufzeit, Preisgarantie und ob er sich ohne
                 // Kündigung verlängert (wirksamer Wert: fehlt = ja)
@@ -716,6 +723,10 @@ final class ConsumptionService
                     // nur beim laufenden Vertrag (additiv)
                     'balance_path'             => $projection['path'],
                 ];
+            } elseif ($laterPeriod) {
+                // v3.11.0 (basis, Nachtrag v3.10.0) — künftiger Folgevertrag einer späteren Periode: das Feld
+                // steht da (null) wie an jeder anderen Zeile, statt zu fehlen
+                $row['balance_measured'] = null;
             }
             // v3.10.0 (Skeptiker N1) — endet der Vertrag spätestens zur Abrechnung und ist ein Folgevertrag
             // eingetragen, gilt danach dessen Preis und Abschlag: kein „Danach wären rund … angemessen“
@@ -932,32 +943,16 @@ final class ConsumptionService
     /**
      * v2.9.0 (Review CALC-11) — Die nächste angekündigte Preiserhöhung eines
      * Vertrags: der erste Stichtag nach heute, an dem Arbeits- oder Grundpreis
-     * steigt. In Deutschland besteht dann ein Sonderkündigungsrecht zum
-     * Zeitpunkt der Änderung (§ 41 Abs. 5 EnWG); die Oberfläche sagt das dazu.
+     * steigt. Ob es dazu ein Sonderkündigungsrecht gibt, steht seit v3.11.0 in
+     * `termination` (Strom und Gas; nicht Fernwärme, nicht bei reiner Steueränderung).
      *
-     * @return array{from:string,working_price_ct:?array{0:float,1:float},base_price_eur:?array{0:float,1:float}}|null
+     * @return array<string,mixed>|null ContractService::priceIncrease()
      */
-    private function upcomingPriceIncrease(array $c, string $today): ?array
+    private function upcomingPriceIncrease(array $c, string $today, string $utility, ?array $cov = null): ?array
     {
-        $dates = [];
-        foreach (['working_prices', 'base_prices'] as $group) {
-            foreach ($c[$group] ?? [] as $e) {
-                $d = (string)($e['from'] ?? '');
-                if ($d > $today && (empty($c['end']) || $d <= $c['end'])) $dates[$d] = true;
-            }
-        }
-        $dates = array_keys($dates);
-        sort($dates);
-        foreach ($dates as $d) {
-            $out = ['from' => $d, 'working_price_ct' => null, 'base_price_eur' => null];
-            foreach (['working_prices' => ['ct_per_kwh', 'working_price_ct'], 'base_prices' => ['eur_per_month', 'base_price_eur']] as $group => [$field, $key]) {
-                $now = $this->contracts->valueOnDate($c[$group] ?? [], $field, $today);
-                $new = $this->contracts->valueOnDate($c[$group] ?? [], $field, $d);
-                if ($now !== null && $new !== null && $new > $now + 1e-9) $out[$key] = [$now, $new];
-            }
-            if ($out['working_price_ct'] !== null || $out['base_price_eur'] !== null) return $out;
-        }
-        return null;
+        // v3.11.0 (F1035, Paket vertrag, B1–B4) — eine Stelle mit der Prüfung A3: ContractService::priceIncrease
+        // (dazu additiv: Schreiben vom, reine Steueränderung, ob und welches Sonderkündigungsrecht, Termin)
+        return $this->contracts->priceIncrease($c, $today, $utility, (string)$this->settings->get('country', 'DE'), $cov);
     }
 
     /**
@@ -1096,18 +1091,18 @@ final class ConsumptionService
         foreach ($monthly as $m) if (!empty($m['working_price_ct'])) $fallbackWp = (float)$m['working_price_ct'];
 
         // v2.9.0 — je Tag zum an diesem Tag gültigen Arbeitspreis (CALC-10);
-        // nach dem Ende eines weiterlaufenden Vertrags zu seinem letzten Preis
+        // nach dem Ende eines weiterlaufenden Vertrags zu seinem letzten Preis.
+        // v3.11.0 (Skeptiker H1) — oder zu einem Preis, der nach dem Ende eingetragen ist (der letzte
+        // Eintrag bis zu dem Tag, wie ContractService::priceDate); bis v3.10 fiel er weg
         $c = $this->contractView($utility, $meter, $c);   // v3.1.0 (H6) — HT/NT der Gruppe: Mischpreis
-        $end = (string)($c['end'] ?? '');
-        $energy = function (string $from, string $to, ?array $opt = null) use ($c, $est, $fallbackWp, $end): float {
+        $energy = function (string $from, string $to, ?array $opt = null) use ($c, $est, $fallbackWp): float {
             // v2.8.1 — ohne verwertbare Monate (noch keine zwei Ablesungen,
             // oder alle vor einer Zäsur) gibt es nichts hochzurechnen. In
             // v2.8.0 rief der Saldo hier null auf und brach mit HTTP 500 ab.
             if ($est === null) return 0.0;
             $sum = 0.0;
             foreach ($est($from, $to, $opt) as $date => $vol) {
-                $priceDay = $end !== '' && $date > $end ? $end : $date;
-                $wp = $this->contracts->valueOnDate($c['working_prices'] ?? [], 'ct_per_kwh', $priceDay) ?? $fallbackWp ?? 0.0;
+                $wp = $this->contracts->valueOnDate($c['working_prices'] ?? [], 'ct_per_kwh', (string)$date) ?? $fallbackWp ?? 0.0;
                 $sum += $vol * (float)$wp / 100.0;
             }
             return $sum;
@@ -1180,8 +1175,9 @@ final class ConsumptionService
         $ongoing = null;
         if ($est !== null && $uncertain === null && $curAp !== null && $asOf === $today) {
             $next = date('Y-m-d', strtotime($endExcl . ' +1 year'));
-            $priceDay = $end !== '' && $endExcl > $end ? $end : $endExcl;
-            $fixed = (float)($this->contracts->fixedPerMonthOn($c, $priceDay) ?? 0.0);
+            // v3.11.0 (Skeptiker H1) — feste Kosten des Tags nach der Abrechnung (nach dem Ende eines
+            // weiterlaufenden Vertrags: der letzte Eintrag bis dahin, auch einer nach dem Ende)
+            $fixed = (float)($this->contracts->fixedPerMonthOn($c, $endExcl) ?? 0.0);
             $yearCost = $energy($endExcl, $next) + 12 * $fixed;
             // v3.9.0 (Skeptiker H1) — mit Rhythmus je Rate wie der Plan (alle 2 Monate: ÷ 6);
             // bis dahin stand ein Monatsbetrag neben dem Betrag je Termin („76 € statt 165 €“)
@@ -1250,7 +1246,8 @@ final class ConsumptionService
                     $bp = $this->contracts->fixedPerMonthOn($c, ContractService::priceDate($seg));
                     if ($bp !== null) $base += $bp * $seg['days'] / $dim;
                 }
-                $bonus  = $this->contracts->bonusForMonth($c, (int)date('Y', $t), (int)date('n', $t));
+                // v3.11.0 (#56) — nur Boni mit ihrem Tag in den Tagen dieses Monats, die der Saldo zählt
+                $bonus  = ContractService::bonusBetween($c, $cFrom, $cTo);
                 $apDate = $segments !== [] ? ContractService::priceDate($segments[0]) : $cFrom;
                 // v3.9.0 (F1034) — dieselben Abschläge wie calendarSums (Raten mit Rhythmus in ihrem Monat)
                 $ap     = ContractService::advanceIn($plan, $apDate, $cFrom, $cTo, min(1.0, $cDays / $dim), $dim);
@@ -1334,7 +1331,9 @@ final class ConsumptionService
                 $bp = $this->contracts->fixedPerMonthOn($c, ContractService::priceDate($seg));
                 if ($bp !== null) $base += $bp * $seg['days'] / $dim;
             }
-            $bonus += $this->contracts->bonusForMonth($c, (int)date('Y', $t), (int)date('n', $t));
+            // v3.11.0 (#56) — ab dem Beginn des Saldos tagesgenau (ein Bonus am letzten Tag der alten Periode zählt
+            // nicht noch einmal); im Monat der letzten Ablesung wie bisher der ganze Monat, wie die Kachel (v3.10.0, #49)
+            $bonus += ContractService::bonusBetween($c, $cFrom, date('Y-m-d', (int)strtotime('+1 month', $t)));
             $apDate = $segments !== [] ? ContractService::priceDate($segments[0]) : $cFrom;
             $adv += ContractService::advanceIn($plan, $apDate, $cFrom, $cTo, min(1.0, $cDays / $dim), $dim) ?? 0.0;
         }
@@ -1427,8 +1426,9 @@ final class ConsumptionService
      *
      *   Grundpreis  tagesanteilig: bis heute über [Beginn, heute), Rest über
      *               [heute, Ende)
-     *   Boni        nach Gutschriftmonat (bonusForMonth): bis heute die Monate
-     *               bis einschließlich des laufenden, Rest die danach
+     *   Boni        nach Gutschriftmonat: bis heute die Monate bis einschließlich
+     *               des laufenden, Rest die danach; v3.11.0 (#56) nur Boni, deren
+     *               Tag in den gezählten Tagen des Monats liegt (bonusBetween)
      *   Abschläge   nach Zahlungsplan, dieselbe Monatsaufteilung; der laufende
      *               Monat zählt ganz (fällig am Monatsanfang), angebrochene
      *               Vertragsmonate (Beginn/Ende mitten im Monat) anteilig
@@ -1468,7 +1468,9 @@ final class ConsumptionService
             }
             // Boni nur in der eigentlichen Laufzeit (Gutschrift nach dem Ende
             // zählt im letzten Vertragsmonat, s. bonusForMonth)
-            $out[$bucket]['bonus'] += $this->contracts->bonusForMonth($c, $y, $mo);
+            // v3.11.0 (#56) — tagesgenau: Beginnt der Saldo mitten im Monat (Abrechnungsperiode ab dem 22.),
+            // zählt ein Bonus vom 21. zur alten Periode, nicht noch einmal hier
+            $out[$bucket]['bonus'] += ContractService::bonusBetween($c, $cFrom, $cTo);
             // Abschlag: der Betrag am ersten Vertragstag des Monats, anteilig
             $apDate = $segments !== [] ? ContractService::priceDate($segments[0]) : $cFrom;
             // v3.9.0 (F1034) — Raten eines Plans mit Rhythmus ganz an ihrem Tag: bis heute, wenn bis heute fällig
@@ -2211,15 +2213,25 @@ final class ConsumptionService
      * @param list<array<string,mixed>> $rows
      * @return list<array<string,mixed>>
      */
-    private static function rowsFrom(array $rows, string $from): array
+    private static function rowsFrom(array $rows, string $from, ?array $contract = null): array
     {
         $out = [];
         foreach ($rows as $r) {
             $s = self::shareFrom((string)($r['ym'] ?? ''), $from);
             if ($s <= 0.0) continue;
             if ($s < 1.0) {
+                $bonus = (float)($r['bonus_eur'] ?? 0);
                 foreach (['kwh', 'billed_kwh', 'm3', 'cost', 'kwh_cost', 'base_price_eur', 'bonus_eur', 'advance_eur'] as $k) {
                     if (isset($r[$k]) && is_numeric($r[$k])) $r[$k] = (float)$r[$k] * $s;
+                }
+                // v3.11.0 (Nachprüfung NP7) — der Bonus gehört nach seinem Gutschriftstag ganz in den Monatsteil
+                // ab `$from` oder gar nicht (wie Saldo und Abrechnungsjahr seit #56), kein Tagesanteil. Die
+                // Vertragstabelle zeigte sonst 75 € × 16/31 = 38,71 €, eine Zahl, die in keinem Saldo steckt.
+                if ($contract !== null && $bonus > 0.0 && preg_match('/^\d{4}-\d{2}$/', (string)($r['ym'] ?? ''))) {
+                    $next = (new \DateTimeImmutable($r['ym'] . '-01'))->modify('first day of next month')->format('Y-m-d');
+                    $exact = min($bonus, ContractService::bonusBetween($contract, $from, $next));
+                    if (isset($r['cost']) && is_numeric($r['cost'])) $r['cost'] = (float)$r['cost'] + (float)$r['bonus_eur'] - $exact;
+                    $r['bonus_eur'] = $exact;
                 }
                 foreach (['trinkwasser' => ['working_cost', 'base_cost', 'total'], 'schmutzwasser' => ['working_cost', 'base_cost', 'total'], 'niederschlagswasser' => ['total']] as $part => $keys) {
                     if (!is_array($r[$part] ?? null)) continue;
@@ -4926,6 +4938,12 @@ final class ConsumptionService
         if ($group === []) return [$own, null];
         $members = $this->meters->groupMembers($utility, $gid);
         return [array_merge($own, $group), ['member' => (string)$meter['id'], 'primary' => (string)($members[0]['id'] ?? '') === (string)$meter['id']]];
+    }
+
+    /** v3.11.0 (D, #54) — der Vertragsdienst, nach dem hier gerechnet wird (für ContractService::coverage im Abrechnungsjahr). */
+    public function contractsService(): ContractService
+    {
+        return $this->contracts;
     }
 
     // ── v3.9.0 (F1032, GitHub #40) — Rest-Abrechnung am Elternzähler ─────────

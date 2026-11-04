@@ -594,6 +594,21 @@ funktionieren weiter.
   `ET_CA_FILE` nennen, etwa
   `-v $PWD/meine-root-ca.pem:/certs/meine-root-ca.pem:ro` und
   `-e ET_CA_FILE=/certs/meine-root-ca.pem`. Beide Wege lassen sich kombinieren.
+  Mit Docker Compose *(v3.11.0, GitHub #36)*:
+
+  ```yaml
+  services:
+    energietracker:
+      image: ghcr.io/bingerminger/energietracker:3
+      volumes:
+        - ./certs/meine-root-ca.pem:/certs/meine-root-ca.pem:ro
+      environment:
+        ET_CA_FILE: /certs/meine-root-ca.pem
+  ```
+
+  Die Datei muss für den Benutzer im Container lesbar sein, etwa mit
+  `chmod 644 certs/meine-root-ca.pem`. Häng nur das Zertifikat ein, nie den
+  privaten Schlüssel.
 - Unter Einstellungen → System (Diagnose) steht, wie viele eigene
   Stammzertifikate gelten und ob die Datei aus `ET_CA_FILE` lesbar ist.
 

@@ -218,7 +218,8 @@
       "billNoDeadline": "keine gesetzliche Frist",
       "billAction": "Rechnung erfassen",
       "heatLimitAction": "Ansehen",
-      "readingCheckAction": "Ablesungen ansehen"
+      "readingCheckAction": "Ablesungen ansehen",
+      "rightsAction": "Ansehen"
     },
     "welcome": {
       "title": "Willkommen beim Energietracker",
@@ -301,7 +302,8 @@
       "notePlaceholder": "optional",
       "addNote": "+ Notiz",
       "hideNote": "− Notiz ausblenden",
-      "otherDate": "Anderes Datum"
+      "otherDate": "Anderes Datum",
+      "reported": "an den Versorger gemeldet"
     },
     "status": {
       "saving": "Speichert …",
@@ -490,12 +492,11 @@
       "gpPlus": " + {value} Grundpreis",
       "suggestAdvance": "Mit {suggested} statt {current} Abschlag läge die Abrechnung bei etwa ±0.",
       "measuredThenEstimated": "gemessen bis {date} ({amount}), danach geschätzt: {value}",
-      "renewed": "Die Laufzeit endete am {date}. Der Vertrag läuft ohne Kündigung zu den letzten Preisen weiter und ist jederzeit mit höchstens einem Monat Frist kündbar.",
-      "cancelMissed": "Kündigungsstichtag {date} verpasst: Der Vertrag endet nicht zum {end}, sondern läuft weiter — danach mit höchstens einem Monat Frist kündbar.",
+      "renewed": "Die Laufzeit endete am {date}. Der Vertrag läuft ohne Kündigung weiter; wie und mit welcher Frist du kündigen kannst, steht im Vertrag.",
+      "cancelMissed": "Kündigungsstichtag {date} verpasst: Der Vertrag endet nicht zum {end}, sondern läuft weiter. Wie lange und mit welcher Frist, steht im Vertrag.",
       "priceIncrease": "Preiserhöhung ab {date}: {what}.",
       "piWorking": "Arbeitspreis {from} → {to} {minor}/kWh",
       "piBase": "Grundpreis {from} → {to} {cur}/Monat",
-      "priceIncreaseDe": "Bis dahin besteht ein Sonderkündigungsrecht zum Zeitpunkt der Erhöhung (§ 41 Abs. 5 EnWG).",
       "pathTitle": "Kosten und Abschläge im Abrechnungszeitraum",
       "pathCost": "Kosten, aufsummiert",
       "pathPaid": "Bezahlt: Abschläge und Sonderzahlungen",
@@ -554,7 +555,11 @@
       "bandFew": {
         "one": "Zu wenige gemessene Monate, je nach Schätzung {range} ({level}, {count} Tag geschätzt).",
         "other": "Zu wenige gemessene Monate, je nach Schätzung {range} ({level}, {count} Tage geschätzt)."
-      }
+      },
+      "renewedHeat": "Die Laufzeit endete am {date}. Wird ein Fernwärmevertrag nicht neun Monate vor Ablauf gekündigt, verlängert er sich um jeweils fünf Jahre (§ 32 AVBFernwärmeV). Steht in deinem Vertrag nichts anderes, läuft er bis {until}; die schriftliche Kündigung muss bis {cancel} beim Versorger sein.",
+      "cancelMissedHeat": "Kündigungstag {date} verpasst: Wird ein Fernwärmevertrag nicht neun Monate vor Ablauf gekündigt, verlängert er sich um fünf Jahre (§ 32 AVBFernwärmeV). Steht in deinem Vertrag nichts anderes, läuft er nach dem {end} weiter bis {until}; die nächste schriftliche Kündigung muss bis {cancel} beim Versorger sein.",
+      "renewedSuccessor": "Die Laufzeit endete am {date}. Der Vertrag läuft ohne Kündigung weiter, bis am {start} der Folgevertrag beginnt.",
+      "renewedBasic": "Die Laufzeit endete am {date}. In der Grundversorgung kannst du jederzeit mit zwei Wochen Frist in Textform kündigen (§ 20 {gvv}); heute gekündigt, endet der Vertrag frühestens am {earliest}."
     },
     "contractsTable": {
       "emptyTitle": "Keine Verträge erfasst",
@@ -573,7 +578,7 @@
       "periodOpen": "{start} → laufend",
       "gpSuffix": "Grundpreis {value} {cur}/Monat",
       "colSpecial": "Sonderzahlungen",
-      "hint": "Bonus = Gutschriften aus dem Vertrag (Sofort-, Wechsel-, Neukundenbonus). Sonderzahlungen = Rückzahlungen (+), Nach- und Abschlagszahlungen (−) außerhalb des Abschlagsplans; beide gehen in den Saldo ein. Antippen zeigt die Einzelposten; gepflegt werden sie in der Vertragsverwaltung.",
+      "hint": "Bonus = Gutschriften aus dem Vertrag (Sofort-, Wechsel-, Neukundenbonus), gezählt am Tag der Gutschrift im Zeitraum der Zeile. Sonderzahlungen = Rückzahlungen (+), Nach- und Abschlagszahlungen (−) außerhalb des Abschlagsplans; beide gehen in den Saldo ein. Antippen zeigt die Einzelposten; gepflegt werden sie in der Vertragsverwaltung.",
       "colEarned": "Vergütung",
       "colReceived": "Erhalten",
       "futureLegend": "≈ Künftiger Vertrag: Der erwartete Saldo ist geschätzt, ab Vertragsbeginn mit seinen Preisen, seinem Abschlag und deinem bisherigen Verbrauch."
@@ -916,7 +921,8 @@
       "valuesOn": "Stand {date}",
       "noValues": "Noch keine Preise eingetragen",
       "since": "seit {year}",
-      "advanceValueEvery": "Abschlag {value}"
+      "advanceValueEvery": "Abschlag {value}",
+      "nextValues": "ab {date}: {values}"
     },
     "summary": {
       "twPrices": {
@@ -958,7 +964,9 @@
       "copyStart": "Ab Beginn",
       "copyStartTitle": "Datum dieser Zeile auf den Vertragsbeginn setzen",
       "removeRow": "Zeile entfernen",
-      "setStartFirst": "Bitte zuerst Vertragsbeginn setzen"
+      "setStartFirst": "Bitte zuerst Vertragsbeginn setzen",
+      "announcedOn": "Schreiben vom",
+      "vatPct": "USt %"
     },
     "kinds": {
       "rueckzahlung_mit": "Rückzahlung (mit Auswirkung auf Abschläge)",
@@ -1008,12 +1016,20 @@
       },
       "noticeModeHint": "Automatisch: zum Vertragsende, ohne Ende jederzeit zum Monatsende. Die Grundversorgung ist zum Beispiel jederzeit mit zwei Wochen kündbar.",
       "autoRenews": "Verlängert sich ohne Kündigung",
-      "autoRenewsHint": "Nach dem Ende läuft der Vertrag zu den letzten Preisen weiter, bis er gekündigt wird — dann mit höchstens einem Monat Frist. Abwählen, wenn gekündigt ist.",
+      "autoRenewsHint": "Nach dem Ende läuft der Vertrag weiter, bis er gekündigt wird; die Frist dafür steht im Vertrag. Abwählen, wenn gekündigt ist.",
       "groupTargets": "Zählergruppen (ein Vertrag für alle)",
       "section": {
         "contract": "Vertrag",
         "term": "Laufzeit und Kündigung"
-      }
+      },
+      "supplyKind": "Versorgungsart",
+      "supplyKindHint": "Steht auf der Rechnung. Davon hängt ab, welche Regeln bei Preisänderung und Kündigung gelten.",
+      "supplyKindOption": {
+        "unknown": "nicht angegeben",
+        "basic": "Grundversorgung",
+        "special": "Sondervertrag"
+      },
+      "priceOriginHint": "Ändert der Versorger die Preise, trag bei „Schreiben vom“ das Datum seines Briefs ein. Dann unterscheidet die App eine Preisänderung von einem vereinbarten Stufenpreis; mit dem Steuersatz erkennt sie eine reine Steueränderung."
     },
     "delete": { "title": "Vertrag löschen?", "confirm": "Löschen", "deleted": "Vertrag gelöscht", "messageNamed": "Vertrag „{name}“ dauerhaft löschen? Seine Preise, Abschläge und Boni gehen verloren." },
     "deleteContract": "Vertrag löschen",
@@ -1099,7 +1115,9 @@
       "hint": "Steht auf der Rechnung oder im Preisblatt des Wärmeversorgers. Leistungs- und Messpreis zählen zu den festen Kosten; der CO₂-Faktor des Netzes ersetzt den allgemeinen Wert für Fernwärme."
     },
     "hint": {
-      "termOver24": "Hinweis: Die Mindestlaufzeit ist länger als 24 Monate. In Deutschland ist eine so lange Erstlaufzeit für Verbraucher unwirksam (§ 309 Nr. 9 BGB)."
+      "termOver24": "Hinweis: Die Mindestlaufzeit ist länger als 24 Monate. Bei Strom und Gas begrenzt § 309 Nr. 9 BGB die erste Laufzeit in Verbraucherverträgen mit vorformulierten Bedingungen auf 24 Monate; ob das für deinen Vertrag gilt, ist zu prüfen (§ 310 Abs. 2 BGB). Prüf die Angabe im Vertrag.",
+      "termOver10y": "Hinweis: Die Mindestlaufzeit ist länger als zehn Jahre. Für Fernwärme sieht die Verordnung höchstens zehn Jahre vor (§ 32 AVBFernwärmeV). Prüf die Angabe im Vertrag.",
+      "conflict": "Dieser Vertrag widerspricht einem anderen. Der Hinweis steht an der Vertragskarte."
     },
     "groupPrices": {
       "title": "Arbeitspreis je Zähler (z. B. HT/NT)",
@@ -1145,7 +1163,8 @@
       "current": "AKTIV",
       "renewed": "VERLÄNGERT",
       "past": "BEENDET",
-      "shadow": "ANGEBOT"
+      "shadow": "ANGEBOT",
+      "superseded": "ABGELÖST"
     },
     "phaseGroup": {
       "future": "Zukünftig",
@@ -1173,7 +1192,21 @@
       "dueDates": "Termine laut Rechnung: {dates}, danach jährlich zu denselben Tagen",
       "none": "{from} bis {to}: kein Abschlag eingetragen. Hast du in der Zeit gezahlt, trag den Betrag hier ein.",
       "noneOpen": "Ab {from} kein Abschlag eingetragen."
-    }
+    },
+    "coverage": {
+      "superseded": "Abgelöst: gilt bis {date}",
+      "renewed": "Verlängert seit {date}",
+      "renewedUntil": "Verlängert bis {date}"
+    },
+    "conflict": {
+      "fixEnd": "Ende von „{name}“ auf {date} setzen",
+      "bothRight": "Beides stimmt",
+      "fixed": "Ende gespeichert.",
+      "dismissed": "Hinweis ausgeblendet.",
+      "check": "Verträge prüfen"
+    },
+    "assumedPeriod": "Angenommen: Vom {from} bis {until} rechnet die App mit „{name}“ weiter, obwohl „{other}“ laut Eintrag bis {otherEnd} läuft.",
+    "advanceVsCost": "Die Abschläge sind rund {factor}-mal so hoch wie die Kosten. Stimmen Vertrag und Preise?"
   },
   "meters": {
     "loading": "Lädt …",
@@ -1453,6 +1486,22 @@
       "label": "Einspeisezählwerk von",
       "none": "Hausanschluss (Einspeisung ins Netz)",
       "hint": "Hängen Zähler hintereinander und zählt auch ein Zähler weiter hinten rückwärts (2.8.0), wähle hier diesen Zähler. Sein Einspeisezählwerk zählt nicht als Einspeisung ins Netz. Aus den Differenzen rechnet die App, wie viel Sonnenstrom jeder Strang selbst nutzt."
+    },
+    "metering": {
+      "title": "Messstellenbetrieb",
+      "device": "Messeinrichtung",
+      "unknown": "weiß nicht",
+      "conventional": "konventioneller Zähler (Drehscheibe)",
+      "mme": "moderne Messeinrichtung (digitaler Zähler)",
+      "imsys": "intelligentes Messsystem (Smart Meter mit Kommunikation)",
+      "operator": "Messstellenbetreiber",
+      "basic": "grundzuständig (nicht selbst gewählt)",
+      "competitive": "frei gewählt",
+      "hint": "Für den Hinweis zum Messentgelt unter „Deine Rechte als Kunde“: Die gesetzliche Obergrenze hängt von der Messeinrichtung ab und gilt nur für den grundzuständigen Messstellenbetreiber."
+    },
+    "pvKw": {
+      "label": "Leistung der Anlage (kW)",
+      "hint": "Für die Obergrenze des Messentgelts am Stromzähler (Anlagen über 7 kW)."
     }
   },
   "settings": {
@@ -2270,6 +2319,22 @@
       "handedOverRecords": {
         "one": "{count} Zähler oder Vertrag liegt jetzt bei dir.",
         "other": "{count} Zähler und Verträge liegen jetzt bei dir."
+      },
+      "handoverRecordsTenancy": {
+        "one": "{count} Zähler, Vertrag oder Mietverhältnis geht an {to}.",
+        "other": "{count} Zähler, Verträge und Mietverhältnisse gehen an {to}."
+      },
+      "handoverRecordsTenancyNobody": {
+        "one": "{count} Zähler, Vertrag oder Mietverhältnis behält die Person mit dem Zusatz „(gelöscht)“, bis jemand übernimmt.",
+        "other": "{count} Zähler, Verträge und Mietverhältnisse behalten die Person mit dem Zusatz „(gelöscht)“, bis jemand übernimmt."
+      },
+      "handoverRecordsTenancyFormer": {
+        "one": "{count} Zähler, Vertrag oder Mietverhältnis zeigt dann „ehemalige Person“.",
+        "other": "{count} Zähler, Verträge und Mietverhältnisse zeigen dann „ehemalige Person“."
+      },
+      "handedOverRecordsTenancy": {
+        "one": "{count} Zähler, Vertrag oder Mietverhältnis liegt jetzt bei dir.",
+        "other": "{count} Zähler, Verträge und Mietverhältnisse liegen jetzt bei dir."
       }
     },
     "securityCheck": {
@@ -2546,11 +2611,11 @@
     "loading": "Lade Empfehlungen …",
     "loadError": "Konnte Empfehlungen nicht laden: {msg}",
     "title": "Empfehlungen",
-    "subtitle": "Statistische Hinweise aus deinen eigenen Daten — keine externen Quellen.",
+    "subtitle": "Hinweise aus deinen eigenen Daten. Die Hinweise zu deinen Rechten nennen dazu Gesetze und Verbraucherzentralen als Quelle.",
     "filterAll": "Alle ({count})",
     "filterGroupLabel": "Nach Dringlichkeit filtern",
     "sev": { "urgent": "Dringend", "warning": "Achtung", "info": "Hinweis" },
-    "cat": { "effizienz": "Effizienz", "vertrag": "Vertrag", "bestand": "Bestand", "anomalie": "Anomalie", "trend": "Trend", "modell": "Heizmodell" },
+    "cat": { "effizienz": "Effizienz", "vertrag": "Vertrag", "bestand": "Bestand", "anomalie": "Anomalie", "trend": "Trend", "modell": "Heizmodell", "recht": "Rechte" },
     "emptyAll": "Keine Empfehlungen — alles im grünen Bereich.",
     "dismiss": "30 Tage ausblenden",
     "error": "Fehler: {msg}",
@@ -2598,7 +2663,8 @@
         "gap": {
           "one": "Der Folgevertrag „{provider}“ beginnt erst am {date} – dazwischen {count} Tag ohne Vertrag.",
           "other": "Der Folgevertrag „{provider}“ beginnt erst am {date} – dazwischen {count} Tage ohne Vertrag."
-        }
+        },
+        "gapCovered": "Der Folgevertrag „{provider}“ beginnt am {date}; bis dahin läuft dieser Vertrag ohne Kündigung weiter."
       },
       "r7": {
         "title": "{label}: Effizienzklasse {class} ({kwh} kWh/m²·a)",
@@ -2615,6 +2681,22 @@
         "baseLoad": "Die Grundlast im Sommer schätzt es heute auf {now} {unit} am Tag, mit {best} °C auf {then}; gemessen sind {measured}.",
         "scope": "Die Grenze gilt nur für diesen Zähler, übernommen wird sie erst auf deinen Klick.",
         "scopeGroup": "Die Grenze gilt nur für diese Zählergruppe, übernommen wird sie erst auf deinen Klick."
+      },
+      "rContractConflict": {
+        "title": "{label}: Verträge widersprechen sich",
+        "overlap": "„{a}“ läuft laut Eintrag bis {aEnd}, ab {bStart} gilt aber „{b}“. Die App rechnet ab {bStart} mit „{b}“. Stimmt das Ende von „{a}“?",
+        "nested": "„{b}“ endet am {bEnd}, „{a}“ ist bis {aEnd} eingetragen. Die App rechnet danach mit „{b}“ weiter. Welcher Vertrag gilt danach?",
+        "nestedCancelled": "„{b}“ endet am {bEnd} und verlängert sich nicht, „{a}“ ist bis {aEnd} eingetragen. Für die Zeit danach rechnet die App mit keinem Vertrag. Welcher Vertrag gilt danach?",
+        "foreignTitle": "{label}: Ist „{b}“ ein Tarif für eine andere Verbrauchsart?",
+        "foreignCopy": "Versorger, Tarif und Arbeitspreis stimmen mit einem Vertrag für {other} überein.",
+        "foreignDocument": "Das Dokument dazu ordnet der Posteingang {other} zu.",
+        "foreignPrice": "Der Arbeitspreis ist rund {factor}-mal so hoch wie bei deinen anderen Verträgen dieses Zählers.",
+        "foreignAsk": "Stimmt die Verbrauchsart?",
+        "advanceTitle": "{label}: Abschläge rund {factor}-mal so hoch wie die Kosten",
+        "advance": "Im Abrechnungsjahr {from} bis {until} stehen {advances} Abschlägen nur {cost} Kosten gegenüber. Stimmen Vertrag und Preise?",
+        "foreignName": "Versorger und Tarif stimmen mit einem Vertrag für {other} überein, und der Arbeitspreis liegt in dessen Größenordnung.",
+        "advanceOf": "Im Abrechnungsjahr {from} bis {until} ({contract}) stehen {advances} Abschlägen nur {cost} Kosten gegenüber. Stimmen Vertrag und Preise?",
+        "advanceAlso": "Dazu passt: Im Abrechnungsjahr {from} bis {until} stehen {advances} Abschlägen nur {cost} Kosten gegenüber, rund {factor}-mal so viel."
       }
     },
     "dismissedNamed": "„{title}“ für 30 Tage ausgeblendet",
@@ -2628,7 +2710,9 @@
     },
     "dismissUntil": "Bis {date} ausblenden",
     "dismissUntilNamed": "Bis {date} ausblenden: {title}",
-    "dismissedUntilNamed": "„{title}“ bis {date} ausgeblendet"
+    "dismissedUntilNamed": "„{title}“ bis {date} ausgeblendet",
+    "rightsNoBill": "Noch keine Hinweise zu deinen Rechten als Kunde: Die meisten Prüfungen brauchen eine erfasste Rechnung. Erfasse die Jahresrechnung, dann prüft die App Frist, Bonus, Schätzung und Messentgelt.",
+    "rightsNoBillLink": "Rechnung prüfen"
   },
   "tariff": {
     "loading": "Lädt …",
@@ -2745,7 +2829,11 @@
         "one": "{first} + {count} Vertrag in Folge",
         "other": "{first} + {count} Verträge in Folge"
       },
-      "portal": "Amtlicher Tarifvergleich ({country}) ↗"
+      "portal": "Amtlicher Tarifvergleich ({country}) ↗",
+      "renewedSince": "verlängert seit {date}",
+      "renewedNotice": "Kündigungsfrist laut Vertrag. Ein Termin lässt sich daraus hier nicht berechnen; der Wechseltag oben ist geschätzt, bis du ihn einträgst.",
+      "basicNotice": "Grundversorgung: jederzeit mit zwei Wochen Frist kündbar (§ 20 {gvv}).",
+      "renewsUntil": "Ohne Kündigung verlängert sich der Vertrag bis {until} (§ 32 AVBFernwärmeV); der nächste Kündigungstag ist der {cancel}."
     },
     "retro": {
       "heading": "Rückblick auf echte Monate",
@@ -3297,8 +3385,7 @@
         "title": "Preiserhöhung: {label}",
         "reason": "Ab {date} gelten neue Preise. {parts}",
         "reasonWp": "Der Arbeitspreis steigt von {old} auf {new} ct/{unit}.",
-        "reasonBp": "Der Grundpreis steigt von {old} auf {new} im Monat.",
-        "legalDe": "In Deutschland gibt eine Preiserhöhung ein Sonderkündigungsrecht zum Tag der Änderung (§ 41 Abs. 5 EnWG)."
+        "reasonBp": "Der Grundpreis steigt von {old} auf {new} im Monat."
       },
       "heatingRise": {
         "title": "Heizverbrauch gestiegen: {label}",
@@ -3766,7 +3853,8 @@
       "counterInvalid": "Ungültiger Zählerstand „{value}“ – erwartet wird eine Zahl ab 0.",
       "dateInvalid": "Ungültiges Ablesedatum „{date}“ – erwartet wird JJJJ-MM-TT.",
       "clientRefInvalid": "Ungültige Kennung der Erfassung (client_ref): 8 bis 64 Zeichen aus Buchstaben, Ziffern und Bindestrich.",
-      "periodMeter": "Dieser Zähler erfasst Verbrauch je Zeitraum – bitte einen Zeitraum statt eines Zählerstands eintragen."
+      "periodMeter": "Dieser Zähler erfasst Verbrauch je Zeitraum – bitte einen Zeitraum statt eines Zählerstands eintragen.",
+      "reportedOnInvalid": "Ungültiges Meldedatum „{date}“. Erwartet wird JJJJ-MM-TT."
     },
     "contract": {
       "noContracts": "Für {label} können keine Verträge angelegt werden (Verbrauchsart nur für die Statistik).",
@@ -3978,7 +4066,8 @@
       "noResult": "Die Rechnung nennt weder Nachzahlung noch Guthaben – es gibt nichts zu buchen",
       "noContract": "Für den Zeitraum {from} bis {to} gibt es keinen Vertrag – leg zuerst einen an",
       "periodInvalid": "Zeitraum „{from}“ bis „{to}“ ist ungültig",
-      "amountInvalid": "Betrag „{value}“ ist keine gültige Zahl"
+      "amountInvalid": "Betrag „{value}“ ist keine gültige Zahl",
+      "valueInvalid": "{field}: „{value}“ ist kein gültiger Wert"
     },
     "marketPrices": {
       "noRows": "Die Datei enthält keine Großhandelspreise — erwartet wird ein SMARD-Download oder Zeilen wie 2025-01;114,14",
@@ -4117,6 +4206,15 @@
       "expired": "Das Zertifikat von {host} ist abgelaufen oder noch nicht gültig. Erneuere es dort oder prüfe die Uhrzeit beider Geräte.",
       "file": "Der Energietracker kann die Stammzertifikate nicht lesen. Prüfe die Datei aus ET_CA_FILE oder eine eingehängte Zertifikatsliste: Pfad, Inhalt und Leserechte. Unter Einstellungen → System steht, ob ET_CA_FILE lesbar ist.",
       "other": "Die verschlüsselte Verbindung zu {host} scheitert am Zertifikat. Prüfe die Adresse und das Zertifikat. Hast du es selbst ausgestellt, trag dein Stammzertifikat unter Einstellungen → Experte → Verbindungen im Heimnetz ein."
+    },
+    "letter": {
+      "formatInvalid": "Unbekanntes Format „{value}“ (text oder pdf)",
+      "findingNotFound": "Diesen Hinweis gibt es nicht mehr. Lade die Seite neu.",
+      "kindInvalid": "Unbekannte Briefvorlage „{value}“",
+      "notOffered": "Zu diesem Hinweis gibt es diesen Brief nicht",
+      "confirmRequired": "Bestätige zuerst, dass die Rechtsbehelfsbelehrung „Widerspruch“ nennt",
+      "fieldInvalid": "„{field}“ ist zu lang oder ungültig (höchstens 6 Zeilen mit je 60 Zeichen)",
+      "deadlinePassed": "Die Frist für einen Widerspruch ist abgelaufen; dafür entwirft die App keinen Brief"
     }
   },
   "login": {
@@ -4237,7 +4335,10 @@
     "advanceEvery": "Abschlag {amount}",
     "noNotice": "Kündigungsfrist nicht eingetragen",
     "earliestEnd": "Frühestens zum {date} kündbar",
-    "viaGroup": "Über die Gruppe „{name}“: Saldo und Abschläge gelten für die ganze Gruppe."
+    "viaGroup": "Über die Gruppe „{name}“: Saldo und Abschläge gelten für die ganze Gruppe.",
+    "renewedNotice": "Kündigungsfrist laut Vertrag",
+    "cancelMissedHeat": "Kündigungstag {date} verstrichen, verlängert sich bis {until}",
+    "renewedBasic": "Grundversorgung: jederzeit mit zwei Wochen Frist kündbar"
   },
   "billCheck": {
     "noMeter": "Die Rechnungsprüfung rechnet die Jahresabrechnung für Gas, Strom, Wasser und Fernwärme nach. Lege zuerst einen Zähler an.",
@@ -4274,7 +4375,35 @@
         "one": "{count} erfasst",
         "other": "{count} erfasst"
       },
-      "period": "Zeitraum wie oben: {from} bis einschließlich {to}."
+      "period": "Zeitraum wie oben: {from} bis einschließlich {to}.",
+      "received": "Erhalten am (optional)",
+      "receivedHint": "Der Tag, an dem du die Rechnung bekommen hast. Damit prüft die App die Frist des Versorgers.",
+      "estimated": "Laut Rechnung geschätzt",
+      "estimatedStart": "Anfangsstand",
+      "estimatedEnd": "Endstand",
+      "estimatedHint": "Nennt die Rechnung den Endstand geschätzt, trag ihn hier ein, nicht als Ablesung. Die App vergleicht ihn mit deinen eigenen Ablesungen; in deinen Verbrauch fließt er nicht ein.",
+      "itemKind": "Art",
+      "itemKinds": {
+        "levy": "Umlage",
+        "fee": "Gebühr",
+        "credit": "Gutschrift",
+        "metering": "Messstellenbetrieb",
+        "other": "Sonstiges"
+      },
+      "itemBasis": "netto/brutto",
+      "itemVat": "Steuersatz (%)",
+      "notStated": "keine Angabe",
+      "notice": "Gebührenbescheid (Wasser, Abwasser)",
+      "noticePublic": "Die Rechnung ist ein Bescheid einer Behörde oder Gemeinde mit Rechtsbehelfsbelehrung",
+      "noticeDated": "Bescheid vom",
+      "noticeServed": "Zugestellt am (nur mit Zustellungsurkunde)",
+      "noticeRemedy": "Rechtsbehelf laut Belehrung",
+      "noticeRemedyHint": "Nur wenn dort „Widerspruch“ steht, bietet die App einen Widerspruchsbrief an.",
+      "noticeFile": "Aktenzeichen oder Kassenzeichen",
+      "number": "Rechnungsnummer",
+      "numberHint": "Optional. Steht in Briefen zu dieser Rechnung als Bezug.",
+      "estimatedValue": "Geschätzter Endstand ({unit})",
+      "estimatedOn": "Endstand am"
     },
     "saved": "Rechnung gespeichert",
     "book": "Als Sonderzahlung buchen",
@@ -4316,7 +4445,14 @@
     },
     "factorMismatch": {
       "line": "Ab {from}: laut Rechnung {invoice} kWh/m³ ({z} × {hs}), in den Einstellungen {list} kWh/m³"
-    }
+    },
+    "rightsCount": {
+      "one": "{count} Hinweis zu deinen Rechten",
+      "other": "{count} Hinweise zu deinen Rechten"
+    },
+    "estimatedBackwards": "Der geschätzte Endstand passt nicht zu deiner Ablesung vom {date} ({counter} {unit}): Der Zähler liefe rückwärts. Prüf die Rechnung und die Ablesung.",
+    "rightsNoBill": "Die Hinweise zu deinen Rechten als Kunde (Frist, Bonus, Schätzung, Messentgelt) prüft die App ab der ersten erfassten Rechnung. Erfasse sie unten oder lade sie hoch:",
+    "rightsInbox": "Posteingang"
   },
   "glossary": {
     "hdd": {
@@ -4646,7 +4782,8 @@
     "readOnly": "In der Demo wird nichts gespeichert. Mit einer eigenen Installation erfasst du deine Daten.",
     "unavailable": "Diese Auswertung ist in der Demo nicht vorberechnet – mit einer eigenen Installation geht sie.",
     "scenarioPresetsOnly": "In der Demo sind nur die Beispielszenarien vorgerechnet.",
-    "conceptPresetsOnly": "In der Demo ist die Vorschau nur für den Aufbau dieses Beispielhaushalts vorberechnet."
+    "conceptPresetsOnly": "In der Demo ist die Vorschau nur für den Aufbau dieses Beispielhaushalts vorberechnet.",
+    "letterPresetsOnly": "In der Demo ist nur der erste Entwurf des Briefs vorberechnet. Änderungen und das PDF rechnet die eigene Installation."
   },
   "manifest": {
     "description": "Verbrauch, Kosten und Verträge für Strom, Gas, Wasser, Fernwärme, Heizöl, Pellets und PV — auf dem eigenen Server, die Post vom Versorger lokal ausgelesen, die Cloud nur auf Wunsch.",
@@ -4742,7 +4879,7 @@
       "cancelBy": "{label}: letzter Tag für die Kündigung ({provider})",
       "termEnd": "{label}: Vertragsende ({provider})",
       "priceGuaranteeEnd": "{label}: Preisgarantie endet ({provider})",
-      "priceIncrease": "{label}: Preiserhöhung ({provider}) — Sonderkündigung prüfen",
+      "priceIncrease": "{label}: Preiserhöhung ({provider})",
       "readingDue": "{label}: Zählerstand ablesen ({meter})",
       "tankReorder": "{label}: Lieferung planen ({meter})",
       "tenancyStatementDue": "Nebenkostenabrechnung bis zum {period} fällig: {label}",
@@ -4760,7 +4897,8 @@
       "levelShiftLess": "{label}: seit {date} dauerhaft weniger Verbrauch. Analyse-Zäsur setzen? ({meter})",
       "levelShiftMore": "{label}: seit {date} dauerhaft mehr Verbrauch. Analyse-Zäsur setzen? ({meter})",
       "readingMismatch": "{label}: Verbrauch vor und nach dem {date} passt nicht zusammen ({meter})",
-      "readingMismatchBlock": "{label}: Verbrauch vor dem {date} und nach dem {until} passt nicht zusammen ({meter})"
+      "readingMismatchBlock": "{label}: Verbrauch vor dem {date} und nach dem {until} passt nicht zusammen ({meter})",
+      "contractConflict": "{label}: Verträge prüfen"
     },
     "subscribe": "Im Kalender abonnieren",
     "intro": "Termine, Kündigungsstichtage, Vertragsenden, Preisgarantien und fällige Ablesungen als Kalender-Abo. Der Kalender holt sie alle 12 Stunden neu.",
@@ -4782,7 +4920,8 @@
     "onlyMine": "Nur, was bei mir liegt",
     "onlyMineHint": "Der Link zeigt dann nur Fristen und Termine, für die du zuständig bist – auch über einen Vertrag oder Zähler.",
     "webcalLabel": "Abo-Adresse für Kalender-Apps (webcal)",
-    "httpsLabel": "Dieselbe Adresse als https-Link"
+    "httpsLabel": "Dieselbe Adresse als https-Link",
+    "assigneeTenancy": "Zuständig: {name} (über das Mietverhältnis)"
   },
   "tenancy": {
     "title": "Mietverhältnis",
@@ -5335,7 +5474,7 @@
       "anytime": "jederzeit kündbar",
       "textMissed": "Vertrag seit {start}. Die Frist zum Kündigen lief am {cancel} ab; ohne Kündigung läuft er nach dem {end} weiter.",
       "textNoRenew": "Vertrag seit {start}; er endet am {end}, ohne dass du kündigen musst.",
-      "textRenewed": "Vertrag seit {start}. Die Laufzeit endete am {term}; seitdem läuft er weiter und ist jederzeit kündbar — heute gekündigt, endet er frühestens am {end}.",
+      "textRenewed": "Vertrag seit {start}. Die Laufzeit endete am {term}; seitdem läuft er weiter, bis du kündigst. Die Kündigungsfrist steht im Vertrag.",
       "textAnytime": "Vertrag seit {start}; er läuft weiter, bis du kündigst. Er ist jederzeit kündbar — heute gekündigt, endet er frühestens am {end}.",
       "textMinTerm": "Vertrag seit {start}, mit Mindestlaufzeit: Heute gekündigt, endet er frühestens am {end}.",
       "textMinTermUntil": "Die Mindestlaufzeit endet am {date}.",
@@ -5346,7 +5485,12 @@
       "gap": {
         "one": "Dazwischen liegt {count} Tag ohne Vertrag.",
         "other": "Dazwischen liegen {count} Tage ohne Vertrag."
-      }
+      },
+      "textRenewedHeat": "Vertrag seit {start}. Die Laufzeit endete am {term}. Ohne Kündigung neun Monate vor Ablauf verlängert sich ein Fernwärmevertrag um jeweils fünf Jahre (§ 32 AVBFernwärmeV); steht in deinem Vertrag nichts anderes, läuft er bis {end}, und die schriftliche Kündigung muss bis {cancel} beim Versorger sein.",
+      "textMissedHeat": "Vertrag seit {start}. Die Frist zum Kündigen lief am {cancel} ab. Ohne Kündigung neun Monate vor Ablauf verlängert sich ein Fernwärmevertrag um fünf Jahre (§ 32 AVBFernwärmeV); steht in deinem Vertrag nichts anderes, läuft er bis {until}, und die nächste Kündigung muss bis {next} beim Versorger sein.",
+      "textHeatNotice": "Eine Kündigungsfrist ist nicht eingetragen; die App rechnet mit neun Monaten vor Ablauf (§ 32 AVBFernwärmeV). Ohne Kündigung verlängert sich der Vertrag bis {until}.",
+      "textRenewedSuccessor": "Vertrag seit {start}. Die Laufzeit endete am {term}; seitdem läuft er ohne Kündigung weiter.",
+      "textRenewedBasic": "Vertrag seit {start}. Die Laufzeit endete am {term}; in der Grundversorgung ist er jederzeit mit zwei Wochen Frist kündbar. Heute gekündigt, endet er frühestens am {end}."
     }
   },
   "setup": {
@@ -5888,9 +6032,11 @@
     "noPeople": "Personen legst du unter Einstellungen → Haushalt & Gebäude an.",
     "via": {
       "contract": "über den Vertrag",
-      "meter": "über den Zähler"
+      "meter": "über den Zähler",
+      "tenancy": "über das Mietverhältnis"
     },
-    "inheritsMeter": "Ohne Eintrag zuständig: {name} (über den Zähler)."
+    "inheritsMeter": "Ohne Eintrag zuständig: {name} (über den Zähler).",
+    "hintTenancy": "Nebenkostenabrechnung, Einwände und CO₂-Kosten landen bei dieser Person. Ohne Eintrag gilt die Person des Wärmezählers. Benachrichtigt wird niemand."
   },
   "notice": {
     "updated": "Aktualisiert auf Version {version}.",
@@ -6216,7 +6362,9 @@
       "specialTermination": "Sonderkündigungsrecht {provider} bis {date}",
       "followUp": "Anschlussvertrag abschließen (Lieferende {provider} am {end})",
       "dunning": "Mahnung „{name}“ klären",
-      "document": "Dokument „{name}“ erledigen"
+      "document": "Dokument „{name}“ erledigen",
+      "specialTerminationLegal": "Sonderkündigung {provider} möglich, Zugang bis {date}",
+      "specialTerminationLetter": "Sonderkündigung {provider} möglich, Zugang bis {date} (laut Schreiben {letter}, gesetzlich {legal})"
     },
     "title": "Posteingang",
     "subtitle": "Post vom Versorger als PDF ablegen, auslesen lassen, prüfen und übernehmen.",
@@ -6450,7 +6598,15 @@
       "advance_new_dates": "Termine des neuen Abschlags",
       "advance_new_every": "Rhythmus des neuen Abschlags",
       "invoice_number": "Rechnungsnummer",
-      "corrects_invoice": "Bezug auf frühere Rechnung"
+      "corrects_invoice": "Bezug auf frühere Rechnung",
+      "basic_supply": "Grundversorgung",
+      "credits": "Gutschriften",
+      "metering_fee": "Entgelt Messstellenbetrieb",
+      "metering_fee_basis": "Messentgelt netto oder brutto",
+      "metering_fee_vat_pct": "Steuersatz des Messentgelts",
+      "fee_notice": "Gebührenbescheid",
+      "remedy": "Rechtsbehelf laut Belehrung",
+      "file_number": "Aktenzeichen"
     },
     "reason": {
       "empty": "Fehlt, wird aber gebraucht",
@@ -6500,7 +6656,11 @@
       "energy": "Arbeitspreis",
       "energy_tax": "Energiesteuer",
       "co2": "CO₂-Preis",
-      "other": "Aufschlag"
+      "other": "Aufschlag",
+      "bonus": "Bonus",
+      "credit_other": "andere Gutschrift",
+      "objection": "Widerspruch",
+      "action": "Klage"
     },
     "item": {
       "gasFactor": "{from} bis {to}: Zustandszahl {z} × Brennwert {hs} kWh/m³",
@@ -6545,7 +6705,11 @@
       "waterBase": "Grundpreis {section} ab {from}: {value} pro Monat (aus der Rechnung)",
       "waterRate": "{section} ab {from}: {value} je m² und Jahr für {area} m² (aus der Rechnung)",
       "billCorrection": "Rechnungskorrektur {from} bis {to} übernehmen: {result} statt {before}",
-      "billRebook": "Buchung ersetzen: {result} statt {before}"
+      "billRebook": "Buchung ersetzen: {result} statt {before}",
+      "reminderSpecialTerminationLegal": "Termin: Sonderkündigung möglich, Zugang bis {date}",
+      "reminderSpecialTerminationLetter": "Termin: Sonderkündigung, Zugang bis {date} (laut Schreiben {letter}, gesetzlich {legal})",
+      "supplyKindBasic": "Versorgungsart am Vertrag eintragen: Grundversorgung (laut Rechnung)",
+      "supplyKindSpecial": "Versorgungsart am Vertrag eintragen: Sondervertrag (laut Rechnung)"
     },
     "detail": {
       "reading": "Erfasst ist {counter}.",
@@ -6695,7 +6859,35 @@
         "minTerm": "Mindestlaufzeit bis {date}.",
         "guarantee": "Preisgarantie bis {date}.",
         "dunning": "Eine Mahnung liest die App nicht aus; der Termin erinnert dich, die Zahlung zu klären.",
-        "advanceBasisRate": "Passend wären rund {recommended} je Termin; mit dem neuen Abschlag stünde am Ende der Abrechnung: {balance}."
+        "advanceBasisRate": "Passend wären rund {recommended} je Termin; mit dem neuen Abschlag stünde am Ende der Abrechnung: {balance}.",
+        "range": "Je nach Wetter und Verbrauch zwischen {low} und {high} im Jahr.",
+        "yearAfter": "Ein Jahr zu den neuen Preisen: rund {amount}, das sind rund {recommended} im Monat.",
+        "yearAfterRate": "Ein Jahr zu den neuen Preisen: rund {amount}, das sind rund {recommended} je Termin."
+      },
+      "rights": {
+        "terminationSpecial": "Du kannst den Vertrag ohne Kündigungsfrist zum {date} kündigen. Die Kündigung muss bis {deadline} beim Versorger sein.",
+        "terminationBasic": "In der Grundversorgung kannst du zum {date} kündigen, die Kündigung muss bis {deadline} beim Versorger sein. Sonst geht es jederzeit mit zwei Wochen Frist.",
+        "terminationUnknown": "Bei einer Preiserhöhung kannst du ohne Kündigungsfrist zum {date} kündigen. Die Kündigung muss bis {deadline} beim Versorger sein. In der Grundversorgung geht es außerdem jederzeit mit zwei Wochen Frist. Ob du in der Grundversorgung bist, steht auf der Rechnung.",
+        "terminationPassed": "Die Sonderkündigung zum {date} war nur bis {deadline} möglich.",
+        "letterEarlier": "Das Schreiben nennt den {letter} als Frist. Gesetzlich reicht der Zugang bis {deadline}; eine eigene, kürzere Frist darf der Versorger nicht setzen.",
+        "letterLater": "Das Schreiben nennt den {letter} als Frist. Sicher bist du, wenn die Kündigung bis {deadline} beim Versorger ist.",
+        "vatOnly": "Nur die Umsatzsteuer ändert sich, der Nettopreis bleibt gleich. Dafür gibt es bei einem Sondervertrag kein Sonderkündigungsrecht.",
+        "vatOnlyBasic": "Nur die Umsatzsteuer ändert sich, der Nettopreis bleibt gleich. In der Grundversorgung kannst du jederzeit mit zwei Wochen Frist kündigen.",
+        "lateSpecial": {
+          "one": "Das Schreiben ist {days} Tag vor der Änderung datiert. Bei einem Sondervertrag verlangt das Gesetz mindestens einen Monat. Lass dich beraten, wenn du die Erhöhung prüfen lassen willst.",
+          "other": "Das Schreiben ist {days} Tage vor der Änderung datiert. Bei einem Sondervertrag verlangt das Gesetz mindestens einen Monat. Lass dich beraten, wenn du die Erhöhung prüfen lassen willst."
+        },
+        "lateBasic": {
+          "one": "Das Schreiben ist {days} Tag vor der Änderung datiert. In der Grundversorgung verlangt das Gesetz eine Bekanntgabe mindestens sechs Wochen vorher. Lass dich beraten, wenn du die Erhöhung prüfen lassen willst.",
+          "other": "Das Schreiben ist {days} Tage vor der Änderung datiert. In der Grundversorgung verlangt das Gesetz eine Bekanntgabe mindestens sechs Wochen vorher. Lass dich beraten, wenn du die Erhöhung prüfen lassen willst."
+        },
+        "announcedAfter": "Das Schreiben ist auf den {date} datiert, nicht vor dem Tag der Änderung. Eine Preisänderung muss vorher angekündigt werden. Lass dich beraten, wenn du die Erhöhung prüfen lassen willst.",
+        "monthStart": "In der Grundversorgung werden Preisänderungen zum Monatsbeginn wirksam; dieses Schreiben nennt den {date}.",
+        "heat": "Fernwärmepreise ändern sich nach der Preisänderungsklausel deines Vertrags; die Berechnungsfaktoren müssen ausgewiesen sein. Ein Sonderkündigungsrecht wie bei Strom und Gas sieht die Verordnung dafür allgemein nicht vor.",
+        "guarantee": "Für den Vertrag ist eine Preisgarantie bis {date} eingetragen. Prüfe, ob die Erhöhung davon ausgenommen ist (oft Steuern und Umlagen).",
+        "advanceBasic": "Der Abschlag steigt um {advance_pct} %, die Kosten laut Prognose um {cost_pct} %. In der Grundversorgung darf der Versorger den Abschlag nach einer Preisänderung um deren Prozentsatz anpassen.",
+        "advanceSpecial": "Der Abschlag steigt um {advance_pct} %, die Kosten laut Prognose um {cost_pct} %. Der Abschlag richtet sich nach dem Verbrauch der letzten Abrechnung; einen glaubhaft geringeren Verbrauch muss der Versorger angemessen berücksichtigen.",
+        "advanceUnknown": "Der Abschlag steigt um {advance_pct} %, die Kosten laut Prognose um {cost_pct} %. Ein Abschlag richtet sich nach dem Verbrauch; in der Grundversorgung darf der Versorger ihn nach einer Preisänderung um deren Prozentsatz anpassen."
       }
     },
     "channels": {
@@ -6747,7 +6939,9 @@
       "unsure": "Unsicher gelesen, nicht übernommen: {fields}",
       "netPrice": "Netto laut Rechnung, mit dem ausgewiesenen Steuersatz in brutto umgerechnet (die App führt Bruttopreise).",
       "vatChanged": "Gleicher Preis wie im Vertrag, nur ein anderer Steuersatz – die neue Preiszeile gilt ab dem Tag, den die Rechnung für sie nennt.",
-      "rhythmConflict": "Der Rhythmus laut Rechnung passt nicht zu den genannten Terminen. Übernommen sind die Termine, bitte prüfen."
+      "rhythmConflict": "Der Rhythmus laut Rechnung passt nicht zu den genannten Terminen. Übernommen sind die Termine, bitte prüfen.",
+      "perMeter": "Der Vertrag hat Arbeitspreise je Zähler (etwa HT und NT). Prüfe, für welchen Zähler dieser Preis gilt; übernommen wird er beim zugeordneten Zähler.",
+      "advanceFromPrice": "Ab wann der neue Abschlag gilt, steht nicht im Schreiben. Angenommen ist der Tag der Preisänderung."
     },
     "duplicate": {
       "text": "Wohl dasselbe Dokument wie „{name}“ (abgelegt am {date}). Übernimm nur eines; das andere kannst du löschen.",
@@ -7406,5 +7600,141 @@
     "sentenceNoWeather": "Je nach Schätzung zwischen {low} und {high}.",
     "shortFew": "zu wenige gemessene Monate, je nach Schätzung {range}",
     "sentenceFew": "Zu wenige gemessene Monate, je nach Schätzung zwischen {low} und {high}."
+  },
+  "rights": {
+    "title": "Deine Rechte als Kunde",
+    "footer": "Hinweis, keine Rechtsberatung. Grundlage: {norms} (Stand {date}).",
+    "notAdvice": "Hinweis, keine Rechtsberatung.",
+    "helpEnergy": "Hilfe: Verbraucherzentrale, Schlichtungsstelle Energie.",
+    "help": "Hilfe: Verbraucherzentrale.",
+    "deadline": "Frist: {date}",
+    "check": {
+      "bill_late": "Rechnung kam spät",
+      "advance_high": "Abschlag deutlich zu hoch",
+      "special_termination": "Preisänderung: Sonderkündigung",
+      "bonus_missing": "Bonus nicht gutgeschrieben",
+      "estimate_despite_reading": "Schätzung trotz eigener Ablesung",
+      "metering_cap": "Messentgelt über der Obergrenze",
+      "fee_notice_deadline": "Frist beim Gebührenbescheid"
+    },
+    "priceNote": {
+      "special": "Du kannst den Vertrag ohne Kündigungsfrist zum Tag der Preisänderung kündigen; die Kündigung muss vorher beim Versorger eingehen (§ 41 Abs. 5 EnWG).",
+      "basic": "In der Grundversorgung kannst du zum Tag der Preisänderung kündigen (§ 5 Abs. 3 {gvv}) und sonst jederzeit mit zwei Wochen Frist (§ 20 {gvv}).",
+      "unknown": "Im Sondervertrag kannst du ohne Kündigungsfrist zum Tag der Preisänderung kündigen (§ 41 Abs. 5 EnWG), in der Grundversorgung ebenso (§ 5 Abs. 3 {gvv}). Ob du in der Grundversorgung bist, steht auf der Rechnung.",
+      "stepped": "Das gilt nur, wenn der Versorger die Preise ändert, nicht für einen Stufenpreis, der schon bei Vertragsschluss vereinbart war. Trag am Preis das Datum des Schreibens ein, dann weiß die App es.",
+      "vat": "Es ändert sich nur die Umsatzsteuer. Gibt der Versorger sie unverändert weiter, entsteht im Sondervertrag kein Sonderkündigungsrecht (§ 41 Abs. 6 EnWG).",
+      "heat": "Fernwärmepreise ändern sich nach der Preisänderungsklausel deines Vertrags; die Berechnungsfaktoren müssen ausgewiesen sein (§ 24 Abs. 4 AVBFernwärmeV). Ein Sonderkündigungsrecht wie bei Strom und Gas sieht die Verordnung dafür allgemein nicht vor."
+    },
+    "special_termination": {
+      "title": "{label}: Sonderkündigung zum {valid_from} möglich",
+      "titleMaybe": "{label}: Preise steigen zum {valid_from}, Sonderkündigung möglich?",
+      "text": "{provider} ändert die Preise zum {valid_from}: {what}. {note}",
+      "wp": "Arbeitspreis {old} → {new} ct/{unit}",
+      "bp": "Grundpreis {old} → {new} im Monat",
+      "lateSpecial": "Das Schreiben ist vom {announced_on}, die Änderung gilt ab dem {valid_from}; das Gesetz verlangt dafür mindestens einen Monat Vorlauf.",
+      "lateBasic": "Das Schreiben ist vom {announced_on}, die Änderung gilt ab dem {valid_from}; in der Grundversorgung verlangt das Gesetz mindestens sechs Wochen Vorlauf.",
+      "monthStart": "In der Grundversorgung sieht das Gesetz Preisänderungen zum Monatsbeginn vor; diese gilt ab dem {valid_from}.",
+      "adviceCheck": "Lass dich beraten, wenn du die Erhöhung prüfen lassen willst.",
+      "guarantee": "Für den Vertrag ist eine Preisgarantie bis {date} eingetragen. Prüfe, ob die Erhöhung davon ausgenommen ist (oft Steuern und Umlagen).",
+      "letterDate": "Laut Schreiben soll die Kündigung bis zum {letter} eingehen; nach dem Gesetz reicht der Zugang bis zum {legal}. Der Termin hier ist das frühere Datum."
+    },
+    "advance_high": {
+      "title": "{label}: Abschlag deutlich über dem Verbrauch",
+      "text": "Dein Abschlag von {rate} liegt {over_pct} % über dem Betrag, der sich aus deinem Verbrauch im letzten Abrechnungszeitraum ({qty} {unit}, {period_from} bis {period_to}) und den aktuellen Preisen ergibt: rund {measure_eur}. Auch die Prognose der App hält rund {ongoing_eur} für angemessen. Abschläge richten sich nach diesem Verbrauch; machst du einen erheblich geringeren Verbrauch glaubhaft, ist das angemessen zu berücksichtigen ({norm}). Du kannst eine Anpassung beantragen.",
+      "textFrom": "Dein Abschlag von {rate} liegt {over_pct} % über dem Betrag, der sich aus deinem Verbrauch im letzten Abrechnungszeitraum ({qty} {unit}, {period_from} bis {period_to}) und den Preisen ab dem {next_due} ergibt: rund {measure_eur}. Auch die Prognose der App hält rund {ongoing_eur} für angemessen. Abschläge richten sich nach diesem Verbrauch; machst du einen erheblich geringeren Verbrauch glaubhaft, ist das angemessen zu berücksichtigen ({norm}). Du kannst eine Anpassung beantragen.",
+      "rateFrom": "{amount} ab dem {date}"
+    },
+    "late": {
+      "title": "{label}: Rechnung bis {period_to} kam {days_late} Tage nach der Frist",
+      "text": "Die Rechnung für {period_from} bis {period_to} lag am {bill_date} vor, {days_late} Tage nach Ablauf der gesetzlichen Frist am {deadline}. Die Frist: sechs Wochen nach Ende des Abrechnungszeitraums, bei einer Schlussrechnung nach Ende der Belieferung. Eine Folge für den Rechnungsbetrag nennt das Gesetz nicht. Du kannst die Verspätung beim Versorger beanstanden; er muss binnen vier Wochen antworten.",
+      "textIssued": "Die Rechnung für {period_from} bis {period_to} ist vom {bill_date}, {days_late} Tage nach Ablauf der gesetzlichen Frist am {deadline}. Die Frist: sechs Wochen nach Ende des Abrechnungszeitraums, bei einer Schlussrechnung nach Ende der Belieferung. Eine Folge für den Rechnungsbetrag nennt das Gesetz nicht. Du kannst die Verspätung beim Versorger beanstanden; er muss binnen vier Wochen antworten."
+    },
+    "bonus": {
+      "title": "{label}: Bonus von {amount_eur} nicht gefunden",
+      "text": "Laut Vertrag „{tariff}“ steht dir ein Bonus von {amount_eur} zu. In der Rechnung für {period_from} bis {period_to} finden wir keine Gutschrift in dieser Höhe. Prüfe die Bonusbedingungen im Vertrag (oft: zwölf Monate Belieferung). Fehlt der Bonus, kannst du ihn beim Versorger einfordern. Kam er auf anderem Weg, etwa per Überweisung oder mit einer späteren Rechnung, hake den Hinweis ab.",
+      "textPortal": "Zum Vertrag „{tariff}“ ist ein Bonus von {amount_eur} vermerkt (Art: sonstiger Bonus). In der Rechnung für {period_from} bis {period_to} finden wir keine Gutschrift in dieser Höhe. Zahlt ihn nicht der Versorger, sondern etwa ein Vergleichsportal, wende dich dorthin. Kam er schon, hake den Hinweis ab."
+    },
+    "estimate": {
+      "title": "{label}: Rechnung schätzt den Endstand zum {period_to} trotz deiner Ablesung",
+      "titleEur": "{label}: Rechnung schätzt den Endstand zum {period_to}, rund {delta_eur} Unterschied",
+      "text": "Die Rechnung nennt den Endstand zum {period_to} geschätzt: {bill_counter} {unit}. Du hast am {own_date} selbst abgelesen ({own_counter} {unit}); fortgeschrieben auf den {period_to} sind das {own_projected} {unit}. Hast du den Stand gemeldet? Schätzen darf der Versorger nur, wenn trotz entsprechender Pflicht keine Ablesedaten übermittelt wurden oder er den Verbrauch aus Gründen, die er nicht zu vertreten hat, nicht ermitteln konnte. Du kannst verlangen, dass er die Schätzung in Textform und kostenlos erläutert. Du kannst ihn außerdem bitten, mit deinem Stand neu zu rechnen. Der Unterschied: {delta_qty} {cunit}.",
+      "textReported": "Die Rechnung nennt den Endstand zum {period_to} geschätzt: {bill_counter} {unit}. Du hast am {own_date} selbst abgelesen ({own_counter} {unit}) und den Stand am {reported_on} gemeldet; fortgeschrieben auf den {period_to} sind das {own_projected} {unit}. Schätzen darf der Versorger nur, wenn trotz entsprechender Pflicht keine Ablesedaten übermittelt wurden oder er den Verbrauch aus Gründen, die er nicht zu vertreten hat, nicht ermitteln konnte. Du kannst verlangen, dass er die Schätzung in Textform und kostenlos erläutert. Du kannst ihn außerdem bitten, mit deinem Stand neu zu rechnen. Der Unterschied: {delta_qty} {cunit}.",
+      "textHeat": "Die Rechnung nennt den Endstand zum {period_to} geschätzt: {bill_counter} {unit}. Du hast am {own_date} selbst abgelesen ({own_counter} {unit}); fortgeschrieben auf den {period_to} sind das {own_projected} {unit}. Schätzen darf der Versorger, solange sein Beauftragter die Räume zur Ablesung nicht betreten kann, auf Grundlage der letzten Ablesung. Teil ihm deinen Stand mit und frag nach der Schätzung. Der Unterschied: {delta_qty} {cunit}.",
+      "textReportedBasic": "Die Rechnung nennt den Endstand zum {period_to} geschätzt: {bill_counter} {unit}. Du hast am {own_date} selbst abgelesen ({own_counter} {unit}) und den Stand am {reported_on} gemeldet; fortgeschrieben auf den {period_to} sind das {own_projected} {unit}. Schätzen darf der Versorger nur, wenn trotz entsprechender Pflicht keine Ablesedaten übermittelt wurden oder er den Verbrauch aus Gründen, die er nicht zu vertreten hat, nicht ermitteln konnte. Du kannst verlangen, dass er die Schätzung in Textform und kostenlos erläutert, und eine Berichtigung mit deinem Stand. Der Unterschied: {delta_qty} {cunit}.",
+      "textNotice": "Die Rechnung nennt den Endstand zum {period_to} geschätzt: {bill_counter} {unit}. Du hast am {own_date} selbst abgelesen ({own_counter} {unit}); fortgeschrieben auf den {period_to} sind das {own_projected} {unit}. Die Rechnung ist ein Gebührenbescheid: Einwände dagegen gehen über den Rechtsbehelf, den die Rechtsbehelfsbelehrung nennt. Die Frist dafür endet frühestens am {deadline}; eine formlose Rückfrage wahrt sie nicht. Der Unterschied: {delta_qty} {cunit}.",
+      "textNoticeExpired": "Die Rechnung nennt den Endstand zum {period_to} geschätzt: {bill_counter} {unit}. Du hast am {own_date} selbst abgelesen ({own_counter} {unit}); fortgeschrieben auf den {period_to} sind das {own_projected} {unit}. Die Rechnung ist ein Gebührenbescheid: Einwände dagegen gehen über den Rechtsbehelf. Dessen Frist ist nach der Rechnung der App am {deadline} abgelaufen; mehr dazu im Hinweis zum Gebührenbescheid. Der Unterschied: {delta_qty} {cunit}."
+    },
+    "metering": {
+      "title": "{label}: Messentgelt über der Obergrenze, rund {over_eur} im Jahr",
+      "textMme": "Für den Messstellenbetrieb berechnet die Rechnung für {period_from} bis {period_to} umgerechnet {year_eur} im Jahr (brutto). Für eine moderne Messeinrichtung nennt das Messstellenbetriebsgesetz eine Obergrenze von {cap_eur} im Jahr. Sie gilt für den grundzuständigen Messstellenbetreiber; ein frei gewählter ist an sie nicht gebunden. Zusatzleistungen, etwa ein Einbau auf deinen Wunsch, dürfen extra kosten. Frag beim Messstellenbetreiber nach.",
+      "textImsys": "Für den Messstellenbetrieb berechnet die Rechnung für {period_from} bis {period_to} umgerechnet {year_eur} im Jahr (brutto). Für ein intelligentes Messsystem nennt das Messstellenbetriebsgesetz in deiner Fallgruppe eine Obergrenze von {cap_eur} im Jahr. Die App ordnet ein nach rund {kwh_year} kWh im Jahr, einer Steuerung nach § 14a EnWG und der Leistung deiner PV-Anlage; der Messstellenbetreiber kann mit anderen Werten rechnen. Die Grenze gilt für den grundzuständigen Messstellenbetreiber; ein frei gewählter ist an sie nicht gebunden. Zusatzleistungen, etwa ein Einbau auf deinen Wunsch, dürfen extra kosten. Frag beim Messstellenbetreiber nach."
+    },
+    "feeNotice": {
+      "title": "{label}: Gebührenbescheid vom {dated_on}, Rechtsbehelf bis {deadline}",
+      "text": "Gebührenbescheid vom {dated_on}: Gegen den Bescheid ist ein Rechtsbehelf möglich, binnen eines Monats nach Bekanntgabe. Kam er per Post, gilt er am vierten Tag nach Absendung als bekannt gegeben; die Frist endet dann frühestens am {deadline}. Fällt das Ende auf einen Samstag, Sonntag oder Feiertag, endet die Frist erst am nächsten Werktag; das ist hier schon eingerechnet, mit den Feiertagen, die in ganz Deutschland gelten. Einen Feiertag nur in deinem Bundesland kennt die App nicht; fällt einer auf diesen Tag, läuft die Frist bis zum nächsten Werktag danach. Ob Widerspruch oder Klage, steht in der Rechtsbehelfsbelehrung am Ende des Bescheids. Der Rechtsbehelf schiebt die Zahlung nicht auf.",
+      "textServed": "Gebührenbescheid vom {dated_on}, zugestellt am {served_on}: Gegen den Bescheid ist ein Rechtsbehelf möglich, binnen eines Monats nach Bekanntgabe; die Frist endet am {deadline}. Fällt das Ende auf einen Samstag, Sonntag oder Feiertag, endet die Frist erst am nächsten Werktag; das ist hier schon eingerechnet, mit den Feiertagen, die in ganz Deutschland gelten. Einen Feiertag nur in deinem Bundesland kennt die App nicht; fällt einer auf diesen Tag, läuft die Frist bis zum nächsten Werktag danach. Ob Widerspruch oder Klage, steht in der Rechtsbehelfsbelehrung am Ende des Bescheids. Der Rechtsbehelf schiebt die Zahlung nicht auf.",
+      "titleExpired": "{label}: Gebührenbescheid vom {dated_on}, Frist am {deadline} abgelaufen",
+      "textExpired": "Gebührenbescheid vom {dated_on}: Die Frist für einen Rechtsbehelf, ein Monat nach Bekanntgabe, ist nach der Rechnung der App am {deadline} abgelaufen; ein Samstag, Sonntag oder bundesweiter Feiertag am Ende ist schon eingerechnet. Einen Feiertag nur in deinem Bundesland kennt die App nicht; fiel einer auf diesen Tag, lief die Frist bis zum nächsten Werktag danach. Fehlte die Rechtsbehelfsbelehrung oder war sie unrichtig, gilt eine Frist von einem Jahr. Lass dich beraten, wenn du gegen den Bescheid noch vorgehen willst.",
+      "textExpiredLong": "Gebührenbescheid vom {dated_on}: Die Frist für einen Rechtsbehelf, ein Monat nach Bekanntgabe, ist nach der Rechnung der App am {deadline} abgelaufen; ein Samstag, Sonntag oder bundesweiter Feiertag am Ende ist schon eingerechnet. Einen Feiertag nur in deinem Bundesland kennt die App nicht; fiel einer auf diesen Tag, lief die Frist bis zum nächsten Werktag danach. Lass dich beraten, wenn du gegen den Bescheid noch vorgehen willst."
+    },
+    "docLink": "Was die App prüft"
+  },
+  "letters": {
+    "button": "Brief entwerfen",
+    "buttonNamed": "Brief entwerfen: {title}",
+    "kind": {
+      "special_termination": "Sonderkündigung",
+      "advance_adjustment": "Antrag auf Abschlagsanpassung",
+      "estimate_query": "Rückfrage zur Schätzung",
+      "complaint": "Beanstandung einer Rechnung",
+      "objection": "Widerspruch gegen einen Bescheid"
+    },
+    "dialog": {
+      "title": "Brief entwerfen: {kind}",
+      "german": "Der Brief ist auf Deutsch, denn Versorger und Behörden in Deutschland lesen ihn. Prüfe und ergänze ihn, bevor du ihn verschickst.",
+      "sender": "Absender (Name und Anschrift)",
+      "recipient": "Empfänger (Name und Anschrift)",
+      "recipientHint": "Die Anschrift steht auf dem Schreiben oder der Rechnung, auf die du antwortest.",
+      "place": "Ort",
+      "remember": "Absender auf diesem Gerät merken",
+      "rememberHint": "Nur in diesem Browser gespeichert, nicht in der App. Haken entfernen löscht die Angaben.",
+      "refs": "Angaben zur Zuordnung",
+      "confirmObjection": "In der Rechtsbehelfsbelehrung am Ende des Bescheids steht „Widerspruch“.",
+      "confirmFirst": "Bestätige zuerst, was in der Rechtsbehelfsbelehrung steht. Nennt sie die Klage, hilft dieser Brief nicht; lass dich dann beraten.",
+      "objectionForm": "Unterschreibe den Widerspruch und schicke ihn per Post oder gib ihn bei der Behörde ab. Eine einfache E-Mail reicht dafür nicht.",
+      "deadline": "Schicke ihn so ab, dass er spätestens am {date} ankommt (Frist laut Hinweis).",
+      "preview": "Vorschau",
+      "gaps": {
+        "one": "Eine Angabe fehlt noch, sie steht als […] im Brief.",
+        "other": "{count} Angaben fehlen noch, sie stehen als […] im Brief."
+      },
+      "copy": "Text kopieren",
+      "copied": "Brief kopiert",
+      "copyFailed": "Kopieren geht hier nicht. Markiere den Text in der Vorschau.",
+      "pdf": "PDF herunterladen",
+      "sent": "Als verschickt markieren",
+      "sentNote": "Brief verschickt: {kind}",
+      "sentHint": "Trag das Datum ein, an dem du den Brief abgeschickt hast. Den Brief selbst kannst du als Beleg anhängen."
+    },
+    "ref": {
+      "customer_number": "Kundennummer",
+      "contract_number": "Vertragsnummer",
+      "meter_serial": "Zählernummer",
+      "malo_id": "Marktlokation",
+      "supply_address": "Lieferanschrift",
+      "invoice_number": "Rechnungsnummer",
+      "file_number": "Aktenzeichen oder Kassenzeichen"
+    },
+    "extra": {
+      "reading_value": "Zählerstand für die Schlussrechnung (optional)",
+      "reading_date": "abgelesen am",
+      "amount_eur": "Gewünschter Abschlag in {cur}",
+      "reasons": "Gründe (optional, z. B. weniger Personen im Haushalt)",
+      "attach_photo": "Foto des Zählerstands als Anlage nennen",
+      "note": "Ergänzung (optional)",
+      "levy": "Bescheid über (z. B. Abwassergebühren 2026)",
+      "reason": "Begründung (optional, sonst steht im Brief, dass sie folgt)",
+      "suspend": "Zugleich die Aussetzung der Vollziehung beantragen (optional)"
+    }
   }
 }

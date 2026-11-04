@@ -27,13 +27,19 @@ use Energietracker\Support\LocalizedException;
  * und Verträgen gehen an die löschende Person. Ohne sie (Anmeldung aus,
  * API-Schlüssel) bleibt die ID stehen und zeigt „Name (gelöscht)“; mit
  * „ehemalige Person“ ersetzt `assignee_former: true` die ID.
+ *
+ * v3.11.0 (E) — ebenso ein Mietverhältnis (`tenancies.json`): Seine Fristen
+ * (Nebenkostenabrechnung, Einwände, CO₂-Kosten) erben Mietverhältnis →
+ * erster Wärmezähler → niemand ({@see inheritTenancy()}).
  */
 final class ResponsibilityService
 {
-    /** Herkunft einer Zuständigkeit an einem Ereignis. */
-    public const SOURCES = ['own', 'contract', 'meter'];
+    /** Herkunft einer Zuständigkeit an einem Ereignis. v3.11.0 (E) — `tenancy`: vom Mietverhältnis. */
+    public const SOURCES = ['own', 'contract', 'meter', 'tenancy'];
     /** Töpfe je Verbrauchsart mit Zuständigkeit. */
     public const POTS = ['meters', 'contracts'];
+    /** v3.11.0 (E) — Töpfe auf oberster Ebene mit Zuständigkeit (Schlüssel wie in countFor()). */
+    public const TOP_POTS = ['tenancies' => 'tenancies.json'];
     /** Katalogschlüssel (und stabiler Fehlercode) für eine Person, die es nicht (mehr) gibt. */
     public const UNKNOWN = 'errors.assignee.unknown';
 
@@ -192,6 +198,22 @@ final class ResponsibilityService
     }
 
     /**
+     * v3.11.0 (E) — Fristen eines Mietverhältnisses (Nebenkostenabrechnung, Einwände, CO₂-Kosten):
+     * die Zuständigkeit des Mietverhältnisses (`assignee_source` `tenancy`), sonst die seines
+     * Wärmezählers (`meter`; Entscheidung 12a: Bestand ohne Feld bleibt nicht leer), sonst niemand.
+     *
+     * @param array<string,mixed> $tenancy
+     * @param array<string,mixed>|null $heatMeter
+     * @return array{assignee:?string, assignee_id:?string, assignee_former:bool, assignee_deleted:bool, assignee_source:?string}
+     */
+    public function inheritTenancy(array $tenancy, ?array $heatMeter): array
+    {
+        $v = $this->view($tenancy);
+        if ($v['assignee'] !== null || $v['assignee_former']) return $v + ['assignee_source' => 'tenancy'];
+        return $this->inherit(null, $heatMeter);
+    }
+
+    /**
      * Momentaufnahme für den Verlauf (ActivityService::record, `assignee`):
      * {name, id?, deleted?}, {former: true} oder null (niemand).
      *
@@ -257,20 +279,32 @@ final class ResponsibilityService
     /**
      * Wie viele Zähler und Verträge eine Person hat (Vorschau „Person löschen“).
      *
-     * @return array{meters:int, contracts:int}
+     * @return array{meters:int, contracts:int, tenancies:int}
      */
     public function countFor(string $personId): array
     {
-        $n = ['meters' => 0, 'contracts' => 0];
+        $n = ['meters' => 0, 'contracts' => 0, 'tenancies' => 0];
         if ($personId === '') return $n;
-        foreach (Utilities::keys() as $u) {
-            foreach (self::POTS as $pot) {
-                foreach ($this->rows("$u/$pot.json") as $x) {
-                    if (is_array($x) && ($x['assignee_id'] ?? null) === $personId) $n[$pot]++;
-                }
+        foreach (self::files() as [$file, $key]) {
+            foreach ($this->rows($file) as $x) {
+                if (is_array($x) && ($x['assignee_id'] ?? null) === $personId) $n[$key]++;
             }
         }
         return $n;
+    }
+
+    /**
+     * Alle Dateien mit Zuständigkeit und ihr Zählschlüssel: je Verbrauchsart Zähler und Verträge,
+     * v3.11.0 (E) dazu die Mietverhältnisse.
+     *
+     * @return list<array{0:string,1:string}>
+     */
+    private static function files(): array
+    {
+        $out = [];
+        foreach (Utilities::keys() as $u) foreach (self::POTS as $pot) $out[] = ["$u/$pot.json", $pot];
+        foreach (self::TOP_POTS as $key => $file) $out[] = [$file, $key];
+        return $out;
     }
 
     /**
@@ -288,28 +322,25 @@ final class ResponsibilityService
         $out = ['handed_over' => 0, 'kept' => 0];
         if ($personId === '') return $out;
         $toId = is_string($to['id'] ?? null) && $to['id'] !== '' && $to['id'] !== $personId ? $to['id'] : null;
-        foreach (Utilities::keys() as $u) {
-            foreach (self::POTS as $pot) {
-                $file = "$u/$pot.json";
-                $rows = $this->rows($file);
-                $changed = false;
-                foreach ($rows as $i => $x) {
-                    if (!is_array($x) || ($x['assignee_id'] ?? null) !== $personId) continue;
-                    if ($toId !== null) {
-                        $rows[$i] = self::apply($x, $toId);
-                        $out['handed_over']++;
-                        $changed = true;
-                        continue;
-                    }
-                    $out['kept']++;
-                    if ($anonymize) {
-                        unset($rows[$i]['assignee_id']);
-                        $rows[$i]['assignee_former'] = true;
-                        $changed = true;
-                    }
+        foreach (self::files() as [$file]) {   // v3.11.0 (E) — auch die Mietverhältnisse
+            $rows = $this->rows($file);
+            $changed = false;
+            foreach ($rows as $i => $x) {
+                if (!is_array($x) || ($x['assignee_id'] ?? null) !== $personId) continue;
+                if ($toId !== null) {
+                    $rows[$i] = self::apply($x, $toId);
+                    $out['handed_over']++;
+                    $changed = true;
+                    continue;
                 }
-                if ($changed) $this->store->write($file, array_values($rows));
+                $out['kept']++;
+                if ($anonymize) {
+                    unset($rows[$i]['assignee_id']);
+                    $rows[$i]['assignee_former'] = true;
+                    $changed = true;
+                }
             }
+            if ($changed) $this->store->write($file, array_values($rows));
         }
         return $out;
     }

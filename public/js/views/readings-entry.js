@@ -291,6 +291,11 @@ function renderRow(r, today) {
             <span>${t('readingsEntry.row.estimated')}</span>
           </label>${info('estimated')}
         </span>
+        <!-- v3.11.0 (Paket rechnung) — Stand heute auch dem Versorger gemeldet (Beleg gegen eine Schätzung, A5) -->
+        <label class="toggle">
+          <input type="checkbox" data-role="reported" />
+          <span>${t('readingsEntry.row.reported')}</span>
+        </label>
         <button type="button" class="btn btn--ghost btn--sm" data-action="toggle-date"
           aria-expanded="false" aria-controls="rc-date-${escIdx(r)}">
           ${t('readingsEntry.row.otherDate')}
@@ -677,12 +682,15 @@ async function trySaveCard(card, r, today = todayIso()) {
 
   setCardStatus(statusEl, 'saving');
 
+  const reportedEl = card.querySelector('[data-role="reported"]');
   const data = {
     meter_id:     r.meter_id,
     date,
     counter,
     note:         noteEl?.value || '',
     is_estimated: !!estimatedEl?.checked,
+    // v3.11.0 (Paket rechnung) — „an den Versorger gemeldet“: heute (der Tag der Meldung, nicht der Ablesung)
+    ...(reportedEl?.checked ? { reported_on: today } : {}),
   };
   // v3.1.0 (FE-32) — eine Kennung je Erfassung: Kommt die Antwort nicht an
   // (Zeitlimit) und der Stand wird erneut gesendet, legt der Server keinen
@@ -696,6 +704,7 @@ async function trySaveCard(card, r, today = todayIso()) {
     if (counterEl) counterEl.value = '';
     if (noteEl)    noteEl.value = '';
     if (estimatedEl) estimatedEl.checked = false;
+    if (reportedEl) reportedEl.checked = false;
     card.__clientRef = null;
     card.__clearPhoto?.();
     // Vorschau/Hinweis dieser Karte zurücksetzen.
@@ -784,6 +793,8 @@ async function renderOutbox(el, rows, listEl, today) {
         const n = card.querySelector('[data-role="note"]');
         if (n) n.value = item.note || '';
         card.querySelector('[data-role="estimated"]').checked = !!item.is_estimated;
+        const rep = card.querySelector('[data-role="reported"]');   // v3.11.0 (Paket rechnung)
+        if (rep) rep.checked = !!item.reported_on;
         for (const [k, v] of Object.entries(item.reference || {})) {
           const el = card.querySelector(`[data-ref="${k}"]`);
           if (el) el.value = formatForInput(v);

@@ -54,6 +54,18 @@ globalThis.fetch = async (url, init) => {
       r.id && r.severity && r.category && r.title && r.detail);
   }
 
+  // v3.11.0 (F1035) — Rechte als Kunde: Liste mit Land und Fehlschlägen (die Prüfungen liefern die Fachpakete)
+  const rights = await j('/api/rights');
+  check('GET /api/rights → {enabled, country, today, findings[], failed[]}',
+    typeof rights.enabled === 'boolean' && typeof rights.country === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(rights.today)
+      && Array.isArray(rights.findings) && Array.isArray(rights.failed) && rights.failed.length === 0
+      && rights.findings.every(f => /^rights-[a-z_]+-[0-9a-f]{12}$/.test(f.id) && f.facts && !Array.isArray(f.facts)
+        && Array.isArray(f.norms) && f.norms.length > 0 && typeof f.todo === 'boolean' && f.href.startsWith('#/')),
+    `${rights.country}, ${(rights.findings || []).length} Befunde`);
+  const rightsFiltered = await j('/api/rights?check=bonus_missing&utility=gas&todo=1');
+  check('GET /api/rights?check=…&utility=…&todo=1 filtert', Array.isArray(rightsFiltered.findings)
+    && rightsFiltered.findings.every(f => f.check === 'bonus_missing' && f.utility === 'gas' && f.todo));
+
   // 2. reminders endpoint shape
   const rem = await j('/api/reminders');
   check('GET /api/reminders → Array', Array.isArray(rem));

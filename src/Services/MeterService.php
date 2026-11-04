@@ -245,6 +245,7 @@ final class MeterService
         // v3.1.0 (H5, MKT-24) — Marktlokation und Messlokation für den Lieferantenwechsel
         $this->applyLocationIds($meter, $input);
         $this->applyObis($meter, $input);   // v3.9.0 (F1032) — Zählwerk (OBIS-Kennzahl)
+        $this->applyMeteringFields($utility, $meter, $input);   // v3.11.0 (F1035) — Messstellenbetrieb
         // v3.1.0 (H7) — PV-Anlage und Wärmepumpe
         $this->applyEnergyFields($utility, $meter, $input);
         $this->applyHeatLimit($utility, $meter, $input);   // v3.9.0 (#38) — auch beim Anlegen
@@ -290,6 +291,7 @@ final class MeterService
             $this->applyRole($utility, $m, $input);
             $this->applyLocationIds($m, $input);
             $this->applyObis($m, $input);   // v3.9.0 (F1032)
+            $this->applyMeteringFields($utility, $m, $input);   // v3.11.0 (F1035)
             $this->applyEnergyFields($utility, $m, $input);
             $this->applyHeatLimit($utility, $m, $input);   // v3.7.0 (wirklichkeit-2)
             $this->applyAssignee($m, $input);   // v3.7.0
@@ -937,6 +939,52 @@ final class MeterService
         if ($v === '') { unset($meter['obis']); return; }
         if (self::obisKey($v) === null) throw new LocalizedException('errors.meter.obisInvalid', ['value' => mb_substr($v, 0, 24)], 'obis');
         $meter['obis'] = $v;
+    }
+
+    /**
+     * v3.11.0 (F1035, A6, Entscheidung 4a) — Messstellenbetrieb, alle optional, leer entfernt:
+     *   strom           metering_device  conventional | mme (moderne Messeinrichtung) | imsys
+     *                                    (intelligentes Messsystem), Config\Rights::METERING_DEVICES
+     *                   msb_basic        true = grundzuständiger Messstellenbetreiber (der örtliche
+     *                                    Netzbetreiber), false = frei gewählter; fehlt = unbekannt
+     *   pv_einspeisung  pv_kw            Leistung der Anlage in kW (Fallgruppe nach § 30 Abs. 1 MsbG)
+     * Bei einer anderen Art ist ein Wert ein Fehler, kein stilles Verwerfen (Lektion 4).
+     */
+    private function applyMeteringFields(string $utility, array &$meter, array $input): void
+    {
+        $given = fn(string $f) => array_key_exists($f, $input) && $input[$f] !== null && $input[$f] !== '';
+        foreach (['metering_device' => 'strom', 'msb_basic' => 'strom', 'pv_kw' => 'pv_einspeisung'] as $f => $only) {
+            if (!array_key_exists($f, $input)) continue;
+            if (!$given($f)) { unset($meter[$f]); continue; }
+            if ($utility !== $only) {
+                throw new LocalizedException('errors.meter.valueInvalid', ['field' => $f, 'value' => is_scalar($input[$f]) ? (string)$input[$f] : ''], "$f utility");
+            }
+        }
+        if ($utility === 'strom' && $given('metering_device')) {
+            $v = $input['metering_device'];
+            if (!in_array($v, \Energietracker\Config\Rights::METERING_DEVICES, true)) {
+                throw new LocalizedException('errors.meter.valueInvalid', ['field' => 'metering_device', 'value' => is_scalar($v) ? (string)$v : ''], 'metering_device');
+            }
+            $meter['metering_device'] = $v;
+        }
+        if ($utility === 'strom' && $given('msb_basic')) {
+            $v = $input['msb_basic'];
+            $b = match (true) {
+                $v === true || $v === 1 || $v === '1' || $v === 'true' => true,
+                $v === false || $v === 0 || $v === '0' || $v === 'false' => false,
+                default => null,
+            };
+            if ($b === null) throw new LocalizedException('errors.meter.valueInvalid', ['field' => 'msb_basic', 'value' => is_scalar($v) ? (string)$v : ''], 'msb_basic');
+            $meter['msb_basic'] = $b;
+        }
+        if ($utility === 'pv_einspeisung' && $given('pv_kw')) {
+            $v = $input['pv_kw'];
+            $n = is_string($v) ? ReadingImportService::parseNum($v) : (is_int($v) || is_float($v) ? (float)$v : null);
+            if ($n === null || !is_finite($n) || $n <= 0 || $n > 100000) {
+                throw new LocalizedException('errors.meter.valueInvalid', ['field' => 'pv_kw', 'value' => is_scalar($v) ? (string)$v : ''], 'pv_kw');
+            }
+            $meter['pv_kw'] = round($n, 3);
+        }
     }
 
     /** Muster einer OBIS-Kennzahl: [A-B:]C.D.E[*F] (A, B, F optional), je Teil höchstens drei Ziffern. */

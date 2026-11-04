@@ -17,9 +17,10 @@ use Energietracker\Support\LocalizedException;
  *   {id 'b_…', meter_id, contract_id?, kind annual|final|interim, period_from,
  *    period_to (inklusive), issued_on?, invoice {energy_kwh?, volume_m3?,
  *    amount_eur, advances_paid_eur?, result_eur? (positiv = Nachzahlung)},
- *    items [{label, amount_eur, kind levy|fee|credit|other}],
+ *    items [{label, amount_eur, kind levy|fee|credit|other|metering, basis?, vat_pct?}],
  *    co2? {emissions_kg, cost_eur?, stated_factor?}, attachment_ids [],
- *    special_payment_id?, note, created_at}
+ *    special_payment_id?, note, created_at,
+ *    v3.11.0: received_on?, reading_estimated? {start, end}, notice? (Wasser), invoice_number?}
  *
  * `compare()` rechnet den Zeitraum mit billBreakdown() nach (dieselben Bausteine
  * wie Monatssicht und Saldo) und nennt die Abweichung; `book()` legt das
@@ -30,7 +31,8 @@ use Energietracker\Support\LocalizedException;
 final class BillService
 {
     public const KINDS = ['annual', 'final', 'interim'];
-    public const ITEM_KINDS = ['levy', 'fee', 'credit', 'other'];
+    /** v3.11.0 (F1035) — `metering`: Entgelt für den Messstellenbetrieb (A6, mit `basis` und `vat_pct` je Posten). */
+    public const ITEM_KINDS = ['levy', 'fee', 'credit', 'other', 'metering'];
     /** ok: |Δ Menge| ≤ 1 % und (|Δ €| ≤ 1 % oder ≤ 2 €) */
     private const OK_PCT = 1.0;
     private const OK_EUR = 2.0;
@@ -144,7 +146,7 @@ final class BillService
             throw new NotFoundException($this->i18n->t('errors.common.meterNotFound', ['id' => $meterId]));
         }
         $b = ['id' => 'b_' . bin2hex(random_bytes(6)), 'meter_id' => $meterId]
-            + $this->normalize($input, null) + ['attachment_ids' => [], 'created_at' => date('c')];
+            + $this->normalize($input, null, $utility) + ['attachment_ids' => [], 'created_at' => date('c')];
         $this->linkAttachments($utility, $b, [], $input['attachment_ids'] ?? []);
         $openBefore = $this->openBefore($utility);   // v3.5.0 (F1029)
         $all = $this->store->read("$utility/bills.json", []);
@@ -163,7 +165,7 @@ final class BillService
         if (!is_array($all)) $all = [];
         foreach ($all as $i => $b) {
             if (!is_array($b) || ($b['id'] ?? null) !== $id) continue;
-            $next = array_merge($b, $this->normalize($input, $b));
+            $next = array_merge($b, $this->normalize($input, $b, $utility));
             if (array_key_exists('attachment_ids', $input)) $this->linkAttachments($utility, $next, (array)($b['attachment_ids'] ?? []), $input['attachment_ids']);
             // v3.5.0 (F1029) — nur wenn Zeitraum, Zähler oder Vertrag sich ändern
             $moved = array_intersect_key($next, array_flip(['period_to', 'meter_id', 'contract_id'])) !== array_intersect_key($b, array_flip(['period_to', 'meter_id', 'contract_id']));
@@ -204,6 +206,12 @@ final class BillService
         $isWater = $utility === 'wasser';
         $qtyKey = $isWater ? 'm3' : 'kwh';
         $items = array_sum(array_map(fn($x) => (float)($x['amount_eur'] ?? 0), (array)($b['items'] ?? [])));
+        // v3.11.0 (Paket rechnung) — eine Gutschrift der Rechnung (Posten `credit`, seit v3.11.0 auch aus dem
+        // Posteingang), die die App schon als Bonus des Vertrags abzieht (`bonus`), zählt nicht doppelt: bis zur
+        // Höhe des Bonus im Zeitraum fällt sie aus den Posten
+        $credits = -array_sum(array_map(fn($x) => min(0.0, (float)($x['amount_eur'] ?? 0)),
+            array_filter((array)($b['items'] ?? []), fn($x) => is_array($x) && ($x['kind'] ?? null) === 'credit')));
+        $items += min($credits, (float)($bd['totals']['bonus'] ?? 0));
         // v3.9.0 — Endstand der Rechnung ist dein gemeldeter Stand eines früheren Tags (`end_reading_on`, aus dem
         // Posteingang): Menge und Arbeitspreis bis zu diesem Tag, feste Kosten über den ganzen Zeitraum — wie der
         // Versorger rechnet; der Rest folgt in seiner nächsten Rechnung
@@ -541,7 +549,7 @@ final class BillService
     }
 
     /** @return array<string,mixed> */
-    private function normalize(array $in, ?array $old): array
+    private function normalize(array $in, ?array $old, string $utility): array
     {
         $isNew = $old === null;
         $out = [];
@@ -580,11 +588,18 @@ final class BillService
             $items = [];
             foreach ((array)($in['items'] ?? []) as $x) {
                 if (!is_array($x) || (($x['label'] ?? '') === '' && ($x['amount_eur'] ?? '') === '')) continue;
-                $items[] = [
+                $item = [
                     'label'      => mb_substr(trim((string)($x['label'] ?? '')), 0, 120),
                     'amount_eur' => $this->num($x['amount_eur'] ?? 0, -1e6, 1e6),
                     'kind'       => in_array($x['kind'] ?? null, self::ITEM_KINDS, true) ? $x['kind'] : 'other',
                 ];
+                // v3.11.0 (F1035) — wie gedruckt: netto oder brutto und Steuersatz (A6 Messentgelt); nur wenn gesetzt
+                if (($x['basis'] ?? null) !== null && $x['basis'] !== '') {
+                    if (!in_array($x['basis'], self::PRICE_BASES, true)) throw $this->invalid('items.basis', $x['basis']);
+                    $item['basis'] = $x['basis'];
+                }
+                if (($x['vat_pct'] ?? null) !== null && $x['vat_pct'] !== '') $item['vat_pct'] = $this->pct($x['vat_pct'], 'items.vat_pct');
+                $items[] = $item;
             }
             $out['items'] = $items;
         }
@@ -625,8 +640,153 @@ final class BillService
             }
             $out['end_reading_on'] = $v === '' ? null : $v;
         }
+        // v3.11.0 (F1035, Paket basis) — Rechte als Kunde, alle optional; ohne Angabe fehlt das Feld,
+        // leer (null, '') entfernt den Wert (null). Bestandsrechnungen bleiben unverändert.
+        //   received_on        Zugang der Rechnung (A1: § 40c spricht von „zur Verfügung stellen“)
+        //   reading_estimated  {start, end}: die Rechnung nennt den Anfangs- bzw. Endstand geschätzt (A5)
+        //   notice             Wasser/Abwasser: Gebührenbescheid {public_law, dated_on, served_on,
+        //                      remedy objection|action|null, file_number} (A7)
+        if (array_key_exists('received_on', $in)) {
+            $v = (string)($in['received_on'] ?? '');
+            if ($v !== '' && !Dates::isIsoDate($v)) throw $this->invalid('received_on', $v);
+            $out['received_on'] = $v === '' ? null : $v;
+        }
+        if (array_key_exists('reading_estimated', $in)) {
+            $re = $in['reading_estimated'];
+            if ($re === null || $re === '' || $re === []) $out['reading_estimated'] = null;
+            elseif (!is_array($re) || array_diff(array_keys($re), ['start', 'end']) !== []) throw $this->invalid('reading_estimated', $re);
+            else $out['reading_estimated'] = ['start' => self::flag($re['start'] ?? false), 'end' => self::flag($re['end'] ?? false)];
+        }
+        // v3.11.0 (Skeptiker M5) — der Endstand, den die Rechnung als geschätzt nennt: {value, on}. Er ist
+        // keine Ablesung und fließt nicht in den Verbrauch; A5 vergleicht ihn mit den eigenen Ablesungen.
+        // `on` im Zeitraum oder am Tag danach (manche Rechnungen datieren den Endstand auf den Folgetag).
+        if (array_key_exists('estimated_end_reading', $in)) $out['estimated_end_reading'] = $this->estimatedEnd($in['estimated_end_reading'],
+            (string)($out['period_from'] ?? $old['period_from'] ?? ''), (string)($out['period_to'] ?? $old['period_to'] ?? ''));
+        if (array_key_exists('notice', $in)) $out['notice'] = $this->notice($in['notice'], $utility);
+        // v3.11.0 (integration) — Rechnungsnummer (Formular „Laut Rechnung“, Posteingang): Bezug in den Briefen.
+        // Text bis 80 Zeichen wie das Aktenzeichen; leer entfernt (null), kein Text ist ein Fehler
+        if (array_key_exists('invoice_number', $in)) {
+            $v = $in['invoice_number'];
+            if ($v !== null && !is_string($v) && !is_int($v)) throw $this->invalid('invoice_number', $v);
+            $v = trim((string)$v);
+            $out['invoice_number'] = $v === '' ? null : mb_substr($v, 0, 80);
+        }
         if ($isNew || array_key_exists('note', $in)) $out['note'] = mb_substr((string)($in['note'] ?? ''), 0, 2000);
         return $out;
+    }
+
+    /** v3.11.0 (F1035) — netto/brutto eines Postens, wie im Posteingang (InboxSchema PRICE_BASIS). */
+    public const PRICE_BASES = ['net', 'gross'];
+    /** v3.11.0 (F1035) — Rechtsbehelf laut Rechtsbehelfsbelehrung des Bescheids (A7, Entscheidung 5b). */
+    public const NOTICE_REMEDIES = ['objection', 'action'];
+
+    /**
+     * v3.11.0 (F1035) — Gebührenbescheid (A7): nur bei Wasser (öffentlich-rechtliche Wasser-
+     * und Abwasserentgelte); `dated_on` ist Pflicht, sobald `public_law` gilt. null/leer entfernt.
+     *
+     * @return array{public_law:bool, dated_on:?string, served_on:?string, remedy:?string, file_number:?string}|null
+     */
+    private function notice(mixed $n, string $utility): ?array
+    {
+        if ($n === null || $n === '' || $n === []) return null;
+        if ($utility !== 'wasser' || !is_array($n)) throw $this->invalid('notice', $n);
+        $out = ['public_law' => self::flag($n['public_law'] ?? false), 'dated_on' => null, 'served_on' => null, 'remedy' => null, 'file_number' => null];
+        foreach (['dated_on', 'served_on'] as $f) {
+            $v = (string)($n[$f] ?? '');
+            if ($v !== '' && !Dates::isIsoDate($v)) throw $this->invalid("notice.$f", $v);
+            $out[$f] = $v === '' ? null : $v;
+        }
+        if ($out['public_law'] && $out['dated_on'] === null) throw $this->invalid('notice.dated_on', '');
+        $r = $n['remedy'] ?? null;
+        if ($r !== null && $r !== '' && !in_array($r, self::NOTICE_REMEDIES, true)) throw $this->invalid('notice.remedy', $r);
+        $out['remedy'] = $r === '' ? null : $r;
+        $fn = trim((string)($n['file_number'] ?? ''));
+        $out['file_number'] = $fn === '' ? null : mb_substr($fn, 0, 80);
+        return $out;
+    }
+
+    /**
+     * v3.11.0 (Skeptiker M5) — geschätzter Endstand laut Rechnung: Stand (≥ 0) und Tag; ohne Tag das
+     * Ende des Zeitraums. null/leer entfernt.
+     *
+     * @return array{value:float, on:string}|null
+     */
+    private function estimatedEnd(mixed $v, string $from, string $to): ?array
+    {
+        if ($v === null || $v === '' || $v === []) return null;
+        if (!is_array($v) || !array_key_exists('value', $v) || $v['value'] === '' || $v['value'] === null) throw $this->invalid('estimated_end_reading', $v);
+        $n = is_string($v['value']) ? ReadingImportService::parseNum($v['value']) : (is_int($v['value']) || is_float($v['value']) ? (float)$v['value'] : null);
+        if ($n === null || !is_finite($n) || $n < 0 || $n > 1e12) throw $this->invalid('estimated_end_reading.value', $v['value']);
+        $on = (string)($v['on'] ?? '');
+        if ($on === '') $on = $to;
+        $after = Dates::isIsoDate($to) ? date('Y-m-d', (int)strtotime("$to +1 day")) : '';
+        if (!Dates::isIsoDate($on) || ($from !== '' && $on < $from) || ($after !== '' && $on > $after)) throw $this->invalid('estimated_end_reading.on', $on);
+        return ['value' => round($n, 4), 'on' => $on];
+    }
+
+    /**
+     * v3.11.0 (Skeptiker M5) — Warnung beim Speichern (nicht gespeichert): Der geschätzte Endstand
+     * liegt über einer späteren eigenen Ablesung oder unter einer früheren desselben Geräts — der
+     * Zähler liefe rückwärts. `estimated_reading_backwards` in `warnings`, mit dem Nachbarn in
+     * `estimated_reading_neighbor` {date, counter}.
+     *
+     * @param array<string,mixed> $b gespeicherte Rechnung
+     * @return array<string,mixed>
+     */
+    public function withEstimateWarnings(string $utility, array $b, ReadingService $readings): array
+    {
+        $n = self::backwardsNeighbor($utility, $b, $readings, $this->meters);
+        if ($n === null) return $b;
+        $b['warnings'] = array_values(array_unique([...(array)($b['warnings'] ?? []), 'estimated_reading_backwards']));
+        $b['estimated_reading_neighbor'] = $n;
+        return $b;
+    }
+
+    /**
+     * Die eigene Ablesung (nicht geschätzt, dasselbe Gerät), zu der der geschätzte Endstand nicht passt:
+     * später und niedriger oder früher und höher. Die nächste davon, sonst null. Ohne Überlauf: Ein Zähler
+     * mit Zählwerk (digits) könnte überlaufen, dann prüft die Funktion nichts.
+     *
+     * @return array{date:string, counter:float}|null
+     */
+    public static function backwardsNeighbor(string $utility, array $b, ReadingService $readings, MeterService $meters): ?array
+    {
+        $e = $b['estimated_end_reading'] ?? null;
+        if (!is_array($e) || !is_numeric($e['value'] ?? null) || !Dates::isIsoDate($e['on'] ?? null) || !Utilities::isCumulative($utility)) return null;
+        $m = $meters->get($utility, (string)($b['meter_id'] ?? ''));
+        if ($m === null || ($m['capture'] ?? 'counter') === 'period') return null;
+        $dev = $meters->deviceOnDate($m, (string)$e['on']);
+        if (!empty($dev['digits'])) return null;
+        $best = null; $bestGap = PHP_INT_MAX;
+        foreach ($readings->list($utility, (string)$m['id']) as $r) {
+            if (!empty($r['is_estimated']) || !empty($r['is_future']) || !Dates::isIsoDate($r['date'] ?? null) || !is_numeric($r['counter'] ?? null)) continue;
+            if (($r['device_id'] ?? null) !== ($dev['id'] ?? null) || $r['date'] === $e['on']) continue;
+            $later = $r['date'] > $e['on'];
+            if (!(($later && (float)$r['counter'] < (float)$e['value'] - 1e-9) || (!$later && (float)$r['counter'] > (float)$e['value'] + 1e-9))) continue;
+            $gap = abs((int)round((strtotime((string)$r['date']) - strtotime((string)$e['on'])) / 86400));
+            if ($gap < $bestGap) { $bestGap = $gap; $best = ['date' => (string)$r['date'], 'counter' => (float)$r['counter']]; }
+        }
+        return $best;
+    }
+
+    /** Ja/Nein aus JSON oder Formular: nur ein ausdrückliches Ja (wie MeterService::flag). */
+    private static function flag(mixed $v): bool
+    {
+        return $v === true || $v === 1 || (is_string($v) && in_array(strtolower(trim($v)), ['1', 'true', 'on', 'yes'], true));
+    }
+
+    /** Steuersatz in % (0 bis 30, wie der dynamische Tarif). */
+    private function pct(mixed $v, string $field): float
+    {
+        $n = is_string($v) ? ReadingImportService::parseNum($v) : (is_int($v) || is_float($v) ? (float)$v : null);
+        if ($n === null || !is_finite($n) || $n < 0 || $n > 30) throw $this->invalid($field, $v);
+        return round($n, 2);
+    }
+
+    private function invalid(string $field, mixed $value): LocalizedException
+    {
+        return new LocalizedException('errors.bill.valueInvalid',
+            ['field' => $field, 'value' => is_scalar($value) ? mb_substr((string)$value, 0, 40) : (is_array($value) ? 'array' : '')], "bill $field");
     }
 
     private function linkAttachments(string $utility, array &$b, array $old, mixed $new): void

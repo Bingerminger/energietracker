@@ -44,8 +44,10 @@ final class InboxMarksTest extends ServiceTestCase
     {
         $reminders = new ReminderService($this->store, $this->settings, $this->i18n);
         $p = InboxFixture::provider('local', [$needle => $type], [$type => $answer]);
-        $s = new InboxService($this->store, $this->i18n, $this->att, new ProviderRegistry($this->settings, $p),
-            new Proposals($this->meters, $this->contracts, $this->readings, $this->bills, $reminders, $this->settings),
+        $proposals = new Proposals($this->meters, $this->contracts, $this->readings, $this->bills, $reminders, $this->settings);
+        // v3.11.0 — fester Tag vor der Preisänderung der Fixture (01.04.2026): ein vergangener Termin entsteht nicht mehr
+        $proposals->setToday('2026-03-01');
+        $s = new InboxService($this->store, $this->i18n, $this->att, new ProviderRegistry($this->settings, $p), $proposals,
             new Applier($this->meters, $this->contracts, $this->readings, $this->bills, $reminders, $this->settings, $this->i18n));
         $s->attachActivity(new ActivityService($this->store, $this->settings, $this->i18n));
         return $s;
@@ -1120,11 +1122,17 @@ final class InboxMarksTest extends ServiceTestCase
         $a['reading_new_estimated'] = ['value' => true, 'quote' => 'S', 'page' => 1];
         [$s, $p] = $this->read('invoice', $pages, $a, 'Jahresabrechnung', 'es');
         $byDate = array_column(array_map(fn($r) => [$r['data']['date'], $r], self::byKind($p['proposals'], 'reading')), 1, 0);
-        self::assertSame([true, 'inbox.proposal.readingEstimated'], [$byDate['2025-12-31']['data']['is_estimated'] ?? null, $byDate['2025-12-31']['label_key']]);
+        // v3.11.0 (Skeptiker M5) — der geschätzte Endstand der Rechnung wird keine Ablesung (er verböge den eigenen
+        // Verbrauch), sondern steht an der Rechnung; der abgelesene Anfangsstand bleibt eine Ablesung
+        self::assertArrayNotHasKey('2025-12-31', $byDate, 'kein Ablesevorschlag für den geschätzten Endstand');
         self::assertArrayNotHasKey('is_estimated', $byDate['2024-12-31']['data'], 'der Anfangsstand ist abgelesen');
-        $s->apply($p['entry']['id'], [$byDate['2025-12-31']['id'], $byDate['2024-12-31']['id']]);
+        $bill = self::byKind($p['proposals'], 'bill')[0];
+        self::assertSame(['value' => 13580.0, 'on' => '2025-12-31'], $bill['data']['estimated_end_reading']);
+        $s->apply($p['entry']['id'], [$bill['id'], $byDate['2024-12-31']['id']]);
         $est = array_column(array_map(fn($r) => [$r['date'], $r['is_estimated']], $this->readings->list('gas', 'm_gas_default')), 1, 0);
-        self::assertSame([true, false], [$est['2025-12-31'] ?? null, $est['2024-12-31'] ?? null], 'als geschätzt angelegt: zählt in der Monatskennung nicht als Messung');
+        self::assertSame([null, false], [$est['2025-12-31'] ?? null, $est['2024-12-31'] ?? null], 'nur der abgelesene Stand ist angelegt');
+        $saved = array_values(array_filter($this->bills->list('gas'), fn($b) => ($b['period_to'] ?? null) === '2025-12-31'))[0] ?? null;
+        self::assertEquals(['value' => 13580.0, 'on' => '2025-12-31'], $saved['estimated_end_reading'] ?? null, 'an der Rechnung gespeichert');
         // ohne Legende auf dem Dokument: nicht geschätzt
         $pages[0] = str_replace("\nAblesung: A = abgelesen, S = geschätzt", '', $pages[0]);
         [, $p] = $this->read('invoice', $pages, $a, 'Jahresabrechnung', 'en');
@@ -1137,8 +1145,43 @@ final class InboxMarksTest extends ServiceTestCase
         $pp[0] = str_replace('Zähler TEST-9999-02        Anfangsstand', 'Zähler TEST-9999-02 R        Anfangsstand', $pp[0]) . "\nR = rechnerisch ermittelt";
         $b['meter_readings']['value'][1]['quote'] = str_replace('TEST-9999-02 Anfangsstand', 'TEST-9999-02 R Anfangsstand', $b['meter_readings']['value'][1]['quote']);
         [, $p] = $this->read('invoice', $pp, $b, 'Jahresabrechnung', 'er');
-        $r = array_values(array_filter(self::byKind($p['proposals'], 'reading'), fn($x) => $x['data']['date'] === '2025-12-31'))[0];
-        self::assertSame([true, ['reading_new', 'reading_new_date']], [$r['data']['is_estimated'] ?? null, $r['sources']]);
+        // v3.11.0 (Skeptiker M5) — als geschätzt erkannt, also an der Rechnung statt als Ablesung
+        self::assertSame([], array_values(array_filter(self::byKind($p['proposals'], 'reading'), fn($x) => $x['data']['date'] === '2025-12-31')));
+        self::assertSame('2025-12-31', self::byKind($p['proposals'], 'bill')[0]['data']['estimated_end_reading']['on'] ?? null);
+    }
+
+    /**
+     * v3.11.0 (Nachprüfung NP5) — dieselbe Regel wie das Formular „Rechnung prüfen“: Liegt der geschätzte Endstand
+     * (13.580 m³ am 31.12.2025, erfunden) über einer späteren eigenen Ablesung (13.540 m³ am 10.01.2026), liefe der
+     * Zähler rückwärts. Die Prüfansicht sagt es (`estimate_backwards`), die Übernahme auch (`warnings`); gespeichert
+     * wird die Rechnung trotzdem (Warnung, keine Ablehnung). Mit einer passenden Ablesung (13.600 m³) still.
+     */
+    public function testAnEstimatedEndThatWouldRunBackwardsIsReportedInTheInboxToo(): void
+    {
+        $this->gasMeter();
+        $pages = InboxFixture::invoicePages();
+        $pages[0] = str_replace('Zählerstand neu am 31.12.2025: 13.580 m³', 'Zählerstand neu am 31.12.2025: 13.580 m³ S', $pages[0]) . "\nAblesung: A = abgelesen, S = geschätzt";
+        $a = InboxFixture::invoiceAnswer();
+        $a['reading_new']['quote'] = $a['reading_new_date']['quote'] = 'Zählerstand neu am 31.12.2025: 13.580 m³ S';
+        $a['reading_new_estimated'] = ['value' => true, 'quote' => 'S', 'page' => 1];
+        $own = $this->readings->create('gas', ['meter_id' => 'm_gas_default', 'date' => '2026-01-10', 'counter' => 13540.0]);
+        [$s, $p] = $this->read('invoice', $pages, $a, 'Jahresabrechnung', 'eb');
+        $bill = self::byKind($p['proposals'], 'bill')[0];
+        self::assertSame(['date' => '2026-01-10', 'counter' => 13540.0], $bill['estimate_backwards'] ?? null, 'schon in der Prüfansicht');
+        $res = $s->apply($p['entry']['id'], [$bill['id']]);
+        $applied = array_values(array_filter($res['applied'], fn($x) => $x['kind'] === 'bill'))[0];
+        self::assertSame(['estimated_reading_backwards'], $applied['warnings'] ?? null);
+        self::assertSame(['date' => '2026-01-10', 'counter' => 13540.0], $applied['estimated_reading_neighbor'] ?? null);
+        self::assertCount(1, array_filter($this->bills->list('gas'), fn($b) => ($b['period_to'] ?? null) === '2025-12-31'), 'gespeichert wird trotzdem');
+        $stored = array_values(array_filter($this->store->read('inbox.json'), fn($x) => ($x['id'] ?? null) === $p['entry']['id']))[0];
+        $storedBill = array_values(array_filter((array)$stored['applied'], fn($x) => ($x['kind'] ?? '') === 'bill'))[0];
+        self::assertArrayNotHasKey('warnings', $storedBill, 'die Warnung gilt der Antwort, nicht dem gespeicherten Eintrag');
+
+        // dieselbe Rechnung mit einer passenden späteren Ablesung: keine Warnung
+        $this->readings->update('gas', (string)$own['id'], ['counter' => 13600.0]);
+        $this->store->write('gas/bills.json', []);
+        [, $p] = $this->read('invoice', $pages, $a, 'Jahresabrechnung', 'ec');
+        self::assertArrayNotHasKey('estimate_backwards', self::byKind($p['proposals'], 'bill')[0]);
     }
 
     public function testACorrectionCarriesItsTitleAndALaterDate(): void

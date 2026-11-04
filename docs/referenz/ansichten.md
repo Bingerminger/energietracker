@@ -517,7 +517,8 @@ rechtsbündig. „heute“ ist der Tag in Ortszeit.
 | befristet mit Kündigungsfrist | „Kündigen bis“, „Ende“ | „Wer wechseln will, kündigt bis …; dann endet er am ….“ |
 | Stichtag verpasst | „Frist verpasst“, „Ende“ | „Die Frist zum Kündigen lief am … ab; ohne Kündigung läuft er nach dem … weiter.“ |
 | verlängert sich nicht | „Ende“ | „… er endet am …, ohne dass du kündigen musst.“ |
-| verlängert (Laufzeit abgelaufen) | „Laufzeitende“, „Frühestes Ende“, bei „heute“ „jederzeit kündbar“ | „Die Laufzeit endete am …; seitdem läuft er weiter und ist jederzeit kündbar — heute gekündigt, endet er frühestens am ….“ |
+| verlängert (Laufzeit abgelaufen) | „Laufzeitende“ | „Die Laufzeit endete am …; seitdem läuft er weiter, bis du kündigst. Die Kündigungsfrist steht im Vertrag.“ *(v3.11.0; bis v3.10 „jederzeit kündbar“ mit frühestem Ende)* |
+| Fernwärme, verlängert *(v3.11.0)* | „Laufzeitende“, „Kündigen bis“, „Ende“ | „… verlängert sich ein Fernwärmevertrag um jeweils fünf Jahre (§ 32 AVBFernwärmeV); steht in deinem Vertrag nichts anderes, läuft er bis …, und die schriftliche Kündigung muss bis … beim Versorger sein.“ |
 | unbefristet mit Frist | „Frühestes Ende“, „jederzeit kündbar“ | „… Er ist jederzeit kündbar — heute gekündigt, endet er frühestens am ….“ |
 | unbefristet mit Mindestlaufzeit | „Frühestes Ende“ (Ende der Mindestlaufzeit) | „… mit Mindestlaufzeit: Heute gekündigt, endet er frühestens am ….“ |
 | unbefristet ohne Frist | — | „… Eine Kündigungsfrist ist nicht eingetragen.“ |
@@ -609,6 +610,12 @@ Details: [Zählerstände → Plausibilität](../verstehen/11-zaehlerstaende.md).
   Monat an, die Offline-Warteschlange gilt auch hier. Bei Gas trägt die Karte
   kWh ein; m³ gehen über die Verbrauchsansicht. Hintergrund:
   [Heizwärme](../verstehen/15-waerme.md).
+
+**An den Versorger gemeldet (v3.11.0):** Je Zähler ein Schalter „an den Versorger
+gemeldet“. Eingeschaltet trägt die Ablesung den Tag der Erfassung als „gemeldet
+am“, auch über die Offline-Warteschlange. Das macht den Hinweis „Schätzung trotz
+eigener Ablesung“ deutlicher
+([Deine Rechte als Kunde](../verstehen/17-rechte.md#5-schätzung-trotz-eigener-ablesung)).
 
 ![Zählerstände](../ui/screenshots/zaehlerstaende.png)
 
@@ -809,7 +816,12 @@ Preisänderung zur Monatsmitte gilt ab ihrem Tag. Unter den Zahlen stehen
 Hinweise, wenn sie zutreffen — der Vertrag ist abgelaufen und läuft ohne
 Kündigung weiter (Status **VERLÄNGERT**, Enddatum = nächste Abrechnung), der
 Kündigungsstichtag ist verpasst, oder eine eingetragene Preiserhöhung steht
-bevor (in Deutschland mit dem Sonderkündigungsrecht nach § 41 Abs. 5 EnWG).
+bevor. In Deutschland nennt der Hinweis seit v3.11.0 die Regel, die zum Vertrag
+passt: Sondervertrag § 41 Abs. 5 EnWG, Grundversorgung § 5 Abs. 3 StromGVV bzw.
+GasGVV, ohne Angabe beide; ohne „Schreiben vom“ am Preis den Zusatz, dass ein
+vereinbarter Stufenpreis kein Kündigungsrecht gibt; bei einer reinen Änderung
+der Umsatzsteuer § 41 Abs. 6 EnWG; bei Fernwärme die Preisänderungsklausel
+(§ 24 Abs. 4 AVBFernwärmeV) und kein Sonderkündigungsrecht.
 Das Banner „Ablesung überfällig" richtet sich nach der Einstellung
 *Warnung nach* (Tage ohne Ablesung; Warnung ab ⅔, Alarm ab dem Wert). Seit
 v2.15.0 nennt es den Trend der letzten drei vollen Monate gegen dieselben
@@ -1328,6 +1340,18 @@ nur löschen und neu anlegen; die Schnittstelle (`PATCH
 /api/utility/{utility}/bills/{id}`) gab es schon. Die Seite gehört zur Stufe
 „Erfahren“.
 
+**Hinweise zu deinen Rechten (v3.11.0, Deutschland):** Unter „Vergleichen“
+stehen die Hinweise zur gewählten Rechnung: Titel, Text, bei einer Frist
+„Frist: …“, die Fußzeile „Hinweis, keine Rechtsberatung“ mit den Normen als Link
+und, wo es passt, **„Brief entwerfen“**. In der Liste der Rechnungen steht etwa
+„⚖️ 2 Hinweise zu deinen Rechten“. Hier erscheinen auch ältere Hinweise, die
+nicht mehr unter „Zu tun“ kommen. Das Formular „Laut Rechnung“ hat dafür
+„Erhalten am“, „Rechnungsnummer“, „Laut Rechnung geschätzt“ (Anfangs- oder
+Endstand), je Posten „Art“, netto oder brutto und Steuersatz, bei Wasser
+„Gebührenbescheid“ mit Datum, Zustellung, Rechtsbehelf und Aktenzeichen
+([Jahresabrechnung](../anleitungen/jahresabrechnung.md#7-laut-rechnung-erfassen-vergleichen-buchen),
+[Deine Rechte als Kunde](../verstehen/17-rechte.md)).
+
 ### Wechsel prüfen (Tarifvergleich)
 
 Beantwortet die Frage, um die es im Energietracker geht: **Soll ich wechseln?**
@@ -1377,12 +1401,31 @@ des eingebauten Geräts) und **„Letzter Zählerstand ({Datum})“** — und de
 **„Angaben kopieren“**. Was fehlt, entfällt; ohne jede Angabe entfällt die
 Karte. Die MaLo-ID trägst du im Zählerdialog ein (§12).
 
-**Preiserhöhung (v3.1.0):** Steht im laufenden oder folgenden Vertrag eine
-künftige Preiserhöhung, meldet die App in Deutschland die Empfehlung
-„{Art}: Preiserhöhung zum {Datum}“ mit dem Hinweis auf das
-Sonderkündigungsrecht zu diesem Tag (§ 41 Abs. 5 EnWG). Solange die
-Empfehlung steht, erscheint die Preiserhöhung auch unter „Zu tun“;
-ausgeblendet steht sie nur noch im Kalender.
+**Preiserhöhung (v3.1.0, seit v3.11.0 „Rechte“):** Steht im laufenden Strom-
+oder Gasvertrag eine künftige Preiserhöhung, meldet die App in Deutschland die
+Empfehlung „Rechte · Preisänderung: Sonderkündigung“ mit der Regel nach
+Versorgungsart (Sondervertrag § 41 Abs. 5 EnWG, Grundversorgung § 5 Abs. 3
+StromGVV bzw. GasGVV), dem Termin am Tag vor der Änderung (nennt das Schreiben
+ein früheres Datum, das frühere; der Text nennt beide) und dem Knopf „Brief
+entwerfen“. Ohne „Schreiben vom“ am Preis ist der Hinweis eine Frage (es kann
+ein vereinbarter Stufenpreis sein); eine reine Änderung der Umsatzsteuer und
+Fernwärme melden keine Sonderkündigung. Unter „Zu tun“ steht der Termin
+14 Tage vorher; ausgeblendet bleibt er im Kalender. Am Tag der Erhöhung selbst
+steht weiter „{Art}: Preiserhöhung ({Anbieter})“ im Kalender.
+
+**Abschlag deutlich zu hoch (v3.11.0, „Rechte“):** Bei Strom, Gas und Fernwärme
+vergleicht die App in Deutschland die nächste Abschlagsrate mit dem Betrag, der
+sich aus dem Verbrauch des zuletzt abgerechneten Zeitraums (erfasste Jahres- oder
+Schlussrechnung, sonst die letzte abgeschlossene Abrechnungsperiode aus deinen
+Ablesungen ohne verteilte Monate) und den Preisen am nächsten Fälligkeitstag
+ergibt: Menge auf 365 Tage × Arbeitspreis + 12 × feste Kosten im Monat, geteilt
+durch die Raten im Jahr. Liegt die Rate mehr als 20 % und mindestens 10 € darüber
+und hält auch die Prognose sie für so viel zu hoch, kommt die Empfehlung
+„Rechte · Abschlag deutlich zu hoch“ mit der Norm nach Versorgungsart (§ 13
+StromGVV bzw. GasGVV, § 41b Abs. 3 EnWG, § 25 AVBFernwärmeV) und dem Brief
+„Antrag auf Abschlagsanpassung“. Kein Hinweis ohne abgerechneten Zeitraum, kurz
+vor der Abrechnung (weniger als drei Raten offen), bei unsicherer Prognose, für
+Gruppenverträge und für Wasser.
 
 Die Rangliste zeigt je Angebot:
 
@@ -1496,6 +1539,13 @@ Auswahl. Ohne Mietverhältnis steht „Noch kein Mietverhältnis“ da, mit der 
 Vorauszahlung, Abrechnungsstichtag und die Zähler aus der Verbrauchsinfo
 anzulegen. Schritt für Schritt: [Als Mieter](../anleitungen/mieter.md).
 
+**Zuständig (v3.11.0):** Im Formular des Mietverhältnisses wählt „Zuständig“
+eine Person aus dem Verzeichnis (wie am Vertrag); der Name steht als Chip im
+Kopf der Karte. Die Fristen „Nebenkostenabrechnung fällig“, „Einwände bis“ und
+„CO₂-Kosten einfordern“ landen bei ihr, mit „über das Mietverhältnis“. Ohne
+Auswahl gilt die Person am ersten Wärmezähler des Mietverhältnisses („über den
+Zähler“), sonst niemand. Bis v3.10 hatten diese Fristen keine Zuständigkeit.
+
 Drei Karten, in Deutschland seit v3.1.0 eine vierte („CO₂-Kosten teilen“):
 
 **Vorauszahlung und Kosten** ⓘ — die Hilfsrechnung für den laufenden
@@ -1606,6 +1656,20 @@ einem früheren Jahr gemessen ist. HT und NT einer Zählergruppe prüft sie
 zusammen, mit einer Empfehlung je Gruppe; hat eine Verbrauchsart mehrere Zähler
 oder Gruppen, nennt der Titel den Namen
 ([Anomalien](../verstehen/00-overview.md#9-anomalien)).
+
+**Rechte (v3.11.0, Deutschland):** Karten der Kategorie „Rechte“ nennen die
+Prüfung („Rechte · Preisänderung: Sonderkündigung“). Darunter steht die Fußzeile
+„Hinweis, keine Rechtsberatung. Grundlage: …“ mit jeder Norm als Link zur Quelle
+und dem Stand, dazu **„Brief entwerfen“** (öffnet den
+[Brief-Dialog](../anleitungen/brief-schreiben.md)) und **„Was die App prüft“**
+(das Handbuch an der Stelle dieser Prüfung). Ein Hinweis mit Frist steht auch
+unter „Zu tun“ und im Kalender; ausgeblendet bleibt der Termin bis zur Frist.
+Der Hinweis zur Sonderkündigung ersetzt seit v3.11.0 die Empfehlung
+„Preiserhöhung“ ([Deine Rechte als Kunde](../verstehen/17-rechte.md)).
+
+![Empfehlungen „Rechte“: Norm als Link, „Brief entwerfen“, „Was die App prüft“](../ui/screenshots/rechte-hinweis.png)
+
+![Dialog „Brief entwerfen“ mit Vorschau](../ui/screenshots/brief-dialog.png)
 
 ![Empfehlungen](../ui/screenshots/empfehlungen.png)
 
@@ -2081,6 +2145,34 @@ Fernwärme Leistungs- und Messpreis, bei Wasser alle Preislisten) ebenfalls
 neueste oben, und **„+ Zeile“** fügt oben ein; gespeichert wird weiter
 aufsteigend.
 
+**Verträge widersprechen sich (v3.11.0, GitHub #54):** Unter den Daten einer
+Karte steht, was der Vertrag abrechnet: „Abgelöst: gilt bis …“ (ein später
+begonnener Vertrag desselben Zählers gilt ab dem Folgetag) und „Verlängert seit
+…“ bzw. „Verlängert bis …“ (beendet, ohne Kündigung fortgeschrieben). Dieselbe
+Regel rechnen Vertragsstatus und Abrechnungsjahr. Widersprechen sich zwei
+Einträge, steht an beiden Karten ein gelber Hinweis: Ein späterer Vertrag
+beginnt mehr als 31 Tage vor dem eingetragenen Ende des früheren
+(Überschneidung), ein späterer liegt ganz in einem früheren und endet mehr als
+31 Tage vor ihm (die App rechnet danach mit dem späteren weiter), oder ein
+Vertrag trägt wohl den Tarif einer anderen Verbrauchsart (Versorger, Tarif und
+Arbeitspreis wie ein Vertrag einer anderen Art, ein Dokument aus dem
+Posteingang einer anderen Art oder ein Arbeitspreis außerhalb des 0,4- bis
+2,5-Fachen der anderen Verträge des Zählers; Kopie und Preis zählen nur
+zusammen mit einer Überschneidung oder miteinander). Knöpfe: **„Ende von … auf
+… setzen“** (der Vortag des späteren Beginns; danach passt der Eintrag zur
+Rechnung, die Zahlen bleiben) und **„Beides stimmt“** (blendet den Hinweis
+aus). Derselbe Hinweis steht als Empfehlung (Kategorie Vertrag) unter „Zu tun“
+und erscheint als Meldung beim Speichern. Gerechnet wird weiter wie bisher:
+Der spätere Beginn gewinnt. Im **Abrechnungsjahr** der Verbrauchsart steht über
+dem Monatsschaubild „Angenommen: Vom … bis … rechnet die App mit … weiter,
+obwohl … laut Eintrag bis … läuft“, wenn ein Vertrag nur durch Fortschreibung
+rechnet, während ein anderer diese Zeit beansprucht, und „Die Abschläge sind
+rund …-mal so hoch wie die Kosten“, wenn sie in einem abgeschlossenen
+Abrechnungsjahr mindestens doppelt so hoch waren, jeweils mit „Verträge
+prüfen“.
+
+![Verträge widersprechen sich: Hinweis an beiden Karten mit „Ende von … auf … setzen“ und „Beides stimmt“](../ui/screenshots/vertragskonflikt.png)
+
 ![Zähler & Verträge: Vertragsliste einer Verbrauchsart](../ui/screenshots/zaehler-vertraege.png)
 
 **Ein Formularraster (v3.4.0):** Alle Dialoge — Vertrag, Zähler, Zählertausch,
@@ -2226,11 +2318,21 @@ zusätzlich je Viertelstunde — für Auswertungen → Flexibilität; die Vorsch
 nennt sie in einer Zeile „Dazu {Anzahl} Werte je Viertelstunde (Takt {N}
 Minuten) — ausgewertet unter Auswertungen → Flexibilität.“
 
-**Mindestlaufzeit über 24 Monate (v3.1.0):** Endet die Mindestlaufzeit eines
-Vertrags mehr als 24 Monate nach seinem Beginn, zeigt die App nach dem
-Speichern den Hinweis „Die Mindestlaufzeit ist länger als 24 Monate. In
-Deutschland ist eine so lange Erstlaufzeit für Verbraucher unwirksam (§ 309
-Nr. 9 BGB).“ Gespeichert wird der Vertrag trotzdem.
+**Mindestlaufzeit über 24 Monate (v3.1.0, seit v3.11.0 nach Art):** Endet die
+Mindestlaufzeit eines Strom- oder Gasvertrags mehr als 24 Monate nach seinem
+Beginn, zeigt die App nach dem Speichern den Hinweis „Die Mindestlaufzeit ist
+länger als 24 Monate. Bei Strom und Gas lässt das Gesetz in Verbraucherverträgen
+mit vorformulierten Bedingungen keine längere Erstlaufzeit zu (§ 309 Nr. 9
+BGB).“ Bei Fernwärme kommt ein Hinweis erst über zehn Jahren (§ 32
+AVBFernwärmeV), bei Wasser keiner. Gespeichert wird der Vertrag trotzdem.
+
+**Versorgungsart und Herkunft eines Preises (v3.11.0):** Der Vertragsdialog
+fragt bei Strom und Gas „Versorgungsart“ (Grundversorgung, Sondervertrag oder
+nicht angegeben; steht auf der Rechnung). Unter jeder Zeile von Arbeits- und
+Grundpreis stehen ab „Erfahren“ „Schreiben vom“ (Datum des Briefs, mit dem der
+Versorger die Preise ändert) und „USt %“ (Steuersatz im Preis). Daran erkennt
+die App eine Preisänderung des Versorgers, einen vereinbarten Stufenpreis und
+eine reine Steueränderung.
 
 **Meter-Topologie:** Subzähler werden unter ihrem Elternzähler eingerückt
 dargestellt, Gruppen als aufklappbarer Sammeleintrag; **„Zu Gruppe
@@ -2254,6 +2356,13 @@ Zeile. Das Beispiel unter dem Dateifeld und die Beispiel-CSV stehen in der
 Sprache der Oberfläche.
 
 ![Vorschau des CSV-Imports](../ui/screenshots/import-vorschau.png)
+
+**Messstellenbetrieb (v3.11.0, nur Strom):** Der Zählerdialog hat den Abschnitt
+„Messstellenbetrieb“ mit „Messeinrichtung“ (konventioneller Zähler, moderne
+Messeinrichtung, intelligentes Messsystem, weiß nicht) und
+„Messstellenbetreiber“ (grundzuständig, frei gewählt, weiß nicht); am
+Einspeisezähler „Leistung der Anlage (kW)“. Beides braucht der Hinweis
+[Messentgelt über der Obergrenze](../verstehen/17-rechte.md#6-messentgelt-über-der-obergrenze).
 
 ### Assistent „Messkonzept einrichten“ *(v3.9.0, GitHub #40)*
 
@@ -2432,6 +2541,9 @@ Erreichbar über die Fußzeile der Seitenleiste, am iPhone unter „Mehr“
   „Mensualité““).
 
 ![Hilfe](../ui/screenshots/hilfe.png)
+
+Seit v3.11.0 führt die Liste der Doku-Links auch zu
+[Deine Rechte als Kunde](../verstehen/17-rechte.md).
 
 ### Handbuch in der App (v3.4.0)
 

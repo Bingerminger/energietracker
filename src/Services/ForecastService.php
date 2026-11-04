@@ -698,16 +698,15 @@ final class ForecastService
             return $this->projectStandardMonth($contracts, $year, $month, $volume, $fallbackPriceCt, $priceFactor);
         }
         // v2.8.0 (CALC-12) — ohne Folgevertrag läuft der letzte weiter, zu
-        // seinen letzten Preisen. Bisher fielen Grundpreis und Abschlag weg.
+        // seinen letzten Preisen (v3.11.0: oder zu den danach eingetragenen).
+        // Bisher fielen Grundpreis und Abschlag weg.
         // v2.9.0 — nur, wenn er sich verlängert (`auto_renews`).
         $r = $this->contracts->resolveForDate($contracts, $first);
         $c = $r['contract'] ?? null;
         $assumed = $r['assumed'] ?? false;
+        // v3.11.0 (Skeptiker H1) — auch fortgeschrieben die Preise des Monats: ohne Eintrag nach dem Ende
+        // der letzte (wie bisher), mit Eintrag danach dieser (bis v3.10 die Preise des Endmonats)
         $asOfYear = $year; $asOfMonth = $month;
-        if ($assumed) {
-            $asOfYear = (int)substr((string)$c['end'], 0, 4);
-            $asOfMonth = (int)substr((string)$c['end'], 5, 2);
-        }
 
         if (!$c) {
             // No contract — fall back to the last known unit price.

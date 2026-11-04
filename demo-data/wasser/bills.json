@@ -1,0 +1,28 @@
+[
+    {
+        "id": "b_a84d07b26bcb",
+        "meter_id": "m_wasser_haupt",
+        "period_from": "2024-01-01",
+        "period_to": "2024-12-31",
+        "issued_on": "2026-05-21",
+        "kind": "annual",
+        "contract_id": "c_wasser_haupt_2024",
+        "invoice": {
+            "volume_m3": 128.26,
+            "amount_eur": 920.14,
+            "advances_paid_eur": 816,
+            "result_eur": 104.14
+        },
+        "items": [],
+        "co2": null,
+        "note": "Gebührenbescheid der Gemeinde",
+        "attachment_ids": [],
+        "created_at": "2026-05-23T19:12:00+02:00",
+        "notice": {
+            "public_law": true,
+            "dated_on": "2026-05-21",
+            "remedy": "objection",
+            "file_number": "KZ 2025-4711"
+        }
+    }
+]

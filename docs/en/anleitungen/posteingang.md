@@ -256,9 +256,9 @@ checks as manual entry. What there is:
 
 | Document | Proposals |
 |---|---|
-| Bill | new reading (and old one) — *(v3.7.0)* if the bill marks a reading as estimated (a word like “geschätzt” or a reading code it explains itself, such as “S = geschätzt”), it is created as estimated — likewise “hochgerechnet”, a footnote like “5)” with the explanation “5) hochgerechnet”, a code in a group like “10/12/26” and a code in the column “Ableseart” or “Ablesegrund” when the document explains it as an estimate; also from the readings per meter, assigned by meter number; if two meters stand on the bill (the assigned one and a new one), a **meter swap** with the final reading of the old and the initial reading of the new meter, ticked in advance when numbers, day and readings fit together —, enter the bill (for gas with correction factor and calorific value as on the bill, for “Check bill”), book the result as a special payment, new advance payment on the contract of the same supplier that applies then; for gas the conversion factor and calorific value per period as a key date of the [gas conversion](../verstehen/01-gas.md); working prices and standing charge: “already there” when as in the contract, otherwise as a proposal to check; market location on the meter, contract and customer number on the contract. Without a contract of this supplier *(v3.7.0)*: “Create the contract … from this bill” as an offer (start = start of the period, a final bill ends with it), and booking only goes to a contract of the supplier — otherwise the app refuses instead of booking to someone else’s. *(v3.9.0)* If no contract at all applies at the meter, this proposal is ticked in advance, with prices per section and the advance payment plan ([Contract from the bill](#contract-from-the-bill-v390)) |
+| Bill | new reading (and old one) — *(v3.7.0)* if the bill marks a reading as estimated (a word like “geschätzt” or a reading code it explains itself, such as “S = geschätzt”), it is created as estimated — likewise “hochgerechnet”, a footnote like “5)” with the explanation “5) hochgerechnet”, a code in a group like “10/12/26” and a code in the column “Ableseart” or “Ablesegrund” when the document explains it as an estimate; also from the readings per meter, assigned by meter number; if two meters stand on the bill (the assigned one and a new one), a **meter swap** with the final reading of the old and the initial reading of the new meter, ticked in advance when numbers, day and readings fit together —; *(v3.11.0)* the inbox no longer creates the bill’s estimated **final reading** as a reading but enters it on the bill (“Estimated final reading”): it does not count towards your consumption, and the check “estimate despite your own reading” compares it with your readings —, enter the bill (for gas with correction factor and calorific value as on the bill, for “Check bill”), book the result as a special payment, new advance payment on the contract of the same supplier that applies then; for gas the conversion factor and calorific value per period as a key date of the [gas conversion](../verstehen/01-gas.md); working prices and standing charge: “already there” when as in the contract, otherwise as a proposal to check; market location on the meter, contract and customer number on the contract. *(v3.11.0)* The invoice number goes to the bill (letters quote it as a reference); if the bill says whether you are in basic supply (electricity, gas, a mandatory statement under § 40(2) sentence 1 no. 13 EnWG) and the contract has no type of supply yet, the inbox proposes it: “Enter the type of supply at the contract: basic supply (according to the bill)” or “special contract”. An existing entry stays. Without a contract of this supplier *(v3.7.0)*: “Create the contract … from this bill” as an offer (start = start of the period, a final bill ends with it), and booking only goes to a contract of the supplier — otherwise the app refuses instead of booking to someone else’s. *(v3.9.0)* If no contract at all applies at the meter, this proposal is ticked in advance, with prices per section and the advance payment plan ([Contract from the bill](#contract-from-the-bill-v390)) |
 | Contract confirmation | new contract with working price, standing charge (per year converted to per month), advance payment, minimum term, notice period, bonus, price guarantee, contract and customer number — uncertain side details stay open points; the previous contract ends the day before — ticked in advance *(v3.7.0)* for a switch (other supplier) or a tariff change (other tariff or other contract number) at the same meter, as an offer for a group contract, at a sub-meter, for apparently the same contract and for older predecessors; if the previous contract has a later end backed by a cancellation, that is a conflict |
-| Price change | working price and standing charge from the key date, a date for the special right of termination |
+| Price change | working price and standing charge from the key date, *(v3.11.0)* with the date of the letter, the VAT rate and “cancel by …” from the letter on the price; a new advance payment in the letter; the date for the special right of termination ([Price change: your rights](#price-change-your-rights-v3110)) |
 | Cancellation | end of contract, without renewal; without a follow-up contract a reminder “Arrange a follow-up contract” 14 days before the end of supply (closer to the end: today) |
 | Start of supply | meter reading at the start, start of the contract; without a contract of this supplier *(v3.7.0)* “Create the contract …” as an offer (prices stay open) |
 | Meter swap | meter swap with final and initial reading (all to check) |
@@ -343,6 +343,56 @@ How balance, suggestion and forecast use it is under
 [Water](../verstehen/03-wasser.md#advance-payments-every-two-or-three-months-v390);
 it applies to every utility.
 
+### Price change: your rights *(v3.11.0)*
+
+The app does not only read a price change letter, it also puts it in context.
+This applies to electricity and gas in Germany; every sentence names its basis
+and ends with “Note, not legal advice”, with the sources as links below.
+
+- **Origin on the price.** The new prices get the date of the letter, the VAT
+  rate and “cancel by …” when the letter names them. From this the app later
+  knows that the supplier changed the price, rather than a step price agreed in
+  the contract. If the price is already in the contract without these details,
+  the proposal adds them. A date read with doubt is not taken over.
+- **Deadline for special cancellation.** After an increase you can cancel as of
+  the day of the change; the cancellation must reach the supplier the day before
+  (electricity and gas, special contract and basic supply). If the letter names
+  an earlier day, that day is the date, and the app names both days: the
+  supplier may not set a shorter deadline of its own. Once the earlier day has
+  passed, the legal one counts again. There is only one such date: in Germany
+  “Your rights as a customer” puts it under “To do” and into the calendar as
+  soon as the new prices are in the contract, with both days in the text; the
+  inbox then proposes no date of its own. A date in the past is not created.
+- **Announcement.** The app compares the date of the letter with the day of the
+  change: at least one month for a special contract, at least six weeks and only
+  at the start of a month for basic supply. If it is unknown which kind you
+  have, it only reports when the one month is missed too. Whether the increase
+  is valid then, the app does not say; it suggests getting advice.
+- **Only the VAT.** If the net price is the same and only the VAT rate differs,
+  a special contract gives no special right to cancel, and the app proposes no
+  date. The old rate comes from the price in the contract (from an earlier
+  letter or entered by you); it is never guessed. Without it, the app treats the
+  change as an increase.
+- **Basic supply or special contract.** The kind is set on the contract; if it
+  is missing there, the app takes it from the letter. Without either, it names
+  both ways briefly.
+- **Two rates (peak/off-peak).** If the contract has energy prices per meter,
+  the proposal writes the price into the list of the assigned meter and is not
+  ticked in advance: the letter does not say for sure which register it means.
+- **Advance payment in the letter.** A new advance payment is proposed like an
+  advance payment change, from the day the letter names, otherwise from the day
+  of the price change (with a note). If it rises by more than 5 percentage
+  points more than the costs according to the forecast, the app names the rule
+  for advance payments: for basic supply the adjustment by the percentage of
+  the price change, for a special contract the consumption of the last bill.
+- **District heating** gets a short note on the price adjustment clause, with
+  no special right to cancel and no date.
+
+The card shows the costs as a preview before you take anything over: extra cost
+per year with a range, and what one year at the new prices costs. Both use the
+same quantity as the tariff comparison; after taking over, the tariff comparison
+arrives at the same amounts.
+
 ---
 
 ## What does this mean for you?
@@ -355,7 +405,7 @@ nothing is guessed that the app does not already know.
 
 | Document | Sentence and figure | Button |
 |---|---|---|
-| Price change | extra or lower cost **per year**: difference in unit price × expected consumption of the next twelve months (the same forecast as in the [tariff comparison](../referenz/ansichten.md)) + difference in standing charge × 12. The old price comes from the letter, otherwise from the contract on the day before. Below it the deadline of the special right to cancel, if the letter names it. | If a saved offer saves money according to the switching decision: **“Switching saves about … – compare tariffs”**; otherwise “Take over the new prices” |
+| Price change | extra or lower cost **per year**: difference in unit price × expected consumption of the next twelve months (the same forecast as in the [tariff comparison](../referenz/ansichten.md)) + difference in standing charge × 12. The old price comes from the letter, otherwise from the contract on the day before. *(v3.11.0)* Also the range depending on weather and consumption (from the annual band of the forecast), what one year at the new prices costs and how much that is per month, and, visible in the card, your rights: deadline of the special right to cancel, announcement, tax change ([Price change: your rights](#price-change-your-rights-v3110)). Without a legal deadline (another country, district heating) the deadline of the special right to cancel, if the letter names it. | If a saved offer saves money according to the switching decision: **“Switching saves about … – compare tariffs”**; otherwise “Take over the new prices” |
 | Bill | before taking over, the additional payment or credit according to the bill; **after taking over, “Check bill” runs by itself**: “matches your data”, “is … higher/lower than your own calculation” or *(v3.7.0)* “the contract lacks prices” with the sections without a price, plus the reasons (for example an estimated reading at the boundary) | “Take over and check”, afterwards “Check bill” when it differs, without prices “Add prices to the contract” |
 | Advance payment change | new advance payment against the advance payment that brings the current billing period to zero (advance payment as planned + expected final balance ÷ months until the bill): **fits**, **too high** or **too low** by about … a month. “Fits” means the rest at the end would stay below €50 or one advance payment — the same threshold as in the [annual report](jahresbericht-lesen.md). *(v3.9.0)* With a rhythm the instalments until the bill count instead of the months, and the verdict applies per due date. | “Take over the advance payment” |
 | Cancellation | end of supply; without a follow-up contract “there is no follow-up contract yet” and the reminder from the proposals | “Find a follow-up contract” (tariff comparison) |

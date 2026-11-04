@@ -182,7 +182,8 @@ function utilityCard({ u, rows, error }) {
     </section>`;
 }
 
-function meterBlock(u, meter, contracts, showMeter, who = {}, group = null, meters = null) {
+// v3.11.0 (Nachprüfung) — exportiert für tests/rights.test.mjs
+export function meterBlock(u, meter, contracts, showMeter, who = {}, group = null, meters = null) {
   // v3.9.0 (Gruppenverträge) — über die Gruppe: deren Vertrag, die Zähler zusammen genannt
   const c = group ? group.contract : (contracts || []).find(x => x.is_current);
   const names = (group && meters?.length ? meters : [meter]).map(m => m.name).join(', ');
@@ -205,12 +206,16 @@ function meterBlock(u, meter, contracts, showMeter, who = {}, group = null, mete
   // v3.4.0 (F1024) — lückenloser Folgevertrag: nichts mehr zu kündigen
   const next = c.successor;
   const gapless = next && Number(next.gap_days) === 0;
-  if (gapless) {
+  // v3.11.0 (Nachprüfung NP4) — verlängert bis zum Folgevertrag: dieser gilt, kein Kündigungstag einer Verlängerung
+  if (gapless || (c.renewed && next?.gap_covered)) {
     facts.push(`<span class="success-text">${escapeHtml(next.provider
       ? t('contractsOverview.successor', { provider: next.provider, date: fmt.date(next.start) })
       : t('contractsOverview.successorUnnamed', { date: fmt.date(next.start) }))}</span>`);
   } else if (c.cancel_missed) {
-    facts.push(`<span class="danger-text">${escapeHtml(t('contractsOverview.cancelMissed', { date: fmt.date(c.cancel_by) }))}</span>`);
+    // v3.11.0 (Nachprüfung NP3) — Fernwärme nach § 32 AVBFernwärmeV: bis wann sie sich verlängert
+    facts.push(`<span class="danger-text">${escapeHtml(c.renewal_term
+      ? t('contractsOverview.cancelMissedHeat', { date: fmt.date(c.cancel_by), until: fmt.date(c.renewal_term.until) })
+      : t('contractsOverview.cancelMissed', { date: fmt.date(c.cancel_by) }))}</span>`);
   } else if (c.is_open_ended && !c.renewed && c.notice_basis === 'unknown') {
     // v3.9.0 (L13) — unbefristet ohne eingetragene Frist: nicht „jederzeit kündbar“
     // (das behauptete die Kachel, während die Übersicht „nicht eingetragen“ sagte)
@@ -219,7 +224,17 @@ function meterBlock(u, meter, contracts, showMeter, who = {}, group = null, mete
     // v3.9.0 (L13) — unbefristet mit Frist: frühestes Ende (letzter Tag vor dem Wechseltag);
     // ohne Frist (0 Monate) bleibt es „jederzeit kündbar“
     facts.push(escapeHtml(t('contractsOverview.earliestEnd', { date: fmt.date(addDaysIso(c.switch_date, -1)) })));
-  } else if (c.renewed || c.is_open_ended) {
+  } else if (c.renewed && c.notice_basis === 'renewal_term' && c.cancel_by) {
+    // v3.11.0 (Skeptiker H3) — Fernwärme nach § 32 AVBFernwärmeV: Kündigungstag der laufenden Verlängerung
+    facts.push(escapeHtml(t('contractsOverview.cancelBy', { date: fmt.date(c.cancel_by) })));
+  } else if (c.renewed && c.notice_basis === 'basic_supply') {
+    // v3.11.0 (Nachprüfung) — Grundversorgung: zwei Wochen Frist (§ 20 StromGVV/GasGVV, Prüfbericht 26)
+    facts.push(escapeHtml(t('contractsOverview.renewedBasic')));
+  } else if (c.renewed) {
+    // v3.11.0 (Skeptiker H3) — verlängert: nicht „jederzeit kündbar“ (für Strom und Gas nicht sicher
+    // belegt, für Fernwärme falsch); die Frist steht im Vertrag
+    facts.push(`<span class="muted">${escapeHtml(t('contractsOverview.renewedNotice'))}</span>`);
+  } else if (c.is_open_ended) {
     // v3.4.0 — weiterlaufend oder unbefristet: kein datierter Stichtag (vorher
     // „Kündigen bis heute“, jeden Tag ein anderes Datum)
     facts.push(escapeHtml(t('contractsOverview.anytime')));
@@ -230,7 +245,8 @@ function meterBlock(u, meter, contracts, showMeter, who = {}, group = null, mete
       Number.isFinite(days) && days >= 0 ? ` (${escapeHtml(tp('contractsOverview.daysLeft', days))})` : ''}</span>`);
   }
   // v3.4.0 (F1024) — Folgevertrag mit Lücke: die Frist bleibt, die Lücke steht daneben
-  if (next && !gapless) {
+  // v3.11.0 (Skeptiker N10) — füllt die Verlängerung ohne Kündigung die Lücke, ist es keine
+  if (next && !gapless && !next.gap_covered) {
     facts.push(`<span class="warning-text">${escapeHtml(tp('contractsOverview.successorGap', Number(next.gap_days), { date: fmt.date(next.start) }))}</span>`);
   }
   if (c.current_advance_amount != null) {

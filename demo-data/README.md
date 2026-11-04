@@ -40,6 +40,18 @@ Verzeichnisform (`strom/meters.json`, `strom/readings.json`,
 diesen Aufbau rechnet die Demo vor (`concepts-<lang>.json`).
 Viertelstunden für den Tagesfilm hat das Schaufenster bewusst nicht — die hat
 der Beispielhaushalt „Eigenheim modern“.
+Seit v3.11.0 („Deine Rechte als Kunde“) außerdem: Der laufende Stromvertrag ist
+ein Sondervertrag mit angekündigter Erhöhung des Arbeitspreises, die Wassergebühren
+2024 kamen als Gebührenbescheid (Rechtsbehelf Widerspruch; die Abrechnung 2025 fehlt
+weiter bewusst), und der Wasservertrag
+2024 ist bis Mitte 2025 eingetragen, obwohl ab 2025 der Folgevertrag gilt (Verträge
+widersprechen sich). `demo_align.price_change_days_ahead` und
+`demo_align.fee_notice_days_ago` halten beide Fristen relativ zu heute (zwölf Tage
+bis zur Preisänderung, Bescheid zehn Tage alt): Die App zeigt immer eine
+Sonderkündigung und einen Widerspruch mit laufender Frist, je mit Brief. Die
+Pages-Demo rechnet den ersten Entwurf jedes Briefs vor (`letters-<lang>.json`).
+`build-personas.mjs` schreibt das in Backup und Verzeichnisform
+(`strom/contracts.json`, `wasser/contracts.json`, `wasser/bills.json`).
 
 ## Verwenden
 

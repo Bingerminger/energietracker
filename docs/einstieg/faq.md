@@ -146,12 +146,16 @@ fürs Vergleichsportal und den Wechseltermin. Seit v3.1.0 stehen dort unter
 Marktlokations-ID, Zählernummer und letzter Zählerstand — zum Kopieren. Die
 Marktlokations-ID (11 Ziffern, auf der Rechnung) trägst du einmal im
 Zählerdialog ein; eine falsche Prüfziffer lehnt die App ab. Kündigt dein
-Anbieter eine Preiserhöhung an und du trägst sie als neue Preiszeile mit ihrem
-Datum am Vertrag ein, erinnert die App an das Sonderkündigungsrecht zu diesem
-Tag (§ 41 Abs. 5 EnWG). Und beim
-Speichern eines neuen Vertrags weist sie darauf hin, wenn die Mindestlaufzeit
-länger als 24 Monate ist — für Verbraucher in Deutschland unwirksam (§ 309
-Nr. 9 BGB). Das sind Hinweise, keine Rechtsberatung.
+Anbieter bei Strom oder Gas eine Preiserhöhung an und du trägst sie als neue
+Preiszeile mit ihrem Datum am Vertrag ein (dazu „Schreiben vom“), erinnert die
+App an das Sonderkündigungsrecht zu diesem Tag: im Sondervertrag nach § 41
+Abs. 5 EnWG, in der Grundversorgung nach § 5 Abs. 3 StromGVV bzw. GasGVV. Die
+Kündigung muss vorher beim Anbieter eingehen; die App setzt dafür einen Termin
+am Tag davor. Für Fernwärme gilt dieses Recht nicht, und eine reine Änderung
+der Umsatzsteuer gibt im Sondervertrag keins (§ 41 Abs. 6 EnWG). Beim Speichern
+eines Strom- oder Gasvertrags weist sie darauf hin, wenn die Mindestlaufzeit
+länger als 24 Monate ist (§ 309 Nr. 9 BGB), bei Fernwärme erst über zehn
+Jahren (§ 32 AVBFernwärmeV). Das sind Hinweise, keine Rechtsberatung.
 
 ### Lohnt sich ein dynamischer Stromtarif?
 

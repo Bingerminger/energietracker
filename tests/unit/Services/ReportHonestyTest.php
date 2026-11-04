@@ -126,8 +126,11 @@ final class ReportHonestyTest extends ServiceTestCase
             ['date' => self::TODAY, 'kind' => 'reading_duplicate', 'title' => 'Doppelt', 'days' => 0, 'severity' => 'due'],
             ['date' => self::TODAY, 'kind' => 'level_shift', 'title' => 'Zäsur?', 'days' => 0, 'severity' => 'due'],
             ['date' => '2026-03-01', 'kind' => 'reminder', 'title' => 'Wartung', 'days' => 14, 'severity' => 'upcoming'],
+            // v3.11.0 (F1035) — Rechte als Kunde: nur mit Frist ein Termin
+            ['date' => self::TODAY, 'kind' => 'rights', 'title' => 'Bonus fehlt', 'days' => 0, 'severity' => 'due', 'ref' => ['deadline' => null]],
+            ['date' => '2026-03-02', 'kind' => 'rights', 'title' => 'Sonderkündigung bis', 'days' => 15, 'severity' => 'upcoming', 'ref' => ['deadline' => '2026-03-02']],
         ], []);
-        self::assertSame(['Wartung'], array_column($section['events'], 'title'));
+        self::assertSame(['Wartung', 'Sonderkündigung bis'], array_column($section['events'], 'title'));
     }
 
     /** N11 — der Satz zur Wallbox nur mit Wallbox. */

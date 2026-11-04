@@ -114,7 +114,10 @@ final class ContractDayAccurateTest extends ServiceTestCase
         self::assertSame($a['id'], $r['current']['contract_id'] ?? null);
         self::assertTrue($r['current']['renewed']);
         self::assertSame('renewed', $r['current']['basis']);
-        self::assertSame('2025-08-11', $r['switch_date'], 'höchstens ein Monat statt drei');
+        // v3.11.0 (Skeptiker H3) — keine angenommene Monatsfrist mehr (§ 309 Nr. 9 b BGB für Strom und Gas nicht
+        // sicher belegt, Prüfbericht 59): der erkennbare Platzhalter, der nächste Monatserste
+        self::assertSame('2025-08-01', $r['switch_date']);
+        self::assertNull($r['current']['switch_date']);
     }
 
     public function testCancelledContractDoesNotRunOn(): void
@@ -180,12 +183,25 @@ final class ContractDayAccurateTest extends ServiceTestCase
         $r = $t(['start' => '2026-01-01', 'end' => '2026-10-15', 'notice_period_months' => 1, 'notice_mode' => 'month_end']);
         self::assertSame('2026-10-16', $r['switch_date']);
 
-        // Verlängert: höchstens ein Monat, auch bei längerer Frist (§ 309 Nr. 9 b BGB)
-        $r = $t(['start' => '2024-01-01', 'end' => '2025-12-31', 'notice_period_months' => 3], true);
-        self::assertSame('renewed', $r['basis']);
-        self::assertSame('2026-10-26', $r['switch_date'], '25.09. + 1 Monat = 25.10., Wechsel am 26.');
-        $r = $t(['start' => '2024-01-01', 'end' => '2025-12-31', 'notice_period_days' => 14], true);
-        self::assertSame('2026-10-10', $r['switch_date'], 'kürzere eigene Frist gilt');
+        // v3.11.0 (Skeptiker H3) — verlängert: kein Termin aus einer angenommenen Frist (bis v3.10 „höchstens ein
+        // Monat“ nach § 309 Nr. 9 b BGB; für Strom und Gas nicht sicher belegt, Prüfbericht 59), auch mit eigener Frist
+        foreach ([['notice_period_months' => 3], ['notice_period_days' => 14], []] as $notice) {
+            $r = $t(['start' => '2024-01-01', 'end' => '2025-12-31'] + $notice, true);
+            self::assertSame(['renewed', null, null, null], [$r['basis'], $r['switch_date'], $r['cancel_by'], $r['days_to_cancel']]);
+        }
+        // Fernwärme in Deutschland: § 32 Abs. 1 AVBFernwärmeV (Prüfbericht 30), Verlängerung um jeweils fünf Jahre,
+        // gekündigt neun Monate vor Ablauf. Ende 31.12.2025 → läuft bis 31.12.2030, kündigen bis 31.03.2030
+        $heat = fn(array $c, string $country = 'DE') => $this->contracts->switchTiming($c, $today, true, 'fernwaerme', $country);
+        $r = $heat(['start' => '2016-01-01', 'end' => '2025-12-31']);
+        self::assertSame(['renewal_term', '2031-01-01', '2030-03-31', 1283], [$r['basis'], $r['switch_date'], $r['cancel_by'], $r['days_to_cancel']]);
+        // Ende 30.06.2020: die erste Verlängerung (bis 30.06.2025, kündigen bis 30.09.2024) ist vorbei → bis 30.06.2030
+        $r = $heat(['start' => '2010-07-01', 'end' => '2020-06-30']);
+        self::assertSame(['2030-07-01', '2029-09-30'], [$r['switch_date'], $r['cancel_by']]);
+        // Kündigungstag der ersten Verlängerung (30.09.2026) liegt noch vor heute + 5 Tage: sie gilt (bis 30.06.2027)
+        $r = $heat(['start' => '2012-06-30', 'end' => '2022-06-30']);
+        self::assertSame(['2027-07-01', '2026-09-30'], [$r['switch_date'], $r['cancel_by']]);
+        // anderes Land: keine Regel, kein Termin
+        self::assertSame(['renewed', null], [$heat(['start' => '2016-01-01', 'end' => '2025-12-31'], 'AT')['basis'], $heat(['start' => '2016-01-01', 'end' => '2025-12-31'], 'AT')['switch_date']]);
     }
 
     public function testNoticeFieldsAreValidated(): void

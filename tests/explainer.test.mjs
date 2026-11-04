@@ -376,7 +376,21 @@ const TL = {
   'befristet + Preiserhöhung': { start: '2025-01-01', end: '2026-12-31', is_open_ended: false, notice_basis: 'fixed_end', cancel_by: '2026-11-30', switch_date: '2027-01-01', price_increase: { from: '2026-11-01' } },
   'befristet, 6 Wochen + Preiserhöhung Dezember': { start: '2026-01-01', end: '2026-12-31', notice_basis: 'fixed_end', cancel_by: '2026-11-19', switch_date: '2027-01-01', price_increase: { from: '2026-12-01' } },
   'Stichtag verpasst': { start: '2025-01-01', end: '2026-10-31', notice_basis: 'fixed_end', cancel_by: '2026-09-30', switch_date: '2026-11-01', cancel_missed: true },
-  'verlängert (renewed)': { start: '2024-07-01', end: '2026-06-30', renewed: true, notice_basis: 'renewed', cancel_by: TODAY, switch_date: '2026-11-13', is_open_ended: false },
+  // v3.11.0 (Skeptiker H3) — verlängert ohne Termin (der Server rechnet keine Frist mehr)
+  'verlängert (renewed)': { start: '2024-07-01', end: '2026-06-30', renewed: true, notice_basis: 'renewed', cancel_by: null, switch_date: null, is_open_ended: false },
+  // v3.11.0 (Skeptiker H3) — Fernwärme nach § 32 AVBFernwärmeV: Ende der Verlängerung und Kündigungstag
+  'Fernwärme verlängert (renewal_term)': { start: '2016-07-01', end: '2026-06-30', renewed: true, notice_basis: 'renewal_term', cancel_by: '2030-09-30', switch_date: '2031-07-01', is_open_ended: false },
+  // v3.11.0 (Nachprüfung) — Fernwärme ohne Frist vor dem Ende (§ 32), verpasst; verlängert mit Folgevertrag (NP4);
+  // verlängerte Grundversorgung mit zwei Wochen Frist
+  'Fernwärme ohne Frist, Tag kommt noch': { start: '2017-01-01', end: '2026-12-31', notice_basis: 'fixed_end', cancel_by: '2026-03-31', switch_date: '2027-01-01',
+    auto_renews: true, renewal_term: { until: '2031-12-31', cancel_by: '2031-03-31' } },
+  'Fernwärme ohne Frist, Tag verpasst': { start: '2017-01-01', end: '2026-12-31', notice_basis: 'fixed_end', cancel_by: '2026-03-31', switch_date: '2032-01-01',
+    cancel_missed: true, auto_renews: true, renewal_term: { until: '2031-12-31', cancel_by: '2031-03-31' } },
+  'Fernwärme verlängert, Folgevertrag': { start: '2016-07-01', end: '2026-06-30', renewed: true, notice_basis: 'renewed', cancel_by: null, switch_date: '2027-04-01',
+    is_open_ended: false, successor: { contract_id: 'c_s', provider: 'Wärme Musterstadt', start: '2027-04-01', gap_days: 274, gap_covered: true } },
+  'Grundversorgung verlängert': { start: '2024-01-01', end: '2025-12-31', renewed: true, notice_basis: 'basic_supply', cancel_by: null, switch_date: '2026-10-27', is_open_ended: false },
+  'Folgevertrag mit Lücke, gefüllt durch die Verlängerung': { start: '2025-12-01', end: '2026-11-30', notice_basis: 'fixed_end', cancel_by: '2026-10-31', switch_date: '2026-12-01',
+    successor: { contract_id: 'c_gap', provider: 'Nahwärme Musterstadt', start: '2027-03-01', gap_days: 90, gap_covered: true } },
   'unbefristet, 1 Monat zum Monatsende': { start: '2022-11-01', end: null, is_open_ended: true, notice_basis: 'open_ended', cancel_by: TODAY, switch_date: '2026-12-01' },
   'unbefristet mit Mindestlaufzeit': { start: '2026-03-01', end: null, is_open_ended: true, notice_basis: 'min_term', cancel_by: TODAY, switch_date: '2027-03-01', min_term_end: '2027-02-28' },
   'unbefristet ohne Frist + Preiserhöhung': { start: '2020-01-01', end: null, is_open_ended: true, notice_basis: 'unknown', cancel_by: null, switch_date: null, price_increase: { from: '2026-11-01' } },
@@ -409,9 +423,29 @@ const tl = (name) => parse(EX.timelineHtml(TL[name], TODAY));
 const txt = (fig) => fig.querySelector('.explainer__text').textContent;
 const svgTxt = (fig) => fig.querySelector('svg').textContent;
 let f1 = tl('verlängert (renewed)');
-t('verlängert: frühestes Ende = switch_date − 1, nicht das alte Ende', txt(f1).includes('12.11.2026') && fig1Has(f1, 'earliest') && !/kündigt bis 12\.10\.2026/.test(txt(f1)), txt(f1));
 function fig1Has(fig, key) { return !!fig.querySelector(`.ex-mark--${key}`); }
-t('verlängert: Laufzeitende als eigene Marke, „jederzeit kündbar“ statt Stichtag', fig1Has(f1, 'termEnd') && !fig1Has(f1, 'cancel') && svgTxt(f1).includes('jederzeit kündbar'));
+// v3.11.0 (Skeptiker H3) — kein „jederzeit kündbar“, kein berechnetes frühestes Ende: die Frist steht im Vertrag
+t('verlängert: Laufzeitende als Marke, kein frühestes Ende, kein „jederzeit kündbar“', fig1Has(f1, 'termEnd') && !fig1Has(f1, 'earliest') && !fig1Has(f1, 'cancel')
+  && !svgTxt(f1).includes('jederzeit kündbar') && !/jederzeit|höchstens einem Monat/.test(txt(f1)), txt(f1));
+t('verlängert: Text nennt das Laufzeitende und verweist auf den Vertrag', txt(f1).includes('30.06.2026') && txt(f1).includes('Die Kündigungsfrist steht im Vertrag'), txt(f1));
+f1 = tl('Fernwärme verlängert (renewal_term)');
+t('Fernwärme verlängert: Laufzeitende, Kündigen bis, Ende der Verlängerung, § 32 AVBFernwärmeV', fig1Has(f1, 'termEnd') && fig1Has(f1, 'cancel') && fig1Has(f1, 'end')
+  && txt(f1).includes('§ 32 AVBFernwärmeV') && txt(f1).includes('30.06.2031') && txt(f1).includes('30.09.2030'), txt(f1));
+// v3.11.0 (Nachprüfung NP3) — Fernwärme ohne eingetragene Frist: neun Monate vor dem Ende, verpasst → Verlängerung
+f1 = tl('Fernwärme ohne Frist, Tag kommt noch');
+t('NP3: Fernwärme ohne Frist: kündigen bis 31.03.2026, Satz zu § 32 und zur Verlängerung', fig1Has(f1, 'cancel') && txt(f1).includes('31.03.2026')
+  && txt(f1).includes('neun Monaten vor Ablauf (§ 32 AVBFernwärmeV)') && txt(f1).includes('bis 31.12.2031'), txt(f1));
+f1 = tl('Fernwärme ohne Frist, Tag verpasst');
+t('NP3: Fernwärme verpasst: verlängert sich bis 31.12.2031, nächste Kündigung bis 31.03.2031', fig1Has(f1, 'missed') && txt(f1).includes('31.12.2031')
+  && txt(f1).includes('31.03.2031') && txt(f1).includes('§ 32 AVBFernwärmeV') && !/ohne Kündigung läuft er nach dem 31\.12\.2026 weiter\.$/.test(txt(f1)), txt(f1));
+f1 = tl('Fernwärme verlängert, Folgevertrag');
+t('NP4: verlängert mit Folgevertrag: kein Ende der Verlängerung, kein „bis du kündigst“, der Folgevertrag', !fig1Has(f1, 'cancel') && !fig1Has(f1, 'end')
+  && !/2031|bis du kündigst/.test(txt(f1)) && txt(f1).includes('Ab 01.04.2027 folgt der Vertrag mit Wärme Musterstadt'), txt(f1));
+f1 = tl('Grundversorgung verlängert');
+t('Grundversorgung verlängert: zwei Wochen Frist, frühestes Ende 26.10.2026', fig1Has(f1, 'termEnd') && fig1Has(f1, 'earliest')
+  && txt(f1).includes('zwei Wochen Frist') && txt(f1).includes('26.10.2026') && !/steht im Vertrag/.test(txt(f1)), txt(f1));
+f1 = tl('Folgevertrag mit Lücke, gefüllt durch die Verlängerung');
+t('Lücke, die die Verlängerung füllt: keine Lücke im Bild und im Text (Skeptiker N10)', !f1.querySelector('.ex-range--gap') && !/ohne Vertrag/.test(txt(f1)), txt(f1));
 f1 = tl('unbefristet, 1 Monat zum Monatsende');
 t('unbefristet: jederzeit kündbar, frühestes Ende 30.11.2026, kein Stichtag heute', !fig1Has(f1, 'cancel') && txt(f1).includes('30.11.2026') && /jederzeit kündbar/.test(txt(f1)) && !txt(f1).includes('12.10.2026'), txt(f1));
 f1 = tl('Stichtag verpasst');

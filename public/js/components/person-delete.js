@@ -10,6 +10,7 @@
 // übernimmt niemand die offenen Termine.
 // v3.7.0 — ebenso Zuständigkeiten an Zählern und Verträgen (`meters`,
 // `contracts` in der Vorschau, `records_handed_over` in der Antwort).
+// v3.11.0 — und an Mietverhältnissen (`tenancies`); der Satz nennt sie dann mit.
 // =====================================================================
 
 import { api } from '../api.js';
@@ -28,8 +29,13 @@ export function handoverText(preview, former = false) {
   // ohne löschende Person (Anmeldung aus): niemand übernimmt
   else lines.push(tp('settings.users.handoverNobody', open));
   // v3.7.0 — Zähler und Verträge der Person: wie offene Termine
-  const records = (Number(preview?.meters) || 0) + (Number(preview?.contracts) || 0);
-  if (records > 0) {
+  // v3.11.0 (integration) — ebenso Mietverhältnisse (`tenancies`); hat sie welche, nennt der Satz sie mit
+  const tenancies = Number(preview?.tenancies) || 0;
+  const records = (Number(preview?.meters) || 0) + (Number(preview?.contracts) || 0) + tenancies;
+  if (records > 0 && tenancies > 0) {
+    if (preview?.to?.name) lines.push(tp('settings.users.handoverRecordsTenancy', records, { to: preview.to.name }));
+    else lines.push(former ? tp('settings.users.handoverRecordsTenancyFormer', records) : tp('settings.users.handoverRecordsTenancyNobody', records));
+  } else if (records > 0) {
     if (preview?.to?.name) lines.push(tp('settings.users.handoverRecords', records, { to: preview.to.name }));
     else lines.push(former ? tp('settings.users.handoverRecordsFormer', records) : tp('settings.users.handoverRecordsNobody', records));
   }
@@ -66,9 +72,10 @@ export async function confirmPersonDelete(userId, onDone) {
           const r = await api.deleteUser(userId, { anonymizeActivity: !!anon?.checked });
           close(true);
           const moved = Number(r?.handed_over) || 0;
-          const records = Number(r?.records_handed_over) || 0;   // v3.7.0 — Zähler und Verträge
+          const records = Number(r?.records_handed_over) || 0;   // v3.7.0 — Zähler und Verträge (v3.11.0: und Mietverhältnisse)
+          const recordsText = Number(preview?.tenancies) > 0 ? tp('settings.users.handedOverRecordsTenancy', records) : tp('settings.users.handedOverRecords', records);
           if (name) toastOk(t('settings.users.deletedToast', { name }) + (moved > 0 ? ' ' + tp('settings.users.handedOver', moved) : '')
-            + (records > 0 ? ' ' + tp('settings.users.handedOverRecords', records) : ''));
+            + (records > 0 ? ' ' + recordsText : ''));
           onDone?.();
         } catch (e) { toastErr(e.message); }
       });

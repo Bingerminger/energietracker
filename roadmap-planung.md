@@ -5,7 +5,7 @@ offenen Punkte, sortiert nach dem Release, in das sie geplant sind. Konzepte und
 früherer Releases stehen unverändert im [Archiv](roadmap-archiv.md); was ausgeliefert ist, im
 [CHANGELOG](CHANGELOG.md).
 
-**Stand:** 2026-11-03 · **Baseline:** v3.10.0 · **Schema:** 1.8.0
+**Stand:** 2026-11-04 · **Baseline:** v3.11.0 · **Schema:** 1.8.0
 
 ---
 
@@ -81,18 +81,7 @@ F-Codes (`F1`, `F2`, …) — diese Reihe ist mit `F1003` (v1.5.0) auf
 Spalten wie bisher im Eingang: vorläufiger Code, Thema, Größe, Abhängigkeit, Auslöser. Zeilen aus dem
 alten Eingang sind unverändert übernommen; neue Zeilen tragen das Datum 2026-10-28.
 
-### v3.11.0 — Deine Rechte als Kunde (geplant 17.11.2026)
-
-| Code (vorläufig) | Thema | Größe | Abhängigkeit | Auslöser |
-|---|---|---|---|---|
-| F10xx | **Rechte-Prüfungen** (2026-10-28): Rechnung zu spät (Frist nach Ende des Abrechnungszeitraums), Abschlag deutlich zu hoch (mit Antrag auf Anpassung), Preiserhöhung mit Sonderkündigungsrecht und Frist, Bonus nicht gutgeschrieben, Schätzung trotz gemeldetem Stand, Entgelt für den Messstellenbetrieb über der gesetzlichen Preisobergrenze, Widerspruchsfrist beim Gebührenbescheid (Wasser/Abwasser); jede Prüfung mit Quelle; Prüfbericht der Rechtsangaben vor dem Release | L | „Rechnung prüfen“, Verträge, Posteingang | Planung 2026-10-28 |
-| — | **Rechtsangaben in bestehenden Hinweisen korrigieren** (Konzept v3.11.0, 2026-11-03): Fernwärme ohne Sonderkündigungsrecht nach § 41 Abs. 5 EnWG (AVBFernwärmeV), Laufzeitwarnung über 24 Monate nicht für Fernwärme und Wasser (§ 32 AVBFernwärmeV), Grundversorgung mit § 5 Abs. 3 StromGVV/GasGVV, vereinbarte Preisstufen und reine Umsatzsteueränderungen keine Preiserhöhung mit Kündigungsrecht (§ 41 Abs. 6 EnWG), Ausstellungsdatum der Rechnung aus dem Posteingang übernehmen; Quellen im Prüfbericht | S | — | [#55](https://github.com/Bingerminger/energietracker/issues/55) |
-| — | **Widersprüchliche Verträge erkennen** (Skeptiker v3.10.0, M6, 2026-11-03): Überschneiden sich zwei Verträge laut Eintrag über Jahre (ein alter läuft über den Beginn eines späteren hinaus) oder trägt ein Vertrag offensichtlich den Tarif einer anderen Verbrauchsart, kappt die Vertragsliste den alten, das Abrechnungsjahr rechnet den späteren über sein Ende hinaus; daraus entstehen Abrechnungsjahre mit unplausiblem Guthaben, ohne Warnung. Vorschlag: Prüfung „Verträge widersprechen sich“ mit Hinweis, was zu klären ist, und eine Regel für Liste und Abrechnungsjahr | S–M | — | Skeptiker-Lauf 2026-11-03; [#54](https://github.com/Bingerminger/energietracker/issues/54) |
-| F10xx | **Briefvorlagen aus den Befunden** (2026-10-28): Widerspruch, Sonderkündigung, Antrag auf Abschlagsanpassung, Rückfrage zur Schätzung; als Text und PDF, mit den Daten aus dem Befund | M | Rechte-Prüfungen | Planung 2026-10-28 |
-| — | **Preisänderungsschreiben im Posteingang** (2026-10-28): neue Preise und Stichtag erkennen, Wirkung auf Kosten und Abschlag zeigen, Frist für die Sonderkündigung als Termin | M | v3.7.0 Posteingang | Planung 2026-10-28 |
-| — | Zuständigkeit am Mietverhältnis (Nebenkosten- und CO₂-Fristen der Mieter landen bei einer Person) | S | v3.7.0 Zuständigkeit | Entscheidung 2026-10-21 |
-
-### v3.12.0 — Energietracker für deine KI
+### v3.12.0 — Energietracker für deine KI (in Arbeit)
 
 | Code (vorläufig) | Thema | Größe | Abhängigkeit | Auslöser |
 |---|---|---|---|---|

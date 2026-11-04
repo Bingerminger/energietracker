@@ -331,7 +331,11 @@ final class BackupService
             }
             if ($key === 'reminders') $this->checkList($payload[$key], $key, ['id'], [], $problem);
             if ($key === 'ev_sessions') $this->checkList($payload[$key], $key, ['id', 'meter_id', 'date', 'charged_kwh'], ['date'], $problem);
-            if ($key === 'tenancies') $this->checkList($payload[$key], $key, ['id', 'start'], ['start'], $problem);
+            if ($key === 'tenancies') {
+                $this->checkList($payload[$key], $key, ['id', 'start'], ['start'], $problem);
+                // v3.11.0 (E) — Zuständigkeit am Mietverhältnis: dieselbe Form wie an Zählern und Verträgen
+                if (array_is_list($payload[$key])) self::checkAssignees(array_filter($payload[$key], 'is_array'), $key, $problem);
+            }
             // v3.4.0 (F1024) — Verlauf: Kennung, Aktion, Gegenstand, Tag
             if ($key === 'activity') {
                 $this->checkList($payload[$key], $key, ['id', 'action', 'subject', 'done_on'], ['done_on'], $problem);

@@ -119,6 +119,9 @@ final class SessionController
             // v3.7.0 — Zähler und Verträge, für die die Person zuständig ist
             'meters'    => (int)($counts['meters'] ?? 0),
             'contracts' => (int)($counts['contracts'] ?? 0),
+            // v3.11.0 (Skeptiker M4) — und Mietverhältnisse (ResponsibilityService::countFor); der Dialog
+            // „Person löschen“ las das Feld schon, die Antwort lieferte es nicht
+            'tenancies' => (int)($counts['tenancies'] ?? 0),
         ]);
     }
 

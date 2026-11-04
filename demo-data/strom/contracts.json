@@ -108,6 +108,7 @@
     "meter_id": "m_strom_main",
     "provider": "Energie Nordring",
     "tariff_name": "Strom Direkt 12 — 2026",
+    "supply_kind": "special",
     "start": "2026-01-01",
     "end": "2026-12-31",
     "notes": "",
@@ -115,6 +116,12 @@
       {
         "from": "2026-01-01",
         "ct_per_kwh": 31.5
+      },
+      {
+        "from": "2026-07-01",
+        "ct_per_kwh": 34.9,
+        "announced_on": "2026-05-20",
+        "vat_pct": 19
       }
     ],
     "base_prices": [

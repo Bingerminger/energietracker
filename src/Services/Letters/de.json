@@ -1,0 +1,113 @@
+{
+  "_comment": "v3.11.0 (F1036, Paket briefe) — Bausteine der Briefe, immer Deutsch (Empfänger in Deutschland, Entscheidung 10a). Platzhalter {name} füllt LetterService; fehlt ein Wert, steht im Brief die Lücke „gap“. Normen stehen hier NIE als Text: {norms} kommt aus Config\\Rights (Norm, Quelle, Stand, Prüfbericht §12). Ein Baustein, dessen Platzhalter alle fehlen und der als optional markiert ist (opt), entfällt. Keine Aussage, dass etwas unwirksam oder rechtswidrig ist, keine Drohung, keine angekündigte Kürzung (Konzept §4).",
+  "common": {
+    "salutation": "Sehr geehrte Damen und Herren,",
+    "closing": "Mit freundlichen Grüßen",
+    "gap": "[…]",
+    "signature": "Unterschrift",
+    "attachment": "Anlage",
+    "attachments": "Anlagen",
+    "norms_join": " bzw. ",
+    "ref": {
+      "customer_number": "Kundennummer",
+      "contract_number": "Vertragsnummer",
+      "meter_serial": "Zählernummer",
+      "malo_id": "Marktlokation",
+      "supply_address": "Lieferanschrift",
+      "invoice_number": "Rechnungsnummer",
+      "file_number": "Aktenzeichen/Kassenzeichen"
+    },
+    "device": {
+      "mme": "eine moderne Messeinrichtung",
+      "imsys": "ein intelligentes Messsystem"
+    },
+    "rhythm": {
+      "1": "Monat",
+      "2": "zwei Monate",
+      "3": "Vierteljahr",
+      "6": "Halbjahr",
+      "12": "Jahr",
+      "other": "{n} Monate"
+    }
+  },
+  "special_termination": {
+    "subject": "Kündigung wegen Preisänderung",
+    "body": [
+      "Sie haben mir mit Schreiben vom {announced_on} eine Preisänderung zum {valid_from} angekündigt. Hiermit kündige ich den Vertrag nach {norms} zum Zeitpunkt des Wirksamwerdens der Preisänderung.",
+      { "opt": "Mein Zählerstand am {reading_date}: {reading_value} {unit}. Bitte legen Sie ihn der Schlussrechnung zugrunde." },
+      "Bitte bestätigen Sie mir die Kündigung und das Vertragsende in Textform."
+    ],
+    "body_without_norm": "Sie haben mir mit Schreiben vom {announced_on} eine Preisänderung zum {valid_from} angekündigt. Hiermit kündige ich den Vertrag zum Zeitpunkt des Wirksamwerdens der Preisänderung."
+  },
+  "advance_adjustment": {
+    "subject": "Antrag auf Anpassung des Abschlags",
+    "body": [
+      "mein Verbrauch im Abrechnungszeitraum vom {period_from} bis {period_to} betrug {quantity} {unit}. Mit {price_basis}{prices} ergibt sich ein Abschlag von rund {assessment_eur} je {rhythm}.",
+      { "opt": "Nach {norms} richtet sich der Abschlag nach dem Verbrauch im zuletzt abgerechneten Zeitraum." },
+      { "opt": "{reasons}" },
+      "Ich bitte Sie, den Abschlag ab dem {next_due} auf {amount_eur} festzusetzen und mir den neuen Abschlagsplan zu senden."
+    ],
+    "prices_now": "den aktuellen Preisen",
+    "prices_from": "den Preisen ab dem {next_due}",
+    "prices": " ({working_price}, {base_price})",
+    "working_price": "Arbeitspreis {value} ct/{unit}",
+    "base_price": "Grundpreis {value} im Monat"
+  },
+  "estimate_query": {
+    "subject": "Rückfrage zur Schätzung in Ihrer Rechnung vom {issued_on}",
+    "body": [
+      "in Ihrer Rechnung vom {issued_on} ist der Zählerstand zum {period_to} als geschätzt ausgewiesen ({bill_reading} {unit}). Ich habe am {own_reading_on} selbst abgelesen: {own_reading} {unit}{reported}.",
+      "Bitte erläutern Sie mir nach {norms} Grund und Faktoren der Schätzung in Textform und berichtigen Sie die Rechnung auf Grundlage meines Zählerstands."
+    ],
+    "reported": " und Ihnen den Stand am {reported_on} mitgeteilt",
+    "request_without_norm": "Bitte erläutern Sie mir Grund und Grundlage der Schätzung und berichtigen Sie die Rechnung auf Grundlage meines Zählerstands.",
+    "photo": "Foto des Zählerstands vom {own_reading_on}"
+  },
+  "complaint": {
+    "subject": "Beanstandung Ihrer Rechnung vom {issued_on}",
+    "bill_late": {
+      "subject": "Beanstandung: verspätete Rechnung vom {issued_on}",
+      "body": [
+        "Ihre Rechnung für den Zeitraum vom {period_from} bis {period_to} ist vom {issued_on}{received}. Nach {norms} ist die Rechnung spätestens sechs Wochen nach {period_end} zur Verfügung zu stellen. Diese Frist endete am {deadline_on}.",
+        "Ich beanstande die verspätete Abrechnung und bitte Sie um eine Stellungnahme."
+      ],
+      "received": "; sie lag mir am {received_on} vor",
+      "period_end": "Ende des Abrechnungszeitraums",
+      "period_end_final": "Beendigung der Belieferung"
+    },
+    "bonus_missing": {
+      "subject": "Beanstandung: Bonus fehlt in Ihrer Rechnung vom {issued_on}",
+      "body": [
+        "laut meinem Vertrag{tariff} steht mir ein Bonus von {bonus_eur} zu. In Ihrer Rechnung vom {issued_on} finde ich keine Gutschrift dafür.",
+        "Bitte schreiben Sie mir den Bonus gut oder teilen Sie mir mit, warum er nicht gewährt wurde."
+      ],
+      "tariff": " „{tariff}“"
+    },
+    "metering_cap": {
+      "subject": "Beanstandung: Entgelt für den Messstellenbetrieb",
+      "body": [
+        "für den Messstellenbetrieb an meiner Messstelle weist die Rechnung vom {issued_on} umgerechnet {annual_eur} im Jahr (brutto) aus. Für {device} nennt {norms} für den grundzuständigen Messstellenbetreiber eine Obergrenze von {cap_eur} im Jahr.",
+        "Bitte prüfen Sie das Entgelt und teilen Sie mir das Ergebnis mit."
+      ]
+    },
+    "other": {
+      "body": [
+        "ich beanstande Ihre Rechnung vom {issued_on}.",
+        "Bitte prüfen Sie dies und teilen Sie mir das Ergebnis mit."
+      ]
+    },
+    "note": "{note}",
+    "answer": "Ich bitte um Antwort innerhalb von vier Wochen, wie sie {norms} für Beanstandungen von Verbrauchern vorsieht."
+  },
+  "objection": {
+    "subject": "Widerspruch gegen den Bescheid vom {dated_on}",
+    "body": [
+      "gegen den Bescheid über {levy} vom {dated_on}{file} lege ich hiermit Widerspruch ein.",
+      "Die Begründung reiche ich nach.",
+      "Bitte bestätigen Sie mir den Eingang des Widerspruchs."
+    ],
+    "file": " ({file_label} {file_number})",
+    "reason": "Zur Begründung: {reason}",
+    "suspend": "Zugleich beantrage ich, die Vollziehung des Bescheids bis zur Entscheidung über den Widerspruch auszusetzen."
+  }
+}

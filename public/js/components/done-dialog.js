@@ -19,7 +19,7 @@ import { offerThanks, doneInTime } from '../lib/thanks.js';   // v3.10.0 — Dan
  *
  * @returns {Promise<object|null>} Antwort von `submit`, null bei Abbruch
  */
-export function openDoneDialog({ title, cancelOption = false, hint = '', submit }) {
+export function openDoneDialog({ title, cancelOption = false, hint = '', note = '', submit }) {
   return new Promise(resolve => {
     const today = todayIso();
     const ctrl = openModal({
@@ -35,7 +35,7 @@ export function openDoneDialog({ title, cancelOption = false, hint = '', submit 
           </div>
           <div class="field field--l">
             <label for="dd-note">${esc(t('activity.dialog.note'))}</label>
-            <input class="input" type="text" id="dd-note" maxlength="500" autocomplete="off">
+            <input class="input" type="text" id="dd-note" maxlength="500" autocomplete="off" value="${esc(note)}">
           </div>
           <div class="field field--full">
             <label for="dd-file">${esc(t('activity.dialog.attachment'))}</label>
@@ -89,14 +89,16 @@ export function openDoneDialog({ title, cancelOption = false, hint = '', submit 
  *
  * @returns {Promise<object|null>} Antwort des Servers, null bei Abbruch
  */
-export async function markEventDone(ev, { title, onChange, thanksAfter = null } = {}) {
+export async function markEventDone(ev, { title, onChange, thanksAfter = null, hint = '', note = '' } = {}) {
   const label = title || ev.title || '';
   let doneOn = null;
   const res = await openDoneDialog({
     title: label,
     cancelOption: ev.kind === 'cancel_by',
     // v3.5.0 (F1029) — abhaken heißt hier: Die Rechnung kam, wird aber nicht erfasst
-    hint: ev.kind === 'bill_expected' ? t('activity.dialog.billWithout') : '',
+    // v3.11.0 (F1036) — „Als verschickt markieren“ (Brief): Hinweis und Notiz vorbelegt
+    hint: ev.kind === 'bill_expected' ? t('activity.dialog.billWithout') : hint,
+    note,
     submit: (v) => {
       doneOn = v.done_on;
       return api.agendaDone({ uid: ev.uid, occurrence: ev.occurrence, done_on: v.done_on, note: v.note,

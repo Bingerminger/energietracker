@@ -6,6 +6,293 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [3.11.0] — 2026-11-04 — Deine Rechte als Kunde
+
+MINOR-Release ohne Schemaschritt (bleibt 1.8.0). Die Hauptfunktion ist **Deine
+Rechte als Kunde**: Der Energietracker prüft Rechnungen, Abschläge und
+Preisänderungen darauf, was dir in Deutschland zusteht. Eine Rechnung kam zu
+spät, ein Abschlag liegt weit über deinem Verbrauch, zu einer Preiserhöhung
+kannst du kündigen, ein Bonus fehlt, die Rechnung schätzt trotz eigener
+Ablesung, das Messentgelt liegt über der gesetzlichen Obergrenze, ein
+Gebührenbescheid hat eine Frist. Jeder Hinweis nennt die Vorschrift mit Quelle
+und Stand, ist ein **Hinweis, keine Rechtsberatung**, und bietet, wo es passt,
+einen **Brief** aus fester Vorlage als PDF für den Fensterumschlag oder als Text.
+Alle Rechtsangaben stehen an einer Stelle im Code und in den
+[Rechtsgrundlagen](docs/referenz/rechtsgrundlagen.md); ein Test hält beide
+gleich. Dazu erkennt die App **widersprüchliche Verträge** ([#54]), korrigiert
+die **Rechtsangaben bestehender Hinweise** ([#55]) und kennt eine
+**Zuständigkeit am Mietverhältnis**. API, CSV-Format 1, Backup-Format 3.0 und
+Docker-Umgebung wachsen nur additiv.
+
+### ⚠️ Für bestehende Installationen
+
+- **Nur Deutschland, nur Hinweise:** Die Prüfungen laufen nur mit dem Land
+  Deutschland in den Einstellungen. Sie sagen, was das Gesetz vorsieht; sie
+  sagen nie, dass etwas unwirksam ist oder dass du Zahlungen zurückhalten
+  sollst. Briefe entstehen nur auf Knopfdruck, die App schickt nichts ab.
+- **Neue Hinweise aus alten Daten:** Ein Teil der Prüfungen sieht auch erfasste
+  Rechnungen und Verträge der Vergangenheit. Unter „Zu tun“ kommen nur Hinweise,
+  deren Anlass höchstens 120 Tage zurückliegt oder deren Frist noch läuft;
+  „Rechnung prüfen“ zeigt alle.
+- **Die Sonderkündigung ersetzt die Preiserhöhung** ([#55]): Statt der
+  Empfehlung „Preiserhöhung, Sonderkündigung prüfen“ am Tag der Erhöhung steht
+  ein Hinweis „Rechte“ mit dem Termin am Tag davor (bis dahin muss die
+  Kündigung zugehen) und dem Brief. Der Kalendereintrag am Tag der Erhöhung
+  bleibt, ohne „Sonderkündigung prüfen“. Hast du eine kommende Preiserhöhung
+  schon abgehakt, erscheint sie einmal neu.
+- **Fernwärme ohne Sonderkündigungsrecht** ([#55]): § 41 Abs. 5 EnWG gilt für
+  Strom und Gas, nicht für Fernwärme. Die App nennt bei Fernwärme stattdessen die
+  Preisänderungsklausel (§ 24 Abs. 4 AVBFernwärmeV). Die Grundversorgung begründet
+  sie mit § 5 Abs. 3 StromGVV/GasGVV, eine reine Umsatzsteueränderung gibt kein
+  Kündigungsrecht (§ 41 Abs. 6 EnWG), ein vereinbarter Stufenpreis ohne Datum des
+  Schreibens nur einen fragenden Hinweis.
+- **Laufzeitwarnung nach Art** ([#55]): „Mindestlaufzeit über 24 Monate“ nur noch
+  bei Strom und Gas; bei Fernwärme erst über zehn Jahren (§ 32 AVBFernwärmeV),
+  bei Wasser keine.
+- **Verträge widersprechen sich** ([#54]): Läuft ein Vertrag laut Eintrag mehr als
+  31 Tage in einen späteren hinein, steht an beiden Karten, unter „Zu tun“ und im
+  Abrechnungsjahr ein Hinweis. Gerechnet wird wie bisher (der spätere Beginn
+  gewinnt); „Ende von … auf … setzen“ macht den Eintrag passend, ohne dass sich
+  Zahlen ändern.
+- **Auslese-Schema des Posteingangs 6 → 7:** Ein schon ausgelesenes Dokument
+  behält seine Auslesung; erst beim nächsten Neu-Auslesen kommen Grundversorgung,
+  Gutschriften, Messentgelt, Bescheid, Rechnungsnummer und der Abschlag im
+  Preisschreiben dazu.
+- **Neue optionale Felder** an Rechnung, Vertrag, Preis, Zähler und Ablesung
+  (siehe „API und Daten“). Ohne sie formulieren die Hinweise vorsichtiger oder
+  schweigen.
+
+### Added
+
+#### Deine Rechte als Kunde (F1035)
+
+- **Sieben Prüfungen:** Rechnung kam spät (Strom, Gas: sechs Wochen nach Ende
+  des Zeitraums, § 40c Abs. 2 EnWG), Abschlag deutlich zu hoch (Strom, Gas,
+  Fernwärme: mehr als 20 % und 10 € über der Bemessung aus dem letzten
+  abgerechneten Verbrauch, Prognose stimmt zu), Preisänderung mit
+  Sonderkündigung und Termin (Strom, Gas), Bonus nicht gutgeschrieben (Strom,
+  Gas), Schätzung trotz eigener Ablesung (alle Zählerarten mit Rechnung),
+  Messentgelt über der Obergrenze des Messstellenbetriebsgesetzes (Strom, ab
+  2026-01-01), Frist beim Gebührenbescheid (Wasser, Abwasser). Ein Vertrag, der
+  nach seinem Ende ohne Kündigung weiterläuft, wird geprüft wie ein laufender.
+  Die Schätzung zählt ab 2 % der Menge laut Rechnung und 10 € Wirkung; nach
+  Ablauf der Widerspruchsfrist sagt die App das und bietet keinen Brief mehr an.
+  Fällt das Fristende auf ein Wochenende oder einen bundesweiten Feiertag, gilt
+  der nächste Werktag (§ 57 Abs. 2 VwGO mit § 222 Abs. 2 ZPO, § 31 Abs. 3
+  VwVfG); Termin, „Zu tun“, Kalender und Brief nennen diesen Tag.
+- **Ein Hinweis, viele Orte:** Empfehlung „Rechte“ mit Fußzeile „Hinweis, keine
+  Rechtsberatung. Grundlage: …“ (jede Norm als Link, Stand), „Brief entwerfen“
+  und „Was die App prüft“; „Zu tun“ (abhakbar; mit Frist als Termin 14 Tage
+  vorher), Kalender mit Vorwarnung, Home Assistant als Punkt aus „Zu tun“,
+  Jahresbericht (Termine), Verlauf. „Rechnung prüfen“ zeigt die Hinweise zur
+  Rechnung und zählt sie in der Liste. Ohne erfasste Rechnung sagen „Rechnung
+  prüfen“ und die Empfehlungsseite, dass die Prüfungen ab der ersten Rechnung
+  laufen.
+- **Neue Seiten im Handbuch:** [Deine Rechte als Kunde](docs/verstehen/17-rechte.md)
+  (was die App prüft, wie, Grenzen, Schwellen, Beispiele) und
+  [Rechtsgrundlagen](docs/referenz/rechtsgrundlagen.md) (der Prüfbericht: jede
+  Aussage mit Norm, Quelle, Stand und Einstufung W/S/G/U; was „zu prüfen“ oder
+  „unsicher“ ist, steht nie als Tatsache und unsichere Regeln nie in einem
+  Hinweis).
+
+#### Briefe (F1036)
+
+- **Fünf Vorlagen:** Sonderkündigung, Antrag auf Abschlagsanpassung, Rückfrage
+  zur Schätzung, Beanstandung einer Rechnung, Widerspruch gegen einen
+  Gebührenbescheid. Immer auf Deutsch, vorbelegt aus Hinweis, Vertrag und
+  Zähler; fehlende Angaben bleiben als sichtbare Lücke `[…]`.
+- **PDF nach DIN 5008** (Anschrift im Fenster, Falzmarken) oder **Text kopieren**;
+  „Als verschickt markieren“ hakt den Hinweis mit Datum und Notiz ab. Den
+  Widerspruch gibt es erst nach der Bestätigung, dass die Rechtsbehelfsbelehrung
+  ihn nennt. Absender und Empfänger speichert die App nicht (auf Wunsch merkt
+  sich der Browser den Absender). Anleitung:
+  [Einen Brief schreiben](docs/anleitungen/brief-schreiben.md).
+
+#### Preisänderungsschreiben im Posteingang
+
+- Übernommene Preise tragen das Datum des Schreibens, den Steuersatz und ein
+  „Kündigung bis …“; den Termin der Sonderkündigung gibt es nur einmal. Die
+  Kernaussage prüft die Ankündigungsfrist, erkennt eine reine Steueränderung,
+  zeigt Mehrkosten mit Spanne und den Abschlag danach und verweist auf die
+  Abschlagsregel, wenn der neue Abschlag deutlich stärker steigt als die Kosten.
+  Zweitarif: Der Preis geht an das passende Zählwerk.
+- Rechnungen übernehmen Rechnungsdatum, Rechnungsnummer, geschätzte Stände (der
+  geschätzte Endstand steht an der Rechnung, nicht als Ablesung, und verändert den
+  Verbrauch nicht; ein Stand, bei dem der Zähler rückwärts liefe, wird gemeldet),
+  Gutschriften, Messentgelt und Bescheid; nennt die Rechnung die Grundversorgung
+  oder einen Sondervertrag, schlägt die App die Versorgungsart am Vertrag vor.
+
+#### Verträge widersprechen sich ([#54])
+
+- Hinweis bei Überschneidung, bei einem eingeschlossenen Vertrag, beim Tarif
+  einer anderen Verbrauchsart (auch mit geändertem Preis) und bei Abschlägen von
+  mindestens dem Doppelten der Kosten, beim selben Vertrag als ein Eintrag; Knöpfe „Ende von … auf … setzen“ und „Beides stimmt“. Vertragsliste,
+  Vertragsstatus und Abrechnungsjahr lesen eine gemeinsame Regel; das
+  Abrechnungsjahr beschriftet angenommene Abschnitte.
+
+#### Zuständig am Mietverhältnis
+
+- Die Fristen der Nebenkostenabrechnung und der CO₂-Erstattung landen bei der
+  Person am Mietverhältnis, sonst beim ersten Wärmezähler („über das
+  Mietverhältnis“ in Terminen, „Zu tun“ und Kalender). „Person löschen“ nennt
+  Mietverhältnisse mit.
+
+#### Schaufenster und Demo
+
+- Der Beispielhaushalt zeigt immer eine Sonderkündigung mit laufender Frist,
+  einen Gebührenbescheid mit Widerspruch und einen widersprüchlichen
+  Wasservertrag; die Pages-Demo rechnet den ersten Entwurf jedes Briefs vor.
+
+#### API und Daten (additiv)
+
+- `GET /api/rights` (Befunde mit Normen, Fußzeile, Brief, Fenster),
+  `POST /api/letters/render` (Text oder PDF, speichert nichts); Agenda-Arten
+  `rights` und `contract_conflict`, Empfehlungskategorie `recht`, Empfehlung
+  `r_contract_conflict`, Vorschlag `contract_supply_kind` im Posteingang.
+- Felder: Rechnung `received_on`, `invoice_number`, `reading_estimated`,
+  Wasser `notice`, Posten `kind: metering` mit `basis` und `vat_pct`; Vertrag
+  `supply_kind`; jeder Preis-Eintrag `announced_on`, `vat_pct`,
+  `special_termination_until`; Stromzähler `metering_device`, `msb_basic`,
+  Einspeisezähler `pv_kw`; Ablesung `reported_on`; Mietverhältnis `assignee_id`;
+  Rechnung `estimated_end_reading`. Vertragsstatus `price_increase` und
+  `coverage`, Abrechnungsjahr `periods[].assumed`, `advance_vs_cost` (mit
+  `contract_id`), `successor.gap_covered`, Warnungen `term_over_10_years`,
+  `contract_conflict`, `estimated_reading_backwards`; `GET /api/rights` nennt
+  `bills_recorded`; ein Widerspruch nach der Frist endet mit
+  `errors.letter.deadlinePassed` (422).
+
+### Changed
+
+- „Laut Rechnung“ zeigt je Posten Art, netto oder brutto und Steuersatz sowie die
+  neuen Felder; der Vertragsdialog Strom/Gas die Versorgungsart und ab
+  „Erfahren“ je Preis „Schreiben vom“ und „USt %“; der Zählerdialog Strom den
+  Messstellenbetrieb; die Erfassung den Schalter „an den Versorger gemeldet“.
+- Hilfe → Dokumentation verlinkt „Deine Rechte als Kunde“; das Glossar erklärt
+  Grundversorgung und Sondervertrag, Messstellenbetreiber und Preisobergrenze,
+  Gebührenbescheid und Schlichtungsstelle Energie.
+- Ein künftiger Folgevertrag einer späteren Abrechnungsperiode trägt im
+  Vertragsstatus `balance_measured: null`.
+- Doku: Docker-Compose-Beispiel für das eigene Stammzertifikat `ET_CA_FILE`
+  ([#36]).
+- Die Vertragskarte nennt eine angekündigte Preisstufe mit Datum („ab …:
+  Arbeitspreis …“) statt nur der Zahl der Preise.
+
+### Fixed
+
+- Fernwärme, Grundversorgung, Stufenpreise und reine Steueränderungen bekamen
+  einen falschen Hinweis auf das Sonderkündigungsrecht nach § 41 Abs. 5 EnWG;
+  die Laufzeitwarnung kam bei jeder Verbrauchsart ([#55]).
+- Rechnungen aus dem Posteingang hatten kein Rechnungsdatum; gebucht wurde am
+  Tag nach dem Zeitraum.
+- „Laut Rechnung“: Bearbeiten und Speichern machte jeden weiteren Posten zur Art
+  „sonstige“.
+- Termine aus dem Posteingang (Sonderkündigungsrecht, Zählerstand melden) trugen
+  seit v3.7.0 „{date}“ statt des Tages im Titel.
+- Das Glossar nannte das Sonderkündigungsrecht ohne Unterschied nach
+  Versorgungsart und Energieart.
+- **Bonus doppelt gezählt** ([#56]): Begann das Abrechnungsjahr mitten im Monat,
+  zählte ein Bonus vom letzten Tag der alten Periode im Saldo bis zur letzten
+  Ablesung, im erwarteten Saldo und damit im Abschlagsvorschlag der neuen Periode
+  noch einmal. Jetzt zählt der Tag der Gutschrift; die Spalte Bonus in „Verträge &
+  Abschläge“ zeigt denselben Bonus wie der Saldo statt eines Monatsanteils.
+- Ein stillschweigend verlängerter Vertrag hieß „jederzeit mit höchstens einem
+  Monat Frist kündbar“, mit berechnetem frühestem Ende und „zu den letzten
+  Preisen“. Strom und Gas: Die Frist steht im Vertrag (der Prüfbericht belegt
+  keine allgemeine Monatsfrist); Grundversorgung zwei Wochen (§ 20 StromGVV und
+  GasGVV); Fernwärme nach § 32 AVBFernwärmeV (Verlängerung um fünf Jahre,
+  Kündigung neun Monate vorher).
+- Fernwärme ohne eingetragene Kündigungsfrist: Die App riet kurz vor dem Ende zum
+  Wechsel, obwohl die Frist nach § 32 AVBFernwärmeV schon vorbei war. Jetzt
+  erinnert sie an den Tag neun Monate vorher und sagt danach, dass sich der
+  Vertrag verlängert, bis wann und wann die nächste Kündigung geht; ein
+  eingetragener Folgevertrag geht vor. „Wechsel prüfen“ zeigt beim verlängerten
+  Vertrag kein vergangenes „läuft bis …“ mehr.
+- Preis-Einträge nach dem Ende eines verlängerten Vertrags galten nicht; Saldo,
+  Prognose und Vertragskarte rechneten mit dem letzten Preis davor.
+- Ein abgelöster Vertrag hieß „Beendet“ neben einem künftigen Ende (jetzt
+  „Abgelöst“); eine Lücke, die die automatische Verlängerung füllt, hieß „ohne
+  Vertrag“.
+
+### Bekannte Grenzen
+
+- **Den Prüfbericht hat noch kein Mensch gegengelesen.** Die Quellen wurden am
+  2026-11-03 gelesen; Zeilen mit „Zu prüfen“ (unter anderem GasGVV im Wortlaut,
+  § 309 Nr. 9 BGB, Ausschluss des Widerspruchsverfahrens) und „Unsicher“
+  (Neufassung der AVBFernwärmeV, EnWG-Änderung 2026, Festlegung der
+  Bundesnetzagentur zu den Preisobergrenzen) sind offen, dazu die Jahresfrist ohne
+  Rechtsbehelfsbelehrung ab Bekanntgabe (§ 58 Abs. 2 VwGO), die Rückrechnung
+  „neun Monate vor Ablauf“ bei Fernwärme und die Liste der bundesweiten Feiertage.
+- Nur deutsches Bundesrecht, keine Landesgesetze. Einen Termin verschiebt die App
+  nur beim Fristende des Gebührenbescheids, und nur für Wochenende und
+  bundesweite Feiertage; Landesfeiertage kennt sie nicht.
+- Abschlag: nicht für Wasser und Gruppenverträge. Schätzung: braucht den
+  geschätzten Endstand laut Rechnung. Fernwärme in der Verlängerung: Den
+  nächsten Kündigungstag nennt die App, unter „Zu tun“ und im Kalender steht er
+  noch nicht. Messentgelt: nur ab 2026-01-01, nicht bei
+  netto ohne Steuersatz. Bonus: kein Sofortbonus.
+- Anschrift des Versorgers und Lieferanschrift kennt die App nicht (Feld im
+  Dialog); das Brief-PDF ist noch nicht an einem echten Fensterumschlag
+  geprüft. Die Pages-Demo rechnet nur den ersten Entwurf eines Briefs.
+- Haushalt aus Dokumenten übernimmt Preise aus Preisänderungen weiter ohne
+  Datum des Schreibens und die Versorgungsart nicht.
+
+### Migration
+
+Keine. Schema bleibt 1.8.0; alle neuen Felder sind optional und reisen im
+Backup mit, kein neuer Topf. Das Auslese-Schema des Posteingangs steigt von 6
+auf 7 (siehe oben).
+
+### Tests
+
+- **Rechte:** `RightsTest`, `RightsServiceTest`, `RightsFieldsTest`,
+  `RightsEndpointTest`, `RightsBillChecksTest`, `RightsAdvanceTest`,
+  `RightsPriceChangeTest`, `RightsLettersTest`, `InboxPriceChangeTest`,
+  `InboxBillRightsTest`, Node-Suite `rights`.
+- **Briefe:** `LetterServiceTest`, `LetterLayoutTest` (Box-Protokoll im
+  Fensterumschlag), `LetterEndpointTest`, `PdfCharsetTest`, Node-Suite `letters`.
+- **Ordnung:** `ContractConflictTest` (M6 nachgebaut, von Hand gerechnet,
+  Abdeckung Tag für Tag), `TenancyResponsibilityTest`, Node-Suite `assignee`.
+- **Doku:** `RightsSourcesDocTest` hält den Prüfbericht Zeile für Zeile am Code
+  (Norm, Quelle, Stand, Status), Fristen, Preisobergrenzen, Schwellen und
+  Beispiele, lässt auf der Erklärseite nur Normen aus dem Prüfbericht zu und
+  keine unsichere als Tatsache; `DocumentedThresholdsTest` für die Schwellen der
+  Anleitungen. Demo: `DemoDataAlignerTest` (Fristen relativ zu heute),
+  `demo.test` (Hinweis und Brief in der Pages-Demo).
+- **Nach dem Skeptiker-Lauf:** `RightsRenewedContractTest` (verlängerte
+  Verträge), `BonusPeriodBoundaryTest` (#56, Stichtag mitten im Monat),
+  `ShowcaseAdvanceHighTest`; nach der Nachprüfung `ContractNoticeFollowUpTest`
+  (Fernwärme vor dem Ende, Folgevertrag, Grundversorgung) und Fristende am
+  Werktag (Samstag, Sonntag, Ostermontag, 3. Oktober).
+- 2088 Testmethoden (+192). Jede neue Regel hat eine Gegenprobe, die sie bricht:
+  430 in 10 Paketen, alle rot.
+
+### Lessons Learned
+
+- **Eine Rechtsaussage braucht eine Zeile, bevor sie Text wird.** Der Prüfbericht
+  stand zuerst im Konzept, dann als Regeln im Code, dann als Tabelle in der Doku;
+  ein Test hält alle drei gleich. Vier Hinweise aus früheren Releases nannten eine
+  Norm, die für den Fall nicht gilt.
+- **Zwei Pakete, ein Termin.** Posteingang und Prüfung legten beide den Termin
+  der Sonderkündigung an; jetzt schreibt der Posteingang das Datum an den Preis,
+  und nur die Prüfung legt den Termin an.
+- **Ein Beispiel im Konzept ist kein Befund im Code.** Der nachgebaute Fall M6 ist
+  ein eingeschlossener Vertrag, keine Überschneidung; erst der von Hand gerechnete
+  Haushalt zeigte das.
+- **Der Normalfall ist der verlängerte Vertrag.** Alle Prüfungen suchten den
+  Vertrag über „aktiv am Tag“; ein Vertrag nach seinem Ende ohne Kündigung war
+  für sie unsichtbar, und in echten Daten hat jeder Vertrag ein Ende. Gefunden
+  hat das der Skeptiker-Lauf, nicht die Tests: Die Testdaten hatten keine
+  verlängerten Verträge.
+- **Eine Sprungmarke muss der Renderer der App mögen.** `<a id>` mit Unterstrich
+  zeigt das Handbuch als Text an; die Marken heißen jetzt `rights-bill-late` usw.
+
+[#54]: https://github.com/Bingerminger/energietracker/issues/54
+[#55]: https://github.com/Bingerminger/energietracker/issues/55
+[#56]: https://github.com/Bingerminger/energietracker/issues/56
+[#36]: https://github.com/Bingerminger/energietracker/issues/36
+
+---
+
 ## [3.10.1] — 2026-11-03 — Sicherheitskorrekturen im Image
 
 PATCH-Release ohne Änderung an der App. Das Docker-Image von 3.10.0 enthielt curl/libcurl 8.22.0 und

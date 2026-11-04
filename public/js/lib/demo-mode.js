@@ -111,6 +111,17 @@ function loadConceptIndex(lang) {
   if (!conceptIndexes.has(key)) conceptIndexes.set(key, loadJson(`${personaRoot()}/concepts-${lang}.json`).catch(() => ({})));
   return conceptIndexes.get(key);
 }
+/**
+ * v3.11.0 (F1036, Paket doku) — Brief zu einem Befund: der erste Entwurf, wie der Dialog ihn
+ * anfragt (Antworten aus letters-<lang>.json). Jede Änderung und das PDF rechnet erst ein Server.
+ */
+const LETTER_RENDER = '/api/letters/render';
+const letterIndexes = new Map();
+function loadLetterIndex(lang) {
+  const key = `${demoPersona()}|${lang}`;
+  if (!letterIndexes.has(key)) letterIndexes.set(key, loadJson(`${personaRoot()}/letters-${lang}.json`).catch(() => ({})));
+  return letterIndexes.get(key);
+}
 const scenarioIndexes = new Map();
 function loadScenarioIndex() {
   const p = demoPersona();
@@ -145,6 +156,13 @@ export async function demoRequest(method, path, lang, body = null) {
     if (!file) {
       demoMisses.add(key);
       throw demoError('demo.conceptPresetsOnly', 404);
+    }
+  } else if (method === 'POST' && path === LETTER_RENDER) {
+    key = demoBodyKey(path, body);
+    file = (await loadLetterIndex(lang))[key] ?? (await loadLetterIndex('de'))[key];
+    if (!file) {
+      demoMisses.add(key);
+      throw demoError('demo.letterPresetsOnly', 404);
     }
   } else if (method === 'POST' && POST_READS.includes(path)) {
     // v3.6.0 (F1031) — Rechnen ohne Schreiben: vorgerechnete Szenarien

@@ -2596,6 +2596,19 @@ final class HouseholdDraft
                 'label_key' => 'inboxDraft.item.bill', 'params' => ['from' => $from, 'to' => $to, 'result' => $res],
                 'fields' => $fields, 'attachments' => array_values(array_filter(array_map(fn($id) => $this->docs[$id]['att'] ?: null, $all))), 'docs' => $all,
                 'book' => $res !== null && (float)$res != 0.0 && Utilities::hasSpecialPayments($u)];
+            // v3.11.0 (F1035, Paket rechnung, B5) — Rechnungsdatum: das früheste Ausstellungsdatum der Fassungen
+            // (die Frist des § 40c EnWG betrifft die erste; eine Korrektur verschiebt sie nicht)
+            $issued = array_values(array_filter(array_map(fn($id) => $this->date($id, 'document_date'), $all)));
+            if ($issued !== []) $item['issued_on'] = min($issued);
+            // v3.11.0 (integration) — Rechnungsnummer der jüngsten Fassung (sicher gelesen): Bezug in den Briefen
+            $nums = [];
+            foreach ($all as $id) {
+                $n = $this->val($id, 'invoice_number');
+                if ((is_string($n) || is_int($n)) && trim((string)$n) !== '' && !Proposals::flagged($this->docs[$id]['entry'], 'invoice_number')) {
+                    $nums[] = [(string)($this->date($id, 'document_date') ?? ''), mb_substr(trim((string)$n), 0, 80)];
+                }
+            }
+            if ($nums !== []) { usort($nums, fn($a, $b) => strcmp($a[0], $b[0])); $item['invoice_number'] = $nums[count($nums) - 1][1]; }
             $mp = $this->mps[$mpKey];
             if ($mp['meter_id'] !== null && $mp['action'] === 'existing') {
                 foreach ($this->bills->list($u, $mp['meter_id']) as $b) {

@@ -1102,6 +1102,18 @@ async function renderView(modPath, params = [], ctx = {}) {
     t('billCheck(strom): Formular „Laut Rechnung" ohne CO₂-Felder', !!view.querySelector('#bi-form') && !view.querySelector('#bi-co2kg'));
   } catch (e) { t('billCheck(strom): render', false, e.message); }
 
+  // v3.11.0 (Nachprüfung NP6) — ohne erfasste Rechnung (Gas im Schaufenster): der Satz „Prüfungen ab der ersten
+  // Rechnung“ steht sichtbar über dem zugeklappten Abschnitt, nicht darin
+  try {
+    const { view } = await renderView(`${ROOT}/views/bill-check.js`, [], { query: new URLSearchParams('utility=gas') });
+    for (let i = 0; i < 40 && view.querySelector('[data-role="rights-no-bill"]')?.hidden !== false; i++) await new Promise(r => setTimeout(r, 100));
+    const nb = view.querySelector('[data-role="rights-no-bill"]');
+    const cap = view.querySelector('details[data-role="bills"]');
+    t('billCheck (Nachprüfung NP6): ohne Rechnung der Satz zu den Rechten sichtbar, außerhalb des zugeklappten Abschnitts',
+      !!nb && nb.hidden === false && !nb.closest('details') && /ab der ersten erfassten Rechnung/.test(nb.textContent) && !!nb.querySelector('a[href="#/inbox"]')
+      && !!cap && !cap.open && !cap.querySelector('[data-role="rights-no-bill"]'), nb?.textContent);
+  } catch (e) { t('billCheck (Nachprüfung NP6): Satz ohne Rechnung', false, e.message); }
+
   // v3.10.0 — Danke sagen: Der Vergleich mit der Rechnung findet eine Abweichung → die Zeile mit dem Link darunter
   try {
     const post = (path, body) => fetch(`${HOST}${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(r => r.json());
@@ -1785,7 +1797,7 @@ async function renderView(modPath, params = [], ctx = {}) {
     const docs = await import(`${ROOT}/lib/docs.js`);
     const hrefs = [...view.querySelectorAll('.help-links a, [data-role="handbook"]')].map(a => a.getAttribute('href') || '');
     const inApp = (h) => h.startsWith('#/help/doc/') && docs.DOC_PATHS.includes('docs/' + decodeURIComponent(h.slice('#/help/doc/'.length).split('?')[0]));
-    t('help: Handbuch und Doku-Links in der App', hrefs.length === 8 && hrefs.every(inApp)
+    t('help: Handbuch und Doku-Links in der App', hrefs.length === 9 && hrefs.every(inApp)
       && view.querySelector('[data-role="handbook"]')?.getAttribute('href') === '#/help/doc/README.md', hrefs.join(' '));
     t('help: Doku-Links ohne neuen Tab', !view.querySelector('a[href^="#/help/doc/"][target]'));
     // v3.4.0 — alle Anwendungsfälle A–G und die Stufen, je mit Sprung in den Abschnitt
@@ -1795,6 +1807,8 @@ async function renderView(modPath, params = [], ctx = {}) {
       && !cases.some(el => /help\.cases\./.test(el.textContent)), `${cases.length} Fälle`);
     t('help: jeder Fall springt in seinen Abschnitt', more.every((h, i) => inApp(h) && h.endsWith(`?h=${docs.CASES[i].anchor}`)), more.slice(0, 3).join(' '));
     t('help: FAQ und Fehlersuche verlinkt', hrefs.some(h => /einstieg\/faq\.md$/.test(h)) && hrefs.some(h => /betrieb\/fehlersuche\.md$/.test(h)));
+    // v3.11.0 (Paket doku) — „Deine Rechte als Kunde“ in der Liste der Doku-Links
+    t('help: Rechte als Kunde verlinkt', hrefs.some(h => /verstehen\/17-rechte\.md$/.test(h)));
     t('help: Handbuch liegt auf dem Server (Hinweis mit Version)', view.textContent.includes('1.3.0'));
     t('help: Checkliste Erste Schritte', !!view.querySelector('[data-role="setup"] .setup-list, [data-role="setup"] .banner--success'));
   } catch (e) { t('help: render', false, e.message); }
@@ -4344,6 +4358,273 @@ async function renderView(modPath, params = [], ctx = {}) {
     await send('DELETE', `/utility/gas/meters/${mid}`);
     await send('DELETE', `/utility/gas/meters/${lid}`);
   } catch (e) { t('ablesung: Zwischenablesung prüfen', false, e.stack || e.message); }
+
+  // ── 29. v3.11.0 (F1035, Paket basis) — neue Felder überstehen das Bearbeiten in den Formularen ──
+  // Herkunft eines Preises (announced_on, vat_pct) im Vertragsdialog; Art, netto/brutto und Satz eines
+  // Rechnungspostens (Messentgelt) im Formular „Laut Rechnung“. Beide Formulare bauen die Listen aus
+  // ihren Zeilen neu — ohne Weitergabe gingen die Felder beim Speichern still verloren (Lektion 18).
+  try {
+    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+    const send = async (method, path, body) => (await fetch(`${HOST}/api${path}`, { method, headers: { 'Content-Type': 'application/json' },
+      body: body ? JSON.stringify(body) : undefined })).json();
+    // JSDOM kennt den Namenszugriff `form.provider` nicht (der Browser schon): nachrüsten
+    const named = (form) => { for (const el of form?.elements || []) {
+      if (el.name && !(el.name in form)) Object.defineProperty(form, el.name, { get: () => form.elements.namedItem(el.name), configurable: true });
+    } };
+    global.document.querySelectorAll('.modal [data-act="cancel"]').forEach(b => b.click());   // offene Dialoge früherer Proben
+    const gm = (await send('GET', '/utility/gas/meters')).data[0];
+    const c = (await send('POST', '/utility/gas/contracts', { meter_id: gm.id, provider: 'Probe Musterstadt', start: '2031-01-01', supply_kind: 'special',
+      working_prices: [{ from: '2031-01-01', ct_per_kwh: 12 }, { from: '2031-07-01', ct_per_kwh: 13.5, announced_on: '2031-05-20', vat_pct: 7 }] })).data;
+    const cv = await renderView(`${ROOT}/views/contracts.js`, ['gas']);
+    for (let i = 0; i < 40 && !cv.view.querySelector(`[data-edit-contract="${c.id}"]`); i++) await sleep(25);
+    cv.view.querySelector(`[data-edit-contract="${c.id}"]`)?.click();
+    for (let i = 0; i < 40 && !global.document.querySelector('#modal-root #contract-form'); i++) await sleep(25);
+    const cform = global.document.querySelector('#modal-root #contract-form');
+    named(cform);
+    // etwas anderes ändern: Das Speichern baut die Preislisten aus den Zeilen neu
+    if (cform?.provider) cform.provider.value = 'Probe Musterstadt geändert';
+    cform?.closest('.modal')?.querySelector('[data-act="save"]')?.click();
+    for (let i = 0; i < 60 && cform?.isConnected; i++) await sleep(50);
+    const back = (await send('GET', `/utility/gas/contracts/${c.id}`)).data;
+    const wp = (back?.working_prices || []).find(e => e.from === '2031-07-01');
+    t('basis: Vertragsdialog speichert die Herkunft eines Preises mit (Schreiben vom …, Steuersatz) und die Versorgungsart',
+      back?.provider === 'Probe Musterstadt geändert' && wp?.announced_on === '2031-05-20' && Number(wp?.vat_pct) === 7 && back?.supply_kind === 'special'
+        && !('announced_on' in ((back?.working_prices || [])[0] || {})), JSON.stringify(back?.working_prices));
+    await send('DELETE', `/utility/gas/contracts/${c.id}`);
+
+    const sm = (await send('GET', '/utility/strom/meters')).data[0];
+    const bill = (await send('POST', '/utility/strom/bills', { meter_id: sm.id, period_from: '2030-01-01', period_to: '2030-12-31', invoice: { energy_kwh: 1000, amount_eur: 400 },
+      items: [{ label: 'Messstellenbetrieb', amount_eur: 21.18, kind: 'metering', basis: 'net', vat_pct: 19 }, { label: 'Notiz', amount_eur: 1 }] })).data;
+    const { view } = await renderView(`${ROOT}/views/bill-check.js`, [],
+      { query: new URLSearchParams(`utility=strom&meter=${encodeURIComponent(sm.id)}&from=2030-01-01&until=2030-12-31`) });
+    for (let i = 0; i < 60 && !view.querySelector(`[data-bill-edit="${bill.id}"]`); i++) await sleep(50);
+    named(view.querySelector('#bi-form'));   // vor dem Bearbeiten: startEdit füllt `f.issued_on` …
+    view.querySelector(`[data-bill-edit="${bill.id}"]`)?.click();
+    await sleep(100);
+    // die zweite Zeile umbenennen: belegt, dass gespeichert und die Liste aus den Zeilen neu gebaut wurde
+    const second = view.querySelectorAll('.bill-item [data-i="label"]')[1];
+    if (second) second.value = 'Notiz geändert';
+    view.querySelector('#bi-save')?.click();
+    let item = null;
+    for (let i = 0; i < 60; i++) {
+      await sleep(50);
+      item = ((await send('GET', `/utility/strom/bills?meter_id=${encodeURIComponent(sm.id)}`)).data || []).find(x => x.id === bill.id)?.items;
+      if (item?.[1]?.label === 'Notiz geändert') break;
+    }
+    t('basis: Formular „Laut Rechnung“ behält Art, netto/brutto und Satz des Messentgelts', item?.[1]?.label === 'Notiz geändert'
+      && item?.[0]?.kind === 'metering' && item?.[0]?.basis === 'net' && Number(item?.[0]?.vat_pct) === 19
+      && item?.[1]?.kind === 'other' && !('basis' in (item?.[1] || {})), JSON.stringify(item));
+    await send('DELETE', `/utility/strom/bills/${bill.id}`);
+  } catch (e) { t('basis: neue Felder in den Formularen', false, e.stack || e.message); }
+
+  // ── 30. v3.11.0 (F1035, Paket vertrag) — Versorgungsart und „Schreiben vom“ im Vertragsdialog; Rechtshinweis
+  // an der Saldo-Karte nach Art (B1: Fernwärme ohne Sonderkündigungsrecht nach § 41 Abs. 5 EnWG) ──
+  try {
+    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+    const send = async (method, path, body) => (await fetch(`${HOST}/api${path}`, { method, headers: { 'Content-Type': 'application/json' },
+      body: body ? JSON.stringify(body) : undefined })).json();
+    const named = (form) => { for (const el of form?.elements || []) {
+      if (el.name && !(el.name in form)) Object.defineProperty(form, el.name, { get: () => form.elements.namedItem(el.name), configurable: true });
+    } };
+    const openEdit = async (u, id) => {
+      global.document.querySelectorAll('.modal [data-act="cancel"]').forEach(b => b.click());
+      const cv = await renderView(`${ROOT}/views/contracts.js`, [u]);
+      for (let i = 0; i < 40 && !cv.view.querySelector(`[data-edit-contract="${id}"]`); i++) await sleep(25);
+      cv.view.querySelector(`[data-edit-contract="${id}"]`)?.click();
+      for (let i = 0; i < 40 && !global.document.querySelector('#modal-root #contract-form'); i++) await sleep(25);
+      const form = global.document.querySelector('#modal-root #contract-form');
+      named(form);
+      return form;
+    };
+    const gm = (await send('GET', '/utility/gas/meters')).data[0];
+    const c = (await send('POST', '/utility/gas/contracts', { meter_id: gm.id, provider: 'Probe Musterstadt', start: '2032-01-01', supply_kind: 'basic',
+      working_prices: [{ from: '2032-01-01', ct_per_kwh: 12 }, { from: '2032-07-01', ct_per_kwh: 13.5, announced_on: '2032-05-10' }] })).data;
+    const form = await openEdit('gas', c.id);
+    const sel = form?.querySelector('select[name="supply_kind"]');
+    const rows = [...(form?.querySelectorAll('[data-group="working_prices"] .entry-row') || [])];
+    const later = rows.find(r => r.querySelector('[data-role="date"]')?.value === '2032-07-01');
+    t('vertrag: Dialog zeigt Versorgungsart und „Schreiben vom“ mit den gespeicherten Werten',
+      sel?.value === 'basic' && later?.querySelector('[data-role="announced-on"]')?.value === '2032-05-10'
+        && !!form?.querySelector('[data-role="price-origin-hint"]'), `${sel?.value} · ${later?.querySelector('[data-role="announced-on"]')?.value}`);
+    if (sel) sel.value = 'special';
+    later?.querySelector('[data-role="announced-on"]') && (later.querySelector('[data-role="announced-on"]').value = '2032-05-20');
+    later?.querySelector('[data-role="vat-pct"]') && (later.querySelector('[data-role="vat-pct"]').value = '19');
+    form?.closest('.modal')?.querySelector('[data-act="save"]')?.click();
+    for (let i = 0; i < 60 && form?.isConnected; i++) await sleep(50);
+    const back = (await send('GET', `/utility/gas/contracts/${c.id}`)).data;
+    const wp = (back?.working_prices || []).find(e => e.from === '2032-07-01');
+    t('vertrag: Versorgungsart, Schreiben vom und Steuersatz werden gespeichert',
+      back?.supply_kind === 'special' && wp?.announced_on === '2032-05-20' && Number(wp?.vat_pct) === 19, JSON.stringify(back?.working_prices));
+    await send('DELETE', `/utility/gas/contracts/${c.id}`);
+
+    // Fernwärme: keine Versorgungsart im Dialog; Preiserhöhung an der Saldo-Karte ohne § 41 Abs. 5 EnWG
+    const fm = (await send('GET', '/utility/fernwaerme/meters')).data[0];
+    const st = (await send('GET', `/utility/fernwaerme/meters/${encodeURIComponent(fm.id)}/contract-status`)).data;
+    const cur = (st?.contracts || []).find(x => x.is_current);
+    const fc = (await send('GET', `/utility/fernwaerme/contracts/${cur?.contract_id}`)).data;
+    const fform = await openEdit('fernwaerme', fc?.id);
+    t('vertrag: Fernwärme-Dialog fragt keine Versorgungsart', !!fform && !fform.querySelector('select[name="supply_kind"]'));
+    global.document.querySelectorAll('.modal [data-act="cancel"]').forEach(b => b.click());
+    const day = new Date(Date.now() + 40 * 86400000).toISOString().slice(0, 10);
+    const top = Math.max(...(fc?.working_prices || []).map(e => Number(e.ct_per_kwh) || 0));
+    try {
+      await send('PATCH', `/utility/fernwaerme/contracts/${fc.id}`, { working_prices: [...fc.working_prices, { from: day, ct_per_kwh: top + 3 }] });
+      (await import(`${ROOT}/state.js`)).invalidateSettings?.();
+      const uv = await renderView(`${ROOT}/views/utility.js`, ['fernwaerme'], { query: new URLSearchParams(`meter=${fm.id}`) });
+      await sleep(700);
+      const notes = [...uv.view.querySelectorAll('.balance-note')].map(n => n.textContent).join(' | ');
+      t('vertrag (B1): Fernwärme-Preiserhöhung nennt die Preisänderungsklausel, kein Sonderkündigungsrecht nach § 41 EnWG',
+        /AVBFernwärmeV/.test(notes) && !/§ 41 Abs\. 5/.test(notes), notes.slice(0, 300));
+    } finally {
+      await send('PATCH', `/utility/fernwaerme/contracts/${fc.id}`, { working_prices: fc.working_prices });
+    }
+  } catch (e) { t('vertrag: Dialog und Saldo-Karte', false, e.stack || e.message); }
+
+  // ── 31. v3.11.0 (D, GitHub #54, Paket ordnung) — Verträge widersprechen sich: Hinweis an der Karte, „Ende setzen“ ──
+  // Ein späterer Vertrag liegt ganz in einem früheren (Jahre in der Zukunft, damit die Beispieldaten von heute
+  // unberührt bleiben). Die Karte nennt den Widerspruch und, was jeder Vertrag abrechnet; „Ende von … setzen“
+  // übernimmt den Vortag des späteren Beginns, danach ist der Hinweis weg.
+  try {
+    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+    const send = async (method, path, body) => (await fetch(`${HOST}/api${path}`, { method, headers: { 'Content-Type': 'application/json' },
+      body: body ? JSON.stringify(body) : undefined })).json();
+    global.document.querySelectorAll('.modal [data-act="cancel"]').forEach(b => b.click());
+    const gm = (await send('GET', '/utility/gas/meters')).data[0];
+    const a = (await send('POST', '/utility/gas/contracts', { meter_id: gm.id, provider: 'Probe Alt', start: '2031-01-01', end: '2036-12-31',
+      working_prices: [{ from: '2031-01-01', ct_per_kwh: 10 }] })).data;
+    const saved = await send('POST', '/utility/gas/contracts', { meter_id: gm.id, provider: 'Probe Neu', start: '2032-01-01', end: '2032-12-31',
+      working_prices: [{ from: '2032-01-01', ct_per_kwh: 11 }] });
+    const b = saved.data;
+    t('ordnung: Speichern meldet den Widerspruch (nicht blockierend)', (b?.warnings || []).includes('contract_conflict') && b?.conflicts?.[0]?.kind === 'nested',
+      JSON.stringify(b?.warnings));
+    const cv = await renderView(`${ROOT}/views/contracts.js`, ['gas']);
+    const card = () => cv.view.querySelector(`[data-contract-id="${a.id}"]`);
+    for (let i = 0; i < 40 && !card()?.querySelector('[data-role="contract-conflict"]'); i++) await sleep(25);
+    const hint = card()?.querySelector('[data-role="contract-conflict"]');
+    t('ordnung: Karte zeigt den Widerspruch mit „Ende setzen“ und „Beides stimmt“', !!hint && hint.textContent.includes('Probe Neu')
+      && !!hint.querySelector('[data-conflict-fix]') && !!hint.querySelector('[data-conflict-dismiss]'), hint?.textContent);
+    t('ordnung: Karte nennt, was der Vertrag abrechnet', (card()?.querySelector('[data-role="contract-coverage"]')?.textContent || '').includes('Abgelöst'),
+      card()?.querySelector('[data-role="contract-coverage"]')?.textContent);
+    hint?.querySelector('[data-conflict-fix]')?.click();
+    let end = null;
+    for (let i = 0; i < 60 && end !== '2031-12-31'; i++) { await sleep(50); end = (await send('GET', `/utility/gas/contracts/${a.id}`)).data?.end; }
+    for (let i = 0; i < 40 && card()?.querySelector('[data-role="contract-conflict"]'); i++) await sleep(25);
+    t('ordnung: „Ende setzen“ übernimmt den Vortag des späteren Beginns, der Hinweis ist weg', end === '2031-12-31' && !!card()
+      && !card().querySelector('[data-role="contract-conflict"]'), String(end));
+    await send('DELETE', `/utility/gas/contracts/${b.id}`);
+    await send('DELETE', `/utility/gas/contracts/${a.id}`);
+  } catch (e) { t('ordnung: Verträge widersprechen sich', false, e.stack || e.message); }
+
+  // ── 32. v3.11.0 (F1035, Paket rechnung) — Rechte an der Rechnung: Hinweis in „Rechnung prüfen“ mit Norm und Brief,
+  // Felder in „Laut Rechnung“ (Zugang, geschätzter Endstand, Art/netto/Satz eines Postens), Messstellenbetrieb am
+  // Zähler, „gemeldet“ in der Erfassung ──
+  try {
+    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+    const click = (el) => el?.dispatchEvent(new global.window.MouseEvent('click', { bubbles: true }));
+    const send = async (method, path, body) => (await fetch(`${HOST}/api${path}`, { method, headers: { 'Content-Type': 'application/json' },
+      body: body ? JSON.stringify(body) : undefined })).json();
+    const named = (form) => { for (const el of form?.elements || []) {
+      if (el.name && !(el.name in form)) Object.defineProperty(form, el.name, { get: () => form.elements.namedItem(el.name), configurable: true });
+    } };
+    global.document.querySelectorAll('.modal [data-act="cancel"]').forEach(b => b.click());
+    const sm = (await send('GET', '/utility/strom/meters')).data[0];
+    // Zeitraum 2030, Frist 31.12.2030 + 42 Tage = 11.02.2031; Rechnung vom 01.03.2031: 18 Tage danach
+    const bill = (await send('POST', '/utility/strom/bills', { meter_id: sm.id, period_from: '2030-01-01', period_to: '2030-12-31', issued_on: '2031-03-01',
+      invoice_number: 'R-2031-0001', invoice: { energy_kwh: 1000, amount_eur: 400 }, items: [{ label: 'Messung', amount_eur: 21.18 }] })).data;
+    const { view } = await renderView(`${ROOT}/views/bill-check.js`, [],
+      { query: new URLSearchParams(`utility=strom&meter=${encodeURIComponent(sm.id)}&from=2030-01-01&until=2030-12-31`) });
+    for (let i = 0; i < 60 && !view.querySelector(`[data-bill-edit="${bill.id}"]`); i++) await sleep(50);
+    t('rechnung: die Liste nennt den Hinweis zur Rechnung', /1/.test(view.querySelector('[data-role="bill-rights-count"]')?.textContent || ''),
+      view.querySelector('[data-role="bill-list"]')?.textContent);
+    click(view.querySelector(`[data-bill-check="${bill.id}"]`));
+    for (let i = 0; i < 60 && !view.querySelector('[data-role="bill-rights"]'); i++) await sleep(50);
+    const box = view.querySelector('[data-role="bill-right"][data-check="bill_late"]');
+    t('rechnung: „Vergleichen“ zeigt „Rechnung kam spät“ mit Norm als Link, Hinweis und „Brief entwerfen“',
+      /18 Tage nach der Frist/.test(box?.textContent || '') && /keine Rechtsberatung/.test(box?.textContent || '')
+        && box?.querySelector('[data-role="rights-norm"]')?.getAttribute('href')?.startsWith('https://')
+        && box?.querySelector('[data-role="letter-button"]')?.dataset.letter === 'complaint', box?.textContent);
+
+    named(view.querySelector('#bi-form'));
+    click(view.querySelector(`[data-bill-edit="${bill.id}"]`));
+    await sleep(100);
+    const f = view.querySelector('#bi-form');
+    // v3.11.0 (integration) — Rechnungsnummer: beim Bearbeiten vorbelegt, gespeichert ohne Leerzeichen am Rand
+    const numberShown = f?.invoice_number?.value;
+    if (f?.invoice_number) f.invoice_number.value = ' R-2031-0815 ';
+    if (f?.received_on) f.received_on.value = '2031-03-05';
+    if (f?.est_end) f.est_end.checked = true;
+    const row = view.querySelector('.bill-item');
+    if (row) {
+      row.querySelector('[data-i="kind"]').value = 'metering';
+      row.querySelector('[data-i="basis"]').value = 'net';
+      row.querySelector('[data-i="vat_pct"]').value = '19';
+    }
+    click(view.querySelector('#bi-save'));
+    let b = null;
+    for (let i = 0; i < 60; i++) {
+      await sleep(50);
+      b = ((await send('GET', `/utility/strom/bills?meter_id=${encodeURIComponent(sm.id)}`)).data || []).find(x => x.id === bill.id);
+      if (b?.received_on) break;
+    }
+    t('rechnung: „Laut Rechnung“ speichert Zugang, geschätzten Endstand und Art, netto und Satz des Postens',
+      b?.received_on === '2031-03-05' && b?.reading_estimated?.end === true && b?.reading_estimated?.start === false
+        && b?.items?.[0]?.kind === 'metering' && b?.items?.[0]?.basis === 'net' && Number(b?.items?.[0]?.vat_pct) === 19, JSON.stringify(b));
+    t('integration: „Laut Rechnung“ zeigt und speichert die Rechnungsnummer',
+      numberShown === 'R-2031-0001' && b?.invoice_number === 'R-2031-0815', `${numberShown} → ${b?.invoice_number}`);
+    await send('DELETE', `/utility/strom/bills/${bill.id}`);
+
+    const mv = await renderView(`${ROOT}/views/meters.js`, ['strom']);
+    click([...mv.view.querySelectorAll('[data-edit-meter]')].find(x => x.dataset.editMeter === sm.id) || mv.view.querySelector('[data-edit-meter]'));
+    for (let i = 0; i < 40 && !global.document.querySelector('#mf-metering-device'); i++) await sleep(25);
+    const dev = global.document.querySelector('#mf-metering-device');
+    const msb = global.document.querySelector('#mf-msb');
+    t('rechnung: Zählerdialog Strom hat Messeinrichtung und Messstellenbetreiber, „weiß nicht“ vorgewählt',
+      dev?.value === '' && msb?.value === '' && [...(dev?.options || [])].map(o => o.value).join(',') === ',conventional,mme,imsys');
+    if (dev) dev.value = 'mme';
+    if (msb) msb.value = '1';
+    // JSDOM kennt `form.<name>` nicht (Browser: benannte Felder, auch `name`); nachgebildet wie im Block „kaskade“
+    const mform = global.document.querySelector('#modal-root #meter-form');
+    for (const el of mform?.querySelectorAll('[name]') || []) Object.defineProperty(mform, el.getAttribute('name'), { value: el, configurable: true });
+    click(global.document.querySelector('#modal-root [data-act="save"]'));
+    let m = null;
+    for (let i = 0; i < 60; i++) {
+      await sleep(50);
+      m = ((await send('GET', '/utility/strom/meters')).data || []).find(x => x.id === sm.id);
+      if (m?.metering_device) break;
+    }
+    t('rechnung: Zählerdialog speichert Messeinrichtung und Messstellenbetreiber', m?.metering_device === 'mme' && m?.msb_basic === true, JSON.stringify(m));
+    await send('PATCH', `/utility/strom/meters/${sm.id}`, { metering_device: null, msb_basic: null });
+
+    const { view: rv } = await renderView(`${ROOT}/views/readings-entry.js`);
+    t('rechnung: Erfassung hat „an den Versorger gemeldet“ je Zählerstand-Karte',
+      rv.querySelectorAll('.reading-card:not([data-capture="period"]) [data-role="reported"]').length > 0
+        && rv.querySelectorAll('.reading-card:not([data-capture="period"]) [data-role="reported"]').length
+          === rv.querySelectorAll('.reading-card:not([data-capture="period"]) [data-role="estimated"]').length);
+    // gespeichert: „gemeldet am“ ist der Tag der Erfassung (hier derselbe wie der Stand)
+    const outbox = await import(`${ROOT}/lib/outbox.js`);
+    outbox.useStore(outbox.memoryStore());
+    const { api } = await import(`${ROOT}/api.js`);
+    const { formatForInput } = await import(`${ROOT}/lib/format.js`);
+    const rows = (await api.readingsOverview()).rows;
+    const rowOf = (c) => rows.find(x => x.utility === c.dataset.utility && x.meter_id === c.dataset.meterId);
+    const day = new Date().toISOString().slice(0, 10);
+    const card = [...rv.querySelectorAll('.reading-card:not([data-capture="period"])')]
+      .find(c => { const l = rowOf(c)?.last_reading; return rowOf(c) && (!l || l.date < day); });
+    const rr = card && rowOf(card);
+    const beforeIds = new Set(((rr && await api.readings(rr.utility, rr.meter_id)) || []).map(x => x.id));
+    if (card) {
+      card.querySelector('[data-role="counter"]').value = formatForInput(rr.last_reading?.counter ?? 0);
+      card.querySelector('[data-role="reported"]').checked = true;
+      click(rv.querySelector('[data-action="save-all"]'));
+    }
+    let made = null;
+    for (let i = 0; i < 60 && rr && !made; i++) {
+      await sleep(50);
+      made = ((await api.readings(rr.utility, rr.meter_id)) || []).find(x => !beforeIds.has(x.id)) || null;
+    }
+    t('rechnung: Erfassung speichert „an den Versorger gemeldet“ mit dem Tag', !!made?.reported_on && made.reported_on === made.date, JSON.stringify(made));
+    if (made) await api.deleteReading(rr.utility, made.id);
+  } catch (e) { t('rechnung: Felder und Hinweise an der Rechnung', false, e.stack || e.message); }
 
   console.log(`\n  ERGEBNIS: ${pass} bestanden, ${fail} fehlgeschlagen`);
   process.exit(fail ? 1 : 0);

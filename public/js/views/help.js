@@ -50,6 +50,7 @@ export async function render(container, _params = [], ctx = {}) {
           ${doc('glossary', 'help.docs.glossary')}
           ${doc('setup', 'help.docs.setup')}
           ${doc('useCases', 'help.docs.useCases')}
+          ${doc('rights', 'rights.title')}
           ${doc('homeAssistant', 'help.docs.homeAssistant')}
           ${doc('troubleshoot', 'help.docs.troubleshoot')}
         </ul>

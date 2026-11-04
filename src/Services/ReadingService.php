@@ -144,6 +144,8 @@ final class ReadingService
         if (!empty($input['is_suspect'])) $reading['is_suspect'] = true;
         // v3.9.0 (ablesung-pruefen) — ein Stand von der Rechnung, der die Monatswerte nicht prägen soll
         if (!empty($input['is_billing_only'])) $reading['is_billing_only'] = true;
+        // v3.11.0 (F1035, A5) — an den Versorger gemeldet am (optional, nur wenn gesetzt)
+        if (($rep = $this->reportedOn($input)) !== null) $reading['reported_on'] = $rep;
         if ($clientRef !== null) $reading['client_ref'] = $clientRef;
         // v3.1.0 (Paket H2, MKT-08) — Foto des Zählerstands als Beleg
         if (!empty($input['attachment_id'])) {
@@ -195,6 +197,11 @@ final class ReadingService
                 unset($r['is_suspect']);
             }
             if (in_array($input['source'] ?? null, self::SOURCES, true)) $r['source'] = $input['source'];
+            // v3.11.0 (F1035, A5) — gemeldet am: setzen, ändern, leer entfernt
+            if (array_key_exists('reported_on', $input)) {
+                $rep = $this->reportedOn($input);
+                if ($rep === null) unset($r['reported_on']); else $r['reported_on'] = $rep;
+            }
             // v3.9.0 (ablesung-pruefen) — „Stand ist richtig“ (`is_verified`: die Prüfung fragt
             // nie wieder) und „nur für die Abrechnung“ (`is_billing_only`: Rechnung und Saldo
             // rechnen mit dem Stand, die Monatswerte überspringen ihn). Nur gespeichert, wenn
@@ -490,6 +497,19 @@ final class ReadingService
         $n = count($rates);
         $median = $n % 2 ? $rates[intdiv($n, 2)] : ($rates[$n / 2 - 1] + $rates[$n / 2]) / 2;
         return round($median, 4);
+    }
+
+    /**
+     * v3.11.0 (F1035, A5) — Tag, an dem der Stand dem Versorger gemeldet wurde (`reported_on`):
+     * JJJJ-MM-TT oder leer (null). Belegt die Meldung für den Hinweis „Schätzung trotz gemeldetem
+     * Stand“ (Entscheidung 9b: mit Beleg die starke Formulierung).
+     */
+    private function reportedOn(array $input): ?string
+    {
+        $v = trim((string)($input['reported_on'] ?? ''));
+        if ($v === '') return null;
+        if (!Dates::isIsoDate($v)) throw new \InvalidArgumentException($this->i18n->t('errors.reading.reportedOnInvalid', ['date' => mb_substr($v, 0, 40)]));
+        return $v;
     }
 
     private function assertDate(string $date): void

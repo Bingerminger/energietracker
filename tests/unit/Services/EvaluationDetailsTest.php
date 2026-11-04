@@ -106,6 +106,9 @@ final class EvaluationDetailsTest extends ServiceTestCase
         self::assertNull($future['verdict']);
         self::assertNull($future['billing_period']);
         self::assertSame(0.0, $future['current_balance']);
+        // v3.11.0 (basis) — das Feld fehlt nicht, es ist null (wie an jeder Zeile ohne gemessenen Saldo)
+        self::assertArrayHasKey('balance_measured', $future);
+        self::assertNull($future['balance_measured']);
         // der laufende Vertrag rechnet weiter bis zum Stichtag ab (unverändert)
         $cur = array_values(array_filter($rows, fn($c) => !empty($c['is_current'])))[0];
         self::assertSame(['2026-12-31', '2026-12-31'], [$cur['superseded_on'], $cur['settle_on']]);

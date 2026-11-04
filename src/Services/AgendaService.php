@@ -50,6 +50,12 @@ use Energietracker\Support\Dates;
  *   level_shift          v3.9.0 — Verbrauch über mindestens ein Jahr gleichbleibend
  *                        anders als heute: Hinweis auf die Analyse-Zäsur (abhakbar,
  *                        oder Zäsur setzen)
+ *   rights               v3.11.0 (F1035) — Befund „Deine Rechte als Kunde“
+ *                        (RightsService, Prüfung in `ref.check`), nur im Fenster (`todo`).
+ *                        Ohne Frist: heute, fällig, solange die Empfehlung (Kategorie
+ *                        `recht`) steht. Mit Frist (A3, A7): Datum = Frist, fällig ab
+ *                        `remind_on` (14 Tage vorher), ausgeblendet weiter als Termin.
+ *                        Abhakbar; Zuständigkeit vom Vertrag, sonst vom Zähler.
  *
  * v3.5.0 (F1028) — Jedes Ereignis trägt `assignee`, `assignee_id` und
  * `assignee_former` (bei Terminen die Zuständigkeit, sonst null/false);
@@ -60,7 +66,9 @@ use Energietracker\Support\Dates;
  * price_guarantee_end, price_increase) und `bill_expected` vom Vertrag, sonst
  * vom Zähler; Ablesung und Bestand vom Zähler; ein Termin am Zähler (`utility`,
  * `meter_id`) vom Zähler. Dazu `assignee_source`: own, contract, meter oder
- * null. Nebenkosten- und CO₂-Fristen haben keine. Beim Abhaken nennt der
+ * null. v3.11.0 (E): Nebenkosten- und CO₂-Fristen vom Mietverhältnis, sonst
+ * von seinem ersten Wärmezähler (`assignee_source` `tenancy` bzw. `meter`;
+ * bis v3.10 hatten sie keine). Beim Abhaken nennt der
  * Verlauf die Zuständige als Momentaufnahme.
  *
  * Jedes Ereignis: {uid, kind, date, title, title_key, params, severity,
@@ -88,7 +96,17 @@ final class AgendaService
     public const KINDS = ['reminder', 'reading_due', 'cancel_by', 'term_end', 'price_guarantee_end',
                           'price_increase', 'tank_reorder', 'tenancy_statement_due', 'objection_deadline',
                           'co2_claim_deadline', 'bill_expected', 'heat_limit',
-                          'reading_check', 'reading_duplicate', 'level_shift'];
+                          'reading_check', 'reading_duplicate', 'level_shift',
+                          'rights',              // v3.11.0 (F1035) — Unterart in `ref.check`
+                          'contract_conflict'];  // v3.11.0 (D, #54) — Unterart in `ref.conflict`
+
+    /** v3.11.0 (F1035) — Rechte als Kunde (optional; ohne den Dienst keine Art `rights`). */
+    private ?RightsService $rights = null;
+
+    public function attachRights(RightsService $rights): void
+    {
+        $this->rights = $rights;
+    }
 
     /** v3.4.0 (F1024) — Verlauf (optional; ohne ihn gibt es nur die automatische Erledigung aus den Daten). */
     private ?ActivityService $activity = null;
@@ -159,6 +177,20 @@ final class AgendaService
     {
         return ResponsibilityService::own($own)
             ?? ($this->responsibility?->inherit($contract, $meter) ?? ResponsibilityService::NOBODY);
+    }
+
+    /**
+     * v3.11.0 (E) — wer für die Fristen eines Mietverhältnisses zuständig ist: das Mietverhältnis →
+     * sein erster Wärmezähler (`meter_ids.heat[0]`) → niemand (ResponsibilityService::inheritTenancy).
+     *
+     * @param array<string,mixed>|null $tenancy
+     * @return array<string,mixed>
+     */
+    private function whoTenancy(?array $tenancy): array
+    {
+        if ($tenancy === null || $this->responsibility === null) return ResponsibilityService::NOBODY;
+        $heat = $tenancy['meter_ids']['heat'][0] ?? null;
+        return $this->responsibility->inheritTenancy($tenancy, is_string($heat) && $heat !== '' ? $this->meterOf('waerme', $heat) : null);
     }
 
     /**
@@ -276,7 +308,10 @@ final class AgendaService
                             $ref + ['days' => $c['days_to_cancel'] ?? null] + ($confirm ? ['confirm' => true] : []), $anchor, $auto, $who);
                     }
                     $end = $c['end'] ?? null;
-                    if ($end !== null && !$renewed && $end >= $today && ($end <= $until || ($remind && $basis === 'end'))) {
+                    // v3.11.0 (Nachprüfung NP3) — Fernwärme mit verpasstem Kündigungstag nach § 32 AVBFernwärmeV: Der
+                    // Vertrag endet dann nicht, er verlängert sich (`renewal_term`); kein Termin „Vertragsende“
+                    $renews = !empty($c['cancel_missed']) && is_array($c['renewal_term'] ?? null);
+                    if ($end !== null && !$renewed && !$renews && $end >= $today && ($end <= $until || ($remind && $basis === 'end'))) {
                         $due = $remind && $basis === 'end';
                         $events[] = $this->event('term_end', self::uid('term_end', $cid), (string)$end, 'calendar.event.termEnd', $params,
                             $due ? ((int)($c['days_until_end'] ?? 99) <= 14 ? 'urgent' : 'due') : 'upcoming', $due, $href,
@@ -317,6 +352,25 @@ final class AgendaService
                 // v3.4.0 (F1024) — Vorkommen: seit der letzten Lieferung
                 (string)($r['evidence']['anchor'] ?? 'none'),
                 null, $this->who(null, null, $this->meterOf($u, $m)));   // v3.7.0 — Zuständige des Tanks
+        }
+
+        // ── v3.11.0 (D, #54) — Verträge widersprechen sich: solange die Empfehlung steht (Ausblenden =
+        // „Beides stimmt“), fällig ab heute; erledigt aus den Daten, sobald die Einträge passen ──
+        foreach ($recs as $r) {
+            $ev = (array)($r['evidence'] ?? []);
+            if (($ev['rule'] ?? null) !== 'r_contract_conflict') continue;
+            $u = (string)($ev['utility'] ?? '');
+            if ($u === '' || !Utilities::exists($u)) continue;
+            $cid = is_string($ev['contract_id'] ?? null) ? $ev['contract_id'] : '';
+            $events[] = $this->event('contract_conflict', (string)$r['id'], $today, 'calendar.event.contractConflict',
+                ['label' => $this->i18n->utilityLabel($u)], 'due', true, (string)($ev['href'] ?? ('#/utility/' . rawurlencode($u) . '/contracts')),
+                ['utility' => $u, 'meter_id' => $ev['meter_id'] ?? null, 'contract_id' => $cid !== '' ? $cid : null,
+                 'other_id' => $ev['other_id'] ?? null, 'conflict' => (string)($ev['kind'] ?? ''), 'recommendation_id' => (string)$r['id']],
+                (string)$r['id'], null,
+                // Zuständige des Vertrags, sonst des Zählers (eine Gruppe hat keine)
+                $this->who(null, $cid !== '' ? $this->contracts->get($u, $cid) : null,
+                    empty($ev['is_group']) && is_string($ev['meter_id'] ?? null) ? $this->meterOf($u, $ev['meter_id']) : null));
+            $events[count($events) - 1]['title'] = (string)$r['title'];
         }
 
         // ── v3.9.0 (#38) — Heizgrenze anpassen (Empfehlung, „Nicht jetzt“ = Ausblenden für diesen Datenstand) ──
@@ -410,6 +464,34 @@ final class AgendaService
             $events[] = $ev;
         }
 
+        // ── v3.11.0 (F1035) — Rechte als Kunde: Befunde im Fenster (Grundsatz 5) ──
+        // UID = ID des Befunds = ID der Empfehlung (Kategorie `recht`); Vorkommen am Anlass `date`.
+        foreach ($this->rights?->findings($today) ?? [] as $f) {
+            if (empty($f['todo'])) continue;
+            $shown = isset($recIds[$f['id']]);
+            $deadline = $f['deadline'];
+            if ($deadline === null) {
+                // ohne Frist ein Hinweis: ausgeblendet oder erledigt ist er weg
+                if (!$shown) continue;
+                [$date, $due] = [$today, true];
+            } else {
+                // mit Frist ein Termin: fällig ab `remind_on`, sonst (auch ausgeblendet) im Kalender
+                $due = $shown && (string)$f['remind_on'] <= $today;
+                if (!$due && $deadline > $until) continue;
+                $date = (string)$deadline;
+            }
+            $u = (string)$f['utility'];
+            $ev = $this->event('rights', (string)$f['id'], $date, (string)$f['title_key'], $f['params'],
+                $due ? 'due' : 'upcoming', $due, (string)$f['href'],
+                array_intersect_key($f, array_flip(RightsService::REF_FIELDS)) + ['check' => $f['check'], 'deadline' => $deadline,
+                    'letter' => $f['letter'], 'amount_eur' => $f['amount_eur']] + ($shown ? ['recommendation_id' => $f['id']] : []),
+                (string)$f['date'], null,
+                $this->who(null, $f['contract_id'] !== null ? $this->contracts->get($u, (string)$f['contract_id']) : null,
+                    $f['meter_id'] !== null ? $this->meterOf($u, (string)$f['meter_id']) : null));
+            $ev['title'] = (string)$f['title'];   // Tage und Beträge in der Schreibweise der Sprache
+            $events[] = $ev;
+        }
+
         // ── v3.1.0 (H3, F1008) — Fristen der Nebenkostenabrechnung ──
         if ($this->tenancies !== null && $this->settings->get('wohnverhaeltnis', 'eigentum') === 'miete') {
             foreach ($this->tenancies->list() as $t) {
@@ -422,7 +504,7 @@ final class AgendaService
                         $events[] = $this->event('tenancy_statement_due', "tenancy_statement_due-{$t['id']}-$lastEnd", $deadline,
                             'calendar.event.tenancyStatementDue', ['label' => $label, 'period' => $this->i18n->date($lastEnd)],
                             $deadline < $today ? 'overdue' : 'upcoming', false, '#/tenancy',
-                            ['tenancy_id' => (string)$t['id'], 'period_to' => $lastEnd], $lastEnd);
+                            ['tenancy_id' => (string)$t['id'], 'period_to' => $lastEnd], $lastEnd, null, $this->whoTenancy($t));   // v3.11.0 (E)
                     }
                 }
                 foreach ($statements as $s) {
@@ -434,7 +516,8 @@ final class AgendaService
                     $events[] = $this->event('objection_deadline', "objection_deadline-{$s['id']}", $deadline,
                         'calendar.event.objectionDeadline', ['label' => $label],
                         $days <= 30 ? 'due' : 'upcoming', $days <= 30, '#/tenancy',
-                        ['tenancy_id' => (string)$t['id'], 'statement_id' => (string)$s['id'], 'days' => $days], $deadline);
+                        ['tenancy_id' => (string)$t['id'], 'statement_id' => (string)$s['id'], 'days' => $days], $deadline,
+                        null, $this->whoTenancy($t));   // v3.11.0 (E) — vom Mietverhältnis der Abrechnung
                 }
             }
         }
@@ -451,7 +534,8 @@ final class AgendaService
                 $events[] = $this->event('co2_claim_deadline', "co2_claim_deadline-$year", $deadline,
                     'calendar.event.co2ClaimDeadline', ['year' => $year, 'amount' => $this->i18n->money((float)$r['landlord_amount_eur'])],
                     $days <= 30 ? 'due' : 'upcoming', $days <= 30, '#/tenancy',
-                    ['year' => $year, 'landlord_amount_eur' => (float)$r['landlord_amount_eur'], 'days' => $days], $deadline);
+                    ['year' => $year, 'landlord_amount_eur' => (float)$r['landlord_amount_eur'], 'days' => $days], $deadline,
+                    null, $this->whoTenancy($this->co2Split->tenancyIn($year)));   // v3.11.0 (E) — Mietverhältnis des Jahres
             }
         }
 

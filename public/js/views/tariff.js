@@ -339,7 +339,7 @@ function consumptionCardHtml(d, unit) {
  * verpasst — deshalb wird sie mit Restlaufzeit angezeigt und farblich
  * hervorgehoben, sobald es eng wird.
  */
-function timingCardHtml(d) {
+export function timingCardHtml(d) {   // v3.11.0 (Nachprüfung) — exportiert für tests/rights.test.mjs
   const c = d.current;
   const src = {
     contract: t('tariff.switch.source.contract'),
@@ -358,10 +358,23 @@ function timingCardHtml(d) {
       ${esc(t('tariff.switch.cancelBy', { date: f.date(c.cancel_by) }))}${info('noticeDeadline')}
       ${note ? `<span class="muted">· ${esc(note)}</span>` : ''}
     </p>`;
-  } else if (c) {
+  } else if (c && c.renewed && c.basis === 'basic_supply') {
+    // v3.11.0 (Nachprüfung) — Grundversorgung: zwei Wochen Frist (§ 20 StromGVV/GasGVV, Prüfbericht 26)
+    cancelLine = `<p class="muted small" data-role="switch-basic">${esc(t('tariff.switch.basicNotice', { gvv: d.utility === 'gas' ? 'GasGVV' : 'StromGVV' }))}</p>`;
+  } else if (c && c.renewed) {
+    // v3.11.0 (Nachprüfung NP2) — verlängert: Die App rechnet hier keinen Termin (Prüfbericht 59), auch nicht mit
+    // eingetragener Frist; „Frist pflegen“ führte ins Leere. Mit Folgevertrag ist der Wechseltag dessen Beginn.
+    cancelLine = d.switch_date_source === 'default' ? `<p class="muted small" data-role="switch-renewed">${esc(t('tariff.switch.renewedNotice'))}</p>` : '';
+  } else if (c && c.notice_period_months == null && c.notice_period_days == null) {
     // Ohne gepflegte Frist keinen Termin behaupten, sondern danach fragen.
     cancelLine = `<p class="muted small">${esc(t('tariff.switch.noNotice'))}</p>`;
   }
+  // v3.11.0 (Nachprüfung NP3) — Fernwärme ohne eingetragene Frist: die Verlängerung nach § 32 AVBFernwärmeV
+  const renewsLine = c?.renewal_term && c.cancel_by && c.days_to_cancel != null && c.days_to_cancel < 0
+    ? `<p class="muted small" data-role="switch-renews">${esc(t('tariff.switch.renewsUntil', { until: f.date(c.renewal_term.until), cancel: f.date(c.renewal_term.cancel_by) }))}</p>`
+    : '';
+  // v3.11.0 (Nachprüfung NP2) — verlängert: kein vergangenes „läuft bis …“, sondern „verlängert seit …“
+  const runs = c?.end ? (c.renewed ? t('tariff.switch.renewedSince', { date: f.date(c.end) }) : t('tariff.switch.runsUntil', { date: f.date(c.end) })) : '';
 
   // Ist der Folgevertrag schon abgeschlossen, ist der Wechsel für die nächste
   // Periode bereits vollzogen — das muss dastehen, sonst wirkt der weit
@@ -384,9 +397,10 @@ function timingCardHtml(d) {
         ${sel.switchDate ? `<button class="btn btn--xs btn--ghost" id="t-switch-reset">${esc(t('tariff.switch.reset'))}</button>` : ''}
       </div>
       ${c ? `<p class="muted small">${esc(t('tariff.switch.currentContract', { label: c.label }))}
-             ${c.end ? esc(t('tariff.switch.runsUntil', { date: f.date(c.end) })) : ''}</p>` : ''}
+             ${esc(runs)}</p>` : ''}
       ${followUp}
       ${cancelLine}
+      ${renewsLine}
       <p class="muted small">${esc(tp('tariff.switch.window', d.window.months, {
         from: f.month(d.window.from), to: f.month(d.window.to), months: d.window.months }))}</p>
     </div>`;

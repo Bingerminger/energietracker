@@ -67,14 +67,14 @@ function timeoutError(method) {
   return err;
 }
 
-async function request(method, path, body = null, { raw = false, timeoutMs } = {}) {
+async function request(method, path, body = null, { raw = false, timeoutMs, blob = false } = {}) {
   const nav = method === 'GET' ? navSignal : null;
   if (nav?.aborted) return pending();
   const limit = timeoutMs ?? (method === 'GET' ? TIMEOUT_READ_MS : TIMEOUT_WRITE_MS);
   const timeout = new AbortController();
   const timer = limit > 0 ? setTimeout(() => timeout.abort(), limit) : null;
   try {
-    return await send(method, path, body, raw, anySignal([nav, timeout.signal]));
+    return await send(method, path, body, raw, anySignal([nav, timeout.signal]), blob);
   } catch (e) {
     // Die Ansicht ist verlassen: nicht weiterlaufen, nichts melden
     if (nav?.aborted) return pending();
@@ -85,7 +85,7 @@ async function request(method, path, body = null, { raw = false, timeoutMs } = {
   }
 }
 
-async function send(method, path, body, raw, signal) {
+async function send(method, path, body, raw, signal, blob = false) {
   // v3.0.0 — öffentliche Demo ohne PHP: Antworten aus dem Abzug (lib/demo-mode.js)
   if (DEMO) return demoRequest(method, path, getLocale(), body);
   // N1007 — aktive Sprache mitschicken, damit das Backend (Full-Stack-i18n)
@@ -126,6 +126,8 @@ async function send(method, path, body, raw, signal) {
   } else if (res.ok) {
     window.dispatchEvent(new CustomEvent('et:online'));
   }
+  // v3.11.0 (F1036) — Datei als Antwort auf POST (Brief als PDF); Fehler kommen weiter als JSON
+  if (blob && res.ok && !/json/i.test(res.headers.get('Content-Type') || '')) return res.blob();
   let payload;
   try { payload = await res.json(); }
   catch (e) {
@@ -369,6 +371,11 @@ export const api = {
     request('POST', `/api/recommendations/${id}/dismiss`, until ? { until } : {}),
   // v2.12.0 — Ausblenden zurücknehmen („Rückgängig")
   restoreRecommendation:(id) => request('DELETE', `/api/recommendations/${id}/dismiss`),
+  // v3.11.0 (F1035) — Rechte als Kunde: alle Befunde (die Demo kennt nur die Liste ohne Filter → im Browser filtern)
+  rights:               () => request('GET', '/api/rights'),
+  // v3.11.0 (F1036) — Brief zu einem Befund: Vorschau als Text (JSON) und als PDF (Datei); schreibt nichts
+  letterRender:         (data) => request('POST', '/api/letters/render', { ...data, format: 'text' }),
+  letterPdf:            (data) => request('POST', '/api/letters/render', { ...data, format: 'pdf' }, { blob: true }),
 
   // ── v1.3.0 — Termine/Erinnerungen ──
   reminders:     ()           => request('GET',   '/api/reminders'),

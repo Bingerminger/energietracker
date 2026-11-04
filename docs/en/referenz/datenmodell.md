@@ -301,6 +301,13 @@ parent meter with submeters cannot be deleted without removing the assignment. S
 (`[A-Za-z0-9_.-]{1,64}`) for the Home Assistant integration. `POST /api/ingest`
 accepts it in place of the internal ID. Default `null` = no alias.
 
+**Metering** *(v3.11.0, optional)*: on the electricity meter `metering_device`
+(`conventional`, `mme` modern metering device, `imsys` smart metering system) and
+`msb_basic` (`true` default operator, `false` freely chosen, missing = unknown),
+on the feed-in meter `pv_kw` (plant capacity). On another utility →
+`errors.meter.valueInvalid`. What for:
+[Metering charge above the cap](../verstehen/17-rechte.md#6-metering-charge-above-the-cap).
+
 ### Meter group (`meter_groups.json`, F1006)
 
 ```json
@@ -377,6 +384,12 @@ reading):
 The consumption calculation also skips **sandwiched outliers** of the same
 device and reports them as `warnings` (see
 [Meter readings → plausibility](../verstehen/11-zaehlerstaende.md)).
+
+Since v3.11.0 optional `reported_on`: the day you reported the reading to the
+supplier (switch “reported to the supplier” when capturing;
+`errors.reading.reportedOnInvalid`). It makes the note
+[Estimate despite your own reading](../verstehen/17-rechte.md#5-estimate-despite-your-own-reading)
+firmer.
 
 ### Receipts *(v3.1.0)*
 
@@ -495,6 +508,11 @@ For tenants who pay heating and water through the service charges
 - `meter_ids`: `heat` takes meters of the Heat utility, `warm_water` and
   `cold_water` water meters. An unknown meter gives
   `errors.tenancy.meterNotFound`.
+- *(v3.11.0)* Optional `assignee_id` (person from the register) or
+  `assignee_former: true`, as on meters and contracts: the service charge
+  statement, objections and CO₂ costs go to that person; without an entry the
+  person of the first heat meter (`meter_ids.heat[0]`) applies. Additive, no
+  schema step; the import checks the form as on meters and contracts.
 
 `tenancy_statements.json`:
 
@@ -591,6 +609,19 @@ CO₂ details
 - **CO₂.** Emissions and amount take precedence over the standard factor for
   the CO₂ price; the `issued_on` of a gas bill sets, for tenants, the deadline
   for the refund ([CO₂ price in fuel](../verstehen/16-co2-preis.md)).
+- **Your rights as a customer** *(v3.11.0, all optional)*: `received_on` (when
+  it arrived), `invoice_number` (up to 80 characters), `reading_estimated:
+  {start, end}` (estimated according to the bill), `estimated_end_reading:
+  {value, on}` (the final reading the bill gives as estimated, `on` within the
+  period or the day after, without it the end of the period; *not* a reading,
+  it does not count towards consumption, check A5 compares it with your
+  readings; if it lies above a later or below an earlier reading of yours,
+  saving answers with the warning `estimated_reading_backwards`), water only `notice:
+  {public_law, dated_on, served_on, remedy, file_number}` (fee assessment;
+  `dated_on` required with `public_law`, `remedy` `objection` or `action`). Items
+  additionally with `kind: metering`, `basis` (`net`/`gross`) and `vat_pct`
+  (0–30). Invalid → `errors.bill.valueInvalid`; empty values are dropped
+  ([Your rights as a customer](../verstehen/17-rechte.md)).
 
 ### Delivery (a fuel delivery — heating oil/pellets)
 
@@ -669,15 +700,22 @@ maintained:
 | `notice_period_months` | notice period in months; `0` = any time |
 | `notice_period_days` | *(v2.9.0)* notice period in days (0–730), takes precedence over the months; the interface stores weeks as days |
 | `notice_mode` | *(v2.9.0)* `term_end` (at the end of the term), `month_end` (any time, at month end), `any_day` (any time, to any day); `null` = at the end of the term if there is an end, otherwise at month end |
-| `auto_renews` | *(v2.9.0)* `false` = cancelled, the contract really ends; otherwise it runs on without a successor at its last prices |
+| `auto_renews` | *(v2.9.0)* `false` = cancelled, the contract really ends; otherwise it runs on without a successor, at its last prices or (since v3.11.0) at the prices and advance payments entered after the end |
 | `min_term_end` | end of the minimum term (open-ended contracts) |
 | `price_guarantee_until` | end of the price guarantee |
 | `signup_bonus_eur` | sign-up bonus as an amount (offers in the tariff comparison) |
 
 The API rejects invalid values with 400 (`errors.contract.noticeDaysOutOfRange`,
 `errors.contract.noticeModeInvalid`). If `min_term_end` ends more than 24
-months after `start`, the API since v3.1.0 also answers on saving with
-`warnings: ["term_over_24_months"]` (§ 309 no. 9 BGB); the note is not stored.
+months after `start` for electricity or gas, the API since v3.1.0 also answers
+on saving with `warnings: ["term_over_24_months"]` (§ 309 no. 9 BGB), for
+district heating since v3.11.0 only beyond ten years with `term_over_10_years`
+(§ 32 AVBFernwärmeV), for water never; the note is not stored.
+
+*(v3.11.0)* Each entry of a price list may also carry `announced_on`, `vat_pct`
+and `special_termination_until` (date of the letter, VAT rate in the price,
+“terminate by …” according to the letter); the contract `supply_kind`
+(`basic`/`special`). All optional, removed when empty.
 
 **District heating (v3.1.0, CALC-31)** — `fernwaerme` only, all optional:
 
@@ -1094,7 +1132,7 @@ file is created with the first document, no schema step.
   "queued_at": null,           // only when queued: order of the queue
   "type": "invoice",           // document type, see below; type_confidence 0–1 or null
   "extraction": {              // the checked result, null before reading
-    "provider": "local", "model": "qwen3.8", "schema_version": 6, "type": "invoice",
+    "provider": "local", "model": "qwen3.8", "schema_version": 7, "type": "invoice",
     "fields": {
       "consumption": { "value": 10450, "raw": "10.450", "quote": "Verbrauch: 945,6 m³ = 10.540 kWh",
                        "page": 1, "status": "check", "reasons": ["value_not_in_quote"] }
@@ -1103,7 +1141,7 @@ file is created with the first document, no schema step.
     "flags": 3, "seconds": 74.2, "extracted_at": "…",
     "text": { "chars": 1180, "kept": [1, 2], "dropped": [3], "truncated": false }   // terms pages not sent
   },
-  "cache": { "local|qwen3.8|6": { … } },   // raw answers per provider, model and schema version (at most three)
+  "cache": { "local|qwen3.8|7": { … } },   // raw answers per provider, model and schema version (at most three)
   "assignment": null,          // {utility, meter_id, contract_id} — set by the user, otherwise the prefill applies
   "edits": {},                 // confirmed or corrected field values, {field: value}
   "applied": [],               // [{id, kind, key, ref, at}] — what was taken over

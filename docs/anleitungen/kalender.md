@@ -23,7 +23,7 @@ als ganztägige Termine der nächsten 365 Tage, dazu alles schon Fällige:
 | „…: letzter Tag für die Kündigung (Anbieter)“ | am Kündigungsstichtag eines laufenden oder künftigen Vertrags — dafür braucht der Vertrag eine Kündigungsfrist und ein festes Ende. Seit v3.4.0 nicht mehr bei Verträgen, die weiterlaufen, unbefristet oder jederzeit kündbar sind: Ihr „letzter Tag“ war immer heute und wanderte täglich durch den Kalender |
 | „…: Vertragsende (Anbieter)“ | am festen Vertragsende; nicht bei Verträgen, die sich verlängern |
 | „…: Preisgarantie endet (Anbieter)“ | am letzten Tag der Preisgarantie |
-| „…: Preiserhöhung (Anbieter) — Sonderkündigung prüfen“ | am Tag einer eingetragenen Preiserhöhung; seit v3.1.0 auch unter „Zu tun“, solange die Empfehlung „Preiserhöhung“ dazu steht (in Deutschland) |
+| „…: Preiserhöhung (Anbieter)“ | am Tag einer eingetragenen Preiserhöhung; ob und wie du kündigen kannst, sagt seit v3.11.0 der Termin „Sonderkündigung zum … möglich“ am Tag davor (Strom und Gas, in Deutschland, unter „Zu tun“ 14 Tage vorher) |
 | „Heizöl: Lieferung planen (…)“ | heute, solange der Bestand niedrig ist (Heizöl, Pellets) |
 | „Abrechnung erwartet: Strom (Anbieter) für …“ bzw. „Schlussrechnung erwartet: …“ *(v3.5.0)* | nach dem Ende eines Abrechnungszeitraums ohne erfasste Versorgerrechnung — bei Strom und Gas am Tag der gesetzlichen Frist (Ende + 42 Tage, § 40c Abs. 2 EnWG; danach „überfällig“), bei Fernwärme und Wasser am Tag nach dem Ende (keine gesetzliche Frist) — s. [Hinweise erledigen](hinweise-erledigen.md#9-abrechnung-erwartet-v350) |
 | „Nebenkostenabrechnung bis zum … fällig: …“ *(v3.1.0)* | nur bei „Ich wohne: zur Miete“ — Ende des letzten abgelaufenen Abrechnungszeitraums plus 12 Monate (§ 556 Abs. 3 BGB), solange für diesen Zeitraum keine Abrechnung erfasst ist |
@@ -49,7 +49,10 @@ Kalender schicken keine Sprache mit.
 
 **Zuständig *(v3.5.0)*:** Ist an einem Termin jemand zuständig, steht in der
 Beschreibung des Eintrags die Zeile **„Zuständig: Name“** (nach dem Löschen
-einer Person gegebenenfalls „ehemalige Person“). Der Kalender ist für alle
+einer Person gegebenenfalls „ehemalige Person“). Kommt die Zuständigkeit von
+woanders, steht es dahinter: „(über den Vertrag)“, „(über den Zähler)“ und
+*(v3.11.0)* bei den Fristen der Nebenkostenabrechnung und der CO₂-Erstattung
+„(über das Mietverhältnis)“. Der Kalender ist für alle
 im Haushalt derselbe; benachrichtigt wird niemand —
 [Zuständig an Terminen](hinweise-erledigen.md#8-zuständig-an-terminen-v350).
 
@@ -135,8 +138,9 @@ bis `/api.php` durch `http://<Adresse von Home Assistant>:8095`.
 - **Alle 12 Stunden.** Der Kalender bittet um eine Aktualisierung alle
   12 Stunden. Apple Kalender und Thunderbird lassen dich den Takt selbst
   wählen. Änderungen in der App erscheinen mit dem nächsten Abruf.
-- **Vorwarnung.** Termine, Kündigungsstichtage, Vertragsenden, Preisgarantien
-  und Preiserhöhungen tragen eine Erinnerung so viele Tage vorher, wie unter
+- **Vorwarnung.** Termine, Kündigungsstichtage, Vertragsenden, Preisgarantien,
+  Preiserhöhungen und *(v3.11.0)* die Fristen aus „Deine Rechte als Kunde“
+  (Sonderkündigung, Gebührenbescheid) tragen eine Erinnerung so viele Tage vorher, wie unter
   Einstellungen → Allgemein → Erinnerungen → „Termin „bald fällig“ ab“ steht
   (Standard 14). `0` schaltet sie ab. Fällige Ablesungen und Lieferungen haben
   keine Vorwarnung — sie stehen ohnehin am heutigen Tag. Die Fristen der

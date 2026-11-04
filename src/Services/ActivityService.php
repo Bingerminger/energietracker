@@ -60,9 +60,10 @@ final class ActivityService
     /**
      * Agenda-Arten, die man von Hand abhaken kann (`can_mark_done`); v3.5.0 (F1029) `bill_expected`;
      * v3.9.0 (ablesung-pruefen) `level_shift`: „Nicht jetzt“ beim Hinweis auf die Analyse-Zäsur.
+     * v3.11.0 (F1035) `rights`: Befunde „Deine Rechte als Kunde“ (Grundsatz 6: abhakbar).
      */
     public const MANUAL_KINDS = ['reminder', 'cancel_by', 'term_end', 'price_increase', 'tank_reorder', 'bill_expected',
-                                 'objection_deadline', 'co2_claim_deadline', 'level_shift'];
+                                 'objection_deadline', 'co2_claim_deadline', 'level_shift', 'rights'];
     public const ID = '/^act_[0-9a-f]{12}$/';
     public const NOTE_MAX = 500;
     public const LIMIT_DEFAULT = 500;

@@ -178,5 +178,16 @@ const entry = (over = {}) => ({ utility: 'gas', meter_id: 'm1', date: '2026-01-0
   ok(await count() === 0, 'verworfen');
 }
 
+// 9. v3.11.0 (Paket rechnung) — „an den Versorger gemeldet“ geht beim Nachsenden mit (Beleg gegen eine Schätzung)
+{
+  useStore(memoryStore());
+  const { api, db } = fakeApi();
+  await enqueue(entry({ day: 4, counter: 130, reported_on: '2026-01-05' }));
+  await enqueue(entry({ day: 5, counter: 140 }));
+  await flush(api);
+  ok(db.gas.find(x => x.counter === 130)?.reported_on === '2026-01-05' && !('reported_on' in (db.gas.find(x => x.counter === 140) || {})),
+    'gemeldet am: mitgeschickt, ohne Angabe kein Feld');
+}
+
 console.log(`outbox: ${passed} bestanden, ${failed} fehlgeschlagen`);
 process.exit(failed ? 1 : 0);

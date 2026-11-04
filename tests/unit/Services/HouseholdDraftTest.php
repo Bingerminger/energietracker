@@ -241,6 +241,27 @@ final class HouseholdDraftTest extends ServiceTestCase
         self::assertCount(2, $this->bills->list('gas'));
     }
 
+    /**
+     * v3.11.0 (Paket rechnung, B5) — die Rechnung aus dem Entwurf trägt ihr Rechnungsdatum (bis v3.10 leer);
+     * bei zwei Fassungen das frühere: Die Frist des § 40c EnWG betrifft die erste.
+     */
+    public function testTheBillFromTheDraftCarriesTheIssueDateOfItsFirstVersion(): void
+    {
+        $base = ['utility' => 'gas', 'supplier' => 'Stadtwerke Musterhausen', 'kind' => 'annual', 'meter_number' => 'GAS-A',
+            'period_from' => '01.01.2023', 'period_to' => '31.12.2023', 'reading_old' => '1000', 'reading_old_date' => '31.12.2022',
+            'reading_new' => '2200', 'reading_new_date' => '31.12.2023', 'result_kind' => 'due', 'result_amount' => '10,00'];
+        $this->doc('g23', 'invoice', $base + ['total_amount' => '900,00', 'document_date' => '06.02.2024', 'invoice_number' => 'R-1']);
+        $this->doc('g23k', 'invoice', $base + ['total_amount' => '890,00', 'document_date' => '20.03.2024', 'invoice_number' => 'R-2', 'corrects_invoice' => 'R-1']);
+        $d = $this->build();
+        self::assertSame('2024-02-06', self::items($d, 'bill', 'gas')[0]['issued_on'] ?? null);
+        // v3.11.0 (integration) — die Rechnungsnummer der jüngsten Fassung (Bezug der Briefe)
+        self::assertSame('R-2', self::items($d, 'bill', 'gas')[0]['invoice_number'] ?? null);
+        $res = $this->applyChecked($d);
+        self::assertSame([], $res['failed'], json_encode($res['failed']));
+        self::assertSame(['2024-02-06'], array_column($this->bills->list('gas'), 'issued_on'));
+        self::assertSame(['R-2'], array_column($this->bills->list('gas'), 'invoice_number'));
+    }
+
     public function testTheMarketLocationAloneJoinsTwoNumbers(): void
     {
         // zwei Rechnungen mit Lücke dazwischen, verschiedene Nummern, dieselbe Marktlokation

@@ -222,10 +222,12 @@ final class HomeAssistantNotifyTest extends ServiceTestCase
             ['id' => 'r6_c', 'severity' => 'urgent', 'category' => 'vertrag', 'title' => 'Frist', 'detail' => ''],
             ['id' => 'r5_d', 'severity' => 'urgent', 'category' => 'bestand', 'title' => 'Tank', 'detail' => ''],
             ['id' => 'r2_e', 'severity' => 'urgent', 'category' => 'trend', 'title' => 'Trend', 'detail' => 'Seit drei Jahren mehr.'],
+            // v3.11.0 (F1035) — Rechte als Kunde: steht als Art `rights` in „Zu tun“
+            ['id' => 'rights-bonus_missing-0123456789ab', 'severity' => 'warning', 'category' => 'recht', 'title' => 'Bonus', 'detail' => ''],
         ];
         $s->tick();
         self::assertSame(['anomalie', 'trend'], array_map(fn($c) => $c['body']['kind'], $this->calls),
-            'Vertrag und Bestand stehen schon als Punkt in „Zu tun“');
+            'Vertrag, Bestand und Rechte stehen schon als Punkt in „Zu tun“');
         self::assertSame("Strom im Februar 40 % über der Erwartung\nKein Wetter erklärt das.", $this->calls[0]['body']['message']);
         self::assertSame('Energietracker: Warnung', $this->calls[0]['body']['title']);
     }

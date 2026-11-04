@@ -205,11 +205,15 @@ and recording.
 |---|---|
 | Period | at the top under “From” / “To (inclusive)”: 01.01.2025 / 31.12.2025 — the last day counts, as on the bill |
 | Bill date | the bill’s date, say 10.02.2026 |
+| Received on | *(v3.11.0, optional)* the day the bill reached you; for the supplier’s deadline it counts before the bill date |
+| Invoice number | *(v3.11.0, optional)* the number of the bill; letters about this bill quote it as a reference. The inbox fills it in itself |
 | Consumption on the bill (kWh) | 16,437 — for water in m³ |
 | Bill amount (incl. VAT) | 1,655.00 |
 | Advance payments made | 1,800.00 |
 | Additional payment / credit | leave empty: the app calculates amount − advances = −145.00. **Positive = additional payment**, negative = credit |
-| Other items | levies, fees, credits with description and amount (credit negative) — the app does not recalculate them but adds them to its own total |
+| Estimated according to the bill | *(v3.11.0)* tick “Start reading” or “Final reading” if the bill marks the reading as estimated. Also enter the estimated final reading as a reading marked “estimated” on the last day of the period; the inbox does both itself |
+| Other items | levies, fees, credits with description and amount (credit negative) — the app does not recalculate them but adds them to its own total. Since v3.11.0 with kind (levy, fee, credit, metering, other), net/gross and VAT rate. A credit the contract already deducts as a dated bonus does not count twice |
+| Fee assessment | *(v3.11.0, water only)* if the bill is an assessment by an authority or municipality with instructions on legal remedies: tick it, the assessment date, “Served on” only with a certificate of service, the remedy named in the instructions (objection or court action) and the file reference |
 | Emissions (kg CO₂), CO₂ cost on the bill | gas only: the bill’s CO₂ details, the amount as stated there (including VAT, CO2KostAufG § 3(3)). They take precedence over the standard factor ([CO₂ price](../verstehen/16-co2-preis.md)) and, for tenants, set the deadline for the refund ([Share CO₂ costs](co2-aufteilung.md)) |
 | Attach bill (PDF or photo) | the receipt; the list shows it as 📄 |
 
@@ -258,6 +262,66 @@ contract; delete it there if you want it gone.
 registers. The comparison still recalculates the whole group — both registers,
 the fixed costs and the advance once — because the supplier sends one bill for
 both. “Book as special payment” books into the group contract.
+
+**Notes on your rights** *(v3.11.0, only with country Germany)*. Under
+“Compare” are the notes on this bill, each with “Note, not legal advice”, the
+legal sources as links and, where it fits, “Draft a letter”; the list counts
+them per bill. “Check a bill” shows all of them, “To do” and the
+recommendations only those on bills at most 120 days back, and deadlines while
+they run. The app checks:
+
+- **Bill came late** (electricity, gas): an annual or final bill that was there
+  more than two days after the end of the statutory deadline (six weeks after
+  the end of the period, for a final bill after the end of supply). “Received
+  on” counts, otherwise the bill date; without either there is no check. The
+  two days absorb a weekend at the end of the deadline. A correction from the
+  inbox keeps the date of the first version.
+- **Bonus not credited** (electricity, gas): a sign-up bonus on the contract
+  with no credit up to the first bill that ends at least twelve months after
+  the contract start (or up to an earlier final bill); a bonus with a credit
+  date (switch, new customer, other) with no credit in the bill whose period
+  contains the date up to 31 days before or after. A credit is an item of kind
+  “credit” or a booked refund that is not the result of a bill, from the bonus
+  minus 1 €; without net/gross also net (amount × 1.19). Each credit covers one
+  bonus, the description does not count. An instant bonus comes by transfer and
+  is not checked; another bonus (say from a comparison portal) is reported
+  without a letter.
+- **Bill estimates the final reading despite your own**: “Final reading” ticked
+  under “Estimated according to the bill”, the estimated reading entered as a
+  reading marked “estimated” on the last day of the period (or the day after),
+  and a reading of your own at most 14 days before or after. The app carries
+  your reading forward in a straight line (between your readings before and
+  after, otherwise with the consumption per day of the last interval); if the
+  estimate differs by more than 2 % of the period’s quantity, it says so, with
+  the difference in kWh or m³ and, if the contract has prices, in euros. If
+  the reading carries “reported to the supplier” with a day before the bill,
+  the note is firmer. Only the start reading estimated: no check. If the
+  contract says “basic supply”, the note names your right to a correction with
+  your reading (§ 18 StromGVV or GasGVV); for a special contract and without an
+  entry, the request to the supplier to recalculate with your reading.
+- **Metering charge above the cap** (electricity, periods from 2026): items of
+  kind “metering”, gross and converted to a year, against the cap for the
+  metering device at the meter (meter dialog → “Metering”), with 1 € leeway for
+  rounding. For a smart metering system the annual consumption (mean of at most
+  the last three full calendar years, otherwise the bill’s quantity scaled up),
+  a grid fee rebate on the contract (control under § 14a EnWG) and the capacity
+  of the PV system (at the feed-in meter) set the group. No check: net without
+  VAT rate, a freely chosen metering operator, a conventional meter, a smart
+  metering system without known consumption. If the meter was swapped in the
+  period, an excess up to 100 € stays quiet (installation on request).
+- **Deadline for a fee assessment** (water): if the bill is an assessment, the
+  end of the deadline is a date under “To do”: four days after the assessment
+  date (or on the day it was served) and then one month; if that day is a
+  Saturday, Sunday or nationwide public holiday, the next working day (since
+  the follow-up review for v3.11.0). “Draft a letter” (objection) is offered only if, as you entered, the
+  instructions name the objection.
+
+Since v3.11.0 the inbox takes over the bill date, the invoice number, credits,
+the metering charge (with net/gross and VAT rate), estimated ends and, for
+water, the assessment; if the bill names basic supply or a special contract and
+the contract has no entry yet, it proposes the type of supply. A correction
+replaces credits, metering charge and estimate and brings its invoice number,
+but keeps the bill date of the first version.
 
 ## 8. Afterwards
 

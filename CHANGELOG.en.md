@@ -7,6 +7,286 @@ and [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [3.11.0] — 2026-11-04 — Your rights as a customer
+
+MINOR release without a schema step (stays 1.8.0). The main feature is **Your
+rights as a customer**: the Energietracker checks bills, advance payments and
+price changes for what you are entitled to in Germany. A bill came too late, an
+advance payment is far above your consumption, a price increase lets you
+terminate, a bonus is missing, the bill estimates despite your own reading, the
+metering charge is above the statutory cap, a fee assessment has a deadline.
+Every note names the provision with source and date, is a **note, not legal
+advice**, and offers, where it fits, a **letter** from a fixed template as a PDF
+for a window envelope or as text. All legal statements sit in one place in the
+code and in the [legal basis](docs/en/referenz/rechtsgrundlagen.md); a test
+keeps both equal. The app also detects **contradicting contracts** ([#54]),
+corrects the **legal references of existing notes** ([#55]) and knows a
+**responsible person on the tenancy**. API, CSV format 1, backup format 3.0 and
+the Docker environment only grow additively.
+
+### ⚠️ For existing installations
+
+- **Germany only, notes only:** the checks run only with the country Germany in
+  the settings. They say what the law provides; they never say that something
+  is void or that you should withhold payments. Letters are only created at the
+  push of a button; the app sends nothing.
+- **New notes from old data:** some checks also see bills and contracts entered
+  in the past. Only notes whose occasion is at most 120 days ago or whose
+  deadline is still running go to “To do”; “Bill check” shows all.
+- **Special termination replaces the price increase** ([#55]): instead of the
+  recommendation “Price increase, check special termination” on the day of the
+  increase there is a “Rights” note with the date on the day before (the
+  termination must arrive by then) and the letter. The calendar entry on the day
+  of the increase stays, without “check special termination”. If you already
+  ticked off an upcoming price increase, it appears once more.
+- **District heating without a special right of termination** ([#55]): § 41
+  Abs. 5 EnWG applies to electricity and gas, not to district heating. For
+  district heating the app now names the price adjustment clause (§ 24 Abs. 4
+  AVBFernwärmeV). Basic supply is justified with § 5 Abs. 3 StromGVV/GasGVV, a
+  pure change in VAT gives no right to terminate (§ 41 Abs. 6 EnWG), and an
+  agreed price step without the date of a letter only gets a note that asks.
+- **Term warning by utility** ([#55]): “Minimum term over 24 months” only for
+  electricity and gas; for district heating only above ten years (§ 32
+  AVBFernwärmeV), none for water.
+- **Contracts contradict each other** ([#54]): if a contract runs more than 31
+  days into a later one according to its entry, both cards, “To do” and the
+  billing year show a note. The calculation stays as before (the later start
+  wins); “Set the end of … to …” makes the entry fit without changing any
+  figures.
+- **Inbox extraction schema 6 → 7:** a document read before keeps its
+  extraction; basic supply, credits, metering charge, assessment, invoice number
+  and the advance payment in a price letter arrive only with the next re-read.
+- **New optional fields** on bill, contract, price, meter and reading (see “API
+  and data”). Without them the notes are worded more cautiously or stay silent.
+
+### Added
+
+#### Your rights as a customer (F1035)
+
+- **Seven checks:** bill came late (electricity, gas: six weeks after the end of
+  the period, § 40c Abs. 2 EnWG), advance payment clearly too high (electricity,
+  gas, district heating: more than 20 % and 10 € above the assessment from the
+  last billed consumption, the forecast agrees), price change with special
+  termination and a date (electricity, gas), bonus not credited (electricity,
+  gas), estimate despite your own reading (all metered utilities with bills),
+  metering charge above the cap of the Metering Point Operation Act
+  (electricity, from 2026-01-01), deadline for a fee assessment (water, sewage).
+  A contract that runs on after its end without cancellation is checked like a
+  running one. The estimate counts from 2 % of the bill's quantity and 10 € effect;
+  after the objection deadline the app says so and no longer offers a letter.
+  If the deadline ends on a weekend or a nationwide public holiday, the next
+  working day counts (§ 57 Abs. 2 VwGO with § 222 Abs. 2 ZPO, § 31 Abs. 3
+  VwVfG); date, “To do”, calendar and letter name this day.
+- **One note, many places:** “Rights” recommendation with the footer “Note, not
+  legal advice. Basis: …” (every norm as a link, date checked), “Draft a letter”
+  and “What the app checks”; “To do” (can be ticked off; with a deadline as a date
+  14 days before), calendar with an advance reminder, Home Assistant as an item
+  of “To do”, annual report (dates), activity. “Bill check” shows the notes on
+  the bill and counts them in the list. Without a recorded bill, “Bill check” and
+  the recommendations page say that the checks start with the first bill.
+- **New handbook pages:** [Your rights as a customer](docs/en/verstehen/17-rechte.md)
+  (what the app checks, how, limits, thresholds, examples) and
+  [Legal basis](docs/en/referenz/rechtsgrundlagen.md) (the review report: every
+  statement with norm, source, date and rating W/S/G/U; what is “to be checked”
+  or “uncertain” never appears as a fact, and uncertain rules never in a note).
+
+#### Letters (F1036)
+
+- **Five templates:** special termination, request to adjust the advance
+  payment, question about an estimate, complaint about a bill, objection to a
+  fee assessment. Always in German, prefilled from note, contract and meter;
+  missing details stay as a visible gap `[…]`.
+- **PDF following DIN 5008** (address in the window, fold marks) or **copy as
+  text**; “Mark as sent” ticks the note off with date and note. The objection is
+  offered only after you confirm that the instructions on legal remedies name it.
+  The app does not store sender or recipient (the browser can remember the
+  sender if you wish). Guide: [Writing a letter](docs/en/anleitungen/brief-schreiben.md).
+
+#### Price change letters in the inbox
+
+- Adopted prices carry the date of the letter, the VAT rate and a “cancel by …”;
+  there is only one special termination date. The key statement checks the
+  notice period, recognises a pure tax change, shows extra costs with a range
+  and the advance payment afterwards, and points to the rule for advance payments
+  if the new advance rises clearly more than the costs. Dual tariff: the price
+  goes to the matching register.
+- Bills take over bill date, invoice number, estimated readings (the estimated
+  final reading is stored on the bill, not as a reading, and does not change
+  consumption; a reading that would make the meter run backwards is reported),
+  credits,
+  metering charge and assessment; if the bill names basic supply or a special
+  contract, the app proposes the type of supply on the contract.
+
+#### Contracts contradict each other ([#54])
+
+- A note for an overlap, a nested contract, the tariff of another utility (also
+  with a changed price) and advance payments of at least twice the costs, one
+  entry for the same contract; buttons “Set the end of … to …”
+  and “Both are right”. Contract list, contract status and billing year read one
+  shared rule; the billing year labels assumed sections.
+
+#### Responsible on the tenancy
+
+- The deadlines of the service-charge statement and the CO₂ refund go to the
+  person on the tenancy, otherwise to the first heat meter (“via the tenancy” in
+  reminders, “To do” and calendar). “Delete person” counts tenancies too.
+
+#### Showcase and demo
+
+- The sample household always shows a special termination with a running
+  deadline, a fee assessment with objection and a contradicting water contract;
+  the Pages demo precomputes the first draft of each letter.
+
+#### API and data (additive)
+
+- `GET /api/rights` (findings with norms, footer, letter, window),
+  `POST /api/letters/render` (text or PDF, stores nothing); agenda kinds `rights`
+  and `contract_conflict`, recommendation category `recht`, recommendation
+  `r_contract_conflict`, inbox proposal `contract_supply_kind`.
+- Fields: bill `received_on`, `invoice_number`, `reading_estimated`, water
+  `notice`, items `kind: metering` with `basis` and `vat_pct`; contract
+  `supply_kind`; every price entry `announced_on`, `vat_pct`,
+  `special_termination_until`; electricity meter `metering_device`,
+  `msb_basic`, feed-in meter `pv_kw`; reading `reported_on`; tenancy
+  `assignee_id`; bill `estimated_end_reading`. Contract status `price_increase`
+  and `coverage`, billing year `periods[].assumed`, `advance_vs_cost` (with
+  `contract_id`), `successor.gap_covered`, warnings `term_over_10_years`,
+  `contract_conflict`, `estimated_reading_backwards`; `GET /api/rights` names
+  `bills_recorded`; an objection after the deadline ends with
+  `errors.letter.deadlinePassed` (422).
+
+### Changed
+
+- “According to the bill” shows kind, net or gross and VAT rate per item and the
+  new fields; the electricity/gas contract dialog the type of supply and, from
+  “Experienced”, “Letter dated” and “VAT %” per price; the electricity meter
+  dialog the metering section; capture the switch “reported to the supplier”.
+- Help → Documentation links “Your rights as a customer”; the glossary explains
+  basic supply and special contract, metering operator and price cap, fee
+  assessment and the energy arbitration board.
+- A future follow-on contract of a later billing period carries
+  `balance_measured: null` in the contract status.
+- Docs: Docker Compose example for your own root certificate `ET_CA_FILE`
+  ([#36]).
+- The contract card names an announced price step with its date (“from …:
+  energy price …”) instead of only the number of prices.
+
+### Fixed
+
+- District heating, basic supply, price steps and pure tax changes got a wrong
+  note on the special right of termination under § 41 Abs. 5 EnWG; the term
+  warning came for every utility ([#55]).
+- Bills from the inbox had no bill date; booking used the day after the period.
+- “According to the bill”: editing and saving turned every other item into kind
+  “other”.
+- Reminders from the inbox (special termination, report a reading) carried
+  “{date}” instead of the day in the title since v3.7.0.
+- The glossary named the special right of termination without distinguishing
+  type of supply and kind of energy.
+- **Bonus counted twice** ([#56]): when the billing year started in the middle of
+  a month, a bonus from the last day of the old period was counted again in the
+  new period's balance up to the last reading, its expected balance and so in the
+  suggested advance. Now the day of the credit counts; the bonus column in
+  “Contracts & advance payments” shows the same bonus as the balance instead of a
+  share of the month.
+- A tacitly renewed contract was called “can be cancelled at any time with at
+  most one month’s notice”, with a calculated earliest end and “at the last
+  prices”. Electricity and gas: the notice period is in the contract (the review
+  report proves no general one-month rule); basic supply two weeks (§ 20
+  StromGVV and GasGVV); district heating under § 32 AVBFernwärmeV (renewal by
+  five years, notice nine months before).
+- District heating without an entered notice period: shortly before the end the
+  app suggested a switch although the notice period under § 32 AVBFernwärmeV had
+  already passed. Now it reminds you of the day nine months before and afterwards
+  says that the contract is extended, until when and when the next cancellation
+  is possible; an entered follow-up contract takes precedence. “Check switch” no
+  longer shows a past “runs until …” for an extended contract.
+- Price entries after the end of a renewed contract did not apply; balance,
+  forecast and contract card used the last price before.
+- A replaced contract was labelled “Ended” next to a future end (now
+  “Replaced”); a gap filled by the automatic renewal was called “without a
+  contract”.
+
+### Known limits
+
+- **No person has reviewed the report yet.** The sources were read on
+  2026-11-03; rows marked “To be checked” (among them the wording of the GasGVV,
+  § 309 Nr. 9 BGB, exclusion of the objection procedure) and “Uncertain” (new
+  version of the AVBFernwärmeV, EnWG amendment 2026, a determination by the
+  Federal Network Agency on the price caps) are open, plus the one-year period
+  without instructions on legal remedies counted from notification (§ 58 Abs. 2
+  VwGO), the “nine months before expiry” calculation for district heating and the
+  list of nationwide public holidays.
+- German federal law only, no state laws. The app moves a date only for the end
+  of the fee assessment deadline, and only for weekends and nationwide public
+  holidays; it does not know state holidays.
+- Advance payment: not for water and group contracts. Estimate: needs the
+  estimated final reading from the bill. District heating during a renewal:
+  the app names the next notice day, but it is not yet under “To do” or in the
+  calendar. Metering charge: only from 2026-01-01, not for
+  net amounts without a VAT rate. Bonus: no instant bonus.
+- The app knows neither the supplier’s address nor the supply address (field in
+  the dialog); the letter PDF has not yet been checked in a real window
+  envelope. The Pages demo only precomputes the first draft of a letter.
+- Household from documents still takes over prices from price changes without
+  the date of the letter and does not take over the type of supply.
+
+### Migration
+
+None. The schema stays 1.8.0; all new fields are optional and travel in the
+backup, no new pot. The inbox extraction schema rises from 6 to 7 (see above).
+
+### Tests
+
+- **Rights:** `RightsTest`, `RightsServiceTest`, `RightsFieldsTest`,
+  `RightsEndpointTest`, `RightsBillChecksTest`, `RightsAdvanceTest`,
+  `RightsPriceChangeTest`, `RightsLettersTest`, `InboxPriceChangeTest`,
+  `InboxBillRightsTest`, Node suite `rights`.
+- **Letters:** `LetterServiceTest`, `LetterLayoutTest` (box protocol in the
+  window envelope), `LetterEndpointTest`, `PdfCharsetTest`, Node suite `letters`.
+- **Order:** `ContractConflictTest` (M6 rebuilt, calculated by hand, coverage day
+  by day), `TenancyResponsibilityTest`, Node suite `assignee`.
+- **Docs:** `RightsSourcesDocTest` keeps the review report tied to the code row by
+  row (norm, source, date, status), plus deadlines, price caps, thresholds and
+  examples, allows only norms from the report on the explanation page and none
+  that is uncertain as a fact; `DocumentedThresholdsTest` for the thresholds in
+  the guides. Demo: `DemoDataAlignerTest` (deadlines relative to today),
+  `demo.test` (note and letter in the Pages demo).
+- **After the skeptic run:** `RightsRenewedContractTest` (renewed contracts),
+  `BonusPeriodBoundaryTest` (#56, period boundary in the middle of a month),
+  `ShowcaseAdvanceHighTest`; after the follow-up check `ContractNoticeFollowUpTest`
+  (district heating before the end, follow-up contract, basic supply) and the
+  deadline on a working day (Saturday, Sunday, Easter Monday, 3 October).
+- 2088 test methods (+192). Every new rule has a counter-check that breaks it:
+  430 in 10 packages, all red.
+
+### Lessons learned
+
+- **A legal statement needs a row before it becomes text.** The review report
+  stood first in the concept, then as rules in the code, then as a table in the
+  docs; a test keeps all three equal. Four notes from earlier releases named a
+  provision that does not apply to the case.
+- **Two packages, one date.** Inbox and check both created the special
+  termination date; now the inbox writes the date onto the price, and only the
+  check creates the date.
+- **An example in the concept is not a finding in the code.** The rebuilt case M6
+  is a nested contract, not an overlap; only the household calculated by hand
+  showed this.
+- **The renewed contract is the normal case.** Every check looked for the
+  contract that is “active on the day”; a contract after its end without
+  cancellation was invisible to them, and in real data every contract has an end.
+  The skeptic run found this, not the tests: the test data had no renewed
+  contracts.
+- **An anchor has to suit the app’s renderer.** `<a id>` with an underscore shows
+  up as text in the handbook; the anchors are now called `rights-bill-late` etc.
+
+[#54]: https://github.com/Bingerminger/energietracker/issues/54
+[#55]: https://github.com/Bingerminger/energietracker/issues/55
+[#56]: https://github.com/Bingerminger/energietracker/issues/56
+[#36]: https://github.com/Bingerminger/energietracker/issues/36
+
+---
+
 ## [3.10.1] — 2026-11-03 — Security fixes in the image
 
 PATCH release without a change to the app. The Docker image of 3.10.0 contained curl/libcurl 8.22.0 and

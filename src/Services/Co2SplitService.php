@@ -152,8 +152,8 @@ final class Co2SplitService
         return $pdf->output();
     }
 
-    /** Das Mietverhältnis, das im Jahr galt (das jüngste). */
-    private function tenancyIn(int $year): ?array
+    /** Das Mietverhältnis, das im Jahr galt (das jüngste). v3.11.0 (E) — öffentlich: Zuständigkeit der CO₂-Frist (AgendaService). */
+    public function tenancyIn(int $year): ?array
     {
         foreach ($this->tenancies->list() as $t) {
             if ((string)$t['start'] > "$year-12-31" || (!empty($t['end']) && (string)$t['end'] < "$year-01-01")) continue;

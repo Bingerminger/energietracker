@@ -54,6 +54,8 @@ use Energietracker\Services\FlexibilityInsightService;   // v3.6.0 — Flexibili
 use Energietracker\Services\InboxService;                // v3.7.0 — Posteingang für Versorgerpost
 use Energietracker\Services\Inbox\{ProviderRegistry, LocalProvider, Proposals as InboxProposals, Applier as InboxApplier};
 use Energietracker\Controllers\InboxController;          // v3.7.0
+use Energietracker\Services\RightsService;               // v3.11.0 (F1035) — Rechte als Kunde
+use Energietracker\Controllers\RightsController;         // v3.11.0 (F1035)
 
 /**
  * Minimal hand-rolled autoloader for the Energietracker namespace.
@@ -139,6 +141,8 @@ final class App
     public \Energietracker\Services\InboxDraftService $inboxDraft;   // v3.7.0 — Haushalt aus Dokumenten
     public \Energietracker\Services\ResponsibilityService $responsibility;   // v3.7.0 — Zuständig an Zählern und Verträgen
     public InboxService $inbox;                  // v3.7.0 — Posteingang
+    public RightsService $rights;                // v3.11.0 (F1035) — Rechte als Kunde: Prüfungen und Befunde
+    public \Energietracker\Services\LetterService $letters;   // v3.11.0 (F1036) — Briefe aus Befunden
     public ProviderRegistry $inboxProviders;     // v3.7.0 — Anbieter fürs Auslesen (lokal; Cloud meldet sich an)
     // ── v3.7.0 (Paket cloud) — Auslesen in der Cloud, Opt-in ──
     public \Energietracker\Services\Inbox\CloudConfig $inboxCloud;
@@ -214,7 +218,7 @@ final class App
         $this->energyFlowDay = new EnergyFlowDayService($this->intervals, $this->meters);   // v3.5.0 (F1027) — Tagesfilm
         $this->marketPrices = new MarketPriceService($this->store, $this->i18n, null, $this->intervals);   // v3.1.0 (H6)
         $this->tariffs      = new TariffComparisonService($this->consumption, $this->contracts, $this->meters, $this->i18n, $this->marketPrices, $this->flexibility);
-        $this->tariffSwitch = new TariffSwitchService($this->forecasts, $this->contracts, $this->meters, $this->i18n, $this->marketPrices);
+        $this->tariffSwitch = new TariffSwitchService($this->forecasts, $this->contracts, $this->meters, $this->i18n, $this->marketPrices, $this->settings);
         $this->recommendations = new RecommendationService($this->store, $this->meters, $this->consumption, $this->settings, $this->benchmark, $this->deliveries, $this->i18n);
         $this->reminders    = new ReminderService($this->store, $this->settings, $this->i18n);
         // F1005 + N1003 (v1.7.0)
@@ -315,6 +319,39 @@ final class App
             $this->settings, $this->tariffSwitch, $this->billingPeriods);
         // v3.9.0 (F1032, #40) — Assistent „Messkonzept“: Zähler, Gruppen, Subzähler, Verträge aus dem Aufbau
         $this->meteringConcepts = new \Energietracker\Services\MeteringConceptService($this->meters, $this->contracts, $this->settings, $this->i18n, $this->backups, $this->readings);
+        // v3.11.0 (D, #54) — Verträge widersprechen sich: Empfehlung `r_contract_conflict` (auch Abschläge
+        // ein Vielfaches der Kosten im Abrechnungsjahr); (E) Zuständigkeit am Mietverhältnis
+        $this->recommendations->attachContractConflicts($this->contracts, $this->billingPeriods);
+        $this->tenancies->attachResponsibility($this->responsibility);
+
+        // ── v3.11.0 (F1035) — Deine Rechte als Kunde ─────────────────────────
+        // Befunde aus den Prüfungen der Fachpakete (Konzept §3), Regeln in Config\Rights, nur für
+        // Länder mit Regeln (DE). Als Empfehlung der Kategorie `recht` und unter „Zu tun“ (`rights`).
+        // Prüfungen melden sich an mit $this->rights->register('<check>', fn(string $today, string $country): array => …)
+        // — je Paket ein eigener Absatz unten (getrennt, damit das Zusammenführen ohne Konflikt geht).
+        $this->rights = new RightsService($this->settings, $this->i18n);
+        $this->recommendations->attachRights($this->rights);
+        $this->agenda->attachRights($this->rights);
+
+        // Paket rechnung: bill_late (A1), bonus_missing (A4), estimate_despite_reading (A5), metering_cap (A6),
+        // fee_notice_deadline (A7, Paketschnitt: gehört zu rechnung)
+        $billChecks = new \Energietracker\Services\Rights\BillChecks($this->bills, $this->contracts, $this->meters, $this->readings, $this->consumption);
+        $this->rights->register('bill_late', fn(string $today, string $country): array => $billChecks->late($today, $country));
+        $this->rights->register('bonus_missing', fn(string $today, string $country): array => $billChecks->bonus($today, $country));
+        $this->rights->register('estimate_despite_reading', fn(string $today, string $country): array => $billChecks->estimate($today, $country));
+        $this->rights->register('metering_cap', fn(string $today, string $country): array => $billChecks->metering($today, $country));
+        $this->rights->register('fee_notice_deadline', fn(string $today, string $country): array => $billChecks->feeNotice($today, $country));
+
+        // Paket vertrag: advance_high (A2), special_termination (A3)
+        $contractChecks = new \Energietracker\Services\Rights\ContractChecks($this->contracts, $this->meters, $this->consumption,
+            $this->bills, $this->billingPeriods, $this->i18n);
+        $this->rights->register('advance_high', fn(string $today, string $country): array => $contractChecks->advanceHigh($today, $country));
+        $this->rights->register('special_termination', fn(string $today, string $country): array => $contractChecks->specialTermination($today, $country));
+
+        // Paket briefe (F1036): fünf Vorlagen, Text und PDF (POST /api/letters/render), nichts gespeichert
+        $this->letters = new \Energietracker\Services\LetterService($this->rights, $this->contracts, $this->meters, $this->bills);
+
+        // ── Ende v3.11.0 (F1035) ──
         // v3.7.0 — Posteingang: lokal über die Einstellung der Texterkennung;
         // weitere Anbieter melden sich mit $this->inboxProviders->register() an
         $this->inboxProviders = new ProviderRegistry($this->settings, new LocalProvider($this->settings, $this->ocr, $this->i18n));
@@ -325,8 +362,13 @@ final class App
         $this->inbox->attachActivity($this->activity);
         // v3.7.0 (Paket betrieb) — Kernaussage je Dokument, überwachter Ordner, Akte
         $inboxProposals->attachResponsibility($this->responsibility);
+        // v3.11.0 (F1035, Paket posteingang) — Termin der Sonderkündigung nur einmal: legt A3 ihn für diesen
+        // Vertrag an, nicht der Posteingang (Skeptiker H1: gefragt wird A3 am Vertrag, nicht nur die Anmeldung)
+        $inboxProposals->attachRights(fn(string $u, array $c, string $from, string $today): bool =>
+            in_array('special_termination', $this->rights->registered(), true)
+            && $contractChecks->coversPriceChange($u, $c, $from, $today, $this->rights->country()));
         $this->inbox->attachGist(new \Energietracker\Services\Inbox\Gist($this->meters, $this->contracts, $this->consumption,
-            $this->bills, $this->readings, $this->tariffSwitch, $this->responsibility));
+            $this->bills, $this->readings, $this->tariffSwitch, $this->responsibility, $inboxProposals));
         $this->inboxFolder = new \Energietracker\Services\Inbox\FolderIntake($this->store, $this->inbox);
         $this->dossier = new \Energietracker\Services\DossierService($this->inbox, $this->attachments, $this->bills,
             $this->contracts, $this->meters, $this->readings, $this->i18n);
@@ -436,13 +478,15 @@ final class App
         '#^/api/forecast/scenario$#',   // v3.6.0 (F1031) — schreibt nichts
         '#^/api/inbox/[^/]+/(classify|extract)$#',   // v3.7.0 — Posteingang: erst die KI, dann schreiben
         '#^/api/metering-concept/preview$#',   // v3.9.0 (F1032) — Vorschau, schreibt nichts
+        '#^/api/letters/render$#',             // v3.11.0 (F1036) — Brief, schreibt nichts
     ];
 
     /**
      * v3.6.0 (F1031) — POST-Routen, die nur rechnen und nichts schreiben: auch
      * mit einem API-Schlüssel erlaubt, der nur lesen darf.
      */
-    private const READ_ONLY_POST = ['#^/api/forecast/scenario$#', '#^/api/metering-concept/preview$#'];   // v3.9.0 — Vorschau des Messkonzepts
+    private const READ_ONLY_POST = ['#^/api/forecast/scenario$#', '#^/api/metering-concept/preview$#',   // v3.9.0 — Vorschau des Messkonzepts
+                                    '#^/api/letters/render$#'];   // v3.11.0 (F1036) — Brief entwerfen
 
     public static function locksLate(Request $req): bool
     {
@@ -981,7 +1025,7 @@ final class App
         $r->get('/api/energy-flow/typical-day', fn($req) => $efCtrl->typicalDay($req));
 
         // v3.1.0 (Paket H5) — Versorgerrechnungen erfassen, prüfen, buchen
-        $billCtrl = new BillController($this->bills);
+        $billCtrl = new BillController($this->bills, $this->readings);
         $r->get('/api/utility/{utility}/bills',              fn($req) => $billCtrl->index($req));
         $r->post('/api/utility/{utility}/bills',             fn($req) => $billCtrl->create($req));
         $r->patch('/api/utility/{utility}/bills/{id}',       fn($req) => $billCtrl->update($req));
@@ -1107,6 +1151,12 @@ final class App
         $r->get('/api/recommendations', fn($req) => $recCtrl->index($req));
         $r->post('/api/recommendations/{id}/dismiss', fn($req) => $recCtrl->dismiss($req));
         $r->delete('/api/recommendations/{id}/dismiss', fn($req) => $recCtrl->restore($req));
+        // v3.11.0 (F1035) — Rechte als Kunde: alle Befunde (auch außerhalb des Fensters)
+        $rightsCtrl = new RightsController($this->rights, $this->bills);
+        $r->get('/api/rights', fn($req) => $rightsCtrl->index($req));
+        // v3.11.0 (F1036) — Brief zu einem Befund (Text oder PDF), schreibt nichts
+        $letterCtrl = new \Energietracker\Controllers\LetterController($this->letters);
+        $r->post('/api/letters/render', fn($req) => $letterCtrl->render($req));
 
         // ── Termine/Erinnerungen (v1.3.0) ──
         $remCtrl = new ReminderController($this->reminders);

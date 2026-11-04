@@ -56,8 +56,15 @@ namespace Energietracker\Services;
  *   ist lückenlos — das Abrechnungsjahr (F1030) zeigt keine Zwischenperiode und
  *   schlägt keinen anderen Stichtag vor. Die Beträge der gewanderten Rechnungen
  *   rechnet DemoService nach dem Einspielen nach (`_demo_recalc`).
+ * - **Fristen „Deine Rechte als Kunde“ (v3.11.0, F1035):** nur wo das
+ *   Demo-Backup es verlangt — `demo_align.price_change_days_ahead`
+ *   ({Art: {Vertrag: Tage}}) legt die angekündigte Preisänderung eines Vertrags
+ *   so viele Tage in die Zukunft, `demo_align.fee_notice_days_ago`
+ *   ({Art: {Rechnung: Tage}}) den Gebührenbescheid einer Rechnung so viele Tage
+ *   in die Vergangenheit. So zeigt die Demo zu jedem Zeitpunkt eine
+ *   Sonderkündigung und einen Widerspruch mit laufender Frist (`alignRightsDeadlines`).
  *
- * Verträge bleiben unverändert: Ein abgelaufener Vertrag läuft ohne Kündigung
+ * Verträge bleiben unverändert (ausgenommen die eine Preisänderung oben): Ein abgelaufener Vertrag läuft ohne Kündigung
  * weiter (`ContractService::resolveForDate`, v2.9.0) — genau das zeigt die Demo
  * dann auch. Versorgerrechnungen bleiben ebenso, wie sie sind (v3.5.0): Eine
  * Rechnung ist ein Beleg mit Beträgen, die sich nicht aus dem Vorjahr kopieren
@@ -79,6 +86,7 @@ final class DemoDataAligner
     {
         $ref = self::referenceDate($payload);
         $lag = self::readingLag($payload);   // v3.10.0 — vor alignBillingAnchors, das `demo_align` entfernt
+        $payload = self::alignRightsDeadlines($payload, $today);   // v3.11.0 — ebenso davor
         $payload = self::alignBillingAnchors($payload, $today);
         $shift = self::reminderShift($payload['reminders'] ?? [], $today);
         $payload['reminders'] = self::alignReminders($payload['reminders'] ?? [], $shift, $today);
@@ -121,6 +129,69 @@ final class DemoDataAligner
             && is_array($payload['interval_files'] ?? null)) {
             [$payload['intervals'], $payload['interval_files']] = self::extendIntervals(
                 $payload['intervals'], $payload['interval_files'], $ref, $today, self::timezone($payload));
+        }
+        return $payload;
+    }
+
+    /**
+     * v3.11.0 (F1035, Schaufenster „Deine Rechte als Kunde“) — Fristen relativ zu heute, nur wo
+     * `demo_align` es verlangt (1 bis 60 Tage; sonst bleibt alles, wie es ist):
+     *
+     * - `price_change_days_ahead` = {Art: {Vertrag: Tage}}: Die Preis-Einträge des Vertrags mit
+     *   `announced_on` am jüngsten Stichtag gelten dann in so vielen Tagen; das Datum des Schreibens
+     *   und „Kündigung bis“ (`special_termination_until`) wandern mit. Nur nach vorn: Liegt die
+     *   Änderung schon so weit voraus, bleibt sie.
+     * - `fee_notice_days_ago` = {Art: {Rechnung: Tage}}: Der Bescheid der Rechnung ist dann so
+     *   viele Tage alt; Zustellung, Rechnungsdatum und Zugang wandern mit, der Zeitraum bleibt.
+     *
+     * @param array<string,mixed> $payload
+     * @return array<string,mixed>
+     */
+    private static function alignRightsDeadlines(array $payload, string $today): array
+    {
+        $want = is_array($payload['demo_align'] ?? null) ? $payload['demo_align'] : [];
+        $ok = fn(mixed $d): bool => is_int($d) && $d >= 1 && $d <= 60;
+        foreach ((array)($want['price_change_days_ahead'] ?? []) as $u => $byContract) {
+            if (!is_string($u) || !is_array($byContract) || !is_array($payload['utilities'][$u]['contracts'] ?? null)) continue;
+            foreach ($payload['utilities'][$u]['contracts'] as $ci => $c) {
+                $days = is_array($c) ? ($byContract[$c['id'] ?? ''] ?? null) : null;
+                if (!$ok($days)) continue;
+                $from = null;
+                foreach (['working_prices', 'base_prices'] as $list) {
+                    foreach ((array)($c[$list] ?? []) as $e) {
+                        if (self::isDate($e['announced_on'] ?? null) && self::isDate($e['from'] ?? null)) $from = max($from ?? '', (string)$e['from']);
+                    }
+                }
+                if ($from === null) continue;
+                $shift = self::days($from, self::addDays($today, $days));
+                if ($shift <= 0) continue;
+                foreach (['working_prices', 'base_prices'] as $list) {
+                    foreach ((array)($c[$list] ?? []) as $ei => $e) {
+                        if (($e['from'] ?? null) !== $from || !self::isDate($e['announced_on'] ?? null)) continue;
+                        foreach (['from', 'announced_on', 'special_termination_until'] as $f) {
+                            if (self::isDate($e[$f] ?? null)) $e[$f] = self::addDays((string)$e[$f], $shift);
+                        }
+                        $c[$list][$ei] = $e;
+                    }
+                }
+                $payload['utilities'][$u]['contracts'][$ci] = $c;
+            }
+        }
+        foreach ((array)($want['fee_notice_days_ago'] ?? []) as $u => $byBill) {
+            if (!is_string($u) || !is_array($byBill) || !is_array($payload['utilities'][$u]['bills'] ?? null)) continue;
+            foreach ($payload['utilities'][$u]['bills'] as $bi => $b) {
+                $days = is_array($b) ? ($byBill[$b['id'] ?? ''] ?? null) : null;
+                if (!$ok($days) || !self::isDate($b['notice']['dated_on'] ?? null)) continue;
+                $shift = self::days((string)$b['notice']['dated_on'], self::addDays($today, -$days));
+                if ($shift <= 0) continue;
+                foreach (['dated_on', 'served_on'] as $f) {
+                    if (self::isDate($b['notice'][$f] ?? null)) $b['notice'][$f] = self::addDays((string)$b['notice'][$f], $shift);
+                }
+                foreach (['issued_on', 'received_on'] as $f) {
+                    if (self::isDate($b[$f] ?? null)) $b[$f] = self::addDays((string)$b[$f], $shift);
+                }
+                $payload['utilities'][$u]['bills'][$bi] = $b;
+            }
         }
         return $payload;
     }
@@ -285,6 +356,11 @@ final class DemoDataAligner
         $b['period_from'] = $from;
         $b['period_to'] = $to;
         if (self::isDate($b['issued_on'] ?? null)) $b['issued_on'] = self::addDays((string)$b['issued_on'], $shift);
+        // v3.11.0 (F1035) — Zugang und Bescheid wandern mit (sonst wäre die Rechnung der Demo „zu spät“)
+        if (self::isDate($b['received_on'] ?? null)) $b['received_on'] = self::addDays((string)$b['received_on'], $shift);
+        foreach (['dated_on', 'served_on'] as $f) {
+            if (self::isDate($b['notice'][$f] ?? null)) $b['notice'][$f] = self::addDays((string)$b['notice'][$f], $shift);
+        }
         if (is_string($b['created_at'] ?? null) && self::isDate(substr($b['created_at'], 0, 10))) {
             $b['created_at'] = self::addDays(substr($b['created_at'], 0, 10), $shift) . substr($b['created_at'], 10);
         }

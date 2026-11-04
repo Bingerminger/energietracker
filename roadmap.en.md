@@ -8,23 +8,23 @@ where each release stands. You can suggest your own ideas any time under
 *Auf Deutsch:* [roadmap.md](roadmap.md). For contributors: the [planning page](roadmap-planung.md) with
 every open item and the rules, earlier concepts in the [archive](roadmap-archiv.md) (both in German).
 
-**As of:** 3 Nov 2026 · **Current version:** v3.10.1
+**As of:** 4 Nov 2026 · **Current version:** v3.11.0
 
 ---
 
-## In progress: v3.11.0 — Your rights as a customer
+## In progress: v3.12.0 — Energietracker for your AI
 
-Planned for **17 Nov 2026**.
+Released when it is finished and checked.
 
-- **Checks with a source:** Is the bill late? Is the advance clearly too high? May you cancel after a price
-  increase, and until when? Is a bonus missing? Was your reading estimated although you reported it? Is the
-  metering fee above the legal cap? Is the deadline for objecting to a water fee notice running?
-- **The matching letter:** objection, special termination, request to adjust the advance or a question about
-  an estimate as a template, with the figures from the check.
-- **Price change in the inbox:** take over new prices and the effective date from the letter, see the effect
-  on costs and advance, and get the termination deadline as an appointment.
-- **Contracts that contradict each other** are reported, and the deadlines of tenancies go to the person in
-  charge.
+- **Connect an AI:** an AI assistant connects to your Energietracker via MCP and reads the overview,
+  deadlines, contracts, consumption, forecast and “Check bill”, every figure with its origin (measured,
+  distributed, estimated). Templates for monthly and yearly reports, bill checks and deadlines come with it.
+- **Propose instead of write:** an AI enters nothing by itself. It proposes a reading or taking over a
+  document, you confirm, and the history shows which key it came through.
+- **Off by default, home network only:** one key per assistant, identifiers and originals only with a switch,
+  every access in the log.
+- **Home Assistant via HACS:** the integration with its own sensors, as a custom repository and with a request
+  for the default list.
 
 ---
 
@@ -35,7 +35,6 @@ done and tested, usually after one to three weeks.
 
 | Version | Theme | What it is about |
 |---|---|---|
-| **v3.12.0** | **Energietracker for your AI** | If you use an AI, connect it to Energietracker via MCP: “Here is my gas bill, enter it and tell me whether it is right.” Energietracker stays the record and does the maths, every figure with its origin. Plus the Home Assistant integration via HACS. |
 | **v3.13.0** | **Long histories and moving in** | Many years of data stay fast, consumption between two readings is distributed by the weather, and anyone coming from another app brings their history along. |
 | **v3.14.0** | **Understandable for everyone** | Guides in French, Italian, Spanish, Portuguese and Dutch, country profiles for Austria and Switzerland. |
 
@@ -73,6 +72,7 @@ done and tested, usually after one to three weeks.
 
 | Version | Date | Theme |
 |---|---|---|
+| v3.11.0 | 4 Nov 2026 | Your rights as a customer: seven checks with a source, five letters, price changes in the inbox, contradicting contracts |
 | v3.10.1 | 3 Nov 2026 | Security fixes in the Docker image |
 | v3.10.0 | 3 Nov 2026 | Promised and secured: the balance in one piece, the promises from #36, #38, #40, #41 and #49, a slimmer signed image |
 | v3.9.0 | 27 Oct 2026 | Every contract pays only its share: metering concepts, Home Assistant, the contract from the bill |

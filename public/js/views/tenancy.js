@@ -18,6 +18,8 @@ import { openModal, confirmModal, guardSubmit } from '../components/modal.js';
 import { toastOk, toastErr } from '../components/toast.js';
 import { info } from '../components/info.js';
 import { areaAssumedHtml } from '../lib/area-assumed.js';   // v3.6.0 (Paket einpers)
+// v3.11.0 (E) — Zuständig am Mietverhältnis (Person aus dem Verzeichnis), wie am Vertrag
+import { chipHtml, personSelectHtml, personPayload } from '../lib/assignee.js';
 
 const CATEGORIES = ['heating', 'warm_water', 'cold_water', 'sewage', 'operating', 'other'];
 let selectedId = null;
@@ -159,7 +161,7 @@ function detailsCard(ten, utilities) {
   const heatUtil = utilities.find(u => u.key === 'waerme');
   return `
     <div class="card">
-      <h2 class="card__title">${esc(ten.label || t('tenancy.details.title'))}
+      <h2 class="card__title">${esc(ten.label || t('tenancy.details.title'))}${chipHtml(ten)}
         <span class="card__title-action"><button class="btn btn--ghost btn--sm" id="ten-edit">${t('tenancy.details.edit')}</button></span>
       </h2>
       <dl class="diag-grid">
@@ -229,9 +231,10 @@ function wire(container, ten, utilities, statements = []) {
 // ── Mietverhältnis anlegen/bearbeiten ───────────────────────────────
 
 async function openTenancyModal(ten, utilities, done) {
-  const [heatMeters, waterMeters] = await Promise.all([
+  const [heatMeters, waterMeters, people] = await Promise.all([
     utilities.some(u => u.key === 'waerme') ? api.meters('waerme').catch(() => []) : [],
     api.meters('wasser').catch(() => []),
+    api.people().catch(() => []),   // v3.11.0 (E) — Auswahl „Zuständig“
   ]);
   const ids = ten?.meter_ids || { heat: [], warm_water: [], cold_water: [] };
   const meterBoxes = (role, meters) => meters.length
@@ -254,6 +257,7 @@ async function openTenancyModal(ten, utilities, done) {
         <div class="field field--s"><label for="tf-start">${t('tenancy.field.start')}</label><input class="input" id="tf-start" name="start" type="date" required value="${esc(ten?.start || todayIso())}"></div>
         <div class="field field--s"><label for="tf-end">${t('tenancy.field.end')}</label><input class="input" id="tf-end" name="end" type="date" value="${esc(ten?.end || '')}"></div>
         <div class="field field--s"><label for="tf-anchor">${t('tenancy.field.anchor')}</label><input class="input" id="tf-anchor" name="billing_anchor" type="text" placeholder="${esc(t('settings.placeholder.dayMonth'))}" value="${esc(ddmm(ten?.billing_anchor || '01-01'))}"></div>
+        ${personSelectHtml({ id: 'tf-assignee', record: ten, people, hintKey: 'assignee.hintTenancy' })}
       </div>
       ${listGroup('prepayment', `${t('tenancy.field.prepayments')}${info('prepayment')}`, '')}
       ${listGroup('price', t('tenancy.field.prices'), t('tenancy.form.pricesHint'))}
@@ -314,6 +318,7 @@ async function openTenancyModal(ten, utilities, done) {
             prepayments: collectRows(modalEl, 'prepayment'), prices: collectRows(modalEl, 'price'), fixed_costs: collectRows(modalEl, 'fixed'),
             meter_ids: Object.fromEntries(['heat', 'warm_water', 'cold_water'].map(r =>
               [r, [...modalEl.querySelectorAll(`[data-meter-role="${r}"]:checked`)].map(b => b.value)])),
+            ...personPayload(modalEl.querySelector('[name="assignee_id"]'), ten),   // v3.11.0 (E)
           };
         } catch (err) { toastErr(err.message); return; }
         try {

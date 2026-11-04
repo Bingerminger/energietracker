@@ -158,7 +158,10 @@ balance estimate is uncertain, the status light “Bill” shows no tick but
 result as a range.
 
 A legal note appears only where the app already gives it: for a price
-increase, the special right to terminate under § 41(5) EnWG (Germany only).
+increase, the same note as on the balance card (Germany only): the special right
+to terminate under § 41(5) EnWG or § 5(3) StromGVV/GasGVV by type of supply, for
+a pure change of VAT § 41(6) EnWG, for district heating the price adjustment
+clause (§ 24(4) AVBFernwärmeV) without a special right to terminate.
 
 ## 5. Reading the charts
 

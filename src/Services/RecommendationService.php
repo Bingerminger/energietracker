@@ -12,7 +12,8 @@ use Energietracker\Config\Utilities;
  * Sieben Regelfamilien, jede liefert 0..n Empfehlungen mit:
  *   id        stabil (Hash aus Regel+Kontext) → Dismiss bleibt haften
  *   severity  info | warning | urgent
- *   category  effizienz | vertrag | bestand | anomalie | trend
+ *   category  effizienz | vertrag | bestand | anomalie | trend | modell (v3.9.0)
+ *             | recht (v3.11.0: Befunde von RightsService im Fenster)
  *   title     kurze Überschrift
  *   detail    erklärender Satz mit konkreten Zahlen
  *   evidence  {utility, meter_id, ym?} für UI-Verlinkung
@@ -42,6 +43,24 @@ final class RecommendationService
     public function attachActivity(ActivityService $activity): void
     {
         $this->activity = $activity;
+    }
+
+    /** v3.11.0 (F1035) — Rechte als Kunde (optional; ohne den Dienst keine Kategorie `recht`). */
+    private ?RightsService $rights = null;
+
+    public function attachRights(RightsService $rights): void
+    {
+        $this->rights = $rights;
+    }
+
+    /** v3.11.0 (D, #54) — widersprüchliche Verträge (optional; ohne den Dienst keine `r_contract_conflict`). */
+    private ?ContractService $conflictContracts = null;
+    private ?BillingPeriodService $conflictPeriods = null;
+
+    public function attachContractConflicts(ContractService $contracts, ?BillingPeriodService $periods = null): void
+    {
+        $this->conflictContracts = $contracts;
+        $this->conflictPeriods = $periods;
     }
 
     /** Für dieses Vorkommen von Hand (oder automatisch) erledigt? */
@@ -98,8 +117,10 @@ final class RecommendationService
                     $recs = array_merge($recs, $this->ruleHeatLimit($utility, $target));   // v3.9.0 (#38)
                 }
             }
+            $recs = array_merge($recs, $this->ruleContractConflicts($utility));   // v3.11.0 (D, #54)
         }
         $recs = array_merge($recs, $this->ruleEfficiencyClass());
+        $recs = array_merge($recs, $this->ruleRights());   // v3.11.0 (F1035)
 
         // Dismiss-Filter
         if (!$includeDismissed) {
@@ -590,10 +611,15 @@ final class RecommendationService
         $out = [];
         // v3.1.0 (H5, MKT-24) — angekündigte Preiserhöhung: Sonderkündigungsrecht
         // prüfen (§ 41 Abs. 5 EnWG; nur Deutschland, nur wenn sie noch kommt)
-        if ((string)$this->settings->get('country', 'DE') === 'DE') {
+        // v3.11.0 (F1035, Paket vertrag, B1/B3/B4) — nur mit Sonderkündigungsrecht (`termination`: Strom und
+        // Gas, keine reine Steueränderung; nicht Fernwärme). Läuft die Rechte-Prüfung A3, ersetzt ihr Befund
+        // (Kategorie `recht`, Termin, Norm nach Versorgungsart, Brief) diese Empfehlung.
+        $byRights = $this->rights !== null && $this->rights->enabled() && in_array('special_termination', $this->rights->registered(), true);
+        if ((string)$this->settings->get('country', 'DE') === 'DE' && !$byRights) {
             $today = date('Y-m-d');
             foreach ($status['contracts'] ?? [] as $c) {
                 $from = $c['price_increase']['from'] ?? null;
+                if (empty($c['price_increase']['termination'])) continue;
                 if (!is_string($from) || $from < $today || (empty($c['is_current']) && empty($c['is_future']))) continue;
                 $cid = (string)($c['contract_id'] ?? $c['id'] ?? '');
                 // v3.4.0 (F1024) — mit lückenlosem Folgevertrag oder von Hand
@@ -634,7 +660,13 @@ final class RecommendationService
                 : $this->i18n->tp('recommendations.engine.r6.detail' . $switch, (int)$days, ['provider' => $provider, 'days' => $days]);
             // v3.4.0 (F1024) — Folgevertrag mit Lücke: die Erinnerung bleibt, der Text nennt die Lücke
             $succ = $c['successor'] ?? null;
-            if (is_array($succ) && (int)$succ['gap_days'] > 0) {
+            // v3.11.0 (Skeptiker N10) — verlängert sich der Vertrag ohne Kündigung, füllt das die Lücke: kein „… ohne
+            // Vertrag“, sondern der Folgevertrag und dass dieser Vertrag bis dahin weiterläuft
+            if (is_array($succ) && (int)$succ['gap_days'] > 0 && !empty($succ['gap_covered'])) {
+                $detail .= ' ' . $this->i18n->t('recommendations.engine.r6.gapCovered', [
+                    'provider' => (string)($succ['provider'] ?: '—'), 'date' => $this->i18n->date((string)$succ['start']),
+                ]);
+            } elseif (is_array($succ) && (int)$succ['gap_days'] > 0) {
                 $detail .= ' ' . $this->i18n->tp('recommendations.engine.r6.gap', (int)$succ['gap_days'], [
                     'provider' => (string)($succ['provider'] ?: '—'), 'date' => $this->i18n->date((string)$succ['start']),
                 ]);
@@ -650,6 +682,110 @@ final class RecommendationService
                 ['utility' => $utility, 'meter_id' => $meter['id'], 'contract_id' => $cid,
                  'deadline' => (string)($byCancel ? $c['cancel_by'] : ($c['end'] ?? ''))]
             );
+        }
+        return $out;
+    }
+
+    /**
+     * v3.11.0 (D, GitHub #54) — Verträge widersprechen sich (ContractService::conflicts) und, im
+     * Abrechnungsjahr, Abschläge ein Vielfaches der Kosten. Kategorie `vertrag`, damit „Zu tun“
+     * (Agenda-Art `contract_conflict`); gerechnet wird unverändert (Entscheidung 11a), die App fragt
+     * nur. `evidence.rule` = `r_contract_conflict` (keine Logik an der ID), `evidence.kind` die Art.
+     * Gilt in jedem Land (Datenplausibilität, kein Rechtsbefund).
+     */
+    private function ruleContractConflicts(string $utility): array
+    {
+        if ($this->conflictContracts === null || !Utilities::hasContracts($utility)) return [];
+        $byId = [];
+        foreach ($this->conflictContracts->list($utility) as $c) $byId[(string)($c['id'] ?? '')] = $c;
+        $label = $this->utilLabel($utility);
+        $href = '#/utility/' . rawurlencode($utility) . '/contracts';
+        $k = 'recommendations.engine.rContractConflict.';
+        $out = [];
+        $byContract = [];   // v3.11.0 (Skeptiker N13) — Vertrag → Index seines ersten Widerspruchs in $out
+        foreach ($this->conflictContracts->conflictsFor($utility) as $r) {
+            // derselbe Text wie an der Vertragskarte (ContractService::conflictText)
+            ['title' => $title, 'detail' => $detail] = $this->conflictContracts->conflictText($utility, $r, $byId);
+            foreach ([(string)$r['contract_id'], (string)($r['other_id'] ?? '')] as $cid) if ($cid !== '') $byContract[$cid] ??= count($out);
+            $out[] = $this->mk('r_contract_conflict', [$utility, $r['kind'], $r['contract_id'], (string)($r['other_id'] ?? '')],
+                'warning', 'vertrag', $title, $detail,
+                ['rule' => 'r_contract_conflict', 'kind' => $r['kind'], 'utility' => $utility,
+                 'meter_id' => $r['meter_group_id'] ?? $r['meter_id'], 'contract_id' => $r['contract_id'], 'other_id' => $r['other_id'],
+                 'from' => $r['from'] ?? null, 'until' => $r['until'] ?? null, 'fix_end' => $r['fix_end'] ?? null, 'href' => $href]);
+        }
+        // Abschläge ein Vielfaches der Kosten (BillingPeriodService::advanceVsCost), die letzten RECENT_MONTHS
+        if ($this->conflictPeriods !== null && Utilities::supportsBillCheck($utility)) {
+            $today = $this->today ?? date('Y-m-d');
+            $since = date('Y-m-d', (int)strtotime("$today -" . self::RECENT_MONTHS . ' months'));
+            $targets = $this->consumption->contractTargets($utility);
+            $groups = array_flip(array_map(fn($t) => (string)$t['id'], array_filter($targets, fn($t) => !empty($t['is_group']))));
+            foreach ($targets as $t) {
+                // ein Mitglied einer Gruppe mit Gruppenvertrag zählt in der Gruppe
+                if (empty($t['is_group']) && (isset($groups[(string)($t['meter_group_id'] ?? '')]) || ($t['capture'] ?? null) === 'period')) continue;
+                try {
+                    // nur die jüngste abgeschlossene Periode, wenn sie in den letzten RECENT_MONTHS endet (die Agenda fragt bei jeder Anfrage)
+                    $periods = $this->conflictPeriods->closedPeriods($utility, $t, $since, $today);
+                } catch (\Throwable) {
+                    continue;
+                }
+                foreach ($periods as $p) {
+                    $f = $p['advance_vs_cost'] ?? null;
+                    if ($f === null) continue;
+                    $cid = isset($f['contract_id']) ? (string)$f['contract_id'] : null;
+                    $pp = ['from' => $this->i18n->date((string)$p['from']), 'until' => $this->i18n->date((string)$p['until']),
+                           'advances' => $this->i18n->money((float)$p['advances']), 'cost' => $this->i18n->money((float)$p['cost']),
+                           'factor' => $this->i18n->number((float)$f['factor'], 1)];
+                    // v3.11.0 (Skeptiker N13) — derselbe Vertrag widerspricht einem anderen: ein Eintrag in „Zu tun“
+                    // für eine Ursache; der Faktor steht im Widerspruch mit, statt eines zweiten Eintrags
+                    if ($cid !== null && isset($byContract[$cid])) {
+                        $i = $byContract[$cid];
+                        $out[$i]['detail'] .= ' ' . $this->i18n->t($k . 'advanceAlso', $pp);
+                        $out[$i]['evidence']['advance_vs_cost'] = ['from' => (string)$p['from'], 'until' => (string)$p['until'], 'factor' => (float)$f['factor']];
+                        continue;
+                    }
+                    $name = $cid !== null && isset($byId[$cid])
+                        ? (implode(' · ', array_filter([(string)($byId[$cid]['provider'] ?? ''), (string)($byId[$cid]['tariff_name'] ?? '')], fn($s) => $s !== '')) ?: null) : null;
+                    $out[] = $this->mk('r_contract_conflict', [$utility, 'advance_vs_cost', (string)$t['id'], (string)$p['from']],
+                        'info', 'vertrag',
+                        $this->i18n->t($k . 'advanceTitle', ['label' => $label, 'factor' => $pp['factor']]),
+                        // v3.11.0 (Skeptiker N13) — mit dem Vertrag, der die Periode abrechnet
+                        $this->i18n->t($k . ($name !== null ? 'advanceOf' : 'advance'), $pp + ['contract' => (string)$name]),
+                        ['rule' => 'r_contract_conflict', 'kind' => 'advance_vs_cost', 'utility' => $utility, 'meter_id' => (string)$t['id'],
+                         'is_group' => !empty($t['is_group']), 'contract_id' => null, 'other_id' => null, 'billed_by' => $cid,
+                         'from' => (string)$p['from'], 'until' => (string)$p['until'], 'factor' => (float)$f['factor'],
+                         'href' => '#/utility/' . rawurlencode($utility) . (empty($t['is_group']) ? '?meter=' . rawurlencode((string)$t['id']) : '')]);
+                }
+            }
+        }
+        return $out;
+    }
+
+    /**
+     * v3.11.0 (F1035) — Befunde „Deine Rechte als Kunde“ als Empfehlung der Kategorie
+     * `recht`: nur im Fenster (`todo`, Grundsatz 5) und nicht von Hand erledigt (Vorkommen
+     * am Anlass `date`, wie AgendaService). ID = ID des Befunds, damit Ausblenden und
+     * „Zu tun“ (Agenda-Art `rights`) dieselbe Empfehlung meinen; `evidence.deadline` hält
+     * das Ausblenden mindestens bis zur Frist. Die Fußzeile steht in `evidence.footer`,
+     * die Normen mit Quelle in `evidence.norms`.
+     */
+    private function ruleRights(): array
+    {
+        if ($this->rights === null) return [];
+        $out = [];
+        foreach ($this->rights->findings($this->today ?? date('Y-m-d')) as $f) {
+            if (!$f['todo'] || $this->doneFor((string)$f['id'], (string)$f['date'])) continue;
+            $out[] = [
+                'id'       => $f['id'],
+                'severity' => $f['severity'],
+                'category' => 'recht',
+                'title'    => $f['title'],
+                'detail'   => $f['text'],
+                'evidence' => array_intersect_key($f, array_flip(RightsService::REF_FIELDS)) + [
+                    'check' => $f['check'], 'finding_id' => $f['id'], 'date' => $f['date'], 'deadline' => $f['deadline'],
+                    'amount_eur' => $f['amount_eur'], 'letter' => $f['letter'], 'norms' => $f['norms'], 'footer' => $f['footer'],
+                    'help' => $f['help'], 'href' => $f['href'],
+                ],
+            ];
         }
         return $out;
     }

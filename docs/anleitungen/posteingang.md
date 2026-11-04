@@ -265,9 +265,9 @@ bestätigst oder korrigierst. **„Übernehmen“** schreibt genau das Angehakte
 
 | Dokument | Vorschläge |
 |---|---|
-| Rechnung | Ablesung neu (und alt) — *(v3.7.0)* weist die Rechnung einen Stand als geschätzt aus (Wort wie „geschätzt“ oder ein Ablesecode, den sie selbst erklärt, etwa „S = geschätzt“), wird er als geschätzt angelegt — ebenso „hochgerechnet“, eine Fußnote wie „5)“ mit der Erklärung „5) hochgerechnet“, ein Code in einer Gruppe wie „10/12/26“ und ein Code in der Spalte „Ableseart“ oder „Ablesegrund“, wenn das Dokument ihn als Schätzung erklärt; auch aus den Ständen je Zähler, zugeordnet nach Zählernummer; stehen zwei Zähler auf der Rechnung (der zugeordnete und ein neuer), ein **Zählertausch** mit Endstand des alten und Anfangsstand des neuen Zählers, vorab angehakt, wenn Nummern, Tag und Stände zusammenpassen —, Rechnung erfassen (bei Gas mit Zustandszahl und Brennwert laut Rechnung für „Rechnung prüfen“), Ergebnis als Sonderzahlung buchen, neuer Abschlag am Vertrag desselben Versorgers, der dann gilt; bei Gas Zustandszahl und Brennwert je Zeitraum als Stichtag der [Gas-Umrechnung](../verstehen/01-gas.md); Arbeitspreise und Grundpreis: wie im Vertrag „schon vorhanden“, sonst als Vorschlag zum Prüfen; Marktlokation am Zähler, Vertrags- und Kundennummer am Vertrag. Ohne Vertrag dieses Versorgers *(v3.7.0)*: „Vertrag … aus dieser Rechnung anlegen“ als Angebot (Beginn = Beginn des Zeitraums, eine Schlussrechnung endet mit ihm), und gebucht wird nur an einen Vertrag des Versorgers — sonst lehnt die App ab, statt an einen fremden zu buchen. *(v3.9.0)* Gilt am Zähler gar kein Vertrag, ist dieser Vorschlag vorab angehakt, mit Preisen je Abschnitt und Abschlagsplan ([Vertrag aus der Rechnung](#vertrag-aus-der-rechnung-v390)) |
+| Rechnung | Ablesung neu (und alt) — *(v3.7.0)* weist die Rechnung einen Stand als geschätzt aus (Wort wie „geschätzt“ oder ein Ablesecode, den sie selbst erklärt, etwa „S = geschätzt“), wird er als geschätzt angelegt — ebenso „hochgerechnet“, eine Fußnote wie „5)“ mit der Erklärung „5) hochgerechnet“, ein Code in einer Gruppe wie „10/12/26“ und ein Code in der Spalte „Ableseart“ oder „Ablesegrund“, wenn das Dokument ihn als Schätzung erklärt; auch aus den Ständen je Zähler, zugeordnet nach Zählernummer; stehen zwei Zähler auf der Rechnung (der zugeordnete und ein neuer), ein **Zählertausch** mit Endstand des alten und Anfangsstand des neuen Zählers, vorab angehakt, wenn Nummern, Tag und Stände zusammenpassen —; *(v3.11.0)* den geschätzten **Endstand** der Rechnung legt der Posteingang nicht mehr als Ablesung an, sondern trägt ihn an der Rechnung ein („Geschätzter Endstand“): Er fließt nicht in deinen Verbrauch, die Prüfung „Schätzung trotz eigener Ablesung“ vergleicht ihn mit deinen Ablesungen —, Rechnung erfassen (bei Gas mit Zustandszahl und Brennwert laut Rechnung für „Rechnung prüfen“), Ergebnis als Sonderzahlung buchen, neuer Abschlag am Vertrag desselben Versorgers, der dann gilt; bei Gas Zustandszahl und Brennwert je Zeitraum als Stichtag der [Gas-Umrechnung](../verstehen/01-gas.md); Arbeitspreise und Grundpreis: wie im Vertrag „schon vorhanden“, sonst als Vorschlag zum Prüfen; Marktlokation am Zähler, Vertrags- und Kundennummer am Vertrag. *(v3.11.0)* Die Rechnungsnummer kommt an die Rechnung (Briefe nennen sie als Bezug); nennt die Rechnung, ob du in der Grundversorgung bist (Strom, Gas, Pflichtangabe nach § 40 Abs. 2 Satz 1 Nr. 13 EnWG), und steht am Vertrag noch keine Versorgungsart, schlägt der Posteingang sie vor: „Versorgungsart am Vertrag eintragen: Grundversorgung (laut Rechnung)“ bzw. „Sondervertrag“. Eine vorhandene Angabe bleibt. Ohne Vertrag dieses Versorgers *(v3.7.0)*: „Vertrag … aus dieser Rechnung anlegen“ als Angebot (Beginn = Beginn des Zeitraums, eine Schlussrechnung endet mit ihm), und gebucht wird nur an einen Vertrag des Versorgers — sonst lehnt die App ab, statt an einen fremden zu buchen. *(v3.9.0)* Gilt am Zähler gar kein Vertrag, ist dieser Vorschlag vorab angehakt, mit Preisen je Abschnitt und Abschlagsplan ([Vertrag aus der Rechnung](#vertrag-aus-der-rechnung-v390)) |
 | Vertragsbestätigung | neuer Vertrag mit Arbeitspreis, Grundpreis (je Jahr umgerechnet in je Monat), Abschlag, Mindestlaufzeit, Kündigungsfrist, Bonus, Preisgarantie, Vertrags- und Kundennummer — unsichere Nebenangaben bleiben offene Punkte; der bisherige Vertrag endet am Vortag — vorab angehakt *(v3.7.0)* bei einem Wechsel (anderer Versorger) oder Tarifwechsel (anderer Tarif oder andere Vertragsnummer) am selben Zähler, als Angebot bei einem Gruppenvertrag, an einem Unterzähler, bei offenbar demselben Vertrag und bei älteren Vorgängern; hat der bisherige ein späteres Ende, das eine Kündigung belegt, ist das ein Widerspruch |
-| Preisänderung | Arbeitspreis und Grundpreis ab dem Stichtag, Termin für das Sonderkündigungsrecht |
+| Preisänderung | Arbeitspreis und Grundpreis ab dem Stichtag, *(v3.11.0)* mit dem Datum des Schreibens, dem Steuersatz und „Kündigung bis …“ laut Schreiben am Preis; ein neuer Abschlag im Schreiben; der Termin der Sonderkündigung ([Preisänderung: deine Rechte](#preisänderung-deine-rechte-v3110)) |
 | Kündigung | Vertragsende, ohne Verlängerung; fehlt ein Anschlussvertrag, ein Termin „Anschlussvertrag abschließen“ 14 Tage vor dem Lieferende (näher am Lieferende: heute) |
 | Lieferbeginn | Zählerstand bei Beginn, Beginn des Vertrags; ohne Vertrag dieses Versorgers *(v3.7.0)* „Vertrag … anlegen“ als Angebot (die Preise bleiben offen) |
 | Zählerwechsel | Zählertausch mit Endstand und Anfangsstand (alles zu prüfen) |
@@ -353,6 +353,57 @@ Saldo, Vorschlag und Prognose damit rechnen, steht unter
 [Wasser](../verstehen/03-wasser.md#abschläge-alle-zwei-oder-drei-monate-v390);
 das gilt für jede Verbrauchsart.
 
+### Preisänderung: deine Rechte *(v3.11.0)*
+
+Ein Preisänderungsschreiben liest die App nicht nur aus, sie ordnet es auch ein.
+Das gilt für Strom und Gas in Deutschland; jeder Satz nennt seine Grundlage und
+endet mit „Hinweis, keine Rechtsberatung“, die Quellen stehen als Links darunter.
+
+- **Herkunft am Preis.** Die neuen Preise bekommen das Datum des Schreibens,
+  den Steuersatz und „Kündigung bis …“, wenn das Schreiben sie nennt. Daran
+  erkennt die App später, dass es eine Preisänderung des Versorgers war und kein
+  Stufenpreis aus dem Vertrag. Steht der Preis schon im Vertrag, aber ohne diese
+  Angaben, ergänzt der Vorschlag sie. Ein unsicher gelesenes Datum wird nicht
+  übernommen.
+- **Frist der Sonderkündigung.** Bei einer Erhöhung kannst du zum Tag der
+  Änderung kündigen; die Kündigung muss am Tag davor beim Versorger sein (Strom
+  und Gas, Sondervertrag und Grundversorgung). Nennt das Schreiben einen
+  früheren Tag, gilt der als Termin, und die App nennt beide Tage: Eine eigene,
+  kürzere Frist darf der Versorger nicht setzen. Ist der frühere Tag vorbei,
+  zählt wieder der gesetzliche. Den Termin gibt es nur einmal: In Deutschland
+  legt ihn „Deine Rechte als Kunde“ unter „Zu tun“ und im Kalender an, sobald
+  die neuen Preise im Vertrag stehen, mit beiden Tagen im Text; der Posteingang
+  schlägt dann keinen eigenen Termin vor. Ein vergangener Termin entsteht nicht.
+- **Ankündigung.** Die App vergleicht das Datum des Schreibens mit dem Tag der
+  Änderung: beim Sondervertrag mindestens einen Monat, in der Grundversorgung
+  mindestens sechs Wochen und nur zum Monatsbeginn. Ist unbekannt, welche Art
+  du hast, meldet sie nur, wenn auch der eine Monat verfehlt ist. Ob die
+  Erhöhung dann wirksam ist, sagt die App nicht; sie rät, dich beraten zu lassen.
+- **Nur die Umsatzsteuer.** Ist der Nettopreis gleich und nur der Steuersatz
+  anders, gibt es beim Sondervertrag kein Sonderkündigungsrecht, und die App
+  schlägt keinen Termin vor. Den alten Steuersatz nimmt sie vom Preis im Vertrag
+  (aus einem früheren Schreiben oder von dir eingetragen); sie vermutet ihn nie.
+  Fehlt er, behandelt sie die Änderung wie eine Erhöhung.
+- **Grundversorgung oder Sondervertrag.** Die Art steht am Vertrag; fehlt sie
+  dort, nimmt die App die Angabe aus dem Schreiben. Ohne beides nennt sie beide
+  Wege kurz.
+- **Zweitarif (HT/NT).** Hat der Vertrag Arbeitspreise je Zähler, schreibt der
+  Vorschlag den Preis in die Liste des zugeordneten Zählers und ist nicht vorab
+  angehakt: Welches Zählwerk der Preis meint, sagt das Schreiben nicht sicher.
+- **Abschlag im Schreiben.** Ein neuer Abschlag wird wie eine Abschlagsänderung
+  vorgeschlagen, ab dem Tag, den das Schreiben nennt, sonst ab dem Tag der
+  Preisänderung (mit Hinweis). Steigt er um mehr als 5 Prozentpunkte stärker als
+  die Kosten laut Prognose, nennt die App die Regel zum Abschlag: in der
+  Grundversorgung die Anpassung um den Prozentsatz der Preisänderung, beim
+  Sondervertrag den Verbrauch der letzten Abrechnung.
+- **Fernwärme** bekommt einen kurzen Hinweis auf die Preisänderungsklausel, ohne
+  Sonderkündigungsrecht und ohne Termin.
+
+Die Kosten zeigt die Karte als Vorschau, bevor du etwas übernimmst: Mehrkosten
+im Jahr mit Spanne und was ein Jahr zu den neuen Preisen kostet. Beides rechnet
+mit derselben Menge wie der Tarifvergleich; nach dem Übernehmen kommt der
+Tarifvergleich auf dieselben Beträge.
+
 ---
 
 ## Was heißt das für dich?
@@ -365,7 +416,7 @@ rechnen — nichts wird geschätzt, was die App nicht schon weiß.
 
 | Dokument | Satz und Zahl | Knopf |
 |---|---|---|
-| Preisänderung | Mehr- oder Minderkosten **im Jahr**: Unterschied im Arbeitspreis × erwarteter Verbrauch der nächsten zwölf Monate (dieselbe Prognose wie im [Tarifvergleich](../referenz/ansichten.md)) + Unterschied im Grundpreis × 12. Der alte Preis kommt aus dem Brief, sonst aus dem Vertrag am Tag davor. Darunter die Frist des Sonderkündigungsrechts, wenn der Brief sie nennt. | Spart ein gespeichertes Angebot laut Wechselentscheidung: **„Wechsel spart rund … – Tarife vergleichen“**; sonst „Neue Preise übernehmen“ |
+| Preisänderung | Mehr- oder Minderkosten **im Jahr**: Unterschied im Arbeitspreis × erwarteter Verbrauch der nächsten zwölf Monate (dieselbe Prognose wie im [Tarifvergleich](../referenz/ansichten.md)) + Unterschied im Grundpreis × 12. Der alte Preis kommt aus dem Brief, sonst aus dem Vertrag am Tag davor. *(v3.11.0)* Dazu die Spanne je nach Wetter und Verbrauch (aus dem Jahresband der Prognose), was ein Jahr zu den neuen Preisen kostet und wie viel das im Monat ist, und sichtbar in der Karte deine Rechte: Frist der Sonderkündigung, Ankündigung, Steueränderung ([Preisänderung: deine Rechte](#preisänderung-deine-rechte-v3110)). Ohne gesetzliche Frist (anderes Land, Fernwärme) die Frist des Sonderkündigungsrechts, wenn der Brief sie nennt. | Spart ein gespeichertes Angebot laut Wechselentscheidung: **„Wechsel spart rund … – Tarife vergleichen“**; sonst „Neue Preise übernehmen“ |
 | Rechnung | vor der Übernahme Nachzahlung oder Guthaben laut Rechnung; **nach der Übernahme läuft „Rechnung prüfen“ von selbst**: „passt zu deinen Daten“, „liegt … über/unter deiner eigenen Rechnung“ oder *(v3.7.0)* „im Vertrag fehlen Preise“ mit den Abschnitten ohne Preis, dazu die Gründe (etwa geschätzter Zählerstand an der Grenze) | „Übernehmen und prüfen“, danach bei einer Abweichung „Rechnung prüfen“, ohne Preise „Preise im Vertrag eintragen“ |
 | Abschlagsänderung | neuer Abschlag gegen den Abschlag, mit dem die laufende Abrechnung bei null endet (Abschlag laut Plan + erwarteter Endsaldo ÷ Monate bis zur Abrechnung): **passt**, **zu hoch** oder **zu niedrig** um rund … im Monat. „Passt“ heißt: Der Rest am Ende bliebe unter 50 € bzw. einem Abschlag — dieselbe Schwelle wie im [Jahresbericht](jahresbericht-lesen.md). *(v3.9.0)* Mit Rhythmus zählen die Raten bis zur Abrechnung statt der Monate, und das Urteil gilt je Termin. | „Abschlag übernehmen“ |
 | Kündigung | Lieferende; ohne Anschlussvertrag „ein Anschlussvertrag fehlt noch“ und der Termin aus den Vorschlägen | „Anschlussvertrag finden“ (Tarifvergleich) |

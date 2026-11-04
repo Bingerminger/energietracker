@@ -537,6 +537,7 @@ async function rerender(container) {
       </div>
       ${interpText ? `<p class="banner banner--info small" data-role="interpolation-note"><span aria-hidden="true">${MARK}</span> ${escapeHtml(interpText)}</p>` : ''}
       ${billing && sel.price_missing ? `<p class="banner banner--warning small" data-role="period-price-missing">${escapeHtml(t('priceMissing.period'))}</p>` : ''}
+      ${billing ? periodConflictHtml(sel, u) : ''}
       <div class="chart-wrap h300"><canvas id="month-chart"></canvas></div>
       <p class="chart-note" data-role="month-chart-note">${monthChartNote(monthlyYear, chartMode)}</p>
     </div>
@@ -813,7 +814,8 @@ function uncertainBalanceText(unc, date) {
 }
 
 // ── Saldo-Karte aktueller Vertrag ───────────────────────────────────
-function balanceCard(c, u, country = 'DE') {
+// v3.11.0 (Nachprüfung) — exportiert für tests/rights.test.mjs (Hinweise zu Verlängerung und Kündigungstag)
+export function balanceCard(c, u, country = 'DE') {
   // P-PV-01 — feed_in (PV-Einspeisung): „Saldo" ist ein Vergütungs-Erlös.
   // Verdict-Farben und Saldo-Vorzeichen-Deutung kippen: positiver Saldo
   // ist gut (grün), nicht warnend (rot).
@@ -916,7 +918,20 @@ function balanceCard(c, u, country = 'DE') {
       ? t('utility.balance.sincePeriod', { date: fmt.date(c.balance_from), until: fmt.date(settle) })
       : t('utility.balance.sinceBill', { date: fmt.date(c.balance_from) }));
   }
-  if (c.renewed) notes.push(t('utility.balance.renewed', { date: fmt.date(c.end) }));
+  // v3.11.0 (Skeptiker H3) — ohne „zu den letzten Preisen“ und ohne „höchstens einen Monat“; Fernwärme nach
+  // § 32 AVBFernwärmeV mit Ende der Verlängerung und Kündigungstag (`renewal_term`)
+  // v3.11.0 (Nachprüfung NP4) — mit Folgevertrag gilt dieser, kein Ende einer Verlängerung; Grundversorgung mit
+  // zwei Wochen Frist (§ 20 StromGVV/GasGVV, Prüfbericht 26) statt „steht im Vertrag“
+  if (c.renewed) {
+    const succ = c.successor && c.successor.start ? c.successor : null;
+    notes.push(succ
+      ? t('utility.balance.renewedSuccessor', { date: fmt.date(c.end), start: fmt.date(succ.start) })
+      : c.notice_basis === 'renewal_term' && c.switch_date && c.cancel_by
+        ? t('utility.balance.renewedHeat', { date: fmt.date(c.end), until: fmt.date(addDaysIso(c.switch_date, -1)), cancel: fmt.date(c.cancel_by) })
+        : c.notice_basis === 'basic_supply' && c.switch_date
+          ? t('utility.balance.renewedBasic', { date: fmt.date(c.end), gvv: u.key === 'gas' ? 'GasGVV' : 'StromGVV', earliest: fmt.date(addDaysIso(c.switch_date, -1)) })
+          : t('utility.balance.renewed', { date: fmt.date(c.end) }));
+  }
   // v3.10.0 (Wirklichkeitsabgleich) — dieselbe Abrechnung rechnet weitere Verträge ab (Tarifwechsel
   // beim selben Versorger): „Erwartet bei Abrechnung“ zählt sie mit, hier stehen Zeitraum und Saldo
   if (!isFeedIn && exp?.settled && Array.isArray(c.settle_parts)) {
@@ -933,14 +948,21 @@ function balanceCard(c, u, country = 'DE') {
   if (c.price_missing) notes.push(t('priceMissing.contract'));
   // v3.9.0 (F1032, #40) — Rest-Abrechnung: wie der Vertrag rechnet (gemessen − Subzähler)
   if (c.rest_of) notes.push(restNoteText(c.rest_of, u.consumption_unit));
-  if (c.cancel_missed) notes.push(t('utility.balance.cancelMissed', { date: fmt.date(c.cancel_by), end: fmt.date(c.end) }));
+  // v3.11.0 (Nachprüfung NP3) — Fernwärme ohne eingetragene Frist: verlängert sich nach § 32 AVBFernwärmeV, bis wann
+  // und der nächste Kündigungstag (`renewal_term`)
+  if (c.cancel_missed) notes.push(c.renewal_term
+    ? t('utility.balance.cancelMissedHeat', { date: fmt.date(c.cancel_by), end: fmt.date(c.end), until: fmt.date(c.renewal_term.until), cancel: fmt.date(c.renewal_term.cancel_by) })
+    : t('utility.balance.cancelMissed', { date: fmt.date(c.cancel_by), end: fmt.date(c.end) }));
   if (c.price_increase) {
     const pi = c.price_increase;
     const what = [];
     if (pi.working_price_ct) what.push(t('utility.balance.piWorking', { from: fmt.num(pi.working_price_ct[0], 2), to: fmt.num(pi.working_price_ct[1], 2) }));
     if (pi.base_price_eur) what.push(t('utility.balance.piBase', { from: fmt.num(pi.base_price_eur[0], 2), to: fmt.num(pi.base_price_eur[1], 2) }));
-    notes.push(t('utility.balance.priceIncrease', { date: fmt.date(pi.from), what: what.join(', ') })
-      + (country === 'DE' ? ' ' + t('utility.balance.priceIncreaseDe') : ''));
+    // v3.11.0 (F1035, Paket vertrag, B1/B3/B4) — der Rechtshinweis nach Verbrauchs- und Versorgungsart aus dem
+    // Vertragsstatus (`notes`: Sondervertrag, Grundversorgung, unbekannt, Stufenpreis, reine Steueränderung,
+    // Fernwärme); bis v3.10 nannte jede Erhöhung § 41 Abs. 5 EnWG, auch bei Fernwärme
+    const legal = country === 'DE' ? (pi.notes || []).map(k => t('rights.priceNote.' + k, pi.note_params || {})) : [];
+    notes.push([t('utility.balance.priceIncrease', { date: fmt.date(pi.from), what: what.join(', ') }), ...legal].join(' '));
   }
   const notesHtml = notes.map(n => `<p class="balance-note">${escapeHtml(n)}</p>`).join('');
 
@@ -1254,7 +1276,15 @@ function renderWaterComponentRow(components) {
 }
 
 // ── Vertragstabelle ─────────────────────────────────────────────────
-function contractsTable(contracts, u) {
+/**
+ * v3.11.0 (Nachprüfung NP7) — der Bonus einer Zeile von „Verträge & Abschläge“: derselbe wie in „Verbraucht“ und im
+ * Saldo der Zeile (`cost_to_date` zählt `bonus_to_date`, tagesgenau nach Gutschriftstag); ohne Prognose die Summe
+ * der Monate (`actual_bonus_total`, seit der Nachprüfung ebenfalls tagesgenau am Beginn der Zeile).
+ */
+export const contractRowBonus = (c) => c.bonus_to_date ?? c.actual_bonus_total;
+
+// v3.11.0 (Nachprüfung) — exportiert für tests/rights.test.mjs
+export function contractsTable(contracts, u) {
   if (!contracts || !contracts.length) {
     return `<div class="empty" style="padding:32px 20px">
       <div class="empty-icon">📑</div>
@@ -1299,7 +1329,10 @@ function contractsTable(contracts, u) {
       if (c.current_base_price_eur   != null) tariffParts.push(t('utility.contractsTable.gpSuffix', { value: fmt.num(c.current_base_price_eur, 2) }));
       // Je Preis eine Zeile, ohne Umbruch darin (sonst „Grundpreis 11,90 / €/Monat“)
       const tariffStr = tariffParts.length ? tariffParts.map(p => `<span class="tariff-part">${p}</span>`).join('<br>') : '–';
-      const bonusStr = c.actual_bonus_total > 0 ? fmt.eur(c.actual_bonus_total) : '–';
+      // v3.11.0 (Nachprüfung NP7) — derselbe Bonus wie in „Verbraucht“ und im Saldo der Zeile; bis dahin ein
+      // Tagesanteil des Monats (75 € × 16/31), der in keinem Saldo stand
+      const bonus = contractRowBonus(c);
+      const bonusStr = bonus > 0 ? fmt.eur(bonus) : '–';
       return `<tr data-group-row data-contract-id="${escapeHtml(c.contract_id || '')}"${hidden ? ' hidden' : ''}>
         <td class="provider-cell">${escapeHtml(c.provider || '–')}${c.tariff_name ? `<small>${escapeHtml(c.tariff_name)}</small>` : ''}</td>
         <td class="period-cell">${period}</td>
@@ -2450,6 +2483,21 @@ function monthChartLabel(u, year, labels, values, prev = [], adjusted = false, n
     text += ' ' + tp('utility.chart.altPrev', pairs.length, { year: names ? names.prev : year - 1, total: unit(pairs.reduce((a, [, p]) => a + Number(p), 0)), months: pairs.length });
   }
   return text;
+}
+
+/**
+ * v3.11.0 (D, #54) — im Abrechnungsjahr: „Angenommen: …“ für Abschnitte, die ein Vertrag nur durch
+ * Fortschreibung über sein Ende rechnet, während ein anderer laut Eintrag diese Zeit beansprucht
+ * (`assumed` der Periode), und Abschläge ein Vielfaches der Kosten (`advance_vs_cost`). Gerechnet wird
+ * unverändert; der Link führt zu den Verträgen, wo der Befund steht.
+ */
+function periodConflictHtml(p, u) {
+  const lines = (p?.assumed || []).map(a => t('contracts.assumedPeriod', { from: fmt.date(a.from), until: fmt.date(a.until),
+    name: a.name || t('contracts.card.fallbackProvider'), other: a.claimed_name || t('contracts.card.fallbackProvider'), otherEnd: fmt.date(a.claimed_until) }));
+  if (p?.advance_vs_cost) lines.push(t('contracts.advanceVsCost', { factor: fmt.num(Number(p.advance_vs_cost.factor), 1) }));
+  if (!lines.length) return '';
+  return `<p class="banner banner--warning small" data-role="period-assumed">${lines.map(escapeHtml).join(' ')}
+    <a href="#/utility/${escapeHtml(u.key)}/contracts">${escapeHtml(t('contracts.conflict.check'))}</a></p>`;
 }
 
 /** Hinweis unter dem Monatschart: Teilmonate und, bereinigt, was die Zahlen bedeuten. */

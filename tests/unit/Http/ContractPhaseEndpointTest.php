@@ -32,7 +32,8 @@ final class ContractPhaseEndpointTest extends HttpServerTestCase
         self::assertSame(['past', 'renewed', 'future', 'shadow'],
             [$list[$past]['phase'], $list[$renewed]['phase'], $list[$future]['phase'], $list[$shadow]['phase']]);
         self::assertSame(30.0, (float)$list[$renewed]['values_on']['working_price_ct']);
-        self::assertSame(($y - 1) . '-12-31', $list[$renewed]['values_on']['date']);
+        // v3.11.0 (Skeptiker H1) — verlängert: die Werte von heute (eine Preisänderung nach dem Ende gilt), nicht vom letzten Tag
+        self::assertGreaterThan(($y - 1) . '-12-31', $list[$renewed]['values_on']['date']);
         self::assertSame('renewed', $this->json('GET', "/api/utility/strom/contracts/$renewed")['phase'] ?? null);
         self::assertSame('renewed', array_column($this->json('GET', "/api/utility/strom/contracts?meter_id=$meterId"), 'phase', 'id')[$renewed] ?? null);
 

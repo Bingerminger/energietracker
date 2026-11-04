@@ -35,10 +35,20 @@ export function phaseOf(c) {
   return GROUP_OF[c?.phase] ? c.phase : 'current';
 }
 
+/**
+ * v3.11.0 (Skeptiker N9) — abgelöst: Ein späterer Vertrag desselben Ziels beginnt vor dem eingetragenen
+ * Ende (`coverage.superseded_on` vom Server). Dann „Abgelöst“ statt „Beendet“ und das wirksame Ende.
+ */
+export function supersededOn(c) {
+  const s = c?.coverage?.superseded_on;
+  return phaseOf(c) === 'past' && typeof s === 'string' && (!c.end || String(c.end) > s) ? s : null;
+}
+
 /** Statusmarke eines Vertrags — in beiden Listen dieselbe. */
 export function phasePill(c) {
   const phase = phaseOf(c);
-  return `<span class="status-pill ${PHASE_PILL[phase]}" data-phase="${phase}">${escapeHtml(t('contracts.phase.' + phase))}</span>`;
+  const label = supersededOn(c) ? t('contracts.phase.superseded') : t('contracts.phase.' + phase);
+  return `<span class="status-pill ${PHASE_PILL[phase]}" data-phase="${phase}">${escapeHtml(label)}</span>`;
 }
 
 /** Gruppe eines Vertrags (`future`, `current`, `past`, `shadow`). */
@@ -87,7 +97,7 @@ export function groupContracts(list) {
  */
 export function yearsOf(c) {
   const a = startKey(c).slice(0, 4);
-  const b = String(c?.end || '').slice(0, 4);
+  const b = String(supersededOn(c) || c?.end || '').slice(0, 4);   // v3.11.0 (N9) — wirksames Ende
   if (!a) return { span: '' };
   if (!b) return { since: a };
   return { span: a === b ? a : `${a}–${b}` };

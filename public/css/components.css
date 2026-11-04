@@ -248,6 +248,11 @@ fieldset.fgroup, .fgroup {
 .rowlist__row > .rowlist__del { grid-column: -2 / -1; grid-row: 1; justify-self: end; }
 .rowlist__row .btn--icon { min-width: var(--control-h); justify-content: center; }
 .rowlist__row > .rowlist__sub { grid-column: 1 / -2; }
+/* v3.11.0 (F1035, Paket vertrag) — unter einer Preiszeile: „Schreiben vom“ und Steuersatz, immer beschriftet */
+.entry-origin { display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-3); align-items: center; font-size: var(--fs-sm, .875rem); }
+.entry-origin__field { display: inline-flex; align-items: center; gap: var(--sp-1); }
+.entry-origin__field > .input { width: auto; min-width: 0; }
+.entry-origin__field > .input[data-role="vat-pct"] { width: 5rem; }
 .rowlist__row + .rowlist__row > .field:not(.rowlist__sub) > :is(label, .label) {
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
   overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
@@ -255,6 +260,8 @@ fieldset.fgroup, .fgroup {
 .rowlist--period { --row-cols: 10.5rem 10.5rem 9rem minmax(0, 1fr) auto; }
 .rowlist--tou    { --row-cols: 7.5rem 7.5rem 8rem minmax(0, 1fr) auto; }
 .rowlist--label  { --row-cols: minmax(0, 1fr) 9rem auto; }
+/* v3.11.0 (Paket rechnung) — Posten einer Rechnung: Bezeichnung | Betrag | Art | netto/brutto | Satz | ✕ */
+.rowlist--item   { --row-cols: minmax(0, 1fr) 8rem 10rem 8rem 6.5rem auto; }
 .rowlist--three  { --row-cols: 10.5rem 9rem 9rem minmax(0, 1fr) auto; }
 .rowlist--four   { --row-cols: 10.5rem 8rem 8rem 8rem minmax(0, 1fr) auto; }
 .rowlist--pos    { --row-cols: minmax(0, 1fr) 10rem 8rem 8rem auto; }
@@ -1089,6 +1096,9 @@ fieldset.settings-field > legend {
 .rec-card__dismiss { margin-left: auto; }
 .rec-card__title { font-weight: 600; margin-bottom: 4px; }
 .rec-card__detail { font-size: var(--fs-sm); color: var(--text-2); line-height: 1.5; }
+/* v3.11.0 (Rechte als Kunde) — „Brief entwerfen“ und „Was die App prüft“ nebeneinander */
+.rec-card__actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3); margin-top: var(--sp-2); }
+.rec-card__actions [data-role="rights-doc"] { font-size: var(--fs-sm); }
 
 /* Generische Datentabelle */
 .data-table {
@@ -2279,3 +2289,16 @@ a.kpi__trend--check:hover, a.kpi__trend--check:focus-visible { text-decoration: 
   .ws-chip, .ws__controls .input, .ws__controls select, .ws__controls input[type="text"],
   .ws__controls input[type="number"], .ws-range input[type="range"] { min-height: 44px; }
 }
+/* v3.11.0 (F1036) — Dialog „Brief entwerfen“: Vorschau wie ein Blatt, Bestätigung abgesetzt */
+.letter-dialog__what { margin: 0 0 var(--sp-2); }
+.letter-dialog__confirm { border: 1px solid var(--warning); background: var(--warning-soft); border-radius: var(--r-md); padding: var(--sp-3); margin: 0 0 var(--sp-4); }
+.letter-dialog__confirm p { margin: var(--sp-2) 0 0; }
+.letter-dialog__refs { border: 0; padding: 0; margin: 0; min-width: 0; }
+.letter-dialog__refs > legend { font-weight: 700; padding: 0; margin: 0 0 var(--sp-2); }
+.letter-dialog__h { font-size: var(--fs-md); margin: var(--sp-2) 0; }
+.letter-preview { white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--font-sans); font-size: var(--fs-sm); line-height: 1.5;
+  background: var(--bg-1); color: var(--text-1); border: 1px solid var(--border-1); border-radius: var(--r-md);
+  padding: var(--sp-4); margin: 0; max-height: 24rem; overflow: auto; }
+/* vier Knöpfe: am Telefon zwei Zeilen statt über den Rand */
+.modal__foot:has(.letter-dialog__sent) { flex-wrap: wrap; }
+@media (max-width: 600px) { .modal__foot:has(.letter-dialog__sent) .btn { flex: 1 1 40%; } }

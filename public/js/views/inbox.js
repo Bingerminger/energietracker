@@ -33,8 +33,9 @@ import {
   openCount, TYPES, typeLabel, statusLabel, fieldLabel, reasonText, valueText, itemText,
   proposalText, detailText, orderedFields, manualTargets,
   gistText, gistFigure, gistActionLabel, gistDetails,
-  proposalLines,
+  proposalLines, gistRightsLines,
 } from '../lib/inbox.js';   // v3.9.0 (F1034) — proposalLines: Aufschlüsselung der Preise im Vorschlag
+import { rightsFooterHtml } from '../lib/letter.js';   // v3.11.0 (F1035, C) — Fußzeile mit den Quellen
 import { openDocDock } from '../components/doc-dock.js';
 import { draftEntryHtml } from '../lib/inbox-draft.js';   // v3.7.0 (Haushalt aus Dokumenten)
 import { readingSetupButtonHtml, openReadingSetup } from '../components/reading-setup.js';   // v3.7.0 — „Auslesen einrichten“ als Dialog
@@ -74,10 +75,26 @@ function gistCardHtml(g, extra = '') {
     <h2 class="card__title">${esc(t('inbox.gist.title'))}</h2>
     ${figure ? `<p class="inbox-gist__figure" data-role="gist-figure">${esc(figure)}</p>` : ''}
     <p class="inbox-gist__text" data-role="gist-text">${esc(gistText(g))}</p>
+    ${gistRightsHtml(g)}
     ${extra}
     ${g.action ? `<p class="inbox-gist__action">${gistActionHtml(g)}</p>` : `<p class="muted small">${esc(t('inbox.gist.nothingToDo'))}</p>`}
     ${details.length ? `<details class="inbox-gist__more"><summary>${esc(t('inbox.gist.more'))}</summary>
       <ul>${details.map(d => `<li>${esc(d)}</li>`).join('')}</ul></details>` : ''}
+  </div>`;
+}
+
+/**
+ * v3.11.0 (F1035, C) — „Deine Rechte als Kunde“ bei einer Preisänderung: Frist der
+ * Sonderkündigung, Ankündigung, reine Steueränderung, Abschlag. Sichtbar, nicht unter
+ * „Mehr dazu“, mit „Hinweis, keine Rechtsberatung“ und den Quellen als Links.
+ */
+function gistRightsHtml(g) {
+  const lines = gistRightsLines(g);
+  if (!lines.length) return '';
+  return `<div class="inbox-gist__rights" data-role="gist-rights">
+    <p class="small"><strong>${esc(t('rights.title'))}</strong></p>
+    <ul class="small">${lines.map(l => `<li>${esc(l)}</li>`).join('')}</ul>
+    ${rightsFooterHtml({ norms: g.rights.norms, help: t(g.rights.energy ? 'rights.helpEnergy' : 'rights.help') })}
   </div>`;
 }
 
@@ -545,6 +562,10 @@ async function renderDetail(container, rawId, ctx = {}) {
         const res = await api.inboxApply(id, ids);
         if (res.applied.length) toastOk(tp('inbox.toast.applied', res.applied.length));
         if (res.failed.length) toastErr(res.failed.map(f => f.error).join(' · '));
+        // v3.11.0 (Nachprüfung NP5) — wie das Formular: Warnung, wenn der geschätzte Endstand rückwärts liefe
+        for (const a of res.applied) {
+          if ((a.warnings || []).includes('estimated_reading_backwards') && a.estimated_reading_neighbor) toastErr(backwardsText(a.estimated_reading_neighbor, utilities.find(x => x.key === pv.assignment?.utility)?.unit));
+        }
         // v3.7.0 (Paket betrieb) — eine Rechnung ist danach geprüft: das Urteil gleich nennen
         if (res.gist?.check?.verdict) (res.gist.check.verdict === 'ok' ? toastOk : toastWarn)(gistText(res.gist));
         pv = await api.inboxEntry(id);
@@ -655,8 +676,14 @@ function fieldsHtml(pv, fields) {
   </div>`;
 }
 
+/**
+ * v3.11.0 (Nachprüfung NP5) — der geschätzte Endstand der Rechnung liefe gegen eine eigene Ablesung rückwärts:
+ * derselbe Satz wie beim Speichern in „Rechnung prüfen“, Stand mit Tausenderpunkt.
+ */
+export const backwardsText = (n, unit) => t('billCheck.estimatedBackwards', { date: fmt.date(n.date), counter: fmt.dec(n.counter, 3), unit: unit || '' });
+
 /** Die vorgeschlagenen Änderungen mit Abgleich; angehakt ist, was neu und unmarkiert ist. */
-function proposalsHtml(pv, unit) {
+export function proposalsHtml(pv, unit) {   // v3.11.0 (Nachprüfung) — exportiert für tests/rights.test.mjs
   const list = pv.proposals || [];
   const body = list.length
     ? `<ul class="inbox-proposals" id="inbox-proposals">${list.map(p => {
@@ -677,6 +704,7 @@ function proposalsHtml(pv, unit) {
           ${detail ? `<p class="inbox-proposal__detail">${esc(detail)}</p>` : ''}
           ${proposalLines(p).length ? `<ul class="inbox-proposal__lines" data-role="lines">${proposalLines(p).map(l => `<li>${esc(l)}</li>`).join('')}</ul>` : ''}
           ${proposalNotes(p).map(n => `<p class="inbox-proposal__detail" data-role="note">${esc(n)}</p>`).join('')}
+          ${p.estimate_backwards ? `<p class="inbox-proposal__detail warning-text" data-role="estimate-backwards">${esc(backwardsText(p.estimate_backwards, unit))}</p>` : ''}
         </li>`;
       }).join('')}</ul>
       <p><button type="button" class="btn btn--primary" id="inbox-apply"${DEMO ? ' disabled' : ''}>${esc(tp('inbox.applyButton', list.filter(p => p.checked).length))}</button>

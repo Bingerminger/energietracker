@@ -104,7 +104,8 @@ async function enumerate(get, post = null) {
     '/api/people',                            // v3.5.0 (F1028) — Personen für „Zuständig“; v3.6.0 aus dem Verzeichnis
     '/api/users',                             // v3.6.0 — Einstellungen → Zugriff: Personen ohne Zugang
     '/api/inbox/cloud',                       // v3.7.0 (cloud) — Einstellungen → Experte: Auslesen in der Cloud (aus)
-    '/api/homeassistant/notify');             // v3.9.0 (F1033) — Einstellungen → Integrationen: Benachrichtigungen (aus)
+    '/api/homeassistant/notify',              // v3.9.0 (F1033) — Einstellungen → Integrationen: Benachrichtigungen (aus)
+    '/api/rights');                           // v3.11.0 (F1035) — Rechte als Kunde (Ansichten filtern im Browser)
   // v3.6.0 — Vorschau „Person löschen“ je Person (Löschen selbst lehnt die Demo ab)
   for (const p of (await get('/api/people')).json?.data ?? []) add(`/api/users/${p.id}/handover`);
   // v3.7.0 — Posteingang: Liste, Prüfliste und die Vorschau je Dokument (vorberechnete Auslesung)
@@ -305,6 +306,22 @@ async function conceptPresets(get, post, lang) {
   return out;
 }
 
+/**
+ * v3.11.0 (F1036, Paket doku) — erster Entwurf je Befund mit Brief, so wie der Dialog ihn
+ * anfragt (components/letter-dialog.js `body()` ohne Absender und Ort, api.letterRender mit
+ * `format: 'text'`; den Widerspruch erst nach der Bestätigung). Weitere Eingaben und das PDF
+ * rechnet die Demo nicht (lib/demo-mode.js: `demo.letterPresetsOnly`).
+ * @returns {Promise<object[]>}
+ */
+async function letterPresets(get, lang) {
+  const findings = (await get('/api/rights', lang)).json?.data?.findings ?? [];
+  return findings.filter(f => f.letter).map(f => ({
+    finding_id: f.id, kind: f.letter, sender: [], place: '',
+    ...(f.letter === 'objection' ? { extra: { confirm_objection: true } } : {}),
+    format: 'text',
+  }));
+}
+
 export async function buildDemo({ out = join(ROOT, 'dist', 'demo'), port = 8896, log = console.log } = {}) {
   const dataDir = mkdtempSync(join(tmpdir(), 'et-demo-'));
   const { proc, base } = await startServer(port, dataDir);
@@ -409,6 +426,16 @@ export async function buildDemo({ out = join(ROOT, 'dist', 'demo'), port = 8896,
           stats.concepts = (stats.concepts || 0) + 1;
         }
         writeFileSync(join(dir, `concepts-${lang}.json`), JSON.stringify(conceptIndex));
+        // v3.11.0 (F1036, Paket doku) — erster Briefentwurf je Befund (Titel und Text in dieser Sprache)
+        const letterIndex = {};
+        for (const body of await letterPresets(get, lang)) {
+          let text;
+          try { text = asStored(await post('/api/letters/render', body, lang)); }
+          catch (e) { throw new Error(`Brief ${body.kind} (${persona}, ${lang}): ${e.message}`); }
+          letterIndex[demoBodyKey('/api/letters/render', body)] = store(text);
+          stats.letters = (stats.letters || 0) + 1;
+        }
+        writeFileSync(join(dir, `letters-${lang}.json`), JSON.stringify(letterIndex));
         // Datei-Downloads dieser Sprache, solange ihre Daten geladen sind
         for (const f of found.files) {
           // „local" in der Sprache der Demo (im Betrieb: Standardsprache der Installation)
@@ -470,6 +497,7 @@ export async function buildDemo({ out = join(ROOT, 'dist', 'demo'), port = 8896,
       version, today: localToday(), built_at: new Date().toISOString(),
       schema: health.schema_version ?? null, languages, years, keys: keys.length, varying: varying.length, personas,
       docs: stats.docs, doc_images: stats.docImages, scenarios: stats.scenarios || 0, concepts: stats.concepts || 0,
+      letters: stats.letters || 0,   // v3.11.0 (F1036)
     }, null, 1));
     log(`Demo gebaut: ${keys.length} Anfragen (${varying.length} sprachabhängig), ` +
       `${stored.size} Antworten, ${stats.files} Dateien, Handbuch ${stats.docs} Seiten + ${stats.docImages} Bilder, ` +

@@ -142,12 +142,16 @@ the comparison portal and the switch date. Since v3.1.0 it also shows, under
 **“Have ready for switching”**, the details the new supplier asks for — market
 location ID, meter number and last meter reading — to copy. You enter the
 market location ID (11 digits, on the bill) once in the meter dialog; the app
-rejects a wrong check digit. If your supplier announces a price increase and
-you enter it on the contract as a new price row with its date, the app reminds
-you of the special right to terminate as of that day (§ 41(5) EnWG). And when
-you save a new contract it
-points out a minimum term longer than 24 months — invalid for consumers in
-Germany (§ 309 no. 9 BGB). These are notes, not legal advice.
+rejects a wrong check digit. If your electricity or gas supplier announces a
+price increase and you enter it on the contract as a new price row with its
+date (plus “Letter dated”), the app reminds you of the special right to
+terminate as of that day: under a special contract by § 41(5) EnWG, in basic
+supply by § 5(3) StromGVV or GasGVV. The termination must reach the supplier
+before then; the app sets a deadline on the day before. This right does not
+apply to district heating, and a pure change of VAT gives none under a special
+contract (§ 41(6) EnWG). When you save an electricity or gas contract it points
+out a minimum term longer than 24 months (§ 309 no. 9 BGB), for district heating
+only beyond ten years (§ 32 AVBFernwärmeV). These are notes, not legal advice.
 
 ### Is a dynamic electricity tariff worth it?
 

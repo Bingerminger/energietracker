@@ -53,8 +53,8 @@ final class HomeAssistantNotifyService
     public const DOC_DEBOUNCE_S = 60;
     public const RETRY_S = 1800;
     public const HORIZON_DAYS = 365;
-    /** Empfehlungen dieser Kategorien stehen schon als Punkt in „Zu tun“ (Frist, Bestand). */
-    private const IN_TODO = ['vertrag', 'bestand'];
+    /** Empfehlungen dieser Kategorien stehen schon als Punkt in „Zu tun“ (Frist, Bestand; v3.11.0 Rechte als Kunde). */
+    private const IN_TODO = ['vertrag', 'bestand', 'recht'];
     private const MORE_LINES = 10;
 
     /** @var list<string> in dieser Anfrage abgelegte Dokumente */

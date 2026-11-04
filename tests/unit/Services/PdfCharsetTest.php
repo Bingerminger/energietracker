@@ -57,6 +57,28 @@ final class PdfCharsetTest extends TestCase
         self::assertSame([], $lost, "Im PDF verlorene Zeichen:\n" . implode("\n", $lost));
     }
 
+    /**
+     * v3.11.0 (F1036) — Die Briefe sind immer Deutsch und stehen nicht im Oberflächenkatalog,
+     * sondern in src/Services/Letters/de.json: jeder Baustein und die deutsche Schreibweise von
+     * Datum, Geld und Zahl (geschütztes Leerzeichen vor „€“, Lücke „[…]“) kommen im PDF an,
+     * ebenso jede Norm, die ein Brief aus Config\Rights nennen kann.
+     */
+    public function testLetterTemplatesSurviveCp1252(): void
+    {
+        $tpl = (array)json_decode((string)file_get_contents(self::root() . '/src/Services/Letters/de.json'), true);
+        $texts = self::flatten($tpl);
+        $texts[] = \Energietracker\Services\LetterService::money(1234.5) . ' ' . \Energietracker\Services\LetterService::number(44890.5)
+            . ' ' . \Energietracker\Services\LetterService::date('2026-11-03');
+        foreach (\Energietracker\Config\Rights::RULES['DE'] as $key => $r) $texts["norm $key"] = $r['norm'];
+        $lost = [];
+        foreach ($texts as $key => $value) {
+            $back = iconv('CP1252', 'UTF-8', PdfWriter::toCp1252($value));
+            if ($back !== PdfWriter::normalize($value)) $lost[] = "$key: „{$value}“ → „{$back}“";
+        }
+        self::assertSame([], $lost, "Im Brief verlorene Zeichen:\n" . implode("\n", $lost));
+        self::assertGreaterThan(40, count($texts));
+    }
+
     public function testCharactersAreMappedNotDropped(): void
     {
         $back = fn(string $s) => iconv('CP1252', 'UTF-8', PdfWriter::toCp1252($s));

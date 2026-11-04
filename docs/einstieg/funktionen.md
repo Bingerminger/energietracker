@@ -163,7 +163,8 @@ unter [Grundlagen & Methodik](../verstehen/00-overview.md).
   (eine Hilfsrechnung, keine Nebenkostenabrechnung); Nebenkostenabrechnungen
   mit PDF, aus denen die App Preise und neue Vorauszahlung übernimmt; die
   Fristen für Abrechnung und Einwände im Kalender — siehe
-  [Als Mieter](../anleitungen/mieter.md).
+  [Als Mieter](../anleitungen/mieter.md). Seit v3.11.0 mit einer zuständigen
+  Person am Mietverhältnis für diese Fristen.
 - **CO₂-Kosten teilen** (v3.1.0, Deutschland, zur Miete): der Anteil des
   Vermieters nach dem CO2KostAufG — bei eigener Gastherme ausgerechnet, mit
   Anschreiben als PDF und der Frist im Kalender; bei Zentralheizung die
@@ -193,8 +194,28 @@ unter [Grundlagen & Methodik](../verstehen/00-overview.md).
 - **Für den Wechsel bereithalten** (v3.1.0): Marktlokations-ID, Zählernummer
   und letzter Stand zum Kopieren — das, was der neue Anbieter abfragt.
 - **Preiserhöhung** im laufenden Vertrag (v3.1.0, Deutschland): Empfehlung mit
-  dem Sonderkündigungsrecht und Eintrag unter „Zu tun“; beim Speichern eines
-  Vertrags ein Hinweis, wenn die Mindestlaufzeit über 24 Monate reicht.
+  dem Sonderkündigungsrecht und Eintrag unter „Zu tun“; seit v3.11.0 nur bei
+  Strom und Gas, mit der Regel nach Versorgungsart und einem Termin am Tag vor
+  der Erhöhung. Beim Speichern eines Strom- oder Gasvertrags ein Hinweis, wenn
+  die Mindestlaufzeit über 24 Monate reicht (Fernwärme: über zehn Jahre).
+- **Abschlag deutlich zu hoch** (v3.11.0, Deutschland): Hinweis mit Brief, wenn
+  die Rate mehr als 20 % und mindestens 10 € über dem liegt, was Verbrauch des
+  letzten Abrechnungszeitraums und aktuelle Preise ergeben, und die Prognose
+  zustimmt.
+- **Deine Rechte als Kunde** (v3.11.0, Deutschland): Die App prüft Rechnungen,
+  Abschläge und Preisänderungen auf das, was dir zusteht: Rechnung kam spät,
+  Abschlag zu hoch, Sonderkündigung mit Termin, Bonus fehlt, Schätzung trotz
+  eigener Ablesung, Messentgelt über der Obergrenze, Frist beim Gebührenbescheid.
+  Jeder Hinweis nennt die Norm mit Quelle und Stand, ist ein Hinweis, keine
+  Rechtsberatung, und bietet, wo es passt, einen Brief als PDF oder Text. Siehe
+  [Deine Rechte als Kunde](../verstehen/17-rechte.md),
+  [Rechtsgrundlagen](../referenz/rechtsgrundlagen.md) und
+  [Einen Brief schreiben](../anleitungen/brief-schreiben.md).
+- **Verträge widersprechen sich** (v3.11.0): Läuft ein Vertrag laut Eintrag in
+  einen späteren hinein oder trägt er wohl den Tarif einer anderen
+  Verbrauchsart, sagt die App es an der Vertragskarte, unter „Zu tun“ und im
+  Abrechnungsjahr, mit „Ende von … auf … setzen“ und „Beides stimmt“. Siehe
+  [Ansichten](../referenz/ansichten.md#12-zähler--verträge--inkl-topologie-f1006).
 
 ## Verstehen und vorhersehen
 

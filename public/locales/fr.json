@@ -218,7 +218,8 @@
       "billNoDeadline": "pas de délai légal",
       "billAction": "Saisir la facture",
       "heatLimitAction": "Voir",
-      "readingCheckAction": "Voir les relevés"
+      "readingCheckAction": "Voir les relevés",
+      "rightsAction": "Voir"
     },
     "welcome": {
       "title": "Bienvenue dans Energietracker",
@@ -301,7 +302,8 @@
       "notePlaceholder": "facultatif",
       "addNote": "+ Note",
       "hideNote": "− Masquer la note",
-      "otherDate": "Autre date"
+      "otherDate": "Autre date",
+      "reported": "transmis au fournisseur"
     },
     "status": {
       "saving": "Enregistrement…",
@@ -490,12 +492,11 @@
       "gpPlus": " + {value} abonnement",
       "suggestAdvance": "Avec un acompte de {suggested} au lieu de {current}, le décompte serait d’environ ±0.",
       "measuredThenEstimated": "mesuré jusqu’au {date} ({amount}), estimé ensuite : {value}",
-      "renewed": "La durée a pris fin le {date}. Sans résiliation, le contrat continue aux derniers prix et se résilie à tout moment avec un préavis d’un mois au plus.",
-      "cancelMissed": "Date limite de résiliation du {date} dépassée : le contrat ne se termine pas le {end} mais continue — ensuite résiliable avec un préavis d’un mois au plus.",
+      "renewed": "La durée a pris fin le {date}. Sans résiliation, le contrat continue ; la manière de le résilier et le préavis figurent dans le contrat.",
+      "cancelMissed": "Date limite de résiliation {date} dépassée : le contrat ne prend pas fin le {end}, il continue. Sa durée et le préavis figurent dans le contrat.",
       "priceIncrease": "Hausse de prix à partir du {date} : {what}.",
       "piWorking": "prix unitaire {from} → {to} {minor}/kWh",
       "piBase": "abonnement {from} → {to} {cur}/mois",
-      "priceIncreaseDe": "D’ici là, un droit de résiliation exceptionnel s’applique à la date de la hausse (§ 41 al. 5 EnWG).",
       "pathTitle": "Coûts et acomptes sur la période de facturation",
       "pathCost": "Coûts cumulés",
       "pathPaid": "Payé : acomptes et paiements exceptionnels",
@@ -554,7 +555,11 @@
       "bandFew": {
         "one": "Trop peu de mois mesurés ; selon l’estimation : {range} ({level}, {count} jour estimé).",
         "other": "Trop peu de mois mesurés ; selon l’estimation : {range} ({level}, {count} jours estimés)."
-      }
+      },
+      "renewedHeat": "La durée a pris fin le {date}. Un contrat de chauffage urbain non résilié neuf mois avant son échéance est prolongé de cinq ans à chaque fois (§ 32 AVBFernwärmeV). Sauf disposition contraire de votre contrat, il court jusqu’au {until} ; la résiliation écrite doit parvenir au fournisseur au plus tard le {cancel}.",
+      "cancelMissedHeat": "Date de résiliation du {date} dépassée : un contrat de chauffage urbain non résilié neuf mois avant son échéance est prolongé de cinq ans (§ 32 AVBFernwärmeV). Sauf disposition contraire de votre contrat, il continue après le {end} jusqu’au {until} ; la prochaine résiliation écrite doit parvenir au fournisseur au plus tard le {cancel}.",
+      "renewedSuccessor": "La durée a pris fin le {date}. Sans résiliation, le contrat continue jusqu’au début du contrat suivant, le {start}.",
+      "renewedBasic": "La durée a pris fin le {date}. En fourniture de base, vous pouvez résilier à tout moment avec un préavis de deux semaines, sous forme de texte (§ 20 {gvv}) ; résilié aujourd’hui, le contrat prend fin au plus tôt le {earliest}."
     },
     "contractsTable": {
       "emptyTitle": "Aucun contrat enregistré",
@@ -573,7 +578,7 @@
       "periodOpen": "{start} → en cours",
       "gpSuffix": "abonnement {value} {cur}/mois",
       "colSpecial": "Paiements exceptionnels",
-      "hint": "Primes = avoirs issus du contrat (prime immédiate, de changement, de nouveau client). Paiements exceptionnels = remboursements (+), compléments et acomptes supplémentaires (−) hors échéancier ; les deux entrent dans le solde. Touchez pour voir le détail ; la saisie se fait dans la gestion des contrats.",
+      "hint": "Primes = avoirs issus du contrat (prime immédiate, de changement, de nouveau client), comptés le jour de l’avoir dans la période de la ligne. Paiements exceptionnels = remboursements (+), compléments et acomptes supplémentaires (−) hors échéancier ; les deux entrent dans le solde. Touchez pour voir le détail ; la saisie se fait dans la gestion des contrats.",
       "colEarned": "Rémunération",
       "colReceived": "Reçu",
       "futureLegend": "≈ Contrat futur : le solde attendu est estimé à partir du début du contrat avec ses prix, son acompte et votre consommation jusqu’ici."
@@ -916,7 +921,8 @@
       "valuesOn": "au {date}",
       "noValues": "Aucun prix saisi pour l’instant",
       "since": "depuis {year}",
-      "advanceValueEvery": "Acompte {value}"
+      "advanceValueEvery": "Acompte {value}",
+      "nextValues": "à partir du {date} : {values}"
     },
     "summary": {
       "twPrices": {
@@ -958,7 +964,9 @@
       "copyStart": "Dès le début",
       "copyStartTitle": "Mettre la date de cette ligne sur le début du contrat",
       "removeRow": "Supprimer la ligne",
-      "setStartFirst": "Veuillez d’abord définir la date de début du contrat"
+      "setStartFirst": "Veuillez d’abord définir la date de début du contrat",
+      "announcedOn": "Courrier du",
+      "vatPct": "TVA %"
     },
     "kinds": {
       "rueckzahlung_mit": "Remboursement (avec impact sur les acomptes)",
@@ -1008,12 +1016,20 @@
       },
       "noticeModeHint": "Automatique : à la fin de la durée ; sans fin, à tout moment en fin de mois. La fourniture de base, par exemple, se résilie à tout moment avec deux semaines de préavis.",
       "autoRenews": "Se prolonge sans résiliation",
-      "autoRenewsHint": "Après la fin, le contrat continue aux derniers prix jusqu’à sa résiliation — alors avec un préavis d’un mois au plus. Décocher une fois résilié.",
+      "autoRenewsHint": "Après l’échéance, le contrat continue jusqu’à sa résiliation ; le préavis figure dans le contrat. Décochez une fois le contrat résilié.",
       "groupTargets": "Groupes de compteurs (un contrat pour tous)",
       "section": {
         "contract": "Contrat",
         "term": "Durée et résiliation"
-      }
+      },
+      "supplyKind": "Type d’approvisionnement",
+      "supplyKindHint": "Indiqué sur la facture. Il détermine les règles applicables aux changements de prix et à la résiliation.",
+      "supplyKindOption": {
+        "unknown": "non indiqué",
+        "basic": "Approvisionnement de base",
+        "special": "Contrat spécial"
+      },
+      "priceOriginHint": "Si le fournisseur modifie les prix, indiquez la date de son courrier dans « Courrier du ». L’application distingue alors un changement de prix d’un palier convenu ; avec le taux de TVA, elle reconnaît un simple changement de taxe."
     },
     "delete": { "title": "Supprimer le contrat ?", "confirm": "Supprimer", "deleted": "Contrat supprimé", "messageNamed": "Supprimer définitivement le contrat « {name} » ? Ses prix, acomptes et primes seront perdus." },
     "deleteContract": "Supprimer le contrat",
@@ -1099,7 +1115,9 @@
       "hint": "Figure sur la facture ou la grille tarifaire du fournisseur de chaleur. Prime de puissance et redevance de comptage comptent comme coûts fixes ; le facteur CO₂ du réseau remplace la valeur générale du réseau de chaleur."
     },
     "hint": {
-      "termOver24": "Remarque : la durée minimale dépasse 24 mois. En Allemagne, une durée initiale aussi longue est sans effet pour les consommateurs (§ 309 n° 9 BGB)."
+      "termOver24": "Remarque : la durée minimale dépasse 24 mois. Pour l’électricité et le gaz, le § 309 n° 9 BGB limite la durée initiale à 24 mois dans les contrats de consommation à conditions préformulées ; reste à vérifier si cela s’applique à votre contrat (§ 310 al. 2 BGB). Vérifiez l’indication dans le contrat.",
+      "termOver10y": "Remarque : la durée minimale dépasse dix ans. Pour le chauffage urbain, le règlement prévoit au maximum dix ans (§ 32 AVBFernwärmeV). Vérifiez l’indication dans le contrat.",
+      "conflict": "Ce contrat en contredit un autre. La remarque figure sur la fiche du contrat."
     },
     "groupPrices": {
       "title": "Prix unitaire par compteur (p. ex. heures pleines/creuses)",
@@ -1145,7 +1163,8 @@
       "current": "ACTIF",
       "renewed": "PROLONGÉ",
       "past": "TERMINÉ",
-      "shadow": "OFFRE"
+      "shadow": "OFFRE",
+      "superseded": "REMPLACÉ"
     },
     "phaseGroup": {
       "future": "À venir",
@@ -1173,7 +1192,21 @@
       "dueDates": "Échéances selon la facture : {dates}, puis chaque année aux mêmes jours",
       "none": "Du {from} au {to} : aucun acompte saisi. Si vous avez payé pendant cette période, saisissez le montant ici.",
       "noneOpen": "À partir du {from}, aucun acompte saisi."
-    }
+    },
+    "coverage": {
+      "superseded": "Remplacé : s’applique jusqu’au {date}",
+      "renewed": "Reconduit depuis le {date}",
+      "renewedUntil": "Reconduit jusqu’au {date}"
+    },
+    "conflict": {
+      "fixEnd": "Fixer la fin de « {name} » au {date}",
+      "bothRight": "Les deux sont justes",
+      "fixed": "Fin enregistrée.",
+      "dismissed": "Remarque masquée.",
+      "check": "Vérifier les contrats"
+    },
+    "assumedPeriod": "Supposé : du {from} au {until}, l’application continue avec « {name} », alors que d’après la saisie « {other} » court jusqu’au {otherEnd}.",
+    "advanceVsCost": "Les acomptes valent environ {factor} fois les coûts. Le contrat et les prix sont-ils justes ?"
   },
   "meters": {
     "loading": "Chargement…",
@@ -1453,6 +1486,22 @@
       "label": "Registre d’injection de",
       "none": "Raccordement (injection dans le réseau)",
       "hint": "Si des compteurs sont montés l’un derrière l’autre et qu’un compteur plus en aval compte aussi en sens inverse (2.8.0), choisissez ce compteur ici. Son registre d’injection ne compte pas comme injection dans le réseau. À partir des différences, l’application calcule l’électricité solaire que chaque branche consomme elle-même."
+    },
+    "metering": {
+      "title": "Comptage",
+      "device": "Dispositif de comptage",
+      "unknown": "je ne sais pas",
+      "conventional": "compteur électromécanique (à disque)",
+      "mme": "dispositif de comptage moderne (compteur numérique)",
+      "imsys": "système de comptage intelligent (compteur communicant)",
+      "operator": "Opérateur de comptage",
+      "basic": "opérateur par défaut (non choisi par vous)",
+      "competitive": "librement choisi",
+      "hint": "Pour l’information sur les frais de comptage dans « Vos droits en tant que client » : le plafond légal dépend du dispositif de comptage et ne s’applique qu’à l’opérateur de comptage par défaut."
+    },
+    "pvKw": {
+      "label": "Puissance de l’installation (kW)",
+      "hint": "Pour le plafond des frais de comptage du compteur d’électricité (installations de plus de 7 kW)."
     }
   },
   "settings": {
@@ -2270,6 +2319,22 @@
       "handedOverRecords": {
         "one": "{count} compteur ou contrat vous revient désormais.",
         "other": "{count} compteurs et contrats vous reviennent désormais."
+      },
+      "handoverRecordsTenancy": {
+        "one": "{count} compteur, contrat ou bail revient à {to}.",
+        "other": "{count} compteurs, contrats et baux reviennent à {to}."
+      },
+      "handoverRecordsTenancyNobody": {
+        "one": "{count} compteur, contrat ou bail garde la personne, avec « (profil supprimé) », jusqu’à ce que quelqu’un reprenne.",
+        "other": "{count} compteurs, contrats et baux gardent la personne, avec « (profil supprimé) », jusqu’à ce que quelqu’un reprenne."
+      },
+      "handoverRecordsTenancyFormer": {
+        "one": "{count} compteur, contrat ou bail affiche alors « ancien membre ».",
+        "other": "{count} compteurs, contrats et baux affichent alors « ancien membre »."
+      },
+      "handedOverRecordsTenancy": {
+        "one": "{count} compteur, contrat ou bail vous revient désormais.",
+        "other": "{count} compteurs, contrats et baux vous reviennent désormais."
       }
     },
     "securityCheck": {
@@ -2546,11 +2611,11 @@
     "loading": "Chargement des recommandations…",
     "loadError": "Impossible de charger les recommandations : {msg}",
     "title": "Recommandations",
-    "subtitle": "Indications statistiques issues de vos propres données — aucune source externe.",
+    "subtitle": "Indications issues de vos propres données. Les indications sur vos droits citent en outre des lois et des centres de consommateurs comme sources.",
     "filterAll": "Toutes ({count})",
     "filterGroupLabel": "Filtrer par urgence",
     "sev": { "urgent": "Urgent", "warning": "Attention", "info": "Note" },
-    "cat": { "effizienz": "Efficacité", "vertrag": "Contrat", "bestand": "Stock", "anomalie": "Anomalie", "trend": "Tendance", "modell": "Modèle de chauffage" },
+    "cat": { "effizienz": "Efficacité", "vertrag": "Contrat", "bestand": "Stock", "anomalie": "Anomalie", "trend": "Tendance", "modell": "Modèle de chauffage", "recht": "Droits" },
     "emptyAll": "Aucune recommandation — tout va bien.",
     "dismiss": "Masquer pendant 30 jours",
     "error": "Erreur : {msg}",
@@ -2598,7 +2663,8 @@
         "gap": {
           "one": "Le contrat suivant « {provider} » ne commence que le {date} – entre-temps {count} jour sans contrat.",
           "other": "Le contrat suivant « {provider} » ne commence que le {date} – entre-temps {count} jours sans contrat."
-        }
+        },
+        "gapCovered": "Le contrat suivant « {provider} » commence le {date} ; d’ici là, ce contrat continue sans résiliation."
       },
       "r7": {
         "title": "{label} : classe d’efficacité {class} ({kwh} kWh/m²·a)",
@@ -2615,6 +2681,22 @@
         "baseLoad": "Il estime aujourd’hui la charge de base estivale à {now} {unit} par jour, avec {best} °C à {then} ; {measured} ont été mesurés.",
         "scope": "La température ne vaut que pour ce compteur et n’est appliquée que lorsque vous cliquez.",
         "scopeGroup": "La température ne vaut que pour ce groupe de compteurs et n’est appliquée que lorsque vous cliquez."
+      },
+      "rContractConflict": {
+        "title": "{label} : des contrats se contredisent",
+        "overlap": "D’après la saisie, « {a} » court jusqu’au {aEnd}, mais « {b} » s’applique dès le {bStart}. L’application calcule avec « {b} » dès le {bStart}. La fin de « {a} » est-elle juste ?",
+        "nested": "« {b} » se termine le {bEnd}, « {a} » est saisi jusqu’au {aEnd}. Ensuite, l’application continue avec « {b} ». Quel contrat s’applique ensuite ?",
+        "nestedCancelled": "« {b} » se termine le {bEnd} sans reconduction, « {a} » est saisi jusqu’au {aEnd}. Pour la suite, l’application ne calcule avec aucun contrat. Quel contrat s’applique ensuite ?",
+        "foreignTitle": "{label} : « {b} » est-il un tarif d’un autre type de consommation ?",
+        "foreignCopy": "Fournisseur, tarif et prix unitaire correspondent à un contrat pour {other}.",
+        "foreignDocument": "La boîte de réception attribue le document correspondant à {other}.",
+        "foreignPrice": "Le prix unitaire vaut environ {factor} fois celui de vos autres contrats de ce compteur.",
+        "foreignAsk": "Le type de consommation est-il juste ?",
+        "advanceTitle": "{label} : acomptes environ {factor} fois plus élevés que les coûts",
+        "advance": "Pour l’année de facturation du {from} au {until}, {advances} d’acomptes ne couvrent que {cost} de coûts. Le contrat et les prix sont-ils justes ?",
+        "foreignName": "Fournisseur et tarif correspondent à un contrat pour {other}, et le prix unitaire est du même ordre.",
+        "advanceOf": "Pour l’année de facturation du {from} au {until} ({contract}), {advances} d’acomptes ne couvrent que {cost} de coûts. Le contrat et les prix sont-ils justes ?",
+        "advanceAlso": "Cela concorde : pour l’année de facturation du {from} au {until}, {advances} d’acomptes ne couvrent que {cost} de coûts, environ {factor} fois plus."
       }
     },
     "dismissedNamed": "« {title} » masqué pendant 30 jours",
@@ -2628,7 +2710,9 @@
     },
     "dismissUntil": "Masquer jusqu’au {date}",
     "dismissUntilNamed": "Masquer jusqu’au {date} : {title}",
-    "dismissedUntilNamed": "« {title} » masqué jusqu’au {date}"
+    "dismissedUntilNamed": "« {title} » masqué jusqu’au {date}",
+    "rightsNoBill": "Pas encore d’indications sur vos droits de client : la plupart des vérifications ont besoin d’une facture enregistrée. Enregistrez la facture annuelle, et l’application vérifie délai, prime, estimation et frais de comptage.",
+    "rightsNoBillLink": "Vérifier la facture"
   },
   "tariff": {
     "loading": "Chargement…",
@@ -2745,7 +2829,11 @@
         "one": "{first} + {count} contrat successif",
         "other": "{first} + {count} contrats successifs"
       },
-      "portal": "Comparateur officiel des offres ({country}) ↗"
+      "portal": "Comparateur officiel des offres ({country}) ↗",
+      "renewedSince": "prolongé depuis le {date}",
+      "renewedNotice": "Préavis selon le contrat. Aucune date ne peut en être calculée ici ; la date de changement ci-dessus est estimée tant que vous ne la saisissez pas.",
+      "basicNotice": "Fourniture de base : résiliable à tout moment avec deux semaines de préavis (§ 20 {gvv}).",
+      "renewsUntil": "Sans résiliation, le contrat est prolongé jusqu’au {until} (§ 32 AVBFernwärmeV) ; la prochaine date de résiliation est le {cancel}."
     },
     "retro": {
       "heading": "Rétrospective sur les mois réels",
@@ -3297,8 +3385,7 @@
         "title": "Hausse de prix : {label}",
         "reason": "De nouveaux prix s’appliquent à partir du {date}. {parts}",
         "reasonWp": "Le prix unitaire passe de {old} à {new} ct/{unit}.",
-        "reasonBp": "L’abonnement passe de {old} à {new} par mois.",
-        "legalDe": "En Allemagne, une hausse de prix ouvre un droit de résiliation exceptionnel à la date du changement (§ 41 al. 5 EnWG)."
+        "reasonBp": "L’abonnement passe de {old} à {new} par mois."
       },
       "heatingRise": {
         "title": "Chauffage en hausse : {label}",
@@ -3766,7 +3853,8 @@
       "counterInvalid": "Index non valide « {value} » – un nombre supérieur ou égal à 0 est attendu.",
       "dateInvalid": "Date de relevé non valide « {date} » – format attendu : AAAA-MM-JJ.",
       "clientRefInvalid": "Identifiant de saisie non valide (client_ref) : 8 à 64 caractères parmi lettres, chiffres et tiret.",
-      "periodMeter": "Ce compteur enregistre la consommation par période – saisissez une période au lieu d’un relevé."
+      "periodMeter": "Ce compteur enregistre la consommation par période – saisissez une période au lieu d’un relevé.",
+      "reportedOnInvalid": "Date de transmission non valide « {date} ». Format attendu : AAAA-MM-JJ."
     },
     "contract": {
       "noContracts": "{label} : aucun contrat ne peut être créé (type de consommation purement statistique).",
@@ -3978,7 +4066,8 @@
       "noResult": "La facture n’indique ni complément ni avoir – rien à comptabiliser",
       "noContract": "Aucun contrat pour la période du {from} au {to} – ajoutez-en d’abord un",
       "periodInvalid": "La période « {from} » au « {to} » n’est pas valide",
-      "amountInvalid": "Le montant « {value} » n’est pas un nombre valide"
+      "amountInvalid": "Le montant « {value} » n’est pas un nombre valide",
+      "valueInvalid": "{field} : « {value} » n’est pas une valeur valide"
     },
     "marketPrices": {
       "noRows": "Le fichier ne contient aucun prix de gros — attendu : un téléchargement SMARD ou des lignes comme 2025-01;114,14",
@@ -4117,6 +4206,15 @@
       "expired": "Le certificat de {host} a expiré ou n’est pas encore valide. Renouvelez-le sur l’appareil ou vérifiez l’heure des deux appareils.",
       "file": "Energietracker ne peut pas lire les certificats racines. Vérifiez le fichier de ET_CA_FILE ou une liste de certificats montée : chemin, contenu et droits de lecture. Paramètres → Système indique si ET_CA_FILE est lisible.",
       "other": "La connexion chiffrée vers {host} échoue à cause du certificat. Vérifiez l’adresse et le certificat. Si vous l’avez émis vous-même, saisissez votre certificat racine dans Paramètres → Expert → Connexions dans le réseau domestique."
+    },
+    "letter": {
+      "formatInvalid": "Format inconnu « {value} » (text ou pdf)",
+      "findingNotFound": "Cette remarque n’existe plus. Rechargez la page.",
+      "kindInvalid": "Modèle de lettre inconnu « {value} »",
+      "notOffered": "Cette lettre n’est pas proposée pour cette remarque",
+      "confirmRequired": "Confirmez d’abord que les voies de recours indiquent « Widerspruch » (recours administratif)",
+      "fieldInvalid": "« {field} » est trop long ou invalide (6 lignes de 60 caractères au plus)",
+      "deadlinePassed": "Le délai pour un recours est expiré ; l’application ne rédige pas de lettre pour cela"
     }
   },
   "login": {
@@ -4237,7 +4335,10 @@
     "advanceEvery": "Acompte {amount}",
     "noNotice": "Délai de résiliation non saisi",
     "earliestEnd": "Résiliable au plus tôt au {date}",
-    "viaGroup": "Via le groupe « {name} » : le solde et les acomptes valent pour tout le groupe."
+    "viaGroup": "Via le groupe « {name} » : le solde et les acomptes valent pour tout le groupe.",
+    "renewedNotice": "Préavis selon le contrat",
+    "cancelMissedHeat": "Date de résiliation du {date} dépassée, prolongé jusqu’au {until}",
+    "renewedBasic": "Fourniture de base : résiliable à tout moment avec deux semaines de préavis"
   },
   "billCheck": {
     "noMeter": "La vérification recalcule la facture annuelle du gaz, de l’électricité, de l’eau et du réseau de chaleur. Créez d’abord un compteur.",
@@ -4274,7 +4375,35 @@
         "one": "{count} saisie",
         "other": "{count} saisies"
       },
-      "period": "Période comme ci-dessus : du {from} au {to} inclus."
+      "period": "Période comme ci-dessus : du {from} au {to} inclus.",
+      "received": "Reçue le (facultatif)",
+      "receivedHint": "Le jour où vous avez reçu la facture. L’application s’en sert pour vérifier le délai du fournisseur.",
+      "estimated": "Estimé selon la facture",
+      "estimatedStart": "Index de début",
+      "estimatedEnd": "Index de fin",
+      "estimatedHint": "Si la facture indique l’index final comme estimé, saisissez-le ici, pas comme relevé. L’application le compare à vos propres relevés ; il n’entre pas dans votre consommation.",
+      "itemKind": "Type",
+      "itemKinds": {
+        "levy": "Taxe",
+        "fee": "Frais",
+        "credit": "Avoir",
+        "metering": "Comptage",
+        "other": "Autre"
+      },
+      "itemBasis": "HT/TTC",
+      "itemVat": "Taux de TVA (%)",
+      "notStated": "non précisé",
+      "notice": "Avis de redevance (eau, eaux usées)",
+      "noticePublic": "La facture est un avis d’une administration ou d’une commune avec indication des voies de recours",
+      "noticeDated": "Avis du",
+      "noticeServed": "Notifié le (seulement avec acte de notification)",
+      "noticeRemedy": "Recours indiqué dans les voies de recours",
+      "noticeRemedyHint": "L’application ne propose une lettre de recours que s’il y est écrit « recours administratif ».",
+      "noticeFile": "Référence du dossier ou du paiement",
+      "number": "Numéro de facture",
+      "numberHint": "Facultatif. Les courriers sur cette facture le citent en référence.",
+      "estimatedValue": "Index final estimé ({unit})",
+      "estimatedOn": "Index final au"
     },
     "saved": "Facture enregistrée",
     "book": "Comptabiliser comme paiement exceptionnel",
@@ -4316,7 +4445,14 @@
     },
     "factorMismatch": {
       "line": "À partir du {from} : {invoice} kWh/m³ selon la facture ({z} × {hs}), {list} kWh/m³ dans les paramètres"
-    }
+    },
+    "rightsCount": {
+      "one": "{count} information sur vos droits",
+      "other": "{count} informations sur vos droits"
+    },
+    "estimatedBackwards": "L’index final estimé ne correspond pas à votre relevé du {date} ({counter} {unit}) : le compteur tournerait à l’envers. Vérifiez la facture et le relevé.",
+    "rightsNoBill": "L’application vérifie les indications sur vos droits de client (délai, prime, estimation, frais de comptage) à partir de la première facture enregistrée. Saisissez-la ci-dessous ou téléversez-la :",
+    "rightsInbox": "Boîte de réception"
   },
   "glossary": {
     "hdd": {
@@ -4646,7 +4782,8 @@
     "readOnly": "Rien n’est enregistré dans la démo. Avec votre propre installation, vous saisissez vos données.",
     "unavailable": "Cette analyse n’est pas précalculée dans la démo – elle fonctionne avec votre propre installation.",
     "scenarioPresetsOnly": "Seuls les scénarios d’exemple sont précalculés dans la démo.",
-    "conceptPresetsOnly": "Dans la démo, l’aperçu n’est précalculé que pour la disposition de ce foyer d’exemple."
+    "conceptPresetsOnly": "Dans la démo, l’aperçu n’est précalculé que pour la disposition de ce foyer d’exemple.",
+    "letterPresetsOnly": "Dans la démo, seul le premier brouillon de la lettre est précalculé. Les modifications et le PDF nécessitent votre propre installation."
   },
   "manifest": {
     "description": "Consommation, coûts et contrats pour l’électricité, le gaz, l’eau, le chauffage urbain, le fioul, les granulés et le photovoltaïque — sur votre propre serveur, courrier du fournisseur lu en local, le cloud seulement sur demande.",
@@ -4742,7 +4879,7 @@
       "cancelBy": "{label} : dernier jour pour résilier ({provider})",
       "termEnd": "{label} : fin du contrat ({provider})",
       "priceGuaranteeEnd": "{label} : fin de la garantie de prix ({provider})",
-      "priceIncrease": "{label} : hausse de prix ({provider}) — vérifier la résiliation",
+      "priceIncrease": "{label} : hausse de prix ({provider})",
       "readingDue": "{label} : relever le compteur ({meter})",
       "tankReorder": "{label} : prévoir une livraison ({meter})",
       "tenancyStatementDue": "Décompte de charges jusqu’au {period} dû : {label}",
@@ -4760,7 +4897,8 @@
       "levelShiftLess": "{label} : consommation durablement plus faible depuis le {date}. Définir une rupture de référence ? ({meter})",
       "levelShiftMore": "{label} : consommation durablement plus élevée depuis le {date}. Définir une rupture de référence ? ({meter})",
       "readingMismatch": "{label} : la consommation avant et après le {date} ne concorde pas ({meter})",
-      "readingMismatchBlock": "{label} : la consommation avant le {date} et après le {until} ne concorde pas ({meter})"
+      "readingMismatchBlock": "{label} : la consommation avant le {date} et après le {until} ne concorde pas ({meter})",
+      "contractConflict": "{label} : vérifier les contrats"
     },
     "subscribe": "S’abonner dans votre agenda",
     "intro": "Rendez-vous, échéances de résiliation, fins de contrat, garanties de prix et relevés dus sous forme d’abonnement d’agenda. L’agenda les actualise toutes les 12 heures.",
@@ -4782,7 +4920,8 @@
     "onlyMine": "Seulement ce qui m’est attribué",
     "onlyMineHint": "Le lien n’affiche alors que les échéances et rendez-vous dont vous êtes responsable – y compris via un contrat ou un compteur.",
     "webcalLabel": "Adresse d’abonnement pour les applications d’agenda (webcal)",
-    "httpsLabel": "La même adresse sous forme de lien https"
+    "httpsLabel": "La même adresse sous forme de lien https",
+    "assigneeTenancy": "Responsable : {name} (via le bail)"
   },
   "tenancy": {
     "title": "Bail",
@@ -5335,7 +5474,7 @@
       "anytime": "résiliable à tout moment",
       "textMissed": "Contrat depuis le {start}. Le délai de résiliation a expiré le {cancel} ; sans résiliation, il se poursuit après le {end}.",
       "textNoRenew": "Contrat depuis le {start} ; il prend fin le {end} sans que vous ayez à le résilier.",
-      "textRenewed": "Contrat depuis le {start}. Sa durée a pris fin le {term} ; depuis, il se poursuit et est résiliable à tout moment — résilié aujourd’hui, il prend fin au plus tôt le {end}.",
+      "textRenewed": "Contrat depuis le {start}. Sa durée a pris fin le {term} ; depuis, il continue jusqu’à résiliation. Le préavis figure dans le contrat.",
       "textAnytime": "Contrat depuis le {start}, reconduit jusqu’à résiliation. Il est résiliable à tout moment — résilié aujourd’hui, il prend fin au plus tôt le {end}.",
       "textMinTerm": "Contrat depuis le {start}, avec une durée minimale : résilié aujourd’hui, il prend fin au plus tôt le {end}.",
       "textMinTermUntil": "La durée minimale prend fin le {date}.",
@@ -5346,7 +5485,12 @@
       "gap": {
         "one": "Entre les deux, {count} jour reste sans contrat.",
         "other": "Entre les deux, {count} jours restent sans contrat."
-      }
+      },
+      "textRenewedHeat": "Contrat depuis le {start}. Sa durée a pris fin le {term}. Sans résiliation neuf mois avant l’échéance, un contrat de chauffage urbain est prolongé de cinq ans à chaque fois (§ 32 AVBFernwärmeV) ; sauf disposition contraire de votre contrat, il court jusqu’au {end}, et la résiliation écrite doit parvenir au fournisseur au plus tard le {cancel}.",
+      "textMissedHeat": "Contrat depuis le {start}. Le délai de résiliation a expiré le {cancel}. Sans résiliation neuf mois avant son échéance, un contrat de chauffage urbain est prolongé de cinq ans (§ 32 AVBFernwärmeV) ; sauf disposition contraire de votre contrat, il court jusqu’au {until}, et la prochaine résiliation doit parvenir au fournisseur au plus tard le {next}.",
+      "textHeatNotice": "Aucun préavis n’est renseigné ; l’application compte neuf mois avant l’échéance (§ 32 AVBFernwärmeV). Sans résiliation, le contrat est prolongé jusqu’au {until}.",
+      "textRenewedSuccessor": "Contrat depuis le {start}. La durée a pris fin le {term} ; depuis, il continue sans résiliation.",
+      "textRenewedBasic": "Contrat depuis le {start}. La durée a pris fin le {term} ; en fourniture de base, il est résiliable à tout moment avec un préavis de deux semaines. Résilié aujourd’hui, il prend fin au plus tôt le {end}."
     }
   },
   "setup": {
@@ -5888,9 +6032,11 @@
     "noPeople": "Ajoutez des personnes dans Paramètres → Foyer et bâtiment.",
     "via": {
       "contract": "via le contrat",
-      "meter": "via le compteur"
+      "meter": "via le compteur",
+      "tenancy": "via le bail"
     },
-    "inheritsMeter": "Si le champ est vide, responsable : {name} (via le compteur)."
+    "inheritsMeter": "Si le champ est vide, responsable : {name} (via le compteur).",
+    "hintTenancy": "Le décompte des charges, les contestations et les coûts de CO₂ reviennent à cette personne. Si le champ est vide, c’est la personne du compteur de chaleur. Personne n’est averti."
   },
   "notice": {
     "updated": "Mis à jour vers la version {version}.",
@@ -6216,7 +6362,9 @@
       "specialTermination": "Droit de résiliation exceptionnel {provider} jusqu’au {date}",
       "followUp": "Conclure un contrat de suite (fin de fourniture {provider} le {end})",
       "dunning": "Régler la relance « {name} »",
-      "document": "Traiter le document « {name} »"
+      "document": "Traiter le document « {name} »",
+      "specialTerminationLegal": "Résiliation exceptionnelle {provider} possible, réception au plus tard le {date}",
+      "specialTerminationLetter": "Résiliation exceptionnelle {provider} possible, réception au plus tard le {date} (selon le courrier {letter}, selon la loi {legal})"
     },
     "title": "Boîte de réception",
     "subtitle": "Déposez le courrier du fournisseur en PDF, faites-le lire, vérifiez-le et reprenez-le.",
@@ -6450,7 +6598,15 @@
       "advance_new_dates": "Échéances du nouvel acompte",
       "advance_new_every": "Rythme du nouvel acompte",
       "invoice_number": "Numéro de facture",
-      "corrects_invoice": "Référence à une facture antérieure"
+      "corrects_invoice": "Référence à une facture antérieure",
+      "basic_supply": "Approvisionnement de base",
+      "credits": "Avoirs",
+      "metering_fee": "Frais de comptage",
+      "metering_fee_basis": "Frais de comptage HT ou TTC",
+      "metering_fee_vat_pct": "Taux de TVA des frais de comptage",
+      "fee_notice": "Avis de redevance",
+      "remedy": "Voie de recours indiquée",
+      "file_number": "Référence du dossier"
     },
     "reason": {
       "empty": "Manquant, mais nécessaire",
@@ -6500,7 +6656,11 @@
       "energy": "Prix unitaire",
       "energy_tax": "Taxe sur l’énergie",
       "co2": "Prix du CO₂",
-      "other": "Supplément"
+      "other": "Supplément",
+      "bonus": "Prime",
+      "credit_other": "autre avoir",
+      "objection": "Recours administratif",
+      "action": "Recours en justice"
     },
     "item": {
       "gasFactor": "du {from} au {to} : coefficient de correction {z} × pouvoir calorifique {hs} kWh/m³",
@@ -6545,7 +6705,11 @@
       "waterBase": "Abonnement {section} à partir du {from} : {value} par mois (d’après la facture)",
       "waterRate": "{section} à partir du {from} : {value} par m² et par an pour {area} m² (d’après la facture)",
       "billCorrection": "Reprendre la facture rectificative du {from} au {to} : {result} au lieu de {before}",
-      "billRebook": "Remplacer la comptabilisation : {result} au lieu de {before}"
+      "billRebook": "Remplacer la comptabilisation : {result} au lieu de {before}",
+      "reminderSpecialTerminationLegal": "Rappel : résiliation exceptionnelle possible, réception au plus tard le {date}",
+      "reminderSpecialTerminationLetter": "Rappel : résiliation exceptionnelle, réception au plus tard le {date} (selon le courrier {letter}, selon la loi {legal})",
+      "supplyKindBasic": "Inscrire le type d’approvisionnement sur le contrat : approvisionnement de base (selon la facture)",
+      "supplyKindSpecial": "Inscrire le type d’approvisionnement sur le contrat : contrat spécial (selon la facture)"
     },
     "detail": {
       "reading": "Enregistré : {counter}.",
@@ -6695,7 +6859,35 @@
         "minTerm": "Durée minimale jusqu’au {date}.",
         "guarantee": "Garantie de prix jusqu’au {date}.",
         "dunning": "L’application ne lit pas les relances ; le rappel vous aide à régler le paiement.",
-        "advanceBasisRate": "Environ {recommended} par échéance conviendrait ; avec le nouvel acompte, la facture finirait par : {balance}."
+        "advanceBasisRate": "Environ {recommended} par échéance conviendrait ; avec le nouvel acompte, la facture finirait par : {balance}.",
+        "range": "Selon la météo et la consommation, entre {low} et {high} par an.",
+        "yearAfter": "Une année aux nouveaux prix : environ {amount}, soit environ {recommended} par mois.",
+        "yearAfterRate": "Une année aux nouveaux prix : environ {amount}, soit environ {recommended} par échéance."
+      },
+      "rights": {
+        "terminationSpecial": "Vous pouvez résilier le contrat sans préavis au {date}. La résiliation doit parvenir au fournisseur au plus tard le {deadline}.",
+        "terminationBasic": "En fourniture de base, vous pouvez résilier au {date} ; la résiliation doit parvenir au fournisseur au plus tard le {deadline}. Sinon, la résiliation est possible à tout moment avec un préavis de deux semaines.",
+        "terminationUnknown": "En cas de hausse de prix, vous pouvez résilier sans préavis au {date}. La résiliation doit parvenir au fournisseur au plus tard le {deadline}. En fourniture de base, la résiliation est en outre possible à tout moment avec un préavis de deux semaines. Votre facture indique si vous êtes en fourniture de base.",
+        "terminationPassed": "La résiliation au {date} n’était possible que jusqu’au {deadline}.",
+        "letterEarlier": "Le courrier indique le {letter} comme délai. Selon la loi, il suffit que la résiliation arrive au plus tard le {deadline} ; le fournisseur ne peut pas fixer lui-même un délai plus court.",
+        "letterLater": "Le courrier indique le {letter} comme délai. Vous êtes sûr de votre fait si la résiliation parvient au fournisseur au plus tard le {deadline}.",
+        "vatOnly": "Seule la TVA change, le prix hors taxes reste le même. Pour un contrat spécial, cela ne donne pas de droit de résiliation exceptionnel.",
+        "vatOnlyBasic": "Seule la TVA change, le prix hors taxes reste le même. En fourniture de base, vous pouvez résilier à tout moment avec un préavis de deux semaines.",
+        "lateSpecial": {
+          "one": "Le courrier est daté de {days} jour avant le changement. Pour un contrat spécial, la loi exige au moins un mois. Faites-vous conseiller si vous voulez faire vérifier la hausse.",
+          "other": "Le courrier est daté de {days} jours avant le changement. Pour un contrat spécial, la loi exige au moins un mois. Faites-vous conseiller si vous voulez faire vérifier la hausse."
+        },
+        "lateBasic": {
+          "one": "Le courrier est daté de {days} jour avant le changement. En fourniture de base, la loi exige une annonce au moins six semaines à l’avance. Faites-vous conseiller si vous voulez faire vérifier la hausse.",
+          "other": "Le courrier est daté de {days} jours avant le changement. En fourniture de base, la loi exige une annonce au moins six semaines à l’avance. Faites-vous conseiller si vous voulez faire vérifier la hausse."
+        },
+        "announcedAfter": "Le courrier est daté du {date}, pas avant le jour du changement. Un changement de prix doit être annoncé à l’avance. Faites-vous conseiller si vous voulez faire vérifier la hausse.",
+        "monthStart": "En fourniture de base, les changements de prix prennent effet en début de mois ; ce courrier indique le {date}.",
+        "heat": "Les prix du chauffage urbain évoluent selon la clause d’indexation de votre contrat ; les facteurs de calcul doivent être indiqués. Le règlement ne prévoit en général pas de droit de résiliation exceptionnel comme pour l’électricité et le gaz.",
+        "guarantee": "Une garantie de prix jusqu’au {date} est saisie pour le contrat. Vérifiez si la hausse en est exclue (souvent taxes et prélèvements).",
+        "advanceBasic": "L’acompte augmente de {advance_pct} %, les coûts selon la prévision de {cost_pct} %. En fourniture de base, le fournisseur peut adapter l’acompte après un changement de prix du pourcentage de ce changement.",
+        "advanceSpecial": "L’acompte augmente de {advance_pct} %, les coûts selon la prévision de {cost_pct} %. L’acompte se fonde sur la consommation de la dernière facturation ; le fournisseur doit tenir compte de manière appropriée d’une consommation plausiblement plus faible.",
+        "advanceUnknown": "L’acompte augmente de {advance_pct} %, les coûts selon la prévision de {cost_pct} %. Un acompte se fonde sur la consommation ; en fourniture de base, le fournisseur peut l’adapter après un changement de prix du pourcentage de ce changement."
       }
     },
     "channels": {
@@ -6747,7 +6939,9 @@
       "unsure": "Lu avec un doute, non repris : {fields}",
       "netPrice": "Net selon la facture, converti en TTC avec le taux de TVA indiqué (l’app gère des prix TTC).",
       "vatChanged": "Même prix que dans le contrat, seul le taux de TVA change – la nouvelle ligne de prix s’applique à partir du jour que la facture indique pour elle.",
-      "rhythmConflict": "Le rythme indiqué sur la facture ne correspond pas aux échéances. Ce sont les échéances qui sont reprises, veuillez vérifier."
+      "rhythmConflict": "Le rythme indiqué sur la facture ne correspond pas aux échéances. Ce sont les échéances qui sont reprises, veuillez vérifier.",
+      "perMeter": "Le contrat a des prix unitaires par compteur (par exemple heures pleines et creuses). Vérifiez à quel compteur ce prix s’applique ; il est repris pour le compteur attribué.",
+      "advanceFromPrice": "Le courrier n’indique pas à partir de quand le nouvel acompte s’applique. Le jour du changement de prix est retenu."
     },
     "duplicate": {
       "text": "Probablement le même document que « {name} » (déposé le {date}). Ne reprenez qu’un seul des deux ; vous pouvez supprimer l’autre.",
@@ -7406,5 +7600,141 @@
     "sentenceNoWeather": "Selon l’estimation, entre {low} et {high}.",
     "shortFew": "trop peu de mois mesurés ; selon l’estimation : {range}",
     "sentenceFew": "Trop peu de mois mesurés ; selon l’estimation, entre {low} et {high}."
+  },
+  "rights": {
+    "title": "Vos droits en tant que client",
+    "footer": "Information, pas un conseil juridique. Base : {norms} (vérifié le {date}).",
+    "notAdvice": "Information, pas un conseil juridique.",
+    "helpEnergy": "Aide : centre de conseil aux consommateurs (Verbraucherzentrale), médiateur de l’énergie (Schlichtungsstelle Energie).",
+    "help": "Aide : centre de conseil aux consommateurs (Verbraucherzentrale).",
+    "deadline": "Échéance : {date}",
+    "check": {
+      "bill_late": "Facture arrivée tard",
+      "advance_high": "Acompte nettement trop élevé",
+      "special_termination": "Changement de prix : résiliation extraordinaire",
+      "bonus_missing": "Prime non créditée",
+      "estimate_despite_reading": "Estimation malgré votre propre relevé",
+      "metering_cap": "Frais de comptage au-dessus du plafond",
+      "fee_notice_deadline": "Délai pour un avis de redevance"
+    },
+    "priceNote": {
+      "special": "Vous pouvez résilier le contrat sans préavis au jour du changement de prix ; la résiliation doit parvenir au fournisseur avant cette date (§ 41 al. 5 EnWG).",
+      "basic": "En approvisionnement de base, vous pouvez résilier au jour du changement de prix (§ 5 al. 3 {gvv}) et sinon à tout moment avec un préavis de deux semaines (§ 20 {gvv}).",
+      "unknown": "Avec un contrat spécial, vous pouvez résilier sans préavis au jour du changement de prix (§ 41 al. 5 EnWG), en approvisionnement de base également (§ 5 al. 3 {gvv}). Votre facture indique si vous êtes en approvisionnement de base.",
+      "stepped": "Cela ne vaut que si le fournisseur modifie les prix, pas pour un palier de prix déjà convenu à la signature du contrat. Indiquez la date du courrier sur le prix, et l’application le saura.",
+      "vat": "Seule la TVA change. Si le fournisseur la répercute telle quelle, un contrat spécial ne donne pas de droit de résiliation exceptionnel (§ 41 al. 6 EnWG).",
+      "heat": "Les prix du chauffage urbain évoluent selon la clause de révision de votre contrat ; les facteurs de calcul doivent être indiqués (§ 24 al. 4 AVBFernwärmeV). Contrairement à l’électricité et au gaz, le règlement ne prévoit en général pas de droit de résiliation exceptionnel pour cela."
+    },
+    "special_termination": {
+      "title": "{label} : résiliation exceptionnelle possible au {valid_from}",
+      "titleMaybe": "{label} : les prix augmentent au {valid_from}, résiliation exceptionnelle possible ?",
+      "text": "{provider} modifie ses prix au {valid_from} : {what}. {note}",
+      "wp": "prix unitaire {old} → {new} ct/{unit}",
+      "bp": "abonnement {old} → {new} par mois",
+      "lateSpecial": "Le courrier date du {announced_on} et le changement s’applique à partir du {valid_from} ; la loi exige pour cela un préavis d’au moins un mois.",
+      "lateBasic": "Le courrier date du {announced_on} et le changement s’applique à partir du {valid_from} ; en approvisionnement de base, la loi exige un préavis d’au moins six semaines.",
+      "monthStart": "En approvisionnement de base, la loi prévoit des changements de prix en début de mois ; celui-ci s’applique à partir du {valid_from}.",
+      "adviceCheck": "Faites-vous conseiller si vous souhaitez faire vérifier la hausse.",
+      "guarantee": "Une garantie de prix jusqu’au {date} est enregistrée pour ce contrat. Vérifiez si la hausse en est exclue (souvent les taxes et prélèvements).",
+      "letterDate": "Selon le courrier, la résiliation doit parvenir au plus tard le {letter} ; selon la loi, une réception au plus tard le {legal} suffit. L’échéance indiquée ici est la date la plus proche."
+    },
+    "advance_high": {
+      "title": "{label} : acompte nettement au-dessus de la consommation",
+      "text": "Votre acompte de {rate} dépasse de {over_pct} % le montant qui résulte de votre consommation sur la dernière période de facturation ({qty} {unit}, du {period_from} au {period_to}) et des prix actuels : environ {measure_eur}. La prévision de l’application estime elle aussi environ {ongoing_eur} approprié. Les acomptes se fondent sur cette consommation ; si vous rendez plausible une consommation nettement plus faible, il faut en tenir compte de manière appropriée ({norm}). Vous pouvez demander un ajustement.",
+      "textFrom": "Votre acompte de {rate} dépasse de {over_pct} % le montant qui résulte de votre consommation sur la dernière période de facturation ({qty} {unit}, du {period_from} au {period_to}) et des prix à partir du {next_due} : environ {measure_eur}. La prévision de l’application estime elle aussi environ {ongoing_eur} approprié. Les acomptes se fondent sur cette consommation ; si vous rendez plausible une consommation nettement plus faible, il faut en tenir compte de manière appropriée ({norm}). Vous pouvez demander un ajustement.",
+      "rateFrom": "{amount} à partir du {date}"
+    },
+    "late": {
+      "title": "{label} : facture jusqu’au {period_to} arrivée {days_late} jours après le délai",
+      "text": "La facture du {period_from} au {period_to} était disponible le {bill_date}, {days_late} jours après l’expiration du délai légal le {deadline}. Le délai : six semaines après la fin de la période de facturation, pour une facture de clôture après la fin de la fourniture. La loi ne prévoit aucune conséquence pour le montant facturé. Vous pouvez contester ce retard auprès du fournisseur ; il doit répondre dans les quatre semaines.",
+      "textIssued": "La facture du {period_from} au {period_to} est datée du {bill_date}, {days_late} jours après l’expiration du délai légal le {deadline}. Le délai : six semaines après la fin de la période de facturation, pour une facture de clôture après la fin de la fourniture. La loi ne prévoit aucune conséquence pour le montant facturé. Vous pouvez contester ce retard auprès du fournisseur ; il doit répondre dans les quatre semaines."
+    },
+    "bonus": {
+      "title": "{label} : prime de {amount_eur} introuvable",
+      "text": "Selon le contrat « {tariff} », une prime de {amount_eur} vous revient. Dans la facture du {period_from} au {period_to}, nous ne trouvons aucun avoir de ce montant. Vérifiez les conditions de la prime dans le contrat (souvent : douze mois de fourniture). Si elle manque, vous pouvez la réclamer au fournisseur. Si elle est arrivée autrement, par virement ou avec une facture ultérieure, cochez cette information.",
+      "textPortal": "Le contrat « {tariff} » mentionne une prime de {amount_eur} (type : autre prime). Dans la facture du {period_from} au {period_to}, nous ne trouvons aucun avoir de ce montant. Si elle n’est pas versée par le fournisseur mais par exemple par un comparateur, adressez-vous à lui. Si elle est déjà arrivée, cochez cette information."
+    },
+    "estimate": {
+      "title": "{label} : la facture estime l’index final au {period_to} malgré votre relevé",
+      "titleEur": "{label} : la facture estime l’index final au {period_to}, environ {delta_eur} d’écart",
+      "text": "La facture indique l’index final au {period_to} comme estimé : {bill_counter} {unit}. Vous avez relevé vous-même le {own_date} ({own_counter} {unit}) ; reporté au {period_to}, cela donne {own_projected} {unit}. Avez-vous transmis ce relevé ? Le fournisseur ne peut estimer que si aucun relevé n’a été transmis malgré l’obligation correspondante ou s’il n’a pas pu déterminer la consommation pour des raisons qui ne lui sont pas imputables. Vous pouvez demander une explication écrite et gratuite de l’estimation. Vous pouvez aussi demander au fournisseur de refaire le calcul avec votre relevé. L’écart : {delta_qty} {cunit}.",
+      "textReported": "La facture indique l’index final au {period_to} comme estimé : {bill_counter} {unit}. Vous avez relevé vous-même le {own_date} ({own_counter} {unit}) et transmis ce relevé le {reported_on} ; reporté au {period_to}, cela donne {own_projected} {unit}. Le fournisseur ne peut estimer que si aucun relevé n’a été transmis malgré l’obligation correspondante ou s’il n’a pas pu déterminer la consommation pour des raisons qui ne lui sont pas imputables. Vous pouvez demander une explication écrite et gratuite de l’estimation. Vous pouvez aussi demander au fournisseur de refaire le calcul avec votre relevé. L’écart : {delta_qty} {cunit}.",
+      "textHeat": "La facture indique l’index final au {period_to} comme estimé : {bill_counter} {unit}. Vous avez relevé vous-même le {own_date} ({own_counter} {unit}) ; reporté au {period_to}, cela donne {own_projected} {unit}. Le fournisseur peut estimer, sur la base du dernier relevé, tant que son agent ne peut pas accéder aux locaux pour relever le compteur. Transmettez-lui votre relevé et interrogez-le sur l’estimation. L’écart : {delta_qty} {cunit}.",
+      "textReportedBasic": "La facture indique l’index final au {period_to} comme estimé : {bill_counter} {unit}. Vous avez relevé vous-même le {own_date} ({own_counter} {unit}) et transmis ce relevé le {reported_on} ; reporté au {period_to}, cela donne {own_projected} {unit}. Le fournisseur ne peut estimer que si aucun relevé n’a été transmis malgré l’obligation correspondante ou s’il n’a pas pu déterminer la consommation pour des raisons qui ne lui sont pas imputables. Vous pouvez demander une explication écrite et gratuite de l’estimation, et une rectification avec votre relevé. L’écart : {delta_qty} {cunit}.",
+      "textNotice": "La facture indique l’index final au {period_to} comme estimé : {bill_counter} {unit}. Vous avez relevé vous-même le {own_date} ({own_counter} {unit}) ; reporté au {period_to}, cela donne {own_projected} {unit}. La facture est un avis de redevance : les contestations passent par le recours indiqué dans les voies de recours. Son délai expire au plus tôt le {deadline} ; une simple demande informelle ne le préserve pas. L’écart : {delta_qty} {cunit}.",
+      "textNoticeExpired": "La facture indique l’index final au {period_to} comme estimé : {bill_counter} {unit}. Vous avez relevé vous-même le {own_date} ({own_counter} {unit}) ; reporté au {period_to}, cela donne {own_projected} {unit}. La facture est un avis de redevance : les contestations passent par le recours. Selon le calcul de l’application, son délai a expiré le {deadline} ; voir l’indication sur l’avis de redevance. L’écart : {delta_qty} {cunit}."
+    },
+    "metering": {
+      "title": "{label} : frais de comptage au-dessus du plafond, environ {over_eur} par an",
+      "textMme": "Pour le comptage, la facture du {period_from} au {period_to} compte l’équivalent de {year_eur} par an (TTC). Pour un dispositif de comptage moderne, la loi allemande sur l’exploitation des points de mesure fixe un plafond de {cap_eur} par an. Il s’applique à l’opérateur de comptage par défaut ; un opérateur choisi librement n’y est pas tenu. Des prestations supplémentaires, comme une installation à votre demande, peuvent coûter en plus. Renseignez-vous auprès de l’opérateur de comptage.",
+      "textImsys": "Pour le comptage, la facture du {period_from} au {period_to} compte l’équivalent de {year_eur} par an (TTC). Pour un système de comptage intelligent, la loi allemande sur l’exploitation des points de mesure fixe dans votre catégorie un plafond de {cap_eur} par an. L’application vous classe d’après environ {kwh_year} kWh par an, un pilotage selon le § 14a EnWG et la puissance de votre installation PV ; l’opérateur de comptage peut retenir d’autres valeurs. Le plafond s’applique à l’opérateur de comptage par défaut ; un opérateur choisi librement n’y est pas tenu. Des prestations supplémentaires, comme une installation à votre demande, peuvent coûter en plus. Renseignez-vous auprès de l’opérateur de comptage."
+    },
+    "feeNotice": {
+      "title": "{label} : avis de redevance du {dated_on}, recours jusqu’au {deadline}",
+      "text": "Avis de redevance du {dated_on} : un recours contre cet avis est possible dans un délai d’un mois après sa notification. S’il est arrivé par la poste, il est réputé notifié le quatrième jour après son envoi ; le délai expire alors au plus tôt le {deadline}. Si la fin tombe un samedi, un dimanche ou un jour férié, le délai n’expire que le jour ouvrable suivant ; c’est déjà pris en compte ici, avec les jours fériés valables dans toute l’Allemagne. L’application ne connaît pas les jours fériés propres à votre Land ; si l’un d’eux tombe ce jour-là, le délai court jusqu’au jour ouvrable suivant. Recours administratif ou action en justice : les voies de recours à la fin de l’avis le précisent. Le recours ne suspend pas le paiement.",
+      "textServed": "Avis de redevance du {dated_on}, notifié le {served_on} : un recours contre cet avis est possible dans un délai d’un mois après sa notification ; le délai expire le {deadline}. Si la fin tombe un samedi, un dimanche ou un jour férié, le délai n’expire que le jour ouvrable suivant ; c’est déjà pris en compte ici, avec les jours fériés valables dans toute l’Allemagne. L’application ne connaît pas les jours fériés propres à votre Land ; si l’un d’eux tombe ce jour-là, le délai court jusqu’au jour ouvrable suivant. Recours administratif ou action en justice : les voies de recours à la fin de l’avis le précisent. Le recours ne suspend pas le paiement.",
+      "titleExpired": "{label} : avis de redevance du {dated_on}, délai expiré le {deadline}",
+      "textExpired": "Avis de redevance du {dated_on} : selon le calcul de l’application, le délai de recours, un mois après la notification, a expiré le {deadline} ; un samedi, un dimanche ou un jour férié national à l’échéance est déjà pris en compte. L’application ne connaît pas les jours fériés propres à votre Land ; si l’un d’eux tombait ce jour-là, le délai courait jusqu’au jour ouvrable suivant. Si les voies de recours manquaient ou étaient inexactes, le délai est d’un an. Faites-vous conseiller si vous souhaitez encore contester l’avis.",
+      "textExpiredLong": "Avis de redevance du {dated_on} : selon le calcul de l’application, le délai de recours, un mois après la notification, a expiré le {deadline} ; un samedi, un dimanche ou un jour férié national à l’échéance est déjà pris en compte. L’application ne connaît pas les jours fériés propres à votre Land ; si l’un d’eux tombait ce jour-là, le délai courait jusqu’au jour ouvrable suivant. Faites-vous conseiller si vous souhaitez encore contester l’avis."
+    },
+    "docLink": "Ce que vérifie l’application"
+  },
+  "letters": {
+    "button": "Rédiger une lettre",
+    "buttonNamed": "Rédiger une lettre : {title}",
+    "kind": {
+      "special_termination": "Résiliation extraordinaire",
+      "advance_adjustment": "Demande d’ajustement de l’acompte",
+      "estimate_query": "Question sur l’estimation",
+      "complaint": "Réclamation sur une facture",
+      "objection": "Recours contre un avis"
+    },
+    "dialog": {
+      "title": "Rédiger une lettre : {kind}",
+      "german": "La lettre est en allemand, car les fournisseurs et les autorités en Allemagne la liront. Vérifiez-la et complétez-la avant de l’envoyer.",
+      "sender": "Expéditeur (nom et adresse)",
+      "recipient": "Destinataire (nom et adresse)",
+      "recipientHint": "L’adresse figure sur le courrier ou la facture auquel vous répondez.",
+      "place": "Lieu",
+      "remember": "Mémoriser l’expéditeur sur cet appareil",
+      "rememberHint": "Enregistré uniquement dans ce navigateur, pas dans l’application. Décochez pour l’effacer.",
+      "refs": "Références",
+      "confirmObjection": "Les voies de recours à la fin de l’avis indiquent « Widerspruch » (recours administratif).",
+      "confirmFirst": "Confirmez d’abord ce qu’indiquent les voies de recours. Si elles mentionnent un recours en justice (Klage), cette lettre ne convient pas ; faites-vous conseiller.",
+      "objectionForm": "Signez le recours et envoyez-le par la poste ou déposez-le auprès de l’autorité. Un simple e-mail ne suffit pas.",
+      "deadline": "Envoyez-la de sorte qu’elle arrive au plus tard le {date} (délai indiqué dans la remarque).",
+      "preview": "Aperçu",
+      "gaps": {
+        "one": "Il manque encore une information ; elle apparaît comme […] dans la lettre.",
+        "other": "Il manque encore {count} informations ; elles apparaissent comme […] dans la lettre."
+      },
+      "copy": "Copier le texte",
+      "copied": "Lettre copiée",
+      "copyFailed": "Copie impossible. Sélectionnez le texte dans l’aperçu.",
+      "pdf": "Télécharger le PDF",
+      "sent": "Marquer comme envoyée",
+      "sentNote": "Lettre envoyée : {kind}",
+      "sentHint": "Indiquez la date d’envoi de la lettre. Vous pouvez joindre la lettre comme justificatif."
+    },
+    "ref": {
+      "customer_number": "Numéro client",
+      "contract_number": "Numéro de contrat",
+      "meter_serial": "Numéro de compteur",
+      "malo_id": "Emplacement de marché (MaLo)",
+      "supply_address": "Adresse de fourniture",
+      "invoice_number": "Numéro de facture",
+      "file_number": "Référence du dossier ou de paiement"
+    },
+    "extra": {
+      "reading_value": "Relevé du compteur pour la facture de clôture (facultatif)",
+      "reading_date": "relevé le",
+      "amount_eur": "Acompte souhaité en {cur}",
+      "reasons": "Motifs (facultatif, p. ex. moins de personnes dans le foyer)",
+      "attach_photo": "Mentionner la photo du relevé en pièce jointe",
+      "note": "Ajout (facultatif)",
+      "levy": "Avis concernant (p. ex. redevances d’assainissement 2026)",
+      "reason": "Motivation (facultatif, sinon la lettre indique qu’elle suivra)",
+      "suspend": "Demander aussi la suspension de l’exécution (facultatif)"
+    }
   }
 }

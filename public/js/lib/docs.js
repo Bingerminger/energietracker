@@ -41,6 +41,9 @@ const PAGES = {
   inbox:         ['docs/anleitungen/posteingang.md',     'docs/en/anleitungen/posteingang.md'],       // v3.7.0
   inboxDraft:    ['docs/anleitungen/haushalt-aus-dokumenten.md', 'docs/en/anleitungen/haushalt-aus-dokumenten.md'], // v3.7.0
   levels:        ['docs/referenz/stufen.md',             'docs/en/referenz/stufen.md'],               // v3.7.0 (Paket reifegrad)
+  // v3.11.0 (F1035) — Rechte als Kunde; Sprungmarke je Prüfung `rights-<check>` (RightsSourcesDocTest)
+  rights:        ['docs/verstehen/17-rechte.md',         'docs/en/verstehen/17-rechte.md'],
+  rightsSources: ['docs/referenz/rechtsgrundlagen.md',   'docs/en/referenz/rechtsgrundlagen.md'],
 };
 
 /** Die Repo-Pfade aller verlinkten Seiten — ein Test prüft, dass es sie gibt. */

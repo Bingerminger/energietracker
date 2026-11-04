@@ -148,7 +148,7 @@ final class ActivityServiceTest extends ServiceTestCase
 
         $b = $this->successor($meterId, $this->day(41));   // Beginn = Ende + 1
         $st = $this->statusOf($meterId, $a['id']);
-        self::assertSame(['contract_id' => $b['id'], 'provider' => 'Neuwerk', 'start' => $this->day(41), 'gap_days' => 0], $st['successor']);
+        self::assertSame(['contract_id' => $b['id'], 'provider' => 'Neuwerk', 'start' => $this->day(41), 'gap_days' => 0, 'gap_covered' => false], $st['successor']);
         self::assertFalse($st['should_remind']);
         self::assertSame(0, $st['remind_stage']);
         self::assertSame([], $this->r6(), 'R6 entfällt');
@@ -192,12 +192,20 @@ final class ActivityServiceTest extends ServiceTestCase
         $r6 = $this->r6();
         self::assertCount(1, $r6);
         self::assertStringContainsString('Neuwerk', $r6[0]['detail'], 'der Text nennt den Folgevertrag …');
-        self::assertStringContainsString('1 Tag ohne Vertrag', $r6[0]['detail'], '… und die Lücke');
+        // v3.11.0 (Skeptiker N10) — der Vertrag verlängert sich ohne Kündigung: Die Lücke füllt die Verlängerung
+        self::assertTrue($st['successor']['gap_covered']);
+        self::assertStringNotContainsString('ohne Vertrag', $r6[0]['detail']);
+        self::assertStringContainsString('bis dahin läuft dieser Vertrag ohne Kündigung weiter', $r6[0]['detail']);
         $cancel = $this->byKind()['cancel_by'];
         self::assertTrue($cancel['due_now']);
         self::assertNull($cancel['done']);
         self::assertSame(1, $cancel['ref']['successor']['gap_days']);
         self::assertSame([], $this->activity->all(), 'mit Lücke kein automatischer Eintrag');
+        // gekündigt (verlängert sich nicht): die Lücke ist eine, und der Text nennt sie
+        $this->contracts->update('strom', (string)$a['id'], ['auto_renews' => false]);
+        self::assertFalse($this->statusOf($meterId, $a['id'])['successor']['gap_covered']);
+        $r6 = $this->r6();
+        self::assertStringContainsString('1 Tag ohne Vertrag', $r6[0]['detail'] ?? '', '… und die Lücke');
     }
 
     public function testAShadowContractIsNoSuccessor(): void
@@ -266,7 +274,9 @@ final class ActivityServiceTest extends ServiceTestCase
         $row = array_values(array_filter($this->consumption->contractStatus('gas', $this->meters->get('gas', $meterId))['contracts'],
             fn($c) => $c['contract_id'] === $a['id']))[0];
         self::assertTrue($row['renewed']);
-        self::assertSame($this->today, $row['cancel_by'], 'die Wechselplanung bleibt: kündbar ab heute (switchTiming unverändert)');
+        // v3.11.0 (Skeptiker H3) — verlängert: kein Termin aus einer angenommenen Frist (für Strom und Gas nicht sicher belegt)
+        self::assertNull($row['cancel_by']);
+        self::assertSame('renewed', $row['notice_basis']);
         self::assertSame([], $gasEvents(), 'kein datiertes cancel_by für weiterlaufende und unbefristete Verträge');
         $ics = (new CalendarService($this->agenda, $this->settings, new InstanceService($this->store), $this->i18n))->ics($this->today);
         self::assertStringNotContainsString('CATEGORIES:CANCEL_BY', $ics, 'kein täglich wanderndes Kalenderereignis');
@@ -278,7 +288,7 @@ final class ActivityServiceTest extends ServiceTestCase
             'working_prices' => [['from' => $this->day(30), 'ct_per_kwh' => 9]]]);
         $row = array_values(array_filter($this->consumption->contractStatus('gas', $this->meters->get('gas', $meterId))['contracts'],
             fn($c) => $c['contract_id'] === $a['id']))[0];
-        self::assertSame(['contract_id' => $b['id'], 'provider' => 'Neugas', 'start' => $this->day(30), 'gap_days' => 0], $row['successor'],
+        self::assertSame(['contract_id' => $b['id'], 'provider' => 'Neugas', 'start' => $this->day(30), 'gap_days' => 0, 'gap_covered' => false], $row['successor'],
             'ein weiterlaufender Vertrag läuft bis zum Folgevertrag');
         $log = $this->activity->list(['ref' => $a['id']]);
         self::assertCount(1, $log, 'Folgevertrag eines weiterlaufenden Vertrags: Eintrag im Verlauf');

@@ -26,7 +26,11 @@ use Energietracker\Services\TariffSwitchService;
  *                      der alte Preis aus dem Dokument, sonst aus dem Vertrag am
  *                      Vortag. Frist des Sonderkündigungsrechts aus dem Dokument.
  *                      Spart ein gespeichertes Angebot laut Wechselentscheidung,
- *                      führt der Knopf zum Tarifvergleich.
+ *                      führt der Knopf zum Tarifvergleich. v3.11.0 (F1035, C): Spanne nach
+ *                      dem Jahresband der Prognose, ein Jahr zu den neuen Preisen (je Monat),
+ *                      und `rights` {lines, norms, energy} aus PriceChange (Frist der
+ *                      Sonderkündigung, Ankündigung, Steueränderung, Abschlag), sichtbar mit
+ *                      „Hinweis, keine Rechtsberatung“; die Frist laut Schreiben dann dort.
  *   Rechnung           nach der Übernahme BillService::compare (Urteil, Abweichung
  *                      in €, Gründe), dazu Nachzahlung oder Guthaben
  *   Abschlagsänderung  neuer Abschlag gegen den Abschlag, mit dem der erwartete
@@ -64,6 +68,7 @@ final class Gist
         private ReadingService $readings,
         private ?TariffSwitchService $tariffSwitch = null,
         private ?ResponsibilityService $responsibility = null,
+        private ?Proposals $proposals = null,   // v3.11.0 (F1035, C) — Bewertung der Preisänderung (PriceChange)
     ) {}
 
     /**
@@ -128,8 +133,11 @@ final class Gist
         $before = $from !== null ? date('Y-m-d', (int)strtotime("$from -1 day")) : null;
         $year = Proposals::value($e, 'base_price_period') === 'year';
         $wpNew = self::num(Proposals::value($e, 'working_price_new'));
+        // v3.11.0 — Zweitarif: die Preisliste des zugeordneten Zählers (wie PriceChange::assess)
+        $mid = isset($c['meter']['id']) ? (string)$c['meter']['id'] : null;
+        $wpList = $ct !== null ? ContractService::workingPricesFor($ct, $mid) : [];
         $wpOld = self::num(Proposals::value($e, 'working_price_old'))
-            ?? ($ct !== null && $before !== null ? $this->contracts->valueOnDate((array)($ct['working_prices'] ?? []), 'ct_per_kwh', $before) : null);
+            ?? ($ct !== null && $before !== null ? $this->contracts->valueOnDate($wpList, 'ct_per_kwh', $before) : null);
         $bpNew = self::num(Proposals::value($e, 'base_price_new'));
         $bpOld = self::num(Proposals::value($e, 'base_price_old'));
         if ($bpNew !== null && $year) $bpNew /= 12;
@@ -152,8 +160,19 @@ final class Gist
         if ($bpNew !== null) $details[] = ['key' => 'inbox.gist.detail.basePrice', 'params' => ['old' => $bpOld !== null ? round($bpOld, 2) : null, 'new' => round($bpNew, 2)]];
         if ($kwh !== null) $details[] = ['key' => 'inbox.gist.detail.basis', 'params' => ['kwh' => round($kwh), 'unit' => $switch['unit'] ?? 'kWh']];
         elseif ($wpChanged && !$feedIn) $details[] = ['key' => 'inbox.gist.detail.noForecast', 'params' => []];
+        // v3.11.0 (F1035, C) — Wirkung als Vorschau: Spanne nach dem Jahresband der Prognose
+        // (Lektion 97) und der Abschlag danach; Rechte (Frist, Ankündigung, Steuer) sichtbar
+        $range = $this->priceChangeRange($switch, $extra, $wpChanged ? $wpNew - $wpOld : null, $bpNew !== null && $bpOld !== null ? $bpNew - $bpOld : null, $kwh);
+        if ($range !== null) $details[] = ['key' => 'inbox.gist.detail.range', 'params' => $range];
+        [$advDetails, $advance] = $this->priceChangeAdvance($c, $from, $before, $wpNew, $bpNew, $wpOld, $bpOld, $kwh, $extra, $feedIn);
+        array_push($details, ...$advDetails);
+        $facts = $this->proposals?->priceChangeFacts($e, ['utility' => $c['u'], 'meter_id' => $mid, 'contract_id' => $ct['id'] ?? null], $c['today']);
+        $lines = $facts !== null ? PriceChange::lines($facts, $advance) : [];
+        $rights = $lines === [] ? null : ['lines' => array_map(fn($l) => ['key' => $l['key'], 'params' => $l['params']], $lines),
+            'norms' => PriceChange::norms($lines, (string)$facts['country']), 'energy' => (bool)$facts['energy']];
         $until = self::str(Proposals::value($e, 'special_termination_until'));
-        if ($until !== null) $details[] = ['key' => $until < $c['today'] ? 'inbox.gist.detail.terminationPassed' : 'inbox.gist.detail.termination', 'params' => ['date' => $until]];
+        // die Frist nennen dann die Rechte (gesetzlich und laut Schreiben, Entscheidung 7c)
+        if ($until !== null && ($facts['legal_deadline'] ?? null) === null) $details[] = ['key' => $until < $c['today'] ? 'inbox.gist.detail.terminationPassed' : 'inbox.gist.detail.termination', 'params' => ['date' => $until]];
         $saving = $switch['saving'] ?? null;
         if ($saving !== null) $details[] = ['key' => 'inbox.gist.detail.saving', 'params' => ['amount' => $saving, 'offer' => $switch['offer']]];
         elseif (($switch['offers'] ?? 0) === 0 && $switch !== null) $details[] = ['key' => 'inbox.gist.detail.noOffers', 'params' => []];
@@ -168,7 +187,58 @@ final class Gist
             ? ['kind' => 'link', 'key' => 'inbox.gist.action.compareTariffs', 'params' => ['amount' => $saving], 'href' => '#/tariffs']
             : $this->applyAction($c, 'inbox.gist.action.applyPrices');
         return ['key' => $key, 'params' => ['date' => $from, 'provider' => $provider, 'amount' => $extra !== null ? round(abs($extra), 2) : null],
-            'figure' => $figure, 'action' => $action, 'details' => $details];
+            'figure' => $figure, 'action' => $action, 'details' => $details, 'rights' => $rights];
+    }
+
+    // ── v3.11.0 (F1035, Paket posteingang) — Preisänderung: Spanne, Abschlag ──
+
+    /**
+     * Mehrkosten im Jahr mit der Spanne des Jahresbands der Prognose (dieselbe Menge, unten und
+     * oben verhältnisgleich): {low, high}; null ohne Band oder ohne Änderung im Arbeitspreis.
+     */
+    private function priceChangeRange(?array $switch, ?float $extra, ?float $dWp, ?float $dBp, ?float $kwh): ?array
+    {
+        $band = $switch['band'] ?? null;
+        if ($extra === null || $dWp === null || $kwh === null || $kwh <= 0 || !is_array($band)
+            || !is_numeric($band['low'] ?? null) || !is_numeric($band['high'] ?? null) || (float)($band['value'] ?? 0) <= 0) return null;
+        $at = fn(float $q): float => round($dWp * $kwh * $q / (float)$band['value'] / 100 + ($dBp ?? 0.0) * 12, 2);
+        [$a, $b] = [$at((float)$band['low']), $at((float)$band['high'])];
+        return ['low' => min($a, $b), 'high' => max($a, $b)];
+    }
+
+    /**
+     * Abschlag nach der Preisänderung, aus denselben Größen wie die Mehrkosten (Lektion 92):
+     * ein Jahr zu den neuen Preisen = Arbeitspreis × erwarteter Verbrauch der nächsten zwölf
+     * Monate + Grundpreis × 12 (ohne Bonus; das rechnet auch der Tarifvergleich als „Jahr 2“),
+     * je Monat bzw. je Termin im Rhythmus des Abschlags. Nennt das Schreiben einen neuen
+     * Abschlag, dazu sein Anstieg gegen den der Kosten (für den Satz zum Abschlag).
+     *
+     * @return array{0: list<array{key:string, params:array<string,mixed>}>, 1: array{advance_pct: float, cost_pct: float}|null}
+     */
+    private function priceChangeAdvance(array $c, ?string $from, ?string $before, ?float $wpNew, ?float $bpNew, ?float $wpOld, ?float $bpOld,
+                                        ?float $kwh, ?float $extra, bool $feedIn): array
+    {
+        $ct = $c['contract'];
+        if ($from === null || $before === null || $ct === null || $feedIn) return [[], null];
+        $e = $c['entry'];
+        $advNew = self::num(Proposals::value($e, 'advance_new'));
+        $at = self::str(Proposals::value($e, 'advance_new_from')) ?? $from;
+        $plan = $this->contracts->effectiveAdvanceSchedule($ct);
+        $advOld = $this->contracts->valueOnDate($plan, 'amount_eur', $before);
+        $out = [];
+        if ($advNew !== null) $out[] = ['key' => 'inbox.gist.detail.newAdvance', 'params' => ['amount' => $advNew, 'date' => $at]];
+        $wp = $wpNew ?? $wpOld;
+        $year = $wp !== null && $kwh !== null ? round($wp * $kwh / 100 + ($bpNew ?? $bpOld ?? 0.0) * 12, 2) : null;
+        if ($year !== null) {
+            $every = ContractService::everyMonths(ContractService::planRowOn($plan, $at));
+            $out[] = ['key' => $every > 1 ? 'inbox.gist.detail.yearAfterRate' : 'inbox.gist.detail.yearAfter',
+                'params' => ['amount' => $year, 'recommended' => round($year * $every / 12)]];
+        }
+        // Anstieg des Abschlags gegen den der Kosten (Kosten im Jahr zu alten Preisen)
+        $costOld = $wpOld !== null && $kwh !== null ? $wpOld * $kwh / 100 + ($bpOld ?? 0.0) * 12 : null;
+        $pct = $advNew !== null && $advOld !== null && $advOld > 0 && $extra !== null && $costOld !== null && $costOld > 0
+            ? ['advance_pct' => ($advNew / $advOld - 1) * 100, 'cost_pct' => $extra / $costOld * 100] : null;
+        return [$out, $pct];
     }
 
     private function invoice(array $c): array
@@ -514,7 +584,8 @@ final class Gist
         }
         $saving = $best !== null && (float)$best['vs_reference_year2_eur'] < -0.5 ? round(-(float)$best['vs_reference_year2_eur'], 2) : null;
         return ['kwh' => isset($a['expected_consumption']) ? (float)$a['expected_consumption'] : null, 'unit' => (string)($a['unit'] ?? 'kWh'),
-            'saving' => $saving, 'offer' => $saving !== null ? (string)($best['label'] ?? '') : null, 'offers' => $offers];
+            'saving' => $saving, 'offer' => $saving !== null ? (string)($best['label'] ?? '') : null, 'offers' => $offers,
+            'band' => $a['forecast']['annual_band'] ?? null];   // v3.11.0 — Spanne der Mehrkosten
     }
 
     /** „Übernehmen“, solange etwas Angehaktes aussteht und das Dokument nicht erledigt ist. */

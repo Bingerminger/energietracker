@@ -276,6 +276,12 @@ Mit eigener Gastherme kommt seit v3.1.0 eine dritte dazu: „CO₂-Kosten {Jahr}
 Vermieteranteil von … bis heute einfordern“ — zwölf Monate nach dem Datum der
 Gasrechnung ([CO₂-Kosten teilen](co2-aufteilung.md#7-frist-im-kalender)).
 
+**Zuständig** *(v3.11.0)*: Im Formular des Mietverhältnisses wählst du unter
+„Zuständig“ eine Person; die drei Fristen landen bei ihr, unter „Zu tun“ und im
+Kalender mit „über das Mietverhältnis“. Ohne Auswahl gilt die Person am ersten
+Wärmezähler des Mietverhältnisses, sonst niemand
+([Zuständig an Terminen](hinweise-erledigen.md#8-zuständig-an-terminen-v350)).
+
 Keine davon hat im Kalender eine eigene Vorwarnung. Die App rechnet nur die Daten
 aus; ob und wie eine Frist im Einzelfall gilt, beurteilt sie nicht. Bei
 Fragen helfen Mietervereine oder eine Rechtsberatung.

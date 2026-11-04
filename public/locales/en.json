@@ -218,7 +218,8 @@
       "billNoDeadline": "no statutory deadline",
       "billAction": "Record bill",
       "heatLimitAction": "View",
-      "readingCheckAction": "View readings"
+      "readingCheckAction": "View readings",
+      "rightsAction": "View"
     },
     "welcome": {
       "title": "Welcome to Energietracker",
@@ -301,7 +302,8 @@
       "notePlaceholder": "optional",
       "addNote": "+ Note",
       "hideNote": "− Hide note",
-      "otherDate": "Other date"
+      "otherDate": "Other date",
+      "reported": "reported to the supplier"
     },
     "status": {
       "saving": "Saving…",
@@ -490,12 +492,11 @@
       "gpPlus": " + {value} standing charge",
       "suggestAdvance": "With an advance of {suggested} instead of {current}, the bill would come out at about ±0.",
       "measuredThenEstimated": "measured up to {date} ({amount}), estimated since: {value}",
-      "renewed": "The term ended on {date}. Without cancellation the contract runs on at its last prices and can be cancelled any time with at most one month’s notice.",
-      "cancelMissed": "Cancellation deadline {date} missed: the contract does not end on {end} but runs on — after that it can be cancelled with at most one month’s notice.",
+      "renewed": "The term ended on {date}. Without cancellation the contract runs on; how and with what notice you can cancel is set out in the contract.",
+      "cancelMissed": "Cancellation deadline {date} missed: the contract does not end on {end} but runs on. For how long and with what notice is set out in the contract.",
       "priceIncrease": "Price increase from {date}: {what}.",
       "piWorking": "unit price {from} → {to} {minor}/kWh",
       "piBase": "standing charge {from} → {to} {cur}/month",
-      "priceIncreaseDe": "Until then you have a special right to cancel effective on the day of the increase (§ 41 (5) EnWG).",
       "pathTitle": "Costs and advances over the billing period",
       "pathCost": "Costs, cumulative",
       "pathPaid": "Paid: advances and special payments",
@@ -554,7 +555,11 @@
       "bandFew": {
         "one": "Too few measured months, depending on the estimate {range} ({level}, {count} day estimated).",
         "other": "Too few measured months, depending on the estimate {range} ({level}, {count} days estimated)."
-      }
+      },
+      "renewedHeat": "The term ended on {date}. If a district heating contract is not cancelled nine months before it expires, it is extended by five years each time (§ 32 AVBFernwärmeV). Unless your contract says otherwise, it runs until {until}; the written cancellation must reach the supplier by {cancel}.",
+      "cancelMissedHeat": "Cancellation date {date} missed: if a district heating contract is not cancelled nine months before it expires, it is extended by five years (§ 32 AVBFernwärmeV). Unless your contract says otherwise, it runs on after {end} until {until}; the next written cancellation must reach the supplier by {cancel}.",
+      "renewedSuccessor": "The term ended on {date}. Without cancellation the contract runs on until the follow-up contract starts on {start}.",
+      "renewedBasic": "The term ended on {date}. In basic supply you can cancel at any time with two weeks’ notice in text form (§ 20 {gvv}); cancelled today, the contract ends on {earliest} at the earliest."
     },
     "contractsTable": {
       "emptyTitle": "No contracts recorded",
@@ -573,7 +578,7 @@
       "periodOpen": "{start} → ongoing",
       "gpSuffix": "standing charge {value} {cur}/month",
       "colSpecial": "Special payments",
-      "hint": "Bonus = credits from the contract (instant, switching, new-customer bonus). Special payments = refunds (+), back-payments and extra advance payments (−) outside the advance schedule; both feed into the balance. Tap to see the individual items; they are maintained in the contract management.",
+      "hint": "Bonus = credits from the contract (instant, switching, new-customer bonus), counted on the day of the credit within the row’s period. Special payments = refunds (+), back-payments and extra advance payments (−) outside the advance schedule; both feed into the balance. Tap to see the individual items; they are maintained in the contract management.",
       "colEarned": "Earned",
       "colReceived": "Received",
       "futureLegend": "≈ Future contract: the expected balance is estimated from the start of the contract with its prices, its advance and your consumption so far."
@@ -916,7 +921,8 @@
       "valuesOn": "as of {date}",
       "noValues": "No prices entered yet",
       "since": "since {year}",
-      "advanceValueEvery": "Advance payment {value}"
+      "advanceValueEvery": "Advance payment {value}",
+      "nextValues": "from {date}: {values}"
     },
     "summary": {
       "twPrices": {
@@ -958,7 +964,9 @@
       "copyStart": "From start",
       "copyStartTitle": "Set this row’s date to the contract start",
       "removeRow": "Remove row",
-      "setStartFirst": "Please set the contract start date first"
+      "setStartFirst": "Please set the contract start date first",
+      "announcedOn": "Letter dated",
+      "vatPct": "VAT %"
     },
     "kinds": {
       "rueckzahlung_mit": "Refund (affecting advances)",
@@ -1008,12 +1016,20 @@
       },
       "noticeModeHint": "Automatic: at the end of the term; without an end, any time at month end. Default supply (Grundversorgung), for example, can be cancelled any time with two weeks’ notice.",
       "autoRenews": "Renews unless cancelled",
-      "autoRenewsHint": "After the end the contract runs on at its last prices until it is cancelled — then with at most one month’s notice. Clear this once you have cancelled.",
+      "autoRenewsHint": "After the end the contract runs on until it is cancelled; the notice period is set out in the contract. Untick once it has been cancelled.",
       "groupTargets": "Meter groups (one contract for all)",
       "section": {
         "contract": "Contract",
         "term": "Term and cancellation"
-      }
+      },
+      "supplyKind": "Type of supply",
+      "supplyKindHint": "Shown on the bill. It determines which rules apply to price changes and termination.",
+      "supplyKindOption": {
+        "unknown": "not specified",
+        "basic": "Basic supply",
+        "special": "Special contract"
+      },
+      "priceOriginHint": "If the supplier changes the prices, enter the date of its letter under “Letter dated”. The app then tells a price change from an agreed price step; with the VAT rate it recognises a pure tax change."
     },
     "delete": { "title": "Delete contract?", "confirm": "Delete", "deleted": "Contract deleted", "messageNamed": "Delete the contract “{name}” permanently? Its prices, advance payments and bonuses are lost." },
     "deleteContract": "Delete contract",
@@ -1099,7 +1115,9 @@
       "hint": "Found on the bill or the heat supplier’s price sheet. Capacity and metering charges count as fixed costs; the network CO₂ factor replaces the general value for district heating."
     },
     "hint": {
-      "termOver24": "Note: the minimum term is longer than 24 months. In Germany, an initial term this long is invalid for consumers (§ 309 no. 9 BGB)."
+      "termOver24": "Note: the minimum term is longer than 24 months. For electricity and gas, § 309 no. 9 BGB limits the initial term in consumer contracts with standard terms to 24 months; whether this applies to your contract is still to be checked (§ 310(2) BGB). Check the figure in the contract.",
+      "termOver10y": "Note: the minimum term is longer than ten years. For district heating the ordinance provides for at most ten years (§ 32 AVBFernwärmeV). Check the figure in the contract.",
+      "conflict": "This contract contradicts another one. The note is on the contract card."
     },
     "groupPrices": {
       "title": "Unit price per meter (e.g. peak/off-peak)",
@@ -1145,7 +1163,8 @@
       "current": "ACTIVE",
       "renewed": "RENEWED",
       "past": "ENDED",
-      "shadow": "QUOTE"
+      "shadow": "QUOTE",
+      "superseded": "REPLACED"
     },
     "phaseGroup": {
       "future": "Upcoming",
@@ -1173,7 +1192,21 @@
       "dueDates": "Due dates according to the bill: {dates}, then yearly on the same days",
       "none": "{from} to {to}: no advance payment entered. If you paid in that time, enter the amount here.",
       "noneOpen": "From {from} no advance payment entered."
-    }
+    },
+    "coverage": {
+      "superseded": "Superseded: applies until {date}",
+      "renewed": "Renewed since {date}",
+      "renewedUntil": "Renewed until {date}"
+    },
+    "conflict": {
+      "fixEnd": "Set the end of “{name}” to {date}",
+      "bothRight": "Both are right",
+      "fixed": "End saved.",
+      "dismissed": "Note hidden.",
+      "check": "Check contracts"
+    },
+    "assumedPeriod": "Assumed: from {from} to {until} the app keeps using “{name}”, although according to the entry “{other}” runs until {otherEnd}.",
+    "advanceVsCost": "The advance payments are about {factor} times the costs. Are the contract and prices right?"
   },
   "meters": {
     "loading": "Loading…",
@@ -1453,6 +1486,22 @@
       "label": "Feed-in register of",
       "none": "Grid connection (feed-in to the grid)",
       "hint": "If meters are connected one behind the other and a meter further back also counts backwards (2.8.0), choose that meter here. Its feed-in register does not count as feed-in to the grid. From the differences the app calculates how much solar power each branch uses itself."
+    },
+    "metering": {
+      "title": "Metering",
+      "device": "Metering device",
+      "unknown": "don’t know",
+      "conventional": "conventional meter (rotating disc)",
+      "mme": "modern metering device (digital meter)",
+      "imsys": "smart metering system (smart meter with communication)",
+      "operator": "Metering operator",
+      "basic": "default operator (not chosen by you)",
+      "competitive": "freely chosen",
+      "hint": "For the note on the metering charge under “Your rights as a customer”: the statutory cap depends on the metering device and applies only to the default metering operator."
+    },
+    "pvKw": {
+      "label": "Plant capacity (kW)",
+      "hint": "For the cap on the metering charge at the electricity meter (plants above 7 kW)."
     }
   },
   "settings": {
@@ -2270,6 +2319,22 @@
       "handedOverRecords": {
         "one": "{count} meter or contract is now yours.",
         "other": "{count} meters and contracts are now yours."
+      },
+      "handoverRecordsTenancy": {
+        "one": "{count} meter, contract or tenancy passes to {to}.",
+        "other": "{count} meters, contracts and tenancies pass to {to}."
+      },
+      "handoverRecordsTenancyNobody": {
+        "one": "{count} meter, contract or tenancy keeps the person, marked “(deleted)”, until someone takes over.",
+        "other": "{count} meters, contracts and tenancies keep the person, marked “(deleted)”, until someone takes over."
+      },
+      "handoverRecordsTenancyFormer": {
+        "one": "{count} meter, contract or tenancy then shows “former member”.",
+        "other": "{count} meters, contracts and tenancies then show “former member”."
+      },
+      "handedOverRecordsTenancy": {
+        "one": "{count} meter, contract or tenancy is now yours.",
+        "other": "{count} meters, contracts and tenancies are now yours."
       }
     },
     "securityCheck": {
@@ -2546,11 +2611,11 @@
     "loading": "Loading recommendations…",
     "loadError": "Could not load recommendations: {msg}",
     "title": "Recommendations",
-    "subtitle": "Statistical hints from your own data — no external sources.",
+    "subtitle": "Hints from your own data. The hints on your rights also name laws and consumer advice centres as sources.",
     "filterAll": "All ({count})",
     "filterGroupLabel": "Filter by urgency",
     "sev": { "urgent": "Urgent", "warning": "Attention", "info": "Note" },
-    "cat": { "effizienz": "Efficiency", "vertrag": "Contract", "bestand": "Stock", "anomalie": "Anomaly", "trend": "Trend", "modell": "Heating model" },
+    "cat": { "effizienz": "Efficiency", "vertrag": "Contract", "bestand": "Stock", "anomalie": "Anomaly", "trend": "Trend", "modell": "Heating model", "recht": "Rights" },
     "emptyAll": "No recommendations — all clear.",
     "dismiss": "Hide for 30 days",
     "error": "Error: {msg}",
@@ -2598,7 +2663,8 @@
         "gap": {
           "one": "The follow-on contract “{provider}” only starts on {date} – {count} day without a contract in between.",
           "other": "The follow-on contract “{provider}” only starts on {date} – {count} days without a contract in between."
-        }
+        },
+        "gapCovered": "The follow-up contract “{provider}” starts on {date}; until then this contract runs on without cancellation."
       },
       "r7": {
         "title": "{label}: efficiency class {class} ({kwh} kWh/m²·a)",
@@ -2615,6 +2681,22 @@
         "baseLoad": "Today it estimates the summer base load at {now} {unit} a day, with {best} °C at {then}; {measured} were measured.",
         "scope": "The limit applies to this meter only and is only applied when you click.",
         "scopeGroup": "The limit applies to this meter group only and is only applied when you click."
+      },
+      "rContractConflict": {
+        "title": "{label}: contracts contradict each other",
+        "overlap": "According to the entry, “{a}” runs until {aEnd}, but “{b}” applies from {bStart}. The app uses “{b}” from {bStart}. Is the end of “{a}” right?",
+        "nested": "“{b}” ends on {bEnd}, “{a}” is entered until {aEnd}. After that the app keeps using “{b}”. Which contract applies after that?",
+        "nestedCancelled": "“{b}” ends on {bEnd} and does not renew, “{a}” is entered until {aEnd}. For the time after that the app uses no contract. Which contract applies after that?",
+        "foreignTitle": "{label}: is “{b}” a tariff for another utility?",
+        "foreignCopy": "Supplier, tariff and unit price match a contract for {other}.",
+        "foreignDocument": "The inbox assigns the document for it to {other}.",
+        "foreignPrice": "The unit price is about {factor} times that of your other contracts for this meter.",
+        "foreignAsk": "Is the utility right?",
+        "advanceTitle": "{label}: advance payments about {factor} times the costs",
+        "advance": "In the billing year {from} to {until}, {advances} in advance payments face only {cost} in costs. Are the contract and prices right?",
+        "foreignName": "Supplier and tariff match a contract for {other}, and the unit price is in its range.",
+        "advanceOf": "In the billing year {from} to {until} ({contract}), {advances} in advance payments face only {cost} in costs. Are the contract and prices right?",
+        "advanceAlso": "This fits: in the billing year {from} to {until}, {advances} in advance payments face only {cost} in costs, about {factor} times as much."
       }
     },
     "dismissedNamed": "“{title}” hidden for 30 days",
@@ -2628,7 +2710,9 @@
     },
     "dismissUntil": "Hide until {date}",
     "dismissUntilNamed": "Hide until {date}: {title}",
-    "dismissedUntilNamed": "“{title}” hidden until {date}"
+    "dismissedUntilNamed": "“{title}” hidden until {date}",
+    "rightsNoBill": "No hints on your rights as a customer yet: most checks need a recorded bill. Record your annual bill and the app checks deadline, bonus, estimate and metering charge.",
+    "rightsNoBillLink": "Check bill"
   },
   "tariff": {
     "loading": "Loading…",
@@ -2745,7 +2829,11 @@
         "one": "{first} + {count} contract in sequence",
         "other": "{first} + {count} contracts in sequence"
       },
-      "portal": "Official tariff comparison ({country}) ↗"
+      "portal": "Official tariff comparison ({country}) ↗",
+      "renewedSince": "extended since {date}",
+      "renewedNotice": "Notice period as per contract. No date can be calculated from it here; the switch date above is an estimate until you enter it.",
+      "basicNotice": "Basic supply: can be cancelled any time with two weeks’ notice (§ 20 {gvv}).",
+      "renewsUntil": "Without cancellation the contract is extended until {until} (§ 32 AVBFernwärmeV); the next cancellation date is {cancel}."
     },
     "retro": {
       "heading": "Looking back at real months",
@@ -3297,8 +3385,7 @@
         "title": "Price increase: {label}",
         "reason": "New prices apply from {date}. {parts}",
         "reasonWp": "The unit price rises from {old} to {new} ct/{unit}.",
-        "reasonBp": "The standing charge rises from {old} to {new} a month.",
-        "legalDe": "In Germany, a price increase gives a special right to terminate as of the day of the change (§ 41(5) EnWG)."
+        "reasonBp": "The standing charge rises from {old} to {new} a month."
       },
       "heatingRise": {
         "title": "Heating use up: {label}",
@@ -3766,7 +3853,8 @@
       "counterInvalid": "Invalid meter reading “{value}” – expected a number of 0 or more.",
       "dateInvalid": "Invalid reading date “{date}” – expected YYYY-MM-DD.",
       "clientRefInvalid": "Invalid entry identifier (client_ref): 8 to 64 characters of letters, digits and hyphens.",
-      "periodMeter": "This meter records consumption per period – please enter a period instead of a meter reading."
+      "periodMeter": "This meter records consumption per period – please enter a period instead of a meter reading.",
+      "reportedOnInvalid": "Invalid report date “{date}”. Expected YYYY-MM-DD."
     },
     "contract": {
       "noContracts": "{label}: no contracts can be created (statistics-only utility).",
@@ -3978,7 +4066,8 @@
       "noResult": "The bill shows neither an additional payment nor a credit – there is nothing to book",
       "noContract": "There is no contract for the period {from} to {to} – add one first",
       "periodInvalid": "Period “{from}” to “{to}” is invalid",
-      "amountInvalid": "Amount “{value}” is not a valid number"
+      "amountInvalid": "Amount “{value}” is not a valid number",
+      "valueInvalid": "{field}: “{value}” is not a valid value"
     },
     "marketPrices": {
       "noRows": "The file contains no wholesale prices — expected a SMARD download or lines like 2025-01;114.14",
@@ -4117,6 +4206,15 @@
       "expired": "The certificate of {host} has expired or is not valid yet. Renew it there or check the clock of both devices.",
       "file": "Energietracker cannot read the root certificates. Check the file from ET_CA_FILE or a mounted certificate list: path, content and read permission. Settings → System shows whether ET_CA_FILE is readable.",
       "other": "The encrypted connection to {host} fails because of the certificate. Check the address and the certificate. If you issued it yourself, enter your root certificate under Settings → Expert → Connections in the home network."
+    },
+    "letter": {
+      "formatInvalid": "Unknown format “{value}” (text or pdf)",
+      "findingNotFound": "This note no longer exists. Reload the page.",
+      "kindInvalid": "Unknown letter template “{value}”",
+      "notOffered": "There is no such letter for this note",
+      "confirmRequired": "First confirm that the notice of legal remedies says “Widerspruch” (objection)",
+      "fieldInvalid": "“{field}” is too long or invalid (at most 6 lines of 60 characters)",
+      "deadlinePassed": "The deadline for an objection has expired; the app does not draft a letter for it"
     }
   },
   "login": {
@@ -4237,7 +4335,10 @@
     "advanceEvery": "Advance payment {amount}",
     "noNotice": "No notice period entered",
     "earliestEnd": "Can end on {date} at the earliest",
-    "viaGroup": "Through the group “{name}”: balance and advance payments apply to the whole group."
+    "viaGroup": "Through the group “{name}”: balance and advance payments apply to the whole group.",
+    "renewedNotice": "Notice period as per contract",
+    "cancelMissedHeat": "Cancellation date {date} passed, extended until {until}",
+    "renewedBasic": "Basic supply: can be cancelled any time with two weeks’ notice"
   },
   "billCheck": {
     "noMeter": "The bill check recalculates the annual bill for gas, electricity, water and district heating. Set up a meter first.",
@@ -4274,7 +4375,35 @@
         "one": "{count} recorded",
         "other": "{count} recorded"
       },
-      "period": "Period as above: {from} to {to} (inclusive)."
+      "period": "Period as above: {from} to {to} (inclusive).",
+      "received": "Received on (optional)",
+      "receivedHint": "The day you got the bill. The app uses it to check the supplier’s deadline.",
+      "estimated": "Estimated according to the bill",
+      "estimatedStart": "Start reading",
+      "estimatedEnd": "Final reading",
+      "estimatedHint": "If the bill gives the final reading as estimated, enter it here, not as a reading. The app compares it with your own readings; it does not count towards your consumption.",
+      "itemKind": "Kind",
+      "itemKinds": {
+        "levy": "Levy",
+        "fee": "Fee",
+        "credit": "Credit",
+        "metering": "Metering",
+        "other": "Other"
+      },
+      "itemBasis": "net/gross",
+      "itemVat": "VAT rate (%)",
+      "notStated": "not stated",
+      "notice": "Fee assessment (water, waste water)",
+      "noticePublic": "The bill is an assessment by an authority or municipality with instructions on legal remedies",
+      "noticeDated": "Assessment dated",
+      "noticeServed": "Served on (only with a certificate of service)",
+      "noticeRemedy": "Remedy named in the instructions",
+      "noticeRemedyHint": "Only if it says “objection” does the app offer an objection letter.",
+      "noticeFile": "File or payment reference",
+      "number": "Invoice number",
+      "numberHint": "Optional. Letters about this bill quote it as a reference.",
+      "estimatedValue": "Estimated final reading ({unit})",
+      "estimatedOn": "Final reading on"
     },
     "saved": "Bill saved",
     "book": "Book as special payment",
@@ -4316,7 +4445,14 @@
     },
     "factorMismatch": {
       "line": "From {from}: {invoice} kWh/m³ on the bill ({z} × {hs}), {list} kWh/m³ in the settings"
-    }
+    },
+    "rightsCount": {
+      "one": "{count} note on your rights",
+      "other": "{count} notes on your rights"
+    },
+    "estimatedBackwards": "The estimated final reading does not fit your reading of {date} ({counter} {unit}): the meter would run backwards. Check the bill and the reading.",
+    "rightsNoBill": "The app checks the hints on your rights as a customer (deadline, bonus, estimate, metering charge) from the first recorded bill. Enter it below or upload it:",
+    "rightsInbox": "Inbox"
   },
   "glossary": {
     "hdd": {
@@ -4646,7 +4782,8 @@
     "readOnly": "Nothing is saved in the demo. With your own installation you record your own data.",
     "unavailable": "This evaluation is not precomputed in the demo – it works with your own installation.",
     "scenarioPresetsOnly": "Only the example scenarios are precomputed in the demo.",
-    "conceptPresetsOnly": "In the demo the preview is only precomputed for the layout of this sample household."
+    "conceptPresetsOnly": "In the demo the preview is only precomputed for the layout of this sample household.",
+    "letterPresetsOnly": "Only the first draft of the letter is precomputed in the demo. Changes and the PDF need your own installation."
   },
   "manifest": {
     "description": "Consumption, costs and contracts for electricity, gas, water, district heating, heating oil, pellets and PV — on your own server, supplier mail read locally, the cloud only if you want it.",
@@ -4742,7 +4879,7 @@
       "cancelBy": "{label}: last day to cancel ({provider})",
       "termEnd": "{label}: contract ends ({provider})",
       "priceGuaranteeEnd": "{label}: price guarantee ends ({provider})",
-      "priceIncrease": "{label}: price increase ({provider}) — check special termination",
+      "priceIncrease": "{label}: price increase ({provider})",
       "readingDue": "{label}: take a meter reading ({meter})",
       "tankReorder": "{label}: plan a delivery ({meter})",
       "tenancyStatementDue": "Service charge statement up to {period} due: {label}",
@@ -4760,7 +4897,8 @@
       "levelShiftLess": "{label}: consistently lower consumption since {date}. Set a baseline date? ({meter})",
       "levelShiftMore": "{label}: consistently higher consumption since {date}. Set a baseline date? ({meter})",
       "readingMismatch": "{label}: consumption before and after {date} does not add up ({meter})",
-      "readingMismatchBlock": "{label}: consumption before {date} and after {until} does not add up ({meter})"
+      "readingMismatchBlock": "{label}: consumption before {date} and after {until} does not add up ({meter})",
+      "contractConflict": "{label}: check contracts"
     },
     "subscribe": "Subscribe in your calendar",
     "intro": "Dates, cancellation deadlines, contract ends, price guarantees and due readings as a calendar subscription. The calendar refreshes them every 12 hours.",
@@ -4782,7 +4920,8 @@
     "onlyMine": "Only what is assigned to me",
     "onlyMineHint": "The link then shows only deadlines and dates you are responsible for – including via a contract or meter.",
     "webcalLabel": "Subscription address for calendar apps (webcal)",
-    "httpsLabel": "The same address as an https link"
+    "httpsLabel": "The same address as an https link",
+    "assigneeTenancy": "Responsible: {name} (via the tenancy)"
   },
   "tenancy": {
     "title": "Tenancy",
@@ -5335,7 +5474,7 @@
       "anytime": "cancel any time",
       "textMissed": "Contract since {start}. The deadline to cancel passed on {cancel}; without cancellation it runs on after {end}.",
       "textNoRenew": "Contract since {start}; it ends on {end} without you having to cancel.",
-      "textRenewed": "Contract since {start}. Its term ended on {term}; since then it has been running on and can be cancelled at any time — cancelled today, it ends on {end} at the earliest.",
+      "textRenewed": "Contract since {start}. Its term ended on {term}; since then it has been running on until you cancel. The notice period is set out in the contract.",
       "textAnytime": "Contract since {start}; it runs on until you cancel. You can cancel at any time — cancelled today, it ends on {end} at the earliest.",
       "textMinTerm": "Contract since {start}, with a minimum term: cancelled today, it ends on {end} at the earliest.",
       "textMinTermUntil": "The minimum term ends on {date}.",
@@ -5346,7 +5485,12 @@
       "gap": {
         "one": "In between there is {count} day without a contract.",
         "other": "In between there are {count} days without a contract."
-      }
+      },
+      "textRenewedHeat": "Contract since {start}. Its term ended on {term}. Without cancellation nine months before expiry, a district heating contract is extended by five years each time (§ 32 AVBFernwärmeV); unless your contract says otherwise, it runs until {end}, and the written cancellation must reach the supplier by {cancel}.",
+      "textMissedHeat": "Contract since {start}. The deadline to cancel passed on {cancel}. Without cancellation nine months before it expires, a district heating contract is extended by five years (§ 32 AVBFernwärmeV); unless your contract says otherwise, it runs until {until}, and the next cancellation must reach the supplier by {next}.",
+      "textHeatNotice": "No notice period is entered; the app counts nine months before expiry (§ 32 AVBFernwärmeV). Without cancellation the contract is extended until {until}.",
+      "textRenewedSuccessor": "Contract since {start}. The term ended on {term}; since then it has run on without cancellation.",
+      "textRenewedBasic": "Contract since {start}. The term ended on {term}; in basic supply it can be cancelled at any time with two weeks’ notice. Cancelled today, it ends on {end} at the earliest."
     }
   },
   "setup": {
@@ -5888,9 +6032,11 @@
     "noPeople": "Add people under Settings → Household & building.",
     "via": {
       "contract": "via the contract",
-      "meter": "via the meter"
+      "meter": "via the meter",
+      "tenancy": "via the tenancy"
     },
-    "inheritsMeter": "If empty, responsible: {name} (via the meter)."
+    "inheritsMeter": "If empty, responsible: {name} (via the meter).",
+    "hintTenancy": "The service charge statement, objections and CO₂ costs go to this person. If empty, the heat meter’s person applies. Nobody is notified."
   },
   "notice": {
     "updated": "Updated to version {version}.",
@@ -6216,7 +6362,9 @@
       "specialTermination": "Special right to cancel {provider} until {date}",
       "followUp": "Arrange a follow-up contract (supply by {provider} ends on {end})",
       "dunning": "Sort out the payment reminder “{name}”",
-      "document": "Deal with the document “{name}”"
+      "document": "Deal with the document “{name}”",
+      "specialTerminationLegal": "Special right to cancel {provider}, must arrive by {date}",
+      "specialTerminationLetter": "Special right to cancel {provider}, must arrive by {date} (letter {letter}, by law {legal})"
     },
     "title": "Inbox",
     "subtitle": "File supplier mail as PDF, have it read, check it and take it over.",
@@ -6450,7 +6598,15 @@
       "advance_new_dates": "Due dates of the new advance payment",
       "advance_new_every": "Rhythm of the new advance payment",
       "invoice_number": "Invoice number",
-      "corrects_invoice": "Refers to earlier bill"
+      "corrects_invoice": "Refers to earlier bill",
+      "basic_supply": "Basic supply",
+      "credits": "Credits",
+      "metering_fee": "Metering charge",
+      "metering_fee_basis": "Metering charge net or gross",
+      "metering_fee_vat_pct": "VAT rate of the metering charge",
+      "fee_notice": "Fee assessment",
+      "remedy": "Legal remedy stated",
+      "file_number": "File reference"
     },
     "reason": {
       "empty": "Missing, but needed",
@@ -6500,7 +6656,11 @@
       "energy": "Unit price",
       "energy_tax": "Energy tax",
       "co2": "CO₂ price",
-      "other": "Surcharge"
+      "other": "Surcharge",
+      "bonus": "Bonus",
+      "credit_other": "other credit",
+      "objection": "Objection",
+      "action": "Court action"
     },
     "item": {
       "gasFactor": "{from} to {to}: volume correction factor {z} × calorific value {hs} kWh/m³",
@@ -6545,7 +6705,11 @@
       "waterBase": "Standing charge {section} from {from}: {value} per month (from the bill)",
       "waterRate": "{section} from {from}: {value} per m² and year for {area} m² (from the bill)",
       "billCorrection": "Take over the corrected bill {from} to {to}: {result} instead of {before}",
-      "billRebook": "Replace the booking: {result} instead of {before}"
+      "billRebook": "Replace the booking: {result} instead of {before}",
+      "reminderSpecialTerminationLegal": "Reminder: special right to cancel, must arrive by {date}",
+      "reminderSpecialTerminationLetter": "Reminder: special right to cancel, must arrive by {date} (letter {letter}, by law {legal})",
+      "supplyKindBasic": "Enter the type of supply at the contract: basic supply (according to the bill)",
+      "supplyKindSpecial": "Enter the type of supply at the contract: special contract (according to the bill)"
     },
     "detail": {
       "reading": "Recorded: {counter}.",
@@ -6695,7 +6859,35 @@
         "minTerm": "Minimum term until {date}.",
         "guarantee": "Price guarantee until {date}.",
         "dunning": "The app does not read payment reminders; the reminder makes sure you sort out the payment.",
-        "advanceBasisRate": "About {recommended} per due date would fit; with the new advance payment the bill would end with: {balance}."
+        "advanceBasisRate": "About {recommended} per due date would fit; with the new advance payment the bill would end with: {balance}.",
+        "range": "Depending on weather and consumption, between {low} and {high} a year.",
+        "yearAfter": "One year at the new prices: about {amount}, that is about {recommended} a month.",
+        "yearAfterRate": "One year at the new prices: about {amount}, that is about {recommended} per due date."
+      },
+      "rights": {
+        "terminationSpecial": "You can cancel the contract without notice as of {date}. The cancellation must reach the supplier by {deadline}.",
+        "terminationBasic": "Under basic supply you can cancel as of {date}; the cancellation must reach the supplier by {deadline}. Otherwise you can cancel at any time with two weeks’ notice.",
+        "terminationUnknown": "After a price increase you can cancel without notice as of {date}. The cancellation must reach the supplier by {deadline}. Under basic supply you can also cancel at any time with two weeks’ notice. Your bill states whether you are under basic supply.",
+        "terminationPassed": "Cancelling as of {date} was only possible until {deadline}.",
+        "letterEarlier": "The letter names {letter} as the deadline. By law it is enough if the cancellation arrives by {deadline}; the supplier may not set a shorter deadline of its own.",
+        "letterLater": "The letter names {letter} as the deadline. You are on the safe side if the cancellation reaches the supplier by {deadline}.",
+        "vatOnly": "Only the VAT changes; the net price stays the same. Under a special contract this gives no special right to cancel.",
+        "vatOnlyBasic": "Only the VAT changes; the net price stays the same. Under basic supply you can cancel at any time with two weeks’ notice.",
+        "lateSpecial": {
+          "one": "The letter is dated {days} day before the change. Under a special contract the law requires at least one month. Get advice if you want the increase checked.",
+          "other": "The letter is dated {days} days before the change. Under a special contract the law requires at least one month. Get advice if you want the increase checked."
+        },
+        "lateBasic": {
+          "one": "The letter is dated {days} day before the change. Under basic supply the law requires an announcement at least six weeks ahead. Get advice if you want the increase checked.",
+          "other": "The letter is dated {days} days before the change. Under basic supply the law requires an announcement at least six weeks ahead. Get advice if you want the increase checked."
+        },
+        "announcedAfter": "The letter is dated {date}, not before the day of the change. A price change must be announced in advance. Get advice if you want the increase checked.",
+        "monthStart": "Under basic supply, price changes take effect at the start of a month; this letter names {date}.",
+        "heat": "District heating prices change according to the price adjustment clause of your contract; the calculation factors must be shown. The regulation generally provides no special right to cancel as for electricity and gas.",
+        "guarantee": "A price guarantee until {date} is entered for the contract. Check whether the increase is excluded from it (often taxes and levies).",
+        "advanceBasic": "The advance payment rises by {advance_pct}%, the costs according to the forecast by {cost_pct}%. Under basic supply the supplier may adjust the advance payment after a price change by the percentage of that change.",
+        "advanceSpecial": "The advance payment rises by {advance_pct}%, the costs according to the forecast by {cost_pct}%. The advance payment follows the consumption of the last billing period; the supplier must take a credibly lower consumption into account appropriately.",
+        "advanceUnknown": "The advance payment rises by {advance_pct}%, the costs according to the forecast by {cost_pct}%. An advance payment follows consumption; under basic supply the supplier may adjust it after a price change by the percentage of that change."
       }
     },
     "channels": {
@@ -6747,7 +6939,9 @@
       "unsure": "Read with doubt, not taken over: {fields}",
       "netPrice": "Net on the bill, converted to gross with the VAT rate shown (the app keeps gross prices).",
       "vatChanged": "Same price as in the contract, only a different VAT rate – the new price line applies from the day the bill gives for it.",
-      "rhythmConflict": "The rhythm stated on the bill does not match the due dates listed. The due dates are taken over, please check."
+      "rhythmConflict": "The rhythm stated on the bill does not match the due dates listed. The due dates are taken over, please check.",
+      "perMeter": "The contract has energy prices per meter (for example peak and off-peak). Check which meter this price applies to; it is taken over for the assigned meter.",
+      "advanceFromPrice": "The letter does not say from when the new advance payment applies. The day of the price change is assumed."
     },
     "duplicate": {
       "text": "Probably the same document as “{name}” (filed on {date}). Take over only one; you can delete the other.",
@@ -7406,5 +7600,141 @@
     "sentenceNoWeather": "Depending on the estimate, between {low} and {high}.",
     "shortFew": "too few measured months, depending on the estimate {range}",
     "sentenceFew": "Too few measured months, depending on the estimate between {low} and {high}."
+  },
+  "rights": {
+    "title": "Your rights as a customer",
+    "footer": "Note, not legal advice. Basis: {norms} (checked {date}).",
+    "notAdvice": "Note, not legal advice.",
+    "helpEnergy": "Help: consumer advice centre (Verbraucherzentrale), energy arbitration board (Schlichtungsstelle Energie).",
+    "help": "Help: consumer advice centre (Verbraucherzentrale).",
+    "deadline": "Deadline: {date}",
+    "check": {
+      "bill_late": "Bill came late",
+      "advance_high": "Advance payment clearly too high",
+      "special_termination": "Price change: special termination",
+      "bonus_missing": "Bonus not credited",
+      "estimate_despite_reading": "Estimate despite your own reading",
+      "metering_cap": "Metering charge above the cap",
+      "fee_notice_deadline": "Deadline for a fee assessment"
+    },
+    "priceNote": {
+      "special": "You can terminate the contract without notice as of the day of the price change; the termination must reach the supplier before then (§ 41(5) EnWG).",
+      "basic": "In basic supply you can terminate as of the day of the price change (§ 5(3) {gvv}) and otherwise at any time with two weeks’ notice (§ 20 {gvv}).",
+      "unknown": "Under a special contract you can terminate without notice as of the day of the price change (§ 41(5) EnWG), in basic supply as well (§ 5(3) {gvv}). Your bill states whether you are in basic supply.",
+      "stepped": "This only applies if the supplier changes the prices, not to a price step agreed when the contract was signed. Enter the date of the letter on the price and the app will know.",
+      "vat": "Only the VAT changes. If the supplier passes it on unchanged, a special contract gives no special right to terminate (§ 41(6) EnWG).",
+      "heat": "District heating prices change according to the price adjustment clause in your contract; the calculation factors must be shown (§ 24(4) AVBFernwärmeV). The ordinance does not generally provide a special right to terminate for this, unlike electricity and gas."
+    },
+    "special_termination": {
+      "title": "{label}: special termination possible as of {valid_from}",
+      "titleMaybe": "{label}: prices rise on {valid_from}, special termination possible?",
+      "text": "{provider} changes its prices on {valid_from}: {what}. {note}",
+      "wp": "energy price {old} → {new} ct/{unit}",
+      "bp": "standing charge {old} → {new} per month",
+      "lateSpecial": "The letter is dated {announced_on} and the change applies from {valid_from}; the law requires at least one month’s notice for this.",
+      "lateBasic": "The letter is dated {announced_on} and the change applies from {valid_from}; in basic supply the law requires at least six weeks’ notice.",
+      "monthStart": "In basic supply the law provides for price changes at the start of a month; this one applies from {valid_from}.",
+      "adviceCheck": "Get advice if you want the increase checked.",
+      "guarantee": "A price guarantee until {date} is recorded for this contract. Check whether the increase is excluded from it (often taxes and levies).",
+      "letterDate": "According to the letter, the termination should arrive by {letter}; under the law, receipt by {legal} is enough. The deadline here is the earlier date."
+    },
+    "advance_high": {
+      "title": "{label}: advance payment well above consumption",
+      "text": "Your advance payment of {rate} is {over_pct}% above the amount that follows from your consumption in the last billing period ({qty} {unit}, {period_from} to {period_to}) and the current prices: about {measure_eur}. The app’s forecast also considers about {ongoing_eur} appropriate. Advance payments are based on this consumption; if you show credibly that your consumption is considerably lower, this must be taken into account appropriately ({norm}). You can apply for an adjustment.",
+      "textFrom": "Your advance payment of {rate} is {over_pct}% above the amount that follows from your consumption in the last billing period ({qty} {unit}, {period_from} to {period_to}) and the prices from {next_due}: about {measure_eur}. The app’s forecast also considers about {ongoing_eur} appropriate. Advance payments are based on this consumption; if you show credibly that your consumption is considerably lower, this must be taken into account appropriately ({norm}). You can apply for an adjustment.",
+      "rateFrom": "{amount} from {date}"
+    },
+    "late": {
+      "title": "{label}: bill up to {period_to} came {days_late} days after the deadline",
+      "text": "The bill for {period_from} to {period_to} was there on {bill_date}, {days_late} days after the statutory deadline of {deadline}. The deadline: six weeks after the end of the billing period, for a final bill after the end of supply. The law names no consequence for the amount billed. You can complain to the supplier about the delay; the supplier has to answer within four weeks.",
+      "textIssued": "The bill for {period_from} to {period_to} is dated {bill_date}, {days_late} days after the statutory deadline of {deadline}. The deadline: six weeks after the end of the billing period, for a final bill after the end of supply. The law names no consequence for the amount billed. You can complain to the supplier about the delay; the supplier has to answer within four weeks."
+    },
+    "bonus": {
+      "title": "{label}: bonus of {amount_eur} not found",
+      "text": "Under the contract “{tariff}” you are due a bonus of {amount_eur}. In the bill for {period_from} to {period_to} we find no credit of that size. Check the bonus conditions in the contract (often: twelve months of supply). If the bonus is missing, you can claim it from the supplier. If it came another way, say by bank transfer or with a later bill, tick this note off.",
+      "textPortal": "The contract “{tariff}” lists a bonus of {amount_eur} (kind: other bonus). In the bill for {period_from} to {period_to} we find no credit of that size. If it is paid not by the supplier but by, say, a comparison portal, contact them. If it has already come, tick this note off."
+    },
+    "estimate": {
+      "title": "{label}: bill estimates the final reading on {period_to} despite your own",
+      "titleEur": "{label}: bill estimates the final reading on {period_to}, about {delta_eur} difference",
+      "text": "The bill gives the final reading on {period_to} as estimated: {bill_counter} {unit}. You read the meter yourself on {own_date} ({own_counter} {unit}); carried forward to {period_to} that is {own_projected} {unit}. Did you report the reading? The supplier may only estimate if no readings were submitted despite a corresponding obligation or if it could not determine the consumption for reasons it is not responsible for. You can ask for the estimate to be explained in text form free of charge. You can also ask the supplier to recalculate with your reading. The difference: {delta_qty} {cunit}.",
+      "textReported": "The bill gives the final reading on {period_to} as estimated: {bill_counter} {unit}. You read the meter yourself on {own_date} ({own_counter} {unit}) and reported the reading on {reported_on}; carried forward to {period_to} that is {own_projected} {unit}. The supplier may only estimate if no readings were submitted despite a corresponding obligation or if it could not determine the consumption for reasons it is not responsible for. You can ask for the estimate to be explained in text form free of charge. You can also ask the supplier to recalculate with your reading. The difference: {delta_qty} {cunit}.",
+      "textHeat": "The bill gives the final reading on {period_to} as estimated: {bill_counter} {unit}. You read the meter yourself on {own_date} ({own_counter} {unit}); carried forward to {period_to} that is {own_projected} {unit}. The supplier may estimate, based on the last reading, as long as its agent cannot enter the premises to read the meter. Send the supplier your reading and ask about the estimate. The difference: {delta_qty} {cunit}.",
+      "textReportedBasic": "The bill gives the final reading on {period_to} as estimated: {bill_counter} {unit}. You read the meter yourself on {own_date} ({own_counter} {unit}) and reported the reading on {reported_on}; carried forward to {period_to} that is {own_projected} {unit}. The supplier may only estimate if no readings were submitted despite a corresponding obligation or if it could not determine the consumption for reasons it is not responsible for. You can ask for the estimate to be explained in text form free of charge, and for a correction with your reading. The difference: {delta_qty} {cunit}.",
+      "textNotice": "The bill gives the final reading on {period_to} as estimated: {bill_counter} {unit}. You read the meter yourself on {own_date} ({own_counter} {unit}); carried forward to {period_to} that is {own_projected} {unit}. The bill is a fee assessment: objections to it go through the legal remedy named in the notice of legal remedies. Its deadline ends on {deadline} at the earliest; an informal query does not preserve it. The difference: {delta_qty} {cunit}.",
+      "textNoticeExpired": "The bill gives the final reading on {period_to} as estimated: {bill_counter} {unit}. You read the meter yourself on {own_date} ({own_counter} {unit}); carried forward to {period_to} that is {own_projected} {unit}. The bill is a fee assessment: objections to it go through the legal remedy. By the app’s calculation its deadline expired on {deadline}; see the hint on the fee assessment. The difference: {delta_qty} {cunit}."
+    },
+    "metering": {
+      "title": "{label}: metering charge above the cap, about {over_eur} a year",
+      "textMme": "For metering, the bill for {period_from} to {period_to} charges the equivalent of {year_eur} a year (gross). For a modern metering device the Metering Point Operation Act sets a cap of {cap_eur} a year. It applies to the default metering operator; one you chose freely is not bound by it. Extra services, such as an installation you asked for, may cost extra. Ask the metering operator.",
+      "textImsys": "For metering, the bill for {period_from} to {period_to} charges the equivalent of {year_eur} a year (gross). For a smart metering system the Metering Point Operation Act sets a cap of {cap_eur} a year in your group. The app groups you by about {kwh_year} kWh a year, control under § 14a EnWG and the capacity of your PV system; the metering operator may use other figures. The cap applies to the default metering operator; one you chose freely is not bound by it. Extra services, such as an installation you asked for, may cost extra. Ask the metering operator."
+    },
+    "feeNotice": {
+      "title": "{label}: fee assessment of {dated_on}, legal remedy by {deadline}",
+      "text": "Fee assessment dated {dated_on}: a legal remedy against it is possible within one month of notification. If it came by post, it counts as notified on the fourth day after it was sent; the deadline then ends on {deadline} at the earliest. If the end falls on a Saturday, Sunday or public holiday, the deadline only ends on the next working day; this is already included here, with the public holidays that apply throughout Germany. The app does not know holidays that apply only in your federal state; if one falls on this day, the deadline runs until the next working day after it. Whether objection or court action, the instructions on legal remedies at the end of the assessment say. The remedy does not defer payment.",
+      "textServed": "Fee assessment dated {dated_on}, served on {served_on}: a legal remedy against it is possible within one month of notification; the deadline ends on {deadline}. If the end falls on a Saturday, Sunday or public holiday, the deadline only ends on the next working day; this is already included here, with the public holidays that apply throughout Germany. The app does not know holidays that apply only in your federal state; if one falls on this day, the deadline runs until the next working day after it. Whether objection or court action, the instructions on legal remedies at the end of the assessment say. The remedy does not defer payment.",
+      "titleExpired": "{label}: fee assessment of {dated_on}, deadline expired on {deadline}",
+      "textExpired": "Fee assessment of {dated_on}: by the app’s calculation, the deadline for a legal remedy, one month after notification, expired on {deadline}; a Saturday, Sunday or nationwide public holiday at the end is already included. The app does not know holidays that apply only in your federal state; if one fell on this day, the deadline ran until the next working day after it. If the notice of legal remedies was missing or incorrect, a deadline of one year applies. Get advice if you still want to challenge the assessment.",
+      "textExpiredLong": "Fee assessment of {dated_on}: by the app’s calculation, the deadline for a legal remedy, one month after notification, expired on {deadline}; a Saturday, Sunday or nationwide public holiday at the end is already included. The app does not know holidays that apply only in your federal state; if one fell on this day, the deadline ran until the next working day after it. Get advice if you still want to challenge the assessment."
+    },
+    "docLink": "What the app checks"
+  },
+  "letters": {
+    "button": "Draft a letter",
+    "buttonNamed": "Draft a letter: {title}",
+    "kind": {
+      "special_termination": "Special termination",
+      "advance_adjustment": "Request to adjust the advance payment",
+      "estimate_query": "Question about the estimate",
+      "complaint": "Complaint about a bill",
+      "objection": "Objection to an assessment notice"
+    },
+    "dialog": {
+      "title": "Draft a letter: {kind}",
+      "german": "The letter is in German because suppliers and authorities in Germany will read it. Check and complete it before you send it.",
+      "sender": "Sender (name and address)",
+      "recipient": "Recipient (name and address)",
+      "recipientHint": "The address is on the letter or bill you are replying to.",
+      "place": "Town",
+      "remember": "Remember the sender on this device",
+      "rememberHint": "Stored only in this browser, not in the app. Untick to delete it.",
+      "refs": "Details for reference",
+      "confirmObjection": "The notice of legal remedies at the end of the assessment says “Widerspruch” (objection).",
+      "confirmFirst": "First confirm what the notice of legal remedies says. If it names an action in court (Klage), this letter does not help; get advice instead.",
+      "objectionForm": "Sign the objection and send it by post or hand it in at the authority. A simple email is not enough.",
+      "deadline": "Send it so that it arrives by {date} at the latest (deadline from the note).",
+      "preview": "Preview",
+      "gaps": {
+        "one": "One detail is still missing; it appears as […] in the letter.",
+        "other": "{count} details are still missing; they appear as […] in the letter."
+      },
+      "copy": "Copy text",
+      "copied": "Letter copied",
+      "copyFailed": "Copying is not possible. Select the text in the preview.",
+      "pdf": "Download PDF",
+      "sent": "Mark as sent",
+      "sentNote": "Letter sent: {kind}",
+      "sentHint": "Enter the date you sent the letter. You can attach the letter itself as proof."
+    },
+    "ref": {
+      "customer_number": "Customer number",
+      "contract_number": "Contract number",
+      "meter_serial": "Meter number",
+      "malo_id": "Market location ID",
+      "supply_address": "Supply address",
+      "invoice_number": "Invoice number",
+      "file_number": "File or payment reference"
+    },
+    "extra": {
+      "reading_value": "Meter reading for the final bill (optional)",
+      "reading_date": "read on",
+      "amount_eur": "Requested advance payment in {cur}",
+      "reasons": "Reasons (optional, e.g. fewer people in the household)",
+      "attach_photo": "List the photo of the meter reading as an enclosure",
+      "note": "Addition (optional)",
+      "levy": "Notice concerning (e.g. sewage fees 2026)",
+      "reason": "Grounds (optional, otherwise the letter says they will follow)",
+      "suspend": "Also apply to suspend enforcement (optional)"
+    }
   }
 }

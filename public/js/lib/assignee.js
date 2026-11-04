@@ -25,7 +25,8 @@ import { sessionUser } from './levels.js';
 const FILTER_KEY = 'et-assignee-filter';
 const ME_KEY = 'et-assignee-me';
 /** v3.7.0 — woher eine geerbte Zuständigkeit kommt (Katalogschlüssel wörtlich, nicht zusammengesetzt). */
-const VIA_KEY = { contract: 'assignee.via.contract', meter: 'assignee.via.meter' };
+const VIA_KEY = { contract: 'assignee.via.contract', meter: 'assignee.via.meter',
+  tenancy: 'assignee.via.tenancy' };   // v3.11.0 (E) — Nebenkosten- und CO₂-Fristen vom Mietverhältnis
 
 /** Namen vergleichen: getrimmt, Groß-/Kleinschreibung egal. */
 export const normName = (s) => String(s ?? '').trim().normalize('NFC').toLowerCase();

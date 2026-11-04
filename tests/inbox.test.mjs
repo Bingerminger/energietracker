@@ -165,6 +165,38 @@ console.log('Kernaussage (Paket betrieb)');
   t('Zählerwechsel: Stände als Zahl', /Endstand 13\.902,5, neuer Zähler X-2 ab 0,8\./.test(swap), swap);
   t('ohne Kernaussage kein Text', I.gistText(null) === '' && I.gistFigure(null) === '' && I.gistDetails(null).length === 0);
 }
+// ── v3.11.0 (F1035, Paket posteingang) — Preisänderung: Rechte, Vorschau, Termin ──
+console.log('Preisänderung: deine Rechte (v3.11.0)');
+{
+  const g = { rights: { energy: true, lines: [
+    { key: 'inbox.gist.rights.terminationSpecial', params: { date: '2027-01-01', deadline: '2026-12-31' } },
+    { key: 'inbox.gist.rights.letterEarlier', params: { letter: '2026-12-15', deadline: '2026-12-31' } },
+    { key: 'inbox.gist.rights.lateSpecial', params: { days: 1 } },
+    { key: 'inbox.gist.rights.lateSpecial', params: { days: 25 } },
+    { key: 'inbox.gist.rights.advanceSpecial', params: { advance_pct: 20, cost_pct: 7 } }],
+    norms: [{ key: 'de.enwg.41.5.s4', norm: '§ 41 Abs. 5 Satz 4 EnWG', url: 'https://www.gesetze-im-internet.de/enwg_2005/__41.html', checked_on: '2026-11-03' }] } };
+  const L = I.gistRightsLines(g);
+  t('Frist: Tag der Änderung und Zugang am Vortag', L[0] === 'Du kannst den Vertrag ohne Kündigungsfrist zum 01.01.2027 kündigen. Die Kündigung muss bis 31.12.2026 beim Versorger sein.', L[0]);
+  t('früheres Datum laut Schreiben neben der gesetzlichen Frist', /nennt den 15\.12\.2026 als Frist\. Gesetzlich reicht der Zugang bis 31\.12\.2026/.test(L[1]), L[1]);
+  t('Ankündigung: Tage mit Pluralform', /ist 1 Tag vor der Änderung datiert/.test(L[2]) && /ist 25 Tage vor der Änderung datiert/.test(L[3]), `${L[2]} | ${L[3]}`);
+  t('Abschlag: beide Prozentsätze', /um 20\s%, die Kosten laut Prognose um 7\s%/.test(L[4]), L[4]);
+  t('ohne Rechte keine Sätze', I.gistRightsLines({}).length === 0 && I.gistRightsLines(null).length === 0);
+  const range = I.gistLine('inbox.gist.detail.range', { low: 150.2, high: 210.8 });
+  t('Spanne der Mehrkosten in €', /^Je nach Wetter und Verbrauch zwischen 150,20\s€ und 210,80\s€ im Jahr\.$/.test(range), range);
+  const year = I.gistLine('inbox.gist.detail.yearAfter', { amount: 2318.4, recommended: 193 });
+  t('ein Jahr zu den neuen Preisen, je Monat', /rund 2\.318,40\s€, das sind rund 193,00\s€ im Monat/.test(year), year);
+  const rem = I.proposalText({ kind: 'reminder', label_key: 'inbox.proposal.reminderSpecialTerminationLetter', params: { date: '2026-12-15', letter: '2026-12-15', legal: '2026-12-31' } });
+  t('Termin nennt beide Tage', rem === 'Termin: Sonderkündigung, Zugang bis 15.12.2026 (laut Schreiben 15.12.2026, gesetzlich 31.12.2026)', rem);
+  const MP = await import(`${JS}/lib/inbox-marks.js`);
+  const pn = MP.proposalNotes({ hints: [{ field: 'working_price_new', reason: 'per_meter' }, { field: 'advance_new_from', reason: 'from_price_change' }] });
+  t('Hinweise: Zweitarif und Abschlag ab der Preisänderung', /je Zähler \(etwa HT und NT\)/.test(pn[0]) && /Angenommen ist der Tag der Preisänderung/.test(pn[1]), pn.join(' | '));
+  const LT = await import(`${JS}/lib/letter.js`);
+  const foot = LT.rightsFooterHtml({ norms: g.rights.norms, help: 'Hilfe' });
+  t('Fußzeile: keine Rechtsberatung, Norm als Link', /Hinweis, keine Rechtsberatung/.test(foot) && /href="https:\/\/www\.gesetze-im-internet\.de/.test(foot), foot);
+  const view = readFileSync(resolve(JS, 'views', 'inbox.js'), 'utf8');
+  t('Karte zeigt die Rechte sichtbar (nicht unter „Mehr dazu“)', /\$\{gistRightsHtml\(g\)\}/.test(view.match(/function gistCardHtml[\s\S]*?\n}\n/)?.[0] || '')
+    && /rightsFooterHtml\(\{ norms: g\.rights\.norms/.test(view));
+}
 console.log('Akte (Paket betrieb)');
 {
   const items = [

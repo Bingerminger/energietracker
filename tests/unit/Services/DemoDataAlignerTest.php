@@ -404,6 +404,39 @@ final class DemoDataAlignerTest extends TestCase
         self::assertSame($payload['settings'], DemoDataAligner::align(array_diff_key($payload, ['demo_align' => 1]), '2026-10-13')['settings']);
     }
 
+    /**
+     * v3.11.0 (F1035, Schaufenster) — Fristen „Deine Rechte als Kunde“ relativ zu heute: Die
+     * angekündigte Preisänderung eines Vertrags gilt in N Tagen (Schreiben und „Kündigung bis“
+     * wandern mit, ältere Einträge bleiben), der Gebührenbescheid einer Rechnung ist N Tage alt
+     * (Zustellung, Rechnungsdatum wandern mit, der Zeitraum bleibt). Nur nach vorn, nur mit
+     * gültiger Angabe. Erwartungen von Hand gezählt.
+     */
+    public function testRightsDeadlinesFollowTodayOnlyWhereTheDemoAsksForIt(): void
+    {
+        $c = ['id' => 'c1', 'working_prices' => [['from' => '2026-01-01', 'ct_per_kwh' => 30.0],
+                ['from' => '2026-07-01', 'ct_per_kwh' => 34.9, 'announced_on' => '2026-05-20', 'special_termination_until' => '2026-06-15']],
+              'base_prices' => [['from' => '2026-01-01', 'eur_per_month' => 10.0], ['from' => '2026-07-01', 'eur_per_month' => 12.0, 'announced_on' => '2026-05-20']]];
+        $b = ['id' => 'b1', 'period_from' => '2025-01-01', 'period_to' => '2025-12-31', 'issued_on' => '2026-05-21',
+              'notice' => ['public_law' => true, 'dated_on' => '2026-05-21', 'served_on' => '2026-05-23', 'remedy' => 'objection']];
+        $payload = ['settings' => [], 'utilities' => ['strom' => ['contracts' => [$c, ['id' => 'c2'] + $c]], 'wasser' => ['bills' => [$b]]],
+            'demo_align' => ['price_change_days_ahead' => ['strom' => ['c1' => 12, 'c2' => 'viel']], 'fee_notice_days_ago' => ['wasser' => ['b1' => 10]]]];
+        $out = DemoDataAligner::align($payload, '2026-11-03');
+        self::assertArrayNotHasKey('demo_align', $out);
+        $wp = $out['utilities']['strom']['contracts'][0]['working_prices'];
+        self::assertSame(['from' => '2026-01-01', 'ct_per_kwh' => 30.0], $wp[0], 'älterer Preis bleibt');
+        // 2026-11-03 + 12 = 2026-11-15, also 137 Tage später: 20.05. → 04.10., 15.06. → 30.10.
+        self::assertSame(['from' => '2026-11-15', 'ct_per_kwh' => 34.9, 'announced_on' => '2026-10-04', 'special_termination_until' => '2026-10-30'], $wp[1]);
+        self::assertSame(['2026-11-15', '2026-10-04'], [$out['utilities']['strom']['contracts'][0]['base_prices'][1]['from'],
+            $out['utilities']['strom']['contracts'][0]['base_prices'][1]['announced_on']]);
+        self::assertSame($c['working_prices'], $out['utilities']['strom']['contracts'][1]['working_prices'], 'ungültige Angabe: unverändert');
+        // 2026-11-03 − 10 = 2026-10-24, also 156 Tage später
+        $n = $out['utilities']['wasser']['bills'][0];
+        self::assertSame(['2026-10-24', '2026-10-26', '2026-10-24'], [$n['notice']['dated_on'], $n['notice']['served_on'], $n['issued_on']]);
+        self::assertSame(['2025-01-01', '2025-12-31'], [$n['period_from'], $n['period_to']]);
+        // nur nach vorn: am Exporttag liegt die Änderung weiter voraus und der Bescheid ist jung genug
+        self::assertSame($payload['utilities'], DemoDataAligner::align($payload, '2026-05-31')['utilities']);
+    }
+
     public function testHistoryOfRemindersMovesWithTheReminders(): void
     {
         foreach (['mieterin', 'eigenheim-modern'] as $id) {
@@ -474,6 +507,8 @@ final class DemoDataAlignerTest extends TestCase
     public function testBillsFollowARelativeAnchor(): void
     {
         $p = self::billPayload();
+        // v3.11.0 (F1035) — Zugang und Bescheiddatum wandern mit dem Rechnungsdatum
+        $p['utilities']['gas']['bills'][1] += ['received_on' => '2025-01-23', 'notice' => ['public_law' => true, 'dated_on' => '2025-01-19', 'served_on' => null]];
         // heute 2026-10-16, 56 Tage: offene Periode 2025-08-22 … 2026-08-21 → jüngste Rechnung bis 2025-08-21
         $out = DemoDataAligner::align($p, '2026-10-16');
         self::assertSame('08-22', $out['settings']['billing_cycle_anchor_gas']);
@@ -485,6 +520,8 @@ final class DemoDataAlignerTest extends TestCase
         self::assertSame(['2024-08-22', '2025-08-21'], [$moved['period_from'], $moved['period_to']], 'jüngste Rechnung endet am Tag vor dem Stichtag vor einem Jahr');
         $shift = 233;   // 2024-12-31 → 2025-08-21
         self::assertSame(self::plusDays('2025-01-20', $shift), $moved['issued_on'], 'Rechnungsdatum wandert mit dem Ende');
+        self::assertSame([self::plusDays('2025-01-23', $shift), self::plusDays('2025-01-19', $shift), null],
+            [$moved['received_on'], $moved['notice']['dated_on'], $moved['notice']['served_on']], 'v3.11.0: Zugang und Bescheid wandern mit');
         self::assertSame(self::plusDays('2025-01-20', $shift) . 'T19:12:00+01:00', $moved['created_at']);
         self::assertTrue($moved['_demo_recalc']);
         self::assertSame(['sp_new', 'Notiz b_annual'], [$moved['special_payment_id'], $moved['note']], 'die Rechnung behält ihre Daten');

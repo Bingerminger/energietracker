@@ -321,7 +321,11 @@ final class DraftApplier
             foreach ($it['fields'] as $f) if ($f['name'] === 'kind' && $kind === null && ($f['status'] ?? '') === 'exists') $kind = $f['value'];
             $b = $this->bills->create($u, ['meter_id' => $mid, 'contract_id' => $cid, 'kind' => $kind === 'final' ? 'final' : 'annual',
                 'period_from' => $vals['period_from'] ?? self::fieldValue($it, 'period_from'), 'period_to' => $vals['period_to'] ?? self::fieldValue($it, 'period_to'),
-                'invoice' => $inv, 'note' => '', 'attachment_ids' => array_values((array)($it['attachments'] ?? []))]);
+                'invoice' => $inv, 'note' => '', 'attachment_ids' => array_values((array)($it['attachments'] ?? []))]
+                // v3.11.0 (F1035, Paket rechnung, B5) — Rechnungsdatum aus dem Dokument (HouseholdDraft)
+                + (isset($it['issued_on']) ? ['issued_on' => (string)$it['issued_on']] : [])
+                // v3.11.0 (integration) — Rechnungsnummer der jüngsten Fassung (HouseholdDraft)
+                + (isset($it['invoice_number']) ? ['invoice_number' => (string)$it['invoice_number']] : []));
             $billId = (string)$b['id'];
         }
         $booked = false;

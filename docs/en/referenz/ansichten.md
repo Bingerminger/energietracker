@@ -502,7 +502,8 @@ edges. “today” is the local date.
 | fixed term with notice period | “Cancel by”, “End” | “To switch, cancel by …; it then ends on ….” |
 | deadline missed | “Deadline missed”, “End” | “The deadline to cancel passed on …; without cancellation it runs on after ….” |
 | does not renew | “End” | “… it ends on … without you having to cancel.” |
-| renewed (term over) | “Term ended”, “Earliest end”, at “today” “cancel any time” | “Its term ended on …; since then it has been running on and can be cancelled at any time — cancelled today, it ends on … at the earliest.” |
+| renewed (term over) | “Term ended” | “Its term ended on …; since then it has been running on until you cancel. The notice period is set out in the contract.” *(v3.11.0; up to v3.10 “can be cancelled at any time” with an earliest end)* |
+| district heating, renewed *(v3.11.0)* | “Term ended”, “Cancel by”, “End” | “… a district heating contract is extended by five years each time (§ 32 AVBFernwärmeV); unless your contract says otherwise, it runs until …, and the written cancellation must reach the supplier by ….” |
 | open-ended with notice | “Earliest end”, “cancel any time” | “… You can cancel at any time — cancelled today, it ends on … at the earliest.” |
 | open-ended with minimum term | “Earliest end” (end of the minimum term) | “… with a minimum term: cancelled today, it ends on … at the earliest.” |
 | open-ended without notice | — | “… No notice period has been entered.” |
@@ -591,6 +592,12 @@ check". Details: [Meter readings → plausibility](../verstehen/11-zaehlerstaend
   work as for readings; “Save all” creates a period covering the whole month,
   and the offline queue applies here too. For gas the card enters kWh; m³ go
   through the consumption view. Background: [Heat](../verstehen/15-waerme.md).
+
+**Reported to the supplier (v3.11.0):** one switch per meter, “reported to the
+supplier”. When on, the reading carries the day of capture as “reported on”,
+through the offline queue too. This makes the note “Estimate despite your own
+reading” firmer
+([Your rights as a customer](../verstehen/17-rechte.md#5-estimate-despite-your-own-reading)).
 
 ![Meter readings](../../ui/screenshots/en/zaehlerstaende.png)
 
@@ -784,8 +791,12 @@ readings and leads to the capture of exactly this meter.
 mid-month applies from its own day. Below the figures, notes appear when they
 apply — the contract has expired and runs on without cancellation (status
 **RENEWED**, end date = next billing date), the cancellation deadline has been
-missed, or an entered price increase is coming up (in Germany with the special
-right to cancel under § 41 Abs. 5 EnWG). The "reading overdue" banner follows
+missed, or an entered price increase is coming up. In Germany the note names,
+since v3.11.0, the rule that fits the contract: special contract § 41(5) EnWG,
+basic supply § 5(3) StromGVV or GasGVV, both if not specified; without “Letter
+dated” on the price the addition that an agreed price step gives no right to
+terminate; for a pure change of VAT § 41(6) EnWG; for district heating the price
+adjustment clause (§ 24(4) AVBFernwärmeV) and no special right to terminate. The "reading overdue" banner follows
 the setting *Warn after* (days without a reading; warning from ⅔, alert from
 the value itself). Since v2.15.0 it names the trend of the last three full
 months against the same months a year earlier ("Dec 2025 – Feb 2026 vs.
@@ -1289,6 +1300,17 @@ to it **“Cancel”**. Up to v3.1 a bill could only be deleted and entered agai
 the interface (`PATCH /api/utility/{utility}/bills/{id}`) already existed. The
 page belongs to the “Experienced” level.
 
+**Notes on your rights (v3.11.0, Germany):** under “Compare” the notes on the
+selected bill appear: title, text, with a deadline “Deadline: …”, the footer
+“Note, not legal advice” with the norms as links and, where it fits, **“Draft a
+letter”**. The list of bills shows for example “⚖️ 2 notes on your rights”. Older
+notes that no longer go to “To do” appear here too. For this the form “According
+to the bill” has “Received on”, “Invoice number”, “Estimated according to the
+bill” (opening or closing reading), per item “Kind”, net or gross and VAT rate,
+and for water “Fee assessment” with date, service, legal remedy and file number
+([Annual bill](../anleitungen/jahresabrechnung.md#7-on-the-bill-enter-compare-book),
+[Your rights as a customer](../verstehen/17-rechte.md)).
+
 ### Tariff switch (tariff comparison)
 
 Answers the question the Energietracker exists for: **should I switch?** The
@@ -1336,11 +1358,31 @@ installed device) and **“Last meter reading ({date})”** — and the button *
 details”**. Whatever is missing is left out; without any detail the card is left
 out. You enter the market location ID in the meter dialog (§12).
 
-**Price increase (v3.1.0):** if the running or following contract has a future
-price increase entered, the app reports, in Germany, the recommendation “{label}:
-price increase from {date}” with the note on the special right to terminate as
-of that day (§ 41(5) EnWG). While the recommendation stands, the price increase
-also appears under “To do”; once hidden it is only in the calendar.
+**Price increase (v3.1.0, since v3.11.0 “Rights”):** if the running electricity
+or gas contract has a future price increase entered, the app reports, in
+Germany, the recommendation “Rights · Price change: special termination” with
+the rule by type of supply (special contract § 41(5) EnWG, basic supply § 5(3)
+StromGVV or GasGVV), the deadline on the day before the change (if the letter
+names an earlier date, the earlier one; the text names both) and the button
+“Draft a letter”. Without “Letter dated” on the price the note is a question (it
+may be an agreed price step); a pure change of VAT and district heating report
+no special termination. Under “To do” the deadline stands 14 days ahead; once
+hidden it stays in the calendar. On the day of the increase itself the calendar
+still shows “{label}: price increase ({provider})”.
+
+**Advance payment clearly too high (v3.11.0, “Rights”):** for electricity, gas and
+district heating in Germany the app compares the next advance instalment with the
+amount that follows from the consumption of the last billed period (recorded
+annual or final bill, otherwise the last completed billing period from your
+readings without interpolated months) and the prices on the next due date:
+quantity scaled to 365 days × energy price + 12 × fixed costs per month, divided
+by the instalments per year. If the instalment is more than 20% and at least
+10 € above it and the forecast also considers it that much too high, the
+recommendation “Rights · Advance payment clearly too high” appears with the norm
+by type of supply (§ 13 StromGVV or GasGVV, § 41b(3) EnWG, § 25 AVBFernwärmeV)
+and the letter “Request to adjust the advance payment”. No note without a
+billed period, shortly before the bill (fewer than three instalments left), with
+an uncertain forecast, for group contracts and for water.
 
 The ranking shows, per offer:
 
@@ -1453,6 +1495,13 @@ a selection. Without a tenancy it says “No tenancy yet” and asks you to set 
 prepayment, billing date and the meters from the consumption information. Step
 by step: [As a tenant](../anleitungen/mieter.md).
 
+**Responsible (v3.11.0):** in the tenancy form, “Responsible” picks a person
+from the register (as on a contract); the name appears as a chip in the card
+header. The deadlines “service charge statement due”, “objections until” and
+“claim CO₂ costs” go to that person, with “via the tenancy”. Without a choice
+the person of the tenancy’s first heat meter applies (“via the meter”),
+otherwise nobody. Up to v3.10 these deadlines had no responsible person.
+
 Three cards, in Germany since v3.1.0 a fourth (“Sharing CO₂ costs”):
 
 **Prepayment and costs** ⓘ — the estimate for the current billing period
@@ -1560,6 +1609,20 @@ if the same month was measured in an earlier year. It checks HT and NT of a
 meter group together, with one recommendation per group; if a utility has
 several meters or groups, the title names it
 ([anomalies](../verstehen/00-overview.md#9-anomalies)).
+
+**Rights (v3.11.0, Germany):** cards of the category “Rights” name the check
+(“Rights · Price change: special termination”). Below them is the footer “Note,
+not legal advice. Basis: …” with every norm as a link to its source and the date,
+plus **“Draft a letter”** (opens the
+[letter dialog](../anleitungen/brief-schreiben.md)) and **“What the app checks”**
+(the handbook at the place of this check). A note with a deadline also appears
+under “To do” and in the calendar; hidden, the date stays until the deadline.
+Since v3.11.0 the note on special termination replaces the recommendation
+“Price increase” ([Your rights as a customer](../verstehen/17-rechte.md)).
+
+![Recommendations “Rights”: norm as a link, “Draft a letter”, “What the app checks”](../../ui/screenshots/en/rechte-hinweis.png)
+
+![Dialog “Draft a letter” with preview](../../ui/screenshots/en/brief-dialog.png)
 
 ![Recommendations](../../ui/screenshots/en/empfehlungen.png)
 
@@ -2000,6 +2063,31 @@ heating capacity and metering charge, for water all price lists) also list the
 newest first, and **“+ Row”** adds on top; saving still stores them in
 ascending order.
 
+**Contracts contradict each other (v3.11.0, GitHub #54):** below the data of a
+card it says what the contract bills: “Superseded: applies until …” (a contract
+of the same meter that started later applies from the next day) and “Renewed
+since …” or “Renewed until …” (ended, continued without notice). Contract status
+and billing year use the same rule. If two entries contradict each other, both
+cards show a yellow note: a later contract starts more than 31 days before the
+entered end of the earlier one (overlap), a later one lies entirely within an
+earlier one and ends more than 31 days before it (after that the app keeps
+using the later one), or a contract probably carries the tariff of another
+utility (supplier, tariff and unit price like a contract of another utility, a
+document the inbox assigns to another utility, or a unit price outside 0.4 to
+2.5 times that of the meter’s other contracts; copy and price only count
+together with an overlap or with each other). Buttons: **“Set the end of … to
+…”** (the day before the later start; the entry then matches the calculation,
+the figures stay) and **“Both are right”** (hides the note). The same note is a
+recommendation (category contract) under “To do” and appears as a message when
+saving. The calculation stays as before: the later start wins. In the
+utility’s **billing year**, above the monthly chart, it says “Assumed: from …
+to … the app keeps using …, although according to the entry … runs until …”
+when a contract only bills by being continued while another one claims that
+time, and “The advance payments are about … times the costs” when they were at
+least twice as high in a closed billing year, each with “Check contracts”.
+
+![Contracts contradict each other: note on both cards with “Set the end of … to …” and “Both are right”](../../ui/screenshots/en/vertragskonflikt.png)
+
 ![Meters & contracts: contract list of a utility](../../ui/screenshots/en/zaehler-vertraege.png)
 
 **One form grid (v3.4.0):** all dialogs — contract, meter, device replacement,
@@ -2144,10 +2232,21 @@ hour — for Insights → Flexibility; the preview names them in a line “Plus
 {count} quarter-hour values (every {N} minutes) — evaluated under Insights →
 Flexibility.”
 
-**Minimum term over 24 months (v3.1.0):** if a contract’s minimum term ends more
-than 24 months after its start, the app shows after saving the note “The minimum
-term is longer than 24 months. In Germany, an initial term this long is invalid
-for consumers (§ 309 no. 9 BGB).” The contract is saved anyway.
+**Minimum term over 24 months (v3.1.0, by type since v3.11.0):** if the minimum
+term of an electricity or gas contract ends more than 24 months after its start,
+the app shows after saving the note “The minimum term is longer than 24 months.
+For electricity and gas, the law does not allow a longer initial term in consumer
+contracts with standard terms (§ 309 no. 9 BGB).” For district heating a note
+only comes beyond ten years (§ 32 AVBFernwärmeV), for water none. The contract is
+saved anyway.
+
+**Type of supply and origin of a price (v3.11.0):** for electricity and gas the
+contract dialog asks “Type of supply” (basic supply, special contract or not
+specified; shown on the bill). Below each row of energy price and standing charge,
+from “Experienced”, there are “Letter dated” (date of the letter in which the
+supplier changes the prices) and “VAT %” (tax rate in the price). From these the
+app tells a supplier’s price change from an agreed price step and a pure tax
+change.
 
 **Meter topology:** submeters are shown indented under their parent meter, groups as
 an expandable collective entry; **"Group meters"** (up to v2.11 "Merge meters")
@@ -2170,6 +2269,13 @@ reinterpreted; the row is reported. The example below the file field and the
 example CSV are in the interface language.
 
 ![CSV import preview](../../ui/screenshots/import-vorschau.png)
+
+**Metering (v3.11.0, electricity only):** the meter dialog has the section
+“Metering” with “Metering device” (conventional meter, modern metering device,
+smart metering system, don’t know) and “Metering operator” (default operator,
+freely chosen, don’t know); on the feed-in meter “Plant capacity (kW)”. The note
+[Metering charge above the cap](../verstehen/17-rechte.md#6-metering-charge-above-the-cap)
+needs both.
 
 ### Assistant “Set up metering concept” *(v3.9.0, GitHub #40)*
 
@@ -2344,6 +2450,9 @@ Reached from the footer of the sidebar, on the iPhone under "More"
   ("On your bill (France): “Mensualité”").
 
 ![Help](../../ui/screenshots/en/hilfe.png)
+
+Since v3.11.0 the list of documentation links also leads to
+[Your rights as a customer](../verstehen/17-rechte.md).
 
 ### Handbook in the app (v3.4.0)
 

@@ -218,16 +218,41 @@ final class ReportAdviceServiceTest extends ServiceTestCase
         self::assertSame([], array_filter(array_merge($r['tasks'], $r['infos']), fn($t) => in_array($t['rule'], ['cancel', 'cancelMissed'], true)));
     }
 
+    /**
+     * v3.11.0 (Nachprüfung NP3) — Fernwärme ohne eingetragene Frist, Kündigungstag verpasst: Die nächste Gelegenheit
+     * ist das Ende der Verlängerung nach § 32 AVBFernwärmeV (31.12.2031), nicht das Laufzeitende (31.12.2026).
+     */
+    public function testAMissedHeatDeadlineNamesTheEndOfTheExtension(): void
+    {
+        $c = self::contract(['utility' => 'fernwaerme', 'label' => 'Fernwärme', 'cancel_by' => '2026-03-31', 'cancel_missed' => true,
+            'switch_date' => '2032-01-01', 'renewal_term' => ['until' => '2031-12-31', 'cancel_by' => '2031-03-31']]);
+        $info = array_values(array_filter($this->advice()->evaluate(self::facts(['contracts' => [$c]]))['infos'], fn($x) => $x['rule'] === 'cancelMissed'))[0] ?? null;
+        self::assertNotNull($info);
+        self::assertStringContainsString('31.12.2031', json_encode($info, JSON_UNESCAPED_UNICODE));
+        self::assertStringNotContainsString('31.12.2026', json_encode($info, JSON_UNESCAPED_UNICODE));
+    }
+
     // ── Preiserhöhung ────────────────────────────────────────────────────
 
     public function testPriceIncreaseEuroAndLegalHintOnlyInGermany(): void
     {
-        $c = self::contract(['price_increase' => ['from' => self::days(40), 'working_price_ct' => [30.0, 35.0], 'base_price_eur' => [10.0, 12.0]],
-            'expected_consumption' => 2000.0]);
+        $c = self::contract(['price_increase' => ['from' => self::days(40), 'working_price_ct' => [30.0, 35.0], 'base_price_eur' => [10.0, 12.0],
+            'notes' => ['special']], 'expected_consumption' => 2000.0]);
         $t = $this->tasks(self::facts(['contracts' => [$c]]), 'priceIncrease');
         self::assertEqualsWithDelta((35 - 30) * 2000 / 100 + (12 - 10) * 12, $t[0]['euro']['value'], 0.001);
         self::assertSame('costs', $t[0]['euro']['effect']);
-        self::assertStringContainsString('§ 41', implode(' ', $t[0]['steps']));
+        self::assertStringContainsString('§ 41 Abs. 5 EnWG', implode(' ', $t[0]['steps']));
+
+        // v3.11.0 (Paket vertrag, B1/B3) — die Sätze des Vertragsstatus: Grundversorgung Gas § 5 Abs. 3 GasGVV,
+        // Fernwärme ohne Sonderkündigungsrecht (§ 24 AVBFernwärmeV)
+        $basic = ['utility' => 'gas', 'price_increase' => ['notes' => ['basic']] + $c['price_increase']] + $c;
+        $steps = implode(' ', $this->tasks(self::facts(['contracts' => [$basic]]), 'priceIncrease')[0]['steps']);
+        self::assertStringContainsString('§ 5 Abs. 3 GasGVV', $steps);
+        self::assertStringNotContainsString('§ 41', $steps);
+        $heat = ['utility' => 'fernwaerme', 'price_increase' => ['notes' => ['heat']] + $c['price_increase']] + $c;
+        $steps = implode(' ', $this->tasks(self::facts(['contracts' => [$heat]]), 'priceIncrease')[0]['steps']);
+        self::assertStringContainsString('§ 24 Abs. 4 AVBFernwärmeV', $steps);
+        self::assertStringNotContainsString('§ 41', $steps);
 
         $t = $this->tasks(self::facts(['contracts' => [$c], 'country' => 'AT']), 'priceIncrease');
         self::assertStringNotContainsString('§', implode(' ', $t[0]['steps']), 'kein Rechtshinweis außerhalb Deutschlands');

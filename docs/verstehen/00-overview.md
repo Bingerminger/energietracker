@@ -1363,9 +1363,25 @@ Nachfolger beginnt, rechnet die App mit seinen letzten Preisen und Abschlägen
 weiter (`contract_assumed`) — so wie der Versorger. Bis v2.8 kostete
 Verbrauch nach einem vergessenen Vertragsende 0 €. Wer gekündigt hat, nimmt
 am Vertrag den Haken „Verlängert sich ohne Kündigung" heraus (`auto_renews:
-false`). Ein weiterlaufender Vertrag ist seit März 2022 jederzeit mit
-höchstens einem Monat Frist kündbar (§ 309 Nr. 9 BGB); die Saldo-Karte sagt
-das dazu, und der Saldo läuft bis zur nächsten Abrechnung.
+false`). Der Saldo läuft bis zur nächsten Abrechnung. Seit v3.11.0 gilt in der
+Verlängerung auch eine Preisänderung, die nach dem Ende eingetragen ist (etwa
+aus einem Preisänderungsschreiben), samt neuem Abschlag; ohne Eintrag bleiben
+es die letzten Preise. Wie und mit welcher Frist sich ein verlängerter Vertrag
+kündigen lässt, steht im Vertrag; die App nennt dafür keine Frist (für Strom
+und Gas nicht sicher belegt, [Rechtsgrundlagen Nr. 59](../referenz/rechtsgrundlagen.md#laufzeit)).
+Fernwärme verlängert sich nach § 32 AVBFernwärmeV um jeweils fünf Jahre, wenn
+nicht neun Monate vor Ablauf gekündigt wird; die Saldo-Karte nennt dann das
+Ende der laufenden Verlängerung und den Tag, bis zu dem gekündigt sein muss.
+Seit der Nachprüfung zu v3.11.0 gilt das schon vor dem Ende: Ist an einem
+Fernwärmevertrag keine Kündigungsfrist eingetragen, ist der Kündigungstag das
+Ende minus neun Monate (`cancel_by`, mit Erinnerung und Termin); ist er vorbei,
+nennen Saldo-Karte, Zeitstrahl, Übersicht und „Wechsel prüfen“ die Verlängerung
+(`renewal_term` {until, cancel_by}) statt eines Wechsels zum Laufzeitende. Eine
+eingetragene Frist geht vor. Ist ein Folgevertrag eingetragen, läuft der
+verlängerte Vertrag nur bis zu dessen Beginn (`switch_date`), ohne Ende einer
+Verlängerung. In der Grundversorgung (Strom, Gas) nennt die App nach dem Ende die
+zwei Wochen Frist aus § 20 StromGVV bzw. GasGVV (`notice_basis: basic_supply`,
+[Rechtsgrundlagen Nr. 26](../referenz/rechtsgrundlagen.md#preisänderung-und-kündigung)).
 
 ### Kündigungsstichtag und Erinnerung (seit v2.9.0)
 
@@ -1383,8 +1399,12 @@ Grundversorgung mit zwei Wochen). Die drei Erinnerungsstufen
 **Kündigungsstichtag**, nicht mehr bis zum Vertragsende: Mit einem Monat Frist
 kamen bisher zwei der drei Erinnerungen nach dem Stichtag. Ist der Stichtag
 verpasst, sagt die Karte das (`cancel_missed`). Eine eingetragene
-Preiserhöhung in der Zukunft erscheint als Hinweis, in Deutschland mit dem
-Sonderkündigungsrecht zum Zeitpunkt der Erhöhung (§ 41 Abs. 5 EnWG).
+Preiserhöhung in der Zukunft erscheint als Hinweis, in Deutschland seit v3.11.0
+mit der Regel nach Verbrauchs- und Versorgungsart (`price_increase.notes`):
+Sonderkündigung zum Tag der Erhöhung bei Strom und Gas (Sondervertrag § 41
+Abs. 5 EnWG, Grundversorgung § 5 Abs. 3 StromGVV bzw. GasGVV), keine bei einer
+reinen Änderung der Umsatzsteuer (§ 41 Abs. 6 EnWG) und keine bei Fernwärme
+(§ 24 Abs. 4 AVBFernwärmeV).
 
 ---
 

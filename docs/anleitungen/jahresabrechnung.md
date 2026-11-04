@@ -205,11 +205,15 @@ Liste der erfassten Rechnungen. Seit v3.4.0 gilt dort der Zeitraum von oben
 |---|---|
 | Zeitraum | oben unter „Von“ / „Bis einschließlich“: 01.01.2025 / 31.12.2025 — der letzte Tag zählt mit, wie auf der Rechnung |
 | Rechnungsdatum | das Datum der Rechnung, etwa 10.02.2026 |
+| Erhalten am | *(v3.11.0, optional)* der Tag, an dem die Rechnung bei dir ankam; für die Frist des Versorgers zählt er vor dem Rechnungsdatum |
+| Rechnungsnummer | *(v3.11.0, optional)* die Nummer der Rechnung; Briefe zu dieser Rechnung nennen sie als Bezug. Der Posteingang trägt sie selbst ein |
 | Verbrauch laut Rechnung (kWh) | 16.437 — bei Wasser in m³ |
 | Rechnungsbetrag (brutto) | 1.655,00 |
 | Gezahlte Abschläge | 1.800,00 |
 | Nachzahlung / Guthaben | leer lassen: Die App rechnet Betrag − Abschläge = −145,00. **Positiv = Nachzahlung**, negativ = Guthaben |
-| Weitere Posten | Umlagen, Gebühren, Gutschriften mit Bezeichnung und Betrag (Gutschrift negativ) — die App rechnet sie nicht nach, sondern zählt sie zur eigenen Summe |
+| Laut Rechnung geschätzt | *(v3.11.0)* „Anfangsstand“ bzw. „Endstand“ anhaken, wenn die Rechnung den Stand als geschätzt ausweist. Den geschätzten Endstand trägst du zusätzlich als Ablesung mit „geschätzt“ am letzten Tag des Zeitraums ein; der Posteingang tut beides selbst |
+| Weitere Posten | Umlagen, Gebühren, Gutschriften mit Bezeichnung und Betrag (Gutschrift negativ) — die App rechnet sie nicht nach, sondern zählt sie zur eigenen Summe. Seit v3.11.0 mit Art (Umlage, Gebühr, Gutschrift, Messstellenbetrieb, Sonstiges), netto/brutto und Steuersatz. Eine Gutschrift, die der Vertrag schon als datierten Bonus abzieht, zählt nicht doppelt |
+| Gebührenbescheid | *(v3.11.0, nur Wasser)* ist die Rechnung ein Bescheid einer Behörde oder Gemeinde mit Rechtsbehelfsbelehrung: Haken, Bescheiddatum, „Zugestellt am“ nur bei einer Zustellungsurkunde, der Rechtsbehelf laut Belehrung (Widerspruch oder Klage) und das Aktenzeichen |
 | Emissionen (kg CO₂), CO₂-Kosten laut Rechnung | nur bei Gas: die CO₂-Angaben der Rechnung, den Betrag so, wie er dort steht (mit Umsatzsteuer, CO2KostAufG § 3 Abs. 3). Sie gehen dem Standardfaktor vor ([CO₂-Preis](../verstehen/16-co2-preis.md)) und setzen zur Miete die Frist für die Erstattung ([CO₂-Kosten teilen](co2-aufteilung.md)) |
 | Rechnung anhängen (PDF oder Foto) | der Beleg; die Liste zeigt ihn als 📄 |
 
@@ -263,6 +267,69 @@ Zählwerke. Der Vergleich rechnet trotzdem die ganze Gruppe nach — beide
 Zählwerke, die festen Kosten und den Abschlag einmal —, denn der Versorger
 schickt eine Rechnung für beide. „Als Sonderzahlung buchen“ bucht in den
 Gruppenvertrag.
+
+**Hinweise zu deinen Rechten** *(v3.11.0, nur bei Land Deutschland)*. Unter
+„Vergleichen“ stehen die Hinweise zu dieser Rechnung, jeder mit „Hinweis, keine
+Rechtsberatung“, den Normen als Link und, wo es passt, „Brief entwerfen“; die
+Liste zählt sie je Rechnung. „Rechnung prüfen“ zeigt alle, „Zu tun“ und die
+Empfehlungen nur die zu Rechnungen, die höchstens 120 Tage zurückliegen, und
+Fristen, solange sie laufen. Die App prüft:
+
+- **Rechnung kam spät** (Strom, Gas): eine Jahres- oder Schlussrechnung, die
+  mehr als zwei Tage nach dem Ende der gesetzlichen Frist vorlag (sechs Wochen
+  nach dem Ende des Zeitraums, bei einer Schlussrechnung nach dem Ende der
+  Belieferung). Es zählt „Erhalten am“, sonst das Rechnungsdatum; ohne beides
+  prüft sie nicht. Die zwei Tage fangen ein Wochenende am Fristende ab. Eine
+  Korrektur aus dem Posteingang behält das Datum der ersten Fassung.
+- **Bonus nicht gutgeschrieben** (Strom, Gas): ein Neukundenbonus am Vertrag
+  ohne Gutschrift bis zur ersten Rechnung, die mindestens zwölf Monate nach
+  Vertragsbeginn endet (oder bis zu einer früheren Schlussrechnung); ein Bonus
+  mit Gutschriftstermin (Wechsel, Neukunde, Sonstiges) ohne Gutschrift in der
+  Rechnung, deren Zeitraum den Termin bis 31 Tage davor oder danach enthält.
+  Als Gutschrift zählt ein Posten der Art „Gutschrift“ oder eine gebuchte
+  Rückzahlung, die nicht das Ergebnis einer Rechnung ist, ab dem Bonus minus
+  1 €; ohne Angabe netto/brutto auch netto (Betrag × 1,19). Jede Gutschrift
+  deckt einen Bonus, die Bezeichnung zählt nicht. Ein Sofortbonus kommt per
+  Überweisung und wird nicht geprüft; einen sonstigen Bonus (etwa eines
+  Vergleichsportals) meldet die App ohne Brief.
+- **Rechnung schätzt den Endstand trotz deiner Ablesung**: „Endstand“ unter
+  „Laut Rechnung geschätzt“ angehakt, der geschätzte Stand als Ablesung mit
+  „geschätzt“ am letzten Tag des Zeitraums (oder am Tag danach) und eine eigene
+  Ablesung höchstens 14 Tage davor oder danach. Die App schreibt deinen Stand
+  geradlinig auf das Ende fort (zwischen deinen Ständen davor und danach, sonst
+  mit dem Verbrauch je Tag des letzten Abstands); weicht die Schätzung um mehr
+  als 2 % der Menge des Zeitraums ab, meldet sie es, mit dem Unterschied in kWh
+  bzw. m³ und, wenn der Vertrag Preise hat, in Euro. Trägt die Ablesung „an den
+  Versorger gemeldet“ mit einem Tag vor der Rechnung, fällt der Hinweis
+  deutlicher aus. Nur der Anfangsstand geschätzt: keine Prüfung. Steht am
+  Vertrag „Grundversorgung“, nennt der Hinweis dein Recht auf eine Berichtigung
+  mit deinem Stand (§ 18 StromGVV bzw. GasGVV); beim Sondervertrag und ohne
+  Angabe die Bitte an den Versorger, mit deinem Stand neu zu rechnen.
+- **Messentgelt über der Obergrenze** (Strom, Zeiträume ab 2026): Posten der
+  Art „Messstellenbetrieb“, brutto und auf ein Jahr umgerechnet, gegen die
+  Obergrenze für die Messeinrichtung am Zähler (Zählerdialog → „Messstellenbetrieb“),
+  mit 1 € Spielraum für Rundungen. Beim intelligenten Messsystem bestimmen der
+  Jahresverbrauch (Mittel der letzten höchstens drei vollen Kalenderjahre, sonst
+  die Menge der Rechnung hochgerechnet), ein Netzentgelt-Rabatt am Vertrag
+  (Steuerung nach § 14a EnWG) und die Leistung der PV-Anlage (am
+  Einspeisezähler) die Fallgruppe. Keine Prüfung: netto ohne Steuersatz, ein
+  frei gewählter Messstellenbetreiber, ein konventioneller Zähler, ein
+  intelligentes Messsystem ohne bekannten Verbrauch. Wurde der Zähler im
+  Zeitraum getauscht, bleibt ein Mehrbetrag bis 100 € still (Einbau auf Wunsch).
+- **Frist beim Gebührenbescheid** (Wasser): Ist die Rechnung ein Bescheid, steht
+  das Fristende als Termin unter „Zu tun“: vier Tage nach dem Bescheiddatum
+  (oder am Tag der Zustellung) und dann ein Monat; fällt der Tag auf einen
+  Samstag, Sonntag oder bundesweiten Feiertag, der nächste Werktag (seit der
+  Nachprüfung zu v3.11.0). „Brief entwerfen“ (Widerspruch) gibt es nur, wenn die Belehrung
+  laut deiner Angabe den Widerspruch nennt.
+
+Der Posteingang übernimmt seit v3.11.0 das Rechnungsdatum, die Rechnungsnummer,
+Gutschriften, das Messentgelt (mit netto/brutto und Steuersatz), geschätzte
+Ränder und bei Wasser den Bescheid; nennt die Rechnung die Grundversorgung oder
+einen Sondervertrag und steht am Vertrag noch nichts, schlägt er die
+Versorgungsart vor. Eine Korrektur ersetzt Gutschriften, Messentgelt und
+Schätzung und bringt ihre Rechnungsnummer mit, behält aber das Rechnungsdatum
+der ersten Fassung.
 
 ## 8. Danach
 

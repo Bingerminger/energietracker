@@ -3,7 +3,9 @@ declare(strict_types=1);
 
 namespace Energietracker\Tests\Services;
 
+use Energietracker\Config\Rights;
 use Energietracker\Services\BillingPeriodService;
+use Energietracker\Services\Rights\BillChecks;
 use Energietracker\Services\ConsumptionService;
 use Energietracker\Services\ForecastService;
 use Energietracker\Services\HomeAssistant\Todo;
@@ -123,7 +125,47 @@ final class DocumentedThresholdsTest extends TestCase
                 ['127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 100.64.0.0/10, `::1` and `fc00::/7`. No effect for any other address.']],
             'Trendpfeil: dieselbe Grenze wie „Ablesung prüfen“' => ['docs/referenz/ansichten.md', 'docs/en/referenz/ansichten.md',
                 ['Es ist dieselbe Grenze wie die zweite Stufe von „Ablesung prüfen“'], ['It is the same limit as the second stage of “Check the reading”']],
+            // v3.11.0 (Paket vertrag, A2, Entscheidung 3b) — Abschlag deutlich zu hoch
+            'Rechte: Abschlag mehr als 20 % und 10 € über der Bemessung' => ['docs/referenz/ansichten.md', 'docs/en/referenz/ansichten.md',
+                ['Liegt die Rate mehr als ' . self::num(\Energietracker\Config\Rights::ADVANCE_HIGH_PCT) . ' % und mindestens '
+                    . self::num(\Energietracker\Config\Rights::ADVANCE_HIGH_MIN_EUR) . ' € darüber',
+                 'kurz vor der Abrechnung (weniger als ' . $W['de'][$sug] . ' Raten offen)'],
+                ['If the instalment is more than ' . self::num(\Energietracker\Config\Rights::ADVANCE_HIGH_PCT) . '% and at least '
+                    . self::num(\Energietracker\Config\Rights::ADVANCE_HIGH_MIN_EUR) . ' € above it',
+                 'shortly before the bill (fewer than ' . $W['en'][$sug] . ' instalments left)']],
+            // v3.11.0 (Paket rechnung) — App-Schwellen der Prüfungen an Rechnungen (Config\Rights, Rights\BillChecks)
+            'Rechte: Rechnung spät erst nach zwei Tagen' => ['docs/anleitungen/jahresabrechnung.md', 'docs/en/anleitungen/jahresabrechnung.md',
+                ['mehr als ' . $W['de'][Rights::BILL_LATE_GRACE_DAYS] . ' Tage nach dem Ende der gesetzlichen Frist'],
+                ['more than ' . $W['en'][Rights::BILL_LATE_GRACE_DAYS] . ' days after the end of the statutory deadline']],
+            'Rechte: Bonus um den Termin, Toleranz, netto' => ['docs/anleitungen/jahresabrechnung.md', 'docs/en/anleitungen/jahresabrechnung.md',
+                ['bis ' . BillChecks::BONUS_WINDOW_DAYS . ' Tage davor oder danach', 'ab dem Bonus minus ' . self::de(Rights::BONUS_TOLERANCE_EUR) . ' €',
+                 '(Betrag × ' . self::de(BillChecks::BONUS_NET_FACTOR) . ')'],
+                ['up to ' . BillChecks::BONUS_WINDOW_DAYS . ' days before or after', 'from the bonus minus ' . Rights::BONUS_TOLERANCE_EUR . ' €',
+                 '(amount × ' . BillChecks::BONUS_NET_FACTOR . ')']],
+            'Rechte: Schätzung, Fenster und Abweichung' => ['docs/anleitungen/jahresabrechnung.md', 'docs/en/anleitungen/jahresabrechnung.md',
+                ['höchstens ' . Rights::ESTIMATE_WINDOW_DAYS . ' Tage davor oder danach', 'um mehr als ' . self::de(Rights::ESTIMATE_DEVIATION_PCT) . ' % der Menge des Zeitraums'],
+                ['at most ' . Rights::ESTIMATE_WINDOW_DAYS . ' days before or after', 'by more than ' . Rights::ESTIMATE_DEVIATION_PCT . ' % of the period’s quantity']],
+            'Rechte: Messentgelt, Spielraum und Einbau' => ['docs/anleitungen/jahresabrechnung.md', 'docs/en/anleitungen/jahresabrechnung.md',
+                ['mit ' . self::de(Rights::METERING_TOLERANCE_EUR) . ' € Spielraum für Rundungen', 'Mehrbetrag bis ' . self::de(Rights::METERING_ONE_OFF_EUR['DE']) . ' € still',
+                 'Zeiträume ab ' . substr(Rights::METERING_CAPS['DE'][0]['from'], 0, 4)],
+                ['with ' . Rights::METERING_TOLERANCE_EUR . ' € leeway for rounding', 'an excess up to ' . Rights::METERING_ONE_OFF_EUR['DE'] . ' € stays quiet',
+                 'periods from ' . substr(Rights::METERING_CAPS['DE'][0]['from'], 0, 4)]],
+            'Rechte: Frist beim Gebührenbescheid' => ['docs/anleitungen/jahresabrechnung.md', 'docs/en/anleitungen/jahresabrechnung.md',
+                [$W['de'][Rights::DEADLINES['DE']['notice_postal_days']] . ' Tage nach dem Bescheiddatum', Rights::DEADLINES['DE']['notice_months'] === 1 ? 'dann ein Monat' : 'notice_months geändert'],
+                [$W['en'][Rights::DEADLINES['DE']['notice_postal_days']] . ' days after the assessment date', Rights::DEADLINES['DE']['notice_months'] === 1 ? 'then one month' : 'notice_months changed']],
         ];
+    }
+
+    /** Zahl ohne Nachkommastellen, wenn ganz (20.0 → „20“). */
+    private static function num(float $v): string
+    {
+        return abs($v - round($v)) < 1e-9 ? (string)(int)round($v) : str_replace('.', ',', (string)$v);
+    }
+
+    /** Zahl wie in der deutschen Doku: Komma, ohne überflüssige Nullen (1.0 → „1“, 1.19 → „1,19“). */
+    private static function de(float $v): string
+    {
+        return str_replace('.', ',', (string)$v);
     }
 
     private static function js(string $rel): string

@@ -362,6 +362,25 @@ function serve(dir, port) {
         && !!w.document.querySelector('#view .balance-verdict__value'));
       const newMisses = [...(w.__etDemoMisses || [])].filter(k => !missesBefore.has(k));
       t('Assistent in der Demo: jede Vorschau vorberechnet', newMisses.length === 0 && (meta.concepts || 0) > 0, newMisses.slice(0, 3).join(' · ') || `${meta.concepts} Vorschauen`);
+
+      // v3.11.0 (F1035, F1036, Paket doku) — „Deine Rechte als Kunde“ im Schaufenster: die Sonderkündigung liegt
+      // immer zwölf Tage voraus (demo_align), die Empfehlung zeigt die Norm als Link und „Brief entwerfen“;
+      // der erste Entwurf des Briefs ist vorberechnet (letters-<lang>.json), nichts fehlt
+      const missesLetter = new Set(w.__etDemoMisses || []);
+      w.location.hash = '#/recommendations';
+      await settle(); await settle();
+      const rc = w.document.querySelector('#view [data-role="rights-card"][data-check="special_termination"]');
+      t('Demo: Empfehlung „Rechte“ mit Norm als Link und „Brief entwerfen“', !!rc && !!rc.querySelector('a[data-role="rights-norm"]')
+        && !!rc.querySelector('[data-role="letter-button"]') && !!w.document.querySelector('#view [data-role="rights-card"][data-check="fee_notice_deadline"]'),
+        rc?.textContent.replace(/\s+/g, ' ').trim().slice(0, 160));
+      rc?.querySelector('[data-role="letter-button"]')?.click();
+      await settle(); await sleep(300); await settle();
+      const pv = mq('[data-role="letter-preview"]')?.textContent || '';
+      const lm = [...(w.__etDemoMisses || [])].filter(k => !missesLetter.has(k));
+      t('Demo: Brief „Sonderkündigung“ vorberechnet', /Kündigung wegen Preisänderung/.test(pv) && lm.length === 0 && (meta.letters || 0) > 0,
+        lm.slice(0, 2).join(' · ') || pv.replace(/\s+/g, ' ').slice(0, 120));
+      mq('[data-act="close"]')?.click();
+      await settle();
     }
 
     // v3.2.0 (F1018) — der Einrichtungsassistent bietet die Beispielhaushalte an

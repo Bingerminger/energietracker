@@ -158,8 +158,11 @@ eine Saldo-Schätzung unsicher, zeigt die Ampel „Abrechnung“ keinen Haken, s
 Ergebnis als Spanne.
 
 Einen Rechtshinweis gibt es nur dort, wo die App ihn ohnehin führt: bei einer
-Preiserhöhung das Sonderkündigungsrecht nach § 41 Abs. 5 EnWG (nur in
-Deutschland).
+Preiserhöhung derselbe Hinweis wie an der Saldo-Karte (nur in Deutschland): das
+Sonderkündigungsrecht nach § 41 Abs. 5 EnWG bzw. § 5 Abs. 3 StromGVV/GasGVV je
+nach Versorgungsart, bei einer reinen Änderung der Umsatzsteuer § 41 Abs. 6
+EnWG, bei Fernwärme die Preisänderungsklausel (§ 24 Abs. 4 AVBFernwärmeV) ohne
+Sonderkündigungsrecht.
 
 ## 5. Grafiken lesen
 

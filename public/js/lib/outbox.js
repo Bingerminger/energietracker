@@ -171,6 +171,7 @@ export function flush(api) {
           }
           const data = { meter_id: e.meter_id, date: e.date, counter: e.counter, note: e.note || '', is_estimated: !!e.is_estimated };
           if (e.attachment_id) data.attachment_id = e.attachment_id;
+          if (e.reported_on) data.reported_on = e.reported_on;   // v3.11.0 (Paket rechnung) — gemeldet an den Versorger
           // 2. Am selben Tag schon ein anderer Stand? Nicht still doppeln.
           const existing = ((await api.readings(e.utility, e.meter_id)) || [])
             .find(r => r.date === e.date && r.client_ref !== e.client_ref);

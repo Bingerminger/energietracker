@@ -218,7 +218,8 @@
       "billNoDeadline": "geen wettelijke termijn",
       "billAction": "Rekening vastleggen",
       "heatLimitAction": "Bekijken",
-      "readingCheckAction": "Meterstanden bekijken"
+      "readingCheckAction": "Meterstanden bekijken",
+      "rightsAction": "Bekijken"
     },
     "welcome": {
       "title": "Welkom bij Energietracker",
@@ -301,7 +302,8 @@
       "notePlaceholder": "optioneel",
       "addNote": "+ Notitie",
       "hideNote": "− Notitie verbergen",
-      "otherDate": "Andere datum"
+      "otherDate": "Andere datum",
+      "reported": "doorgegeven aan de leverancier"
     },
     "status": {
       "saving": "Opslaan…",
@@ -490,12 +492,11 @@
       "gpPlus": " + {value} vastrecht",
       "suggestAdvance": "Met een voorschot van {suggested} in plaats van {current} zou de afrekening op ongeveer ±0 uitkomen.",
       "measuredThenEstimated": "gemeten tot {date} ({amount}), daarna geschat: {value}",
-      "renewed": "De looptijd eindigde op {date}. Zonder opzegging loopt het contract tegen de laatste prijzen door en is het altijd met hoogstens één maand opzegbaar.",
-      "cancelMissed": "Opzegdatum {date} gemist: het contract eindigt niet op {end} maar loopt door — daarna opzegbaar met hoogstens één maand.",
+      "renewed": "De looptijd eindigde op {date}. Zonder opzegging loopt het contract door; hoe en met welke termijn je kunt opzeggen, staat in het contract.",
+      "cancelMissed": "Opzegdatum {date} gemist: het contract eindigt niet op {end}, maar loopt door. Hoe lang en met welke termijn, staat in het contract.",
       "priceIncrease": "Prijsverhoging vanaf {date}: {what}.",
       "piWorking": "eenheidsprijs {from} → {to} {minor}/kWh",
       "piBase": "vastrecht {from} → {to} {cur}/maand",
-      "priceIncreaseDe": "Tot dan geldt een bijzonder opzegrecht per de datum van de verhoging (§ 41 lid 5 EnWG).",
       "pathTitle": "Kosten en voorschotten in de afrekenperiode",
       "pathCost": "Kosten, opgeteld",
       "pathPaid": "Betaald: voorschotten en bijzondere betalingen",
@@ -554,7 +555,11 @@
       "bandFew": {
         "one": "Te weinig gemeten maanden, afhankelijk van de schatting {range} ({level}, {count} dag geschat).",
         "other": "Te weinig gemeten maanden, afhankelijk van de schatting {range} ({level}, {count} dagen geschat)."
-      }
+      },
+      "renewedHeat": "De looptijd eindigde op {date}. Wordt een stadsverwarmingscontract niet negen maanden voor het einde opgezegd, dan wordt het telkens met vijf jaar verlengd (§ 32 AVBFernwärmeV). Staat er in je contract niets anders, dan loopt het tot {until}; de schriftelijke opzegging moet uiterlijk {cancel} bij de leverancier zijn.",
+      "cancelMissedHeat": "Opzegdatum {date} gemist: wordt een stadsverwarmingscontract niet negen maanden voor het einde opgezegd, dan wordt het met vijf jaar verlengd (§ 32 AVBFernwärmeV). Staat er in je contract niets anders, dan loopt het na {end} door tot {until}; de volgende schriftelijke opzegging moet uiterlijk {cancel} bij de leverancier zijn.",
+      "renewedSuccessor": "De looptijd eindigde op {date}. Zonder opzegging loopt het contract door tot het vervolgcontract op {start} begint.",
+      "renewedBasic": "De looptijd eindigde op {date}. In de basislevering kun je op elk moment opzeggen met een termijn van twee weken, in tekstvorm (§ 20 {gvv}); vandaag opgezegd, eindigt het contract op zijn vroegst op {earliest}."
     },
     "contractsTable": {
       "emptyTitle": "Geen contracten geregistreerd",
@@ -573,7 +578,7 @@
       "periodOpen": "{start} → lopend",
       "gpSuffix": "vastrecht {value} {cur}/maand",
       "colSpecial": "Bijzondere betalingen",
-      "hint": "Bonus = tegoeden uit het contract (direct-, overstap-, nieuwe-klantbonus). Bijzondere betalingen = terugbetalingen (+), bijbetalingen en extra voorschotten (−) buiten het voorschotschema; beide tellen mee in het saldo. Tik voor de afzonderlijke posten; ze worden in het contractbeheer bijgehouden.",
+      "hint": "Bonus = tegoeden uit het contract (direct-, overstap-, nieuwe-klantbonus), geteld op de dag van het tegoed binnen de periode van de rij. Bijzondere betalingen = terugbetalingen (+), bijbetalingen en extra voorschotten (−) buiten het voorschotschema; beide tellen mee in het saldo. Tik voor de afzonderlijke posten; ze worden in het contractbeheer bijgehouden.",
       "colEarned": "Vergoeding",
       "colReceived": "Ontvangen",
       "futureLegend": "≈ Toekomstig contract: het verwachte saldo is geschat vanaf het begin van het contract met zijn prijzen, zijn voorschot en je verbruik tot nu toe."
@@ -916,7 +921,8 @@
       "valuesOn": "per {date}",
       "noValues": "Nog geen prijzen ingevuld",
       "since": "sinds {year}",
-      "advanceValueEvery": "Voorschot {value}"
+      "advanceValueEvery": "Voorschot {value}",
+      "nextValues": "vanaf {date}: {values}"
     },
     "summary": {
       "twPrices": {
@@ -958,7 +964,9 @@
       "copyStart": "Vanaf begin",
       "copyStartTitle": "Datum van deze regel op de begindatum van het contract zetten",
       "removeRow": "Rij verwijderen",
-      "setStartFirst": "Stel eerst de begindatum van het contract in"
+      "setStartFirst": "Stel eerst de begindatum van het contract in",
+      "announcedOn": "Brief van",
+      "vatPct": "Btw %"
     },
     "kinds": {
       "rueckzahlung_mit": "Teruggave (met effect op voorschotten)",
@@ -1008,12 +1016,20 @@
       },
       "noticeModeHint": "Automatisch: aan het einde van de looptijd; zonder einde altijd aan het einde van de maand. De basislevering is bijvoorbeeld altijd met twee weken opzegbaar.",
       "autoRenews": "Loopt door zonder opzegging",
-      "autoRenewsHint": "Na het einde loopt het contract tegen de laatste prijzen door tot het wordt opgezegd — dan met hoogstens één maand opzegtermijn. Uitvinken als het is opgezegd.",
+      "autoRenewsHint": "Na het einde loopt het contract door tot het wordt opgezegd; de termijn staat in het contract. Vink uit als het is opgezegd.",
       "groupTargets": "Metergroepen (één contract voor alle)",
       "section": {
         "contract": "Contract",
         "term": "Looptijd en opzegging"
-      }
+      },
+      "supplyKind": "Soort levering",
+      "supplyKindHint": "Staat op de rekening. Bepaalt welke regels gelden bij prijswijziging en opzegging.",
+      "supplyKindOption": {
+        "unknown": "niet opgegeven",
+        "basic": "Basislevering",
+        "special": "Speciaal contract"
+      },
+      "priceOriginHint": "Wijzigt de leverancier de prijzen, vul dan bij ‘Brief van’ de datum van zijn brief in. Dan onderscheidt de app een prijswijziging van een afgesproken prijsstap; met het btw-tarief herkent ze een pure belastingwijziging."
     },
     "delete": { "title": "Contract verwijderen?", "confirm": "Verwijderen", "deleted": "Contract verwijderd", "messageNamed": "Contract ‘{name}’ definitief verwijderen? De prijzen, voorschotten en bonussen ervan gaan verloren." },
     "deleteContract": "Contract verwijderen",
@@ -1099,7 +1115,9 @@
       "hint": "Staat op de factuur of het prijsblad van de warmteleverancier. Capaciteitsprijs en meettarief tellen als vaste kosten; de CO₂-factor van het net vervangt de algemene waarde voor stadsverwarming."
     },
     "hint": {
-      "termOver24": "Let op: de minimale looptijd is langer dan 24 maanden. In Duitsland is zo’n lange eerste looptijd voor consumenten ongeldig (§ 309 nr. 9 BGB)."
+      "termOver24": "Let op: de minimale looptijd is langer dan 24 maanden. Bij stroom en gas beperkt § 309 nr. 9 BGB de eerste looptijd in consumentencontracten met standaardvoorwaarden tot 24 maanden; of dat voor je contract geldt, moet nog worden nagegaan (§ 310 lid 2 BGB). Controleer het gegeven in het contract.",
+      "termOver10y": "Let op: de minimale looptijd is langer dan tien jaar. Voor stadsverwarming voorziet de verordening in hoogstens tien jaar (§ 32 AVBFernwärmeV). Controleer het gegeven in het contract.",
+      "conflict": "Dit contract spreekt een ander tegen. De melding staat op de contractkaart."
     },
     "groupPrices": {
       "title": "Eenheidsprijs per meter (bijv. normaal/dal)",
@@ -1145,7 +1163,8 @@
       "current": "ACTIEF",
       "renewed": "VERLENGD",
       "past": "BEËINDIGD",
-      "shadow": "AANBOD"
+      "shadow": "AANBOD",
+      "superseded": "VERVANGEN"
     },
     "phaseGroup": {
       "future": "Toekomstig",
@@ -1173,7 +1192,21 @@
       "dueDates": "Vervaldata volgens de rekening: {dates}, daarna elk jaar op dezelfde dagen",
       "none": "{from} tot {to}: geen voorschot ingevoerd. Heb je in die tijd betaald, vul het bedrag dan hier in.",
       "noneOpen": "Vanaf {from} geen voorschot ingevoerd."
-    }
+    },
+    "coverage": {
+      "superseded": "Opgevolgd: geldt tot {date}",
+      "renewed": "Verlengd sinds {date}",
+      "renewedUntil": "Verlengd tot {date}"
+    },
+    "conflict": {
+      "fixEnd": "Einde van ‘{name}’ op {date} zetten",
+      "bothRight": "Beide kloppen",
+      "fixed": "Einde opgeslagen.",
+      "dismissed": "Melding verborgen.",
+      "check": "Contracten controleren"
+    },
+    "assumedPeriod": "Aangenomen: van {from} tot {until} rekent de app verder met ‘{name}’, hoewel ‘{other}’ volgens de invoer tot {otherEnd} loopt.",
+    "advanceVsCost": "De voorschotten zijn ongeveer {factor} keer de kosten. Kloppen contract en prijzen?"
   },
   "meters": {
     "loading": "Laden…",
@@ -1453,6 +1486,22 @@
       "label": "Terugleveringstelwerk van",
       "none": "Netaansluiting (teruglevering aan het net)",
       "hint": "Hangen meters achter elkaar en telt ook een meter verder achter terug (2.8.0), kies dan hier die meter. Het terugleveringstelwerk telt niet als teruglevering aan het net. Uit de verschillen berekent de app hoeveel zonnestroom elke tak zelf verbruikt."
+    },
+    "metering": {
+      "title": "Meting",
+      "device": "Meetinrichting",
+      "unknown": "weet ik niet",
+      "conventional": "conventionele meter (draaischijf)",
+      "mme": "moderne meetinrichting (digitale meter)",
+      "imsys": "slim meetsysteem (slimme meter met communicatie)",
+      "operator": "Meetbedrijf",
+      "basic": "standaard meetbedrijf (niet zelf gekozen)",
+      "competitive": "zelf gekozen",
+      "hint": "Voor de melding over de meetkosten onder ‘Je rechten als klant’: de wettelijke bovengrens hangt af van de meetinrichting en geldt alleen voor het standaard meetbedrijf."
+    },
+    "pvKw": {
+      "label": "Vermogen van de installatie (kW)",
+      "hint": "Voor de bovengrens van de meetkosten bij de stroommeter (installaties boven 7 kW)."
     }
   },
   "settings": {
@@ -2270,6 +2319,22 @@
       "handedOverRecords": {
         "one": "{count} meter of contract is nu van jou.",
         "other": "{count} meters en contracten zijn nu van jou."
+      },
+      "handoverRecordsTenancy": {
+        "one": "{count} meter, contract of huur gaat naar {to}.",
+        "other": "{count} meters, contracten en huurovereenkomsten gaan naar {to}."
+      },
+      "handoverRecordsTenancyNobody": {
+        "one": "{count} meter, contract of huur blijft bij de persoon, met ‘(verwijderd)’, tot iemand overneemt.",
+        "other": "{count} meters, contracten en huurovereenkomsten blijven bij de persoon, met ‘(verwijderd)’, tot iemand overneemt."
+      },
+      "handoverRecordsTenancyFormer": {
+        "one": "{count} meter, contract of huur toont dan ‘voormalig lid’.",
+        "other": "{count} meters, contracten en huurovereenkomsten tonen dan ‘voormalig lid’."
+      },
+      "handedOverRecordsTenancy": {
+        "one": "{count} meter, contract of huur is nu van jou.",
+        "other": "{count} meters, contracten en huurovereenkomsten zijn nu van jou."
       }
     },
     "securityCheck": {
@@ -2546,11 +2611,11 @@
     "loading": "Aanbevelingen laden…",
     "loadError": "Kon de aanbevelingen niet laden: {msg}",
     "title": "Aanbevelingen",
-    "subtitle": "Statistische tips uit je eigen gegevens — geen externe bronnen.",
+    "subtitle": "Tips uit je eigen gegevens. De tips over je rechten noemen daarnaast wetten en consumentenorganisaties als bron.",
     "filterAll": "Alle ({count})",
     "filterGroupLabel": "Filteren op urgentie",
     "sev": { "urgent": "Urgent", "warning": "Let op", "info": "Notitie" },
-    "cat": { "effizienz": "Efficiëntie", "vertrag": "Contract", "bestand": "Voorraad", "anomalie": "Afwijking", "trend": "Trend", "modell": "Verwarmingsmodel" },
+    "cat": { "effizienz": "Efficiëntie", "vertrag": "Contract", "bestand": "Voorraad", "anomalie": "Afwijking", "trend": "Trend", "modell": "Verwarmingsmodel", "recht": "Rechten" },
     "emptyAll": "Geen aanbevelingen — alles in orde.",
     "dismiss": "30 dagen verbergen",
     "error": "Fout: {msg}",
@@ -2598,7 +2663,8 @@
         "gap": {
           "one": "Het vervolgcontract ‘{provider}’ begint pas op {date} – daartussen {count} dag zonder contract.",
           "other": "Het vervolgcontract ‘{provider}’ begint pas op {date} – daartussen {count} dagen zonder contract."
-        }
+        },
+        "gapCovered": "Het vervolgcontract ‘{provider}’ begint op {date}; tot dan loopt dit contract zonder opzegging door."
       },
       "r7": {
         "title": "{label}: efficiëntieklasse {class} ({kwh} kWh/m²·a)",
@@ -2615,6 +2681,22 @@
         "baseLoad": "Nu schat het de basislast in de zomer op {now} {unit} per dag, met {best} °C op {then}; gemeten is {measured}.",
         "scope": "De temperatuur geldt alleen voor deze meter en wordt pas overgenomen als je klikt.",
         "scopeGroup": "De temperatuur geldt alleen voor deze metergroep en wordt pas overgenomen als je klikt."
+      },
+      "rContractConflict": {
+        "title": "{label}: contracten spreken elkaar tegen",
+        "overlap": "Volgens de invoer loopt ‘{a}’ tot {aEnd}, maar vanaf {bStart} geldt ‘{b}’. De app rekent vanaf {bStart} met ‘{b}’. Klopt het einde van ‘{a}’?",
+        "nested": "‘{b}’ eindigt op {bEnd}, ‘{a}’ staat tot {aEnd} ingevoerd. Daarna rekent de app verder met ‘{b}’. Welk contract geldt daarna?",
+        "nestedCancelled": "‘{b}’ eindigt op {bEnd} en wordt niet verlengd, ‘{a}’ staat tot {aEnd} ingevoerd. Voor de tijd daarna rekent de app met geen enkel contract. Welk contract geldt daarna?",
+        "foreignTitle": "{label}: is ‘{b}’ een tarief voor een andere soort verbruik?",
+        "foreignCopy": "Leverancier, tarief en eenheidsprijs komen overeen met een contract voor {other}.",
+        "foreignDocument": "De postbak wijst het bijbehorende document toe aan {other}.",
+        "foreignPrice": "De eenheidsprijs is ongeveer {factor} keer die van je andere contracten voor deze meter.",
+        "foreignAsk": "Klopt de soort verbruik?",
+        "advanceTitle": "{label}: voorschotten ongeveer {factor} keer de kosten",
+        "advance": "In het afrekenjaar {from} tot {until} staan tegenover {advances} aan voorschotten maar {cost} aan kosten. Kloppen contract en prijzen?",
+        "foreignName": "Leverancier en tarief komen overeen met een contract voor {other}, en de eenheidsprijs ligt in dezelfde orde.",
+        "advanceOf": "In het afrekenjaar {from} tot {until} ({contract}) staan tegenover {advances} aan voorschotten maar {cost} aan kosten. Kloppen contract en prijzen?",
+        "advanceAlso": "Dat past erbij: in het afrekenjaar {from} tot {until} staan tegenover {advances} aan voorschotten maar {cost} aan kosten, zo’n {factor} keer zoveel."
       }
     },
     "dismissedNamed": "‘{title}’ 30 dagen verborgen",
@@ -2628,7 +2710,9 @@
     },
     "dismissUntil": "Verbergen tot {date}",
     "dismissUntilNamed": "Verbergen tot {date}: {title}",
-    "dismissedUntilNamed": "‘{title}’ verborgen tot {date}"
+    "dismissedUntilNamed": "‘{title}’ verborgen tot {date}",
+    "rightsNoBill": "Nog geen tips over je rechten als klant: de meeste controles hebben een vastgelegde rekening nodig. Leg de jaarafrekening vast, dan controleert de app termijn, bonus, schatting en meetkosten.",
+    "rightsNoBillLink": "Rekening controleren"
   },
   "tariff": {
     "loading": "Laden…",
@@ -2745,7 +2829,11 @@
         "one": "{first} + {count} contract achtereen",
         "other": "{first} + {count} contracten achtereen"
       },
-      "portal": "Officiële tariefvergelijker ({country}) ↗"
+      "portal": "Officiële tariefvergelijker ({country}) ↗",
+      "renewedSince": "verlengd sinds {date}",
+      "renewedNotice": "Opzegtermijn volgens het contract. Een datum valt hier niet uit te berekenen; de wisseldatum hierboven is geschat tot je die invult.",
+      "basicNotice": "Basislevering: op elk moment opzegbaar met twee weken termijn (§ 20 {gvv}).",
+      "renewsUntil": "Zonder opzegging wordt het contract verlengd tot {until} (§ 32 AVBFernwärmeV); de volgende opzegdatum is {cancel}."
     },
     "retro": {
       "heading": "Terugblik op echte maanden",
@@ -3297,8 +3385,7 @@
         "title": "Prijsverhoging: {label}",
         "reason": "Vanaf {date} gelden nieuwe prijzen. {parts}",
         "reasonWp": "De eenheidsprijs stijgt van {old} naar {new} ct/{unit}.",
-        "reasonBp": "Het vastrecht stijgt van {old} naar {new} per maand.",
-        "legalDe": "In Duitsland geeft een prijsverhoging een bijzonder opzegrecht per de dag van de wijziging (§ 41 lid 5 EnWG)."
+        "reasonBp": "Het vastrecht stijgt van {old} naar {new} per maand."
       },
       "heatingRise": {
         "title": "Meer gestookt: {label}",
@@ -3766,7 +3853,8 @@
       "counterInvalid": "Ongeldige meterstand ‘{value}’ – verwacht wordt een getal vanaf 0.",
       "dateInvalid": "Ongeldige afleesdatum ‘{date}’ – verwacht wordt JJJJ-MM-DD.",
       "clientRefInvalid": "Ongeldige invoercode (client_ref): 8 tot 64 tekens uit letters, cijfers en koppelteken.",
-      "periodMeter": "Deze meter registreert verbruik per periode – vul een periode in in plaats van een meterstand."
+      "periodMeter": "Deze meter registreert verbruik per periode – vul een periode in in plaats van een meterstand.",
+      "reportedOnInvalid": "Ongeldige meldingsdatum ‘{date}’. Verwacht wordt JJJJ-MM-DD."
     },
     "contract": {
       "noContracts": "{label}: er kunnen geen contracten worden aangemaakt (verbruikssoort alleen voor statistiek).",
@@ -3978,7 +4066,8 @@
       "noResult": "De factuur vermeldt geen bijbetaling en geen tegoed – er valt niets te boeken",
       "noContract": "Er is geen contract voor de periode van {from} tot {to} – voeg er eerst een toe",
       "periodInvalid": "Periode ‘{from}’ tot ‘{to}’ is ongeldig",
-      "amountInvalid": "Bedrag ‘{value}’ is geen geldig getal"
+      "amountInvalid": "Bedrag ‘{value}’ is geen geldig getal",
+      "valueInvalid": "{field}: ‘{value}’ is geen geldige waarde"
     },
     "marketPrices": {
       "noRows": "Het bestand bevat geen groothandelsprijzen — verwacht wordt een SMARD-download of regels zoals 2025-01;114,14",
@@ -4117,6 +4206,15 @@
       "expired": "Het certificaat van {host} is verlopen of nog niet geldig. Vernieuw het daar of controleer de klok van beide apparaten.",
       "file": "Energietracker kan de basiscertificaten niet lezen. Controleer het bestand uit ET_CA_FILE of een gekoppelde certificatenlijst: pad, inhoud en leesrechten. Instellingen → Systeem toont of ET_CA_FILE leesbaar is.",
       "other": "De versleutelde verbinding met {host} mislukt door het certificaat. Controleer het adres en het certificaat. Heb je het zelf uitgegeven, vul dan je basiscertificaat in onder Instellingen → Expert → Verbindingen in het thuisnetwerk."
+    },
+    "letter": {
+      "formatInvalid": "Onbekend formaat ‘{value}’ (text of pdf)",
+      "findingNotFound": "Deze melding bestaat niet meer. Laad de pagina opnieuw.",
+      "kindInvalid": "Onbekend briefsjabloon ‘{value}’",
+      "notOffered": "Voor deze melding is deze brief er niet",
+      "confirmRequired": "Bevestig eerst dat de rechtsmiddelenclausule ‘Widerspruch’ (bezwaar) noemt",
+      "fieldInvalid": "‘{field}’ is te lang of ongeldig (hoogstens 6 regels van 60 tekens)",
+      "deadlinePassed": "De termijn voor bezwaar is verstreken; de app stelt daarvoor geen brief op"
     }
   },
   "login": {
@@ -4237,7 +4335,10 @@
     "advanceEvery": "Voorschot {amount}",
     "noNotice": "Opzegtermijn niet ingevoerd",
     "earliestEnd": "Op zijn vroegst opzegbaar per {date}",
-    "viaGroup": "Via de groep ‘{name}’: saldo en voorschotten gelden voor de hele groep."
+    "viaGroup": "Via de groep ‘{name}’: saldo en voorschotten gelden voor de hele groep.",
+    "renewedNotice": "Opzegtermijn volgens contract",
+    "cancelMissedHeat": "Opzegdatum {date} verstreken, verlengd tot {until}",
+    "renewedBasic": "Basislevering: op elk moment opzegbaar met twee weken termijn"
   },
   "billCheck": {
     "noMeter": "De controle rekent de jaarafrekening na voor gas, stroom, water en stadsverwarming. Maak eerst een meter aan.",
@@ -4274,7 +4375,35 @@
         "one": "{count} vastgelegd",
         "other": "{count} vastgelegd"
       },
-      "period": "Periode zoals hierboven: {from} tot en met {to}."
+      "period": "Periode zoals hierboven: {from} tot en met {to}.",
+      "received": "Ontvangen op (optioneel)",
+      "receivedHint": "De dag waarop je de factuur kreeg. De app controleert daarmee de termijn van de leverancier.",
+      "estimated": "Geschat volgens de factuur",
+      "estimatedStart": "Beginstand",
+      "estimatedEnd": "Eindstand",
+      "estimatedHint": "Noemt de rekening de eindstand geschat, vul die dan hier in, niet als meterstand. De app vergelijkt hem met je eigen meterstanden; in je verbruik telt hij niet mee.",
+      "itemKind": "Soort",
+      "itemKinds": {
+        "levy": "Heffing",
+        "fee": "Kosten",
+        "credit": "Creditering",
+        "metering": "Meting",
+        "other": "Overig"
+      },
+      "itemBasis": "netto/bruto",
+      "itemVat": "Btw-tarief (%)",
+      "notStated": "niet vermeld",
+      "notice": "Heffingsaanslag (water, afvalwater)",
+      "noticePublic": "De factuur is een aanslag van een overheid of gemeente met een rechtsmiddelenclausule",
+      "noticeDated": "Aanslag van",
+      "noticeServed": "Betekend op (alleen met akte van betekening)",
+      "noticeRemedy": "Rechtsmiddel volgens de clausule",
+      "noticeRemedyHint": "Alleen als daar ‘bezwaar’ staat, biedt de app een bezwaarbrief aan.",
+      "noticeFile": "Dossier- of betalingskenmerk",
+      "number": "Factuurnummer",
+      "numberHint": "Optioneel. Brieven over deze rekening noemen het als kenmerk.",
+      "estimatedValue": "Geschatte eindstand ({unit})",
+      "estimatedOn": "Eindstand op"
     },
     "saved": "Factuur opgeslagen",
     "book": "Boeken als bijzondere betaling",
@@ -4316,7 +4445,14 @@
     },
     "factorMismatch": {
       "line": "Vanaf {from}: {invoice} kWh/m³ volgens de factuur ({z} × {hs}), {list} kWh/m³ in de instellingen"
-    }
+    },
+    "rightsCount": {
+      "one": "{count} melding over je rechten",
+      "other": "{count} meldingen over je rechten"
+    },
+    "estimatedBackwards": "De geschatte eindstand past niet bij je meterstand van {date} ({counter} {unit}): de meter zou achteruitlopen. Controleer de rekening en de meterstand.",
+    "rightsNoBill": "De app controleert de tips over je rechten als klant (termijn, bonus, schatting, meetkosten) vanaf de eerste vastgelegde rekening. Vul die hieronder in of upload hem:",
+    "rightsInbox": "Postvak"
   },
   "glossary": {
     "hdd": {
@@ -4646,7 +4782,8 @@
     "readOnly": "In de demo wordt niets opgeslagen. Met een eigen installatie leg je je eigen gegevens vast.",
     "unavailable": "Deze analyse is in de demo niet vooraf berekend – met een eigen installatie werkt ze wel.",
     "scenarioPresetsOnly": "In de demo zijn alleen de voorbeeldscenario’s vooraf berekend.",
-    "conceptPresetsOnly": "In de demo is de voorvertoning alleen vooraf berekend voor de opbouw van dit voorbeeldhuishouden."
+    "conceptPresetsOnly": "In de demo is de voorvertoning alleen vooraf berekend voor de opbouw van dit voorbeeldhuishouden.",
+    "letterPresetsOnly": "In de demo is alleen het eerste concept van de brief vooraf berekend. Wijzigingen en de pdf vragen om je eigen installatie."
   },
   "manifest": {
     "description": "Verbruik, kosten en contracten voor stroom, gas, water, stadsverwarming, huisbrandolie, pellets en zonnepanelen — op je eigen server, post van de leverancier lokaal uitgelezen, de cloud alleen als je wilt.",
@@ -4742,7 +4879,7 @@
       "cancelBy": "{label}: laatste dag om op te zeggen ({provider})",
       "termEnd": "{label}: einde contract ({provider})",
       "priceGuaranteeEnd": "{label}: prijsgarantie loopt af ({provider})",
-      "priceIncrease": "{label}: prijsverhoging ({provider}) — controleer opzegging",
+      "priceIncrease": "{label}: prijsverhoging ({provider})",
       "readingDue": "{label}: meterstand opnemen ({meter})",
       "tankReorder": "{label}: levering plannen ({meter})",
       "tenancyStatementDue": "Servicekostenafrekening tot {period} verwacht: {label}",
@@ -4760,7 +4897,8 @@
       "levelShiftLess": "{label}: sinds {date} blijvend minder verbruik. Peilmoment instellen? ({meter})",
       "levelShiftMore": "{label}: sinds {date} blijvend meer verbruik. Peilmoment instellen? ({meter})",
       "readingMismatch": "{label}: verbruik voor en na {date} klopt niet ({meter})",
-      "readingMismatchBlock": "{label}: verbruik voor {date} en na {until} klopt niet ({meter})"
+      "readingMismatchBlock": "{label}: verbruik voor {date} en na {until} klopt niet ({meter})",
+      "contractConflict": "{label}: contracten controleren"
     },
     "subscribe": "Abonneren in je agenda",
     "intro": "Afspraken, opzegtermijnen, contracteinden, prijsgaranties en verschuldigde meterstanden als agenda-abonnement. De agenda haalt ze elke 12 uur opnieuw op.",
@@ -4782,7 +4920,8 @@
     "onlyMine": "Alleen wat aan mij is toegewezen",
     "onlyMineHint": "De link toont dan alleen termijnen en afspraken waarvoor jij verantwoordelijk bent – ook via een contract of meter.",
     "webcalLabel": "Abonnementsadres voor agenda-apps (webcal)",
-    "httpsLabel": "Hetzelfde adres als https-link"
+    "httpsLabel": "Hetzelfde adres als https-link",
+    "assigneeTenancy": "Verantwoordelijk: {name} (via de huur)"
   },
   "tenancy": {
     "title": "Huur",
@@ -5335,7 +5474,7 @@
       "anytime": "altijd opzegbaar",
       "textMissed": "Contract sinds {start}. De opzegtermijn verliep op {cancel}; zonder opzegging loopt het na {end} door.",
       "textNoRenew": "Contract sinds {start}; het eindigt op {end} zonder dat je hoeft op te zeggen.",
-      "textRenewed": "Contract sinds {start}. De looptijd eindigde op {term}; sindsdien loopt het door en is het altijd opzegbaar — vandaag opgezegd, eindigt het op zijn vroegst op {end}.",
+      "textRenewed": "Contract sinds {start}. De looptijd eindigde op {term}; sindsdien loopt het door tot je opzegt. De opzegtermijn staat in het contract.",
       "textAnytime": "Contract sinds {start}; het loopt door tot je opzegt. Je kunt altijd opzeggen — vandaag opgezegd, eindigt het op zijn vroegst op {end}.",
       "textMinTerm": "Contract sinds {start}, met een minimale looptijd: vandaag opgezegd, eindigt het op zijn vroegst op {end}.",
       "textMinTermUntil": "De minimale looptijd eindigt op {date}.",
@@ -5346,7 +5485,12 @@
       "gap": {
         "one": "Daartussen ligt {count} dag zonder contract.",
         "other": "Daartussen liggen {count} dagen zonder contract."
-      }
+      },
+      "textRenewedHeat": "Contract sinds {start}. De looptijd eindigde op {term}. Zonder opzegging negen maanden voor het einde wordt een stadsverwarmingscontract telkens met vijf jaar verlengd (§ 32 AVBFernwärmeV); staat er in je contract niets anders, dan loopt het tot {end} en moet de schriftelijke opzegging uiterlijk {cancel} bij de leverancier zijn.",
+      "textMissedHeat": "Contract sinds {start}. De opzegtermijn verliep op {cancel}. Zonder opzegging negen maanden voor het einde wordt een stadsverwarmingscontract met vijf jaar verlengd (§ 32 AVBFernwärmeV); staat er in je contract niets anders, dan loopt het tot {until}, en de volgende opzegging moet uiterlijk {next} bij de leverancier zijn.",
+      "textHeatNotice": "Er is geen opzegtermijn ingevuld; de app rekent met negen maanden voor het einde (§ 32 AVBFernwärmeV). Zonder opzegging wordt het contract verlengd tot {until}.",
+      "textRenewedSuccessor": "Contract sinds {start}. De looptijd eindigde op {term}; sindsdien loopt het zonder opzegging door.",
+      "textRenewedBasic": "Contract sinds {start}. De looptijd eindigde op {term}; in de basislevering is het op elk moment opzegbaar met een termijn van twee weken. Vandaag opgezegd, eindigt het op zijn vroegst op {end}."
     }
   },
   "setup": {
@@ -5888,9 +6032,11 @@
     "noPeople": "Personen voeg je toe onder Instellingen → Huishouden en gebouw.",
     "via": {
       "contract": "via het contract",
-      "meter": "via de meter"
+      "meter": "via de meter",
+      "tenancy": "via de huur"
     },
-    "inheritsMeter": "Leeg = verantwoordelijk: {name} (via de meter)."
+    "inheritsMeter": "Leeg = verantwoordelijk: {name} (via de meter).",
+    "hintTenancy": "Servicekostenafrekening, bezwaren en CO₂-kosten gaan naar deze persoon. Leeg = de persoon van de warmtemeter. Niemand krijgt een melding."
   },
   "notice": {
     "updated": "Bijgewerkt naar versie {version}.",
@@ -6216,7 +6362,9 @@
       "specialTermination": "Bijzonder opzegrecht {provider} tot {date}",
       "followUp": "Vervolgcontract afsluiten (levering {provider} eindigt op {end})",
       "dunning": "Aanmaning ‘{name}’ afhandelen",
-      "document": "Document ‘{name}’ afhandelen"
+      "document": "Document ‘{name}’ afhandelen",
+      "specialTerminationLegal": "Bijzondere opzegging {provider} mogelijk, ontvangst uiterlijk {date}",
+      "specialTerminationLetter": "Bijzondere opzegging {provider} mogelijk, ontvangst uiterlijk {date} (volgens de brief {letter}, wettelijk {legal})"
     },
     "title": "Postbak",
     "subtitle": "Berg post van de leverancier op als pdf, laat die uitlezen, controleer en neem over.",
@@ -6449,8 +6597,16 @@
       "water_prices": "Waterprijzen",
       "advance_new_dates": "Vervaldata van het nieuwe voorschot",
       "advance_new_every": "Ritme van het nieuwe voorschot",
-      "invoice_number": "Rekeningnummer",
-      "corrects_invoice": "Verwijzing naar eerdere rekening"
+      "invoice_number": "Factuurnummer",
+      "corrects_invoice": "Verwijzing naar eerdere rekening",
+      "basic_supply": "Basislevering",
+      "credits": "Tegoeden",
+      "metering_fee": "Meetkosten",
+      "metering_fee_basis": "Meetkosten netto of bruto",
+      "metering_fee_vat_pct": "Btw-tarief van de meetkosten",
+      "fee_notice": "Heffingsaanslag",
+      "remedy": "Rechtsmiddel volgens de toelichting",
+      "file_number": "Dossiernummer"
     },
     "reason": {
       "empty": "Ontbreekt, maar is nodig",
@@ -6500,7 +6656,11 @@
       "energy": "Eenheidsprijs",
       "energy_tax": "Energiebelasting",
       "co2": "CO₂-prijs",
-      "other": "Toeslag"
+      "other": "Toeslag",
+      "bonus": "Bonus",
+      "credit_other": "ander tegoed",
+      "objection": "Bezwaar",
+      "action": "Beroep bij de rechter"
     },
     "item": {
       "gasFactor": "{from} t/m {to}: volumeherleidingsfactor {z} × calorische waarde {hs} kWh/m³",
@@ -6545,7 +6705,11 @@
       "waterBase": "Vastrecht {section} vanaf {from}: {value} per maand (uit de rekening)",
       "waterRate": "{section} vanaf {from}: {value} per m² per jaar voor {area} m² (uit de rekening)",
       "billCorrection": "Gecorrigeerde rekening {from} t/m {to} overnemen: {result} in plaats van {before}",
-      "billRebook": "Boeking vervangen: {result} in plaats van {before}"
+      "billRebook": "Boeking vervangen: {result} in plaats van {before}",
+      "reminderSpecialTerminationLegal": "Herinnering: bijzonder opzegrecht, ontvangst uiterlijk {date}",
+      "reminderSpecialTerminationLetter": "Herinnering: bijzonder opzegrecht, ontvangst uiterlijk {date} (volgens de brief {letter}, wettelijk {legal})",
+      "supplyKindBasic": "Soort levering bij het contract invullen: basislevering (volgens de rekening)",
+      "supplyKindSpecial": "Soort levering bij het contract invullen: speciaal contract (volgens de rekening)"
     },
     "detail": {
       "reading": "Vastgelegd: {counter}.",
@@ -6695,7 +6859,35 @@
         "minTerm": "Minimale looptijd tot {date}.",
         "guarantee": "Prijsgarantie tot {date}.",
         "dunning": "Een aanmaning leest de app niet uit; de herinnering zorgt dat je de betaling regelt.",
-        "advanceBasisRate": "Ongeveer {recommended} per vervaldatum zou passen; met het nieuwe voorschot eindigt de rekening met: {balance}."
+        "advanceBasisRate": "Ongeveer {recommended} per vervaldatum zou passen; met het nieuwe voorschot eindigt de rekening met: {balance}.",
+        "range": "Afhankelijk van weer en verbruik tussen {low} en {high} per jaar.",
+        "yearAfter": "Een jaar tegen de nieuwe prijzen: ongeveer {amount}, dat is ongeveer {recommended} per maand.",
+        "yearAfterRate": "Een jaar tegen de nieuwe prijzen: ongeveer {amount}, dat is ongeveer {recommended} per vervaldatum."
+      },
+      "rights": {
+        "terminationSpecial": "Je kunt het contract zonder opzegtermijn opzeggen per {date}. De opzegging moet uiterlijk {deadline} bij de leverancier zijn.",
+        "terminationBasic": "Bij basislevering kun je opzeggen per {date}; de opzegging moet uiterlijk {deadline} bij de leverancier zijn. Verder kun je altijd opzeggen met twee weken opzegtermijn.",
+        "terminationUnknown": "Na een prijsverhoging kun je zonder opzegtermijn opzeggen per {date}. De opzegging moet uiterlijk {deadline} bij de leverancier zijn. Bij basislevering kun je bovendien altijd opzeggen met twee weken opzegtermijn. Op de rekening staat of je basislevering hebt.",
+        "terminationPassed": "Opzeggen per {date} kon alleen tot {deadline}.",
+        "letterEarlier": "De brief noemt {letter} als termijn. Volgens de wet volstaat het als de opzegging uiterlijk {deadline} binnen is; een eigen, kortere termijn mag de leverancier niet stellen.",
+        "letterLater": "De brief noemt {letter} als termijn. Je zit veilig als de opzegging uiterlijk {deadline} bij de leverancier is.",
+        "vatOnly": "Alleen de btw verandert, de nettoprijs blijft gelijk. Bij een speciaal contract geeft dat geen bijzonder opzegrecht.",
+        "vatOnlyBasic": "Alleen de btw verandert, de nettoprijs blijft gelijk. Bij basislevering kun je altijd opzeggen met twee weken opzegtermijn.",
+        "lateSpecial": {
+          "one": "De brief is {days} dag voor de wijziging gedateerd. Bij een speciaal contract eist de wet minstens een maand. Laat je adviseren als je de verhoging wilt laten controleren.",
+          "other": "De brief is {days} dagen voor de wijziging gedateerd. Bij een speciaal contract eist de wet minstens een maand. Laat je adviseren als je de verhoging wilt laten controleren."
+        },
+        "lateBasic": {
+          "one": "De brief is {days} dag voor de wijziging gedateerd. Bij basislevering eist de wet een aankondiging minstens zes weken vooraf. Laat je adviseren als je de verhoging wilt laten controleren.",
+          "other": "De brief is {days} dagen voor de wijziging gedateerd. Bij basislevering eist de wet een aankondiging minstens zes weken vooraf. Laat je adviseren als je de verhoging wilt laten controleren."
+        },
+        "announcedAfter": "De brief is gedateerd op {date}, niet voor de dag van de wijziging. Een prijswijziging moet vooraf worden aangekondigd. Laat je adviseren als je de verhoging wilt laten controleren.",
+        "monthStart": "Bij basislevering gaan prijswijzigingen in aan het begin van een maand; deze brief noemt {date}.",
+        "heat": "Prijzen voor stadsverwarming veranderen volgens de prijswijzigingsclausule van je contract; de rekenfactoren moeten vermeld zijn. Een bijzonder opzegrecht zoals bij stroom en gas voorziet de verordening hiervoor in het algemeen niet.",
+        "guarantee": "Voor het contract is een prijsgarantie tot {date} ingevoerd. Controleer of de verhoging daarvan is uitgezonderd (vaak belastingen en heffingen).",
+        "advanceBasic": "Het voorschot stijgt met {advance_pct}%, de kosten volgens de prognose met {cost_pct}%. Bij basislevering mag de leverancier het voorschot na een prijswijziging aanpassen met het percentage van die wijziging.",
+        "advanceSpecial": "Het voorschot stijgt met {advance_pct}%, de kosten volgens de prognose met {cost_pct}%. Het voorschot volgt het verbruik van de laatste afrekening; met een aannemelijk lager verbruik moet de leverancier redelijk rekening houden.",
+        "advanceUnknown": "Het voorschot stijgt met {advance_pct}%, de kosten volgens de prognose met {cost_pct}%. Een voorschot volgt het verbruik; bij basislevering mag de leverancier het na een prijswijziging aanpassen met het percentage van die wijziging."
       }
     },
     "channels": {
@@ -6747,7 +6939,9 @@
       "unsure": "Onzeker gelezen, niet overgenomen: {fields}",
       "netPrice": "Netto op de factuur, omgerekend naar bruto met het vermelde btw-tarief (de app werkt met brutoprijzen).",
       "vatChanged": "Zelfde prijs als in het contract, alleen een ander btw-tarief – de nieuwe prijsregel geldt vanaf de dag die de factuur ervoor noemt.",
-      "rhythmConflict": "Het ritme op de rekening past niet bij de genoemde vervaldata. De vervaldata worden overgenomen, controleer dit."
+      "rhythmConflict": "Het ritme op de rekening past niet bij de genoemde vervaldata. De vervaldata worden overgenomen, controleer dit.",
+      "perMeter": "Het contract heeft eenheidsprijzen per meter (bijvoorbeeld hoog- en laagtarief). Controleer voor welke meter deze prijs geldt; hij wordt overgenomen bij de toegewezen meter.",
+      "advanceFromPrice": "De brief zegt niet vanaf wanneer het nieuwe voorschot geldt. Aangenomen is de dag van de prijswijziging."
     },
     "duplicate": {
       "text": "Waarschijnlijk hetzelfde document als ‘{name}’ (opgeborgen op {date}). Neem er maar één over; het andere kun je verwijderen.",
@@ -7406,5 +7600,141 @@
     "sentenceNoWeather": "Afhankelijk van de schatting tussen {low} en {high}.",
     "shortFew": "te weinig gemeten maanden, afhankelijk van de schatting {range}",
     "sentenceFew": "Te weinig gemeten maanden, afhankelijk van de schatting tussen {low} en {high}."
+  },
+  "rights": {
+    "title": "Je rechten als klant",
+    "footer": "Opmerking, geen juridisch advies. Grondslag: {norms} (gecontroleerd op {date}).",
+    "notAdvice": "Opmerking, geen juridisch advies.",
+    "helpEnergy": "Hulp: consumentenadviesbureau (Verbraucherzentrale), geschillencommissie energie (Schlichtungsstelle Energie).",
+    "help": "Hulp: consumentenadviesbureau (Verbraucherzentrale).",
+    "deadline": "Termijn: {date}",
+    "check": {
+      "bill_late": "Rekening kwam laat",
+      "advance_high": "Voorschot duidelijk te hoog",
+      "special_termination": "Prijswijziging: buitengewone opzegging",
+      "bonus_missing": "Bonus niet gecrediteerd",
+      "estimate_despite_reading": "Schatting ondanks je eigen meterstand",
+      "metering_cap": "Meetkosten boven de bovengrens",
+      "fee_notice_deadline": "Termijn bij een heffingsaanslag"
+    },
+    "priceNote": {
+      "special": "Je kunt het contract zonder opzegtermijn opzeggen per de dag van de prijswijziging; de opzegging moet de leverancier daarvoor bereiken (§ 41 lid 5 EnWG).",
+      "basic": "In de basislevering kun je opzeggen per de dag van de prijswijziging (§ 5 lid 3 {gvv}) en anders altijd met een opzegtermijn van twee weken (§ 20 {gvv}).",
+      "unknown": "Met een speciaal contract kun je zonder opzegtermijn opzeggen per de dag van de prijswijziging (§ 41 lid 5 EnWG), in de basislevering ook (§ 5 lid 3 {gvv}). Op de rekening staat of je in de basislevering zit.",
+      "stepped": "Dat geldt alleen als de leverancier de prijzen wijzigt, niet voor een prijsstap die al bij het afsluiten van het contract is afgesproken. Vul bij de prijs de datum van de brief in, dan weet de app het.",
+      "vat": "Alleen de btw verandert. Geeft de leverancier die ongewijzigd door, dan ontstaat bij een speciaal contract geen bijzonder opzegrecht (§ 41 lid 6 EnWG).",
+      "heat": "Stadsverwarmingsprijzen veranderen volgens de prijswijzigingsclausule in je contract; de rekenfactoren moeten vermeld zijn (§ 24 lid 4 AVBFernwärmeV). Anders dan bij stroom en gas voorziet de verordening daarvoor in het algemeen niet in een bijzonder opzegrecht."
+    },
+    "special_termination": {
+      "title": "{label}: bijzondere opzegging per {valid_from} mogelijk",
+      "titleMaybe": "{label}: prijzen stijgen per {valid_from}, bijzondere opzegging mogelijk?",
+      "text": "{provider} wijzigt de prijzen per {valid_from}: {what}. {note}",
+      "wp": "leveringsprijs {old} → {new} ct/{unit}",
+      "bp": "vastrecht {old} → {new} per maand",
+      "lateSpecial": "De brief is van {announced_on} en de wijziging geldt vanaf {valid_from}; de wet vraagt daarvoor minstens een maand vooraf.",
+      "lateBasic": "De brief is van {announced_on} en de wijziging geldt vanaf {valid_from}; in de basislevering vraagt de wet minstens zes weken vooraf.",
+      "monthStart": "In de basislevering gaat de wet uit van prijswijzigingen aan het begin van een maand; deze geldt vanaf {valid_from}.",
+      "adviceCheck": "Laat je adviseren als je de verhoging wilt laten controleren.",
+      "guarantee": "Voor dit contract staat een prijsgarantie tot {date}. Controleer of de verhoging daarvan is uitgezonderd (vaak belastingen en heffingen).",
+      "letterDate": "Volgens de brief moet de opzegging uiterlijk {letter} binnen zijn; volgens de wet is ontvangst uiterlijk {legal} genoeg. De termijn hier is de vroegste datum."
+    },
+    "advance_high": {
+      "title": "{label}: voorschot duidelijk boven het verbruik",
+      "text": "Je voorschot van {rate} ligt {over_pct}% boven het bedrag dat volgt uit je verbruik in de laatste afrekenperiode ({qty} {unit}, {period_from} tot {period_to}) en de huidige prijzen: ongeveer {measure_eur}. Ook de prognose van de app vindt ongeveer {ongoing_eur} passend. Voorschotten zijn gebaseerd op dit verbruik; maak je een duidelijk lager verbruik aannemelijk, dan moet daar passend rekening mee worden gehouden ({norm}). Je kunt een aanpassing aanvragen.",
+      "textFrom": "Je voorschot van {rate} ligt {over_pct}% boven het bedrag dat volgt uit je verbruik in de laatste afrekenperiode ({qty} {unit}, {period_from} tot {period_to}) en de prijzen vanaf {next_due}: ongeveer {measure_eur}. Ook de prognose van de app vindt ongeveer {ongoing_eur} passend. Voorschotten zijn gebaseerd op dit verbruik; maak je een duidelijk lager verbruik aannemelijk, dan moet daar passend rekening mee worden gehouden ({norm}). Je kunt een aanpassing aanvragen.",
+      "rateFrom": "{amount} vanaf {date}"
+    },
+    "late": {
+      "title": "{label}: rekening tot {period_to} kwam {days_late} dagen na de termijn",
+      "text": "De rekening over {period_from} tot en met {period_to} lag er op {bill_date}, {days_late} dagen na het verstrijken van de wettelijke termijn op {deadline}. De termijn: zes weken na het einde van de afrekenperiode, bij een eindafrekening na het einde van de levering. De wet noemt geen gevolg voor het gefactureerde bedrag. Je kunt de vertraging bij de leverancier aankaarten; die moet binnen vier weken antwoorden.",
+      "textIssued": "De rekening over {period_from} tot en met {period_to} is gedateerd op {bill_date}, {days_late} dagen na het verstrijken van de wettelijke termijn op {deadline}. De termijn: zes weken na het einde van de afrekenperiode, bij een eindafrekening na het einde van de levering. De wet noemt geen gevolg voor het gefactureerde bedrag. Je kunt de vertraging bij de leverancier aankaarten; die moet binnen vier weken antwoorden."
+    },
+    "bonus": {
+      "title": "{label}: bonus van {amount_eur} niet gevonden",
+      "text": "Volgens het contract ‘{tariff}’ heb je recht op een bonus van {amount_eur}. In de rekening over {period_from} tot en met {period_to} vinden we geen creditering van dat bedrag. Controleer de bonusvoorwaarden in het contract (vaak: twaalf maanden levering). Ontbreekt de bonus, dan kun je hem bij de leverancier opeisen. Kwam hij op een andere manier, bijvoorbeeld per overschrijving of met een latere rekening, vink deze melding dan af.",
+      "textPortal": "Bij het contract ‘{tariff}’ staat een bonus van {amount_eur} (soort: overige bonus). In de rekening over {period_from} tot en met {period_to} vinden we geen creditering van dat bedrag. Betaalt niet de leverancier maar bijvoorbeeld een vergelijkingssite hem uit, neem dan daar contact op. Is hij al binnen, vink deze melding dan af."
+    },
+    "estimate": {
+      "title": "{label}: rekening schat de eindstand op {period_to} ondanks je eigen meterstand",
+      "titleEur": "{label}: rekening schat de eindstand op {period_to}, zo’n {delta_eur} verschil",
+      "text": "De rekening noemt de eindstand op {period_to} geschat: {bill_counter} {unit}. Je hebt op {own_date} zelf afgelezen ({own_counter} {unit}); doorgetrokken tot {period_to} is dat {own_projected} {unit}. Heb je de stand doorgegeven? De leverancier mag alleen schatten als er ondanks de verplichting daartoe geen meterstand is doorgegeven of als hij het verbruik om redenen die hem niet aan te rekenen zijn niet kon vaststellen. Je kunt vragen dat hij de schatting schriftelijk en gratis toelicht. Je kunt hem ook vragen opnieuw te rekenen met je eigen stand. Het verschil: {delta_qty} {cunit}.",
+      "textReported": "De rekening noemt de eindstand op {period_to} geschat: {bill_counter} {unit}. Je hebt op {own_date} zelf afgelezen ({own_counter} {unit}) en de stand op {reported_on} doorgegeven; doorgetrokken tot {period_to} is dat {own_projected} {unit}. De leverancier mag alleen schatten als er ondanks de verplichting daartoe geen meterstand is doorgegeven of als hij het verbruik om redenen die hem niet aan te rekenen zijn niet kon vaststellen. Je kunt vragen dat hij de schatting schriftelijk en gratis toelicht. Je kunt hem ook vragen opnieuw te rekenen met je eigen stand. Het verschil: {delta_qty} {cunit}.",
+      "textHeat": "De rekening noemt de eindstand op {period_to} geschat: {bill_counter} {unit}. Je hebt op {own_date} zelf afgelezen ({own_counter} {unit}); doorgetrokken tot {period_to} is dat {own_projected} {unit}. De leverancier mag schatten, op basis van de laatste meterstand, zolang zijn gemachtigde de ruimtes niet kan betreden om af te lezen. Geef hem je eigen stand door en vraag naar de schatting. Het verschil: {delta_qty} {cunit}.",
+      "textReportedBasic": "De rekening noemt de eindstand op {period_to} geschat: {bill_counter} {unit}. Je hebt op {own_date} zelf afgelezen ({own_counter} {unit}) en de stand op {reported_on} doorgegeven; doorgetrokken tot {period_to} is dat {own_projected} {unit}. De leverancier mag alleen schatten als er ondanks de verplichting daartoe geen meterstand is doorgegeven of als hij het verbruik om redenen die hem niet aan te rekenen zijn niet kon vaststellen. Je kunt vragen dat hij de schatting schriftelijk en gratis toelicht, en om een correctie met je eigen stand. Het verschil: {delta_qty} {cunit}.",
+      "textNotice": "De rekening noemt de eindstand op {period_to} geschat: {bill_counter} {unit}. Je hebt op {own_date} zelf afgelezen ({own_counter} {unit}); doorgetrokken tot {period_to} is dat {own_projected} {unit}. De rekening is een heffingsaanslag: bezwaren lopen via het rechtsmiddel uit de rechtsmiddelenclausule. De termijn daarvoor eindigt op zijn vroegst op {deadline}; een informele vraag houdt die niet open. Het verschil: {delta_qty} {cunit}.",
+      "textNoticeExpired": "De rekening noemt de eindstand op {period_to} geschat: {bill_counter} {unit}. Je hebt op {own_date} zelf afgelezen ({own_counter} {unit}); doorgetrokken tot {period_to} is dat {own_projected} {unit}. De rekening is een heffingsaanslag: bezwaren lopen via het rechtsmiddel. Volgens de berekening van de app is de termijn daarvoor op {deadline} verstreken; zie de tip bij de heffingsaanslag. Het verschil: {delta_qty} {cunit}."
+    },
+    "metering": {
+      "title": "{label}: meetkosten boven de bovengrens, zo’n {over_eur} per jaar",
+      "textMme": "Voor de meting rekent de rekening over {period_from} tot en met {period_to} omgerekend {year_eur} per jaar (bruto). Voor een moderne meetinrichting noemt de Duitse wet op het meetbedrijf een bovengrens van {cap_eur} per jaar. Die geldt voor het standaard meetbedrijf; een zelf gekozen meetbedrijf is er niet aan gebonden. Extra diensten, zoals een plaatsing op je eigen verzoek, mogen extra kosten. Vraag het na bij het meetbedrijf.",
+      "textImsys": "Voor de meting rekent de rekening over {period_from} tot en met {period_to} omgerekend {year_eur} per jaar (bruto). Voor een slim meetsysteem noemt de Duitse wet op het meetbedrijf in jouw groep een bovengrens van {cap_eur} per jaar. De app deelt je in naar zo’n {kwh_year} kWh per jaar, een sturing volgens § 14a EnWG en het vermogen van je pv-installatie; het meetbedrijf kan met andere waarden rekenen. De bovengrens geldt voor het standaard meetbedrijf; een zelf gekozen meetbedrijf is er niet aan gebonden. Extra diensten, zoals een plaatsing op je eigen verzoek, mogen extra kosten. Vraag het na bij het meetbedrijf."
+    },
+    "feeNotice": {
+      "title": "{label}: heffingsaanslag van {dated_on}, bezwaar of beroep tot {deadline}",
+      "text": "Heffingsaanslag van {dated_on}: tegen de aanslag is een rechtsmiddel mogelijk binnen een maand na bekendmaking. Kwam hij per post, dan geldt hij op de vierde dag na verzending als bekendgemaakt; de termijn eindigt dan op zijn vroegst op {deadline}. Valt het einde op een zaterdag, zondag of feestdag, dan eindigt de termijn pas op de volgende werkdag; dat is hier al meegerekend, met de feestdagen die in heel Duitsland gelden. Feestdagen die alleen in jouw deelstaat gelden, kent de app niet; valt er een op die dag, dan loopt de termijn tot de volgende werkdag daarna. Of het bezwaar of beroep is, staat in de rechtsmiddelenclausule aan het einde van de aanslag. Het rechtsmiddel schort de betaling niet op.",
+      "textServed": "Heffingsaanslag van {dated_on}, betekend op {served_on}: tegen de aanslag is een rechtsmiddel mogelijk binnen een maand na bekendmaking; de termijn eindigt op {deadline}. Valt het einde op een zaterdag, zondag of feestdag, dan eindigt de termijn pas op de volgende werkdag; dat is hier al meegerekend, met de feestdagen die in heel Duitsland gelden. Feestdagen die alleen in jouw deelstaat gelden, kent de app niet; valt er een op die dag, dan loopt de termijn tot de volgende werkdag daarna. Of het bezwaar of beroep is, staat in de rechtsmiddelenclausule aan het einde van de aanslag. Het rechtsmiddel schort de betaling niet op.",
+      "titleExpired": "{label}: heffingsaanslag van {dated_on}, termijn verstreken op {deadline}",
+      "textExpired": "Heffingsaanslag van {dated_on}: volgens de berekening van de app is de termijn voor bezwaar of beroep, één maand na de bekendmaking, op {deadline} verstreken; een zaterdag, zondag of landelijke feestdag aan het einde is al meegerekend. Feestdagen die alleen in jouw deelstaat gelden, kent de app niet; viel er een op die dag, dan liep de termijn tot de volgende werkdag daarna. Ontbrak de rechtsmiddelenclausule of was die onjuist, dan geldt een termijn van één jaar. Laat je adviseren als je nog tegen de aanslag wilt opkomen.",
+      "textExpiredLong": "Heffingsaanslag van {dated_on}: volgens de berekening van de app is de termijn voor bezwaar of beroep, één maand na de bekendmaking, op {deadline} verstreken; een zaterdag, zondag of landelijke feestdag aan het einde is al meegerekend. Feestdagen die alleen in jouw deelstaat gelden, kent de app niet; viel er een op die dag, dan liep de termijn tot de volgende werkdag daarna. Laat je adviseren als je nog tegen de aanslag wilt opkomen."
+    },
+    "docLink": "Wat de app controleert"
+  },
+  "letters": {
+    "button": "Brief opstellen",
+    "buttonNamed": "Brief opstellen: {title}",
+    "kind": {
+      "special_termination": "Buitengewone opzegging",
+      "advance_adjustment": "Verzoek om het voorschot aan te passen",
+      "estimate_query": "Vraag over de schatting",
+      "complaint": "Klacht over een rekening",
+      "objection": "Bezwaar tegen een aanslag"
+    },
+    "dialog": {
+      "title": "Brief opstellen: {kind}",
+      "german": "De brief is in het Duits, omdat leveranciers en instanties in Duitsland hem lezen. Controleer en vul hem aan voordat je hem verstuurt.",
+      "sender": "Afzender (naam en adres)",
+      "recipient": "Ontvanger (naam en adres)",
+      "recipientHint": "Het adres staat op de brief of rekening waarop je antwoordt.",
+      "place": "Plaats",
+      "remember": "Afzender op dit apparaat onthouden",
+      "rememberHint": "Alleen in deze browser opgeslagen, niet in de app. Vinkje weghalen wist de gegevens.",
+      "refs": "Kenmerken",
+      "confirmObjection": "In de rechtsmiddelenclausule aan het eind van de aanslag staat ‘Widerspruch’ (bezwaar).",
+      "confirmFirst": "Bevestig eerst wat de rechtsmiddelenclausule zegt. Noemt die een beroep bij de rechter (Klage), dan helpt deze brief niet; laat je dan adviseren.",
+      "objectionForm": "Onderteken het bezwaar en stuur het per post of geef het af bij de instantie. Een gewone e-mail is niet genoeg.",
+      "deadline": "Verstuur hem zo dat hij uiterlijk op {date} aankomt (termijn uit de melding).",
+      "preview": "Voorbeeld",
+      "gaps": {
+        "one": "Er ontbreekt nog één gegeven; het staat als […] in de brief.",
+        "other": "Er ontbreken nog {count} gegevens; ze staan als […] in de brief."
+      },
+      "copy": "Tekst kopiëren",
+      "copied": "Brief gekopieerd",
+      "copyFailed": "Kopiëren lukt niet. Selecteer de tekst in het voorbeeld.",
+      "pdf": "PDF downloaden",
+      "sent": "Als verstuurd markeren",
+      "sentNote": "Brief verstuurd: {kind}",
+      "sentHint": "Vul de datum in waarop je de brief hebt verstuurd. Je kunt de brief zelf als bewijs toevoegen."
+    },
+    "ref": {
+      "customer_number": "Klantnummer",
+      "contract_number": "Contractnummer",
+      "meter_serial": "Meternummer",
+      "malo_id": "Marktlocatie (MaLo)",
+      "supply_address": "Leveringsadres",
+      "invoice_number": "Factuurnummer",
+      "file_number": "Dossier- of betalingskenmerk"
+    },
+    "extra": {
+      "reading_value": "Meterstand voor de eindafrekening (optioneel)",
+      "reading_date": "afgelezen op",
+      "amount_eur": "Gewenst voorschot in {cur}",
+      "reasons": "Redenen (optioneel, bijv. minder personen in huis)",
+      "attach_photo": "Foto van de meterstand als bijlage noemen",
+      "note": "Aanvulling (optioneel)",
+      "levy": "Aanslag over (bijv. rioolheffing 2026)",
+      "reason": "Motivering (optioneel, anders staat in de brief dat die volgt)",
+      "suspend": "Ook schorsing van de tenuitvoerlegging aanvragen (optioneel)"
+    }
   }
 }

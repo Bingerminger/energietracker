@@ -80,11 +80,15 @@ final class ResponsibilityHttpTest extends HttpServerTestCase
         $this->json('POST', '/api/utility/gas/contracts', ['meter_id' => $m['id'], 'provider' => 'Werk', 'start' => $day,
             'working_prices' => [['from' => $day, 'ct_per_kwh' => 9]], 'assignee_id' => 'u_bbbb0002']);
 
+        // v3.11.0 (Skeptiker M4) — dazu ein Mietverhältnis (erfunden), für das Tom zuständig ist
+        file_put_contents($this->dataDir . '/tenancies.json', json_encode([['id' => 't_muster1', 'name' => 'Musterweg 1, EG', 'assignee_id' => 'u_bbbb0002']]));
+
         // ohne Anmeldung: niemand übernimmt, die Person bleibt mit „(gelöscht)“
         $pre = $this->json('GET', '/api/users/u_bbbb0002/handover');
-        self::assertSame([null, 1, 1], [$pre['to'], $pre['meters'], $pre['contracts']]);
+        self::assertSame([null, 1, 1, 1], [$pre['to'], $pre['meters'], $pre['contracts'], $pre['tenancies'] ?? null],
+            'die Vorschau nennt das Mietverhältnis (bis dahin fehlte das Feld, der Dialog rechnete mit 0)');
         $del = $this->send('DELETE', '/api/users/u_bbbb0002');
-        self::assertSame([0, 2], [$del['json']['data']['records_handed_over'], $del['json']['data']['records_kept']]);
+        self::assertSame([0, 3], [$del['json']['data']['records_handed_over'], $del['json']['data']['records_kept']]);
         $mm = $this->json('GET', '/api/utility/gas/meters/' . $m['id']);
         self::assertSame(['Tom', true], [$mm['assignee'], $mm['assignee_deleted']]);
 

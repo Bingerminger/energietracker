@@ -303,6 +303,13 @@ die Zuordnung zu lösen. Siehe [Meter-Topologie](../verstehen/13-meter-topologie
 (`[A-Za-z0-9_.-]{1,64}`) für die Home-Assistant-Anbindung. `POST /api/ingest`
 akzeptiert ihn anstelle der internen ID. Default `null` = kein Alias.
 
+**Messstellenbetrieb** *(v3.11.0, optional)*: Am Stromzähler `metering_device`
+(`conventional`, `mme` moderne Messeinrichtung, `imsys` intelligentes
+Messsystem) und `msb_basic` (`true` grundzuständig, `false` frei gewählt, fehlt =
+unbekannt), am Einspeisezähler `pv_kw` (Leistung der Anlage). An einer anderen
+Art → `errors.meter.valueInvalid`. Wofür:
+[Messentgelt über der Obergrenze](../verstehen/17-rechte.md#6-messentgelt-über-der-obergrenze).
+
 ### Meter-Gruppe (`meter_groups.json`, F1006)
 
 ```json
@@ -376,6 +383,12 @@ der Ablesung):
   Kosten und Saldo rechnen mit dem Stand, die Monatswerte überspringen ihn
   ([API](api.md#ablesungen-is_verified-is_billing_only-v390-additiv),
   [Grundlagen](../verstehen/00-overview.md#ablesung-prüfen-seit-v390)).
+
+Seit v3.11.0 optional `reported_on`: der Tag, an dem du den Stand dem Versorger
+gemeldet hast (Schalter „an den Versorger gemeldet“ bei der Erfassung;
+`errors.reading.reportedOnInvalid`). Er macht den Hinweis
+[Schätzung trotz eigener Ablesung](../verstehen/17-rechte.md#5-schätzung-trotz-eigener-ablesung)
+deutlicher.
 
 Die Verbrauchsrechnung übergeht außerdem **eingeklemmte Ausreißer** desselben
 Geräts und meldet sie als `warnings` (siehe
@@ -498,6 +511,11 @@ Für Mieter, die Heizung und Wasser über die Nebenkosten zahlen
   Abrechnung übernommen, `estimate` selbst eingetragen).
 - `meter_ids`: `heat` nimmt Zähler der Heizwärme, `warm_water` und `cold_water`
   Wasserzähler. Ein unbekannter Zähler ergibt `errors.tenancy.meterNotFound`.
+- *(v3.11.0)* Optional `assignee_id` (Person aus dem Personenverzeichnis) bzw.
+  `assignee_former: true`, wie an Zähler und Vertrag: Nebenkostenabrechnung,
+  Einwände und CO₂-Kosten landen bei ihr; ohne Eintrag gilt die Person des
+  ersten Wärmezählers (`meter_ids.heat[0]`). Additiv, kein Schemaschritt; der
+  Import prüft die Form wie an Zählern und Verträgen.
 
 `tenancy_statements.json`:
 
@@ -595,6 +613,19 @@ das Buchen des Ergebnisses und die CO₂-Angaben
 - **CO₂.** Emissionen und Betrag gehen beim CO₂-Preis dem Standardfaktor vor;
   `issued_on` einer Gasrechnung setzt zur Miete die Frist für die Erstattung
   ([CO₂-Preis im Brennstoff](../verstehen/16-co2-preis.md)).
+- **Deine Rechte als Kunde** *(v3.11.0, alles optional)*: `received_on` (Zugang),
+  `invoice_number` (bis 80 Zeichen), `reading_estimated: {start, end}` (laut
+  Rechnung geschätzt), `estimated_end_reading: {value, on}` (der geschätzte
+  Endstand laut Rechnung, `on` im Zeitraum oder am Tag danach, ohne Angabe das
+  Ende des Zeitraums; *keine* Ablesung, fließt nicht in den Verbrauch, die
+  Prüfung A5 vergleicht ihn mit deinen Ablesungen; liegt er über einer
+  späteren oder unter einer früheren eigenen Ablesung, antwortet das Speichern
+  mit der Warnung `estimated_reading_backwards`), nur Wasser `notice: {public_law, dated_on, served_on,
+  remedy, file_number}` (Gebührenbescheid; `dated_on` Pflicht bei `public_law`,
+  `remedy` `objection` oder `action`). Posten zusätzlich mit `kind: metering`,
+  `basis` (`net`/`gross`) und `vat_pct` (0–30). Ungültig →
+  `errors.bill.valueInvalid`; leere Angaben fallen weg
+  ([Deine Rechte als Kunde](../verstehen/17-rechte.md)).
 
 ### Delivery (Brennstofflieferung — Heizöl/Pellets)
 
@@ -673,16 +704,22 @@ nicht gepflegt:
 | `notice_period_months` | Kündigungsfrist in Monaten; `0` = jederzeit |
 | `notice_period_days` | *(v2.9.0)* Frist in Tagen (0–730), hat Vorrang vor den Monaten; die Oberfläche speichert Wochen als Tage |
 | `notice_mode` | *(v2.9.0)* `term_end` (zum Vertragsende), `month_end` (jederzeit zum Monatsende), `any_day` (jederzeit zu jedem Tag); `null` = mit Ende zum Vertragsende, ohne Ende zum Monatsende |
-| `auto_renews` | *(v2.9.0)* `false` = gekündigt, endet wirklich; sonst läuft der Vertrag ohne Nachfolger zu seinen letzten Preisen weiter |
+| `auto_renews` | *(v2.9.0)* `false` = gekündigt, endet wirklich; sonst läuft der Vertrag ohne Nachfolger weiter, zu seinen letzten Preisen oder (seit v3.11.0) zu den Preisen und Abschlägen, die nach dem Ende eingetragen sind |
 | `min_term_end` | Ende der Mindestlaufzeit (unbefristete Verträge) |
 | `price_guarantee_until` | Ende der Preisgarantie |
 | `signup_bonus_eur` | Neukundenbonus als Betrag (Angebote im Tarifvergleich) |
 
 Ungültige Werte lehnt die API mit 400 ab (`errors.contract.noticeDaysOutOfRange`,
-`errors.contract.noticeModeInvalid`). Endet `min_term_end` mehr als 24 Monate
-nach `start`, antwortet die API seit v3.1.0 beim Speichern zusätzlich mit
-`warnings: ["term_over_24_months"]` (§ 309 Nr. 9 BGB); gespeichert wird der
-Hinweis nicht.
+`errors.contract.noticeModeInvalid`). Endet `min_term_end` bei Strom oder Gas
+mehr als 24 Monate nach `start`, antwortet die API seit v3.1.0 beim Speichern
+zusätzlich mit `warnings: ["term_over_24_months"]` (§ 309 Nr. 9 BGB), bei
+Fernwärme seit v3.11.0 erst über zehn Jahren mit `term_over_10_years` (§ 32
+AVBFernwärmeV), bei Wasser nie; gespeichert wird der Hinweis nicht.
+
+*(v3.11.0)* Jeder Eintrag einer Preisliste darf zusätzlich `announced_on`,
+`vat_pct` und `special_termination_until` tragen (Datum des Schreibens,
+Steuersatz im Preis, „Kündigung bis …“ laut Schreiben); der Vertrag
+`supply_kind` (`basic`/`special`). Alle optional, leer entfernt.
 
 **Fernwärme (v3.1.0, CALC-31)** — nur bei `fernwaerme`, alle optional:
 
@@ -1105,7 +1142,7 @@ Eine Liste; die Datei entsteht mit dem ersten Dokument, kein Schema-Schritt.
   "queued_at": null,           // nur vorgemerkt: Reihenfolge der Warteschlange
   "type": "invoice",           // Dokumentart, s. u.; type_confidence 0–1 oder null
   "extraction": {              // das geprüfte Ergebnis, null vor dem Auslesen
-    "provider": "local", "model": "qwen3.8", "schema_version": 6, "type": "invoice",
+    "provider": "local", "model": "qwen3.8", "schema_version": 7, "type": "invoice",
     "fields": {
       "consumption": { "value": 10450, "raw": "10.450", "quote": "Verbrauch: 945,6 m³ = 10.540 kWh",
                        "page": 1, "status": "check", "reasons": ["value_not_in_quote"] }
@@ -1114,7 +1151,7 @@ Eine Liste; die Datei entsteht mit dem ersten Dokument, kein Schema-Schritt.
     "flags": 3, "seconds": 74.2, "extracted_at": "…",
     "text": { "chars": 1180, "kept": [1, 2], "dropped": [3], "truncated": false }   // AGB-Seiten nicht gesendet
   },
-  "cache": { "local|qwen3.8|6": { … } },   // Rohantworten je Anbieter, Modell und Schema-Version (höchstens drei)
+  "cache": { "local|qwen3.8|7": { … } },   // Rohantworten je Anbieter, Modell und Schema-Version (höchstens drei)
   "assignment": null,          // {utility, meter_id, contract_id} — vom Nutzer gesetzt, sonst gilt die Vorbelegung
   "edits": {},                 // bestätigte oder korrigierte Feldwerte, {feld: wert}
   "applied": [],               // [{id, kind, key, ref, at}] — was übernommen wurde

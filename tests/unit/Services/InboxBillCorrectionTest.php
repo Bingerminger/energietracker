@@ -213,6 +213,6 @@ final class InboxBillCorrectionTest extends ServiceTestCase
     {
         $f = InboxSchema::fields('invoice');
         self::assertSame([true, true], [!empty($f['invoice_number']['helper']), !empty($f['corrects_invoice']['helper'])]);
-        self::assertSame(6, InboxSchema::VERSION);
+        self::assertGreaterThanOrEqual(6, InboxSchema::VERSION, 'Schema mit Rechnungsnummer und Bezug (seit 6)');
     }
 }

@@ -404,6 +404,13 @@ console.log('Zähler und Verträge (v3.7.0)');
   t('… mit „ehemalige Person“', P.handoverText({ to: null, open: 0, done: 0, meters: 0, contracts: 3 }, true)
     .some(s => s === '3 Zähler und Verträge zeigen dann „ehemalige Person“.'));
   t('… ohne Zähler und Verträge kein Satz', P.handoverText({ to: { name: 'Thomas' }, open: 0, done: 0 }).length === 1);
+  // v3.11.0 (integration) — Mietverhältnisse zählen mit und stehen im Satz
+  const ten = P.handoverText({ to: { name: 'Thomas' }, open: 0, done: 0, meters: 1, contracts: 0, tenancies: 1 });
+  t('Dialog „Person löschen“: Mietverhältnisse im Satz', ten.includes('2 Zähler, Verträge und Mietverhältnisse gehen an Thomas.'), ten.join(' | '));
+  t('… nur ein Mietverhältnis, ohne löschende Person', P.handoverText({ to: null, open: 0, done: 0, tenancies: 1 })
+    .some(s => s === '1 Zähler, Vertrag oder Mietverhältnis behält die Person mit dem Zusatz „(gelöscht)“, bis jemand übernimmt.'));
+  t('… mit „ehemalige Person“', P.handoverText({ to: null, open: 0, done: 0, contracts: 1, tenancies: 2 }, true)
+    .some(s => s === '3 Zähler, Verträge und Mietverhältnisse zeigen dann „ehemalige Person“.'));
 
   // „Zu tun“: der Filter wirkt auf die Ereignisse — auch die Sammelzeile der Ablesungen zählt nur, was passt
   const D = await import(`${JS}/views/dashboard.js`);
@@ -430,6 +437,32 @@ console.log('Zähler und Verträge (v3.7.0)');
   t('Verträge & Abschläge: die Person des Vertrags geht vor', O.responsibleOf({ assignee: 'Anna', assignee_id: 'u_anna' }, meter).assignee_source === 'contract');
   t('… sonst die des Zählers', O.responsibleOf({ assignee: null }, meter).assignee === 'Ben' && O.responsibleOf(null, meter).assignee_source === 'meter');
   t('… sonst niemand', S.assigneeOf(O.responsibleOf(null, {})) === null);
+}
+
+// v3.11.0 (E) — Zuständig am Mietverhältnis: Nebenkosten- und CO₂-Fristen erben vom Mietverhältnis
+console.log('Mietverhältnis (v3.11.0)');
+{
+  const viaTenancy = { assignee: 'Anna', assignee_id: 'u_anna', assignee_former: false, assignee_deleted: false, assignee_source: 'tenancy' };
+  t('Ereignis: geerbt vom Mietverhältnis', S.assigneeOf(viaTenancy)?.via === 'tenancy');
+  t('Chip „über das Mietverhältnis“', S.chipHtml(viaTenancy).includes('über das Mietverhältnis') && S.chipHtml(viaTenancy).includes('chip--via'));
+  const box = document.createElement('div');
+  box.innerHTML = S.personSelectHtml({ id: 'tf-assignee', record: { assignee_id: 'u_anna', assignee: 'Anna' }, people, hintKey: 'assignee.hintTenancy' });
+  t('Auswahl im Formular des Mietverhältnisses: Hinweis auf den Wärmezähler', box.querySelector('select')?.value === 'u_anna'
+    && box.textContent.includes('Wärmezählers'));
+  const src = readFileSync(resolve(JS, 'views', 'tenancy.js'), 'utf8');
+  t('tenancy.js: Auswahl und Übergabe an den Server', src.includes("personSelectHtml({ id: 'tf-assignee'") && src.includes("personPayload(modalEl.querySelector('[name=\"assignee_id\"]'), ten)"));
+}
+
+// v3.11.0 (D, #54) — Verträge widersprechen sich: eine Zeile unter „Zu tun“ mit dem Titel der Empfehlung
+console.log('Verträge widersprechen sich (v3.11.0)');
+{
+  const D = await import(`${JS}/views/dashboard.js`);
+  const ev = { uid: 'r_contract_conflict_x', kind: 'contract_conflict', due_now: true, severity: 'due', date: '2026-06-30', title: 'Strom: Verträge prüfen',
+    href: '#/utility/strom/contracts', ref: { utility: 'strom', conflict: 'nested', recommendation_id: 'r_contract_conflict_x' }, can_mark_done: false };
+  const rec = { id: 'r_contract_conflict_x', title: 'Strom: Verträge widersprechen sich', detail: 'Welcher Vertrag gilt danach?', category: 'vertrag' };
+  const rows = D.buildTodo([ev], [rec]);
+  t('Zu tun: Titel und Text der Empfehlung, Sprung zu den Verträgen', rows.length === 1 && rows[0].text === rec.title && rows[0].sub === rec.detail
+    && rows[0].href === '#/utility/strom/contracts' && rows[0].recId === rec.id, JSON.stringify(rows[0] || {}));
 }
 
 console.log(`\nassignee.test: ${pass} bestanden, ${fail} fehlgeschlagen`);

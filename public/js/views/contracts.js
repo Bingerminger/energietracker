@@ -207,6 +207,20 @@ async function refresh(container, u) {
     });
   });
 
+  // v3.11.0 (D, #54) — Widerspruch an der Karte: Ende übernehmen oder „Beides stimmt“
+  container.querySelectorAll('[data-conflict-fix]').forEach(b => {
+    b.addEventListener('click', async () => {
+      try { await api.updateContract(u.key, b.getAttribute('data-conflict-fix'), { end: b.getAttribute('data-fix-end') }); toastOk(t('contracts.conflict.fixed')); refresh(container, u); }
+      catch (e) { toastErr(e.message); }
+    });
+  });
+  container.querySelectorAll('[data-conflict-dismiss]').forEach(b => {
+    b.addEventListener('click', async () => {
+      try { await api.dismissRecommendation(b.getAttribute('data-conflict-dismiss'), '9999-12-31'); toastOk(t('contracts.conflict.dismissed')); refresh(container, u); }
+      catch (e) { toastErr(e.message); }
+    });
+  });
+
   container.querySelectorAll('[data-delete-contract]').forEach(b => {
     b.addEventListener('click', async () => {
       const id = b.getAttribute('data-delete-contract');
@@ -349,7 +363,7 @@ const ctValue = (v) => fmt.num(v, Math.abs(v * 100 - Math.round(v * 100)) < 1e-6
  * Tag, beim künftigen sein erster). Bis v3.3 standen hier nur Zählungen
  * („1 Arbeitspreis · 1 Grundpreis …“) — die gibt es jetzt ab „Experte“.
  */
-function contractValuesHtml(c, u) {
+export function contractValuesHtml(c, u) {   // v3.11.0 (Nachprüfung) — exportiert für tests/rights.test.mjs
   const v = c.values_on || {};
   const unit = u.key === 'wasser' ? 'm³' : (u.consumption_unit || 'kWh');
   const parts = [
@@ -363,7 +377,29 @@ function contractValuesHtml(c, u) {
   ].filter(Boolean);
   if (!parts.length) return `<span class="muted">${escapeHtml(t('contracts.card.noValues'))}</span>`;
   const on = v.date && v.date !== todayIso() ? ` <span class="muted">(${escapeHtml(t('contracts.card.valuesOn', { date: fmt.date(v.date) }))})</span>` : '';
-  return `<strong>${parts.map(escapeHtml).join(' · ')}</strong>${on}`;
+  const next = nextStageText(c, u, v.date, unit);
+  return `<strong>${parts.map(escapeHtml).join(' · ')}</strong>${on}${next ? `<br><span class="muted small" data-role="next-stage">${escapeHtml(next)}</span>` : ''}`;
+}
+
+/**
+ * v3.11.0 (Nachprüfung, klein) — die nächste eingetragene Preisstufe nach dem Stichtag der Karte, etwa aus einem
+ * Preisänderungsschreiben: „ab 01.12.2026: Arbeitspreis 34,50 ct/kWh · Grundpreis 13,50 €/Monat“ (bis dahin nur
+ * „2 Arbeitspreise · 2 Grundpreise“ ab „Experte“). Wasser hat Preise je Sparte, dort keine Zeile.
+ */
+function nextStageText(c, u, date, unit) {
+  if (u.key === 'wasser' || !date) return '';
+  const rows = (list) => (Array.isArray(list) ? list : []).filter(r => typeof r?.from === 'string' && r.from !== '');
+  const wp = rows(c.working_prices), bp = rows(c.base_prices);
+  const from = [...wp, ...bp].map(r => r.from.slice(0, 10)).filter(d => d > date).sort()[0];
+  if (!from) return '';
+  const at = (list, field) => list.filter(r => r.from.slice(0, 10) <= from && r[field] != null && r[field] !== '')
+    .sort((a, b) => a.from.localeCompare(b.from)).pop()?.[field];
+  const w = at(wp, 'ct_per_kwh'), b = at(bp, 'eur_per_month');
+  const values = [
+    w != null ? t(u.accounting_kind === 'feed_in' ? 'contracts.card.feedInValue' : 'contracts.card.workingValue', { value: ctValue(Number(w)), unit }) : null,
+    b != null ? t('contracts.card.baseValue', { value: fmt.num(Number(b), 2) }) : null,
+  ].filter(Boolean);
+  return values.length ? t('contracts.card.nextValues', { date: fmt.date(from), values: values.join(' · ') }) : '';
 }
 
 /** v3.7.0 (#35) — die Boni des Vertrags mit Art, Datum und Notiz (bis v3.6 nur ihre Zahl ab „Experte“). */
@@ -393,6 +429,46 @@ function restHintHtml(c, u, meter, group) {
   if (!subs.length) return '';
   const parent = group?.name || meter?.name || '';
   return `<p class="muted small" data-role="contract-rest-hint">${escapeHtml(t('concept.contracts.restNote', { parent, sub: subs.join(', ') }))}</p>`;
+}
+
+/**
+ * v3.11.0 (D, #54) — was der Vertrag abrechnet, aus `coverage` des Servers (dieselbe Quelle wie
+ * Vertragsstatus und Abrechnungsjahr): „Abgelöst: gilt bis …“, „Verlängert seit …“ bzw. „bis …“.
+ */
+function coverageHtml(c) {
+  const cov = c.coverage;
+  if (!cov || c.is_shadow) return '';
+  const parts = [];
+  if (cov.superseded_on) parts.push(t('contracts.coverage.superseded', { date: fmt.date(cov.superseded_on) }));
+  // „Verlängert seit …“ erst, wenn die Verlängerung begonnen hat (ein laufender Vertrag mit Ende in der
+  // Zukunft hat assumed_from = Tag nach dem Ende; das ist noch keine Verlängerung)
+  if (cov.assumed_from && cov.assumed_from <= todayIso()) parts.push(cov.renewed_until
+    ? t('contracts.coverage.renewedUntil', { date: fmt.date(cov.renewed_until) })
+    : t('contracts.coverage.renewed', { date: fmt.date(cov.assumed_from) }));
+  return parts.length ? `<p class="muted small" data-role="contract-coverage">${escapeHtml(parts.join(' · '))}</p>` : '';
+}
+
+/**
+ * v3.11.0 (D, #54) — „Verträge widersprechen sich“ an jeder beteiligten Karte (Text vom Server, wie
+ * die Empfehlung), solange nicht ausgeblendet. Bei Überschneidung „Ende von … auf … setzen“ (dann
+ * passt der Eintrag zur Rechnung, die Zahlen bleiben) und „Beides stimmt“ (ausblenden).
+ */
+function conflictHtml(c) {
+  const rows = (c.conflicts || []).filter(r => !r.dismissed);
+  if (!rows.length) return '';
+  const byId = new Map((restCtx.contracts || []).map(x => [x.id, x]));
+  const name = (x) => [x?.provider, x?.tariff_name].filter(Boolean).join(' · ') || t('contracts.card.fallbackProvider');
+  return rows.map(r => {
+    const fix = r.fix_end && r.other_id && byId.has(r.other_id)
+      ? `<button type="button" class="btn btn--sm btn--ghost" data-conflict-fix="${escapeHtml(r.other_id)}" data-fix-end="${escapeHtml(r.fix_end)}">${escapeHtml(t('contracts.conflict.fixEnd', { name: name(byId.get(r.other_id)), date: fmt.date(r.fix_end) }))}</button>`
+      : '';
+    return `<div class="banner banner--warning small" data-role="contract-conflict" data-kind="${escapeHtml(r.kind)}">
+        <strong>${escapeHtml(r.title || '')}</strong> ${escapeHtml(r.detail || '')}
+        <div class="section-actions" style="margin-top:var(--sp-2)">${fix}
+          <button type="button" class="btn btn--sm btn--ghost" data-conflict-dismiss="${escapeHtml(r.recommendation_id)}">${escapeHtml(t('contracts.conflict.bothRight'))}</button>
+        </div>
+      </div>`;
+  }).join('');
 }
 
 function renderContractCard(c, meters, u, groups = [], docNames = new Map()) {
@@ -447,6 +523,8 @@ function renderContractCard(c, meters, u, groups = [], docNames = new Map()) {
           : `${t('contracts.card.meterLabel')} <strong>${escapeHtml(meter?.name || t('contracts.card.noMeter'))}</strong>`}
         <span class="contract-card__counts" data-min-level="expert">· ${summary}</span>
       </div>
+      ${coverageHtml(c)}
+      ${conflictHtml(c)}
       ${restHintHtml(c, u, meter, group)}
       ${bonusCardHtml(c)}
       ${documentsCardHtml(c, docNames)}
@@ -507,6 +585,7 @@ async function openContractModal(u, meters, existing, contracts = [], groups = [
               <label>${t('contracts.modal.tariff')}</label>
               <input class="input input--text" name="tariff_name" value="${escapeHtml(initial.tariff_name || '')}">
             </div>
+            ${SUPPLY_KIND_UTILITIES.includes(u?.key) ? supplyKindHtml(initial.supply_kind) : ''}
             <div class="field field--m">
               <label>${t('contracts.modal.meter')}</label>
               <select class="select" name="meter_id">
@@ -661,6 +740,9 @@ async function openContractModal(u, meters, existing, contracts = [], groups = [
             toastOk(t('contracts.modal.saved'));
             // v3.1.0 (H5, MKT-24) — Hinweise des Servers (nicht gespeichert)
             if ((saved?.warnings || []).includes('term_over_24_months')) toastErr(t('contracts.hint.termOver24'));
+            // v3.11.0 (Paket vertrag, B2) — Fernwärme: erst über zehn Jahren (§ 32 AVBFernwärmeV)
+            if ((saved?.warnings || []).includes('term_over_10_years')) toastErr(t('contracts.hint.termOver10y'));
+            if ((saved?.warnings || []).includes('contract_conflict')) toastErr(t('contracts.hint.conflict'));   // v3.11.0 (D, #54)
             close(true); resolve(true);
           } catch (e) { toastErr(e.message); }
         }));
@@ -819,7 +901,8 @@ function renderGroupSection(g, entries, nested = false) {
       <div class="entries rowlist${g.key === 'advance_payments' ? ' rowlist--three' : ''}">
         ${entries.map(e => renderEntryRow(g, e, entries)).join('')}
       </div>
-      ${g.key === 'working_prices' && perM3Ctx ? gasFactorNoteHtml() + renderPerM3() : ''}`;
+      ${g.key === 'working_prices' && perM3Ctx ? gasFactorNoteHtml() + renderPerM3() : ''}
+      ${g.key === 'working_prices' ? `<p class="fgroup__hint" data-role="price-origin-hint" data-min-level="advanced">${escapeHtml(t('contracts.modal.priceOriginHint'))}</p>` : ''}`;
   return nested
     ? `<div class="entry-group entry-group--nested" role="group" aria-labelledby="${ids}-title" ${attrs}>
         <div class="entry-group__head"><span class="fgroup__title" id="${ids}-title">${title}</span>${add}</div>${inner}
@@ -927,6 +1010,35 @@ function amountInput(role, value, digits = 6) {
   return `<input class="input" type="text" inputmode="decimal" autocomplete="off" data-role="${role}" value="${escapeHtml(formatForInput(value, digits))}">`;
 }
 
+/**
+ * v3.11.0 (F1035, Paket vertrag) — Verbrauchsarten mit Grundversorgung oder Sondervertrag (Energie im
+ * Sinne des EnWG, wie Config\Rights::ENERGY_UTILITIES): dort fragt der Dialog die Versorgungsart.
+ */
+const SUPPLY_KIND_UTILITIES = ['strom', 'gas'];
+/** v3.11.0 (Paket vertrag) — Preislisten, deren Zeilen „Schreiben vom“ und Steuersatz zeigen (Prüfung A3). */
+const ORIGIN_GROUPS = ['working_prices', 'base_prices'];
+
+function supplyKindHtml(value) {
+  return `<div class="field field--m" data-role="supply-kind">
+              <label for="cf-supply-kind">${t('contracts.modal.supplyKind')}</label>
+              <select class="select" id="cf-supply-kind" name="supply_kind">
+                ${['', 'basic', 'special'].map(k => `<option value="${k}"${(value || '') === k ? ' selected' : ''}>${escapeHtml(t('contracts.modal.supplyKindOption.' + (k || 'unknown')))}</option>`).join('')}
+              </select>
+              <span class="settings-field__hint">${t('contracts.modal.supplyKindHint')}</span>
+            </div>`;
+}
+
+/** v3.11.0 (Paket vertrag) — „Schreiben vom“ und Steuersatz unter einer Preiszeile (ab „Erfahren“). */
+function priceOriginHtml(e) {
+  const vat = e.vat_pct != null && e.vat_pct !== '' ? formatForInput(e.vat_pct, 2) : '';
+  return `<div class="rowlist__sub entry-origin" data-min-level="advanced">
+        <label class="entry-origin__field">${escapeHtml(t('contracts.row.announcedOn'))}
+          <input class="input" type="date" data-role="announced-on" value="${escapeHtml(e.announced_on || '')}"></label>
+        <label class="entry-origin__field">${escapeHtml(t('contracts.row.vatPct'))}
+          <input class="input input--xs" type="text" inputmode="decimal" autocomplete="off" data-role="vat-pct" value="${escapeHtml(vat)}"></label>
+      </div>`;
+}
+
 // v3.4.0 (N1021) — Zeile im Listenraster: Gültig ab | Betrag | „Ab Beginn" | ✕;
 // die Beschriftung zeigt nur die erste Zeile (CSS), die übrigen tragen sie
 // für Screenreader weiter
@@ -934,8 +1046,13 @@ function renderEntryRow(g, e, entries = []) {
   // v3.9.0 (F1034) — Abschlag mit Rhythmus: monatlich, alle zwei oder drei Monate; genannte Termine bleiben erhalten
   const advance = g.key === 'advance_payments';
   const every = Number(e.every_months) || 1;
+  // v3.11.0 (F1035) — Herkunft eines Preises (Schreiben vom …, Steuersatz) bleibt beim Speichern erhalten;
+  // Paket vertrag: in Arbeits- und Grundpreis als Felder, „Kündigung bis …“ laut Schreiben (Posteingang) still
+  const shown = ORIGIN_GROUPS.includes(g.key);
+  const origin = `${!shown && e.announced_on ? ` data-announced-on="${escapeHtml(e.announced_on)}"` : ''}${!shown && e.vat_pct != null && e.vat_pct !== '' ? ` data-vat-pct="${escapeHtml(String(e.vat_pct))}"` : ''}`
+    + (e.special_termination_until ? ` data-termination-until="${escapeHtml(e.special_termination_until)}"` : '');
   return `
-    <div class="entry-row rowlist__row">
+    <div class="entry-row rowlist__row"${origin}>
       <div class="field">
         <label>${t('contracts.row.validFrom')}</label>
         <input class="input" type="date" data-role="date" value="${escapeHtml(e[g.dateKey] || '')}"${e.__auto ? ' data-auto="1"' : ''}>
@@ -949,6 +1066,7 @@ function renderEntryRow(g, e, entries = []) {
       <button type="button" class="btn btn--sm btn--danger btn--icon rowlist__del" data-action="remove-row" title="${t('contracts.row.removeRow')}" aria-label="${t('contracts.row.removeRow')}"><span aria-hidden="true">×</span></button>
       ${advance ? advanceDueHtml(e.due_dates) : ''}
       ${advance ? advanceGapHtml(entries, e) : ''}
+      ${shown ? priceOriginHtml(e) : ''}
     </div>
   `;
 }
@@ -1350,6 +1468,15 @@ function collectEntries(group, g) {
     if (every > 1) entry.every_months = every;
     const due = (row.querySelector('[data-role="due"]')?.value || '').split(',').filter(Boolean);
     if (due.length) entry.due_dates = due;
+    // v3.11.0 (F1035) — Herkunft des Preises (Posteingang, Paket vertrag) nicht beim Bearbeiten verlieren;
+    // in Arbeits- und Grundpreis aus den Feldern (leer = entfernt), sonst aus der Zeile
+    const annEl = row.querySelector('[data-role="announced-on"]');
+    const vatEl = row.querySelector('[data-role="vat-pct"]');
+    const ann = annEl ? annEl.value.trim() : (row.dataset.announcedOn || '');
+    const vat = vatEl ? vatEl.value.trim() : (row.dataset.vatPct || '');
+    if (ann) entry.announced_on = ann;
+    if (vat) entry.vat_pct = amountValue(vat);
+    if (row.dataset.terminationUntil) entry.special_termination_until = row.dataset.terminationUntil;
     entries.push(entry);
   });
   return entries;
@@ -1379,6 +1506,8 @@ function collectPayload(form, u = null) {
     min_term_end:          form.min_term_end?.value || null,
     price_guarantee_until: form.price_guarantee_until?.value || null,
   };
+  // v3.11.0 (F1035, Paket vertrag) — Grundversorgung oder Sondervertrag (Strom, Gas); leer = nicht angegeben
+  if (form.supply_kind) payload.supply_kind = form.supply_kind.value || null;
 
   for (const g of groupsFor(u)) {
     payload[g.key] = collectEntries(form.querySelector(`[data-group="${g.key}"]`), g);
@@ -1518,9 +1647,9 @@ async function openWaterContractModal(u, meters, existing, contracts = []) {
           } catch (err) { toastErr(err.message); return; }
           if (!await confirmSupersede(contracts, payload, existing)) return;
           try {
-            if (isEdit) await api.updateContract(u.key, existing.id, payload);
-            else        await api.createContract(u.key, payload);
+            const saved = isEdit ? await api.updateContract(u.key, existing.id, payload) : await api.createContract(u.key, payload);
             toastOk(isEdit ? t('contracts.water.savedEdit') : t('contracts.water.savedNew'));
+            if ((saved?.warnings || []).includes('contract_conflict')) toastErr(t('contracts.hint.conflict'));   // v3.11.0 (D, #54)
             close(true); resolve(true);
           } catch (e) { toastErr(e.message); }
         }));

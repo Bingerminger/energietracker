@@ -432,7 +432,9 @@ final class WaterBillContractTest extends ServiceTestCase
         self::assertSame($c['id'], $b['contract_id']);
         self::assertNotEmpty($b['special_payment_id']);
         $sp = array_values(array_filter($c['special_payments'] ?? [], fn($x) => $x['id'] === $b['special_payment_id']))[0];
-        self::assertSame(['nachzahlung_ohne', 48.3, '2026-04-01'], [$sp['kind'], (float)$sp['amount_eur'], $sp['date']]);
+        // v3.11.0 (Paket rechnung, B5) — gebucht am Rechnungsdatum des Dokuments (bis v3.10: Tag nach dem Zeitraum,
+        // weil der Posteingang `document_date` nicht übernahm)
+        self::assertSame(['nachzahlung_ohne', 48.3, '2026-04-20', '2026-04-20'], [$sp['kind'], (float)$sp['amount_eur'], $sp['date'], $b['issued_on'] ?? null]);
 
         // „Rechnung prüfen“: der Vertrag aus der Rechnung rechnet den Zeitraum wie der Versorger.
         // Mit der Hand: brutto je Sparte (WaterBillFixture) — Trinkwasser 35 × 2,247 + 37 × 2,461 + 6 × 13,375

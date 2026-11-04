@@ -13,7 +13,7 @@ Alle Endpunkte unter `/api/…`. Antwort-Hülle einheitlich:
 
 `{utility}` ist eine von: `gas`, `strom`, `wasser`, `fernwaerme`,
 `heizoel`, `pellets`, `pv_einspeisung`, `pv_erzeugung` und seit v3.1.0
-`waerme` (Heizwärme). Stand: **195 Routen**,
+`waerme` (Heizwärme). Stand: **197 Routen**,
 v3.9.0 — `ReleaseConsistencyTest` prüft, dass jede registrierte Route in der
 Tabelle unten steht (DE und EN).
 
@@ -261,6 +261,8 @@ nicht wieder passieren.
 | GET | `/api/recommendations` | statistische Empfehlungen |
 | POST | `/api/recommendations/{id}/dismiss` | Empfehlung ausblenden; `{until?}`, sonst 30 Tage — seit v3.4.0 mit Frist (`evidence.deadline`) mindestens bis dahin; Antwort zusätzlich `until` und `activity_id` |
 | DELETE | `/api/recommendations/{id}/dismiss` | Ausblenden zurücknehmen (v2.12.0); eine nicht ausgeblendete ID ist kein Fehler |
+| GET | `/api/rights` | *(v3.11.0)* Hinweise zu deinen Rechten als Kunde: alle Befunde der Prüfungen, auch außerhalb des Fensters; `?utility=`, `?meter_id=`, `?contract_id=`, `?bill_id=`, `?check=`, `?todo=1` — [Rechte als Kunde](#rechte-als-kunde-v3110) |
+| POST | `/api/letters/render` | *(v3.11.0)* Brief zu einem Befund aus fester Vorlage, immer Deutsch: `{finding_id, kind?, format: text\|pdf, sender, recipient, place, refs, extra}` → Text (`{subject, lines, text, gaps, …}`) oder PDF (DIN 5008, Fensterumschlag); schreibt nichts, auch mit Lese-Schlüssel — [s. u.](#brief-zu-einem-befund-v3110) |
 | GET | `/api/reminders` | Termine + Fälligkeitsstatus; seit v3.4.0 `last_done_by` (wer zuletzt erledigt hat, aus dem Verlauf); seit v3.5.0 je Termin `assignee`, `assignee_id`, `assignee_former` — [Zuständig](#zuständig-an-terminen-v350); *(v3.7.0)* `assignee_inherited` (Person des Zählers, wenn der Termin keine eigene hat) |
 | POST | `/api/reminders` | anlegen; seit v3.5.0 optional `assignee` (Name) und `assignee_id` (Person); *(v3.7.0)* `utility` und `meter_id` (Termin am Zähler) |
 | PATCH | `/api/reminders/{id}` | ändern; seit v2.12.0 auch `last_done` (Datum oder `null`) — für „Rückgängig" nach „Erledigt"; seit v3.5.0 `assignee`/`assignee_id` |
@@ -673,7 +675,7 @@ eine Breite für alle Ansichten
 
 | Wo | Feld | Bedeutung |
 |---|---|---|
-| `…/contract-status` | `balance_measured` | *(GitHub #49)* `{from, until, energy_cost, base, bonus, cost, advance, special_net, balance}`: der Saldo bis zur letzten Ablesung (`until`, exklusiv), nur Gemessenes; Abschläge anteilig nach Tagen wie `advance_measured_eur`, Sonderzahlungen vor `until`. `null` ohne Ablesung im Zeitraum des Saldos. `current_balance` bleibt der Stand heute mit Schätzung |
+| `…/contract-status` | `balance_measured` | *(GitHub #49)* `{from, until, energy_cost, base, bonus, cost, advance, special_net, balance}`: der Saldo bis zur letzten Ablesung (`until`, exklusiv), nur Gemessenes; Abschläge anteilig nach Tagen wie `advance_measured_eur`, Sonderzahlungen vor `until`. `null` ohne Ablesung im Zeitraum des Saldos. `current_balance` bleibt der Stand heute mit Schätzung. *(v3.11.0)* Auch ein künftiger Folgevertrag, der erst in einer späteren Abrechnungsperiode beginnt, trägt das Feld (`null`), statt dass es fehlt |
 | `…/contract-status` | `settle_balance`, `settle_verdict`, `settle_range`, `settle_parts` | nur, wenn dieselbe Abrechnung (`settle_on`, laufende Periode) mehrere Verträge abrechnet (Tarifwechsel beim selben Versorger): Summe der erwarteten Salden, Urteil mit denselben Schwellen wie `verdict`, Spanne aus den Spannen bzw. Bändern aller Teile (sonst `null`), je Vertrag `{contract_id, provider, from, until, balance, is_current}`. `suggested_advance` des laufenden Vertrags rechnet dann mit der Summe |
 | `…/contract-status` | `settle_measured`, `settle_today`, `settle_uncertain`, `settle_parts[].range`, `.uncertain`, `.estimated_share` | mit `settle_balance`: gemessener Saldo über alle Teile der Abrechnung (Felder wie `balance_measured`, `null` ohne gemessenen Tag), Stand heute über alle Teile `{balance, cost, energy_estimated, base, bonus, advance, special_net}`, die Unsicherheit der Summe (wie `projection_uncertain`, Spanne `settle_range`) oder `null`; je Teil Spanne bzw. Band, unsicher, Anteil geschätzter Arbeitskosten. `settle_range` ist die Summe der Spannen aller Teile |
 | `…/contract-status` | `projection_band` | auch ohne verlässliches Heizmodell (Strom, Wasser): Breite aus der Streuung gemessener Monate je Kalendermonat, mindestens 10 % der geschätzten Menge je Monat; `weather` ist dann `0`, `few_measured` `true`, wenn nur die Untergrenze trägt |
@@ -906,7 +908,7 @@ eigene Zeile.
 | `notice_basis` | `fixed_end`, `open_ended`, `min_term`, `renewed` oder `unknown` (keine Frist gepflegt) |
 | `remind_basis` | `cancel_by` oder `end` — worauf sich `remind_stage` und `should_remind` beziehen; `null` bei offenen und weiterlaufenden Verträgen (keine Stufen-Erinnerung) |
 | `cancel_missed` | Stichtag verstrichen, der Vertrag läuft über sein Ende hinaus |
-| `price_increase` | nächste eingetragene Erhöhung: `{from, working_price_ct: [alt, neu] \| null, base_price_eur: [alt, neu] \| null}`, sonst `null` |
+| `price_increase` | nächste eingetragene Erhöhung: `{from, working_price_ct: [alt, neu] \| null, base_price_eur: [alt, neu] \| null}`, sonst `null`. *(v3.11.0, additiv)* `announced_on` (Datum des Schreibens am neuen Preis oder `null`), `special_termination_until` (Kündigung bis … laut Schreiben oder `null`), `vat_only` (nur die Umsatzsteuer ändert sich), `supply_kind`, `termination` (`special`, `basic`, `unknown` oder `null`: kein Sonderkündigungsrecht, etwa Fernwärme, reine Steueränderung, Land nicht DE), `legal_deadline` (Tag vor der Änderung), `deadline` (das frühere aus beiden), `notes` (Sätze des Hinweises, Katalog `rights.priceNote.<note>`: `special`, `basic`, `unknown`, `stepped`, `vat`, `heat`) und `note_params` (`{gvv}`) |
 
 Ein weiterlaufender Vertrag ist höchstens mit einem Monat Frist kündbar
 (§ 309 Nr. 9 BGB); `switch_date` rechnet mit dem kürzeren von eigener Frist
@@ -970,11 +972,16 @@ Schattenverträge zählen dafür nicht.
 
 **`warnings`** — `POST` und `PATCH` eines Vertrags (jeder Art) liefern den
 gespeicherten Vertrag, seit v3.1.0 additiv mit `warnings`, wenn es etwas
-anzumerken gibt. Heute ein Wert: `term_over_24_months` — die Mindestlaufzeit
-(`min_term_end`) endet mehr als 24 Monate nach Vertragsbeginn; eine so lange
-Erstlaufzeit ist für Verbraucher in Deutschland unwirksam (§ 309 Nr. 9 BGB).
+anzumerken gibt. Werte: `term_over_24_months` — bei Strom und Gas endet die
+Mindestlaufzeit (`min_term_end`) mehr als 24 Monate nach Vertragsbeginn (§ 309
+Nr. 9 BGB); *(v3.11.0)* `term_over_10_years` — bei Fernwärme mehr als zehn Jahre
+(§ 32 AVBFernwärmeV). Bis v3.10 kam `term_over_24_months` bei jeder Art, auch
+bei Fernwärme und Wasser (GitHub #55).
 Gespeichert wird der Hinweis nicht, der Vertrag schon; `GET` liefert ihn ebenso
-wenig. Die Oberfläche zeigt ihn nach dem Speichern.
+wenig. Die Oberfläche zeigt ihn nach dem Speichern. *(v3.11.0, GitHub #54)*
+`contract_conflict`: Der gespeicherte Vertrag widerspricht einem anderen; die
+Zeilen stehen dann in `conflicts` ([Abdeckung und Widersprüche](#verträge-phase-values_on-v340-additiv)).
+Nicht blockierend.
 
 ```json
 { "success": true, "data": { "id": "c_strom_004", "start": "2026-11-01",
@@ -1176,6 +1183,39 @@ oder `renewed`; bei überlappenden Verträgen gewinnt der spätere Beginn, der
 Status beider Vertragslisten nur noch daraus und ordnet nach Phase:
 Zukünftig, Aktuell (mit verlängert), Beendet, Angebote. Bis v3.3 leitete jede
 Liste ihn selbst ab — derselbe Vertrag hieß „VERGANGEN“ und „VERLÄNGERT“.
+
+**Abdeckung und Widersprüche *(v3.11.0, additiv, GitHub #54)*.** Dazu trägt jeder
+Vertrag `coverage` (je Ziel, ohne Angebote; beim Angebot `null`) und die Liste
+`GET …/contracts` je Vertrag `conflicts`. `coverage` kommt aus
+`ContractService::coverage()`, derselben Quelle für Phase, Vertragsstatus
+(`superseded_on`, Verlängerung) und Abrechnungsjahr (`periods[].assumed`); sie
+folgt Tag für Tag `resolveForDate()` (ein Test vergleicht jeden Tag):
+
+| Feld | Bedeutung |
+|---|---|
+| `coverage.from`, `coverage.to` | erster und letzter Tag, an dem der Vertrag rechnet (`to` `null` = offen; `from` `null` = rechnet nie, etwa zwei Verträge mit demselben Beginn) |
+| `coverage.assumed`, `coverage.assumed_from` | rechnet über sein wirksames Ende hinaus weiter (beendet, ohne Kündigung fortgeschrieben), ab diesem Tag |
+| `coverage.superseded_on` | letzter Tag vor dem Beginn eines später begonnenen Vertrags desselben Ziels („Abgelöst: gilt bis …“), sonst `null` |
+| `coverage.renewed_until` | letzter Tag der Fortschreibung (der Tag vor dem nächsten Vertrag), `null` = offen oder keine |
+| `coverage.claimed_by` | `{contract_id, until}`: Die Fortschreibung liegt in der eingetragenen Laufzeit eines anderen Vertrags desselben Ziels — im Abrechnungsjahr „angenommen“; sonst `null` |
+| `conflicts[]` | Widersprüche, an denen der Vertrag beteiligt ist: `kind` (`overlap`, `nested`, `foreign_tariff`), `contract_id` (der Vertrag, nach dem die App rechnet, bzw. der fremde Tarif), `other_id` (der andere, `null` bei `foreign_tariff`), `meter_id`/`meter_group_id`, bei `overlap`/`nested` `from`, `until`, `days`, `other_end`, `fix_end` (Ende, mit dem der Eintrag des anderen zur Rechnung passt), bei `foreign_tariff` `signals` (`copy`, `document`, `price`), `other_utility`, `factor`, `price_ct`; dazu `recommendation_id`, `dismissed`, `title`, `detail` (Sprache der Anfrage) |
+
+Regeln (`ContractService::conflicts()`, je Ziel, ohne Angebote): **`overlap`** —
+ein späterer Vertrag beginnt vor dem eingetragenen Ende eines früheren, läuft
+mindestens bis dahin, und die Überschneidung ist länger als
+`OVERLAP_TOLERANCE_DAYS` (31); **`nested`** — der spätere endet mehr als 31 Tage
+vor dem früheren; je früherem Vertrag zählt nur der erste spätere Beginn, ein
+offenes Ende widerspricht nichts. **`foreign_tariff`** — `document`: der Beleg des
+Vertrags ist im Posteingang einer anderen Art zugeordnet (Korrektur des Nutzers
+geht vor); `copy`: Versorger, Tarifname und Arbeitspreis am Beginn wie ein Vertrag
+einer anderen Art; `price`: Arbeitspreis außerhalb `PRICE_BAND` (0,4 bis 2,5) um
+den Median von mindestens zwei anderen Verträgen des Ziels. `copy` und `price`
+zählen nur zusammen mit `overlap`/`nested` oder miteinander. Gerechnet wird
+unverändert (der spätere Beginn gewinnt); die Empfehlung `r_contract_conflict`
+(Kategorie `vertrag`, `evidence.rule` = `r_contract_conflict`, `evidence.kind`)
+und die Agenda-Art `contract_conflict` tragen den Befund, dazu `advance_vs_cost`
+aus dem Abrechnungsjahr (je Zähler bzw. Gruppe die jüngste abgeschlossene Periode,
+wenn sie in den letzten 24 Monaten endet; die Agenda fragt bei jeder Anfrage).
 
 ### Börsenstrompreise und Dynamik-Check *(v3.1.0)*
 
@@ -2035,6 +2075,7 @@ sortiert sie nach `from`.
 | `co2_own_appliances` | *(v3.1.0, H4)* `true`, wenn das Gas auch eigene Geräte wie einen Gasherd versorgt — die Erstattung bei Etagenheizung sinkt auf 95 % (Standard `false`) |
 | `co2_restriction` | *(v3.1.0, H4)* öffentlich-rechtliche Vorgaben nach § 9 CO2KostAufG: `none` (Standard), `one` (gegen Sanierung **oder** Heizungstausch — Anteil halbiert), `both` (gegen beides — keine Aufteilung); ein unbekannter Wert wird `none` |
 | `billing_anchor` | Beginn des Abrechnungszeitraums als `MM-TT`, Standard `01-01`; kein Kalendertag → `400` `errors.tenancy.anchorInvalid` |
+| `assignee_id` | *(v3.11.0, optional)* zuständige Person aus dem Verzeichnis, wie an Zähler und Vertrag ([Zuständig an Zählern und Verträgen](#zuständig-an-zählern-und-verträgen-v370)): fehlt = unverändert, `null` oder leer = niemand, unbekannt → `400` `errors.assignee.unknown`; `assignee_former: true` nach „ehemalige Person“. Die Antworten tragen dazu `assignee`, `assignee_former`, `assignee_deleted`. Nebenkosten- und CO₂-Fristen erben sie ([Agenda](#get-apiagendadays90-v310)); `GET /api/users/{id}/handover` zählt Mietverhältnisse zusätzlich in `tenancies`, beim Löschen einer Person gehen sie mit wie Zähler und Verträge |
 | `prepayments` | `{from, heating_eur_month, operating_eur_month}` — Vorauszahlung je Monat für Heizung und Betriebskosten |
 | `prices` | `{from, heat_eur_per_kwh?, warm_water_eur_per_m3?, cold_water_eur_per_m3?, source, statement_id?}` — Preise je kWh Wärme, je m³ Warmwasser und je m³ Kaltwasser (einschließlich Abwasser), je 0–1000; `source` `statement` (aus einer Abrechnung) oder `estimate` (Standard). Je Preis gilt der jüngste Eintrag, der ihn trägt |
 | `fixed_costs` | `{from, label, eur_per_year}` — pauschale Umlagen (Müll, Hausreinigung, Versicherung …); je Bezeichnung gilt der jüngste Eintrag |
@@ -2684,6 +2725,8 @@ Vertragsende (`ends_at_switch: true`); der Stichtag teilt sie nicht.
 | `periods[].balance` | `cost − advances − extra_advances`; positiv = Nachzahlung. Rück- und Nachzahlungen gleichen eine frühere Abrechnung aus und zählen nicht mit |
 | `periods[].invoice` | nur bei `bill`: `amount_eur`, `advances_paid_eur`, `result_eur`, `energy_kwh` bzw. `volume_m3` der Rechnung |
 | `periods[].months[]` | nur mit `?months=1`: Kalendermonate, erster und letzter als Teilmonat (`ym`, `from`, `until`, `days`, Menge, `cost`, `kwh_cost`, `base_price_eur`, `bonus_eur`, `advance_eur`, `co2_kg`) |
+| `periods[].assumed` | *(v3.11.0, additiv, GitHub #54)* Abschnitte der Periode, die ein Vertrag nur durch Fortschreibung über sein Ende rechnet, während ein anderer Vertrag desselben Ziels sie laut Eintrag beansprucht (`coverage.claimed_by`, [Verträge](#verträge-phase-values_on-v340-additiv)): `[{contract_id, name, from, until, claimed_by, claimed_name, claimed_until}]`, `from`/`until` einschließlich und in der Periode, `name` „Versorger · Tarif“, `claimed_until` das eingetragene Ende des anderen. Leer, wenn nichts angenommen ist; die Rechnung bleibt dieselbe |
+| `periods[].advance_vs_cost` | *(v3.11.0, additiv)* `{factor}` (eine Nachkommastelle), wenn in einer abgeschlossenen Periode (vollständig, vorbei, mit Preisen, Kosten über 0) die Abschläge mindestens `ContractService::ADVANCE_COST_FACTOR` (2)-mal so hoch sind wie die Kosten, sonst `null` — Datenplausibilität, kein Rechtsbefund |
 | `periods[].prev_same_span` | *(v3.10.0, additiv, GitHub #36)* nur an der jüngsten Periode mit Daten: der Vergleich für den Trendpfeil im Abrechnungsjahr (`from`, `until` einschließlich, `days`, Menge wie oben, `cost`, `bonus`, `price_missing`, `whole`, `basis`). `basis: "period"`: dieselbe Spanne der Periode davor, gleich viele Tage ab deren Beginn; `whole: true`, wenn die Periode bis zu ihrem Ende gerechnet ist, dann die ganze Periode davor. Gibt die Periode davor keinen fairen Vergleich her (sie fehlt, ist nur ein Teil, beginnt mehr als 31 Tage neben „ein Jahr früher“, etwa nach einem Lieferantenwechsel mitten im Jahr, oder ist kürzer als die Spanne), gilt `basis: "calendar"`: dieselben Kalendertage ein Jahr früher, unabhängig von Perioden und Lieferant; ein 29. Februar wird dort zum 28. Februar. `null` unter 14 Tagen oder wenn die Daten erst nach dem Beginn dieser Kalendertage anfangen. Die Übersicht zeigt daraus den Trendpfeil im Abrechnungsjahr |
 
 Subzähler zählen in der ganzen Art nicht mit (sie stecken im Elternzähler),
@@ -2732,7 +2775,8 @@ Topf `<art>/bills.json` (Schema 1.7.0, im Backup), ein Eintrag (Beispielwerte):
 | `period_from`, `period_to` | abgerechneter Zeitraum, **beide einschließlich**; kein Datum oder Beginn nach Ende → `400` `errors.bill.periodInvalid` |
 | `issued_on` | Rechnungsdatum (optional) — Datum der Buchung und Beginn der CO₂-Frist (der Tag, an dem der Lieferant abgerechnet hat) |
 | `invoice` | `energy_kwh` (bei Wasser `volume_m3`), `amount_eur` (Rechnungsbetrag brutto), `advances_paid_eur`, `result_eur` (**positiv = Nachzahlung**, negativ = Guthaben; ohne Angabe `amount_eur − advances_paid_eur`), `net` (optional, wird nur gespeichert). Jeder Wert optional; keine Zahl oder außerhalb des Bereichs → `400` `errors.bill.amountInvalid` |
-| `items` | weitere Posten `{label, amount_eur, kind}` mit `kind` ∈ `levy` (Umlage), `fee` (Gebühr), `credit` (Gutschrift), `other` (Standard); Bezeichnung höchstens 120 Zeichen. Die App rechnet sie nicht nach |
+| `items` | weitere Posten `{label, amount_eur, kind}` mit `kind` ∈ `levy` (Umlage), `fee` (Gebühr), `credit` (Gutschrift), `other` (Standard), *(v3.11.0)* `metering` (Entgelt für den Messstellenbetrieb); Bezeichnung höchstens 120 Zeichen. *(v3.11.0, optional)* je Posten `basis` (`net`/`gross`, wie gedruckt) und `vat_pct` (0–30); ungültig → `400` `errors.bill.valueInvalid`. Die App rechnet sie nicht nach |
+| `received_on`, `reading_estimated`, `notice` | *(v3.11.0, optional)* Zugang der Rechnung, geschätzte Ränder `{start, end}`, Gebührenbescheid (nur Wasser) — [Neue Felder](#neue-felder-v3110-additiv) |
 | `co2` | optional, nur sinnvoll bei Gas: `{emissions_kg, cost_eur?, stated_factor?}` — Emissionen und CO₂-Betrag laut Rechnung, der Betrag **mit Umsatzsteuer**, wie die Rechnung ihn ausweist (CO2KostAufG § 3 Abs. 3; bis v3.1 als netto gelesen), angegebener Faktor in kg/kWh. Gehen beim [CO₂-Preis](#co₂-preis-und-aufteilung-v310) dem Standardfaktor vor |
 | `factors` | *(v3.7.0, optional, Gas)* Zustandszahl und Brennwert laut Rechnung je Abschnitt `[{from, to?, zustandszahl, brennwert}]` (Zustandszahl 0,5–1,5, Brennwert 5–20 kWh/m³), etwa aus dem Posteingang; der Vergleich hält sie gegen die [Gas-Umrechnung](einstellungen.md). Ohne Angabe fehlt das Feld |
 | `attachment_ids` | Belege (`kind: bill_pdf`, sonst `other`); ein aus der Liste entfernter Beleg wird gelöst, `ref.type` des Belegs ist `bill` |
@@ -3568,7 +3612,7 @@ alles, was schon fällig oder überfällig ist. Sortiert nach Datum, dann Art.
 | `cancel_by` | letzter Tag für die Kündigung | Kündigungsstichtag eines laufenden oder künftigen Vertrags | Vertragserinnerung (Empfehlung R6) aktiv und nicht ausgeblendet |
 | `term_end` | festes Vertragsende (nicht bei weiterlaufenden Verträgen) | Vertragsende | wie `cancel_by`, wenn sich die Erinnerung auf das Ende bezieht |
 | `price_guarantee_end` | Ende der Preisgarantie | `price_guarantee_until` | nie |
-| `price_increase` | eingetragene Preiserhöhung — Sonderkündigung prüfen | Tag der Erhöhung | *(seit v3.1.0)* solange die Empfehlung `r_price_increase` (nur Land DE) steht und nicht ausgeblendet ist — dann `severity` `due` und `ref.recommendation_id`; ausgeblendet wieder `upcoming`. Bis v3.0: nie |
+| `price_increase` | eingetragene Preiserhöhung | Tag der Erhöhung | *(seit v3.1.0)* solange die Empfehlung `r_price_increase` (nur Land DE) steht und nicht ausgeblendet ist — dann `severity` `due` und `ref.recommendation_id`; ausgeblendet wieder `upcoming`. Bis v3.0: nie. *(v3.11.0)* Läuft die Rechte-Prüfung `special_termination` (Land DE), ersetzt ihr Befund (Art `rights`, Termin am Tag vor der Erhöhung) die Empfehlung; dann bleibt dieses Ereignis `upcoming`. `r_price_increase` kommt nur noch mit Sonderkündigungsrecht (`price_increase.termination`) |
 | `tank_reorder` | Heizöl/Pellets: Bestand niedrig (Empfehlung R5) | heute | immer, solange die Empfehlung nicht ausgeblendet ist |
 | `tenancy_statement_due` *(v3.1.0)* | Nebenkostenabrechnung des letzten abgelaufenen Abrechnungszeitraums fällig (§ 556 Abs. 3 BGB) — nur, solange für diesen Zeitraum keine Abrechnung erfasst ist | Ende des Zeitraums + 12 Monate | nie |
 | `objection_deadline` *(v3.1.0)* | letzter Tag für Einwände gegen eine Abrechnung | Zugang (`received_on`) + 12 Monate | ab 30 Tagen vorher (`severity` dann `due`) |
@@ -3577,6 +3621,8 @@ alles, was schon fällig oder überfällig ist. Sortiert nach Datum, dann Art.
 | `reading_check` *(v3.9.0)* | Ablesung (oder Block) prüfen — [Zwischenablesung prüfen](#zwischenablesung-prüfen-v390) | heute | immer, bis „Stand ist richtig“, „nur für die Abrechnung“ oder ein korrigierter Stand ihn erledigt; nicht abhakbar |
 | `reading_duplicate` *(v3.9.0)* | derselbe Stand am selben Tag zweimal eingetragen | heute | immer, bis eine gelöscht ist; nicht abhakbar |
 | `level_shift` *(v3.9.0)* | Verbrauch über mindestens ein Jahr gleichbleibend anders als heute: Hinweis auf die Analyse-Zäsur | heute | bis abgehakt („Nicht jetzt“) oder eine Zäsur nahe `ref.date` gesetzt ist |
+| `rights` *(v3.11.0)* | Befund „Deine Rechte als Kunde“ im Fenster; die Prüfung steht in `ref.check` — [Rechte als Kunde](#rechte-als-kunde-v3110) | ohne Frist heute; mit Frist (`ref.deadline`) die Frist | ohne Frist: solange die Empfehlung (Kategorie `recht`) steht; mit Frist ab 14 Tage vorher (`remind_on`); abhakbar |
+| `contract_conflict` *(v3.11.0, GitHub #54)* | Verträge widersprechen sich bzw. Abschläge ein Vielfaches der Kosten (Empfehlung `r_contract_conflict`); Art in `ref.conflict`, dazu `ref.utility`, `meter_id`, `contract_id`, `other_id`, `recommendation_id`; `uid` = ID der Empfehlung, `title` = ihr Titel, `href` zu den Verträgen (bei `advance_vs_cost` zur Verbrauchsart) — [Abdeckung und Widersprüche](#verträge-phase-values_on-v340-additiv) | heute | solange die Empfehlung steht (Ausblenden = „Beides stimmt“); erledigt aus den Daten, sobald die Einträge passen; nicht abhakbar |
 
 **Zeitraum-Zähler *(v3.1.0)*.** Für einen Zähler mit Verbrauch je Zeitraum
 rechnet `reading_due` ab dem Ende des letzten Zeitraums statt ab der letzten
@@ -3625,16 +3671,16 @@ selbst; weiterlaufende und unbefristete Verträge haben kein `cancel_by` mehr
 **Geerbt *(v3.7.0)*.** Ohne eigene Zuständigkeit tragen die vier Felder die
 des Vertrags, sonst die des Zählers
 ([Zuständig an Zählern und Verträgen](#zuständig-an-zählern-und-verträgen-v370)),
-dazu additiv `assignee_source`: `own` (am Termin), `contract`, `meter` oder
-`null` (niemand). Ein Termin am Zähler trägt `ref.utility` und
-`ref.meter_id`.
+dazu additiv `assignee_source`: `own` (am Termin), `contract`, `meter`,
+*(v3.11.0)* `tenancy` oder `null` (niemand). Ein Termin am Zähler trägt
+`ref.utility` und `ref.meter_id`.
 
 | Art | geerbt von |
 |---|---|
 | `reminder` | Zähler des Termins (`utility`, `meter_id`) |
-| `cancel_by`, `term_end`, `price_guarantee_end`, `price_increase`, `bill_expected` | Vertrag, dann Zähler (eine Gruppe hat keine Zuständigkeit) |
+| `cancel_by`, `term_end`, `price_guarantee_end`, `price_increase`, `bill_expected`, *(v3.11.0)* `contract_conflict` | Vertrag, dann Zähler (eine Gruppe hat keine Zuständigkeit) |
 | `reading_due`, `tank_reorder` | Zähler |
-| `tenancy_statement_due`, `objection_deadline`, `co2_claim_deadline` | – |
+| `tenancy_statement_due`, `objection_deadline`, `co2_claim_deadline` | *(v3.11.0)* Mietverhältnis (`assignee_id`, `assignee_source: tenancy`), dann sein erster Wärmezähler (`meter_ids.heat[0]`, `meter`), sonst niemand — `objection_deadline` vom Mietverhältnis der Abrechnung, `co2_claim_deadline` vom Mietverhältnis des Jahres (das jüngste). Bis v3.10: niemand |
 
 Beim Abhaken (`POST /api/agenda/done`) steht die Zuständigkeit als
 Momentaufnahme `assignee` im Verlaufseintrag.
@@ -3685,6 +3731,135 @@ die Periode abdeckt, entsteht ein Verlaufseintrag `auto_done` mit `reason`
 `activity.reason.bill` und `ref.bill_id`; Löschen oder Verschieben der
 Rechnung streicht ihn durch, das Ereignis ist wieder offen.
 
+### Rechte als Kunde *(v3.11.0)*
+
+`GET /api/rights` liefert die Befunde der Prüfungen „Deine Rechte als Kunde“
+(F1035): Rechnung zu spät, Abschlag deutlich zu hoch, Preisänderung mit
+Sonderkündigung, Bonus nicht gutgeschrieben, Schätzung trotz eigener Ablesung,
+Entgelt für den Messstellenbetrieb über der Obergrenze, Frist beim
+Gebührenbescheid. Es gibt sie nur in einem Land mit hinterlegten Rechtsregeln
+(heute Deutschland, Einstellung `country`); sonst `enabled: false` und keine
+Befunde. Jeder Befund nennt seine Normen mit Quelle und Stand und ist ein
+Hinweis, keine Rechtsberatung. Ohne Filter kommen alle Befunde, auch die
+außerhalb des Fensters (`todo: false`, für „Rechnung prüfen“).
+*(v3.11.0, additiv)* `bills_recorded`: Zahl der erfassten Versorgerrechnungen
+über alle Arten; ohne Rechnung haben die meisten Prüfungen nichts zu prüfen, und
+die Empfehlungsseite sagt das.
+Stabilitätsklasse B.
+
+```json
+{ "success": true, "data": {
+  "enabled": true, "country": "DE", "today": "2026-11-17", "bills_recorded": 3,
+  "findings": [
+    { "id": "rights-bonus_missing-3f2a9c1e0b7d", "check": "bonus_missing", "severity": "warning",
+      "utility": "strom", "meter_id": "m_strom_main", "contract_id": "c_strom_003", "bill_id": "b_3f9c0a1d2e4b",
+      "date": "2026-10-20", "deadline": null, "remind_on": null, "amount_eur": 100.0,
+      "facts": { "bonus_eur": 100.0, "bill_date": "2026-10-20" },
+      "params": { "bonus_eur": 100.0, "bill_date": "2026-10-20" },
+      "rules": ["de.enwg.41.4", "de.vz.bonus"],
+      "norms": [ { "key": "de.enwg.41.4", "norm": "§ 41 Abs. 4 Satz 2 Nr. 6, Abs. 1 Satz 2 Nr. 5 EnWG",
+                   "url": "https://www.gesetze-im-internet.de/enwg_2005/__41.html",
+                   "checked_on": "2026-11-03", "status": "W" } ],
+      "title_key": "rights.bonus_missing.title", "text_key": "rights.bonus_missing.text",
+      "title": "…", "text": "…",
+      "footer": "Hinweis, keine Rechtsberatung. Grundlage: § 41 Abs. 4 Satz 2 Nr. 6, Abs. 1 Satz 2 Nr. 5 EnWG (Stand 03.11.2026). Hilfe: Verbraucherzentrale, Schlichtungsstelle Energie.",
+      "help": "Hilfe: Verbraucherzentrale, Schlichtungsstelle Energie.",
+      "letter": "complaint", "todo": true, "href": "#/bill-check?utility=strom&meter=m_strom_main" } ],
+  "failed": [] } }
+```
+
+| Feld | Bedeutung |
+|---|---|
+| `id` | stabil: `rights-<check>-<12 Hex>` aus Prüfung und Bezug (Art, Zähler, Vertrag, Rechnung, dazu ein `key` der Prüfung, wenn es an einem Bezug mehrere gibt). Dieselbe ID haben Empfehlung (`id`) und „Zu tun“ (`uid`) |
+| `check` | die Prüfung: `bill_late`, `advance_high`, `special_termination`, `bonus_missing`, `estimate_despite_reading`, `metering_cap`, `fee_notice_deadline` |
+| `severity` | `info` oder `warning` |
+| `utility`, `meter_id`, `contract_id`, `bill_id` | Bezug; `meter_id` kann eine Zählergruppe sein; was fehlt, ist `null` |
+| `date` | Anlass (Rechnungsdatum, Beginn eines Abschlags, Tag der Preisänderung, Datum des Bescheids), nie „heute“; daran hängt das Erledigt-Vorkommen |
+| `deadline`, `remind_on` | Frist (Sonderkündigung, Gebührenbescheid) und ab wann sie unter „Zu tun“ steht (14 Tage vorher); sonst `null` |
+| `amount_eur` | Betrag, um den es geht (Bonus, zu viel Abschlag je Rate, Messentgelt über der Grenze) oder `null` |
+| `facts`, `params` | Zahlen für Text und Brief (Objekt); `params` sind die Platzhalter der Texte, roh (Tage als JJJJ-MM-TT) |
+| `rules`, `norms` | Schlüssel der Rechtsregeln und je Regel `{key, norm, url, checked_on, status}`; `status` `W` (Wortlaut abgerufen), `S` (Sekundärquelle), `G` (gegenlesen) |
+| `title_key`, `text_key`, `title`, `text` | Katalogschlüssel und Texte in der Sprache der Anfrage (Tage, Beträge und Prozente in deren Schreibweise) |
+| `footer`, `help` | „Hinweis, keine Rechtsberatung. Grundlage: … (Stand …).“ mit dem ältesten Abruf der genannten Quellen; `help`: wo es Hilfe gibt (bei Strom und Gas mit der Schlichtungsstelle Energie) |
+| `letter` | Briefvorlage, die der Befund anbietet (`special_termination`, `advance_adjustment`, `estimate_query`, `complaint`, `objection`), oder `null`. Ein Brief entsteht nur auf Knopfdruck |
+| `todo` | im Fenster: Eine Frist läuft noch, oder der Anlass liegt höchstens 120 Tage zurück. Nur dann Empfehlung und „Zu tun“ |
+| `href` | Sprungziel in der App |
+
+`failed` nennt Prüfungen, die mit einem Fehler abbrachen (`{check, error}`);
+die übrigen Befunde kommen trotzdem. Filter: `?utility=`, `?meter_id=`,
+`?contract_id=`, `?bill_id=`, `?check=` vergleichen genau, `?todo=1` liefert
+nur Befunde im Fenster. Die Pages-Demo kennt nur die Antwort ohne Filter.
+
+**Empfehlung und „Zu tun“.** Jeder Befund im Fenster ist eine Empfehlung der
+Kategorie `recht` (`GET /api/recommendations`: `id` = ID des Befunds,
+`evidence` mit Bezug, `check`, `finding_id`, `date`, `deadline`, `amount_eur`,
+`letter`, `norms`, `footer`, `help`, `href`) und ein Ereignis der
+[Agenda](#get-apiagendadays90-v310) (`kind: rights`, `uid` = ID, `ref` mit Bezug,
+`check`, `deadline`, `letter`, `amount_eur` und, solange die Empfehlung steht,
+`recommendation_id`). Ausblenden nimmt einen Befund ohne Frist aus „Zu tun“;
+bei einem mit Frist hält es mindestens bis zur Frist, und die Frist bleibt als
+Termin im Kalender. Abhaken (`POST /api/agenda/done`) gilt für das Vorkommen
+am Anlass `date`. Zuständig ist die Person des Vertrags, sonst die des Zählers.
+Home Assistant meldet Befunde als Punkte aus „Zu tun“, nicht zusätzlich als
+Warnung; im Jahresbericht steht ein Befund nur mit Frist unter den Terminen.
+
+#### Brief zu einem Befund *(v3.11.0)*
+
+`POST /api/letters/render` schreibt einen Brief zu einem Befund, der einen
+anbietet (`letter`), aus fester Vorlage (F1036). Der Brief ist immer Deutsch;
+Normen nennt er nur aus den hinterlegten Rechtsregeln, fehlende Angaben stehen
+als sichtbare Lücke `[…]` darin. Die App speichert nichts davon (auch nicht
+Absender und Empfänger); die Route ist auch mit einem Lese-Schlüssel erlaubt.
+Stabilitätsklasse B.
+
+```json
+{ "finding_id": "rights-special_termination-3f2a9c1e0b7d", "format": "text",
+  "sender": ["Erika Mustermann", "Musterweg 1", "12345 Musterstadt"],
+  "recipient": ["Stadtwerke Musterstadt", "Postfach 12 34", "12345 Musterstadt"],
+  "place": "Musterstadt", "refs": { "customer_number": "K-4711" },
+  "extra": { "reading_value": 12345.6, "reading_date": "2026-11-30" } }
+```
+
+| Feld | Bedeutung |
+|---|---|
+| `finding_id` | ID des Befunds (`GET /api/rights`); unbekannt → `404` (`errors.letter.findingNotFound`) |
+| `kind` | Vorlage; ohne Angabe die des Befunds. Eine andere → `422` (`errors.letter.notOffered`), unbekannt → `400` |
+| `format` | `text` (Standard): JSON mit `kind`, `subject`, `lines`, `text`, `gaps` (fehlende Angaben), `form` (`text` Textform genügt, `written` unterschreiben), `norms`, `refs`, `paragraphs`, `defaults` (Vorbelegung aus Vertrag, Zähler und Befund), `finding` (Titel, Text, Fußzeile, Frist in der Sprache der Anfrage). `pdf`: die Datei, DIN 5008 Form B für den Fensterumschlag |
+| `sender`, `recipient` | je höchstens 6 Zeilen mit 60 Zeichen (Liste oder Text mit Zeilenumbrüchen); ohne `recipient` der Anbieter des Vertrags |
+| `place` | Ort vor dem Datum |
+| `refs` | Angaben zur Zuordnung: `customer_number`, `contract_number`, `meter_serial`, `malo_id`, `supply_address`, `invoice_number`, `file_number`; ohne Angabe aus Vertrag und Zähler, `""` lässt sie weg |
+| `extra` | je Vorlage: `special_termination` `reading_value`, `reading_date`; `advance_adjustment` `amount_eur`, `reasons`; `estimate_query` `attach_photo`; `complaint` `note`; `objection` `confirm_objection` (Pflicht, sonst `422` `errors.letter.confirmRequired`), `levy`, `reason`, `suspend` |
+
+Vorlagen: `special_termination` (Kündigung wegen Preisänderung),
+`advance_adjustment` (Antrag auf Anpassung des Abschlags), `estimate_query`
+(Rückfrage zur Schätzung), `complaint` (Beanstandung: Rechnung zu spät, Bonus
+fehlt, Messentgelt), `objection` (Widerspruch gegen einen Gebührenbescheid, nur
+wenn die Rechtsbehelfsbelehrung „Widerspruch“ nennt). Ungültige Eingaben →
+`400` (`errors.letter.fieldInvalid`, `errors.letter.formatInvalid`). Die
+Pages-Demo schreibt keine Briefe.
+
+#### Neue Felder *(v3.11.0, additiv)*
+
+Alle optional; Schema 1.8.0 bleibt, Daten ohne die Felder bleiben unverändert,
+das Backup trägt sie mit. Leer (`null`, `""`) entfernt einen Wert; ein
+ungültiger Wert ist ein Fehler (`400`), kein stilles Verwerfen.
+
+| Ort | Feld | Werte |
+|---|---|---|
+| Rechnung | `received_on` | Zugang der Rechnung, JJJJ-MM-TT (`errors.bill.valueInvalid`) |
+| Rechnung | `invoice_number` | Rechnungsnummer, Text bis 80 Zeichen (Rand ohne Leerzeichen); Bezug in den Briefen; der Posteingang übernimmt sie |
+| Rechnung | `reading_estimated` | `{start, end}`: Die Rechnung nennt den Anfangs- bzw. Endstand geschätzt |
+| Rechnung | `estimated_end_reading` | *(Skeptiker M5)* `{value, on}`: der geschätzte Endstand laut Rechnung (`on` im Zeitraum oder am Tag danach, ohne Angabe das Ende); keine Ablesung, nicht im Verbrauch. Anlegen und Ändern antworten mit `warnings: ["estimated_reading_backwards"]` und `estimated_reading_neighbor {date, counter}`, wenn er über einer späteren oder unter einer früheren eigenen Ablesung liegt; *(Nachprüfung)* ebenso der Vorschlag im Posteingang (`estimate_backwards {date, counter}`) und `applied[]` nach dem Übernehmen |
+| Rechnung | `items[].kind: metering`, `items[].basis`, `items[].vat_pct` | Entgelt für den Messstellenbetrieb; `net` oder `gross` wie gedruckt; Steuersatz 0–30 |
+| Rechnung (Wasser) | `notice` | Gebührenbescheid `{public_law, dated_on, served_on, remedy, file_number}`; `remedy` `objection`, `action` oder `null`; `dated_on` Pflicht mit `public_law`; bei einer anderen Art `400` |
+| Vertrag | `supply_kind` | `basic` (Grundversorgung) oder `special` (Sondervertrag); fehlt = nicht angegeben (`errors.contract.valueInvalid`) |
+| jede Preisliste eines Vertrags | `announced_on`, `vat_pct` je Eintrag | Datum des Schreibens, das den Preis ankündigt (eine einseitige Änderung, kein Stufenpreis); Steuersatz, den der Preis enthält, 0–30 |
+| jede Preisliste eines Vertrags | `special_termination_until` je Eintrag | „Kündigung bis …“ laut Schreiben, JJJJ-MM-TT; liegt es vor dem Tag vor der Änderung, ist es der Termin der Sonderkündigung (beide im Text) |
+| Zähler (Strom) | `metering_device`, `msb_basic` | `conventional`, `mme` (moderne Messeinrichtung) oder `imsys` (intelligentes Messsystem); `true` grundzuständiger, `false` frei gewählter Messstellenbetreiber (`errors.meter.valueInvalid`, auch bei einer anderen Art) |
+| Zähler (Einspeisung) | `pv_kw` | Leistung der Anlage in kW |
+| Ablesung | `reported_on` | an den Versorger gemeldet am, JJJJ-MM-TT (`errors.reading.reportedOnInvalid`) |
+| Posteingang | `schema_version` 7 | neue Felder an Rechnung, Preisänderung und Vertragsbestätigung — [Posteingang](#posteingang-v370) |
+
 ### `GET /api/calendar.ics` *(v3.1.0)*
 
 Dieselben Ereignisse als abonnierbarer Kalender nach RFC 5545, ohne
@@ -3708,7 +3883,8 @@ Felder unten) und die **UIDs**; die Texte können sich mit einer Übersetzung
   (Text `calendar.assignee`; nach dem Löschen der Person mit „ehemalige
   Person“) — nur die Zeile, keine Benachrichtigung. *(v3.7.0)* Geerbte
   Zuständigkeit mit Zusatz: `Zuständig: <Name> (über den Vertrag)` bzw.
-  `(über den Zähler)` (`calendar.assigneeContract`, `…Meter`).
+  `(über den Zähler)` (`calendar.assigneeContract`, `…Meter`), *(v3.11.0)*
+  Mietfristen `(über das Mietverhältnis)` (`calendar.assigneeTenancy`).
 - *(v3.7.0)* **`?person=<id>`** (eine Personen-ID wie `u_3f9a1c2e`, sonst 400
   `errors.assignee.unknown`): nur Ereignisse, die bei dieser Person liegen —
   eigene oder geerbte Zuständigkeit per ID, ein freier Name am Termin, wenn er
@@ -3716,10 +3892,11 @@ Felder unten) und die **UIDs**; die Texte können sich mit einer Übersetzung
   `X-WR-CALNAME` nennt die Person (`calendar.nameFor`). Mit dem Kalender-Link
   zusammen: `…/calendar.ics?token=etk_…&person=u_…`.
 - Vorab-Erinnerung (`VALARM`, `TRIGGER:-P<n>D`) für Termine, Kündigungsstichtage,
-  Vertragsenden, Preisgarantien und Preiserhöhungen; `<n>` ist
+  Vertragsenden, Preisgarantien, Preiserhöhungen und *(v3.11.0)* Befunde von
+  „Deine Rechte als Kunde“ mit Frist (`rights` mit `ref.deadline`); `<n>` ist
   `reminder_warn_days_before` (Einstellung, Standard 14, `0` = keine). Die
-  Fristen der Nebenkostenabrechnung und der CO₂-Erstattung (v3.1.0) tragen
-  keine Vorab-Erinnerung.
+  Fristen der Nebenkostenabrechnung und der CO₂-Erstattung (v3.1.0) und
+  Hinweise ohne Frist tragen keine Vorab-Erinnerung.
 - *(v3.4.0)* **Erledigtes** (`done` in der Agenda) bleibt mit derselben UID im
   Kalender, `SUMMARY` beginnt mit „✓ “, ein `VALARM` entfällt.
 - `REFRESH-INTERVAL;VALUE=DURATION:PT12H` und `X-PUBLISHED-TTL:PT12H`: Kalender
@@ -3950,7 +4127,18 @@ beginnt und nicht vor diesem endet. `provider` ist ersatzweise der Tarifname.
 zum Folgevertrag, dort ist sie immer `0`. Bei `gap_days: 0` sind
 `should_remind` `false`, `remind_stage` `0` und `cancel_missed` `false` —
 Empfehlung R6, Hinweise der Auswertung und „Kündigen bis“ entfallen. Mit Lücke
-bleibt die Erinnerung; der Text von R6 nennt die Lücke. *Geänderter Wert:*
+bleibt die Erinnerung; der Text von R6 nennt die Lücke. *(v3.11.0, additiv)*
+`gap_covered: true`, wenn sich der Vertrag ohne Kündigung verlängert
+(`auto_renews` nicht `false`): Dann füllt die Verlängerung die Lücke, und R6,
+Zeitstrahl und Übersicht nennen statt „… Tage ohne Vertrag“ den Folgevertrag.
+*(v3.11.0 Nachprüfung, additiv)* `renewal_term` `{until, cancel_by}` oder `null`:
+Fernwärme in Deutschland, befristet, verlängert sich, ohne eingetragene Frist —
+die Verlängerung um fünf Jahre nach § 32 AVBFernwärmeV, die ohne Kündigung folgt;
+`cancel_by` ist dann das Ende minus neun Monate, und ist er vorbei, `switch_date`
+der Tag nach `renewal_term.until`. `notice_basis` neu `basic_supply`: verlängerte
+Grundversorgung (Strom, Gas), jederzeit mit zwei Wochen Frist, `switch_date` =
+heute + 15 Tage, `cancel_by` `null`. Verlängert mit Folgevertrag: `notice_basis`
+`renewed`, `switch_date` = dessen Beginn (kein Ende einer Verlängerung). *Geänderter Wert:*
 `remind_basis` ist `cancel_by` nur noch bei einem datierten Stichtag; ein
 befristeter, jederzeit kündbarer Vertrag (`notice_mode` `month_end`/`any_day`)
 erinnert ans Ende (`end`) statt täglich an „Kündigung bis heute“.
@@ -4118,7 +4306,8 @@ Schemaschritt; ein `PATCH` ohne das Feld ändert nichts.
 | `GET /api/reminders` | `assignee_inherited`: `{assignee, assignee_id, assignee_former, assignee_deleted, assignee_source: "meter"}` oder `null` — nur, wenn der Termin keine eigene Zuständigkeit hat |
 | `GET /api/agenda` | je Ereignis die geerbte Zuständigkeit und `assignee_source` ([Agenda](#get-apiagendadays90-v310)) |
 | `GET /api/calendar.ics` | geerbt mit Zusatz in `DESCRIPTION`, `?person=<id>` ([Kalender](#get-apicalendarics-v310)) |
-| `GET /api/users/{id}/handover` | dazu `meters`, `contracts`: wie viele mit übergehen |
+| `GET /api/users/{id}/handover` | dazu `meters`, `contracts`, *(v3.11.0)* `tenancies`: wie viele mit übergehen |
+| `POST`/`PATCH /api/tenancies…` *(v3.11.0)* | `assignee_id` am Mietverhältnis wie an Zähler und Vertrag; die Antworten (auch `GET /api/tenancies`) mit `assignee`, `assignee_former`, `assignee_deleted` ([Mietverhältnis](#mietverhältnis-v310)) |
 | `DELETE /api/users/{id}` | Zähler und Verträge an die löschende Person (`records_handed_over`); ohne sie bleibt die ID stehen (`records_kept`, „Name (gelöscht)“), mit `?anonymize_activity=1` ersetzt `assignee_former: true` die ID |
 
 Home Assistant: `POST /api/ingest` und `GET /api/summary` bleiben unverändert.
@@ -4381,6 +4570,13 @@ prüfen“. Offene Punkte der Vorschläge
 stehen als Details `inbox.note.missing` bzw. `inbox.note.unsure` mit `fields`;
 `duplicate_of` nennt ein inhaltsgleiches Dokument (ist nichts mehr zu
 übernehmen, ist `action` „ablegen“). Ohne Art oder Auslesung `null`.
+*(v3.11.0)* Eine Preisänderung trägt zusätzlich `rights` (sonst `null`):
+`lines` (`[{key, params}]`, Schlüssel unter `inbox.gist.rights.*`, Tage ISO, `days`
+als Zahl), `norms` (`[{key, norm, url, checked_on, status}]` aus `Config\Rights`)
+und `energy` (Strom/Gas); dazu die Details `inbox.gist.detail.range` (`low`,
+`high`) und `inbox.gist.detail.yearAfter`/`yearAfterRate` (`amount`,
+`recommended`). Steht eine gesetzliche Frist in `rights`, entfällt
+`inbox.gist.detail.termination`.
 
 Ein Feld der Auslesung (`entry.extraction.fields.<name>`):
 
@@ -4446,7 +4642,7 @@ braucht den Satz des Vertragspreises: aus einem Dokument am Vertrag
 Preises oder im Feld `vat_pct`) oder aus derselben Rechnung. Saldo und Prognose
 rechnen weiter mit den Bruttopreisen des Vertrags. Hilfsfelder (`basis`,
 `vat_pct`, `base_price_basis`, `base_price_vat_pct`, `vat_pct` der Bestätigung)
-markieren nie. Die Auslesung trägt `schema_version` **6**; an dieser Version
+markieren nie. Die Auslesung trägt `schema_version` **7**; an dieser Version
 hängt der Zwischenspeicher. Ein Dokument, das mit einer älteren Version
 ausgelesen ist, behält seine Auslesung, bis du es neu ausliest: Netto erkennt
 die App dort aus dem Zitat, nach den neuen Feldern fragt erst das neue Auslesen
@@ -4543,7 +4739,8 @@ Ein Vorschlag:
 `contract_create`, `contract_end`, `contract_start`, `contract_price`,
 `contract_base_price`, `contract_advance`, `contract_ids`, `meter_ids`
 (Marktlokation), `meter_change`, `gas_factor` (Stichtag der Gas-Umrechnung),
-`reminder`. `status`: `new`, `exists` (wird übersprungen), `conflict`
+`reminder`, *(v3.11.0)* `contract_supply_kind` (Versorgungsart laut Rechnung,
+`data: {contract_id, supply_kind}`, nur wenn am Vertrag keine steht). `status`: `new`, `exists` (wird übersprungen), `conflict`
 (überschreibt nur angehakt), `overlap`. `checked` ist die Vorbelegung: neu und
 ohne Marke. Die `id` hängt an Art und Inhalt.
 
@@ -4632,6 +4829,23 @@ ersetzt und wie sich das Ergebnis ändert: `gist.key`
 sie gebucht), `params {from, to, balance, result}` mit `balance` = bisheriges
 Ergebnis. Ohne eines dieser Zeichen
 bleibt es wie bisher ein Widerspruch, nicht angehakt.
+
+*(v3.11.0, `schema_version` 7)* **Rechte als Kunde.** Neue Felder, alle ohne
+Kernfeld-Marke (fehlen sie, ist das keine Marke): an der Rechnung
+`basic_supply` (Grundversorgung ja/nein, wie die Rechnung es angibt),
+`credits` (Liste `{label, amount, kind}` mit `kind` `bonus` oder
+`credit_other`: Gutschriften wie ein Bonus, nicht die Abschläge und nicht das
+Ergebnis), `metering_fee` (Entgelt für den Messstellenbetrieb im Zeitraum, wie
+gedruckt) mit `metering_fee_basis` und `metering_fee_vat_pct`, `fee_notice`
+(Gebührenbescheid mit Rechtsbehelfsbelehrung), `remedy` (`objection` oder
+`action`, wie die Belehrung ihn nennt) und `file_number` (Aktenzeichen,
+Kassenzeichen); an der Preisänderung `basic_supply`, `advance_new` und
+`advance_new_from` (neuer Abschlag im Schreiben); an der Vertragsbestätigung
+`basic_supply`. `basic_supply`, `credits.label`, `credits.kind`,
+`metering_fee_basis`, `metering_fee_vat_pct`, `fee_notice` und `remedy` sind
+Hilfsfelder (markieren nie), `file_number` ist eine Hilfsangabe. Schon
+ausgelesene Dokumente behalten ihre Auslesung; nach den neuen Feldern fragt erst
+ein neues Auslesen.
 
 **Ändern — `PATCH /api/inbox/{id}`** mit `assignment`, `edits`
 (`{feld: wert}` bestätigt oder korrigiert; `null` nimmt zurück), `type`

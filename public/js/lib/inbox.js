@@ -158,7 +158,7 @@ export function proposalLines(p) {
  */
 export function proposalText(p, { unit = '' } = {}) {
   const a = { ...(p.params || {}) };
-  for (const k of ['date', 'from', 'to', 'old_date']) if (typeof a[k] === 'string') a[k] = fmt.date(a[k]);
+  for (const k of ['date', 'from', 'to', 'old_date', 'legal', 'letter']) if (typeof a[k] === 'string') a[k] = fmt.date(a[k]);   // v3.11.0 — Termin der Sonderkündigung
   if (p.kind === 'reading') a.counter = `${fmt.dec(a.counter, 3)}${unit ? ` ${unit}` : ''}`;
   // v3.7.0 (treffsicher, Nachbesserung 4) — Zählertausch aus der Rechnung mit beiden Ständen
   if (p.kind === 'meter_change') for (const k of ['old_final', 'new_initial']) if (typeof a[k] === 'number') a[k] = `${fmt.dec(a[k], 3)}${unit ? ` ${unit}` : ''}`;
@@ -242,8 +242,9 @@ const ct = (v) => (v === null || v === undefined ? '–' : `${fmt.dec(v, 2)} ct/
  */
 export function gistParams(key, params = {}) {
   const a = { ...params };
-  for (const k of ['date', 'start', 'last', 'from', 'to']) if (k in a) a[k] = typeof a[k] === 'string' && a[k] ? fmt.date(a[k]) : '–';
-  for (const k of ['amount', 'diff', 'recommended', 'theirs', 'ours']) if (k in a) a[k] = typeof a[k] === 'number' ? fmt.money(a[k]) : '–';
+  // v3.11.0 (F1035, C) — Fristen (gesetzlich, laut Schreiben) und die Spanne der Mehrkosten
+  for (const k of ['date', 'start', 'last', 'from', 'to', 'deadline', 'letter']) if (k in a) a[k] = typeof a[k] === 'string' && a[k] ? fmt.date(a[k]) : '–';
+  for (const k of ['amount', 'diff', 'recommended', 'theirs', 'ours', 'low', 'high']) if (k in a) a[k] = typeof a[k] === 'number' ? fmt.money(a[k]) : '–';
   // v3.10.0 (Skeptiker N7) — 0 € ist weder Nachzahlung noch Guthaben (Rechnungskorrektur auf 0 €)
   if ('balance' in a) a.balance = typeof a.balance === 'number' ? (a.balance === 0 ? fmt.money(0) : resultText(a.balance)) : '–';
   if ('result' in a) a.result = typeof a.result === 'number' ? (a.result === 0 ? fmt.money(0) : resultText(a.result)) : '–';
@@ -295,6 +296,13 @@ export const gistActionLabel = (a) => (a?.key ? t(a.key, gistParams(a.key, a.par
 
 /** Die aufklappbaren Details als Sätze. */
 export const gistDetails = (g) => (g?.details || []).map(d => gistLine(d.key, d.params || {})).filter(Boolean);
+
+/**
+ * v3.11.0 (F1035, C) — Sätze „Deine Rechte als Kunde“ einer Preisänderung (Frist, Ankündigung,
+ * Steuer, Abschlag); sichtbar in der Karte, die Normen stehen in `g.rights.norms`. Tage mit Pluralform.
+ */
+export const gistRightsLines = (g) => (g?.rights?.lines || []).map(l => (typeof l.params?.days === 'number'
+  ? tp(l.key, l.params.days, gistParams(l.key, l.params)) : gistLine(l.key, l.params || {}))).filter(Boolean);
 
 /**
  * Akte: Satz zu einem Eintrag — die Kernaussage eines Posteingang-Dokuments,

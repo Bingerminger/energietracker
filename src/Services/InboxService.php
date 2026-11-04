@@ -529,7 +529,8 @@ final class InboxService
             if (($a['kind'] ?? '') === 'contract_create' && !empty($byId[$a['id']]['data']['for_bill']) && is_string($a['ref']['id'] ?? null)) $created = $a['ref']['id'];
         }
         $entry = $this->persistMarks($this->mutate($id, function (array $x) use ($res, $as, $now, $created): array {
-            foreach ($res['applied'] as $a) $x['applied'][] = $a + ['at' => $now];
+            // v3.11.0 (Nachprüfung NP5) — die Warnung zum geschätzten Endstand gilt der Antwort, nicht dem Eintrag
+            foreach ($res['applied'] as $a) $x['applied'][] = array_diff_key($a, ['warnings' => 1, 'estimated_reading_neighbor' => 1]) + ['at' => $now];
             // (beim Übernehmen festgehalten, nicht von dir gewählt: `auto`)
             if (!is_array($x['assignment'] ?? null)) $x['assignment'] = ['utility' => $as['utility'], 'meter_id' => $as['meter_id'] ?? null, 'contract_id' => $as['contract_id'] ?? null, 'auto' => true];
             if ($created !== null && empty($x['assignment']['contract_id'])) $x['assignment']['contract_id'] = $created;
@@ -727,7 +728,7 @@ final class InboxService
     private const IDENTITY = [
         'invoice' => ['period_from', 'period_to', 'total_amount', 'result_amount', 'consumption', 'reading_new', 'contract_number', 'customer_number', 'meter_number'],
         'contract_confirmation' => ['supply_start', 'working_price', 'base_price', 'advance', 'tariff_name', 'contract_number', 'customer_number', 'meter_number'],
-        'price_change' => ['valid_from', 'working_price_new', 'base_price_new', 'contract_number', 'customer_number'],
+        'price_change' => ['valid_from', 'working_price_new', 'base_price_new', 'contract_number', 'customer_number', 'advance_new'],   // v3.11.0 — Abschlag im Schreiben
         'cancellation' => ['supply_end', 'cancel_kind', 'contract_number', 'customer_number', 'meter_number'],
         'supply_start' => ['supply_start', 'meter_number', 'reading_start', 'contract_number', 'customer_number'],
         'meter_change' => ['change_date', 'old_meter_number', 'new_meter_number', 'old_reading', 'new_reading'],

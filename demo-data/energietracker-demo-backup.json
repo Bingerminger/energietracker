@@ -8733,6 +8733,12 @@
                         {
                             "from": "2026-01-01",
                             "ct_per_kwh": 31.5
+                        },
+                        {
+                            "from": "2026-07-01",
+                            "ct_per_kwh": 34.9,
+                            "announced_on": "2026-05-20",
+                            "vat_pct": 19
                         }
                     ],
                     "base_prices": [
@@ -8752,7 +8758,8 @@
                     "min_term_end": null,
                     "price_guarantee_until": null,
                     "signup_bonus_eur": null,
-                    "assignee_id": "u_a1fbab95"
+                    "assignee_id": "u_a1fbab95",
+                    "supply_kind": "special"
                 },
                 {
                     "id": "c_strom_shadow_natur",
@@ -9644,7 +9651,7 @@
                     "provider": "Wasserwerke Musterstadt",
                     "tariff_name": "Trink-, Schmutz- und Niederschlagswasser 2024",
                     "start": "2024-01-01",
-                    "end": "2024-12-31",
+                    "end": "2025-06-30",
                     "notes": "Tarifanpassung 2024",
                     "trinkwasser": {
                         "working_prices": [
@@ -9749,6 +9756,34 @@
                         }
                     ],
                     "bonuses": []
+                }
+            ],
+            "bills": [
+                {
+                    "id": "b_a84d07b26bcb",
+                    "meter_id": "m_wasser_haupt",
+                    "period_from": "2024-01-01",
+                    "period_to": "2024-12-31",
+                    "issued_on": "2026-05-21",
+                    "kind": "annual",
+                    "contract_id": "c_wasser_haupt_2024",
+                    "invoice": {
+                        "volume_m3": 128.26,
+                        "amount_eur": 920.14,
+                        "advances_paid_eur": 816,
+                        "result_eur": 104.14
+                    },
+                    "items": [],
+                    "co2": null,
+                    "note": "Gebührenbescheid der Gemeinde",
+                    "attachment_ids": [],
+                    "created_at": "2026-05-23T19:12:00+02:00",
+                    "notice": {
+                        "public_law": true,
+                        "dated_on": "2026-05-21",
+                        "remedy": "objection",
+                        "file_number": "KZ 2025-4711"
+                    }
                 }
             ]
         },
@@ -11313,6 +11348,16 @@
         },
         "reading_lag_days": {
             "gas": 12
+        },
+        "price_change_days_ahead": {
+            "strom": {
+                "c_strom_004": 12
+            }
+        },
+        "fee_notice_days_ago": {
+            "wasser": {
+                "b_a84d07b26bcb": 10
+            }
         }
     },
     "people": {
@@ -11372,7 +11417,7 @@
             "extraction": {
                 "provider": "local",
                 "model": "qwen3.8",
-                "schema_version": 6,
+                "schema_version": 7,
                 "type": "invoice",
                 "fields": {
                     "utility": {
@@ -11783,6 +11828,87 @@
                             "missing"
                         ],
                         "items": []
+                    },
+                    "basic_supply": {
+                        "value": null,
+                        "raw": null,
+                        "quote": null,
+                        "page": null,
+                        "status": "empty",
+                        "reasons": [
+                            "missing"
+                        ]
+                    },
+                    "credits": {
+                        "value": [],
+                        "raw": null,
+                        "quote": null,
+                        "page": null,
+                        "status": "empty",
+                        "reasons": [
+                            "missing"
+                        ],
+                        "items": []
+                    },
+                    "metering_fee": {
+                        "value": null,
+                        "raw": null,
+                        "quote": null,
+                        "page": null,
+                        "status": "empty",
+                        "reasons": [
+                            "missing"
+                        ]
+                    },
+                    "metering_fee_basis": {
+                        "value": null,
+                        "raw": null,
+                        "quote": null,
+                        "page": null,
+                        "status": "empty",
+                        "reasons": [
+                            "missing"
+                        ]
+                    },
+                    "metering_fee_vat_pct": {
+                        "value": null,
+                        "raw": null,
+                        "quote": null,
+                        "page": null,
+                        "status": "empty",
+                        "reasons": [
+                            "missing"
+                        ]
+                    },
+                    "fee_notice": {
+                        "value": null,
+                        "raw": null,
+                        "quote": null,
+                        "page": null,
+                        "status": "empty",
+                        "reasons": [
+                            "missing"
+                        ]
+                    },
+                    "remedy": {
+                        "value": null,
+                        "raw": null,
+                        "quote": null,
+                        "page": null,
+                        "status": "empty",
+                        "reasons": [
+                            "missing"
+                        ]
+                    },
+                    "file_number": {
+                        "value": null,
+                        "raw": null,
+                        "quote": null,
+                        "page": null,
+                        "status": "empty",
+                        "reasons": [
+                            "missing"
+                        ]
                     },
                     "document_date": {
                         "value": null,

@@ -218,7 +218,7 @@ final class BillServiceTest extends ServiceTestCase
         ]);
         self::assertSame(['term_over_24_months'], $c['warnings']);
         self::assertArrayNotHasKey('warnings', $this->contracts->get('strom', $c['id']), 'Hinweis wird nicht gespeichert');
-        self::assertSame([], ContractService::warnings(['start' => '2025-01-01', 'min_term_end' => '2026-12-31']));
+        self::assertSame([], ContractService::warnings(['start' => '2025-01-01', 'min_term_end' => '2026-12-31'], 'strom'));
     }
 
     public function testAnnouncedPriceIncreaseRecommendsCheckingTheSpecialTerminationRight(): void

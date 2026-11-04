@@ -130,6 +130,28 @@ final class BillingPeriodService
         return $this->compute($utility, $meters, $withMonths, $today) + ['target_id' => (string)($target['id'] ?? '')];
     }
 
+    /** v3.11.0 (D, #54) — nur abgeschlossene Perioden ab diesem Ende rechnen (closedPeriods), sonst null. */
+    private ?string $closedSince = null;
+
+    /**
+     * v3.11.0 (D, #54) — die jüngste abgeschlossene Periode eines Ziels, wenn sie am oder nach `$since`
+     * endet (sonst keine), mit denselben Summen wie forTarget() (auch `advance_vs_cost`), ohne die übrigen
+     * und ohne Vergleich mit dem Vorjahr. Für die Empfehlung `r_contract_conflict`: Sie läuft mit jeder
+     * Agenda-Anfrage; alle Perioden zu rechnen kostete dort bei zehn Jahren Tageswerten (tests/
+     * large-data.test.mjs) rund 440 ms je Anfrage, die jüngste allein einen Bruchteil.
+     *
+     * @return list<array<string,mixed>>
+     */
+    public function closedPeriods(string $utility, array $target, string $since, ?string $today = null): array
+    {
+        $this->closedSince = $since;
+        try {
+            return $this->forTarget($utility, $target, false, $today)['periods'];
+        } finally {
+            $this->closedSince = null;
+        }
+    }
+
     /**
      * Perioden der ganzen Art: Zähler ohne Elternzähler (Subzähler stecken im
      * Elternzähler, F1006), ohne Zähler mit Verbrauch je Zeitraum.
@@ -251,6 +273,12 @@ final class BillingPeriodService
                 'today' => $today, 'data_from' => $start, 'measured_until' => $end,
                 'unit_key' => $utility === 'wasser' ? 'm3' : 'kwh', 'periods' => []];
         if ($start === null || $meters === []) return $out;
+        // v3.11.0 (D, #54) — closedPeriods(): nur abgeschlossene Perioden ab dem Stichtag
+        if ($this->closedSince !== null) {
+            $since = $this->closedSince;
+            $periods = array_values(array_filter($periods, fn($p) => !empty($p['complete']) && (string)$p['until'] >= $since && (string)$p['until'] < $today));
+            $periods = array_slice($periods, -1);   // nur die jüngste
+        }
 
         $monthly = [];
         foreach (array_merge($meters, $money) as $m) $monthly[(string)$m['id']] = $this->consumption->forMeter($utility, $m);
@@ -259,6 +287,10 @@ final class BillingPeriodService
         $this->measured = $measured;
         $billById = [];
         foreach ($this->bills->list($utility) as $b) $billById[(string)($b['id'] ?? '')] = $b;
+        // v3.11.0 (D, #54) — was jeder Vertrag abrechnet, aus derselben Quelle wie die Vertragsliste
+        $coverage = $this->consumption->contractsService()->coverageByTarget($contracts);
+        $byId = [];
+        foreach ($contracts as $c) $byId[(string)($c['id'] ?? '')] = $c;
 
         foreach ($periods as &$p) {
             // gerechnet bis zur letzten Ablesung (der Stand gehört zum Folgetag,
@@ -277,11 +309,18 @@ final class BillingPeriodService
             // Aussage wie der Vertragsstatus (`price_missing`), statt eines anderen Saldos
             $p['price_missing'] = false;
             foreach ($contracts as $c) {
-                $cEnd = ConsumptionService::supersededOn($c, $contracts) ?? (string)($c['end'] ?? '');
+                $cEnd = $coverage[(string)($c['id'] ?? '')]['superseded_on'] ?? (string)($c['end'] ?? '');
                 if ((string)($c['start'] ?? '9999') > $p['until'] || ($cEnd !== '' && $cEnd < $p['from'])) continue;
                 if (ConsumptionService::lacksWorkingPrice($utility, $c)) { $p['price_missing'] = true; break; }
             }
             $p['balance'] = round($p['cost'] - $p['advances'] - $sp['extra_advances'], 2);
+            // v3.11.0 (D, #54) — „angenommen“: Abschnitte, in denen ein Vertrag nur durch Fortschreibung
+            // über sein Ende rechnet, während ein anderer laut Eintrag diese Zeit beansprucht (additiv)
+            $p['assumed'] = self::assumedParts($coverage, $byId, $p['from'], $p['until']);
+            // Abschläge mindestens ADVANCE_COST_FACTOR × Kosten in einer abgeschlossenen Periode (additiv, sonst null)
+            $p['advance_vs_cost'] = self::advanceVsCost($p, $today);
+            // v3.11.0 (Skeptiker N13) — der Vertrag, der die meisten Tage der Periode abrechnet (additiv)
+            if ($p['advance_vs_cost'] !== null) $p['advance_vs_cost']['contract_id'] = self::mainContract($coverage, $p['from'], $p['until']);
             if ($p['bill_id'] !== null) {
                 $inv = (array)($billById[$p['bill_id']]['invoice'] ?? []);
                 $p['invoice'] = array_intersect_key($inv, array_flip(['energy_kwh', 'volume_m3', 'amount_eur', 'advances_paid_eur', 'result_eur']));
@@ -293,13 +332,76 @@ final class BillingPeriodService
         // Spanne der Periode davor; dieselben Bausteine, solange money/measured noch gelten
         $last = null;
         foreach ($periods as $i => $p) if ((int)($p['days'] ?? 0) > 0) $last = $i;
-        if ($last !== null) {
+        if ($last !== null && $this->closedSince === null) {
             $periods[$last]['prev_same_span'] = $this->sameSpan($utility, $meters, $monthly, $periods[$last], $periods[$last - 1] ?? null, $starts, $start);
         }
         $this->money = [];
         $this->measured = false;
         $out['periods'] = $periods;
         return $out;
+    }
+
+    /**
+     * v3.11.0 (D, #54) — Fortgeschriebene Abschnitte der Periode, die ein anderer Vertrag laut Eintrag
+     * beansprucht (coverage `claimed_by`): je Abschnitt `{contract_id, name, from, until, claimed_by,
+     * claimed_name, claimed_until}`, Tage in der Periode. Die Rechnung bleibt (Entscheidung 11a); die
+     * Ansicht schreibt „angenommen“ daneben.
+     *
+     * @param array<string,array<string,mixed>> $coverage ContractService::coverageByTarget
+     * @param array<string,array<string,mixed>> $byId
+     * @return list<array<string,mixed>>
+     */
+    private static function assumedParts(array $coverage, array $byId, string $from, string $until): array
+    {
+        $name = fn(?array $c): string => $c === null ? '' : implode(' · ', array_filter([(string)($c['provider'] ?? ''), (string)($c['tariff_name'] ?? '')], fn($s) => $s !== ''));
+        $out = [];
+        foreach ($coverage as $id => $cov) {
+            $claim = $cov['claimed_by'] ?? null;
+            if ($claim === null || $cov['assumed_from'] === null) continue;
+            // nur der beanspruchte Teil der Fortschreibung, geschnitten mit der Periode
+            $a = max((string)$cov['assumed_from'], $from);
+            $b = min((string)$claim['until'], $until);
+            if ($a > $b) continue;
+            $out[] = ['contract_id' => (string)$id, 'name' => $name($byId[(string)$id] ?? null), 'from' => $a, 'until' => $b,
+                      'claimed_by' => (string)$claim['contract_id'], 'claimed_name' => $name($byId[(string)$claim['contract_id']] ?? null),
+                      'claimed_until' => (string)($byId[(string)$claim['contract_id']]['end'] ?? $claim['until'])];
+        }
+        return $out;
+    }
+
+    /**
+     * v3.11.0 (D, #54) — Datenplausibilität, kein Rechtsbefund: In einer abgeschlossenen Periode
+     * (vollständig, vorbei, mit Preisen und Kosten über 0) sind die Abschläge mindestens
+     * ContractService::ADVANCE_COST_FACTOR-mal so hoch wie die Kosten — so sah das Abrechnungsjahr aus,
+     * wenn ein Vertrag mit fremdem Tarif Jahre über sein Ende fortgeschrieben wurde (Skeptiker M6).
+     * `{factor}` (eine Nachkommastelle) oder null.
+     */
+    private static function advanceVsCost(array $p, string $today): ?array
+    {
+        if (empty($p['complete']) || !empty($p['running']) || (string)$p['until'] >= $today || !empty($p['price_missing'])) return null;
+        $cost = (float)($p['cost'] ?? 0);
+        $adv = (float)($p['advances'] ?? 0);
+        if ($cost <= 0 || $adv < ContractService::ADVANCE_COST_FACTOR * $cost) return null;
+        return ['factor' => round($adv / $cost, 1)];
+    }
+
+    /**
+     * v3.11.0 (Skeptiker N13) — der Vertrag mit den meisten Tagen in [von, bis] nach coverage(); null ohne.
+     *
+     * @param array<string,array<string,mixed>> $coverage
+     */
+    private static function mainContract(array $coverage, string $from, string $until): ?string
+    {
+        $best = null; $bestDays = 0;
+        foreach ($coverage as $id => $cov) {
+            if (($cov['from'] ?? null) === null) continue;
+            $a = max($from, (string)$cov['from']);
+            $b = $cov['to'] === null ? $until : min($until, (string)$cov['to']);
+            if ($a > $b) continue;
+            $days = (int)round((strtotime($b) - strtotime($a)) / 86400) + 1;
+            if ($days > $bestDays) { $bestDays = $days; $best = (string)$id; }
+        }
+        return $best;
     }
 
     /** @var list<array<string,mixed>> v3.9.0 (F1032) — Zähler der laufenden Rechnung, von denen nur das Geld zählt */

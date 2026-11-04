@@ -262,7 +262,9 @@ then go to that person. It is chosen in the meter or contract form under
 | Notice deadline, end of contract, price guarantee, price increase | contract | the contract’s meter | nobody |
 | Bill expected | contract | the contract’s meter | nobody |
 | Reading due, low stock (tank) | meter | – | nobody |
-| Service-charge and CO₂ deadlines (rented home) | – | – | nobody |
+| Service-charge and CO₂ deadlines (rented home) | *(v3.11.0)* tenancy | the tenancy’s first heat meter | nobody |
+| *(v3.11.0)* Your rights as a customer (special termination, fee assessment …) | contract (for a bill: the bill’s contract) | the contract’s meter | nobody |
+| *(v3.11.0)* Contracts contradict each other | contract | the contract’s meter | nobody |
 
 A reminder’s own responsible person always comes first — even a deleted person
 or “former member”, until someone new is entered. A group contract has no

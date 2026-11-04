@@ -595,6 +595,87 @@ final class Proposals
                 'sources' => $sources, 'status' => $status, 'detail' => null];
     }
 
+    /**
+     * v3.11.0 (F1035, Paket rechnung) — Felder der Rechnung für „Deine Rechte als Kunde“ aus der
+     * Auslesung (Auslese-Schema 7), nur was das Dokument sicher nennt (markierte Werte und
+     * Listeneinträge bleiben draußen):
+     *   issued_on          Rechnungsdatum = `document_date` (Befund B5: bis v3.10 nicht übernommen;
+     *                      A1 und die Buchung hängen daran)
+     *   reading_estimated  {start, end}: die Rechnung nennt den Anfangs- bzw. Endstand geschätzt
+     *                      (`reading_old_estimated`/`reading_new_estimated`, je Zähler in
+     *                      `meter_readings`); nur, wenn einer davon geschätzt ist (A5)
+     *   items              Gutschriften (`credits`, Art `credit`, Betrag negativ wie im Formular)
+     *                      und das Messentgelt (`metering_fee`, Art `metering` mit netto/brutto
+     *                      und Steuersatz) — A4, A6
+     *   notice             Wasser: Gebührenbescheid (`fee_notice`) mit Bescheiddatum
+     *                      (`document_date`), Rechtsbehelf laut Belehrung und Aktenzeichen (A7)
+     *   invoice_number     v3.11.0 (integration) — Rechnungsnummer (Auslese-Schema seit Version 6),
+     *                      Bezug in den Briefen
+     * Der Zugang (`received_on`) bleibt leer: Den Tag, an dem die Rechnung kam, kennt das
+     * Dokument nicht.
+     *
+     * @param array<string,mixed> $e Eintrag des Posteingangs
+     * @param array<string,mixed> $fields Felder der Auslesung
+     * @return array<string,mixed>
+     */
+    public static function rightsFields(string $u, array $e, array $fields): array
+    {
+        $out = [];
+        $date = self::value($e, 'document_date');
+        $date = is_string($date) && Dates::isIsoDate($date) && !self::flagged($e, 'document_date') ? $date : null;
+        if ($date !== null) $out['issued_on'] = $date;
+        $num = self::value($e, 'invoice_number');
+        if ((is_string($num) || is_int($num)) && trim((string)$num) !== '' && !self::flagged($e, 'invoice_number')) {
+            $out['invoice_number'] = mb_substr(trim((string)$num), 0, 80);
+        }
+        $start = self::value($e, 'reading_old_estimated') === true;
+        $end = self::value($e, 'reading_new_estimated') === true;
+        foreach ((array)($fields['meter_readings']['items'] ?? []) as $it) {
+            $v = (array)($it['value'] ?? []);
+            $ends = (array)($it['estimated_ends'] ?? [!empty($v['estimated']), !empty($v['estimated'])]);
+            $start = $start || !empty($ends[0]);
+            $end = $end || !empty($ends[1]);
+        }
+        if ($start || $end) $out['reading_estimated'] = ['start' => $start, 'end' => $end];
+        $items = [];
+        foreach ((array)($fields['credits']['items'] ?? []) as $it) {
+            $v = (array)($it['value'] ?? []);
+            if (($it['status'] ?? '') === 'check' || !is_numeric($v['amount'] ?? null) || (float)$v['amount'] == 0.0) continue;
+            $items[] = ['label' => mb_substr(trim((string)($v['label'] ?? '')), 0, 120), 'amount_eur' => -round(abs((float)$v['amount']), 2), 'kind' => 'credit'];
+        }
+        $fee = self::value($e, 'metering_fee');
+        if (is_numeric($fee) && (float)$fee > 0 && !self::flagged($e, 'metering_fee')) {
+            $item = ['label' => '', 'amount_eur' => round((float)$fee, 2), 'kind' => 'metering'];
+            $basis = self::value($e, 'metering_fee_basis');
+            if (in_array($basis, BillService::PRICE_BASES, true)) $item['basis'] = $basis;
+            $vat = self::value($e, 'metering_fee_vat_pct');
+            if (is_numeric($vat) && (float)$vat >= 0 && (float)$vat <= 30) $item['vat_pct'] = round((float)$vat, 2);
+            $items[] = $item;
+        }
+        if ($items !== []) $out['items'] = $items;
+        if ($u === 'wasser' && self::value($e, 'fee_notice') === true && $date !== null) {
+            $remedy = self::value($e, 'remedy');
+            $file = self::value($e, 'file_number');
+            $out['notice'] = ['public_law' => true, 'dated_on' => $date,
+                'remedy' => in_array($remedy, BillService::NOTICE_REMEDIES, true) && !self::flagged($e, 'remedy') ? $remedy : null,
+                'file_number' => is_string($file) && trim($file) !== '' ? mb_substr(trim($file), 0, 80) : null];
+        }
+        return $out;
+    }
+
+    /**
+     * v3.11.0 (integration) — Versorgungsart laut Rechnung: Die Rechnung muss nennen, ob Grundversorgung
+     * vorliegt (§ 40 Abs. 2 Satz 1 Nr. 13 EnWG, Prüfbericht 6; Hilfsfeld `basic_supply`). Nur Strom und
+     * Gas in einem Land mit Regeln, nur sicher gelesen; sonst null.
+     */
+    private function supplyKindOf(array $c): ?string
+    {
+        $basic = self::value($c['entry'], 'basic_supply');
+        if (!is_bool($basic) || self::flagged($c['entry'], 'basic_supply')) return null;
+        if (!\Energietracker\Config\Rights::isEnergy((string)$this->settings->get('country', 'DE'), (string)$c['u'])) return null;
+        return $basic ? 'basic' : 'special';
+    }
+
     private function invoice(array $c): array
     {
         $e = $c['entry']; $u = $c['u']; $m = $c['meter']; $out = [];
@@ -653,11 +734,26 @@ final class Proposals
                               'zustandszahl' => (float)$v['z'], 'brennwert' => (float)$v['hs']];
             }
             if ($factors !== []) $data['factors'] = $factors;
+            // v3.11.0 (F1035, Paket rechnung) — Rechnungsdatum (B5), geschätzte Ränder, Gutschriften,
+            // Messentgelt, Gebührenbescheid: was „Deine Rechte als Kunde“ an der Rechnung prüft
+            $data += self::rightsFields($u, $e, $fields);
             // v3.9.0 — der Endstand ist dein gemeldeter Stand eines früheren Tags (reportedEarlier): „Rechnung prüfen“
             // rechnet die Menge bis zu diesem Tag
             foreach ($out as $x) {
                 if ($x['kind'] === 'reading' && ($x['data']['date'] ?? null) === $to && !empty($x['detail']['reported_on'])) $data['end_reading_on'] = (string)$x['detail']['reported_on'];
             }
+            // v3.11.0 (Skeptiker M5) — den geschätzten Endstand der Rechnung trägt die Rechnung
+            // (`estimated_end_reading`), keine Ablesung: Er flösse sonst in den eigenen Verbrauch (ein
+            // Stand über deiner späteren Ablesung ließe den Zähler rückwärts laufen). A5 vergleicht ihn
+            // mit deinen Ablesungen. Ein schon vorhandener Stand an dem Tag bleibt, wie er ist.
+            $after = date('Y-m-d', (int)strtotime($to . ' +1 day'));
+            foreach ($out as $i => $x) {
+                if ($x['kind'] !== 'reading' || empty($x['data']['is_estimated']) || !in_array($x['data']['date'] ?? null, [$to, $after], true)
+                    || ($x['data']['meter_id'] ?? null) !== (string)$m['id']) continue;
+                $data['estimated_end_reading'] = ['value' => (float)$x['data']['counter'], 'on' => (string)$x['data']['date']];
+                if ($x['status'] !== 'exists') unset($out[$i]);
+            }
+            $out = array_values($out);
             [$status, $detail] = $this->compareBill($u, (string)$m['id'], $from, $to, $inv);
             $core = ['period_from', 'period_to', 'consumption', 'total_amount', 'result_amount', 'result_kind', 'advances_total', 'advances_paid'];
             // v3.10.0 — Rechnungskorrektur: eine spätere Fassung der erfassten Rechnung desselben Zählers und
@@ -671,6 +767,12 @@ final class Proposals
                 ['core' => $core, 'open' => self::openPoints($e, ['consumption', 'total_amount'], $withheld)]
                 + ($correction !== null ? ['replaces' => true, 'correction' => $correction] : []));
             $bill['detail'] = $detail;
+            // v3.11.0 (Nachprüfung NP5, additiv) — schon in der Prüfansicht: Der geschätzte Endstand liefe gegen eine
+            // eigene Ablesung rückwärts (dieselbe Regel wie beim Speichern im Formular, BillService::backwardsNeighbor)
+            if (is_array($data['estimated_end_reading'] ?? null)) {
+                $nb = BillService::backwardsNeighbor($u, $data + ['meter_id' => (string)$m['id']], $this->readings, $this->meters);
+                if ($nb !== null) $bill['estimate_backwards'] = $nb;
+            }
             $out[] = $bill;
             $booked = $detail !== null && !empty($detail['special_payment_id']);
             $newResult = isset($inv['result_eur']) ? (float)$inv['result_eur'] : null;
@@ -695,6 +797,13 @@ final class Proposals
             }
         }
         $ct = $c['contract'];
+        // v3.11.0 (integration) — Versorgungsart laut Rechnung an den Vertrag, wenn dort noch keine steht:
+        // als Vorschlag, nicht still (eine vorhandene Angabe bleibt; der Vertrag aus der Rechnung trägt sie selbst)
+        $kind = $this->supplyKindOf($c);
+        if ($kind !== null && $ct !== null && !in_array($ct['supply_kind'] ?? null, ContractService::SUPPLY_KINDS, true)) {
+            $out[] = self::p('contract_supply_kind', $kind === 'basic' ? 'supplyKindBasic' : 'supplyKindSpecial', ['provider' => (string)($ct['provider'] ?? '')],
+                ['contract_id' => (string)$ct['id'], 'supply_kind' => $kind], ['basic_supply']);
+        }
         $adv = self::value($e, 'advance_new');
         if ($ct !== null && is_numeric($adv)) {
             // v3.9.0 (F1034) — der neue Abschlagsplan mit Rhythmus: ab dem ersten genannten Termin, je Termin
@@ -950,6 +1059,9 @@ final class Proposals
             return $out;
         };
         $data = ['meter_id' => (string)$m['id'], 'provider' => $supplier, 'start' => $from, 'end' => $end, 'auto_renews' => $final ? false : null];
+        // v3.11.0 (integration) — die Versorgungsart, die die Rechnung nennt
+        $kind = $this->supplyKindOf($c);
+        if ($kind !== null) $data['supply_kind'] = $kind;
         if ($u === 'wasser') {
             $water = InvoicePrices::water($fields, $edited('water_prices'));
             $comp = [];
@@ -1135,24 +1247,172 @@ final class Proposals
         $e = $c['entry']; $u = $c['u']; $ct = $c['contract']; $out = [];
         $from = self::value($e, 'valid_from');
         if ($ct !== null && is_string($from) && self::standardContract($u)) {
+            // v3.11.0 (F1035, C) — eine Bewertung für Herkunft am Preis, Termin und Kernaussage
+            $a = PriceChange::assess($e, $u, $ct, isset($c['meter']['id']) ? (string)$c['meter']['id'] : null,
+                (string)$this->settings->get('country', 'DE'), $this->contracts, $this->today());
+            // Herkunft: Datum des Schreibens (einseitige Änderung, kein Stufenpreis) und Steuersatz
+            // v3.11.0 (integration) — dazu „Kündigung bis …“ laut Schreiben (nur sicher gelesen): Daraus bildet
+            // die Prüfung A3 den einen Termin mit beiden Tagen (Entscheidung 7c), der Posteingang keinen eigenen
+            $letter = !self::flagged($e, 'special_termination_until') ? $a['letter_deadline'] ?? null : null;
+            $row = array_filter(['announced_on' => $a['announced_on'] ?? null, 'vat_pct' => $a['vat_new'] ?? null,
+                'special_termination_until' => $letter], fn($v) => $v !== null);
             $wp = self::value($e, 'working_price_new');
+            // v3.11.0 (Skeptiker H1) — der Vertrag, wie er nach der Übernahme der Preise aussähe: Daran fragt
+            // der Termin, ob die Prüfung A3 ihn anlegt
+            $sim = $ct;
             if (is_numeric($wp)) {
-                $out[] = $this->priceEntry('contract_price', 'workingPriceChange', $ct, 'working_prices', 'ct_per_kwh', $from, (float)$wp,
-                    ['working_price_new', 'valid_from'], [], ['old' => self::value($e, 'working_price_old')]);
+                // v3.11.0 — Zweitarif (HT/NT, Gruppenvertrag mit Preisen je Zähler): ein Preis aus dem
+                // Schreiben gehört in die Liste des zugeordneten Zählers, nie still in die gemeinsame;
+                // welches Zählwerk er meint, sagt das Schreiben nicht sicher — zu prüfen
+                $mid = (string)($c['meter']['id'] ?? '');
+                $byMeter = (array)($ct['working_prices_by_meter'] ?? []);
+                $list = $mid !== '' && !empty($byMeter[$mid]) ? "working_prices_by_meter.$mid" : 'working_prices';
+                $p = $this->withProvenance($this->priceEntry('contract_price', 'workingPriceChange', $ct, $list, 'ct_per_kwh', $from, (float)$wp,
+                    ['working_price_new', 'valid_from'], [], ['old' => self::value($e, 'working_price_old')]), $ct, $row);
+                if ($list === 'working_prices') $sim['working_prices'] = self::withEntry((array)($ct['working_prices'] ?? []), ['from' => $from, 'ct_per_kwh' => (float)$wp] + (array)($p['data']['row'] ?? []));
+                if ($byMeter !== []) {
+                    $p['check'] = true;
+                    $p['hints'] = [...(array)($p['hints'] ?? []), ['field' => 'working_price_new', 'reason' => 'per_meter']];
+                }
+                $out[] = $p;
             }
             $bp = self::value($e, 'base_price_new');
             if (is_numeric($bp) && !Utilities::isFeedIn($u)) {
                 $monthly = self::value($e, 'base_price_period') === 'year' ? round((float)$bp / 12, 4) : (float)$bp;
-                $out[] = $this->priceEntry('contract_base_price', 'basePriceChange', $ct, 'base_prices', 'eur_per_month', $from, $monthly,
-                    ['base_price_new', 'base_price_period', 'valid_from'], [], ['old' => self::value($e, 'base_price_old')]);
+                $out[] = $bpP = $this->withProvenance($this->priceEntry('contract_base_price', 'basePriceChange', $ct, 'base_prices', 'eur_per_month', $from, $monthly,
+                    ['base_price_new', 'base_price_period', 'valid_from'], [], ['old' => self::value($e, 'base_price_old')]), $ct, $row);
+                $sim['base_prices'] = self::withEntry((array)($ct['base_prices'] ?? []), ['from' => $from, 'eur_per_month' => $monthly] + (array)($bpP['data']['row'] ?? []));
             }
-            $until = self::value($e, 'special_termination_until');
-            if (is_string($until) && $until !== '') {
-                $out[] = $this->reminder($c, 'specialTermination', $until, ['provider' => (string)($ct['provider'] ?? '')], ['special_termination_until']);
-            }
+            array_push($out, ...$this->priceChangeAdvance($c, $from), ...$this->priceChangeTermin($c, $a, $sim, $from));
         }
         array_push($out, ...$this->identifiers($c));
         return $out;
+    }
+
+    // ── v3.11.0 (F1035, Paket posteingang) — Preisänderungsschreiben ──────
+
+    /**
+     * Legt die Prüfung A3 („Rechte als Kunde“) den Termin der Sonderkündigung für diesen Vertrag an?
+     * v3.11.0 (Skeptiker H1) — bis dahin genügte „A3 ist angemeldet“; A3 sah aber einen verlängerten
+     * Vertrag nicht, und der Termin fehlte ganz. null = keine Prüfung bekannt.
+     */
+    private ?\Closure $rightsChecks = null;
+
+    /** Fester Tag für Tests (sonst heute). */
+    private ?string $today = null;
+
+    /**
+     * @param \Closure(string $utility, array $contract, string $from, string $today): bool $covers
+     *        Rights\ContractChecks::coversPriceChange (in src/bootstrap.php mit Land und Anmeldung)
+     */
+    public function attachRights(\Closure $covers): void
+    {
+        $this->rightsChecks = $covers;
+    }
+
+    /** Eine datierte Liste mit dem Eintrag `$row` (ein Eintrag mit demselben `from` wird ersetzt). */
+    private static function withEntry(array $list, array $row): array
+    {
+        $out = array_values(array_filter($list, fn($e) => !is_array($e) || (string)($e['from'] ?? '') !== (string)$row['from']));
+        $out[] = $row;
+        usort($out, fn($a, $b) => strcmp((string)($a['from'] ?? ''), (string)($b['from'] ?? '')));
+        return $out;
+    }
+
+    public function setToday(?string $today): void
+    {
+        $this->today = $today;
+    }
+
+    private function today(): string
+    {
+        return $this->today ?? date('Y-m-d');
+    }
+
+    /**
+     * Bewertung eines Preisänderungsschreibens (PriceChange::assess) mit Zuordnung und Land;
+     * dieselbe, mit der die Vorschläge entstehen — für die Kernaussage (Gist).
+     *
+     * @param array<string,mixed> $as Zuordnung {utility, meter_id, contract_id}
+     * @return array<string,mixed>|null
+     */
+    public function priceChangeFacts(array $entry, array $as, ?string $today = null): ?array
+    {
+        $u = $as['utility'] ?? null;
+        if (($entry['type'] ?? '') !== 'price_change' || !is_string($u) || !Utilities::exists($u)) return null;
+        $ct = !empty($as['contract_id']) && Utilities::hasContracts($u) ? $this->contracts->get($u, (string)$as['contract_id']) : null;
+        return PriceChange::assess($entry, $u, $ct, !empty($as['meter_id']) ? (string)$as['meter_id'] : null,
+            (string)$this->settings->get('country', 'DE'), $this->contracts, $today ?? $this->today());
+    }
+
+    /**
+     * Herkunft am Preis-Eintrag (`row`: announced_on, vat_pct). Steht der Preis schon da, aber
+     * ohne diese Herkunft, ist der Vorschlag neu (er ergänzt sie) statt „vorhanden“; was die
+     * Zeile schon trägt und das Schreiben nicht nennt, bleibt (Applier ersetzt die Zeile).
+     */
+    private function withProvenance(array $p, array $ct, array $row): array
+    {
+        $list = (string)$p['data']['list'];
+        $rows = str_contains($list, '.') ? (($ct[explode('.', $list, 2)[0]] ?? [])[explode('.', $list, 2)[1]] ?? []) : ($ct[$list] ?? []);
+        $keep = [];
+        foreach ((array)$rows as $r) {
+            if ((string)($r['from'] ?? '') === (string)$p['data']['from']) $keep = array_intersect_key((array)$r, ['announced_on' => 1, 'vat_pct' => 1, 'special_termination_until' => 1]);
+        }
+        $row += $keep;
+        if ($row === []) return $p;
+        $p['data']['row'] = $row;
+        if ($p['status'] === 'exists' && $row != $keep) $p['status'] = 'new';
+        return $p;
+    }
+
+    /**
+     * Abschlag im Schreiben (`advance_new`, ab `advance_new_from`): wie eine Abschlagsänderung,
+     * im Rhythmus des laufenden Abschlags. Nennt das Schreiben keinen Tag, gilt der Tag der
+     * Preisänderung (Hinweis am Vorschlag).
+     */
+    private function priceChangeAdvance(array $c, string $from): array
+    {
+        $e = $c['entry']; $ct = $c['contract'];
+        $adv = self::value($e, 'advance_new');
+        if (!is_numeric($adv) || Utilities::isFeedIn($c['u'])) return [];
+        $at = self::value($e, 'advance_new_from');
+        $assumed = !is_string($at) || $at === '';
+        $at = $assumed ? $from : (string)$at;
+        $every = ContractService::everyMonths(ContractService::planRowOn($this->contracts->effectiveAdvanceSchedule($ct), $at));
+        $p = $this->withRhythm($this->priceEntry('contract_advance', 'advance', $ct, 'advance_payments', 'amount_eur', $at, (float)$adv,
+            ['advance_new', 'advance_new_from']), $ct, $every > 1 ? ['every_months' => $every] : null);
+        if ($assumed) $p['hints'] = [...(array)($p['hints'] ?? []), ['field' => 'advance_new_from', 'reason' => 'from_price_change']];
+        return [$p];
+    }
+
+    /**
+     * Termin der Sonderkündigung. Strom und Gas in einem Land mit Regeln, Erhöhung: am
+     * früheren Tag von Schreiben und Gesetz, solange er nicht vorbei ist (Entscheidung 7c).
+     * v3.11.0 (integration) — legt die Prüfung A3 („Rechte als Kunde“) den Termin an (aus den
+     * Preisen mit `announced_on` und `special_termination_until`, die der Vorschlag an den Preis
+     * schreibt, mit beiden Tagen im Text), legt der Posteingang keinen eigenen an (sonst stünde er
+     * doppelt unter „Zu tun“). v3.11.0 (Skeptiker H1) — gefragt wird A3 für diesen Vertrag, wie er
+     * nach der Übernahme aussähe (`$sim`): Liefert A3 keinen Befund, legt der Posteingang den
+     * Termin an. Sonst (anderes Land, Fernwärme, Senkung, reine Steueränderung) wie bisher das
+     * Datum, das das Schreiben nennt.
+     *
+     * @param array<string,mixed>|null $a PriceChange::assess
+     * @param array<string,mixed>|null $sim der Vertrag mit den Preisen aus dem Schreiben
+     */
+    private function priceChangeTermin(array $c, ?array $a, ?array $sim = null, ?string $from = null): array
+    {
+        $provider = (string)($c['contract']['provider'] ?? '');
+        if ($a === null || $a['legal_deadline'] === null) {
+            $until = self::value($c['entry'], 'special_termination_until');
+            return is_string($until) && $until !== '' ? [$this->reminder($c, 'specialTermination', $until, ['provider' => $provider], ['special_termination_until'])] : [];
+        }
+        if ($a['termin_passed']) return [];
+        [$legal, $letter] = [$a['legal_deadline'], $a['letter_deadline']];
+        if ($this->rightsChecks !== null && $sim !== null && $from !== null && ($this->rightsChecks)($c['u'], $sim, $from, $this->today())) return [];
+        $both = $letter !== null && $letter !== $legal;
+        return [$this->reminder($c, $both ? 'specialTerminationLetter' : 'specialTerminationLegal', $a['termin'],
+            ['provider' => $provider, 'legal' => $legal] + ($both ? ['letter' => $letter] : []),
+            $letter !== null ? ['special_termination_until', 'valid_from'] : ['valid_from'])];
     }
 
     private function cancellation(array $c): array
@@ -1792,8 +2052,10 @@ final class Proposals
             if ($key === "$label@$due" || ($label === 'followUp' && str_starts_with($key, 'followUp@'))) { $status = 'exists'; break; }
         }
         $target = $this->reminderTarget($c, $label);
+        // v3.11.0 (posteingang) — der Titel des Termins nennt seinen Tag ({date}); bis v3.10 blieb
+        // „{date}“ im Titel stehen (Applier füllt nur `params`, der Entwurf setzte den Tag selbst)
         return self::p('reminder', 'reminder' . ucfirst($label), ['date' => $due] + $params + ['person' => $target['assignee'] ?? null],
-            ['label' => $label, 'next_due' => $due, 'params' => $params] + $target, $sources, $status);
+            ['label' => $label, 'next_due' => $due, 'params' => $params + ['date' => $due]] + $target, $sources, $status);
     }
 
     /**
