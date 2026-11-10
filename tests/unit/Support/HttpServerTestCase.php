@@ -17,6 +17,8 @@ abstract class HttpServerTestCase extends TestCase
     private $proc = null;
     protected string $base = '';
     protected string $dataDir = '';
+    /** Fehlerausgabe des Servers, neben (nicht in) dem Datenordner: ein leerer Ordner bleibt leer */
+    private string $serverLog = '';
     /** @var array<string,string> v3.12.0 — zusätzliche `-d`-Werte des Testservers (etwa display_errors=1 wie `php -S` von Hand) */
     protected array $serverIni = [];
 
@@ -51,7 +53,8 @@ abstract class HttpServerTestCase extends TestCase
         $this->proc = proc_open(
             [PHP_BINARY, '-d', 'post_max_size=256M', '-d', 'display_errors=0', '-d', 'display_startup_errors=0',
              ...$ini, '-S', "127.0.0.1:$port", 'router.php'],
-            [0 => ['pipe', 'r'], 1 => ['file', '/dev/null', 'w'], 2 => ['file', '/dev/null', 'w']],
+            // Fehlerausgabe in eine Datei: bleibt eine Antwort aus (Status 0), zeigt request() sie an
+            [0 => ['pipe', 'r'], 1 => ['file', '/dev/null', 'w'], 2 => ['file', $this->serverLog = $this->dataDir . '.log', 'a']],
             $pipes, $root, $all
         );
         for ($i = 0; $i < 100; $i++) {
@@ -68,6 +71,7 @@ abstract class HttpServerTestCase extends TestCase
     {
         if (is_resource($this->proc)) { proc_terminate($this->proc); proc_close($this->proc); }
         if ($this->dataDir !== '') exec('rm -rf ' . escapeshellarg($this->dataDir));
+        if ($this->serverLog !== '') @unlink($this->serverLog);
         parent::tearDown();
     }
 
@@ -87,6 +91,16 @@ abstract class HttpServerTestCase extends TestCase
             if (preg_match('#^HTTP/\S+\s+(\d+)#', $h, $m)) { $status = (int)$m[1]; $out = []; continue; }
             [$k, $v] = array_pad(explode(':', $h, 2), 2, '');
             $out[strtolower(trim($k))] = trim($v);
+        }
+        // v3.12.0 — keine Antwort: Zustand des Servers und Ende seines Protokolls in die Meldung des Tests
+        // (McpReadEndpointTest bekam in der CI selten Status 0 bei get_contracts, ohne erkennbaren Grund)
+        if ($status === 0 && $raw === false) {
+            $st = is_resource($this->proc) ? proc_get_status($this->proc) : [];
+            $log = $this->serverLog !== '' ? @file_get_contents($this->serverLog) : false;
+            $raw = sprintf("[keine Antwort auf %s %s] Server läuft: %s, Signal: %s, Exit: %s, Fehler: %s\nProtokoll (Ende):\n%s",
+                $method, $path, var_export($st['running'] ?? null, true), (string)($st['termsig'] ?? '-'),
+                (string)($st['exitcode'] ?? '-'), (string)(error_get_last()['message'] ?? '-'),
+                $log === false ? '(keins)' : substr($log, -2000));
         }
         return ['status' => $status, 'headers' => $out, 'body' => (string)$raw];
     }

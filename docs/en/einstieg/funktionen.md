@@ -331,7 +331,7 @@ The detailed feature overview. What the views look like is shown in the
   gas units and the terms on the country's bill — see
   [Country profiles](../verstehen/14-laenderprofile.md).
 - **Light, dark or like the system** — one button cycles through them; the
-  icon shows what applies (☀️/🌙), a small “A” says that the app follows the
+  icon shows what applies (sun for light, moon for dark), a small “A” says that the app follows the
   system (v3.4.0).
 - **Experience levels** (v3.2.0): Beginner, Experienced or Expert — the level
   decides what the interface shows, every level calculates everything. For

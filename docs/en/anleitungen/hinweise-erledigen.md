@@ -98,7 +98,7 @@ that was done, by month, newest first:
   it restores the due date and “Last done”, for a cancellation “renews without
   cancellation”, for a recommendation it shows it again — as long as nobody
   has changed it differently in the meantime.
-- A **note** (✎) can be added and changed later.
+- A **note** can be added and changed later (the pencil button, “Edit note”).
 - Since v3.5.0 a done reminder shows **who was responsible** (a snapshot,
   [section 8](#8-responsible-for-reminders-v350)), and a **changed
   service-charge statement** appears with the badge “changed” — as proof only,
@@ -376,7 +376,7 @@ of readings the reading carries the mark **UNUSUAL**. How the app spots it is in
 
 | Button | what happens |
 |---|---|
-| **Reading is correct** | The app no longer asks about this reading. The list shows **VERIFIED**. If someone changes the reading later, it asks again. Also in the list (✅ in the row). |
+| **Reading is correct** | The app no longer asks about this reading. The list shows **VERIFIED**. If someone changes the reading later, it asks again. Also in the list (button “Reading is correct” in the row). |
 | **Only for the bill** | The reading stays for bill and balance, monthly values and the heating model skip it: the consumption in between is spread by the weather. That fits when the supplier billed with an estimated or wrong reading. The list shows **BILL ONLY**; the tick can be removed again in the edit dialog. |
 | **Correct it** | opens the edit dialog of the reading with the reading that would fit (“Insert”). Nothing is saved until “Save”. |
 

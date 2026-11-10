@@ -184,7 +184,7 @@ gesetzliche Anpassungen halbjährlich erfolgen.
 
 ### 6.3 Strom-Saldo — die wichtigste Kennzahl
 
-Im Hauptdashboard erscheint die Kachel **„⚡ Strom-Saldo {Jahr}"**:
+Im Hauptdashboard erscheint die Kachel **„Strom-Saldo {Jahr}"**:
 
 ```
 Bezug (Netz)           − Einspeisung (PV)        = Strom-Saldo netto

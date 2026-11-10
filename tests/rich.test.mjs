@@ -74,7 +74,7 @@ t('richText für fertige Texte', richText('**a** <b>') === '<strong>a</strong> &
 // ── Bösartige Eingaben ───────────────────────────────────────────────
 const render = (html) => { const d = document.createElement('div'); d.innerHTML = html; return d; };
 const htmlOut = rich('r.html');
-t('HTML im Katalog wird Text', !/<script|<b>/.test(htmlOut) && htmlOut.includes('&lt;script&gt;') && htmlOut.includes('&amp; Co.'), htmlOut);
+t('HTML im Katalog wird Text', !/<script|<b>/i.test(htmlOut) && htmlOut.includes('&lt;script&gt;') && htmlOut.includes('&amp; Co.'), htmlOut);
 const POISON = ['<script>alert(1)</script>', '<img src=x onerror=alert(1)>', '"><svg onload=alert(1)>', "'; alert(1); //", '**fett**', '*kursiv*', '`code`', '[link](#/settings)', '[böse](javascript:alert(1))', '0', '{x}', '$& $1', '&amp;'];
 for (const p of POISON) {
   const out = rich('r.param', { x: p });

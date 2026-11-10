@@ -10,7 +10,8 @@ privately via GitHub instead:
 
 Helpful details:
 
-- affected version (`VERSION` file or the version shown in the app header),
+- affected version (`VERSION` file or the version shown at the bottom left of
+  the sidebar, on the iPhone under “More”),
 - the operating mode (Docker, Apache/Synology, other) and whether sign-in is
   switched on,
 - steps to reproduce, and what an attacker gains.
@@ -22,7 +23,7 @@ possible. Please allow time for a fix before publishing details.
 ## Supported versions
 
 Fixes are made on the latest release. Please update before reporting — the
-[CHANGELOG](CHANGELOG.md) lists what changed.
+[CHANGELOG](CHANGELOG.en.md) lists what changed.
 
 ## Container image: scans and deadlines
 
@@ -82,7 +83,8 @@ vertraulich über GitHub melden:
 
 Hilfreich sind:
 
-- die betroffene Version (Datei `VERSION` oder die Anzeige in der Kopfleiste),
+- die betroffene Version (Datei `VERSION` oder die Anzeige unten links in der
+  Seitenleiste, am iPhone unter „Mehr“),
 - die Betriebsart (Docker, Apache/Synology, andere) und ob die Anmeldung
   eingeschaltet ist,
 - die Schritte zum Nachstellen und was ein Angreifer damit erreicht.

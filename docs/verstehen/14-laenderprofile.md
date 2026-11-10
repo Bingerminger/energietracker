@@ -203,7 +203,7 @@ der Rechnung des Landes stehen. Die App zeigt sie
 
 - in der **ⓘ-Erklärung** und im **Glossar der Hilfe**: „Auf deiner Rechnung
   (Österreich): „Teilbetrag““,
-- im **Tarifwechsel** als Link „Amtlicher Tarifvergleich (Land) ↗“, wo das
+- im **Tarifwechsel** als Link „Amtlicher Tarifvergleich (Land)“ (mit dem Pfeil für eine fremde Seite), wo das
   Land einen hat.
 
 Die Begriffe stehen im Wortlaut der Rechnung, also in der Landessprache,

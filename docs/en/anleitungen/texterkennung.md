@@ -175,17 +175,17 @@ All three lead to addresses in your own network and pass the check.
 
 On the page **Connections → Reading mail and photos** there are two
 cards. Text recognition shares address and interface
-with the inbox; since v3.7.0 they therefore appear once, in the **📥 Reading
+with the inbox; since v3.7.0 they therefore appear once, in the **Reading
 documents** card under **Local** (with **Check connection**, see
 [Inbox](posteingang.md#setting-up-reading)). Meter photos are always read by your
 own service, even when the inbox reads in the cloud.
 
 | Card | Field | Key | Entry |
 |---|---|---|---|
-| 📥 Reading documents → Local | Service address | `ocr_endpoint` | base address with `http://` or `https://`; the app appends the path (`/api/chat` or `/v1/chat/completions`). Empty = off |
-| 📥 Reading documents → Local | Interface | `ocr_api` | **Ollama** or **OpenAI-compatible (LM Studio, LocalAI)** |
-| 🔎 Text recognition in the home network | Model | `ocr_model` | the name as in the service, such as `qwen2.5vl` |
-| 🔎 Text recognition in the home network | Time limit | `ocr_timeout_s` | seconds the server waits; default 30 (5–300) — fully usable in the Docker image ([Limits](#limits)) |
+| Reading documents → Local | Service address | `ocr_endpoint` | base address with `http://` or `https://`; the app appends the path (`/api/chat` or `/v1/chat/completions`). Empty = off |
+| Reading documents → Local | Interface | `ocr_api` | **Ollama** or **OpenAI-compatible (LM Studio, LocalAI)** |
+| Text recognition in the home network | Model | `ocr_model` | the name as in the service, such as `qwen2.5vl` |
+| Text recognition in the home network | Time limit | `ocr_timeout_s` | seconds the server waits; default 30 (5–300) — fully usable in the Docker image ([Limits](#limits)) |
 
 Save (each card on its own). The next time you open “Meter readings”, text
 recognition is active. All keys:
@@ -195,7 +195,7 @@ recognition is active. All keys:
 
 ## How it works in the app
 
-1. Open **Meter readings** and tap **“📷 Photo”** on the meter's card. On a
+1. Open **Meter readings** and tap **“Photo”** on the meter's card. On a
    phone the camera opens.
 2. The photo is scaled down, uploaded and sent to the service. The card shows
    “Uploading photo…”, then “Recognising text…”.

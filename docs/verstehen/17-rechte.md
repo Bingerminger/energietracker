@@ -82,8 +82,8 @@ Du findest einen Hinweis hier:
 | Wo | Was du siehst |
 |---|---|
 | **Empfehlungen** | Karte „Rechte · …“ mit Text, Fußzeile, wo es passt dem Knopf „Brief entwerfen“, und dem Link „Was die App prüft“ auf diese Seite |
-| **Zu tun** (Startseite) | eine Zeile ⚖️ mit dem Titel; mit Termin „Frist: …“. Abhaken heißt erledigt |
-| **Rechnung prüfen** | unter „Vergleichen“ die Hinweise zu dieser Rechnung mit Fußzeile und Brief, in der Liste der Rechnungen „⚖️ 2 Hinweise zu deinen Rechten“; hier auch ältere Hinweise |
+| **Zu tun** (Startseite) | eine Zeile mit Waage und Titel; mit Termin „Frist: …“. Abhaken heißt erledigt |
+| **Rechnung prüfen** | unter „Vergleichen“ die Hinweise zu dieser Rechnung mit Fußzeile und Brief, in der Liste der Rechnungen „2 Hinweise zu deinen Rechten“ mit Waage; hier auch ältere Hinweise |
 | **Posteingang** | bei einem Preisänderungsschreiben die Kernaussage mit Kündigungsrecht, Frist und Fußzeile |
 | **Kalender** | Hinweise mit Termin am Tag der Frist, mit Vorwarnung |
 | **Home Assistant** | als Punkt der Liste „Zu tun“, nicht als Warnung |

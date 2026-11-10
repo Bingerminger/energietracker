@@ -156,22 +156,10 @@ jobs:
             if(!is_array($gf)||!array_key_exists("from",$gf[0])||$gf[0]["from"]!==null||abs(($gf[0]["kwh_per_m3"]??0)-10.7)>1e-9){fwrite(STDERR,"gas_conversion_factors nach Migration falsch (F1012): ".json_encode($gf)."\n");exit(1);}
             echo "Migrations-Smoke OK: 1.0.0 -> $v\n";'
 
-      # v3.12.0 — Browser-Render und Sichten prüfen gegen demo-data/ (Stand 31.05.2026). Mit der
-      # echten Uhr würden Stichtage darin (fällige Ablesungen, Vorjahr, Viertelstunden) ab Ende
-      # Dezember 2026 rot, ohne dass sich Code ändert. Server und Suiten dieser beiden Schritte
-      # laufen deshalb an einem festen Tag: libfaketime mit einem Versatz für alle Prozesse
-      # (Server, Node, Chromium), damit sie dieselbe Uhr sehen. Der Tag wandert mit, wenn
-      # demo-data/ neu exportiert wird (ET_RENDER_TODAY, Mittag Ortszeit des Runners).
-      - name: Fester Tag für Browser-Render und Sichten (libfaketime)
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq faketime
-          off=$(( $(date -d "$ET_RENDER_TODAY 12:00:00" +%s) - $(date +%s) ))
-          echo "ET_FAKETIME=$(printf '%+d' "$off")" >> "$GITHUB_ENV"
-          NO_FAKE_STAT=1 faketime -f "$(printf '%+d' "$off")" node -e 'const d = new Date().toISOString().slice(0, 10); if (d !== process.env.ET_RENDER_TODAY) { console.error(`Uhr steht auf ${d}`); process.exit(1); } console.log(`Uhr der Render-Suiten: ${d}`)'
-        env:
-          ET_RENDER_TODAY: "2026-11-10"
-
+      # v3.12.0 — Browser-Render und Sichten prüfen gegen demo-data/ (Stand 31.05.2026) mit der echten
+      # Uhr. Ab Ende Dezember 2026 kippen Stichtage darin (fällige Ablesungen, Vorjahr, Viertelstunden).
+      # Ein fester Tag per libfaketime machte die Oberflächentests auf den Linux-Runnern unzuverlässig
+      # (zufällige Rotläufe beim Neuzeichnen); die Lösung über die Beispieldaten kommt mit v3.13.
       - name: Tests (Server + Frontend-API-Shape + Browser-Render)
         run: |
           set -euo pipefail
@@ -180,12 +168,9 @@ jobs:
           # GitHub Actions startet pro `run:` eine neue Shell, ein dort
           # gebackgroundeter Prozess überlebt den Step nicht. Daher
           # Start + Tests + Teardown in EINEM Step.
-          # v3.12.0 — Server und Suiten am festen Tag (Schritt davor)
-          FT="faketime -f $ET_FAKETIME"
-          $FT php -S 127.0.0.1:8899 router.php >/tmp/server.log 2>&1 &
+          php -S 127.0.0.1:8899 router.php >/tmp/server.log 2>&1 &
           SRV=$!
-          # $! ist faketime, php -S läuft als dessen Kind: beide beenden
-          trap 'pkill -P $SRV 2>/dev/null || true; kill $SRV 2>/dev/null || true' EXIT
+          trap 'kill $SRV 2>/dev/null || true' EXIT
           # Readiness-Probe (max ~15 s)
           for i in $(seq 1 30); do
             if curl -sf http://127.0.0.1:8899/api/settings >/dev/null 2>&1; then break; fi
@@ -196,10 +181,10 @@ jobs:
           curl -sf http://127.0.0.1:8899/public/js/app.js >/dev/null
 
           echo "── Frontend-API-Shape ──"
-          $FT node tests/frontend-api-shape.test.js
+          node tests/frontend-api-shape.test.js
 
           echo "── Browser-Render ──"
-          $FT node \
+          node \
             --import='data:text/javascript,import{register}from"node:module";import{pathToFileURL}from"node:url";register("./tests/esm-loader.mjs",pathToFileURL("./"));' \
             tests/browser-render.test.mjs
 
@@ -222,8 +207,6 @@ jobs:
         env:
           ET_TEST_HOST: http://127.0.0.1:8899
           ET_DATA_DIR: /tmp/etdata
-          # wie auf macOS (dort verstellt libfaketime stat() nicht): Dateizeiten bleiben echt
-          NO_FAKE_STAT: "1"
 
       # v3.0.0 — Öffentliche Demo: mit dem echten Server bauen (Demo-Daten bis
       # heute fortgeschrieben) und die echte App in JSDOM durch alle Seiten
@@ -295,11 +278,8 @@ jobs:
         run: node tests/laengen.test.mjs
 
       # v3.12.0 (M4) — Kacheln, Sichten je Art (Chart.js in verdeckten Sichten), Zeilen, Frühere Verträge
-      # v3.12.0 — am festen Tag wie Browser-Render (Server und Chromium sind Kinder von Node)
       - name: Übersicht, Sichten und Verträge (im Browser)
-        run: faketime -f "$ET_FAKETIME" node tests/sichten.test.mjs
-        env:
-          NO_FAKE_STAT: "1"
+        run: node tests/sichten.test.mjs
 
   lint-php:
     name: PHP Syntax-Check (PHP ${{ matrix.php }})

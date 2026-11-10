@@ -25,7 +25,7 @@ Dokumenten.
 
 ## Ablegen
 
-**Posteingang** (📥 in der Seitenleiste, am iPhone unter „Mehr“ und im
+**Posteingang** (in der Seitenleiste, am iPhone unter „Mehr“ und im
 Erfassen-Blatt) öffnen und das PDF auf die Fläche ziehen oder antippen und
 auswählen. Am iPad öffnet die Auswahl die **Dateien-App**: ein PDF aus der Mail
 dort sichern und hier wählen — ein „Teilen“-Ziel für Web-Apps bietet iPadOS
@@ -653,7 +653,7 @@ Assistant noch ungeprüft; geprüft ist die Seite des Energietrackers
 ## Akte je Vertrag und Zähler
 
 Unter jedem Vertrag (Verträge & Abschläge) und jedem Zähler (Zähler verwalten)
-klappt **📁 Akte** alle zugehörigen Dokumente auf, neueste zuerst:
+klappt **Akte** alle zugehörigen Dokumente auf, neueste zuerst:
 
 - **übernommene oder abgelegte Post** aus dem Posteingang, die diesem Zähler
   bzw. Vertrag zugeordnet ist — mit ihrer Kernaussage und dem Link in die

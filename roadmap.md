@@ -9,28 +9,7 @@ einreichen.
 *In English:* [roadmap.en.md](roadmap.en.md). Für Mitwirkende: die [Planung](roadmap-planung.md) mit
 allen offenen Punkten und Regeln, frühere Konzepte im [Archiv](roadmap-archiv.md).
 
-**Stand:** 10.11.2026 · **Aktuelle Version:** v3.11.0
-
----
-
-## Wird ausgeliefert: v3.12.0 — Energietracker für deine KI
-
-Fertig und geprüft, erscheint in diesen Tagen.
-
-- **KI anschließen:** Ein KI-Assistent verbindet sich über MCP mit deinem Energietracker und liest Übersicht,
-  Fristen, Verträge, Verbrauch, Prognose und „Rechnung prüfen“, jede Zahl mit ihrer Herkunft (gemessen,
-  verteilt, geschätzt). Vorlagen für Monats- und Jahresbericht, Rechnungsprüfung und Fristen kommen mit.
-- **Vorschlagen statt schreiben:** Eine KI trägt nichts selbst ein. Sie schlägt eine Ablesung oder die
-  Übernahme eines Dokuments vor, du bestätigst, und der Verlauf zeigt, über welchen Schlüssel es kam.
-- **Ab Werk aus, nur im Heimnetz:** ein eigener Schlüssel je Assistent, Kennnummern und Originale nur per
-  Schalter, jeder Zugriff im Protokoll.
-- **Home Assistant über HACS:** die Integration mit eigenen Sensoren, als benutzerdefiniertes Repository und
-  mit Antrag auf die Standardliste.
-- **Neue Oberfläche ([#59](https://github.com/Bingerminger/energietracker/issues/59)):** ein Menü in zwei
-  Bereichen (Alltag, Einrichtung), Einstellungen nach Themen mit Suche, eigene Grafiken statt Emoji, ein festes
-  Raster. Keine Funktion fällt weg, alte Adressen führen weiter.
-- **Saldo von Zählergruppen ([#58](https://github.com/Bingerminger/energietracker/issues/58)):** Korrektur für
-  Gruppen, deren Zähler nicht am selben Tag abgelesen sind.
+**Stand:** 10.11.2026 · **Aktuelle Version:** v3.12.0
 
 ---
 
@@ -79,6 +58,7 @@ erscheint, wenn es fertig und geprüft ist, in der Regel nach ein bis drei Woche
 
 | Version | Datum | Thema |
 |---|---|---|
+| v3.12.0 | 10.11.2026 | Energietracker für deine KI: MCP mit Herkunft je Zahl, Vorschläge statt Schreiben, die HACS-Integration, eine neue Oberfläche, der Saldo von Zählergruppen (#58) |
 | v3.11.0 | 04.11.2026 | Deine Rechte als Kunde: sieben Prüfungen mit Quelle, fünf Briefe, Preisänderungen im Posteingang, widersprüchliche Verträge |
 | v3.10.1 | 03.11.2026 | Sicherheitskorrekturen im Docker-Image |
 | v3.10.0 | 03.11.2026 | Versprochen und abgesichert: Saldo aus einem Guss, die Zusagen aus #36, #38, #40, #41 und #49, ein schlankeres, signiertes Image |

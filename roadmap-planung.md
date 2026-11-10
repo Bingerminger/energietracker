@@ -5,7 +5,7 @@ offenen Punkte, sortiert nach dem Release, in das sie geplant sind. Konzepte und
 früherer Releases stehen unverändert im [Archiv](roadmap-archiv.md); was ausgeliefert ist, im
 [CHANGELOG](CHANGELOG.md).
 
-**Stand:** 2026-11-10 · **Baseline:** v3.11.0 · **Schema:** 1.8.0
+**Stand:** 2026-11-10 · **Baseline:** v3.12.0 · **Schema:** 1.8.0
 
 ---
 
@@ -81,7 +81,7 @@ F-Codes (`F1`, `F2`, …) — diese Reihe ist mit `F1003` (v1.5.0) auf
 Spalten wie bisher im Eingang: vorläufiger Code, Thema, Größe, Abhängigkeit, Auslöser. Zeilen aus dem
 alten Eingang sind unverändert übernommen; neue Zeilen tragen das Datum 2026-10-28.
 
-### v3.12.0 — Energietracker für deine KI (wird ausgeliefert)
+### v3.12.0 — Energietracker für deine KI (ausgeliefert 2026-11-10)
 
 | Code (vorläufig) | Thema | Größe | Abhängigkeit | Auslöser |
 |---|---|---|---|---|

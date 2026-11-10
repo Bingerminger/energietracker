@@ -241,7 +241,7 @@ with “There is no sample household “…”.”
 <a id="case-levels"></a>
 ## 3. Experience levels
 
-Three levels: **🌱 Beginner**, **🌿 Experienced** and **🌳 Expert**. They decide
+Three levels: **Beginner**, **Experienced** and **Expert**. They decide
 what you see — not what the app calculates. Since v3.7.0 three sentences
 decide: beginners want to know what they use, what it costs and whether the
 advance payment is enough, and let the app read the supplier’s mail.
@@ -250,7 +250,7 @@ Anyone with PV, a battery, a heat pump or a wallbox sees their pages at every
 level. Every feature on its own, with three households to choose from:
 **[What can I do at each level?](../referenz/stufen.md)**
 
-| Area | 🌱 Beginner | 🌿 Experienced | 🌳 Expert |
+| Area | Beginner | Experienced | Expert |
 |---|---|---|---|
 | Overview | three answers: Will I get money back? More or less than last year? What needs doing? — with one explainer | plus tiles per utility and figures; the cards and “Explainers” under Analysis › Key figures | as Experienced |
 | Meter readings | record, photo as a receipt | plus CSV import | plus time series from portals |

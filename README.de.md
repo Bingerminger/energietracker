@@ -43,7 +43,7 @@ Niederländisch. Dazu Zählertausch, Subzähler, Messkonzepte mit Wärmepumpe un
 Heizgradtagen, Mietverhältnis und eine Hilfe in der App mit Glossar und ⓘ neben Fachbegriffen.
 → [Alle Funktionen](docs/einstieg/funktionen.md) · [Alle Ansichten mit Bildern](docs/referenz/ansichten.md)
 
-<p align="center"><img src="docs/ui/screenshots/gas-view.png" alt="Gas: Saldo, Verbrauch und Kosten mit Trend und Monatsdiagramm" width="560"> <img src="docs/assets/promo/screens/iphone.de.png" alt="Übersicht am iPhone" width="200"></p>
+<p align="center"><img src="docs/ui/screenshots/gas-view.png" alt="Gas: Saldo, Verbrauch und Kosten mit Trend und Monatsdiagramm" width="560"> <picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/promo/screens/iphone-dunkel.de.png"><img src="docs/assets/promo/screens/iphone.de.png" alt="Übersicht am iPhone" width="200"></picture></p>
 
 ## Schnellstart
 
@@ -60,8 +60,8 @@ eigene Daten gehen dabei nicht verloren.
   Assistant ([Schritt für Schritt](docs/anleitungen/home-assistant.md#als-app-in-home-assistant-os)).
 
   [![Repository der Energietracker-App zu Home Assistant hinzufügen](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2FBingerminger%2Fenergietracker-ha)
-- **Sensoren in Home Assistant ohne YAML:** die Integration über HACS,
-  [energietracker-hacs](https://github.com/Bingerminger/energietracker-hacs).
+- **Sensoren in Home Assistant ohne YAML:** die Integration über den Marketplace (Home Assistant ab 2026.11)
+  oder HACS, [energietracker-integration](https://github.com/Bingerminger/energietracker-integration).
 - **Ohne Docker** genügt PHP ab 8.3: `git clone`, dann `php -S 127.0.0.1:8080 router.php`.
 - **Für den Dauerbetrieb:** [Installation](docs/betrieb/installation.md) ·
   [Docker, auch auf der Synology](docs/betrieb/docker.md) · [Apache und nginx](docs/betrieb/webserver.md) ·

@@ -39,7 +39,7 @@ Pro Zähler enthält die Karte:
 - **Geschätzt** — Toggle, der die Ablesung als Schätzung markiert
   (mappt auf das bestehende `is_estimated`-Flag des Reading-Schemas)
 - **Notiz** — auf Klick aufklappbar, optional, max. 200 Zeichen
-- **Foto** (v3.1.0) — „📷 Foto“ nimmt ein Bild des Zählwerks als Beleg mit
+- **Foto** (v3.1.0) — „Foto“ nimmt ein Bild des Zählwerks als Beleg mit
   (am Handy öffnet sich die Kamera). Der Browser verkleinert es auf höchstens
   1600 Pixel und kodiert es neu als JPEG; EXIF-Daten samt GPS-Ort fallen dabei
   weg. Ist ein Texterkennungsdienst im Heimnetz eingetragen, schlägt der Server
@@ -91,7 +91,7 @@ Baseline validiert.
 
 **Ohne Verbindung (v3.1.0):** Scheitert eine Karte an fehlender Verbindung
 oder am Zeitlimit, landet der Stand samt Foto in der Offline-Warteschlange
-statt verloren zu gehen. Die Karte zeigt ⏳ „Wartet auf Verbindung“, oben steht
+statt verloren zu gehen. Die Karte zeigt „Wartet auf Verbindung“ mit einer Sanduhr, oben steht
 die Liste „Noch nicht gespeichert“, und die App sendet von selbst nach, sobald
 der Server wieder erreichbar ist. Konflikte am selben Tag entscheidest du
 („Ersetzen“ oder „Vorhandenen behalten“). Einzelheiten und Grenzen:
@@ -167,7 +167,7 @@ und Home Assistant):
 
 Die Verbrauchsansicht zeigt alle Fälle in einem Hinweis oberhalb der
 Jahresauswahl, die Tabelle markiert die Stände („PRÜFEN", „UNPLAUSIBEL");
-ein Verdacht lässt sich mit ✅ bestätigen. Technisch:
+ein Verdacht lässt sich mit **„Stand bestätigen“** in der Zeile bestätigen. Technisch:
 [API-Referenz → `warnings`](../referenz/api.md).
 
 ### Ein Stand, der zu niedrig oder zu hoch liegt *(v3.9.0)*
@@ -188,7 +188,7 @@ die Knöpfe: [Hinweise erledigen](../anleitungen/hinweise-erledigen.md#11-ablesu
 Die Erfassung ist für einzelne Stände gebaut. Liefert ein Portal viele Werte
 auf einmal — Viertelstunden vom Netzbetreiber, Tageswerte vom Wechselrichter,
 die Wärmemenge der Wärmepumpe —, liest sie der Knopf **„Zeitreihe
-importieren“** unter Verbrauch → *Verbrauchsart* → ⚙️ Zähler ein:
+importieren“** unter Verbrauch → *Verbrauchsart* → Zähler ein:
 
 - Eine **Spaltenzuordnung** sagt, wo Datum, Uhrzeit und Wert stehen, ob die
   Werte Zählerstände oder Verbrauch je Intervall sind, in welcher Einheit

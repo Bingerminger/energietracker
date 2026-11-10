@@ -34,7 +34,7 @@ bestehende Installationen“.
   geprüft nach einer Regel**, auch im Backup-Import. Beispiele alt → neu unter „Changed“. Dateien mit
   Zugangsgeheimnissen liest nur noch der Webserver.
 
-### ⚠️ Für bestehende Installationen
+### Für bestehende Installationen
 
 - **PHP 8.3 ist jetzt die Mindestversion** (bisher 8.2). Betrifft nur den Betrieb auf einem eigenen Webserver;
   Docker-Image und Home-Assistant-App bringen ihr PHP mit (8.5). PHP 8.2 bekommt nur noch Sicherheitsupdates
@@ -608,6 +608,9 @@ bestehende Installationen“.
 - **Prüfung der öffentlichen Demo** (`tests/demo.test.mjs`): Sie wird ab Mitte Januar rot, weil das Schaufenster
   zu Beginn seines Abrechnungsjahrs noch keinen gemessenen Teil hat, und ab Anfang Februar wieder grün. Betroffen
   ist die Prüfung, nicht die Demo. **Bekannter Fehler, behoben mit v3.13.**
+- **Oberflächentests gegen die Beispieldaten** (Browser-Render, Sichten): Sie rechnen mit der echten Uhr und
+  kippen ab Ende Dezember 2026, weil die Beispieldaten älter werden. Betroffen sind die Tests, nicht die App.
+  **Behoben mit v3.13** über mitwachsende Beispieldaten.
 
 **v3.13.0 ist für Dienstag, 17. November 2026 geplant.** Schwerpunkte: die Prognose für Wärmepumpe, PV, Batterie
 und E-Auto, einheitliche Begriffe in den Übersetzungen und Längengrenzen für Freitext.
@@ -649,8 +652,7 @@ UID siehe oben.
   gerechnet), `ScenarioPvTest` (Spanne und Viertelstunden), `BillingWindowTest`; ein Vergleich alt gegen neu hält
   Prognose und Saldo byte-gleich.
 - **Stichtag:** `StichtagReadingsTest`; die ganze Runde läuft lokal unter verstellter Uhr (+3 bis +365 Tage,
-  29. Februar, Silvester, Zeitumstellung) mit `zeitreise.sh`. In der CI laufen Browser-Render und Sichten an einem
-  festen Tag passend zu den Beispieldaten (libfaketime für Server, Node und Browser, `RenderClockTest`).
+  29. Februar, Silvester, Zeitumstellung) mit libfaketime.
 - **Rechte, Briefe, Posteingang:** `LetterContractTest`, `LetterDataTest`, `LetterShowcaseTest`,
   `McpLetterDocumentsTest`, `McpFindingMaskTest`, `HomeAssistantNotifyForeignTextTest`, `RightsBillChecksTest`
   (Zugang, Weichzone, Grenzen des Messentgelts), `InboxEvidenceBoundaryTest`, `InboxBillRightsTest`,
@@ -662,7 +664,7 @@ UID siehe oben.
   den Hauptrouten), `setup-guide` mit `build-setup-guide --check`, `demo-start`, `router` (Neuladen nach einem
   Update); `CatalogStyleTest::testNoDashAsConnector`, `ShellFooterTest`, `ReadmeClaimsTest` (jede Zahl im README
   an einem Test).
-- 2.667 Testmethoden (+579). Jede neue Regel hat eine Gegenprobe, die sie bricht: 1.416 in 33 Dateien, alle rot;
+- 2.665 Testmethoden (+577). Jede neue Regel hat eine Gegenprobe, die sie bricht: 1.416 in 33 Dateien, alle rot;
   die 419 aus v3.11 bleiben rot.
 
 ### Lessons Learned

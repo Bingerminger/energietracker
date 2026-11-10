@@ -14,9 +14,9 @@ nie von allein. Er ist ein Hinweis, keine Rechtsberatung.
    Kategorie **Rechte** stehen in ihrer Dringlichkeit vorn, der Filter „Rechte“
    zeigt nur sie. An der Karte steht **„Brief entwerfen“**. „Zu tun“ auf der
    Übersicht führt direkt zu diesem Hinweis.
-2. **Beim Prüfen einer Rechnung:** 💶 Kosten & Verträge → **Rechnung prüfen**
+2. **Beim Prüfen einer Rechnung:** Kosten & Verträge → **Rechnung prüfen**
    (ab der Stufe „Erfahren“), bei der gewählten Rechnung unter „Vergleichen“.
-3. **An der Vertragskarte:** 💶 Kosten & Verträge → **Verträge & Abschläge** →
+3. **An der Vertragskarte:** Kosten & Verträge → **Verträge & Abschläge** →
    **Verträge verwalten** bei der Verbrauchsart → **„Brief schreiben“**. Hier gibt
    es Briefe auch ohne Hinweis, siehe [Abschnitt 2](#2-briefe-an-der-vertragskarte-v3120).
 

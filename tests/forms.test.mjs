@@ -155,7 +155,9 @@ const settingsSrc = readdirSync(resolve(JS, 'views')).filter(f => /^settings.*\.
 const url = (settingsSrc.match(/const SUPPORT_URL = '([^']+)'/) || [])[1];
 for (const [lang, ans, fun] of [['de', 'docs/referenz/ansichten.md', 'docs/einstieg/funktionen.md'], ['en', 'docs/en/referenz/ansichten.md', 'docs/en/einstieg/funktionen.md']]) {
   const a = read(ans), f = read(fun);
-  t(`${lang}: Ansichten nennen Abzeichen „A" und die wirksame Darstellung`, /\*\*[„“"]A[“"”]\*\*/.test(a) && a.includes('☀️') && a.includes('🌙'));
+  // die Doku nennt die Grafiken (Sonne, Mond) als Wort, seit v3.12.0 ohne Emoji (DocsNoEmojiTest)
+  const [sun, moon] = lang === 'de' ? [/Sonne\s+für\s+hell/, /Mond\s+für\s+dunkel/] : [/sun\s+for\s+light/, /moon\s+for\s+dark/];
+  t(`${lang}: Ansichten nennen Abzeichen „A" und die wirksame Darstellung`, /\*\*[„“"]A[“"”]\*\*/.test(a) && sun.test(a) && moon.test(a));
   t(`${lang}: Funktionen nennen den Kreislauf mit „A"`, /[„“"]A[“"”]/.test(f));
   t(`${lang}: Unterstützen-Link wie in der App`, !!url && a.includes(url.replace(/^https:\/\//, '')));
 }

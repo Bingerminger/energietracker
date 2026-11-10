@@ -138,7 +138,7 @@ sign-in is on, the push needs a **token** (step 1) and the sensors a **read
 key** (step 5).
 
 **Moving from a Docker installation.** In the old installation, download the
-JSON backup under Settings → Data and backup → 💾 Backup & restore and import it in the
+JSON backup under Settings → Data and backup → Backup & restore and import it in the
 app at the same place (up to 256 MB through Ingress; the app streams uploads).
 Persons, token and keys are not part of the backup: create the token and read
 key again in the app and change the address in the `rest_command` and the
@@ -800,8 +800,16 @@ same endpoints as the templates above (`/api/summary` and `/api/todo`) and needs
 (the attributes for the expected and the measured balance, “due soon” and the next appointment from 3.10.0) and
 Home Assistant 2026.3 or later.
 
-**Install:** HACS → menu **⋮ → Custom repositories** → `https://github.com/Bingerminger/energietracker-hacs`,
-type **Integration** → download **Energietracker** → restart Home Assistant. Then **Settings → Devices &
+**Install:** as the custom repository `https://github.com/Bingerminger/energietracker-integration`, type
+**Integration**, until the integration is in the HACS default list.
+
+- **From Home Assistant 2026.11,** HACS is built in as the **Marketplace**. Connect the Marketplace to GitHub
+  once (it shows a code for `https://github.com/login/device`; the connection only reads public information),
+  then add the repository → download **Energietracker** → restart Home Assistant.
+- **Up to 2026.10** with HACS: menu **⋮ → Custom repositories** → add the repository → download
+  **Energietracker** → restart Home Assistant.
+
+Then **Settings → Devices &
 services → Add integration → Energietracker**: the address at which you open Energietracker and, only when
 sign-in is switched on, a read key (scope “Read”, as in step 5). For the app in Home Assistant, the address is
 shown under Connections → Home Assistant.
@@ -820,7 +828,7 @@ shown under Connections → Home Assistant.
 The integration asks every 15 minutes. A new meter appears after reloading the integration. When sign-in is
 switched on or the key is revoked, Home Assistant asks for a new key; when Energietracker is older than 3.9.0, a
 notice appears under Settings → Repairs. More in the
-[README of the integration](https://github.com/Bingerminger/energietracker-hacs#readme).
+[README of the integration](https://github.com/Bingerminger/energietracker-integration#readme).
 
 The templates from step 5 and the “To do” sensor stay valid, for instance for values the integration does not
 create (days to the cancellation date, PV figures).
@@ -1094,7 +1102,7 @@ Assistant sidebar), the following applies since v3.1.0. The
 | Symptom (HA log) | Cause & fix |
 |------------------|-------------|
 | `401` | Token set, but the header is missing/wrong. `!secret` only works as the **whole** value: `Authorization: !secret energietracker_auth`, with `"Bearer et_…"` in `secrets.yaml`. A `"Bearer !secret …"` sends the text literally. Otherwise regenerate the token. Since v2.6.0 also: sign-in switched on but no token generated yet. |
-| The value arrives but does not count | It is lower than the previous reading and therefore **marked as suspect** (since v2.6.0; response `"suspect": true`). The view of the utility shows a notice and the reading carries "CHECK" — confirm it (✅), correct it or record a meter swap. |
+| The value arrives but does not count | It is lower than the previous reading and therefore **marked as suspect** (since v2.6.0; response `"suspect": true`). The view of the utility shows a notice and the reading carries "CHECK" — confirm it (“Confirm reading” in the row), correct it or record a meter swap. |
 | `400 No meter found for "…"` | The alias/ID does not match the meter. Check the alias in the settings. |
 | `400 … works with deliveries` | Heating oil/pellets are not supported via ingest. |
 | `400 Reading … is not a number` | The HA sensor delivers `unknown`/`unavailable`. **Skip** the push then, never replace it with 0: condition `has_value(…)` as in step 4. `| float(0)` trades the visible error for a silent wrong booking. |

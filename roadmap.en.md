@@ -8,28 +8,7 @@ where each release stands. You can suggest your own ideas any time under
 *Auf Deutsch:* [roadmap.md](roadmap.md). For contributors: the [planning page](roadmap-planung.md) with
 every open item and the rules, earlier concepts in the [archive](roadmap-archiv.md) (both in German).
 
-**As of:** 10 Nov 2026 · **Current version:** v3.11.0
-
----
-
-## Being released: v3.12.0 — Energietracker for your AI
-
-Finished and checked, out in the next few days.
-
-- **Connect an AI:** an AI assistant connects to your Energietracker via MCP and reads the overview,
-  deadlines, contracts, consumption, forecast and “Check bill”, every figure with its origin (measured,
-  distributed, estimated). Templates for monthly and yearly reports, bill checks and deadlines come with it.
-- **Propose instead of write:** an AI enters nothing by itself. It proposes a reading or taking over a
-  document, you confirm, and the history shows which key it came through.
-- **Off by default, home network only:** one key per assistant, identifiers and originals only with a switch,
-  every access in the log.
-- **Home Assistant via HACS:** the integration with its own sensors, as a custom repository and with a request
-  for the default list.
-- **New interface ([#59](https://github.com/Bingerminger/energietracker/issues/59)):** a menu in two areas
-  (everyday, setup), settings by topic with a search, our own graphics instead of emoji, a fixed grid. No feature
-  goes away, old addresses keep working.
-- **Balance of meter groups ([#58](https://github.com/Bingerminger/energietracker/issues/58)):** fix for groups
-  whose meters were not read on the same day.
+**As of:** 10 Nov 2026 · **Current version:** v3.12.0
 
 ---
 
@@ -78,6 +57,7 @@ done and tested, usually after one to three weeks.
 
 | Version | Date | Theme |
 |---|---|---|
+| v3.12.0 | 10 Nov 2026 | Energietracker for your AI: MCP with the origin of every figure, proposals instead of writes, the HACS integration, a new interface, the balance of meter groups (#58) |
 | v3.11.0 | 4 Nov 2026 | Your rights as a customer: seven checks with a source, five letters, price changes in the inbox, contradicting contracts |
 | v3.10.1 | 3 Nov 2026 | Security fixes in the Docker image |
 | v3.10.0 | 3 Nov 2026 | Promised and secured: the balance in one piece, the promises from #36, #38, #40, #41 and #49, a slimmer signed image |

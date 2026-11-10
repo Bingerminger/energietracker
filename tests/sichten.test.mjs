@@ -20,6 +20,8 @@ import { fileURLToPath } from 'node:url';
 const require = createRequire(import.meta.url);
 const pw = require('playwright');
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+/** Text eines HTML-Schnipsels für den Vergleich: Tags entfernen, bis keiner mehr übrig ist */
+const ohneTags = (html) => { let p; do { p = html; html = html.replace(/<[^>]*>/g, ''); } while (html !== p); return html; };
 let pass = 0, fail = 0;
 const ok = (name, cond, detail = '') => {
   if (cond) { pass++; return; }
@@ -181,7 +183,7 @@ try {
     ok('Trend: dieselben Kalendertage, Nachtrag #36', /title="[^"]*denselben Kalendertagen/.test(faelle.kalender) && /aria-label="[^"]*denselben Kalendertagen/.test(faelle.kalender) && /zum Vorjahr/.test(faelle.kalender));
     ok('Zu tun führt in die Sicht der Sache', faelle.zuPruefen === '#/utility/gas?meter=x&view=readings' && faelle.doppelt === '#/utility/gas?meter=x&view=readings' && faelle.heiz === '#/utility/gas?meter=x&view=balance', JSON.stringify([faelle.zuPruefen, faelle.doppelt, faelle.heiz]));
     ok('Heizgrenze: Salden im Satz in Farbe, Wortlaut gleich', /ton-ok/.test(faelle.wirkung) && /ton-fehler/.test(faelle.wirkung)
-      && faelle.wirkung.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, '\u00a0') === faelle.wirkungText, faelle.wirkung);
+      && ohneTags(faelle.wirkung).replace(/&nbsp;/g, '\u00a0') === faelle.wirkungText, faelle.wirkung);
     ok('Auszug „Zu tun“: eine Rechte-Frist fällt nie heraus, auch hinter vier überfälligen Terminen', JSON.stringify(faelle.auszug.voll) === '["reminder","reminder","reminder","rights"]', JSON.stringify(faelle.auszug.voll));
     ok('Auszug „Zu tun“: Überfälliges, dann Rechte, dann der Rest', JSON.stringify(faelle.auszug.zwei) === '["reminder","reminder","rights","reading_due"]', JSON.stringify(faelle.auszug.zwei));
     ok('Kachel: keine Seitenfehler', errs.length === 0, errs.join(' | '));

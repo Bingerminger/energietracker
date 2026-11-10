@@ -34,7 +34,7 @@ Two ways bring the sessions in: the **CSV file** from evcc — always works — 
 
 ## 2. Set up the wallbox meter
 
-**Consumption → Electricity → ⚙️ Meters → “+ New meter”**, as for the
+**Consumption → Electricity → Meters → “+ New meter”**, as for the
 [charging record](ladestrom-nachweis.md):
 
 1. **Name**, e.g. “Wallbox”.

@@ -54,7 +54,7 @@ ihren Anteil sauber heraushalten.
 
 1. Hauptzähler `strom` anlegen: *„Hausanschluss WG"*.
 2. Zweiten Zähler `strom` anlegen: *„Arbeitszimmer (Server)"*.
-3. Beim zweiten Zähler unter **⚙️ Zähler → Bearbeiten** den **Elternzähler** auf
+3. Beim zweiten Zähler unter **Haushalt → Zähler → Bearbeiten** den **Elternzähler** auf
    *„Hausanschluss WG"* setzen → er wird zum **Subzähler**.
 
 **Was passiert.** Der Hausanschluss misst den Server mit. Der Subzähler zählt
@@ -62,8 +62,8 @@ deshalb nicht zusätzlich in die Summe, er schlüsselt nur auf:
 
 <!-- doc-claim: shared-meters-example (SubmeterRestDocsTest) -->
 ```text
-⚡ Hausanschluss WG ........ 612 kWh   (gemessen, mit Server)
-   ↳ Arbeitszimmer (Server)  188 kWh   (Aufschlüsselung)
+Hausanschluss WG .......... 612 kWh   (gemessen, mit Server)
+  ↳ Arbeitszimmer (Server)  188 kWh   (Aufschlüsselung)
 Strom-Gesamtsumme ......... 612 kWh
 ```
 
@@ -204,7 +204,7 @@ spätere Nebenkostenabrechnung vorbereiten.
    plus `wasser` *„Allgemein/Garten"*.
 2. Verträge je Zähler pflegen (jede Wohnung hat ihren eigenen Liefervertrag).
 3. Hat eine Einheit mehrere Zähler **derselben Art** (etwa HT/NT oder eine
-   Wallbox), fasst eine **Gruppe** sie zusammen (⚙️ Zähler → „Zu Gruppe
+   Wallbox), fasst eine **Gruppe** sie zusammen (Haushalt → Zähler → „Zu Gruppe
    zusammenfassen“). Gruppen gelten je Verbrauchsart — Strom und Wasser einer
    Wohnung lassen sich nicht zu einer Gruppe bündeln. Seit v3.1.0 kann ein
    Vertrag der ganzen Gruppe gehören, etwa ein HT/NT-Vertrag mit einem

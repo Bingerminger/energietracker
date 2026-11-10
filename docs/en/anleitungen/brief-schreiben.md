@@ -14,9 +14,9 @@ button, never on its own. It is a note, not legal advice.
    category **Rights** come first within their urgency, the filter “Rights” shows
    only them. The card has **“Draft a letter”**. “To do” on the overview leads
    straight to that note.
-2. **While checking a bill:** 💶 Costs & contracts → **Check a bill** (from the
+2. **While checking a bill:** Costs & contracts → **Check a bill** (from the
    level “Experienced”), for the selected bill under “Compare”.
-3. **On the contract card:** 💶 Costs & contracts → **Contracts & payments** →
+3. **On the contract card:** Costs & contracts → **Contracts & payments** →
    **Manage contracts** for the utility → **“Write a letter”**. Here you get
    letters without a note too, see [section 2](#2-letters-on-the-contract-card-v3120).
 

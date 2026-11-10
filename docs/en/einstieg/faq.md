@@ -38,7 +38,7 @@ before going down to the cellar. Details and limits:
 ### Does the app read the meter value from a photo?
 
 If you run your own text recognition service in the home network (Ollama,
-LM Studio), yes: “📷 Photo” on the card, then the app suggests the reading
+LM Studio), yes: “Photo” on the card, then the app suggests the reading
 (“Recognised: … – Use”); nothing is saved until you click. Without such a
 service the photo stays a receipt with the reading, and on the iPhone Live
 Text (“Scan Text” in the field) takes over the digits. The app deliberately
@@ -49,7 +49,7 @@ uses no cloud service —
 
 Yes: on the empty overview **"Try with sample data"**, later under Settings →
 Data and backup → "Load demo data". The app saves the current state first; the way back
-is Settings → Data and backup → Stored snapshots (↩️).
+is Settings → Data and backup → Stored snapshots, there **“Restore…”**.
 
 ### I rent my home — does the app help me?
 
@@ -69,7 +69,7 @@ service charge statement and not legal advice. Step by step:
 
 ### Can I take over old values from Excel?
 
-Yes, as CSV: readings per meter through **⚙️ Meters → CSV import** — date
+Yes, as CSV: readings per meter through **Household → Meters → CSV import** — date
 (`DD.MM.YYYY`, `DD/MM/YYYY`, `DD-MM-YYYY` or `YYYY-MM-DD`) and reading,
 separated by semicolon or comma, note and "estimated" optional. Column names
 may be in any language of the app. A preview shows every row before anything
@@ -169,7 +169,7 @@ system ([Electricity → Dynamic tariffs](../verstehen/02-strom.md#dynamic-tarif
 ### I have a meter with peak and off-peak — how do I enter that?
 
 Since v3.1.0 like this: create both registers as meters of their own, combine
-them into a group (⚙️ Meters → "Group meters") and create **one** contract for
+them into a group (Household → Meters → "Group meters") and create **one** contract for
 the group — with one standing charge and, under “Unit price per meter (e.g.
 peak/off-peak)”, the price per register. Balance, forecast and switch then
 calculate for both together
@@ -221,7 +221,7 @@ the app therefore excludes heat pump and wall box.
 
 ### Can I take over values from my grid operator’s portal?
 
-Yes, as a file: **⚙️ Meters → “Import time series”** reads quarter-hour,
+Yes, as a file: **Household → Meters → “Import time series”** reads quarter-hour,
 hourly or daily values from the portals of grid operators, metering operators,
 inverters or heat pumps. You say which column holds date and value, whether
 they are meter readings or consumption values and in which unit; the app

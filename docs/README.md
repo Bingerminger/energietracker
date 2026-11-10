@@ -6,22 +6,27 @@
 > vorhast. Deutsch ist die maßgebliche Fassung, Englisch der vollständige
 > Spiegel; die übrigen Oberflächensprachen haben die Hilfe in der App.
 >
-> **Neu hier?** → [Erste Schritte](einstieg/erste-schritte.md) — ein
+> **Neu hier?** → [Erste Schritte](einstieg/erste-schritte.md): ein
 > durchgehendes Beispiel von der Installation bis zur ersten Prognose.
 
-Energietracker ist eine selbst betriebene Web-App für den Energie- und
-Wasserverbrauch eines Haushalts: neun Verbrauchsarten, Verträge und
-Abrechnung, Wetterbereinigung, Prognose und Wechselentscheidung — ohne
-Datenbank, alles als JSON-Dateien auf dem eigenen Server. Nach außen spricht sie
-nur mit Open-Meteo (Wetterdaten), auf Knopfdruck mit SMARD (Börsenstrompreise)
-— und, wenn du sie einträgst, mit deinem eigenen Texterkennungsdienst und mit
-evcc im Heimnetz. Das Auslesen im Posteingang über einen Cloud-Dienst (Claude
-unter `api.anthropic.com`, OpenAI, Mistral, OpenRouter, Google Gemini oder eine
-eigene OpenAI-kompatible Adresse; experimentell) geht nur mit einem Opt-in.
+**Was der Energietracker ist:**
+
+- **Eine selbst betriebene Web-App** für den Energie- und Wasserverbrauch
+  eines Haushalts.
+- **Neun Verbrauchsarten** mit Verträgen und Abrechnung, Wetterbereinigung,
+  Prognose und Wechselentscheidung.
+- **Ohne Datenbank:** Alles liegt als JSON-Dateien auf deinem eigenen Server.
+- **Nach außen nur Open-Meteo** für die Wetterdaten, auf Knopfdruck SMARD für
+  die Börsenstrompreise. Trägst du sie ein, dazu dein eigener
+  Texterkennungsdienst und evcc im Heimnetz.
+- **Cloud nur mit Opt-in:** Das Auslesen im Posteingang über einen
+  Cloud-Dienst ist experimentell (Claude unter `api.anthropic.com`, OpenAI,
+  Mistral, OpenRouter, Google Gemini oder eine eigene OpenAI-kompatible
+  Adresse).
 
 ---
 
-## 🚀 Einstieg — *loslegen*
+## Einstieg: *loslegen*
 
 | Dokument | Inhalt |
 |---|---|
@@ -32,7 +37,7 @@ eigene OpenAI-kompatible Adresse; experimentell) geht nur mit einem Opt-in.
 | [Fragen und Antworten](einstieg/faq.md) | Die häufigsten Fragen, kurz beantwortet |
 | [Auf dem Handy nutzen](einstieg/handy.md) | Im Heimnetz aufrufen, als App installieren, Foto als Beleg, Offline-Warteschlange |
 
-## 🧭 Anleitungen — *eine Aufgabe erledigen*
+## Anleitungen: *eine Aufgabe erledigen*
 
 | Dokument | Inhalt |
 |---|---|
@@ -57,7 +62,7 @@ eigene OpenAI-kompatible Adresse; experimentell) geht nur mit einem Opt-in.
 | [Flexibilität bewerten](anleitungen/flexibilitaet.md) | Wann Strom günstig ist und was Verschieben bringt: Ampel, „Dein Hebel“ je Gerät, Handlungssätze, Ergebniskarte als Bild, Seite im Jahresbericht (v3.6.0); dazu Profilfaktor und Vorteil je Stromzähler, Speicher, § 14a Modul 3 mit Zeitfenstern am Vertrag, Dynamik-Check mit eigenem Lastgang |
 | [Anwendungsfälle](anleitungen/anwendungsfaelle.md) | WG mit geteilten Zählern, Smart Home, PV-Haushalt mit Wärmepumpe, Vermieter, Wallbox und Dienstwagen, Fernwärme oder Heizwärme, Steuern mit evcc oder Home Assistant, *seit v3.9.0* Kaskade mit Wärmepumpe, HT/NT und PV |
 
-## 📚 Verstehen — *wie gerechnet wird*
+## Verstehen: *wie gerechnet wird*
 
 | Dokument | Inhalt |
 |---|---|
@@ -76,19 +81,19 @@ eigene OpenAI-kompatible Adresse; experimentell) geht nur mit einem Opt-in.
 | [Woher eine Zahl kommt](verstehen/18-herkunft.md) | *Neu in v3.12.0:* gemessen, eingetragen, verteilt, angenommen, geschätzt; das Zahl-Objekt der KI-Schnittstelle und das Vorzeichen beim Saldo |
 | [Glossar & Formelsammlung](verstehen/09-glossar.md) | Alle Begriffe und Formeln kompakt |
 
-## 📖 Referenz — *nachschlagen*
+## Referenz: *nachschlagen*
 
 | Dokument | Inhalt |
 |---|---|
 | [Ansichten](referenz/ansichten.md) | Jede Ansicht erklärt, mit echten Screenshots |
-| [Was kann ich auf welcher Stufe?](referenz/stufen.md) | *Neu in v3.7.0:* jede Funktion mit 🌱 Einsteiger · 🌿 Erfahren · 🌳 Experte, nach Aufgaben geordnet; welche Stufe zu deinem Haushalt passt (von einem Test gegen den Code geprüft) |
+| [Was kann ich auf welcher Stufe?](referenz/stufen.md) | *Neu in v3.7.0:* jede Funktion mit Einsteiger · Erfahren · Experte, nach Aufgaben geordnet; welche Stufe zu deinem Haushalt passt (von einem Test gegen den Code geprüft) |
 | [Einstellungen](referenz/einstellungen.md) | Jeder Schlüssel mit Standardwert, Ort in der Oberfläche und Wirkung |
 | [API-Referenz](referenz/api.md) | Alle Routen mit Statuscodes und Stabilitätszusage (von einem Test gegen den Code geprüft) |
 | [API-Beispiele](referenz/api-beispiele.md) | Ausführliche Anfragen und Antworten der meistgenutzten Endpunkte |
 | [Datenmodell](referenz/datenmodell.md) | JSON-Schemata, Speicherung, Schema-Migration |
 | [Rechtsgrundlagen](referenz/rechtsgrundlagen.md) | *Neu in v3.11.0:* jede Rechtsaussage der App mit Norm, Quelle, Stand und Status, dazu Fristen und Preisobergrenzen im Messstellenbetrieb (von einem Test gegen den Code geprüft) |
 
-## 🛠️ Betrieb — *installieren und am Laufen halten*
+## Betrieb: *installieren und am Laufen halten*
 
 | Dokument | Inhalt |
 |---|---|
@@ -98,7 +103,7 @@ eigene OpenAI-kompatible Adresse; experimentell) geht nur mit einem Opt-in.
 | [Sicherheit & Netzbetrieb](betrieb/sicherheit.md) | Anmeldung, API-Schlüssel, Proxy, HTTPS, Checkliste vor der Freigabe |
 | [Fehlersuche](betrieb/fehlersuche.md) | Symptom → Ursache → Lösung |
 
-## 🧑‍💻 Entwicklung — *am Code arbeiten*
+## Entwicklung: *am Code arbeiten*
 
 | Dokument | Inhalt |
 |---|---|
@@ -131,3 +136,5 @@ Planung: [roadmap.md](../roadmap.md)
   Sprachen gleich — eine Seite und ihr Spiegel liegen am selben relativen Ort.
 - Ein Test prüft jeden Link und Anker, den englischen Spiegel jeder Seite und
   dass dieser Index jede Seite führt.
+- **Keine Emoji:** Knöpfe, Menüs und Karten stehen mit ihrer Beschriftung da,
+  Zustände als Wort. Außerhalb von Codeblöcken prüft das ein Test.

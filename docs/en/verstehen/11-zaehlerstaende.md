@@ -37,7 +37,7 @@ Per meter, the card contains:
 - **Estimated** — a toggle that marks the reading as an estimate (maps to the
   existing `is_estimated` flag of the reading schema)
 - **Note** — expandable on click, optional, max. 200 characters
-- **Photo** (v3.1.0) — “📷 Photo” takes a picture of the register along as a
+- **Photo** (v3.1.0) — “Photo” takes a picture of the register along as a
   receipt (on a phone the camera opens). The browser scales it down to at most
   1600 pixels and re-encodes it as JPEG; EXIF data including the GPS location
   are dropped along the way. If a text recognition service in the home network
@@ -86,7 +86,7 @@ second click validates against the new baseline.
 
 **Without a connection (v3.1.0):** if a card fails for lack of a connection or
 on the time limit, the reading — photo included — goes into the offline queue
-instead of being lost. The card shows ⏳ “Waiting for a connection”, the list
+instead of being lost. The card shows “Waiting for a connection” with an hourglass, the list
 “Not saved yet” appears at the top, and the app sends it by itself as soon as
 the server can be reached again. Conflicts on the same day are yours to decide
 (“Replace” or “Keep existing”). Details and limits:
@@ -157,7 +157,7 @@ Home Assistant as well):
 
 The utility view shows all cases in a notice above the year selection, the table
 marks the readings ("CHECK", "IMPLAUSIBLE"); a suspect reading can be confirmed
-with ✅. Technical details:
+with **“Confirm reading”** in the row. Technical details:
 [API reference → `warnings`](../referenz/api.md).
 
 ### A reading that is too low or too high *(v3.9.0)*
@@ -177,7 +177,7 @@ the buttons: [Settling notices](../anleitungen/hinweise-erledigen.md#11-check-a-
 Meter entry is built for single readings. If a portal delivers many values at
 once — quarter hours from the grid operator, daily values from the inverter,
 the heat output of the heat pump —, the button **“Import time series”** under
-Consumption → *utility* → ⚙️ Meters reads them:
+Consumption → *utility* → Meters reads them:
 
 - A **column mapping** says where date, time and value are, whether the values
   are meter readings or consumption per interval, in which unit (kWh, Wh, MWh)

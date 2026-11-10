@@ -177,7 +177,7 @@ Einzelzähler weiterhin sichtbar bleiben.
 
 ### Zu Gruppe zusammenfassen
 
-Am schnellsten geht das Bündeln über **Verbrauch → *Verbrauchsart* → ⚙️ Zähler →
+Am schnellsten geht das Bündeln über **Verbrauch → *Verbrauchsart* → Zähler →
 „Zu Gruppe zusammenfassen"**: mehrere bestehende Zähler auswählen, Gruppenname
 vergeben, fertig. Im Hintergrund setzt der Dialog `meter_group_id` bei allen
 gewählten Zählern (`POST …/meter-groups/merge`; bis v2.11 hieß er

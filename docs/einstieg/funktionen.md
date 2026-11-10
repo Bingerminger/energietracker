@@ -329,7 +329,7 @@ unter [Grundlagen & Methodik](../verstehen/00-overview.md); welcher Weg zu dir p
   CO₂-Faktor, Gaseinheiten und die Begriffe der Rechnung des Landes — siehe
   [Länderprofile](../verstehen/14-laenderprofile.md).
 - **Hell, dunkel oder wie das System** — ein Knopf schaltet im Kreis; das
-  Symbol zeigt, was gilt (☀️/🌙), ein kleines „A“ sagt, dass die App dem System
+  Symbol zeigt, was gilt (Sonne für hell, Mond für dunkel), ein kleines „A“ sagt, dass die App dem System
   folgt (v3.4.0).
 - **Nutzungsstufen** (v3.2.0): Einsteiger, Erfahren oder Experte — die Stufe
   bestimmt, was die Oberfläche zeigt, gerechnet wird in jeder alles. Für

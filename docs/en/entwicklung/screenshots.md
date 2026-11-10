@@ -178,8 +178,8 @@ checks this).
 
 | File | Template | Size | Language |
 |---|---|---|---|
-| `banner.png` | `promo.html` | 1720 × 860 | English, in the README with `width="860"` |
-| `banner.de.png` | `promo.html?lang=de` | 1720 × 860 | German, in README.de.md |
+| `banner.png` | `promo.html` | 1720 × 860 | English, for posts (not in the README since v3.12.0) |
+| `banner.de.png` | `promo.html?lang=de` | 1720 × 860 | German, for posts (not in the README since v3.12.0) |
 | `social-preview.png` | `social-preview.html` | 1280 × 640 | English |
 
 1. **Serve statically** so that the relative paths (screenshots, font from

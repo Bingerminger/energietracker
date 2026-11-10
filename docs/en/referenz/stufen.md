@@ -4,8 +4,8 @@
 
 [← Compendium index](../README.md)
 
-The experience level decides what the interface shows: **🌱 Beginner**,
-**🌿 Experienced** or **🌳 Expert**. This page says what you can do at each
+The experience level decides what the interface shows: **Beginner**,
+**Experienced** or **Expert**. This page says what you can do at each
 level and helps you choose. How to switch and who has which level is in
 [Setup and experience levels](../einstieg/einrichtung.md#3-experience-levels).
 
@@ -14,9 +14,9 @@ sentences decide:
 
 | Level | The sentence behind it |
 |---|---|
-| 🌱 Beginner | “I want to know what I use, what it costs and whether the advance payment is enough. The app should read the supplier’s mail for me.” |
-| 🌿 Experienced | “I want to compare and check.” |
-| 🌳 Expert | “I want to see and connect everything.” |
+| Beginner | “I want to know what I use, what it costs and whether the advance payment is enough. The app should read the supplier’s mail for me.” |
+| Experienced | “I want to compare and check.” |
+| Expert | “I want to see and connect everything.” |
 
 The **household** decides which pages you need, not the level. Anyone with PV,
 a battery, a heat pump or a wallbox sees their pages as a beginner too, just
@@ -39,27 +39,27 @@ rented flat with electricity, but not more expertise.
 
 ## 1. Which level suits me?
 
-**Tenant, electricity only.** 🌱 Beginner is enough. The overview answers
+**Tenant, electricity only.** The “Beginner” level is enough. The overview answers
 “Will I get money back?”, “More or less than last year?” and “What needs
 doing?”. She enters the reading under Meter readings and drops the annual bill
 and a price change into the inbox. With the forecast workshop she plays
 through what a cold winter or another tariff costs. To recalculate the annual
-bill or check a switch, she moves to 🌿 Experienced.
+bill or check a switch, she moves to “Experienced”.
 
-**Flat with district heating.** 🌱 Beginner is enough for everyday use. Since
+**Flat with district heating.** “Beginner” is enough for everyday use. Since
 v3.7.0 the contract shows the capacity charge, the metering charge and the
 connected load there already; they are on every district heating bill. The
 consumption view explains with “Colder, or used more?” whether the winter
-or your own heating makes the difference. 🌿 Experienced is worth it for
+or your own heating makes the difference. “Experienced” is worth it for
 “Check a bill” and the monthly table with weather-adjusted values.
 
-**House with gas, PV and a wallbox.** 🌱 Beginner shows all utilities, the PV
+**House with gas, PV and a wallbox.** “Beginner” shows all utilities, the PV
 with the explainer “Energy flow in the house”, the wallbox as a meter of its
 own and, on the Flexibility page, the result with “Your lever”. Because the
-household has PV and a wallbox, the app suggests 🌿 Experienced once (§ 3).
+household has PV and a wallbox, the app suggests “Experienced” once (§ 3).
 Experienced adds the energy flow per month, battery and payback, the charging
 record, charging sessions from evcc, “Tariff switch” for gas and electricity
-and the meter structure. This household needs 🌳 Expert only with quarter-hour
+and the meter structure. This household needs the “Expert” level only with quarter-hour
 values, for instance from Home Assistant or the grid operator’s portal: then
 Flexibility recalculates per meter.
 
@@ -73,7 +73,7 @@ too. A test checks every row with an anchor against the code.
 
 ### Enter
 
-| Feature | 🌱 | 🌿 | 🌳 | What for |
+| Feature | Beginner | Experienced | Expert | What for |
 |---|---|---|---|---|
 | <a id="level-readings-entry"></a>**Meter readings** — all meters in one go, photo as a receipt, queued when offline | ✓ | ✓ | ✓ | enter the reading; with text recognition set up, the photo suggests it |
 | <a id="level-contracts-overview"></a><a id="level-contracts"></a>**Contracts & payments** — supplier, term, unit price and standing charge, advance payment | ✓ | ✓ | ✓ | what it costs, whether the advance payment is enough |
@@ -85,14 +85,14 @@ too. A test checks every row with an anchor against the code.
 | <a id="level-el-contract-expert"></a>Contract: district heating key figures (CO₂, primary energy), prices per meter of a group, § 14a module 1 and module 3, credit notes from the direct marketer, “Import monthly prices”, counts per contract | – | – | ✓ | special cases of tariff and grid fee |
 | Reading: **“Only for the bill”** and **“Reading is correct”** in the edit dialog *(v3.9.0)* | ✓ | ✓ | ✓ | a reading the supplier billed with that skews the months |
 | Contract: **advance payments with a rhythm** (every 2 or 3 months, due dates from the bill) *(v3.9.0)* | ✓ | ✓ | ✓ | as the supplier collects them; balance and suggestion count per due date |
-| <a id="level-household"></a><a id="level-household-meters"></a>Household → **Meters** — all meters in one place: sub-meters, roles, devices and meter swaps, CSV import of readings; since v3.9.0 register (OBIS) and heating limit per meter | ✓ | ✓ | ✓ | manage the meters of a utility (link “⚙️ Meters” in the consumption view) |
+| <a id="level-household"></a><a id="level-household-meters"></a>Household → **Meters** — all meters in one place: sub-meters, roles, devices and meter swaps, CSV import of readings; since v3.9.0 register (OBIS) and heating limit per meter | ✓ | ✓ | ✓ | manage the meters of a utility (button “Meters” at the top of the consumption view) |
 | Assistant **“Set up metering concept”** — meters, registers, sub-meters and contracts from the layout *(v3.9.0)* | ✓ | ✓ | ✓ | through Household → Utilities and the setup assistant; the button on the meters page from Experienced |
 | <a id="level-el-meter-plant"></a>Meter: **PV system** (investment, commissioning, battery, plug-in solar), **heat pump electricity meter** | – | ✓ | ✓ | *from Experienced since v3.7.0:* the basis for payback and seasonal performance factor |
 | <a id="level-el-meter-expert"></a>Meter: meter group, baseline dates, “Import time series” | – | – | ✓ | group contract, calculating from a renovation, quarter hours from portals |
 
 ### Understand
 
-| Feature | 🌱 | 🌿 | 🌳 | What for |
+| Feature | Beginner | Experienced | Expert | What for |
 |---|---|---|---|---|
 | <a id="level-dashboard"></a>**Overview** | three answers | all key figures | all key figures | Money back? More than last year? What needs doing? When renting also “Does the prepayment cover it?” |
 | <a id="level-utility"></a>**Consumption per utility** — key figures, monthly trend, balance, explainers; tank and deliveries for heating oil and pellets | ✓ | ✓ | ✓ | PV, wallbox and heat pump have their page at every level too |
@@ -112,7 +112,7 @@ too. A test checks every row with an anchor against the code.
 
 ### Check and compare
 
-| Feature | 🌱 | 🌿 | 🌳 | What for |
+| Feature | Beginner | Experienced | Expert | What for |
 |---|---|---|---|---|
 | <a id="level-tariffs"></a>**Tariff switch** — offers, switch date, break-even | – | ✓ | ✓ | is another tariff worth it? The recommendations point beginners there too |
 | <a id="level-el-market"></a>Tariff switch: dynamic tariff and “Wholesale electricity prices” | – | – | ✓ | wholesale prices per quarter hour |
@@ -124,7 +124,7 @@ too. A test checks every row with an anchor against the code.
 
 ### Plan
 
-| Feature | 🌱 | 🌿 | 🌳 | What for |
+| Feature | Beginner | Experienced | Expert | What for |
 |---|---|---|---|---|
 | <a id="level-forecast"></a><a id="level-scenario-print"></a>**Forecast workshop** — winter, saving, tariff; print the result or save it as an image | ✓ | ✓ | ✓ | what if … |
 | <a id="level-el-ws-advanced"></a>Workshop: “More levers” — room temperature, base load, forecast model, measures, electric car, seasonal performance factor | – | ✓ | ✓ | electric car and heat pump *from Experienced since v3.7.0*, when the household has them |
@@ -137,7 +137,7 @@ too. A test checks every row with an anchor against the code.
 
 ### Mail from the supplier
 
-| Feature | 🌱 | 🌿 | 🌳 | What for |
+| Feature | Beginner | Experienced | Expert | What for |
 |---|---|---|---|---|
 | <a id="level-inbox"></a>**Inbox** — drop a PDF, have it read, check every value against its source passage, apply it; enter by hand next to the document | ✓ | ✓ | ✓ | the app reads the supplier’s mail |
 | <a id="level-inbox-draft"></a>Draft from documents — set up the household from many documents at once *(v3.7.0)* | ✓ | ✓ | ✓ | first set-up without typing |
@@ -147,7 +147,7 @@ too. A test checks every row with an anchor against the code.
 
 ### Household and people
 
-| Feature | 🌱 | 🌿 | 🌳 | What for |
+| Feature | Beginner | Experienced | Expert | What for |
 |---|---|---|---|---|
 | <a id="level-reminders"></a>**To do → Dates** — with assignees, as a calendar subscription | ✓ | ✓ | ✓ | miss nothing |
 | <a id="level-activity"></a><a id="level-activity-ai"></a>**To do → History** — who did what and when; for admins the AI access *(from Beginner since v3.12.0)* | ✓ | ✓ | ✓ | look up and undo |
@@ -166,7 +166,7 @@ too. A test checks every row with an anchor against the code.
 
 ### Connect
 
-| Feature | 🌱 | 🌿 | 🌳 | What for |
+| Feature | Beginner | Experienced | Expert | What for |
 |---|---|---|---|---|
 | <a id="level-settings-data"></a>Settings → **Data and backup** — export, backup, restore, sample data; attachments from Expert | ✓ | ✓ | ✓ | your data is yours |
 | <a id="level-connections"></a>**Connections** — the list is there at every level, what lies above it opens with “Show more connections” *(v3.12.0)* | ✓ | ✓ | ✓ | what talks to the app |
@@ -189,9 +189,9 @@ The reason is shown below it.
 
 | Level | Reason | Suggestion | What it adds |
 |---|---|---|---|
-| 🌱 Beginner | PV system, battery, heat pump or wallbox | 🌿 Experienced | energy flow per month, battery and payback, seasonal performance factor, charging record, charging sessions from evcc |
-| 🌱 Beginner | sub-meters, several meters for one utility, values from Home Assistant | 🌿 Experienced | meter structure, integrations |
-| 🌿 Experienced | quarter-hour values | 🌳 Expert | recalculation per meter, battery and § 14a module 3 in Flexibility, quarter-hour series |
+| Beginner | PV system, battery, heat pump or wallbox | Experienced | energy flow per month, battery and payback, seasonal performance factor, charging record, charging sessions from evcc |
+| Beginner | sub-meters, several meters for one utility, values from Home Assistant | Experienced | meter structure, integrations |
+| Experienced | quarter-hour values | Expert | recalculation per meter, battery and § 14a module 3 in Flexibility, quarter-hour series |
 
 - **At most once per reason.** Once you have seen a reason, it does not come
   back on this device at this level — whether you switch, choose “Don’t ask

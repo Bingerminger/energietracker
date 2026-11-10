@@ -79,7 +79,7 @@ relative.
 
 ### Synology Web Station
 
-- **Web Station → Web service**: Apache 2.4 with a PHP profile from 8.2 (8.4
+- **Web Station → Web service**: Apache 2.4 with a PHP profile from 8.3 (8.4
   if offered); put the folder under `web/`. The `.htaccess` is honoured there.
 - The user `http` needs write permission on `data/` (File Station → Properties →
   Permission).

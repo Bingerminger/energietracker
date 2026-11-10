@@ -80,8 +80,8 @@ You find a note here:
 | Where | What you see |
 |---|---|
 | **Recommendations** | Card “Rights · …” with text, footer, where it fits the button “Draft a letter”, and the link “What the app checks” to this page |
-| **To do** (dashboard) | a line ⚖️ with the title; with a date “Deadline: …”. Ticking it off means done |
-| **Bill check** | under “Compare” the notes on this bill with footer and letter, in the list of bills “⚖️ 2 notes on your rights”; older notes too |
+| **To do** (dashboard) | a line with scales and the title; with a date “Deadline: …”. Ticking it off means done |
+| **Bill check** | under “Compare” the notes on this bill with footer and letter, in the list of bills “2 notes on your rights” with scales; older notes too |
 | **Inbox** | for a price change letter, the key statement with right to terminate, deadline and footer |
 | **Calendar** | notes with a date on the day of the deadline, with an advance reminder |
 | **Home Assistant** | as an item of the “To do” list, not as a warning |

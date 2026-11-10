@@ -43,7 +43,7 @@ swaps, sub-meters, metering concepts with heat pump and peak/off-peak, weather a
 tenancy and in-app help with a glossary and an ⓘ next to technical terms.
 → [All features](docs/en/einstieg/funktionen.md) · [All views with pictures](docs/en/referenz/ansichten.md)
 
-<p align="center"><img src="docs/ui/screenshots/en/gas-view.png" alt="Gas: balance, consumption and cost with trend and monthly chart" width="560"> <img src="docs/assets/promo/screens/iphone.en.png" alt="Overview on the iPhone" width="200"></p>
+<p align="center"><img src="docs/ui/screenshots/en/gas-view.png" alt="Gas: balance, consumption and cost with trend and monthly chart" width="560"> <picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/promo/screens/iphone-dunkel.en.png"><img src="docs/assets/promo/screens/iphone.en.png" alt="Overview on the iPhone" width="200"></picture></p>
 
 ## Quick start
 
@@ -60,8 +60,8 @@ your own data is not lost.
   Assistant ([step by step](docs/en/anleitungen/home-assistant.md#as-an-app-in-home-assistant-os)).
 
   [![Add the Energietracker app repository to Home Assistant](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2FBingerminger%2Fenergietracker-ha)
-- **Sensors in Home Assistant without YAML:** the integration through HACS,
-  [energietracker-hacs](https://github.com/Bingerminger/energietracker-hacs).
+- **Sensors in Home Assistant without YAML:** the integration through the Marketplace (Home Assistant 2026.11
+  or later) or HACS, [energietracker-integration](https://github.com/Bingerminger/energietracker-integration).
 - **Without Docker,** PHP 8.3 or later is enough: `git clone`, then `php -S 127.0.0.1:8080 router.php`.
 - **For permanent use:** [Installation](docs/en/betrieb/installation.md) ·
   [Docker, also on Synology](docs/en/betrieb/docker.md) · [Apache and nginx](docs/en/betrieb/webserver.md) ·

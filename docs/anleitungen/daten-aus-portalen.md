@@ -58,7 +58,7 @@ Dazu die Einheit: kWh, Wh oder MWh. Wasser- und Gaszähler zählen in m³.
 
 ## 3. Schritt für Schritt
 
-**Verbrauch → *Verbrauchsart* → ⚙️ Zähler**, beim gewünschten Zähler
+**Verbrauch → *Verbrauchsart* → Zähler**, beim gewünschten Zähler
 **„Zeitreihe importieren“** (bei allen Arten mit Zählerständen, nicht bei
 Heizöl und Pellets). Den Zähler legst du vorher an, mit der passenden Rolle und
 Erfassung.
