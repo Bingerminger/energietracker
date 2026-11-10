@@ -100,11 +100,14 @@ try {
   for (const theme of ['light', 'dark']) {
     const { ctx, page } = await open({ theme });
     await page.evaluate(CONTRAST);
+    const SALDO_SEL = '#view [data-saldo], #view .balance-col__value--credit, #view .balance-col__value--due, #view .contracts-table td.ton-ok, #view .contracts-table td.ton-fehler, #view .balance-verdict.refund .balance-verdict__value, #view .balance-verdict.surcharge .balance-verdict__value, #view .contract-overview__expected strong[class]';
     for (const r of ['/contracts', '/utility/gas', '/utility/strom', '/forecast']) {
       await go(page, r);
-      const res = await page.evaluate(() => {
+      // Kalter Server in der CI: Die erste Vertragsseite rechnet länger, als go() auf Ruhe im Netz wartet (8 s).
+      // Gewartet wird auf die Salden selbst; erscheinen sie nicht, schlägt die Prüfung unten weiter fehl.
+      if (r === '/contracts') await page.waitForFunction(sel => document.querySelectorAll(sel).length >= 4, SALDO_SEL, { timeout: 30000 }).catch(() => {});
+      const res = await page.evaluate((SEL) => {
         const out = { n: 0, bad: [] };
-        const SEL = '#view [data-saldo], #view .balance-col__value--credit, #view .balance-col__value--due, #view .contracts-table td.ton-ok, #view .contracts-table td.ton-fehler, #view .balance-verdict.refund .balance-verdict__value, #view .balance-verdict.surcharge .balance-verdict__value, #view .contract-overview__expected strong[class]';
         for (const el of document.querySelectorAll(SEL)) {
           if (!el.textContent.trim() || el.dataset.saldo === 'even') continue;
           const c = window.__rgba(getComputedStyle(el).color);
@@ -114,7 +117,7 @@ try {
           if (ratio < 4.5) out.bad.push(`${el.textContent.trim().slice(0, 24)} ${ratio.toFixed(2)}:1`);
         }
         return out;
-      });
+      }, SALDO_SEL);
       ok(`S1 ${r} (${theme}): Salden lesbar`, res.bad.length === 0, res.bad.join(', '));
       if (res.n) console.log(`  Kontrast Salden ${r} (${theme}): kleinster Wert ${res.min.toFixed(2)}:1 bei ${res.n} Stellen`);
       if (r === '/contracts') ok(`S1 ${r} (${theme}): Salden gefunden`, res.n >= 4, String(res.n));
