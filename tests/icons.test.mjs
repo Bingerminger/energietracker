@@ -77,7 +77,9 @@ const ERLAUBT = [
   ['public/js/lib/settings-index.js', /join\(' › '\)/],
 ];
 const benutzt = new Set();
-const stripLine = (l) => l.replace(/<!--.*?-->/g, '').replace(/(^|\s)\/\/.*$/, '$1');
+// HTML-Kommentare bis keiner mehr übrig ist (auch „--!>“ als Ende), dann Zeilenkommentar
+const stripComments = (l) => { let p; do { p = l; l = l.replace(/<!--[\s\S]*?--!?>/g, ''); } while (l !== p); return l; };
+const stripLine = (l) => stripComments(l).replace(/(^|\s)\/\/.*$/, '$1');
 const hits = [];
 for (const abs of [...walk(resolve(ROOT, 'public/js')).filter(x => x.endsWith('.js')), resolve(ROOT, 'index.php')]) {
   const rel = abs.slice(ROOT.length + 1);
