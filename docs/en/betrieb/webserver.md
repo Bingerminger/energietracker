@@ -5,7 +5,7 @@
 [← Compendium index](../README.md)
 
 The Docker image brings its own web server ([Docker](docker.md)). This page is
-for running on an existing web server with PHP 8.2 or newer (since v3.1.0;
+for running on an existing web server with PHP 8.3 or newer (since v3.12.0, before 8.2;
 8.4 recommended) — Apache (including Synology Web Station) or nginx. The rules
 are the same in both cases and come from the tested configuration of the image
 (`docker/nginx.conf`) and the shipped `.htaccess`:
@@ -39,7 +39,7 @@ second safeguard. Requirements:
 - `AllowOverride` at least `FileInfo` for the project directory,
 - the modules `mod_rewrite` (or alternatively `mod_alias`, since v3.4.0),
   `mod_headers` and `mod_setenvif`,
-- PHP 8.2 or newer (PHP-FPM or `mod_php`; tested up to 8.5).
+- PHP 8.3 or newer (PHP-FPM or `mod_php`; tested up to 8.5).
 
 A VirtualHost for it:
 

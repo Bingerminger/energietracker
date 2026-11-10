@@ -8853,7 +8853,7 @@
         "get2": "**Den Saldo:** Musst du nachzahlen, oder bekommst du etwas zurück?",
         "get3": "Prognose, Fristen und Hinweise zu deinen Verträgen.",
         "get4": "Rechnung prüfen und Jahresbericht.",
-        "software": "Den Energietracker, am einfachsten als Docker-Container, sonst auf einem NAS oder Webserver mit PHP ab 8.2. Dazu einen aktuellen Browser.",
+        "software": "Den Energietracker, am einfachsten als Docker-Container, sonst auf einem NAS oder Webserver mit PHP ab 8.3. Dazu einen aktuellen Browser.",
         "hardware": "**Einen Rechner oder ein NAS im Heimnetz.** Zum Eintragen reicht das Handy.",
         "effort": "**Einmal einrichten:** Die Anleitung „Erste Schritte“ rechnet mit rund 15 Minuten. Danach trägst du nur noch Stände ein, so oft du magst. Aus zwei Ständen entsteht der erste Verbrauch.",
         "step1": "Energietracker starten.",

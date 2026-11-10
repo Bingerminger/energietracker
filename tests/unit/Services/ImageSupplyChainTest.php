@@ -153,14 +153,14 @@ final class ImageSupplyChainTest extends TestCase
         self::assertMatchesRegularExpression("/cron: '\\d+ \\d+ \\* \\* \\d'/", self::file('.github/workflows/docker-rebuild.yml'), 'wöchentlich');
     }
 
-    /** PHPUnit bleibt bei 11, solange PHP 8.2 die Mindestversion ist (PHPUnit 12 verlangt 8.3). */
+    /** PHPUnit bleibt vorerst bei 11 (seit v3.12.0 ist PHP 8.3 die Mindestversion; 12 wäre möglich, 13 verlangt 8.4). */
     public function testDependabotKeepsPhpUnitOnItsMajorVersion(): void
     {
         $dep = self::file('.github/dependabot.yml');
         self::assertSame(1, preg_match('/package-ecosystem: "composer"\n(.*?)(?=\n  - package-ecosystem|\z)/s', $dep, $c));
         self::assertMatchesRegularExpression('/- dependency-name: "phpunit\/phpunit"\n\s+update-types: \["version-update:semver-major"\]/', $c[1]);
         $composer = json_decode(self::file('composer.json'), true);
-        self::assertSame('>=8.2', $composer['require']['php'] ?? null);
+        self::assertSame('>=8.3', $composer['require']['php'] ?? null);
         self::assertStringStartsWith('^11.', $composer['require-dev']['phpunit/phpunit'] ?? '');
         // dieselbe Version von docker/login-action überall (#50)
         $refs = [];

@@ -8853,7 +8853,7 @@
         "get2": "**Il saldo:** dovrai pagare un conguaglio o riavrai qualcosa?",
         "get3": "Previsione, scadenze e indicazioni sui tuoi contratti.",
         "get4": "Verifica delle bollette e rapporto annuale.",
-        "software": "Energietracker, nel modo più semplice come container Docker, altrimenti su un NAS o un server web con PHP 8.2 o successivo. Più un browser aggiornato.",
+        "software": "Energietracker, nel modo più semplice come container Docker, altrimenti su un NAS o un server web con PHP 8.3 o successivo. Più un browser aggiornato.",
         "hardware": "**Un computer o un NAS nella rete di casa.** Per inserire basta il telefono.",
         "effort": "**Si configura una volta:** la guida «Primi passi» calcola circa 15 minuti. Poi inserisci solo le letture, quando vuoi. Da due letture nasce il primo consumo.",
         "step1": "Avvia Energietracker.",

@@ -52,7 +52,7 @@ You read your meters and enter the readings, in a browser or on your phone.
 
 **What you need**
 
-- Software: The Energietracker, most easily as a Docker container, otherwise on a NAS or web server with PHP 8.2 or later. Plus an up-to-date browser.
+- Software: The Energietracker, most easily as a Docker container, otherwise on a NAS or web server with PHP 8.3 or later. Plus an up-to-date browser.
 - Hardware: **A computer or NAS on your home network.** A phone is enough for entering readings.
 
 **Effort:** **Set it up once:** the “First steps” guide allows about 15 minutes. After that you only enter readings, as often as you like. Two readings give the first consumption figure.

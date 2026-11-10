@@ -5150,7 +5150,8 @@ async function renderView(modPath, params = [], ctx = {}) {
     hint?.querySelector('[data-conflict-fix]')?.click();
     let end = null;
     for (let i = 0; i < 60 && end !== '2031-12-31'; i++) { await sleep(50); end = (await send('GET', `/utility/gas/contracts/${a.id}`)).data?.end; }
-    for (let i = 0; i < 40 && card()?.querySelector('[data-role="contract-conflict"]'); i++) await sleep(25);
+    // v3.12.0 — bis zu 6 s: Unter der festen Uhr der CI (libfaketime) zeichnet die Karte langsamer neu
+    for (let i = 0; i < 120 && card()?.querySelector('[data-role="contract-conflict"]'); i++) await sleep(50);
     t('ordnung: „Ende setzen“ übernimmt den Vortag des späteren Beginns, der Hinweis ist weg', end === '2031-12-31' && !!card()
       && !card().querySelector('[data-role="contract-conflict"]'), String(end));
     await send('DELETE', `/utility/gas/contracts/${b.id}`);

@@ -5,8 +5,8 @@
 [← Kompendium-Index](../README.md)
 
 Das Docker-Image bringt seinen Webserver mit ([Docker](docker.md)). Diese Seite
-ist für den Betrieb auf einem vorhandenen Webserver mit PHP 8.2 oder neuer
-(seit v3.1.0; empfohlen 8.4) — Apache (auch die Synology Web Station) oder
+ist für den Betrieb auf einem vorhandenen Webserver mit PHP 8.3 oder neuer
+(seit v3.12.0, vorher 8.2; empfohlen 8.4) — Apache (auch die Synology Web Station) oder
 nginx. Die Regeln sind in beiden Fällen dieselben und stammen aus der
 getesteten Konfiguration des Images (`docker/nginx.conf`) bzw. der
 mitgelieferten `.htaccess`:
@@ -40,7 +40,7 @@ die zweite Sicherung. Voraussetzungen:
 - `AllowOverride` mindestens `FileInfo` für das Projektverzeichnis,
 - die Module `mod_rewrite` (oder ersatzweise `mod_alias`, seit v3.4.0),
   `mod_headers` und `mod_setenvif`,
-- PHP 8.2 oder neuer (PHP-FPM oder `mod_php`; geprüft bis 8.5).
+- PHP 8.3 oder neuer (PHP-FPM oder `mod_php`; geprüft bis 8.5).
 
 Ein VirtualHost dafür:
 

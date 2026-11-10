@@ -7,7 +7,7 @@ request that an agent helped and what you checked yourself.
 
 ## The project in brief
 
-- **Backend:** PHP 8.2 or newer, no framework, no Composer packages at runtime
+- **Backend:** PHP 8.3 or newer, no framework, no Composer packages at runtime
   (PHPUnit is the only dev dependency). Data lives as JSON files in `data/`.
 - **Frontend:** vanilla ES modules in `public/js/`, no build step, no
   `package.json`. Seven interface languages in `public/locales/*.json`.

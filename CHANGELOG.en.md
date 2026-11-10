@@ -35,6 +35,10 @@ and the Docker environment only grow additively; where a status code or an addre
 
 ### ⚠️ For existing installations
 
+- **PHP 8.3 is now the minimum version** (was 8.2). This only affects running on your own web server; the
+  Docker image and the Home Assistant app bring their own PHP (8.5). PHP 8.2 only receives security updates
+  until the end of 2026. If you still run PHP 8.2, switch to 8.3 or newer before updating (Synology Web
+  Station: a profile with PHP 8.3 or 8.4).
 - **Reload open tabs once after the update.** A tab that stays open across the update does not know the new
   addresses. From the next update on, the app reloads itself once in that case.
 - **New interface, old ways lead on** ([#59]): “Reminders & tips” is now “To do”; Integrations, Weather data and

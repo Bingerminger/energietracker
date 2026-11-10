@@ -19,7 +19,7 @@ PHP-capable web server and a browser are enough.
 
 | Component | At least | Recommended | Purpose |
 |---|---|---|---|
-| PHP | 8.2 | 8.5 | backend runtime; CI tests 8.2 to 8.5, since v3.4.0 the Docker image ships 8.5 (minimum 8.2 since v3.1.0, before that 8.4) |
+| PHP | 8.3 | 8.5 | backend runtime; CI tests 8.3 to 8.5, since v3.4.0 the Docker image ships 8.5 (minimum 8.3 since v3.12.0, 8.2 from v3.1.0 to v3.11.0, before that 8.4) |
 | PHP extensions | `json`, `mbstring` *(optional)* | ditto | JSON store; `iconv` for PDF umlauts; `curl` for text recognition (v3.1.0) |
 | Web server | PHP built-in server | Apache/nginx | delivery |
 | Browser | a current Chromium/Firefox/Safari | ditto | SPA frontend (ES modules) |

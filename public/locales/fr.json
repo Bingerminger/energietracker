@@ -8853,7 +8853,7 @@
         "get2": "**Le solde :** devrez-vous payer un complément ou récupérer quelque chose ?",
         "get3": "Prévision, échéances et conseils sur vos contrats.",
         "get4": "Vérification des factures et rapport annuel.",
-        "software": "Energietracker, le plus simplement dans un conteneur Docker, sinon sur un NAS ou un serveur web avec PHP 8.2 ou plus récent. Plus un navigateur à jour.",
+        "software": "Energietracker, le plus simplement dans un conteneur Docker, sinon sur un NAS ou un serveur web avec PHP 8.3 ou plus récent. Plus un navigateur à jour.",
         "hardware": "**Un ordinateur ou un NAS sur le réseau domestique.** Le téléphone suffit pour la saisie.",
         "effort": "**Une seule installation :** le guide « Premiers pas » compte environ 15 minutes. Ensuite, vous ne saisissez que des relevés, aussi souvent que vous voulez. Deux relevés donnent la première consommation.",
         "step1": "Démarrer Energietracker.",

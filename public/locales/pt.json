@@ -8853,7 +8853,7 @@
         "get2": "**O saldo:** haverá um acerto a pagar ou algo a receber?",
         "get3": "Previsão, prazos e indicações sobre os contratos.",
         "get4": "Verificação de faturas e relatório anual.",
-        "software": "O Energietracker, da forma mais simples como contentor Docker, ou então num NAS ou servidor web com PHP 8.2 ou superior. Mais um navegador atualizado.",
+        "software": "O Energietracker, da forma mais simples como contentor Docker, ou então num NAS ou servidor web com PHP 8.3 ou superior. Mais um navegador atualizado.",
         "hardware": "**Um computador ou NAS na rede doméstica.** Para registar basta o telemóvel.",
         "effort": "**Configura-se uma vez:** o guia «Primeiros passos» conta com cerca de 15 minutos. Depois basta registar leituras, com a frequência desejada. Duas leituras dão o primeiro consumo.",
         "step1": "Iniciar o Energietracker.",

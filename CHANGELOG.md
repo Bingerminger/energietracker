@@ -36,6 +36,10 @@ bestehende Installationen“.
 
 ### ⚠️ Für bestehende Installationen
 
+- **PHP 8.3 ist jetzt die Mindestversion** (bisher 8.2). Betrifft nur den Betrieb auf einem eigenen Webserver;
+  Docker-Image und Home-Assistant-App bringen ihr PHP mit (8.5). PHP 8.2 bekommt nur noch Sicherheitsupdates
+  bis Ende 2026. Wer noch PHP 8.2 nutzt, stellt vor dem Update auf 8.3 oder neuer um (Synology Web Station:
+  Profil mit PHP 8.3 oder 8.4).
 - **Offene Tabs nach dem Update einmal neu laden.** Ein Tab, der über das Update offen bleibt, kennt die neuen
   Adressen nicht. Ab dem nächsten Update lädt die App in diesem Fall selbst einmal neu.
 - **Neue Oberfläche, alte Wege führen weiter** ([#59]): „Hinweise“ heißt jetzt „Zu tun“; Integrationen,

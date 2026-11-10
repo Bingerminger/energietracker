@@ -45,7 +45,7 @@ final class ContainerHardeningTest extends TestCase
         self::assertMatchesRegularExpression('/^FROM php:8\.5-fpm-alpine AS base$/m', $docker);
         self::assertStringContainsString('extension_loaded("Zend OPcache")', $docker, 'OPcache ist in 8.5 eingebaut: nur einschalten, wenn nicht geladen');
         $ci = self::file('.github/workflows/ci.yml');
-        self::assertSame(2, substr_count($ci, 'php: ["8.2", "8.3", "8.4", "8.5"]'), 'lint-php und phpunit prüfen 8.2 bis 8.5');
+        self::assertSame(2, substr_count($ci, 'php: ["8.3", "8.4", "8.5"]'), 'lint-php und phpunit prüfen 8.3 bis 8.5');
     }
 
     /** Das gehärtete Beispiel der Doku ist genau das, was die CI startet. */

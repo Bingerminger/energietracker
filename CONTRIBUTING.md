@@ -37,7 +37,7 @@ to know: running the tests, conventions, no user data, no third-party packages.
 
 ## Setting up
 
-PHP 8.2 or newer is enough to run it (the CI checks 8.2 to 8.5), without
+PHP 8.3 or newer is enough to run it (the CI checks 8.3 to 8.5), without
 Composer, without a build step:
 
 ```bash

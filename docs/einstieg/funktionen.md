@@ -350,7 +350,7 @@ unter [Grundlagen & Methodik](../verstehen/00-overview.md); welcher Weg zu dir p
 
 ## Betreiben
 
-- **Keine Datenbank, keine Laufzeit-Abhängigkeiten**: PHP ab 8.2 und flache
+- **Keine Datenbank, keine Laufzeit-Abhängigkeiten**: PHP ab 8.3 und flache
   JSON-Dateien; Chart.js und die Schriften liegen im Repository.
 - **Docker** (amd64 und arm64, mit PHP 8.5) oder jeder Webserver mit PHP —
   siehe [Installation](../betrieb/installation.md); Vorlagen für Synology,

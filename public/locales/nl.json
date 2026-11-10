@@ -8853,7 +8853,7 @@
         "get2": "**Het saldo:** moet je bijbetalen of krijg je iets terug?",
         "get3": "Prognose, termijnen en tips over je contracten.",
         "get4": "Factuurcontrole en jaarverslag.",
-        "software": "De Energietracker, het eenvoudigst als Docker-container, anders op een NAS of webserver met PHP 8.2 of nieuwer. Plus een actuele browser.",
+        "software": "De Energietracker, het eenvoudigst als Docker-container, anders op een NAS of webserver met PHP 8.3 of nieuwer. Plus een actuele browser.",
         "hardware": "**Een computer of NAS in je thuisnetwerk.** Voor het invoeren is een telefoon genoeg.",
         "effort": "**Eenmalig instellen:** de handleiding ‘Eerste stappen’ rekent op ongeveer 15 minuten. Daarna voer je alleen nog meterstanden in, zo vaak je wilt. Uit twee standen ontstaat het eerste verbruik.",
         "step1": "Start de Energietracker.",

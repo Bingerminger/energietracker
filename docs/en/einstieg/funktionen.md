@@ -352,7 +352,7 @@ The detailed feature overview. What the views look like is shown in the
 
 ## Run
 
-- **No database, no runtime dependencies**: PHP 8.2 or newer and plain JSON
+- **No database, no runtime dependencies**: PHP 8.3 or newer and plain JSON
   files; Chart.js and the fonts ship with the repository.
 - **Docker** (amd64 and arm64, with PHP 8.5) or any web server with PHP — see
   [Installation](../betrieb/installation.md); templates for Synology, Unraid,

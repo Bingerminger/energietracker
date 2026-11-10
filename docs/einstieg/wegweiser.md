@@ -52,7 +52,7 @@ Du liest ab und trägst ein, im Browser oder am Handy.
 
 **Was du brauchst**
 
-- Software: Den Energietracker, am einfachsten als Docker-Container, sonst auf einem NAS oder Webserver mit PHP ab 8.2. Dazu einen aktuellen Browser.
+- Software: Den Energietracker, am einfachsten als Docker-Container, sonst auf einem NAS oder Webserver mit PHP ab 8.3. Dazu einen aktuellen Browser.
 - Hardware: **Einen Rechner oder ein NAS im Heimnetz.** Zum Eintragen reicht das Handy.
 
 **Aufwand:** **Einmal einrichten:** Die Anleitung „Erste Schritte“ rechnet mit rund 15 Minuten. Danach trägst du nur noch Stände ein, so oft du magst. Aus zwei Ständen entsteht der erste Verbrauch.

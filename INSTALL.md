@@ -12,7 +12,7 @@
 
 ## Requirements
 
-- PHP ≥ 8.2 (since v3.1.0; CI tests 8.2 to 8.5, since v3.4.0 the Docker image
+- PHP ≥ 8.3 (since v3.12.0, 8.2 from v3.1.0 to v3.11.0; CI tests 8.3 to 8.5, since v3.4.0 the Docker image
   ships 8.5; the CLI is sufficient for development)
 - A web browser with ES modules (anything from mid-2020)
 - Optional: Apache, nginx, Caddy for production
